@@ -243,18 +243,33 @@ def save_cache(cache):
     os.replace(tmp, CACHE_FILE)
 
 
+CACHE_MAX_AGE = 86400  # 24 hours in seconds
+
+
 def fetch_locked_dolo(all_token_ids):
     """Fetch locked DOLO for all token IDs."""
     print(f"\n🔒 Phase 2: Fetching locked DOLO for {len(all_token_ids):,} tokens...")
 
     cache = load_cache()
-    cached_ids = {int(k) for k in cache.keys()}
-    missing = [tid for tid in all_token_ids if tid not in cached_ids]
-    print(f"  Cached: {len(all_token_ids) - len(missing):,}/{len(all_token_ids):,}")
-    print(f"  To fetch: {len(missing):,}")
+    now_ts = int(time.time())
 
-    if missing:
-        chunks = [missing[i:i+BATCH_SIZE] for i in range(0, len(missing), BATCH_SIZE)]
+    # Identify tokens that need fetching: not cached OR cached > 24h ago
+    missing = []
+    stale = []
+    for tid in all_token_ids:
+        entry = cache.get(str(tid))
+        if entry is None:
+            missing.append(tid)
+        elif now_ts - entry.get("fetched_at", 0) > CACHE_MAX_AGE:
+            stale.append(tid)
+
+    to_fetch = missing + stale
+    print(f"  Cached: {len(all_token_ids) - len(missing):,}/{len(all_token_ids):,}")
+    print(f"  New: {len(missing):,}  |  Stale (>24h): {len(stale):,}")
+    print(f"  To fetch: {len(to_fetch):,}")
+
+    if to_fetch:
+        chunks = [to_fetch[i:i+BATCH_SIZE] for i in range(0, len(to_fetch), BATCH_SIZE)]
         errors = 0
         done = 0
         chunk_idx = 0
@@ -266,6 +281,7 @@ def fetch_locked_dolo(all_token_ids):
                 futures = {executor.submit(make_batch_call, c): ci for ci, c in enumerate(window)}
                 for future in as_completed(futures):
                     for tid, data_item in future.result().items():
+                        data_item["fetched_at"] = now_ts
                         cache[str(tid)] = data_item
                         done += 1
                         if "error" in data_item:
@@ -273,15 +289,15 @@ def fetch_locked_dolo(all_token_ids):
 
             chunk_idx += len(window)
             if chunk_idx % 50 == 0 or chunk_idx >= len(chunks):
-                pct = (done / len(missing)) * 100
-                print(f"  Progress: {pct:.0f}% ({done:,}/{len(missing):,}) | Errors: {errors}")
+                pct = (done / len(to_fetch)) * 100
+                print(f"  Progress: {pct:.0f}% ({done:,}/{len(to_fetch):,}) | Errors: {errors}")
                 save_cache(cache)
             time.sleep(0.15)
 
         save_cache(cache)
-        print(f"  ✅ Done. Errors: {errors}/{len(missing):,}")
+        print(f"  ✅ Done. Errors: {errors}/{len(to_fetch):,}")
     else:
-        print("  ✅ All cached!")
+        print("  ✅ All cached & fresh!")
 
     return cache
 
