@@ -191,6 +191,52 @@ def merge_holders(eth_balances, bera_balances):
     return holders
 
 
+def detect_contracts(holders, max_check=200):
+    """Detect which top holders are contracts (not EOAs).
+    Uses individual eth_getCode calls (batch mode broken on some RPCs)."""
+    print(f"\n🔍 Detecting contracts in top {max_check} holders...")
+
+    RPC_URLS = [
+        ("eth", "https://eth.drpc.org/"),
+        ("bera", "https://berachain-rpc.publicnode.com/"),
+    ]
+
+    to_check = holders[:max_check]
+    contract_addrs = set()
+
+    for chain, rpc_url in RPC_URLS:
+        found = 0
+        for i, h in enumerate(to_check):
+            for retry in range(2):
+                try:
+                    resp = requests.post(rpc_url, json={
+                        "jsonrpc": "2.0", "method": "eth_getCode",
+                        "params": [h["address"], "latest"], "id": 1
+                    }, timeout=10, headers={"Content-Type": "application/json"})
+                    r = resp.json()
+                    code = r.get("result", "0x")
+                    if code and code != "0x" and len(code) > 2:
+                        contract_addrs.add(h["address"].lower())
+                        found += 1
+                    break
+                except Exception:
+                    time.sleep(1)
+            time.sleep(0.05)
+        print(f"  {chain}: {found} contracts found")
+
+    # Mark holders
+    count = 0
+    for h in holders:
+        if h["address"].lower() in contract_addrs:
+            h["is_contract"] = True
+            count += 1
+        else:
+            h["is_contract"] = False
+
+    print(f"  ✅ Total: {count} contracts in top {max_check}")
+    return holders
+
+
 def main():
     print("=" * 60)
     print("🔄 DOLO Token Holders — Generator (ETH + BERA)")
@@ -213,6 +259,9 @@ def main():
     # Merge
     print("\n🔀 Merging holders across chains...")
     holders = merge_holders(eth_balances, bera_balances)
+
+    # Detect contracts
+    holders = detect_contracts(holders, max_check=200)
 
     # Stats
     eth_only = sum(1 for h in holders if h["chains"] == ["eth"])
