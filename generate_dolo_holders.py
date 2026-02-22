@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 DOLO Token Holders — ERC-20 holder generator (ETH + Berachain)
-Fetches all ERC-20 Transfer events for DOLO on both chains,
-computes balances, merges holders, and outputs dolo_holders.json.
+With incremental sync: saves last processed block per chain,
+only fetches new transfers on subsequent runs (~2min vs ~30min).
 """
 import json, time, os, sys
 import requests
@@ -20,13 +20,31 @@ CHAINS = {
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_JSON = os.path.join(DATA_DIR, "dolo_holders.json")
+STATE_FILE = os.path.join(DATA_DIR, "dolo_holders_state.json")
 
 # Minimum balance to include (filter dust)
 MIN_BALANCE = 1.0  # 1 DOLO
 
 
-def fetch_erc20_transfers(chain_key):
-    """Fetch all ERC-20 Transfer events for DOLO on a given chain."""
+def load_state():
+    """Load incremental sync state (last block, cached balances)."""
+    if os.path.exists(STATE_FILE):
+        try:
+            with open(STATE_FILE) as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+
+def save_state(state):
+    """Save incremental sync state."""
+    with open(STATE_FILE, "w") as f:
+        json.dump(state, f, indent=2)
+
+
+def fetch_erc20_transfers(chain_key, start_block=0):
+    """Fetch ERC-20 Transfer events for DOLO on a given chain from start_block."""
     cfg = CHAINS[chain_key]
     api_key = ""
     for key_name in cfg["env_keys"]:
@@ -37,11 +55,11 @@ def fetch_erc20_transfers(chain_key):
         print(f"  ⚠️  No API key set ({', '.join(cfg['env_keys'])}) — skipping {cfg['name']}")
         return []
 
-    print(f"\n📡 Fetching DOLO transfers on {cfg['name']}...")
+    print(f"\n📡 Fetching DOLO transfers on {cfg['name']} from block {start_block}...")
 
     all_txs = []
     seen = set()
-    start_block = 0
+    current_block = start_block
     consecutive_errors = 0
 
     while True:
@@ -50,7 +68,7 @@ def fetch_erc20_transfers(chain_key):
             "module": "account",
             "action": "tokentx",
             "contractaddress": DOLO_CONTRACT,
-            "startblock": start_block,
+            "startblock": current_block,
             "endblock": 99999999,
             "page": 1,
             "offset": 10000,
@@ -73,15 +91,15 @@ def fetch_erc20_transfers(chain_key):
                             all_txs.append(tx)
                             new_count += 1
 
-                    print(f"  Block {start_block}+: {len(results)} txs, {new_count} new (total: {len(all_txs)})")
+                    print(f"  Block {current_block}+: {len(results)} txs, {new_count} new (total: {len(all_txs)})")
                     consecutive_errors = 0
 
                     if len(results) < 10000:
-                        print(f"  ✅ {cfg['name']}: {len(all_txs)} transfers")
+                        print(f"  ✅ {cfg['name']}: {len(all_txs)} new transfers")
                         return all_txs
 
-                    last_block = int(results[-1].get("blockNumber", start_block))
-                    start_block = last_block if last_block != start_block else last_block + 1
+                    last_block = int(results[-1].get("blockNumber", current_block))
+                    current_block = last_block if last_block != current_block else last_block + 1
                     time.sleep(0.3)
                     break
 
@@ -92,12 +110,12 @@ def fetch_erc20_transfers(chain_key):
                     continue
                 else:
                     if "No transactions" in str(data.get("result", "")):
-                        print(f"  ✅ {cfg['name']}: {len(all_txs)} transfers")
+                        print(f"  ✅ {cfg['name']}: {len(all_txs)} new transfers")
                         return all_txs
                     print(f"  ⚠️ API: {data.get('message')}: {str(data.get('result',''))[:200]}")
                     consecutive_errors += 1
                     if consecutive_errors >= 3:
-                        print(f"  ❌ Too many consecutive errors, returning {len(all_txs)} transfers so far")
+                        print(f"  ❌ Too many errors, returning {len(all_txs)} transfers so far")
                         return all_txs
                     time.sleep(2 * (retry + 1))
                     continue
@@ -110,43 +128,36 @@ def fetch_erc20_transfers(chain_key):
                 time.sleep(2 * (retry + 1))
         else:
             consecutive_errors += 1
-            print(f"  ❌ Failed after 5 retries at block {start_block}")
+            print(f"  ❌ Failed after 5 retries at block {current_block}")
             if consecutive_errors >= 3:
                 print(f"  ❌ Aborting {cfg['name']} — returning {len(all_txs)} transfers")
                 break
-            # Try next block range
-            start_block += 10000
+            current_block += 10000
 
     return all_txs
 
 
-def build_balances(txs, chain_key):
-    """Build address -> balance map from ERC-20 transfers."""
-    balances = {}
-    decimals = 18
-
-    # Sort by block + logIndex for correct ordering
+def apply_transfers(balances, txs):
+    """Apply transfer events to a balances dict. Returns (balances, max_block)."""
+    max_block = 0
+    # Sort by block + logIndex
     txs.sort(key=lambda t: (int(t.get("blockNumber", 0)), int(t.get("logIndex", 0))))
 
     for tx in txs:
         from_addr = tx.get("from", "").lower()
         to_addr = tx.get("to", "").lower()
         value_raw = int(tx.get("value", "0"))
-        value = value_raw / (10 ** decimals)
+        value = value_raw / (10 ** 18)
+        block = int(tx.get("blockNumber", 0))
+        if block > max_block:
+            max_block = block
 
         if from_addr != ZERO.lower():
             balances[from_addr] = balances.get(from_addr, 0) - value
         if to_addr != ZERO.lower():
             balances[to_addr] = balances.get(to_addr, 0) + value
 
-    # Filter out zero/negative/dust balances
-    result = {}
-    for addr, bal in balances.items():
-        if bal >= MIN_BALANCE:
-            result[addr] = round(bal, 4)
-
-    print(f"  {chain_key.upper()}: {len(result)} holders with ≥{MIN_BALANCE} DOLO")
-    return result
+    return balances, max_block
 
 
 def merge_holders(eth_balances, bera_balances):
@@ -157,7 +168,15 @@ def merge_holders(eth_balances, bera_balances):
     for addr in all_addrs:
         bal_eth = eth_balances.get(addr, 0)
         bal_bera = bera_balances.get(addr, 0)
+
+        # Skip dust/negative
+        if bal_eth < MIN_BALANCE:
+            bal_eth = 0
+        if bal_bera < MIN_BALANCE:
+            bal_bera = 0
         total = round(bal_eth + bal_bera, 4)
+        if total < MIN_BALANCE:
+            continue
 
         chains = []
         if bal_eth >= MIN_BALANCE:
@@ -168,8 +187,8 @@ def merge_holders(eth_balances, bera_balances):
         holders.append({
             "address": addr,
             "balance": total,
-            "balance_eth": round(bal_eth, 4) if bal_eth >= MIN_BALANCE else 0,
-            "balance_bera": round(bal_bera, 4) if bal_bera >= MIN_BALANCE else 0,
+            "balance_eth": round(bal_eth, 4),
+            "balance_bera": round(bal_bera, 4),
             "chains": chains,
         })
 
@@ -189,15 +208,13 @@ def merge_holders(eth_balances, bera_balances):
             except Exception:
                 pass
     except ImportError:
-        # Capitalize hex manually (basic checksum)
         pass
 
     return holders
 
 
 def detect_contracts(holders, max_check=200):
-    """Detect which top holders are contracts (not EOAs).
-    Uses individual eth_getCode calls (batch mode broken on some RPCs)."""
+    """Detect which top holders are contracts (not EOAs)."""
     print(f"\n🔍 Detecting contracts in top {max_check} holders...")
 
     RPC_URLS = [
@@ -228,7 +245,6 @@ def detect_contracts(holders, max_check=200):
             time.sleep(0.05)
         print(f"  {chain}: {found} contracts found")
 
-    # Mark holders
     count = 0
     for h in holders:
         if h["address"].lower() in contract_addrs:
@@ -243,22 +259,49 @@ def detect_contracts(holders, max_check=200):
 
 def main():
     print("=" * 60)
-    print("🔄 DOLO Token Holders — Generator (ETH + BERA)")
+    print("🔄 DOLO Token Holders — Generator (Incremental Sync)")
     print(f"   {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
     print("=" * 60)
 
-    # Fetch transfers from both chains
-    eth_txs = fetch_erc20_transfers("eth")
-    bera_txs = fetch_erc20_transfers("bera")
+    # Load previous state
+    state = load_state()
+    is_incremental = bool(state)
 
-    if not eth_txs and not bera_txs:
+    if is_incremental:
+        print("📦 Found previous state — running incremental sync")
+    else:
+        print("🆕 No previous state — running full sync (first run)")
+
+    # Get cached balances or start fresh
+    eth_balances = state.get("eth_balances", {})
+    bera_balances = state.get("bera_balances", {})
+    eth_last_block = state.get("eth_last_block", 0)
+    bera_last_block = state.get("bera_last_block", 0)
+
+    # Fetch new transfers from last processed block
+    eth_txs = fetch_erc20_transfers("eth", start_block=eth_last_block)
+    bera_txs = fetch_erc20_transfers("bera", start_block=bera_last_block)
+
+    if not eth_txs and not bera_txs and not is_incremental:
         print("⚠️  No transfers found on any chain!")
         sys.exit(1)
 
-    # Build balances
-    print("\n📊 Building balance maps...")
-    eth_balances = build_balances(eth_txs, "eth") if eth_txs else {}
-    bera_balances = build_balances(bera_txs, "bera") if bera_txs else {}
+    # Apply new transfers to cached balances
+    print("\n📊 Applying transfers...")
+    if eth_txs:
+        eth_balances, eth_max = apply_transfers(eth_balances, eth_txs)
+        eth_last_block = max(eth_last_block, eth_max)
+        print(f"  ETH: {len(eth_txs)} new transfers applied, now at block {eth_last_block}")
+
+    if bera_txs:
+        bera_balances, bera_max = apply_transfers(bera_balances, bera_txs)
+        bera_last_block = max(bera_last_block, bera_max)
+        print(f"  BERA: {len(bera_txs)} new transfers applied, now at block {bera_last_block}")
+
+    # Filter positive balances
+    eth_clean = {a: round(b, 4) for a, b in eth_balances.items() if b >= MIN_BALANCE}
+    bera_clean = {a: round(b, 4) for a, b in bera_balances.items() if b >= MIN_BALANCE}
+    print(f"  ETH holders: {len(eth_clean)} | BERA holders: {len(bera_clean)}")
 
     # Merge
     print("\n🔀 Merging holders across chains...")
@@ -272,6 +315,7 @@ def main():
     bera_only = sum(1 for h in holders if h["chains"] == ["bera"])
     both_chains = sum(1 for h in holders if len(h["chains"]) == 2)
     total_supply = sum(h["balance"] for h in holders)
+    contracts = sum(1 for h in holders if h.get("is_contract"))
 
     stats = {
         "total_holders": len(holders),
@@ -279,6 +323,7 @@ def main():
         "bera_holders": sum(1 for h in holders if "bera" in h["chains"]),
         "both_chains": both_chains,
         "total_supply": round(total_supply, 2),
+        "contracts_detected": contracts,
     }
 
     output = {
@@ -291,15 +336,27 @@ def main():
     with open(OUTPUT_JSON, "w") as f:
         json.dump(output, f, indent=2)
 
+    # Save state for next incremental run
+    save_state({
+        "eth_balances": {a: b for a, b in eth_balances.items() if abs(b) >= 0.0001},
+        "bera_balances": {a: b for a, b in bera_balances.items() if abs(b) >= 0.0001},
+        "eth_last_block": eth_last_block,
+        "bera_last_block": bera_last_block,
+        "last_run": datetime.utcnow().isoformat(),
+    })
+
     print(f"\n💾 Saved: dolo_holders.json")
     print(f"   Total holders: {stats['total_holders']:,}")
     print(f"   ETH only: {eth_only:,}  |  BERA only: {bera_only:,}  |  Both: {both_chains:,}")
+    print(f"   Contracts: {contracts}")
     print(f"   Total supply tracked: {total_supply:,.2f} DOLO")
+    print(f"   Sync: {'incremental' if is_incremental else 'full'}")
 
     print(f"\n🏆 TOP 10:")
     for h in holders[:10]:
         chains = "+".join(c.upper() for c in h["chains"])
-        print(f"   #{h['rank']:<4} {h['address'][:12]}… {h['balance']:>14,.2f} DOLO  [{chains}]")
+        tag = " 📜" if h.get("is_contract") else ""
+        print(f"   #{h['rank']:<4} {h['address'][:12]}… {h['balance']:>14,.2f} DOLO  [{chains}]{tag}")
 
     print("\n✅ Done!")
 

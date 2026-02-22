@@ -2,8 +2,8 @@ name: Update DOLO Holders Data
 
 on:
   schedule:
-    # Run every 12 hours
-    - cron: '0 */12 * * *'
+    # Run every hour
+    - cron: '0 * * * *'
   workflow_dispatch: # Allow manual trigger
 
 permissions:
@@ -26,6 +26,14 @@ jobs:
 
       - name: Install dependencies
         run: pip install requests web3
+
+      - name: Restore incremental sync state
+        uses: actions/cache@v4
+        with:
+          path: dolo_holders_state.json
+          key: dolo-holders-state-${{ github.run_number }}
+          restore-keys: |
+            dolo-holders-state-
 
       - name: Generate DOLO holders data
         env:
