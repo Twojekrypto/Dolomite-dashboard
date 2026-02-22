@@ -213,6 +213,80 @@ def merge_holders(eth_balances, bera_balances):
     return holders
 
 
+def verify_top_balances(holders, eth_balances, bera_balances, max_check=200):
+    """Verify top holders' balances against on-chain balanceOf().
+    Fixes discrepancies caused by Etherscan API missing transfers."""
+    print(f"\n🔎 Verifying top {max_check} holders with on-chain balanceOf()...")
+
+    BALANCE_OF_SEL = "0x70a08231"  # balanceOf(address)
+    RPCs = {
+        "eth": "https://eth.drpc.org/",
+        "bera": "https://berachain-rpc.publicnode.com/",
+    }
+
+    to_check = holders[:max_check]
+    corrections = 0
+
+    for chain, rpc_url in RPCs.items():
+        for h in to_check:
+            addr = h["address"].lower()
+            data_hex = BALANCE_OF_SEL + addr.replace("0x", "").zfill(64)
+            for retry in range(2):
+                try:
+                    resp = requests.post(rpc_url, json={
+                        "jsonrpc": "2.0", "method": "eth_call",
+                        "params": [{"to": DOLO_CONTRACT, "data": data_hex}, "latest"], "id": 1
+                    }, timeout=10, headers={"Content-Type": "application/json"})
+                    r = resp.json()
+                    if "error" not in r:
+                        onchain_bal = int(r.get("result", "0x0"), 16) / 1e18
+                        bal_key = f"balance_{chain}"
+                        old_bal = h.get(bal_key, 0)
+
+                        # Correct if discrepancy > 1%
+                        if old_bal > 0 and abs(onchain_bal - old_bal) / max(old_bal, 1) > 0.01:
+                            h[bal_key] = round(onchain_bal, 4)
+                            corrections += 1
+                            # Also update cached balances for state
+                            if chain == "eth":
+                                eth_balances[addr] = onchain_bal
+                            else:
+                                bera_balances[addr] = onchain_bal
+                        elif old_bal == 0 and onchain_bal >= MIN_BALANCE:
+                            h[bal_key] = round(onchain_bal, 4)
+                            if chain not in h["chains"]:
+                                h["chains"].append(chain)
+                            corrections += 1
+                            if chain == "eth":
+                                eth_balances[addr] = onchain_bal
+                            else:
+                                bera_balances[addr] = onchain_bal
+                    break
+                except Exception:
+                    time.sleep(0.5)
+            time.sleep(0.03)
+
+    # Recalculate totals and re-sort
+    for h in holders[:max_check]:
+        h["balance"] = round(h.get("balance_eth", 0) + h.get("balance_bera", 0), 4)
+        h["chains"] = []
+        if h.get("balance_eth", 0) >= MIN_BALANCE:
+            h["chains"].append("eth")
+        if h.get("balance_bera", 0) >= MIN_BALANCE:
+            h["chains"].append("bera")
+
+    # Remove holders with 0 balance after correction
+    holders = [h for h in holders if h["balance"] >= MIN_BALANCE]
+
+    # Re-sort and re-rank
+    holders.sort(key=lambda h: h["balance"], reverse=True)
+    for i, h in enumerate(holders, 1):
+        h["rank"] = i
+
+    print(f"  ✅ Corrected {corrections} balances via on-chain verification")
+    return holders, eth_balances, bera_balances
+
+
 def detect_contracts(holders, max_check=200):
     """Detect which top holders are contracts (not EOAs)."""
     print(f"\n🔍 Detecting contracts in top {max_check} holders...")
@@ -306,6 +380,11 @@ def main():
     # Merge
     print("\n🔀 Merging holders across chains...")
     holders = merge_holders(eth_balances, bera_balances)
+
+    # Verify top holders with on-chain balanceOf()
+    holders, eth_balances, bera_balances = verify_top_balances(
+        holders, eth_balances, bera_balances, max_check=200
+    )
 
     # Detect contracts
     holders = detect_contracts(holders, max_check=200)
