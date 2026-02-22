@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 DOLO Token Holders — ERC-20 holder generator (ETH + Berachain)
-With incremental sync: saves last processed block per chain,
-only fetches new transfers on subsequent runs (~2min vs ~30min).
+Uses eth_getLogs for 100% accuracy (catches DEX swaps, internal transfers, etc.)
+With incremental sync: saves last processed block per chain.
 """
 import json, time, os, sys
 import requests
@@ -10,24 +10,40 @@ from datetime import datetime
 
 # ===== CONFIG =====
 DOLO_CONTRACT = "0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654"
-ETHERSCAN_V2 = "https://api.etherscan.io/v2/api"
+TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 ZERO = "0x0000000000000000000000000000000000000000"
 
 CHAINS = {
-    "eth": {"chain_id": 1, "name": "Ethereum", "env_keys": ["ETHERSCAN_API_KEY", "BERASCAN_API_KEY"]},
-    "bera": {"chain_id": 80094, "name": "Berachain", "env_keys": ["ETHERSCAN_API_KEY", "BERASCAN_API_KEY"]},
+    "eth": {
+        "name": "Ethereum",
+        "rpcs": [
+            "https://eth.drpc.org/",
+            "https://ethereum-rpc.publicnode.com/",
+            "https://rpc.ankr.com/eth",
+        ],
+        "start_block": 21_000_000,  # DOLO deployed around this block on ETH
+        "chunk_size": 50_000,
+    },
+    "bera": {
+        "name": "Berachain",
+        "rpcs": [
+            "https://berachain-rpc.publicnode.com/",
+            "https://berachain.drpc.org/",
+            "https://rpc.berachain.com/",
+        ],
+        "start_block": 2_925_000,  # First DOLO Transfer on Berachain
+        "chunk_size": 50_000,
+    },
 }
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_JSON = os.path.join(DATA_DIR, "dolo_holders.json")
 STATE_FILE = os.path.join(DATA_DIR, "dolo_holders_state.json")
-
-# Minimum balance to include (filter dust)
 MIN_BALANCE = 1.0  # 1 DOLO
 
 
 def load_state():
-    """Load incremental sync state (last block, cached balances)."""
+    """Load incremental sync state."""
     if os.path.exists(STATE_FILE):
         try:
             with open(STATE_FILE) as f:
@@ -43,120 +59,124 @@ def save_state(state):
         json.dump(state, f, indent=2)
 
 
-def fetch_erc20_transfers(chain_key, start_block=0):
-    """Fetch ERC-20 Transfer events for DOLO on a given chain from start_block."""
+def get_current_block(rpc_url):
+    """Get current block number from RPC."""
+    for _ in range(3):
+        try:
+            resp = requests.post(rpc_url, json={
+                "jsonrpc": "2.0", "method": "eth_blockNumber", "params": [], "id": 1
+            }, timeout=10, headers={"Content-Type": "application/json"})
+            return int(resp.json().get("result", "0x0"), 16)
+        except Exception:
+            time.sleep(1)
+    return 0
+
+
+def fetch_transfer_logs(chain_key, start_block, end_block=None):
+    """Fetch ERC-20 Transfer event logs via eth_getLogs.
+    Returns list of (from_addr, to_addr, value_wei, block_number) tuples."""
     cfg = CHAINS[chain_key]
-    api_key = ""
-    for key_name in cfg["env_keys"]:
-        api_key = os.environ.get(key_name, "")
-        if api_key:
-            break
-    if not api_key:
-        print(f"  ⚠️  No API key set ({', '.join(cfg['env_keys'])}) — skipping {cfg['name']}")
-        return []
+    rpcs = cfg["rpcs"]
+    chunk_size = cfg["chunk_size"]
+    rpc_idx = 0
 
-    print(f"\n📡 Fetching DOLO transfers on {cfg['name']} from block {start_block}...")
+    if end_block is None:
+        end_block = get_current_block(rpcs[0])
 
-    all_txs = []
-    seen = set()
-    current_block = start_block
-    consecutive_errors = 0
+    if start_block >= end_block:
+        print(f"  {cfg['name']}: already up to date (block {start_block})")
+        return [], start_block
 
-    while True:
-        params = {
-            "chainid": cfg["chain_id"],
-            "module": "account",
-            "action": "tokentx",
-            "contractaddress": DOLO_CONTRACT,
-            "startblock": current_block,
-            "endblock": 99999999,
-            "page": 1,
-            "offset": 10000,
-            "sort": "asc",
-            "apikey": api_key,
-        }
+    total_chunks = (end_block - start_block + chunk_size - 1) // chunk_size
+    print(f"  {cfg['name']}: scanning blocks {start_block:,} → {end_block:,} ({total_chunks} chunks)")
 
-        for retry in range(5):
+    all_transfers = []
+    current = start_block
+    chunks_done = 0
+
+    while current <= end_block:
+        chunk_end = min(current + chunk_size - 1, end_block)
+
+        success = False
+        for attempt in range(len(rpcs) * 2):
+            rpc = rpcs[(rpc_idx + attempt) % len(rpcs)]
             try:
-                resp = requests.get(ETHERSCAN_V2, params=params, timeout=60)
-                data = resp.json()
+                resp = requests.post(rpc, json={
+                    "jsonrpc": "2.0", "method": "eth_getLogs",
+                    "params": [{
+                        "address": DOLO_CONTRACT,
+                        "topics": [TRANSFER_TOPIC],
+                        "fromBlock": hex(current),
+                        "toBlock": hex(chunk_end),
+                    }], "id": 1
+                }, timeout=30, headers={"Content-Type": "application/json"})
 
-                if data.get("status") == "1" and isinstance(data.get("result"), list):
-                    results = data["result"]
-                    new_count = 0
-                    for tx in results:
-                        tx_key = tx.get("hash", "") + tx.get("logIndex", "")
-                        if tx_key not in seen:
-                            seen.add(tx_key)
-                            all_txs.append(tx)
-                            new_count += 1
-
-                    print(f"  Block {current_block}+: {len(results)} txs, {new_count} new (total: {len(all_txs)})")
-                    consecutive_errors = 0
-
-                    if len(results) < 10000:
-                        print(f"  ✅ {cfg['name']}: {len(all_txs)} new transfers")
-                        return all_txs
-
-                    last_block = int(results[-1].get("blockNumber", current_block))
-                    current_block = last_block if last_block != current_block else last_block + 1
-                    time.sleep(0.3)
-                    break
-
-                elif "rate" in str(data.get("result", "")).lower() or "max rate" in str(data.get("message", "")).lower():
-                    wait_time = 3 * (retry + 1)
-                    print(f"  Rate limited, waiting {wait_time}s...")
-                    time.sleep(wait_time)
-                    continue
-                else:
-                    if "No transactions" in str(data.get("result", "")):
-                        print(f"  ✅ {cfg['name']}: {len(all_txs)} new transfers")
-                        return all_txs
-                    print(f"  ⚠️ API: {data.get('message')}: {str(data.get('result',''))[:200]}")
-                    consecutive_errors += 1
-                    if consecutive_errors >= 3:
-                        print(f"  ❌ Too many errors, returning {len(all_txs)} transfers so far")
-                        return all_txs
-                    time.sleep(2 * (retry + 1))
+                r = resp.json()
+                if "error" in r:
+                    err_msg = r["error"].get("message", "")
+                    if "range" in err_msg.lower() or "limit" in err_msg.lower():
+                        # Range too large — halve chunk
+                        chunk_size = max(chunk_size // 2, 1000)
+                        chunk_end = min(current + chunk_size - 1, end_block)
+                        continue
+                    time.sleep(0.5)
                     continue
 
-            except requests.exceptions.Timeout:
-                print(f"  Timeout (retry {retry+1}/5), waiting {3*(retry+1)}s...")
-                time.sleep(3 * (retry + 1))
-            except Exception as e:
-                print(f"  Error: {e}, retry {retry+1}/5")
-                time.sleep(2 * (retry + 1))
-        else:
-            consecutive_errors += 1
-            print(f"  ❌ Failed after 5 retries at block {current_block}")
-            if consecutive_errors >= 3:
-                print(f"  ❌ Aborting {cfg['name']} — returning {len(all_txs)} transfers")
+                logs = r.get("result", [])
+                for log in logs:
+                    if len(log.get("topics", [])) < 3:
+                        continue
+                    from_addr = "0x" + log["topics"][1][26:].lower()
+                    to_addr = "0x" + log["topics"][2][26:].lower()
+                    value_wei = int(log["data"], 16)
+                    block_num = int(log["blockNumber"], 16)
+                    all_transfers.append((from_addr, to_addr, value_wei, block_num))
+
+                success = True
                 break
-            current_block += 10000
+            except requests.exceptions.Timeout:
+                # Reduce chunk size on timeout
+                chunk_size = max(chunk_size // 2, 1000)
+                chunk_end = min(current + chunk_size - 1, end_block)
+                time.sleep(1)
+            except Exception:
+                time.sleep(0.5)
 
-    return all_txs
+        if not success:
+            print(f"    ⚠️ Failed at block {current}, skipping chunk")
+            current = chunk_end + 1
+            continue
+
+        current = chunk_end + 1
+        chunks_done += 1
+
+        if chunks_done % 20 == 0 or chunks_done == total_chunks:
+            pct = chunks_done * 100 // max(total_chunks, 1)
+            print(f"    {cfg['name']}: {pct}% ({chunks_done}/{total_chunks} chunks, {len(all_transfers):,} transfers)", flush=True)
+
+        # Restore chunk size gradually
+        if chunk_size < cfg["chunk_size"]:
+            chunk_size = min(chunk_size * 2, cfg["chunk_size"])
+
+        time.sleep(0.05)
+
+    rpc_idx = (rpc_idx + 1) % len(rpcs)
+    print(f"  ✅ {cfg['name']}: {len(all_transfers):,} transfers found")
+    return all_transfers, end_block
 
 
-def apply_transfers(balances, txs):
-    """Apply transfer events to a balances dict. Returns (balances, max_block)."""
+def apply_transfers(balances, transfers):
+    """Apply transfer events to balance map."""
+    zero = ZERO.lower()
     max_block = 0
-    # Sort by block + logIndex
-    txs.sort(key=lambda t: (int(t.get("blockNumber", 0)), int(t.get("logIndex", 0))))
-
-    for tx in txs:
-        from_addr = tx.get("from", "").lower()
-        to_addr = tx.get("to", "").lower()
-        value_raw = int(tx.get("value", "0"))
-        value = value_raw / (10 ** 18)
-        block = int(tx.get("blockNumber", 0))
-        if block > max_block:
-            max_block = block
-
-        if from_addr != ZERO.lower():
+    for from_addr, to_addr, value_wei, block_num in transfers:
+        value = value_wei / (10 ** 18)
+        if block_num > max_block:
+            max_block = block_num
+        if from_addr != zero:
             balances[from_addr] = balances.get(from_addr, 0) - value
-        if to_addr != ZERO.lower():
+        if to_addr != zero:
             balances[to_addr] = balances.get(to_addr, 0) + value
-
     return balances, max_block
 
 
@@ -169,7 +189,6 @@ def merge_holders(eth_balances, bera_balances):
         bal_eth = eth_balances.get(addr, 0)
         bal_bera = bera_balances.get(addr, 0)
 
-        # Skip dust/negative
         if bal_eth < MIN_BALANCE:
             bal_eth = 0
         if bal_bera < MIN_BALANCE:
@@ -192,33 +211,19 @@ def merge_holders(eth_balances, bera_balances):
             "chains": chains,
         })
 
-    # Sort by total balance descending
     holders.sort(key=lambda h: h["balance"], reverse=True)
-
-    # Assign ranks
     for i, h in enumerate(holders, 1):
         h["rank"] = i
-
-    # Checksum addresses
-    try:
-        from web3 import Web3
-        for h in holders:
-            try:
-                h["address"] = Web3.to_checksum_address(h["address"])
-            except Exception:
-                pass
-    except ImportError:
-        pass
 
     return holders
 
 
 def verify_top_balances(holders, eth_balances, bera_balances, max_check=200):
     """Verify top holders' balances against on-chain balanceOf().
-    Fixes discrepancies caused by Etherscan API missing transfers."""
+    Fixes any residual discrepancies."""
     print(f"\n🔎 Verifying top {max_check} holders with on-chain balanceOf()...")
 
-    BALANCE_OF_SEL = "0x70a08231"  # balanceOf(address)
+    BALANCE_OF_SEL = "0x70a08231"
     RPCs = {
         "eth": "https://eth.drpc.org/",
         "bera": "https://berachain-rpc.publicnode.com/",
@@ -243,11 +248,9 @@ def verify_top_balances(holders, eth_balances, bera_balances, max_check=200):
                         bal_key = f"balance_{chain}"
                         old_bal = h.get(bal_key, 0)
 
-                        # Correct if discrepancy > 1%
                         if old_bal > 0 and abs(onchain_bal - old_bal) / max(old_bal, 1) > 0.01:
                             h[bal_key] = round(onchain_bal, 4)
                             corrections += 1
-                            # Also update cached balances for state
                             if chain == "eth":
                                 eth_balances[addr] = onchain_bal
                             else:
@@ -266,7 +269,6 @@ def verify_top_balances(holders, eth_balances, bera_balances, max_check=200):
                     time.sleep(0.5)
             time.sleep(0.03)
 
-    # Recalculate totals and re-sort
     for h in holders[:max_check]:
         h["balance"] = round(h.get("balance_eth", 0) + h.get("balance_bera", 0), 4)
         h["chains"] = []
@@ -275,10 +277,7 @@ def verify_top_balances(holders, eth_balances, bera_balances, max_check=200):
         if h.get("balance_bera", 0) >= MIN_BALANCE:
             h["chains"].append("bera")
 
-    # Remove holders with 0 balance after correction
     holders = [h for h in holders if h["balance"] >= MIN_BALANCE]
-
-    # Re-sort and re-rank
     holders.sort(key=lambda h: h["balance"], reverse=True)
     for i, h in enumerate(holders, 1):
         h["rank"] = i
@@ -300,44 +299,37 @@ def detect_contracts(holders, max_check=200):
     contract_addrs = set()
 
     for chain, rpc_url in RPC_URLS:
-        found = 0
-        for i, h in enumerate(to_check):
+        for h in to_check:
+            addr = h["address"]
             for retry in range(2):
                 try:
                     resp = requests.post(rpc_url, json={
                         "jsonrpc": "2.0", "method": "eth_getCode",
-                        "params": [h["address"], "latest"], "id": 1
-                    }, timeout=10, headers={"Content-Type": "application/json"})
-                    r = resp.json()
-                    code = r.get("result", "0x")
-                    if code and code != "0x" and len(code) > 2:
-                        contract_addrs.add(h["address"].lower())
-                        found += 1
+                        "params": [addr, "latest"], "id": 1
+                    }, timeout=5, headers={"Content-Type": "application/json"})
+                    code = resp.json().get("result", "0x")
+                    if code and len(code) > 4:
+                        contract_addrs.add(addr.lower())
                     break
                 except Exception:
-                    time.sleep(1)
-            time.sleep(0.05)
-        print(f"  {chain}: {found} contracts found")
+                    time.sleep(0.3)
+            time.sleep(0.03)
 
-    count = 0
     for h in holders:
         if h["address"].lower() in contract_addrs:
             h["is_contract"] = True
-            count += 1
-        else:
-            h["is_contract"] = False
 
-    print(f"  ✅ Total: {count} contracts in top {max_check}")
+    print(f"  ✅ Found {len(contract_addrs)} contracts in top {max_check}")
     return holders
 
 
+# ===== MAIN =====
 def main():
     print("=" * 60)
-    print("🔄 DOLO Token Holders — Generator (Incremental Sync)")
+    print("🔄 DOLO Token Holders — Generator (RPC eth_getLogs)")
     print(f"   {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
     print("=" * 60)
 
-    # Load previous state
     state = load_state()
     is_incremental = bool(state)
 
@@ -346,48 +338,58 @@ def main():
     else:
         print("🆕 No previous state — running full sync (first run)")
 
-    # Get cached balances or start fresh
     eth_balances = state.get("eth_balances", {})
     bera_balances = state.get("bera_balances", {})
-    eth_last_block = state.get("eth_last_block", 0)
-    bera_last_block = state.get("bera_last_block", 0)
+    eth_last_block = state.get("eth_last_block", CHAINS["eth"]["start_block"])
+    bera_last_block = state.get("bera_last_block", CHAINS["bera"]["start_block"])
 
-    # Fetch new transfers from last processed block
-    eth_txs = fetch_erc20_transfers("eth", start_block=eth_last_block)
-    bera_txs = fetch_erc20_transfers("bera", start_block=bera_last_block)
+    # Fetch new Transfer events via eth_getLogs
+    print("\n📡 Fetching Transfer events via RPC logs...")
+    eth_txs, eth_end = fetch_transfer_logs("eth", start_block=eth_last_block)
+    bera_txs, bera_end = fetch_transfer_logs("bera", start_block=bera_last_block)
 
     if not eth_txs and not bera_txs and not is_incremental:
         print("⚠️  No transfers found on any chain!")
         sys.exit(1)
 
-    # Apply new transfers to cached balances
+    # Apply new transfers
     print("\n📊 Applying transfers...")
     if eth_txs:
         eth_balances, eth_max = apply_transfers(eth_balances, eth_txs)
-        eth_last_block = max(eth_last_block, eth_max)
-        print(f"  ETH: {len(eth_txs)} new transfers applied, now at block {eth_last_block}")
+        eth_last_block = max(eth_last_block, eth_max, eth_end)
+        print(f"  ETH: {len(eth_txs):,} transfers applied, now at block {eth_last_block:,}")
 
     if bera_txs:
         bera_balances, bera_max = apply_transfers(bera_balances, bera_txs)
-        bera_last_block = max(bera_last_block, bera_max)
-        print(f"  BERA: {len(bera_txs)} new transfers applied, now at block {bera_last_block}")
+        bera_last_block = max(bera_last_block, bera_max, bera_end)
+        print(f"  BERA: {len(bera_txs):,} transfers applied, now at block {bera_last_block:,}")
 
-    # Filter positive balances
     eth_clean = {a: round(b, 4) for a, b in eth_balances.items() if b >= MIN_BALANCE}
     bera_clean = {a: round(b, 4) for a, b in bera_balances.items() if b >= MIN_BALANCE}
-    print(f"  ETH holders: {len(eth_clean)} | BERA holders: {len(bera_clean)}")
+    print(f"  ETH holders: {len(eth_clean):,} | BERA holders: {len(bera_clean):,}")
 
     # Merge
     print("\n🔀 Merging holders across chains...")
     holders = merge_holders(eth_balances, bera_balances)
 
-    # Verify top holders with on-chain balanceOf()
+    # Verify top holders on-chain
     holders, eth_balances, bera_balances = verify_top_balances(
         holders, eth_balances, bera_balances, max_check=200
     )
 
     # Detect contracts
     holders = detect_contracts(holders, max_check=200)
+
+    # Checksum addresses
+    try:
+        from web3 import Web3
+        for h in holders:
+            try:
+                h["address"] = Web3.to_checksum_address(h["address"])
+            except Exception:
+                pass
+    except ImportError:
+        pass
 
     # Stats
     eth_only = sum(1 for h in holders if h["chains"] == ["eth"])
@@ -398,15 +400,16 @@ def main():
 
     stats = {
         "total_holders": len(holders),
-        "eth_holders": sum(1 for h in holders if "eth" in h["chains"]),
-        "bera_holders": sum(1 for h in holders if "bera" in h["chains"]),
+        "eth_only": eth_only,
+        "bera_only": bera_only,
         "both_chains": both_chains,
-        "total_supply": round(total_supply, 2),
+        "total_supply_tracked": round(total_supply, 2),
         "contracts_detected": contracts,
     }
 
     output = {
         "contract": DOLO_CONTRACT,
+        "networks": ["ethereum", "berachain"],
         "timestamp": datetime.utcnow().isoformat(),
         "stats": stats,
         "holders": holders,
@@ -415,28 +418,23 @@ def main():
     with open(OUTPUT_JSON, "w") as f:
         json.dump(output, f, indent=2)
 
-    # Save state for next incremental run
+    # Save state for incremental sync
     save_state({
-        "eth_balances": {a: b for a, b in eth_balances.items() if abs(b) >= 0.0001},
-        "bera_balances": {a: b for a, b in bera_balances.items() if abs(b) >= 0.0001},
+        "eth_balances": {a: b for a, b in eth_balances.items() if abs(b) > 0.0001},
+        "bera_balances": {a: b for a, b in bera_balances.items() if abs(b) > 0.0001},
         "eth_last_block": eth_last_block,
         "bera_last_block": bera_last_block,
-        "last_run": datetime.utcnow().isoformat(),
     })
 
-    print(f"\n💾 Saved: dolo_holders.json")
-    print(f"   Total holders: {stats['total_holders']:,}")
-    print(f"   ETH only: {eth_only:,}  |  BERA only: {bera_only:,}  |  Both: {both_chains:,}")
+    print(f"\n💾 Saved: {OUTPUT_JSON}")
+    print(f"   Total holders: {len(holders):,}")
+    print(f"   ETH only: {eth_only:,} | BERA only: {bera_only:,} | Both: {both_chains:,}")
+    print(f"   Supply tracked: {total_supply:,.2f} DOLO")
     print(f"   Contracts: {contracts}")
-    print(f"   Total supply tracked: {total_supply:,.2f} DOLO")
-    print(f"   Sync: {'incremental' if is_incremental else 'full'}")
-
-    print(f"\n🏆 TOP 10:")
-    for h in holders[:10]:
-        chains = "+".join(c.upper() for c in h["chains"])
+    print(f"\n🏆 TOP 5:")
+    for h in holders[:5]:
         tag = " 📜" if h.get("is_contract") else ""
-        print(f"   #{h['rank']:<4} {h['address'][:12]}… {h['balance']:>14,.2f} DOLO  [{chains}]{tag}")
-
+        print(f"   #{h['rank']:<4} {h['address'][:14]}… {h['balance']:>15,.2f} DOLO{tag}")
     print("\n✅ Done!")
 
 
