@@ -2,8 +2,8 @@ name: Update DOLO Holders Data
 
 on:
   schedule:
-    # Run daily at midnight UTC
-    - cron: '0 0 * * *'
+    # Run every 12 hours
+    - cron: '0 */12 * * *'
   workflow_dispatch: # Allow manual trigger
 
 permissions:
@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -28,11 +30,17 @@ jobs:
       - name: Generate DOLO holders data
         env:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
-        run: python3 generate_dolo_holders.py
+          BERASCAN_API_KEY: ${{ secrets.BERASCAN_API_KEY }}
+        run: |
+          # Use BERASCAN key as fallback for ETHERSCAN if not set
+          if [ -z "$ETHERSCAN_API_KEY" ] && [ -n "$BERASCAN_API_KEY" ]; then
+            export ETHERSCAN_API_KEY="$BERASCAN_API_KEY"
+          fi
+          python3 generate_dolo_holders.py
 
       - name: Commit and push if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add dolo_holders.json
-          git diff --cached --quiet || (git commit -m "data: auto-update DOLO holders $(date -u '+%Y-%m-%d')" && git push)
+          git diff --cached --quiet || (git commit -m "📊 Auto-update DOLO holders $(date -u '+%Y-%m-%d %H:%M UTC')" && git push origin main)

@@ -14,8 +14,8 @@ ETHERSCAN_V2 = "https://api.etherscan.io/v2/api"
 ZERO = "0x0000000000000000000000000000000000000000"
 
 CHAINS = {
-    "eth": {"chain_id": 1, "name": "Ethereum", "env_key": "ETHERSCAN_API_KEY"},
-    "bera": {"chain_id": 80094, "name": "Berachain", "env_key": "ETHERSCAN_API_KEY"},
+    "eth": {"chain_id": 1, "name": "Ethereum", "env_keys": ["ETHERSCAN_API_KEY", "BERASCAN_API_KEY"]},
+    "bera": {"chain_id": 80094, "name": "Berachain", "env_keys": ["ETHERSCAN_API_KEY", "BERASCAN_API_KEY"]},
 }
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -28,9 +28,13 @@ MIN_BALANCE = 1.0  # 1 DOLO
 def fetch_erc20_transfers(chain_key):
     """Fetch all ERC-20 Transfer events for DOLO on a given chain."""
     cfg = CHAINS[chain_key]
-    api_key = os.environ.get(cfg["env_key"], "")
+    api_key = ""
+    for key_name in cfg["env_keys"]:
+        api_key = os.environ.get(key_name, "")
+        if api_key:
+            break
     if not api_key:
-        print(f"  ⚠️  {cfg['env_key']} not set — skipping {cfg['name']}")
+        print(f"  ⚠️  No API key set ({', '.join(cfg['env_keys'])}) — skipping {cfg['name']}")
         return []
 
     print(f"\n📡 Fetching DOLO transfers on {cfg['name']}...")
