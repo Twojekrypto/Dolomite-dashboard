@@ -287,7 +287,8 @@ def fetch_locked_dolo(all_token_ids):
 
 
 def make_vote_batch_call(token_ids):
-    """True JSON-RPC batch call for balanceOfNFT(uint256) — much faster than individual calls."""
+    """True JSON-RPC batch call for balanceOfNFT(uint256).
+    Returns (results_dict, failed_ids) to distinguish real zeros from errors."""
     s = requests.Session()
     batch = []
     for i, tid in enumerate(token_ids):
@@ -300,6 +301,7 @@ def make_vote_batch_call(token_ids):
         })
 
     out = {}
+    responded_ids = set()
     for rpc_url in RPC_URLS:
         for retry in range(3):
             try:
@@ -320,33 +322,36 @@ def make_vote_batch_call(token_ids):
                         if "result" in r and r["result"] and len(r["result"]) > 2:
                             val = int(r["result"], 16)
                             out[tid] = val / 1e18
+                            responded_ids.add(tid)
+                        elif "error" in r:
+                            # RPC error — don't set 0, mark as failed
+                            pass
                         else:
+                            # Empty result — could be genuinely 0 or an error
                             out[tid] = 0.0
-                # Fill any missing
-                for tid in token_ids:
-                    if tid not in out:
-                        out[tid] = 0.0
-                return out
+                            responded_ids.add(tid)
+                failed = [tid for tid in token_ids if tid not in responded_ids]
+                return out, failed
             except Exception as e:
                 if retry < 2:
                     time.sleep(0.5 * (retry + 1))
         # If this RPC failed, try next one
         if out:
-            return out
+            failed = [tid for tid in token_ids if tid not in responded_ids]
+            return out, failed
 
-    # Final fallback: all zeros
-    for tid in token_ids:
-        if tid not in out:
-            out[tid] = 0.0
-    return out
+    # Complete failure — all tokens failed
+    return out, list(token_ids)
 
 
-def fetch_vote_weights(all_token_ids):
+def fetch_vote_weights(all_token_ids, locked_cache=None):
     """Fetch current vote weights for all tokens using true JSON-RPC batch calls.
-    Much faster than individual calls — sends BATCH_SIZE calls per request."""
+    Much faster than individual calls — sends BATCH_SIZE calls per request.
+    Retries failed tokens and validates against locked DOLO data."""
     print(f"\n⚖️  Phase 3: Fetching vote weights for {len(all_token_ids):,} tokens...")
 
     vote_weights = {}
+    all_failed = []
     chunks = [all_token_ids[i:i+BATCH_SIZE] for i in range(0, len(all_token_ids), BATCH_SIZE)]
     done = 0
     chunk_idx = 0
@@ -357,17 +362,110 @@ def fetch_vote_weights(all_token_ids):
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             futures = {executor.submit(make_vote_batch_call, c): ci for ci, c in enumerate(window)}
             for future in as_completed(futures):
-                for tid, weight in future.result().items():
+                results, failed = future.result()
+                for tid, weight in results.items():
                     vote_weights[tid] = weight
                     done += 1
+                all_failed.extend(failed)
 
         chunk_idx += len(window)
         pct = (done / len(all_token_ids)) * 100 if all_token_ids else 100
         print(f"  Progress: {pct:.0f}% ({done:,}/{len(all_token_ids):,})")
         time.sleep(0.1)
 
+    # --- Retry 1: retry all tokens that failed the initial pass ---
+    if all_failed:
+        print(f"  ⚠️  {len(all_failed)} tokens failed initial fetch, retrying...")
+        retry_chunks = [all_failed[i:i+25] for i in range(0, len(all_failed), 25)]
+        for chunk in retry_chunks:
+            results, still_failed = make_vote_batch_call(chunk)
+            for tid, weight in results.items():
+                vote_weights[tid] = weight
+            time.sleep(0.2)
+
+    # --- Retry 2: validate against locked DOLO data ---
+    # Any token with active lock (dolo > 0, end > now) but vote_weight = 0 is suspicious
+    now_ts = int(time.time())
+    suspicious = []
+    if locked_cache:
+        for tid in all_token_ids:
+            ld = locked_cache.get(str(tid), {"amount": 0, "end": 0})
+            amt = ld.get("amount", 0)
+            end = ld.get("end", 0)
+            vw = vote_weights.get(tid, 0)
+            if amt > 0 and end > now_ts and vw == 0:
+                suspicious.append(tid)
+
+    if suspicious:
+        print(f"  🔍 {len(suspicious)} tokens have active locks but 0 vote weight — retrying individually...")
+        # Retry in small batches of 10 with individual RPC fallback
+        retry_chunks = [suspicious[i:i+10] for i in range(0, len(suspicious), 10)]
+        fixed = 0
+        for chunk in retry_chunks:
+            for rpc_url in RPC_URLS:
+                results, failed = _single_rpc_vote_batch(chunk, rpc_url)
+                for tid, weight in results.items():
+                    if weight > 0:
+                        vote_weights[tid] = weight
+                        fixed += 1
+                    elif tid not in vote_weights:
+                        vote_weights[tid] = weight
+                if not failed:
+                    break
+            time.sleep(0.15)
+        print(f"  ✅ Fixed {fixed}/{len(suspicious)} suspicious tokens.")
+
+    # Fill any still-missing tokens with 0
+    for tid in all_token_ids:
+        if tid not in vote_weights:
+            vote_weights[tid] = 0.0
+
     print(f"  ✅ Done. {len(vote_weights):,} vote weights fetched.")
     return vote_weights
+
+
+def _single_rpc_vote_batch(token_ids, rpc_url):
+    """Small batch call to a specific RPC URL, with careful error handling."""
+    s = requests.Session()
+    batch = []
+    for i, tid in enumerate(token_ids):
+        encoded = hex(tid)[2:].zfill(64)
+        batch.append({
+            "jsonrpc": "2.0",
+            "method": "eth_call",
+            "params": [{"to": VEDOLO_CONTRACT, "data": BALANCE_OF_NFT_SELECTOR + encoded}, "latest"],
+            "id": i
+        })
+
+    out = {}
+    responded = set()
+    for retry in range(3):
+        try:
+            resp = s.post(rpc_url, json=batch, timeout=30,
+                          headers={"Content-Type": "application/json"})
+            if resp.status_code == 429:
+                time.sleep(2 * (retry + 1))
+                continue
+            resp.raise_for_status()
+            results = resp.json()
+            if not isinstance(results, list):
+                time.sleep(1 * (retry + 1))
+                continue
+            for r in results:
+                idx = r.get("id", 0)
+                if idx < len(token_ids):
+                    tid = token_ids[idx]
+                    if "result" in r and r["result"] and len(r["result"]) > 2:
+                        out[tid] = int(r["result"], 16) / 1e18
+                        responded.add(tid)
+                    elif "error" not in r:
+                        out[tid] = 0.0
+                        responded.add(tid)
+            failed = [tid for tid in token_ids if tid not in responded]
+            return out, failed
+        except Exception:
+            time.sleep(1 * (retry + 1))
+    return out, [tid for tid in token_ids if tid not in responded]
 
 
 # ===== MAIN =====
@@ -398,7 +496,7 @@ def main():
     cache = fetch_locked_dolo(all_token_ids)
 
     # Phase 3: Fetch vote weights (always fresh — decays over time)
-    vote_weights = fetch_vote_weights(all_token_ids)
+    vote_weights = fetch_vote_weights(all_token_ids, locked_cache=cache)
 
     # Merge locked DOLO + vote weights into holders
     print("\n📊 Merging data...")
