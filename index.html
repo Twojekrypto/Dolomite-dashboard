@@ -7542,7 +7542,7 @@
             const totalSupply = dolo_holderFiltered.reduce((s, h) => s + dolo_getDisplayBalance(h), 0) || 1;
 
             tbody.innerHTML = page.map((h, idx) => {
-                const dispRank = start + idx + 1;
+                const dispRank = h.rank || (start + idx + 1);
                 const rc = dispRank <= 3 ? `rank-${dispRank}` : '';
                 const isWhale = dispRank <= 10;
                 const dispBal = dolo_getDisplayBalance(h);
@@ -7555,6 +7555,9 @@
 
                 const ethBal = h.balance_eth || 0;
                 const beraBal = h.balance_bera || 0;
+
+                // Contract icon
+                const contractIcon = h.is_contract ? '<span title="Contract address" style="opacity:0.6;font-size:12px;margin-left:2px">📜</span>' : '';
 
                 // ETH cell: show value if checked, empty dash if unchecked
                 const ethCell = showEth
@@ -7574,7 +7577,7 @@
                         </td>
                         <td class="c-addr">
                             <span style="display:inline-flex;align-items:center;gap:4px">
-                                <a href="${dbUrl}" target="_blank" onclick="event.stopPropagation()" class="dolo-holder-addr" title="${h.address}">${h.address.slice(0, 6)}…${h.address.slice(-4)}</a>
+                                <a href="${dbUrl}" target="_blank" onclick="event.stopPropagation()" class="dolo-holder-addr" title="${h.address}">${h.address.slice(0, 6)}…${h.address.slice(-4)}</a>${contractIcon}
                                 <span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${h.address}',this)" title="Copy address"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span>
                                 <a href="${dbUrl}" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a>
                             </span>
