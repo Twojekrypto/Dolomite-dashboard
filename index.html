@@ -9182,7 +9182,7 @@
             }
         }
 
-        function earn_formatAmount(value, decimals) {
+        function earn_formatAmount(value, decimals, symbol) {
             if (typeof value !== 'bigint') value = BigInt(value);
             const isNeg = value < 0n;
             const abs = isNeg ? -value : value;
@@ -9190,8 +9190,21 @@
             const frac = abs % (10n ** BigInt(decimals));
             const fracStr = frac.toString().padStart(decimals, '0');
 
-            // Show all token decimals (trim trailing zeros for clean display)
-            let fracDisplay = fracStr.replace(/0+$/, '');
+            // Smart rounding based on asset type
+            let displayDecimals = 2; // default
+            if (symbol) {
+                const sym = symbol.toUpperCase();
+                if (sym.includes('BTC')) {
+                    displayDecimals = 5;
+                } else if (sym.includes('ETH')) {
+                    displayDecimals = 4;
+                }
+            }
+
+            // Truncate fraction to displayDecimals
+            let fracDisplay = fracStr.slice(0, displayDecimals);
+            // Remove trailing zeros for clean display
+            fracDisplay = fracDisplay.replace(/0+$/, '');
 
             const wholeStr = whole.toLocaleString('en-US');
             const result = fracDisplay ? `${wholeStr}.${fracDisplay}` : wholeStr;
@@ -9907,7 +9920,7 @@
             let itemsHtml = '';
             for (const e of entries) {
                 const sign = e.val > 0n ? '+' : '';
-                const fmt = earn_formatAmount(e.val, decimals);
+                const fmt = earn_formatAmount(e.val, decimals, symbol);
                 itemsHtml += `<div class="earn-breakdown-item">
                     <span class="earn-breakdown-dot ${e.cls}"></span>
                     <span class="earn-breakdown-label">${e.label}</span>
@@ -9949,7 +9962,7 @@
                     const yieldPositive = totalYield >= 0n;
                     const yieldSign = yieldPositive && totalYield > 0n ? '+' : '';
                     const yieldColor = yieldPositive ? 'earn-yield-positive' : 'earn-yield-negative';
-                    const yieldFmt = earn_formatAmount(totalYield, a.decimals);
+                    const yieldFmt = earn_formatAmount(totalYield, a.decimals, a.symbol);
                     yieldCellHtml = `<span class="earn-amount ${yieldColor}">${yieldSign + yieldFmt}<span class="earn-amount-sym">${a.symbol}</span></span>`;
                 } else if (hasSnapshotData) {
                     let totalYield = BigInt(hist.cumulativeYield);
@@ -9965,13 +9978,13 @@
                     const yieldPositive = totalYield >= 0n;
                     const yieldSign = yieldPositive && totalYield > 0n ? '+' : '';
                     const yieldColor = yieldPositive ? 'earn-yield-positive' : 'earn-yield-negative';
-                    const yieldFmt = earn_formatAmount(totalYield, a.decimals);
+                    const yieldFmt = earn_formatAmount(totalYield, a.decimals, a.symbol);
                     yieldCellHtml = `<span class="earn-amount ${yieldColor}">${yieldSign + yieldFmt}<span class="earn-amount-sym">${a.symbol}</span></span>`;
                 } else {
                     yieldCellHtml = `<span class="earn-amount" style="color:var(--text-muted)">—</span>`;
                 }
 
-                const weiFmt = earn_formatAmount(a.wei, a.decimals);
+                const weiFmt = earn_formatAmount(a.wei, a.decimals, a.symbol);
 
                 // Icon
                 let iconHtml;
