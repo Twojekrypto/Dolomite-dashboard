@@ -9190,8 +9190,8 @@
             const frac = abs % (10n ** BigInt(decimals));
             const fracStr = frac.toString().padStart(decimals, '0');
 
-            // Always show exactly 4 decimal places
-            const fracDisplay = fracStr.slice(0, 4).padEnd(4, '0');
+            // Always show exactly 6 decimal places
+            const fracDisplay = fracStr.slice(0, 6).padEnd(6, '0');
 
             const wholeStr = whole.toLocaleString('en-US');
             const result = `${wholeStr}.${fracDisplay}`;
