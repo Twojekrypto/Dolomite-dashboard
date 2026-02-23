@@ -29,9 +29,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: locked_cache.json
-          key: locked-cache-v2-${{ github.run_id }}
+          key: locked-cache-v3-${{ github.run_id }}
           restore-keys: |
-            locked-cache-v2-
+            locked-cache-v3-
 
       - name: Run update script
         run: python update_data.py
