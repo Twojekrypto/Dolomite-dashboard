@@ -51,4 +51,5 @@ jobs:
           git add vedolo_holders.json vedolo_holders.csv dolo_price.json defillama_data.json odolo_contract_data.json
           git diff --staged --quiet && echo "No changes to commit" && exit 0
           git commit -m "📊 Auto-update: $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git pull --rebase origin main
           git push
