@@ -5808,8 +5808,23 @@
                 if (resp.ok) {
                     const data = await resp.json();
                     HOLDER_DATA = data.holders;
-                    // Stats from full file override (they should match vedolo_stats.json)
-                    if (data.stats) Object.assign(STATS, data.stats);
+                    // Only override stats from full file if its locked DOLO is valid (non-zero)
+                    // This prevents corrupted full JSON from overwriting correct vedolo_stats.json values
+                    if (data.stats) {
+                        if (data.stats.total_locked_dolo > 0) {
+                            Object.assign(STATS, data.stats);
+                        } else {
+                            // Take non-sensitive fields but keep locked/vote from vedolo_stats.json
+                            const prevLocked = STATS.total_locked_dolo;
+                            const prevVote = STATS.total_vote_weight;
+                            Object.assign(STATS, data.stats);
+                            if (prevLocked > 0) {
+                                STATS.total_locked_dolo = prevLocked;
+                                STATS.total_vote_weight = prevVote;
+                                console.warn('⚠️ vedolo_holders.json has locked_dolo=0, keeping vedolo_stats.json values');
+                            }
+                        }
+                    }
                 }
             } catch (e) {
                 console.warn('Could not load vedolo_holders.json', e);
