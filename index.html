@@ -5795,7 +5795,21 @@
                 const statsResp = await fetch('vedolo_stats.json');
                 if (statsResp.ok) {
                     const statsData = await statsResp.json();
-                    if (statsData.stats) Object.assign(STATS, statsData.stats);
+                    if (statsData.stats) {
+                        // Protect: don't overwrite good hardcoded values with zeros
+                        if (statsData.stats.total_locked_dolo > 0) {
+                            Object.assign(STATS, statsData.stats);
+                        } else {
+                            const prevLocked = STATS.total_locked_dolo;
+                            const prevVote = STATS.total_vote_weight;
+                            Object.assign(STATS, statsData.stats);
+                            if (prevLocked > 0) {
+                                STATS.total_locked_dolo = prevLocked;
+                                STATS.total_vote_weight = prevVote;
+                                console.warn('⚠️ vedolo_stats.json has locked_dolo=0, keeping hardcoded values');
+                            }
+                        }
+                    }
                     console.log('✅ veDOLO: Loaded stats from vedolo_stats.json');
                 }
             } catch (e) {
