@@ -9933,6 +9933,10 @@
             const tbody = document.getElementById('earn-history-tbody');
             let html = '';
 
+            // Get explorer URL
+            const chain = earn_getChain();
+            const explorerBase = chain.explorer || 'https://etherscan.io';
+
             items.forEach((item, idx) => {
                 const delay = idx * 0.05;
 
@@ -9949,6 +9953,9 @@
                     ? '<span class="earn-hist-badge active">📍 ACTIVE</span>'
                     : '<span class="earn-hist-badge withdrawn">WITHDRAWN</span>';
 
+                // Chevron SVG
+                const chevron = `<svg class="earn-row-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
+
                 // Deposit/Withdraw amounts
                 const depFmt = item.depositNum > 0 ? earn_formatAmount(item.totalDeposited, item.decimals, item.symbol) : '—';
                 const wdFmt = item.withdrawNum > 0 ? earn_formatAmount(item.totalWithdrawn, item.decimals, item.symbol) : '—';
@@ -9962,13 +9969,19 @@
                     ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${item.yieldUsd >= 0 ? '+' : ''}$${Math.abs(item.yieldUsd).toFixed(2)}</div>`
                     : '';
 
-                html += `<tr class="earn-data-row" style="animation-delay:${delay}s">
+                // Explorer link for this token
+                const explorerUrl = `${explorerBase}/address/${item.tokenAddr}`;
+                // Use hist-row/hist-detail IDs to avoid colliding with active earn IDs
+                const rowId = `earn-hist-row-${idx}`;
+                const detailId = `earn-hist-detail-${idx}`;
+
+                html += `<tr class="earn-data-row" id="${rowId}" style="animation-delay:${delay}s" onclick="earn_toggleHistDetail(${idx})">
                     <td>
                         <div class="earn-token-cell">
                             <div class="earn-token-left">
                                 ${iconHtml}
                                 <div class="earn-token-info">
-                                    <div class="earn-token-name">${item.symbol}</div>
+                                    <div class="earn-token-name">${item.symbol} ${chevron}</div>
                                     <div style="margin-top:3px">${badge}</div>
                                 </div>
                             </div>
@@ -9979,6 +9992,17 @@
                     <td>
                         <span class="earn-amount ${yieldColor}">${yieldSign}${yieldFmt}<span class="earn-amount-sym">${item.symbol}</span></span>
                         ${yieldUsdFmt}
+                    </td>
+                </tr>`;
+
+                // Expandable detail row with CA
+                html += `<tr class="earn-detail-row" id="${detailId}">
+                    <td colspan="4">
+                        <div class="earn-ca-line">
+                            <span class="earn-ca-addr" onclick="event.stopPropagation(); earn_copyAddr('${item.tokenAddr}', this)" title="Click to copy">${item.tokenAddr}</span>
+                            <span class="copy-addr-icon" onclick="event.stopPropagation(); earn_copyAddr('${item.tokenAddr}', this)" title="Copy address"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span>
+                            <a class="earn-ca-explorer" href="${explorerUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="View on explorer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>
+                        </div>
                     </td>
                 </tr>`;
             });
@@ -10715,6 +10739,14 @@
         function earn_toggleDetail(idx) {
             const detail = document.getElementById('earn-detail-' + idx);
             const dataRow = document.getElementById('earn-row-' + idx);
+            if (!detail || !dataRow) return;
+            const isOpen = detail.classList.toggle('open');
+            dataRow.classList.toggle('expanded', isOpen);
+        }
+
+        function earn_toggleHistDetail(idx) {
+            const detail = document.getElementById('earn-hist-detail-' + idx);
+            const dataRow = document.getElementById('earn-hist-row-' + idx);
             if (!detail || !dataRow) return;
             const isOpen = detail.classList.toggle('open');
             dataRow.classList.toggle('expanded', isOpen);
