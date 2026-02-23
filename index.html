@@ -9840,8 +9840,9 @@
                     if (!flowData) continue;
 
                     const netFlow = typeof flowData === 'string' ? BigInt(flowData) : BigInt(flowData.t || '0');
-                    const totalDeposited = typeof flowData === 'string' ? 0n : BigInt(flowData.d || '0');
-                    const totalWithdrawn = typeof flowData === 'string' ? 0n : BigInt(flowData.w || '0');
+                    const hasBreakdown = typeof flowData !== 'string' && (flowData.d || flowData.w);
+                    const totalDeposited = hasBreakdown ? BigInt(flowData.d || '0') : 0n;
+                    const totalWithdrawn = hasBreakdown ? BigInt(flowData.w || '0') : 0n;
 
                     const isActive = !!activeBalances[midStr];
                     const currentWei = isActive ? activeBalances[midStr].wei : 0n;
@@ -9886,6 +9887,7 @@
                         depositNum,
                         withdrawNum,
                         netFlow,
+                        hasBreakdown,
                     });
                 }
 
@@ -9957,8 +9959,25 @@
                 const chevron = `<svg class="earn-row-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
 
                 // Deposit/Withdraw amounts
-                const depFmt = item.depositNum > 0 ? earn_formatAmount(item.totalDeposited, item.decimals, item.symbol) : '—';
-                const wdFmt = item.withdrawNum > 0 ? earn_formatAmount(item.totalWithdrawn, item.decimals, item.symbol) : '—';
+                let depFmt, wdFmt;
+                if (item.hasBreakdown) {
+                    depFmt = item.depositNum > 0 ? earn_formatAmount(item.totalDeposited, item.decimals, item.symbol) : '—';
+                    wdFmt = item.withdrawNum > 0 ? earn_formatAmount(item.totalWithdrawn, item.decimals, item.symbol) : '—';
+                } else {
+                    // Old format — no d/w breakdown, show net flow
+                    const absNet = item.netFlow < 0n ? -item.netFlow : item.netFlow;
+                    const netFmt = earn_formatAmount(absNet, item.decimals, item.symbol);
+                    if (item.netFlow > 0n) {
+                        depFmt = '≥' + netFmt;
+                        wdFmt = '—';
+                    } else if (item.netFlow < 0n) {
+                        depFmt = '—';
+                        wdFmt = '≥' + netFmt;
+                    } else {
+                        depFmt = '—';
+                        wdFmt = '—';
+                    }
+                }
 
                 // Yield
                 const yieldPositive = item.yieldWei >= 0n;
