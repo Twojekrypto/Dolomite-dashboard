@@ -564,6 +564,26 @@ def main():
     stats["total_locked_dolo"] = round(total_locked_dolo, 2)
     stats["total_vote_weight"] = round(total_vote_weight, 4)
 
+    # ===== DATA PROTECTION: Don't overwrite good stats with zeros =====
+    # If RPC calls failed and we got 0 for locked DOLO, preserve previous data
+    if total_locked_dolo == 0:
+        try:
+            if os.path.exists(OUTPUT_JSON):
+                with open(OUTPUT_JSON) as f:
+                    prev = json.load(f)
+                prev_locked = prev.get("stats", {}).get("total_locked_dolo", 0)
+                prev_vote = prev.get("stats", {}).get("total_vote_weight", 0)
+                if prev_locked > 0:
+                    print(f"\n⚠️  WARNING: New total_locked_dolo is 0 but previous was {prev_locked:,.2f}")
+                    print(f"   This likely means RPC calls failed. Preserving previous stats.")
+                    stats["total_locked_dolo"] = prev_locked
+                    stats["total_vote_weight"] = prev_vote
+                    stats["_stale_data"] = True
+                    total_locked_dolo = prev_locked
+                    total_vote_weight = prev_vote
+        except Exception as e:
+            print(f"   ⚠️ Could not read previous data: {e}")
+
     output = {
         "contract": VEDOLO_CONTRACT,
         "network": "berachain",
@@ -574,6 +594,11 @@ def main():
 
     with open(OUTPUT_JSON, "w") as f:
         json.dump(output, f, indent=2)
+
+    # Save a tiny stats-only JSON for fast frontend loading (avoids parsing 5MB+ file)
+    stats_file = os.path.join(DATA_DIR, "vedolo_stats.json")
+    with open(stats_file, "w") as f:
+        json.dump({"stats": stats, "timestamp": datetime.utcnow().isoformat()}, f, indent=2)
 
     with open(OUTPUT_CSV, "w", newline="") as f:
         writer = csv.writer(f)

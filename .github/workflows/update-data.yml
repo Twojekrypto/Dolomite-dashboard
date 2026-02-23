@@ -29,9 +29,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: locked_cache.json
-          key: locked-cache-v3-${{ github.run_id }}
+          key: locked-cache-v4-${{ github.run_id }}
           restore-keys: |
-            locked-cache-v3-
+            locked-cache-v4-
 
       - name: Run update script
         run: python update_data.py
@@ -48,7 +48,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add vedolo_holders.json vedolo_holders.csv dolo_price.json defillama_data.json odolo_contract_data.json
+          git add vedolo_holders.json vedolo_holders.csv vedolo_stats.json dolo_price.json defillama_data.json odolo_contract_data.json metrics_snapshot.json
           git diff --staged --quiet && echo "No changes to commit" && exit 0
           git commit -m "📊 Auto-update: $(date -u '+%Y-%m-%d %H:%M UTC')"
           git pull --rebase origin master

@@ -5790,18 +5790,32 @@
 
         // ===== LOAD =====
         async function loadData() {
+            // Step 1: Load tiny stats file FIRST for instant metric display
+            try {
+                const statsResp = await fetch('vedolo_stats.json');
+                if (statsResp.ok) {
+                    const statsData = await statsResp.json();
+                    if (statsData.stats) Object.assign(STATS, statsData.stats);
+                    console.log('✅ veDOLO: Loaded stats from vedolo_stats.json');
+                }
+            } catch (e) {
+                console.warn('⚠️ vedolo_stats.json not available, will fallback to full JSON', e);
+            }
+
+            // Step 2: Load full holders JSON for table data
             try {
                 const resp = await fetch('vedolo_holders.json');
                 if (resp.ok) {
                     const data = await resp.json();
                     HOLDER_DATA = data.holders;
-                    Object.assign(STATS, data.stats);
+                    // Stats from full file override (they should match vedolo_stats.json)
+                    if (data.stats) Object.assign(STATS, data.stats);
                 }
             } catch (e) {
-                console.warn('Could not load JSON', e);
+                console.warn('Could not load vedolo_holders.json', e);
             }
 
-            if (!HOLDER_DATA.length) {
+            if (!HOLDER_DATA.length && !STATS.unique_holders) {
                 document.getElementById('table-body').innerHTML =
                     '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">⚠️ Place vedolo_holders.json in the same directory.</td></tr>';
                 return;
@@ -5870,10 +5884,10 @@
             anim('m-holders', STATS.unique_holders, false, '', vedoloIcon);
             anim('m-active', STATS.active_nfts, false, '', vedoloIcon);
 
-            if (STATS.total_locked_dolo) {
+            if (STATS.total_locked_dolo !== undefined) {
                 anim('m-dolo', Math.round(STATS.total_locked_dolo), true, '', vedoloIcon);
             }
-            if (STATS.total_vote_weight) {
+            if (STATS.total_vote_weight !== undefined) {
                 anim('m-vote', Math.round(STATS.total_vote_weight), true);
             }
 
