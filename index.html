@@ -1358,6 +1358,10 @@
         }
 
         /* Exercise History desktop styling */
+        #exerciser-modal .modal-body {
+            overflow: visible;
+        }
+
         #em-txs {
             overflow-x: auto;
             overflow-y: auto;
@@ -1367,6 +1371,8 @@
 
         #em-txs .detail-table {
             min-width: 600px;
+            border-collapse: separate;
+            border-spacing: 0;
         }
 
         #em-txs .detail-table th {
@@ -1376,6 +1382,9 @@
             background: var(--bg-card);
             border-bottom: 2px solid rgba(99, 102, 241, 0.2);
             white-space: nowrap;
+            position: sticky;
+            top: 0;
+            z-index: 3;
         }
 
         #em-txs .detail-table td {
@@ -2078,8 +2087,14 @@
             }
 
             /* Exercise History table — horizontal scroll */
+            #exerciser-modal .modal-body {
+                overflow: visible;
+            }
+
             #em-txs {
                 overflow-x: auto;
+                overflow-y: auto;
+                max-height: 300px;
                 -webkit-overflow-scrolling: touch;
                 padding: 0 4px;
             }
@@ -2101,6 +2116,10 @@
                 font-size: 9px;
                 padding: 5px 6px;
                 white-space: nowrap;
+                position: sticky;
+                top: 0;
+                z-index: 3;
+                background: var(--bg-card);
             }
 
             #em-txs .detail-table td {
