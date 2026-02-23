@@ -157,84 +157,6 @@
             box-shadow: 0 0 12px rgba(52, 211, 153, 0.15);
         }
 
-        #tab-borrow.active {
-            background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.15) 100%);
-            color: #fbbf24;
-            box-shadow: 0 0 12px rgba(251, 191, 36, 0.15);
-        }
-
-        /* Borrow summary metrics */
-        .borrow-summary {
-            margin: 1.5rem auto;
-            max-width: 1200px;
-            padding: 0 1rem;
-        }
-
-        .borrow-summary-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1rem;
-        }
-
-        .borrow-metric {
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 14px;
-            padding: 1.2rem 1.4rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            backdrop-filter: blur(8px);
-            transition: transform 0.2s, border-color 0.2s;
-        }
-
-        .borrow-metric:hover {
-            transform: translateY(-2px);
-            border-color: rgba(251, 191, 36, 0.2);
-        }
-
-        .borrow-metric-label {
-            font-size: 0.75rem;
-            color: rgba(255, 255, 255, 0.5);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            font-weight: 500;
-        }
-
-        .borrow-metric-value {
-            font-size: 1.4rem;
-            font-weight: 700;
-            color: #fff;
-        }
-
-        .borrow-negative {
-            color: #f87171 !important;
-        }
-
-        .borrow-positive {
-            color: #34d399 !important;
-        }
-
-        .borrow-table .borrow-interest-cell {
-            color: #f87171;
-            font-weight: 600;
-        }
-
-        .borrow-table .borrow-daily-cell {
-            color: #fbbf24;
-            font-size: 0.85rem;
-        }
-
-        .borrow-table .borrow-apr-cell {
-            color: rgba(255, 255, 255, 0.6);
-            font-weight: 500;
-        }
-
-        @media (max-width: 768px) {
-            .borrow-summary-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
 
         .nav-tab img {
             width: 18px;
@@ -1435,6 +1357,48 @@
             color: var(--text-secondary);
         }
 
+        /* Exercise History desktop styling */
+        #em-txs {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        #em-txs .detail-table {
+            min-width: 600px;
+        }
+
+        #em-txs .detail-table th {
+            font-size: 11px;
+            color: #94a3b8;
+            padding: 8px 10px;
+            background: var(--bg-card);
+            border-bottom: 2px solid rgba(99, 102, 241, 0.2);
+            white-space: nowrap;
+        }
+
+        #em-txs .detail-table td {
+            padding: 8px 10px;
+            color: #e2e8f0;
+            font-size: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        #em-txs .detail-table tbody tr {
+            transition: background 0.15s;
+        }
+
+        #em-txs .detail-table tbody tr:nth-child(even) {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        #em-txs .detail-table tbody tr:hover {
+            background: rgba(34, 211, 238, 0.08) !important;
+        }
+
+        #em-txs .detail-table tbody tr:hover td {
+            color: #f8fafc;
+        }
+
 
         .tx-link {
             font-family: 'JetBrains Mono', monospace;
@@ -1893,6 +1857,19 @@
         .modal-close:hover {
             background: var(--bg-hover);
             color: var(--text-primary);
+        }
+
+        .modal-contract-label {
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 14px;
+            border-radius: 6px;
+            background: rgba(99, 102, 241, 0.15);
+            color: #818cf8;
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            text-align: center;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
         }
 
         .modal-summary {
@@ -4743,14 +4720,7 @@
                         </svg>
                         EARN
                     </button>
-                    <button class="nav-tab" id="tab-borrow" onclick="switchView('borrow')">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-                            <line x1="1" y1="10" x2="23" y2="10" />
-                        </svg>
-                        BORROW
-                    </button>
+
                 </div>
             </nav>
         </header>
@@ -5594,109 +5564,7 @@
         </div><!-- /view-earn -->
 
         <!-- BORROW VIEW -->
-        <div id="view-borrow" class="view-section">
-            <div class="earn-hero anim">
-                <h2>💳 Borrow Positions</h2>
-                <p>Enter your wallet address to see open borrow positions, accrued interest, and daily cost</p>
-            </div>
 
-            <div class="earn-input-card anim anim-d1">
-                <div class="earn-input-row">
-                    <div class="earn-input-wrapper">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-                            <line x1="1" y1="10" x2="23" y2="10" />
-                        </svg>
-                        <input type="text" class="earn-input" id="borrow-address" placeholder="0x... wallet address"
-                            spellcheck="false" autocomplete="off">
-                    </div>
-                    <button class="earn-search-btn" id="borrow-search-btn" onclick="borrow_lookup()">
-                        <span class="btn-text">Check Borrows</span>
-                        <div class="spinner"></div>
-                    </button>
-                </div>
-                <div class="earn-account-row">
-                    <span class="earn-account-label">Network:</span>
-                    <div class="earn-chain-dropdown" id="borrow-chain-dropdown">
-                        <input type="hidden" id="borrow-chain" value="berachain">
-                        <button type="button" class="earn-chain-trigger" id="borrow-chain-trigger"
-                            onclick="borrowChainToggle()">
-                            <img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" alt="">
-                            <span>Berachain</span>
-                        </button>
-                        <div class="earn-chain-menu" id="borrow-chain-menu"></div>
-                    </div>
-                    <input type="hidden" id="borrow-account-num" value="0">
-                </div>
-            </div>
-
-            <div class="earn-error" id="borrow-error">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="15" y1="9" x2="9" y2="15" />
-                    <line x1="9" y1="9" x2="15" y2="15" />
-                </svg>
-                <span id="borrow-error-msg"></span>
-            </div>
-
-            <div class="earn-empty" id="borrow-empty">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-                    <line x1="1" y1="10" x2="23" y2="10" />
-                </svg>
-                <h3>No borrows found</h3>
-                <p id="borrow-empty-msg">This address has no active borrow positions on Dolomite</p>
-            </div>
-
-            <!-- Summary metrics -->
-            <div class="borrow-summary" id="borrow-summary" style="display:none">
-                <div class="borrow-summary-grid">
-                    <div class="borrow-metric">
-                        <span class="borrow-metric-label">Total Borrowed</span>
-                        <span class="borrow-metric-value" id="borrow-total-value">$0.00</span>
-                    </div>
-                    <div class="borrow-metric">
-                        <span class="borrow-metric-label">Total Interest Accrued</span>
-                        <span class="borrow-metric-value borrow-negative" id="borrow-total-interest">-$0.00</span>
-                    </div>
-                    <div class="borrow-metric">
-                        <span class="borrow-metric-label">Daily Cost (Est.)</span>
-                        <span class="borrow-metric-value borrow-negative" id="borrow-daily-cost">-$0.00/day</span>
-                    </div>
-                    <div class="borrow-metric">
-                        <span class="borrow-metric-label">Health Status</span>
-                        <span class="borrow-metric-value" id="borrow-health">—</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="earn-results" id="borrow-results">
-                <div class="table-section">
-                    <div class="table-scroll">
-                        <table class="earn-asset-table borrow-table">
-                            <colgroup>
-                                <col style="width:20%">
-                                <col style="width:25%">
-                                <col style="width:20%">
-                                <col style="width:20%">
-                                <col style="width:15%">
-                            </colgroup>
-                            <thead>
-                                <tr>
-                                    <th>Token</th>
-                                    <th>Current Debt</th>
-                                    <th>Interest Paid</th>
-                                    <th>Daily Cost</th>
-                                    <th>Borrow APR</th>
-                                </tr>
-                            </thead>
-                            <tbody id="borrow-table-body"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div><!-- /view-borrow -->
 
 
         <!-- Snapshot Calendar Picker Modal -->
@@ -5749,6 +5617,7 @@
                     <span class="modal-rank" id="pm-rank"></span>
                     <span class="modal-addr" id="pm-addr"></span>
                 </div>
+                <span class="modal-contract-label" id="pm-contract-label" style="display:none">veDOLO Contract</span>
                 <button class="modal-close" onclick="closeProfile()" title="Close">✕</button>
             </div>
             <div class="modal-summary">
@@ -6672,6 +6541,18 @@
             document.getElementById('pm-rank').textContent = `#${holder.rank}`;
             document.getElementById('pm-addr').textContent = holder.address;
 
+            // Show centered veDOLO Contract banner if applicable
+            const pmLabel = document.getElementById('pm-contract-label');
+            if (pmLabel) {
+                const addrInfo = KNOWN_ADDR[holder.address.toLowerCase()];
+                if (addrInfo && addrInfo.label) {
+                    pmLabel.textContent = addrInfo.label;
+                    pmLabel.style.display = '';
+                } else {
+                    pmLabel.style.display = 'none';
+                }
+            }
+
             const totalVote = (holder.total_vote_weight || 0);
             const totalDolo = (holder.total_dolo || 0);
             const supplyPct = STATS.total_locked_dolo ? ((totalDolo / STATS.total_locked_dolo) * 100).toFixed(2) : '0';
@@ -6846,17 +6727,14 @@
             currentView = view;
 
             // Toggle view sections
-            ['vedolo', 'odolo', 'dolo', 'earn', 'borrow'].forEach(v => {
+            ['vedolo', 'odolo', 'dolo', 'earn'].forEach(v => {
                 document.getElementById('view-' + v).classList.toggle('active', view === v);
                 document.getElementById('tab-' + v).classList.toggle('active', view === v);
             });
 
             // Update page title
-            const titles = { vedolo: 'veDOLO', odolo: 'oDOLO', dolo: 'DOLO', earn: 'EARN', borrow: 'BORROW' };
+            const titles = { vedolo: 'veDOLO', odolo: 'oDOLO', dolo: 'DOLO', earn: 'EARN' };
             document.title = (titles[view] || 'Dashboard') + ' — Berachain Dashboard';
-
-            // Lazy load oDOLO data on first switch
-            // Data is preloaded eagerly on page load, no lazy loading needed
 
             // Re-render oDOLO donut on switch (canvas needs visible dimensions)
             if (view === 'odolo' && odolo_cachedData) {
@@ -6874,11 +6752,6 @@
             // Focus the earn input when switching to earn tab
             if (view === 'earn') {
                 setTimeout(() => document.getElementById('earn-address').focus(), 100);
-            }
-
-            // Focus the borrow input when switching to borrow tab
-            if (view === 'borrow') {
-                setTimeout(() => document.getElementById('borrow-address').focus(), 100);
             }
 
             // Scroll to top
@@ -7781,9 +7654,16 @@
             }
 
             const totalSupply = dolo_holderFiltered.reduce((s, h) => s + dolo_getDisplayBalance(h), 0) || 1;
+            const singleChain = (showEth && !showBera) || (!showEth && showBera);
+
+            // Known DOLO holder labels
+            const DOLO_KNOWN_LABELS = {
+                '0xcb86b75ee6133d179a12d550b09fb3cdb1e141d4': { label: 'veDOLO Contract', type: 'contract' },
+            };
 
             tbody.innerHTML = page.map((h, idx) => {
-                const dispRank = h.rank || (start + idx + 1);
+                // Sequential numbering when single chain selected, original rank otherwise
+                const dispRank = singleChain ? (start + idx + 1) : (h.rank || (start + idx + 1));
                 const rc = dispRank <= 3 ? `rank-${dispRank}` : '';
                 const isWhale = dispRank <= 10;
                 const dispBal = dolo_getDisplayBalance(h);
@@ -7799,6 +7679,10 @@
 
                 // Contract icon
                 const contractIcon = h.is_contract ? '<span class="contract-icon-badge" title="Contract Address">📜</span>' : '';
+
+                // Known address label (e.g. veDOLO Contract)
+                const knownInfo = DOLO_KNOWN_LABELS[h.address.toLowerCase()];
+                const addrLabelHtml = knownInfo ? `<span class="addr-label ${knownInfo.type}">${knownInfo.label}</span>` : '';
 
                 // ETH cell: show value if checked, empty dash if unchecked
                 const ethCell = showEth
@@ -7818,7 +7702,7 @@
                         </td>
                         <td class="c-addr">
                             <span style="display:inline-flex;align-items:center;gap:4px">
-                                ${contractIcon}<a href="${dbUrl}" target="_blank" onclick="event.stopPropagation()" class="dolo-holder-addr" title="${h.address}">${h.address.slice(0, 6)}…${h.address.slice(-4)}</a>
+                                ${contractIcon}<a href="${dbUrl}" target="_blank" onclick="event.stopPropagation()" class="dolo-holder-addr" title="${h.address}">${h.address.slice(0, 6)}…${h.address.slice(-4)}</a>${addrLabelHtml}
                                 <span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${h.address}',this)" title="Copy address"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span>
                                 <a href="${dbUrl}" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a>
                             </span>
@@ -10277,483 +10161,7 @@
             if (e.key === 'Enter') earn_lookup();
         });
 
-        // ===== BORROW NAMESPACE =====
-        let borrow_rpcId = 7000;
 
-        function borrowChainToggle() {
-            document.getElementById('borrow-chain-dropdown').classList.toggle('open');
-        }
-
-        function borrow_getChain() {
-            const sel = document.getElementById('borrow-chain');
-            return EARN_CHAINS[sel ? sel.value : 'berachain'];
-        }
-
-        // Build chain selector (reuse EARN_CHAINS)
-        (function borrow_buildChainSelector() {
-            const menu = document.getElementById('borrow-chain-menu');
-            if (!menu) return;
-            for (const [key, chain] of Object.entries(EARN_CHAINS)) {
-                if (chain.pending) continue;
-                const item = document.createElement('button');
-                item.type = 'button';
-                item.className = 'earn-chain-option';
-                item.innerHTML = `<img src="${chain.icon}" alt=""><span>${chain.name}</span>`;
-                item.onclick = () => {
-                    document.getElementById('borrow-chain').value = key;
-                    const trigger = document.getElementById('borrow-chain-trigger');
-                    trigger.querySelector('img').src = chain.icon;
-                    trigger.querySelector('span').textContent = chain.name;
-                    document.getElementById('borrow-chain-dropdown').classList.remove('open');
-                };
-                menu.appendChild(item);
-            }
-        })();
-
-        function borrow_hideAll() {
-            document.getElementById('borrow-error').classList.remove('visible');
-            document.getElementById('borrow-empty').classList.remove('visible');
-            document.getElementById('borrow-results').classList.remove('visible');
-            document.getElementById('borrow-summary').style.display = 'none';
-        }
-
-        function borrow_showError(msg) {
-            document.getElementById('borrow-error-msg').textContent = msg;
-            document.getElementById('borrow-error').classList.add('visible');
-        }
-
-        async function borrow_rpcCall(to, data) {
-            const chain = borrow_getChain();
-            for (let attempt = 0; attempt < chain.rpcs.length; attempt++) {
-                const rpc = chain.rpcs[(chain.rpcIdx + attempt) % chain.rpcs.length];
-                try {
-                    const resp = await fetch(rpc, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_call', params: [{ to, data }, 'latest'], id: ++borrow_rpcId })
-                    });
-                    const json = await resp.json();
-                    if (json.result && json.result !== '0x') return json.result;
-                } catch (e) { /* try next RPC */ }
-            }
-            return null;
-        }
-
-        async function borrow_rpcBatch(calls) {
-            const chain = borrow_getChain();
-            const rpc = chain.rpcs[chain.rpcIdx % chain.rpcs.length];
-            const batch = calls.map((c, i) => ({
-                jsonrpc: '2.0', method: 'eth_call',
-                params: [{ to: c.to, data: c.data }, 'latest'],
-                id: ++borrow_rpcId
-            }));
-            try {
-                const resp = await fetch(rpc, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(batch)
-                });
-                const results = await resp.json();
-                return results.sort((a, b) => a.id - b.id).map(r => r.result || '0x');
-            } catch (e) {
-                return calls.map(() => '0x');
-            }
-        }
-
-        function borrow_decodeBorrows(hex) {
-            if (!hex || hex === '0x') return [];
-            const data = hex.replace('0x', '');
-            const word = (i) => data.slice(i * 64, (i + 1) * 64);
-            const toNum = (w) => BigInt('0x' + w);
-
-            const off0 = Number(toNum(word(0)));
-            const off1 = Number(toNum(word(1)));
-            const off2 = Number(toNum(word(2)));
-            const off3 = Number(toNum(word(3)));
-
-            const readArrayAt = (byteOffset) => {
-                const wordIdx = byteOffset / 32;
-                const len = Number(toNum(word(wordIdx)));
-                const items = [];
-                for (let i = 0; i < len; i++) items.push(word(wordIdx + 1 + i));
-                return items;
-            };
-
-            const marketIds = readArrayAt(off0).map(w => Number(toNum(w)));
-            const count = marketIds.length;
-            if (count === 0) return [];
-
-            const tokenAddrs = readArrayAt(off1).map(w => '0x' + w.slice(24));
-
-            const parsWordIdx = off2 / 32;
-            const parsLen = Number(toNum(word(parsWordIdx)));
-            const pars = [];
-            for (let i = 0; i < parsLen; i++) {
-                const sign = toNum(word(parsWordIdx + 1 + i * 2)) !== 0n;
-                const value = toNum(word(parsWordIdx + 2 + i * 2));
-                pars.push({ sign, value });
-            }
-
-            const weisWordIdx = off3 / 32;
-            const weisLen = Number(toNum(word(weisWordIdx)));
-            const weis = [];
-            for (let i = 0; i < weisLen; i++) {
-                const sign = toNum(word(weisWordIdx + 1 + i * 2)) !== 0n;
-                const value = toNum(word(weisWordIdx + 2 + i * 2));
-                weis.push({ sign, value });
-            }
-
-            const results = [];
-            for (let i = 0; i < count; i++) {
-                const parVal = pars[i] ? (pars[i].sign ? pars[i].value : -pars[i].value) : 0n;
-                const weiVal = weis[i] ? (weis[i].sign ? weis[i].value : -weis[i].value) : 0n;
-                // Only include NEGATIVE balances (borrows)
-                if (weiVal < 0n) {
-                    results.push({
-                        marketId: marketIds[i],
-                        tokenAddr: tokenAddrs[i],
-                        par: parVal,    // principal (original borrow amount, negative)
-                        wei: weiVal,    // current debt (with interest, negative)
-                    });
-                }
-            }
-            return results;
-        }
-
-        // Discover ALL Dolomite account numbers (including isolation mode) via event logs
-        async function borrow_discoverAccounts(addr) {
-            const chain = borrow_getChain();
-            const addrTopic = '0x' + addr.slice(2).toLowerCase().padStart(64, '0');
-            const accountNums = new Set();
-            accountNums.add('0'); // Always check default account
-
-            // Get latest block number
-            let latestBlock;
-            try {
-                const resp = await fetch(chain.rpcs[0], {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_blockNumber', params: [], id: ++borrow_rpcId })
-                });
-                latestBlock = parseInt((await resp.json()).result, 16);
-            } catch { return Array.from(accountNums); }
-
-            // Scan last 80M blocks in 10M chunks (covers ~6+ months on Arbitrum)
-            const SCAN_RANGE = 80_000_000;
-            const CHUNK = 10_000_000;
-            const startBlock = Math.max(0, latestBlock - SCAN_RANGE);
-
-            console.log(`Borrow: scanning blocks ${startBlock.toLocaleString()}-${latestBlock.toLocaleString()} for accounts...`);
-
-            for (let from = startBlock; from < latestBlock; from += CHUNK) {
-                const to = Math.min(from + CHUNK - 1, latestBlock);
-                for (let attempt = 0; attempt < chain.rpcs.length; attempt++) {
-                    const rpc = chain.rpcs[(chain.rpcIdx + attempt) % chain.rpcs.length];
-                    try {
-                        const resp = await fetch(rpc, {
-                            method: 'POST', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                jsonrpc: '2.0', method: 'eth_getLogs',
-                                params: [{
-                                    address: chain.margin, topics: [null, addrTopic],
-                                    fromBlock: '0x' + from.toString(16), toBlock: '0x' + to.toString(16)
-                                }],
-                                id: ++borrow_rpcId
-                            })
-                        });
-                        const r = await resp.json();
-                        if (r.error) {
-                            // Range too large — try smaller chunks
-                            const subChunk = CHUNK / 5;
-                            for (let sf = from; sf <= to; sf += subChunk) {
-                                const se = Math.min(sf + subChunk - 1, to);
-                                try {
-                                    const resp2 = await fetch(rpc, {
-                                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({
-                                            jsonrpc: '2.0', method: 'eth_getLogs',
-                                            params: [{
-                                                address: chain.margin, topics: [null, addrTopic],
-                                                fromBlock: '0x' + sf.toString(16), toBlock: '0x' + se.toString(16)
-                                            }],
-                                            id: ++borrow_rpcId
-                                        })
-                                    });
-                                    const r2 = await resp2.json();
-                                    if (r2.result) {
-                                        r2.result.forEach(log => {
-                                            const data = (log.data || '0x').slice(2);
-                                            if (data.length >= 64) {
-                                                const accNum = BigInt('0x' + data.slice(0, 64));
-                                                accountNums.add(accNum.toString());
-                                            }
-                                        });
-                                    }
-                                } catch { }
-                            }
-                            break;
-                        }
-                        if (r.result) {
-                            r.result.forEach(log => {
-                                const data = (log.data || '0x').slice(2);
-                                if (data.length >= 64) {
-                                    const accNum = BigInt('0x' + data.slice(0, 64));
-                                    accountNums.add(accNum.toString());
-                                }
-                            });
-                        }
-                        break;
-                    } catch { /* try next RPC */ }
-                }
-            }
-
-            console.log(`Borrow: found ${accountNums.size} account numbers`);
-            return Array.from(accountNums);
-        }
-
-        async function borrow_lookup() {
-            const addr = document.getElementById('borrow-address').value.trim();
-            const btn = document.getElementById('borrow-search-btn');
-
-            if (!addr || !/^0x[a-fA-F0-9]{40}$/.test(addr)) {
-                borrow_hideAll();
-                borrow_showError('Please enter a valid wallet address (0x...)');
-                return;
-            }
-
-            borrow_hideAll();
-            btn.classList.add('loading');
-            btn.disabled = true;
-
-            try {
-                const chain = borrow_getChain();
-                if (chain.pending) {
-                    borrow_showError(chain.name + ' is not yet live on Dolomite.');
-                    return;
-                }
-
-                // Step 1: Discover ALL account numbers (including isolation mode)
-                const accountNums = await borrow_discoverAccounts(addr);
-                console.log('Borrow: checking accounts:', accountNums.length);
-
-                // Step 2: Fetch balances for ALL accounts
-                const allBorrows = [];
-                const selector = '0x6a8194e7'; // getAccountBalances(address, uint256)
-
-                for (const accNum of accountNums) {
-                    // For large numbers, convert to hex properly
-                    const numHex = BigInt(accNum).toString(16).padStart(64, '0');
-                    const calldata = selector + earn_padAddr(addr) + numHex;
-                    const result = await borrow_rpcCall(chain.margin, calldata);
-
-                    try {
-                        const borrows = borrow_decodeBorrows(result);
-                        if (borrows.length > 0) {
-                            borrows.forEach(b => { b.accountNum = accNum; });
-                            allBorrows.push(...borrows);
-                        }
-                    } catch { }
-                }
-
-                if (allBorrows.length === 0) {
-                    const emptyMsg = document.getElementById('borrow-empty-msg');
-                    emptyMsg.textContent = `No active borrows found (scanned ${accountNums.length} account${accountNums.length > 1 ? 's' : ''})`;
-                    document.getElementById('borrow-empty').classList.add('visible');
-                    return;
-                }
-
-                // Step 3: Fetch token info + borrow rates
-                const chainId = document.getElementById('borrow-chain').value;
-                const batchCalls = [];
-                const batchMap = [];
-
-                allBorrows.forEach((b, i) => {
-                    const key = chainId + ':' + b.tokenAddr.toLowerCase();
-                    const cached = earn_tokenCache[key] || KNOWN_TOKENS[key];
-                    if (!cached) {
-                        batchCalls.push({ to: b.tokenAddr, data: '0x95d89b41' }); // symbol()
-                        batchMap.push({ type: 'symbol', idx: i });
-                        batchCalls.push({ to: b.tokenAddr, data: '0x313ce567' }); // decimals()
-                        batchMap.push({ type: 'decimals', idx: i });
-                    }
-                });
-
-                // Fetch borrow rates
-                const uniqueMarkets = [...new Set(allBorrows.map(b => b.marketId))];
-                const marketRateMap = {};
-                uniqueMarkets.forEach(mid => {
-                    batchCalls.push({ to: chain.margin, data: '0x5fb1d8bb' + earn_padUint(mid) });
-                    batchMap.push({ type: 'borrowRate', marketId: mid });
-                });
-
-                const batchResults = batchCalls.length > 0 ? await borrow_rpcBatch(batchCalls) : [];
-
-                const tokenRaw = allBorrows.map(() => ({ symHex: null, decHex: null }));
-                batchMap.forEach((m, j) => {
-                    const r = batchResults[j];
-                    if (m.type === 'symbol') tokenRaw[m.idx].symHex = r;
-                    else if (m.type === 'decimals') tokenRaw[m.idx].decHex = r;
-                    else if (m.type === 'borrowRate') {
-                        try { marketRateMap[m.marketId] = BigInt(r || '0'); } catch { marketRateMap[m.marketId] = 0n; }
-                    }
-                });
-
-                // Step 4: Build asset list
-                const assets = allBorrows.map((b, i) => {
-                    const key = chainId + ':' + b.tokenAddr.toLowerCase();
-                    let cached = earn_tokenCache[key] || KNOWN_TOKENS[key];
-                    if (!cached) {
-                        let sym = 'UNK';
-                        let dec = 18;
-                        if (tokenRaw[i].symHex && tokenRaw[i].symHex.length > 2) {
-                            try {
-                                const raw = tokenRaw[i].symHex.replace('0x', '');
-                                if (raw.length >= 128) {
-                                    const strLen = parseInt(raw.slice(64, 128), 16);
-                                    const hexStr = raw.slice(128, 128 + strLen * 2);
-                                    sym = '';
-                                    for (let j = 0; j < hexStr.length; j += 2) {
-                                        const c = parseInt(hexStr.slice(j, j + 2), 16);
-                                        if (c > 0) sym += String.fromCharCode(c);
-                                    }
-                                }
-                            } catch { }
-                        }
-                        if (tokenRaw[i].decHex && tokenRaw[i].decHex.length > 2) {
-                            try { dec = Number(BigInt(tokenRaw[i].decHex)); } catch { }
-                        }
-                        cached = { symbol: sym, decimals: dec, icon: null };
-                        earn_tokenCache[key] = cached;
-                    }
-
-                    const absWei = b.wei < 0n ? -b.wei : b.wei;
-                    const absPar = b.par < 0n ? -b.par : b.par;
-                    const interestWei = absWei > absPar ? absWei - absPar : 0n;
-
-                    const borrowRate = marketRateMap[b.marketId] || 0n;
-                    const ratePerSec = Number(borrowRate) / 1e18;
-                    const apr = ratePerSec * 86400 * 365 * 100;
-                    const dailyCostWei = Number(absWei) * ratePerSec * 86400;
-
-                    return {
-                        ...b,
-                        symbol: cached.symbol,
-                        decimals: cached.decimals,
-                        icon: cached.icon,
-                        absWei,
-                        interestWei,
-                        apr,
-                        dailyCostWei,
-                    };
-                });
-
-                // Fetch prices
-                await earn_fetchCoinGeckoPrices(assets.map(a => a.tokenAddr));
-
-                // Calculate USD values
-                let totalDebtUsd = 0;
-                let totalInterestUsd = 0;
-                let totalDailyCostUsd = 0;
-
-                assets.forEach(a => {
-                    const key = chainId + ':' + a.tokenAddr.toLowerCase();
-                    const price = earn_priceCache[key] || TOKEN_USD_FALLBACK[a.symbol] || 0;
-                    const debtNum = Number(a.absWei) / Math.pow(10, a.decimals);
-                    const interestNum = Number(a.interestWei) / Math.pow(10, a.decimals);
-                    const dailyCostNum = a.dailyCostWei / Math.pow(10, a.decimals);
-
-                    a.debtUsd = debtNum * price;
-                    a.interestUsd = interestNum * price;
-                    a.dailyCostUsd = dailyCostNum * price;
-                    a.price = price;
-
-                    totalDebtUsd += a.debtUsd;
-                    totalInterestUsd += a.interestUsd;
-                    totalDailyCostUsd += a.dailyCostUsd;
-                });
-
-                // Sort by debt (largest first)
-                assets.sort((a, b) => b.debtUsd - a.debtUsd);
-
-                // Render summary
-                document.getElementById('borrow-total-value').textContent = '$' + totalDebtUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                document.getElementById('borrow-total-interest').textContent = '-$' + totalInterestUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                document.getElementById('borrow-daily-cost').textContent = '-$' + totalDailyCostUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '/day';
-
-                // Health status
-                const healthRatio = totalDebtUsd > 0 ? totalInterestUsd / totalDebtUsd : 0;
-                const healthEl = document.getElementById('borrow-health');
-                if (healthRatio < 0.01) {
-                    healthEl.textContent = '🟢 Healthy';
-                    healthEl.className = 'borrow-metric-value borrow-positive';
-                } else if (healthRatio < 0.05) {
-                    healthEl.textContent = '🟡 Moderate';
-                    healthEl.className = 'borrow-metric-value';
-                    healthEl.style.color = '#fbbf24';
-                } else {
-                    healthEl.textContent = '🔴 High Interest';
-                    healthEl.className = 'borrow-metric-value borrow-negative';
-                }
-
-                document.getElementById('borrow-summary').style.display = '';
-
-                // Render table
-                const tbody = document.getElementById('borrow-table-body');
-                let html = '';
-                assets.forEach(a => {
-                    const debtDisplay = (Number(a.absWei) / Math.pow(10, a.decimals));
-                    const interestDisplay = (Number(a.interestWei) / Math.pow(10, a.decimals));
-
-                    const isEth = ['WETH', 'weETH', 'ETH', 'stETH', 'wstETH', 'rETH', 'cbETH', 'stBERA'].includes(a.symbol);
-                    const isBtc = ['WBTC', 'BTC', 'tBTC', 'cbBTC'].includes(a.symbol);
-                    const decPlaces = isBtc ? 5 : isEth ? 4 : 2;
-
-                    const iconSrc = a.icon || `https://raw.githubusercontent.com/nicholasrossi0530/tokens/master/blockchains/ethereum/assets/${a.tokenAddr}/logo.png`;
-
-                    html += `<tr>
-                        <td>
-                            <div style="display:flex;align-items:center;gap:8px">
-                                <img src="${iconSrc}" alt="${a.symbol}" style="width:24px;height:24px;border-radius:50%" onerror="this.style.display='none'">
-                                <span style="font-weight:600">${a.symbol}</span>
-                            </div>
-                        </td>
-                        <td>
-                            <div style="font-weight:600">${debtDisplay.toLocaleString('en-US', { minimumFractionDigits: decPlaces, maximumFractionDigits: decPlaces })}</div>
-                            <div style="font-size:0.75rem;color:rgba(255,255,255,0.4)">≈ $${a.debtUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                        </td>
-                        <td class="borrow-interest-cell">
-                            ${interestDisplay > 0 ? '-' : ''}${interestDisplay.toLocaleString('en-US', { minimumFractionDigits: decPlaces, maximumFractionDigits: decPlaces })}
-                            <div style="font-size:0.75rem;color:rgba(255,255,255,0.4)">≈ -$${a.interestUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                        </td>
-                        <td class="borrow-daily-cell">
-                            -$${a.dailyCostUsd.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}/day
-                        </td>
-                        <td class="borrow-apr-cell">
-                            ${a.apr.toFixed(2)}%
-                        </td>
-                    </tr>`;
-                });
-
-                tbody.innerHTML = html;
-                document.getElementById('borrow-results').classList.add('visible');
-
-            } catch (e) {
-                borrow_showError('Error fetching borrow data: ' + e.message);
-            } finally {
-                btn.classList.remove('loading');
-                btn.disabled = false;
-            }
-        }
-
-        // Enter key support
-        document.getElementById('borrow-address').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') borrow_lookup();
-        });
-
-        // Close dropdown on outside click
-        document.addEventListener('click', (e) => {
-            const dd = document.getElementById('borrow-chain-dropdown');
-            if (dd && !dd.contains(e.target)) dd.classList.remove('open');
-        });
 
         // Eagerly preload ALL tab data in parallel for instant tab switching
         loadData();      // veDOLO holders
