@@ -43,7 +43,7 @@ CHAINS = {
             "https://berachain-rpc.publicnode.com/",
             "https://1rpc.io/berachain",
         ],
-        "start_block": -1,  # No events found
+        "start_block": 7_000_000,  # Berachain mainnet events start around here
     },
     "mantle": {
         "margin": "0xe6ef4f0b2455bab92ce7cc78e35324ab58917de8",
@@ -73,10 +73,13 @@ CHAINS = {
 }
 
 # Event signatures (keccak256 hashes)
-# LogDeposit(address indexed accountOwner, uint256 accountNumber, uint256 market, ((bool,uint256),(bool,uint256)) update)
-LOG_DEPOSIT  = "0x2bad8bc95088af2c247b30fa2b2e6a0886f88625e0945cd3051008e0e270198f"
-# LogWithdraw(address indexed accountOwner, uint256 accountNumber, uint256 market, ((bool,uint256),(bool,uint256)) update)
-LOG_WITHDRAW = "0xbc83c08f0b269b1726990c8348ffdf1ae1696244a14868d766e542a2f18cd7d4"
+LOG_DEPOSIT    = "0x2bad8bc95088af2c247b30fa2b2e6a0886f88625e0945cd3051008e0e270198f"
+LOG_WITHDRAW   = "0xbc83c08f0b269b1726990c8348ffdf1ae1696244a14868d766e542a2f18cd7d4"
+LOG_TRADE      = "0x551e705b3457d01be14140987c43896f782b70542f778b43b9f5f94522302b6f"
+LOG_TRANSFER   = "0xe95afb1ad6381b7e0935d86b6442b2f145381aa2f821b5d49096b61d9ee08d4b"
+LOG_LIQUIDATE  = "0x5c18eb2c52b455100d6a3f07c1b2223d05d50135af3348404e76b1e42ddaef85"
+
+ALL_EVENTS = [LOG_DEPOSIT, LOG_WITHDRAW, LOG_TRADE, LOG_TRANSFER, LOG_LIQUIDATE]
 
 BLOCK_CHUNK = 49999  # blocks per getLogs request (RPC max is typically 50k)
 MAX_RETRIES = 3
@@ -143,7 +146,7 @@ def find_first_event_block(rpcs, rpc_idx, contract, latest_block):
     for start in range(0, latest_block, chunk):
         end = min(start + chunk - 1, latest_block)
         try:
-            logs = get_logs(rpcs, rpc_idx, contract, [[LOG_DEPOSIT, LOG_WITHDRAW]], start, min(start + 49_999, end))
+            logs = get_logs(rpcs, rpc_idx, contract, [ALL_EVENTS], start, min(start + 49_999, end))
             if logs:
                 return int(logs[0]["blockNumber"], 16)
         except:
@@ -153,7 +156,7 @@ def find_first_event_block(rpcs, rpc_idx, contract, latest_block):
             # Try midpoints in 50k chunks
             for s in range(start, end, 50_000):
                 try:
-                    sub_logs = get_logs(rpcs, rpc_idx, contract, [[LOG_DEPOSIT, LOG_WITHDRAW]], s, min(s + 49_999, end))
+                    sub_logs = get_logs(rpcs, rpc_idx, contract, [ALL_EVENTS], s, min(s + 49_999, end))
                     if sub_logs:
                         return int(sub_logs[0]["blockNumber"], 16)
                 except:
@@ -162,45 +165,123 @@ def find_first_event_block(rpcs, rpc_idx, contract, latest_block):
     return 0
 
 
+def decode_balance_update(words, offset):
+    """Decode a BalanceUpdate struct: { Types.Wei { bool sign, uint256 value } x2 }.
+    Returns deltaWei (signed integer). The struct is 4 words:
+      word 0: newPar.sign, word 1: newPar.value
+      word 2: deltaWei.sign, word 3: deltaWei.value
+    """
+    sign = int(words[offset + 2], 16)   # deltaWei.sign: 1=positive, 0=negative
+    value = int(words[offset + 3], 16)  # deltaWei.value
+    return value if sign else -value
+
+
 def decode_deposit_withdraw_log(log):
     """Decode a LogDeposit or LogWithdraw event.
-    
-    Topics:
-      [0] = event signature
-      [1] = indexed accountOwner (address, padded to 32 bytes)
-    
-    Data (non-indexed):
-      word 0: accountNumber (uint256)
-      word 1: market (uint256)
-      word 2-5: BalanceUpdate { Types.Wei newPar, Types.Wei deltaWei }
-        word 2: newPar.sign (bool)
-        word 3: newPar.value (uint128 as uint256)
-        word 4: deltaWei.sign (bool)  
-        word 5: deltaWei.value (uint256) — this is what we want
+    Topics: [0] event sig, [1] indexed accountOwner
+    Data: accountNumber, market, BalanceUpdate(4 words)
     """
     topics = log["topics"]
     data = log["data"].replace("0x", "")
-    
-    owner = "0x" + topics[1][-40:]  # last 20 bytes of topic
-    
-    # Decode data words
+    owner = "0x" + topics[1][-40:]
     words = [data[i*64:(i+1)*64] for i in range(len(data)//64)]
     if len(words) < 6:
         return None
-    
     market_id = int(words[1], 16)
-    delta_sign = int(words[4], 16)  # 1 = positive, 0 = negative
-    delta_value = int(words[5], 16)
+    delta_wei = decode_balance_update(words, 2)
+    return {"owner": owner.lower(), "market": str(market_id), "delta": delta_wei}
+
+
+def decode_trade_log(log):
+    """Decode a LogTrade event (swap).
+    Topics: [0] event sig, [1] indexed makerOwner, [2] indexed takerOwner
+    Data: makerAccountNumber(0), takerAccountNumber(1), inputMarket(2), outputMarket(3),
+          makerInputUpdate(4-7), makerOutputUpdate(8-11), takerInputUpdate(12-15), takerOutputUpdate(16-19)
+    Actually the layout is:
+      word 0: makerAccountNumber
+      word 1: takerAccountNumber
+      word 2: inputMarket
+      word 3: outputMarket
+      words 4-7:   makerInputUpdate  (BalanceUpdate for inputMarket on maker)
+      words 8-11:  makerOutputUpdate (BalanceUpdate for outputMarket on maker)
+      words 12-15: takerInputUpdate  (BalanceUpdate for inputMarket on taker - but we only track total)
+      words 16-19: takerOutputUpdate (BalanceUpdate for outputMarket on taker)
+    """
+    topics = log["topics"]
+    data = log["data"].replace("0x", "")
+    maker = "0x" + topics[1][-40:]
+    taker = "0x" + topics[2][-40:] if len(topics) > 2 else None
+    words = [data[i*64:(i+1)*64] for i in range(len(data)//64)]
+    if len(words) < 12:
+        return None
+    input_market = str(int(words[2], 16))
+    output_market = str(int(words[3], 16))
+    # Maker: gets delta on input and output markets
+    maker_input_delta = decode_balance_update(words, 4)
+    maker_output_delta = decode_balance_update(words, 8) if len(words) >= 12 else 0
     
-    # For deposits: delta is positive (sign=1)
-    # For withdrawals: delta is negative (sign=0)
-    delta_wei = delta_value if delta_sign else -delta_value
-    
-    return {
-        "owner": owner.lower(),
-        "market": str(market_id),
-        "delta": delta_wei,
-    }
+    results = [
+        {"owner": maker.lower(), "market": input_market, "delta": maker_input_delta},
+        {"owner": maker.lower(), "market": output_market, "delta": maker_output_delta},
+    ]
+    # Taker side (if enough data)
+    if taker and len(words) >= 20:
+        taker_input_delta = decode_balance_update(words, 12)
+        taker_output_delta = decode_balance_update(words, 16)
+        results.append({"owner": taker.lower(), "market": input_market, "delta": taker_input_delta})
+        results.append({"owner": taker.lower(), "market": output_market, "delta": taker_output_delta})
+    return results
+
+
+def decode_transfer_log(log):
+    """Decode a LogTransfer event.
+    Topics: [0] event sig, [1] indexed accountOneOwner, [2] indexed accountTwoOwner
+    Data: accountOneNumber(0), accountTwoNumber(1), market(2),
+          updateOne(3-6), updateTwo(7-10)
+    """
+    topics = log["topics"]
+    data = log["data"].replace("0x", "")
+    owner1 = "0x" + topics[1][-40:]
+    owner2 = "0x" + topics[2][-40:] if len(topics) > 2 else None
+    words = [data[i*64:(i+1)*64] for i in range(len(data)//64)]
+    if len(words) < 7:
+        return None
+    market = str(int(words[2], 16))
+    delta1 = decode_balance_update(words, 3)
+    results = [{"owner": owner1.lower(), "market": market, "delta": delta1}]
+    if owner2 and len(words) >= 11:
+        delta2 = decode_balance_update(words, 7)
+        results.append({"owner": owner2.lower(), "market": market, "delta": delta2})
+    return results
+
+
+def decode_liquidate_log(log):
+    """Decode a LogLiquidate event.
+    Topics: [0] event sig, [1] indexed solidOwner, [2] indexed liquidOwner
+    Data: solidAccountNumber(0), liquidAccountNumber(1), heldMarket(2), owedMarket(3),
+          solidHeldUpdate(4-7), solidOwedUpdate(8-11), liquidHeldUpdate(12-15), liquidOwedUpdate(16-19)
+    """
+    topics = log["topics"]
+    data = log["data"].replace("0x", "")
+    solid = "0x" + topics[1][-40:]
+    liquid = "0x" + topics[2][-40:] if len(topics) > 2 else None
+    words = [data[i*64:(i+1)*64] for i in range(len(data)//64)]
+    if len(words) < 12:
+        return None
+    held_market = str(int(words[2], 16))
+    owed_market = str(int(words[3], 16))
+    solid_held_delta = decode_balance_update(words, 4)
+    solid_owed_delta = decode_balance_update(words, 8)
+    results = [
+        {"owner": solid.lower(), "market": held_market, "delta": solid_held_delta},
+        {"owner": solid.lower(), "market": owed_market, "delta": solid_owed_delta},
+    ]
+    if liquid and len(words) >= 20:
+        liquid_held_delta = decode_balance_update(words, 12)
+        liquid_owed_delta = decode_balance_update(words, 16)
+        results.append({"owner": liquid.lower(), "market": held_market, "delta": liquid_held_delta})
+        results.append({"owner": liquid.lower(), "market": owed_market, "delta": liquid_owed_delta})
+    return results
 
 
 def load_progress(chain_id):
@@ -278,34 +359,58 @@ def scan_chain(chain_id, chain_config, only_chains=None):
         to_block = min(current + chunk_size - 1, latest_block)
         
         try:
-            # Fetch deposits AND withdrawals in a single query using OR topic filter
-            all_logs = get_logs(rpcs, rpc_idx, contract, [[LOG_DEPOSIT, LOG_WITHDRAW]], current, to_block) or []
+            # Fetch ALL events in a single query
+            all_logs = get_logs(rpcs, rpc_idx, contract, [ALL_EVENTS], current, to_block) or []
             
             events_in_chunk = len(all_logs)
             total_events += events_in_chunk
             
-            # Process all logs
-            for log in all_logs:
-                topic0 = log["topics"][0]
-                decoded = decode_deposit_withdraw_log(log)
-                if not decoded:
-                    continue
-                addr = decoded["owner"]
-                mid = decoded["market"]
+            # Helper to add flow to netflows
+            def add_flow(addr, mid, delta, flow_type):
                 if addr not in netflows:
                     netflows[addr] = {}
                 if mid not in netflows[addr]:
-                    netflows[addr][mid] = {"t": "0", "d": "0", "w": "0"}
-                
+                    netflows[addr][mid] = {"t": "0", "d": "0", "w": "0", "s": "0", "x": "0", "l": "0"}
+                # Ensure all keys exist (for old-format data)
+                for k in ("d", "w", "s", "x", "l"):
+                    if k not in netflows[addr][mid]:
+                        netflows[addr][mid][k] = "0"
                 old_t = int(netflows[addr][mid]["t"])
-                netflows[addr][mid]["t"] = str(old_t + decoded["delta"])
+                netflows[addr][mid]["t"] = str(old_t + delta)
+                old_ft = int(netflows[addr][mid][flow_type])
+                netflows[addr][mid][flow_type] = str(old_ft + abs(delta))
+            
+            # Process all logs
+            for log in all_logs:
+                topic0 = log["topics"][0]
                 
                 if topic0 == LOG_DEPOSIT:
-                    old_d = int(netflows[addr][mid]["d"])
-                    netflows[addr][mid]["d"] = str(old_d + abs(decoded["delta"]))
-                else:
-                    old_w = int(netflows[addr][mid]["w"])
-                    netflows[addr][mid]["w"] = str(old_w + abs(decoded["delta"]))
+                    decoded = decode_deposit_withdraw_log(log)
+                    if decoded:
+                        add_flow(decoded["owner"], decoded["market"], decoded["delta"], "d")
+                
+                elif topic0 == LOG_WITHDRAW:
+                    decoded = decode_deposit_withdraw_log(log)
+                    if decoded:
+                        add_flow(decoded["owner"], decoded["market"], decoded["delta"], "w")
+                
+                elif topic0 == LOG_TRADE:
+                    entries = decode_trade_log(log)
+                    if entries:
+                        for e in entries:
+                            add_flow(e["owner"], e["market"], e["delta"], "s")
+                
+                elif topic0 == LOG_TRANSFER:
+                    entries = decode_transfer_log(log)
+                    if entries:
+                        for e in entries:
+                            add_flow(e["owner"], e["market"], e["delta"], "x")
+                
+                elif topic0 == LOG_LIQUIDATE:
+                    entries = decode_liquidate_log(log)
+                    if entries:
+                        for e in entries:
+                            add_flow(e["owner"], e["market"], e["delta"], "l")
             
             pct = ((to_block - start_block) / max(1, latest_block - start_block)) * 100
             blocks_done = to_block - start_block
