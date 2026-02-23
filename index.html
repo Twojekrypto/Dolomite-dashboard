@@ -1837,7 +1837,7 @@
             flex-direction: column;
             transform: translateY(20px) scale(0.97);
             transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            overflow: hidden;
+            overflow: clip;
         }
 
         .modal-overlay.active .modal-card {
@@ -1942,18 +1942,6 @@
             padding: 20px 24px;
             flex: 1;
             min-height: 0;
-        }
-
-        /* Make #em-txs a dedicated scroll container so sticky headers work */
-        #em-txs {
-            overflow-y: auto;
-            max-height: calc(85vh - 320px);
-            border: 1px solid var(--border-subtle);
-            border-radius: 8px;
-        }
-
-        #em-txs .detail-table th {
-            background: var(--bg-surface);
         }
 
         .modal-section-title {
