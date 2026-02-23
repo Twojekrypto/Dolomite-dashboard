@@ -4771,6 +4771,7 @@
                         </span>
                     </div>
                     <div class="metric-value" id="m-holders">—</div>
+                    <div class="metric-sub" id="vedolo-holders-24h"></div>
                 </div>
 
                 <div class="metric-cell">
@@ -4792,7 +4793,7 @@
                         </span>
                     </div>
                     <div class="metric-value accent-green" id="m-dolo">—</div>
-                    <div class="metric-sub">total in lock</div>
+                    <div class="metric-sub" id="vedolo-locked-24h">total in lock</div>
                 </div>
                 <div class="metric-cell">
                     <div class="metric-label">Vote Weight
@@ -4803,7 +4804,7 @@
                         </span>
                     </div>
                     <div class="metric-value" id="m-vote" style="color:#f59e0b">—</div>
-                    <div class="metric-sub">total veDOLO power</div>
+                    <div class="metric-sub" id="vedolo-vote-24h">total veDOLO power</div>
                 </div>
             </div>
 
@@ -5048,7 +5049,7 @@
                         </span>
                     </div>
                     <div class="metric-value green" id="o-m-exercised"><span class="odolo-loading-shimmer"></span></div>
-                    <div class="metric-sub">converted to veDOLO</div>
+                    <div class="metric-sub" id="odolo-exercised-24h">converted to veDOLO</div>
                 </div>
                 <div class="metric-cell">
                     <div class="metric-label">
@@ -5062,6 +5063,7 @@
                     </div>
                     <div class="metric-value green" id="o-m-revenue"><span class="odolo-loading-shimmer"></span></div>
                     <div class="metric-sub" id="o-m-revenue-sub">USDC.e paid for veDOLO</div>
+                    <div class="metric-sub" id="odolo-volume-24h"></div>
                 </div>
                 <div class="metric-cell">
                     <div class="metric-label">AVG veDOLO PRICE</div>
@@ -5295,10 +5297,12 @@
                 <div class="metric-cell">
                     <div class="metric-label">Total TVL</div>
                     <div class="metric-value" style="color:var(--accent-green)" id="dolo-tvl">—</div>
+                    <div class="metric-sub" id="dolo-tvl-24h"></div>
                 </div>
                 <div class="metric-cell">
                     <div class="metric-label">24h Volume</div>
                     <div class="metric-value" id="dolo-vol">—</div>
+                    <div class="metric-sub" id="dolo-vol-24h"></div>
                 </div>
                 <div class="metric-cell">
                     <div class="metric-label" style="display:flex;align-items:center;gap:5px"><img
@@ -5872,6 +5876,16 @@
             if (STATS.total_vote_weight) {
                 anim('m-vote', Math.round(STATS.total_vote_weight), true);
             }
+
+            // Render 24h change badges for veDOLO tab
+            fetchMetricsSnapshots().then(snaps => {
+                const old = get24hOld(snaps);
+                if (old) {
+                    render24hBadge('vedolo-holders-24h', STATS.unique_holders, old.vedolo_holders, 'abs');
+                    render24hBadge('vedolo-locked-24h', STATS.total_locked_dolo, old.dolo_locked, 'pct', 'total in lock');
+                    render24hBadge('vedolo-vote-24h', STATS.total_vote_weight, old.vote_weight, 'pct', 'total veDOLO power');
+                }
+            }).catch(() => { });
 
             // Load early exit penalty stats
             loadEarlyExitData();
@@ -6998,6 +7012,31 @@
                 document.getElementById('o-m-avg-price').textContent = '—';
             }
 
+            // Render 24h change badges for oDOLO tab
+            fetchMetricsSnapshots().then(snaps => {
+                const old = get24hOld(snaps);
+                if (old) {
+                    render24hBadge('odolo-exercised-24h', data.pushedTokens, old.exercised_txs ? data.pushedTokens : null, 'pct', 'converted to veDOLO');
+                    if (data.exercisedUsd && old.exercised_usd) {
+                        const usdDiff = data.exercisedUsd - old.exercised_usd;
+                        if (usdDiff > 0) {
+                            render24hBadge('odolo-volume-24h', data.exercisedUsd, old.exercised_usd, 'usd');
+                        }
+                    }
+                    if (data.exercisedTxs && old.exercised_txs) {
+                        const txDiff = data.exercisedTxs - old.exercised_txs;
+                        if (txDiff !== 0) {
+                            const el = document.getElementById('odolo-exercised-24h');
+                            const isPos = txDiff > 0;
+                            const arrow = isPos ? '↑' : '↓';
+                            const color = isPos ? 'var(--accent-green)' : 'var(--accent-rose)';
+                            const bg = isPos ? 'rgba(52,211,153,0.15)' : 'rgba(251,113,133,0.15)';
+                            if (el) el.innerHTML = `<span style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;background:${bg};color:${color}">${arrow} +${txDiff} exercises 24h</span>`;
+                        }
+                    }
+                }
+            }).catch(() => { });
+
             if (data.avgLockDays) {
                 document.getElementById('o-m-avg-lock').textContent = Math.round(data.avgLockDays) + ' days';
                 document.getElementById('o-m-avg-lock-sub').textContent = '~' + (data.avgLockDays / 30.44).toFixed(1) + ' months';
@@ -7412,6 +7451,88 @@
         });
 
         // ===== DOLO TOKEN NAMESPACE =====
+        // ===== GLOBAL: 24h Change Badge System =====
+        let _metricsSnapshots = null;
+
+        async function fetchMetricsSnapshots() {
+            if (_metricsSnapshots) return _metricsSnapshots;
+            try {
+                const resp = await fetch('metrics_snapshot.json');
+                const data = await resp.json();
+                _metricsSnapshots = data.snapshots || [];
+                return _metricsSnapshots;
+            } catch (e) {
+                console.warn('⚠️ metrics_snapshot.json not available:', e.message);
+                _metricsSnapshots = [];
+                return [];
+            }
+        }
+
+        function get24hOld(snapshots) {
+            if (!snapshots || snapshots.length < 2) return null;
+            const now = new Date();
+            const target = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            let closest = null;
+            let closestDiff = Infinity;
+            // Find the snapshot closest to 24h ago (but not the latest one)
+            for (let i = 0; i < snapshots.length - 1; i++) {
+                const ts = new Date(snapshots[i].timestamp);
+                const diff = Math.abs(ts.getTime() - target.getTime());
+                if (diff < closestDiff) {
+                    closestDiff = diff;
+                    closest = snapshots[i];
+                }
+            }
+            // Only use if within 6h of the 24h mark (reasonable tolerance)
+            if (closest && closestDiff < 6 * 60 * 60 * 1000) return closest;
+            return null;
+        }
+
+        /**
+         * Render a 24h change badge into a target element.
+         * @param {string} elementId - ID of the target metric-sub div
+         * @param {number} currentVal - Current value
+         * @param {number} oldVal - Value from ~24h ago
+         * @param {string} mode - 'pct' for percentage, 'abs' for absolute count, 'usd' for dollar amount
+         * @param {string} [fallbackText] - Original text to keep when no change data
+         */
+        function render24hBadge(elementId, currentVal, oldVal, mode, fallbackText) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            if (oldVal === null || oldVal === undefined || oldVal === 0) {
+                if (fallbackText) el.textContent = fallbackText;
+                return;
+            }
+
+            const diff = currentVal - oldVal;
+            if (diff === 0) {
+                if (fallbackText) el.textContent = fallbackText;
+                return;
+            }
+
+            const isPos = diff > 0;
+            const arrow = isPos ? '↑' : '↓';
+            const color = isPos ? 'var(--accent-green)' : 'var(--accent-rose)';
+            const bg = isPos ? 'rgba(52,211,153,0.15)' : 'rgba(251,113,133,0.15)';
+            const sign = isPos ? '+' : '';
+
+            let label;
+            if (mode === 'pct') {
+                const pct = ((diff / Math.abs(oldVal)) * 100).toFixed(2);
+                label = `${sign}${pct}%`;
+            } else if (mode === 'usd') {
+                const absDiff = Math.abs(diff);
+                const fmt = absDiff >= 1e6 ? '$' + (absDiff / 1e6).toFixed(1) + 'M'
+                    : absDiff >= 1e3 ? '$' + (absDiff / 1e3).toFixed(1) + 'K'
+                        : '$' + absDiff.toFixed(0);
+                label = `${sign}${isPos ? '' : '-'}${fmt}`;
+            } else { // abs
+                label = `${sign}${Math.round(diff).toLocaleString('en-US')}`;
+            }
+
+            el.innerHTML = `<span style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;background:${bg};color:${color}">${arrow} ${label} 24h</span>`;
+        }
+
         let dolo_cachedData = null;
         let dolo_tvlPoints = [];
         let dolo_allTvlPoints = [];
@@ -7561,6 +7682,17 @@
                 chainTvls.sort((a, b) => b.tvl - a.tvl);
 
                 document.getElementById('dolo-tvl').textContent = dolo_fmt(totalTvl);
+
+                // Render 24h change badges for DOLO tab
+                try {
+                    const snaps = await fetchMetricsSnapshots();
+                    const old = get24hOld(snaps);
+                    if (old) {
+                        render24hBadge('dolo-tvl-24h', totalTvl, old.tvl, 'pct');
+                        const curVol = dolo_cachedData?.cg?.usd_24h_vol || 0;
+                        render24hBadge('dolo-vol-24h', curVol, old.volume_24h, 'pct');
+                    }
+                } catch (e) { /* silent */ }
 
                 const totalBorrowed = tvl['borrowed'] || 0;
                 const supplyLiquidity = totalTvl + totalBorrowed;

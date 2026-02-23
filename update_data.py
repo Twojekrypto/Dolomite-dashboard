@@ -7,7 +7,7 @@ Outputs: vedolo_holders.json, vedolo_holders.csv
 """
 import json, time, os, csv, sys
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # ===== CONFIG =====
@@ -602,6 +602,9 @@ def main():
     # Auto-generate dolo_price.json for GitHub Pages (no CORS proxy needed)
     update_dolo_price()
 
+    # Save metrics snapshot for 24h change indicators
+    save_metrics_snapshot()
+
 
 def update_dolo_price():
     """Fetch CoinGecko data and save as static JSON for the dashboard."""
@@ -637,6 +640,70 @@ def update_dolo_price():
         print(f"   Price: ${data['price']:.4f}  MC: ${data['market_cap']:,.0f}  FDV: ${data['fdv']:,.0f}")
     except Exception as e:
         print(f"   ⚠️ dolo_price.json update failed: {e}")
+
+
+def save_metrics_snapshot():
+    """Append current metrics to metrics_snapshot.json for 24h change tracking."""
+    print("\n📸 Saving metrics snapshot...")
+    snapshot_file = os.path.join(DATA_DIR, "metrics_snapshot.json")
+    MAX_SNAPSHOTS = 48  # 48 hours of hourly snapshots
+
+    try:
+        # Read current metrics from existing data files
+        snapshot = {"timestamp": datetime.utcnow().isoformat() + "Z"}
+
+        # veDOLO stats
+        vedolo_file = os.path.join(DATA_DIR, "vedolo_holders.json")
+        if os.path.exists(vedolo_file):
+            with open(vedolo_file) as f:
+                vedolo = json.load(f)
+            stats = vedolo.get("stats", {})
+            snapshot["vedolo_holders"] = stats.get("unique_holders", 0)
+            snapshot["dolo_locked"] = stats.get("total_locked_dolo", 0)
+            snapshot["vote_weight"] = stats.get("total_vote_weight", 0)
+
+        # oDOLO exercised
+        exercised_file = os.path.join(DATA_DIR, "exercised_usd.json")
+        if os.path.exists(exercised_file):
+            with open(exercised_file) as f:
+                ex = json.load(f)
+            snapshot["exercised_usd"] = ex.get("total_usdc", 0)
+            snapshot["exercised_txs"] = ex.get("total_txs", 0)
+
+        # TVL from DeFi Llama
+        defillama_file = os.path.join(DATA_DIR, "defillama_data.json")
+        if os.path.exists(defillama_file):
+            with open(defillama_file) as f:
+                dl = json.load(f)
+            tvl_arr = dl.get("tvl", [])
+            if tvl_arr:
+                snapshot["tvl"] = tvl_arr[-1].get("totalLiquidityUSD", 0)
+
+        # 24h Volume from dolo_price
+        price_file = os.path.join(DATA_DIR, "dolo_price.json")
+        if os.path.exists(price_file):
+            with open(price_file) as f:
+                dp = json.load(f)
+            snapshot["volume_24h"] = dp.get("volume_24h", 0)
+
+        # Load existing snapshots
+        snapshots = []
+        if os.path.exists(snapshot_file):
+            with open(snapshot_file) as f:
+                data = json.load(f)
+            snapshots = data.get("snapshots", [])
+
+        # Append new snapshot and trim old ones
+        snapshots.append(snapshot)
+        cutoff = (datetime.utcnow() - timedelta(hours=MAX_SNAPSHOTS)).isoformat() + "Z"
+        snapshots = [s for s in snapshots if s.get("timestamp", "") >= cutoff]
+
+        with open(snapshot_file, "w") as f:
+            json.dump({"snapshots": snapshots}, f, indent=2)
+
+        print(f"   Saved snapshot ({len(snapshots)} total, trimmed to {MAX_SNAPSHOTS}h)")
+    except Exception as e:
+        print(f"   ⚠️ metrics_snapshot.json update failed: {e}")
 
 
 if __name__ == "__main__":
