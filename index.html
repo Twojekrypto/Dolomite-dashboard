@@ -3567,6 +3567,110 @@
             }
         }
 
+        /* Earn Mode Toggle */
+        .earn-mode-toggle {
+            display: none;
+            justify-content: center;
+            gap: 4px;
+            margin: 16px 0 0;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 10px;
+            padding: 4px;
+            width: fit-content;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .earn-mode-toggle.visible {
+            display: flex;
+        }
+
+        .earn-mode-btn {
+            padding: 8px 20px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            background: transparent;
+            color: var(--text-muted);
+            transition: all 0.2s;
+        }
+
+        .earn-mode-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .earn-mode-btn.active {
+            background: rgba(99, 102, 241, 0.2);
+            color: #a5b4fc;
+        }
+
+        /* Earn History Table */
+        .earn-history-results {
+            display: none;
+        }
+
+        .earn-history-results.visible {
+            display: block;
+        }
+
+        .earn-hist-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .earn-hist-badge.active {
+            background: rgba(99, 102, 241, 0.18);
+            color: #a5b4fc;
+        }
+
+        .earn-hist-badge.withdrawn {
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text-muted);
+        }
+
+        .earn-hist-total {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            padding: 16px;
+            margin-bottom: 8px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .earn-hist-total-item {
+            text-align: center;
+        }
+
+        .earn-hist-total-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .earn-hist-total-value {
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .earn-hist-total-value.positive {
+            color: var(--accent-green);
+        }
+
+        .earn-hist-total-value.negative {
+            color: var(--accent-rose);
+        }
+
         .earn-error {
             background: rgba(239, 68, 68, 0.08);
             border: 1px solid rgba(239, 68, 68, 0.2);
@@ -5535,6 +5639,13 @@
                 </div>
             </div>
 
+            <div class="earn-mode-toggle" id="earn-mode-toggle">
+                <button class="earn-mode-btn active" id="earn-mode-active" onclick="earn_switchMode('active')">💰
+                    Active</button>
+                <button class="earn-mode-btn" id="earn-mode-history" onclick="earn_switchMode('history')">📜
+                    History</button>
+            </div>
+
             <div class="earn-error" id="earn-error">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="10" />
@@ -5582,6 +5693,32 @@
                             </thead>
                             <tbody id="earn-table-body"></tbody>
                             <tfoot id="earn-table-foot" style="display:none"></tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Earn History Results -->
+            <div class="earn-history-results" id="earn-history-results">
+                <div class="earn-hist-total" id="earn-hist-total"></div>
+                <div class="table-section">
+                    <div class="table-scroll">
+                        <table class="earn-asset-table">
+                            <colgroup>
+                                <col style="width:25%">
+                                <col style="width:22%">
+                                <col style="width:22%">
+                                <col style="width:31%">
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th>Token</th>
+                                    <th>Total Deposited</th>
+                                    <th>Total Withdrawn</th>
+                                    <th>Net Yield Earned</th>
+                                </tr>
+                            </thead>
+                            <tbody id="earn-history-tbody"></tbody>
                         </table>
                     </div>
                 </div>
@@ -9481,6 +9618,309 @@
             'DOLO': 0.01, 'HENLO': 0.00001, 'YEET': 0.001,
         };
 
+        // ===== EARN HISTORY MODE =====
+        let earn_currentMode = 'active'; // 'active' or 'history'
+        let earn_historyData = null; // cached history results
+
+        function earn_switchMode(mode) {
+            earn_currentMode = mode;
+            document.getElementById('earn-mode-active').classList.toggle('active', mode === 'active');
+            document.getElementById('earn-mode-history').classList.toggle('active', mode === 'history');
+
+            if (mode === 'active') {
+                document.getElementById('earn-results').style.display = '';
+                document.getElementById('earn-period-bar').style.display = '';
+                document.getElementById('earn-history-results').classList.remove('visible');
+            } else {
+                document.getElementById('earn-results').style.display = 'none';
+                document.getElementById('earn-period-bar').style.display = 'none';
+                document.getElementById('earn-history-results').classList.add('visible');
+                // If history not loaded yet, load it
+                if (!earn_historyData) earn_lookupHistory();
+            }
+        }
+
+        async function earn_lookupHistory() {
+            const addr = document.getElementById('earn-address').value.trim().toLowerCase();
+            const chainId = document.getElementById('earn-chain').value;
+            const chain = earn_getChain();
+            if (!addr || chain.pending) return;
+
+            // Show loading state
+            const tbody = document.getElementById('earn-history-tbody');
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-muted)"><div class="spinner" style="display:inline-block;width:24px;height:24px;border:2px solid rgba(255,255,255,0.1);border-top-color:#6366f1;border-radius:50%;animation:earnSpin 0.8s linear infinite"></div><br>Loading history...</td></tr>';
+
+            // Step 1: Load netflow data
+            try {
+                const resp = await fetch(`${NETFLOW_BASE}/${chainId}.json`);
+                if (!resp.ok) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-muted)">No netflow data available for this chain</td></tr>'; return; }
+                const data = await resp.json();
+                const addrFlows = data.netflows && data.netflows[addr];
+                if (!addrFlows || Object.keys(addrFlows).length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-muted)">No deposit/withdrawal history found for this address</td></tr>';
+                    return;
+                }
+
+                // Step 2: Get all market IDs from netflow
+                const marketIds = Object.keys(addrFlows).map(Number).sort((a, b) => a - b);
+
+                // Step 3: Get active balances (current wei for each market)
+                const activeBalances = {};
+                if (earn_cachedAssets) {
+                    for (const a of earn_cachedAssets) {
+                        activeBalances[String(a.marketId)] = { wei: a.wei, par: a.par, tokenAddr: a.tokenAddr, decimals: a.decimals, symbol: a.symbol, icon: a.icon };
+                    }
+                }
+
+                // Step 4: Resolve token addresses for ALL markets via batch RPC
+                // Selector: getMarketTokenAddress(uint256) = 0xd4de8d6a
+                const needTokenAddr = marketIds.filter(mid => !activeBalances[String(mid)]);
+                const tokenAddrCalls = needTokenAddr.map(mid => ({
+                    to: chain.margin,
+                    data: '0xd4de8d6a' + earn_padUint(mid)
+                }));
+
+                let tokenAddrResults = [];
+                if (tokenAddrCalls.length > 0) {
+                    try { tokenAddrResults = await earn_rpcBatch(tokenAddrCalls); } catch (e) { console.warn('Token addr batch failed:', e); }
+                }
+
+                // Map market IDs to token addresses
+                const marketTokens = {};
+                needTokenAddr.forEach((mid, i) => {
+                    const hex = tokenAddrResults[i];
+                    if (hex && hex.length >= 42) {
+                        marketTokens[String(mid)] = '0x' + hex.replace('0x', '').slice(24);
+                    }
+                });
+
+                // Step 5: Resolve token info (symbol, decimals) for unknown tokens
+                const allTokenAddrs = [];
+                const tokenInfoNeeded = [];
+                for (const mid of marketIds) {
+                    const midStr = String(mid);
+                    if (activeBalances[midStr]) continue; // already know this token
+                    const tAddr = marketTokens[midStr];
+                    if (!tAddr) continue;
+                    const key = chainId + ':' + tAddr.toLowerCase();
+                    if (!earn_tokenCache[key] && !KNOWN_TOKENS[key]) {
+                        tokenInfoNeeded.push({ mid: midStr, addr: tAddr });
+                        allTokenAddrs.push(tAddr);
+                    }
+                }
+
+                // Batch RPC for symbol + decimals
+                if (tokenInfoNeeded.length > 0) {
+                    const infoCalls = [];
+                    const infoMap = [];
+                    tokenInfoNeeded.forEach((t, i) => {
+                        infoCalls.push({ to: t.addr, data: '0x95d89b41' }); // symbol()
+                        infoMap.push({ type: 'symbol', idx: i });
+                        infoCalls.push({ to: t.addr, data: '0x313ce567' }); // decimals()
+                        infoMap.push({ type: 'decimals', idx: i });
+                    });
+
+                    try {
+                        const infoResults = await earn_rpcBatch(infoCalls);
+                        const raw = tokenInfoNeeded.map(() => ({ symHex: null, decHex: null }));
+                        infoMap.forEach((m, i) => {
+                            if (m.type === 'symbol') raw[m.idx].symHex = infoResults[i];
+                            else raw[m.idx].decHex = infoResults[i];
+                        });
+
+                        raw.forEach((r, i) => {
+                            const t = tokenInfoNeeded[i];
+                            const key = chainId + ':' + t.addr.toLowerCase();
+                            let symbol = 'UNK';
+                            if (r.symHex && r.symHex.length > 2) {
+                                try {
+                                    const hex = r.symHex.replace('0x', '');
+                                    if (hex.length === 64) {
+                                        const bytes = [];
+                                        for (let j = 0; j < 64; j += 2) { const b = parseInt(hex.substr(j, 2), 16); if (b > 0) bytes.push(b); }
+                                        symbol = String.fromCharCode(...bytes);
+                                    } else {
+                                        const len = parseInt(hex.slice(64, 128), 16);
+                                        const strHex = hex.slice(128, 128 + len * 2);
+                                        const bytes = [];
+                                        for (let j = 0; j < strHex.length; j += 2) bytes.push(parseInt(strHex.substr(j, 2), 16));
+                                        symbol = String.fromCharCode(...bytes);
+                                    }
+                                } catch (e) { }
+                            }
+                            let decimals = 18;
+                            if (r.decHex && r.decHex.length > 2) {
+                                try { decimals = parseInt(r.decHex, 16); } catch (e) { }
+                            }
+                            earn_tokenCache[key] = { symbol, decimals, addr: t.addr };
+                        });
+                    } catch (e) { console.warn('Token info batch failed:', e); }
+                }
+
+                // Step 6: Fetch CoinGecko prices
+                const allAddrs = marketIds.map(mid => {
+                    const midStr = String(mid);
+                    return activeBalances[midStr] ? activeBalances[midStr].tokenAddr : marketTokens[midStr];
+                }).filter(Boolean);
+                await earn_fetchCoinGeckoPrices(allAddrs);
+
+                // Step 7: Build history data
+                const historyItems = [];
+                for (const mid of marketIds) {
+                    const midStr = String(mid);
+                    const flowData = addrFlows[midStr];
+                    if (!flowData) continue;
+
+                    const netFlow = typeof flowData === 'string' ? BigInt(flowData) : BigInt(flowData.t || '0');
+                    const totalDeposited = typeof flowData === 'string' ? 0n : BigInt(flowData.d || '0');
+                    const totalWithdrawn = typeof flowData === 'string' ? 0n : BigInt(flowData.w || '0');
+
+                    const isActive = !!activeBalances[midStr];
+                    const currentWei = isActive ? activeBalances[midStr].wei : 0n;
+                    const yieldWei = currentWei - netFlow;
+
+                    let tokenAddr, symbol, decimals, icon;
+                    if (isActive) {
+                        tokenAddr = activeBalances[midStr].tokenAddr;
+                        symbol = activeBalances[midStr].symbol;
+                        decimals = activeBalances[midStr].decimals;
+                        icon = activeBalances[midStr].icon;
+                    } else {
+                        tokenAddr = marketTokens[midStr] || '0x???';
+                        const key = chainId + ':' + tokenAddr.toLowerCase();
+                        const info = earn_tokenCache[key] || KNOWN_TOKENS[key] || {};
+                        symbol = info.symbol || 'UNK';
+                        decimals = info.decimals || 18;
+                        icon = info.icon || SYMBOL_ICONS[symbol] || SYMBOL_ICONS[symbol?.toUpperCase()] || null;
+                    }
+
+                    // Get USD price
+                    const priceKey = chainId + ':' + (tokenAddr || '').toLowerCase();
+                    let usdPrice = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[symbol] || 0;
+
+                    const yieldNum = Number(yieldWei) / (10 ** decimals);
+                    const yieldUsd = yieldNum * usdPrice;
+                    const depositNum = Number(totalDeposited) / (10 ** decimals);
+                    const withdrawNum = Number(totalWithdrawn) / (10 ** decimals);
+
+                    historyItems.push({
+                        marketId: mid,
+                        tokenAddr,
+                        symbol,
+                        decimals,
+                        icon,
+                        isActive,
+                        currentWei,
+                        yieldWei,
+                        yieldUsd,
+                        totalDeposited,
+                        totalWithdrawn,
+                        depositNum,
+                        withdrawNum,
+                        netFlow,
+                    });
+                }
+
+                // Sort by yield USD descending
+                historyItems.sort((a, b) => b.yieldUsd - a.yieldUsd);
+                earn_historyData = historyItems;
+                earn_renderHistory(historyItems);
+            } catch (e) {
+                console.error('History lookup failed:', e);
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--accent-rose)">Error loading history: ${e.message}</td></tr>`;
+            }
+        }
+
+        function earn_renderHistory(items) {
+            // Total summary
+            let totalYieldUsd = 0;
+            let totalActive = 0;
+            let totalWithdrawn = 0;
+            items.forEach(item => {
+                totalYieldUsd += item.yieldUsd;
+                if (item.isActive) totalActive++; else totalWithdrawn++;
+            });
+
+            const isPositive = totalYieldUsd >= 0;
+            const totalFmt = totalYieldUsd >= 1000 ? '$' + (totalYieldUsd / 1000).toFixed(2) + 'K' :
+                totalYieldUsd >= 1 ? '$' + totalYieldUsd.toFixed(2) :
+                    '$' + totalYieldUsd.toFixed(4);
+
+            document.getElementById('earn-hist-total').innerHTML = `
+                <div class="earn-hist-total-item">
+                    <div class="earn-hist-total-label">Total Yield Earned</div>
+                    <div class="earn-hist-total-value ${isPositive ? 'positive' : 'negative'}">${isPositive ? '+' : ''}${totalFmt}</div>
+                </div>
+                <div class="earn-hist-total-item">
+                    <div class="earn-hist-total-label">Assets Tracked</div>
+                    <div class="earn-hist-total-value" style="color:var(--text-primary)">${items.length}</div>
+                </div>
+                <div class="earn-hist-total-item">
+                    <div class="earn-hist-total-label">Active / Withdrawn</div>
+                    <div class="earn-hist-total-value" style="color:var(--text-primary);font-size:18px">${totalActive} / ${totalWithdrawn}</div>
+                </div>
+            `;
+
+            // Table rows
+            const tbody = document.getElementById('earn-history-tbody');
+            let html = '';
+
+            items.forEach((item, idx) => {
+                const delay = idx * 0.05;
+
+                // Icon
+                let iconHtml;
+                if (item.icon) {
+                    iconHtml = `<div class="earn-token-icon"><img src="${item.icon}" alt="${item.symbol}" onerror="this.parentElement.textContent='${item.symbol.slice(0, 2)}'"></div>`;
+                } else {
+                    iconHtml = `<div class="earn-token-icon">${item.symbol.slice(0, 2)}</div>`;
+                }
+
+                // Status badge
+                const badge = item.isActive
+                    ? '<span class="earn-hist-badge active">📍 ACTIVE</span>'
+                    : '<span class="earn-hist-badge withdrawn">WITHDRAWN</span>';
+
+                // Deposit/Withdraw amounts
+                const depFmt = item.depositNum > 0 ? earn_formatAmount(item.totalDeposited, item.decimals, item.symbol) : '—';
+                const wdFmt = item.withdrawNum > 0 ? earn_formatAmount(item.totalWithdrawn, item.decimals, item.symbol) : '—';
+
+                // Yield
+                const yieldPositive = item.yieldWei >= 0n;
+                const yieldSign = yieldPositive && item.yieldWei > 0n ? '+' : '';
+                const yieldColor = yieldPositive ? 'earn-yield-positive' : 'earn-yield-negative';
+                const yieldFmt = earn_formatAmount(item.yieldWei, item.decimals, item.symbol);
+                const yieldUsdFmt = item.yieldUsd !== 0
+                    ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${item.yieldUsd >= 0 ? '+' : ''}$${Math.abs(item.yieldUsd).toFixed(2)}</div>`
+                    : '';
+
+                html += `<tr class="earn-data-row" style="animation-delay:${delay}s">
+                    <td>
+                        <div class="earn-token-cell">
+                            <div class="earn-token-left">
+                                ${iconHtml}
+                                <div class="earn-token-info">
+                                    <div class="earn-token-name">${item.symbol}</div>
+                                    <div style="margin-top:3px">${badge}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="earn-amount">${depFmt}<span class="earn-amount-sym">${item.symbol}</span></span></td>
+                    <td><span class="earn-amount">${wdFmt}<span class="earn-amount-sym">${item.symbol}</span></span></td>
+                    <td>
+                        <span class="earn-amount ${yieldColor}">${yieldSign}${yieldFmt}<span class="earn-amount-sym">${item.symbol}</span></span>
+                        ${yieldUsdFmt}
+                    </td>
+                </tr>`;
+            });
+
+            if (html === '') {
+                html = '<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-muted)">No history data found</td></tr>';
+            }
+            tbody.innerHTML = html;
+        }
+
         // Fetch USD prices from CoinGecko for token addresses
         let earn_priceCache = {}; // { 'chainId:addr' : usdPrice }
         async function earn_fetchCoinGeckoPrices(tokenAddrs) {
@@ -9997,6 +10437,13 @@
             document.getElementById('earn-error').classList.remove('visible');
             document.getElementById('earn-empty').classList.remove('visible');
             document.getElementById('earn-results').classList.remove('visible');
+            document.getElementById('earn-history-results').classList.remove('visible');
+            document.getElementById('earn-mode-toggle').classList.remove('visible');
+            // Reset history state
+            earn_historyData = null;
+            earn_currentMode = 'active';
+            document.getElementById('earn-mode-active').classList.add('active');
+            document.getElementById('earn-mode-history').classList.remove('active');
         }
 
         async function earn_lookup() {
@@ -10038,6 +10485,24 @@
                 }
 
                 if (balances.length === 0) {
+                    // Check if there's netflow history for this address
+                    try {
+                        const chainId = document.getElementById('earn-chain').value;
+                        const nfResp = await fetch(`${NETFLOW_BASE}/${chainId}.json`);
+                        if (nfResp.ok) {
+                            const nfData = await nfResp.json();
+                            const addrFlows = nfData.netflows && nfData.netflows[addr.toLowerCase()];
+                            if (addrFlows && Object.keys(addrFlows).length > 0) {
+                                // Has history! Show toggle and auto-switch to history
+                                document.getElementById('earn-mode-toggle').classList.add('visible');
+                                earn_switchMode('history');
+                                btn.classList.remove('loading');
+                                btn.disabled = false;
+                                return;
+                            }
+                        }
+                    } catch (e) { /* ignore netflow check failure */ }
+
                     const emptyMsg = document.getElementById('earn-empty-msg');
                     if (resultLen <= 2) {
                         emptyMsg.textContent = 'RPC returned empty — this address has no deposits on Dolomite';
@@ -10351,6 +10816,8 @@
 
             // Show results
             document.getElementById('earn-results').classList.add('visible');
+            // Show the Active/History toggle
+            document.getElementById('earn-mode-toggle').classList.add('visible');
         }
 
         // Enter key to search
