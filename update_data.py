@@ -379,16 +379,21 @@ def make_vote_batch_call(token_ids):
                             out[tid] = 0.0
                             responded_ids.add(tid)
                 failed = [tid for tid in token_ids if tid not in responded_ids]
-                return out, failed
+                # Only return if we got at least some valid responses;
+                # if ALL items errored (e.g. batch limit exceeded), try next RPC
+                if responded_ids:
+                    return out, failed
+                else:
+                    break  # All items errored on this RPC, try next one
             except Exception as e:
                 if retry < 2:
                     time.sleep(0.5 * (retry + 1))
-        # If this RPC failed, try next one
-        if out:
+        # If this RPC got partial results, return them
+        if responded_ids:
             failed = [tid for tid in token_ids if tid not in responded_ids]
             return out, failed
 
-    # Complete failure — all tokens failed
+    # Complete failure — all RPCs failed
     return out, list(token_ids)
 
 
