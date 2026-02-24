@@ -14,11 +14,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 VEDOLO_CONTRACT = "0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4"
 ETHERSCAN_V2 = "https://api.etherscan.io/v2/api"
 CHAIN_ID = 80094  # Berachain
-RPC_URL = "https://berachain.drpc.org/"
+RPC_URL = "https://rpc.berachain.com/"
 RPC_URLS = [
-    "https://berachain.drpc.org/",
     "https://rpc.berachain.com/",
     "https://berachain-rpc.publicnode.com/",
+    "https://berachain.drpc.org/",  # Free tier rejects batches >3 — last resort
 ]
 LOCKED_SELECTOR = "0xb45a3c0e"  # locked(uint256)
 BALANCE_OF_NFT_SELECTOR = "0xe7e242d4"  # balanceOfNFT(uint256) — current vote weight
