@@ -79,7 +79,16 @@ LOG_TRADE      = "0x551e705b3457d01be14140987c43896f782b70542f778b43b9f5f9452230
 LOG_TRANSFER   = "0xe95afb1ad6381b7e0935d86b6442b2f145381aa2f821b5d49096b61d9ee08d4b"
 LOG_LIQUIDATE  = "0x5c18eb2c52b455100d6a3f07c1b2223d05d50135af3348404e76b1e42ddaef85"
 
-ALL_EVENTS = [LOG_DEPOSIT, LOG_WITHDRAW, LOG_TRADE, LOG_TRANSFER, LOG_LIQUIDATE]
+# V2 DolomiteMargin event signatures (Berachain, Ethereum)
+# V2 uses compact BalanceUpdate: {uint256 value, bool sign} instead of V1's 4-word struct
+LOG_TRADE_V2     = "0x21281f8d59117d0399dc467dbdd321538ceffe3225e80e2bd4de6f1b3355cbc7"
+LOG_LIQUIDATE_V2 = "0xcc3330184b6d88cad87f9e9543b4d4110a6a3eaf20164ca5252d598d0acba3f1"
+
+ALL_EVENTS = [
+    LOG_DEPOSIT, LOG_WITHDRAW,
+    LOG_TRADE, LOG_TRANSFER, LOG_LIQUIDATE,       # V1
+    LOG_TRADE_V2, LOG_LIQUIDATE_V2,                # V2
+]
 
 BLOCK_CHUNK = 49999  # blocks per getLogs request (RPC max is typically 50k)
 MAX_RETRIES = 3
@@ -293,6 +302,101 @@ def load_progress(chain_id):
     return {"last_block": 0, "netflows": {}}
 
 
+def decode_trade_log_v2(log):
+    """Decode V2 LogTrade event (Berachain/Ethereum).
+    Topics: [sig, owner1, owner2]
+    Data (11 words):
+      0: accNum1, 1: accNum2, 2: inputMarket, 3: outputMarket,
+      4: owner1_input_value, 5: owner1_input_sign,
+      6: owner1_output_value, 7: owner1_output_sign,
+      8: owner2_input_value, 9: owner2_input_sign,
+      10: owner2_output_value  (sign implied: opposite of owner1 output)
+    """
+    try:
+        topics = log["topics"]
+        if len(topics) < 3:
+            return None
+        owner1 = "0x" + topics[1][-40:]
+        owner2 = "0x" + topics[2][-40:]
+        data = log["data"].replace("0x", "")
+        words = [data[i*64:(i+1)*64] for i in range(len(data)//64)]
+        if len(words) < 11:
+            return None
+        
+        input_market = str(int(words[2], 16))
+        output_market = str(int(words[3], 16))
+        
+        # Compact BalanceUpdate: {value, sign} where sign: 1=positive, 0=negative
+        def delta(val_idx, sign_idx):
+            v = int(words[val_idx], 16)
+            s = int(words[sign_idx], 16)
+            return v if s else -v
+        
+        o1_input = delta(4, 5)
+        o1_output = delta(6, 7)
+        o2_input = delta(8, 9)
+        # Owner2 output: value is word[10], sign is implied as NOT owner1's output sign
+        o2_output_val = int(words[10], 16)
+        o1_output_sign = int(words[7], 16)
+        o2_output = -o2_output_val if o1_output_sign else o2_output_val
+        
+        results = [
+            {"owner": owner1.lower(), "market": input_market, "delta": o1_input},
+            {"owner": owner1.lower(), "market": output_market, "delta": o1_output},
+            {"owner": owner2.lower(), "market": input_market, "delta": o2_input},
+            {"owner": owner2.lower(), "market": output_market, "delta": o2_output},
+        ]
+        return results
+    except Exception:
+        return None
+
+
+def decode_liquidate_log_v2(log):
+    """Decode V2 LogLiquidate event (Berachain/Ethereum).
+    Topics: [sig, owner]
+    Data (12 words):
+      0: accountNumber, 1: heldMarket, 2: owedMarket,
+      3-4: heldDelta {value, sign},
+      5-6: owedDelta {value, sign},
+      7-8: liquidHeldDelta {value, sign},
+      9-10: liquidOwedDelta {value, sign},
+      11: liquidator address
+    """
+    try:
+        topics = log["topics"]
+        if len(topics) < 2:
+            return None
+        owner = "0x" + topics[1][-40:]
+        data = log["data"].replace("0x", "")
+        words = [data[i*64:(i+1)*64] for i in range(len(data)//64)]
+        if len(words) < 12:
+            return None
+        
+        held_market = str(int(words[1], 16))
+        owed_market = str(int(words[2], 16))
+        liquidator = "0x" + words[11][-40:]
+        
+        def delta(val_idx, sign_idx):
+            v = int(words[val_idx], 16)
+            s = int(words[sign_idx], 16)
+            return v if s else -v
+        
+        solid_held = delta(3, 4)
+        solid_owed = delta(5, 6)
+        liquid_held = delta(7, 8)
+        liquid_owed = delta(9, 10)
+        
+        results = [
+            {"owner": owner.lower(), "market": held_market, "delta": solid_held},
+            {"owner": owner.lower(), "market": owed_market, "delta": solid_owed},
+            {"owner": liquidator.lower(), "market": held_market, "delta": liquid_held},
+            {"owner": liquidator.lower(), "market": owed_market, "delta": liquid_owed},
+        ]
+        return results
+    except Exception:
+        return None
+
+
 def save_progress(chain_id, progress):
     """Save scanning progress."""
     PROGRESS_DIR.mkdir(parents=True, exist_ok=True)
@@ -408,6 +512,18 @@ def scan_chain(chain_id, chain_config, only_chains=None):
                 
                 elif topic0 == LOG_LIQUIDATE:
                     entries = decode_liquidate_log(log)
+                    if entries:
+                        for e in entries:
+                            add_flow(e["owner"], e["market"], e["delta"], "l")
+                
+                elif topic0 == LOG_TRADE_V2:
+                    entries = decode_trade_log_v2(log)
+                    if entries:
+                        for e in entries:
+                            add_flow(e["owner"], e["market"], e["delta"], "s")
+                
+                elif topic0 == LOG_LIQUIDATE_V2:
+                    entries = decode_liquidate_log_v2(log)
                     if entries:
                         for e in entries:
                             add_flow(e["owner"], e["market"], e["delta"], "l")
