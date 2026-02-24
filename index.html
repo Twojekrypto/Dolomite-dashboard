@@ -9409,7 +9409,29 @@
             45: '0xa1b644aec990ad6023811ced36e6a2d6d128c7c9', 46: '0xc0d1ac00a30fa4e30e44afc7313d6312c87e21df',
             47: '0x0000000000000000000000000000000000000000',
         };
-        const CHAIN_MARKET_TOKENS = { berachain: BERACHAIN_MARKET_TOKENS };
+        // ---- Ethereum market ID → token address map ----
+        const ETHEREUM_MARKET_TOKENS = {
+            0: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', 1: '0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d',
+            2: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', 3: '0x6b175474e89094c44da98b954eedeac495271d0f',
+            4: '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599', 5: '0xdac17f958d2ee523a2206206994597c13d831ec7',
+            6: '0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0', 7: '0xcd5fe23c85820f7b72d0926fc9b05b43e359b7ee',
+            8: '0xa35b1b31ce002fbf2058d22f30f95d405200a15b', 9: '0x9d39a5de30e57443bff2a8307a4256c8797a3497',
+            10: '0x738d1115b90efa71ae468f1287fc864775e23a31', 11: '0x8382098b64e0dddf7d64fdc416e913ad81e62677',
+            12: '0x39a03194a282f9d6c81333d73f910411a91e56b8', 13: '0x0f81001ef0a83ecce5ccebf63eb302c70a39a654',
+            14: '0x4c9edd5852cd905f086c759e8383e09bff1e68b3', 15: '0x57e114b691db790c35207b2e685d4a43181e6061',
+            16: '0x73a15fed60bf67631dc6cd7bc5b6e8da8190acf5', 17: '0x136471a34f6ef19fe68cafdc38c4a7a620b5a998',
+            18: '0xb19382073c7a0addbb56ac6af1808fa49e377b75', 19: '0x8c9532a60e0e7c6bbd2b2c1303f63ace1c3e9811',
+            20: '0xf939e0a03fb07f59a73314e73794be0e57ac1b4e',
+        };
+        _regToken(['ethereum'], '0x738d1115b90efa71ae468f1287fc864775e23a31', 'srUSD', 18, DOLO_CDN + 'srUSD.bef2b101351c2021e25a96dc70122077.svg');
+        _regToken(['ethereum'], '0x4c9edd5852cd905f086c759e8383e09bff1e68b3', 'USDe', 18, DOLO_CDN + 'USDe-alt.ce2f05f4bb09aa83c4dd5886a5a2886f.svg');
+        _regToken(['ethereum'], '0x57e114b691db790c35207b2e685d4a43181e6061', 'ENA', 18, null);
+        _regToken(['ethereum'], '0x73a15fed60bf67631dc6cd7bc5b6e8da8190acf5', 'USDai', 18, DOLO_CDN + 'USDai.8c41c3dde0d91e5e38e1aafb27cf6e55.svg');
+        _regToken(['ethereum'], '0x136471a34f6ef19fe68cafdc38c4a7a620b5a998', 'savUSD', 18, DOLO_CDN + 'savUSD.a2df97177abb3f75f4313a7241aa5fb0.svg');
+        _regToken(['ethereum'], '0xb19382073c7a0addbb56ac6af1808fa49e377b75', 'Graviton', 18, null);
+        _regToken(['ethereum'], '0x8c9532a60e0e7c6bbd2b2c1303f63ace1c3e9811', 'BOLD', 18, null);
+        _regToken(['ethereum'], '0xf939e0a03fb07f59a73314e73794be0e57ac1b4e', 'crvUSD', 18, DOLO_CDN + 'CRV.f927723690ec12fcc8381902a361c75e.svg');
+        const CHAIN_MARKET_TOKENS = { berachain: BERACHAIN_MARKET_TOKENS, ethereum: ETHEREUM_MARKET_TOKENS };
 
 
         // Symbol-based fallback icons (when address not in KNOWN_TOKENS)
