@@ -9431,7 +9431,86 @@
         _regToken(['ethereum'], '0xb19382073c7a0addbb56ac6af1808fa49e377b75', 'Graviton', 18, null);
         _regToken(['ethereum'], '0x8c9532a60e0e7c6bbd2b2c1303f63ace1c3e9811', 'BOLD', 18, null);
         _regToken(['ethereum'], '0xf939e0a03fb07f59a73314e73794be0e57ac1b4e', 'crvUSD', 18, DOLO_CDN + 'CRV.f927723690ec12fcc8381902a361c75e.svg');
-        const CHAIN_MARKET_TOKENS = { berachain: BERACHAIN_MARKET_TOKENS, ethereum: ETHEREUM_MARKET_TOKENS };
+        // ---- Arbitrum market ID → token address map (for Earn History) ----
+        const ARBITRUM_MARKET_TOKENS = {
+            0: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',  // WETH
+            1: '0xda10009cbd5d07dd0cecc66161fc93d7c9000da1',  // DAI
+            2: '0xff970a61a04b1ca14834a43f5de4533ebddb5cc8',  // USDC.e
+            3: '0xf97f4df75117a78c1a5a0dbb814af92458539fb4',  // LINK
+            4: '0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f',  // WBTC
+            5: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',  // USDT
+            6: '0x34df4e8062a8c8ae97e3382b452bd7bf60542698',  // dfsGLP
+            7: '0x912ce59144191c1204e64559fe8253a0e49e6548',  // ARB
+            8: '0x85667409a723684fe1e57dd1abde88c2f54214f1',  // magicGLP
+            9: '0x5c80ac681b6b0e7ef6e0751211012601e6cfb043',  // plvGLP
+            10: '0x2adba3f917bb0af2530f8f295ad2a6ff1111fc05', // jUSDC
+            11: '0x7b07e78561a3c2c1eade652a2a92da150743f4d7', // PT-GLP
+            12: '0xfa7f8980b0f1e64a2062791cc3b0871572f1f7f0', // UNI
+            13: '0xfea7a6a0b346362bf88a9e4a88416b77a57d6c2a', // MIM
+            14: '0x5979d7b546e38e414f7e9822514be443a4800529', // wstETH
+            15: '0xec70dcb4a1efa46b8f2d97c310c9c4790ba5ffa8', // rETH
+            16: '0x851729df6c39bdb6e92721f2adf750023d967ee8', // YT-GLP
+            17: '0xaf88d065e77c8cc2239327c5edb3a432268e5831', // USDC
+            18: '0x3d9907f9a368ad0a51be60f7da3b97cf940982d8', // GRAIL
+            19: '0x539bde0d7dbd336b79148aa742883198bbf60342', // MAGIC
+            20: '0x6c2c06790b3e3e3c38e12ee22f8183b37a13ee55', // DPX
+            21: '0x0c880f6761f1af8d9aa9c466984b80dab9a8c9e8', // PENDLE
+            22: '0xc9375ef7635fe556f613ab528c9a2ed946bd075d', // PT-rETH
+            23: '0x1be165864c918527f2e3e131c2adc4da9b8c619b', // PT-wstETH
+            24: '0xfef14a3a1ec46d4eb18c784bc1e61297fc68bbc8', // PT-wstETH
+            25: '0x10393c20975cf177a3513071bc110f7962cd67da', // JONES
+            26: '0x51fc0f6660482ea73330e414efd7808811a57fa2', // PREMIA
+            27: '0x3082cc23568ea640225c2467653db90e9250aaa0', // RDNT
+            28: '0x1d9e10b161ae54feabe1e3f71f658cac3468e3c3', // vARB
+            29: '0xfc5a1a6eb076a2c7ad06ed22c90d7e710e35ad0a', // GMX
+            30: '0x790ff506ac24b03a21f3d0019227447ae2b55ca5', // Staked-GMX
+            31: '0x2c799166c9f0dbf9efc5004cbce4c5a37fa39329', // GM:ARB-USD
+            32: '0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef', // GM:BTC-USD
+            33: '0x505582242757f16d72f8c4462a616e388ca1b074', // GM:ETH-USD
+            34: '0x18cb14564fbb015bd3439220d177799355abc0e0', // GM:LINK-USD
+            35: '0x35751007a407ca6feffe80b3cb397736d2cf4dbe', // weETH
+            36: '0xa2e14377fa6ce3556e2248559e85dc44260e362f', // PT-eETH
+            37: '0x2416092f143378750bb29b79ed961ab195cceea5', // ezETH
+            38: '0x12a3bb4fdbc5c932438e067338767ee4a9165f1b', // PT-ezETH
+            39: '0x4cb9a7ae498cedcbb5eae9f25736ae7d428c9d66', // XAI
+            40: '0x5402b5f40310bded796c7d0f3ff6683f5c0cffdf', // sGLP
+            41: '0x0c4d46076af67f8ba1cc3c01f7e873bd91ea41ab', // PT-GLP
+            42: '0x6cc56e9ca71147d40b10a8cb8cbe911c1faf4cf8', // PT-eETH
+            43: '0x14c60cb8301e879dfb9eecbebc013353b7e33012', // jUSDC V2
+            44: '0xb15bbbfcff6c411410c66642306d1ffa7ecec4d8', // GM:BTC
+            45: '0x2d165a76dd3e552df3860789331ab73c5a3d7f92', // GM:ETH
+            46: '0x894134a25a5fac1c2c26f1d8fbf05111a3cb9487', // GRAI
+            47: '0x20d51cb520c4622dcc3d7e35003dbab07d547e7e', // GM:UNI-USD
+            48: '0x57f5e098cad7a3d1eed53991d4d66c45c9af7812', // wUSDM
+            49: '0x4186bfc76e2e237523cbc30fd220fe055156b41f', // rsETH
+            50: '0x4b82bd687042c4ea68a2a45b8204da74be0fb493', // PT-eETH
+            51: '0x9fb5a64ce2f659a6039aa57d45975fc097b3f373', // PT-ezETH
+            52: '0xcec868060a724199c0fbf62e61449175690a55bd', // PT-rsETH
+            53: '0xd8724322f44e5c58d7a815f542036fb17dbbf839', // wOETH
+            54: '0x5d3a1ff2b6bab83b63cd9ad0787074081a52ef34', // USDe
+            55: '0x24c9121c75c099b38d40020872b8a0d2c27c614d', // GM:AAVE-USD
+            56: '0x1beed3b7d1237b7773b5c4c249933e3ca5e027c1', // GM:DOGE-USD
+            57: '0x5c99f6cf6069698d234d50bf69ebd2f53e45ed1c', // GM:GMX-USD
+            58: '0x1ebb1c7023addbb2b6e30e6f4c8d4a4440bfd412', // GM:SOL-USD
+            59: '0xc587646f67b38739006ed0200e2e0a26fdb01c9b', // GM:wstETH-USD
+            60: '0x24fe352a8303881dc8def80783682648623c57d2', // PT-eETH
+            61: '0x26abfe435447b236b8a014b296e1a8fa2b912aec', // PT-rsETH
+            62: '0x6b2a01a5f79deb4c2f3c0eda7b01df456fbd726a', // uniBTC
+            63: '0xcf248baf933c7b1b876b997246f25021a65383b3', // GM:GMX
+            64: '0xe5d6fe410c69b44c357403a1936b3bfaddbe340b', // GM:PENDLE-USD
+            65: '0x6586f1db71513daf94b0431156d225a46c00f20b', // GM:PEPE-USD
+            66: '0xf5063b40fa66ab2fbda2e6807ac5759a41a1b0c3', // GM:WIF-USD
+            67: '0x7e584529bb40220a2bd5d0c13e3d65abd4a47f0e', // GLV:BTC
+            68: '0x11f4532c05fb8ea6320b1dc155bfdc2498a5d8b4', // GLV:ETH
+            69: '0x6c84a8f1c29108f47a79964b5fe888d4f4d0de40', // tBTC
+            70: '0x12275dcb9048680c4be40942ea4d92c74c63b844', // eUSD
+            71: '0x18c14c2d707b2212e17d1579789fc06010cfca23', // ETH+
+            72: '0xba5ddd1f9d7f570dc94a51479a000e3bce967196', // AAVE
+            73: '0x6491c05a82219b8d1479057361ff1654749b876b', // USDS
+            74: '0xddb46999f8891663a8f2828d25298f70416d7610', // sUSDS
+            75: '0xa322e23a357cb7c596a7a834102b9d6d5b15da3e', // savUSD
+        };
+        const CHAIN_MARKET_TOKENS = { arbitrum: ARBITRUM_MARKET_TOKENS, berachain: BERACHAIN_MARKET_TOKENS, ethereum: ETHEREUM_MARKET_TOKENS };
 
 
         // Symbol-based fallback icons (when address not in KNOWN_TOKENS)

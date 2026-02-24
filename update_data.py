@@ -22,8 +22,10 @@ RPC_URLS = [
 ]
 LOCKED_SELECTOR = "0xb45a3c0e"  # locked(uint256)
 BALANCE_OF_NFT_SELECTOR = "0xe7e242d4"  # balanceOfNFT(uint256) — current vote weight
+BALANCE_OF_SELECTOR = "0x70a08231"  # balanceOf(address) — ERC20
+DOLO_TOKEN = "0x0f81001ef0a83ecce5ccebf63eb302c70a39a654"  # Underlying DOLO token
 
-BATCH_SIZE = 100
+BATCH_SIZE = 50
 MAX_WORKERS = 8
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 CACHE_FILE = os.path.join(DATA_DIR, "locked_cache.json")
@@ -200,7 +202,7 @@ def make_batch_call(token_ids):
     out = {}
     responded_ids = set()
     for rpc_url in RPC_URLS:
-        for retry in range(2):
+        for retry in range(3):
             try:
                 resp = s.post(rpc_url, json=batch, timeout=20,
                               headers={"Content-Type": "application/json"})
@@ -262,8 +264,29 @@ def save_cache(cache):
 CACHE_MAX_AGE = 86400  # 24 hours in seconds
 
 
-def fetch_locked_dolo(all_token_ids):
-    """Fetch locked DOLO for all token IDs."""
+def fetch_contract_dolo_balance():
+    """Fetch the actual DOLO token balance held by the veDOLO contract (ground truth)."""
+    padded_addr = VEDOLO_CONTRACT[2:].lower().zfill(64)
+    for rpc_url in RPC_URLS:
+        try:
+            resp = requests.post(rpc_url, json={
+                "jsonrpc": "2.0",
+                "method": "eth_call",
+                "params": [{"to": DOLO_TOKEN, "data": BALANCE_OF_SELECTOR + padded_addr}, "latest"],
+                "id": 1
+            }, timeout=15)
+            r = resp.json()
+            if "result" in r and r["result"]:
+                return int(r["result"], 16) / 1e18
+        except Exception:
+            continue
+    return 0
+
+
+def fetch_locked_dolo(all_token_ids, vote_weights=None):
+    """Fetch locked DOLO for all token IDs.
+    If vote_weights is provided, cross-validates: tokens with vote_weight > 0
+    but cached amount = 0 are treated as suspicious and re-fetched."""
     print(f"\n🔒 Phase 2: Fetching locked DOLO for {len(all_token_ids):,} tokens...")
 
     cache = load_cache()
@@ -272,16 +295,22 @@ def fetch_locked_dolo(all_token_ids):
     # Identify tokens that need fetching: not cached OR cached > 24h ago
     missing = []
     stale = []
+    suspicious_zero = []  # Tokens with vote_weight > 0 but cached amount = 0
     for tid in all_token_ids:
         entry = cache.get(str(tid))
         if entry is None:
             missing.append(tid)
         elif now_ts - entry.get("fetched_at", 0) > CACHE_MAX_AGE:
             stale.append(tid)
+        elif vote_weights and vote_weights.get(tid, 0) > 0 and entry.get("amount", 0) == 0:
+            # Vote weight > 0 but locked amount = 0 — likely a stale/bad cache entry
+            suspicious_zero.append(tid)
 
-    to_fetch = missing + stale
+    to_fetch = missing + stale + suspicious_zero
     print(f"  Cached: {len(all_token_ids) - len(missing):,}/{len(all_token_ids):,}")
     print(f"  New: {len(missing):,}  |  Stale (>24h): {len(stale):,}")
+    if suspicious_zero:
+        print(f"  🔍 Suspicious zeros (vote>0, dolo=0): {len(suspicious_zero):,}")
     print(f"  To fetch: {len(to_fetch):,}")
 
     if to_fetch:
@@ -331,6 +360,48 @@ def fetch_locked_dolo(all_token_ids):
     else:
         print("  ✅ All cached & fresh!")
 
+    # --- Ground truth validation: compare our sum vs on-chain DOLO balance ---
+    our_total = sum(cache.get(str(tid), {}).get("amount", 0) for tid in all_token_ids)
+    onchain_balance = fetch_contract_dolo_balance()
+
+    if onchain_balance > 0:
+        discrepancy_pct = abs(our_total - onchain_balance) / onchain_balance * 100
+        print(f"\n  📊 Ground truth check:")
+        print(f"     Our total:      {our_total:>16,.2f} DOLO")
+        print(f"     On-chain:       {onchain_balance:>16,.2f} DOLO")
+        print(f"     Discrepancy:    {discrepancy_pct:.2f}%")
+
+        # If discrepancy > 1%, retry tokens with amount=0 individually
+        for round_num in range(3):
+            if discrepancy_pct <= 1.0:
+                print(f"  ✅ Data accuracy within 1% — good enough!")
+                break
+
+            # Find tokens still at 0 (most likely to be wrong)
+            zero_tokens = [tid for tid in all_token_ids
+                           if cache.get(str(tid), {}).get("amount", 0) == 0]
+            if not zero_tokens:
+                break
+
+            print(f"  🔄 Round {round_num + 1}: Retrying {len(zero_tokens):,} zero-amount tokens individually...")
+            retry_chunks = [zero_tokens[i:i+10] for i in range(0, len(zero_tokens), 10)]
+            fixed = 0
+            for chunk in retry_chunks:
+                results, failed = make_batch_call(chunk)
+                for tid, data_item in results.items():
+                    if data_item.get("amount", 0) > 0:
+                        data_item["fetched_at"] = now_ts
+                        cache[str(tid)] = data_item
+                        fixed += 1
+                time.sleep(0.15)
+
+            our_total = sum(cache.get(str(tid), {}).get("amount", 0) for tid in all_token_ids)
+            discrepancy_pct = abs(our_total - onchain_balance) / onchain_balance * 100
+            print(f"     Fixed {fixed:,} tokens. New total: {our_total:,.2f} DOLO ({discrepancy_pct:.2f}% off)")
+            save_cache(cache)
+    else:
+        print(f"  ⚠️  Could not fetch on-chain DOLO balance for ground truth check")
+
     return cache
 
 
@@ -351,7 +422,7 @@ def make_vote_batch_call(token_ids):
     out = {}
     responded_ids = set()
     for rpc_url in RPC_URLS:
-        for retry in range(2):
+        for retry in range(3):
             try:
                 resp = s.post(rpc_url, json=batch, timeout=20,
                               headers={"Content-Type": "application/json"})
@@ -545,11 +616,12 @@ def main():
     # Collect all active token IDs
     all_token_ids = sorted({tid for h in holders for tid in h["token_ids"]})
 
-    # Phase 2: Fetch locked DOLO
-    cache = fetch_locked_dolo(all_token_ids)
+    # Phase 2: Fetch vote weights FIRST (always fresh — decays over time)
+    # We fetch these first so we can cross-validate locked DOLO cache
+    vote_weights = fetch_vote_weights(all_token_ids)
 
-    # Phase 3: Fetch vote weights (always fresh — decays over time)
-    vote_weights = fetch_vote_weights(all_token_ids, locked_cache=cache)
+    # Phase 3: Fetch locked DOLO (uses vote weights to detect stale cache zeros)
+    cache = fetch_locked_dolo(all_token_ids, vote_weights=vote_weights)
 
     # Merge locked DOLO + vote weights into holders
     print("\n📊 Merging data...")

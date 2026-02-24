@@ -2,7 +2,7 @@ name: Update veDOLO Data
 
 on:
   schedule:
-    - cron: '0 * * * *'  # Every hour
+    - cron: '0 0 * * *'  # Once daily at midnight UTC
   workflow_dispatch:  # Allow manual trigger
 
 permissions:
@@ -29,9 +29,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: locked_cache.json
-          key: locked-cache-v5-${{ github.run_id }}
+          key: locked-cache-v6-${{ github.run_id }}
           restore-keys: |
-            locked-cache-v5-
+            locked-cache-v6-
 
       - name: Run update script
         run: python update_data.py
