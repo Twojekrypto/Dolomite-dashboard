@@ -503,7 +503,9 @@ def scan_chain(chain_id, chain_config, only_chains=None):
                 elif topic0 == LOG_WITHDRAW:
                     decoded = decode_deposit_withdraw_log(log)
                     if decoded:
-                        add_flow(decoded["owner"], decoded["market"], decoded["delta"], "w")
+                        # Negate: protocol reports withdrawn amount as positive,
+                        # but our netflow needs it negative (balance decreases)
+                        add_flow(decoded["owner"], decoded["market"], -abs(decoded["delta"]), "w")
                 
                 elif topic0 == LOG_TRADE:
                     entries = decode_trade_log(log)
