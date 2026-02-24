@@ -23,8 +23,8 @@ RPC_URLS = [
 LOCKED_SELECTOR = "0xb45a3c0e"  # locked(uint256)
 BALANCE_OF_NFT_SELECTOR = "0xe7e242d4"  # balanceOfNFT(uint256) — current vote weight
 
-BATCH_SIZE = 50
-MAX_WORKERS = 4
+BATCH_SIZE = 100
+MAX_WORKERS = 8
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 CACHE_FILE = os.path.join(DATA_DIR, "locked_cache.json")
 OUTPUT_JSON = os.path.join(DATA_DIR, "vedolo_holders.json")
@@ -200,9 +200,9 @@ def make_batch_call(token_ids):
     out = {}
     responded_ids = set()
     for rpc_url in RPC_URLS:
-        for retry in range(3):
+        for retry in range(2):
             try:
-                resp = s.post(rpc_url, json=batch, timeout=15,
+                resp = s.post(rpc_url, json=batch, timeout=20,
                               headers={"Content-Type": "application/json"})
                 if resp.status_code == 429:
                     time.sleep(1 * (retry + 1))
@@ -234,8 +234,8 @@ def make_batch_call(token_ids):
                 failed = [tid for tid in token_ids if tid not in responded_ids]
                 return out, failed
             except Exception as e:
-                if retry < 2:
-                    time.sleep(0.5 * (retry + 1))
+                if retry < 1:
+                    time.sleep(0.3 * (retry + 1))
         # If this RPC failed entirely, try next one
         if out:
             failed = [tid for tid in token_ids if tid not in responded_ids]
@@ -351,9 +351,9 @@ def make_vote_batch_call(token_ids):
     out = {}
     responded_ids = set()
     for rpc_url in RPC_URLS:
-        for retry in range(3):
+        for retry in range(2):
             try:
-                resp = s.post(rpc_url, json=batch, timeout=30,
+                resp = s.post(rpc_url, json=batch, timeout=20,
                               headers={"Content-Type": "application/json"})
                 if resp.status_code == 429:
                     time.sleep(1 * (retry + 1))
