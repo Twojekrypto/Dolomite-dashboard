@@ -304,13 +304,16 @@ def load_progress(chain_id):
 
 def decode_trade_log_v2(log):
     """Decode V2 LogTrade event (Berachain/Ethereum).
-    Topics: [sig, owner1, owner2]
+    Topics: [sig, owner1 (taker), owner2 (maker)]
     Data (11 words):
       0: accNum1, 1: accNum2, 2: inputMarket, 3: outputMarket,
-      4: owner1_input_value, 5: owner1_input_sign,
-      6: owner1_output_value, 7: owner1_output_sign,
-      8: owner2_input_value, 9: owner2_input_sign,
-      10: owner2_output_value  (sign implied: opposite of owner1 output)
+      4: taker_input_value, 5: taker_input_sign,
+      6: taker_output_value, 7: taker_output_sign,
+      8: maker_input_value, 9: maker_input_sign,
+      10: maker_output_value  (sign implied: opposite of taker output)
+    
+    For self-trades (owner1==owner2, common with DolomiteMargin zaps/swaps),
+    only taker-side deltas are tracked to avoid double-counting.
     """
     try:
         topics = log["topics"]
@@ -332,20 +335,24 @@ def decode_trade_log_v2(log):
             s = int(words[sign_idx], 16)
             return v if s else -v
         
+        # Taker side (owner1): the user's actual balance change
         o1_input = delta(4, 5)
         o1_output = delta(6, 7)
-        o2_input = delta(8, 9)
-        # Owner2 output: value is word[10], sign is implied as NOT owner1's output sign
-        o2_output_val = int(words[10], 16)
-        o1_output_sign = int(words[7], 16)
-        o2_output = -o2_output_val if o1_output_sign else o2_output_val
         
         results = [
             {"owner": owner1.lower(), "market": input_market, "delta": o1_input},
             {"owner": owner1.lower(), "market": output_market, "delta": o1_output},
-            {"owner": owner2.lower(), "market": input_market, "delta": o2_input},
-            {"owner": owner2.lower(), "market": output_market, "delta": o2_output},
         ]
+        
+        # Only add maker side if it's a DIFFERENT address (cross-account trade)
+        if owner1.lower() != owner2.lower():
+            o2_input = delta(8, 9)
+            o2_output_val = int(words[10], 16)
+            o1_output_sign = int(words[7], 16)
+            o2_output = -o2_output_val if o1_output_sign else o2_output_val
+            results.append({"owner": owner2.lower(), "market": input_market, "delta": o2_input})
+            results.append({"owner": owner2.lower(), "market": output_market, "delta": o2_output})
+        
         return results
     except Exception:
         return None
