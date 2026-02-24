@@ -184,7 +184,8 @@ def build_ownership(txs):
 # ===== PHASE 2: Fetch locked DOLO + PHASE 3: Fetch vote weights =====
 
 def make_batch_call(token_ids):
-    """Batch RPC call for locked(uint256)."""
+    """Batch RPC call for locked(uint256) with RPC failover.
+    Returns (results_dict, failed_ids) to distinguish errors from real zeros."""
     s = requests.Session()
     batch = []
     for i, tid in enumerate(token_ids):
@@ -197,36 +198,51 @@ def make_batch_call(token_ids):
         })
 
     out = {}
-    for retry in range(3):
-        try:
-            resp = s.post(RPC_URL, json=batch, timeout=15,
-                          headers={"Content-Type": "application/json"})
-            if resp.status_code == 429:
-                time.sleep(1 * (retry + 1))
-                continue
-            resp.raise_for_status()
-            results = resp.json()
-            for r in results:
-                idx = r["id"]
-                tid = token_ids[idx]
-                if "result" in r and r["result"] and len(r["result"]) >= 66:
-                    raw = r["result"]
-                    amount_raw = int(raw[2:66], 16)
-                    if amount_raw >= 2**127:
-                        amount_raw -= 2**128
-                    end_raw = int(raw[66:130], 16)
-                    out[tid] = {"amount": amount_raw / 1e18, "end": end_raw}
-                else:
-                    out[tid] = {"amount": 0, "end": 0}
-            return out
-        except Exception as e:
-            if retry < 2:
-                time.sleep(0.5 * (retry + 1))
+    responded_ids = set()
+    for rpc_url in RPC_URLS:
+        for retry in range(3):
+            try:
+                resp = s.post(rpc_url, json=batch, timeout=15,
+                              headers={"Content-Type": "application/json"})
+                if resp.status_code == 429:
+                    time.sleep(1 * (retry + 1))
+                    continue
+                resp.raise_for_status()
+                results = resp.json()
+                if not isinstance(results, list):
+                    time.sleep(0.5 * (retry + 1))
+                    continue
+                for r in results:
+                    idx = r.get("id", 0)
+                    if idx < len(token_ids):
+                        tid = token_ids[idx]
+                        if "error" in r:
+                            # RPC error (e.g. batch limit exceeded) — skip, don't set 0
+                            pass
+                        elif "result" in r and r["result"] and len(r["result"]) >= 66:
+                            raw = r["result"]
+                            amount_raw = int(raw[2:66], 16)
+                            if amount_raw >= 2**127:
+                                amount_raw -= 2**128
+                            end_raw = int(raw[66:130], 16)
+                            out[tid] = {"amount": amount_raw / 1e18, "end": end_raw}
+                            responded_ids.add(tid)
+                        else:
+                            # Explicit zero result from RPC — genuinely no lock
+                            out[tid] = {"amount": 0, "end": 0}
+                            responded_ids.add(tid)
+                failed = [tid for tid in token_ids if tid not in responded_ids]
+                return out, failed
+            except Exception as e:
+                if retry < 2:
+                    time.sleep(0.5 * (retry + 1))
+        # If this RPC failed entirely, try next one
+        if out:
+            failed = [tid for tid in token_ids if tid not in responded_ids]
+            return out, failed
 
-    for tid in token_ids:
-        if tid not in out:
-            out[tid] = {"amount": 0, "end": 0, "error": True}
-    return out
+    # Complete failure — all RPCs failed
+    return out, list(token_ids)
 
 
 def load_cache():
@@ -272,6 +288,7 @@ def fetch_locked_dolo(all_token_ids):
         chunks = [to_fetch[i:i+BATCH_SIZE] for i in range(0, len(to_fetch), BATCH_SIZE)]
         errors = 0
         done = 0
+        all_failed = []
         chunk_idx = 0
 
         while chunk_idx < len(chunks):
@@ -280,12 +297,13 @@ def fetch_locked_dolo(all_token_ids):
             with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
                 futures = {executor.submit(make_batch_call, c): ci for ci, c in enumerate(window)}
                 for future in as_completed(futures):
-                    for tid, data_item in future.result().items():
+                    results, failed = future.result()
+                    for tid, data_item in results.items():
                         data_item["fetched_at"] = now_ts
                         cache[str(tid)] = data_item
                         done += 1
-                        if "error" in data_item:
-                            errors += 1
+                    all_failed.extend(failed)
+                    errors += len(failed)
 
             chunk_idx += len(window)
             if chunk_idx % 50 == 0 or chunk_idx >= len(chunks):
@@ -293,6 +311,20 @@ def fetch_locked_dolo(all_token_ids):
                 print(f"  Progress: {pct:.0f}% ({done:,}/{len(to_fetch):,}) | Errors: {errors}")
                 save_cache(cache)
             time.sleep(0.15)
+
+        # Retry failed tokens in smaller batches
+        if all_failed:
+            print(f"  ⚠️  {len(all_failed)} tokens failed initial fetch, retrying in small batches...")
+            retry_chunks = [all_failed[i:i+10] for i in range(0, len(all_failed), 10)]
+            fixed = 0
+            for chunk in retry_chunks:
+                results, still_failed = make_batch_call(chunk)
+                for tid, data_item in results.items():
+                    data_item["fetched_at"] = now_ts
+                    cache[str(tid)] = data_item
+                    fixed += 1
+                time.sleep(0.2)
+            print(f"  ✅ Retry fixed {fixed}/{len(all_failed)} tokens.")
 
         save_cache(cache)
         print(f"  ✅ Done. Errors: {errors}/{len(to_fetch):,}")
@@ -564,25 +596,28 @@ def main():
     stats["total_locked_dolo"] = round(total_locked_dolo, 2)
     stats["total_vote_weight"] = round(total_vote_weight, 4)
 
-    # ===== DATA PROTECTION: Don't overwrite good stats with zeros =====
-    # If RPC calls failed and we got 0 for locked DOLO, preserve previous data
-    if total_locked_dolo == 0:
-        try:
-            if os.path.exists(OUTPUT_JSON):
-                with open(OUTPUT_JSON) as f:
-                    prev = json.load(f)
-                prev_locked = prev.get("stats", {}).get("total_locked_dolo", 0)
-                prev_vote = prev.get("stats", {}).get("total_vote_weight", 0)
-                if prev_locked > 0:
-                    print(f"\n⚠️  WARNING: New total_locked_dolo is 0 but previous was {prev_locked:,.2f}")
-                    print(f"   This likely means RPC calls failed. Preserving previous stats.")
+    # ===== DATA PROTECTION: Don't overwrite good stats with corrupted data =====
+    # Guard against both total zero AND suspicious drops (>50% decline = likely RPC failure)
+    try:
+        if os.path.exists(OUTPUT_JSON):
+            with open(OUTPUT_JSON) as f:
+                prev = json.load(f)
+            prev_locked = prev.get("stats", {}).get("total_locked_dolo", 0)
+            prev_vote = prev.get("stats", {}).get("total_vote_weight", 0)
+
+            if prev_locked > 0:
+                drop_pct = (1 - total_locked_dolo / prev_locked) * 100 if prev_locked > 0 else 0
+                if total_locked_dolo == 0 or drop_pct > 50:
+                    print(f"\n⚠️  WARNING: total_locked_dolo dropped {drop_pct:.1f}%")
+                    print(f"   Previous: {prev_locked:,.2f}  New: {total_locked_dolo:,.2f}")
+                    print(f"   This likely means RPC calls failed. Preserving previous locked DOLO stats.")
                     stats["total_locked_dolo"] = prev_locked
                     stats["total_vote_weight"] = prev_vote
                     stats["_stale_data"] = True
                     total_locked_dolo = prev_locked
                     total_vote_weight = prev_vote
-        except Exception as e:
-            print(f"   ⚠️ Could not read previous data: {e}")
+    except Exception as e:
+        print(f"   ⚠️ Could not read previous data: {e}")
 
     output = {
         "contract": VEDOLO_CONTRACT,
