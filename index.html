@@ -10060,101 +10060,9 @@
                     }
                 }
 
-                // Step 4: Resolve token addresses for ALL markets
-                // Use hardcoded CHAIN_MARKET_TOKENS map first, RPC fallback for unknown markets
-                const chainMap = CHAIN_MARKET_TOKENS[chainId] || {};
+                // Step 4: Resolve token info from subgraph cache (populated during earn_fetchNetflow)
+                // No more need for complex RPC lookups — subgraph gives us everything
                 const marketTokens = {};
-                const needRpcLookup = [];
-
-                for (const mid of marketIds) {
-                    const midStr = String(mid);
-                    if (activeBalances[midStr]) continue; // already have from active balances
-                    if (chainMap[mid]) {
-                        marketTokens[midStr] = chainMap[mid];
-                    } else {
-                        needRpcLookup.push(mid);
-                    }
-                }
-
-                // RPC fallback for markets not in hardcoded map
-                if (needRpcLookup.length > 0) {
-                    const tokenAddrCalls = needRpcLookup.map(mid => ({
-                        to: chain.margin,
-                        data: '0xd4de8d6a' + earn_padUint(mid)
-                    }));
-                    try {
-                        const tokenAddrResults = await earn_rpcBatch(tokenAddrCalls);
-                        needRpcLookup.forEach((mid, i) => {
-                            const hex = tokenAddrResults[i];
-                            if (hex && hex.length >= 42) {
-                                marketTokens[String(mid)] = '0x' + hex.replace('0x', '').slice(24);
-                            }
-                        });
-                    } catch (e) { console.warn('Token addr batch failed:', e); }
-                }
-
-                // Step 5: Resolve token info (symbol, decimals) for tokens not in KNOWN_TOKENS
-                const allTokenAddrs = [];
-                const tokenInfoNeeded = [];
-                for (const mid of marketIds) {
-                    const midStr = String(mid);
-                    if (activeBalances[midStr]) continue; // already know this token
-                    const tAddr = marketTokens[midStr];
-                    if (!tAddr) continue;
-                    const key = chainId + ':' + tAddr.toLowerCase();
-                    if (!earn_tokenCache[key] && !KNOWN_TOKENS[key]) {
-                        tokenInfoNeeded.push({ mid: midStr, addr: tAddr });
-                        allTokenAddrs.push(tAddr);
-                    }
-                }
-
-                // Batch RPC for symbol + decimals
-                if (tokenInfoNeeded.length > 0) {
-                    const infoCalls = [];
-                    const infoMap = [];
-                    tokenInfoNeeded.forEach((t, i) => {
-                        infoCalls.push({ to: t.addr, data: '0x95d89b41' }); // symbol()
-                        infoMap.push({ type: 'symbol', idx: i });
-                        infoCalls.push({ to: t.addr, data: '0x313ce567' }); // decimals()
-                        infoMap.push({ type: 'decimals', idx: i });
-                    });
-
-                    try {
-                        const infoResults = await earn_rpcBatch(infoCalls);
-                        const raw = tokenInfoNeeded.map(() => ({ symHex: null, decHex: null }));
-                        infoMap.forEach((m, i) => {
-                            if (m.type === 'symbol') raw[m.idx].symHex = infoResults[i];
-                            else raw[m.idx].decHex = infoResults[i];
-                        });
-
-                        raw.forEach((r, i) => {
-                            const t = tokenInfoNeeded[i];
-                            const key = chainId + ':' + t.addr.toLowerCase();
-                            let symbol = 'UNK';
-                            if (r.symHex && r.symHex.length > 2) {
-                                try {
-                                    const hex = r.symHex.replace('0x', '');
-                                    if (hex.length === 64) {
-                                        const bytes = [];
-                                        for (let j = 0; j < 64; j += 2) { const b = parseInt(hex.substr(j, 2), 16); if (b > 0) bytes.push(b); }
-                                        symbol = String.fromCharCode(...bytes);
-                                    } else {
-                                        const len = parseInt(hex.slice(64, 128), 16);
-                                        const strHex = hex.slice(128, 128 + len * 2);
-                                        const bytes = [];
-                                        for (let j = 0; j < strHex.length; j += 2) bytes.push(parseInt(strHex.substr(j, 2), 16));
-                                        symbol = String.fromCharCode(...bytes);
-                                    }
-                                } catch (e) { }
-                            }
-                            let decimals = 18;
-                            if (r.decHex && r.decHex.length > 2) {
-                                try { decimals = parseInt(r.decHex, 16); } catch (e) { }
-                            }
-                            earn_tokenCache[key] = { symbol, decimals, addr: t.addr };
-                        });
-                    } catch (e) { console.warn('Token info batch failed:', e); }
-                }
 
                 // Step 6: Fetch CoinGecko prices
                 const allAddrs = marketIds.map(mid => {
@@ -10191,12 +10099,12 @@
                         decimals = activeBalances[midStr].decimals;
                         icon = activeBalances[midStr].icon;
                     } else {
-                        tokenAddr = marketTokens[midStr] || '0x???';
-                        const key = chainId + ':' + tokenAddr.toLowerCase();
-                        const info = earn_tokenCache[key] || KNOWN_TOKENS[key] || {};
-                        symbol = info.symbol || 'UNK';
-                        decimals = info.decimals || 18;
-                        icon = info.icon || SYMBOL_ICONS[symbol] || SYMBOL_ICONS[symbol?.toUpperCase()] || null;
+                        // Use subgraph token cache (populated by earn_fetchNetflow)
+                        const sgToken = earn_subgraphTokens[midStr];
+                        tokenAddr = marketTokens[midStr] || '';
+                        symbol = sgToken?.symbol || 'UNK';
+                        decimals = sgToken?.decimals || 18;
+                        icon = SYMBOL_ICONS[symbol] || SYMBOL_ICONS[symbol?.toUpperCase()] || null;
                     }
 
                     // Get USD price
@@ -10498,6 +10406,7 @@
         const SNAPSHOT_BASE = 'https://twojekrypto.github.io/vedolo-dashboard/data/earn-snapshots';
         const NETFLOW_BASE = 'https://twojekrypto.github.io/vedolo-dashboard/data/earn-netflow';
         let earn_netflowData = null; // { marketId: netFlowWei (string) } for current address+chain
+        let earn_subgraphTokens = {}; // { marketId: { symbol, decimals, name } } — token metadata from subgraph
 
         // Snapshot manifest: { dates: [...], chains: { date: [chains] } }
         let earn_snapshotManifest = null;
@@ -10843,11 +10752,17 @@
                 const allMarketIds = Object.keys(netflows);
                 if (allMarketIds.length > 0) {
                     const tokensData = await earn_subgraphQuery(endpoint,
-                        `{ tokens(first: 100, where: { marketId_in: [${allMarketIds.map(m => `"${m}"`).join(',')}] }) { marketId decimals } }`
+                        `{ tokens(first: 100, where: { marketId_in: [${allMarketIds.map(m => `"${m}"`).join(',')}] }) { marketId symbol name decimals } }`
                     );
                     const decimalsMap = {};
                     for (const t of (tokensData.tokens || [])) {
                         decimalsMap[t.marketId] = parseInt(t.decimals);
+                        // Cache full token metadata for History tab
+                        earn_subgraphTokens[t.marketId] = {
+                            symbol: t.symbol,
+                            decimals: parseInt(t.decimals),
+                            name: t.name,
+                        };
                     }
 
                     // Convert float amounts to wei strings
