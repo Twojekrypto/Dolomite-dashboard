@@ -46,6 +46,8 @@ jobs:
 
       - name: Scan earn netflow events
         run: python3 scan_earn_netflow.py
+        env:
+          ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
 
       - name: Save netflow progress cache
         if: always()

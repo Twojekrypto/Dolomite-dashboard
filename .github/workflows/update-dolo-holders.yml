@@ -39,6 +39,7 @@ jobs:
         env:
           ETHERSCAN_API_KEY: ${{ secrets.BERASCAN_API_KEY }}
           BERASCAN_API_KEY: ${{ secrets.BERASCAN_API_KEY }}
+          ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
         run: python3 generate_dolo_holders.py
 
       - name: Commit and push if changed
