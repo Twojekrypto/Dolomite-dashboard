@@ -540,23 +540,35 @@ def fetch_vote_weights(all_token_ids, locked_cache=None):
                 suspicious.append(tid)
 
     if suspicious:
-        print(f"  🔍 {len(suspicious)} tokens have active locks but 0 vote weight — retrying individually...")
-        # Retry in small batches of 10 with individual RPC fallback
-        retry_chunks = [suspicious[i:i+10] for i in range(0, len(suspicious), 10)]
-        fixed = 0
-        for chunk in retry_chunks:
-            for rpc_url in RPC_URLS:
-                results, failed = _single_rpc_vote_batch(chunk, rpc_url)
-                for tid, weight in results.items():
-                    if weight > 0:
-                        vote_weights[tid] = weight
-                        fixed += 1
-                    elif tid not in vote_weights:
-                        vote_weights[tid] = weight
-                if not failed:
-                    break
-            time.sleep(0.15)
-        print(f"  ✅ Fixed {fixed}/{len(suspicious)} suspicious tokens.")
+        print(f"  🔍 {len(suspicious)} tokens have active locks but 0 vote weight — retrying...")
+        # Convergence-based retry: keep going until no more progress
+        MAX_VOTE_ROUNDS = 10
+        for round_num in range(MAX_VOTE_ROUNDS):
+            zero_vote_active = [tid for tid in all_token_ids
+                                if locked_cache.get(str(tid), {"amount": 0, "end": 0}).get("amount", 0) > 0
+                                and locked_cache.get(str(tid), {"amount": 0, "end": 0}).get("end", 0) > now_ts
+                                and vote_weights.get(tid, 0) == 0]
+            if not zero_vote_active:
+                break
+            print(f"  🔄 Vote round {round_num + 1}/{MAX_VOTE_ROUNDS}: Retrying {len(zero_vote_active):,} zero-vote tokens...")
+            retry_chunks = [zero_vote_active[i:i+5] for i in range(0, len(zero_vote_active), 5)]
+            fixed = 0
+            for chunk in retry_chunks:
+                for rpc_url in RPC_URLS:
+                    results, failed = _single_rpc_vote_batch(chunk, rpc_url)
+                    for tid, weight in results.items():
+                        if weight > 0:
+                            vote_weights[tid] = weight
+                            fixed += 1
+                        elif tid not in vote_weights:
+                            vote_weights[tid] = weight
+                    if not failed:
+                        break
+                time.sleep(0.25)
+            print(f"     Fixed {fixed}/{len(zero_vote_active)} tokens.")
+            if fixed == 0:
+                print(f"  ⏳ No progress — waiting 10s before next attempt...")
+                time.sleep(10)
 
     # Fill any still-missing tokens with 0
     for tid in all_token_ids:
@@ -635,12 +647,11 @@ def main():
     # Collect all active token IDs
     all_token_ids = sorted({tid for h in holders for tid in h["token_ids"]})
 
-    # Phase 2: Fetch vote weights FIRST (always fresh — decays over time)
-    # We fetch these first so we can cross-validate locked DOLO cache
-    vote_weights = fetch_vote_weights(all_token_ids)
+    # Phase 2: Fetch locked DOLO FIRST (cached — more reliable)
+    cache = fetch_locked_dolo(all_token_ids)
 
-    # Phase 3: Fetch locked DOLO (uses vote weights to detect stale cache zeros)
-    cache = fetch_locked_dolo(all_token_ids, vote_weights=vote_weights)
+    # Phase 3: Fetch vote weights (uses locked cache to cross-validate zeros)
+    vote_weights = fetch_vote_weights(all_token_ids, locked_cache=cache)
 
     # Merge locked DOLO + vote weights into holders
     print("\n📊 Merging data...")
