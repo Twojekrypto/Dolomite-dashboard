@@ -12255,7 +12255,10 @@
                     const yieldSign = yieldPositive && totalYield > 0n ? '+' : '';
                     const yieldColor = yieldPositive ? 'earn-yield-positive' : 'earn-yield-negative';
                     const yieldFmt = earn_formatAmount(totalYield, a.decimals, a.symbol);
-                    yieldCellHtml = `<span class="earn-amount ${yieldColor}">${yieldSign + yieldFmt}<span class="earn-amount-sym">${a.symbol}</span></span>`;
+                    const yieldNum = Number(totalYield) / (10 ** a.decimals);
+                    const yieldUsd = yieldNum * (earn_priceCache[document.getElementById('earn-chain').value + ':' + a.tokenAddr.toLowerCase()] || TOKEN_USD_FALLBACK[a.symbol] || 0);
+                    const yieldUsdStr = Math.abs(yieldUsd) >= 0.01 ? `<div class="earn-usd-sub" style="color:${yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">${yieldSign}$${Math.abs(yieldUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>` : '';
+                    yieldCellHtml = `<span class="earn-amount ${yieldColor}">${yieldSign + yieldFmt}<span class="earn-amount-sym">${a.symbol}</span></span>${yieldUsdStr}`;
                 } else if (hasSnapshotData) {
                     let totalYield = BigInt(hist.cumulativeYield);
 
@@ -12271,7 +12274,10 @@
                     const yieldSign = yieldPositive && totalYield > 0n ? '+' : '';
                     const yieldColor = yieldPositive ? 'earn-yield-positive' : 'earn-yield-negative';
                     const yieldFmt = earn_formatAmount(totalYield, a.decimals, a.symbol);
-                    yieldCellHtml = `<span class="earn-amount ${yieldColor}">${yieldSign + yieldFmt}<span class="earn-amount-sym">${a.symbol}</span></span>`;
+                    const yieldNum = Number(totalYield) / (10 ** a.decimals);
+                    const yieldUsd = yieldNum * (earn_priceCache[document.getElementById('earn-chain').value + ':' + a.tokenAddr.toLowerCase()] || TOKEN_USD_FALLBACK[a.symbol] || 0);
+                    const yieldUsdStr = Math.abs(yieldUsd) >= 0.01 ? `<div class="earn-usd-sub" style="color:${yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">${yieldSign}$${Math.abs(yieldUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>` : '';
+                    yieldCellHtml = `<span class="earn-amount ${yieldColor}">${yieldSign + yieldFmt}<span class="earn-amount-sym">${a.symbol}</span></span>${yieldUsdStr}`;
                 } else {
                     yieldCellHtml = `<span class="earn-amount" style="color:var(--text-muted)">—</span>`;
                 }
