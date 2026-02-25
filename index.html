@@ -3789,6 +3789,102 @@
             color: var(--accent-rose);
         }
 
+        /* ═══════ UX OVERHAUL: Summary Card ═══════ */
+        .earn-summary-card {
+            display: none;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1px;
+            margin-bottom: 20px;
+            border-radius: 16px;
+            overflow: hidden;
+            position: relative;
+            background: linear-gradient(135deg, rgba(52, 211, 153, 0.15), rgba(99, 102, 241, 0.15));
+            animation: earnSummaryIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        .earn-summary-card.visible {
+            display: grid;
+        }
+
+        @keyframes earnSummaryIn {
+            from {
+                opacity: 0;
+                transform: translateY(12px) scale(0.98);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .earn-summary-stat {
+            background: rgba(10, 10, 20, 0.85);
+            backdrop-filter: blur(20px);
+            padding: 20px 24px;
+            text-align: center;
+            position: relative;
+        }
+
+        .earn-summary-stat:first-child {
+            border-radius: 16px 0 0 16px;
+        }
+
+        .earn-summary-stat:last-child {
+            border-radius: 0 16px 16px 0;
+        }
+
+        .earn-summary-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .earn-summary-label .stat-icon {
+            font-size: 14px;
+        }
+
+        .earn-summary-value {
+            font-size: 24px;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: -0.5px;
+        }
+
+        .earn-summary-value.positive {
+            background: linear-gradient(135deg, #34d399, #6ee7b7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .earn-summary-value.negative {
+            background: linear-gradient(135deg, #f87171, #fca5a5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .earn-summary-value.neutral {
+            color: var(--text-primary);
+        }
+
+        .earn-summary-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+
         .earn-error {
             background: rgba(239, 68, 68, 0.08);
             border: 1px solid rgba(239, 68, 68, 0.2);
@@ -5927,6 +6023,7 @@
                     </div>
                     <input type="hidden" id="earn-account-num" value="0">
                 </div>
+
             </div>
 
             <div class="earn-mode-toggle" id="earn-mode-toggle"></div>
@@ -5955,6 +6052,9 @@
             </div>
 
             <div class="earn-results" id="earn-results">
+                <!-- Summary card -->
+                <div class="earn-summary-card" id="earn-summary-card"></div>
+
                 <div class="table-section">
                     <div class="table-scroll">
                         <table class="earn-asset-table">
@@ -5994,11 +6094,13 @@
                                     </th>
                                     <th data-sort="balance" class="sort-active" onclick="earn_sortAssets('balance')">
                                         Current Balance <span class="earn-sort-arrow">▼</span></th>
-                                    <th data-sort="yield" onclick="earn_sortAssets('yield')">Total Yield Earned <span
-                                            class="earn-sort-arrow">▼</span> <span class="tooltip-icon">?<span
-                                                class="tooltip-bubble">Cumulative interest earned from Dolomite lending,
+                                    <th data-sort="yield" onclick="earn_sortAssets('yield')">Total Yield Earned
+                                        <span class="earn-sort-arrow">▼</span> <span class="tooltip-icon">?<span
+                                                class="tooltip-bubble">Cumulative interest earned from Dolomite
+                                                lending,
                                                 isolated from deposits, withdrawals, and swaps using supply
-                                                index tracking. Coverage period shown below each value.</span></span>
+                                                index tracking. Coverage period shown below each
+                                                value.</span></span>
                                     </th>
                                 </tr>
                             </thead>
@@ -11720,6 +11822,9 @@
             document.getElementById('earn-empty').classList.remove('visible');
             document.getElementById('earn-results').classList.remove('visible');
             document.getElementById('earn-mode-toggle').classList.remove('visible');
+            // Hide summary card
+            const summary = document.getElementById('earn-summary-card');
+            if (summary) summary.classList.remove('visible');
             // Hide inline inactive toggle and reset its state
             const inactiveToggle = document.getElementById('earn-inactive-toggle');
             if (inactiveToggle) {
@@ -11823,6 +11928,7 @@
                     return;
                 }
 
+
                 // Start parallel fetches: netflow, CoinGecko prices, total yield
                 const netflowPromise = earn_fetchNetflow();
                 const pricesPromise = earn_fetchCoinGeckoPrices(balances.map(b => b.tokenAddr));
@@ -11922,6 +12028,7 @@
                 });
 
                 earn_cachedAssets = enriched;
+
 
                 // Await netflow + prices so yield data is visible on first render
                 await Promise.all([pricesPromise, netflowPromise]);
@@ -12246,6 +12353,70 @@
             }
 
             tbody.innerHTML = html;
+
+            // ═══════ UX: Build Summary Card ═══════
+            {
+                const summaryEl = document.getElementById('earn-summary-card');
+                if (summaryEl) {
+                    let totalUsd = 0;
+                    let totalYieldUsd = 0;
+                    let bestSymbol = '';
+                    let bestYieldUsd = 0;
+
+                    // Active assets
+                    (earn_cachedAssets || []).forEach(a => {
+                        totalUsd += (a.usdValue || 0);
+                        // Get yield USD from netflow
+                        const mid = String(a.marketId);
+                        const nf = earn_netflowData && earn_netflowData[mid];
+                        if (nf !== undefined) {
+                            try {
+                                const weiBI = BigInt(a.wei || '0');
+                                const nfBI = BigInt(nf);
+                                const yieldWei = weiBI - nfBI;
+                                const yieldNum = Number(yieldWei) / (10 ** a.decimals);
+                                const chainId = document.getElementById('earn-chain').value;
+                                const priceKey = chainId + ':' + a.tokenAddr.toLowerCase();
+                                const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[a.symbol] || 0;
+                                const yUsd = yieldNum * price;
+                                totalYieldUsd += yUsd;
+                                if (yUsd > bestYieldUsd) { bestYieldUsd = yUsd; bestSymbol = a.symbol; }
+                            } catch (e) { /* skip non-convertible */ }
+                        }
+                    });
+
+                    // Historical/withdrawn assets
+                    if (earn_historyData) {
+                        earn_historyData.forEach(item => {
+                            if (item.isActive || item.isIsolation) return;
+                            totalYieldUsd += (item.yieldUsd || 0);
+                            if ((item.yieldUsd || 0) > bestYieldUsd) { bestYieldUsd = item.yieldUsd; bestSymbol = item.symbol; }
+                        });
+                    }
+
+                    const fmtUsd = v => v >= 1000 ? '$' + (v / 1000).toFixed(2) + 'K' : '$' + v.toFixed(2);
+                    const yieldClass = totalYieldUsd >= 0 ? 'positive' : 'negative';
+                    const yieldSign = totalYieldUsd >= 0 ? '+' : '';
+
+                    summaryEl.innerHTML = `
+                        <div class="earn-summary-stat">
+                            <div class="earn-summary-label"><span class="stat-icon">💰</span> Portfolio Value</div>
+                            <div class="earn-summary-value neutral">${fmtUsd(totalUsd)}</div>
+                            <div class="earn-summary-sub">${(earn_cachedAssets || []).filter(a => a.usdValue >= 0.01).length} active assets</div>
+                        </div>
+                        <div class="earn-summary-stat">
+                            <div class="earn-summary-label"><span class="stat-icon">📈</span> Total Yield</div>
+                            <div class="earn-summary-value ${yieldClass}">${yieldSign}${fmtUsd(Math.abs(totalYieldUsd))}</div>
+                            <div class="earn-summary-sub">All-time lending yield</div>
+                        </div>
+                        <div class="earn-summary-stat">
+                            <div class="earn-summary-label"><span class="stat-icon">🏆</span> Best Performer</div>
+                            <div class="earn-summary-value positive">${bestSymbol || '—'}</div>
+                            <div class="earn-summary-sub">${bestYieldUsd > 0 ? yieldSign + fmtUsd(bestYieldUsd) : 'No yield data'}</div>
+                        </div>`;
+                    summaryEl.classList.add('visible');
+                }
+            }
 
             // Show results
             document.getElementById('earn-results').classList.add('visible');
