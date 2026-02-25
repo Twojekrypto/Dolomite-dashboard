@@ -7082,6 +7082,7 @@
             console.log('🔄 Fetching oDOLO data...');
             try {
                 let totalSupply, availableTokens, promisedTokens, pushedTokens, inCirculation;
+                let holders = null;
 
                 // Try static JSON first (pre-fetched by GitHub Actions)
                 let usedStatic = false;
@@ -7095,6 +7096,7 @@
                             promisedTokens = cd.promisedTokens;
                             pushedTokens = cd.pushedTokens;
                             inCirculation = cd.inCirculation || (totalSupply - availableTokens - promisedTokens);
+                            holders = cd.holders || null;
                             usedStatic = true;
                             console.log('✅ oDOLO: Loaded contract data from static JSON');
                         }
@@ -7133,7 +7135,7 @@
 
                 odolo_cachedData = {
                     totalSupply, availableTokens, inCirculation,
-                    promisedTokens, pushedTokens,
+                    promisedTokens, pushedTokens, holders,
                 };
 
                 try {
@@ -7166,7 +7168,7 @@
         function odolo_renderMetrics(data) {
             if (!data) return;
             document.getElementById('o-m-supply').innerHTML = odolo_formatNum(data.totalSupply) + ' <img src="odolo-logo-official.svg" class="metric-icon">';
-            document.getElementById('o-m-holders').textContent = '1,724';
+            document.getElementById('o-m-holders').textContent = data.holders ? data.holders.toLocaleString() : '—';
             document.getElementById('o-m-vester').textContent = odolo_formatNum(data.availableTokens);
             const vesterPct = data.totalSupply > 0 ? ((data.availableTokens / data.totalSupply) * 100).toFixed(1) : '0';
             document.getElementById('o-m-vester-pct').textContent = vesterPct + '% of supply';
