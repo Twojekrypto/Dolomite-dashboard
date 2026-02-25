@@ -13,157 +13,199 @@ from datetime import datetime, timezone
 
 ROUTESCAN_API = "https://api.routescan.io/v2/network/mainnet/evm/80094/etherscan/api"
 VESTER_CONTRACT = "0x3E9b9A16743551DA49b5e136C716bBa7932d2cEc"
-USDC_E_CONTRACT = "0x549943E04F40284185054145c6e4e9568c1D3241".lower()
+USDC_E_CONTRACT = "0x549943e04f40284185054145c6e4e9568c1d3241".lower()
 TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 EXERCISE_METHOD_ID = "0xa88f8139"
-DATA_FILENAME = "exercised_usd.json"
-
+USDC_DECIMALS = 6
+PAGE_SIZE = 100
 RATE_LIMIT_DELAY = 0.35
 REQUEST_TIMEOUT = 20
 MAX_RETRIES = 3
 
-
-def get_tx_details_from_receipt(tx_hash, retries=MAX_RETRIES):
-        """Get USDC.e amount from receipt WITH RETRY support."""
-        params = {
-            "module": "proxy",
-            "action": "eth_getTransactionReceipt",
-            "txhash": tx_hash
-        }
-
-    for attempt in range(retries):
-                try:
-                                resp = requests.get(ROUTESCAN_API, params=params, timeout=REQUEST_TIMEOUT)
-                                data = resp.json()
-                                if "result" not in data or data["result"] is None:
-                                                    if attempt < retries - 1:
-                                                                            delay = (2 ** attempt)
-                                                                            time.sleep(delay)
-                                                                            continue
-                                                                        return None
-
-            for log in data["result"].get("logs", []):
-                                if len(log["topics"]) < 3 or log["topics"][0] != TRANSFER_TOPIC:
-                                                        continue
-                                                    token_addr = log["address"].lower()
-                to_addr = "0x" + log["topics"][2][26:].lower()
-                if token_addr == USDC_E_CONTRACT and to_addr == VESTER_CONTRACT.lower():
-                                        usdc_amount = int(log["data"], 16) / 10**6
-                                        return usdc_amount
-                                return 0.0
-except (requests.exceptions.RequestException, ValueError, KeyError) as e:
-            if attempt < retries - 1:
-                                delay = (2 ** attempt)
-                time.sleep(delay)
-else:
-                print(f"    Receipt failed after {retries} retries: {tx_hash[:16]}... ({e})")
-                return None
-    return None
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_FILE = os.path.join(SCRIPT_DIR, "exercised_usd.json")
 
 
-def main():
-        print("=" * 60)
-    print("oDOLO Exercised Volume Incremental Updater")
-    print("=" * 60)
+def load_existing():
+    """Load existing data or return defaults."""
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE) as f:
+            return json.load(f)
+    return {"total_usdc": 0, "total_txs": 0, "last_block": 0}
 
-    # Load existing state
-    if os.path.exists(DATA_FILENAME):
-                with open(DATA_FILENAME, "r") as f:
-                                state = json.load(f)
-        print(f"Loaded existing data: ${state['total_exercised_usd']:,.2f} (up to block {state['last_block']})")
-else:
-        state = {"total_exercised_usd": 0, "last_block": 0, "last_updated": ""}
-        print("No existing data found. Starting from scratch.")
 
-    start_block = state["last_block"] + 1
+def save_data(data):
+    """Save updated data."""
+    data["last_updated"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    with open(DATA_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+    print(f"  Saved to {DATA_FILE}")
+
+
+def get_new_transactions(start_block):
+    """Fetch transactions after start_block."""
     all_txs = []
     page = 1
-    print(f"\n[1/2] Fetching new transactions from block {start_block}...")
 
     while True:
-                params = {
-                                "module": "account", "action": "txlist",
-                                "address": VESTER_CONTRACT,
-                                "startblock": start_block, "endblock": 99999999,
-                                "page": page, "offset": 100, "sort": "asc"
-                }
+        params = {
+            "module": "account",
+            "action": "txlist",
+            "address": VESTER_CONTRACT,
+            "startblock": start_block + 1,
+            "endblock": 99999999,
+            "page": page,
+            "offset": PAGE_SIZE,
+            "sort": "asc"
+        }
+
         resp = requests.get(ROUTESCAN_API, params=params, timeout=REQUEST_TIMEOUT)
         data = resp.json()
 
         if data["status"] != "1" or not data["result"]:
-                        break
+            break
 
         txs = data["result"]
         all_txs.extend(txs)
-        if len(txs) < 100:
-                        break
+
+        if len(txs) < PAGE_SIZE:
+            break
+
         page += 1
         time.sleep(RATE_LIMIT_DELAY)
 
-    exercise_txs = [
-                tx for tx in all_txs
-                if tx.get("methodId") == EXERCISE_METHOD_ID
-                and tx.get("isError") == "0"
-                and tx.get("txreceipt_status") == "1"
-    ]
-    print(f"  Found {len(all_txs)} total txs, {len(exercise_txs)} are 'exercise'")
+    return all_txs
 
-    if not exercise_txs:
-                print("\nNo new exercise transactions found. State remains unchanged.")
+
+def get_usdc_from_receipt(tx_hash, retries=MAX_RETRIES):
+    """Get USDC.e payment from transaction receipt, with retry."""
+    params = {
+        "module": "proxy",
+        "action": "eth_getTransactionReceipt",
+        "txhash": tx_hash
+    }
+
+    for attempt in range(retries):
+        try:
+            resp = requests.get(ROUTESCAN_API, params=params, timeout=REQUEST_TIMEOUT)
+            data = resp.json()
+
+            if "result" not in data or data["result"] is None:
+                if attempt < retries - 1:
+                    time.sleep(2 ** attempt)
+                    continue
+                return None
+
+            for log in data["result"].get("logs", []):
+                if (log["address"].lower() == USDC_E_CONTRACT and
+                    len(log["topics"]) >= 3 and
+                    log["topics"][0] == TRANSFER_TOPIC):
+                    to_addr = "0x" + log["topics"][2][26:].lower()
+                    if to_addr == VESTER_CONTRACT.lower():
+                        return int(log["data"], 16) / (10 ** USDC_DECIMALS)
+
+            return None
+
+        except (requests.exceptions.RequestException, ValueError, KeyError) as e:
+            if attempt < retries - 1:
+                time.sleep(2 ** attempt)
+            else:
+                print(f"    Receipt failed after {retries} retries: {tx_hash[:16]}... ({e})")
+                return None
+
+    return None
+
+
+def main():
+    print("=" * 50)
+    print("oDOLO Exercised Volume — Incremental Update")
+    print("=" * 50)
+
+    existing = load_existing()
+    last_block = existing.get("last_block", 0)
+    total_usdc = existing.get("total_usdc", 0)
+    total_txs = existing.get("total_txs", 0)
+
+    print(f"  Current total: ${total_usdc:,.2f} ({total_txs} txs)")
+    print(f"  Last block: {last_block}")
+    print()
+
+    # Fetch new transactions
+    print("  Fetching new transactions...")
+    new_txs = get_new_transactions(last_block)
+    print(f"  Found {len(new_txs)} new transactions")
+
+    # Filter exercise txs
+    exercise_txs = [
+        tx for tx in new_txs
+        if tx.get("methodId") == EXERCISE_METHOD_ID
+        and tx.get("isError") == "0"
+        and tx.get("txreceipt_status") == "1"
+    ]
+    print(f"  New exercise transactions: {len(exercise_txs)}")
+
+    if not exercise_txs and not new_txs:
+        print("  No new data. Done.")
         return
 
-    print("\n[2/2] Processing receipts with retries...")
-    new_usd = 0
-    max_block = state["last_block"]
+    # Process new exercise transactions
+    new_usdc = 0
+    max_block = last_block
     failed_txs = []
 
     for i, tx in enumerate(exercise_txs):
-                tx_hash = tx["hash"]
-        block_num = int(tx["blockNumber"])
-        usdc_amount = get_tx_details_from_receipt(tx_hash)
+        amount = get_usdc_from_receipt(tx["hash"])
+        block = int(tx["blockNumber"])
+        max_block = max(max_block, block)
 
-        if usdc_amount is not None:
-                        new_usd += usdc_amount
-            if block_num > max_block:
-                                max_block = block_num
-else:
+        if amount is not None:
+            new_usdc += amount
+            total_txs += 1
+            ts = int(tx["timeStamp"])
+            date = time.strftime("%Y-%m-%d %H:%M", time.gmtime(ts))
+            print(f"    [{i+1}/{len(exercise_txs)}] {date} | {amount:>10,.2f} USDC")
+        else:
             failed_txs.append(tx)
 
-        if (i + 1) % 50 == 0 or i == len(exercise_txs) - 1:
-                        print(f"  [{i+1}/{len(exercise_txs)}] New USD: +${new_usd:,.2f}")
         time.sleep(RATE_LIMIT_DELAY)
 
+    # Second-pass retry for failed receipts
     if failed_txs:
-                print(f"\n  Retrying {len(failed_txs)} failed receipts with longer delays...")
-        recovered_usd = 0
-        for i, tx in enumerate(failed_txs):
-                        time.sleep(1.5)
-            usdc_amount = get_tx_details_from_receipt(tx["hash"], retries=5)
-            if usdc_amount is not None:
-                                recovered_usd += usdc_amount
-                new_usd += usdc_amount
-                block_num = int(tx["blockNumber"])
-                if block_num > max_block:
-                                        max_block = block_num
-                                if (i + 1) % 20 == 0 or i == len(failed_txs) - 1:
-                                                    print(f"    Retry [{i+1}/{len(failed_txs)}] Recovered: +${recovered_usd:,.2f}")
+        print(f"\n  Retrying {len(failed_txs)} failed receipts...")
+        recovered = 0
+        for tx in failed_txs:
+            time.sleep(1.5)
+            amount = get_usdc_from_receipt(tx["hash"], retries=5)
+            block = int(tx["blockNumber"])
+            max_block = max(max_block, block)
 
-    # Update state
-    state["total_exercised_usd"] = round(state["total_exercised_usd"] + new_usd, 2)
-    state["last_block"] = max_block
-    state["last_updated"] = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+            if amount is not None:
+                new_usdc += amount
+                total_txs += 1
+                recovered += 1
+        print(f"  Recovered {recovered}/{len(failed_txs)}")
 
-    with open(DATA_FILENAME, "w") as f:
-                json.dump(state, f, indent=2)
+    # Update max_block from ALL new txs (not just exercise)
+    for tx in new_txs:
+        block = int(tx["blockNumber"])
+        max_block = max(max_block, block)
 
-    print(f"\n{'=' * 60}")
-    print(f"SUCCESS!")
-    print(f"  Added:         ${new_usd:,.2f}")
-    print(f"  New Total:     ${state['total_exercised_usd']:,.2f}")
-    print(f"  Final Block:   {state['last_block']}")
-    print(f"  Errors:        {len(failed_txs) - (recovered_usd > 0 if 'recovered_usd' in locals() else 0)}")
-    print(f"  Saved to {DATA_FILENAME}")
+    total_usdc += new_usdc
+
+    # Save
+    result = {
+        "total_usdc": round(total_usdc, 2),
+        "total_txs": total_txs,
+        "last_block": max_block,
+        "period": existing.get("period", "2025-06-26").split(" to ")[0] + " to " + datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    }
+
+    save_data(result)
+
+    print()
+    print(f"  New volume:   +${new_usdc:,.2f}")
+    print(f"  TOTAL: ${total_usdc:>14,.2f} USDC")
 
 
 if __name__ == "__main__":
-        main()
+    main()
