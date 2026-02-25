@@ -8,6 +8,8 @@ import json, time, os, sys
 import requests
 from datetime import datetime
 
+ALCHEMY_BERA_RPC = os.environ.get("ALCHEMY_BERACHAIN_RPC", "")
+
 # ===== CONFIG =====
 DOLO_CONTRACT = "0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654"
 TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
@@ -27,11 +29,12 @@ CHAINS = {
     "bera": {
         "name": "Berachain",
         "rpcs": [
+            *([] if not ALCHEMY_BERA_RPC else [ALCHEMY_BERA_RPC]),
             "https://berachain-rpc.publicnode.com/",
             "https://berachain.drpc.org/",
             "https://rpc.berachain.com/",
         ],
-        "start_block": 2_925_000,  # First DOLO Transfer on Berachain
+        "start_block": 2_925_000,
         "chunk_size": 50_000,
     },
 }
@@ -226,7 +229,7 @@ def verify_top_balances(holders, eth_balances, bera_balances, max_check=200):
     BALANCE_OF_SEL = "0x70a08231"
     RPCs = {
         "eth": "https://eth.drpc.org/",
-        "bera": "https://berachain-rpc.publicnode.com/",
+        "bera": ALCHEMY_BERA_RPC or "https://berachain-rpc.publicnode.com/",
     }
 
     to_check = holders[:max_check]
@@ -292,7 +295,7 @@ def detect_contracts(holders, max_check=200):
 
     RPC_URLS = [
         ("eth", "https://eth.drpc.org/"),
-        ("bera", "https://berachain-rpc.publicnode.com/"),
+        ("bera", ALCHEMY_BERA_RPC or "https://berachain-rpc.publicnode.com/"),
     ]
 
     to_check = holders[:max_check]
