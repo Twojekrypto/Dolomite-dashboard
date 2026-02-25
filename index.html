@@ -7877,6 +7877,12 @@
                 };
             });
 
+            // Build set of oDOLO exercise tx hashes for badge detection
+            const exerciseTxSet = new Set();
+            (typeof EXERCISER_DATA !== 'undefined' ? EXERCISER_DATA : []).forEach(e => {
+                (e.txs || []).forEach(tx => { if (tx.hash) exerciseTxSet.add(tx.hash.toLowerCase()); });
+            });
+
             // Decode Deposit events (Locks)
             // Deposit(address indexed provider, uint256 indexed locktime) + data: [tokenId, value, deposit_type, timestamp]
             vedolo_allLocks = allDepositLogs.map(log => {
@@ -7899,6 +7905,7 @@
                     lockDays: lockDurationDays,
                     locktime,
                     depositType,
+                    isOdolo: exerciseTxSet.has(log.transactionHash.toLowerCase()),
                     timestamp: ts,
                     date: new Date(ts * 1000).toISOString().slice(0, 10),
                     block: parseInt(log.blockNumber, 16),
@@ -8110,7 +8117,7 @@
                 html += '<span style="font-size:0.75em;opacity:0.5">' + vedolo_fmtDate(l.date) + '</span>';
                 html += '</div></td>';
                 html += '<td class="c-addr"><span style="display:inline-flex;align-items:center;gap:4px"><span class="addr-link">' + vedolo_shortAddr(l.address) + '</span><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr(\'' + l.address + '\',this)" title="Copy address">' + COPY_ICON + '</span><a href="https://debank.com/profile/' + l.address + '?chain=bera" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display=\'none\'"></a></span></td>';
-                html += '<td class="c-num" style="color:#34d399;font-weight:600">' + vedolo_fmtDolo(l.dolo) + ' DOLO</td>';
+                html += '<td class="c-num" style="color:#34d399;font-weight:600">' + vedolo_fmtDolo(l.dolo) + ' DOLO' + (l.isOdolo ? ' <span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;background:rgba(99,102,241,0.18);color:#a5b4fc;margin-left:4px;vertical-align:middle">via oDOLO</span>' : ' <span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;background:rgba(52,211,153,0.15);color:#34d399;margin-left:4px;vertical-align:middle">Direct</span>') + '</td>';
                 html += '<td class="c-num">' + vedolo_fmtLock(l.lockDays) + '</td>';
                 html += '<td class="c-num">' + vedolo_fmtDate(l.date) + '</td>';
                 html += '</tr>';
