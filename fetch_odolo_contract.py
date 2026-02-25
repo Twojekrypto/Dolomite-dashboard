@@ -26,11 +26,15 @@ SEL = {
     "availableTokens": "0x69bb4dc2",
 }
 
+ALCHEMY_RPC = os.environ.get("ALCHEMY_BERACHAIN_RPC", "")
 RPC_URLS = [
+    *([] if not ALCHEMY_RPC else [ALCHEMY_RPC]),  # Primary: Alchemy
     "https://rpc.berachain.com/",
     "https://berachain-rpc.publicnode.com/",
     "https://berachain.drpc.org/",
 ]
+
+ROUTESCAN_API = "https://api.routescan.io/v2/network/mainnet/evm/80094/etherscan/api"
 
 VESTER_PADDED = ODOLO_VESTER.replace("0x", "").lower().zfill(64)
 
@@ -64,6 +68,23 @@ def decode_uint256(hex_str):
         return 0
     clean = hex_str.replace("0x", "")[:64]
     return int(clean, 16) if clean else 0
+
+
+def get_holder_count():
+    """Fetch oDOLO token holder count from Routescan API."""
+    try:
+        params = {
+            "module": "token",
+            "action": "tokenholdercount",
+            "contractaddress": ODOLO_TOKEN
+        }
+        resp = requests.get(ROUTESCAN_API, params=params, timeout=10)
+        data = resp.json()
+        if data.get("status") == "1" and data.get("result"):
+            return int(data["result"])
+    except Exception as e:
+        print(f"   ⚠️ Could not fetch holder count: {e}")
+    return None
 
 
 def main():
@@ -103,6 +124,12 @@ def main():
 
             # Derived
             data["inCirculation"] = data["totalSupply"] - data["availableTokens"] - data["promisedTokens"]
+
+            # Fetch holder count from Routescan
+            holders = get_holder_count()
+            if holders is not None:
+                data["holders"] = holders
+                print(f"   Holders: {holders:,}")
 
             with open(OUTPUT_FILE, "w") as f:
                 json.dump(data, f, indent=2)
