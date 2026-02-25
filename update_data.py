@@ -25,8 +25,8 @@ BALANCE_OF_NFT_SELECTOR = "0xe7e242d4"  # balanceOfNFT(uint256) — current vote
 BALANCE_OF_SELECTOR = "0x70a08231"  # balanceOf(address) — ERC20
 DOLO_TOKEN = "0x0f81001ef0a83ecce5ccebf63eb302c70a39a654"  # Underlying DOLO token
 
-BATCH_SIZE = 50
-MAX_WORKERS = 8
+BATCH_SIZE = 25
+MAX_WORKERS = 3
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 CACHE_FILE = os.path.join(DATA_DIR, "locked_cache.json")
 OUTPUT_JSON = os.path.join(DATA_DIR, "vedolo_holders.json")
@@ -335,11 +335,11 @@ def fetch_locked_dolo(all_token_ids, vote_weights=None):
                     errors += len(failed)
 
             chunk_idx += len(window)
-            if chunk_idx % 50 == 0 or chunk_idx >= len(chunks):
+            if chunk_idx % 20 == 0 or chunk_idx >= len(chunks):
                 pct = (done / len(to_fetch)) * 100
                 print(f"  Progress: {pct:.0f}% ({done:,}/{len(to_fetch):,}) | Errors: {errors}")
                 save_cache(cache)
-            time.sleep(0.15)
+            time.sleep(0.3)  # Slower to avoid rate limitin
 
         # Retry failed tokens in smaller batches
         if all_failed:
@@ -371,20 +371,25 @@ def fetch_locked_dolo(all_token_ids, vote_weights=None):
         print(f"     On-chain:       {onchain_balance:>16,.2f} DOLO")
         print(f"     Discrepancy:    {discrepancy_pct:.2f}%")
 
-        # If discrepancy > 1%, retry tokens with amount=0 individually
-        for round_num in range(3):
-            if discrepancy_pct <= 1.0:
-                print(f"  ✅ Data accuracy within 1% — good enough!")
+        # Convergence-based retry: keep going until <5% discrepancy or stalled
+        MAX_ROUNDS = 15
+        TARGET_DISCREPANCY = 5.0  # %
+
+        for round_num in range(MAX_ROUNDS):
+            if discrepancy_pct <= TARGET_DISCREPANCY:
+                print(f"  ✅ Data accuracy within {TARGET_DISCREPANCY}% — good enough!")
                 break
 
             # Find tokens still at 0 (most likely to be wrong)
             zero_tokens = [tid for tid in all_token_ids
                            if cache.get(str(tid), {}).get("amount", 0) == 0]
             if not zero_tokens:
+                print(f"  ℹ️  No zero-amount tokens left to retry")
                 break
 
-            print(f"  🔄 Round {round_num + 1}: Retrying {len(zero_tokens):,} zero-amount tokens individually...")
-            retry_chunks = [zero_tokens[i:i+10] for i in range(0, len(zero_tokens), 10)]
+            print(f"  🔄 Round {round_num + 1}/{MAX_ROUNDS}: Retrying {len(zero_tokens):,} zero-amount tokens...")
+            # Use smaller batches (5) and rotate through RPCs with delays
+            retry_chunks = [zero_tokens[i:i+5] for i in range(0, len(zero_tokens), 5)]
             fixed = 0
             for chunk in retry_chunks:
                 results, failed = make_batch_call(chunk)
@@ -393,12 +398,20 @@ def fetch_locked_dolo(all_token_ids, vote_weights=None):
                         data_item["fetched_at"] = now_ts
                         cache[str(tid)] = data_item
                         fixed += 1
-                time.sleep(0.15)
+                time.sleep(0.25)  # Longer delay to avoid rate limiting
 
             our_total = sum(cache.get(str(tid), {}).get("amount", 0) for tid in all_token_ids)
             discrepancy_pct = abs(our_total - onchain_balance) / onchain_balance * 100
             print(f"     Fixed {fixed:,} tokens. New total: {our_total:,.2f} DOLO ({discrepancy_pct:.2f}% off)")
             save_cache(cache)
+
+            # If no progress at all in this round, wait longer before next attempt
+            if fixed == 0:
+                print(f"  ⏳ No progress this round — waiting 10s before next attempt...")
+                time.sleep(10)
+        else:
+            if discrepancy_pct > TARGET_DISCREPANCY:
+                print(f"  ⚠️  Still {discrepancy_pct:.1f}% off after {MAX_ROUNDS} rounds")
     else:
         print(f"  ⚠️  Could not fetch on-chain DOLO balance for ground truth check")
 
