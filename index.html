@@ -5310,7 +5310,60 @@
                 </script>
             </div><!-- /odolo-analytics-grid -->
 
-            <!-- EXERCISERS TABLE -->
+            <!-- LAST 7D EXERCISERS TABLE -->
+            <div class="card anim anim-d3" id="recent-exercisers-section" style="margin-top: 20px;">
+                <div class="card-header"
+                    style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+                    <h3 style="display:flex;align-items:center;gap:8px;margin:0"><img src="odolo-logo-official.svg"
+                            width="22" height="22" alt="oDOLO" style="flex-shrink:0"> Last oDOLO Exercises</h3>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <div id="recent-ex-period-btns" style="display:flex;gap:4px">
+                            <button class="pg-btn" onclick="setRecentExPeriod(1)" data-period="1">1D</button>
+                            <button class="pg-btn active" onclick="setRecentExPeriod(7)" data-period="7">7D</button>
+                            <button class="pg-btn" onclick="setRecentExPeriod(30)" data-period="30">30D</button>
+                        </div>
+                        <span class="toolbar-count" id="recent-ex-count"
+                            style="font-size:0.85em;opacity:0.7;margin-left:8px"></span>
+                    </div>
+                </div>
+                <div class="table-scroll">
+                    <table id="recent-exercisers-table" style="table-layout:fixed;width:100%">
+                        <colgroup>
+                            <col style="width:32px">
+                            <col style="width:calc((100% - 32px) * 0.22)">
+                            <col style="width:calc((100% - 32px) * 0.22)">
+                            <col style="width:calc((100% - 32px) * 0.20)">
+                            <col style="width:calc((100% - 32px) * 0.16)">
+                            <col style="width:calc((100% - 32px) * 0.20)">
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th class="c-rank sorted" data-sort="rank" onclick="sortRecentExercisers('rank')">
+                                    # <span class="arrow">▼</span>
+                                </th>
+                                <th data-sort="tx" onclick="sortRecentExercisers('tx')">
+                                    TX <span class="arrow">⇅</span>
+                                </th>
+                                <th data-sort="address" onclick="sortRecentExercisers('address')">
+                                    Address <span class="arrow">⇅</span>
+                                </th>
+                                <th data-sort="usdc" onclick="sortRecentExercisers('usdc')">
+                                    USDC.e Spent <span class="arrow">⇅</span>
+                                </th>
+                                <th data-sort="lock" onclick="sortRecentExercisers('lock')">
+                                    Lock <span class="arrow">⇅</span>
+                                </th>
+                                <th data-sort="price" onclick="sortRecentExercisers('price')">
+                                    Price <span class="arrow">⇅</span>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-ex-tbody"></tbody>
+                    </table>
+                </div>
+                <div class="table-footer" id="recent-ex-pagination"></div>
+            </div>
+
             <!-- EXERCISERS TABLE -->
             <div class="card anim anim-d3" id="exercisers-section" style="margin-top: 20px;">
                 <div class="card-header">
@@ -7437,6 +7490,7 @@
                 const json = await resp.json();
                 EXERCISER_DATA = json.exercisers || [];
                 renderExercisersTable();
+                buildRecentExercisers();
 
                 // Recalculate AVG veDOLO PRICE from consistent data source
                 const totalUsdc = json.total_usdc || 0;
@@ -7457,6 +7511,145 @@
             let totalVedolo = 0;
             (e.txs || []).forEach(tx => { if (tx.vedolo) totalVedolo += tx.vedolo; });
             return totalVedolo > 0 ? e.total_usdc / totalVedolo : null;
+        }
+
+        // ===== RECENT EXERCISERS (configurable period) =====
+        let RECENT_EX_DATA = [];
+        let recentExSortKey = 'rank';
+        let recentExSortAsc = false;  // newest first
+        let recentExPage = 1;
+        let recentExPeriodDays = 7;
+        const RECENT_EX_PER_PAGE = 15;
+
+        function setRecentExPeriod(days) {
+            recentExPeriodDays = days;
+            // Update button active states
+            document.querySelectorAll('#recent-ex-period-btns .pg-btn').forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.period) === days);
+            });
+            buildRecentExercisers();
+        }
+
+        function buildRecentExercisers() {
+            // Flatten all txs from all exercisers, attach address, filter to selected period
+            const now = Date.now();
+            const cutoffDate = new Date(now - recentExPeriodDays * 24 * 60 * 60 * 1000);
+            const cutoff = cutoffDate.toISOString().slice(0, 10); // YYYY-MM-DD
+
+            const allTxs = [];
+            (EXERCISER_DATA || []).forEach(e => {
+                (e.txs || []).forEach(tx => {
+                    if (tx.date && tx.date >= cutoff) {
+                        allTxs.push({
+                            address: e.address,
+                            hash: tx.hash,
+                            date: tx.date,
+                            usdc: tx.usdc || 0,
+                            vedolo: tx.vedolo || 0,
+                            price: tx.price || (tx.vedolo > 0 ? tx.usdc / tx.vedolo : null),
+                            lock_days: tx.lock_days || null,
+                        });
+                    }
+                });
+            });
+
+            // Sort by date desc (newest first) by default
+            allTxs.sort((a, b) => b.date.localeCompare(a.date) || b.usdc - a.usdc);
+            RECENT_EX_DATA = allTxs;
+            recentExPage = 1;
+            renderRecentExercisers();
+        }
+
+        function sortRecentExercisers(key) {
+            const headers = document.querySelectorAll('#recent-exercisers-table th');
+            headers.forEach(th => th.classList.remove('sorted'));
+            if (recentExSortKey === key) {
+                recentExSortAsc = !recentExSortAsc;
+            } else {
+                recentExSortKey = key;
+                recentExSortAsc = key === 'tx' || key === 'date';
+            }
+            const th = document.querySelector('#recent-exercisers-table th[data-sort="' + key + '"]');
+            if (th) { th.classList.add('sorted'); th.querySelector('.arrow').textContent = recentExSortAsc ? '▲' : '▼'; }
+            recentExPage = 1;
+            renderRecentExercisers();
+        }
+
+        function renderRecentExercisers() {
+            const tbody = document.getElementById('recent-ex-tbody');
+            if (!tbody) return;
+
+            let data = [...RECENT_EX_DATA];
+
+            // Sort
+            data.sort((a, b) => {
+                let va, vb;
+                if (recentExSortKey === 'rank' || recentExSortKey === 'date') {
+                    // Default: newest first
+                    va = a.date; vb = b.date;
+                    return recentExSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+                }
+                if (recentExSortKey === 'usdc') { va = a.usdc; vb = b.usdc; return recentExSortAsc ? va - vb : vb - va; }
+                if (recentExSortKey === 'lock') { va = a.lock_days || 0; vb = b.lock_days || 0; return recentExSortAsc ? va - vb : vb - va; }
+                if (recentExSortKey === 'price') { va = a.price || 0; vb = b.price || 0; return recentExSortAsc ? va - vb : vb - va; }
+                if (recentExSortKey === 'tx') return recentExSortAsc ? a.hash.localeCompare(b.hash) : b.hash.localeCompare(a.hash);
+                if (recentExSortKey === 'address') return recentExSortAsc ? a.address.localeCompare(b.address) : b.address.localeCompare(a.address);
+                return 0;
+            });
+
+            const countEl = document.getElementById('recent-ex-count');
+            if (countEl) countEl.textContent = data.length + ' exercises (last ' + recentExPeriodDays + 'd)';
+
+            // Pagination
+            const totalPages = Math.ceil(data.length / RECENT_EX_PER_PAGE);
+            if (recentExPage > totalPages) recentExPage = totalPages || 1;
+            const start = (recentExPage - 1) * RECENT_EX_PER_PAGE;
+            const pageData = data.slice(start, start + RECENT_EX_PER_PAGE);
+
+            let html = '';
+            if (pageData.length === 0) {
+                html = '<tr><td colspan="6" style="text-align:center;opacity:0.5;padding:2em">No exercises in the last 7 days</td></tr>';
+            }
+            pageData.forEach((tx, i) => {
+                const rank = start + i + 1;
+                const shortHash = tx.hash.slice(0, 8) + '…' + tx.hash.slice(-6);
+                const berascanUrl = 'https://berascan.com/tx/' + tx.hash;
+                const dateLabel = exFmtDate(tx.date);
+
+                html += '<tr class="exerciser-row">';
+                html += '<td class="c-rank"><span class="rank-plain">' + rank + '</span></td>';
+                html += '<td class="c-addr"><div style="display:flex;flex-direction:column;gap:2px">';
+                html += '<a href="' + berascanUrl + '" target="_blank" class="addr-link" style="color:#60a5fa" onclick="event.stopPropagation()">' + shortHash + '</a>';
+                html += '<span style="font-size:0.75em;opacity:0.5">' + dateLabel + '</span>';
+                html += '</div></td>';
+                html += '<td class="c-addr"><span style="display:inline-flex;align-items:center;gap:4px"><span class="addr-link">' + exShortAddr(tx.address) + '</span><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr(\'' + tx.address + '\',this)" title="Copy address"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span><a href="https://debank.com/profile/' + tx.address + '?chain=bera" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display=\'none\'"></a></span></td>';
+                html += '<td class="c-num">' + exFmtUsd(tx.usdc) + '</td>';
+                html += '<td class="c-num">' + exFmtLock(tx.lock_days) + '</td>';
+                html += '<td class="c-num" style="color:#34d399">' + (tx.price ? '$' + tx.price.toFixed(4) : '—') + '</td>';
+                html += '</tr>';
+            });
+            tbody.innerHTML = html;
+
+            // Pagination
+            renderRecentExPagination(data.length);
+        }
+
+        function renderRecentExPagination(total) {
+            const totalPages = Math.ceil(total / RECENT_EX_PER_PAGE);
+            const el = document.getElementById('recent-ex-pagination');
+            if (!el || totalPages <= 1) { if (el) el.innerHTML = ''; return; }
+
+            let h = `<button class="pg-btn" onclick="recentExPage=1;renderRecentExercisers()" ${recentExPage === 1 ? 'disabled' : ''}>«</button>`;
+            h += `<button class="pg-btn" onclick="recentExPage--;renderRecentExercisers()" ${recentExPage === 1 ? 'disabled' : ''}>‹</button>`;
+
+            for (let p = Math.max(1, recentExPage - 1); p <= Math.min(totalPages, recentExPage + 1); p++) {
+                h += `<button class="pg-btn ${p === recentExPage ? 'active' : ''}" onclick="recentExPage=${p};renderRecentExercisers()">${p}</button>`;
+            }
+
+            h += `<button class="pg-btn" onclick="recentExPage++;renderRecentExercisers()" ${recentExPage === totalPages ? 'disabled' : ''}>›</button>`;
+            h += `<button class="pg-btn" onclick="recentExPage=${totalPages};renderRecentExercisers()" ${recentExPage === totalPages ? 'disabled' : ''}>»</button>`;
+            h += `<span class="pg-info">${recentExPage} / ${totalPages}</span>`;
+            el.innerHTML = h;
         }
 
         function renderExercisersTable() {
