@@ -9807,6 +9807,19 @@
             document.getElementById('earn-chain-dropdown').classList.remove('open');
             // Update active state
             document.querySelectorAll('.earn-chain-option').forEach(o => o.classList.toggle('active', o.dataset.chain === key));
+
+            // Clear all chain-specific caches so next lookup fetches fresh data
+            earn_netflowData = null;
+            earn_priceCache = {};
+            earn_historyData = null;
+            earn_totalYieldData = null;
+            earn_subgraphTokens = {};
+            earn_cachedAssets = [];
+            earn_historicalData = null;
+            earn_customSnapshotDate = null;
+            // Reset UI to clean state
+            earn_switchMode('active');
+            earn_hideAll();
         }
         function earnBuildChainMenu() {
             const menu = document.getElementById('earn-chain-menu');
