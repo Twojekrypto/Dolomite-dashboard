@@ -53,5 +53,9 @@ jobs:
           git add vedolo_holders.json vedolo_holders.csv vedolo_stats.json dolo_price.json defillama_data.json odolo_contract_data.json metrics_snapshot.json
           git diff --staged --quiet && echo "No changes to commit" && exit 0
           git commit -m "📊 Auto-update: $(date -u '+%Y-%m-%d %H:%M UTC')"
-          git pull --rebase origin master
+          if ! git pull --rebase origin master; then
+            echo "⚠️ Rebase conflict — resolving with our data..."
+            git rebase --abort
+            git pull -X ours origin master
+          fi
           git push
