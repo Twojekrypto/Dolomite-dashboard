@@ -3635,6 +3635,12 @@
             color: var(--text-muted);
         }
 
+        .earn-hist-badge.isolation {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            cursor: help;
+        }
+
         .earn-hist-total {
             display: flex;
             justify-content: center;
@@ -10092,20 +10098,29 @@
                     const yieldWei = currentWei - netFlow;
 
                     // Resolve token info — prioritize hardcoded map over RPC
-                    let tokenAddr, symbol, decimals, icon;
+                    let tokenAddr, symbol, decimals, icon, tokenName;
                     if (isActive) {
                         tokenAddr = activeBalances[midStr].tokenAddr;
                         symbol = activeBalances[midStr].symbol;
                         decimals = activeBalances[midStr].decimals;
                         icon = activeBalances[midStr].icon;
+                        tokenName = earn_subgraphTokens[midStr]?.name || symbol;
                     } else {
                         // Use subgraph token cache (populated by earn_fetchNetflow)
                         const sgToken = earn_subgraphTokens[midStr];
                         tokenAddr = marketTokens[midStr] || '';
                         symbol = sgToken?.symbol || 'UNK';
                         decimals = sgToken?.decimals || 18;
+                        tokenName = sgToken?.name || symbol;
                         icon = SYMBOL_ICONS[symbol] || SYMBOL_ICONS[symbol?.toUpperCase()] || null;
                     }
+
+                    // Detect isolation mode tokens (Dolomite wrapper tokens)
+                    const isIsolation = tokenName && (
+                        tokenName.includes('Dolomite Isolation') ||
+                        tokenName.includes('Dolomite: Fee') ||
+                        tokenName.startsWith('Dolomite Isolation')
+                    );
 
                     // Get USD price
                     const priceKey = chainId + ':' + (tokenAddr || '').toLowerCase();
@@ -10123,6 +10138,8 @@
                         decimals,
                         icon,
                         isActive,
+                        isIsolation,
+                        tokenName,
                         currentWei,
                         yieldWei,
                         yieldUsd,
@@ -10151,7 +10168,8 @@
             let totalActive = 0;
             let totalWithdrawn = 0;
             items.forEach(item => {
-                totalYieldUsd += item.yieldUsd;
+                // Exclude isolation mode tokens from total yield (internal protocol movements)
+                if (!item.isIsolation) totalYieldUsd += item.yieldUsd;
                 if (item.isActive) totalActive++; else totalWithdrawn++;
             });
 
@@ -10195,9 +10213,14 @@
                 }
 
                 // Status badge
-                const badge = item.isActive
-                    ? '<span class="earn-hist-badge active">📍 ACTIVE</span>'
-                    : '<span class="earn-hist-badge withdrawn">WITHDRAWN</span>';
+                let badge;
+                if (item.isIsolation && !item.isActive) {
+                    badge = '<span class="earn-hist-badge isolation" title="Dolomite Isolation Mode — internal wrapper token used as collateral in borrow positions">🔒 ISOLATION</span>';
+                } else if (item.isActive) {
+                    badge = '<span class="earn-hist-badge active">📍 ACTIVE</span>';
+                } else {
+                    badge = '<span class="earn-hist-badge withdrawn">WITHDRAWN</span>';
+                }
 
                 // Chevron SVG
                 const chevron = `<svg class="earn-row-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
@@ -10223,20 +10246,35 @@
                     }
                 }
 
-                // Yield
+                // Yield display
                 const yieldPositive = item.yieldWei >= 0n;
                 const yieldSign = yieldPositive && item.yieldWei > 0n ? '+' : '';
                 const yieldColor = yieldPositive ? 'earn-yield-positive' : 'earn-yield-negative';
                 const yieldFmt = earn_formatAmount(item.yieldWei, item.decimals, item.symbol);
-                const yieldUsdFmt = item.yieldUsd !== 0
-                    ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${item.yieldUsd >= 0 ? '+' : ''}$${Math.abs(item.yieldUsd).toFixed(2)}</div>`
-                    : '';
+
+                // For closed isolation positions with negative yield, show "Position Closed"
+                const isClosedIsolation = item.isIsolation && !item.isActive && item.yieldWei < 0n;
+
+                let yieldHtml;
+                if (isClosedIsolation) {
+                    yieldHtml = `<span class="earn-amount" style="color:var(--text-muted);font-size:13px" title="This was an isolation mode wrapper token used as collateral. The position has been fully closed.">Position Closed</span>`;
+                } else {
+                    const yieldUsdFmt = item.yieldUsd !== 0
+                        ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${item.yieldUsd >= 0 ? '+' : ''}$${Math.abs(item.yieldUsd).toFixed(2)}</div>`
+                        : '';
+                    yieldHtml = `<span class="earn-amount ${yieldColor}">${yieldSign}${yieldFmt}<span class="earn-amount-sym">${item.symbol}</span></span>${yieldUsdFmt}`;
+                }
 
                 // Explorer link for this token
                 const explorerUrl = `${explorerBase}/address/${item.tokenAddr}`;
                 // Use hist-row/hist-detail IDs to avoid colliding with active earn IDs
                 const rowId = `earn-hist-row-${idx}`;
                 const detailId = `earn-hist-detail-${idx}`;
+
+                // Subtitle: show full token name for isolation tokens
+                const subtitle = item.isIsolation && item.tokenName !== item.symbol
+                    ? `<div style="font-size:10px;color:var(--text-muted);margin-top:1px;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${item.tokenName}">${item.tokenName.replace('Dolomite Isolation: ', '').replace('Dolomite: Fee + Staked ', '')}</div>`
+                    : '';
 
                 html += `<tr class="earn-data-row" id="${rowId}" style="animation-delay:${delay}s" onclick="earn_toggleHistDetail(${idx})">
                     <td>
@@ -10245,6 +10283,7 @@
                                 ${iconHtml}
                                 <div class="earn-token-info">
                                     <div class="earn-token-name">${item.symbol} ${chevron}</div>
+                                    ${subtitle}
                                     <div style="margin-top:3px">${badge}</div>
                                 </div>
                             </div>
@@ -10253,8 +10292,7 @@
                     <td><span class="earn-amount">${depFmt}<span class="earn-amount-sym">${item.symbol}</span></span></td>
                     <td><span class="earn-amount">${wdFmt}<span class="earn-amount-sym">${item.symbol}</span></span></td>
                     <td>
-                        <span class="earn-amount ${yieldColor}">${yieldSign}${yieldFmt}<span class="earn-amount-sym">${item.symbol}</span></span>
-                        ${yieldUsdFmt}
+                        ${yieldHtml}
                     </td>
                 </tr>`;
 
