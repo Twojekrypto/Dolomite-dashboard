@@ -64,9 +64,12 @@ jobs:
           git add data/earn-netflow/
           git diff --staged --quiet && echo "No changes to commit" && exit 0
           git commit -m "📊 Earn netflow update: $(date -u '+%Y-%m-%d %H:%M UTC')"
+          # Stash any untracked/unstaged files (progress cache etc.) before pull
+          git stash --include-untracked || true
           if ! git pull --rebase origin master; then
             echo "⚠️ Rebase conflict — resolving with our data..."
             git rebase --abort
             git pull -X ours origin master
           fi
+          git stash pop || true
           git push
