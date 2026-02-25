@@ -7187,7 +7187,7 @@
 
             if (data.exercisedUsd && data.pushedTokens > 0) {
                 const avgPrice = data.exercisedUsd / data.pushedTokens;
-                document.getElementById('o-m-avg-price').textContent = '$' + avgPrice.toFixed(4);
+                document.getElementById('o-m-avg-price').textContent = '~$' + avgPrice.toFixed(4);
             } else {
                 document.getElementById('o-m-avg-price').textContent = '—';
             }
@@ -7433,6 +7433,14 @@
                 const json = await resp.json();
                 EXERCISER_DATA = json.exercisers || [];
                 renderExercisersTable();
+
+                // Recalculate AVG veDOLO PRICE from consistent data source
+                const totalUsdc = json.total_usdc || 0;
+                const totalVedolo = json.total_vedolo || 0;
+                if (totalUsdc > 0 && totalVedolo > 0) {
+                    const avgPrice = totalUsdc / totalVedolo;
+                    document.getElementById('o-m-avg-price').textContent = '$' + avgPrice.toFixed(4);
+                }
             } catch (e) { console.warn('exercisers error:', e); }
         }
 
