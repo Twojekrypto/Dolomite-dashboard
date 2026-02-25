@@ -5085,6 +5085,118 @@
                 <div class="table-footer" id="pagination"></div>
             </div>
 
+            <!-- RECENT veDOLO CLAIMS (COMPLETED VESTINGS) -->
+            <div class="card anim anim-d3" id="recent-claims-section" style="margin-top: 20px;">
+                <div class="card-header"
+                    style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+                    <h3 style="display:flex;align-items:center;gap:8px"><img src="vedolo-logo.svg" width="22"
+                            height="22" alt="veDOLO" style="flex-shrink:0"> Recent veDOLO Claims</h3>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <div id="recent-claims-period-btns" style="display:flex;gap:4px">
+                            <button class="pg-btn" onclick="setRecentClaimsPeriod(1)" data-period="1">1D</button>
+                            <button class="pg-btn active" onclick="setRecentClaimsPeriod(7)" data-period="7">7D</button>
+                            <button class="pg-btn" onclick="setRecentClaimsPeriod(30)" data-period="30">30D</button>
+                        </div>
+                        <span class="toolbar-count" id="recent-claims-count"
+                            style="font-size:0.85em;opacity:0.7;margin-left:8px"></span>
+                    </div>
+                </div>
+                <div id="recent-claims-loading" style="text-align:center;padding:30px;color:var(--text-muted)">
+                    <div class="spinner" style="margin:0 auto 8px"></div>
+                    Scanning on-chain events…
+                </div>
+                <div class="table-scroll" id="recent-claims-table-wrap" style="display:none">
+                    <table id="recent-claims-table" style="table-layout:fixed;width:100%">
+                        <colgroup>
+                            <col style="width:32px">
+                            <col style="width:calc((100% - 32px) * 0.28)">
+                            <col style="width:calc((100% - 32px) * 0.32)">
+                            <col style="width:calc((100% - 32px) * 0.20)">
+                            <col style="width:calc((100% - 32px) * 0.20)">
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th class="c-rank sorted" data-sort="rank" onclick="sortRecentClaims('rank')">
+                                    # <span class="arrow">▼</span>
+                                </th>
+                                <th data-sort="tx" onclick="sortRecentClaims('tx')">
+                                    TX <span class="arrow">⇅</span>
+                                </th>
+                                <th data-sort="address" onclick="sortRecentClaims('address')">
+                                    Address <span class="arrow">⇅</span>
+                                </th>
+                                <th data-sort="dolo" onclick="sortRecentClaims('dolo')">
+                                    DOLO Claimed <span class="arrow">⇅</span>
+                                </th>
+                                <th data-sort="date" onclick="sortRecentClaims('date')">
+                                    Date <span class="arrow">⇅</span>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-claims-tbody"></tbody>
+                    </table>
+                </div>
+                <div class="table-footer" id="recent-claims-pagination"></div>
+            </div>
+
+            <!-- RECENT DOLO LOCKS -->
+            <div class="card anim anim-d3" id="recent-locks-section" style="margin-top: 20px;">
+                <div class="card-header"
+                    style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+                    <h3 style="display:flex;align-items:center;gap:8px"><img src="vedolo-logo.svg" width="22"
+                            height="22" alt="veDOLO" style="flex-shrink:0"> Recent DOLO Locks</h3>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <div id="recent-locks-period-btns" style="display:flex;gap:4px">
+                            <button class="pg-btn" onclick="setRecentLocksPeriod(1)" data-period="1">1D</button>
+                            <button class="pg-btn active" onclick="setRecentLocksPeriod(7)" data-period="7">7D</button>
+                            <button class="pg-btn" onclick="setRecentLocksPeriod(30)" data-period="30">30D</button>
+                        </div>
+                        <span class="toolbar-count" id="recent-locks-count"
+                            style="font-size:0.85em;opacity:0.7;margin-left:8px"></span>
+                    </div>
+                </div>
+                <div id="recent-locks-loading" style="text-align:center;padding:30px;color:var(--text-muted)">
+                    <div class="spinner" style="margin:0 auto 8px"></div>
+                    Scanning on-chain events…
+                </div>
+                <div class="table-scroll" id="recent-locks-table-wrap" style="display:none">
+                    <table id="recent-locks-table" style="table-layout:fixed;width:100%">
+                        <colgroup>
+                            <col style="width:32px">
+                            <col style="width:calc((100% - 32px) * 0.25)">
+                            <col style="width:calc((100% - 32px) * 0.28)">
+                            <col style="width:calc((100% - 32px) * 0.18)">
+                            <col style="width:calc((100% - 32px) * 0.15)">
+                            <col style="width:calc((100% - 32px) * 0.14)">
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th class="c-rank sorted" data-sort="rank" onclick="sortRecentLocks('rank')">
+                                    # <span class="arrow">▼</span>
+                                </th>
+                                <th data-sort="tx" onclick="sortRecentLocks('tx')">
+                                    TX <span class="arrow">⇅</span>
+                                </th>
+                                <th data-sort="address" onclick="sortRecentLocks('address')">
+                                    Address <span class="arrow">⇅</span>
+                                </th>
+                                <th data-sort="dolo" onclick="sortRecentLocks('dolo')">
+                                    DOLO Locked <span class="arrow">⇅</span>
+                                </th>
+                                <th data-sort="lock" onclick="sortRecentLocks('lock')">
+                                    Lock Duration <span class="arrow">⇅</span>
+                                </th>
+                                <th data-sort="date" onclick="sortRecentLocks('date')">
+                                    Date <span class="arrow">⇅</span>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-locks-tbody"></tbody>
+                    </table>
+                </div>
+                <div class="table-footer" id="recent-locks-pagination"></div>
+            </div>
+
             <!-- Protocol Info -->
             <div class="card anim anim-d4 protocol-info-card" style="margin-top:24px">
                 <div class="card-header">
@@ -7029,6 +7141,11 @@
                 setTimeout(() => document.getElementById('earn-address').focus(), 100);
             }
 
+            // Trigger veDOLO event scanning on first visit
+            if (view === 'vedolo') {
+                vedolo_fetchEvents();
+            }
+
             // Scroll to top
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
@@ -7655,6 +7772,368 @@
             h += `<button class="pg-btn" onclick="recentExPage++;renderRecentExercisers()" ${recentExPage === totalPages ? 'disabled' : ''}>›</button>`;
             h += `<button class="pg-btn" onclick="recentExPage=${totalPages};renderRecentExercisers()" ${recentExPage === totalPages ? 'disabled' : ''}>»</button>`;
             h += `<span class="pg-info">${recentExPage} / ${totalPages}</span>`;
+            el.innerHTML = h;
+        }
+
+        // ========== RECENT veDOLO CLAIMS + DOLO LOCKS ==========
+        const VEDOLO_CONTRACT_ADDR = '0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4';
+        const VEDOLO_WITHDRAW_TOPIC = '0x02f25270a4d87bea75db541cdfe559334a275b4a233520ed6c0a2429667cca94';
+        const VEDOLO_DEPOSIT_TOPIC = '0xff04ccafc360e16b67d682d17bd9503c4c6b9a131f6be6325762dc9ffc7de624';
+        const VEDOLO_RPC_URLS = [
+            'https://berachain-rpc.publicnode.com/',
+            'https://berachain.drpc.org/',
+            'https://rpc.berachain.com/',
+        ];
+        const VEDOLO_BLOCK_STEP = 9999;
+        const VEDOLO_PER_PAGE = 15;
+
+        let vedolo_allClaims = []; // All Withdraw events from 30d scan
+        let vedolo_allLocks = [];  // All Deposit events from 30d scan
+        let vedolo_filteredClaims = [];
+        let vedolo_filteredLocks = [];
+        let vedolo_claimsPeriod = 7;
+        let vedolo_locksPeriod = 7;
+        let vedolo_claimsPage = 1;
+        let vedolo_locksPage = 1;
+        let vedolo_claimsSortKey = 'rank';
+        let vedolo_claimsSortAsc = false;
+        let vedolo_locksSortKey = 'rank';
+        let vedolo_locksSortAsc = false;
+        let vedolo_eventsLoaded = false;
+
+        async function vedolo_rpcCall(method, params) {
+            for (const rpc of VEDOLO_RPC_URLS) {
+                try {
+                    const resp = await fetch(rpc, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })
+                    });
+                    const data = await resp.json();
+                    if (data.result !== undefined) return data.result;
+                } catch (e) { /* try next */ }
+            }
+            return null;
+        }
+
+        async function vedolo_fetchEvents() {
+            if (vedolo_eventsLoaded) return;
+            console.log('veDOLO: Fetching on-chain events...');
+
+            const latestHex = await vedolo_rpcCall('eth_blockNumber', []);
+            if (!latestHex) {
+                console.warn('veDOLO: Could not get latest block');
+                return;
+            }
+            const latestBlock = parseInt(latestHex, 16);
+            // ~5s per block, 30 days = 30*24*3600/5 = 518400 blocks
+            const fromBlock = Math.max(0, latestBlock - 518400);
+
+            const allWithdrawLogs = [];
+            const allDepositLogs = [];
+
+            // Paginate in 10K block chunks
+            for (let block = fromBlock; block <= latestBlock; block += VEDOLO_BLOCK_STEP + 1) {
+                const toBlock = Math.min(block + VEDOLO_BLOCK_STEP, latestBlock);
+
+                // Fetch both event types in parallel
+                const [wdLogs, depLogs] = await Promise.all([
+                    vedolo_rpcCall('eth_getLogs', [{
+                        address: VEDOLO_CONTRACT_ADDR,
+                        topics: [VEDOLO_WITHDRAW_TOPIC],
+                        fromBlock: '0x' + block.toString(16),
+                        toBlock: '0x' + toBlock.toString(16)
+                    }]),
+                    vedolo_rpcCall('eth_getLogs', [{
+                        address: VEDOLO_CONTRACT_ADDR,
+                        topics: [VEDOLO_DEPOSIT_TOPIC],
+                        fromBlock: '0x' + block.toString(16),
+                        toBlock: '0x' + toBlock.toString(16)
+                    }])
+                ]);
+
+                if (wdLogs) allWithdrawLogs.push(...wdLogs);
+                if (depLogs) allDepositLogs.push(...depLogs);
+            }
+
+            console.log(`veDOLO: Found ${allWithdrawLogs.length} Withdraw, ${allDepositLogs.length} Deposit events`);
+
+            // Decode Withdraw events (Claims)
+            // Withdraw(address indexed provider) + data: [tokenId, value, timestamp]
+            vedolo_allClaims = allWithdrawLogs.map(log => {
+                const provider = '0x' + log.topics[1].slice(26);
+                const data = log.data.slice(2);
+                const tokenId = parseInt(data.slice(0, 64), 16);
+                const value = parseInt(data.slice(64, 128), 16) / 1e18;
+                const ts = parseInt(data.slice(128, 192), 16);
+                return {
+                    address: provider.toLowerCase(),
+                    txHash: log.transactionHash,
+                    tokenId,
+                    dolo: value,
+                    timestamp: ts,
+                    date: new Date(ts * 1000).toISOString().slice(0, 10),
+                    block: parseInt(log.blockNumber, 16),
+                };
+            });
+
+            // Decode Deposit events (Locks)
+            // Deposit(address indexed provider, uint256 indexed locktime) + data: [tokenId, value, deposit_type, timestamp]
+            vedolo_allLocks = allDepositLogs.map(log => {
+                const provider = '0x' + log.topics[1].slice(26);
+                const locktime = parseInt(log.topics[2], 16); // Unix timestamp of lock end
+                const data = log.data.slice(2);
+                const tokenId = parseInt(data.slice(0, 64), 16);
+                const value = parseInt(data.slice(64, 128), 16) / 1e18;
+                const depositType = parseInt(data.slice(128, 192), 16);
+                const ts = parseInt(data.slice(192, 256), 16);
+
+                // Calculate lock duration = locktime - timestamp
+                const lockDurationDays = Math.round((locktime - ts) / 86400);
+
+                return {
+                    address: provider.toLowerCase(),
+                    txHash: log.transactionHash,
+                    tokenId,
+                    dolo: value,
+                    lockDays: lockDurationDays,
+                    locktime,
+                    depositType,
+                    timestamp: ts,
+                    date: new Date(ts * 1000).toISOString().slice(0, 10),
+                    block: parseInt(log.blockNumber, 16),
+                };
+            });
+
+            // Sort by date desc
+            vedolo_allClaims.sort((a, b) => b.timestamp - a.timestamp);
+            vedolo_allLocks.sort((a, b) => b.timestamp - a.timestamp);
+
+            vedolo_eventsLoaded = true;
+
+            // Hide loading, show tables
+            const cl = document.getElementById('recent-claims-loading');
+            const ll = document.getElementById('recent-locks-loading');
+            if (cl) cl.style.display = 'none';
+            if (ll) ll.style.display = 'none';
+            const cw = document.getElementById('recent-claims-table-wrap');
+            const lw = document.getElementById('recent-locks-table-wrap');
+            if (cw) cw.style.display = '';
+            if (lw) lw.style.display = '';
+
+            vedolo_filterAndRenderClaims();
+            vedolo_filterAndRenderLocks();
+        }
+
+        function vedolo_fmtDate(dateStr) {
+            const [y, m, d] = dateStr.split('-');
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            return `${months[parseInt(m) - 1]} ${parseInt(d)}, ${y}`;
+        }
+
+        function vedolo_fmtDolo(val) {
+            if (val >= 1e6) return (val / 1e6).toFixed(2) + 'M';
+            if (val >= 1e3) return (val / 1e3).toFixed(2) + 'K';
+            return val.toFixed(2);
+        }
+
+        function vedolo_shortAddr(addr) {
+            return addr.slice(0, 6) + '…' + addr.slice(-4);
+        }
+
+        function vedolo_fmtLock(days) {
+            if (days >= 365) return (days / 365).toFixed(1) + 'y';
+            if (days >= 30) return Math.round(days / 30) + 'mo';
+            return days + 'd';
+        }
+
+        // ---- CLAIMS ----
+        function setRecentClaimsPeriod(days) {
+            vedolo_claimsPeriod = days;
+            document.querySelectorAll('#recent-claims-period-btns .pg-btn').forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.period) === days);
+            });
+            vedolo_claimsPage = 1;
+            vedolo_filterAndRenderClaims();
+        }
+
+        function vedolo_filterAndRenderClaims() {
+            const cutoff = Math.floor(Date.now() / 1000) - vedolo_claimsPeriod * 86400;
+            vedolo_filteredClaims = vedolo_allClaims.filter(c => c.timestamp >= cutoff);
+
+            const countEl = document.getElementById('recent-claims-count');
+            if (countEl) countEl.textContent = vedolo_filteredClaims.length + ' claims (last ' + vedolo_claimsPeriod + 'd)';
+
+            renderRecentClaims();
+        }
+
+        function sortRecentClaims(key) {
+            const headers = document.querySelectorAll('#recent-claims-table th');
+            headers.forEach(th => th.classList.remove('sorted'));
+            if (vedolo_claimsSortKey === key) {
+                vedolo_claimsSortAsc = !vedolo_claimsSortAsc;
+            } else {
+                vedolo_claimsSortKey = key;
+                vedolo_claimsSortAsc = key === 'tx' || key === 'address';
+            }
+            const th = document.querySelector('#recent-claims-table th[data-sort="' + key + '"]');
+            if (th) { th.classList.add('sorted'); th.querySelector('.arrow').textContent = vedolo_claimsSortAsc ? '▲' : '▼'; }
+            vedolo_claimsPage = 1;
+            renderRecentClaims();
+        }
+
+        function renderRecentClaims() {
+            const tbody = document.getElementById('recent-claims-tbody');
+            if (!tbody) return;
+
+            let data = [...vedolo_filteredClaims];
+
+            // Sort
+            data.sort((a, b) => {
+                let va, vb;
+                if (vedolo_claimsSortKey === 'rank' || vedolo_claimsSortKey === 'date') {
+                    return vedolo_claimsSortAsc ? a.timestamp - b.timestamp : b.timestamp - a.timestamp;
+                }
+                if (vedolo_claimsSortKey === 'dolo') { return vedolo_claimsSortAsc ? a.dolo - b.dolo : b.dolo - a.dolo; }
+                if (vedolo_claimsSortKey === 'tx') return vedolo_claimsSortAsc ? a.txHash.localeCompare(b.txHash) : b.txHash.localeCompare(a.txHash);
+                if (vedolo_claimsSortKey === 'address') return vedolo_claimsSortAsc ? a.address.localeCompare(b.address) : b.address.localeCompare(a.address);
+                return 0;
+            });
+
+            // Pagination
+            const totalPages = Math.ceil(data.length / VEDOLO_PER_PAGE);
+            if (vedolo_claimsPage > totalPages) vedolo_claimsPage = totalPages || 1;
+            const start = (vedolo_claimsPage - 1) * VEDOLO_PER_PAGE;
+            const pageData = data.slice(start, start + VEDOLO_PER_PAGE);
+
+            let html = '';
+            if (pageData.length === 0) {
+                html = '<tr><td colspan="5" style="text-align:center;opacity:0.5;padding:2em">No claims in the last ' + vedolo_claimsPeriod + ' days</td></tr>';
+            }
+            const COPY_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+            pageData.forEach((c, i) => {
+                const rank = start + i + 1;
+                const shortHash = c.txHash.slice(0, 8) + '…' + c.txHash.slice(-6);
+                const berascanUrl = 'https://berascan.com/tx/' + c.txHash;
+
+                html += '<tr class="exerciser-row">';
+                html += '<td class="c-rank"><span class="rank-plain">' + rank + '</span></td>';
+                html += '<td class="c-addr"><div style="display:flex;flex-direction:column;gap:2px">';
+                html += '<a href="' + berascanUrl + '" target="_blank" class="addr-link" style="color:#60a5fa" onclick="event.stopPropagation()">' + shortHash + '</a>';
+                html += '<span style="font-size:0.75em;opacity:0.5">' + vedolo_fmtDate(c.date) + '</span>';
+                html += '</div></td>';
+                html += '<td class="c-addr"><span style="display:inline-flex;align-items:center;gap:4px"><span class="addr-link">' + vedolo_shortAddr(c.address) + '</span><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr(\'' + c.address + '\',this)" title="Copy address">' + COPY_ICON + '</span><a href="https://debank.com/profile/' + c.address + '?chain=bera" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display=\'none\'"></a></span></td>';
+                html += '<td class="c-num" style="color:#34d399;font-weight:600">' + vedolo_fmtDolo(c.dolo) + ' DOLO</td>';
+                html += '<td class="c-num">' + vedolo_fmtDate(c.date) + '</td>';
+                html += '</tr>';
+            });
+            tbody.innerHTML = html;
+
+            // Pagination
+            vedolo_renderPagination('recent-claims-pagination', data.length, VEDOLO_PER_PAGE, vedolo_claimsPage, 'vedolo_claimsPage', 'renderRecentClaims');
+        }
+
+        // ---- LOCKS ----
+        function setRecentLocksPeriod(days) {
+            vedolo_locksPeriod = days;
+            document.querySelectorAll('#recent-locks-period-btns .pg-btn').forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.period) === days);
+            });
+            vedolo_locksPage = 1;
+            vedolo_filterAndRenderLocks();
+        }
+
+        function vedolo_filterAndRenderLocks() {
+            const cutoff = Math.floor(Date.now() / 1000) - vedolo_locksPeriod * 86400;
+            // Only show deposit_type 1 (new locks) and 2 (add to existing), not type 3/4 (merge/split)
+            vedolo_filteredLocks = vedolo_allLocks.filter(l => l.timestamp >= cutoff && (l.depositType === 1 || l.depositType === 2));
+
+            const countEl = document.getElementById('recent-locks-count');
+            if (countEl) countEl.textContent = vedolo_filteredLocks.length + ' locks (last ' + vedolo_locksPeriod + 'd)';
+
+            renderRecentLocks();
+        }
+
+        function sortRecentLocks(key) {
+            const headers = document.querySelectorAll('#recent-locks-table th');
+            headers.forEach(th => th.classList.remove('sorted'));
+            if (vedolo_locksSortKey === key) {
+                vedolo_locksSortAsc = !vedolo_locksSortAsc;
+            } else {
+                vedolo_locksSortKey = key;
+                vedolo_locksSortAsc = key === 'tx' || key === 'address';
+            }
+            const th = document.querySelector('#recent-locks-table th[data-sort="' + key + '"]');
+            if (th) { th.classList.add('sorted'); th.querySelector('.arrow').textContent = vedolo_locksSortAsc ? '▲' : '▼'; }
+            vedolo_locksPage = 1;
+            renderRecentLocks();
+        }
+
+        function renderRecentLocks() {
+            const tbody = document.getElementById('recent-locks-tbody');
+            if (!tbody) return;
+
+            let data = [...vedolo_filteredLocks];
+
+            // Sort
+            data.sort((a, b) => {
+                if (vedolo_locksSortKey === 'rank' || vedolo_locksSortKey === 'date') {
+                    return vedolo_locksSortAsc ? a.timestamp - b.timestamp : b.timestamp - a.timestamp;
+                }
+                if (vedolo_locksSortKey === 'dolo') { return vedolo_locksSortAsc ? a.dolo - b.dolo : b.dolo - a.dolo; }
+                if (vedolo_locksSortKey === 'lock') { return vedolo_locksSortAsc ? a.lockDays - b.lockDays : b.lockDays - a.lockDays; }
+                if (vedolo_locksSortKey === 'tx') return vedolo_locksSortAsc ? a.txHash.localeCompare(b.txHash) : b.txHash.localeCompare(a.txHash);
+                if (vedolo_locksSortKey === 'address') return vedolo_locksSortAsc ? a.address.localeCompare(b.address) : b.address.localeCompare(a.address);
+                return 0;
+            });
+
+            // Pagination
+            const totalPages = Math.ceil(data.length / VEDOLO_PER_PAGE);
+            if (vedolo_locksPage > totalPages) vedolo_locksPage = totalPages || 1;
+            const start = (vedolo_locksPage - 1) * VEDOLO_PER_PAGE;
+            const pageData = data.slice(start, start + VEDOLO_PER_PAGE);
+
+            let html = '';
+            if (pageData.length === 0) {
+                html = '<tr><td colspan="6" style="text-align:center;opacity:0.5;padding:2em">No locks in the last ' + vedolo_locksPeriod + ' days</td></tr>';
+            }
+            const COPY_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+            pageData.forEach((l, i) => {
+                const rank = start + i + 1;
+                const shortHash = l.txHash.slice(0, 8) + '…' + l.txHash.slice(-6);
+                const berascanUrl = 'https://berascan.com/tx/' + l.txHash;
+
+                html += '<tr class="exerciser-row">';
+                html += '<td class="c-rank"><span class="rank-plain">' + rank + '</span></td>';
+                html += '<td class="c-addr"><div style="display:flex;flex-direction:column;gap:2px">';
+                html += '<a href="' + berascanUrl + '" target="_blank" class="addr-link" style="color:#60a5fa" onclick="event.stopPropagation()">' + shortHash + '</a>';
+                html += '<span style="font-size:0.75em;opacity:0.5">' + vedolo_fmtDate(l.date) + '</span>';
+                html += '</div></td>';
+                html += '<td class="c-addr"><span style="display:inline-flex;align-items:center;gap:4px"><span class="addr-link">' + vedolo_shortAddr(l.address) + '</span><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr(\'' + l.address + '\',this)" title="Copy address">' + COPY_ICON + '</span><a href="https://debank.com/profile/' + l.address + '?chain=bera" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display=\'none\'"></a></span></td>';
+                html += '<td class="c-num" style="color:#34d399;font-weight:600">' + vedolo_fmtDolo(l.dolo) + ' DOLO</td>';
+                html += '<td class="c-num">' + vedolo_fmtLock(l.lockDays) + '</td>';
+                html += '<td class="c-num">' + vedolo_fmtDate(l.date) + '</td>';
+                html += '</tr>';
+            });
+            tbody.innerHTML = html;
+
+            vedolo_renderPagination('recent-locks-pagination', data.length, VEDOLO_PER_PAGE, vedolo_locksPage, 'vedolo_locksPage', 'renderRecentLocks');
+        }
+
+        // Generic pagination renderer for vedolo tables
+        function vedolo_renderPagination(containerId, total, perPage, currentPage, pageVar, renderFn) {
+            const totalPages = Math.ceil(total / perPage);
+            const el = document.getElementById(containerId);
+            if (!el || totalPages <= 1) { if (el) el.innerHTML = ''; return; }
+
+            let h = `<button class="pg-btn" onclick="${pageVar}=1;${renderFn}()" ${currentPage === 1 ? 'disabled' : ''}>«</button>`;
+            h += `<button class="pg-btn" onclick="${pageVar}--;${renderFn}()" ${currentPage === 1 ? 'disabled' : ''}>‹</button>`;
+            for (let p = Math.max(1, currentPage - 1); p <= Math.min(totalPages, currentPage + 1); p++) {
+                h += `<button class="pg-btn ${p === currentPage ? 'active' : ''}" onclick="${pageVar}=${p};${renderFn}()">${p}</button>`;
+            }
+            h += `<button class="pg-btn" onclick="${pageVar}++;${renderFn}()" ${currentPage === totalPages ? 'disabled' : ''}>›</button>`;
+            h += `<button class="pg-btn" onclick="${pageVar}=${totalPages};${renderFn}()" ${currentPage === totalPages ? 'disabled' : ''}>»</button>`;
+            h += `<span class="pg-info">${currentPage} / ${totalPages}</span>`;
             el.innerHTML = h;
         }
 
