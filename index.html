@@ -3793,95 +3793,177 @@
         .earn-summary-card {
             display: none;
             grid-template-columns: repeat(3, 1fr);
-            gap: 1px;
-            margin-bottom: 20px;
-            border-radius: 16px;
+            gap: 0;
+            margin-bottom: 24px;
+            border-radius: 18px;
             overflow: hidden;
             position: relative;
-            background: linear-gradient(135deg, rgba(52, 211, 153, 0.15), rgba(99, 102, 241, 0.15));
-            animation: earnSummaryIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+            animation: earnSummaryIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
         .earn-summary-card.visible {
             display: grid;
         }
 
+        /* Animated gradient border */
+        .earn-summary-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 18px;
+            padding: 1px;
+            background: linear-gradient(135deg, rgba(52, 211, 153, 0.4), rgba(99, 102, 241, 0.3), rgba(52, 211, 153, 0.15));
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+            z-index: 1;
+        }
+
         @keyframes earnSummaryIn {
             from {
                 opacity: 0;
-                transform: translateY(12px) scale(0.98);
+                transform: translateY(16px) scale(0.97);
+                filter: blur(4px);
             }
 
             to {
                 opacity: 1;
                 transform: translateY(0) scale(1);
+                filter: blur(0);
             }
         }
 
         .earn-summary-stat {
-            background: rgba(10, 10, 20, 0.85);
-            backdrop-filter: blur(20px);
-            padding: 20px 24px;
+            background: rgba(8, 12, 24, 0.9);
+            backdrop-filter: blur(24px);
+            padding: 24px 20px;
             text-align: center;
             position: relative;
+            transition: background 0.3s ease;
+            animation: statFadeIn 0.5s ease both;
+        }
+
+        .earn-summary-stat:nth-child(1) {
+            animation-delay: 0.1s;
+        }
+
+        .earn-summary-stat:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .earn-summary-stat:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+
+        @keyframes statFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .earn-summary-stat:hover {
+            background: rgba(12, 18, 32, 0.95);
+        }
+
+        /* Divider line between stats */
+        .earn-summary-stat+.earn-summary-stat::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 20%;
+            bottom: 20%;
+            width: 1px;
+            background: linear-gradient(180deg, transparent, rgba(52, 211, 153, 0.25), transparent);
         }
 
         .earn-summary-stat:first-child {
-            border-radius: 16px 0 0 16px;
+            border-radius: 18px 0 0 18px;
         }
 
         .earn-summary-stat:last-child {
-            border-radius: 0 16px 16px 0;
+            border-radius: 0 18px 18px 0;
         }
 
         .earn-summary-label {
-            font-size: 11px;
-            color: var(--text-muted);
+            font-size: 10px;
+            color: rgba(148, 163, 184, 0.7);
             text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 8px;
+            letter-spacing: 1.5px;
+            margin-bottom: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 6px;
+            font-weight: 600;
         }
 
         .earn-summary-label .stat-icon {
-            font-size: 14px;
+            font-size: 13px;
+            opacity: 0.8;
         }
 
         .earn-summary-value {
-            font-size: 24px;
+            font-size: 26px;
             font-weight: 800;
             font-family: 'JetBrains Mono', monospace;
             letter-spacing: -0.5px;
+            line-height: 1.2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
 
         .earn-summary-value.positive {
-            background: linear-gradient(135deg, #34d399, #6ee7b7);
+            background: linear-gradient(135deg, #34d399 0%, #6ee7b7 50%, #a7f3d0 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+            filter: drop-shadow(0 0 12px rgba(52, 211, 153, 0.2));
         }
 
         .earn-summary-value.negative {
-            background: linear-gradient(135deg, #f87171, #fca5a5);
+            background: linear-gradient(135deg, #f87171 0%, #fca5a5 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+            filter: drop-shadow(0 0 12px rgba(248, 113, 113, 0.2));
         }
 
         .earn-summary-value.neutral {
-            color: var(--text-primary);
+            color: #f1f5f9;
+            text-shadow: 0 0 20px rgba(241, 245, 249, 0.1);
+        }
+
+        .earn-summary-value .best-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 2px solid rgba(52, 211, 153, 0.3);
+            box-shadow: 0 0 12px rgba(52, 211, 153, 0.2);
+            flex-shrink: 0;
         }
 
         .earn-summary-sub {
             font-size: 11px;
-            color: var(--text-muted);
-            margin-top: 4px;
+            color: rgba(148, 163, 184, 0.5);
+            margin-top: 6px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            letter-spacing: 0.2px;
+        }
+
+        .earn-summary-sub .sub-highlight {
+            color: rgba(52, 211, 153, 0.7);
+            font-weight: 600;
         }
 
 
@@ -12410,11 +12492,27 @@
                     const yieldClass = totalYieldUsd >= 0 ? 'positive' : 'negative';
                     const yieldSign = totalYieldUsd >= 0 ? '+' : '';
 
+                    // Find best performer icon
+                    let bestIcon = '';
+                    if (bestSymbol) {
+                        const chainId = document.getElementById('earn-chain').value;
+                        const bestAsset = (earn_cachedAssets || []).find(a => a.symbol === bestSymbol);
+                        if (bestAsset) {
+                            const key = chainId + ':' + bestAsset.tokenAddr.toLowerCase();
+                            const cached = earn_tokenCache[key] || KNOWN_TOKENS[key];
+                            if (cached && cached.icon) bestIcon = cached.icon;
+                        }
+                    }
+                    const bestIconHtml = bestIcon ? `<img class="best-icon" src="${bestIcon}" alt="">` : '';
+
+                    // Count active non-dust assets
+                    const activeCount = (earn_cachedAssets || []).filter(a => a.usdValue >= 0.01).length;
+
                     summaryEl.innerHTML = `
                         <div class="earn-summary-stat">
                             <div class="earn-summary-label"><span class="stat-icon">💰</span> Portfolio Value</div>
                             <div class="earn-summary-value neutral">${fmtUsd(totalUsd)}</div>
-                            <div class="earn-summary-sub">${(earn_cachedAssets || []).filter(a => a.usdValue >= 0.01).length} active assets</div>
+                            <div class="earn-summary-sub"><span class="sub-highlight">${activeCount}</span> active asset${activeCount !== 1 ? 's' : ''}</div>
                         </div>
                         <div class="earn-summary-stat">
                             <div class="earn-summary-label"><span class="stat-icon">📈</span> Total Yield</div>
@@ -12423,8 +12521,8 @@
                         </div>
                         <div class="earn-summary-stat">
                             <div class="earn-summary-label"><span class="stat-icon">🏆</span> Best Performer</div>
-                            <div class="earn-summary-value positive">${bestSymbol || '—'}</div>
-                            <div class="earn-summary-sub">${bestYieldUsd > 0 ? yieldSign + fmtUsd(bestYieldUsd) : 'No yield data'}</div>
+                            <div class="earn-summary-value positive">${bestIconHtml}${bestSymbol || '—'}</div>
+                            <div class="earn-summary-sub">${bestYieldUsd > 0 ? '<span class="sub-highlight">' + yieldSign + fmtUsd(bestYieldUsd) + '</span> earned' : 'No yield data'}</div>
                         </div>`;
                     summaryEl.classList.add('visible');
                 }
