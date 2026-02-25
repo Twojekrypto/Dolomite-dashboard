@@ -10038,12 +10038,12 @@
             const tbody = document.getElementById('earn-history-tbody');
             tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-muted)"><div class="spinner" style="display:inline-block;width:24px;height:24px;border:2px solid rgba(255,255,255,0.1);border-top-color:#6366f1;border-radius:50%;animation:earnSpin 0.8s linear infinite"></div><br>Loading history...</td></tr>';
 
-            // Step 1: Load netflow data
+            // Step 1: Use subgraph netflow data (already loaded or load now)
             try {
-                const resp = await fetch(`${NETFLOW_BASE}/${chainId}.json`);
-                if (!resp.ok) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-muted)">No netflow data available for this chain</td></tr>'; return; }
-                const data = await resp.json();
-                const addrFlows = data.netflows && data.netflows[addr];
+                if (!earn_netflowData) {
+                    await earn_fetchNetflow(); // Will query the subgraph
+                }
+                const addrFlows = earn_netflowData;
                 if (!addrFlows || Object.keys(addrFlows).length === 0) {
                     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-muted)">No deposit/withdrawal history found for this address</td></tr>';
                     return;
