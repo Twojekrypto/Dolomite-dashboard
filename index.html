@@ -5085,12 +5085,12 @@
                 <div class="table-footer" id="pagination"></div>
             </div>
 
-            <!-- RECENT veDOLO CLAIMS (COMPLETED VESTINGS) -->
+            <!-- RECENT veDOLO UNLOCKS (COMPLETED VESTINGS) -->
             <div class="card anim anim-d3" id="recent-claims-section" style="margin-top: 20px;">
                 <div class="card-header"
                     style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
                     <h3 style="display:flex;align-items:center;gap:8px"><img src="vedolo-logo.svg" width="22"
-                            height="22" alt="veDOLO" style="flex-shrink:0"> Recent veDOLO Claims</h3>
+                            height="22" alt="veDOLO" style="flex-shrink:0"> Recent veDOLO Unlocks</h3>
                     <div style="display:flex;align-items:center;gap:6px">
                         <div id="recent-claims-period-btns" style="display:flex;gap:4px">
                             <button class="pg-btn" onclick="setRecentClaimsPeriod(1)" data-period="1">1D</button>
@@ -5126,7 +5126,7 @@
                                     Address <span class="arrow">⇅</span>
                                 </th>
                                 <th data-sort="dolo" onclick="sortRecentClaims('dolo')">
-                                    DOLO Claimed <span class="arrow">⇅</span>
+                                    DOLO Unlocked <span class="arrow">⇅</span>
                                 </th>
                                 <th data-sort="date" onclick="sortRecentClaims('date')">
                                     Date <span class="arrow">⇅</span>
@@ -7962,7 +7962,7 @@
             vedolo_filteredClaims = vedolo_allClaims.filter(c => c.timestamp >= cutoff);
 
             const countEl = document.getElementById('recent-claims-count');
-            if (countEl) countEl.textContent = vedolo_filteredClaims.length + ' claims (last ' + vedolo_claimsPeriod + 'd)';
+            if (countEl) countEl.textContent = vedolo_filteredClaims.length + ' unlocks (last ' + vedolo_claimsPeriod + 'd)';
 
             renderRecentClaims();
         }
@@ -8008,7 +8008,7 @@
 
             let html = '';
             if (pageData.length === 0) {
-                html = '<tr><td colspan="5" style="text-align:center;opacity:0.5;padding:2em">No claims in the last ' + vedolo_claimsPeriod + ' days</td></tr>';
+                html = '<tr><td colspan="5" style="text-align:center;opacity:0.5;padding:2em">No unlocks in the last ' + vedolo_claimsPeriod + ' days</td></tr>';
             }
             const COPY_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
             pageData.forEach((c, i) => {
