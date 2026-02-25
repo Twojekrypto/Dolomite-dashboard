@@ -12366,22 +12366,34 @@
                     // Active assets
                     (earn_cachedAssets || []).forEach(a => {
                         totalUsd += (a.usdValue || 0);
-                        // Get yield USD from netflow
                         const mid = String(a.marketId);
+                        const chainId = document.getElementById('earn-chain').value;
+                        const priceKey = chainId + ':' + a.tokenAddr.toLowerCase();
+                        const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[a.symbol] || 0;
+
+                        // Method 1: NetFlow-based yield (same logic as table rows)
                         const nf = earn_netflowData && earn_netflowData[mid];
                         if (nf !== undefined) {
                             try {
-                                const weiBI = BigInt(a.wei || '0');
-                                const nfBI = BigInt(nf);
-                                const yieldWei = weiBI - nfBI;
+                                const netFlow = typeof nf === 'string' ? BigInt(nf) : BigInt(nf.t || '0');
+                                const weiBI = typeof a.wei === 'bigint' ? a.wei : BigInt(a.wei || '0');
+                                const yieldWei = weiBI - netFlow;
                                 const yieldNum = Number(yieldWei) / (10 ** a.decimals);
-                                const chainId = document.getElementById('earn-chain').value;
-                                const priceKey = chainId + ':' + a.tokenAddr.toLowerCase();
-                                const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[a.symbol] || 0;
                                 const yUsd = yieldNum * price;
                                 totalYieldUsd += yUsd;
                                 if (yUsd > bestYieldUsd) { bestYieldUsd = yUsd; bestSymbol = a.symbol; }
-                            } catch (e) { /* skip non-convertible */ }
+                            } catch (e) { /* skip */ }
+                        } else {
+                            // Method 2: Snapshot-based yield fallback
+                            const hist = earn_totalYieldData && earn_totalYieldData[mid];
+                            if (hist && hist.cumulativeYield !== undefined) {
+                                try {
+                                    const yieldNum = Number(BigInt(hist.cumulativeYield)) / (10 ** a.decimals);
+                                    const yUsd = yieldNum * price;
+                                    totalYieldUsd += yUsd;
+                                    if (yUsd > bestYieldUsd) { bestYieldUsd = yUsd; bestSymbol = a.symbol; }
+                                } catch (e) { /* skip */ }
+                            }
                         }
                     });
 
