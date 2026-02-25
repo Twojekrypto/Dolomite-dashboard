@@ -5938,6 +5938,16 @@
                                                 </svg>
                                                 <span class="earn-withdrawn-label">Show Withdrawn</span>
                                             </button>
+                                            <button type="button" class="earn-withdrawn-btn" id="earn-dust-toggle"
+                                                onclick="earn_toggleDust()" style="display:none"
+                                                title="Show or hide dust positions (< $0.01)">
+                                                <svg class="earn-withdrawn-icon" viewBox="0 0 24 24" fill="none"
+                                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                                    stroke-linejoin="round">
+                                                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                                                </svg>
+                                                <span class="earn-withdrawn-label">Show Dust</span>
+                                            </button>
                                         </div>
                                     </th>
                                     <th data-sort="balance" class="sort-active" onclick="earn_sortAssets('balance')">
@@ -10582,6 +10592,7 @@
 
         // ===== EARN UNIFIED VIEW =====
         let earn_showInactive = false; // whether to show withdrawn/inactive assets
+        let earn_showDust = false;     // whether to show dust positions (< $0.01)
         let earn_historyData = null; // cached history results (inactive assets)
 
         function earn_switchMode(mode) {
@@ -10602,6 +10613,20 @@
                     : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
             }
             // Re-render with the new filter setting
+            if (earn_cachedAssets.length > 0 || earn_historyData) {
+                earn_renderResults(earn_cachedAssets);
+            }
+        }
+
+        function earn_toggleDust() {
+            earn_showDust = !earn_showDust;
+            const btn = document.getElementById('earn-dust-toggle');
+            if (btn) {
+                btn.classList.toggle('active', earn_showDust);
+                const label = btn.querySelector('.earn-withdrawn-label');
+                if (label) label.textContent = earn_showDust ? 'Hide Dust' : 'Show Dust';
+            }
+            // Re-render
             if (earn_cachedAssets.length > 0 || earn_historyData) {
                 earn_renderResults(earn_cachedAssets);
             }
@@ -10746,7 +10771,7 @@
                 const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[item.symbol] || 0;
                 const balanceNum = Number(item.currentWei) / (10 ** item.decimals);
                 const balanceUsd = Math.abs(balanceNum * price);
-                if (balanceUsd < 0.01 && Math.abs(item.yieldUsd) < 0.01) return false;
+                if (!earn_showDust && balanceUsd < 0.01 && Math.abs(item.yieldUsd) < 0.01) return false;
                 return true;
             });
 
@@ -11653,6 +11678,15 @@
                 if (icon) icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
             }
             earn_showInactive = false;
+            // Hide and reset dust toggle
+            const dustToggle = document.getElementById('earn-dust-toggle');
+            if (dustToggle) {
+                dustToggle.style.display = 'none';
+                dustToggle.classList.remove('active');
+                const dustLabel = dustToggle.querySelector('.earn-withdrawn-label');
+                if (dustLabel) dustLabel.textContent = 'Show Dust';
+            }
+            earn_showDust = false;
             // Reset history state
             earn_historyData = null;
         }
@@ -12071,7 +12105,7 @@
                     const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[item.symbol] || 0;
                     const balanceNum = Number(item.currentWei) / (10 ** item.decimals);
                     const balanceUsd = Math.abs(balanceNum * price);
-                    if (balanceUsd < 0.01 && Math.abs(item.yieldUsd) < 0.01) return false;
+                    if (!earn_showDust && balanceUsd < 0.01 && Math.abs(item.yieldUsd) < 0.01) return false;
                     return true;
                 });
 
@@ -12159,6 +12193,9 @@
             // Show inline inactive toggle in table header
             const inactiveToggle = document.getElementById('earn-inactive-toggle');
             if (inactiveToggle) inactiveToggle.style.display = '';
+            // Show dust toggle in table header
+            const dustToggle = document.getElementById('earn-dust-toggle');
+            if (dustToggle) dustToggle.style.display = '';
         }
 
         // Enter key to search
