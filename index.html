@@ -11222,7 +11222,7 @@
                 const netflows = {};
                 function addFlow(marketId, deltaWeiStr, flowType) {
                     const mid = String(marketId);
-                    if (!netflows[mid]) netflows[mid] = { t: '0', d: '0', w: '0', s: '0', x: '0', l: '0' };
+                    if (!netflows[mid]) netflows[mid] = { t: '0', d: '0', w: '0', s: '0', x: '0', l: '0', b: '0' };
                     // Parse as float then back to BigInt-safe string (subgraph returns decimal strings)
                     // We need raw wei, subgraph returns human-readable amounts, so parse carefully
                     const deltaFloat = parseFloat(deltaWeiStr || '0');
@@ -11322,6 +11322,27 @@
                     addFlow(liq.borrowedToken.marketId, String(-parseFloat(liq.borrowedTokenAmountDeltaWei)), 'l');
                 }
 
+                // 7. Fetch OPEN borrow positions — subtract borrowed amounts from netflow
+                //    When a user opens a borrow position via zap, the borrowed tokens appear as
+                //    trade inflows but are actually debt. We need to cancel that out.
+                const borrowPositions = await earn_subgraphPaginateAll(endpoint, 'borrowPositions',
+                    `{ effectiveUser: "${addr}", status: "OPEN" }`,
+                    'amounts { token { marketId } amountPar expirationTimestamp }'
+                );
+                let borrowCount = 0;
+                for (const bp of borrowPositions) {
+                    for (const amt of (bp.amounts || [])) {
+                        const borrowPar = parseFloat(amt.amountPar || '0');
+                        if (borrowPar > 0) {
+                            // This is a borrow amount — subtract from netflow
+                            // The borrow was created via a trade inflow, so we offset it
+                            addFlow(amt.token.marketId, String(-borrowPar), 'b');
+                            borrowCount++;
+                        }
+                    }
+                }
+                if (borrowCount > 0) console.log(`Subgraph: found ${borrowPositions.length} open borrow positions with ${borrowCount} amounts`);
+
                 // Now convert the float-based netflows to wei BigInt strings
                 // Query token decimals from subgraph
                 const allMarketIds = Object.keys(netflows);
@@ -11344,7 +11365,7 @@
                     for (const mid of allMarketIds) {
                         const dec = decimalsMap[mid] || 18;
                         const entry = netflows[mid];
-                        for (const key of ['t', 'd', 'w', 's', 'x', 'l']) {
+                        for (const key of ['t', 'd', 'w', 's', 'x', 'l', 'b']) {
                             const floatVal = parseFloat(entry[key]);
                             // Convert to wei BigInt string
                             // Handle precision: multiply by 10^decimals then round
@@ -11356,7 +11377,7 @@
 
                 if (Object.keys(netflows).length > 0) {
                     earn_netflowData = netflows;
-                    const totalEvents = deposits.length + withdrawals.length + takerTrades.length + makerTrades.length + transfersFrom.length + transfersTo.length + liqsSolid.length + liqsLiquid.length;
+                    const totalEvents = deposits.length + withdrawals.length + takerTrades.length + makerTrades.length + transfersFrom.length + transfersTo.length + liqsSolid.length + liqsLiquid.length + borrowCount;
                     console.log(`Subgraph: loaded ${Object.keys(netflows).length} markets, ${totalEvents} events for ${addr} on ${chainId}`);
                 } else {
                     console.log('Subgraph: no data found for', addr, 'on', chainId);
