@@ -7187,6 +7187,8 @@
                 document.getElementById('o-m-revenue-sub').textContent = 'data pending';
             }
 
+            // AVG veDOLO PRICE: prefer total_vedolo (actual veDOLO minted) over pushedTokens (oDOLO burned)
+            // Will be overridden by exercisers data (loadExercisers) if totalVedolo is available
             if (data.exercisedUsd && data.pushedTokens > 0) {
                 const avgPrice = data.exercisedUsd / data.pushedTokens;
                 document.getElementById('o-m-avg-price').textContent = '~$' + avgPrice.toFixed(4);
