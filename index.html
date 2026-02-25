@@ -3966,6 +3966,101 @@
             font-weight: 600;
         }
 
+        /* ═══════ Filter Bar ═══════ */
+        .earn-filter-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 16px;
+            margin-bottom: 12px;
+            border-radius: 12px;
+            background: rgba(8, 12, 24, 0.6);
+            border: 1px solid rgba(52, 211, 153, 0.08);
+        }
+
+        .earn-filter-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .earn-filter-right {
+            display: flex;
+            align-items: center;
+        }
+
+        .earn-filter-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid rgba(148, 163, 184, 0.15);
+            background: rgba(148, 163, 184, 0.05);
+            color: rgba(148, 163, 184, 0.5);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            font-family: inherit;
+        }
+
+        .earn-filter-pill:hover {
+            border-color: rgba(148, 163, 184, 0.3);
+            color: rgba(148, 163, 184, 0.8);
+        }
+
+        .earn-filter-pill.active {
+            border-color: rgba(52, 211, 153, 0.3);
+            background: rgba(52, 211, 153, 0.08);
+            color: rgba(52, 211, 153, 0.9);
+        }
+
+        .earn-filter-pill.active:hover {
+            border-color: rgba(52, 211, 153, 0.5);
+            background: rgba(52, 211, 153, 0.12);
+        }
+
+        .earn-filter-pill:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .earn-filter-icon {
+            width: 14px;
+            height: 14px;
+            flex-shrink: 0;
+        }
+
+        .earn-filter-label {
+            white-space: nowrap;
+        }
+
+        .earn-filter-pill .earn-dust-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            border-radius: 9px;
+            background: rgba(148, 163, 184, 0.15);
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .earn-filter-pill.active .earn-dust-count {
+            background: rgba(52, 211, 153, 0.2);
+            color: rgba(52, 211, 153, 1);
+        }
+
+        .earn-position-count {
+            font-size: 12px;
+            color: rgba(148, 163, 184, 0.4);
+            font-weight: 500;
+            letter-spacing: 0.3px;
+        }
 
         .earn-error {
             background: rgba(239, 68, 68, 0.08);
@@ -6137,6 +6232,34 @@
                 <!-- Summary card -->
                 <div class="earn-summary-card" id="earn-summary-card"></div>
 
+                <!-- Filter bar between summary card and table -->
+                <div class="earn-filter-bar" id="earn-filter-bar" style="display:none">
+                    <div class="earn-filter-left">
+                        <button type="button" class="earn-filter-pill active" id="earn-inactive-toggle"
+                            onclick="earn_toggleInactive()" title="Show or hide withdrawn assets">
+                            <svg class="earn-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path
+                                    d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                                <line x1="1" y1="1" x2="23" y2="23" />
+                            </svg>
+                            <span class="earn-filter-label">Withdrawn</span>
+                        </button>
+                        <button type="button" class="earn-filter-pill active" id="earn-dust-toggle"
+                            onclick="earn_toggleDust()" title="Show or hide dust positions">
+                            <svg class="earn-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                            </svg>
+                            <span class="earn-filter-label">Dust</span>
+                            <span class="earn-dust-count">0</span>
+                        </button>
+                    </div>
+                    <div class="earn-filter-right">
+                        <span class="earn-position-count" id="earn-position-count"></span>
+                    </div>
+                </div>
+
                 <div class="table-section">
                     <div class="table-scroll">
                         <table class="earn-asset-table">
@@ -6150,29 +6273,6 @@
                                     <th>
                                         <div style="display:flex;align-items:center;gap:10px">
                                             <span>Token</span>
-                                            <button type="button" class="earn-withdrawn-btn active"
-                                                id="earn-inactive-toggle" onclick="earn_toggleInactive()"
-                                                style="display:none" title="Show or hide withdrawn assets">
-                                                <svg class="earn-withdrawn-icon" viewBox="0 0 24 24" fill="none"
-                                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                                    stroke-linejoin="round">
-                                                    <path
-                                                        d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-                                                    <line x1="1" y1="1" x2="23" y2="23" />
-                                                </svg>
-                                                <span class="earn-withdrawn-label">Hide Withdrawn</span>
-                                            </button>
-                                            <button type="button" class="earn-withdrawn-btn active"
-                                                id="earn-dust-toggle" onclick="earn_toggleDust()" style="display:none"
-                                                title="Show or hide dust positions (< $0.01)">
-                                                <svg class="earn-withdrawn-icon" viewBox="0 0 24 24" fill="none"
-                                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                                    stroke-linejoin="round">
-                                                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-                                                </svg>
-                                                <span class="earn-withdrawn-label">Hide Dust</span>
-                                                <span class="earn-dust-count">0</span>
-                                            </button>
                                         </div>
                                     </th>
                                     <th data-sort="balance" class="sort-active" onclick="earn_sortAssets('balance')">
@@ -10828,16 +10928,11 @@
 
         function earn_toggleInactive() {
             earn_showInactive = !earn_showInactive;
-            // Update button visual state
             const btn = document.getElementById('earn-inactive-toggle');
             if (btn) {
                 btn.classList.toggle('active', earn_showInactive);
-                const label = btn.querySelector('.earn-withdrawn-label');
-                const icon = btn.querySelector('.earn-withdrawn-icon');
-                if (label) label.textContent = earn_showInactive ? 'Hide Withdrawn' : 'Show Withdrawn';
-                if (icon) icon.innerHTML = earn_showInactive
-                    ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'
-                    : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+                const label = btn.querySelector('.earn-filter-label');
+                if (label) label.textContent = earn_showInactive ? 'Withdrawn' : 'Withdrawn';
             }
             // Re-render with the new filter setting
             if (earn_cachedAssets.length > 0 || earn_historyData) {
@@ -10850,8 +10945,6 @@
             const btn = document.getElementById('earn-dust-toggle');
             if (btn) {
                 btn.classList.toggle('active', earn_showDust);
-                const label = btn.querySelector('.earn-withdrawn-label');
-                if (label) label.textContent = earn_showDust ? 'Hide Dust' : 'Show Dust';
             }
             // Re-render
             if (earn_cachedAssets.length > 0 || earn_historyData) {
@@ -11908,25 +12001,14 @@
             // Hide summary card
             const summary = document.getElementById('earn-summary-card');
             if (summary) summary.classList.remove('visible');
-            // Hide inline inactive toggle and reset its state to default (active)
+            // Hide filter bar and reset toggles to defaults (active)
+            const filterBar = document.getElementById('earn-filter-bar');
+            if (filterBar) filterBar.style.display = 'none';
             const inactiveToggle = document.getElementById('earn-inactive-toggle');
-            if (inactiveToggle) {
-                inactiveToggle.style.display = 'none';
-                inactiveToggle.classList.add('active');
-                const label = inactiveToggle.querySelector('.earn-withdrawn-label');
-                const icon = inactiveToggle.querySelector('.earn-withdrawn-icon');
-                if (label) label.textContent = 'Hide Withdrawn';
-                if (icon) icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
-            }
-            earn_showInactive = true;
-            // Hide and reset dust toggle to default (active)
+            if (inactiveToggle) inactiveToggle.classList.add('active');
             const dustToggle = document.getElementById('earn-dust-toggle');
-            if (dustToggle) {
-                dustToggle.style.display = 'none';
-                dustToggle.classList.add('active');
-                const dustLabel = dustToggle.querySelector('.earn-withdrawn-label');
-                if (dustLabel) dustLabel.textContent = 'Hide Dust';
-            }
+            if (dustToggle) dustToggle.classList.add('active');
+            earn_showInactive = true;
             earn_showDust = true;
             // Reset history state
             earn_historyData = null;
@@ -12539,20 +12621,17 @@
             document.getElementById('earn-results').classList.add('visible');
             // Show the inactive toggle
             document.getElementById('earn-mode-toggle').classList.add('visible');
-            // Show inline inactive toggle in table header
-            const inactiveToggle = document.getElementById('earn-inactive-toggle');
-            if (inactiveToggle) inactiveToggle.style.display = '';
-            // Show dust toggle and update its count
+            // Show filter bar
+            const filterBar = document.getElementById('earn-filter-bar');
+            if (filterBar) filterBar.style.display = '';
+
+            // Update dust count
             const dustToggle = document.getElementById('earn-dust-toggle');
             if (dustToggle) {
-                dustToggle.style.display = '';
-                // Count how many items the dust filter is hiding
                 let dustCount = 0;
-                // Count dust in active assets
                 (earn_cachedAssets || []).forEach(a => {
                     if (a.usdValue < 0.01 && Math.abs(a.yieldUsd || 0) < 0.01) dustCount++;
                 });
-                // Count dust in inactive assets
                 if (earn_historyData && earn_historyData.length > 0) {
                     const activeAddrs = new Set(assets.map(a => a.tokenAddr?.toLowerCase()));
                     earn_historyData.forEach(item => {
@@ -12567,19 +12646,23 @@
                         if (balanceUsd < 0.01 && Math.abs(item.yieldUsd) < 0.01) dustCount++;
                     });
                 }
-                // Update button label
-                const label = dustToggle.querySelector('.earn-withdrawn-label');
                 const countBadge = dustToggle.querySelector('.earn-dust-count');
                 if (dustCount > 0) {
                     dustToggle.disabled = false;
-                    if (label) label.textContent = earn_showDust ? 'Hide Dust' : 'Show Dust';
                     if (countBadge) countBadge.textContent = dustCount;
                 } else {
                     dustToggle.disabled = true;
                     dustToggle.classList.remove('active');
-                    if (label) label.textContent = 'No Dust';
                     if (countBadge) countBadge.textContent = '0';
                 }
+            }
+
+            // Update position counter
+            const posCount = document.getElementById('earn-position-count');
+            if (posCount) {
+                const activeCount = assets.filter(a => a.usdValue >= 0.01).length;
+                const totalCount = activeCount + ((earn_historyData || []).filter(i => !i.isActive && !i.isIsolation).length);
+                posCount.textContent = `Showing ${totalCount} position${totalCount !== 1 ? 's' : ''}`;
             }
         }
 
