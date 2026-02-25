@@ -10679,7 +10679,7 @@
 
             // Show loading state
             const tbody = document.getElementById('earn-history-tbody');
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-muted)"><div class="spinner" style="display:inline-block;width:24px;height:24px;border:2px solid rgba(255,255,255,0.1);border-top-color:#6366f1;border-radius:50%;animation:earnSpin 0.8s linear infinite"></div><br>Loading history...</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-muted)"><div class="spinner" style="display:inline-block;width:24px;height:24px;border:2px solid rgba(255,255,255,0.1);border-top-color:#6366f1;border-radius:50%;animation:earnSpin 0.8s linear infinite"></div><br>Loading history...</td></tr>';
 
             // Step 1: Use subgraph netflow data (already loaded or load now)
             try {
@@ -10688,7 +10688,7 @@
                 }
                 const addrFlows = earn_netflowData;
                 if (!addrFlows || Object.keys(addrFlows).length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-muted)">No deposit/withdrawal history found for this address</td></tr>';
+                    if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-muted)">No deposit/withdrawal history found for this address</td></tr>';
                     return;
                 }
 
@@ -10795,7 +10795,7 @@
                 earn_renderHistory(historyItems);
             } catch (e) {
                 console.error('History lookup failed:', e);
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--accent-rose)">Error loading history: ${e.message}</td></tr>`;
+                if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--accent-rose)">Error loading history: ${e.message}</td></tr>`;
             }
         }
 
@@ -10829,7 +10829,9 @@
                 totalYieldUsd >= 1 ? '$' + totalYieldUsd.toFixed(2) :
                     '$' + totalYieldUsd.toFixed(4);
 
-            document.getElementById('earn-hist-total').innerHTML = `
+            const histTotalEl = document.getElementById('earn-hist-total');
+            if (!histTotalEl) return; // unified view — skip legacy rendering
+            histTotalEl.innerHTML = `
                 <div class="earn-hist-total-item">
                     <div class="earn-hist-total-label">Total Yield Earned</div>
                     <div class="earn-hist-total-value ${isPositive ? 'positive' : 'negative'}">${isPositive ? '+' : ''}${totalFmt}</div>
@@ -10846,6 +10848,7 @@
 
             // Table rows
             const tbody = document.getElementById('earn-history-tbody');
+            if (!tbody) return; // unified view — history rendered via earn_renderResults
             let html = '';
 
             // Get explorer URL
