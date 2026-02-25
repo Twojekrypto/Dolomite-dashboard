@@ -9721,6 +9721,7 @@
                 icon: 'https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg',
                 twChain: 'ethereum',
                 cgPlatform: 'ethereum',
+                llamaPlatform: 'ethereum',
                 explorer: 'https://etherscan.io',
                 margin: '0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D',
                 rpcs: ['https://eth.llamarpc.com/', 'https://ethereum-rpc.publicnode.com/', 'https://eth.drpc.org/'],
@@ -9731,6 +9732,7 @@
                 icon: 'https://icons.llamao.fi/icons/chains/rsz_berachain.jpg',
                 twChain: null,
                 cgPlatform: 'berachain',
+                llamaPlatform: 'berachain',
                 explorer: 'https://berascan.com',
                 margin: '0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D',
                 rpcs: ['https://rpc.berachain.com/', 'https://berachain-rpc.publicnode.com/', 'https://berachain.drpc.org/'],
@@ -9741,6 +9743,7 @@
                 icon: 'https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg',
                 twChain: 'arbitrum',
                 cgPlatform: 'arbitrum-one',
+                llamaPlatform: 'arbitrum',
                 explorer: 'https://arbiscan.io',
                 margin: '0x6bd780e7fDf01D77e4d475c821f1e7AE05409072',
                 rpcs: ['https://arb1.arbitrum.io/rpc', 'https://arbitrum.drpc.org/', 'https://arbitrum-one-rpc.publicnode.com/'],
@@ -9773,6 +9776,7 @@
                 margin: '0xe6ef4f0b2455bab92ce7cc78e35324ab58917de8',
                 rpcs: ['https://rpc.mantle.xyz/', 'https://mantle-rpc.publicnode.com/', 'https://mantle.drpc.org/'],
                 rpcIdx: 0,
+                llamaPlatform: 'mantle',
             },
             xlayer: {
                 name: 'X Layer',
@@ -10820,29 +10824,38 @@
             tbody.innerHTML = html;
         }
 
-        // Fetch USD prices from CoinGecko for token addresses
+        // Fetch USD prices from DeFiLlama (free, no API key, CORS-friendly)
         let earn_priceCache = {}; // { 'chainId:addr' : usdPrice }
         async function earn_fetchCoinGeckoPrices(tokenAddrs) {
             const chain = earn_getChain();
             const chainId = document.getElementById('earn-chain').value;
-            if (!chain.cgPlatform) return; // no CoinGecko support for this chain
+            const llamaPlatform = chain.llamaPlatform;
+            if (!llamaPlatform) {
+                console.warn('No DeFiLlama platform for chain:', chainId);
+                return;
+            }
             try {
-                const addrs = tokenAddrs.map(a => a.toLowerCase()).join(',');
-                const url = `https://api.coingecko.com/api/v3/simple/token_price/${chain.cgPlatform}?contract_addresses=${addrs}&vs_currencies=usd`;
+                // DeFiLlama accepts comma-separated "chain:address" pairs
+                const coins = tokenAddrs.map(a => `${llamaPlatform}:${a.toLowerCase()}`).join(',');
+                const url = `https://coins.llama.fi/prices/current/${coins}`;
                 const ctrl = new AbortController();
-                const timer = setTimeout(() => ctrl.abort(), 3000); // 3s timeout
+                const timer = setTimeout(() => ctrl.abort(), 8000);
                 const resp = await fetch(url, { signal: ctrl.signal });
                 clearTimeout(timer);
                 if (!resp.ok) return;
                 const data = await resp.json();
-                for (const [addr, priceObj] of Object.entries(data)) {
-                    if (priceObj && priceObj.usd) {
-                        earn_priceCache[chainId + ':' + addr.toLowerCase()] = priceObj.usd;
+                let count = 0;
+                for (const [key, info] of Object.entries(data.coins || {})) {
+                    if (info && info.price) {
+                        // Extract address from "chain:addr" format
+                        const addr = key.split(':')[1];
+                        earn_priceCache[chainId + ':' + addr.toLowerCase()] = info.price;
+                        count++;
                     }
                 }
-                console.log('CoinGecko prices loaded:', Object.keys(data).length, 'tokens');
+                console.log(`DeFiLlama prices loaded: ${count} tokens (${llamaPlatform})`);
             } catch (e) {
-                console.warn('CoinGecko price fetch failed, using fallback:', e.message);
+                console.warn('DeFiLlama price fetch failed, using fallback:', e.message);
             }
         }
 
