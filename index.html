@@ -10655,6 +10655,20 @@
         }
 
         function earn_renderHistory(items) {
+            // Filter out closed isolation positions and sub-$0.01 dust
+            items = items.filter(item => {
+                // Remove closed isolation mode positions entirely
+                if (item.isIsolation && !item.isActive) return false;
+                // Remove dust positions (balance value < $0.01)
+                const chainId = document.getElementById('earn-chain').value;
+                const priceKey = chainId + ':' + (item.tokenAddr || '').toLowerCase();
+                const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[item.symbol] || 0;
+                const balanceNum = Number(item.currentWei) / (10 ** item.decimals);
+                const balanceUsd = Math.abs(balanceNum * price);
+                if (balanceUsd < 0.01 && Math.abs(item.yieldUsd) < 0.01) return false;
+                return true;
+            });
+
             // Total summary
             let totalYieldUsd = 0;
             let totalActive = 0;
@@ -11806,6 +11820,9 @@
 
             // Build table rows
             const tbody = document.getElementById('earn-table-body');
+            // Filter out dust positions (< $0.01 USD)
+            assets = assets.filter(a => a.usdValue >= 0.01);
+
             let html = '';
 
             assets.forEach((a, idx) => {
@@ -11879,7 +11896,10 @@
                             </div>
                         </div>
                     </td>
-                    <td><span class="earn-amount earn-amount-primary">${weiFmt}<span class="earn-amount-sym">${a.symbol}</span></span></td>
+                    <td>
+                        <span class="earn-amount earn-amount-primary">${weiFmt}<span class="earn-amount-sym">${a.symbol}</span></span>
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">≈ $${a.usdValue >= 1000 ? (a.usdValue / 1000).toFixed(2) + 'K' : a.usdValue >= 1 ? a.usdValue.toFixed(2) : a.usdValue.toFixed(4)}</div>
+                    </td>
                     <td>
                         ${yieldCellHtml}
                     </td>
