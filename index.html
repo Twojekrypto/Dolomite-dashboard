@@ -10683,7 +10683,46 @@
             }
         }
 
-        // Fetch netflow data (net deposits/withdrawals from on-chain events)
+        // === Dolomite Subgraph endpoints (free, via Goldsky) ===
+        const SUBGRAPH_ENDPOINTS = {
+            arbitrum: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-arbitrum/latest/gn',
+            berachain: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-berachain-mainnet/latest/gn',
+            ethereum: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-ethereum/latest/gn',
+            mantle: 'https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-mantle/latest/gn',
+        };
+
+        // GraphQL query helper with pagination
+        async function earn_subgraphQuery(endpoint, query, variables) {
+            const resp = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query, variables }),
+            });
+            if (!resp.ok) throw new Error(`Subgraph HTTP ${resp.status}`);
+            const json = await resp.json();
+            if (json.errors) throw new Error(json.errors[0].message);
+            return json.data;
+        }
+
+        // Paginate through all results for a given entity (max 1000 per query)
+        async function earn_subgraphPaginateAll(endpoint, entityName, whereClause, fields) {
+            const PAGE_SIZE = 1000;
+            let allResults = [];
+            let skip = 0;
+            let hasMore = true;
+            while (hasMore) {
+                const query = `{ ${entityName}(first: ${PAGE_SIZE}, skip: ${skip}, where: ${whereClause}) { ${fields} } }`;
+                const data = await earn_subgraphQuery(endpoint, query);
+                const batch = data[entityName] || [];
+                allResults = allResults.concat(batch);
+                hasMore = batch.length === PAGE_SIZE;
+                skip += PAGE_SIZE;
+                if (skip > 10000) break; // Safety: TheGraph max skip is 5000, but Goldsky may allow more
+            }
+            return allResults;
+        }
+
+        // Fetch netflow data from Dolomite subgraph (replaces old static JSON approach)
         // yield = currentWei - netFlow → 100% accurate from first deposit
         async function earn_fetchNetflow() {
             earn_netflowData = null;
@@ -10691,23 +10730,166 @@
             const addr = document.getElementById('earn-address').value.trim().toLowerCase();
             if (!chainId || !addr) return;
 
+            const endpoint = SUBGRAPH_ENDPOINTS[chainId];
+            if (!endpoint) {
+                console.log('No subgraph endpoint for chain:', chainId);
+                return;
+            }
+
             try {
-                const resp = await fetch(`${NETFLOW_BASE}/${chainId}.json`);
-                if (!resp.ok) return;
-                const data = await resp.json();
-                const addrFlows = data.netflows && data.netflows[addr];
-                if (addrFlows) {
-                    // New format: { "2": {"t":"...","d":"...","w":"...",...} }
-                    // Old format: { "2": "12345" }
-                    earn_netflowData = addrFlows;
-                    console.log('NetFlow data loaded for', addr, 'on', chainId, '—', Object.keys(addrFlows).length, 'markets');
+                console.log(`Subgraph: fetching yield data for ${addr} on ${chainId}...`);
+
+                // Helper to accumulate flow into netflow object
+                const netflows = {};
+                function addFlow(marketId, deltaWeiStr, flowType) {
+                    const mid = String(marketId);
+                    if (!netflows[mid]) netflows[mid] = { t: '0', d: '0', w: '0', s: '0', x: '0', l: '0' };
+                    // Parse as float then back to BigInt-safe string (subgraph returns decimal strings)
+                    // We need raw wei, subgraph returns human-readable amounts, so parse carefully
+                    const deltaFloat = parseFloat(deltaWeiStr || '0');
+                    if (deltaFloat === 0) return;
+                    // Store as BigInt-compatible by looking up decimals later; for now track floats
+                    const old_t = parseFloat(netflows[mid].t);
+                    const old_ft = parseFloat(netflows[mid][flowType]);
+                    netflows[mid].t = String(old_t + deltaFloat);
+                    netflows[mid][flowType] = String(old_ft + Math.abs(deltaFloat));
+                }
+
+                // 1. Fetch ALL deposits for this user
+                const deposits = await earn_subgraphPaginateAll(endpoint, 'deposits',
+                    `{ effectiveUser: "${addr}" }`,
+                    'token { marketId decimals } amountDeltaWei'
+                );
+                for (const dep of deposits) {
+                    addFlow(dep.token.marketId, dep.amountDeltaWei, 'd');
+                }
+
+                // 2. Fetch ALL withdrawals for this user
+                const withdrawals = await earn_subgraphPaginateAll(endpoint, 'withdrawals',
+                    `{ effectiveUser: "${addr}" }`,
+                    'token { marketId decimals } amountDeltaWei'
+                );
+                for (const w of withdrawals) {
+                    // Subgraph amountDeltaWei is POSITIVE for withdrawals (absolute amount)
+                    // Negate it since withdrawals DECREASE the balance
+                    addFlow(w.token.marketId, String(-Math.abs(parseFloat(w.amountDeltaWei))), 'w');
+                }
+
+                // 3. Fetch ALL trades where user is taker
+                //    Subgraph convention: both deltas are positive absolute amounts
+                //    Taker receives takerToken (+) and gives makerToken (-)
+                const takerTrades = await earn_subgraphPaginateAll(endpoint, 'trades',
+                    `{ takerEffectiveUser: "${addr}" }`,
+                    'takerToken { marketId } makerToken { marketId } takerTokenDeltaWei makerTokenDeltaWei'
+                );
+                for (const t of takerTrades) {
+                    addFlow(t.takerToken.marketId, t.takerTokenDeltaWei, 's'); // taker receives takerToken (+)
+                    addFlow(t.makerToken.marketId, String(-Math.abs(parseFloat(t.makerTokenDeltaWei))), 's'); // taker gives makerToken (-)
+                }
+
+                // 4. Fetch ALL trades where user is maker (and NOT also taker, to avoid double-counting)
+                //    Maker receives makerToken (+) and gives takerToken (-)
+                const makerTrades = await earn_subgraphPaginateAll(endpoint, 'trades',
+                    `{ makerEffectiveUser: "${addr}", takerEffectiveUser_not: "${addr}" }`,
+                    'takerToken { marketId } makerToken { marketId } takerTokenDeltaWei makerTokenDeltaWei'
+                );
+                for (const t of makerTrades) {
+                    addFlow(t.makerToken.marketId, t.makerTokenDeltaWei, 's'); // maker receives makerToken (+)
+                    addFlow(t.takerToken.marketId, String(-Math.abs(parseFloat(t.takerTokenDeltaWei))), 's'); // maker gives takerToken (-)
+                }
+
+                // 5. Fetch ALL transfers FROM this user (outgoing, negative impact)
+                const transfersFrom = await earn_subgraphPaginateAll(endpoint, 'transfers',
+                    `{ fromEffectiveUser: "${addr}", isSelfTransfer: false }`,
+                    'token { marketId } amountDeltaWei'
+                );
+                for (const xf of transfersFrom) {
+                    addFlow(xf.token.marketId, xf.amountDeltaWei, 'x');
+                }
+
+                // Fetch ALL transfers TO this user (incoming, positive impact)
+                const transfersTo = await earn_subgraphPaginateAll(endpoint, 'transfers',
+                    `{ toEffectiveUser: "${addr}", isSelfTransfer: false }`,
+                    'token { marketId } amountDeltaWei'
+                );
+                for (const xf of transfersTo) {
+                    // Invert: amountDeltaWei for sender is negative, for receiver it's positive
+                    addFlow(xf.token.marketId, String(-parseFloat(xf.amountDeltaWei)), 'x');
+                }
+
+                // 6. Fetch ALL liquidations where user is the solid account (liquidator)
+                const liqsSolid = await earn_subgraphPaginateAll(endpoint, 'liquidations',
+                    `{ solidEffectiveUser: "${addr}" }`,
+                    'heldToken { marketId } borrowedToken { marketId } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei'
+                );
+                for (const liq of liqsSolid) {
+                    addFlow(liq.heldToken.marketId, liq.heldTokenAmountDeltaWei, 'l');
+                    addFlow(liq.borrowedToken.marketId, liq.borrowedTokenAmountDeltaWei, 'l');
+                }
+
+                // Fetch ALL liquidations where user is the liquid account (being liquidated)
+                const liqsLiquid = await earn_subgraphPaginateAll(endpoint, 'liquidations',
+                    `{ liquidEffectiveUser: "${addr}" }`,
+                    'heldToken { marketId } borrowedToken { marketId } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei'
+                );
+                for (const liq of liqsLiquid) {
+                    // Liquid side: opposite sign of solid side
+                    addFlow(liq.heldToken.marketId, String(-parseFloat(liq.heldTokenAmountDeltaWei)), 'l');
+                    addFlow(liq.borrowedToken.marketId, String(-parseFloat(liq.borrowedTokenAmountDeltaWei)), 'l');
+                }
+
+                // Now convert the float-based netflows to wei BigInt strings
+                // Query token decimals from subgraph
+                const allMarketIds = Object.keys(netflows);
+                if (allMarketIds.length > 0) {
+                    const tokensData = await earn_subgraphQuery(endpoint,
+                        `{ tokens(first: 100, where: { marketId_in: [${allMarketIds.map(m => `"${m}"`).join(',')}] }) { marketId decimals } }`
+                    );
+                    const decimalsMap = {};
+                    for (const t of (tokensData.tokens || [])) {
+                        decimalsMap[t.marketId] = parseInt(t.decimals);
+                    }
+
+                    // Convert float amounts to wei strings
+                    for (const mid of allMarketIds) {
+                        const dec = decimalsMap[mid] || 18;
+                        const entry = netflows[mid];
+                        for (const key of ['t', 'd', 'w', 's', 'x', 'l']) {
+                            const floatVal = parseFloat(entry[key]);
+                            // Convert to wei BigInt string
+                            // Handle precision: multiply by 10^decimals then round
+                            const weiVal = BigInt(Math.round(floatVal * (10 ** dec)));
+                            entry[key] = weiVal.toString();
+                        }
+                    }
+                }
+
+                if (Object.keys(netflows).length > 0) {
+                    earn_netflowData = netflows;
+                    const totalEvents = deposits.length + withdrawals.length + takerTrades.length + makerTrades.length + transfersFrom.length + transfersTo.length + liqsSolid.length + liqsLiquid.length;
+                    console.log(`Subgraph: loaded ${Object.keys(netflows).length} markets, ${totalEvents} events for ${addr} on ${chainId}`);
                 } else {
-                    console.log('No netflow data found for', addr, 'on', chainId);
+                    console.log('Subgraph: no data found for', addr, 'on', chainId);
                 }
             } catch (e) {
-                console.warn('NetFlow fetch failed:', e.message);
+                console.warn('Subgraph fetch failed:', e.message);
+                // Fallback: try old netflow JSON (may work for Berachain/Ethereum)
+                try {
+                    const resp = await fetch(`${NETFLOW_BASE}/${chainId}.json`);
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        const addrFlows = data.netflows && data.netflows[addr];
+                        if (addrFlows) {
+                            earn_netflowData = addrFlows;
+                            console.log('Fallback: NetFlow JSON loaded for', addr);
+                        }
+                    }
+                } catch (e2) {
+                    console.warn('Fallback NetFlow also failed:', e2.message);
+                }
             }
         }
+
 
         async function earn_setPeriod(p, snapshotDateOverride) {
             earn_currentPeriod = p;
