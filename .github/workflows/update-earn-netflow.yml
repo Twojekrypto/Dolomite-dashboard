@@ -3,7 +3,12 @@ name: Update Earn Netflow Data
 on:
   schedule:
     - cron: '0 6 * * *'  # Daily at 6:00 UTC
-  workflow_dispatch:  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      reset_chain:
+        description: 'Chain to re-scan from scratch (e.g. arbitrum). Leave empty for normal incremental update.'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -11,7 +16,7 @@ permissions:
 jobs:
   update-netflow:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
 
     steps:
       - name: Checkout
@@ -23,6 +28,7 @@ jobs:
           python-version: '3.11'
 
       - name: Restore netflow progress cache
+        if: ${{ github.event.inputs.reset_chain == '' }}
         uses: actions/cache@v4
         with:
           path: data/.netflow-progress
@@ -30,8 +36,23 @@ jobs:
           restore-keys: |
             netflow-progress-
 
+      - name: Reset chain progress (re-scan)
+        if: ${{ github.event.inputs.reset_chain != '' }}
+        run: |
+          CHAIN="${{ github.event.inputs.reset_chain }}"
+          echo "Resetting progress for chain: $CHAIN"
+          mkdir -p data/.netflow-progress
+          echo '{"last_block": 0, "netflows": {}}' > "data/.netflow-progress/${CHAIN}.json"
+
       - name: Scan earn netflow events
         run: python3 scan_earn_netflow.py
+
+      - name: Save netflow progress cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/.netflow-progress
+          key: netflow-progress-${{ github.run_id }}
 
       - name: Commit & push changes
         run: |
