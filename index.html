@@ -6150,26 +6150,27 @@
                                     <th>
                                         <div style="display:flex;align-items:center;gap:10px">
                                             <span>Token</span>
-                                            <button type="button" class="earn-withdrawn-btn" id="earn-inactive-toggle"
-                                                onclick="earn_toggleInactive()" style="display:none"
-                                                title="Show or hide withdrawn assets">
+                                            <button type="button" class="earn-withdrawn-btn active"
+                                                id="earn-inactive-toggle" onclick="earn_toggleInactive()"
+                                                style="display:none" title="Show or hide withdrawn assets">
                                                 <svg class="earn-withdrawn-icon" viewBox="0 0 24 24" fill="none"
                                                     stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                                     stroke-linejoin="round">
-                                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                                                    <circle cx="12" cy="12" r="3" />
+                                                    <path
+                                                        d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                                                    <line x1="1" y1="1" x2="23" y2="23" />
                                                 </svg>
-                                                <span class="earn-withdrawn-label">Show Withdrawn</span>
+                                                <span class="earn-withdrawn-label">Hide Withdrawn</span>
                                             </button>
-                                            <button type="button" class="earn-withdrawn-btn" id="earn-dust-toggle"
-                                                onclick="earn_toggleDust()" style="display:none"
+                                            <button type="button" class="earn-withdrawn-btn active"
+                                                id="earn-dust-toggle" onclick="earn_toggleDust()" style="display:none"
                                                 title="Show or hide dust positions (< $0.01)">
                                                 <svg class="earn-withdrawn-icon" viewBox="0 0 24 24" fill="none"
                                                     stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                                     stroke-linejoin="round">
                                                     <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
                                                 </svg>
-                                                <span class="earn-withdrawn-label">Show Dust</span>
+                                                <span class="earn-withdrawn-label">Hide Dust</span>
                                                 <span class="earn-dust-count">0</span>
                                             </button>
                                         </div>
@@ -10817,8 +10818,8 @@
         };
 
         // ===== EARN UNIFIED VIEW =====
-        let earn_showInactive = false; // whether to show withdrawn/inactive assets
-        let earn_showDust = false;     // whether to show dust positions (< $0.01)
+        let earn_showInactive = true; // show withdrawn/inactive by default
+        let earn_showDust = true;     // show dust positions by default
         let earn_historyData = null; // cached history results (inactive assets)
 
         function earn_switchMode(mode) {
@@ -11907,26 +11908,26 @@
             // Hide summary card
             const summary = document.getElementById('earn-summary-card');
             if (summary) summary.classList.remove('visible');
-            // Hide inline inactive toggle and reset its state
+            // Hide inline inactive toggle and reset its state to default (active)
             const inactiveToggle = document.getElementById('earn-inactive-toggle');
             if (inactiveToggle) {
                 inactiveToggle.style.display = 'none';
-                inactiveToggle.classList.remove('active');
+                inactiveToggle.classList.add('active');
                 const label = inactiveToggle.querySelector('.earn-withdrawn-label');
                 const icon = inactiveToggle.querySelector('.earn-withdrawn-icon');
-                if (label) label.textContent = 'Show Withdrawn';
-                if (icon) icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+                if (label) label.textContent = 'Hide Withdrawn';
+                if (icon) icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
             }
-            earn_showInactive = false;
-            // Hide and reset dust toggle
+            earn_showInactive = true;
+            // Hide and reset dust toggle to default (active)
             const dustToggle = document.getElementById('earn-dust-toggle');
             if (dustToggle) {
                 dustToggle.style.display = 'none';
-                dustToggle.classList.remove('active');
+                dustToggle.classList.add('active');
                 const dustLabel = dustToggle.querySelector('.earn-withdrawn-label');
-                if (dustLabel) dustLabel.textContent = 'Show Dust';
+                if (dustLabel) dustLabel.textContent = 'Hide Dust';
             }
-            earn_showDust = false;
+            earn_showDust = true;
             // Reset history state
             earn_historyData = null;
         }
