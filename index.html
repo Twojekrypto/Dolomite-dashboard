@@ -5448,11 +5448,12 @@
                     <table id="recent-exercisers-table" style="table-layout:fixed;width:100%">
                         <colgroup>
                             <col style="width:32px">
-                            <col style="width:calc((100% - 32px) * 0.22)">
-                            <col style="width:calc((100% - 32px) * 0.22)">
-                            <col style="width:calc((100% - 32px) * 0.20)">
+                            <col style="width:calc((100% - 32px) * 0.19)">
+                            <col style="width:calc((100% - 32px) * 0.19)">
                             <col style="width:calc((100% - 32px) * 0.16)">
-                            <col style="width:calc((100% - 32px) * 0.20)">
+                            <col style="width:calc((100% - 32px) * 0.16)">
+                            <col style="width:calc((100% - 32px) * 0.14)">
+                            <col style="width:calc((100% - 32px) * 0.16)">
                         </colgroup>
                         <thead>
                             <tr>
@@ -5467,6 +5468,9 @@
                                 </th>
                                 <th data-sort="usdc" onclick="sortRecentExercisers('usdc')">
                                     USDC.e Spent <span class="arrow">⇅</span>
+                                </th>
+                                <th data-sort="dolo" onclick="sortRecentExercisers('dolo')">
+                                    DOLO Locked <span class="arrow">⇅</span>
                                 </th>
                                 <th data-sort="lock" onclick="sortRecentExercisers('lock')">
                                     Lock <span class="arrow">⇅</span>
@@ -6071,7 +6075,7 @@
         // ===== DATA =====
         let HOLDER_DATA = [];
         const STATS = { total_minted: 23516, total_burned: 8659, active_nfts: 14857, unique_holders: 10971, total_locked_dolo: 50842522.01, total_vote_weight: 32432491.2401 };
-        const PER_PAGE = 25;
+        const PER_PAGE = 10;
         let currentPage = 1;
         let filteredData = [];
         let sortField = 'rank';
@@ -7713,6 +7717,7 @@
                     return recentExSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
                 }
                 if (recentExSortKey === 'usdc') { va = a.usdc; vb = b.usdc; return recentExSortAsc ? va - vb : vb - va; }
+                if (recentExSortKey === 'dolo') { va = a.vedolo || 0; vb = b.vedolo || 0; return recentExSortAsc ? va - vb : vb - va; }
                 if (recentExSortKey === 'lock') { va = a.lock_days || 0; vb = b.lock_days || 0; return recentExSortAsc ? va - vb : vb - va; }
                 if (recentExSortKey === 'price') { va = a.price || 0; vb = b.price || 0; return recentExSortAsc ? va - vb : vb - va; }
                 if (recentExSortKey === 'tx') return recentExSortAsc ? a.hash.localeCompare(b.hash) : b.hash.localeCompare(a.hash);
@@ -7731,7 +7736,7 @@
 
             let html = '';
             if (pageData.length === 0) {
-                html = '<tr><td colspan="6" style="text-align:center;opacity:0.5;padding:2em">No exercises in the last 7 days</td></tr>';
+                html = '<tr><td colspan="7" style="text-align:center;opacity:0.5;padding:2em">No exercises in the last 7 days</td></tr>';
             }
             pageData.forEach((tx, i) => {
                 const rank = start + i + 1;
@@ -7747,6 +7752,7 @@
                 html += '</div></td>';
                 html += '<td class="c-addr"><span style="display:inline-flex;align-items:center;gap:4px"><span class="addr-link">' + exShortAddr(tx.address) + '</span><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr(\'' + tx.address + '\',this)" title="Copy address"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span><a href="https://debank.com/profile/' + tx.address + '?chain=bera" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display=\'none\'"></a></span></td>';
                 html += '<td class="c-num">' + exFmtUsd(tx.usdc) + '</td>';
+                html += '<td class="c-num" style="color:#34d399;font-weight:600">' + (tx.vedolo ? vedolo_fmtDolo(tx.vedolo) + ' DOLO' : '—') + '</td>';
                 html += '<td class="c-num">' + exFmtLock(tx.lock_days) + '</td>';
                 html += '<td class="c-num" style="color:#34d399">' + (tx.price ? '$' + tx.price.toFixed(4) : '—') + '</td>';
                 html += '</tr>';
@@ -7785,7 +7791,7 @@
             'https://rpc.berachain.com/',
         ];
         const VEDOLO_BLOCK_STEP = 9999;
-        const VEDOLO_PER_PAGE = 15;
+        const VEDOLO_PER_PAGE = 5;
 
         let vedolo_allClaims = []; // All Withdraw events from 30d scan
         let vedolo_allLocks = [];  // All Deposit events from 30d scan
