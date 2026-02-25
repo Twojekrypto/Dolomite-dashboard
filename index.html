@@ -10685,45 +10685,50 @@
                 }
 
                 // 3. Fetch ALL trades where user is taker
-                //    Subgraph convention: both deltas are positive absolute amounts
-                //    Taker receives takerToken (+) and gives makerToken (-)
+                //    Subgraph: takerInputTokenDeltaPar is NEGATIVE (taker gives takerToken)
+                //              takerOutputTokenDeltaPar is POSITIVE (taker receives makerToken)
+                //    Both *DeltaWei fields are positive (absolute amounts)
+                //    Taker GIVES takerToken (-) and RECEIVES makerToken (+)
                 const takerTrades = await earn_subgraphPaginateAll(endpoint, 'trades',
                     `{ takerEffectiveUser: "${addr}" }`,
                     'takerToken { marketId } makerToken { marketId } takerTokenDeltaWei makerTokenDeltaWei'
                 );
                 for (const t of takerTrades) {
-                    addFlow(t.takerToken.marketId, t.takerTokenDeltaWei, 's'); // taker receives takerToken (+)
-                    addFlow(t.makerToken.marketId, String(-Math.abs(parseFloat(t.makerTokenDeltaWei))), 's'); // taker gives makerToken (-)
+                    addFlow(t.takerToken.marketId, String(-Math.abs(parseFloat(t.takerTokenDeltaWei))), 's'); // taker GIVES takerToken (-)
+                    addFlow(t.makerToken.marketId, t.makerTokenDeltaWei, 's'); // taker RECEIVES makerToken (+)
                 }
 
                 // 4. Fetch ALL trades where user is maker (and NOT also taker, to avoid double-counting)
-                //    Maker receives makerToken (+) and gives takerToken (-)
+                //    Maker GIVES makerToken (-) and RECEIVES takerToken (+)
                 const makerTrades = await earn_subgraphPaginateAll(endpoint, 'trades',
                     `{ makerEffectiveUser: "${addr}", takerEffectiveUser_not: "${addr}" }`,
                     'takerToken { marketId } makerToken { marketId } takerTokenDeltaWei makerTokenDeltaWei'
                 );
                 for (const t of makerTrades) {
-                    addFlow(t.makerToken.marketId, t.makerTokenDeltaWei, 's'); // maker receives makerToken (+)
-                    addFlow(t.takerToken.marketId, String(-Math.abs(parseFloat(t.takerTokenDeltaWei))), 's'); // maker gives takerToken (-)
+                    addFlow(t.makerToken.marketId, String(-Math.abs(parseFloat(t.makerTokenDeltaWei))), 's'); // maker GIVES makerToken (-)
+                    addFlow(t.takerToken.marketId, t.takerTokenDeltaWei, 's'); // maker RECEIVES takerToken (+)
                 }
 
-                // 5. Fetch ALL transfers FROM this user (outgoing, negative impact)
+                // 5. Fetch ALL transfers FROM this user to OTHER users (outgoing, negative impact)
+                //    Exclude self-transfers by filtering toEffectiveUser != addr
+                //    (isSelfTransfer flag doesn't cover intra-margin-account moves)
                 const transfersFrom = await earn_subgraphPaginateAll(endpoint, 'transfers',
-                    `{ fromEffectiveUser: "${addr}", isSelfTransfer: false }`,
+                    `{ fromEffectiveUser: "${addr}", toEffectiveUser_not: "${addr}" }`,
                     'token { marketId } amountDeltaWei'
                 );
                 for (const xf of transfersFrom) {
-                    addFlow(xf.token.marketId, xf.amountDeltaWei, 'x');
+                    // Outgoing: amountDeltaWei is positive absolute amount — negate for outflow
+                    addFlow(xf.token.marketId, String(-Math.abs(parseFloat(xf.amountDeltaWei))), 'x');
                 }
 
-                // Fetch ALL transfers TO this user (incoming, positive impact)
+                // Fetch ALL transfers TO this user from OTHER users (incoming, positive impact)
                 const transfersTo = await earn_subgraphPaginateAll(endpoint, 'transfers',
-                    `{ toEffectiveUser: "${addr}", isSelfTransfer: false }`,
+                    `{ toEffectiveUser: "${addr}", fromEffectiveUser_not: "${addr}" }`,
                     'token { marketId } amountDeltaWei'
                 );
                 for (const xf of transfersTo) {
-                    // Invert: amountDeltaWei for sender is negative, for receiver it's positive
-                    addFlow(xf.token.marketId, String(-parseFloat(xf.amountDeltaWei)), 'x');
+                    // Incoming: amountDeltaWei is positive absolute amount — add as inflow
+                    addFlow(xf.token.marketId, xf.amountDeltaWei, 'x');
                 }
 
                 // 6. Fetch ALL liquidations where user is the solid account (liquidator)
