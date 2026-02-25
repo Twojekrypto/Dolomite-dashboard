@@ -5893,6 +5893,9 @@
             <div class="earn-hero anim">
                 <h2>💰 Your Dolomite Earnings</h2>
                 <p>Enter your wallet address to see deposit balances and accrued yield across all markets</p>
+                <p style="font-size:12px;color:var(--text-muted);margin-top:4px;opacity:0.7">⚠ Shows
+                    <strong>lending/supply yield</strong> only — does not include borrow positions or trading P&L
+                </p>
             </div>
 
             <div class="earn-input-card anim anim-d1">
@@ -10706,6 +10709,13 @@
                 // Step 4: Resolve token info from subgraph cache (populated during earn_fetchNetflow)
                 // No more need for complex RPC lookups — subgraph gives us everything
                 const marketTokens = {};
+                // Populate marketTokens from subgraph cache for tokens not in activeBalances
+                for (const mid of marketIds) {
+                    const midStr = String(mid);
+                    if (!activeBalances[midStr] && earn_subgraphTokens[midStr]?.tokenAddr) {
+                        marketTokens[midStr] = earn_subgraphTokens[midStr].tokenAddr;
+                    }
+                }
 
                 // Step 6: Fetch CoinGecko prices
                 const allAddrs = marketIds.map(mid => {
@@ -11479,7 +11489,7 @@
                 const allMarketIds = Object.keys(netflows);
                 if (allMarketIds.length > 0) {
                     const tokensData = await earn_subgraphQuery(endpoint,
-                        `{ tokens(first: 100, where: { marketId_in: [${allMarketIds.map(m => `"${m}"`).join(',')}] }) { marketId symbol name decimals } }`
+                        `{ tokens(first: 100, where: { marketId_in: [${allMarketIds.map(m => `"${m}"`).join(',')}] }) { id marketId symbol name decimals } }`
                     );
                     const decimalsMap = {};
                     for (const t of (tokensData.tokens || [])) {
@@ -11489,6 +11499,7 @@
                             symbol: t.symbol,
                             decimals: parseInt(t.decimals),
                             name: t.name,
+                            tokenAddr: t.id, // token contract address
                         };
                     }
 
@@ -12205,6 +12216,14 @@
                             </td>
                             <td>
                                 <span class="earn-amount" style="color:var(--text-muted)">${balFmt}<span class="earn-amount-sym">${item.symbol}</span></span>
+                                ${(() => {
+                                const chainId = document.getElementById('earn-chain').value;
+                                const priceKey = chainId + ':' + (item.tokenAddr || '').toLowerCase();
+                                const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[item.symbol] || 0;
+                                const balNum = Number(item.currentWei) / (10 ** item.decimals);
+                                const balUsd = Math.abs(balNum * price);
+                                return balUsd >= 0.01 ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">≈ $${balUsd >= 1000 ? (balUsd / 1000).toFixed(2) + 'K' : balUsd >= 1 ? balUsd.toFixed(2) : balUsd.toFixed(4)}</div>` : '';
+                            })()}
                             </td>
                             <td>
                                 <span class="earn-amount ${yieldColor}">${yieldSign}${yieldFmt}<span class="earn-amount-sym">${item.symbol}</span></span>
