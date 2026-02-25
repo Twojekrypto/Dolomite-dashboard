@@ -37,6 +37,7 @@ jobs:
         run: python update_data.py
         env:
           BERASCAN_API_KEY: ${{ secrets.BERASCAN_API_KEY }}
+          ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
 
       - name: Fetch DeFi Llama data
         run: python3 fetch_defillama.py
