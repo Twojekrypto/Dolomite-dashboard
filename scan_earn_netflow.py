@@ -40,6 +40,7 @@ CHAINS = {
         "margin": "0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D",
         "rpcs": [
             *([] if not os.environ.get("ALCHEMY_BERACHAIN_RPC") else [os.environ["ALCHEMY_BERACHAIN_RPC"]]),
+            *([] if not os.environ.get("ALCHEMY_BERACHAIN_RPC_2") else [os.environ["ALCHEMY_BERACHAIN_RPC_2"]]),
             "https://rpc.berachain.com/",
             "https://berachain-rpc.publicnode.com/",
             "https://1rpc.io/berachain",
