@@ -3643,6 +3643,44 @@
             border-color: rgba(99, 102, 241, 0.5);
         }
 
+        /* Dust button amber override */
+        #earn-dust-toggle.active {
+            background: rgba(251, 191, 36, 0.12);
+            border-color: rgba(251, 191, 36, 0.35);
+            color: #fbbf24;
+            box-shadow: 0 0 12px rgba(251, 191, 36, 0.1);
+        }
+
+        #earn-dust-toggle.active:hover {
+            background: rgba(251, 191, 36, 0.2);
+            border-color: rgba(251, 191, 36, 0.5);
+        }
+
+        .earn-withdrawn-btn:disabled {
+            opacity: 0.35;
+            cursor: default;
+            pointer-events: none;
+        }
+
+        .earn-dust-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 16px;
+            height: 16px;
+            padding: 0 4px;
+            border-radius: 8px;
+            font-size: 10px;
+            font-weight: 700;
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
+        }
+
+        #earn-dust-toggle.active .earn-dust-count {
+            background: rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
+        }
+
         .earn-withdrawn-icon {
             width: 13px;
             height: 13px;
@@ -5947,6 +5985,7 @@
                                                     <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
                                                 </svg>
                                                 <span class="earn-withdrawn-label">Show Dust</span>
+                                                <span class="earn-dust-count">0</span>
                                             </button>
                                         </div>
                                     </th>
@@ -12193,9 +12232,45 @@
             // Show inline inactive toggle in table header
             const inactiveToggle = document.getElementById('earn-inactive-toggle');
             if (inactiveToggle) inactiveToggle.style.display = '';
-            // Show dust toggle in table header
+            // Show dust toggle and update its count
             const dustToggle = document.getElementById('earn-dust-toggle');
-            if (dustToggle) dustToggle.style.display = '';
+            if (dustToggle) {
+                dustToggle.style.display = '';
+                // Count how many items the dust filter is hiding
+                let dustCount = 0;
+                // Count dust in active assets
+                (earn_cachedAssets || []).forEach(a => {
+                    if (a.usdValue < 0.01 && Math.abs(a.yieldUsd || 0) < 0.01) dustCount++;
+                });
+                // Count dust in inactive assets
+                if (earn_historyData && earn_historyData.length > 0) {
+                    const activeAddrs = new Set(assets.map(a => a.tokenAddr?.toLowerCase()));
+                    earn_historyData.forEach(item => {
+                        if (item.isActive) return;
+                        if (item.isIsolation && !item.isActive) return;
+                        if (activeAddrs.has(item.tokenAddr?.toLowerCase())) return;
+                        const chainId = document.getElementById('earn-chain').value;
+                        const priceKey = chainId + ':' + (item.tokenAddr || '').toLowerCase();
+                        const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[item.symbol] || 0;
+                        const balanceNum = Number(item.currentWei) / (10 ** item.decimals);
+                        const balanceUsd = Math.abs(balanceNum * price);
+                        if (balanceUsd < 0.01 && Math.abs(item.yieldUsd) < 0.01) dustCount++;
+                    });
+                }
+                // Update button label
+                const label = dustToggle.querySelector('.earn-withdrawn-label');
+                const countBadge = dustToggle.querySelector('.earn-dust-count');
+                if (dustCount > 0) {
+                    dustToggle.disabled = false;
+                    if (label) label.textContent = earn_showDust ? 'Hide Dust' : 'Show Dust';
+                    if (countBadge) countBadge.textContent = dustCount;
+                } else {
+                    dustToggle.disabled = true;
+                    dustToggle.classList.remove('active');
+                    if (label) label.textContent = 'No Dust';
+                    if (countBadge) countBadge.textContent = '0';
+                }
+            }
         }
 
         // Enter key to search
