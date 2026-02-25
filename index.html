@@ -3607,6 +3607,48 @@
             color: #a5b4fc;
         }
 
+        /* Earn Withdrawn pill button */
+        .earn-withdrawn-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            white-space: nowrap;
+            letter-spacing: 0.3px;
+        }
+
+        .earn-withdrawn-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.18);
+            color: var(--text-secondary);
+        }
+
+        .earn-withdrawn-btn.active {
+            background: rgba(99, 102, 241, 0.15);
+            border-color: rgba(99, 102, 241, 0.35);
+            color: #a5b4fc;
+            box-shadow: 0 0 12px rgba(99, 102, 241, 0.12);
+        }
+
+        .earn-withdrawn-btn.active:hover {
+            background: rgba(99, 102, 241, 0.22);
+            border-color: rgba(99, 102, 241, 0.5);
+        }
+
+        .earn-withdrawn-icon {
+            width: 13px;
+            height: 13px;
+            flex-shrink: 0;
+        }
+
         /* Earn History Table */
         .earn-history-results {
             display: none;
@@ -5885,14 +5927,17 @@
                                     <th>
                                         <div style="display:flex;align-items:center;gap:10px">
                                             <span>Token</span>
-                                            <label class="chain-toggle earn-inactive-toggle" id="earn-inactive-toggle"
-                                                title="Show withdrawn/inactive assets" style="display:none">
-                                                <span
-                                                    style="font-size:11px;color:var(--text-muted);white-space:nowrap">Inactive</span>
-                                                <input type="checkbox" id="earn-show-inactive"
-                                                    onchange="earn_toggleInactive()">
-                                                <span class="chain-toggle-slider eth"></span>
-                                            </label>
+                                            <button type="button" class="earn-withdrawn-btn" id="earn-inactive-toggle"
+                                                onclick="earn_toggleInactive()" style="display:none"
+                                                title="Show or hide withdrawn assets">
+                                                <svg class="earn-withdrawn-icon" viewBox="0 0 24 24" fill="none"
+                                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                                    stroke-linejoin="round">
+                                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                                    <circle cx="12" cy="12" r="3" />
+                                                </svg>
+                                                <span class="earn-withdrawn-label">Show Withdrawn</span>
+                                            </button>
                                         </div>
                                     </th>
                                     <th data-sort="balance" class="sort-active" onclick="earn_sortAssets('balance')">
@@ -10544,7 +10589,18 @@
         }
 
         function earn_toggleInactive() {
-            earn_showInactive = document.getElementById('earn-show-inactive').checked;
+            earn_showInactive = !earn_showInactive;
+            // Update button visual state
+            const btn = document.getElementById('earn-inactive-toggle');
+            if (btn) {
+                btn.classList.toggle('active', earn_showInactive);
+                const label = btn.querySelector('.earn-withdrawn-label');
+                const icon = btn.querySelector('.earn-withdrawn-icon');
+                if (label) label.textContent = earn_showInactive ? 'Hide Withdrawn' : 'Show Withdrawn';
+                if (icon) icon.innerHTML = earn_showInactive
+                    ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'
+                    : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+            }
             // Re-render with the new filter setting
             if (earn_cachedAssets.length > 0 || earn_historyData) {
                 earn_renderResults(earn_cachedAssets);
@@ -11586,9 +11642,17 @@
             document.getElementById('earn-empty').classList.remove('visible');
             document.getElementById('earn-results').classList.remove('visible');
             document.getElementById('earn-mode-toggle').classList.remove('visible');
-            // Hide inline inactive toggle
+            // Hide inline inactive toggle and reset its state
             const inactiveToggle = document.getElementById('earn-inactive-toggle');
-            if (inactiveToggle) inactiveToggle.style.display = 'none';
+            if (inactiveToggle) {
+                inactiveToggle.style.display = 'none';
+                inactiveToggle.classList.remove('active');
+                const label = inactiveToggle.querySelector('.earn-withdrawn-label');
+                const icon = inactiveToggle.querySelector('.earn-withdrawn-icon');
+                if (label) label.textContent = 'Show Withdrawn';
+                if (icon) icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+            }
+            earn_showInactive = false;
             // Reset history state
             earn_historyData = null;
         }
@@ -11641,8 +11705,16 @@
                             const addrFlows = nfData.netflows && nfData.netflows[addr.toLowerCase()];
                             if (addrFlows && Object.keys(addrFlows).length > 0) {
                                 // Has history but no active deposits — auto-enable inactive toggle
-                                document.getElementById('earn-show-inactive').checked = true;
                                 earn_showInactive = true;
+                                // Update button state
+                                const btn = document.getElementById('earn-inactive-toggle');
+                                if (btn) {
+                                    btn.classList.add('active');
+                                    const label = btn.querySelector('.earn-withdrawn-label');
+                                    const icon = btn.querySelector('.earn-withdrawn-icon');
+                                    if (label) label.textContent = 'Hide Withdrawn';
+                                    if (icon) icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+                                }
                                 // Load history and render in unified view
                                 earn_lookupHistory().then(() => {
                                     earn_renderResults([]);
