@@ -35,8 +35,10 @@ TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523
 ETHERSCAN_V2 = "https://api.etherscan.io/v2/api"
 CHAIN_ID = 80094  # Berachain
 ALCHEMY_RPC = os.environ.get("ALCHEMY_BERACHAIN_RPC", "")
+ALCHEMY_RPC_2 = os.environ.get("ALCHEMY_BERACHAIN_RPC_2", "")
 RPC_URLS = [
-    *([] if not ALCHEMY_RPC else [ALCHEMY_RPC]),  # Primary: Alchemy
+    *([] if not ALCHEMY_RPC else [ALCHEMY_RPC]),
+    *([] if not ALCHEMY_RPC_2 else [ALCHEMY_RPC_2]),
     "https://berachain-rpc.publicnode.com/",
     "https://berachain.drpc.org/",
     "https://rpc.berachain.com/",

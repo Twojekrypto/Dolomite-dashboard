@@ -27,8 +27,10 @@ SEL = {
 }
 
 ALCHEMY_RPC = os.environ.get("ALCHEMY_BERACHAIN_RPC", "")
+ALCHEMY_RPC_2 = os.environ.get("ALCHEMY_BERACHAIN_RPC_2", "")
 RPC_URLS = [
-    *([] if not ALCHEMY_RPC else [ALCHEMY_RPC]),  # Primary: Alchemy
+    *([] if not ALCHEMY_RPC else [ALCHEMY_RPC]),
+    *([] if not ALCHEMY_RPC_2 else [ALCHEMY_RPC_2]),
     "https://rpc.berachain.com/",
     "https://berachain-rpc.publicnode.com/",
     "https://berachain.drpc.org/",
