@@ -686,6 +686,20 @@ def main():
     stats["total_locked_dolo"] = round(total_locked_dolo, 2)
     stats["total_vote_weight"] = round(total_vote_weight, 4)
 
+    # ===== GROUND TRUTH: Use on-chain balanceOf as definitive DOLO Locked =====
+    # Individual locked() calls may fail (RPC rate limits), but balanceOf is a
+    # single call that always returns the exact contract balance.
+    onchain_locked = fetch_contract_dolo_balance()
+    if onchain_locked > 0:
+        print(f"\n  📊 On-chain DOLO balance (ground truth): {onchain_locked:,.2f}")
+        print(f"     Per-holder sum (approximate):          {total_locked_dolo:,.2f}")
+        diff_pct = abs(total_locked_dolo - onchain_locked) / onchain_locked * 100
+        print(f"     Difference: {diff_pct:.1f}%")
+        stats["total_locked_dolo"] = round(onchain_locked, 2)
+        total_locked_dolo = onchain_locked
+    else:
+        print(f"\n  ⚠️  Could not fetch on-chain balance — using per-holder sum as fallback")
+
     # ===== DATA PROTECTION: Don't overwrite good stats with corrupted data =====
     # Guard against both total zero AND suspicious drops (>50% decline = likely RPC failure)
     try:
