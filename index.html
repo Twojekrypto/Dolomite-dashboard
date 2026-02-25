@@ -3617,7 +3617,9 @@
         }
 
         .earn-hist-badge {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
             padding: 2px 8px;
             border-radius: 6px;
             font-size: 10px;
@@ -3626,13 +3628,43 @@
         }
 
         .earn-hist-badge.active {
-            background: rgba(99, 102, 241, 0.18);
-            color: #a5b4fc;
+            background: rgba(52, 211, 153, 0.12);
+            color: #34d399;
+        }
+
+        .earn-hist-badge.active .earn-status-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: #34d399;
+            box-shadow: 0 0 6px rgba(52, 211, 153, 0.6);
+            animation: livePulse 2s ease-in-out infinite;
         }
 
         .earn-hist-badge.withdrawn {
-            background: rgba(255, 255, 255, 0.06);
-            color: var(--text-muted);
+            background: rgba(239, 68, 68, 0.08);
+            color: rgba(239, 68, 68, 0.6);
+        }
+
+        .earn-hist-badge.withdrawn .earn-status-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: rgba(239, 68, 68, 0.4);
+        }
+
+        /* Inactive row styling */
+        .earn-data-row.earn-row-inactive {
+            opacity: 0.5;
+        }
+
+        .earn-data-row.earn-row-inactive .earn-token-icon {
+            filter: grayscale(0.7);
+            opacity: 0.6;
+        }
+
+        .earn-data-row.earn-row-inactive:hover {
+            opacity: 0.75;
         }
 
         .earn-hist-badge.isolation {
@@ -11923,6 +11955,7 @@
                                 ${iconHtml}
                                 <div class="earn-token-info">
                                     <div class="earn-token-name">${a.symbol} ${chevron}</div>
+                                    <div style="margin-top:3px"><span class="earn-hist-badge active"><span class="earn-status-dot"></span>ACTIVE</span></div>
                                 </div>
                             </div>
                         </div>
@@ -12010,14 +12043,14 @@
                         // Explorer link
                         const explorerUrl = `${explorerBase}/address/${item.tokenAddr}`;
 
-                        html += `<tr class="earn-data-row" id="earn-inactive-row-${i}" style="animation-delay:${delay}s;opacity:0.6" onclick="earn_toggleDetail(${ii})">
+                        html += `<tr class="earn-data-row earn-row-inactive" id="earn-inactive-row-${i}" style="animation-delay:${delay}s" onclick="earn_toggleDetail(${ii})">
                             <td>
                                 <div class="earn-token-cell">
                                     <div class="earn-token-left">
                                         ${iconHtml}
                                         <div class="earn-token-info">
                                             <div class="earn-token-name">${item.symbol} ${chevron}</div>
-                                            <div style="margin-top:3px"><span class="earn-hist-badge withdrawn">WITHDRAWN</span></div>
+                                            <div style="margin-top:3px"><span class="earn-hist-badge withdrawn"><span class="earn-status-dot"></span>WITHDRAWN</span></div>
                                         </div>
                                     </div>
                                 </div>
