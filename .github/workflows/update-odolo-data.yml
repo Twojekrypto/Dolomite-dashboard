@@ -47,5 +47,10 @@ jobs:
           git add exercised_usd.json avg_lock_data.json exercisers_by_address.json odolo_contract_data.json
           git diff --staged --quiet && echo "No changes to commit" && exit 0
           git commit -m "📊 oDOLO data update: $(date -u '+%Y-%m-%d %H:%M UTC')"
-          git pull --rebase origin master
+          # Pull with auto-resolve: our freshly generated data always wins
+          if ! git pull --rebase origin master; then
+            echo "⚠️ Rebase conflict — resolving with our data..."
+            git rebase --abort
+            git pull -X ours origin master
+          fi
           git push
