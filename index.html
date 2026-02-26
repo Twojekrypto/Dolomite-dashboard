@@ -809,6 +809,49 @@
             border-radius: 100px;
         }
 
+        /* ===== CHAIN FILTER PILLS ===== */
+        .dolo-chain-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-left: auto;
+        }
+
+        .dolo-chain-pills button {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-muted);
+            font-size: 10px;
+            font-weight: 500;
+            padding: 3px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .dolo-chain-pills button:hover {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: rgba(99, 102, 241, 0.2);
+            color: var(--text-secondary);
+        }
+
+        .dolo-chain-pills button.active {
+            background: rgba(99, 102, 241, 0.15);
+            border-color: rgba(99, 102, 241, 0.3);
+            color: #a5b4fc;
+            font-weight: 600;
+        }
+
+        .dolo-chain-badge {
+            font-size: 9px;
+            color: var(--text-muted);
+            opacity: 0.6;
+            margin-left: 3px;
+        }
+
         /* ===== PROTOCOL INFO ===== */
         .protocol-info-card {
             padding: 0;
@@ -6233,8 +6276,9 @@
 
                 <!-- Token Composition Donut -->
                 <div class="card">
-                    <div class="card-header">
+                    <div class="card-header" style="flex-wrap:wrap;gap:8px">
                         <h3>Token Composition</h3>
+                        <div id="dolo-chain-filter" class="dolo-chain-pills"></div>
                     </div>
                     <div style="display:flex;flex-direction:column;align-items:center;padding:20px">
                         <div id="dolo-donut-wrap" style="position:relative;width:260px;height:260px;flex-shrink:0">
@@ -9292,6 +9336,7 @@
                 dolo_applyRange(360);
                 dolo_renderTvlChart(dolo_cachedData);
 
+                dolo_buildChainPills(dolo_cachedData);
                 dolo_renderTokenDonut(dolo_cachedData);
                 dolo_renderProtocolInfo(llRes);
             } catch (err) {
@@ -10178,36 +10223,88 @@
             if (tip) tip.style.display = 'none';
         }
 
+        let dolo_selectedChain = 'all';
+
+        function dolo_buildChainPills(data) {
+            const filterEl = document.getElementById('dolo-chain-filter');
+            if (!filterEl || !data.ll) return;
+            const chainTokens = data.ll.chainTokensInUsd || {};
+            const chains = Object.keys(chainTokens).sort((a, b) => {
+                const va = Object.values(chainTokens[a] || {}).reduce((s, v) => s + (typeof v === 'number' ? v : 0), 0);
+                const vb = Object.values(chainTokens[b] || {}).reduce((s, v) => s + (typeof v === 'number' ? v : 0), 0);
+                return vb - va;
+            });
+            if (!chains.length) { filterEl.innerHTML = ''; return; }
+            const SHORT = { 'Ethereum': 'ETH', 'Arbitrum': 'ARB', 'Berachain': 'BERA', 'Mantle': 'MNT', 'Polygon zkEVM': 'zkEVM', 'X Layer': 'XLAY', 'Botanix': 'BOT' };
+            let html = `<button class="active" data-chain="all">All</button>`;
+            chains.forEach(c => {
+                html += `<button data-chain="${c}">${SHORT[c] || c.slice(0, 5).toUpperCase()}</button>`;
+            });
+            filterEl.innerHTML = html;
+            filterEl.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    dolo_selectedChain = btn.dataset.chain;
+                    filterEl.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    dolo_renderTokenDonut(data);
+                });
+            });
+        }
+
         function dolo_renderTokenDonut(data) {
             const wrap = document.getElementById('dolo-donut-wrap');
             if (!wrap || !data.ll) return;
 
-            // Get token breakdown from tokensInUsd if available
+            const chainTokens = data.ll.chainTokensInUsd || {};
             let tokens = [];
-            const tokensInUsd = data.ll.tokensInUsd || [];
-            if (tokensInUsd.length > 0) {
-                const latest = tokensInUsd[tokensInUsd.length - 1];
-                const tokenMap = latest.tokens || {};
+
+            if (dolo_selectedChain !== 'all') {
+                // Single chain mode — use chainTokensInUsd
+                const tokenMap = chainTokens[dolo_selectedChain] || {};
                 for (const [name, val] of Object.entries(tokenMap)) {
-                    if (typeof val === 'number' && val > 0) tokens.push({ name, value: val });
+                    if (typeof val === 'number' && val > 0) tokens.push({ name, value: val, chain: dolo_selectedChain });
+                }
+            } else {
+                // All chains mode — use aggregated tokensInUsd, with chain lookup for badges
+                const tokensInUsd = data.ll.tokensInUsd || [];
+                if (tokensInUsd.length > 0) {
+                    const latest = tokensInUsd[tokensInUsd.length - 1];
+                    const tokenMap = latest.tokens || {};
+                    // Build reverse lookup: token → primary chain (highest value)
+                    const tokenChainMap = {};
+                    for (const [ch, chTokens] of Object.entries(chainTokens)) {
+                        for (const [tk, val] of Object.entries(chTokens || {})) {
+                            if (typeof val !== 'number') continue;
+                            if (!tokenChainMap[tk] || val > tokenChainMap[tk].val) {
+                                tokenChainMap[tk] = { chain: ch, val };
+                            }
+                        }
+                    }
+                    for (const [name, val] of Object.entries(tokenMap)) {
+                        if (typeof val === 'number' && val > 0) {
+                            tokens.push({ name, value: val, chain: tokenChainMap[name]?.chain || '' });
+                        }
+                    }
+                }
+                if (!tokens.length) {
+                    const tvl = data.ll.currentChainTvls || {};
+                    for (const [c, v] of Object.entries(tvl)) {
+                        if (!c.includes('-') && typeof v === 'number' && v > 0) tokens.push({ name: c, value: v, chain: '' });
+                    }
                 }
             }
-            if (!tokens.length) {
-                const tvl = data.ll.currentChainTvls || {};
-                for (const [c, v] of Object.entries(tvl)) {
-                    if (!c.includes('-') && typeof v === 'number' && v > 0) tokens.push({ name: c, value: v });
-                }
-            }
+
             tokens.sort((a, b) => b.value - a.value);
             if (tokens.length > 8) {
                 const top = tokens.slice(0, 8);
                 const otherVal = tokens.slice(8).reduce((s, t) => s + t.value, 0);
-                top.push({ name: 'Other', value: otherVal });
+                top.push({ name: 'Other', value: otherVal, chain: '' });
                 tokens = top;
             }
             const total = tokens.reduce((s, t) => s + t.value, 0);
             if (!total) return;
 
+            const SHORT_CHAIN = { 'Ethereum': 'ETH', 'Arbitrum': 'ARB', 'Berachain': 'BERA', 'Mantle': 'MNT', 'Polygon zkEVM': 'zkEVM', 'X Layer': 'XLAY', 'Botanix': 'BOT' };
             const size = 260, cx = 130, cy = 130, r = 110, innerR = 70;
             let angle = -Math.PI / 2;
             const sliceData = [];
@@ -10227,7 +10324,8 @@
                 const large = sweep > Math.PI ? 1 : 0;
                 const d = `M${x1},${y1} A${r},${r} 0 ${large} 1 ${x2},${y2} L${ix1},${iy1} A${innerR},${innerR} 0 ${large} 0 ${ix2},${iy2} Z`;
                 pathElems.push({ d, color, i });
-                sliceData.push({ name: t.name, value: t.value, pct: ((t.value / total) * 100).toFixed(1), color, startAngle: angle, endAngle: angle + sweep });
+                const chainBadge = (dolo_selectedChain === 'all' && t.chain) ? ` <span class="dolo-chain-badge">·${SHORT_CHAIN[t.chain] || t.chain.slice(0, 4)}</span>` : '';
+                sliceData.push({ name: t.name, chainBadge, value: t.value, pct: ((t.value / total) * 100).toFixed(1), color, startAngle: angle, endAngle: angle + sweep });
                 angle += sweep;
             });
 
@@ -10266,7 +10364,8 @@
             // Center text
             const centerOverlay = document.getElementById('dolo-donut-center');
             if (centerOverlay) {
-                centerOverlay.innerHTML = `<div style="font-weight:600;font-size:16px;color:#f0f0f6">${dolo_fmt(total)}</div><div style="font-size:11px;color:#555770;margin-top:2px">Total Value</div>`;
+                const label = dolo_selectedChain === 'all' ? 'Total Value' : dolo_selectedChain;
+                centerOverlay.innerHTML = `<div style="font-weight:600;font-size:16px;color:#f0f0f6">${dolo_fmt(total)}</div><div style="font-size:11px;color:#555770;margin-top:2px">${label}</div>`;
             }
 
             // Legend
@@ -10274,7 +10373,7 @@
             legend.innerHTML = sliceData.map((s, i) => `<div data-idx="${i}" class="dolo-legend-item" style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:default;padding:4px 8px;border-radius:6px;transition:all 0.2s"
                 onmouseover="dolo_highlightSlice(${i})" onmouseout="dolo_highlightSlice(-1)">
                 <span style="width:10px;height:10px;border-radius:3px;background:${s.color};flex-shrink:0"></span>
-                <span class="legend-text" style="flex:1;color:var(--text-secondary);transition:all 0.15s">${s.name}</span>
+                <span class="legend-text" style="flex:1;color:var(--text-secondary);transition:all 0.15s">${s.name}${s.chainBadge}</span>
                 <span class="legend-text" style="color:var(--text-muted);font-weight:500;transition:all 0.15s">${s.pct}%</span>
                 <span class="legend-text" style="color:var(--text-secondary);min-width:60px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;transition:all 0.15s">${dolo_fmt(s.value)}</span>
             </div>`).join('');

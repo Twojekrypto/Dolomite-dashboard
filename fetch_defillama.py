@@ -37,11 +37,28 @@ def main():
         tokens_in_usd = data.get("tokensInUsd", [])
         last_token_entry = tokens_in_usd[-1] if tokens_in_usd else None
 
+        # 3b. Per-chain token composition (for chain filter on donut chart)
+        chain_tvls_raw = data.get("chainTvls", {})
+        NON_CHAINS = {'borrowed', 'staking', 'pool2', 'vesting',
+                      'offers', 'treasury', 'cex', 'governance'}
+        chain_tokens_in_usd = {}
+        for chain_name, chain_data in chain_tvls_raw.items():
+            if '-' in chain_name or chain_name.lower() in NON_CHAINS:
+                continue
+            if not isinstance(chain_data, dict):
+                continue
+            ct = chain_data.get("tokensInUsd", [])
+            if ct:
+                last_ct = ct[-1]
+                if isinstance(last_ct, dict) and "tokens" in last_ct:
+                    chain_tokens_in_usd[chain_name] = last_ct["tokens"]
+
         # 4. Metadata (used by Protocol Info section)
         output = {
             "currentChainTvls": current_chain_tvls,
             "tvl": tvl_history,
             "tokensInUsd": [last_token_entry] if last_token_entry else [],
+            "chainTokensInUsd": chain_tokens_in_usd,
             "name": data.get("name", "Dolomite"),
             "category": data.get("category", ""),
             "chains": data.get("chains", []),
