@@ -5644,6 +5644,17 @@
                             style="font-size:0.85em;opacity:0.7;margin-left:8px"></span>
                     </div>
                 </div>
+                <div class="table-toolbar">
+                    <div class="search-input-wrapper">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        </svg>
+                        <input type="text" id="recent-claims-search" placeholder="Search address 0x… or TX hash"
+                            oninput="recentClaimsSearchChanged()">
+                    </div>
+                </div>
                 <div id="recent-claims-loading" style="text-align:center;padding:30px;color:var(--text-muted)">
                     <div class="spinner" style="margin:0 auto 8px"></div>
                     Scanning on-chain events…
@@ -5696,6 +5707,17 @@
                         </div>
                         <span class="toolbar-count" id="recent-locks-count"
                             style="font-size:0.85em;opacity:0.7;margin-left:8px"></span>
+                    </div>
+                </div>
+                <div class="table-toolbar">
+                    <div class="search-input-wrapper">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        </svg>
+                        <input type="text" id="recent-locks-search" placeholder="Search address 0x… or TX hash"
+                            oninput="recentLocksSearchChanged()">
                     </div>
                 </div>
                 <div id="recent-locks-loading" style="text-align:center;padding:30px;color:var(--text-muted)">
@@ -5985,6 +6007,17 @@
                         </div>
                         <span class="toolbar-count" id="recent-ex-count"
                             style="font-size:0.85em;opacity:0.7;margin-left:8px"></span>
+                    </div>
+                </div>
+                <div class="table-toolbar">
+                    <div class="search-input-wrapper">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        </svg>
+                        <input type="text" id="recent-ex-search" placeholder="Search address 0x… or TX hash"
+                            oninput="recentExSearchChanged()">
                     </div>
                 </div>
                 <div class="table-scroll">
@@ -8229,6 +8262,13 @@
         let recentExPage = 1;
         let recentExPeriodDays = 7;
         const RECENT_EX_PER_PAGE = 5;
+        let recentExSearchTerm = '';
+
+        function recentExSearchChanged() {
+            recentExSearchTerm = (document.getElementById('recent-ex-search').value || '').trim().toLowerCase();
+            recentExPage = 1;
+            renderRecentExercisers();
+        }
 
         function setRecentExPeriod(days) {
             recentExPeriodDays = days;
@@ -8289,6 +8329,11 @@
             if (!tbody) return;
 
             let data = [...RECENT_EX_DATA];
+
+            // Search filter
+            if (recentExSearchTerm) {
+                data = data.filter(tx => tx.address.toLowerCase().includes(recentExSearchTerm) || tx.hash.toLowerCase().includes(recentExSearchTerm));
+            }
 
             // Sort
             data.sort((a, b) => {
@@ -8388,6 +8433,20 @@
         let vedolo_locksSortKey = 'rank';
         let vedolo_locksSortAsc = false;
         let vedolo_eventsLoaded = false;
+        let recentClaimsSearchTerm = '';
+        let recentLocksSearchTerm = '';
+
+        function recentClaimsSearchChanged() {
+            recentClaimsSearchTerm = (document.getElementById('recent-claims-search').value || '').trim().toLowerCase();
+            vedolo_claimsPage = 1;
+            renderRecentClaims();
+        }
+
+        function recentLocksSearchChanged() {
+            recentLocksSearchTerm = (document.getElementById('recent-locks-search').value || '').trim().toLowerCase();
+            vedolo_locksPage = 1;
+            renderRecentLocks();
+        }
 
         async function vedolo_rpcCall(method, params) {
             for (const rpc of VEDOLO_RPC_URLS) {
@@ -8583,6 +8642,11 @@
 
             let data = [...vedolo_filteredClaims];
 
+            // Search filter
+            if (recentClaimsSearchTerm) {
+                data = data.filter(c => c.address.toLowerCase().includes(recentClaimsSearchTerm) || c.txHash.toLowerCase().includes(recentClaimsSearchTerm));
+            }
+
             // Sort
             data.sort((a, b) => {
                 let va, vb;
@@ -8669,6 +8733,11 @@
             if (!tbody) return;
 
             let data = [...vedolo_filteredLocks];
+
+            // Search filter
+            if (recentLocksSearchTerm) {
+                data = data.filter(l => l.address.toLowerCase().includes(recentLocksSearchTerm) || l.txHash.toLowerCase().includes(recentLocksSearchTerm));
+            }
 
             // Sort
             data.sort((a, b) => {
