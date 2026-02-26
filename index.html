@@ -812,11 +812,49 @@
         /* ===== PROTOCOL INFO ===== */
         .protocol-info-card {
             padding: 0;
+            background: linear-gradient(135deg, #0f1628 0%, #141a2e 40%, #161d30 100%);
+            border: 1px solid rgba(99, 102, 241, 0.15);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .protocol-info-card::before {
+            content: '';
+            position: absolute;
+            top: -40px;
+            right: -40px;
+            width: 200px;
+            height: 200px;
+            background: url('https://icons.llama.fi/dolomite.jpg') no-repeat center center;
+            background-size: contain;
+            opacity: 0.04;
+            border-radius: 50%;
+            pointer-events: none;
+            filter: grayscale(30%);
         }
 
         .protocol-info-card .card-header {
             margin-bottom: 0;
             padding: 24px 24px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .protocol-info-card .card-header img {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .protocol-info-card .card-header h3 {
+            background: linear-gradient(90deg, #e2e8f0, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 15px;
+            letter-spacing: 0.5px;
         }
 
         .protocol-links-row {
@@ -824,7 +862,9 @@
             flex-wrap: wrap;
             gap: 10px;
             padding: 0 24px 20px;
-            border-bottom: 1px solid var(--border-subtle);
+            border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+            position: relative;
+            z-index: 1;
         }
 
         .protocol-link-pill {
@@ -832,8 +872,8 @@
             align-items: center;
             gap: 7px;
             padding: 8px 16px;
-            background: var(--bg-input);
-            border: 1px solid var(--border-default);
+            background: rgba(99, 102, 241, 0.06);
+            border: 1px solid rgba(99, 102, 241, 0.12);
             border-radius: 8px;
             color: var(--text-secondary);
             font-size: 13px;
@@ -844,11 +884,11 @@
         }
 
         .protocol-link-pill:hover {
-            border-color: var(--accent-indigo);
+            border-color: rgba(99, 102, 241, 0.4);
             color: var(--text-primary);
-            background: rgba(99, 102, 241, 0.08);
+            background: rgba(99, 102, 241, 0.12);
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+            box-shadow: 0 4px 16px rgba(99, 102, 241, 0.2);
         }
 
         .protocol-link-pill svg {
@@ -869,7 +909,7 @@
             align-items: center;
             gap: 12px;
             padding: 12px 24px;
-            border-bottom: 1px solid var(--border-subtle);
+            border-bottom: 1px solid rgba(99, 102, 241, 0.06);
             transition: all 0.2s ease;
             border-left: 3px solid transparent;
             cursor: pointer;
@@ -5765,6 +5805,7 @@
             <!-- Protocol Info -->
             <div class="card anim anim-d4 protocol-info-card" style="margin-top:24px">
                 <div class="card-header">
+                    <img src="https://icons.llama.fi/dolomite.jpg" alt="Dolomite">
                     <h3>Protocol Info</h3>
                 </div>
                 <div class="protocol-links-row proto-links"></div>
@@ -6121,6 +6162,7 @@
             <!-- Protocol Info -->
             <div class="card anim anim-d4 protocol-info-card" style="margin-top:24px">
                 <div class="card-header">
+                    <img src="https://icons.llama.fi/dolomite.jpg" alt="Dolomite">
                     <h3>Protocol Info</h3>
                 </div>
                 <div class="protocol-links-row proto-links"></div>
@@ -6343,6 +6385,7 @@
             <!-- Protocol Info -->
             <div class="card anim anim-d4 protocol-info-card" style="margin-top:24px">
                 <div class="card-header">
+                    <img src="https://icons.llama.fi/dolomite.jpg" alt="Dolomite">
                     <h3>Protocol Info</h3>
                 </div>
                 <div class="protocol-links-row proto-links"></div>
@@ -6508,6 +6551,7 @@
             <!-- Protocol Info -->
             <div class="card anim anim-d4 protocol-info-card" style="margin-top:24px">
                 <div class="card-header">
+                    <img src="https://icons.llama.fi/dolomite.jpg" alt="Dolomite">
                     <h3>Protocol Info</h3>
                 </div>
                 <div class="protocol-links-row proto-links"></div>
