@@ -26,6 +26,12 @@ EXCLUDED_ADDRS = {
     "0x3e9b9a16743551da49b5e136c716bba7932d2cec",
     # Kodiak contract
     "0x43dac637c4383f91b4368041e7a8687da3806cae",
+    # Contract
+    "0x63242a4ea82847b20e506b63b0e2e2eff0cc6cb0",
+    # Protocol Fly
+    "0x596384bdffc9f563b53791aeec50a42ff51c3e42",
+    # Contract
+    "0x27f66ba3fda600239f48526bb26a1f8d5700ccf7",
 }
 
 RPC_URLS = [
