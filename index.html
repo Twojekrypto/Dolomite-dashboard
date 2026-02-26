@@ -4608,6 +4608,51 @@
             border-radius: 0 0 0 16px;
         }
 
+        /* Withdrawn bar — pinned below main table */
+        .earn-withdrawn-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s ease;
+            border-radius: 12px;
+            margin-top: 8px;
+        }
+
+        .earn-withdrawn-bar:hover {
+            background: rgba(239, 68, 68, 0.04);
+        }
+
+        .earn-withdrawn-bar span {
+            font-size: 10px;
+            color: rgba(239, 68, 68, 0.7);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .earn-withdrawn-bar .earn-withdrawn-chevron {
+            transition: transform 0.3s ease;
+        }
+
+        .earn-withdrawn-body {
+            background: var(--bg-card);
+            border: 1px solid rgba(239, 68, 68, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        .earn-withdrawn-table {
+            margin-top: 0 !important;
+        }
+
         /* Withdrawn divider — no hover effects */
         .earn-withdrawn-divider:hover td {
             background: transparent !important;
@@ -6386,6 +6431,42 @@
                             </thead>
                             <tbody id="earn-table-body"></tbody>
                             <tfoot id="earn-table-foot" style="display:none"></tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Withdrawn section — OUTSIDE the scrollable table, always visible -->
+                <div id="earn-withdrawn-section" style="display:none">
+                    <div class="earn-withdrawn-bar" id="earn-withdrawn-bar" onclick="earn_toggleWithdrawnSection()">
+                        <div
+                            style="flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(239,68,68,0.2),transparent)">
+                        </div>
+                        <span>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 8v13H3V8" />
+                                <path d="M1 3h22v5H1z" />
+                                <path d="M10 12h4" />
+                            </svg>
+                            Withdrawn (<span id="earn-withdrawn-count">0</span>)
+                            <svg class="earn-withdrawn-chevron" id="earn-withdrawn-chevron-icon" width="12" height="12"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                        </span>
+                        <div
+                            style="flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(239,68,68,0.2),transparent)">
+                        </div>
+                    </div>
+                    <div class="earn-withdrawn-body" id="earn-withdrawn-body" style="display:none">
+                        <table class="earn-asset-table earn-withdrawn-table">
+                            <colgroup>
+                                <col style="width:30%">
+                                <col style="width:35%">
+                                <col style="width:35%">
+                            </colgroup>
+                            <tbody id="earn-withdrawn-tbody"></tbody>
                         </table>
                     </div>
                 </div>
@@ -11020,15 +11101,10 @@
 
         function earn_toggleWithdrawnSection() {
             earn_withdrawnCollapsed = !earn_withdrawnCollapsed;
-            // Toggle all withdrawn rows
-            document.querySelectorAll('.earn-withdrawn-row').forEach(row => {
-                row.style.display = earn_withdrawnCollapsed ? 'none' : '';
-            });
-            // Rotate chevron
-            const chevron = document.querySelector('.earn-withdrawn-chevron');
-            if (chevron) {
-                chevron.style.transform = earn_withdrawnCollapsed ? '' : 'rotate(180deg)';
-            }
+            const body = document.getElementById('earn-withdrawn-body');
+            if (body) body.style.display = earn_withdrawnCollapsed ? 'none' : '';
+            const chevron = document.getElementById('earn-withdrawn-chevron-icon');
+            if (chevron) chevron.style.transform = earn_withdrawnCollapsed ? '' : 'rotate(180deg)';
         }
         let earn_showDust = true;     // show dust positions by default
         let earn_historyData = null; // cached history results (inactive assets)
@@ -12513,17 +12589,18 @@
                 </tr>`;
             });
 
-            // === INACTIVE ASSETS (from history data) ===
+            // === INACTIVE ASSETS (from history data) — render into SEPARATE container ===
+            let withdrawnHtml = '';
+            let withdrawnCount = 0;
             if (earn_historyData && earn_historyData.length > 0) {
                 // Get IDs of active assets to avoid duplicates
                 const activeTokenAddrs = new Set(assets.map(a => a.tokenAddr?.toLowerCase()));
 
                 // Filter to only inactive (withdrawn) assets not already in active list
                 const inactiveItems = earn_historyData.filter(item => {
-                    if (item.isActive) return false; // skip active — already shown above
-                    if (item.isIsolation && !item.isActive) return false; // skip closed isolation
-                    if (activeTokenAddrs.has(item.tokenAddr?.toLowerCase())) return false; // skip duplicates
-                    // Dust filter
+                    if (item.isActive) return false;
+                    if (item.isIsolation && !item.isActive) return false;
+                    if (activeTokenAddrs.has(item.tokenAddr?.toLowerCase())) return false;
                     const chainId = document.getElementById('earn-chain').value;
                     const priceKey = chainId + ':' + (item.tokenAddr || '').toLowerCase();
                     const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[item.symbol] || 0;
@@ -12533,98 +12610,87 @@
                     return true;
                 });
 
-                if (inactiveItems.length > 0) {
-                    // Collapsible section divider — red, with toggle chevron
-                    const isCollapsed = typeof earn_withdrawnCollapsed !== 'undefined' ? earn_withdrawnCollapsed : true;
-                    const chevronRotation = isCollapsed ? '' : 'style="transform:rotate(180deg)"';
-                    html += `<tr class="earn-withdrawn-divider" onclick="earn_toggleWithdrawnSection()" style="cursor:pointer">
-                        <td colspan="3" style="padding:20px 0 10px;border:none">
-                            <div style="display:flex;align-items:center;gap:12px">
-                                <div style="flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(239,68,68,0.2),transparent)"></div>
-                                <span style="font-size:10px;color:rgba(239,68,68,0.7);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;display:flex;align-items:center;gap:6px;user-select:none">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>
-                                    Withdrawn (${inactiveItems.length})
-                                    <svg class="earn-withdrawn-chevron" ${chevronRotation} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition:transform 0.3s ease"><polyline points="6 9 12 15 18 9"/></svg>
-                                </span>
-                                <div style="flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(239,68,68,0.2),transparent)"></div>
+                withdrawnCount = inactiveItems.length;
+
+                inactiveItems.forEach((item, i) => {
+                    const ii = assets.length + i;
+                    const delay = i * 0.05;
+
+                    let iconHtml;
+                    if (item.icon) {
+                        iconHtml = `<div class="earn-token-icon"><img src="${item.icon}" alt="${item.symbol}" onerror="this.parentElement.textContent='${item.symbol.slice(0, 2)}'"></div>`;
+                    } else {
+                        iconHtml = `<div class="earn-token-icon">${item.symbol.slice(0, 2)}</div>`;
+                    }
+
+                    const yieldPositive = item.yieldWei >= 0n;
+                    const yieldSign = yieldPositive && item.yieldWei > 0n ? '+' : '';
+                    const yieldColor = yieldPositive ? 'earn-yield-positive' : 'earn-yield-negative';
+                    const yieldFmt = earn_formatAmount(item.yieldWei, item.decimals, item.symbol);
+                    const yieldUsdFmt = item.yieldUsd !== 0
+                        ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${item.yieldUsd >= 0 ? '+' : ''}$${Math.abs(item.yieldUsd).toFixed(2)}</div>`
+                        : '';
+
+                    const balFmt = earn_formatAmount(item.currentWei, item.decimals, item.symbol);
+                    const chevron = `<svg class="earn-row-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
+                    const explorerUrl = `${explorerBase}/address/${item.tokenAddr}`;
+
+                    withdrawnHtml += `<tr class="earn-data-row earn-row-inactive" id="earn-inactive-row-${i}" style="animation-delay:${delay}s" onclick="earn_toggleDetail(${ii})">
+                        <td>
+                            <div class="earn-token-cell">
+                                <div class="earn-token-left">
+                                    ${iconHtml}
+                                    <div class="earn-token-info">
+                                        <div class="earn-token-name">${item.symbol} ${chevron}</div>
+                                        <span class="earn-hist-badge withdrawn"><span class="earn-status-dot"></span>WITHDRAWN</span>
+                                    </div>
+                                </div>
                             </div>
+                        </td>
+                        <td>
+                            <span class="earn-amount" style="color:var(--text-muted)">${balFmt}<span class="earn-amount-sym">${item.symbol}</span></span>
+                            ${(() => {
+                            const chainId = document.getElementById('earn-chain').value;
+                            const priceKey = chainId + ':' + (item.tokenAddr || '').toLowerCase();
+                            const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[item.symbol] || 0;
+                            const balNum = Number(item.currentWei) / (10 ** item.decimals);
+                            const balUsd = Math.abs(balNum * price);
+                            return balUsd >= 0.01 ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">≈ $${balUsd >= 1000 ? (balUsd / 1000).toFixed(2) + 'K' : balUsd >= 1 ? balUsd.toFixed(2) : balUsd.toFixed(4)}</div>` : '';
+                        })()}
+                        </td>
+                        <td>
+                            <span class="earn-amount ${yieldColor}">${yieldSign}${yieldFmt}<span class="earn-amount-sym">${item.symbol}</span></span>
+                            ${yieldUsdFmt}
                         </td>
                     </tr>`;
 
-                    // Withdrawn rows — hidden by default if collapsed
-                    const rowDisplay = isCollapsed ? 'style="display:none"' : '';
+                    withdrawnHtml += `<tr class="earn-detail-row" id="earn-detail-${ii}">
+                        <td colspan="3">
+                            <div class="earn-ca-line">
+                                <span class="earn-ca-addr" onclick="event.stopPropagation(); earn_copyAddr('${item.tokenAddr}', this)" title="Click to copy">${item.tokenAddr}</span>
+                                <span class="copy-addr-icon" onclick="event.stopPropagation(); earn_copyAddr('${item.tokenAddr}', this)" title="Copy address"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span>
+                                <a class="earn-ca-explorer" href="${explorerUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="View on explorer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>
+                            </div>
+                        </td>
+                    </tr>`;
+                });
+            }
 
-                    inactiveItems.forEach((item, i) => {
-                        const ii = assets.length + i;
-                        const delay = ii * 0.05;
-
-                        // Icon
-                        let iconHtml;
-                        if (item.icon) {
-                            iconHtml = `<div class="earn-token-icon"><img src="${item.icon}" alt="${item.symbol}" onerror="this.parentElement.textContent='${item.symbol.slice(0, 2)}'"></div>`;
-                        } else {
-                            iconHtml = `<div class="earn-token-icon">${item.symbol.slice(0, 2)}</div>`;
-                        }
-
-                        // Yield display
-                        const yieldPositive = item.yieldWei >= 0n;
-                        const yieldSign = yieldPositive && item.yieldWei > 0n ? '+' : '';
-                        const yieldColor = yieldPositive ? 'earn-yield-positive' : 'earn-yield-negative';
-                        const yieldFmt = earn_formatAmount(item.yieldWei, item.decimals, item.symbol);
-                        const yieldUsdFmt = item.yieldUsd !== 0
-                            ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${item.yieldUsd >= 0 ? '+' : ''}$${Math.abs(item.yieldUsd).toFixed(2)}</div>`
-                            : '';
-
-                        // Balance (current balance — likely 0 for withdrawn)
-                        const balFmt = earn_formatAmount(item.currentWei, item.decimals, item.symbol);
-
-                        // Chevron SVG
-                        const chevron = `<svg class="earn-row-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
-
-                        // Explorer link
-                        const explorerUrl = `${explorerBase}/address/${item.tokenAddr}`;
-
-                        html += `<tr class="earn-data-row earn-row-inactive earn-withdrawn-row" id="earn-inactive-row-${i}" ${rowDisplay} style="animation-delay:${delay}s" onclick="earn_toggleDetail(${ii})">
-                            <td>
-                                <div class="earn-token-cell">
-                                    <div class="earn-token-left">
-                                        ${iconHtml}
-                                        <div class="earn-token-info">
-                                            <div class="earn-token-name">${item.symbol} ${chevron}</div>
-                                            <span class="earn-hist-badge withdrawn"><span class="earn-status-dot"></span>WITHDRAWN</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="earn-amount" style="color:var(--text-muted)">${balFmt}<span class="earn-amount-sym">${item.symbol}</span></span>
-                                ${(() => {
-                                const chainId = document.getElementById('earn-chain').value;
-                                const priceKey = chainId + ':' + (item.tokenAddr || '').toLowerCase();
-                                const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[item.symbol] || 0;
-                                const balNum = Number(item.currentWei) / (10 ** item.decimals);
-                                const balUsd = Math.abs(balNum * price);
-                                return balUsd >= 0.01 ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">≈ $${balUsd >= 1000 ? (balUsd / 1000).toFixed(2) + 'K' : balUsd >= 1 ? balUsd.toFixed(2) : balUsd.toFixed(4)}</div>` : '';
-                            })()}
-                            </td>
-                            <td>
-                                <span class="earn-amount ${yieldColor}">${yieldSign}${yieldFmt}<span class="earn-amount-sym">${item.symbol}</span></span>
-                                ${yieldUsdFmt}
-                            </td>
-                        </tr>`;
-
-                        // Expandable detail row
-                        html += `<tr class="earn-detail-row earn-withdrawn-row" id="earn-detail-${ii}">
-                            <td colspan="3">
-                                <div class="earn-ca-line">
-                                    <span class="earn-ca-addr" onclick="event.stopPropagation(); earn_copyAddr('${item.tokenAddr}', this)" title="Click to copy">${item.tokenAddr}</span>
-                                    <span class="copy-addr-icon" onclick="event.stopPropagation(); earn_copyAddr('${item.tokenAddr}', this)" title="Copy address"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span>
-                                    <a class="earn-ca-explorer" href="${explorerUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="View on explorer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>
-                                </div>
-                            </td>
-                        </tr>`;
-                    });
-                }
+            // Populate withdrawn section (outside the main table)
+            const withdrawnSection = document.getElementById('earn-withdrawn-section');
+            const withdrawnTbody = document.getElementById('earn-withdrawn-tbody');
+            const withdrawnCountEl = document.getElementById('earn-withdrawn-count');
+            if (withdrawnCount > 0) {
+                withdrawnSection.style.display = '';
+                withdrawnTbody.innerHTML = withdrawnHtml;
+                withdrawnCountEl.textContent = withdrawnCount;
+                // Keep collapsed state
+                const body = document.getElementById('earn-withdrawn-body');
+                body.style.display = earn_withdrawnCollapsed ? 'none' : '';
+                const chevron = document.getElementById('earn-withdrawn-chevron-icon');
+                if (chevron) chevron.style.transform = earn_withdrawnCollapsed ? '' : 'rotate(180deg)';
+            } else {
+                withdrawnSection.style.display = 'none';
             }
 
             tbody.innerHTML = html;
