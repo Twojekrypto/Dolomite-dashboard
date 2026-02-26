@@ -6729,6 +6729,7 @@
                                 <tr>
                                     <th style="width:28px">#</th>
                                     <th>Address</th>
+                                    <th style="text-align:right">Balance</th>
                                     <th style="text-align:right">Net DOLO</th>
                                     <th style="text-align:right">USD</th>
                                 </tr>
@@ -6743,6 +6744,7 @@
                                 <tr>
                                     <th style="width:28px">#</th>
                                     <th>Address</th>
+                                    <th style="text-align:right">Balance</th>
                                     <th style="text-align:right">Net DOLO</th>
                                     <th style="text-align:right">USD</th>
                                 </tr>
@@ -10896,8 +10898,16 @@
                 : dolo_flowChain === 'eth' ? 'https://etherscan.io/address/'
                     : 'https://etherscan.io/address/';
 
+            // Build holder balance lookup
+            const holderMap = {};
+            if (typeof dolo_holderData !== 'undefined' && dolo_holderData) {
+                dolo_holderData.forEach(h => {
+                    holderMap[h.address.toLowerCase()] = h.balance || 0;
+                });
+            }
+
             function renderRows(items, isAccumulator) {
-                if (!items.length) return '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px">No data</td></tr>';
+                if (!items.length) return '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px">No data</td></tr>';
                 return items.map((item, i) => {
                     const addr = item.address;
                     const short = addr.slice(0, 6) + '…' + addr.slice(-4);
@@ -10909,6 +10919,11 @@
                         : flow >= 1e3 ? (flow / 1e3).toFixed(1) + 'K'
                             : flow.toFixed(0);
                     const debankUrl = `https://debank.com/profile/${addr}`;
+                    // Look up current balance
+                    const bal = holderMap[addr.toLowerCase()] || 0;
+                    const balFmt = bal >= 1e6 ? (bal / 1e6).toFixed(2) + 'M'
+                        : bal >= 1e3 ? (bal / 1e3).toFixed(1) + 'K'
+                            : bal > 0 ? bal.toFixed(0) : '—';
                     return `<tr>
                         <td class="flow-rank">${i + 1}</td>
                         <td class="flow-addr-cell">
@@ -10922,6 +10937,7 @@
                                 </a>
                             </span>
                         </td>
+                        <td class="flow-val" style="color:var(--text-secondary)">${balFmt}</td>
                         <td class="flow-val ${cls}">${sign}${flowFmt}</td>
                         <td class="flow-usd">${usd}</td>
                     </tr>`;
