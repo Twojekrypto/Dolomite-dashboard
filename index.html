@@ -3428,112 +3428,172 @@
         /* ===== EARN TAB STYLES ===== */
         .earn-hero {
             text-align: center;
-            margin-bottom: 32px;
+            margin-bottom: 24px;
         }
 
         .earn-hero h2 {
-            font-size: 28px;
+            font-size: 24px;
             font-weight: 700;
             background: var(--gradient-success);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
 
         .earn-hero p {
-            color: var(--text-muted);
-            font-size: 14px;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 13px;
+        }
+
+        .earn-disclaimer {
+            text-align: center;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.35);
+            margin-top: 10px;
+            font-style: italic;
+            max-width: 720px;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         .earn-input-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius-lg);
-            padding: 28px 32px;
             margin-bottom: 28px;
             position: relative;
             z-index: 100;
             overflow: visible;
+            background: transparent;
+            border: none;
+            padding: 0;
+            max-width: 720px;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         .earn-input-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: var(--gradient-success);
-            opacity: 0.6;
+            display: none;
         }
 
         .earn-input-row {
             display: flex;
-            gap: 12px;
-            align-items: center;
+            align-items: stretch;
+            background: rgba(15, 20, 36, 0.95);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 14px;
+            overflow: visible;
+            position: relative;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+        }
+
+        .earn-input-row:focus-within {
+            border-color: rgba(52, 211, 153, 0.4);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25), 0 0 0 3px rgba(52, 211, 153, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.03);
         }
 
         .earn-input-wrapper {
             flex: 1;
             position: relative;
+            display: flex;
+            align-items: center;
         }
 
         .earn-input-wrapper svg {
-            position: absolute;
-            left: 14px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 18px;
-            height: 18px;
-            color: var(--text-muted);
-            pointer-events: none;
+            display: none;
         }
 
         .earn-input {
             width: 100%;
-            padding: 14px 18px 14px 44px;
-            background: var(--bg-input);
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius-md);
+            padding: 18px 16px;
+            background: transparent;
+            border: none;
             color: var(--text-primary);
             font-family: 'JetBrains Mono', monospace;
-            font-size: 14px;
+            font-size: 13.5px;
             outline: none;
-            transition: all var(--transition);
+            border-radius: 0;
+            letter-spacing: -0.01em;
         }
 
         .earn-input::placeholder {
-            color: var(--text-muted);
+            color: rgba(148, 163, 184, 0.3);
             font-family: 'Inter', sans-serif;
-            font-size: 13px;
+            font-size: 14px;
+            font-weight: 400;
+            letter-spacing: 0;
         }
 
         .earn-input:focus {
-            border-color: var(--accent-green);
-            box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.1);
+            box-shadow: none;
+        }
+
+        /* Chain selector styles for unified bar */
+        .earn-input-row .earn-chain-dropdown {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .earn-input-row .earn-chain-dropdown::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 12px;
+            bottom: 12px;
+            width: 1px;
+            background: rgba(148, 163, 184, 0.1);
+        }
+
+        .earn-input-row .earn-chain-trigger {
+            padding: 0 16px;
+            background: rgba(148, 163, 184, 0.04);
+            border: none;
+            border-radius: 0;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            gap: 8px;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .earn-input-row .earn-chain-trigger:hover {
+            background: rgba(148, 163, 184, 0.08);
+            color: var(--text-primary);
+        }
+
+        .earn-input-row .earn-chain-trigger img {
+            width: 20px;
+            height: 20px;
         }
 
         .earn-search-btn {
-            padding: 14px 24px;
+            padding: 0 20px;
             background: var(--gradient-success);
             border: none;
-            border-radius: var(--radius-md);
+            border-radius: 0 13px 13px 0;
             color: #0a0a14;
             font-family: inherit;
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            transition: all var(--transition);
+            transition: all 0.2s ease;
             white-space: nowrap;
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 8px;
+            min-width: 56px;
+        }
+
+        .earn-search-btn .btn-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
         }
 
         .earn-search-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 16px rgba(52, 211, 153, 0.3);
+            filter: brightness(1.1);
+            box-shadow: 0 0 24px rgba(52, 211, 153, 0.25);
         }
 
         .earn-search-btn:disabled {
@@ -5060,15 +5120,15 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            padding: 6px 30px 6px 8px;
-            background: var(--bg-input);
-            border: 1px solid var(--border-subtle);
-            border-radius: 6px;
+            padding: 12px 32px 12px 16px;
+            background: transparent;
+            border: none;
             color: var(--text-primary);
             font-family: inherit;
-            font-size: 12px;
+            font-size: 13px;
+            font-weight: 500;
             cursor: pointer;
-            transition: all var(--transition);
+            transition: all 0.25s ease;
             position: relative;
             white-space: nowrap;
         }
@@ -5090,7 +5150,7 @@
         }
 
         .earn-chain-trigger:hover {
-            border-color: var(--accent-green);
+            background: rgba(52, 211, 153, 0.05);
         }
 
         .earn-chain-trigger img {
@@ -6164,33 +6224,19 @@
         <div id="view-earn" class="view-section">
 
             <div class="earn-hero anim">
-                <h2>💰 Your Dolomite Earnings</h2>
-                <p>Enter your wallet address to see deposit balances and accrued yield across all markets</p>
-                <p style="font-size:12px;color:var(--text-muted);margin-top:4px;opacity:0.7">⚠ Shows
-                    <strong>lending/supply yield</strong> only — does not include borrow positions or trading P&L
-                </p>
+                <h2>💰 Dolomite Earnings</h2>
+                <p>Track your deposit balances and accrued yield across all markets</p>
             </div>
 
             <div class="earn-input-card anim anim-d1">
                 <div class="earn-input-row">
                     <div class="earn-input-wrapper">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="2" y="5" width="20" height="14" rx="2" />
-                            <path d="M2 10h20" />
-                        </svg>
                         <input type="text" class="earn-input" id="earn-address" placeholder="0x... wallet address"
                             spellcheck="false" autocomplete="off">
                     </div>
-                    <button class="earn-search-btn" id="earn-search-btn" onclick="earn_lookup()">
-                        <span class="btn-text">Check Earnings</span>
-                        <div class="spinner"></div>
-                    </button>
-                </div>
-                <div class="earn-account-row">
-                    <span class="earn-account-label">Network:</span>
                     <div class="earn-chain-dropdown" id="earn-chain-dropdown">
                         <input type="hidden" id="earn-chain" value="ethereum">
+                        <input type="hidden" id="earn-account-num" value="0">
                         <button type="button" class="earn-chain-trigger" id="earn-chain-trigger"
                             onclick="earnChainToggle()">
                             <img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" alt="">
@@ -6198,10 +6244,18 @@
                         </button>
                         <div class="earn-chain-menu" id="earn-chain-menu"></div>
                     </div>
-                    <input type="hidden" id="earn-account-num" value="0">
+                    <button class="earn-search-btn" id="earn-search-btn" onclick="earn_lookup()">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        </svg>
+                        <span class="btn-text">Search</span>
+                        <div class="spinner"></div>
+                    </button>
                 </div>
-
             </div>
+
 
             <div class="earn-mode-toggle" id="earn-mode-toggle"></div>
 
@@ -12649,6 +12703,7 @@
                 const countBadge = dustToggle.querySelector('.earn-dust-count');
                 if (dustCount > 0) {
                     dustToggle.disabled = false;
+                    dustToggle.classList.toggle('active', earn_showDust);
                     if (countBadge) countBadge.textContent = dustCount;
                 } else {
                     dustToggle.disabled = true;
