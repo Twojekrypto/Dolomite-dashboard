@@ -6475,6 +6475,52 @@
                 <div class="table-footer" id="exerciser-pagination"></div>
             </div>
 
+            <!-- oDOLO Flow — Top Accumulators & Sellers -->
+            <div class="card anim anim-d4" style="margin-top:24px" id="odolo-flows-card">
+                <div class="card-header">
+                    <h3>oDOLO Flow</h3>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
+                    <div id="odolo-flow-period" class="dolo-chain-pills" style="width:fit-content">
+                        <div class="dolo-chain-slider"></div>
+                        <button class="active" data-period="1d">1D</button>
+                        <button data-period="7d">7D</button>
+                        <button data-period="30d">30D</button>
+                    </div>
+                    <span style="font-size:10px;color:var(--text-muted);opacity:0.5">Berachain only</span>
+                </div>
+                <div class="dolo-flow-grid">
+                    <div class="dolo-flow-table-wrap">
+                        <div class="dolo-flow-label dolo-flow-label-buy">🟢 Top Accumulators</div>
+                        <table class="dolo-flow-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:28px">#</th>
+                                    <th>Address</th>
+                                    <th style="text-align:right">Net oDOLO</th>
+                                </tr>
+                            </thead>
+                            <tbody id="odolo-flow-acc-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div class="dolo-flow-table-wrap">
+                        <div class="dolo-flow-label dolo-flow-label-sell">🔴 Top Sellers</div>
+                        <table class="dolo-flow-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:28px">#</th>
+                                    <th>Address</th>
+                                    <th style="text-align:right">Net oDOLO</th>
+                                </tr>
+                            </thead>
+                            <tbody id="odolo-flow-sell-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="odolo-flow-ts"
+                    style="text-align:right;font-size:10px;color:var(--text-muted);margin-top:8px;opacity:0.5"></div>
+            </div>
+
             <!-- Protocol Info -->
             <div class="card anim anim-d4 protocol-info-card" style="margin-top:24px">
                 <div class="card-header">
@@ -9390,6 +9436,7 @@
             odolo_renderMetrics(data);
             odolo_renderDonut(data);
             loadExercisers();
+            odolo_loadFlows();
         }
 
         // Redraw oDOLO donut on resize
@@ -11017,6 +11064,104 @@
             setupPills('dolo-flow-chain', btn => {
                 dolo_flowChain = btn.dataset.chain;
                 dolo_renderFlows();
+            });
+        })();
+
+        // ===== oDOLO FLOWS — Top Accumulators & Sellers =====
+        let odolo_flowsData = null;
+        let odolo_flowPeriod = '1d';
+
+        function odolo_loadFlows() {
+            fetch('odolo_flows.json?' + Date.now())
+                .then(r => r.json())
+                .then(data => {
+                    odolo_flowsData = data;
+                    odolo_renderFlows();
+                    const ts = document.getElementById('odolo-flow-ts');
+                    if (ts && data.timestamp) {
+                        const d = new Date(data.timestamp + 'Z');
+                        ts.textContent = 'Updated: ' + d.toLocaleString();
+                    }
+                })
+                .catch(err => console.warn('oDOLO flows not available:', err));
+        }
+
+        function odolo_renderFlows() {
+            if (!odolo_flowsData || !odolo_flowsData.periods) return;
+            const periodData = odolo_flowsData.periods[odolo_flowPeriod];
+            if (!periodData) return;
+
+            const accumulators = periodData.accumulators || [];
+            const sellers = periodData.sellers || [];
+            const explorer = 'https://berascan.com/address/';
+
+            function renderRows(items, isAccumulator) {
+                if (!items.length) return '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:20px">No data</td></tr>';
+                return items.map((item, i) => {
+                    const addr = item.address;
+                    const short = addr.slice(0, 6) + '…' + addr.slice(-4);
+                    const sign = isAccumulator ? '+' : '-';
+                    const cls = isAccumulator ? 'positive' : 'negative';
+                    const flow = Math.abs(item.net_flow);
+                    const flowFmt = flow >= 1e6 ? (flow / 1e6).toFixed(2) + 'M'
+                        : flow >= 1e3 ? (flow / 1e3).toFixed(1) + 'K'
+                            : flow.toFixed(0);
+                    const debankUrl = `https://debank.com/profile/${addr}`;
+                    const badge = (typeof dolo_labelBadge === 'function') ? dolo_labelBadge(addr) : '';
+                    return `<tr>
+                        <td class="flow-rank">${i + 1}</td>
+                        <td class="flow-addr-cell">
+                            <a class="flow-addr" href="${explorer}${addr}" target="_blank" title="${addr}">${short}</a>${badge}
+                            <span class="flow-icons">
+                                <button class="flow-icon-btn" title="Copy address" onclick="navigator.clipboard.writeText('${addr}');this.innerHTML='✓';setTimeout(()=>this.innerHTML='<svg width=\\'12\\' height=\\'12\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'currentColor\\' stroke-width=\\'2\\'><rect x=\\'9\\' y=\\'9\\' width=\\'13\\' height=\\'13\\' rx=\\'2\\'/><path d=\\'M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1\\'/></svg>',800)">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                                </button>
+                                <a class="flow-icon-btn" href="${debankUrl}" target="_blank" title="View on DeBank">
+                                    <img src="https://debank.com/favicon.ico" width="12" height="12" style="border-radius:2px;opacity:0.7">
+                                </a>
+                            </span>
+                        </td>
+                        <td class="flow-val ${cls}">${sign}${flowFmt}</td>
+                    </tr>`;
+                }).join('');
+            }
+
+            document.getElementById('odolo-flow-acc-tbody').innerHTML = renderRows(accumulators, true);
+            document.getElementById('odolo-flow-sell-tbody').innerHTML = renderRows(sellers, false);
+        }
+
+        // Initialize oDOLO Flow period pills
+        (function initOdoloFlowControls() {
+            function setupPills(containerId, callback) {
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                const slider = container.querySelector('.dolo-chain-slider');
+
+                function positionSlider(btn) {
+                    const px = container.getBoundingClientRect();
+                    const bx = btn.getBoundingClientRect();
+                    slider.style.width = bx.width + 'px';
+                    slider.style.transform = `translateX(${bx.left - px.left - 2}px)`;
+                }
+
+                requestAnimationFrame(() => {
+                    const active = container.querySelector('button.active');
+                    if (active) positionSlider(active);
+                });
+
+                container.querySelectorAll('button').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        container.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        positionSlider(btn);
+                        callback(btn);
+                    });
+                });
+            }
+
+            setupPills('odolo-flow-period', btn => {
+                odolo_flowPeriod = btn.dataset.period;
+                odolo_renderFlows();
             });
         })();
 
