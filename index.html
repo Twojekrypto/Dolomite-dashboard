@@ -6497,6 +6497,7 @@
                                 <tr>
                                     <th style="width:28px">#</th>
                                     <th>Address</th>
+                                    <th style="text-align:right">Balance</th>
                                     <th style="text-align:right">Net oDOLO</th>
                                 </tr>
                             </thead>
@@ -6510,6 +6511,7 @@
                                 <tr>
                                     <th style="width:28px">#</th>
                                     <th>Address</th>
+                                    <th style="text-align:right">Balance</th>
                                     <th style="text-align:right">Net oDOLO</th>
                                 </tr>
                             </thead>
@@ -11096,7 +11098,7 @@
             const explorer = 'https://berascan.com/address/';
 
             function renderRows(items, isAccumulator) {
-                if (!items.length) return '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:20px">No data</td></tr>';
+                if (!items.length) return '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px">No data</td></tr>';
                 return items.map((item, i) => {
                     const addr = item.address;
                     const short = addr.slice(0, 6) + '…' + addr.slice(-4);
@@ -11108,6 +11110,10 @@
                             : flow.toFixed(0);
                     const debankUrl = `https://debank.com/profile/${addr}`;
                     const badge = (typeof dolo_labelBadge === 'function') ? dolo_labelBadge(addr) : '';
+                    const bal = item.balance || 0;
+                    const balFmt = bal >= 1e6 ? (bal / 1e6).toFixed(2) + 'M'
+                        : bal >= 1e3 ? (bal / 1e3).toFixed(1) + 'K'
+                            : bal > 0 ? bal.toFixed(0) : '—';
                     return `<tr>
                         <td class="flow-rank">${i + 1}</td>
                         <td class="flow-addr-cell">
@@ -11121,6 +11127,7 @@
                                 </a>
                             </span>
                         </td>
+                        <td class="flow-val" style="color:var(--text-secondary)">${balFmt}</td>
                         <td class="flow-val ${cls}">${sign}${flowFmt}</td>
                     </tr>`;
                 }).join('');
