@@ -6731,7 +6731,6 @@
                                     <th>Address</th>
                                     <th style="text-align:right">Balance</th>
                                     <th style="text-align:right">Net DOLO</th>
-                                    <th style="text-align:right">USD</th>
                                 </tr>
                             </thead>
                             <tbody id="dolo-flow-acc-tbody"></tbody>
@@ -6746,7 +6745,6 @@
                                     <th>Address</th>
                                     <th style="text-align:right">Balance</th>
                                     <th style="text-align:right">Net DOLO</th>
-                                    <th style="text-align:right">USD</th>
                                 </tr>
                             </thead>
                             <tbody id="dolo-flow-sell-tbody"></tbody>
@@ -9763,11 +9761,6 @@
             const totalSupply = dolo_holderFiltered.reduce((s, h) => s + dolo_getDisplayBalance(h), 0) || 1;
             const singleChain = (showEth && !showBera) || (!showEth && showBera);
 
-            // Known DOLO holder labels
-            const DOLO_KNOWN_LABELS = {
-                '0xcb86b75ee6133d179a12d550b09fb3cdb1e141d4': { label: 'veDOLO Contract', type: 'contract' },
-            };
-
             tbody.innerHTML = page.map((h, idx) => {
                 // Sequential numbering when single chain selected, original rank otherwise
                 const dispRank = singleChain ? (start + idx + 1) : (h.rank || (start + idx + 1));
@@ -9787,9 +9780,8 @@
                 // Contract icon
                 const contractIcon = h.is_contract ? '<span class="contract-icon-badge" title="Contract Address">📜</span>' : '';
 
-                // Known address label (e.g. veDOLO Contract)
-                const knownInfo = DOLO_KNOWN_LABELS[h.address.toLowerCase()];
-                const addrLabelHtml = knownInfo ? `<span class="addr-label ${knownInfo.type}">${knownInfo.label}</span>` : '';
+                // Known address label (CEX, LP, Protocol)
+                const addrLabelHtml = (typeof dolo_labelBadge === 'function') ? dolo_labelBadge(h.address) : '';
 
                 // ETH cell: show value if checked, empty dash if unchecked
                 const ethCell = showEth
@@ -10834,6 +10826,45 @@
         }
 
         // ===== DOLO FLOWS — Top Accumulators & Sellers =====
+        const DOLO_ADDR_LABELS = {
+            // CEX wallets
+            '0xf977814e90da44bfa03b6295a0616a897441acec': { label: 'Binance 8', type: 'cex' },
+            '0x28c6c06298d514db089934071355e5743bf21d60': { label: 'Binance 14', type: 'cex' },
+            '0x21a31ee1afc51d94c2efccaa2092ad1028285549': { label: 'Binance 35', type: 'cex' },
+            '0xdfd5293d8e347dfe59e90efd55b2956a1343963d': { label: 'Binance US', type: 'cex' },
+            '0xbe0eb53f46cd790cd13851d5eff43d12404d33e8': { label: 'Binance 7', type: 'cex' },
+            '0x56eddb7aa87536c09ccc2793473599fd21a8b17f': { label: 'Binance 16', type: 'cex' },
+            '0x9696f59e4d72e237be84ffd425dcad154bf96976': { label: 'Binance 18', type: 'cex' },
+            '0xa9d1e08c7793af67e9d92fe308d5697fb81d3e43': { label: 'Binance Deposit', type: 'cex' },
+            // LP pools
+            '0x003896387666c5c11458eeb3f927b72a11b19783': { label: 'Uniswap V3 DOLO/USDC', type: 'lp' },
+            '0xd5980e98a89e2d2361b3be657e8a003c6d3514e3': { label: 'Kodiak DOLO/WBERA', type: 'lp' },
+            // Protocol contracts
+            '0xcb86b75ee6133d179a12d550b09fb3cdb1e141d4': { label: 'veDOLO', type: 'protocol' },
+            '0x89576fce04dd73933f74bbcd4e6f0d9125118542': { label: 'Dolomite', type: 'protocol' },
+            '0x003ca23fd5f0ca87d01f6ec6cd14a8ae60c2b97d': { label: 'Dolomite', type: 'protocol' },
+            '0x06265db7ecd9c5724a97bd4909146625d2e2619c': { label: 'Dolomite', type: 'protocol' },
+            '0x000000000004444c5dc75cb358380d2e3de08a90': { label: 'Permit2', type: 'protocol' },
+            '0x2f41d42de3eab9e75f3d417259f24421771fb700': { label: 'Dolomite', type: 'protocol' },
+            '0x6e939bbaceb45159982a2cac3a1fcbf7e93cf682': { label: 'Dolomite', type: 'protocol' },
+            '0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07': { label: 'Dolomite', type: 'protocol' },
+            '0xa75c21c5be284122a87a37a76cc6c4dd3e55a1d4': { label: 'Dolomite', type: 'protocol' },
+            '0xcfc30d38a47817363a98a46834acf7040b17d7b0': { label: 'Dolomite', type: 'protocol' },
+            '0x7efd088ae500598a19a242d6d48b9f7e0d061176': { label: 'Dolomite', type: 'protocol' },
+        };
+
+        function dolo_labelBadge(addr) {
+            const info = DOLO_ADDR_LABELS[addr.toLowerCase()];
+            if (!info) return '';
+            const colors = {
+                cex: 'background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.25)',
+                lp: 'background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.25)',
+                protocol: 'background:rgba(139,92,246,0.15);color:#a78bfa;border:1px solid rgba(139,92,246,0.25)',
+            };
+            const style = colors[info.type] || colors.protocol;
+            return `<span style="display:inline-block;font-size:9px;font-weight:600;padding:1px 6px;border-radius:4px;margin-left:5px;letter-spacing:0.3px;white-space:nowrap;${style}">${info.label}</span>`;
+        }
+
         let dolo_flowsData = null;
         let dolo_flowPeriod = '1d';
         let dolo_flowChain = 'all';
@@ -10927,7 +10958,7 @@
                     return `<tr>
                         <td class="flow-rank">${i + 1}</td>
                         <td class="flow-addr-cell">
-                            <a class="flow-addr" href="${explorer}${addr}" target="_blank" title="${addr}">${short}</a>
+                            <a class="flow-addr" href="${explorer}${addr}" target="_blank" title="${addr}">${short}</a>${dolo_labelBadge(addr)}
                             <span class="flow-icons">
                                 <button class="flow-icon-btn" title="Copy address" onclick="navigator.clipboard.writeText('${addr}');this.innerHTML='✓';setTimeout(()=>this.innerHTML='<svg width=\\'12\\' height=\\'12\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'currentColor\\' stroke-width=\\'2\\'><rect x=\\'9\\' y=\\'9\\' width=\\'13\\' height=\\'13\\' rx=\\'2\\'/><path d=\\'M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1\\'/></svg>',800)">
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
@@ -10939,7 +10970,6 @@
                         </td>
                         <td class="flow-val" style="color:var(--text-secondary)">${balFmt}</td>
                         <td class="flow-val ${cls}">${sign}${flowFmt}</td>
-                        <td class="flow-usd">${usd}</td>
                     </tr>`;
                 }).join('');
             }
