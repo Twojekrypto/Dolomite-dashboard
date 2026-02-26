@@ -975,6 +975,142 @@
             opacity: 0.8;
         }
 
+        /* ===== DOLO FLOW TABLES ===== */
+        .dolo-flow-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .dolo-flow-table-wrap {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .dolo-flow-label {
+            padding: 10px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .dolo-flow-label-buy {
+            color: #34d399;
+        }
+
+        .dolo-flow-label-sell {
+            color: #f87171;
+        }
+
+        .dolo-flow-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .dolo-flow-table th {
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .dolo-flow-table td {
+            padding: 9px 12px;
+            font-size: 12.5px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .dolo-flow-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .dolo-flow-table tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .dolo-flow-table .flow-rank {
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .dolo-flow-table .flow-addr {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11.5px;
+            color: #818cf8;
+            cursor: pointer;
+            transition: color 0.15s;
+        }
+
+        .dolo-flow-table .flow-addr:hover {
+            color: #a5b4fc;
+            text-decoration: underline;
+        }
+
+        .dolo-flow-table .flow-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            text-align: right;
+        }
+
+        .dolo-flow-table .flow-val.positive {
+            color: #34d399;
+        }
+
+        .dolo-flow-table .flow-val.negative {
+            color: #f87171;
+        }
+
+        .dolo-flow-table .flow-usd {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-align: right;
+        }
+
+        .flow-addr-cell {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .flow-icons {
+            display: inline-flex;
+            gap: 3px;
+            opacity: 0.4;
+            transition: opacity 0.15s;
+        }
+
+        .dolo-flow-table tr:hover .flow-icons {
+            opacity: 1;
+        }
+
+        .flow-icon-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            padding: 0;
+            border: none;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.15s;
+            text-decoration: none;
+        }
+
+        .flow-icon-btn:hover {
+            background: rgba(255, 255, 255, 0.12);
+            color: var(--text-primary);
+        }
+
         /* ===== PROTOCOL INFO ===== */
         .protocol-info-card {
             padding: 0;
@@ -6558,6 +6694,67 @@
                 <div class="table-footer" id="dolo-holder-pagination"></div>
             </div>
 
+            <!-- DOLO Flow — Top Accumulators & Sellers -->
+            <div class="card anim anim-d4" style="margin-top:24px" id="dolo-flows-card">
+                <div class="card-header">
+                    <h3>DOLO Flow</h3>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
+                    <div id="dolo-flow-period" class="dolo-chain-pills" style="width:fit-content">
+                        <div class="dolo-chain-slider"></div>
+                        <button class="active" data-period="1d">1D</button>
+                        <button data-period="7d">7D</button>
+                        <button data-period="30d">30D</button>
+                    </div>
+                    <div id="dolo-flow-chain" class="dolo-chain-pills" style="width:fit-content">
+                        <div class="dolo-chain-slider"></div>
+                        <button class="active" data-chain="all">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.5" style="vertical-align:middle;margin-right:3px;margin-top:-1px">
+                                <circle cx="12" cy="12" r="10" />
+                                <path
+                                    d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
+                            </svg>All</button>
+                        <button data-chain="eth"><img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg"
+                                alt="">ETH</button>
+                        <button data-chain="bera"><img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg"
+                                alt="">BERA</button>
+                    </div>
+                </div>
+                <div class="dolo-flow-grid">
+                    <div class="dolo-flow-table-wrap">
+                        <div class="dolo-flow-label dolo-flow-label-buy">🟢 Top Accumulators</div>
+                        <table class="dolo-flow-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:28px">#</th>
+                                    <th>Address</th>
+                                    <th style="text-align:right">Net DOLO</th>
+                                    <th style="text-align:right">USD</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dolo-flow-acc-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div class="dolo-flow-table-wrap">
+                        <div class="dolo-flow-label dolo-flow-label-sell">🔴 Top Sellers</div>
+                        <table class="dolo-flow-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:28px">#</th>
+                                    <th>Address</th>
+                                    <th style="text-align:right">Net DOLO</th>
+                                    <th style="text-align:right">USD</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dolo-flow-sell-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="dolo-flow-ts"
+                    style="text-align:right;font-size:10px;color:var(--text-muted);margin-top:8px;opacity:0.5"></div>
+            </div>
+
             <!-- Protocol Info -->
             <div class="card anim anim-d4 protocol-info-card" style="margin-top:24px">
                 <div class="card-header">
@@ -9460,6 +9657,7 @@
                 dolo_buildChainPills(dolo_cachedData);
                 dolo_renderTokenDonut(dolo_cachedData);
                 dolo_renderProtocolInfo(llRes);
+                dolo_loadFlows();
             } catch (err) {
                 console.error('DOLO DeFi Llama error:', err);
                 document.getElementById('dolo-tvl').textContent = '—';
@@ -10632,6 +10830,147 @@
             document.querySelectorAll('.proto-links').forEach(el => el.innerHTML = linksHTML);
             document.querySelectorAll('.proto-contracts').forEach(el => el.innerHTML = contractsHTML);
         }
+
+        // ===== DOLO FLOWS — Top Accumulators & Sellers =====
+        let dolo_flowsData = null;
+        let dolo_flowPeriod = '1d';
+        let dolo_flowChain = 'all';
+
+        function dolo_loadFlows() {
+            fetch('dolo_flows.json?' + Date.now())
+                .then(r => r.json())
+                .then(data => {
+                    dolo_flowsData = data;
+                    dolo_renderFlows();
+                    // Show timestamp
+                    const ts = document.getElementById('dolo-flow-ts');
+                    if (ts && data.timestamp) {
+                        const d = new Date(data.timestamp + 'Z');
+                        ts.textContent = 'Updated: ' + d.toLocaleString();
+                    }
+                })
+                .catch(err => console.warn('DOLO flows not available:', err));
+        }
+
+        function dolo_renderFlows() {
+            if (!dolo_flowsData || !dolo_flowsData.periods) return;
+            const periodData = dolo_flowsData.periods[dolo_flowPeriod];
+            if (!periodData) return;
+
+            let accumulators = [];
+            let sellers = [];
+
+            if (dolo_flowChain === 'all') {
+                // Merge both chains, sum by address
+                const accMap = {};
+                const sellMap = {};
+                for (const chain of ['eth', 'bera']) {
+                    const cd = periodData[chain];
+                    if (!cd) continue;
+                    for (const a of cd.accumulators || []) {
+                        const addr = a.address.toLowerCase();
+                        if (!accMap[addr]) accMap[addr] = { address: a.address, net_flow: 0, usd_value: 0, tx_count: 0 };
+                        accMap[addr].net_flow += a.net_flow;
+                        accMap[addr].usd_value += (a.usd_value || 0);
+                        accMap[addr].tx_count += (a.tx_count || 0);
+                    }
+                    for (const s of cd.sellers || []) {
+                        const addr = s.address.toLowerCase();
+                        if (!sellMap[addr]) sellMap[addr] = { address: s.address, net_flow: 0, usd_value: 0, tx_count: 0 };
+                        sellMap[addr].net_flow += s.net_flow;
+                        sellMap[addr].usd_value += (s.usd_value || 0);
+                        sellMap[addr].tx_count += (s.tx_count || 0);
+                    }
+                }
+                accumulators = Object.values(accMap).sort((a, b) => b.net_flow - a.net_flow).slice(0, 5);
+                sellers = Object.values(sellMap).sort((a, b) => b.net_flow - a.net_flow).slice(0, 5);
+            } else {
+                const cd = periodData[dolo_flowChain];
+                if (cd) {
+                    accumulators = cd.accumulators || [];
+                    sellers = cd.sellers || [];
+                }
+            }
+
+            const explorer = dolo_flowChain === 'bera' ? 'https://berascan.com/address/'
+                : dolo_flowChain === 'eth' ? 'https://etherscan.io/address/'
+                    : 'https://etherscan.io/address/';
+
+            function renderRows(items, isAccumulator) {
+                if (!items.length) return '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px">No data</td></tr>';
+                return items.map((item, i) => {
+                    const addr = item.address;
+                    const short = addr.slice(0, 6) + '…' + addr.slice(-4);
+                    const sign = isAccumulator ? '+' : '-';
+                    const cls = isAccumulator ? 'positive' : 'negative';
+                    const flow = Math.abs(item.net_flow);
+                    const usd = item.usd_value ? '$' + Math.abs(item.usd_value).toLocaleString('en-US', { maximumFractionDigits: 0 }) : '—';
+                    const flowFmt = flow >= 1e6 ? (flow / 1e6).toFixed(2) + 'M'
+                        : flow >= 1e3 ? (flow / 1e3).toFixed(1) + 'K'
+                            : flow.toFixed(0);
+                    const debankUrl = `https://debank.com/profile/${addr}`;
+                    return `<tr>
+                        <td class="flow-rank">${i + 1}</td>
+                        <td class="flow-addr-cell">
+                            <a class="flow-addr" href="${explorer}${addr}" target="_blank" title="${addr}">${short}</a>
+                            <span class="flow-icons">
+                                <button class="flow-icon-btn" title="Copy address" onclick="navigator.clipboard.writeText('${addr}');this.innerHTML='✓';setTimeout(()=>this.innerHTML='<svg width=\\'12\\' height=\\'12\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'currentColor\\' stroke-width=\\'2\\'><rect x=\\'9\\' y=\\'9\\' width=\\'13\\' height=\\'13\\' rx=\\'2\\'/><path d=\\'M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1\\'/></svg>',800)">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                                </button>
+                                <a class="flow-icon-btn" href="${debankUrl}" target="_blank" title="View on DeBank">
+                                    <img src="https://debank.com/favicon.ico" width="12" height="12" style="border-radius:2px;opacity:0.7">
+                                </a>
+                            </span>
+                        </td>
+                        <td class="flow-val ${cls}">${sign}${flowFmt}</td>
+                        <td class="flow-usd">${usd}</td>
+                    </tr>`;
+                }).join('');
+            }
+
+            document.getElementById('dolo-flow-acc-tbody').innerHTML = renderRows(accumulators, true);
+            document.getElementById('dolo-flow-sell-tbody').innerHTML = renderRows(sellers, false);
+        }
+
+        // Initialize DOLO Flow controls
+        (function initFlowControls() {
+            function setupPills(containerId, callback) {
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                const slider = container.querySelector('.dolo-chain-slider');
+
+                function positionSlider(btn) {
+                    const px = container.getBoundingClientRect();
+                    const bx = btn.getBoundingClientRect();
+                    slider.style.width = bx.width + 'px';
+                    slider.style.transform = `translateX(${bx.left - px.left - 2}px)`;
+                }
+
+                requestAnimationFrame(() => {
+                    const active = container.querySelector('button.active');
+                    if (active) positionSlider(active);
+                });
+
+                container.querySelectorAll('button').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        container.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        positionSlider(btn);
+                        callback(btn);
+                    });
+                });
+            }
+
+            setupPills('dolo-flow-period', btn => {
+                dolo_flowPeriod = btn.dataset.period;
+                dolo_renderFlows();
+            });
+
+            setupPills('dolo-flow-chain', btn => {
+                dolo_flowChain = btn.dataset.chain;
+                dolo_renderFlows();
+            });
+        })();
 
         // Redraw DOLO charts on resize
         let dolo_resizeTimer;
