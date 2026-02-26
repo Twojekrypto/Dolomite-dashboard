@@ -5098,12 +5098,33 @@
             border-radius: 16px;
             overflow: hidden;
             box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(52, 211, 153, 0.05);
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        /* Custom scrollbar for table section */
+        .earn-results .table-section::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .earn-results .table-section::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .earn-results .table-section::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.2);
+            border-radius: 3px;
+        }
+
+        .earn-results .table-section::-webkit-scrollbar-thumb:hover {
+            background: rgba(148, 163, 184, 0.35);
         }
 
         .earn-asset-table thead {
-            position: relative;
+            position: sticky;
+            top: 0;
             z-index: 10;
-            overflow: visible;
+            background: var(--bg-card);
         }
 
         .earn-asset-table thead th {
@@ -11743,108 +11764,90 @@
                     netflows[mid][flowType] = String(old_ft + Math.abs(deltaFloat));
                 }
 
-                // 1. Fetch ALL deposits for this user
-                const deposits = await earn_subgraphPaginateAll(endpoint, 'deposits',
-                    `{ effectiveUser: "${addr}" }`,
-                    'token { marketId decimals } amountDeltaWei'
-                );
+                // ═══ PARALLEL SUBGRAPH FETCHES ═══
+                // Fire ALL queries simultaneously instead of sequentially (~20s → ~3-5s)
+                const [deposits, withdrawals, takerTrades, makerTrades, transfersFrom, transfersTo, liqsSolid, liqsLiquid, borrowPositions] = await Promise.all([
+                    // 1. Deposits
+                    earn_subgraphPaginateAll(endpoint, 'deposits',
+                        `{ effectiveUser: "${addr}" }`,
+                        'token { marketId decimals } amountDeltaWei'
+                    ),
+                    // 2. Withdrawals
+                    earn_subgraphPaginateAll(endpoint, 'withdrawals',
+                        `{ effectiveUser: "${addr}" }`,
+                        'token { marketId decimals } amountDeltaWei'
+                    ),
+                    // 3. Trades (taker)
+                    earn_subgraphPaginateAll(endpoint, 'trades',
+                        `{ takerEffectiveUser: "${addr}" }`,
+                        'takerToken { marketId } makerToken { marketId } takerTokenDeltaWei makerTokenDeltaWei'
+                    ),
+                    // 4. Trades (maker, excluding self)
+                    earn_subgraphPaginateAll(endpoint, 'trades',
+                        `{ makerEffectiveUser: "${addr}", takerEffectiveUser_not: "${addr}" }`,
+                        'takerToken { marketId } makerToken { marketId } takerTokenDeltaWei makerTokenDeltaWei'
+                    ),
+                    // 5. Transfers OUT
+                    earn_subgraphPaginateAll(endpoint, 'transfers',
+                        `{ fromEffectiveUser: "${addr}", toEffectiveUser_not: "${addr}" }`,
+                        'token { marketId } amountDeltaWei'
+                    ),
+                    // 6. Transfers IN
+                    earn_subgraphPaginateAll(endpoint, 'transfers',
+                        `{ toEffectiveUser: "${addr}", fromEffectiveUser_not: "${addr}" }`,
+                        'token { marketId } amountDeltaWei'
+                    ),
+                    // 7. Liquidations (solid/liquidator)
+                    earn_subgraphPaginateAll(endpoint, 'liquidations',
+                        `{ solidEffectiveUser: "${addr}" }`,
+                        'heldToken { marketId } borrowedToken { marketId } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei'
+                    ),
+                    // 8. Liquidations (liquid/being liquidated)
+                    earn_subgraphPaginateAll(endpoint, 'liquidations',
+                        `{ liquidEffectiveUser: "${addr}" }`,
+                        'heldToken { marketId } borrowedToken { marketId } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei'
+                    ),
+                    // 9. Borrow positions
+                    earn_subgraphPaginateAll(endpoint, 'borrowPositions',
+                        `{ effectiveUser: "${addr}", status: "OPEN" }`,
+                        'amounts { token { marketId } amountPar expirationTimestamp }'
+                    ),
+                ]);
+
+                // ═══ PROCESS RESULTS (same logic, just uses the parallel results) ═══
                 for (const dep of deposits) {
                     addFlow(dep.token.marketId, dep.amountDeltaWei, 'd');
                 }
-
-                // 2. Fetch ALL withdrawals for this user
-                const withdrawals = await earn_subgraphPaginateAll(endpoint, 'withdrawals',
-                    `{ effectiveUser: "${addr}" }`,
-                    'token { marketId decimals } amountDeltaWei'
-                );
                 for (const w of withdrawals) {
-                    // Subgraph amountDeltaWei is POSITIVE for withdrawals (absolute amount)
-                    // Negate it since withdrawals DECREASE the balance
                     addFlow(w.token.marketId, String(-Math.abs(parseFloat(w.amountDeltaWei))), 'w');
                 }
-
-                // 3. Fetch ALL trades where user is taker
-                //    Subgraph: takerInputTokenDeltaPar is NEGATIVE (taker gives takerToken)
-                //              takerOutputTokenDeltaPar is POSITIVE (taker receives makerToken)
-                //    Both *DeltaWei fields are positive (absolute amounts)
-                //    Taker GIVES takerToken (-) and RECEIVES makerToken (+)
-                const takerTrades = await earn_subgraphPaginateAll(endpoint, 'trades',
-                    `{ takerEffectiveUser: "${addr}" }`,
-                    'takerToken { marketId } makerToken { marketId } takerTokenDeltaWei makerTokenDeltaWei'
-                );
                 for (const t of takerTrades) {
-                    addFlow(t.takerToken.marketId, String(-Math.abs(parseFloat(t.takerTokenDeltaWei))), 's'); // taker GIVES takerToken (-)
-                    addFlow(t.makerToken.marketId, t.makerTokenDeltaWei, 's'); // taker RECEIVES makerToken (+)
+                    addFlow(t.takerToken.marketId, String(-Math.abs(parseFloat(t.takerTokenDeltaWei))), 's');
+                    addFlow(t.makerToken.marketId, t.makerTokenDeltaWei, 's');
                 }
-
-                // 4. Fetch ALL trades where user is maker (and NOT also taker, to avoid double-counting)
-                //    Maker GIVES makerToken (-) and RECEIVES takerToken (+)
-                const makerTrades = await earn_subgraphPaginateAll(endpoint, 'trades',
-                    `{ makerEffectiveUser: "${addr}", takerEffectiveUser_not: "${addr}" }`,
-                    'takerToken { marketId } makerToken { marketId } takerTokenDeltaWei makerTokenDeltaWei'
-                );
                 for (const t of makerTrades) {
-                    addFlow(t.makerToken.marketId, String(-Math.abs(parseFloat(t.makerTokenDeltaWei))), 's'); // maker GIVES makerToken (-)
-                    addFlow(t.takerToken.marketId, t.takerTokenDeltaWei, 's'); // maker RECEIVES takerToken (+)
+                    addFlow(t.makerToken.marketId, String(-Math.abs(parseFloat(t.makerTokenDeltaWei))), 's');
+                    addFlow(t.takerToken.marketId, t.takerTokenDeltaWei, 's');
                 }
-
-                // 5. Fetch ALL transfers FROM this user to OTHER users (outgoing, negative impact)
-                //    Exclude self-transfers by filtering toEffectiveUser != addr
-                //    (isSelfTransfer flag doesn't cover intra-margin-account moves)
-                const transfersFrom = await earn_subgraphPaginateAll(endpoint, 'transfers',
-                    `{ fromEffectiveUser: "${addr}", toEffectiveUser_not: "${addr}" }`,
-                    'token { marketId } amountDeltaWei'
-                );
                 for (const xf of transfersFrom) {
-                    // Outgoing: amountDeltaWei is positive absolute amount — negate for outflow
                     addFlow(xf.token.marketId, String(-Math.abs(parseFloat(xf.amountDeltaWei))), 'x');
                 }
-
-                // Fetch ALL transfers TO this user from OTHER users (incoming, positive impact)
-                const transfersTo = await earn_subgraphPaginateAll(endpoint, 'transfers',
-                    `{ toEffectiveUser: "${addr}", fromEffectiveUser_not: "${addr}" }`,
-                    'token { marketId } amountDeltaWei'
-                );
                 for (const xf of transfersTo) {
-                    // Incoming: amountDeltaWei is positive absolute amount — add as inflow
                     addFlow(xf.token.marketId, xf.amountDeltaWei, 'x');
                 }
-
-                // 6. Fetch ALL liquidations where user is the solid account (liquidator)
-                const liqsSolid = await earn_subgraphPaginateAll(endpoint, 'liquidations',
-                    `{ solidEffectiveUser: "${addr}" }`,
-                    'heldToken { marketId } borrowedToken { marketId } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei'
-                );
                 for (const liq of liqsSolid) {
                     addFlow(liq.heldToken.marketId, liq.heldTokenAmountDeltaWei, 'l');
                     addFlow(liq.borrowedToken.marketId, liq.borrowedTokenAmountDeltaWei, 'l');
                 }
-
-                // Fetch ALL liquidations where user is the liquid account (being liquidated)
-                const liqsLiquid = await earn_subgraphPaginateAll(endpoint, 'liquidations',
-                    `{ liquidEffectiveUser: "${addr}" }`,
-                    'heldToken { marketId } borrowedToken { marketId } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei'
-                );
                 for (const liq of liqsLiquid) {
-                    // Liquid side: opposite sign of solid side
                     addFlow(liq.heldToken.marketId, String(-parseFloat(liq.heldTokenAmountDeltaWei)), 'l');
                     addFlow(liq.borrowedToken.marketId, String(-parseFloat(liq.borrowedTokenAmountDeltaWei)), 'l');
                 }
-
-                // 7. Fetch OPEN borrow positions — subtract borrowed amounts from netflow
-                //    When a user opens a borrow position via zap, the borrowed tokens appear as
-                //    trade inflows but are actually debt. We need to cancel that out.
-                const borrowPositions = await earn_subgraphPaginateAll(endpoint, 'borrowPositions',
-                    `{ effectiveUser: "${addr}", status: "OPEN" }`,
-                    'amounts { token { marketId } amountPar expirationTimestamp }'
-                );
                 let borrowCount = 0;
                 for (const bp of borrowPositions) {
                     for (const amt of (bp.amounts || [])) {
                         const borrowPar = parseFloat(amt.amountPar || '0');
                         if (borrowPar > 0) {
-                            // This is a borrow amount — subtract from netflow
-                            // The borrow was created via a trade inflow, so we offset it
                             addFlow(amt.token.marketId, String(-borrowPar), 'b');
                             borrowCount++;
                         }
