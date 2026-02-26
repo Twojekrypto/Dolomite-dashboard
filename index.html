@@ -6537,7 +6537,7 @@
                             Withdrawn (<span id="earn-withdrawn-count">0</span>)
                             <svg class="earn-withdrawn-chevron" id="earn-withdrawn-chevron-icon" width="12" height="12"
                                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                                stroke-linecap="round" stroke-linejoin="round">
+                                stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(180deg)">
                                 <polyline points="6 9 12 15 18 9" />
                             </svg>
                         </span>
@@ -6545,7 +6545,7 @@
                             style="flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(239,68,68,0.2),transparent)">
                         </div>
                     </div>
-                    <div class="earn-withdrawn-body" id="earn-withdrawn-body" style="display:none">
+                    <div class="earn-withdrawn-body" id="earn-withdrawn-body">
                         <table class="earn-asset-table earn-withdrawn-table">
                             <colgroup>
                                 <col style="width:30%">
@@ -11231,7 +11231,7 @@
 
         // ===== EARN UNIFIED VIEW =====
         let earn_showInactive = true; // show withdrawn/inactive by default
-        let earn_withdrawnCollapsed = true; // collapsed by default — user expands via divider
+        let earn_withdrawnCollapsed = false; // expanded by default
 
         function earn_toggleWithdrawnSection() {
             earn_withdrawnCollapsed = !earn_withdrawnCollapsed;
