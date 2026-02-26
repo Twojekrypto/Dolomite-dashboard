@@ -1,0 +1,34 @@
+name: Update oDOLO Flows
+
+on:
+  schedule:
+    - cron: '30 */6 * * *'  # Every 6 hours at :30
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests web3
+
+      - name: Generate oDOLO flows
+        env:
+          ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
+          ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
+        run: python generate_odolo_flows.py
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add odolo_flows.json
+          git diff --cached --quiet || git commit -m "chore: update oDOLO flows data"
+          git push
