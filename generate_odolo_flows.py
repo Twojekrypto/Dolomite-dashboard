@@ -159,13 +159,16 @@ def detect_contracts_batch(addresses):
 
 
 def calculate_flows(transfers, excluded):
+    """Calculate net flow per address. Skip transfers where either party is excluded."""
     flows = {}
     for from_addr, to_addr, value_wei, _ in transfers:
+        # Skip transfers involving excluded addresses entirely
+        # (e.g. exercises to vester, burns to 0x0, protocol interactions)
+        if from_addr in excluded or to_addr in excluded:
+            continue
         value = value_wei / (10 ** 18)
-        if from_addr not in excluded:
-            flows[from_addr] = flows.get(from_addr, 0) - value
-        if to_addr not in excluded:
-            flows[to_addr] = flows.get(to_addr, 0) + value
+        flows[from_addr] = flows.get(from_addr, 0) - value
+        flows[to_addr] = flows.get(to_addr, 0) + value
     return flows
 
 

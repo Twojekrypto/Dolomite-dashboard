@@ -181,14 +181,15 @@ def detect_contracts_batch(addresses, chain_key):
 
 def calculate_flows(transfers, excluded):
     """Calculate net flow per address from transfer list.
-    Positive = accumulator, Negative = seller."""
+    Positive = accumulator, Negative = seller.
+    Transfers where either party is excluded are skipped entirely."""
     flows = {}
     for from_addr, to_addr, value_wei, _ in transfers:
+        if from_addr in excluded or to_addr in excluded:
+            continue
         value = value_wei / (10 ** 18)
-        if from_addr not in excluded:
-            flows[from_addr] = flows.get(from_addr, 0) - value
-        if to_addr not in excluded:
-            flows[to_addr] = flows.get(to_addr, 0) + value
+        flows[from_addr] = flows.get(from_addr, 0) - value
+        flows[to_addr] = flows.get(to_addr, 0) + value
     return flows
 
 
