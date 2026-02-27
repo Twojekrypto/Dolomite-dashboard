@@ -1067,6 +1067,86 @@
             color: #f87171;
         }
 
+        /* DOLO Flow toolbar */
+        .dolo-flow-toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .dolo-flow-toolbar-divider {
+            width: 1px;
+            height: 22px;
+            background: var(--border-subtle);
+            margin: 0 2px;
+        }
+
+        .dolo-flow-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            cursor: pointer;
+            user-select: none;
+            padding: 4px 10px 4px 6px;
+            border-radius: 8px;
+            transition: background 0.15s;
+        }
+
+        .dolo-flow-toggle:hover {
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .dolo-flow-toggle input {
+            display: none;
+        }
+
+        .dolo-flow-toggle-track {
+            width: 30px;
+            height: 16px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            position: relative;
+            transition: background 0.2s, border-color 0.2s;
+            flex-shrink: 0;
+        }
+
+        .dolo-flow-toggle-track::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.35);
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .dolo-flow-toggle input:checked+.dolo-flow-toggle-track {
+            background: rgba(245, 158, 11, 0.25);
+            border-color: rgba(245, 158, 11, 0.4);
+        }
+
+        .dolo-flow-toggle input:checked+.dolo-flow-toggle-track::after {
+            transform: translateX(14px);
+            background: #f59e0b;
+        }
+
+        .dolo-flow-toggle-label {
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text-muted);
+            letter-spacing: 0.2px;
+            transition: color 0.15s;
+        }
+
+        .dolo-flow-toggle:hover .dolo-flow-toggle-label {
+            color: var(--text-secondary);
+        }
+
         .dolo-flow-table .flow-usd {
             font-size: 11px;
             color: var(--text-muted);
@@ -6749,7 +6829,7 @@
                 <div class="card-header">
                     <h3>DOLO Flow</h3>
                 </div>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
+                <div class="dolo-flow-toolbar">
                     <div id="dolo-flow-period" class="dolo-chain-pills" style="width:fit-content">
                         <div class="dolo-chain-slider"></div>
                         <button class="active" data-period="1d">1D</button>
@@ -6770,12 +6850,11 @@
                         <button data-chain="bera"><img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg"
                                 alt="">BERA</button>
                     </div>
-                    <label
-                        style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted);cursor:pointer;margin-left:6px;user-select:none"
-                        title="Hide CEX wallets and Contracts from flow tables">
-                        <input type="checkbox" id="dolo-flow-hide-cex" style="cursor:pointer;accent-color:#f59e0b"
-                            onchange="dolo_renderFlows()">
-                        <span>Hide CEX & CA</span>
+                    <div class="dolo-flow-toolbar-divider"></div>
+                    <label class="dolo-flow-toggle" title="Hide CEX wallets and Contracts from flow tables">
+                        <input type="checkbox" id="dolo-flow-hide-cex" onchange="dolo_renderFlows()">
+                        <span class="dolo-flow-toggle-track"></span>
+                        <span class="dolo-flow-toggle-label">Hide CEX & CA</span>
                     </label>
                 </div>
                 <div class="dolo-flow-grid">
