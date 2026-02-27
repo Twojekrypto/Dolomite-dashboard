@@ -53,6 +53,10 @@ PERIODS = {
     "1d": 86400,
     "7d": 86400 * 7,
     "30d": 86400 * 30,
+    "90d": 86400 * 90,
+    "180d": 86400 * 180,
+    "1y": 86400 * 365,
+    "all": 86400 * 365 * 3,   # 3 years — effectively "all time"
 }
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -279,11 +283,12 @@ def main():
             cutoff = max(current_blocks[chain_key] - blocks_back, 0)
             cutoff_blocks[chain_key][period] = cutoff
 
-    # Fetch transfers from 30d ago (covers all periods)
+    # Fetch transfers from the longest period (covers all periods)
+    max_period = max(PERIODS.keys(), key=lambda k: PERIODS[k])
     print("\n📡 Fetching Transfer events...")
     all_transfers = {}
     for chain_key in CHAINS:
-        start = cutoff_blocks[chain_key]["30d"]
+        start = cutoff_blocks[chain_key][max_period]
         end = current_blocks[chain_key]
         all_transfers[chain_key] = fetch_transfer_logs(chain_key, start, end)
 
