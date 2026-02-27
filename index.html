@@ -6779,6 +6779,12 @@
                         <input type="text" id="dolo-holder-search" placeholder="Search address 0x…">
                     </div>
                     <div class="toolbar-count" id="dolo-holder-results-count"></div>
+                    <label class="dolo-flow-toggle" style="background:rgba(255,255,255,0.04);margin-left:auto"
+                        title="Hide addresses labeled as CEX (exchanges) or CA (contracts) from the holders table">
+                        <input type="checkbox" id="dolo-holder-hide-cex" onchange="dolo_applyHolderFilters()">
+                        <span class="dolo-flow-toggle-track"></span>
+                        <span class="dolo-flow-toggle-label">Hide CEX & CA</span>
+                    </label>
                 </div>
 
                 <div class="table-scroll">
@@ -10033,8 +10039,14 @@
             const showEth = document.getElementById('dolo-filter-eth').checked;
             const showBera = document.getElementById('dolo-filter-bera').checked;
 
+            const hideCex = document.getElementById('dolo-holder-hide-cex')?.checked;
+
             dolo_holderFiltered = dolo_holderData.filter(h => {
                 if (q && !h.address.toLowerCase().includes(q)) return false;
+                if (hideCex) {
+                    const info = DOLO_ADDR_LABELS[h.address.toLowerCase()];
+                    if (info && (info.type === 'cex' || info.label === 'CA')) return false;
+                }
                 const hasEth = h.chains && h.chains.includes('eth');
                 const hasBera = h.chains && h.chains.includes('bera');
                 if (!showEth && !showBera) return false;
