@@ -6766,7 +6766,8 @@
             <div class="card anim anim-d4" style="margin-top:24px" id="dolo-holders-card">
                 <div class="card-header">
                     <h3 style="display:flex;align-items:center;gap:8px"><img src="dolo-logo.svg" width="22" height="22"
-                            alt="DOLO" style="flex-shrink:0"> DOLO Holders</h3>
+                            alt="DOLO" style="flex-shrink:0"> DOLO Holders <span id="dolo-holder-count"
+                            style="font-size:13px;font-weight:500;color:var(--text-muted)"></span></h3>
                 </div>
 
                 <div class="table-toolbar">
@@ -6778,12 +6779,12 @@
                         </svg>
                         <input type="text" id="dolo-holder-search" placeholder="Search address 0x…">
                     </div>
-                    <div class="toolbar-count" id="dolo-holder-results-count"></div>
-                    <label class="dolo-flow-toggle" style="background:rgba(255,255,255,0.04);margin-left:auto"
+                    <label class="dolo-flow-toggle"
+                        style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;margin-left:auto"
                         title="Hide addresses labeled as CEX (exchanges) or CA (contracts) from the holders table">
                         <input type="checkbox" id="dolo-holder-hide-cex" onchange="dolo_applyHolderFilters()">
                         <span class="dolo-flow-toggle-track"></span>
-                        <span class="dolo-flow-toggle-label">Hide CEX & CA</span>
+                        <span class="dolo-flow-toggle-label" style="color:#cbd5e1">Hide CEX & CA</span>
                     </label>
                 </div>
 
@@ -9974,8 +9975,8 @@
                     </tr>`;
             }).join('');
 
-            document.getElementById('dolo-holder-results-count').textContent =
-                `${dolo_holderFiltered.length.toLocaleString('en-US')} results`;
+            const countEl = document.getElementById('dolo-holder-count');
+            if (countEl) countEl.textContent = `(${dolo_holderFiltered.length.toLocaleString('en-US')})`;
         }
 
         function dolo_renderHoldersPagination() {
