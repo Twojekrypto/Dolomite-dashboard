@@ -6052,26 +6052,35 @@
                     <h3 style="display:flex;align-items:center;gap:8px"><img src="vedolo-logo.svg" width="22"
                             height="22" alt="veDOLO" style="flex-shrink:0"> veDOLO Holders</h3>
                 </div>
-                <div class="table-toolbar">
-                    <div class="search-input-wrapper">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="11" cy="11" r="8" />
-                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                        </svg>
-                        <input type="text" id="search" placeholder="Search address 0x… or token ID">
+                <div class="dolo-flow-toolbar">
+                    <div style="display:flex;flex-direction:column;gap:3px">
+                        <span class="dolo-flow-group-label">Search</span>
+                        <div class="search-input-wrapper" style="width:300px;min-width:160px">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8" />
+                                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                            </svg>
+                            <input type="text" id="search" placeholder="0x… or token ID"
+                                style="font-size:12px;padding:7px 12px 7px 32px">
+                        </div>
                     </div>
-                    <select class="filter-dropdown" id="filter-nft">
-                        <option value="all">All</option>
-                        <option value="100+">100+ NFT</option>
-                        <option value="50-100">50–100 NFT</option>
-                        <option value="26-50">26–50 NFT</option>
-                        <option value="11-25">11–25 NFT</option>
-                        <option value="6-10">6–10 NFT</option>
-                        <option value="2-5">2–5 NFT</option>
-                        <option value="1">1 NFT</option>
-                    </select>
-                    <div class="toolbar-count" id="results-count"></div>
+                    <div class="dolo-flow-toolbar-divider"></div>
+                    <div style="display:flex;flex-direction:column;gap:3px">
+                        <span class="dolo-flow-group-label">Filter</span>
+                        <select class="filter-dropdown" id="filter-nft"
+                            style="padding:7px 32px 7px 12px;font-size:12px">
+                            <option value="all">All</option>
+                            <option value="100+">100+ NFT</option>
+                            <option value="50-100">50–100 NFT</option>
+                            <option value="26-50">26–50 NFT</option>
+                            <option value="11-25">11–25 NFT</option>
+                            <option value="6-10">6–10 NFT</option>
+                            <option value="2-5">2–5 NFT</option>
+                            <option value="1">1 NFT</option>
+                        </select>
+                    </div>
+                    <div class="toolbar-count" id="results-count" style="align-self:flex-end;margin-bottom:5px"></div>
                 </div>
 
                 <div class="table-scroll">
@@ -6112,29 +6121,34 @@
 
             <!-- RECENT veDOLO UNLOCKS (COMPLETED VESTINGS) -->
             <div class="card anim anim-d3" id="recent-claims-section" style="margin-top: 20px;">
-                <div class="card-header"
-                    style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+                <div class="card-header">
                     <h3 style="display:flex;align-items:center;gap:8px"><img src="vedolo-logo.svg" width="22"
-                            height="22" alt="veDOLO" style="flex-shrink:0"> Recent veDOLO Unlocks</h3>
-                    <div style="display:flex;align-items:center;gap:6px">
-                        <div id="recent-claims-period-btns" style="display:flex;gap:4px">
-                            <button class="pg-btn" onclick="setRecentClaimsPeriod(1)" data-period="1">1D</button>
-                            <button class="pg-btn active" onclick="setRecentClaimsPeriod(7)" data-period="7">7D</button>
-                            <button class="pg-btn" onclick="setRecentClaimsPeriod(30)" data-period="30">30D</button>
-                        </div>
-                        <span class="toolbar-count" id="recent-claims-count"
-                            style="font-size:0.85em;opacity:0.7;margin-left:8px"></span>
-                    </div>
+                            height="22" alt="veDOLO" style="flex-shrink:0"> Recent veDOLO Unlocks <span
+                            class="toolbar-count" id="recent-claims-count"
+                            style="font-size:0.85em;opacity:0.7;font-weight:500"></span></h3>
                 </div>
-                <div class="table-toolbar">
-                    <div class="search-input-wrapper">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="11" cy="11" r="8" />
-                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                        </svg>
-                        <input type="text" id="recent-claims-search" placeholder="Search address 0x… or TX hash"
-                            oninput="recentClaimsSearchChanged()">
+                <div class="dolo-flow-toolbar">
+                    <div style="display:flex;flex-direction:column;gap:3px">
+                        <span class="dolo-flow-group-label">Search</span>
+                        <div class="search-input-wrapper" style="width:300px;min-width:160px">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8" />
+                                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                            </svg>
+                            <input type="text" id="recent-claims-search" placeholder="0x… or TX hash"
+                                oninput="recentClaimsSearchChanged()" style="font-size:12px;padding:7px 12px 7px 32px">
+                        </div>
+                    </div>
+                    <div class="dolo-flow-toolbar-divider"></div>
+                    <div style="display:flex;flex-direction:column;gap:3px">
+                        <span class="dolo-flow-group-label">Period</span>
+                        <div id="recent-claims-period-btns" class="dolo-chain-pills" style="width:fit-content">
+                            <div class="dolo-chain-slider"></div>
+                            <button data-period="1">1D</button>
+                            <button class="active" data-period="7">7D</button>
+                            <button data-period="30">30D</button>
+                        </div>
                     </div>
                 </div>
                 <div id="recent-claims-loading" style="text-align:center;padding:30px;color:var(--text-muted)">
@@ -6177,29 +6191,34 @@
 
             <!-- RECENT DOLO LOCKS -->
             <div class="card anim anim-d3" id="recent-locks-section" style="margin-top: 20px;">
-                <div class="card-header"
-                    style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+                <div class="card-header">
                     <h3 style="display:flex;align-items:center;gap:8px"><img src="vedolo-logo.svg" width="22"
-                            height="22" alt="veDOLO" style="flex-shrink:0"> Recent DOLO Locks</h3>
-                    <div style="display:flex;align-items:center;gap:6px">
-                        <div id="recent-locks-period-btns" style="display:flex;gap:4px">
-                            <button class="pg-btn" onclick="setRecentLocksPeriod(1)" data-period="1">1D</button>
-                            <button class="pg-btn active" onclick="setRecentLocksPeriod(7)" data-period="7">7D</button>
-                            <button class="pg-btn" onclick="setRecentLocksPeriod(30)" data-period="30">30D</button>
-                        </div>
-                        <span class="toolbar-count" id="recent-locks-count"
-                            style="font-size:0.85em;opacity:0.7;margin-left:8px"></span>
-                    </div>
+                            height="22" alt="veDOLO" style="flex-shrink:0"> Recent DOLO Locks <span
+                            class="toolbar-count" id="recent-locks-count"
+                            style="font-size:0.85em;opacity:0.7;font-weight:500"></span></h3>
                 </div>
-                <div class="table-toolbar">
-                    <div class="search-input-wrapper">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="11" cy="11" r="8" />
-                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                        </svg>
-                        <input type="text" id="recent-locks-search" placeholder="Search address 0x… or TX hash"
-                            oninput="recentLocksSearchChanged()">
+                <div class="dolo-flow-toolbar">
+                    <div style="display:flex;flex-direction:column;gap:3px">
+                        <span class="dolo-flow-group-label">Search</span>
+                        <div class="search-input-wrapper" style="width:300px;min-width:160px">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8" />
+                                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                            </svg>
+                            <input type="text" id="recent-locks-search" placeholder="0x… or TX hash"
+                                oninput="recentLocksSearchChanged()" style="font-size:12px;padding:7px 12px 7px 32px">
+                        </div>
+                    </div>
+                    <div class="dolo-flow-toolbar-divider"></div>
+                    <div style="display:flex;flex-direction:column;gap:3px">
+                        <span class="dolo-flow-group-label">Period</span>
+                        <div id="recent-locks-period-btns" class="dolo-chain-pills" style="width:fit-content">
+                            <div class="dolo-chain-slider"></div>
+                            <button data-period="1">1D</button>
+                            <button class="active" data-period="7">7D</button>
+                            <button data-period="30">30D</button>
+                        </div>
                     </div>
                 </div>
                 <div id="recent-locks-loading" style="text-align:center;padding:30px;color:var(--text-muted)">
@@ -6485,16 +6504,6 @@
                 </div>
                 <div class="dolo-flow-toolbar">
                     <div style="display:flex;flex-direction:column;gap:3px">
-                        <span class="dolo-flow-group-label">Period</span>
-                        <div id="recent-ex-period-btns" class="dolo-chain-pills" style="width:fit-content">
-                            <div class="dolo-chain-slider"></div>
-                            <button data-period="1">1D</button>
-                            <button class="active" data-period="7">7D</button>
-                            <button data-period="30">30D</button>
-                        </div>
-                    </div>
-                    <div class="dolo-flow-toolbar-divider"></div>
-                    <div style="display:flex;flex-direction:column;gap:3px">
                         <span class="dolo-flow-group-label">Search</span>
                         <div class="search-input-wrapper" style="width:300px;min-width:160px">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -6504,6 +6513,16 @@
                             </svg>
                             <input type="text" id="recent-ex-search" placeholder="0x… or TX hash"
                                 oninput="recentExSearchChanged()" style="font-size:12px;padding:7px 12px 7px 32px">
+                        </div>
+                    </div>
+                    <div class="dolo-flow-toolbar-divider"></div>
+                    <div style="display:flex;flex-direction:column;gap:3px">
+                        <span class="dolo-flow-group-label">Period</span>
+                        <div id="recent-ex-period-btns" class="dolo-chain-pills" style="width:fit-content">
+                            <div class="dolo-chain-slider"></div>
+                            <button data-period="1">1D</button>
+                            <button class="active" data-period="7">7D</button>
+                            <button data-period="30">30D</button>
                         </div>
                     </div>
                 </div>
@@ -6555,16 +6574,20 @@
                     <h3 style="display:flex;align-items:center;gap:8px"><img src="odolo-logo-official.svg" width="22"
                             height="22" alt="oDOLO" style="flex-shrink:0"> oDOLO Exercisers</h3>
                 </div>
-                <div class="table-toolbar">
-                    <div class="search-input-wrapper">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="11" cy="11" r="8" />
-                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                        </svg>
-                        <input type="text" id="exerciser-search" placeholder="Search exerciser address 0x…">
+                <div class="dolo-flow-toolbar">
+                    <div style="display:flex;flex-direction:column;gap:3px">
+                        <span class="dolo-flow-group-label">Search</span>
+                        <div class="search-input-wrapper" style="width:300px;min-width:160px">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8" />
+                                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                            </svg>
+                            <input type="text" id="exerciser-search" placeholder="0x…"
+                                style="font-size:12px;padding:7px 12px 7px 32px">
+                        </div>
                     </div>
-                    <div class="toolbar-count" id="exerciser-count"></div>
+                    <div class="toolbar-count" id="exerciser-count" style="align-self:flex-end;margin-bottom:5px"></div>
                 </div>
 
                 <div class="table-scroll">
@@ -6611,6 +6634,19 @@
                     <h3>oDOLO Flow</h3>
                 </div>
                 <div class="dolo-flow-toolbar">
+                    <div style="display:flex;flex-direction:column;gap:3px">
+                        <span class="dolo-flow-group-label">Search</span>
+                        <div class="search-input-wrapper" style="width:300px;min-width:160px">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8" />
+                                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                            </svg>
+                            <input type="text" id="odolo-flow-search" placeholder="0x…" oninput="odolo_renderFlows()"
+                                style="font-size:12px;padding:7px 12px 7px 32px">
+                        </div>
+                    </div>
+                    <div class="dolo-flow-toolbar-divider"></div>
                     <div style="display:flex;flex-direction:column;gap:3px">
                         <span class="dolo-flow-group-label">Period</span>
                         <div id="odolo-flow-period" class="dolo-chain-pills" style="width:fit-content">
@@ -9235,7 +9271,7 @@
         // ---- CLAIMS ----
         function setRecentClaimsPeriod(days) {
             vedolo_claimsPeriod = days;
-            document.querySelectorAll('#recent-claims-period-btns .pg-btn').forEach(btn => {
+            document.querySelectorAll('#recent-claims-period-btns button[data-period]').forEach(btn => {
                 btn.classList.toggle('active', parseInt(btn.dataset.period) === days);
             });
             vedolo_claimsPage = 1;
@@ -9326,7 +9362,7 @@
         // ---- LOCKS ----
         function setRecentLocksPeriod(days) {
             vedolo_locksPeriod = days;
-            document.querySelectorAll('#recent-locks-period-btns .pg-btn').forEach(btn => {
+            document.querySelectorAll('#recent-locks-period-btns button[data-period]').forEach(btn => {
                 btn.classList.toggle('active', parseInt(btn.dataset.period) === days);
             });
             vedolo_locksPage = 1;
@@ -11327,6 +11363,18 @@
                 const period = parseInt(btn.dataset.period);
                 if (!isNaN(period)) setRecentExPeriod(period);
             });
+
+            // Recent veDOLO Unlocks period pills
+            setupPills('recent-claims-period-btns', btn => {
+                const period = parseInt(btn.dataset.period);
+                if (!isNaN(period)) setRecentClaimsPeriod(period);
+            });
+
+            // Recent DOLO Locks period pills
+            setupPills('recent-locks-period-btns', btn => {
+                const period = parseInt(btn.dataset.period);
+                if (!isNaN(period)) setRecentLocksPeriod(period);
+            });
         })();
 
         // ===== oDOLO FLOWS — Top Accumulators & Sellers =====
@@ -11353,8 +11401,12 @@
             const periodData = odolo_flowsData.periods[odolo_flowPeriod];
             if (!periodData) return;
 
-            const accumulators = periodData.accumulators || [];
-            const sellers = periodData.sellers || [];
+            const searchEl = document.getElementById('odolo-flow-search');
+            const q = searchEl ? searchEl.value.trim().toLowerCase() : '';
+            const filterBySearch = arr => q ? arr.filter(item => item.address.toLowerCase().includes(q)) : arr;
+
+            const accumulators = filterBySearch(periodData.accumulators || []);
+            const sellers = filterBySearch(periodData.sellers || []);
             const explorer = 'https://berascan.com/address/';
 
             function renderRows(items, isAccumulator) {
