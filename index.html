@@ -2738,8 +2738,13 @@
             align-items: center;
         }
 
+        /* In-DOM badge tooltip — kept hidden, JS clones it to body */
         .badge-tooltip-wrap .badge-tooltip {
-            display: none;
+            display: none !important;
+        }
+
+        /* Floating badge tooltip (cloned to body by JS) */
+        .badge-tooltip-floating {
             position: fixed;
             background: rgba(15, 23, 42, 0.98);
             border: 1px solid rgba(99, 102, 241, 0.3);
@@ -2749,7 +2754,7 @@
             font-weight: 400;
             color: #e2e8f0;
             width: 280px;
-            z-index: 99999;
+            z-index: 999999;
             text-transform: none;
             letter-spacing: normal;
             line-height: 1.5;
@@ -2760,7 +2765,8 @@
             overflow-wrap: break-word;
         }
 
-        .badge-tooltip-wrap .badge-tooltip::after {
+        /* Arrow pointing up (tooltip below badge) */
+        .badge-tooltip-floating::after {
             content: '';
             position: absolute;
             bottom: 100%;
@@ -2770,8 +2776,12 @@
             border-bottom-color: rgba(99, 102, 241, 0.3);
         }
 
-        .badge-tooltip-wrap:hover .badge-tooltip {
-            display: block;
+        /* Arrow pointing down (tooltip above badge) — activated by --arrow-flip */
+        .badge-tooltip-floating[style*="--arrow-flip"]::after {
+            bottom: auto;
+            top: 100%;
+            border-bottom-color: transparent;
+            border-top-color: rgba(99, 102, 241, 0.3);
         }
 
         /* ===== SUPPLY % IN TABLE ===== */
@@ -6795,16 +6805,17 @@
                             style="font-size:13px;font-weight:500;color:var(--text-muted)"></span></h3>
                 </div>
 
-                <div class="table-toolbar" style="flex-direction:column;align-items:flex-start;gap:8px">
-                    <div class="search-input-wrapper">
+                <div class="table-toolbar" style="flex-direction:row;align-items:center;gap:10px">
+                    <div class="search-input-wrapper" style="flex:1;min-width:0">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="11" cy="11" r="8" />
                             <line x1="21" y1="21" x2="16.65" y2="16.65" />
                         </svg>
-                        <input type="text" id="dolo-holder-search" placeholder="Search address 0x…">
+                        <input type="text" id="dolo-holder-search" placeholder="Search full address 0x…"
+                            style="font-size:12px">
                     </div>
-                    <label class="dolo-flow-toggle"
+                    <label class="dolo-flow-toggle" style="flex-shrink:0"
                         title="Hide CEX exchanges, protocol contracts, LP pools, and smart contracts from the table">
                         <input type="checkbox" id="dolo-holder-hide-cex" onchange="dolo_applyHolderFilters()">
                         <span class="dolo-flow-toggle-track"></span>
@@ -11075,24 +11086,56 @@
             return `<span class="badge-tooltip-wrap"><span style="display:inline-block;font-size:9px;font-weight:600;padding:1px 6px;border-radius:4px;margin-left:5px;letter-spacing:0.3px;white-space:nowrap;cursor:help;${style}">${info.label}</span><span class="badge-tooltip">${desc}</span></span>`;
         }
 
-        // Position badge tooltips dynamically (fixed positioning avoids table overflow clipping)
+        // Position badge tooltips dynamically — teleport to body to avoid overflow clipping
+        let _activeBadgeTip = null;
         document.addEventListener('mouseenter', function (e) {
             const wrap = e.target.closest('.badge-tooltip-wrap');
             if (!wrap) return;
-            const tip = wrap.querySelector('.badge-tooltip');
-            if (!tip) return;
+            const srcTip = wrap.querySelector('.badge-tooltip');
+            if (!srcTip) return;
+
+            // Remove any previous floating tooltip
+            if (_activeBadgeTip) { _activeBadgeTip.remove(); _activeBadgeTip = null; }
+
+            // Clone and teleport to body
+            const tip = srcTip.cloneNode(true);
+            tip.classList.add('badge-tooltip-floating');
+            tip.style.display = 'block';
+            tip.style.position = 'fixed';
+            tip.style.zIndex = '999999';
+            document.body.appendChild(tip);
+            _activeBadgeTip = tip;
+
             const rect = wrap.getBoundingClientRect();
-            const tipW = 280; // matches CSS width
-            // Position below the badge, centered
+            const tipW = 280;
             let left = rect.left + rect.width / 2 - tipW / 2;
-            // Clamp to viewport edges
             if (left < 8) left = 8;
             if (left + tipW > window.innerWidth - 8) left = window.innerWidth - tipW - 8;
-            tip.style.top = (rect.bottom + 8) + 'px';
+
+            // Check if tooltip fits below, otherwise show above
+            const tipH = tip.offsetHeight || 80;
+            let top = rect.bottom + 8;
+            let arrowOnTop = true; // arrow on top of tooltip (tooltip below badge)
+            if (top + tipH > window.innerHeight - 8) {
+                top = rect.top - tipH - 8;
+                arrowOnTop = false; // arrow on bottom of tooltip (tooltip above badge)
+            }
+
+            tip.style.top = top + 'px';
             tip.style.left = left + 'px';
-            // Move arrow to point at badge center
             const arrowLeft = rect.left + rect.width / 2 - left;
             tip.style.setProperty('--arrow-left', arrowLeft + 'px');
+
+            // Flip arrow if tooltip is above
+            if (!arrowOnTop) {
+                tip.style.setProperty('--arrow-flip', '1');
+            }
+        }, true);
+
+        document.addEventListener('mouseleave', function (e) {
+            const wrap = e.target.closest('.badge-tooltip-wrap');
+            if (!wrap) return;
+            if (_activeBadgeTip) { _activeBadgeTip.remove(); _activeBadgeTip = null; }
         }, true);
 
         let dolo_flowsData = null;
