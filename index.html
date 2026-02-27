@@ -2732,24 +2732,25 @@
         }
 
         .contract-icon-badge:hover::after {
-            content: 'Smart contract — not a personal wallet';
+            content: 'Smart contract \u2014 not a personal wallet';
             position: absolute;
             bottom: calc(100% + 6px);
             left: 50%;
             transform: translateX(-50%);
             background: rgba(15, 23, 42, 0.98);
             color: #e2e8f0;
-            font-size: 11px;
-            font-weight: 500;
+            font-size: 12px;
+            font-weight: 400;
             font-family: 'Inter', sans-serif;
-            padding: 8px 12px;
+            padding: 10px 14px;
             border-radius: 8px;
             white-space: nowrap;
             border: 1px solid rgba(99, 102, 241, 0.3);
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
             backdrop-filter: blur(12px);
-            z-index: 9999;
+            z-index: 99999;
             pointer-events: none;
+            line-height: 1.5;
         }
 
         /* Badge tooltip (CEX, LP, Protocol labels) */
@@ -2761,34 +2762,34 @@
 
         .badge-tooltip-wrap .badge-tooltip {
             display: none;
-            position: absolute;
-            bottom: calc(100% + 8px);
-            left: 50%;
-            transform: translateX(-50%);
+            position: fixed;
             background: rgba(15, 23, 42, 0.98);
             border: 1px solid rgba(99, 102, 241, 0.3);
             border-radius: 8px;
-            padding: 8px 12px;
-            font-size: 11px;
+            padding: 10px 14px;
+            font-size: 12px;
             font-weight: 400;
             color: #e2e8f0;
-            white-space: nowrap;
-            z-index: 9999;
+            width: 260px;
+            z-index: 99999;
+            text-transform: none;
             letter-spacing: normal;
-            line-height: 1.4;
+            line-height: 1.5;
             backdrop-filter: blur(12px);
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
             pointer-events: none;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
 
         .badge-tooltip-wrap .badge-tooltip::after {
             content: '';
             position: absolute;
-            top: 100%;
+            bottom: 100%;
             left: 50%;
             transform: translateX(-50%);
-            border: 5px solid transparent;
-            border-top-color: rgba(99, 102, 241, 0.3);
+            border: 6px solid transparent;
+            border-bottom-color: rgba(99, 102, 241, 0.3);
         }
 
         .badge-tooltip-wrap:hover .badge-tooltip {
@@ -11095,6 +11096,17 @@
             const style = colors[info.type] || colors.protocol;
             return `<span class="badge-tooltip-wrap"><span style="display:inline-block;font-size:9px;font-weight:600;padding:1px 6px;border-radius:4px;margin-left:5px;letter-spacing:0.3px;white-space:nowrap;cursor:help;${style}">${info.label}</span><span class="badge-tooltip">${desc}</span></span>`;
         }
+
+        // Position badge tooltips dynamically (fixed positioning avoids table overflow clipping)
+        document.addEventListener('mouseenter', function (e) {
+            const wrap = e.target.closest('.badge-tooltip-wrap');
+            if (!wrap) return;
+            const tip = wrap.querySelector('.badge-tooltip');
+            if (!tip) return;
+            const rect = wrap.getBoundingClientRect();
+            tip.style.top = (rect.bottom + 8) + 'px';
+            tip.style.left = (rect.left + rect.width / 2 - 130) + 'px'; // 130 = half of 260px width
+        }, true);
 
         let dolo_flowsData = null;
         let dolo_flowPeriod = '1d';
