@@ -36,6 +36,8 @@ EXCLUDED_ADDRS = {
     "0xbedfac7488dccaafdd66d1d7d56349780fe0477e",
     # Contract (proxy)
     "0xf909c4ae16622898b885b89d7f839e0244851c66",
+    # Contract
+    "0xa575f37e869e6887564f87c07e2885e08d542c4a",
 }
 
 RPC_URLS = [
