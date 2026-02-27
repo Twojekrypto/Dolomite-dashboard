@@ -8528,6 +8528,22 @@
         let odoloLoaded = false;
         let doloLoaded = false;
 
+        // Re-position all pill sliders (needed when tab becomes visible)
+        function repositionAllSliders() {
+            document.querySelectorAll('.dolo-chain-pills').forEach(container => {
+                const slider = container.querySelector('.dolo-chain-slider');
+                const active = container.querySelector('button.active');
+                if (!slider || !active) return;
+                const px = container.getBoundingClientRect();
+                const bx = active.getBoundingClientRect();
+                if (bx.width > 0) {
+                    slider.style.width = bx.width + 'px';
+                    slider.style.transform = `translateX(${bx.left - px.left - 2}px)`;
+                    slider.style.opacity = '1';
+                }
+            });
+        }
+
         function switchView(view) {
             if (view === currentView) return;
             currentView = view;
@@ -8537,6 +8553,9 @@
                 document.getElementById('view-' + v).classList.toggle('active', view === v);
                 document.getElementById('tab-' + v).classList.toggle('active', view === v);
             });
+
+            // Re-position sliders now that hidden containers are visible
+            setTimeout(repositionAllSliders, 50);
 
             // Update page title
             const titles = { vedolo: 'veDOLO', odolo: 'oDOLO', dolo: 'DOLO', earn: 'EARN' };
@@ -11466,8 +11485,11 @@
                 requestAnimationFrame(() => {
                     const active = container.querySelector('button.active');
                     if (active) {
-                        positionSlider(active);
-                        slider.style.opacity = '1';
+                        const bx = active.getBoundingClientRect();
+                        if (bx.width > 0) {
+                            positionSlider(active);
+                            slider.style.opacity = '1';
+                        }
                     }
                 });
 
@@ -11605,8 +11627,11 @@
                 requestAnimationFrame(() => {
                     const active = container.querySelector('button.active');
                     if (active) {
-                        positionSlider(active);
-                        slider.style.opacity = '1';
+                        const bx = active.getBoundingClientRect();
+                        if (bx.width > 0) {
+                            positionSlider(active);
+                            slider.style.opacity = '1';
+                        }
                     }
                 });
 
