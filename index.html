@@ -6770,6 +6770,13 @@
                         <button data-chain="bera"><img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg"
                                 alt="">BERA</button>
                     </div>
+                    <label
+                        style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted);cursor:pointer;margin-left:6px;user-select:none"
+                        title="Hide CEX wallets and Contracts from flow tables">
+                        <input type="checkbox" id="dolo-flow-hide-cex" style="cursor:pointer;accent-color:#f59e0b"
+                            onchange="dolo_renderFlows()">
+                        <span>Hide CEX & CA</span>
+                    </label>
                 </div>
                 <div class="dolo-flow-grid">
                     <div class="dolo-flow-table-wrap">
@@ -10891,6 +10898,7 @@
             '0x1103fc560de8b710983e7f3ec09d587f3f848566': { label: 'CA', type: 'protocol' },
             '0x035ae7d933dcbfe617ffba194a88af0c2867b90c': { label: 'Gate.io', type: 'cex' },
             '0x8782163068c7cd74d2510768a61135c1e4eb07b3': { label: 'Gate.io', type: 'cex' },
+            '0x0d0707963952f2fba59dd06f2b425ace40b492fe': { label: 'Gate.io', type: 'cex' },
             '0xf89d7b9c864f589bbf53a82105107622b35eaa40': { label: 'Bybit', type: 'cex' },
             // LP pools
             '0x003896387666c5c11458eeb3f927b72a11b19783': { label: 'Uniswap V3 DOLO/USDC', type: 'lp' },
@@ -10949,6 +10957,13 @@
             const periodData = dolo_flowsData.periods[dolo_flowPeriod];
             if (!periodData) return;
 
+            const hideCex = document.getElementById('dolo-flow-hide-cex')?.checked;
+            const isHidden = (addr) => {
+                if (!hideCex) return false;
+                const info = DOLO_ADDR_LABELS[addr.toLowerCase()];
+                return info && (info.type === 'cex' || info.label === 'CA');
+            };
+
             let accumulators = [];
             let sellers = [];
 
@@ -10974,13 +10989,13 @@
                         sellMap[addr].tx_count += (s.tx_count || 0);
                     }
                 }
-                accumulators = Object.values(accMap).sort((a, b) => b.net_flow - a.net_flow).slice(0, 5);
-                sellers = Object.values(sellMap).sort((a, b) => b.net_flow - a.net_flow).slice(0, 5);
+                accumulators = Object.values(accMap).filter(a => !isHidden(a.address)).sort((a, b) => b.net_flow - a.net_flow).slice(0, 5);
+                sellers = Object.values(sellMap).filter(s => !isHidden(s.address)).sort((a, b) => b.net_flow - a.net_flow).slice(0, 5);
             } else {
                 const cd = periodData[dolo_flowChain];
                 if (cd) {
-                    accumulators = cd.accumulators || [];
-                    sellers = cd.sellers || [];
+                    accumulators = (cd.accumulators || []).filter(a => !isHidden(a.address));
+                    sellers = (cd.sellers || []).filter(s => !isHidden(s.address));
                 }
             }
 
