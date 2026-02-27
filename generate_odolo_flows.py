@@ -55,6 +55,10 @@ PERIODS = {
     "1d": 86400,
     "7d": 86400 * 7,
     "30d": 86400 * 30,
+    "90d": 86400 * 90,
+    "180d": 86400 * 180,
+    "1y": 86400 * 365,
+    "all": 86400 * 365 * 3,   # 3 years — effectively "all time"
 }
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -230,9 +234,10 @@ def main():
         blocks_back = seconds // BLOCK_TIME
         cutoff_blocks[period] = max(current_block - blocks_back, 0)
 
-    # Fetch all transfers from 30d ago
+    # Fetch all transfers from the longest period
+    max_period = max(PERIODS.keys(), key=lambda k: PERIODS[k])
     print("\n📡 Fetching Transfer events...")
-    all_transfers = fetch_transfer_logs(cutoff_blocks["30d"], current_block)
+    all_transfers = fetch_transfer_logs(cutoff_blocks[max_period], current_block)
 
     # Detect contracts
     print("\n🔍 Detecting contract addresses to exclude...")

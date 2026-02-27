@@ -862,11 +862,14 @@
             top: 2px;
             left: 2px;
             height: calc(100% - 4px);
+            width: 0;
+            opacity: 0;
             background: rgba(99, 102, 241, 0.2);
             border: 1px solid rgba(99, 102, 241, 0.3);
             border-radius: 6px;
             transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
-                width 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+                width 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+                opacity 0.2s ease;
             box-shadow: 0 0 12px rgba(99, 102, 241, 0.15);
             z-index: 0;
         }
@@ -6245,6 +6248,10 @@
                             <button data-period="1">1D</button>
                             <button class="active" data-period="7">7D</button>
                             <button data-period="30">30D</button>
+                            <button data-period="90">90D</button>
+                            <button data-period="180">180D</button>
+                            <button data-period="365">1Y</button>
+                            <button data-period="99999">ALL</button>
                         </div>
                     </div>
                 </div>
@@ -6313,6 +6320,10 @@
                             <button data-period="1">1D</button>
                             <button class="active" data-period="7">7D</button>
                             <button data-period="30">30D</button>
+                            <button data-period="90">90D</button>
+                            <button data-period="180">180D</button>
+                            <button data-period="365">1Y</button>
+                            <button data-period="99999">ALL</button>
                         </div>
                     </div>
                 </div>
@@ -6616,6 +6627,10 @@
                             <button data-period="1">1D</button>
                             <button class="active" data-period="7">7D</button>
                             <button data-period="30">30D</button>
+                            <button data-period="90">90D</button>
+                            <button data-period="180">180D</button>
+                            <button data-period="365">1Y</button>
+                            <button data-period="99999">ALL</button>
                         </div>
                     </div>
                 </div>
@@ -6744,6 +6759,10 @@
                             <button class="active" data-period="1d">1D</button>
                             <button data-period="7d">7D</button>
                             <button data-period="30d">30D</button>
+                            <button data-period="90d">90D</button>
+                            <button data-period="180d">180D</button>
+                            <button data-period="1y">1Y</button>
+                            <button data-period="all">ALL</button>
                         </div>
                     </div>
                 </div>
@@ -7051,6 +7070,10 @@
                             <button class="active" data-period="1d">1D</button>
                             <button data-period="7d">7D</button>
                             <button data-period="30d">30D</button>
+                            <button data-period="90d">90D</button>
+                            <button data-period="180d">180D</button>
+                            <button data-period="1y">1Y</button>
+                            <button data-period="all">ALL</button>
                         </div>
                     </div>
                 </div>
@@ -10951,7 +10974,10 @@
             // Initial position
             requestAnimationFrame(() => {
                 const activeBtn = filterEl.querySelector('button.active');
-                if (activeBtn) positionSlider(activeBtn);
+                if (activeBtn) {
+                    positionSlider(activeBtn);
+                    slider.style.opacity = '1';
+                }
             });
 
             filterEl.querySelectorAll('button').forEach(btn => {
@@ -11443,7 +11469,10 @@
 
                 requestAnimationFrame(() => {
                     const active = container.querySelector('button.active');
-                    if (active) positionSlider(active);
+                    if (active) {
+                        positionSlider(active);
+                        slider.style.opacity = '1';
+                    }
                 });
 
                 container.querySelectorAll('button').forEach(btn => {
@@ -11579,7 +11608,10 @@
 
                 requestAnimationFrame(() => {
                     const active = container.querySelector('button.active');
-                    if (active) positionSlider(active);
+                    if (active) {
+                        positionSlider(active);
+                        slider.style.opacity = '1';
+                    }
                 });
 
                 container.querySelectorAll('button').forEach(btn => {
