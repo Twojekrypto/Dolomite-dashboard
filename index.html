@@ -6817,7 +6817,7 @@
                             style="font-size:13px;font-weight:500;color:var(--text-muted)"></span></h3>
                 </div>
 
-                <div class="table-toolbar">
+                <div class="table-toolbar" style="flex-wrap:wrap;gap:8px">
                     <div class="search-input-wrapper">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -6827,11 +6827,10 @@
                         <input type="text" id="dolo-holder-search" placeholder="Search address 0x…">
                     </div>
                     <label class="dolo-flow-toggle"
-                        style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;margin-left:auto"
-                        title="Hide addresses labeled as CEX (exchanges) or CA (contracts) from the holders table">
+                        title="Hide CEX exchanges, protocol contracts, LP pools, and smart contracts from the table">
                         <input type="checkbox" id="dolo-holder-hide-cex" onchange="dolo_applyHolderFilters()">
                         <span class="dolo-flow-toggle-track"></span>
-                        <span class="dolo-flow-toggle-label" style="color:#cbd5e1">Hide CEX & CA</span>
+                        <span class="dolo-flow-toggle-label">Hide CEX & CA</span>
                     </label>
                 </div>
 
@@ -10093,7 +10092,8 @@
                 if (q && !h.address.toLowerCase().includes(q)) return false;
                 if (hideCex) {
                     const info = DOLO_ADDR_LABELS[h.address.toLowerCase()];
-                    if (info && (info.type === 'cex' || info.label === 'CA')) return false;
+                    if (info) return false; // filter all labeled addresses (CEX, LP, Protocol, CA)
+                    if (h.is_contract) return false; // filter unlabeled contracts too
                 }
                 const hasEth = h.chains && h.chains.includes('eth');
                 const hasBera = h.chains && h.chains.includes('bera');
