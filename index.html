@@ -1070,17 +1070,27 @@
         /* DOLO Flow toolbar */
         .dolo-flow-toolbar {
             display: flex;
-            gap: 10px;
+            gap: 14px;
             flex-wrap: wrap;
-            align-items: center;
+            align-items: flex-end;
             margin-bottom: 16px;
+        }
+
+        .dolo-flow-group-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: #e2e8f0;
+            font-weight: 600;
         }
 
         .dolo-flow-toolbar-divider {
             width: 1px;
-            height: 22px;
+            height: 28px;
             background: var(--border-subtle);
             margin: 0 2px;
+            align-self: flex-end;
+            margin-bottom: 3px;
         }
 
         .dolo-flow-toggle {
@@ -6831,8 +6841,7 @@
                 </div>
                 <div class="dolo-flow-toolbar">
                     <div style="display:flex;flex-direction:column;gap:3px">
-                        <span
-                            style="font-size:9px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);opacity:0.6;font-weight:600">Period</span>
+                        <span class="dolo-flow-group-label">Period</span>
                         <div id="dolo-flow-period" class="dolo-chain-pills" style="width:fit-content">
                             <div class="dolo-chain-slider"></div>
                             <button class="active" data-period="1d">1D</button>
@@ -6841,8 +6850,7 @@
                         </div>
                     </div>
                     <div style="display:flex;flex-direction:column;gap:3px">
-                        <span
-                            style="font-size:9px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);opacity:0.6;font-weight:600">Chain</span>
+                        <span class="dolo-flow-group-label">Chain</span>
                         <div id="dolo-flow-chain" class="dolo-chain-pills" style="width:fit-content">
                             <div class="dolo-chain-slider"></div>
                             <button class="active" data-chain="all">
@@ -6859,11 +6867,14 @@
                         </div>
                     </div>
                     <div class="dolo-flow-toolbar-divider"></div>
-                    <label class="dolo-flow-toggle" title="Hide CEX wallets and Contracts from flow tables">
-                        <input type="checkbox" id="dolo-flow-hide-cex" onchange="dolo_renderFlows()">
-                        <span class="dolo-flow-toggle-track"></span>
-                        <span class="dolo-flow-toggle-label">Hide CEX & CA</span>
-                    </label>
+                    <div style="display:flex;flex-direction:column;gap:3px">
+                        <span class="dolo-flow-group-label">Filter</span>
+                        <label class="dolo-flow-toggle" title="Hide CEX wallets and Contracts from flow tables">
+                            <input type="checkbox" id="dolo-flow-hide-cex" onchange="dolo_renderFlows()">
+                            <span class="dolo-flow-toggle-track"></span>
+                            <span class="dolo-flow-toggle-label">Hide CEX & CA</span>
+                        </label>
+                    </div>
                 </div>
                 <div class="dolo-flow-grid">
                     <div class="dolo-flow-table-wrap">
@@ -9923,7 +9934,7 @@
                 const beraBal = h.balance_bera || 0;
 
                 // Contract icon
-                const contractIcon = h.is_contract ? '<span class="contract-icon-badge" title="Contract Address">📜</span>' : '';
+                const contractIcon = h.is_contract ? '<span class="contract-icon-badge" title="Smart contract — not a personal wallet">📜</span>' : '';
 
                 // Known address label (CEX, LP, Protocol)
                 const addrLabelHtml = (typeof dolo_labelBadge === 'function') ? dolo_labelBadge(h.address) : '';
@@ -11010,14 +11021,18 @@
         function dolo_labelBadge(addr) {
             const info = DOLO_ADDR_LABELS[addr.toLowerCase()];
             if (!info) return '';
-            if (info.label === 'CA') return '<span class="contract-icon-badge" title="Contract Address">📜</span>';
+            if (info.label === 'CA') return '<span class="contract-icon-badge" title="Smart contract — not a personal wallet">📜</span>';
             const colors = {
                 cex: 'background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.25)',
                 lp: 'background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.25)',
                 protocol: 'background:rgba(139,92,246,0.15);color:#a78bfa;border:1px solid rgba(139,92,246,0.25)',
             };
-            const typeNames = { cex: 'Centralized Exchange', lp: 'Liquidity Pool', protocol: 'Protocol Contract' };
-            const tooltip = `${info.label} — ${typeNames[info.type] || 'Known Address'}`;
+            const typeDescs = {
+                cex: 'Centralized Exchange — deposit/withdrawal wallet',
+                lp: 'Liquidity Pool — automated market maker contract',
+                protocol: 'Protocol — smart contract owned by protocol',
+            };
+            const tooltip = `${info.label} — ${typeDescs[info.type] || 'Known Address'}`;
             const style = colors[info.type] || colors.protocol;
             return `<span style="display:inline-block;font-size:9px;font-weight:600;padding:1px 6px;border-radius:4px;margin-left:5px;letter-spacing:0.3px;white-space:nowrap;cursor:default;${style}" title="${tooltip}">${info.label}</span>`;
         }
