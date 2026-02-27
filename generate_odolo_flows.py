@@ -32,6 +32,10 @@ EXCLUDED_ADDRS = {
     "0x596384bdffc9f563b53791aeec50a42ff51c3e42",
     # Contract
     "0x27f66ba3fda600239f48526bb26a1f8d5700ccf7",
+    # DEX swap router
+    "0xbedfac7488dccaafdd66d1d7d56349780fe0477e",
+    # Contract (proxy)
+    "0xf909c4ae16622898b885b89d7f839e0244851c66",
 }
 
 RPC_URLS = [
