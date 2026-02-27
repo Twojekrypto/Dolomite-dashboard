@@ -6830,25 +6830,33 @@
                     <h3>DOLO Flow</h3>
                 </div>
                 <div class="dolo-flow-toolbar">
-                    <div id="dolo-flow-period" class="dolo-chain-pills" style="width:fit-content">
-                        <div class="dolo-chain-slider"></div>
-                        <button class="active" data-period="1d">1D</button>
-                        <button data-period="7d">7D</button>
-                        <button data-period="30d">30D</button>
+                    <div style="display:flex;flex-direction:column;gap:3px">
+                        <span
+                            style="font-size:9px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);opacity:0.6;font-weight:600">Period</span>
+                        <div id="dolo-flow-period" class="dolo-chain-pills" style="width:fit-content">
+                            <div class="dolo-chain-slider"></div>
+                            <button class="active" data-period="1d">1D</button>
+                            <button data-period="7d">7D</button>
+                            <button data-period="30d">30D</button>
+                        </div>
                     </div>
-                    <div id="dolo-flow-chain" class="dolo-chain-pills" style="width:fit-content">
-                        <div class="dolo-chain-slider"></div>
-                        <button class="active" data-chain="all">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="1.5" style="vertical-align:middle;margin-right:3px;margin-top:-1px">
-                                <circle cx="12" cy="12" r="10" />
-                                <path
-                                    d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
-                            </svg>All</button>
-                        <button data-chain="eth"><img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg"
-                                alt="">ETH</button>
-                        <button data-chain="bera"><img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg"
-                                alt="">BERA</button>
+                    <div style="display:flex;flex-direction:column;gap:3px">
+                        <span
+                            style="font-size:9px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);opacity:0.6;font-weight:600">Chain</span>
+                        <div id="dolo-flow-chain" class="dolo-chain-pills" style="width:fit-content">
+                            <div class="dolo-chain-slider"></div>
+                            <button class="active" data-chain="all">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="1.5" style="vertical-align:middle;margin-right:3px;margin-top:-1px">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <path
+                                        d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
+                                </svg>All</button>
+                            <button data-chain="eth"><img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg"
+                                    alt="">ETH</button>
+                            <button data-chain="bera"><img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg"
+                                    alt="">BERA</button>
+                        </div>
                     </div>
                     <div class="dolo-flow-toolbar-divider"></div>
                     <label class="dolo-flow-toggle" title="Hide CEX wallets and Contracts from flow tables">
@@ -9569,8 +9577,8 @@
                     closest = snapshots[i];
                 }
             }
-            // Only use if within 6h of the 24h mark (reasonable tolerance)
-            if (closest && closestDiff < 6 * 60 * 60 * 1000) return closest;
+            // Only use if within 12h of the 24h mark (generous tolerance for snapshot gaps)
+            if (closest && closestDiff < 12 * 60 * 60 * 1000) return closest;
             return null;
         }
 
