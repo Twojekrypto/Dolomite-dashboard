@@ -6066,7 +6066,6 @@
                     </div>
                     <div class="dolo-flow-toolbar-divider"></div>
                     <div style="display:flex;flex-direction:column;gap:3px">
-                        <span class="dolo-flow-group-label">Filter</span>
                         <select class="filter-dropdown" id="filter-nft"
                             style="padding:7px 32px 7px 12px;font-size:12px">
                             <option value="all">All</option>
@@ -6853,7 +6852,6 @@
                     </div>
                     <div class="dolo-flow-toolbar-divider"></div>
                     <div style="display:flex;flex-direction:column;gap:3px">
-                        <span class="dolo-flow-group-label">Filter</span>
                         <label class="dolo-flow-toggle"
                             title="Hide CEX exchanges, protocol contracts, LP pools, and smart contracts from the table">
                             <input type="checkbox" id="dolo-holder-hide-cex" onchange="dolo_applyHolderFilters()">
@@ -6923,7 +6921,6 @@
                 </div>
                 <div class="dolo-flow-toolbar">
                     <div style="display:flex;flex-direction:column;gap:3px">
-                        <span class="dolo-flow-group-label">Chain</span>
                         <div id="dolo-flow-chain" class="dolo-chain-pills" style="width:fit-content">
                             <div class="dolo-chain-slider"></div>
                             <button class="active" data-chain="all">
@@ -6941,7 +6938,6 @@
                     </div>
                     <div class="dolo-flow-toolbar-divider"></div>
                     <div style="display:flex;flex-direction:column;gap:3px">
-                        <span class="dolo-flow-group-label">Filter</span>
                         <label class="dolo-flow-toggle" title="Hide CEX wallets and Contracts from flow tables">
                             <input type="checkbox" id="dolo-flow-hide-cex" onchange="dolo_renderFlows()">
                             <span class="dolo-flow-toggle-track"></span>
@@ -8092,8 +8088,20 @@
             }
 
             currentPage = 1;
-            renderTable();
-            renderPagination();
+            // Smooth fade transition on filter change
+            const tbody = document.getElementById('table-body');
+            tbody.style.opacity = '0';
+            tbody.style.transform = 'translateY(6px)';
+            setTimeout(() => {
+                renderTable();
+                renderPagination();
+                requestAnimationFrame(() => {
+                    tbody.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+                    tbody.style.opacity = '1';
+                    tbody.style.transform = 'translateY(0)';
+                    setTimeout(() => { tbody.style.transition = ''; }, 260);
+                });
+            }, 120);
         }
 
         // ===== UTILS =====
