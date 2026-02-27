@@ -13297,12 +13297,30 @@
         }
 
         // ---- Detail row helpers ----
+        let earn_openDetailIdx = null; // track which detail row is currently open
         function earn_toggleDetail(idx) {
             const detail = document.getElementById('earn-detail-' + idx);
             const dataRow = document.getElementById('earn-row-' + idx);
             if (!detail || !dataRow) return;
+
+            // Close previously open detail row (single-open)
+            if (earn_openDetailIdx !== null && earn_openDetailIdx !== idx) {
+                const prevDetail = document.getElementById('earn-detail-' + earn_openDetailIdx);
+                const prevRow = document.getElementById('earn-row-' + earn_openDetailIdx);
+                if (prevDetail) prevDetail.classList.remove('open');
+                if (prevRow) prevRow.classList.remove('expanded');
+            }
+
             const isOpen = detail.classList.toggle('open');
             dataRow.classList.toggle('expanded', isOpen);
+            earn_openDetailIdx = isOpen ? idx : null;
+
+            // Scroll the detail row into view when opening
+            if (isOpen) {
+                setTimeout(() => {
+                    detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 50);
+            }
         }
 
         function earn_toggleHistDetail(idx) {
@@ -13374,6 +13392,7 @@
         }
 
         function earn_renderResults(assets) {
+            earn_openDetailIdx = null; // reset tracked open detail on re-render
             // Get current chain explorer
             const chain = earn_getChain();
             const explorerBase = chain.explorer || 'https://etherscan.io';
@@ -13532,7 +13551,7 @@
                     const chevron = `<svg class="earn-row-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
                     const explorerUrl = `${explorerBase}/address/${item.tokenAddr}`;
 
-                    withdrawnHtml += `<tr class="earn-data-row earn-row-inactive" id="earn-inactive-row-${i}" style="animation-delay:${delay}s" onclick="earn_toggleDetail(${ii})">
+                    withdrawnHtml += `<tr class="earn-data-row earn-row-inactive" id="earn-row-${ii}" style="animation-delay:${delay}s" onclick="earn_toggleDetail(${ii})">
                         <td>
                             <div class="earn-token-cell">
                                 <div class="earn-token-left">
