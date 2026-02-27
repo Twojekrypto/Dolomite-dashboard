@@ -1684,25 +1684,107 @@
             box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.08);
         }
 
-        .filter-dropdown {
-            padding: 10px 32px 10px 14px;
+        /* ===== CUSTOM FILTER DROPDOWN ===== */
+        .custom-dropdown {
+            position: relative;
+            min-width: 120px;
+        }
+
+        .custom-dropdown-trigger {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 7px 12px;
             background: var(--bg-input);
-            border: 1px solid var(--border-subtle);
+            border: 1px solid rgba(255, 255, 255, 0.25);
             border-radius: var(--radius-sm);
             color: var(--text-primary);
             font-family: inherit;
-            font-size: 13px;
-            outline: none;
+            font-size: 12px;
             cursor: pointer;
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23555770' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 10px center;
-            transition: all var(--transition);
+            transition: border-color 0.15s, box-shadow 0.15s;
+            white-space: nowrap;
+            user-select: none;
         }
 
-        .filter-dropdown:focus {
+        .custom-dropdown-trigger:hover {
+            border-color: rgba(255, 255, 255, 0.35);
+        }
+
+        .custom-dropdown.open .custom-dropdown-trigger {
             border-color: var(--border-focus);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.08);
+        }
+
+        .custom-dropdown-chevron {
+            width: 12px;
+            height: 12px;
+            color: var(--text-muted);
+            transition: transform 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .custom-dropdown.open .custom-dropdown-chevron {
+            transform: rotate(180deg);
+        }
+
+        .custom-dropdown-menu {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            min-width: 100%;
+            background: rgba(15, 23, 42, 0.97);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            border-radius: 10px;
+            padding: 4px;
+            z-index: 100;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+            opacity: 0;
+            transform: translateY(-4px) scale(0.98);
+            pointer-events: none;
+            transition: opacity 0.15s ease, transform 0.15s ease;
+        }
+
+        .custom-dropdown.open .custom-dropdown-menu {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            pointer-events: auto;
+        }
+
+        .custom-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 12px;
+            border-radius: 7px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: background 0.12s, color 0.12s;
+            white-space: nowrap;
+        }
+
+        .custom-dropdown-item:hover {
+            background: rgba(99, 102, 241, 0.12);
+            color: var(--text-primary);
+        }
+
+        .custom-dropdown-item.active {
+            color: #e0e7ff;
+            background: rgba(99, 102, 241, 0.18);
+            font-weight: 600;
+        }
+
+        .custom-dropdown-item .check-mark {
+            width: 14px;
+            display: inline-flex;
+            flex-shrink: 0;
+        }
+
+        .custom-dropdown-item:not(.active) .check-mark {
+            visibility: hidden;
         }
 
         .toolbar-count {
@@ -6066,17 +6148,36 @@
                     </div>
                     <div class="dolo-flow-toolbar-divider"></div>
                     <div style="display:flex;flex-direction:column;gap:3px">
-                        <select class="filter-dropdown" id="filter-nft"
-                            style="padding:7px 32px 7px 12px;font-size:12px">
-                            <option value="all">All</option>
-                            <option value="100+">100+ NFT</option>
-                            <option value="50-100">50–100 NFT</option>
-                            <option value="26-50">26–50 NFT</option>
-                            <option value="11-25">11–25 NFT</option>
-                            <option value="6-10">6–10 NFT</option>
-                            <option value="2-5">2–5 NFT</option>
-                            <option value="1">1 NFT</option>
-                        </select>
+                        <input type="hidden" id="filter-nft" value="all">
+                        <div class="custom-dropdown" id="filter-nft-dropdown">
+                            <div class="custom-dropdown-trigger" onclick="toggleFilterDropdown()">
+                                <span id="filter-nft-label">All</span>
+                                <svg class="custom-dropdown-chevron" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <polyline points="6 9 12 15 18 9" />
+                                </svg>
+                            </div>
+                            <div class="custom-dropdown-menu">
+                                <div class="custom-dropdown-item active" data-value="all" onclick="selectFilter(this)">
+                                    <span class="check-mark">✓</span>All
+                                </div>
+                                <div class="custom-dropdown-item" data-value="100+" onclick="selectFilter(this)"><span
+                                        class="check-mark">✓</span>100+ NFT</div>
+                                <div class="custom-dropdown-item" data-value="50-100" onclick="selectFilter(this)"><span
+                                        class="check-mark">✓</span>50–100 NFT</div>
+                                <div class="custom-dropdown-item" data-value="26-50" onclick="selectFilter(this)"><span
+                                        class="check-mark">✓</span>26–50 NFT</div>
+                                <div class="custom-dropdown-item" data-value="11-25" onclick="selectFilter(this)"><span
+                                        class="check-mark">✓</span>11–25 NFT</div>
+                                <div class="custom-dropdown-item" data-value="6-10" onclick="selectFilter(this)"><span
+                                        class="check-mark">✓</span>6–10 NFT</div>
+                                <div class="custom-dropdown-item" data-value="2-5" onclick="selectFilter(this)"><span
+                                        class="check-mark">✓</span>2–5 NFT</div>
+                                <div class="custom-dropdown-item" data-value="1" onclick="selectFilter(this)"><span
+                                        class="check-mark">✓</span>1 NFT</div>
+                            </div>
+                        </div>
                     </div>
                     <div class="toolbar-count" id="results-count" style="align-self:flex-end;margin-bottom:5px"></div>
                 </div>
@@ -7521,7 +7622,11 @@
             renderPagination();
 
             document.getElementById('search').addEventListener('input', debounce(applyFilters, 200));
-            document.getElementById('filter-nft').addEventListener('change', applyFilters);
+            // Custom dropdown — close on outside click
+            document.addEventListener('click', e => {
+                const dd = document.getElementById('filter-nft-dropdown');
+                if (dd && !dd.contains(e.target)) dd.classList.remove('open');
+            });
         }
 
         // ===== COUNTER ANIMATION =====
@@ -8051,6 +8156,23 @@
             currentPage = 1;
             renderTable();
             renderPagination();
+        }
+
+        // ===== CUSTOM DROPDOWN =====
+        function toggleFilterDropdown() {
+            document.getElementById('filter-nft-dropdown').classList.toggle('open');
+        }
+
+        function selectFilter(el) {
+            const val = el.dataset.value;
+            document.getElementById('filter-nft').value = val;
+            document.getElementById('filter-nft-label').textContent = el.textContent.trim();
+            // Update active state
+            el.closest('.custom-dropdown-menu').querySelectorAll('.custom-dropdown-item').forEach(i => i.classList.remove('active'));
+            el.classList.add('active');
+            // Close dropdown
+            document.getElementById('filter-nft-dropdown').classList.remove('open');
+            applyFilters();
         }
 
         // ===== FILTER =====
