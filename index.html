@@ -10916,8 +10916,10 @@
                 lp: 'background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.25)',
                 protocol: 'background:rgba(139,92,246,0.15);color:#a78bfa;border:1px solid rgba(139,92,246,0.25)',
             };
+            const typeNames = { cex: 'Centralized Exchange', lp: 'Liquidity Pool', protocol: 'Protocol Contract' };
+            const tooltip = `${info.label} — ${typeNames[info.type] || 'Known Address'}`;
             const style = colors[info.type] || colors.protocol;
-            return `<span style="display:inline-block;font-size:9px;font-weight:600;padding:1px 6px;border-radius:4px;margin-left:5px;letter-spacing:0.3px;white-space:nowrap;${style}">${info.label}</span>`;
+            return `<span style="display:inline-block;font-size:9px;font-weight:600;padding:1px 6px;border-radius:4px;margin-left:5px;letter-spacing:0.3px;white-space:nowrap;cursor:default;${style}" title="${tooltip}">${info.label}</span>`;
         }
 
         let dolo_flowsData = null;
