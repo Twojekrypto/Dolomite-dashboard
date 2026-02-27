@@ -2731,28 +2731,6 @@
             opacity: 1;
         }
 
-        .contract-icon-badge:hover::after {
-            content: 'Smart contract \u2014 not a personal wallet';
-            position: absolute;
-            bottom: calc(100% + 6px);
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(15, 23, 42, 0.98);
-            color: #e2e8f0;
-            font-size: 12px;
-            font-weight: 400;
-            font-family: 'Inter', sans-serif;
-            padding: 10px 14px;
-            border-radius: 8px;
-            white-space: nowrap;
-            border: 1px solid rgba(99, 102, 241, 0.3);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(12px);
-            z-index: 99999;
-            pointer-events: none;
-            line-height: 1.5;
-        }
-
         /* Badge tooltip (CEX, LP, Protocol labels) */
         .badge-tooltip-wrap {
             position: relative;
@@ -2770,7 +2748,7 @@
             font-size: 12px;
             font-weight: 400;
             color: #e2e8f0;
-            width: 260px;
+            max-width: 320px;
             z-index: 99999;
             text-transform: none;
             letter-spacing: normal;
@@ -2780,6 +2758,7 @@
             pointer-events: none;
             word-wrap: break-word;
             overflow-wrap: break-word;
+            white-space: nowrap;
         }
 
         .badge-tooltip-wrap .badge-tooltip::after {
@@ -9987,7 +9966,7 @@
                 const beraBal = h.balance_bera || 0;
 
                 // Contract icon
-                const contractIcon = h.is_contract ? '<span class="contract-icon-badge">📜</span>' : '';
+                const contractIcon = h.is_contract ? '<span class="badge-tooltip-wrap"><span class="contract-icon-badge">📜</span><span class="badge-tooltip">Smart contract — not a personal wallet</span></span>' : '';
 
                 // Known address label (CEX, LP, Protocol)
                 const addrLabelHtml = (typeof dolo_labelBadge === 'function') ? dolo_labelBadge(h.address) : '';
@@ -11081,7 +11060,7 @@
         function dolo_labelBadge(addr) {
             const info = DOLO_ADDR_LABELS[addr.toLowerCase()];
             if (!info) return '';
-            if (info.label === 'CA') return '<span class="contract-icon-badge">📜</span>';
+            if (info.label === 'CA') return '<span class="badge-tooltip-wrap"><span class="contract-icon-badge">📜</span><span class="badge-tooltip">Smart contract — not a personal wallet</span></span>';
             const colors = {
                 cex: 'background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.25)',
                 lp: 'background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.25)',
@@ -11104,8 +11083,19 @@
             const tip = wrap.querySelector('.badge-tooltip');
             if (!tip) return;
             const rect = wrap.getBoundingClientRect();
+            // Temporarily show to measure
+            tip.style.visibility = 'hidden';
+            tip.style.display = 'block';
+            const tipW = tip.offsetWidth;
+            tip.style.display = '';
+            tip.style.visibility = '';
+            // Position below the badge, centered
+            let left = rect.left + rect.width / 2 - tipW / 2;
+            // Clamp to viewport edges
+            if (left < 8) left = 8;
+            if (left + tipW > window.innerWidth - 8) left = window.innerWidth - tipW - 8;
             tip.style.top = (rect.bottom + 8) + 'px';
-            tip.style.left = (rect.left + rect.width / 2 - 130) + 'px'; // 130 = half of 260px width
+            tip.style.left = left + 'px';
         }, true);
 
         let dolo_flowsData = null;
