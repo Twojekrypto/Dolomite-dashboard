@@ -8090,18 +8090,18 @@
             currentPage = 1;
             // Smooth fade transition on filter change
             const tbody = document.getElementById('table-body');
+            tbody.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
             tbody.style.opacity = '0';
             tbody.style.transform = 'translateY(6px)';
             setTimeout(() => {
                 renderTable();
                 renderPagination();
                 requestAnimationFrame(() => {
-                    tbody.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
                     tbody.style.opacity = '1';
                     tbody.style.transform = 'translateY(0)';
-                    setTimeout(() => { tbody.style.transition = ''; }, 260);
+                    setTimeout(() => { tbody.style.transition = ''; }, 220);
                 });
-            }, 120);
+            }, 220);
         }
 
         // ===== UTILS =====
