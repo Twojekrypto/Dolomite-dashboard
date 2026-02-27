@@ -2748,7 +2748,7 @@
             font-size: 12px;
             font-weight: 400;
             color: #e2e8f0;
-            max-width: 320px;
+            width: 280px;
             z-index: 99999;
             text-transform: none;
             letter-spacing: normal;
@@ -2758,14 +2758,13 @@
             pointer-events: none;
             word-wrap: break-word;
             overflow-wrap: break-word;
-            white-space: nowrap;
         }
 
         .badge-tooltip-wrap .badge-tooltip::after {
             content: '';
             position: absolute;
             bottom: 100%;
-            left: 50%;
+            left: var(--arrow-left, 50%);
             transform: translateX(-50%);
             border: 6px solid transparent;
             border-bottom-color: rgba(99, 102, 241, 0.3);
@@ -11083,12 +11082,7 @@
             const tip = wrap.querySelector('.badge-tooltip');
             if (!tip) return;
             const rect = wrap.getBoundingClientRect();
-            // Temporarily show to measure
-            tip.style.visibility = 'hidden';
-            tip.style.display = 'block';
-            const tipW = tip.offsetWidth;
-            tip.style.display = '';
-            tip.style.visibility = '';
+            const tipW = 280; // matches CSS width
             // Position below the badge, centered
             let left = rect.left + rect.width / 2 - tipW / 2;
             // Clamp to viewport edges
@@ -11096,6 +11090,9 @@
             if (left + tipW > window.innerWidth - 8) left = window.innerWidth - tipW - 8;
             tip.style.top = (rect.bottom + 8) + 'px';
             tip.style.left = left + 'px';
+            // Move arrow to point at badge center
+            const arrowLeft = rect.left + rect.width / 2 - left;
+            tip.style.setProperty('--arrow-left', arrowLeft + 'px');
         }, true);
 
         let dolo_flowsData = null;
