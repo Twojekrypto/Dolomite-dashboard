@@ -10910,6 +10910,7 @@
         function dolo_labelBadge(addr) {
             const info = DOLO_ADDR_LABELS[addr.toLowerCase()];
             if (!info) return '';
+            if (info.label === 'CA') return '<span class="contract-icon-badge" title="Contract Address">📜</span>';
             const colors = {
                 cex: 'background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.25)',
                 lp: 'background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.25)',
