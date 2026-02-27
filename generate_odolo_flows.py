@@ -173,13 +173,11 @@ def detect_contracts_batch(addresses):
 
 
 def calculate_flows(transfers, excluded):
-    """Calculate net flow per address. Skip transfers where either party is excluded."""
+    """Calculate net flow per address.
+    ALL transfers are counted for both parties so net flows stay accurate.
+    Excluded addresses are filtered out of the final results only."""
     flows = {}
     for from_addr, to_addr, value_wei, _ in transfers:
-        # Skip transfers involving excluded addresses entirely
-        # (e.g. exercises to vester, burns to 0x0, protocol interactions)
-        if from_addr in excluded or to_addr in excluded:
-            continue
         value = value_wei / (10 ** 18)
         flows[from_addr] = flows.get(from_addr, 0) - value
         flows[to_addr] = flows.get(to_addr, 0) + value
@@ -189,20 +187,21 @@ def calculate_flows(transfers, excluded):
 def count_txs(transfers, excluded):
     counts = {}
     for from_addr, to_addr, _, _ in transfers:
-        if from_addr not in excluded:
-            counts[from_addr] = counts.get(from_addr, 0) + 1
-        if to_addr not in excluded:
-            counts[to_addr] = counts.get(to_addr, 0) + 1
+        counts[from_addr] = counts.get(from_addr, 0) + 1
+        counts[to_addr] = counts.get(to_addr, 0) + 1
     return counts
 
 
-def get_top(flows, tx_counts, n, mode="accumulator"):
+def get_top(flows, tx_counts, n, mode="accumulator", excluded=None):
+    """Get top N accumulators or sellers, excluding known contracts."""
+    if excluded is None:
+        excluded = set()
     if mode == "accumulator":
         sorted_addrs = sorted(flows.items(), key=lambda x: x[1], reverse=True)
-        filtered = [(addr, val) for addr, val in sorted_addrs if val > 0]
+        filtered = [(addr, val) for addr, val in sorted_addrs if val > 0 and addr not in excluded]
     else:
         sorted_addrs = sorted(flows.items(), key=lambda x: x[1])
-        filtered = [(addr, abs(val)) for addr, val in sorted_addrs if val < 0]
+        filtered = [(addr, abs(val)) for addr, val in sorted_addrs if val < 0 and addr not in excluded]
 
     result = []
     for addr, net in filtered[:n]:
@@ -254,8 +253,8 @@ def main():
         flows = calculate_flows(period_transfers, EXCLUDED_ADDRS)
         tx_counts = count_txs(period_transfers, EXCLUDED_ADDRS)
 
-        accumulators = get_top(flows, tx_counts, TOP_N, "accumulator")
-        sellers = get_top(flows, tx_counts, TOP_N, "seller")
+        accumulators = get_top(flows, tx_counts, TOP_N, "accumulator", EXCLUDED_ADDRS)
+        sellers = get_top(flows, tx_counts, TOP_N, "seller", EXCLUDED_ADDRS)
 
         output_periods[period] = {
             "accumulators": accumulators,
