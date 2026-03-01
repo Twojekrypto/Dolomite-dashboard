@@ -346,8 +346,25 @@ def main():
             print(f"  {period} {cfg['name']}: {len(period_transfers):,} transfers, "
                   f"top accumulator: {accumulators[0]['net_flow']:,.0f} DOLO" if accumulators else
                   f"  {period} {cfg['name']}: no data")
+    # Build balance_changes: address -> net_flow for ALL addresses per period
+    # Merge both chains into a single map per period
+    balance_changes = {}
+    for period in PERIODS:
+        merged = {}
+        for chain_key in CHAINS:
+            cutoff = cutoff_blocks[chain_key][period]
+            period_transfers = [t for t in all_transfers[chain_key] if t[3] >= cutoff]
+            flows = calculate_flows(period_transfers, EXCLUDED_ADDRS)
+            for addr, net in flows.items():
+                if addr in EXCLUDED_ADDRS:
+                    continue
+                if abs(net) < 1:  # skip dust
+                    continue
+                merged[addr] = merged.get(addr, 0) + net
+        # Round values to reduce JSON size
+        balance_changes[period] = {addr: round(v, 2) for addr, v in merged.items()}
 
-    # Checksum addresses
+    # Checksum addresses in balance_changes
     try:
         from web3 import Web3
         for period_data in output_periods.values():
@@ -357,6 +374,14 @@ def main():
                         entry["address"] = Web3.to_checksum_address(entry["address"])
                     except Exception:
                         pass
+        for period in balance_changes:
+            checksummed = {}
+            for addr, val in balance_changes[period].items():
+                try:
+                    checksummed[Web3.to_checksum_address(addr)] = val
+                except Exception:
+                    checksummed[addr] = val
+            balance_changes[period] = checksummed
     except ImportError:
         pass
 
@@ -364,6 +389,7 @@ def main():
         "timestamp": datetime.utcnow().isoformat(),
         "dolo_price": dolo_price,
         "periods": output_periods,
+        "balance_changes": balance_changes,
     }
 
     with open(OUTPUT_JSON, "w") as f:
