@@ -7017,6 +7017,19 @@
                             <span class="dolo-flow-toggle-label">Hide CEX & CA</span>
                         </label>
                     </div>
+                    <div style="display:flex;flex-direction:column;gap:3px;margin-left:auto">
+                        <div id="dolo-holder-period" class="dolo-chain-pills" style="width:fit-content">
+                            <div class="dolo-chain-slider"></div>
+                            <button class="active" data-period="none">—</button>
+                            <button data-period="1d">1D</button>
+                            <button data-period="7d">7D</button>
+                            <button data-period="30d">30D</button>
+                            <button data-period="90d">90D</button>
+                            <button data-period="180d">180D</button>
+                            <button data-period="1y">1Y</button>
+                            <button data-period="all">ALL</button>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="table-scroll">
@@ -10158,6 +10171,8 @@
         let dolo_holderPage = 1;
         let dolo_holderSortField = 'rank';
         let dolo_holderSortAsc = true;
+        let dolo_holderPeriod = 'none';  // period for balance change %
+        let dolo_balanceChanges = {};    // from dolo_flows.json
         const DOLO_HOLDER_PER_PAGE = 25;
 
         const ETH_CHAIN_ICON = `<img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" width="14" height="14" style="border-radius:50%;flex-shrink:0" alt="ETH">`;
@@ -10255,6 +10270,21 @@
                     ? (beraBal > 0 ? `<a href="${beraUrl}" target="_blank" onclick="event.stopPropagation()" style="color:#f59e0b;text-decoration:none" title="View on Berascan: ${beraBal.toLocaleString('en-US')} DOLO">${dolo_fmtBal(beraBal)}</a>` : '<span style="opacity:0.3">—</span>')
                     : '<span style="opacity:0.15">—</span>';
 
+                // Balance change badge
+                let changeBadge = '';
+                if (dolo_holderPeriod !== 'none' && dolo_balanceChanges[dolo_holderPeriod]) {
+                    const chg = dolo_balanceChanges[dolo_holderPeriod][h.address] || 0;
+                    if (chg !== 0 && dispBal > 0) {
+                        const prevBal = dispBal - chg;
+                        const pct = prevBal > 0 ? ((chg / prevBal) * 100) : (chg > 0 ? 100 : -100);
+                        const sign = pct >= 0 ? '+' : '';
+                        const col = pct >= 0 ? 'var(--accent-green)' : 'var(--accent-rose)';
+                        const bg = pct >= 0 ? 'rgba(52,211,153,0.12)' : 'rgba(251,113,133,0.12)';
+                        const pctFmt = Math.abs(pct) >= 1000 ? Math.round(pct).toLocaleString() : pct.toFixed(1);
+                        changeBadge = `<span style="display:inline-block;margin-left:4px;padding:1px 5px;border-radius:4px;font-size:10px;font-weight:600;background:${bg};color:${col}" title="${sign}${dolo_fmtBal(Math.abs(chg))} DOLO">${sign}${pctFmt}%</span>`;
+                    }
+                }
+
                 return `<tr class="${isWhale ? 'whale-row' : ''}" style="cursor:pointer" onclick="window.open('${dbUrl}','_blank')">
                         <td class="c-rank">
                             <div class="rank-cell-inner">
@@ -10270,7 +10300,7 @@
                         </td>
                         <td class="c-dolo" style="text-align:right">${ethCell}</td>
                         <td class="c-dolo" style="text-align:right">${beraCell}</td>
-                        <td class="c-dolo" style="text-align:right" title="${balExact} DOLO">${dolo_fmtBal(dispBal)}<span class="supply-pct">(${supplyPct}%)</span></td>
+                        <td class="c-dolo" style="text-align:right" title="${balExact} DOLO">${dolo_fmtBal(dispBal)}<span class="supply-pct">(${supplyPct}%)</span>${changeBadge}</td>
                     </tr>`;
             }).join('');
 
@@ -11425,6 +11455,7 @@
                 .then(r => r.json())
                 .then(data => {
                     dolo_flowsData = data;
+                    dolo_balanceChanges = data.balance_changes || {};
                     dolo_renderFlows();
                     // Show timestamp
                     const ts = document.getElementById('dolo-flow-ts');
@@ -11616,6 +11647,11 @@
                 dolo_flowChain = btn.dataset.chain;
                 dolo_flowAccPage = 0; dolo_flowSellPage = 0;
                 dolo_renderFlows();
+            });
+
+            setupPills('dolo-holder-period', btn => {
+                dolo_holderPeriod = btn.dataset.period;
+                dolo_renderHoldersTable();
             });
 
             // TVL History range pills
