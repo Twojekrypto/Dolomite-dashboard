@@ -34,6 +34,7 @@ CHAINS = {
         ],
         "block_time": 12,   # ~12 seconds per block
         "chunk_size": 50_000,
+        "deploy_block": 21_500_000,  # DOLO deployed ~Jan 2025
     },
     "bera": {
         "name": "Berachain",
@@ -46,6 +47,7 @@ CHAINS = {
         ],
         "block_time": 2,    # ~2 seconds per block
         "chunk_size": 50_000,
+        "deploy_block": 3_500_000,   # DOLO deployed on Berachain mainnet
     },
 }
 
@@ -278,9 +280,10 @@ def main():
     cutoff_blocks = {}
     for chain_key, cfg in CHAINS.items():
         cutoff_blocks[chain_key] = {}
+        deploy_block = cfg.get("deploy_block", 0)
         for period, seconds in PERIODS.items():
             blocks_back = seconds // cfg["block_time"]
-            cutoff = max(current_blocks[chain_key] - blocks_back, 0)
+            cutoff = max(current_blocks[chain_key] - blocks_back, deploy_block)
             cutoff_blocks[chain_key][period] = cutoff
 
     # Fetch transfers from the longest period (covers all periods)

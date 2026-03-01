@@ -50,6 +50,7 @@ RPC_URLS = [
 
 BLOCK_TIME = 2  # ~2 seconds per block on Berachain
 CHUNK_SIZE = 50_000
+DEPLOY_BLOCK = 3_500_000  # oDOLO deployed on Berachain mainnet
 
 PERIODS = {
     "1d": 86400,
@@ -232,7 +233,7 @@ def main():
     cutoff_blocks = {}
     for period, seconds in PERIODS.items():
         blocks_back = seconds // BLOCK_TIME
-        cutoff_blocks[period] = max(current_block - blocks_back, 0)
+        cutoff_blocks[period] = max(current_block - blocks_back, DEPLOY_BLOCK)
 
     # Fetch all transfers from the longest period
     max_period = max(PERIODS.keys(), key=lambda k: PERIODS[k])
