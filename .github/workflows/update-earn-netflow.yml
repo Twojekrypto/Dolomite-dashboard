@@ -61,16 +61,15 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/earn-netflow/
-          git diff --staged --quiet && echo "No changes to commit" && exit 0
-          git commit -m "📊 Earn netflow update: $(date -u '+%Y-%m-%d %H:%M UTC')"
-          # Stash any untracked/unstaged files (progress cache etc.) before pull
+          # Stash progress cache and other untracked files BEFORE any git ops
           git stash --include-untracked || true
+          git add data/earn-netflow/
+          git diff --staged --quiet && echo "No changes to commit" && git stash pop || true && exit 0
+          git commit -m "📊 Earn netflow update: $(date -u '+%Y-%m-%d %H:%M UTC')"
           if ! git pull --rebase origin master; then
             echo "⚠️ Rebase conflict — resolving with our data..."
             git rebase --abort
             git pull -X ours origin master
           fi
-          git stash pop || true
-          git pull --rebase
           git push
+          git stash pop || true
