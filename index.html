@@ -1208,6 +1208,48 @@
             color: var(--text-primary);
         }
 
+        .flow-pager {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 6px 0 2px;
+        }
+
+        .flow-pager-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            border: 1px solid var(--border-subtle);
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+            transition: all 0.15s;
+        }
+
+        .flow-pager-btn:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+
+        .flow-pager-btn:disabled {
+            opacity: 0.25;
+            cursor: default;
+        }
+
+        .flow-pager-info {
+            font-size: 11px;
+            color: var(--text-muted);
+            min-width: 36px;
+            text-align: center;
+        }
+
         /* ===== PROTOCOL INFO ===== */
         .protocol-info-card {
             padding: 0;
@@ -7055,7 +7097,8 @@
                     <div class="dolo-flow-toolbar-divider"></div>
                     <div style="display:flex;flex-direction:column;gap:3px">
                         <label class="dolo-flow-toggle" title="Hide CEX wallets and Contracts from flow tables">
-                            <input type="checkbox" id="dolo-flow-hide-cex" onchange="dolo_renderFlows()">
+                            <input type="checkbox" id="dolo-flow-hide-cex"
+                                onchange="dolo_flowAccPage=0;dolo_flowSellPage=0;dolo_renderFlows()">
                             <span class="dolo-flow-toggle-track"></span>
                             <span class="dolo-flow-toggle-label">Hide CEX & CA</span>
                         </label>
@@ -7087,6 +7130,13 @@
                             </thead>
                             <tbody id="dolo-flow-acc-tbody"></tbody>
                         </table>
+                        <div id="dolo-flow-acc-pager" class="flow-pager" style="display:none">
+                            <button onclick="dolo_flowAccPage--;dolo_renderFlows()" id="dolo-flow-acc-prev"
+                                class="flow-pager-btn">‹</button>
+                            <span id="dolo-flow-acc-info" class="flow-pager-info"></span>
+                            <button onclick="dolo_flowAccPage++;dolo_renderFlows()" id="dolo-flow-acc-next"
+                                class="flow-pager-btn">›</button>
+                        </div>
                     </div>
                     <div class="dolo-flow-table-wrap">
                         <div class="dolo-flow-label dolo-flow-label-sell">🔴 Top Outflows</div>
@@ -7101,6 +7151,13 @@
                             </thead>
                             <tbody id="dolo-flow-sell-tbody"></tbody>
                         </table>
+                        <div id="dolo-flow-sell-pager" class="flow-pager" style="display:none">
+                            <button onclick="dolo_flowSellPage--;dolo_renderFlows()" id="dolo-flow-sell-prev"
+                                class="flow-pager-btn">‹</button>
+                            <span id="dolo-flow-sell-info" class="flow-pager-info"></span>
+                            <button onclick="dolo_flowSellPage++;dolo_renderFlows()" id="dolo-flow-sell-next"
+                                class="flow-pager-btn">›</button>
+                        </div>
                     </div>
                 </div>
                 <div id="dolo-flow-ts"
@@ -11379,6 +11436,10 @@
                 .catch(err => console.warn('DOLO flows not available:', err));
         }
 
+        let dolo_flowAccPage = 0;
+        let dolo_flowSellPage = 0;
+        const DOLO_FLOW_PER_PAGE = 5;
+
         function dolo_renderFlows() {
             if (!dolo_flowsData || !dolo_flowsData.periods) return;
             const periodData = dolo_flowsData.periods[dolo_flowPeriod];
@@ -11388,14 +11449,15 @@
             const isHidden = (addr) => {
                 if (!hideCex) return false;
                 const info = DOLO_ADDR_LABELS[addr.toLowerCase()];
-                return info && (info.type === 'cex' || info.label === 'CA');
+                return info && info.label !== 'CA' && (info.type === 'cex' || info.type === 'protocol' || info.type === 'lp');
             };
+
+            const search = (document.getElementById('dolo-flow-search')?.value || '').toLowerCase().trim();
 
             let accumulators = [];
             let sellers = [];
 
             if (dolo_flowChain === 'all') {
-                // Merge both chains, sum by address
                 const accMap = {};
                 const sellMap = {};
                 for (const chain of ['eth', 'bera']) {
@@ -11416,8 +11478,8 @@
                         sellMap[addr].tx_count += (s.tx_count || 0);
                     }
                 }
-                accumulators = Object.values(accMap).filter(a => !isHidden(a.address)).sort((a, b) => b.net_flow - a.net_flow).slice(0, 5);
-                sellers = Object.values(sellMap).filter(s => !isHidden(s.address)).sort((a, b) => b.net_flow - a.net_flow).slice(0, 5);
+                accumulators = Object.values(accMap).filter(a => !isHidden(a.address)).sort((a, b) => b.net_flow - a.net_flow);
+                sellers = Object.values(sellMap).filter(s => !isHidden(s.address)).sort((a, b) => b.net_flow - a.net_flow);
             } else {
                 const cd = periodData[dolo_flowChain];
                 if (cd) {
@@ -11426,11 +11488,16 @@
                 }
             }
 
+            // Apply search filter
+            if (search) {
+                accumulators = accumulators.filter(a => a.address.toLowerCase().includes(search));
+                sellers = sellers.filter(s => s.address.toLowerCase().includes(search));
+            }
+
             const explorer = dolo_flowChain === 'bera' ? 'https://berascan.com/address/'
                 : dolo_flowChain === 'eth' ? 'https://etherscan.io/address/'
                     : 'https://etherscan.io/address/';
 
-            // Build holder balance lookup
             const holderMap = {};
             if (typeof dolo_holderData !== 'undefined' && dolo_holderData) {
                 dolo_holderData.forEach(h => {
@@ -11438,7 +11505,18 @@
                 });
             }
 
-            function renderRows(items, isAccumulator) {
+            // Pagination
+            const accTotal = accumulators.length;
+            const sellTotal = sellers.length;
+            const accPages = Math.max(1, Math.ceil(accTotal / DOLO_FLOW_PER_PAGE));
+            const sellPages = Math.max(1, Math.ceil(sellTotal / DOLO_FLOW_PER_PAGE));
+            dolo_flowAccPage = Math.max(0, Math.min(dolo_flowAccPage, accPages - 1));
+            dolo_flowSellPage = Math.max(0, Math.min(dolo_flowSellPage, sellPages - 1));
+
+            const accSlice = accumulators.slice(dolo_flowAccPage * DOLO_FLOW_PER_PAGE, (dolo_flowAccPage + 1) * DOLO_FLOW_PER_PAGE);
+            const sellSlice = sellers.slice(dolo_flowSellPage * DOLO_FLOW_PER_PAGE, (dolo_flowSellPage + 1) * DOLO_FLOW_PER_PAGE);
+
+            function renderRows(items, isAccumulator, pageOffset) {
                 if (!items.length) return '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px">No data</td></tr>';
                 return items.map((item, i) => {
                     const addr = item.address;
@@ -11446,18 +11524,16 @@
                     const sign = isAccumulator ? '+' : '-';
                     const cls = isAccumulator ? 'positive' : 'negative';
                     const flow = Math.abs(item.net_flow);
-                    const usd = item.usd_value ? '$' + Math.abs(item.usd_value).toLocaleString('en-US', { maximumFractionDigits: 0 }) : '—';
                     const flowFmt = flow >= 1e6 ? (flow / 1e6).toFixed(2) + 'M'
                         : flow >= 1e3 ? (flow / 1e3).toFixed(1) + 'K'
                             : flow.toFixed(0);
                     const debankUrl = `https://debank.com/profile/${addr}`;
-                    // Look up current balance
                     const bal = holderMap[addr.toLowerCase()] || 0;
                     const balFmt = bal >= 1e6 ? (bal / 1e6).toFixed(2) + 'M'
                         : bal >= 1e3 ? (bal / 1e3).toFixed(1) + 'K'
                             : bal > 0 ? bal.toFixed(0) : '—';
                     return `<tr>
-                        <td class="flow-rank">${i + 1}</td>
+                        <td class="flow-rank">${pageOffset + i + 1}</td>
                         <td class="flow-addr-cell">
                             <a class="flow-addr" href="${explorer}${addr}" target="_blank" title="${addr}">${short}</a>${dolo_labelBadge(addr)}
                             <span class="flow-icons">
@@ -11475,8 +11551,24 @@
                 }).join('');
             }
 
-            document.getElementById('dolo-flow-acc-tbody').innerHTML = renderRows(accumulators, true);
-            document.getElementById('dolo-flow-sell-tbody').innerHTML = renderRows(sellers, false);
+            document.getElementById('dolo-flow-acc-tbody').innerHTML = renderRows(accSlice, true, dolo_flowAccPage * DOLO_FLOW_PER_PAGE);
+            document.getElementById('dolo-flow-sell-tbody').innerHTML = renderRows(sellSlice, false, dolo_flowSellPage * DOLO_FLOW_PER_PAGE);
+
+            // Pagination controls
+            const accPager = document.getElementById('dolo-flow-acc-pager');
+            const sellPager = document.getElementById('dolo-flow-sell-pager');
+            if (accPager) {
+                accPager.style.display = accPages > 1 ? 'flex' : 'none';
+                document.getElementById('dolo-flow-acc-info').textContent = `${dolo_flowAccPage + 1} / ${accPages}`;
+                document.getElementById('dolo-flow-acc-prev').disabled = dolo_flowAccPage === 0;
+                document.getElementById('dolo-flow-acc-next').disabled = dolo_flowAccPage >= accPages - 1;
+            }
+            if (sellPager) {
+                sellPager.style.display = sellPages > 1 ? 'flex' : 'none';
+                document.getElementById('dolo-flow-sell-info').textContent = `${dolo_flowSellPage + 1} / ${sellPages}`;
+                document.getElementById('dolo-flow-sell-prev').disabled = dolo_flowSellPage === 0;
+                document.getElementById('dolo-flow-sell-next').disabled = dolo_flowSellPage >= sellPages - 1;
+            }
         }
 
         // Initialize DOLO Flow controls
@@ -11516,11 +11608,13 @@
 
             setupPills('dolo-flow-period', btn => {
                 dolo_flowPeriod = btn.dataset.period;
+                dolo_flowAccPage = 0; dolo_flowSellPage = 0;
                 dolo_renderFlows();
             });
 
             setupPills('dolo-flow-chain', btn => {
                 dolo_flowChain = btn.dataset.chain;
+                dolo_flowAccPage = 0; dolo_flowSellPage = 0;
                 dolo_renderFlows();
             });
 
