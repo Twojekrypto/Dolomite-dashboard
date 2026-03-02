@@ -47,7 +47,7 @@ CHAINS = {
         ],
         "block_time": 2,    # ~2 seconds per block
         "chunk_size": 50_000,
-        "deploy_block": 3_500_000,   # DOLO deployed on Berachain mainnet
+        "deploy_block": 2_900_000,   # DOLO deployed on Berachain ~block 2,925,727 (Mar 2025)
     },
 }
 
