@@ -8687,9 +8687,14 @@
                 setTimeout(() => document.getElementById('earn-address').focus(), 100);
             }
 
-            // Trigger veDOLO event scanning on first visit
+            // Trigger veDOLO event scanning on first visit + re-render charts
             if (view === 'vedolo') {
                 vedolo_fetchEvents();
+                setTimeout(() => {
+                    if (expiryPreloaded || HOLDER_DATA.length) {
+                        renderExpiryChart();
+                    }
+                }, 50);
             }
 
             // Scroll to top
