@@ -6818,6 +6818,13 @@
                             </thead>
                             <tbody id="odolo-flow-acc-tbody"></tbody>
                         </table>
+                        <div id="odolo-flow-acc-pager" class="flow-pager" style="display:none">
+                            <button onclick="odolo_flowAccPage--;odolo_renderFlows()" id="odolo-flow-acc-prev"
+                                class="flow-pager-btn">‹</button>
+                            <span id="odolo-flow-acc-info" class="flow-pager-info"></span>
+                            <button onclick="odolo_flowAccPage++;odolo_renderFlows()" id="odolo-flow-acc-next"
+                                class="flow-pager-btn">›</button>
+                        </div>
                     </div>
                     <div class="dolo-flow-table-wrap">
                         <div class="dolo-flow-label dolo-flow-label-sell">🔴 Top Outflows</div>
@@ -6832,6 +6839,13 @@
                             </thead>
                             <tbody id="odolo-flow-sell-tbody"></tbody>
                         </table>
+                        <div id="odolo-flow-sell-pager" class="flow-pager" style="display:none">
+                            <button onclick="odolo_flowSellPage--;odolo_renderFlows()" id="odolo-flow-sell-prev"
+                                class="flow-pager-btn">‹</button>
+                            <span id="odolo-flow-sell-info" class="flow-pager-info"></span>
+                            <button onclick="odolo_flowSellPage++;odolo_renderFlows()" id="odolo-flow-sell-next"
+                                class="flow-pager-btn">›</button>
+                        </div>
                     </div>
                 </div>
                 <div id="odolo-flow-ts"
@@ -11711,6 +11725,10 @@
                 .catch(err => console.warn('oDOLO flows not available:', err));
         }
 
+        let odolo_flowAccPage = 0;
+        let odolo_flowSellPage = 0;
+        const ODOLO_FLOW_PER_PAGE = 5;
+
         function odolo_renderFlows() {
             if (!odolo_flowsData || !odolo_flowsData.periods) return;
             const periodData = odolo_flowsData.periods[odolo_flowPeriod];
@@ -11724,7 +11742,7 @@
             const sellers = filterBySearch(periodData.sellers || []);
             const explorer = 'https://berascan.com/address/';
 
-            function renderRows(items, isAccumulator) {
+            function renderRows(items, isAccumulator, pageOffset) {
                 if (!items.length) return '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px">No data</td></tr>';
                 return items.map((item, i) => {
                     const addr = item.address;
@@ -11738,7 +11756,7 @@
                     const bal = item.balance || 0;
                     const balFmt = bal > 0 ? dolo_fmtBal(bal) : '—';
                     return `<tr>
-                        <td class="flow-rank">${i + 1}</td>
+                        <td class="flow-rank">${pageOffset + i + 1}</td>
                         <td class="flow-addr-cell">
                             <a class="flow-addr" href="${explorer}${addr}" target="_blank" title="${addr}">${short}</a>${badge}
                             <span class="flow-icons">
@@ -11756,8 +11774,35 @@
                 }).join('');
             }
 
-            document.getElementById('odolo-flow-acc-tbody').innerHTML = renderRows(accumulators, true);
-            document.getElementById('odolo-flow-sell-tbody').innerHTML = renderRows(sellers, false);
+            // Pagination
+            const accTotal = accumulators.length;
+            const sellTotal = sellers.length;
+            const accPages = Math.max(1, Math.ceil(accTotal / ODOLO_FLOW_PER_PAGE));
+            const sellPages = Math.max(1, Math.ceil(sellTotal / ODOLO_FLOW_PER_PAGE));
+            odolo_flowAccPage = Math.max(0, Math.min(odolo_flowAccPage, accPages - 1));
+            odolo_flowSellPage = Math.max(0, Math.min(odolo_flowSellPage, sellPages - 1));
+
+            const accSlice = accumulators.slice(odolo_flowAccPage * ODOLO_FLOW_PER_PAGE, (odolo_flowAccPage + 1) * ODOLO_FLOW_PER_PAGE);
+            const sellSlice = sellers.slice(odolo_flowSellPage * ODOLO_FLOW_PER_PAGE, (odolo_flowSellPage + 1) * ODOLO_FLOW_PER_PAGE);
+
+            document.getElementById('odolo-flow-acc-tbody').innerHTML = renderRows(accSlice, true, odolo_flowAccPage * ODOLO_FLOW_PER_PAGE);
+            document.getElementById('odolo-flow-sell-tbody').innerHTML = renderRows(sellSlice, false, odolo_flowSellPage * ODOLO_FLOW_PER_PAGE);
+
+            // Pagination controls
+            const accPager = document.getElementById('odolo-flow-acc-pager');
+            const sellPager = document.getElementById('odolo-flow-sell-pager');
+            if (accPager) {
+                accPager.style.display = accPages > 1 ? 'flex' : 'none';
+                document.getElementById('odolo-flow-acc-info').textContent = `${odolo_flowAccPage + 1} / ${accPages}`;
+                document.getElementById('odolo-flow-acc-prev').disabled = odolo_flowAccPage === 0;
+                document.getElementById('odolo-flow-acc-next').disabled = odolo_flowAccPage >= accPages - 1;
+            }
+            if (sellPager) {
+                sellPager.style.display = sellPages > 1 ? 'flex' : 'none';
+                document.getElementById('odolo-flow-sell-info').textContent = `${odolo_flowSellPage + 1} / ${sellPages}`;
+                document.getElementById('odolo-flow-sell-prev').disabled = odolo_flowSellPage === 0;
+                document.getElementById('odolo-flow-sell-next').disabled = odolo_flowSellPage >= sellPages - 1;
+            }
         }
 
         // Initialize oDOLO Flow period pills
@@ -11797,6 +11842,8 @@
 
             setupPills('odolo-flow-period', btn => {
                 odolo_flowPeriod = btn.dataset.period;
+                odolo_flowAccPage = 0;
+                odolo_flowSellPage = 0;
                 odolo_renderFlows();
             });
         })();
