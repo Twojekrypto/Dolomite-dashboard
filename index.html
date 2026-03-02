@@ -10267,7 +10267,7 @@
 
                 // BERA cell: show value if checked, empty dash if unchecked
                 const beraCell = showBera
-                    ? (beraBal > 0 ? `<a href="${beraUrl}" target="_blank" onclick="event.stopPropagation()" style="color:#c8a26a;text-decoration:none" title="View on Berascan: ${beraBal.toLocaleString('en-US')} DOLO">${dolo_fmtBal(beraBal)}</a>` : '<span style="opacity:0.3">—</span>')
+                    ? (beraBal > 0 ? `<a href="${beraUrl}" target="_blank" onclick="event.stopPropagation()" style="color:#f59e0b;text-decoration:none" title="View on Berascan: ${beraBal.toLocaleString('en-US')} DOLO">${dolo_fmtBal(beraBal)}</a>` : '<span style="opacity:0.3">—</span>')
                     : '<span style="opacity:0.15">—</span>';
 
                 // In/Out cell
@@ -10296,7 +10296,7 @@
                         </td>
                         <td class="c-dolo" style="text-align:right">${ethCell}</td>
                         <td class="c-dolo" style="text-align:right">${beraCell}</td>
-                        <td class="c-dolo" style="text-align:right" title="${balExact} DOLO"><span style="font-weight:700;font-size:14px;color:#e2b93d">${dolo_fmtBal(dispBal)}</span>${flowCell !== '<span style="opacity:0.3">—</span>' ? '<br>' + flowCell : ''}</td>
+                        <td class="c-dolo" style="text-align:right" title="${balExact} DOLO"><span style="font-weight:700;font-size:14px;color:var(--accent-green)">${dolo_fmtBal(dispBal)}</span>${flowCell !== '<span style="opacity:0.3">—</span>' ? '<br>' + flowCell : ''}</td>
                     </tr>`;
             }).join('');
 
