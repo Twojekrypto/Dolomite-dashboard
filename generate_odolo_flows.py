@@ -59,7 +59,7 @@ PERIODS = {
     "90d": 86400 * 90,
     "180d": 86400 * 180,
     "1y": 86400 * 365,
-    "all": 86400 * 365 * 3,   # 3 years — effectively "all time"
+    "all": 86400 * 365,        # 1 year — covers full oDOLO history
 }
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -84,8 +84,8 @@ def fetch_transfer_logs(start_block, end_block):
     if start_block >= end_block:
         return []
 
-    total_chunks = (end_block - start_block + chunk_size - 1) // chunk_size
-    print(f"  Berachain: scanning blocks {start_block:,} → {end_block:,} ({total_chunks} chunks)")
+    total_blocks = end_block - start_block
+    print(f"  Berachain: scanning blocks {start_block:,} → {end_block:,} ({total_blocks:,} blocks)")
 
     all_transfers = []
     current = start_block
@@ -145,9 +145,9 @@ def fetch_transfer_logs(start_block, end_block):
         current = chunk_end + 1
         chunks_done += 1
 
-        if chunks_done % 20 == 0 or chunks_done == total_chunks:
-            pct = chunks_done * 100 // max(total_chunks, 1)
-            print(f"    Berachain: {pct}% ({chunks_done}/{total_chunks}, {len(all_transfers):,} txs)", flush=True)
+        if chunks_done % 20 == 0 or current > end_block:
+            pct = min(100, (current - start_block) * 100 // max(total_blocks, 1))
+            print(f"    Berachain: {pct}% (block {current:,}/{end_block:,}, {len(all_transfers):,} txs)", flush=True)
 
         if chunk_size < CHUNK_SIZE:
             chunk_size = min(chunk_size * 2, CHUNK_SIZE)
@@ -179,10 +179,18 @@ def detect_contracts_batch(addresses):
 
 def calculate_flows(transfers, excluded):
     """Calculate net flow per address.
-    ALL transfers are counted for both parties so net flows stay accurate.
-    Excluded addresses are filtered out of the final results only."""
+    Transfers involving mint/burn addresses are skipped entirely —
+    mints are not accumulation and burns are not selling.
+    DEX/LP contracts are kept in the calculation but filtered from results."""
+    SKIP_ADDRS = {
+        ZERO,
+        ODOLO_CONTRACT,
+        "0x0000000000000000000000000000000000000001",
+    }
     flows = {}
     for from_addr, to_addr, value_wei, _ in transfers:
+        if from_addr in SKIP_ADDRS or to_addr in SKIP_ADDRS:
+            continue
         value = value_wei / (10 ** 18)
         flows[from_addr] = flows.get(from_addr, 0) - value
         flows[to_addr] = flows.get(to_addr, 0) + value

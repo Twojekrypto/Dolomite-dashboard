@@ -188,12 +188,20 @@ def detect_contracts_batch(addresses, chain_key):
 def calculate_flows(transfers, excluded):
     """Calculate net flow per address from transfer list.
     Positive = accumulator, Negative = seller.
-    ALL transfers are counted for both parties so net flows stay accurate.
-    Excluded addresses are filtered out of the final results, not from the
-    calculation itself — otherwise a user buying from a DEX and selling to
-    a DEX would appear as a huge accumulator (only buys counted)."""
+    Transfers involving mint/burn addresses (ZERO, DOLO contract) are skipped
+    entirely — mints are not accumulation and burns are not selling.
+    Detected DEX/LP contracts are kept in the calculation (both legs counted)
+    but filtered from the final results by get_top()."""
+    # Mint/burn addresses whose transfers should be SKIPPED entirely
+    SKIP_ADDRS = {
+        ZERO,
+        DOLO_CONTRACT,
+        "0x0000000000000000000000000000000000000001",
+    }
     flows = {}
     for from_addr, to_addr, value_wei, _ in transfers:
+        if from_addr in SKIP_ADDRS or to_addr in SKIP_ADDRS:
+            continue
         value = value_wei / (10 ** 18)
         flows[from_addr] = flows.get(from_addr, 0) - value
         flows[to_addr] = flows.get(to_addr, 0) + value
