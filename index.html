@@ -7036,11 +7036,10 @@
                     <table style="table-layout:fixed;width:100%" id="dolo-holders-table">
                         <colgroup>
                             <col style="width:28px">
-                            <col style="width:calc((100% - 28px) * 0.30)">
-                            <col style="width:calc((100% - 28px) * 0.18)" class="dolo-col-eth">
-                            <col style="width:calc((100% - 28px) * 0.18)" class="dolo-col-bera">
-                            <col style="width:calc((100% - 28px) * 0.17)">
-                            <col style="width:calc((100% - 28px) * 0.17)">
+                            <col style="width:calc((100% - 28px) * 0.34)">
+                            <col style="width:calc((100% - 28px) * 0.22)" class="dolo-col-eth">
+                            <col style="width:calc((100% - 28px) * 0.22)" class="dolo-col-bera">
+                            <col style="width:calc((100% - 28px) * 0.22)">
                         </colgroup>
                         <thead>
                             <tr>
@@ -7073,9 +7072,6 @@
                                             <span class="chain-toggle-slider bera"></span>
                                         </label>
                                     </div>
-                                </th>
-                                <th data-sort="dolo-flow" onclick="dolo_sortHolders('flow')" style="text-align:right">
-                                    In/Out <span class="arrow">⇅</span>
                                 </th>
                                 <th data-sort="dolo-balance" onclick="dolo_sortHolders('balance')"
                                     style="text-align:right">
@@ -10199,7 +10195,7 @@
             } catch (e) {
                 console.warn('dolo_holders.json not available:', e.message);
                 document.getElementById('dolo-holder-tbody').innerHTML =
-                    '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">⚠️ Place dolo_holders.json in the same directory.<br><code style="font-size:11px;opacity:0.7">python3 generate_dolo_holders.py</code></td></tr>';
+                    '<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-muted)">⚠️ Place dolo_holders.json in the same directory.<br><code style="font-size:11px;opacity:0.7">python3 generate_dolo_holders.py</code></td></tr>';
             }
         }
 
@@ -10281,7 +10277,7 @@
                     if (chg !== 0) {
                         const sign = chg >= 0 ? '+' : '-';
                         const col = chg >= 0 ? 'var(--accent-green)' : 'var(--accent-rose)';
-                        flowCell = `<span style="font-weight:600;color:${col}" title="${chg.toLocaleString('en-US', { maximumFractionDigits: 0 })} DOLO">${sign}${dolo_fmtBal(Math.abs(chg))}</span>`;
+                        flowCell = `<span style="font-size:11px;font-weight:600;color:${col}" title="${chg.toLocaleString('en-US', { maximumFractionDigits: 0 })} DOLO">${sign}${dolo_fmtBal(Math.abs(chg))}</span>`;
                     }
                 }
 
@@ -10300,8 +10296,7 @@
                         </td>
                         <td class="c-dolo" style="text-align:right">${ethCell}</td>
                         <td class="c-dolo" style="text-align:right">${beraCell}</td>
-                        <td class="c-dolo" style="text-align:right">${flowCell}</td>
-                        <td class="c-dolo" style="text-align:right" title="${balExact} DOLO"><span style="font-weight:700;font-size:14px;color:#e2b93d">${dolo_fmtBal(dispBal)}</span></td>
+                        <td class="c-dolo" style="text-align:right" title="${balExact} DOLO"><span style="font-weight:700;font-size:14px;color:#e2b93d">${dolo_fmtBal(dispBal)}</span>${flowCell !== '<span style="opacity:0.3">—</span>' ? '<br>' + flowCell : ''}</td>
                     </tr>`;
             }).join('');
 
