@@ -10274,14 +10274,11 @@
                 let changeBadge = '';
                 if (dolo_holderPeriod !== 'none' && dolo_balanceChanges[dolo_holderPeriod]) {
                     const chg = dolo_balanceChanges[dolo_holderPeriod][h.address] || 0;
-                    if (chg !== 0 && dispBal > 0) {
-                        const prevBal = dispBal - chg;
-                        const pct = prevBal > 0 ? ((chg / prevBal) * 100) : (chg > 0 ? 100 : -100);
-                        const sign = pct >= 0 ? '+' : '';
-                        const col = pct >= 0 ? 'var(--accent-green)' : 'var(--accent-rose)';
-                        const bg = pct >= 0 ? 'rgba(52,211,153,0.12)' : 'rgba(251,113,133,0.12)';
-                        const pctFmt = Math.abs(pct) >= 1000 ? Math.round(pct).toLocaleString() : pct.toFixed(1);
-                        changeBadge = `<span style="display:inline-block;margin-left:4px;padding:1px 5px;border-radius:4px;font-size:10px;font-weight:600;background:${bg};color:${col}" title="${sign}${dolo_fmtBal(Math.abs(chg))} DOLO">${sign}${pctFmt}%</span>`;
+                    if (chg !== 0) {
+                        const sign = chg >= 0 ? '+' : '-';
+                        const col = chg >= 0 ? 'var(--accent-green)' : 'var(--accent-rose)';
+                        const bg = chg >= 0 ? 'rgba(52,211,153,0.12)' : 'rgba(251,113,133,0.12)';
+                        changeBadge = `<span style="display:inline-block;margin-left:4px;padding:1px 5px;border-radius:4px;font-size:10px;font-weight:600;background:${bg};color:${col}" title="${chg.toLocaleString('en-US', { maximumFractionDigits: 0 })} DOLO">${sign}${dolo_fmtBal(Math.abs(chg))}</span>`;
                     }
                 }
 
