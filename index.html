@@ -7036,10 +7036,11 @@
                     <table style="table-layout:fixed;width:100%" id="dolo-holders-table">
                         <colgroup>
                             <col style="width:28px">
-                            <col style="width:calc((100% - 28px) * 0.34)">
-                            <col style="width:calc((100% - 28px) * 0.22)" class="dolo-col-eth">
-                            <col style="width:calc((100% - 28px) * 0.22)" class="dolo-col-bera">
-                            <col style="width:calc((100% - 28px) * 0.22)">
+                            <col style="width:calc((100% - 28px) * 0.30)">
+                            <col style="width:calc((100% - 28px) * 0.18)" class="dolo-col-eth">
+                            <col style="width:calc((100% - 28px) * 0.18)" class="dolo-col-bera">
+                            <col style="width:calc((100% - 28px) * 0.17)">
+                            <col style="width:calc((100% - 28px) * 0.17)">
                         </colgroup>
                         <thead>
                             <tr>
@@ -7076,6 +7077,9 @@
                                 <th data-sort="dolo-balance" onclick="dolo_sortHolders('balance')"
                                     style="text-align:right">
                                     <span id="dolo-balance-header">Balance</span> <span class="arrow">⇅</span>
+                                </th>
+                                <th data-sort="dolo-flow" onclick="dolo_sortHolders('flow')" style="text-align:right">
+                                    In/Out <span class="arrow">⇅</span>
                                 </th>
                             </tr>
                         </thead>
@@ -10195,7 +10199,7 @@
             } catch (e) {
                 console.warn('dolo_holders.json not available:', e.message);
                 document.getElementById('dolo-holder-tbody').innerHTML =
-                    '<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-muted)">⚠️ Place dolo_holders.json in the same directory.<br><code style="font-size:11px;opacity:0.7">python3 generate_dolo_holders.py</code></td></tr>';
+                    '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">⚠️ Place dolo_holders.json in the same directory.<br><code style="font-size:11px;opacity:0.7">python3 generate_dolo_holders.py</code></td></tr>';
             }
         }
 
@@ -10270,15 +10274,14 @@
                     ? (beraBal > 0 ? `<a href="${beraUrl}" target="_blank" onclick="event.stopPropagation()" style="color:#f59e0b;text-decoration:none" title="View on Berascan: ${beraBal.toLocaleString('en-US')} DOLO">${dolo_fmtBal(beraBal)}</a>` : '<span style="opacity:0.3">—</span>')
                     : '<span style="opacity:0.15">—</span>';
 
-                // Balance change badge
-                let changeBadge = '';
+                // In/Out cell
+                let flowCell = '<span style="opacity:0.3">—</span>';
                 if (dolo_holderPeriod !== 'none' && dolo_balanceChanges[dolo_holderPeriod]) {
                     const chg = dolo_balanceChanges[dolo_holderPeriod][h.address] || 0;
                     if (chg !== 0) {
                         const sign = chg >= 0 ? '+' : '-';
                         const col = chg >= 0 ? 'var(--accent-green)' : 'var(--accent-rose)';
-                        const bg = chg >= 0 ? 'rgba(52,211,153,0.12)' : 'rgba(251,113,133,0.12)';
-                        changeBadge = `<span style="display:inline-block;margin-left:4px;padding:1px 5px;border-radius:4px;font-size:10px;font-weight:600;background:${bg};color:${col}" title="${chg.toLocaleString('en-US', { maximumFractionDigits: 0 })} DOLO">${sign}${dolo_fmtBal(Math.abs(chg))}</span>`;
+                        flowCell = `<span style="font-weight:600;color:${col}" title="${chg.toLocaleString('en-US', { maximumFractionDigits: 0 })} DOLO">${sign}${dolo_fmtBal(Math.abs(chg))}</span>`;
                     }
                 }
 
@@ -10297,7 +10300,8 @@
                         </td>
                         <td class="c-dolo" style="text-align:right">${ethCell}</td>
                         <td class="c-dolo" style="text-align:right">${beraCell}</td>
-                        <td class="c-dolo" style="text-align:right" title="${balExact} DOLO"><span style="font-weight:600;color:var(--text-primary)">${dolo_fmtBal(dispBal)}</span>${changeBadge ? '<br>' + changeBadge : ''}</td>
+                        <td class="c-dolo" style="text-align:right" title="${balExact} DOLO"><span style="font-weight:600;color:var(--text-primary)">${dolo_fmtBal(dispBal)}</span></td>
+                        <td class="c-dolo" style="text-align:right">${flowCell}</td>
                     </tr>`;
             }).join('');
 
@@ -10348,8 +10352,12 @@
                 th.querySelector('.arrow').textContent = dolo_holderSortAsc ? '▲' : '▼';
             }
 
+            const flowKey = (h) => {
+                if (dolo_holderPeriod === 'none' || !dolo_balanceChanges[dolo_holderPeriod]) return 0;
+                return dolo_balanceChanges[dolo_holderPeriod][h.address] || 0;
+            };
             const balKey = (h) => dolo_getDisplayBalance(h);
-            const key = field === 'balance' ? balKey : (h => h[field]);
+            const key = field === 'balance' ? balKey : field === 'flow' ? flowKey : (h => h[field]);
             dolo_holderFiltered.sort((a, b) => {
                 let va = key(a), vb = key(b);
                 if (typeof va === 'string') { va = va.toLowerCase(); vb = vb.toLowerCase(); }
