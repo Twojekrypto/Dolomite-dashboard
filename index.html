@@ -7074,12 +7074,12 @@
                                         </label>
                                     </div>
                                 </th>
+                                <th data-sort="dolo-flow" onclick="dolo_sortHolders('flow')" style="text-align:right">
+                                    In/Out <span class="arrow">⇅</span>
+                                </th>
                                 <th data-sort="dolo-balance" onclick="dolo_sortHolders('balance')"
                                     style="text-align:right">
                                     <span id="dolo-balance-header">Balance</span> <span class="arrow">⇅</span>
-                                </th>
-                                <th data-sort="dolo-flow" onclick="dolo_sortHolders('flow')" style="text-align:right">
-                                    In/Out <span class="arrow">⇅</span>
                                 </th>
                             </tr>
                         </thead>
@@ -10300,8 +10300,8 @@
                         </td>
                         <td class="c-dolo" style="text-align:right">${ethCell}</td>
                         <td class="c-dolo" style="text-align:right">${beraCell}</td>
-                        <td class="c-dolo" style="text-align:right" title="${balExact} DOLO"><span style="font-weight:600;color:var(--text-primary)">${dolo_fmtBal(dispBal)}</span></td>
                         <td class="c-dolo" style="text-align:right">${flowCell}</td>
+                        <td class="c-dolo" style="text-align:right" title="${balExact} DOLO"><span style="font-weight:600;color:var(--text-primary)">${dolo_fmtBal(dispBal)}</span></td>
                     </tr>`;
             }).join('');
 
