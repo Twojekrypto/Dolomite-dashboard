@@ -5982,6 +5982,535 @@
                 display: none;
             }
         }
+
+        /* ============================================================
+           COMPREHENSIVE MOBILE RESPONSIVENESS — ALL TABS
+           ============================================================ */
+
+        /* ---- 768px: Tablet ---- */
+        @media (max-width: 768px) {
+
+            /* Nav tabs — scrollable row */
+            .nav-tabs {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+                flex-wrap: nowrap;
+            }
+
+            .nav-tabs::-webkit-scrollbar {
+                display: none;
+            }
+
+            /* dolo-flow-toolbar — stack vertically */
+            .dolo-flow-toolbar {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+            }
+
+            .dolo-flow-toolbar-divider {
+                display: none;
+            }
+
+            /* dolo-flow-toolbar search inputs — full width */
+            .dolo-flow-toolbar input[type="text"],
+            .dolo-flow-toolbar input[type="search"] {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            /* dolo-flow-toolbar pill groups — wrap & center */
+            .dolo-flow-toolbar>div {
+                width: 100%;
+            }
+
+            .dolo-flow-toolbar .period-pills,
+            .dolo-flow-toolbar div[style*="display:flex"][style*="gap"] {
+                flex-wrap: wrap;
+            }
+
+            /* Flow grid — single column */
+            .dolo-flow-grid {
+                grid-template-columns: 1fr;
+            }
+
+            /* Flow tables — enable horizontal scroll */
+            .dolo-flow-table-wrap {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .dolo-flow-table {
+                min-width: 480px;
+            }
+
+            /* CRITICAL: Override inline table-layout:fixed on mobile */
+            .table-scroll table {
+                table-layout: auto !important;
+                width: auto !important;
+                min-width: 100%;
+            }
+
+            /* Specific table min-widths for horizontal scroll readability */
+            #dolo-holders-table {
+                min-width: 640px !important;
+            }
+
+            #recent-exercisers-table {
+                min-width: 700px !important;
+            }
+
+            #exercisers-table {
+                min-width: 720px !important;
+            }
+
+            #recent-claims-table {
+                min-width: 600px !important;
+            }
+
+            #recent-locks-table {
+                min-width: 600px !important;
+            }
+
+            /* veDOLO holders table (inside .table-scroll) */
+            .table-scroll table:not([id]) {
+                min-width: 580px;
+            }
+
+            /* Range buttons — flex-wrap to prevent overlap */
+            .card-header div[style*="display:flex"],
+            .card-header div[style*="gap"] {
+                flex-wrap: wrap !important;
+                gap: 4px !important;
+            }
+
+            /* Earn table — horizontal scroll for narrow viewports */
+            .earn-results .table-section {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .earn-asset-table {
+                min-width: 520px;
+            }
+
+            /* oDOLO metric strip: 2-col at tablet */
+            #view-odolo .metrics-strip {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            /* Cards smaller padding */
+            .card {
+                padding: 18px 16px;
+            }
+
+            /* Tooltip — constrain width */
+            .tooltip-bubble {
+                width: min(240px, 78vw);
+            }
+        }
+
+        /* ---- 600px: Large phone / Phablet ---- */
+        @media (max-width: 600px) {
+
+            /* Metrics strip: single column on phones */
+            .metrics-strip {
+                grid-template-columns: 1fr !important;
+            }
+
+            #view-dolo .metrics-strip,
+            #view-odolo .metrics-strip,
+            #view-vedolo .metrics-strip,
+            #view-earn .metrics-strip {
+                grid-template-columns: 1fr !important;
+            }
+
+            .metric-cell {
+                border-radius: 0 !important;
+                padding: 14px 16px;
+            }
+
+            .metric-cell:first-child {
+                border-radius: var(--radius-md) var(--radius-md) 0 0 !important;
+            }
+
+            .metric-cell:last-child {
+                border-radius: 0 0 var(--radius-md) var(--radius-md) !important;
+            }
+
+            /* Tables: override inline table-layout:fixed */
+            .table-scroll table {
+                table-layout: auto !important;
+                width: auto !important;
+                min-width: 580px;
+            }
+
+            /* Card reduced padding */
+            .card {
+                padding: 16px 12px;
+            }
+        }
+
+        /* ---- 480px: Phone ---- */
+        @media (max-width: 480px) {
+
+            /* Global overflow prevention */
+            html,
+            body {
+                overflow-x: hidden;
+            }
+
+            /* Nav tabs even smaller on phone */
+            .nav-tab {
+                padding: 6px 8px;
+                font-size: 10px;
+                gap: 4px;
+            }
+
+            .nav-tab img {
+                width: 13px;
+                height: 13px;
+            }
+
+            .nav-tab svg {
+                width: 13px;
+                height: 13px;
+            }
+
+            /* Metrics strip: all views single column */
+            .metrics-strip {
+                grid-template-columns: 1fr !important;
+            }
+
+            #view-dolo .metrics-strip,
+            #view-odolo .metrics-strip,
+            #view-vedolo .metrics-strip,
+            #view-earn .metrics-strip {
+                grid-template-columns: 1fr !important;
+            }
+
+            .metric-cell {
+                border-radius: 0 !important;
+            }
+
+            .metric-cell:first-child {
+                border-radius: var(--radius-md) var(--radius-md) 0 0 !important;
+            }
+
+            .metric-cell:last-child {
+                border-radius: 0 0 var(--radius-md) var(--radius-md) !important;
+            }
+
+            /* oDOLO metric strip: single column too */
+            #view-odolo .metrics-strip {
+                grid-template-columns: 1fr !important;
+            }
+
+            /* Tables — override inline table-layout on phones */
+            .table-scroll table {
+                table-layout: auto !important;
+                width: auto !important;
+                min-width: 580px;
+            }
+
+            #dolo-holders-table {
+                min-width: 620px !important;
+            }
+
+            #recent-exercisers-table {
+                min-width: 680px !important;
+            }
+
+            #exercisers-table {
+                min-width: 700px !important;
+            }
+
+            /* Range button groups — wrap */
+            div[style*="display:flex"][style*="gap:4px"] {
+                flex-wrap: wrap !important;
+            }
+
+            /* dolo-flow-toolbar — tighter on phones */
+            .dolo-flow-toolbar {
+                gap: 8px;
+                margin-bottom: 12px;
+            }
+
+            /* Period pill buttons smaller */
+            .period-pill,
+            [class*="period"] button {
+                padding: 4px 8px;
+                font-size: 10px;
+            }
+
+            /* Flow tables — wider min for scroll */
+            .dolo-flow-table {
+                min-width: 440px;
+            }
+
+            .dolo-flow-table th {
+                padding: 6px 8px;
+                font-size: 9px;
+            }
+
+            .dolo-flow-table td {
+                padding: 7px 8px;
+                font-size: 11px;
+            }
+
+            /* Cards — tight padding */
+            .card {
+                padding: 14px 10px;
+                border-radius: var(--radius-md);
+            }
+
+            .card-header {
+                margin-bottom: 14px;
+            }
+
+            .card-title {
+                font-size: 15px;
+            }
+
+            /* Analytics grid — single column always */
+            .analytics-grid {
+                grid-template-columns: 1fr !important;
+                gap: 12px;
+            }
+
+            /* Donut chart layout */
+            .donut-layout {
+                flex-direction: column;
+                align-items: center;
+                gap: 16px;
+            }
+
+            /* Chain pills — wrap on phone */
+            .dolo-chain-pills {
+                flex-wrap: wrap;
+                width: 100%;
+            }
+
+            .dolo-chain-pills button {
+                font-size: 10px;
+                padding: 5px 8px;
+            }
+
+            /* oDOLO donut smaller */
+            .odolo-donut-container {
+                width: 200px;
+                height: 200px;
+                padding: 20px;
+            }
+
+            /* Toggle label text */
+            .dolo-flow-toggle-label {
+                font-size: 10px;
+            }
+
+            .dolo-flow-toggle {
+                padding: 6px 10px 6px 6px;
+            }
+
+            /* Earn tab: input card */
+            .earn-input-card {
+                padding: 16px 12px;
+            }
+
+            .earn-input-row {
+                gap: 10px;
+            }
+
+            .earn-chain-trigger {
+                padding: 10px 30px 10px 12px;
+                font-size: 12px;
+            }
+
+            .earn-search-btn {
+                padding: 10px 16px;
+                font-size: 12px;
+            }
+
+            /* Earn table — smaller cells */
+            .earn-asset-table {
+                min-width: 480px;
+                font-size: 11px;
+            }
+
+            .earn-asset-table thead th {
+                padding: 8px 8px;
+                font-size: 10px;
+            }
+
+            .earn-asset-table tbody td {
+                padding: 8px 8px;
+                font-size: 11px;
+            }
+
+            .earn-asset-table tfoot td {
+                padding: 12px 8px;
+                font-size: 12px;
+            }
+
+            /* Earn yield bar — narrower */
+            .earn-yield-bar {
+                width: 60px;
+            }
+
+            /* Earn results section overflow */
+            .earn-results .table-section {
+                border-radius: var(--radius-md);
+            }
+
+            /* Tooltip — smaller on phones */
+            .tooltip-bubble {
+                width: min(220px, 75vw);
+                font-size: 11px;
+                padding: 8px 10px;
+            }
+
+            /* Lock Expiry chart — allow scroll */
+            .expiry-chart-card {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            /* Header tighter */
+            .site-header {
+                padding: 12px 0 0;
+                margin-bottom: 20px;
+            }
+
+            .header-nav-bar {
+                padding: 8px 8px;
+                gap: 6px;
+            }
+
+            /* Nav badge compact */
+            .nav-badge {
+                font-size: 10px;
+                padding: 4px 8px;
+                gap: 4px;
+            }
+
+            .nav-link {
+                font-size: 11px;
+                padding: 4px 8px;
+            }
+
+            /* Protocol link pills compact */
+            .protocol-links-row {
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+
+            .protocol-link-pill {
+                font-size: 11px;
+                padding: 5px 8px;
+            }
+
+            /* Protocol address rows — allow wrap */
+            .protocol-addr-row {
+                flex-wrap: wrap;
+                gap: 6px;
+                padding: 8px 12px;
+            }
+
+            .protocol-addr-value a {
+                font-size: 11px;
+                word-break: break-all;
+            }
+
+            /* Disable hover scale on touch devices */
+            .metric-cell:hover .metric-value {
+                transform: none;
+                text-shadow: none;
+            }
+
+            .early-exit-cell:hover .metric-value {
+                transform: none;
+            }
+
+            /* oDOLO analytics grid */
+            .odolo-analytics-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            /* Modal — full width on phone */
+            .modal-overlay {
+                padding: 8px;
+            }
+
+            .modal-card {
+                max-height: 92vh;
+                border-radius: var(--radius-md);
+            }
+
+            .modal-stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            /* Legend text smaller */
+            .dolo-leg-name {
+                font-size: 11px;
+            }
+
+            .dolo-leg-pct {
+                font-size: 10px;
+                min-width: 36px;
+            }
+
+            .dolo-leg-val {
+                font-size: 10px;
+                min-width: 54px;
+            }
+
+            /* Expiry chart controls wrap */
+            .expiry-chart-card .card-header {
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+
+            /* Earn withdrawn section */
+            .earn-withdrawn-toggle {
+                font-size: 12px;
+            }
+        }
+
+        /* ---- 360px: Very small phones ---- */
+        @media (max-width: 360px) {
+
+            .page-wrapper {
+                padding: 8px 4px 32px;
+            }
+
+            .nav-tab {
+                padding: 5px 6px;
+                font-size: 9px;
+            }
+
+            .metric-value {
+                font-size: 16px;
+            }
+
+            .card {
+                padding: 12px 8px;
+            }
+
+            .earn-input-card {
+                padding: 12px 8px;
+            }
+
+            .early-exit-cell .metric-value {
+                font-size: 16px;
+            }
+
+            .earn-asset-table {
+                min-width: 440px;
+            }
+        }
     </style>
 </head>
 
@@ -6291,7 +6820,6 @@
                             <button data-period="30">30D</button>
                             <button data-period="90">90D</button>
                             <button data-period="180">180D</button>
-                            <button data-period="365">1Y</button>
                             <button data-period="99999">ALL</button>
                         </div>
                     </div>
@@ -6368,7 +6896,6 @@
                             <button data-period="30">30D</button>
                             <button data-period="90">90D</button>
                             <button data-period="180">180D</button>
-                            <button data-period="365">1Y</button>
                             <button data-period="99999">ALL</button>
                         </div>
                     </div>
@@ -6674,7 +7201,6 @@
                             <button data-period="30">30D</button>
                             <button data-period="90">90D</button>
                             <button data-period="180">180D</button>
-                            <button data-period="365">1Y</button>
                             <button data-period="99999">ALL</button>
                         </div>
                     </div>
@@ -6805,7 +7331,6 @@
                             <button data-period="30d">30D</button>
                             <button data-period="90d">90D</button>
                             <button data-period="180d">180D</button>
-                            <button data-period="1y">1Y</button>
                             <button data-period="all">ALL</button>
                         </div>
                     </div>
@@ -6952,16 +7477,18 @@
                             <button data-days="30">30D</button>
                             <button data-days="90">90D</button>
                             <button data-days="180">180D</button>
-                            <button class="active" data-days="360">1Y</button>
-                            <button data-days="99999">ALL</button>
+                            <button class="active" data-days="99999">ALL</button>
                         </div>
                     </div>
                     <button onclick="dolo_resetZoom()" class="dolo-range-btn" id="dolo-reset-zoom-btn"
                         style="display:none;background:rgba(239,68,68,0.15);color:#ef4444;border-color:rgba(239,68,68,0.3);align-self:flex-end;margin-bottom:3px">Reset</button>
                 </div>
                 <div style="padding:16px;position:relative">
-                    <canvas id="dolo-tvl-chart" height="260" style="width:100%"></canvas>
+                    <canvas id="dolo-tvl-chart" height="260" style="width:100%;cursor:crosshair"></canvas>
                     <div id="dolo-tvl-tooltip" class="tvl-tooltip-enhanced"></div>
+                    <div id="dolo-chart-select-overlay"
+                        style="position:absolute;top:16px;bottom:32px;pointer-events:none;display:none;background:rgba(99,102,241,0.12);border:1.5px solid rgba(99,102,241,0.5);border-radius:4px;z-index:5">
+                    </div>
                 </div>
                 <!-- Brush Navigator -->
                 <div id="dolo-brush-date-label"
@@ -7046,7 +7573,6 @@
                             <button data-period="30d">30D</button>
                             <button data-period="90d">90D</button>
                             <button data-period="180d">180D</button>
-                            <button data-period="1y">1Y</button>
                             <button data-period="all">ALL</button>
                         </div>
                     </div>
@@ -7145,7 +7671,6 @@
                             <button data-period="30d">30D</button>
                             <button data-period="90d">90D</button>
                             <button data-period="180d">180D</button>
-                            <button data-period="1y">1Y</button>
                             <button data-period="all">ALL</button>
                         </div>
                     </div>
@@ -10034,10 +10559,9 @@
             const sign = pctChange >= 0 ? '+' : '';
             const arrow = pctChange >= 0 ? '↑' : '↓';
             const rangeLabel = dolo_currentRange >= dolo_allTvlPoints.length ? 'ALL' :
-                dolo_currentRange >= 360 ? '1Y' :
-                    dolo_currentRange >= 180 ? '180D' :
-                        dolo_currentRange >= 90 ? '90D' :
-                            dolo_currentRange >= 30 ? '30D' : '7D';
+                dolo_currentRange >= 180 ? '180D' :
+                    dolo_currentRange >= 90 ? '90D' :
+                        dolo_currentRange >= 30 ? '30D' : '7D';
             badge.className = 'tvl-change-badge ' + (pctChange >= 0 ? 'positive' : 'negative');
             badge.textContent = `${arrow} ${sign}${pctChange.toFixed(1)}% ${rangeLabel}`;
             badge.style.display = '';
@@ -10740,8 +11264,14 @@
             // Initial draw
             drawChart(null);
 
-            // ── Mouse interaction ──
-            canvas.onmousemove = function (e) {
+            // ── Mouse interaction with drag-to-zoom ──
+            let isDragging = false;
+            let dragStartX = 0;
+            let dragStartIdx = -1;
+            const selectOverlay = document.getElementById('dolo-chart-select-overlay');
+            const MIN_DRAG_PX = 10; // minimum pixels to count as drag vs click
+
+            function showTooltip(e) {
                 const cRect = canvas.getBoundingClientRect();
                 const mx = e.clientX - cRect.left;
                 const idx = Math.round(((mx - pad.left) / cw) * (dolo_tvlPoints.length - 1));
@@ -10752,7 +11282,6 @@
                 const pt = dolo_tvlPoints[idx];
                 const hp = getXY(idx);
 
-                // Tooltip content
                 const tip = document.getElementById('dolo-tvl-tooltip');
                 const firstTvl = dolo_tvlPoints[0].tvl;
                 const pctFromStart = firstTvl > 0 ? ((pt.tvl - firstTvl) / firstTvl * 100) : 0;
@@ -10763,7 +11292,6 @@
                         <div style="color:#8b8fa3;font-size:11px;margin-top:3px">${pt.date.toLocaleDateString('en', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })}</div>
                         <div style="margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,0.06);font-size:11px;color:${pctColor};font-weight:600">${pctSign}${pctFromStart.toFixed(2)}% from start</div>`;
 
-                // Position tooltip
                 const tipW = 180;
                 let left = hp.x - tipW / 2;
                 if (left < 0) left = 4;
@@ -10772,10 +11300,110 @@
                 if (top < 0) top = hp.y + 15;
                 tip.style.left = left + 'px';
                 tip.style.top = top + 'px';
+            }
+
+            canvas.onmousedown = function (e) {
+                const cRect = canvas.getBoundingClientRect();
+                dragStartX = e.clientX - cRect.left;
+                dragStartIdx = Math.round(((dragStartX - pad.left) / cw) * (dolo_tvlPoints.length - 1));
+                isDragging = false; // will become true if mouse moves > threshold
             };
+
+            canvas.onmousemove = function (e) {
+                const cRect = canvas.getBoundingClientRect();
+                const mx = e.clientX - cRect.left;
+
+                // Check if we're actively dragging
+                if (dragStartIdx >= 0 && Math.abs(mx - dragStartX) > MIN_DRAG_PX) {
+                    isDragging = true;
+                }
+
+                if (isDragging) {
+                    // Show selection overlay
+                    dolo_hideTvlTooltip();
+                    canvas.style.cursor = 'col-resize';
+                    const left = Math.min(dragStartX, mx);
+                    const right = Math.max(dragStartX, mx);
+                    // Clamp to chart area
+                    const clampL = Math.max(pad.left, left);
+                    const clampR = Math.min(W - pad.right, right);
+                    selectOverlay.style.display = 'block';
+                    selectOverlay.style.left = clampL + 'px';
+                    selectOverlay.style.width = (clampR - clampL) + 'px';
+
+                    // Draw chart with selection highlight: draw both endpoints
+                    const startIdx = Math.round(((clampL - pad.left) / cw) * (dolo_tvlPoints.length - 1));
+                    const endIdx = Math.round(((clampR - pad.left) / cw) * (dolo_tvlPoints.length - 1));
+                    drawChart(null); // redraw base chart without hover
+                } else {
+                    // Normal hover behavior
+                    canvas.style.cursor = 'crosshair';
+                    showTooltip(e);
+                }
+            };
+
+            canvas.onmouseup = function (e) {
+                if (isDragging && dolo_tvlPoints.length > 2) {
+                    const cRect = canvas.getBoundingClientRect();
+                    const mx = e.clientX - cRect.left;
+                    const clampL = Math.max(pad.left, Math.min(dragStartX, mx));
+                    const clampR = Math.min(W - pad.right, Math.max(dragStartX, mx));
+
+                    // Convert pixel positions to fractional indices
+                    const fracStart = (clampL - pad.left) / cw;
+                    const fracEnd = (clampR - pad.left) / cw;
+
+                    // Map to brush coordinates: the brush operates on the current range
+                    // We need to map our selection (which is within dolo_tvlPoints) to the allPts range
+                    const allPts = dolo_currentRange >= dolo_allTvlPoints.length ? dolo_allTvlPoints : dolo_allTvlPoints.slice(-dolo_currentRange);
+                    // Current tvlPoints are a slice of allPts from brushStart..brushEnd
+                    const currentStartIdx = Math.floor(dolo_brushStart * (allPts.length - 1));
+                    const currentEndIdx = Math.ceil(dolo_brushEnd * (allPts.length - 1));
+                    const currentSpan = currentEndIdx - currentStartIdx;
+
+                    // New selection within the current view
+                    const newStart = currentStartIdx + fracStart * currentSpan;
+                    const newEnd = currentStartIdx + fracEnd * currentSpan;
+
+                    // Convert back to 0..1 brush fractions
+                    dolo_brushStart = Math.max(0, newStart / (allPts.length - 1));
+                    dolo_brushEnd = Math.min(1, newEnd / (allPts.length - 1));
+
+                    // Ensure minimum selection
+                    if (dolo_brushEnd - dolo_brushStart < 0.02) {
+                        dolo_brushEnd = Math.min(1, dolo_brushStart + 0.02);
+                    }
+
+                    // Apply zoom
+                    dolo_updateBrushOverlay();
+                    dolo_brushApply();
+
+                    // Show reset button, deactivate range buttons
+                    document.getElementById('dolo-reset-zoom-btn').style.display = '';
+                    document.querySelectorAll('#dolo-tvl-range-btns button[data-days]').forEach(btn => {
+                        btn.classList.remove('active');
+                    });
+                }
+
+                // Reset drag state
+                isDragging = false;
+                dragStartIdx = -1;
+                selectOverlay.style.display = 'none';
+                canvas.style.cursor = 'crosshair';
+            };
+
             canvas.onmouseleave = function () {
+                isDragging = false;
+                dragStartIdx = -1;
+                selectOverlay.style.display = 'none';
+                canvas.style.cursor = 'crosshair';
                 dolo_hideTvlTooltip();
                 drawChart(null);
+            };
+
+            // Double-click to reset zoom
+            canvas.ondblclick = function () {
+                dolo_resetZoom();
             };
 
             // --- Brush Navigator ---
