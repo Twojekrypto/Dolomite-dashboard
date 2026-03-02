@@ -756,6 +756,31 @@ def main():
     with open(stats_file, "w") as f:
         json.dump({"stats": stats, "timestamp": datetime.utcnow().isoformat()}, f, indent=2)
 
+    # Save pre-computed expiry buckets for instant Lock Expiry Timeline chart
+    now_ts = int(time.time())
+    expiry_buckets = {}
+    expiry_total = 0
+    for h in holders:
+        for td in h.get("token_details", []):
+            end = td.get("end", 0)
+            dolo = td.get("dolo", 0)
+            if end and dolo > 0 and end > now_ts:
+                dt = datetime.utcfromtimestamp(end)
+                q = f"Q{(dt.month - 1) // 3 + 1} {dt.year}"
+                expiry_buckets[q] = expiry_buckets.get(q, 0) + dolo
+                expiry_total += dolo
+    # Sort by year+quarter
+    sorted_expiry = sorted(expiry_buckets.items(),
+                           key=lambda x: (int(x[0].split()[1]), int(x[0][1])))
+    expiry_file = os.path.join(DATA_DIR, "vedolo_expiry.json")
+    with open(expiry_file, "w") as f:
+        json.dump({
+            "buckets": [{"label": k, "dolo": round(v, 2)} for k, v in sorted_expiry],
+            "total_dolo": round(expiry_total, 2),
+            "timestamp": datetime.utcnow().isoformat()
+        }, f, indent=2)
+    print(f"   Saved vedolo_expiry.json ({len(sorted_expiry)} quarters, {expiry_total:,.0f} DOLO)")
+
     with open(OUTPUT_CSV, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["Rank", "Address", "NFT_Count", "Total_DOLO", "Vote_Weight",
