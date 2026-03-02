@@ -58,7 +58,7 @@ PERIODS = {
     "90d": 86400 * 90,
     "180d": 86400 * 180,
     "1y": 86400 * 365,
-    "all": 86400 * 365 * 3,   # 3 years — effectively "all time"
+    "all": 86400 * 365,        # 1 year — covers full DOLO history
 }
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -87,8 +87,8 @@ def fetch_transfer_logs(chain_key, start_block, end_block):
     if start_block >= end_block:
         return []
 
-    total_chunks = (end_block - start_block + chunk_size - 1) // chunk_size
-    print(f"  {cfg['name']}: scanning blocks {start_block:,} → {end_block:,} ({total_chunks} chunks)")
+    total_blocks = end_block - start_block
+    print(f"  {cfg['name']}: scanning blocks {start_block:,} → {end_block:,} ({total_blocks:,} blocks)")
 
     all_transfers = []
     current = start_block
@@ -148,9 +148,9 @@ def fetch_transfer_logs(chain_key, start_block, end_block):
         current = chunk_end + 1
         chunks_done += 1
 
-        if chunks_done % 20 == 0 or chunks_done == total_chunks:
-            pct = chunks_done * 100 // max(total_chunks, 1)
-            print(f"    {cfg['name']}: {pct}% ({chunks_done}/{total_chunks}, {len(all_transfers):,} txs)", flush=True)
+        if chunks_done % 20 == 0 or current > end_block:
+            pct = min(100, (current - start_block) * 100 // max(total_blocks, 1))
+            print(f"    {cfg['name']}: {pct}% (block {current:,}/{end_block:,}, {len(all_transfers):,} txs)", flush=True)
 
         if chunk_size < cfg["chunk_size"]:
             chunk_size = min(chunk_size * 2, cfg["chunk_size"])
