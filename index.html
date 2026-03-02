@@ -8190,7 +8190,7 @@
                 <span style="display:inline-flex;align-items:center;gap:4px"><a href="#address=${h.address}" onclick="event.preventDefault();event.stopPropagation();showProfile('${h.address}')">${h.address.slice(0, 6)}…${h.address.slice(-4)}</a>${addrLabel}<span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${h.address}',this)" title="Copy address"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span><a href="https://debank.com/profile/${h.address}?chain=bera" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a></span>
             </td>
             <td class="c-nft">${h.nft_count}</td>
-            <td class="c-dolo" title="${doloExact} DOLO">${fmtDolo(h.total_dolo || 0)}<span class="supply-pct">(${supplyPct}%)</span></td>
+            <td class="c-dolo" title="${doloExact} DOLO">${fmtDolo(h.total_dolo || 0)}</td>
             <td class="c-vote" title="${voteExact} veDOLO" style="color:#f59e0b">${fmtDolo(h.total_vote_weight || 0)}</td>
             <td class="c-tokens"><div class="tokens-truncated" title="${h.token_ids.join(', ')}">${tokPrev}</div></td>
         </tr>`;
@@ -10300,7 +10300,7 @@
                         </td>
                         <td class="c-dolo" style="text-align:right">${ethCell}</td>
                         <td class="c-dolo" style="text-align:right">${beraCell}</td>
-                        <td class="c-dolo" style="text-align:right" title="${balExact} DOLO">${dolo_fmtBal(dispBal)}<span class="supply-pct">(${supplyPct}%)</span>${changeBadge}</td>
+                        <td class="c-dolo" style="text-align:right" title="${balExact} DOLO">${dolo_fmtBal(dispBal)}${changeBadge}</td>
                     </tr>`;
             }).join('');
 
