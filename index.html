@@ -7088,7 +7088,8 @@
             <!-- DOLO Flow — Top Accumulators & Sellers -->
             <div class="card anim anim-d4" style="margin-top:24px" id="dolo-flows-card">
                 <div class="card-header">
-                    <h3>DOLO Flow</h3>
+                    <h3 style="display:flex;align-items:center;gap:8px"><img src="dolo-logo.svg" width="22" height="22"
+                            alt="DOLO" style="flex-shrink:0"> DOLO Flow</h3>
                 </div>
                 <div class="dolo-flow-toolbar">
                     <div style="display:flex;flex-direction:column;gap:3px">
@@ -10276,7 +10277,7 @@
                     const chg = dolo_balanceChanges[dolo_holderPeriod][h.address] || 0;
                     if (chg !== 0) {
                         const sign = chg >= 0 ? '+' : '-';
-                        const col = chg >= 0 ? '#22d3ee' : 'var(--accent-rose)';
+                        const col = chg >= 0 ? 'var(--accent-green)' : 'var(--accent-rose)';
                         flowCell = `<span style="font-size:11px;font-weight:600;color:${col}" title="${chg.toLocaleString('en-US', { maximumFractionDigits: 0 })} DOLO">${sign}${dolo_fmtBal(Math.abs(chg))}</span>`;
                     }
                 }
@@ -10296,7 +10297,7 @@
                         </td>
                         <td class="c-dolo" style="text-align:right">${ethCell}</td>
                         <td class="c-dolo" style="text-align:right">${beraCell}</td>
-                        <td class="c-dolo" style="text-align:right" title="${balExact} DOLO"><span style="font-weight:700;font-size:14px;color:var(--accent-green)">${dolo_fmtBal(dispBal)}</span>${flowCell !== '<span style="opacity:0.3">—</span>' ? '<br>' + flowCell : ''}</td>
+                        <td class="c-dolo" style="text-align:right" title="${balExact} DOLO"><span style="font-weight:700;font-size:14px;color:var(--text-primary)">${dolo_fmtBal(dispBal)}</span>${flowCell !== '<span style="opacity:0.3">—</span>' ? '<br>' + flowCell : ''}</td>
                     </tr>`;
             }).join('');
 
