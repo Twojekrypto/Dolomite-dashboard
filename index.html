@@ -10262,7 +10262,7 @@
 
                 // ETH cell: show value if checked, empty dash if unchecked
                 const ethCell = showEth
-                    ? (ethBal > 0 ? `<a href="${ethUrl}" target="_blank" onclick="event.stopPropagation()" style="color:var(--accent-green);text-decoration:none" title="View on Etherscan: ${ethBal.toLocaleString('en-US')} DOLO">${dolo_fmtBal(ethBal)}</a>` : '<span style="opacity:0.3">—</span>')
+                    ? (ethBal > 0 ? `<a href="${ethUrl}" target="_blank" onclick="event.stopPropagation()" style="color:#627eea;text-decoration:none" title="View on Etherscan: ${ethBal.toLocaleString('en-US')} DOLO">${dolo_fmtBal(ethBal)}</a>` : '<span style="opacity:0.3">—</span>')
                     : '<span style="opacity:0.15">—</span>';
 
                 // BERA cell: show value if checked, empty dash if unchecked
@@ -10297,7 +10297,7 @@
                         </td>
                         <td class="c-dolo" style="text-align:right">${ethCell}</td>
                         <td class="c-dolo" style="text-align:right">${beraCell}</td>
-                        <td class="c-dolo" style="text-align:right" title="${balExact} DOLO">${dolo_fmtBal(dispBal)}${changeBadge ? '<br>' + changeBadge : ''}</td>
+                        <td class="c-dolo" style="text-align:right" title="${balExact} DOLO"><span style="font-weight:600;color:var(--text-primary)">${dolo_fmtBal(dispBal)}</span>${changeBadge ? '<br>' + changeBadge : ''}</td>
                     </tr>`;
             }).join('');
 
