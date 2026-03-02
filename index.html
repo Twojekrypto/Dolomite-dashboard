@@ -6355,6 +6355,12 @@
                         </div>
                     </div>
                     <div style="display:flex;flex-direction:column;gap:3px;margin-left:auto">
+                        <div id="recent-locks-type-btns" class="dolo-chain-pills" style="width:fit-content">
+                            <div class="dolo-chain-slider"></div>
+                            <button class="active" data-locktype="all">All</button>
+                            <button data-locktype="odolo">via oDOLO</button>
+                            <button data-locktype="direct">Direct</button>
+                        </div>
                         <div id="recent-locks-period-btns" class="dolo-chain-pills" style="width:fit-content">
                             <div class="dolo-chain-slider"></div>
                             <button data-period="1">1D</button>
@@ -9339,6 +9345,7 @@
         let vedolo_eventsLoaded = false;
         let recentClaimsSearchTerm = '';
         let recentLocksSearchTerm = '';
+        let recentLocksTypeFilter = 'all'; // 'all', 'odolo', 'direct'
 
         function recentClaimsSearchChanged() {
             recentClaimsSearchTerm = (document.getElementById('recent-claims-search').value || '').trim().toLowerCase();
@@ -9641,6 +9648,13 @@
             // Search filter
             if (recentLocksSearchTerm) {
                 data = data.filter(l => l.address.toLowerCase().includes(recentLocksSearchTerm) || l.txHash.toLowerCase().includes(recentLocksSearchTerm));
+            }
+
+            // Lock type filter
+            if (recentLocksTypeFilter === 'odolo') {
+                data = data.filter(l => l.isOdolo);
+            } else if (recentLocksTypeFilter === 'direct') {
+                data = data.filter(l => !l.isOdolo);
             }
 
             // Sort
@@ -11703,6 +11717,13 @@
             setupPills('recent-locks-period-btns', btn => {
                 const period = parseInt(btn.dataset.period);
                 if (!isNaN(period)) setRecentLocksPeriod(period);
+            });
+
+            // Recent DOLO Locks type filter pills
+            setupPills('recent-locks-type-btns', btn => {
+                recentLocksTypeFilter = btn.dataset.locktype || 'all';
+                vedolo_locksPage = 1;
+                renderRecentLocks();
             });
         })();
 
