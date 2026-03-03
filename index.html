@@ -12973,11 +12973,18 @@
                         if (assets_shouldSkip(r)) return;
                         const totalSupply = parseFloat(r.totalSupplyInterestRate) || 0;
                         const baseBorrow = parseFloat(r.borrowInterestRate) || 0;
-                        // Extract oDOLO rewards APR
+                        const baseLending = parseFloat(r.supplyInterestRate) || 0;
+                        // Extract oDOLO rewards APR and yield source labels
                         let odoloRewards = 0;
+                        const yieldSources = []; // [{label, rate}]
                         (r.outsideSupplyInterestRateParts || []).forEach(p => {
                             if (p.label && p.label.includes('oDOLO') && p.interestRate) {
                                 odoloRewards += parseFloat(p.interestRate) || 0;
+                            } else if (p.category === 'nativeYield' && p.interestRate) {
+                                const rate = parseFloat(p.interestRate) || 0;
+                                if (rate > 0) {
+                                    yieldSources.push({ label: p.label, rate: rate * 100 });
+                                }
                             }
                         });
                         // 7d average
@@ -12994,6 +13001,8 @@
                             supplyApr: totalSupply * 100,
                             borrowApr: baseBorrow * 100,
                             rewards: odoloRewards * 100,
+                            lendingApr: baseLending * 100,
+                            yieldSources: yieldSources,
                             supplyApr7d: avg7d * 100,
                             cat: assets_classify(r.token.tokenSymbol),
                         });
@@ -13171,15 +13180,27 @@
                     iconHtml = `<div class="assets-token-icon">${(d.symbol || '?').slice(0, 2)}</div>`;
                 }
 
-                // Supply APR breakdown: yield + oDOLO
-                const baseYield = d.supplyApr - d.rewards;
+                // Supply APR breakdown: lending + yield sources + oDOLO
+                let breakdownLines = [];
+                // Dolomite lending yield (from borrowers)
+                if (d.lendingApr > 0.01) {
+                    breakdownLines.push({ label: 'Lending APR', rate: d.lendingApr, cls: 'yield-part' });
+                }
+                // External yield sources (staking, restaking, etc.)
+                if (d.yieldSources && d.yieldSources.length > 0) {
+                    d.yieldSources.forEach(ys => {
+                        breakdownLines.push({ label: ys.label, rate: ys.rate, cls: 'yield-part' });
+                    });
+                }
+                // oDOLO rewards
+                if (d.rewards > 0) {
+                    breakdownLines.push({ label: 'oDOLO Rewards', rate: d.rewards, cls: 'odolo-part' });
+                }
                 let breakdownHtml = '';
-                if (d.rewards > 0 && baseYield > 0.01) {
-                    breakdownHtml = `<div class="assets-apy-breakdown"><span class="yield-part">+ ${baseYield.toFixed(2)}% yield</span><span class="odolo-part">+ ${d.rewards.toFixed(2)}% oDOLO</span></div>`;
-                } else if (d.rewards > 0) {
-                    breakdownHtml = `<div class="assets-apy-breakdown"><span class="odolo-part">+ ${d.rewards.toFixed(2)}% oDOLO</span></div>`;
-                } else if (baseYield > 0.01) {
-                    breakdownHtml = `<div class="assets-apy-breakdown"><span class="yield-part">+ ${baseYield.toFixed(2)}% yield</span></div>`;
+                if (breakdownLines.length > 0) {
+                    breakdownHtml = '<div class="assets-apy-breakdown">' +
+                        breakdownLines.map(l => `<span class="${l.cls}">+ ${l.rate.toFixed(2)}% ${l.label}</span>`).join('') +
+                        '</div>';
                 }
 
                 html += `<tr>
