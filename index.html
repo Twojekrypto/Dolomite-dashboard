@@ -874,6 +874,22 @@
             margin-left: 4px;
         }
 
+        .assets-apy-breakdown {
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.35);
+            margin-top: 2px;
+            display: flex;
+            gap: 6px;
+        }
+
+        .assets-apy-breakdown .yield-part {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .assets-apy-breakdown .odolo-part {
+            color: rgba(52, 211, 153, 0.6);
+        }
+
         .assets-spinner {
             text-align: center;
             padding: 60px 0;
@@ -8172,7 +8188,7 @@
         <div id="view-assets" class="view-section">
             <div class="card anim anim-d1">
                 <div class="card-header">
-                    <h3>Dolomite Assets — All Chains</h3>
+                    <h3>Dolomite Assets</h3>
                 </div>
                 <div id="assets-chain-filter" class="dolo-chain-pills"></div>
                 <div class="assets-controls">
@@ -8192,12 +8208,10 @@
                     <div class="table-scroll">
                         <table class="assets-table" id="assets-table">
                             <colgroup>
-                                <col style="width:28%">
-                                <col style="width:14%">
-                                <col style="width:16%">
-                                <col style="width:16%">
-                                <col style="width:13%">
-                                <col style="width:13%">
+                                <col style="width:35%">
+                                <col style="width:18%">
+                                <col style="width:27%">
+                                <col style="width:20%">
                             </colgroup>
                             <thead>
                                 <tr>
@@ -8206,8 +8220,6 @@
                                     <th data-col="supplyApr" class="sorted">Supply APR <span class="sort-arrow">▼</span>
                                     </th>
                                     <th data-col="borrowApr">Borrow APR <span class="sort-arrow"></span></th>
-                                    <th data-col="rewards">oDOLO <span class="sort-arrow"></span></th>
-                                    <th data-col="supplyApr7d">7d Avg <span class="sort-arrow"></span></th>
                                 </tr>
                             </thead>
                             <tbody id="assets-tbody"></tbody>
@@ -13059,24 +13071,39 @@
             const tbody = document.getElementById('assets-tbody');
             if (!tbody) return;
             if (data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:rgba(255,255,255,0.3)">No assets found</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:40px;color:rgba(255,255,255,0.3)">No assets found</td></tr>`;
                 return;
             }
 
             let html = '';
             data.forEach(d => {
                 const supplyClass = d.supplyApr > 0 ? 'assets-apy-green' : (d.supplyApr < 0 ? 'assets-apy-red' : 'assets-apy-dim');
-                const borrowClass = d.borrowApr > 0 ? 'assets-apy-green' : 'assets-apy-dim';
-                const avg7dClass = d.supplyApr7d > 0 ? 'assets-apy-green' : (d.supplyApr7d < 0 ? 'assets-apy-red' : 'assets-apy-dim');
-                const rewardsHtml = d.rewards > 0
-                    ? `<span class="assets-rewards-tag">+${d.rewards.toFixed(2)}%</span>`
-                    : '<span class="assets-apy-dim">—</span>';
 
-                const initial = (d.symbol || '?')[0].toUpperCase();
+                // Token icon from KNOWN_TOKENS
+                const tkKey = d.chainKey + ':' + (d.addr || '').toLowerCase();
+                const known = (typeof KNOWN_TOKENS !== 'undefined') ? KNOWN_TOKENS[tkKey] : null;
+                let iconHtml;
+                if (known && known.icon) {
+                    iconHtml = `<div class="assets-token-icon"><img src="${known.icon}" alt="${d.symbol}" onerror="this.parentElement.textContent='${(d.symbol || '?').slice(0, 2)}'"></div>`;
+                } else {
+                    iconHtml = `<div class="assets-token-icon">${(d.symbol || '?').slice(0, 2)}</div>`;
+                }
+
+                // Supply APR breakdown: yield + oDOLO
+                const baseYield = d.supplyApr - d.rewards;
+                let breakdownHtml = '';
+                if (d.rewards > 0 && baseYield > 0.01) {
+                    breakdownHtml = `<div class="assets-apy-breakdown"><span class="yield-part">${baseYield.toFixed(2)}% yield</span><span class="odolo-part">+${d.rewards.toFixed(2)}% oDOLO</span></div>`;
+                } else if (d.rewards > 0) {
+                    breakdownHtml = `<div class="assets-apy-breakdown"><span class="odolo-part">${d.rewards.toFixed(2)}% oDOLO</span></div>`;
+                } else if (baseYield > 0.01) {
+                    breakdownHtml = `<div class="assets-apy-breakdown"><span class="yield-part">${baseYield.toFixed(2)}% yield</span></div>`;
+                }
+
                 html += `<tr>
                     <td>
                         <div class="assets-token-cell">
-                            <div class="assets-token-icon">${initial}</div>
+                            ${iconHtml}
                             <div>
                                 <div class="assets-token-name">${d.symbol}</div>
                                 <div class="assets-token-full">${d.name}</div>
@@ -13084,10 +13111,11 @@
                         </div>
                     </td>
                     <td><span class="assets-chain-badge"><img src="${d.chainIcon}" alt="">${d.chainShort}</span></td>
-                    <td><span class="${supplyClass}">${d.supplyApr.toFixed(2)}%</span></td>
-                    <td><span class="${borrowClass}">${d.borrowApr > 0 ? d.borrowApr.toFixed(2) + '%' : '—'}</span></td>
-                    <td>${rewardsHtml}</td>
-                    <td><span class="${avg7dClass}">${d.supplyApr7d > 0 ? d.supplyApr7d.toFixed(2) + '%' : '—'}</span></td>
+                    <td>
+                        <div><span class="${supplyClass}">${d.supplyApr.toFixed(2)}%</span></div>
+                        ${breakdownHtml}
+                    </td>
+                    <td><span class="assets-apy-red">${d.borrowApr > 0 ? d.borrowApr.toFixed(2) + '%' : '—'}</span></td>
                 </tr>`;
             });
             tbody.innerHTML = html;
