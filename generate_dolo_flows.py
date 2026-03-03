@@ -62,6 +62,28 @@ PERIODS = {
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_JSON = os.path.join(DATA_DIR, "dolo_flows.json")
+STATE_FILE = os.path.join(DATA_DIR, "dolo_flows_state.json")
+
+MAX_PERIOD_SECONDS = max(PERIODS.values())  # longest period for pruning
+
+
+def load_state():
+    """Load incremental sync state (cached transfers + last blocks)."""
+    if os.path.exists(STATE_FILE):
+        try:
+            with open(STATE_FILE) as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+
+def save_state(state):
+    """Save incremental sync state."""
+    tmp = STATE_FILE + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(state, f)
+    os.replace(tmp, STATE_FILE)
 
 
 def get_current_block(rpc_url):
@@ -271,6 +293,14 @@ def main():
     print(f"   {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
     print("=" * 60)
 
+    # Load incremental state
+    state = load_state()
+    is_incremental = bool(state)
+    if is_incremental:
+        print("📦 Found previous state — running incremental sync")
+    else:
+        print("🆕 No previous state — running full sync (first run)")
+
     dolo_price = get_dolo_price()
     print(f"\n💰 DOLO Price: ${dolo_price:.4f}" if dolo_price else "\n⚠️ Could not fetch DOLO price")
 
@@ -283,7 +313,6 @@ def main():
         print(f"  {cfg['name']}: block {blk:,}")
 
     # Calculate cutoff blocks for each period
-    # We need to fetch from the earliest cutoff (30d) to latest
     cutoff_blocks = {}
     for chain_key, cfg in CHAINS.items():
         cutoff_blocks[chain_key] = {}
@@ -293,14 +322,54 @@ def main():
             cutoff = max(current_blocks[chain_key] - blocks_back, deploy_block)
             cutoff_blocks[chain_key][period] = cutoff
 
-    # Fetch transfers from the longest period (covers all periods)
+    # Determine the oldest block we need per chain (longest period cutoff)
     max_period = max(PERIODS.keys(), key=lambda k: PERIODS[k])
+
+    # Fetch transfers — incremental: only new blocks since last run
     print("\n📡 Fetching Transfer events...")
     all_transfers = {}
     for chain_key in CHAINS:
-        start = cutoff_blocks[chain_key][max_period]
+        oldest_needed = cutoff_blocks[chain_key][max_period]
         end = current_blocks[chain_key]
-        all_transfers[chain_key] = fetch_transfer_logs(chain_key, start, end)
+
+        # Load cached transfers for this chain
+        cached_key = f"{chain_key}_transfers"
+        last_block_key = f"{chain_key}_last_block"
+        cached_transfers = state.get(cached_key, [])
+        last_block = state.get(last_block_key, 0)
+
+        if is_incremental and last_block > 0 and cached_transfers:
+            # Only fetch new blocks since last run
+            fetch_start = last_block + 1
+            if fetch_start >= end:
+                print(f"  {CHAINS[chain_key]['name']}: already up to date (block {last_block:,})")
+                new_transfers = []
+            else:
+                new_transfers = fetch_transfer_logs(chain_key, fetch_start, end)
+
+            # Convert cached transfers back from lists to tuples
+            restored = [tuple(t) for t in cached_transfers]
+
+            # Merge: cached + new
+            merged = restored + new_transfers
+
+            # Prune: drop transfers from blocks older than the oldest needed
+            merged = [t for t in merged if t[3] >= oldest_needed]
+
+            all_transfers[chain_key] = merged
+            print(f"  {CHAINS[chain_key]['name']}: {len(new_transfers):,} new + {len(restored):,} cached → {len(merged):,} total (after pruning)")
+        else:
+            # Full scan from the oldest needed block
+            all_transfers[chain_key] = fetch_transfer_logs(chain_key, oldest_needed, end)
+
+        # Update state for this chain
+        state[last_block_key] = end
+        # Store transfers as lists (JSON can't serialize tuples)
+        # Only keep transfers within the longest period window
+        state[cached_key] = [
+            list(t) for t in all_transfers[chain_key]
+            if t[3] >= cutoff_blocks[chain_key][max_period]
+        ]
 
     # Detect contracts among top addresses (to exclude DEX routers, etc.)
     print("\n🔍 Detecting contract addresses to exclude...")
@@ -402,7 +471,11 @@ def main():
     with open(OUTPUT_JSON, "w") as f:
         json.dump(output, f, indent=2)
 
+    # Save incremental state for next run
+    save_state(state)
+
     print(f"\n💾 Saved: {OUTPUT_JSON}")
+    print(f"   State saved to {STATE_FILE} for incremental sync")
 
     # Summary
     for period in PERIODS:
