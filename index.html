@@ -876,18 +876,18 @@
 
         .assets-apy-breakdown {
             font-size: 10px;
-            color: rgba(255, 255, 255, 0.35);
-            margin-top: 2px;
+            margin-top: 3px;
             display: flex;
-            gap: 6px;
+            flex-direction: column;
+            gap: 1px;
         }
 
         .assets-apy-breakdown .yield-part {
-            color: rgba(255, 255, 255, 0.4);
+            color: rgba(255, 255, 255, 0.7);
         }
 
         .assets-apy-breakdown .odolo-part {
-            color: rgba(52, 211, 153, 0.6);
+            color: #60a5fa;
         }
 
         .assets-spinner {
@@ -13078,6 +13078,7 @@
             let html = '';
             data.forEach(d => {
                 const supplyClass = d.supplyApr > 0 ? 'assets-apy-green' : (d.supplyApr < 0 ? 'assets-apy-red' : 'assets-apy-dim');
+                const supplyStyle = d.supplyApr > 0 ? 'font-size:15px;font-weight:700' : '';
 
                 // Token icon from KNOWN_TOKENS
                 const tkKey = d.chainKey + ':' + (d.addr || '').toLowerCase();
@@ -13093,11 +13094,11 @@
                 const baseYield = d.supplyApr - d.rewards;
                 let breakdownHtml = '';
                 if (d.rewards > 0 && baseYield > 0.01) {
-                    breakdownHtml = `<div class="assets-apy-breakdown"><span class="yield-part">${baseYield.toFixed(2)}% yield</span><span class="odolo-part">+${d.rewards.toFixed(2)}% oDOLO</span></div>`;
+                    breakdownHtml = `<div class="assets-apy-breakdown"><span class="yield-part">+ ${baseYield.toFixed(2)}% yield</span><span class="odolo-part">+ ${d.rewards.toFixed(2)}% oDOLO</span></div>`;
                 } else if (d.rewards > 0) {
-                    breakdownHtml = `<div class="assets-apy-breakdown"><span class="odolo-part">${d.rewards.toFixed(2)}% oDOLO</span></div>`;
+                    breakdownHtml = `<div class="assets-apy-breakdown"><span class="odolo-part">+ ${d.rewards.toFixed(2)}% oDOLO</span></div>`;
                 } else if (baseYield > 0.01) {
-                    breakdownHtml = `<div class="assets-apy-breakdown"><span class="yield-part">${baseYield.toFixed(2)}% yield</span></div>`;
+                    breakdownHtml = `<div class="assets-apy-breakdown"><span class="yield-part">+ ${baseYield.toFixed(2)}% yield</span></div>`;
                 }
 
                 html += `<tr>
@@ -13112,7 +13113,7 @@
                     </td>
                     <td><span class="assets-chain-badge"><img src="${d.chainIcon}" alt="">${d.chainShort}</span></td>
                     <td>
-                        <div><span class="${supplyClass}">${d.supplyApr.toFixed(2)}%</span></div>
+                        <div><span class="${supplyClass}" style="${supplyStyle}">${d.supplyApr.toFixed(2)}%</span></div>
                         ${breakdownHtml}
                     </td>
                     <td><span class="assets-apy-red">${d.borrowApr > 0 ? d.borrowApr.toFixed(2) + '%' : '—'}</span></td>
