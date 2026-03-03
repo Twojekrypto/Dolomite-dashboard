@@ -816,7 +816,8 @@
         .assets-token-icon img {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
+            padding: 2px;
         }
 
         .assets-token-name {
@@ -5659,7 +5660,8 @@
         .earn-token-icon img {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
+            padding: 2px;
         }
 
         .earn-token-info {
@@ -13173,9 +13175,11 @@
                 // Token icon from KNOWN_TOKENS
                 const tkKey = d.chainKey + ':' + (d.addr || '').toLowerCase();
                 const known = (typeof KNOWN_TOKENS !== 'undefined') ? KNOWN_TOKENS[tkKey] : null;
+                const GRAYSCALE_SYMBOLS = new Set(['CRV', 'USD0', 'USD0++', 'deUSD', 'sdeUSD', 'MATIC', 'POL']);
+                const grayStyle = GRAYSCALE_SYMBOLS.has(d.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
                 let iconHtml;
                 if (known && known.icon) {
-                    iconHtml = `<div class="assets-token-icon"><img src="${known.icon}" alt="${d.symbol}" onerror="this.parentElement.textContent='${(d.symbol || '?').slice(0, 2)}'"></div>`;
+                    iconHtml = `<div class="assets-token-icon"><img src="${known.icon}" alt="${d.symbol}"${grayStyle} onerror="this.parentElement.textContent='${(d.symbol || '?').slice(0, 2)}'"></div>`;
                 } else {
                     iconHtml = `<div class="assets-token-icon">${(d.symbol || '?').slice(0, 2)}</div>`;
                 }
@@ -13552,8 +13556,8 @@
         _regToken(['ethereum'], '0x09d4214c03d01f49544c0448dbe3a27f768f2b34', 'rUSD', 18, DOLO_CDN + 'rUSD.9b373643ab772af9dab0807b476b9afb.svg');
         _regToken(['ethereum'], '0xd5f7838f5c461feff7fe49ea5ebaf7728bb0adfa', 'mETH', 18, DOLO_CDN + 'mETH.589d7c134eea64fa2033e80dced1e34d.svg');
         _regToken(['ethereum'], '0xda5e1988097297dcdc1f90d4dfe7909e847cbef6', 'WLFI', 18, DOLO_CDN + 'WLFI.2c1e57c98e3cad7282c40941b36ee606.svg');
-        _regToken(['ethereum'], '0xcccc62962d17b8914c62d74ffb843d73b2a3cccc', 'cUSD', 18, 'https://coin-images.coingecko.com/coins/images/53399/small/capUSD.png');
-        _regToken(['ethereum'], '0x88887be419578051ff9f4eb6c858a951921d8888', 'stcUSD', 18, 'https://coin-images.coingecko.com/coins/images/53399/small/capUSD.png');
+        _regToken(['ethereum'], '0xcccc62962d17b8914c62d74ffb843d73b2a3cccc', 'cUSD', 18, 'icons/stcusd.png');
+        _regToken(['ethereum'], '0x88887be419578051ff9f4eb6c858a951921d8888', 'stcUSD', 18, 'icons/stcusd.png');
         _regToken(['ethereum'], '0x7a56e1c57c7475ccf742a1832b028f0456652f97', 'SolvBTC', 18, DOLO_CDN + 'solvBTC.326d594ebd54e4317f078b70f72a58b4.svg');
         _regToken(['ethereum'], '0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf', 'cbBTC', 8, 'https://coin-images.coingecko.com/coins/images/40143/small/cbbtc.webp');
         _regToken(['ethereum'], '0xd3fd63209fa2d55b07a0f6db36c2f43900be3094', 'wsrUSD', 18, DOLO_CDN + 'srUSD.bef2b101351c2021e25a96dc70122077.svg');
@@ -14302,9 +14306,11 @@
                 const delay = idx * 0.05;
 
                 // Icon
+                const _GS = new Set(['CRV', 'USD0', 'USD0++', 'deUSD', 'sdeUSD', 'MATIC', 'POL']);
+                const _gsF = _GS.has(item.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
                 let iconHtml;
                 if (item.icon) {
-                    iconHtml = `<div class="earn-token-icon"><img src="${item.icon}" alt="${item.symbol}" onerror="this.parentElement.textContent='${item.symbol.slice(0, 2)}'"></div>`;
+                    iconHtml = `<div class="earn-token-icon"><img src="${item.icon}" alt="${item.symbol}"${_gsF} onerror="this.parentElement.textContent='${item.symbol.slice(0, 2)}'"></div>`;
                 } else {
                     iconHtml = `<div class="earn-token-icon">${item.symbol.slice(0, 2)}</div>`;
                 }
@@ -15549,7 +15555,8 @@
                 // Icon
                 let iconHtml;
                 if (a.icon) {
-                    iconHtml = `<div class="earn-token-icon"><img src="${a.icon}" alt="${a.symbol}" onerror="this.parentElement.textContent='${a.symbol.slice(0, 2)}'"></div>`;
+                    const _gsF2 = new Set(['CRV', 'USD0', 'USD0++', 'deUSD', 'sdeUSD', 'MATIC', 'POL']).has(a.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
+                    iconHtml = `<div class="earn-token-icon"><img src="${a.icon}" alt="${a.symbol}"${_gsF2} onerror="this.parentElement.textContent='${a.symbol.slice(0, 2)}'"></div>`;
                 } else {
                     iconHtml = `<div class="earn-token-icon">${a.symbol.slice(0, 2)}</div>`;
                 }
@@ -15638,7 +15645,8 @@
 
                     let iconHtml;
                     if (item.icon) {
-                        iconHtml = `<div class="earn-token-icon"><img src="${item.icon}" alt="${item.symbol}" onerror="this.parentElement.textContent='${item.symbol.slice(0, 2)}'"></div>`;
+                        const _gsF3 = new Set(['CRV', 'USD0', 'USD0++', 'deUSD', 'sdeUSD', 'MATIC', 'POL']).has(item.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
+                        iconHtml = `<div class="earn-token-icon"><img src="${item.icon}" alt="${item.symbol}"${_gsF3} onerror="this.parentElement.textContent='${item.symbol.slice(0, 2)}'"></div>`;
                     } else {
                         iconHtml = `<div class="earn-token-icon">${item.symbol.slice(0, 2)}</div>`;
                     }
