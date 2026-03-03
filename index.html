@@ -874,6 +874,44 @@
             margin-left: 4px;
         }
 
+        .assets-search {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 6px 12px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.85);
+            outline: none;
+            width: 220px;
+            transition: border-color 0.2s;
+        }
+
+        .assets-search:focus {
+            border-color: rgba(52, 211, 153, 0.4);
+        }
+
+        .assets-search::placeholder {
+            color: rgba(255, 255, 255, 0.25);
+        }
+
+        .assets-toggle-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .assets-toggle-label input[type="checkbox"] {
+            accent-color: #60a5fa;
+            width: 14px;
+            height: 14px;
+            cursor: pointer;
+        }
+
         .assets-apy-breakdown {
             font-size: 10px;
             margin-top: 3px;
@@ -8192,12 +8230,17 @@
                 </div>
                 <div id="assets-chain-filter" class="dolo-chain-pills"></div>
                 <div class="assets-controls">
+                    <input type="text" class="assets-search" id="assets-search"
+                        placeholder="Search token or paste address…" spellcheck="false" autocomplete="off">
                     <div class="assets-cat-pills" id="assets-cat-pills">
                         <button class="active" data-cat="all">All</button>
                         <button data-cat="stable">Stables</button>
                         <button data-cat="btc">BTC</button>
                         <button data-cat="eth">ETH</button>
                     </div>
+                    <label class="assets-toggle-label">
+                        <input type="checkbox" id="assets-exclude-odolo"> Exclude oDOLO
+                    </label>
                     <span class="assets-count" id="assets-count"></span>
                 </div>
                 <div id="assets-spinner" class="assets-spinner">
@@ -12882,6 +12925,8 @@
         let assets_sortAsc = false;
         let assets_selectedChain = 'all';
         let assets_selectedCat = 'all';
+        let assets_searchQuery = '';
+        let assets_excludeOdolo = false;
 
         const ASSETS_CHAINS = {
             berachain: { id: 80094, name: 'Berachain', short: 'BERA', icon: 'https://icons.llamao.fi/icons/chains/rsz_berachain.jpg' },
@@ -12966,6 +13011,8 @@
             assets_bindCatPills();
             // Bind table header sorting
             assets_bindSortHeaders();
+            // Bind search + checkbox
+            assets_bindSearch();
             // Initial render
             assets_render();
 
@@ -13019,6 +13066,27 @@
             });
         }
 
+        function assets_bindSearch() {
+            const searchEl = document.getElementById('assets-search');
+            if (searchEl) {
+                let timer;
+                searchEl.addEventListener('input', () => {
+                    clearTimeout(timer);
+                    timer = setTimeout(() => {
+                        assets_searchQuery = searchEl.value.trim();
+                        assets_render();
+                    }, 200);
+                });
+            }
+            const cbEl = document.getElementById('assets-exclude-odolo');
+            if (cbEl) {
+                cbEl.addEventListener('change', () => {
+                    assets_excludeOdolo = cbEl.checked;
+                    assets_render();
+                });
+            }
+        }
+
         function assets_bindSortHeaders() {
             document.querySelectorAll('#assets-table thead th[data-col]').forEach(th => {
                 th.addEventListener('click', () => {
@@ -13050,6 +13118,19 @@
             // Filter by category
             if (assets_selectedCat !== 'all') {
                 data = data.filter(d => d.cat === assets_selectedCat);
+            }
+            // Search filter
+            if (assets_searchQuery) {
+                const q = assets_searchQuery.toLowerCase();
+                data = data.filter(d =>
+                    (d.symbol || '').toLowerCase().includes(q) ||
+                    (d.name || '').toLowerCase().includes(q) ||
+                    (d.addr || '').toLowerCase().includes(q)
+                );
+            }
+            // Exclude oDOLO rewards
+            if (assets_excludeOdolo) {
+                data = data.filter(d => d.rewards <= 0);
             }
             // Sort
             const col = assets_sortCol;
