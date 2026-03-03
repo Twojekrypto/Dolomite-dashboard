@@ -13175,7 +13175,7 @@
                 // Token icon from KNOWN_TOKENS
                 const tkKey = d.chainKey + ':' + (d.addr || '').toLowerCase();
                 const known = (typeof KNOWN_TOKENS !== 'undefined') ? KNOWN_TOKENS[tkKey] : null;
-                const GRAYSCALE_SYMBOLS = new Set(['CRV', 'USD0', 'USD0++', 'deUSD', 'sdeUSD', 'MATIC', 'POL', 'stcUSD', 'cUSD', 'USDT', 'cbBTC']);
+                const GRAYSCALE_SYMBOLS = new Set(['CRV', 'USD0', 'USD0++', 'deUSD', 'sdeUSD', 'MATIC', 'POL', 'stcUSD', 'cUSD', 'USDT', 'cbBTC', 'DAI']);
                 const grayStyle = GRAYSCALE_SYMBOLS.has(d.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
                 let iconHtml;
                 if (known && known.icon) {
@@ -13812,7 +13812,7 @@
             'USDC.E': DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
             'USDT': DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
             'USDT0': DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
-            'DAI': DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
+            'DAI': DOLO_CDN + 'dai-logo.30856524095f9cc57e31a3f7301ccc90.svg',
             'MIM': DOLO_CDN + 'MIM.3926602167b2dc6b73725f1cbd641130.svg',
             'USDM': DOLO_CDN + 'USDM.6c74738cd3a3499145fda4386f94cb8f.svg',
             'wUSDM': DOLO_CDN + 'wUSDM.91bedb44039233b7c172ff95ea112192.svg',
@@ -14306,7 +14306,7 @@
                 const delay = idx * 0.05;
 
                 // Icon
-                const _GS = new Set(['CRV', 'USD0', 'USD0++', 'deUSD', 'sdeUSD', 'MATIC', 'POL', 'stcUSD', 'cUSD', 'USDT', 'cbBTC']);
+                const _GS = new Set(['CRV', 'USD0', 'USD0++', 'deUSD', 'sdeUSD', 'MATIC', 'POL', 'stcUSD', 'cUSD', 'USDT', 'cbBTC', 'DAI']);
                 const _gsF = _GS.has(item.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
                 let iconHtml;
                 if (item.icon) {
@@ -15555,7 +15555,7 @@
                 // Icon
                 let iconHtml;
                 if (a.icon) {
-                    const _gsF2 = new Set(['CRV', 'USD0', 'USD0++', 'deUSD', 'sdeUSD', 'MATIC', 'POL', 'stcUSD', 'cUSD', 'USDT', 'cbBTC']).has(a.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
+                    const _gsF2 = new Set(['CRV', 'USD0', 'USD0++', 'deUSD', 'sdeUSD', 'MATIC', 'POL', 'stcUSD', 'cUSD', 'USDT', 'cbBTC', 'DAI']).has(a.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
                     iconHtml = `<div class="earn-token-icon"><img src="${a.icon}" alt="${a.symbol}"${_gsF2} onerror="this.parentElement.textContent='${a.symbol.slice(0, 2)}'"></div>`;
                 } else {
                     iconHtml = `<div class="earn-token-icon">${a.symbol.slice(0, 2)}</div>`;
@@ -15645,7 +15645,7 @@
 
                     let iconHtml;
                     if (item.icon) {
-                        const _gsF3 = new Set(['CRV', 'USD0', 'USD0++', 'deUSD', 'sdeUSD', 'MATIC', 'POL', 'stcUSD', 'cUSD', 'USDT', 'cbBTC']).has(item.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
+                        const _gsF3 = new Set(['CRV', 'USD0', 'USD0++', 'deUSD', 'sdeUSD', 'MATIC', 'POL', 'stcUSD', 'cUSD', 'USDT', 'cbBTC', 'DAI']).has(item.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
                         iconHtml = `<div class="earn-token-icon"><img src="${item.icon}" alt="${item.symbol}"${_gsF3} onerror="this.parentElement.textContent='${item.symbol.slice(0, 2)}'"></div>`;
                     } else {
                         iconHtml = `<div class="earn-token-icon">${item.symbol.slice(0, 2)}</div>`;
