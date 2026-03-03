@@ -65,6 +65,8 @@ OUTPUT_JSON = os.path.join(DATA_DIR, "dolo_flows.json")
 STATE_FILE = os.path.join(DATA_DIR, "dolo_flows_state.json")
 
 MAX_PERIOD_SECONDS = max(PERIODS.values())  # longest period for pruning
+# Limit state file cache to 180d — "all" period is recalculated from scratch anyway
+MAX_CACHE_SECONDS = 86400 * 180
 
 
 def load_state():
@@ -365,10 +367,13 @@ def main():
         # Update state for this chain
         state[last_block_key] = end
         # Store transfers as lists (JSON can't serialize tuples)
-        # Only keep transfers within the longest period window
+        # Only cache transfers within MAX_CACHE_SECONDS window (180d)
+        # to keep state file small — "all" period recalculates from scratch
+        cache_blocks_back = MAX_CACHE_SECONDS // CHAINS[chain_key]["block_time"]
+        cache_cutoff = max(end - cache_blocks_back, CHAINS[chain_key].get("deploy_block", 0))
         state[cached_key] = [
             list(t) for t in all_transfers[chain_key]
-            if t[3] >= cutoff_blocks[chain_key][max_period]
+            if t[3] >= cache_cutoff
         ]
 
     # Detect contracts among top addresses (to exclude DEX routers, etc.)
