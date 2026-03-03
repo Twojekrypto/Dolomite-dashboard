@@ -63,6 +63,28 @@ PERIODS = {
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_JSON = os.path.join(DATA_DIR, "odolo_flows.json")
+STATE_FILE = os.path.join(DATA_DIR, "odolo_flows_state.json")
+
+MAX_PERIOD_SECONDS = max(PERIODS.values())  # longest period for pruning
+
+
+def load_state():
+    """Load incremental sync state (cached transfers + last block)."""
+    if os.path.exists(STATE_FILE):
+        try:
+            with open(STATE_FILE) as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+
+def save_state(state):
+    """Save incremental sync state."""
+    tmp = STATE_FILE + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(state, f)
+    os.replace(tmp, STATE_FILE)
 
 
 def get_current_block():
@@ -231,6 +253,14 @@ def main():
     print(f"   {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
     print("=" * 60)
 
+    # Load incremental state
+    state = load_state()
+    is_incremental = bool(state)
+    if is_incremental:
+        print("📦 Found previous state — running incremental sync")
+    else:
+        print("🆕 No previous state — running full sync (first run)")
+
     # Get current block
     print("\n📡 Getting current block number...")
     current_block = get_current_block()
@@ -242,10 +272,44 @@ def main():
         blocks_back = seconds // BLOCK_TIME
         cutoff_blocks[period] = max(current_block - blocks_back, DEPLOY_BLOCK)
 
-    # Fetch all transfers from the longest period
+    # Fetch transfers — incremental: only new blocks since last run
     max_period = max(PERIODS.keys(), key=lambda k: PERIODS[k])
+    oldest_needed = cutoff_blocks[max_period]
     print("\n📡 Fetching Transfer events...")
-    all_transfers = fetch_transfer_logs(cutoff_blocks[max_period], current_block)
+
+    cached_transfers = state.get("transfers", [])
+    last_block = state.get("last_block", 0)
+
+    if is_incremental and last_block > 0 and cached_transfers:
+        # Only fetch new blocks since last run
+        fetch_start = last_block + 1
+        if fetch_start >= current_block:
+            print(f"  Berachain: already up to date (block {last_block:,})")
+            new_transfers = []
+        else:
+            new_transfers = fetch_transfer_logs(fetch_start, current_block)
+
+        # Convert cached transfers back from lists to tuples
+        restored = [tuple(t) for t in cached_transfers]
+
+        # Merge: cached + new
+        merged = restored + new_transfers
+
+        # Prune: drop transfers from blocks older than the oldest needed
+        merged = [t for t in merged if t[3] >= oldest_needed]
+
+        all_transfers = merged
+        print(f"  Berachain: {len(new_transfers):,} new + {len(restored):,} cached → {len(merged):,} total (after pruning)")
+    else:
+        # Full scan from the oldest needed block
+        all_transfers = fetch_transfer_logs(oldest_needed, current_block)
+
+    # Update state
+    state["last_block"] = current_block
+    state["transfers"] = [
+        list(t) for t in all_transfers
+        if t[3] >= oldest_needed
+    ]
 
     # Detect contracts
     print("\n🔍 Detecting contract addresses to exclude...")
@@ -333,7 +397,11 @@ def main():
     with open(OUTPUT_JSON, "w") as f:
         json.dump(output, f, indent=2)
 
+    # Save incremental state for next run
+    save_state(state)
+
     print(f"\n💾 Saved: {OUTPUT_JSON}")
+    print(f"   State saved to {STATE_FILE} for incremental sync")
 
     for period in PERIODS:
         data = output_periods[period]
