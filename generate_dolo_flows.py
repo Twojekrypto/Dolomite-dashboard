@@ -65,8 +65,9 @@ OUTPUT_JSON = os.path.join(DATA_DIR, "dolo_flows.json")
 STATE_FILE = os.path.join(DATA_DIR, "dolo_flows_state.json")
 
 MAX_PERIOD_SECONDS = max(PERIODS.values())  # longest period for pruning
-# Limit state file cache to 180d — "all" period is recalculated from scratch anyway
-MAX_CACHE_SECONDS = 86400 * 180
+# Cache ALL transfers from genesis — state file lives only in Actions cache (10 GB limit),
+# never committed to git. After first full scan, every run just fetches new blocks.
+MAX_CACHE_SECONDS = MAX_PERIOD_SECONDS
 
 
 def load_state():
