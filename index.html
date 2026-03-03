@@ -693,6 +693,227 @@
             font-weight: 400;
         }
 
+        /* ─── ASSETS tab ─── */
+        .assets-controls {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 4px 0 8px;
+        }
+
+        .assets-cat-pills {
+            display: flex;
+            gap: 6px;
+        }
+
+        .assets-cat-pills button {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.5);
+            border-radius: 16px;
+            padding: 4px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .assets-cat-pills button:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .assets-cat-pills button.active {
+            background: rgba(52, 211, 153, 0.12);
+            border-color: rgba(52, 211, 153, 0.3);
+            color: #34d399;
+        }
+
+        .assets-count {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.3);
+            margin-left: auto;
+        }
+
+        .assets-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .assets-table thead th {
+            position: sticky;
+            top: 0;
+            background: var(--card-bg, #1a1a2e);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 10px 12px;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.35);
+            text-align: left;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+            z-index: 2;
+        }
+
+        .assets-table thead th:hover {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .assets-table thead th .sort-arrow {
+            margin-left: 4px;
+            font-size: 9px;
+            opacity: 0.5;
+        }
+
+        .assets-table thead th.sorted .sort-arrow {
+            opacity: 1;
+            color: #34d399;
+        }
+
+        .assets-table tbody td {
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.85);
+            vertical-align: middle;
+        }
+
+        .assets-table tbody tr {
+            transition: background 0.15s;
+        }
+
+        .assets-table tbody tr:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .assets-token-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .assets-token-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.06);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.5);
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        .assets-token-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .assets-token-name {
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .assets-token-full {
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.3);
+            margin-top: 1px;
+        }
+
+        .assets-chain-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 10px;
+            padding: 2px 8px 2px 4px;
+            font-size: 10px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .assets-chain-badge img {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+        }
+
+        .assets-apy-green {
+            color: #34d399;
+            font-weight: 600;
+        }
+
+        .assets-apy-red {
+            color: #ef4444;
+            font-weight: 600;
+        }
+
+        .assets-apy-dim {
+            color: rgba(255, 255, 255, 0.2);
+        }
+
+        .assets-rewards-tag {
+            display: inline-block;
+            background: rgba(52, 211, 153, 0.1);
+            border: 1px solid rgba(52, 211, 153, 0.2);
+            border-radius: 8px;
+            padding: 1px 6px;
+            font-size: 9px;
+            font-weight: 600;
+            color: #34d399;
+            margin-left: 4px;
+        }
+
+        .assets-spinner {
+            text-align: center;
+            padding: 60px 0;
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 13px;
+        }
+
+        .assets-spinner .dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            margin: 0 3px;
+            animation: assets-pulse 1.2s ease-in-out infinite;
+        }
+
+        .assets-spinner .dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .assets-spinner .dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes assets-pulse {
+
+            0%,
+            80%,
+            100% {
+                opacity: 0.2;
+                transform: scale(0.8);
+            }
+
+            40% {
+                opacity: 1;
+                transform: scale(1.2);
+            }
+        }
+
         .earn-asset-table thead {
             position: sticky;
             top: 0;
@@ -6583,6 +6804,14 @@
                         </svg>
                         EARN
                     </button>
+                    <button class="nav-tab" id="tab-assets" onclick="switchView('assets')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 3v18h18" />
+                            <path d="M7 16l4-8 4 4 4-6" />
+                        </svg>
+                        ASSETS
+                    </button>
 
                 </div>
             </nav>
@@ -7939,6 +8168,64 @@
 
         </div><!-- /view-earn -->
 
+        <!-- ASSETS VIEW -->
+        <div id="view-assets" class="view-section">
+            <div class="card anim anim-d1">
+                <div class="card-header">
+                    <h3>Dolomite Assets — All Chains</h3>
+                </div>
+                <div id="assets-chain-filter" class="dolo-chain-pills"></div>
+                <div class="assets-controls">
+                    <div class="assets-cat-pills" id="assets-cat-pills">
+                        <button class="active" data-cat="all">All</button>
+                        <button data-cat="stable">Stables</button>
+                        <button data-cat="btc">BTC</button>
+                        <button data-cat="eth">ETH</button>
+                    </div>
+                    <span class="assets-count" id="assets-count"></span>
+                </div>
+                <div id="assets-spinner" class="assets-spinner">
+                    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                    <div style="margin-top:8px">Loading rates from all chains…</div>
+                </div>
+                <div class="table-section" id="assets-table-wrap" style="display:none">
+                    <div class="table-scroll">
+                        <table class="assets-table" id="assets-table">
+                            <colgroup>
+                                <col style="width:28%">
+                                <col style="width:14%">
+                                <col style="width:16%">
+                                <col style="width:16%">
+                                <col style="width:13%">
+                                <col style="width:13%">
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th data-col="symbol">Token <span class="sort-arrow"></span></th>
+                                    <th data-col="chain">Chain <span class="sort-arrow"></span></th>
+                                    <th data-col="supplyApr" class="sorted">Supply APR <span class="sort-arrow">▼</span>
+                                    </th>
+                                    <th data-col="borrowApr">Borrow APR <span class="sort-arrow"></span></th>
+                                    <th data-col="rewards">oDOLO <span class="sort-arrow"></span></th>
+                                    <th data-col="supplyApr7d">7d Avg <span class="sort-arrow"></span></th>
+                                </tr>
+                            </thead>
+                            <tbody id="assets-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Protocol Info -->
+            <div class="card anim anim-d4 protocol-info-card" style="margin-top:24px">
+                <div class="card-header">
+                    <div class="proto-brand"><img src="dolomite-logo.svg" alt="Dolomite"></div>
+                </div>
+                <div class="protocol-links-row proto-links"></div>
+                <div class="protocol-contracts proto-contracts"></div>
+            </div>
+        </div><!-- /view-assets -->
+
         <!-- BORROW VIEW -->
 
 
@@ -9222,7 +9509,7 @@
             currentView = view;
 
             // Toggle view sections
-            ['vedolo', 'odolo', 'dolo', 'earn'].forEach(v => {
+            ['vedolo', 'odolo', 'dolo', 'earn', 'assets'].forEach(v => {
                 document.getElementById('view-' + v).classList.toggle('active', view === v);
                 document.getElementById('tab-' + v).classList.toggle('active', view === v);
             });
@@ -9231,8 +9518,13 @@
             setTimeout(repositionAllSliders, 50);
 
             // Update page title
-            const titles = { vedolo: 'veDOLO', odolo: 'oDOLO', dolo: 'DOLO', earn: 'EARN' };
+            const titles = { vedolo: 'veDOLO', odolo: 'oDOLO', dolo: 'DOLO', earn: 'EARN', assets: 'ASSETS' };
             document.title = (titles[view] || 'Dashboard') + ' — Berachain Dashboard';
+
+            // Load assets data on first visit
+            if (view === 'assets' && !assets_loaded) {
+                assets_init();
+            }
 
             // Re-render oDOLO donut on switch (canvas needs visible dimensions)
             if (view === 'odolo' && odolo_cachedData) {
@@ -12570,6 +12862,236 @@
                 }
             }, 300);
         });
+
+        // ===== ASSETS TAB NAMESPACE =====
+        let assets_loaded = false;
+        let assets_allData = [];
+        let assets_sortCol = 'supplyApr';
+        let assets_sortAsc = false;
+        let assets_selectedChain = 'all';
+        let assets_selectedCat = 'all';
+
+        const ASSETS_CHAINS = {
+            berachain: { id: 80094, name: 'Berachain', short: 'BERA', icon: 'https://icons.llamao.fi/icons/chains/rsz_berachain.jpg' },
+            arbitrum: { id: 42161, name: 'Arbitrum', short: 'ARB', icon: 'https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg' },
+            ethereum: { id: 1, name: 'Ethereum', short: 'ETH', icon: 'https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg' },
+            mantle: { id: 5000, name: 'Mantle', short: 'MNT', icon: 'https://icons.llamao.fi/icons/chains/rsz_mantle.jpg' },
+            polygonzkevm: { id: 1101, name: 'Polygon zkEVM', short: 'zkEVM', icon: 'https://icons.llamao.fi/icons/chains/rsz_polygon%20zkevm.jpg' },
+            xlayer: { id: 196, name: 'X Layer', short: 'XLAY', icon: 'https://icons.llamao.fi/icons/chains/rsz_x%20layer.jpg' },
+        };
+
+        const ASSETS_STABLES = new Set(['USDC', 'USDT', 'DAI', 'USDC.E', 'HONEY', 'USDE', 'NECT', 'RUSD', 'BYUSD', 'MIM', 'GRAI', 'EUSD', 'USDS', 'SUSDS', 'WUSDM', 'SUSD']);
+        const ASSETS_BTC = new Set(['WBTC', 'LBTC', 'EBTC', 'SOLVBTC', 'SOLVBTC.BBN', 'TBTC', 'UNIBTC', 'PUMPBTC']);
+        const ASSETS_ETH = new Set(['WETH', 'WSTETH', 'RETH', 'WEETH', 'BERAETH', 'EZETH', 'RSETH', 'STONE', 'WOETH', 'METH', 'ETH+', 'WBETH', 'STETH', 'INEUR']);
+
+        const ASSETS_SKIP_PREFIXES = ['dPT-', 'dYT-', 'Dolomite Isolation', 'GM:', 'GLV:', 'gm', 'djUSDC', 'dfsGLP', 'dplvGLP', 'dARB', 'dGMX', 'mGLP', 'sGLP'];
+
+        function assets_classify(sym) {
+            const u = (sym || '').toUpperCase();
+            if (ASSETS_STABLES.has(u)) return 'stable';
+            if (ASSETS_BTC.has(u)) return 'btc';
+            if (ASSETS_ETH.has(u)) return 'eth';
+            return 'other';
+        }
+
+        function assets_shouldSkip(r) {
+            const name = r.token.tokenName || '';
+            const sym = r.token.tokenSymbol || '';
+            for (const p of ASSETS_SKIP_PREFIXES) {
+                if (sym.startsWith(p) || name.startsWith(p)) return true;
+            }
+            return false;
+        }
+
+        async function assets_init() {
+            assets_loaded = true;
+            const results = [];
+            const fetches = Object.entries(ASSETS_CHAINS).map(async ([key, chain]) => {
+                try {
+                    const resp = await fetch(`https://api.dolomite.io/tokens/${chain.id}/interest-rates?exclude-odolo=false`);
+                    if (!resp.ok) return;
+                    const json = await resp.json();
+                    if (!json || !json.interestRates) return;
+                    json.interestRates.forEach(r => {
+                        if (assets_shouldSkip(r)) return;
+                        const totalSupply = parseFloat(r.totalSupplyInterestRate) || 0;
+                        const baseBorrow = parseFloat(r.borrowInterestRate) || 0;
+                        // Extract oDOLO rewards APR
+                        let odoloRewards = 0;
+                        (r.outsideSupplyInterestRateParts || []).forEach(p => {
+                            if (p.label && p.label.includes('oDOLO') && p.interestRate) {
+                                odoloRewards += parseFloat(p.interestRate) || 0;
+                            }
+                        });
+                        // 7d average
+                        const avg7d = r.historicalRates && r.historicalRates['7d']
+                            ? parseFloat(r.historicalRates['7d'].supplyInterestRate) || 0 : 0;
+                        results.push({
+                            symbol: r.token.tokenSymbol,
+                            name: r.token.tokenName,
+                            addr: r.token.tokenAddress,
+                            chainKey: key,
+                            chainName: chain.name,
+                            chainShort: chain.short,
+                            chainIcon: chain.icon,
+                            supplyApr: totalSupply * 100,
+                            borrowApr: baseBorrow * 100,
+                            rewards: odoloRewards * 100,
+                            supplyApr7d: avg7d * 100,
+                            cat: assets_classify(r.token.tokenSymbol),
+                        });
+                    });
+                } catch (e) {
+                    console.warn(`Assets: ${chain.name} fetch failed`, e);
+                }
+            });
+            await Promise.all(fetches);
+            assets_allData = results;
+
+            // Build chain pills
+            assets_buildChainPills();
+            // Bind category buttons
+            assets_bindCatPills();
+            // Bind table header sorting
+            assets_bindSortHeaders();
+            // Initial render
+            assets_render();
+
+            document.getElementById('assets-spinner').style.display = 'none';
+            document.getElementById('assets-table-wrap').style.display = '';
+        }
+
+        function assets_buildChainPills() {
+            const el = document.getElementById('assets-chain-filter');
+            if (!el) return;
+            const GLOBE = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="vertical-align:middle;margin-right:3px;margin-top:-1px"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>`;
+            let html = `<div class="dolo-chain-slider"></div><button class="active" data-chain="all">${GLOBE}All</button>`;
+            Object.entries(ASSETS_CHAINS).forEach(([key, c]) => {
+                html += `<button data-chain="${key}"><img src="${c.icon}" alt="">${c.short}</button>`;
+            });
+            el.innerHTML = html;
+
+            const slider = el.querySelector('.dolo-chain-slider');
+            function posSlider(btn) {
+                const px = el.getBoundingClientRect();
+                const bx = btn.getBoundingClientRect();
+                slider.style.width = bx.width + 'px';
+                slider.style.transform = `translateX(${bx.left - px.left - 2}px)`;
+            }
+            requestAnimationFrame(() => {
+                const ab = el.querySelector('button.active');
+                if (ab) { posSlider(ab); slider.style.opacity = '1'; }
+            });
+
+            el.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    el.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    posSlider(btn);
+                    assets_selectedChain = btn.dataset.chain;
+                    assets_render();
+                });
+            });
+        }
+
+        function assets_bindCatPills() {
+            const wrap = document.getElementById('assets-cat-pills');
+            if (!wrap) return;
+            wrap.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    wrap.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    assets_selectedCat = btn.dataset.cat;
+                    assets_render();
+                });
+            });
+        }
+
+        function assets_bindSortHeaders() {
+            document.querySelectorAll('#assets-table thead th[data-col]').forEach(th => {
+                th.addEventListener('click', () => {
+                    const col = th.dataset.col;
+                    if (assets_sortCol === col) {
+                        assets_sortAsc = !assets_sortAsc;
+                    } else {
+                        assets_sortCol = col;
+                        assets_sortAsc = col === 'symbol' || col === 'chain';
+                    }
+                    // Update header UI
+                    document.querySelectorAll('#assets-table thead th').forEach(h => {
+                        h.classList.remove('sorted');
+                        h.querySelector('.sort-arrow').textContent = '';
+                    });
+                    th.classList.add('sorted');
+                    th.querySelector('.sort-arrow').textContent = assets_sortAsc ? '▲' : '▼';
+                    assets_render();
+                });
+            });
+        }
+
+        function assets_render() {
+            let data = assets_allData.slice();
+            // Filter by chain
+            if (assets_selectedChain !== 'all') {
+                data = data.filter(d => d.chainKey === assets_selectedChain);
+            }
+            // Filter by category
+            if (assets_selectedCat !== 'all') {
+                data = data.filter(d => d.cat === assets_selectedCat);
+            }
+            // Sort
+            const col = assets_sortCol;
+            const asc = assets_sortAsc;
+            data.sort((a, b) => {
+                let va = a[col], vb = b[col];
+                if (typeof va === 'string') va = va.toLowerCase();
+                if (typeof vb === 'string') vb = vb.toLowerCase();
+                if (va < vb) return asc ? -1 : 1;
+                if (va > vb) return asc ? 1 : -1;
+                return 0;
+            });
+
+            // Update count
+            const countEl = document.getElementById('assets-count');
+            if (countEl) countEl.textContent = data.length + ' assets';
+
+            // Render rows
+            const tbody = document.getElementById('assets-tbody');
+            if (!tbody) return;
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:rgba(255,255,255,0.3)">No assets found</td></tr>`;
+                return;
+            }
+
+            let html = '';
+            data.forEach(d => {
+                const supplyClass = d.supplyApr > 0 ? 'assets-apy-green' : (d.supplyApr < 0 ? 'assets-apy-red' : 'assets-apy-dim');
+                const borrowClass = d.borrowApr > 0 ? 'assets-apy-green' : 'assets-apy-dim';
+                const avg7dClass = d.supplyApr7d > 0 ? 'assets-apy-green' : (d.supplyApr7d < 0 ? 'assets-apy-red' : 'assets-apy-dim');
+                const rewardsHtml = d.rewards > 0
+                    ? `<span class="assets-rewards-tag">+${d.rewards.toFixed(2)}%</span>`
+                    : '<span class="assets-apy-dim">—</span>';
+
+                const initial = (d.symbol || '?')[0].toUpperCase();
+                html += `<tr>
+                    <td>
+                        <div class="assets-token-cell">
+                            <div class="assets-token-icon">${initial}</div>
+                            <div>
+                                <div class="assets-token-name">${d.symbol}</div>
+                                <div class="assets-token-full">${d.name}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="assets-chain-badge"><img src="${d.chainIcon}" alt="">${d.chainShort}</span></td>
+                    <td><span class="${supplyClass}">${d.supplyApr.toFixed(2)}%</span></td>
+                    <td><span class="${borrowClass}">${d.borrowApr > 0 ? d.borrowApr.toFixed(2) + '%' : '—'}</span></td>
+                    <td>${rewardsHtml}</td>
+                    <td><span class="${avg7dClass}">${d.supplyApr7d > 0 ? d.supplyApr7d.toFixed(2) + '%' : '—'}</span></td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        }
 
         // ===== EARN TAB NAMESPACE =====
         // Chains sorted by TVL (descending)
