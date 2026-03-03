@@ -673,6 +673,44 @@
             color: var(--accent-indigo);
         }
 
+        .earn-apy-line {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.4);
+            margin-top: 3px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .earn-apy-value {
+            color: #34d399;
+            font-weight: 600;
+        }
+
+        .earn-apy-value.muted {
+            color: rgba(255, 255, 255, 0.3);
+            font-weight: 400;
+        }
+
+        .earn-asset-table thead {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+
+        .earn-asset-table thead th {
+            background: rgba(10, 15, 30, 0.98);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 14px 16px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: rgba(255, 255, 255, 0.45);
+            font-weight: 600;
+            white-space: nowrap;
+            text-align: right;
+        }
+
         .tooltip-bubble {
             display: none;
             position: absolute;
@@ -14537,8 +14575,26 @@
                     else if (m.type === 'decimals') tokenRaw[m.idx].decHex = r;
                 });
 
-                // No DeFiLlama APY fetch — we only show real historical data
+                // Fetch Dolomite supply APY from DeFiLlama (non-blocking)
                 earn_marketRates = {};
+                const LLAMA_CHAIN_MAP = { ethereum: 'Ethereum', berachain: 'Berachain', arbitrum: 'Arbitrum', polygonzkevm: 'Polygon zkEVM', mantle: 'Mantle', xlayer: 'X Layer' };
+                const llamaChainName = LLAMA_CHAIN_MAP[chainId] || '';
+                const apyPromise = fetch('https://yields.llama.fi/pools')
+                    .then(r => r.ok ? r.json() : null)
+                    .then(json => {
+                        if (!json || !json.data) return;
+                        const doloPools = json.data.filter(p => p.project === 'dolomite' && p.chain === llamaChainName);
+                        doloPools.forEach(p => {
+                            // Key by underlying token address (lowercased) for precise matching
+                            if (p.underlyingTokens && p.underlyingTokens.length === 1) {
+                                earn_marketRates[chainId + ':' + p.underlyingTokens[0].toLowerCase()] = { apy: p.apy || 0 };
+                            }
+                            // Also key by symbol for fallback matching
+                            const sym = (p.symbol || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+                            if (sym) earn_marketRates['sym:' + sym] = { apy: p.apy || 0 };
+                        });
+                    })
+                    .catch(e => console.warn('DeFiLlama APY fetch:', e));
 
                 // Enrich with token info + USD value (use fallback prices for instant render)
                 const enriched = balances.map((b, i) => {
@@ -14624,6 +14680,11 @@
                 // Sort by USD value and render with real yield + prices
                 enriched.sort((a, b) => b.usdValue - a.usdValue);
                 earn_renderResults(enriched);
+
+                // Background: re-render when APY data arrives from DeFiLlama
+                apyPromise.then(() => {
+                    earn_renderResults(enriched);
+                }).catch(() => { });
 
                 // Background: auto-load history data for inactive assets
                 earn_lookupHistory().then(() => {
@@ -14825,6 +14886,16 @@
                                 <div class="earn-token-info">
                                     <div class="earn-token-name">${a.symbol} ${chevron}</div>
                                     <span class="earn-hist-badge active"><span class="earn-status-dot"></span>ACTIVE</span>
+                                    ${(() => {
+                        const cid = document.getElementById('earn-chain').value;
+                        const rateByAddr = earn_marketRates[cid + ':' + (a.tokenAddr || '').toLowerCase()];
+                        const rateBySymbol = earn_marketRates['sym:' + (a.symbol || '').toUpperCase().replace(/[^A-Z0-9]/g, '')];
+                        const rate = rateByAddr || rateBySymbol;
+                        if (rate && rate.apy > 0) {
+                            return `<div class="earn-apy-line">Supply APY <span class="earn-apy-value">${rate.apy.toFixed(2)}%</span></div>`;
+                        }
+                        return '';
+                    })()}
                                 </div>
                             </div>
                         </div>
