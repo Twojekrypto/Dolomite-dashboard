@@ -11,7 +11,7 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 360  # Temporarily 6h for first full scan — revert to 120 after cache is populated
     steps:
       - uses: actions/checkout@v4
         with:
@@ -25,6 +25,14 @@ jobs:
       - name: Install dependencies
         run: pip install requests web3
 
+      - name: Restore flows sync state
+        uses: actions/cache@v4
+        with:
+          path: odolo_flows_state.json
+          key: odolo-flows-state-${{ github.run_number }}
+          restore-keys: |
+            odolo-flows-state-
+
       - name: Generate oDOLO flows
         env:
           ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
@@ -35,7 +43,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add odolo_flows.json
+          git add odolo_flows.json odolo_flows_state.json
           git diff --cached --quiet || git commit -m "chore: update oDOLO flows data"
           git pull --rebase
           git push
