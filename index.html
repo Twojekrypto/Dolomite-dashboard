@@ -14575,26 +14575,26 @@
                     else if (m.type === 'decimals') tokenRaw[m.idx].decHex = r;
                 });
 
-                // Fetch Dolomite supply APY from DeFiLlama (non-blocking)
+                // Fetch supply APY from Dolomite official API (non-blocking)
                 earn_marketRates = {};
-                const LLAMA_CHAIN_MAP = { ethereum: 'Ethereum', berachain: 'Berachain', arbitrum: 'Arbitrum', polygonzkevm: 'Polygon zkEVM', mantle: 'Mantle', xlayer: 'X Layer' };
-                const llamaChainName = LLAMA_CHAIN_MAP[chainId] || '';
-                const apyPromise = fetch('https://yields.llama.fi/pools')
-                    .then(r => r.ok ? r.json() : null)
-                    .then(json => {
-                        if (!json || !json.data) return;
-                        const doloPools = json.data.filter(p => p.project === 'dolomite' && p.chain === llamaChainName);
-                        doloPools.forEach(p => {
-                            // Key by underlying token address (lowercased) for precise matching
-                            if (p.underlyingTokens && p.underlyingTokens.length === 1) {
-                                earn_marketRates[chainId + ':' + p.underlyingTokens[0].toLowerCase()] = { apy: p.apy || 0 };
-                            }
-                            // Also key by symbol for fallback matching
-                            const sym = (p.symbol || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-                            if (sym) earn_marketRates['sym:' + sym] = { apy: p.apy || 0 };
-                        });
-                    })
-                    .catch(e => console.warn('DeFiLlama APY fetch:', e));
+                const DOLO_CHAIN_IDS = { ethereum: 1, berachain: 80094, arbitrum: 42161, polygonzkevm: 1101, mantle: 5000, xlayer: 196 };
+                const doloChainId = DOLO_CHAIN_IDS[chainId];
+                const apyPromise = doloChainId
+                    ? fetch(`https://api.dolomite.io/tokens/${doloChainId}/interest-rates?exclude-odolo=false`)
+                        .then(r => r.ok ? r.json() : null)
+                        .then(json => {
+                            if (!json || !json.interestRates) return;
+                            json.interestRates.forEach(r => {
+                                const addr = (r.token.tokenAddress || '').toLowerCase();
+                                const rate = parseFloat(r.totalSupplyInterestRate) || 0;
+                                if (addr) earn_marketRates[chainId + ':' + addr] = { apy: rate * 100 };
+                                // Also key by symbol for fallback
+                                const sym = (r.token.tokenSymbol || '').toUpperCase();
+                                if (sym) earn_marketRates['sym:' + sym] = { apy: rate * 100 };
+                            });
+                        })
+                        .catch(e => console.warn('Dolomite APY fetch:', e))
+                    : Promise.resolve();
 
                 // Enrich with token info + USD value (use fallback prices for instant render)
                 const enriched = balances.map((b, i) => {
