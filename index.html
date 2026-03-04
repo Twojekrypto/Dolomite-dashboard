@@ -5801,6 +5801,11 @@
             border-radius: 12px 0 0 0;
             padding-left: 52px !important;
             letter-spacing: 0.8px;
+            width: 18%;
+        }
+
+        .earn-asset-table thead th:nth-child(2) {
+            width: 22%;
         }
 
         /* Earn header tooltip — reuses global .tooltip-icon + .tooltip-bubble */
@@ -5828,6 +5833,11 @@
             border-radius: 0 12px 0 0;
             text-align: right;
             padding-right: 28px;
+            width: 30%;
+        }
+
+        .earn-asset-table thead th:nth-child(3) {
+            width: 30%;
         }
 
         .earn-asset-table thead th:nth-child(3),
@@ -13977,8 +13987,14 @@
         }
 
         // Fetch total oDOLO claimed by a given address on current chain
+        // oDOLO only exists on Arbitrum and Berachain
+        const ODOLO_SUPPORTED_CHAINS = new Set(['arbitrum', 'berachain']);
         async function earn_fetchOdoloClaimed(userAddr) {
             earn_odoloClaimed = 0;
+            const chainId = document.getElementById('earn-chain').value;
+            if (!ODOLO_SUPPORTED_CHAINS.has(chainId)) {
+                return -1; // signal: not supported on this chain
+            }
             try {
                 const rpc = earn_nextRpc();
                 const paddedTo = '0x000000000000000000000000' + userAddr.slice(2).toLowerCase();
@@ -16545,7 +16561,11 @@
                         const valEl = document.getElementById('earn-odolo-claimed-val');
                         const subEl = document.getElementById('earn-odolo-claimed-sub');
                         if (valEl) {
-                            if (claimed > 0) {
+                            if (claimed === -1) {
+                                valEl.textContent = 'N/A';
+                                valEl.className = 'earn-summary-value neutral';
+                                subEl.textContent = 'Only on Arbitrum & Berachain';
+                            } else if (claimed > 0) {
                                 valEl.textContent = claimed >= 1000 ? (claimed / 1000).toFixed(2) + 'K' : claimed.toFixed(2);
                                 valEl.className = 'earn-summary-value positive';
                                 subEl.textContent = 'All-time rewards';
