@@ -800,39 +800,64 @@
             display: none;
         }
 
-        .assets-odolo-pill {
-            background: rgba(96, 165, 250, 0.08);
-            border: none;
-            color: rgba(96, 165, 250, 0.7);
-            border-radius: 6px;
-            padding: 5px 10px;
-            font-size: 11px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            white-space: nowrap;
+        /* oDOLO toggle switch */
+        .odolo-toggle-wrap {
             display: inline-flex;
             align-items: center;
-            gap: 5px;
+            gap: 7px;
+            cursor: pointer;
+            user-select: none;
+            padding: 3px 6px;
+            border-radius: 6px;
+            transition: background 0.2s;
         }
 
-        .assets-odolo-pill:hover {
-            background: rgba(96, 165, 250, 0.15);
-            color: #60a5fa;
+        .odolo-toggle-wrap:hover {
+            background: rgba(255, 255, 255, 0.04);
         }
 
-        .assets-odolo-pill.active {
-            background: rgba(239, 68, 68, 0.15);
+        .odolo-toggle-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.45);
+            transition: color 0.2s;
+        }
+
+        .odolo-toggle-wrap.active .odolo-toggle-label {
             color: #f87171;
         }
 
-        .assets-odolo-pill .pill-icon {
-            font-size: 14px;
-            line-height: 1;
+        .odolo-switch {
+            position: relative;
+            width: 32px;
+            height: 18px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            transition: all 0.25s ease;
+            flex-shrink: 0;
         }
 
-        .assets-odolo-pill.active .pill-icon {
-            opacity: 1;
+        .odolo-switch .knob {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.4);
+            transition: all 0.25s ease;
+        }
+
+        .odolo-toggle-wrap.active .odolo-switch {
+            background: rgba(239, 68, 68, 0.25);
+            border-color: rgba(239, 68, 68, 0.4);
+        }
+
+        .odolo-toggle-wrap.active .odolo-switch .knob {
+            left: 16px;
+            background: #f87171;
+            box-shadow: 0 0 6px rgba(248, 113, 113, 0.5);
         }
 
         .assets-table {
@@ -997,39 +1022,64 @@
             display: none;
         }
 
-        .assets-odolo-pill {
-            background: rgba(96, 165, 250, 0.08);
-            border: none;
-            color: rgba(96, 165, 250, 0.7);
-            border-radius: 6px;
-            padding: 5px 10px;
-            font-size: 11px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            white-space: nowrap;
+        /* oDOLO toggle switch (duplicate for specificity) */
+        .odolo-toggle-wrap {
             display: inline-flex;
             align-items: center;
-            gap: 5px;
+            gap: 7px;
+            cursor: pointer;
+            user-select: none;
+            padding: 3px 6px;
+            border-radius: 6px;
+            transition: background 0.2s;
         }
 
-        .assets-odolo-pill:hover {
-            background: rgba(96, 165, 250, 0.15);
-            color: #60a5fa;
+        .odolo-toggle-wrap:hover {
+            background: rgba(255, 255, 255, 0.04);
         }
 
-        .assets-odolo-pill.active {
-            background: rgba(239, 68, 68, 0.15);
+        .odolo-toggle-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.45);
+            transition: color 0.2s;
+        }
+
+        .odolo-toggle-wrap.active .odolo-toggle-label {
             color: #f87171;
         }
 
-        .assets-odolo-pill .pill-icon {
-            font-size: 14px;
-            line-height: 1;
+        .odolo-switch {
+            position: relative;
+            width: 32px;
+            height: 18px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            transition: all 0.25s ease;
+            flex-shrink: 0;
         }
 
-        .assets-odolo-pill.active .pill-icon {
-            opacity: 1;
+        .odolo-switch .knob {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.4);
+            transition: all 0.25s ease;
+        }
+
+        .odolo-toggle-wrap.active .odolo-switch {
+            background: rgba(239, 68, 68, 0.25);
+            border-color: rgba(239, 68, 68, 0.4);
+        }
+
+        .odolo-toggle-wrap.active .odolo-switch .knob {
+            left: 16px;
+            background: #f87171;
+            box-shadow: 0 0 6px rgba(248, 113, 113, 0.5);
         }
 
         .assets-apy-breakdown {
@@ -8365,10 +8415,12 @@
                         </div>
                         <span class="divider"></span>
                         <input type="checkbox" id="assets-exclude-odolo" style="display:none">
-                        <button class="assets-odolo-pill" id="assets-odolo-pill"
-                            title="Exclude oDOLO rewards from APR calculations">
-                            <span class="pill-icon">⊘</span> oDOLO
-                        </button>
+                        <div class="odolo-toggle-wrap" id="assets-odolo-toggle" title="Exclude oDOLO rewards from APR">
+                            <span class="odolo-toggle-label">oDOLO</span>
+                            <div class="odolo-switch">
+                                <div class="knob"></div>
+                            </div>
+                        </div>
                     </div>
                     <span class="assets-count" id="assets-count"></span>
                 </div>
@@ -13217,12 +13269,12 @@
                 });
             }
             const cbEl = document.getElementById('assets-exclude-odolo');
-            const pillEl = document.getElementById('assets-odolo-pill');
-            if (cbEl && pillEl) {
-                pillEl.addEventListener('click', () => {
+            const toggleEl = document.getElementById('assets-odolo-toggle');
+            if (cbEl && toggleEl) {
+                toggleEl.addEventListener('click', () => {
                     cbEl.checked = !cbEl.checked;
                     assets_excludeOdolo = cbEl.checked;
-                    pillEl.classList.toggle('active', cbEl.checked);
+                    toggleEl.classList.toggle('active', cbEl.checked);
                     assets_render();
                 });
             }
