@@ -698,21 +698,80 @@
             display: flex;
             align-items: center;
             flex-wrap: wrap;
-            gap: 12px;
-            padding: 4px 0 8px;
+            gap: 10px;
+            padding: 8px 0 12px;
+        }
+
+        .assets-search-wrap {
+            position: relative;
+            flex: 0 0 auto;
+        }
+
+        .assets-search-wrap .search-icon {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255, 255, 255, 0.25);
+            font-size: 13px;
+            pointer-events: none;
+            transition: color 0.2s;
+        }
+
+        .assets-search-wrap:focus-within .search-icon {
+            color: rgba(52, 211, 153, 0.6);
+        }
+
+        .assets-search {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 7px 12px 7px 32px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.85);
+            outline: none;
+            width: 240px;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .assets-search:focus {
+            border-color: rgba(52, 211, 153, 0.4);
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .assets-search::placeholder {
+            color: rgba(255, 255, 255, 0.2);
+        }
+
+        .assets-filters-group {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 2px;
+        }
+
+        .assets-filters-group .divider {
+            width: 1px;
+            height: 22px;
+            background: rgba(255, 255, 255, 0.08);
+            margin: 0 2px;
+            flex-shrink: 0;
         }
 
         .assets-cat-pills {
             display: flex;
-            gap: 6px;
+            gap: 2px;
         }
 
         .assets-cat-pills button {
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            color: rgba(255, 255, 255, 0.5);
-            border-radius: 16px;
-            padding: 4px 12px;
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.4);
+            border-radius: 6px;
+            padding: 5px 11px;
             font-size: 11px;
             font-weight: 600;
             cursor: pointer;
@@ -721,20 +780,60 @@
         }
 
         .assets-cat-pills button:hover {
-            background: rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.06);
             color: rgba(255, 255, 255, 0.7);
         }
 
         .assets-cat-pills button.active {
-            background: rgba(52, 211, 153, 0.12);
-            border-color: rgba(52, 211, 153, 0.3);
+            background: rgba(52, 211, 153, 0.15);
             color: #34d399;
         }
 
         .assets-count {
             font-size: 11px;
-            color: rgba(255, 255, 255, 0.3);
+            color: rgba(255, 255, 255, 0.25);
             margin-left: auto;
+            font-weight: 500;
+        }
+
+        .assets-toggle-label {
+            display: none;
+        }
+
+        .assets-odolo-pill {
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.35);
+            border-radius: 6px;
+            padding: 5px 10px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .assets-odolo-pill:hover {
+            background: rgba(255, 255, 255, 0.06);
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .assets-odolo-pill.active {
+            background: rgba(96, 165, 250, 0.15);
+            color: #60a5fa;
+        }
+
+        .assets-odolo-pill .pill-icon {
+            font-size: 11px;
+            line-height: 1;
+            opacity: 0.7;
+        }
+
+        .assets-odolo-pill.active .pill-icon {
+            opacity: 1;
         }
 
         .assets-table {
@@ -900,11 +999,11 @@
         }
 
         .assets-odolo-pill {
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            color: rgba(255, 255, 255, 0.5);
-            border-radius: 16px;
-            padding: 4px 12px;
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.35);
+            border-radius: 6px;
+            padding: 5px 10px;
             font-size: 11px;
             font-weight: 600;
             cursor: pointer;
@@ -912,23 +1011,27 @@
             white-space: nowrap;
             display: inline-flex;
             align-items: center;
-            gap: 5px;
+            gap: 4px;
         }
 
         .assets-odolo-pill:hover {
-            background: rgba(255, 255, 255, 0.08);
-            color: rgba(255, 255, 255, 0.7);
+            background: rgba(255, 255, 255, 0.06);
+            color: rgba(255, 255, 255, 0.6);
         }
 
         .assets-odolo-pill.active {
-            background: rgba(96, 165, 250, 0.12);
-            border-color: rgba(96, 165, 250, 0.3);
+            background: rgba(96, 165, 250, 0.15);
             color: #60a5fa;
         }
 
         .assets-odolo-pill .pill-icon {
-            font-size: 12px;
+            font-size: 11px;
             line-height: 1;
+            opacity: 0.7;
+        }
+
+        .assets-odolo-pill.active .pill-icon {
+            opacity: 1;
         }
 
         .assets-apy-breakdown {
@@ -8250,18 +8353,25 @@
                 </div>
                 <div id="assets-chain-filter" class="dolo-chain-pills"></div>
                 <div class="assets-controls">
-                    <input type="text" class="assets-search" id="assets-search"
-                        placeholder="Search token or paste address…" spellcheck="false" autocomplete="off">
-                    <div class="assets-cat-pills" id="assets-cat-pills">
-                        <button class="active" data-cat="all">All</button>
-                        <button data-cat="stable">Stables</button>
-                        <button data-cat="btc">BTC</button>
-                        <button data-cat="eth">ETH</button>
+                    <div class="assets-search-wrap">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" class="assets-search" id="assets-search"
+                            placeholder="Search token or address…" spellcheck="false" autocomplete="off">
                     </div>
-                    <input type="checkbox" id="assets-exclude-odolo" style="display:none">
-                    <button class="assets-odolo-pill" id="assets-odolo-pill" title="Hide oDOLO rewards from APR">
-                        <span class="pill-icon">⊘</span> Excl. oDOLO
-                    </button>
+                    <div class="assets-filters-group">
+                        <div class="assets-cat-pills" id="assets-cat-pills">
+                            <button class="active" data-cat="all">All</button>
+                            <button data-cat="stable">Stables</button>
+                            <button data-cat="btc">BTC</button>
+                            <button data-cat="eth">ETH</button>
+                        </div>
+                        <span class="divider"></span>
+                        <input type="checkbox" id="assets-exclude-odolo" style="display:none">
+                        <button class="assets-odolo-pill" id="assets-odolo-pill"
+                            title="Exclude oDOLO rewards from APR calculations">
+                            <span class="pill-icon">⊘</span> oDOLO
+                        </button>
+                    </div>
                     <span class="assets-count" id="assets-count"></span>
                 </div>
                 <div id="assets-spinner" class="assets-spinner">
