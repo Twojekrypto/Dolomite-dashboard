@@ -706,6 +706,11 @@
             align-items: center;
             gap: 10px;
             flex-wrap: wrap;
+            width: 100%;
+        }
+
+        .assets-controls-row:last-child {
+            justify-content: space-between;
         }
 
         .assets-search-wrap {
@@ -983,6 +988,10 @@
 
         .assets-table tbody tr:hover {
             background: transparent;
+        }
+
+        .assets-table tbody tr {
+            transition: transform 0.15s ease;
         }
 
         .assets-token-cell {
@@ -6049,6 +6058,29 @@
             letter-spacing: 0.5px;
             color: var(--text-muted);
             margin-bottom: 8px;
+        }
+
+        .assets-apy-breakdown span {
+            position: relative;
+            cursor: help;
+        }
+
+        .assets-apy-breakdown span[title]:hover::after {
+            content: attr(title);
+            position: absolute;
+            bottom: calc(100% + 4px);
+            left: 0;
+            background: rgba(15, 23, 42, 0.97);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 10px;
+            line-height: 1.4;
+            color: rgba(255, 255, 255, 0.85);
+            white-space: nowrap;
+            z-index: 100;
+            pointer-events: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
         }
 
         .earn-breakdown-bar {
@@ -13511,29 +13543,34 @@
                 let breakdownLines = [];
                 // Dolomite lending yield (from borrowers)
                 if (d.lendingApr > 0.01) {
-                    breakdownLines.push({ label: 'Lending APR', rate: d.lendingApr, cls: 'yield-part' });
+                    breakdownLines.push({ label: 'Lending APR', rate: d.lendingApr, cls: 'yield-part', tooltip: 'Interest earned from borrowers on Dolomite' });
                 }
                 // External yield sources (staking, restaking, etc.)
                 if (d.yieldSources && d.yieldSources.length > 0 && !assets_excludeYield) {
                     d.yieldSources.forEach(ys => {
                         const isGm = (ys.label || '').includes('Price Implied') || (ys.label || '').includes('GM ');
-                        // Shorten GM labels
                         let displayLabel = ys.label;
+                        let tooltip = 'External yield from the underlying protocol';
                         if (isGm) {
                             displayLabel = 'GM Performance APR';
+                            tooltip = 'Annualized return from GM token price change over the past 30 days';
+                        } else if (displayLabel.includes('Staking')) {
+                            tooltip = 'Yield from native ETH staking (validator rewards)';
+                        } else if (displayLabel.includes('Sky') || displayLabel.includes('Savings Rate')) {
+                            tooltip = 'Yield from Sky (formerly Maker) Savings Rate';
                         }
-                        breakdownLines.push({ label: displayLabel, rate: ys.rate, cls: isGm ? 'gm-part' : 'yield-part', isGm: isGm });
+                        breakdownLines.push({ label: displayLabel, rate: ys.rate, cls: isGm ? 'gm-part' : 'yield-part', tooltip: tooltip });
                     });
                 }
                 // oDOLO rewards
                 if (d.rewards > 0 && !assets_excludeOdolo) {
-                    breakdownLines.push({ label: 'oDOLO Rewards', rate: d.rewards, cls: 'odolo-part' });
+                    breakdownLines.push({ label: 'oDOLO Rewards', rate: d.rewards, cls: 'odolo-part', tooltip: 'oDOLO incentive rewards distributed to suppliers' });
                 }
                 let breakdownHtml = '';
                 if (breakdownLines.length > 0) {
                     breakdownHtml = '<div class="assets-apy-breakdown">' +
                         breakdownLines.map(l => {
-                            const titleAttr = l.isGm ? ' title="Annualized return from GM token price change over the past 30 days"' : '';
+                            const titleAttr = l.tooltip ? ` title="${l.tooltip}"` : '';
                             return `<span class="${l.cls}"${titleAttr}>+ ${l.rate.toFixed(2)}% ${l.label}</span>`;
                         }).join('') +
                         '</div>';
@@ -13974,6 +14011,25 @@
         _regToken(['arbitrum'], '0xa322e23a357cb7c596a7a834102b9d6d5b15da3e', 'savUSD', 18, DOLO_CDN + 'savUSD.a2df97177abb3f75f4313a7241aa5fb0.svg');
         _regToken(['arbitrum'], '0x2416092f143378750bb29b79ed961ab195cceea5', 'ezETH', 18, DOLO_CDN + 'ezETH.23c954d818f85c10660e5c0a476ff398.svg');
         _regToken(['arbitrum'], '0x790ff506ac24b03a21f3d0019227447ae2b55ca5', 'sGMX', 18, DOLO_CDN + 'GMX.b836adc14ee095fd9b7671e718878333.svg');
+        // ---- GM tokens (Arbitrum) ----
+        _regToken(['arbitrum'], '0x2c799166c9f0dbf9efc5004cbce4c5a37fa39329', 'gmARB-USD', 18, DOLO_CDN + 'ARB-GM.24c16f7f3b30b03dbc1bb8f3e2f8f2d0.svg');
+        _regToken(['arbitrum'], '0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef', 'gmBTC-USD', 18, DOLO_CDN + 'gmBTC.47b4b7bbfd40c428f5fc25d9e1d64b2a.svg');
+        _regToken(['arbitrum'], '0x505582242757f16d72f8c4462a616e388ca1b074', 'gmETH-USD', 18, DOLO_CDN + 'gmETH.75a7c1b13da3ea3e9e75427f06b1fc07.svg');
+        _regToken(['arbitrum'], '0x18cb14564fbb015bd3439220d177799355abc0e0', 'gmLINK-USD', 18, DOLO_CDN + 'gmLINK.32f4e3a1d72e0db79b270b1c8d4f8fbe.svg');
+        _regToken(['arbitrum'], '0xb15bbbfcff6c411410c66642306d1ffa7ecec4d8', 'gmBTC', 18, DOLO_CDN + 'gmBTC.47b4b7bbfd40c428f5fc25d9e1d64b2a.svg');
+        _regToken(['arbitrum'], '0x2d165a76dd3e552df3860789331ab73c5a3d7f92', 'gmETH', 18, DOLO_CDN + 'gmETH.75a7c1b13da3ea3e9e75427f06b1fc07.svg');
+        _regToken(['arbitrum'], '0x20d51cb520c4622dcc3d7e35003dbab07d547e7e', 'gmUNI-USD', 18, DOLO_CDN + 'gmUNI.c424c4daca0bd2ab7a2edb4b59e3b7f4.svg');
+        _regToken(['arbitrum'], '0x24c9121c75c099b38d40020872b8a0d2c27c614d', 'gmAAVE-USD', 18, DOLO_CDN + 'gmAAVE.e032a2febd818f511cf782e09b12f212.svg');
+        _regToken(['arbitrum'], '0x1beed3b7d1237b7773b5c4c249933e3ca5e027c1', 'gmDOGE-USD', 18, DOLO_CDN + 'gmDOGE.e8b56bbe102e2de6b4cee919f32db6f1.svg');
+        _regToken(['arbitrum'], '0x5c99f6cf6069698d234d50bf69ebd2f53e45ed1c', 'gmGMX-USD', 18, DOLO_CDN + 'gmGMX.e33c5b6a2cca0ac1da7149e4118c79c7.svg');
+        _regToken(['arbitrum'], '0x1ebb1c7023addbb2b6e30e6f4c8d4a4440bfd412', 'gmSOL-USD', 18, DOLO_CDN + 'gmSOL.eef0c7ff37c56d6b0b7461e397be7ff3.svg');
+        _regToken(['arbitrum'], '0xc587646f67b38739006ed0200e2e0a26fdb01c9b', 'gmWstETH-USD', 18, DOLO_CDN + 'gmWstETH.c5ead03a7b2a6e6cfe93e05f47a75b56.svg');
+        _regToken(['arbitrum'], '0xcf248baf933c7b1b876b997246f25021a65383b3', 'gmGMX', 18, DOLO_CDN + 'gmGMX.e33c5b6a2cca0ac1da7149e4118c79c7.svg');
+        _regToken(['arbitrum'], '0xe5d6fe410c69b44c357403a1936b3bfaddbe340b', 'gmPENDLE-USD', 18, DOLO_CDN + 'gmPENDLE.cd8acede00414f70056c0fb9aa2baa7c.svg');
+        _regToken(['arbitrum'], '0x6586f1db71513daf94b0431156d225a46c00f20b', 'gmPEPE-USD', 18, DOLO_CDN + 'gmPEPE.966f4beb1b823729066c29c52921b664.svg');
+        _regToken(['arbitrum'], '0xf5063b40fa66ab2fbda2e6807ac5759a41a1b0c3', 'gmWIF-USD', 18, DOLO_CDN + 'gmWIF.a33d5d4580f6a72c0c58f3eb4dd47e2e.svg');
+        _regToken(['arbitrum'], '0x7e584529bb40220a2bd5d0c13e3d65abd4a47f0e', 'GLV-BTC', 18, DOLO_CDN + 'GLV_BTC.f6b8c4a0e5d2f7a9c3b1e4d6a8f2c5b7.svg');
+        _regToken(['arbitrum'], '0x11f4532c05fb8ea6320b1dc155bfdc2498a5d8b4', 'GLV-ETH', 18, DOLO_CDN + 'GLV_ETH.d4e7f2a1b5c8e3f6a9d2c5b8e1f4a7d0.svg');
         // ---- Additional Berachain tokens ----
         _regToken(['berachain'], '0x09d4214c03d01f49544c0448dbe3a27f768f2b34', 'rUSD', 18, DOLO_CDN + 'rUSD.9b373643ab772af9dab0807b476b9afb.svg');
         _regToken(['berachain'], '0xb5a27c33ba2ade3f64aca7bf5f49a0c0927a59d0', 'BGT', 18, DOLO_CDN + 'BGT.59af0fc7aad30ed3de49e3115ee24d04.svg');
