@@ -816,10 +816,17 @@
             background: rgba(255, 255, 255, 0.04);
         }
 
+        .odolo-toggle-icon {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
         .odolo-toggle-label {
             font-size: 11px;
             font-weight: 600;
-            color: rgba(255, 255, 255, 0.45);
+            color: #34d399;
             transition: color 0.2s;
         }
 
@@ -832,8 +839,8 @@
             width: 32px;
             height: 18px;
             border-radius: 10px;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(52, 211, 153, 0.25);
+            border: 1px solid rgba(52, 211, 153, 0.4);
             transition: all 0.25s ease;
             flex-shrink: 0;
         }
@@ -841,11 +848,12 @@
         .odolo-switch .knob {
             position: absolute;
             top: 2px;
-            left: 2px;
+            left: 16px;
             width: 12px;
             height: 12px;
             border-radius: 50%;
-            background: rgba(255, 255, 255, 0.4);
+            background: #34d399;
+            box-shadow: 0 0 6px rgba(52, 211, 153, 0.5);
             transition: all 0.25s ease;
         }
 
@@ -855,7 +863,7 @@
         }
 
         .odolo-toggle-wrap.active .odolo-switch .knob {
-            left: 16px;
+            left: 2px;
             background: #f87171;
             box-shadow: 0 0 6px rgba(248, 113, 113, 0.5);
         }
@@ -1038,10 +1046,17 @@
             background: rgba(255, 255, 255, 0.04);
         }
 
+        .odolo-toggle-icon {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
         .odolo-toggle-label {
             font-size: 11px;
             font-weight: 600;
-            color: rgba(255, 255, 255, 0.45);
+            color: #34d399;
             transition: color 0.2s;
         }
 
@@ -1054,8 +1069,8 @@
             width: 32px;
             height: 18px;
             border-radius: 10px;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(52, 211, 153, 0.25);
+            border: 1px solid rgba(52, 211, 153, 0.4);
             transition: all 0.25s ease;
             flex-shrink: 0;
         }
@@ -1063,11 +1078,12 @@
         .odolo-switch .knob {
             position: absolute;
             top: 2px;
-            left: 2px;
+            left: 16px;
             width: 12px;
             height: 12px;
             border-radius: 50%;
-            background: rgba(255, 255, 255, 0.4);
+            background: #34d399;
+            box-shadow: 0 0 6px rgba(52, 211, 153, 0.5);
             transition: all 0.25s ease;
         }
 
@@ -1077,7 +1093,7 @@
         }
 
         .odolo-toggle-wrap.active .odolo-switch .knob {
-            left: 16px;
+            left: 2px;
             background: #f87171;
             box-shadow: 0 0 6px rgba(248, 113, 113, 0.5);
         }
@@ -8415,7 +8431,10 @@
                         </div>
                         <span class="divider"></span>
                         <input type="checkbox" id="assets-exclude-odolo" style="display:none">
-                        <div class="odolo-toggle-wrap" id="assets-odolo-toggle" title="Exclude oDOLO rewards from APR">
+                        <div class="odolo-toggle-wrap" id="assets-odolo-toggle" title="Toggle oDOLO rewards in APR">
+                            <img class="odolo-toggle-icon"
+                                src="https://squid-app-3gfkr.ondigitalocean.app/assets/options-DOLO.07c75614d106533c9773769f7c0049b2.svg"
+                                alt="oDOLO">
                             <span class="odolo-toggle-label">oDOLO</span>
                             <div class="odolo-switch">
                                 <div class="knob"></div>
@@ -8432,15 +8451,17 @@
                     <div class="table-scroll">
                         <table class="assets-table" id="assets-table">
                             <colgroup>
-                                <col style="width:35%">
-                                <col style="width:18%">
-                                <col style="width:27%">
+                                <col style="width:28%">
+                                <col style="width:12%">
+                                <col style="width:14%">
+                                <col style="width:26%">
                                 <col style="width:20%">
                             </colgroup>
                             <thead>
                                 <tr>
                                     <th data-col="symbol">Token <span class="sort-arrow"></span></th>
                                     <th data-col="chain">Chain <span class="sort-arrow"></span></th>
+                                    <th data-col="price">Price <span class="sort-arrow"></span></th>
                                     <th data-col="supplyApr" class="sorted">Supply APR <span class="sort-arrow">▼</span>
                                     </th>
                                     <th data-col="borrowApr">Borrow APR <span class="sort-arrow"></span></th>
@@ -13144,6 +13165,7 @@
         async function assets_init() {
             assets_loaded = true;
             const results = [];
+            const LLAMA_CHAIN_MAP = { arbitrum: 'arbitrum', berachain: 'berachain', ethereum: 'ethereum', mantle: 'mantle', polygonzkevm: 'polygon_zkevm', xlayer: 'xlayer' };
             const fetches = Object.entries(ASSETS_CHAINS).map(async ([key, chain]) => {
                 try {
                     const resp = await fetch(`https://api.dolomite.io/tokens/${chain.id}/interest-rates?exclude-odolo=false`);
@@ -13186,6 +13208,7 @@
                             yieldSources: yieldSources,
                             supplyApr7d: avg7d * 100,
                             cat: assets_classify(r.token.tokenSymbol),
+                            price: 0,
                         });
                     });
                 } catch (e) {
@@ -13193,6 +13216,32 @@
                 }
             });
             await Promise.all(fetches);
+
+            // Fetch prices from DeFi Llama
+            try {
+                const priceKeys = results.map(r => {
+                    const llamaChain = LLAMA_CHAIN_MAP[r.chainKey] || r.chainKey;
+                    return `${llamaChain}:${r.addr}`;
+                });
+                // Batch in groups of 100
+                for (let i = 0; i < priceKeys.length; i += 100) {
+                    const batch = priceKeys.slice(i, i + 100);
+                    const pResp = await fetch('https://coins.llama.fi/prices/current/' + batch.join(','));
+                    if (pResp.ok) {
+                        const pData = await pResp.json();
+                        const coins = pData.coins || {};
+                        batch.forEach((key, idx) => {
+                            const coin = coins[key];
+                            if (coin && coin.price) {
+                                results[i + idx].price = coin.price;
+                            }
+                        });
+                    }
+                }
+            } catch (e) {
+                console.warn('Price fetch failed', e);
+            }
+
             assets_allData = results;
 
             // Build chain pills
@@ -13345,7 +13394,7 @@
             const tbody = document.getElementById('assets-tbody');
             if (!tbody) return;
             if (data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:40px;color:rgba(255,255,255,0.3)">No assets found</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:40px;color:rgba(255,255,255,0.3)">No assets found</td></tr>`;
                 return;
             }
 
@@ -13389,6 +13438,18 @@
                         '</div>';
                 }
 
+                // Price display
+                let priceHtml = '';
+                if (d.price > 0) {
+                    if (d.price >= 1) {
+                        priceHtml = `$${d.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                    } else {
+                        priceHtml = `$${d.price.toFixed(6)}`;
+                    }
+                } else {
+                    priceHtml = '<span style="color:rgba(255,255,255,0.2)">—</span>';
+                }
+
                 html += `<tr>
                     <td>
                         <div class="assets-token-cell">
@@ -13400,6 +13461,7 @@
                         </div>
                     </td>
                     <td><span class="assets-chain-badge"><img src="${d.chainIcon}" alt="">${d.chainShort}</span></td>
+                    <td style="font-size:13px;color:rgba(255,255,255,0.85)">${priceHtml}</td>
                     <td>
                         <div><span class="${supplyClass}" style="${supplyStyle}">${d.supplyApr.toFixed(2)}%</span></div>
                         ${breakdownHtml}
