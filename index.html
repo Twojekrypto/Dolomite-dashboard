@@ -909,6 +909,27 @@
             cursor: help;
         }
 
+        .yield-help-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
+            font-size: 9px;
+            font-weight: 700;
+            cursor: help;
+            margin-left: -2px;
+            flex-shrink: 0;
+            transition: background 0.2s;
+        }
+
+        .yield-help-icon:hover {
+            background: rgba(251, 191, 36, 0.4);
+        }
+
         .assets-table {
             width: 100%;
             border-collapse: separate;
@@ -8490,6 +8511,8 @@
                             <div class="odolo-toggle-wrap gm-toggle-wrap" id="assets-yield-toggle"
                                 title="Toggle external yield sources (staking, GM Performance, etc.) in APR">
                                 <span class="odolo-toggle-label gm-toggle-label">Yield</span>
+                                <span class="yield-help-icon"
+                                    title="Include / exclude external yield sources from Total Supply APR.&#10;&#10;Sources include: ETH Staking APR, Sky Savings Rate, GM Performance APR, and other native yields provided by the underlying protocols.&#10;&#10;When OFF, only the base Dolomite lending rate is shown.">?</span>
                                 <div class="odolo-switch gm-switch">
                                     <div class="knob"></div>
                                 </div>
