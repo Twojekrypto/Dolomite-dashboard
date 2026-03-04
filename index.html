@@ -5813,7 +5813,8 @@
         }
 
         .earn-asset-table thead th:nth-child(2),
-        .earn-asset-table thead th:nth-child(3) {
+        .earn-asset-table thead th:nth-child(3),
+        .earn-asset-table thead th:nth-child(4) {
             text-align: right;
         }
 
@@ -6011,10 +6012,8 @@
             transition: all 0.3s ease;
         }
 
-        .earn-asset-table tbody tr.earn-data-row:hover .earn-token-icon {
-            border-color: rgba(52, 211, 153, 0.4);
-            box-shadow: 0 0 10px rgba(52, 211, 153, 0.15);
-        }
+
+
 
         .earn-token-icon img {
             width: 100%;
@@ -8571,6 +8570,25 @@
                         </button>
                     </div>
                     <div class="earn-filter-right">
+                        <div class="assets-toggles-right" style="display:flex;align-items:center;gap:10px">
+                            <div class="odolo-toggle-wrap" id="earn-odolo-toggle"
+                                data-tooltip="Toggle oDOLO rewards in the Supply APR column.&#10;&#10;When ON, oDOLO incentive rewards are included. When OFF, only lending and external yield are shown."
+                                onclick="earn_toggleOdolo()">
+                                <img class="odolo-toggle-icon" src="odolo-logo-official.svg" alt="oDOLO">
+                                <span class="odolo-toggle-label">oDOLO</span>
+                                <div class="odolo-switch">
+                                    <div class="knob"></div>
+                                </div>
+                            </div>
+                            <div class="odolo-toggle-wrap gm-toggle-wrap" id="earn-yield-toggle"
+                                data-tooltip="Toggle external yield sources (staking, GM Performance, etc.) in the Supply APR column."
+                                onclick="earn_toggleYield()">
+                                <span class="odolo-toggle-label gm-toggle-label">Yield</span>
+                                <div class="odolo-switch gm-switch">
+                                    <div class="knob"></div>
+                                </div>
+                            </div>
+                        </div>
                         <span class="earn-position-count" id="earn-position-count"></span>
                     </div>
                 </div>
@@ -8579,9 +8597,10 @@
                     <div class="table-scroll">
                         <table class="earn-asset-table">
                             <colgroup>
-                                <col style="width:30%">
-                                <col style="width:35%">
-                                <col style="width:35%">
+                                <col style="width:25%">
+                                <col style="width:25%">
+                                <col style="width:25%">
+                                <col style="width:25%">
                             </colgroup>
                             <thead>
                                 <tr>
@@ -8599,6 +8618,9 @@
                                                 isolated from deposits, withdrawals, and swaps using supply
                                                 index tracking. Coverage period shown below each
                                                 value.</span></span>
+                                    </th>
+                                    <th data-sort="apr" onclick="earn_sortAssets('apr')">Supply APR
+                                        <span class="earn-sort-arrow">▼</span>
                                     </th>
                                 </tr>
                             </thead>
@@ -15055,9 +15077,11 @@
         // Period state
         let earn_currentPeriod = '1';
         let earn_cachedAssets = null;
-        let earn_sortKey = 'balance'; // 'balance' or 'yield'
+        let earn_sortKey = 'balance'; // 'balance' or 'yield' or 'apr'
         let earn_sortDesc = true; // true = descending (largest first)
-        let earn_marketRates = {}; // { marketId: { supplyRatePerSec: number } }
+        let earn_marketRates = {}; // { addr: { apy, lendingApr, rewards, yieldSources, extYieldApr } }
+        let earn_excludeOdolo = false;
+        let earn_excludeYield = false;
 
         // Compute yield BigInt for a single asset (used for sort comparison)
         function earn_getYieldForAsset(a) {
@@ -15120,9 +15144,39 @@
                     const diff = yieldUsdA - yieldUsdB;
                     return earn_sortDesc ? -diff : diff;
                 });
+            } else if (key === 'apr') {
+                const cid = document.getElementById('earn-chain').value;
+                earn_cachedAssets.sort((a, b) => {
+                    const rA = earn_marketRates[cid + ':' + (a.tokenAddr || '').toLowerCase()] ||
+                        earn_marketRates['sym:' + (a.symbol || '').toUpperCase().replace(/[^A-Z0-9]/g, '')] || {};
+                    const rB = earn_marketRates[cid + ':' + (b.tokenAddr || '').toLowerCase()] ||
+                        earn_marketRates['sym:' + (b.symbol || '').toUpperCase().replace(/[^A-Z0-9]/g, '')] || {};
+                    let aprA = rA.apy || 0;
+                    let aprB = rB.apy || 0;
+                    if (earn_excludeOdolo) { aprA -= (rA.rewards || 0); aprB -= (rB.rewards || 0); }
+                    if (earn_excludeYield) { aprA -= (rA.extYieldApr || 0); aprB -= (rB.extYieldApr || 0); }
+                    const diff = aprA - aprB;
+                    return earn_sortDesc ? -diff : diff;
+                });
             }
 
             earn_renderResults(earn_cachedAssets);
+        }
+
+        // Toggle oDOLO rewards in earn Supply APR column
+        function earn_toggleOdolo() {
+            earn_excludeOdolo = !earn_excludeOdolo;
+            const wrap = document.getElementById('earn-odolo-toggle');
+            if (wrap) wrap.classList.toggle('off', earn_excludeOdolo);
+            if (earn_cachedAssets) earn_renderResults(earn_cachedAssets);
+        }
+
+        // Toggle external yield in earn Supply APR column
+        function earn_toggleYield() {
+            earn_excludeYield = !earn_excludeYield;
+            const wrap = document.getElementById('earn-yield-toggle');
+            if (wrap) wrap.classList.toggle('off', earn_excludeYield);
+            if (earn_cachedAssets) earn_renderResults(earn_cachedAssets);
         }
 
         // Historical snapshot cache: { '2026-02-11': { snapshots: { arbitrum: { ... } } } }
@@ -15857,10 +15911,31 @@
                             json.interestRates.forEach(r => {
                                 const addr = (r.token.tokenAddress || '').toLowerCase();
                                 const rate = parseFloat(r.totalSupplyInterestRate) || 0;
-                                if (addr) earn_marketRates[chainId + ':' + addr] = { apy: rate * 100 };
+                                const baseLending = parseFloat(r.supplyInterestRate) || 0;
+                                // Parse oDOLO rewards and yield sources (same as assets tab)
+                                let odoloRewards = 0;
+                                const yieldSources = [];
+                                (r.outsideSupplyInterestRateParts || []).forEach(p => {
+                                    if (p.label && p.label.includes('oDOLO') && p.interestRate) {
+                                        odoloRewards += parseFloat(p.interestRate) || 0;
+                                    } else if (p.category === 'nativeYield' && p.interestRate) {
+                                        const yr = parseFloat(p.interestRate) || 0;
+                                        if (yr > 0) yieldSources.push({ label: p.label, rate: yr * 100 });
+                                    }
+                                });
+                                let extYieldApr = 0;
+                                yieldSources.forEach(ys => { extYieldApr += ys.rate; });
+                                const entry = {
+                                    apy: rate * 100,
+                                    lendingApr: baseLending * 100,
+                                    rewards: odoloRewards * 100,
+                                    yieldSources: yieldSources,
+                                    extYieldApr: extYieldApr
+                                };
+                                if (addr) earn_marketRates[chainId + ':' + addr] = entry;
                                 // Also key by symbol for fallback
                                 const sym = (r.token.tokenSymbol || '').toUpperCase();
-                                if (sym) earn_marketRates['sym:' + sym] = { apy: rate * 100 };
+                                if (sym) earn_marketRates['sym:' + sym] = entry;
                             });
                         })
                         .catch(e => console.warn('Dolomite APY fetch:', e))
@@ -16149,6 +16224,51 @@
                 const explorerUrl = `${explorerBase}/address/${a.tokenAddr}`;
 
                 // Main data row
+                // Build Supply APR cell (same breakdown as assets tab)
+                let earnAprCellHtml;
+                const cid = document.getElementById('earn-chain').value;
+                const rateByAddr = earn_marketRates[cid + ':' + (a.tokenAddr || '').toLowerCase()];
+                const rateBySymbol = earn_marketRates['sym:' + (a.symbol || '').toUpperCase().replace(/[^A-Z0-9]/g, '')];
+                const rateData = rateByAddr || rateBySymbol;
+                if (rateData && rateData.apy > 0) {
+                    let adjApr = rateData.apy;
+                    if (earn_excludeOdolo) adjApr -= (rateData.rewards || 0);
+                    if (earn_excludeYield) adjApr -= (rateData.extYieldApr || 0);
+                    const aprClass = adjApr > 0 ? 'assets-apy-green' : (adjApr < 0 ? 'assets-apy-red' : 'assets-apy-dim');
+                    const aprStyle = adjApr > 0 ? 'font-size:15px;font-weight:700' : '';
+                    // Build breakdown lines
+                    let bLines = [];
+                    if ((rateData.lendingApr || 0) > 0.01) {
+                        bLines.push({ label: 'Lending APR', rate: rateData.lendingApr, cls: 'lending-part', tooltip: 'Interest earned from borrowers on Dolomite' });
+                    }
+                    if (rateData.yieldSources && rateData.yieldSources.length > 0 && !earn_excludeYield) {
+                        rateData.yieldSources.forEach(ys => {
+                            const isGm = (ys.label || '').includes('Price Implied') || (ys.label || '').includes('GM ');
+                            let displayLabel = ys.label;
+                            let tooltip = 'External yield from the underlying protocol';
+                            if (isGm) { displayLabel = 'GM Performance APR'; tooltip = 'Annualized return from GM token price change over the past 30 days'; }
+                            else if (displayLabel.includes('Staking')) { tooltip = 'Yield from native ETH staking (validator rewards)'; }
+                            else if (displayLabel.includes('Sky') || displayLabel.includes('Savings Rate')) { tooltip = 'Yield from Sky (formerly Maker) Savings Rate'; }
+                            bLines.push({ label: displayLabel, rate: ys.rate, cls: isGm ? 'gm-part' : 'yield-part', tooltip });
+                        });
+                    }
+                    if ((rateData.rewards || 0) > 0 && !earn_excludeOdolo) {
+                        bLines.push({ label: 'oDOLO Rewards', rate: rateData.rewards, cls: 'odolo-part', tooltip: 'oDOLO incentive rewards distributed to suppliers' });
+                    }
+                    let bHtml = '';
+                    if (bLines.length > 0) {
+                        bHtml = '<div class="assets-apy-breakdown">' +
+                            bLines.map(l => {
+                                const tt = l.tooltip ? ` <span class="breakdown-help-icon">?<span class="tooltip-bubble">${l.tooltip}</span></span>` : '';
+                                return `<span class="${l.cls}">+ ${l.rate.toFixed(2)}% ${l.label}${tt}</span>`;
+                            }).join('') +
+                            '</div>';
+                    }
+                    earnAprCellHtml = `<div><span class="${aprClass}" style="${aprStyle}">${adjApr.toFixed(2)}%</span></div>${bHtml}`;
+                } else {
+                    earnAprCellHtml = `<span style="color:var(--text-muted)">—</span>`;
+                }
+
                 html += `<tr class="earn-data-row" id="earn-row-${idx}" style="animation-delay:${delay}s" onclick="earn_toggleDetail(${idx})">
                     <td>
                         <div class="earn-token-cell">
@@ -16157,16 +16277,6 @@
                                 <div class="earn-token-info">
                                     <div class="earn-token-name">${a.symbol} ${chevron}</div>
                                     <span class="earn-hist-badge active"><span class="earn-status-dot"></span>ACTIVE</span>
-                                    ${(() => {
-                        const cid = document.getElementById('earn-chain').value;
-                        const rateByAddr = earn_marketRates[cid + ':' + (a.tokenAddr || '').toLowerCase()];
-                        const rateBySymbol = earn_marketRates['sym:' + (a.symbol || '').toUpperCase().replace(/[^A-Z0-9]/g, '')];
-                        const rate = rateByAddr || rateBySymbol;
-                        if (rate && rate.apy > 0) {
-                            return `<div class="earn-apy-line">Supply APY <span class="earn-apy-value">${rate.apy.toFixed(2)}%</span></div>`;
-                        }
-                        return '';
-                    })()}
                                 </div>
                             </div>
                         </div>
@@ -16178,12 +16288,15 @@
                     <td>
                         ${yieldCellHtml}
                     </td>
+                    <td>
+                        ${earnAprCellHtml}
+                    </td>
                 </tr>`;
 
                 // Expandable detail row — simple inline CA
                 const breakdownHtml = earn_buildBreakdown(mid, a.decimals, a.symbol);
                 html += `<tr class="earn-detail-row" id="earn-detail-${idx}">
-                    <td colspan="3">
+                    <td colspan="4">
                         <div class="earn-ca-line">
                             <span class="earn-ca-addr" onclick="event.stopPropagation(); earn_copyAddr('${a.tokenAddr}', this)" title="Click to copy">${a.tokenAddr}</span>
                             <span class="copy-addr-icon" onclick="event.stopPropagation(); earn_copyAddr('${a.tokenAddr}', this)" title="Copy address"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span>
@@ -16268,10 +16381,11 @@
                             <span class="earn-amount ${yieldColor}">${yieldSign}${yieldFmt}<span class="earn-amount-sym">${item.symbol}</span></span>
                             ${yieldUsdFmt}
                         </td>
+                        <td><span style="color:var(--text-muted)">—</span></td>
                     </tr>`;
 
                     withdrawnHtml += `<tr class="earn-detail-row" id="earn-detail-${ii}">
-                        <td colspan="3">
+                        <td colspan="4">
                             <div class="earn-ca-line">
                                 <span class="earn-ca-addr" onclick="event.stopPropagation(); earn_copyAddr('${item.tokenAddr}', this)" title="Click to copy">${item.tokenAddr}</span>
                                 <span class="copy-addr-icon" onclick="event.stopPropagation(); earn_copyAddr('${item.tokenAddr}', this)" title="Copy address"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span>
