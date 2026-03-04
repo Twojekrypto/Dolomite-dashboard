@@ -5132,7 +5132,7 @@
         /* ═══════ UX OVERHAUL: Summary Card ═══════ */
         .earn-summary-card {
             display: none;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 0;
             margin-bottom: 24px;
             border-radius: 18px;
@@ -5195,6 +5195,10 @@
 
         .earn-summary-stat:nth-child(3) {
             animation-delay: 0.3s;
+        }
+
+        .earn-summary-stat:nth-child(4) {
+            animation-delay: 0.4s;
         }
 
         @keyframes statFadeIn {
@@ -13904,6 +13908,10 @@
                 rpcIdx: 0,
             },
         };
+
+        // oDOLO token address (same CREATE2 on all Dolomite chains)
+        const ODOLO_EARN_ADDR = '0x02E513b5B54eE216Bf836ceb471507488fC89543';
+        let earn_odoloClaimed = 0; // total oDOLO claimed by current address
         let earn_rpcId = 5000;
         const earn_tokenCache = {}; // "chain:address" => { symbol, decimals, icon }
 
@@ -13966,6 +13974,40 @@
         function earn_nextRpc() {
             const chain = earn_getChain();
             return chain.rpcs[chain.rpcIdx++ % chain.rpcs.length];
+        }
+
+        // Fetch total oDOLO claimed by a given address on current chain
+        async function earn_fetchOdoloClaimed(userAddr) {
+            earn_odoloClaimed = 0;
+            try {
+                const rpc = earn_nextRpc();
+                const paddedTo = '0x000000000000000000000000' + userAddr.slice(2).toLowerCase();
+                const transferTopic = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+                const resp = await fetch(rpc, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0', method: 'eth_getLogs',
+                        params: [{
+                            address: ODOLO_EARN_ADDR,
+                            topics: [transferTopic, null, paddedTo],
+                            fromBlock: '0x0', toBlock: 'latest'
+                        }],
+                        id: earn_rpcId++
+                    })
+                });
+                const json = await resp.json();
+                if (json.result && Array.isArray(json.result)) {
+                    let total = BigInt(0);
+                    json.result.forEach(log => {
+                        total += BigInt(log.data);
+                    });
+                    earn_odoloClaimed = Number(total) / 1e18;
+                }
+            } catch (e) {
+                console.warn('oDOLO claimed fetch error:', e);
+            }
+            return earn_odoloClaimed;
         }
 
         async function earn_rpcCall(to, data, retries = 3) {
@@ -16489,8 +16531,31 @@
                             <div class="earn-summary-label"><span class="stat-icon">🏆</span> Best Performer</div>
                             <div class="earn-summary-value positive">${bestIconHtml}${bestSymbol || '—'}</div>
                             <div class="earn-summary-sub">${bestYieldUsd > 0 ? '<span class="sub-highlight">' + yieldSign + fmtUsd(bestYieldUsd) + '</span> earned' : 'No yield data'}</div>
+                        </div>
+                        <div class="earn-summary-stat">
+                            <div class="earn-summary-label"><span class="stat-icon">🎁</span> oDOLO Claimed</div>
+                            <div class="earn-summary-value positive" id="earn-odolo-claimed-val">...</div>
+                            <div class="earn-summary-sub" id="earn-odolo-claimed-sub">Loading...</div>
                         </div>`;
                     summaryEl.classList.add('visible');
+
+                    // Fetch oDOLO claimed asynchronously
+                    const earnAddr = document.getElementById('earn-address').value.trim();
+                    earn_fetchOdoloClaimed(earnAddr).then(claimed => {
+                        const valEl = document.getElementById('earn-odolo-claimed-val');
+                        const subEl = document.getElementById('earn-odolo-claimed-sub');
+                        if (valEl) {
+                            if (claimed > 0) {
+                                valEl.textContent = claimed >= 1000 ? (claimed / 1000).toFixed(2) + 'K' : claimed.toFixed(2);
+                                valEl.className = 'earn-summary-value positive';
+                                subEl.textContent = 'All-time rewards';
+                            } else {
+                                valEl.textContent = '0';
+                                valEl.className = 'earn-summary-value neutral';
+                                subEl.textContent = 'No claims yet';
+                            }
+                        }
+                    });
                 }
             }
 
