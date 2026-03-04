@@ -5801,11 +5801,6 @@
             border-radius: 12px 0 0 0;
             padding-left: 52px !important;
             letter-spacing: 0.8px;
-            width: 18%;
-        }
-
-        .earn-asset-table thead th:nth-child(2) {
-            width: 22%;
         }
 
         /* Earn header tooltip — reuses global .tooltip-icon + .tooltip-bubble */
@@ -5833,11 +5828,6 @@
             border-radius: 0 12px 0 0;
             text-align: right;
             padding-right: 28px;
-            width: 30%;
-        }
-
-        .earn-asset-table thead th:nth-child(3) {
-            width: 30%;
         }
 
         .earn-asset-table thead th:nth-child(3),
@@ -8629,10 +8619,10 @@
                     <div class="table-scroll">
                         <table class="earn-asset-table">
                             <colgroup>
+                                <col style="width:22%">
+                                <col style="width:22%">
                                 <col style="width:28%">
-                                <col style="width:24%">
-                                <col style="width:24%">
-                                <col style="width:24%">
+                                <col style="width:28%">
                             </colgroup>
                             <thead>
                                 <tr>
@@ -13986,40 +13976,38 @@
             return chain.rpcs[chain.rpcIdx++ % chain.rpcs.length];
         }
 
-        // Fetch total oDOLO claimed by a given address on current chain
-        // oDOLO only exists on Arbitrum and Berachain
-        const ODOLO_SUPPORTED_CHAINS = new Set(['arbitrum', 'berachain']);
+        // Fetch total oDOLO claimed by a given address using Dolomite subgraph
+        // oDOLO rewards only exist on Berachain
+        const ODOLO_SUBGRAPH_CHAINS = {
+            berachain: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-berachain-mainnet/latest/gn',
+        };
         async function earn_fetchOdoloClaimed(userAddr) {
             earn_odoloClaimed = 0;
             const chainId = document.getElementById('earn-chain').value;
-            if (!ODOLO_SUPPORTED_CHAINS.has(chainId)) {
+            const endpoint = ODOLO_SUBGRAPH_CHAINS[chainId];
+            if (!endpoint) {
                 return -1; // signal: not supported on this chain
             }
             try {
-                const rpc = earn_nextRpc();
-                const paddedTo = '0x000000000000000000000000' + userAddr.slice(2).toLowerCase();
-                const transferTopic = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
-                const resp = await fetch(rpc, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        jsonrpc: '2.0', method: 'eth_getLogs',
-                        params: [{
-                            address: ODOLO_EARN_ADDR,
-                            topics: [transferTopic, null, paddedTo],
-                            fromBlock: '0x0', toBlock: 'latest'
-                        }],
-                        id: earn_rpcId++
-                    })
-                });
-                const json = await resp.json();
-                if (json.result && Array.isArray(json.result)) {
-                    let total = BigInt(0);
-                    json.result.forEach(log => {
-                        total += BigInt(log.data);
+                const addr = userAddr.toLowerCase();
+                let allClaims = [];
+                let skip = 0;
+                const PAGE = 1000;
+                // Paginate through all claims
+                while (true) {
+                    const query = `{ liquidityMiningClaims(first: ${PAGE}, skip: ${skip}, where: { user: "${addr}" }) { amount } }`;
+                    const resp = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ query }),
                     });
-                    earn_odoloClaimed = Number(total) / 1e18;
+                    const json = await resp.json();
+                    const claims = (json.data && json.data.liquidityMiningClaims) || [];
+                    allClaims = allClaims.concat(claims);
+                    if (claims.length < PAGE) break;
+                    skip += PAGE;
                 }
+                earn_odoloClaimed = allClaims.reduce((sum, c) => sum + parseFloat(c.amount || '0'), 0);
             } catch (e) {
                 console.warn('oDOLO claimed fetch error:', e);
             }
