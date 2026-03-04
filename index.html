@@ -6158,7 +6158,7 @@
         }
 
         .earn-asset-table .assets-apy-breakdown {
-            align-items: flex-end;
+            align-items: flex-start;
         }
 
         .assets-apy-breakdown span {
@@ -8575,19 +8575,25 @@
                     </div>
                     <div class="earn-filter-right">
                         <div class="assets-toggles-right" style="display:flex;align-items:center;gap:10px">
-                            <div class="odolo-toggle-wrap" id="earn-odolo-toggle"
-                                data-tooltip="Toggle oDOLO rewards in the Supply APR column.&#10;&#10;When ON, oDOLO incentive rewards are included. When OFF, only lending and external yield are shown."
-                                onclick="earn_toggleOdolo()">
+                            <div class="odolo-toggle-wrap" id="earn-odolo-toggle" onclick="earn_toggleOdolo()">
                                 <img class="odolo-toggle-icon" src="odolo-logo-official.svg" alt="oDOLO">
                                 <span class="odolo-toggle-label">oDOLO</span>
+                                <span class="yield-help-icon" onclick="event.stopPropagation()">?<span
+                                        class="tooltip-bubble">Toggle oDOLO rewards in the Supply APR
+                                        column.<br><br>When ON, oDOLO incentive rewards are included. When OFF, only
+                                        lending and external yield are shown.</span></span>
                                 <div class="odolo-switch">
                                     <div class="knob"></div>
                                 </div>
                             </div>
                             <div class="odolo-toggle-wrap gm-toggle-wrap" id="earn-yield-toggle"
-                                data-tooltip="Toggle external yield sources (staking, GM Performance, etc.) in the Supply APR column."
                                 onclick="earn_toggleYield()">
                                 <span class="odolo-toggle-label gm-toggle-label">Yield</span>
+                                <span class="yield-help-icon" onclick="event.stopPropagation()">?<span
+                                        class="tooltip-bubble">Toggle external yield sources in the Supply APR
+                                        column.<br><br>Sources include: ETH Staking APR, Sky Savings Rate, GM
+                                        Performance APR, and other native yields.<br><br>When OFF, only the base
+                                        Dolomite lending rate is shown.</span></span>
                                 <div class="odolo-switch gm-switch">
                                     <div class="knob"></div>
                                 </div>
@@ -8705,16 +8711,18 @@
                         </div>
                         <div class="assets-toggles-right">
                             <input type="checkbox" id="assets-exclude-odolo" style="display:none">
-                            <div class="odolo-toggle-wrap" id="assets-odolo-toggle"
-                                data-tooltip="Toggle oDOLO rewards in the Supply APR calculation.&#10;&#10;When ON, oDOLO incentive rewards are included in the total APR. When OFF, only lending and external yield are shown.">
+                            <div class="odolo-toggle-wrap" id="assets-odolo-toggle">
                                 <img class="odolo-toggle-icon" src="odolo-logo-official.svg" alt="oDOLO">
                                 <span class="odolo-toggle-label">oDOLO</span>
+                                <span class="yield-help-icon" onclick="event.stopPropagation()">?<span
+                                        class="tooltip-bubble">Toggle oDOLO rewards in the Supply APR
+                                        calculation.<br><br>When ON, oDOLO incentive rewards are included in the total
+                                        APR. When OFF, only lending and external yield are shown.</span></span>
                                 <div class="odolo-switch">
                                     <div class="knob"></div>
                                 </div>
                             </div>
-                            <div class="odolo-toggle-wrap gm-toggle-wrap" id="assets-yield-toggle"
-                                data-tooltip="Toggle external yield sources (staking, GM Performance, etc.) in the Supply APR calculation.">
+                            <div class="odolo-toggle-wrap gm-toggle-wrap" id="assets-yield-toggle">
                                 <span class="odolo-toggle-label gm-toggle-label">Yield</span>
                                 <span class="yield-help-icon" onclick="event.stopPropagation()">?<span
                                         class="tooltip-bubble">Include / exclude external yield sources from Total
