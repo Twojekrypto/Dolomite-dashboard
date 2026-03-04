@@ -811,6 +811,12 @@
             display: none;
         }
 
+        .assets-toggles-right {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
         /* oDOLO toggle switch */
         .odolo-toggle-wrap {
             display: inline-flex;
@@ -818,13 +824,15 @@
             gap: 7px;
             cursor: pointer;
             user-select: none;
-            padding: 3px 6px;
-            border-radius: 6px;
-            transition: background 0.2s;
+            padding: 4px 8px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: background 0.2s, border-color 0.2s;
         }
 
         .odolo-toggle-wrap:hover {
             background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(255, 255, 255, 0.18);
         }
 
         .odolo-toggle-icon {
@@ -918,21 +926,66 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 14px;
-            height: 14px;
+            width: 16px;
+            height: 16px;
             border-radius: 50%;
-            background: rgba(251, 191, 36, 0.2);
-            color: #fbbf24;
-            font-size: 9px;
-            font-weight: 700;
+            border: 1px solid var(--text-muted);
+            color: var(--text-muted);
+            font-size: 10px;
+            font-weight: 400;
+            font-style: normal;
             cursor: help;
             margin-left: -2px;
             flex-shrink: 0;
-            transition: background 0.2s;
+            transition: all var(--transition);
+            position: relative;
         }
 
         .yield-help-icon:hover {
-            background: rgba(251, 191, 36, 0.4);
+            border-color: var(--accent-indigo);
+            color: var(--accent-indigo);
+        }
+
+        .yield-help-icon .tooltip-bubble {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            right: -10px;
+            left: auto;
+            transform: none;
+            background: rgba(15, 23, 42, 0.98);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 12px;
+            font-weight: 400;
+            color: #e2e8f0;
+            width: 260px;
+            z-index: 9999;
+            text-transform: none;
+            letter-spacing: normal;
+            line-height: 1.5;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: normal;
+        }
+
+        .yield-help-icon .tooltip-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            right: 20px;
+            left: auto;
+            transform: none;
+            border: 6px solid transparent;
+            border-bottom-color: rgba(99, 102, 241, 0.3);
+        }
+
+        .yield-help-icon:hover .tooltip-bubble {
+            display: block;
         }
 
         .assets-table {
@@ -983,15 +1036,12 @@
         }
 
         .assets-table tbody tr {
-            transition: background 0.15s;
+            transition: transform 0.15s ease, background 0.15s;
         }
 
         .assets-table tbody tr:hover {
             background: transparent;
-        }
-
-        .assets-table tbody tr {
-            transition: transform 0.15s ease;
+            transform: scale(1.01);
         }
 
         .assets-token-cell {
@@ -1108,13 +1158,15 @@
             gap: 7px;
             cursor: pointer;
             user-select: none;
-            padding: 3px 6px;
-            border-radius: 6px;
-            transition: background 0.2s;
+            padding: 4px 8px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: background 0.2s, border-color 0.2s;
         }
 
         .odolo-toggle-wrap:hover {
             background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(255, 255, 255, 0.18);
         }
 
         .odolo-toggle-icon {
@@ -6069,10 +6121,10 @@
         .assets-apy-breakdown span[title]:hover::after {
             content: attr(title);
             position: absolute;
-            bottom: calc(100% + 4px);
+            top: calc(100% + 4px);
             left: 0;
             background: rgba(15, 23, 42, 0.97);
-            border: 1px solid rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(99, 102, 241, 0.3);
             border-radius: 6px;
             padding: 6px 10px;
             font-size: 10px;
@@ -8524,7 +8576,7 @@
                         </div>
                         <div id="assets-chain-filter" class="dolo-chain-pills"></div>
                     </div>
-                    <div class="assets-controls-row">
+                    <div class="assets-controls-row" style="justify-content:space-between">
                         <div class="assets-filters-group">
                             <div class="assets-cat-pills" id="assets-cat-pills">
                                 <button class="active" data-cat="all">All</button>
@@ -8532,7 +8584,8 @@
                                 <button data-cat="btc">BTC</button>
                                 <button data-cat="eth">ETH</button>
                             </div>
-                            <span class="divider"></span>
+                        </div>
+                        <div class="assets-toggles-right">
                             <input type="checkbox" id="assets-exclude-odolo" style="display:none">
                             <div class="odolo-toggle-wrap" id="assets-odolo-toggle" title="Toggle oDOLO rewards in APR">
                                 <img class="odolo-toggle-icon" src="odolo-logo-official.svg" alt="oDOLO">
@@ -8544,8 +8597,12 @@
                             <div class="odolo-toggle-wrap gm-toggle-wrap" id="assets-yield-toggle"
                                 title="Toggle external yield sources (staking, GM Performance, etc.) in APR">
                                 <span class="odolo-toggle-label gm-toggle-label">Yield</span>
-                                <span class="yield-help-icon"
-                                    title="Include / exclude external yield sources from Total Supply APR.&#10;&#10;Sources include: ETH Staking APR, Sky Savings Rate, GM Performance APR, and other native yields provided by the underlying protocols.&#10;&#10;When OFF, only the base Dolomite lending rate is shown.">?</span>
+                                <span class="yield-help-icon" onclick="event.stopPropagation()">?<span
+                                        class="tooltip-bubble">Include / exclude external yield sources from Total
+                                        Supply APR.<br><br>Sources include: ETH Staking APR, Sky Savings Rate, GM
+                                        Performance APR, and other native yields provided by the underlying
+                                        protocols.<br><br>When OFF, only the base Dolomite lending rate is
+                                        shown.</span></span>
                                 <div class="odolo-switch gm-switch">
                                     <div class="knob"></div>
                                 </div>
@@ -13496,14 +13553,18 @@
                     (d.addr || '').toLowerCase().includes(q)
                 );
             }
-            // Exclude oDOLO rewards from APR
-            // Exclude GM Performance from APR
-            // (handled in render: we adjust supplyApr per-row below)
+            // Compute adjusted Supply APR for sorting (respects toggle states)
+            data.forEach(d => {
+                d._adjSupplyApr = d.supplyApr;
+                if (assets_excludeOdolo) d._adjSupplyApr -= d.rewards;
+                if (assets_excludeYield) d._adjSupplyApr -= d.extYieldApr;
+            });
             // Sort
             const col = assets_sortCol;
             const asc = assets_sortAsc;
+            const sortKey = (col === 'supplyApr') ? '_adjSupplyApr' : col;
             data.sort((a, b) => {
-                let va = a[col], vb = b[col];
+                let va = a[sortKey], vb = b[sortKey];
                 if (typeof va === 'string') va = va.toLowerCase();
                 if (typeof vb === 'string') vb = vb.toLowerCase();
                 if (va < vb) return asc ? -1 : 1;
@@ -14012,25 +14073,26 @@
         _regToken(['arbitrum'], '0xa322e23a357cb7c596a7a834102b9d6d5b15da3e', 'savUSD', 18, DOLO_CDN + 'savUSD.a2df97177abb3f75f4313a7241aa5fb0.svg');
         _regToken(['arbitrum'], '0x2416092f143378750bb29b79ed961ab195cceea5', 'ezETH', 18, DOLO_CDN + 'ezETH.23c954d818f85c10660e5c0a476ff398.svg');
         _regToken(['arbitrum'], '0x790ff506ac24b03a21f3d0019227447ae2b55ca5', 'sGMX', 18, DOLO_CDN + 'GMX.b836adc14ee095fd9b7671e718878333.svg');
-        // ---- GM tokens (Arbitrum) ----
-        _regToken(['arbitrum'], '0x2c799166c9f0dbf9efc5004cbce4c5a37fa39329', 'gmARB-USD', 18, DOLO_CDN + 'ARB-GM.24c16f7f3b30b03dbc1bb8f3e2f8f2d0.svg');
-        _regToken(['arbitrum'], '0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef', 'gmBTC-USD', 18, DOLO_CDN + 'gmBTC.47b4b7bbfd40c428f5fc25d9e1d64b2a.svg');
-        _regToken(['arbitrum'], '0x505582242757f16d72f8c4462a616e388ca1b074', 'gmETH-USD', 18, DOLO_CDN + 'gmETH.75a7c1b13da3ea3e9e75427f06b1fc07.svg');
-        _regToken(['arbitrum'], '0x18cb14564fbb015bd3439220d177799355abc0e0', 'gmLINK-USD', 18, DOLO_CDN + 'gmLINK.32f4e3a1d72e0db79b270b1c8d4f8fbe.svg');
-        _regToken(['arbitrum'], '0xb15bbbfcff6c411410c66642306d1ffa7ecec4d8', 'gmBTC', 18, DOLO_CDN + 'gmBTC.47b4b7bbfd40c428f5fc25d9e1d64b2a.svg');
-        _regToken(['arbitrum'], '0x2d165a76dd3e552df3860789331ab73c5a3d7f92', 'gmETH', 18, DOLO_CDN + 'gmETH.75a7c1b13da3ea3e9e75427f06b1fc07.svg');
-        _regToken(['arbitrum'], '0x20d51cb520c4622dcc3d7e35003dbab07d547e7e', 'gmUNI-USD', 18, DOLO_CDN + 'gmUNI.c424c4daca0bd2ab7a2edb4b59e3b7f4.svg');
-        _regToken(['arbitrum'], '0x24c9121c75c099b38d40020872b8a0d2c27c614d', 'gmAAVE-USD', 18, DOLO_CDN + 'gmAAVE.e032a2febd818f511cf782e09b12f212.svg');
-        _regToken(['arbitrum'], '0x1beed3b7d1237b7773b5c4c249933e3ca5e027c1', 'gmDOGE-USD', 18, DOLO_CDN + 'gmDOGE.e8b56bbe102e2de6b4cee919f32db6f1.svg');
-        _regToken(['arbitrum'], '0x5c99f6cf6069698d234d50bf69ebd2f53e45ed1c', 'gmGMX-USD', 18, DOLO_CDN + 'gmGMX.e33c5b6a2cca0ac1da7149e4118c79c7.svg');
-        _regToken(['arbitrum'], '0x1ebb1c7023addbb2b6e30e6f4c8d4a4440bfd412', 'gmSOL-USD', 18, DOLO_CDN + 'gmSOL.eef0c7ff37c56d6b0b7461e397be7ff3.svg');
-        _regToken(['arbitrum'], '0xc587646f67b38739006ed0200e2e0a26fdb01c9b', 'gmWstETH-USD', 18, DOLO_CDN + 'gmWstETH.c5ead03a7b2a6e6cfe93e05f47a75b56.svg');
-        _regToken(['arbitrum'], '0xcf248baf933c7b1b876b997246f25021a65383b3', 'gmGMX', 18, DOLO_CDN + 'gmGMX.e33c5b6a2cca0ac1da7149e4118c79c7.svg');
-        _regToken(['arbitrum'], '0xe5d6fe410c69b44c357403a1936b3bfaddbe340b', 'gmPENDLE-USD', 18, DOLO_CDN + 'gmPENDLE.cd8acede00414f70056c0fb9aa2baa7c.svg');
-        _regToken(['arbitrum'], '0x6586f1db71513daf94b0431156d225a46c00f20b', 'gmPEPE-USD', 18, DOLO_CDN + 'gmPEPE.966f4beb1b823729066c29c52921b664.svg');
-        _regToken(['arbitrum'], '0xf5063b40fa66ab2fbda2e6807ac5759a41a1b0c3', 'gmWIF-USD', 18, DOLO_CDN + 'gmWIF.a33d5d4580f6a72c0c58f3eb4dd47e2e.svg');
-        _regToken(['arbitrum'], '0x7e584529bb40220a2bd5d0c13e3d65abd4a47f0e', 'GLV-BTC', 18, DOLO_CDN + 'GLV_BTC.f6b8c4a0e5d2f7a9c3b1e4d6a8f2c5b7.svg');
-        _regToken(['arbitrum'], '0x11f4532c05fb8ea6320b1dc155bfdc2498a5d8b4', 'GLV-ETH', 18, DOLO_CDN + 'GLV_ETH.d4e7f2a1b5c8e3f6a9d2c5b8e1f4a7d0.svg');
+        // ---- GM tokens (Arbitrum) — icons from app.dolomite.io/icons ----
+        const DOLO_ICON = 'https://app.dolomite.io/icons/';
+        _regToken(['arbitrum'], '0x2c799166c9f0dbf9efc5004cbce4c5a37fa39329', 'gmARB-USD', 18, DOLO_ICON + 'gm-arb.png');
+        _regToken(['arbitrum'], '0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef', 'gmBTC-USD', 18, DOLO_ICON + 'gm-btc.png');
+        _regToken(['arbitrum'], '0x505582242757f16d72f8c4462a616e388ca1b074', 'gmETH-USD', 18, DOLO_ICON + 'gm-eth.png');
+        _regToken(['arbitrum'], '0x18cb14564fbb015bd3439220d177799355abc0e0', 'gmLINK-USD', 18, DOLO_ICON + 'gm-link.png');
+        _regToken(['arbitrum'], '0xb15bbbfcff6c411410c66642306d1ffa7ecec4d8', 'gmBTC', 18, DOLO_ICON + 'gm-btc.png');
+        _regToken(['arbitrum'], '0x2d165a76dd3e552df3860789331ab73c5a3d7f92', 'gmETH', 18, DOLO_ICON + 'gm-eth.png');
+        _regToken(['arbitrum'], '0x20d51cb520c4622dcc3d7e35003dbab07d547e7e', 'gmUNI-USD', 18, DOLO_ICON + 'gm-uni.png');
+        _regToken(['arbitrum'], '0x24c9121c75c099b38d40020872b8a0d2c27c614d', 'gmAAVE-USD', 18, DOLO_ICON + 'gm-aave.png');
+        _regToken(['arbitrum'], '0x1beed3b7d1237b7773b5c4c249933e3ca5e027c1', 'gmDOGE-USD', 18, DOLO_ICON + 'gm-doge.png');
+        _regToken(['arbitrum'], '0x5c99f6cf6069698d234d50bf69ebd2f53e45ed1c', 'gmGMX-USD', 18, DOLO_ICON + 'gm-gmx.png');
+        _regToken(['arbitrum'], '0x1ebb1c7023addbb2b6e30e6f4c8d4a4440bfd412', 'gmSOL-USD', 18, DOLO_ICON + 'gm-sol.png');
+        _regToken(['arbitrum'], '0xc587646f67b38739006ed0200e2e0a26fdb01c9b', 'gmWstETH-USD', 18, DOLO_ICON + 'gm-wsteth.png');
+        _regToken(['arbitrum'], '0xcf248baf933c7b1b876b997246f25021a65383b3', 'gmGMX', 18, DOLO_ICON + 'gm-gmx.png');
+        _regToken(['arbitrum'], '0xe5d6fe410c69b44c357403a1936b3bfaddbe340b', 'gmPENDLE-USD', 18, DOLO_ICON + 'gm-pendle.png');
+        _regToken(['arbitrum'], '0x6586f1db71513daf94b0431156d225a46c00f20b', 'gmPEPE-USD', 18, DOLO_ICON + 'gm-pepe.png');
+        _regToken(['arbitrum'], '0xf5063b40fa66ab2fbda2e6807ac5759a41a1b0c3', 'gmWIF-USD', 18, DOLO_ICON + 'gm-wif.png');
+        _regToken(['arbitrum'], '0x7e584529bb40220a2bd5d0c13e3d65abd4a47f0e', 'GLV-BTC', 18, DOLO_ICON + 'glv-btc.png');
+        _regToken(['arbitrum'], '0x11f4532c05fb8ea6320b1dc155bfdc2498a5d8b4', 'GLV-ETH', 18, DOLO_ICON + 'glv-eth.png');
         // ---- Additional Berachain tokens ----
         _regToken(['berachain'], '0x09d4214c03d01f49544c0448dbe3a27f768f2b34', 'rUSD', 18, DOLO_CDN + 'rUSD.9b373643ab772af9dab0807b476b9afb.svg');
         _regToken(['berachain'], '0xb5a27c33ba2ade3f64aca7bf5f49a0c0927a59d0', 'BGT', 18, DOLO_CDN + 'BGT.59af0fc7aad30ed3de49e3115ee24d04.svg');
@@ -14375,14 +14437,14 @@
             'PT-MNT': DOLO_CDN + 'PT-MNT.19aa4a53e3aa4337407a1502ae89fc31.svg',
             'PT-iBGT': DOLO_CDN + 'PT-iBGT.45a4b4c47be320270ac8d1ce32439d2a.svg',
             // --- GMX V2 GM market tokens ---
-            'GM:ETH': DOLO_CDN + 'ETH-GM.0b7d447f3c11298af07411c926352c71.svg',
-            'GM:ARB': DOLO_CDN + 'ARB-GM.50df3ed4a1a52b938992cb5e08efbc36.svg',
-            'GM:WBTC': DOLO_CDN + 'WBTC-GM.6e7f69538bb02b42b881b86aea5c6d6e.svg',
-            'GM:LINK': DOLO_CDN + 'LINK-GM.7d4b33346ec9822f9dc7c22a393f7698.svg',
-            'GM:UNI': DOLO_CDN + 'UNI-GM.8a4dfd0dc79f5b60138039338d28a6c7.svg',
+            'GM:ETH': DOLO_ICON + 'gm-eth.png',
+            'GM:ARB': DOLO_ICON + 'gm-arb.png',
+            'GM:WBTC': DOLO_ICON + 'gm-btc.png',
+            'GM:LINK': DOLO_ICON + 'gm-link.png',
+            'GM:UNI': DOLO_ICON + 'gm-uni.png',
             // --- GLV tokens ---
-            'GLV:BTC': DOLO_CDN + 'GLV-BTC.c576682a1343bbfde84710a572b5a68e.svg',
-            'GLV:ETH': DOLO_CDN + 'GLV-ETH.092b4c8a9412efd58d3542d26bc5a522.svg',
+            'GLV:BTC': DOLO_ICON + 'glv-btc.png',
+            'GLV:ETH': DOLO_ICON + 'glv-eth.png',
         };
 
         async function earn_getTokenInfo(addr) {
