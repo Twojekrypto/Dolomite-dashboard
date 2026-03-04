@@ -700,7 +700,12 @@
             gap: 10px;
             padding: 8px 0 12px;
             position: relative;
-            z-index: 20;
+            z-index: 30;
+        }
+
+        #assets-table-wrap {
+            position: relative;
+            z-index: 1;
         }
 
         .assets-controls-row {
@@ -739,7 +744,7 @@
             background: rgba(255, 255, 255, 0.04);
             border: 1px solid rgba(52, 211, 153, 0.25);
             border-radius: 8px;
-            padding: 7px 12px 7px 36px;
+            padding: 7px 12px 7px 40px;
             font-size: 12px;
             color: rgba(255, 255, 255, 0.85);
             outline: none;
@@ -1091,19 +1096,6 @@
         .assets-table tbody tr:hover {
             background: transparent;
             transform: scale(1.01);
-        }
-
-        /* Override global hover color — keep original data colors on hover */
-        .assets-table tbody tr:hover td {
-            color: unset !important;
-        }
-
-        .assets-table tbody tr:hover td span {
-            color: unset !important;
-        }
-
-        .assets-table tbody tr:hover td a {
-            color: unset !important;
         }
 
         .assets-token-cell {
@@ -2755,11 +2747,11 @@
             background: rgba(99, 102, 241, 0.06);
         }
 
-        tbody tr:hover td,
-        tbody tr:hover td span,
-        tbody tr:hover td .mini-bar span,
-        tbody tr:hover td .addr-link,
-        tbody tr:hover td a:not(.debank-icon) {
+        tbody:not(#assets-tbody) tr:hover td,
+        tbody:not(#assets-tbody) tr:hover td span,
+        tbody:not(#assets-tbody) tr:hover td .mini-bar span,
+        tbody:not(#assets-tbody) tr:hover td .addr-link,
+        tbody:not(#assets-tbody) tr:hover td a:not(.debank-icon) {
             color: var(--accent-cyan) !important;
             font-size: 14px;
         }
