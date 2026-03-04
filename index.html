@@ -8597,9 +8597,10 @@
                     <div class="table-scroll">
                         <table class="earn-asset-table">
                             <colgroup>
-                                <col style="width:40%">
-                                <col style="width:30%">
-                                <col style="width:30%">
+                                <col style="width:28%">
+                                <col style="width:24%">
+                                <col style="width:24%">
+                                <col style="width:24%">
                             </colgroup>
                             <thead>
                                 <tr>
@@ -8608,6 +8609,8 @@
                                             <span>Token</span>
                                         </div>
                                     </th>
+                                    <th data-sort="apr" onclick="earn_sortAssets('apr')">
+                                        Supply APR <span class="earn-sort-arrow">▼</span></th>
                                     <th data-sort="balance" class="sort-active" onclick="earn_sortAssets('balance')">
                                         Current Balance <span class="earn-sort-arrow">▼</span></th>
                                     <th data-sort="yield" onclick="earn_sortAssets('yield')">Total Yield Earned
@@ -15164,7 +15167,7 @@
         function earn_toggleOdolo() {
             earn_excludeOdolo = !earn_excludeOdolo;
             const wrap = document.getElementById('earn-odolo-toggle');
-            if (wrap) wrap.classList.toggle('off', earn_excludeOdolo);
+            if (wrap) wrap.classList.toggle('active', earn_excludeOdolo);
             if (earn_cachedAssets) earn_renderResults(earn_cachedAssets);
         }
 
@@ -15172,7 +15175,7 @@
         function earn_toggleYield() {
             earn_excludeYield = !earn_excludeYield;
             const wrap = document.getElementById('earn-yield-toggle');
-            if (wrap) wrap.classList.toggle('off', earn_excludeYield);
+            if (wrap) wrap.classList.toggle('active', earn_excludeYield);
             if (earn_cachedAssets) earn_renderResults(earn_cachedAssets);
         }
 
@@ -16274,10 +16277,12 @@
                                 <div class="earn-token-info">
                                     <div class="earn-token-name">${a.symbol} ${chevron}</div>
                                     <span class="earn-hist-badge active"><span class="earn-status-dot"></span>ACTIVE</span>
-                                    ${earnAprCellHtml}
                                 </div>
                             </div>
                         </div>
+                    </td>
+                    <td>
+                        ${earnAprCellHtml}
                     </td>
                     <td>
                         <span class="earn-amount earn-amount-primary">${weiFmt}<span class="earn-amount-sym">${a.symbol}</span></span>
@@ -16291,7 +16296,7 @@
                 // Expandable detail row — simple inline CA
                 const breakdownHtml = earn_buildBreakdown(mid, a.decimals, a.symbol);
                 html += `<tr class="earn-detail-row" id="earn-detail-${idx}">
-                    <td colspan="3">
+                    <td colspan="4">
                         <div class="earn-ca-line">
                             <span class="earn-ca-addr" onclick="event.stopPropagation(); earn_copyAddr('${a.tokenAddr}', this)" title="Click to copy">${a.tokenAddr}</span>
                             <span class="copy-addr-icon" onclick="event.stopPropagation(); earn_copyAddr('${a.tokenAddr}', this)" title="Copy address"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span>
@@ -16361,6 +16366,7 @@
                                 </div>
                             </div>
                         </td>
+                        <td><span style="color:var(--text-muted)">—</span></td>
                         <td>
                             <span class="earn-amount" style="color:var(--text-muted)">${balFmt}<span class="earn-amount-sym">${item.symbol}</span></span>
                             ${(() => {
@@ -16379,7 +16385,7 @@
                     </tr>`;
 
                     withdrawnHtml += `<tr class="earn-detail-row" id="earn-detail-${ii}">
-                        <td colspan="3">
+                        <td colspan="4">
                             <div class="earn-ca-line">
                                 <span class="earn-ca-addr" onclick="event.stopPropagation(); earn_copyAddr('${item.tokenAddr}', this)" title="Click to copy">${item.tokenAddr}</span>
                                 <span class="copy-addr-icon" onclick="event.stopPropagation(); earn_copyAddr('${item.tokenAddr}', this)" title="Copy address"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span>
