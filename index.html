@@ -896,21 +896,39 @@
         }
 
         .assets-toggle-label {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 11px;
-            color: rgba(255, 255, 255, 0.5);
-            cursor: pointer;
-            user-select: none;
-            white-space: nowrap;
+            display: none;
         }
 
-        .assets-toggle-label input[type="checkbox"] {
-            accent-color: #60a5fa;
-            width: 14px;
-            height: 14px;
+        .assets-odolo-pill {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.5);
+            border-radius: 16px;
+            padding: 4px 12px;
+            font-size: 11px;
+            font-weight: 600;
             cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .assets-odolo-pill:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .assets-odolo-pill.active {
+            background: rgba(96, 165, 250, 0.12);
+            border-color: rgba(96, 165, 250, 0.3);
+            color: #60a5fa;
+        }
+
+        .assets-odolo-pill .pill-icon {
+            font-size: 12px;
+            line-height: 1;
         }
 
         .assets-apy-breakdown {
@@ -8240,9 +8258,10 @@
                         <button data-cat="btc">BTC</button>
                         <button data-cat="eth">ETH</button>
                     </div>
-                    <label class="assets-toggle-label">
-                        <input type="checkbox" id="assets-exclude-odolo"> Exclude oDOLO
-                    </label>
+                    <input type="checkbox" id="assets-exclude-odolo" style="display:none">
+                    <button class="assets-odolo-pill" id="assets-odolo-pill" title="Hide oDOLO rewards from APR">
+                        <span class="pill-icon">⊘</span> Excl. oDOLO
+                    </button>
                     <span class="assets-count" id="assets-count"></span>
                 </div>
                 <div id="assets-spinner" class="assets-spinner">
@@ -13090,9 +13109,12 @@
                 });
             }
             const cbEl = document.getElementById('assets-exclude-odolo');
-            if (cbEl) {
-                cbEl.addEventListener('change', () => {
+            const pillEl = document.getElementById('assets-odolo-pill');
+            if (cbEl && pillEl) {
+                pillEl.addEventListener('click', () => {
+                    cbEl.checked = !cbEl.checked;
                     assets_excludeOdolo = cbEl.checked;
+                    pillEl.classList.toggle('active', cbEl.checked);
                     assets_render();
                 });
             }
