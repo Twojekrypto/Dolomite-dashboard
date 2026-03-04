@@ -696,16 +696,10 @@
         /* ─── ASSETS tab ─── */
         .assets-controls {
             display: flex;
-            flex-direction: column;
+            align-items: center;
+            flex-wrap: wrap;
             gap: 10px;
             padding: 8px 0 12px;
-        }
-
-        .assets-controls-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
         }
 
         .assets-search-wrap {
@@ -872,6 +866,41 @@
             left: 2px;
             background: #f87171;
             box-shadow: 0 0 6px rgba(248, 113, 113, 0.5);
+        }
+
+        /* GM toggle amber overrides */
+        .gm-toggle-label {
+            color: #fbbf24 !important;
+        }
+
+        .gm-toggle-wrap.active .gm-toggle-label {
+            color: #f87171 !important;
+        }
+
+        .gm-switch {
+            background: rgba(251, 191, 36, 0.25) !important;
+            border-color: rgba(251, 191, 36, 0.4) !important;
+        }
+
+        .gm-switch .knob {
+            background: #fbbf24 !important;
+            box-shadow: 0 0 6px rgba(251, 191, 36, 0.5) !important;
+        }
+
+        .gm-toggle-wrap.active .gm-switch {
+            background: rgba(239, 68, 68, 0.25) !important;
+            border-color: rgba(239, 68, 68, 0.4) !important;
+        }
+
+        .gm-toggle-wrap.active .gm-switch .knob {
+            left: 2px !important;
+            background: #f87171 !important;
+            box-shadow: 0 0 6px rgba(248, 113, 113, 0.5) !important;
+        }
+
+        /* GM breakdown tooltip */
+        .gm-part[title] {
+            cursor: help;
         }
 
         .assets-table {
@@ -1118,6 +1147,7 @@
 
         .assets-apy-breakdown .gm-part {
             color: #fbbf24;
+            cursor: help;
         }
 
         .assets-apy-breakdown .odolo-part {
@@ -8425,45 +8455,34 @@
                 <div class="card-header">
                     <h3>Dolomite Assets</h3>
                 </div>
+                <div id="assets-chain-filter" class="dolo-chain-pills"></div>
                 <div class="assets-controls">
-                    <div class="assets-controls-row">
-                        <div class="earn-input-row" style="max-width:580px;flex:1">
-                            <div class="earn-input-wrapper">
-                                <input type="text" class="earn-input" id="assets-search"
-                                    placeholder="Search token or paste address…" spellcheck="false" autocomplete="off"
-                                    style="padding:14px 16px;font-family:'Inter',sans-serif;font-size:13px">
-                            </div>
-                            <div class="earn-chain-dropdown" id="assets-chain-dropdown">
-                                <button type="button" class="earn-chain-trigger" id="assets-chain-trigger"
-                                    onclick="assetsChainToggle()">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="1.5" style="flex-shrink:0">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <path
-                                            d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
-                                    </svg>
-                                    <span>All Chains</span>
-                                </button>
-                                <div class="earn-chain-menu" id="assets-chain-menu"></div>
+                    <div class="assets-search-wrap">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" class="assets-search" id="assets-search"
+                            placeholder="Search token or paste address…" spellcheck="false" autocomplete="off">
+                    </div>
+                    <div class="assets-filters-group">
+                        <div class="assets-cat-pills" id="assets-cat-pills">
+                            <button class="active" data-cat="all">All</button>
+                            <button data-cat="stable">Stables</button>
+                            <button data-cat="btc">BTC</button>
+                            <button data-cat="eth">ETH</button>
+                        </div>
+                        <span class="divider"></span>
+                        <input type="checkbox" id="assets-exclude-odolo" style="display:none">
+                        <div class="odolo-toggle-wrap" id="assets-odolo-toggle" title="Toggle oDOLO rewards in APR">
+                            <img class="odolo-toggle-icon" src="odolo-logo-official.svg" alt="oDOLO">
+                            <span class="odolo-toggle-label">oDOLO</span>
+                            <div class="odolo-switch">
+                                <div class="knob"></div>
                             </div>
                         </div>
-                    </div>
-                    <div class="assets-controls-row">
-                        <div class="assets-filters-group">
-                            <div class="assets-cat-pills" id="assets-cat-pills">
-                                <button class="active" data-cat="all">All</button>
-                                <button data-cat="stable">Stables</button>
-                                <button data-cat="btc">BTC</button>
-                                <button data-cat="eth">ETH</button>
-                            </div>
-                            <span class="divider"></span>
-                            <input type="checkbox" id="assets-exclude-odolo" style="display:none">
-                            <div class="odolo-toggle-wrap" id="assets-odolo-toggle" title="Toggle oDOLO rewards in APR">
-                                <img class="odolo-toggle-icon" src="odolo-logo-official.svg" alt="oDOLO">
-                                <span class="odolo-toggle-label">oDOLO</span>
-                                <div class="odolo-switch">
-                                    <div class="knob"></div>
-                                </div>
+                        <div class="odolo-toggle-wrap gm-toggle-wrap" id="assets-gm-toggle"
+                            title="Toggle GM Performance APR">
+                            <span class="odolo-toggle-label gm-toggle-label">GM</span>
+                            <div class="odolo-switch gm-switch">
+                                <div class="knob"></div>
                             </div>
                         </div>
                     </div>
@@ -13154,6 +13173,7 @@
         let assets_selectedCat = 'all';
         let assets_searchQuery = '';
         let assets_excludeOdolo = false;
+        let assets_excludeGm = false;
 
         const ASSETS_CHAINS = {
             berachain: { id: 80094, name: 'Berachain', short: 'BERA', icon: 'https://icons.llamao.fi/icons/chains/rsz_berachain.jpg' },
@@ -13218,6 +13238,12 @@
                         // 7d average
                         const avg7d = r.historicalRates && r.historicalRates['7d']
                             ? parseFloat(r.historicalRates['7d'].supplyInterestRate) || 0 : 0;
+                        // Track GM yield APR separately
+                        let gmYieldApr = 0;
+                        yieldSources.forEach(ys => {
+                            const isGm = (ys.label || '').includes('Price Implied') || (ys.label || '').includes('GM ');
+                            if (isGm) gmYieldApr += ys.rate;
+                        });
                         results.push({
                             symbol: r.token.tokenSymbol,
                             name: r.token.tokenName,
@@ -13231,6 +13257,7 @@
                             rewards: odoloRewards * 100,
                             lendingApr: baseLending * 100,
                             yieldSources: yieldSources,
+                            gmApr: gmYieldApr,
                             supplyApr7d: avg7d * 100,
                             cat: assets_classify(r.token.tokenSymbol),
                             price: 0,
@@ -13269,8 +13296,8 @@
 
             assets_allData = results;
 
-            // Build chain dropdown
-            assetsBuildChainMenu();
+            // Build chain pills
+            assets_buildChainPills();
             // Bind category buttons
             assets_bindCatPills();
             // Bind table header sorting
@@ -13284,41 +13311,38 @@
             document.getElementById('assets-table-wrap').style.display = '';
         }
 
-        function assetsChainToggle() {
-            document.getElementById('assets-chain-dropdown').classList.toggle('open');
-        }
-
-        function assetsChainSelect(key) {
-            assets_selectedChain = key;
-            const trigger = document.getElementById('assets-chain-trigger');
-            if (key === 'all') {
-                const GLOBE = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>`;
-                trigger.innerHTML = `${GLOBE}<span>All Chains</span>`;
-            } else {
-                const c = ASSETS_CHAINS[key];
-                trigger.innerHTML = `<img src="${c.icon}" alt=""><span>${c.name}</span>`;
-            }
-            document.getElementById('assets-chain-dropdown').classList.remove('open');
-            document.querySelectorAll('#assets-chain-menu .earn-chain-option').forEach(o => o.classList.toggle('active', o.dataset.chain === key));
-            assets_render();
-        }
-
-        function assetsBuildChainMenu() {
-            const menu = document.getElementById('assets-chain-menu');
-            if (!menu) return;
-            const GLOBE = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>`;
-            let html = `<div class="earn-chain-option active" data-chain="all" onclick="assetsChainSelect('all')">${GLOBE}<span>All Chains</span></div>`;
+        function assets_buildChainPills() {
+            const el = document.getElementById('assets-chain-filter');
+            if (!el) return;
+            const GLOBE = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="vertical-align:middle;margin-right:3px;margin-top:-1px"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>`;
+            let html = `<div class="dolo-chain-slider"></div><button class="active" data-chain="all">${GLOBE}All</button>`;
             Object.entries(ASSETS_CHAINS).forEach(([key, c]) => {
-                html += `<div class="earn-chain-option" data-chain="${key}" onclick="assetsChainSelect('${key}')"><img src="${c.icon}" alt=""><span>${c.name}</span></div>`;
+                html += `<button data-chain="${key}"><img src="${c.icon}" alt="">${c.short}</button>`;
             });
-            menu.innerHTML = html;
-        }
+            el.innerHTML = html;
 
-        // Close assets chain dropdown on outside click
-        document.addEventListener('click', (e) => {
-            const dd = document.getElementById('assets-chain-dropdown');
-            if (dd && !dd.contains(e.target)) dd.classList.remove('open');
-        });
+            const slider = el.querySelector('.dolo-chain-slider');
+            function posSlider(btn) {
+                const px = el.getBoundingClientRect();
+                const bx = btn.getBoundingClientRect();
+                slider.style.width = bx.width + 'px';
+                slider.style.transform = `translateX(${bx.left - px.left - 2}px)`;
+            }
+            requestAnimationFrame(() => {
+                const ab = el.querySelector('button.active');
+                if (ab) { posSlider(ab); slider.style.opacity = '1'; }
+            });
+
+            el.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    el.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    posSlider(btn);
+                    assets_selectedChain = btn.dataset.chain;
+                    assets_render();
+                });
+            });
+        }
 
         function assets_bindCatPills() {
             const wrap = document.getElementById('assets-cat-pills');
@@ -13352,6 +13376,15 @@
                     cbEl.checked = !cbEl.checked;
                     assets_excludeOdolo = cbEl.checked;
                     toggleEl.classList.toggle('active', cbEl.checked);
+                    assets_render();
+                });
+            }
+            // GM toggle
+            const gmToggle = document.getElementById('assets-gm-toggle');
+            if (gmToggle) {
+                gmToggle.addEventListener('click', () => {
+                    assets_excludeGm = !assets_excludeGm;
+                    gmToggle.classList.toggle('active', assets_excludeGm);
                     assets_render();
                 });
             }
@@ -13398,10 +13431,9 @@
                     (d.addr || '').toLowerCase().includes(q)
                 );
             }
-            // Exclude oDOLO rewards
-            if (assets_excludeOdolo) {
-                data = data.filter(d => d.rewards <= 0);
-            }
+            // Exclude oDOLO rewards from APR
+            // Exclude GM Performance from APR
+            // (handled in render: we adjust supplyApr per-row below)
             // Sort
             const col = assets_sortCol;
             const asc = assets_sortAsc;
@@ -13424,8 +13456,12 @@
 
             let html = '';
             data.forEach(d => {
-                const supplyClass = d.supplyApr > 0 ? 'assets-apy-green' : (d.supplyApr < 0 ? 'assets-apy-red' : 'assets-apy-dim');
-                const supplyStyle = d.supplyApr > 0 ? 'font-size:15px;font-weight:700' : '';
+                // Compute adjusted supply APR based on active toggles
+                let adjSupply = d.supplyApr;
+                if (assets_excludeOdolo) adjSupply -= d.rewards;
+                if (assets_excludeGm) adjSupply -= d.gmApr;
+                const supplyClass = adjSupply > 0 ? 'assets-apy-green' : (adjSupply < 0 ? 'assets-apy-red' : 'assets-apy-dim');
+                const supplyStyle = adjSupply > 0 ? 'font-size:15px;font-weight:700' : '';
 
                 // Token icon from KNOWN_TOKENS
                 const tkKey = d.chainKey + ':' + (d.addr || '').toLowerCase();
@@ -13449,17 +13485,26 @@
                 if (d.yieldSources && d.yieldSources.length > 0) {
                     d.yieldSources.forEach(ys => {
                         const isGm = (ys.label || '').includes('Price Implied') || (ys.label || '').includes('GM ');
-                        breakdownLines.push({ label: ys.label, rate: ys.rate, cls: isGm ? 'gm-part' : 'yield-part' });
+                        if (isGm && assets_excludeGm) return; // skip GM lines if excluded
+                        // Shorten GM labels
+                        let displayLabel = ys.label;
+                        if (isGm) {
+                            displayLabel = 'GM Performance APR';
+                        }
+                        breakdownLines.push({ label: displayLabel, rate: ys.rate, cls: isGm ? 'gm-part' : 'yield-part', isGm: isGm });
                     });
                 }
                 // oDOLO rewards
-                if (d.rewards > 0) {
+                if (d.rewards > 0 && !assets_excludeOdolo) {
                     breakdownLines.push({ label: 'oDOLO Rewards', rate: d.rewards, cls: 'odolo-part' });
                 }
                 let breakdownHtml = '';
                 if (breakdownLines.length > 0) {
                     breakdownHtml = '<div class="assets-apy-breakdown">' +
-                        breakdownLines.map(l => `<span class="${l.cls}">+ ${l.rate.toFixed(2)}% ${l.label}</span>`).join('') +
+                        breakdownLines.map(l => {
+                            const titleAttr = l.isGm ? ' title="Annualized return from GM token price change over the past 30 days"' : '';
+                            return `<span class="${l.cls}"${titleAttr}>+ ${l.rate.toFixed(2)}% ${l.label}</span>`;
+                        }).join('') +
                         '</div>';
                 }
 
@@ -13488,7 +13533,7 @@
                     <td><span class="assets-chain-badge"><img src="${d.chainIcon}" alt="">${d.chainShort}</span></td>
                     <td style="font-size:13px;color:rgba(255,255,255,0.85)">${priceHtml}</td>
                     <td>
-                        <div><span class="${supplyClass}" style="${supplyStyle}">${d.supplyApr.toFixed(2)}%</span></div>
+                        <div><span class="${supplyClass}" style="${supplyStyle}">${adjSupply.toFixed(2)}%</span></div>
                         ${breakdownHtml}
                     </td>
                     <td><span class="assets-apy-red">${d.borrowApr > 0 ? d.borrowApr.toFixed(2) + '%' : '—'}</span></td>
