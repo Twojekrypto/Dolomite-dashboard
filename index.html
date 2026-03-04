@@ -696,10 +696,16 @@
         /* ─── ASSETS tab ─── */
         .assets-controls {
             display: flex;
-            align-items: center;
-            flex-wrap: wrap;
+            flex-direction: column;
             gap: 10px;
             padding: 8px 0 12px;
+        }
+
+        .assets-controls-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
         }
 
         .assets-search-wrap {
@@ -1108,6 +1114,10 @@
 
         .assets-apy-breakdown .yield-part {
             color: rgba(255, 255, 255, 0.7);
+        }
+
+        .assets-apy-breakdown .gm-part {
+            color: #fbbf24;
         }
 
         .assets-apy-breakdown .odolo-part {
@@ -8415,31 +8425,34 @@
                 <div class="card-header">
                     <h3>Dolomite Assets</h3>
                 </div>
-                <div id="assets-chain-filter" class="dolo-chain-pills"></div>
                 <div class="assets-controls">
-                    <div class="assets-search-wrap">
-                        <span class="search-icon">🔍</span>
-                        <input type="text" class="assets-search" id="assets-search"
-                            placeholder="Search token or address…" spellcheck="false" autocomplete="off">
-                    </div>
-                    <div class="assets-filters-group">
-                        <div class="assets-cat-pills" id="assets-cat-pills">
-                            <button class="active" data-cat="all">All</button>
-                            <button data-cat="stable">Stables</button>
-                            <button data-cat="btc">BTC</button>
-                            <button data-cat="eth">ETH</button>
+                    <div class="assets-controls-row">
+                        <div class="assets-search-wrap">
+                            <span class="search-icon">🔍</span>
+                            <input type="text" class="assets-search" id="assets-search"
+                                placeholder="Search token or address…" spellcheck="false" autocomplete="off">
                         </div>
-                        <span class="divider"></span>
-                        <input type="checkbox" id="assets-exclude-odolo" style="display:none">
-                        <div class="odolo-toggle-wrap" id="assets-odolo-toggle" title="Toggle oDOLO rewards in APR">
-                            <img class="odolo-toggle-icon" src="odolo-logo-official.svg" alt="oDOLO">
-                            <span class="odolo-toggle-label">oDOLO</span>
-                            <div class="odolo-switch">
-                                <div class="knob"></div>
+                        <div id="assets-chain-filter" class="dolo-chain-pills"></div>
+                    </div>
+                    <div class="assets-controls-row">
+                        <div class="assets-filters-group">
+                            <div class="assets-cat-pills" id="assets-cat-pills">
+                                <button class="active" data-cat="all">All</button>
+                                <button data-cat="stable">Stables</button>
+                                <button data-cat="btc">BTC</button>
+                                <button data-cat="eth">ETH</button>
+                            </div>
+                            <span class="divider"></span>
+                            <input type="checkbox" id="assets-exclude-odolo" style="display:none">
+                            <div class="odolo-toggle-wrap" id="assets-odolo-toggle" title="Toggle oDOLO rewards in APR">
+                                <img class="odolo-toggle-icon" src="odolo-logo-official.svg" alt="oDOLO">
+                                <span class="odolo-toggle-label">oDOLO</span>
+                                <div class="odolo-switch">
+                                    <div class="knob"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <span class="assets-count" id="assets-count"></span>
                 </div>
                 <div id="assets-spinner" class="assets-spinner">
                     <span class="dot"></span><span class="dot"></span><span class="dot"></span>
@@ -13384,11 +13397,7 @@
                 return 0;
             });
 
-            // Update count
-            const countEl = document.getElementById('assets-count');
-            if (countEl) countEl.textContent = data.length + ' assets';
 
-            // Render rows
             const tbody = document.getElementById('assets-tbody');
             if (!tbody) return;
             if (data.length === 0) {
@@ -13422,7 +13431,8 @@
                 // External yield sources (staking, restaking, etc.)
                 if (d.yieldSources && d.yieldSources.length > 0) {
                     d.yieldSources.forEach(ys => {
-                        breakdownLines.push({ label: ys.label, rate: ys.rate, cls: 'yield-part' });
+                        const isGm = (ys.label || '').includes('Price Implied') || (ys.label || '').includes('GM ');
+                        breakdownLines.push({ label: ys.label, rate: ys.rate, cls: isGm ? 'gm-part' : 'yield-part' });
                     });
                 }
                 // oDOLO rewards
