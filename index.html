@@ -725,26 +725,11 @@
             flex: 0 0 auto;
         }
 
-        .assets-search-wrap .search-icon {
-            position: absolute;
-            left: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: rgba(255, 255, 255, 0.25);
-            font-size: 13px;
-            pointer-events: none;
-            transition: color 0.2s;
-        }
-
-        .assets-search-wrap:focus-within .search-icon {
-            color: rgba(52, 211, 153, 0.6);
-        }
-
         .assets-search {
             background: rgba(255, 255, 255, 0.04);
             border: 1px solid rgba(52, 211, 153, 0.25);
             border-radius: 8px;
-            padding: 7px 12px 7px 40px;
+            padding: 7px 14px;
             font-size: 12px;
             color: rgba(255, 255, 255, 0.85);
             outline: none;
@@ -842,14 +827,10 @@
             border-color: rgba(52, 211, 153, 0.45);
         }
 
-        /* Tooltip bubble for toggle wraps (oDOLO & Yield) - no (?) icon */
-        .odolo-toggle-wrap .toggle-tooltip-bubble {
+        /* Tooltip bubble for toggle wraps (oDOLO & Yield) — body-level float */
+        #toggle-tooltip-float {
             display: none;
-            position: absolute;
-            top: calc(100% + 8px);
-            right: 0;
-            left: auto;
-            transform: none;
+            position: fixed;
             background: rgba(15, 23, 42, 0.98);
             border: 1px solid rgba(99, 102, 241, 0.3);
             border-radius: 8px;
@@ -857,10 +838,8 @@
             font-size: 12px;
             font-weight: 400;
             color: #e2e8f0;
-            width: 260px;
-            z-index: 9999;
-            text-transform: none;
-            letter-spacing: normal;
+            width: 280px;
+            z-index: 99999;
             line-height: 1.5;
             backdrop-filter: blur(12px);
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
@@ -870,19 +849,13 @@
             white-space: normal;
         }
 
-        .odolo-toggle-wrap .toggle-tooltip-bubble::after {
+        #toggle-tooltip-float::after {
             content: '';
             position: absolute;
             bottom: 100%;
-            right: 20px;
-            left: auto;
-            transform: none;
+            right: 30px;
             border: 6px solid transparent;
             border-bottom-color: rgba(99, 102, 241, 0.3);
-        }
-
-        .odolo-toggle-wrap:hover .toggle-tooltip-bubble {
-            display: block;
         }
 
         .odolo-toggle-wrap {
@@ -1090,12 +1063,18 @@
         }
 
         .assets-table tbody tr {
-            transition: transform 0.15s ease, background 0.15s;
+            transition: transform 0.15s ease, background 0.15s, box-shadow 0.15s;
+            position: relative;
         }
 
         .assets-table tbody tr:hover {
-            background: transparent;
-            transform: scale(1.01);
+            background: rgba(52, 211, 153, 0.04);
+            transform: scale(1.005);
+            box-shadow: inset 3px 0 0 0 #34d399;
+        }
+
+        .assets-table tbody tr:hover td {
+            font-size: 13.5px;
         }
 
         .assets-token-cell {
@@ -1281,6 +1260,10 @@
             display: flex;
             flex-direction: column;
             gap: 1px;
+        }
+
+        .assets-apy-breakdown .lending-part {
+            color: rgba(255, 255, 255, 0.85);
         }
 
         .assets-apy-breakdown .yield-part {
@@ -8674,7 +8657,6 @@
                 <div class="assets-controls">
                     <div class="assets-controls-row">
                         <div class="assets-search-wrap">
-                            <span class="search-icon">🔍</span>
                             <input type="text" class="assets-search" id="assets-search"
                                 placeholder="Search token or paste address…" spellcheck="false" autocomplete="off">
                         </div>
@@ -8691,17 +8673,16 @@
                         </div>
                         <div class="assets-toggles-right">
                             <input type="checkbox" id="assets-exclude-odolo" style="display:none">
-                            <div class="odolo-toggle-wrap" id="assets-odolo-toggle">
+                            <div class="odolo-toggle-wrap" id="assets-odolo-toggle"
+                                data-tooltip="Toggle oDOLO rewards in the Supply APR calculation.&#10;&#10;When ON, oDOLO incentive rewards are included in the total APR. When OFF, only lending and external yield are shown.">
                                 <img class="odolo-toggle-icon" src="odolo-logo-official.svg" alt="oDOLO">
                                 <span class="odolo-toggle-label">oDOLO</span>
                                 <div class="odolo-switch">
                                     <div class="knob"></div>
                                 </div>
-                                <span class="toggle-tooltip-bubble">Toggle oDOLO rewards in the Supply APR
-                                    calculation.<br><br>When ON, oDOLO incentive rewards are included in the total APR.
-                                    When OFF, only lending and external yield are shown.</span>
                             </div>
-                            <div class="odolo-toggle-wrap gm-toggle-wrap" id="assets-yield-toggle">
+                            <div class="odolo-toggle-wrap gm-toggle-wrap" id="assets-yield-toggle"
+                                data-tooltip="Toggle external yield sources (staking, GM Performance, etc.) in the Supply APR calculation.">
                                 <span class="odolo-toggle-label gm-toggle-label">Yield</span>
                                 <span class="yield-help-icon" onclick="event.stopPropagation()">?<span
                                         class="tooltip-bubble">Include / exclude external yield sources from Total
@@ -8712,51 +8693,52 @@
                                 <div class="odolo-switch gm-switch">
                                     <div class="knob"></div>
                                 </div>
-                                <span class="toggle-tooltip-bubble">Toggle external yield sources (staking, GM
-                                    Performance, etc.) in the Supply APR calculation.</span>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            <div id="assets-spinner" class="assets-spinner">
-                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-                <div style="margin-top:8px">Loading rates from all chains…</div>
-            </div>
-            <div class="table-section" id="assets-table-wrap" style="display:none">
-                <div class="table-scroll">
-                    <table class="assets-table" id="assets-table">
-                        <colgroup>
-                            <col style="width:28%">
-                            <col style="width:12%">
-                            <col style="width:14%">
-                            <col style="width:26%">
-                            <col style="width:20%">
-                        </colgroup>
-                        <thead>
-                            <tr>
-                                <th data-col="symbol">Token <span class="sort-arrow"></span></th>
-                                <th data-col="chain">Chain <span class="sort-arrow"></span></th>
-                                <th data-col="price">Price <span class="sort-arrow"></span></th>
-                                <th data-col="supplyApr" class="sorted">Supply APR <span class="sort-arrow">▼</span>
-                                </th>
-                                <th data-col="borrowApr">Borrow APR <span class="sort-arrow"></span></th>
-                            </tr>
-                        </thead>
-                        <tbody id="assets-tbody"></tbody>
-                    </table>
-                </div>
+                <div id="toggle-tooltip-float"></div>
             </div>
         </div>
+    </div>
+    <div id="assets-spinner" class="assets-spinner">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <div style="margin-top:8px">Loading rates from all chains…</div>
+    </div>
+    <div class="table-section" id="assets-table-wrap" style="display:none">
+        <div class="table-scroll">
+            <table class="assets-table" id="assets-table">
+                <colgroup>
+                    <col style="width:28%">
+                    <col style="width:12%">
+                    <col style="width:14%">
+                    <col style="width:26%">
+                    <col style="width:20%">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th data-col="symbol">Token <span class="sort-arrow"></span></th>
+                        <th data-col="chain">Chain <span class="sort-arrow"></span></th>
+                        <th data-col="price">Price <span class="sort-arrow"></span></th>
+                        <th data-col="supplyApr" class="sorted">Supply APR <span class="sort-arrow">▼</span>
+                        </th>
+                        <th data-col="borrowApr">Borrow APR <span class="sort-arrow"></span></th>
+                    </tr>
+                </thead>
+                <tbody id="assets-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+    </div>
 
-        <!-- Protocol Info -->
-        <div class="card anim anim-d4 protocol-info-card" style="margin-top:24px">
-            <div class="card-header">
-                <div class="proto-brand"><img src="dolomite-logo.svg" alt="Dolomite"></div>
-            </div>
-            <div class="protocol-links-row proto-links"></div>
-            <div class="protocol-contracts proto-contracts"></div>
+    <!-- Protocol Info -->
+    <div class="card anim anim-d4 protocol-info-card" style="margin-top:24px">
+        <div class="card-header">
+            <div class="proto-brand"><img src="dolomite-logo.svg" alt="Dolomite"></div>
         </div>
+        <div class="protocol-links-row proto-links"></div>
+        <div class="protocol-contracts proto-contracts"></div>
+    </div>
     </div><!-- /view-assets -->
 
     <!-- BORROW VIEW -->
@@ -13618,6 +13600,23 @@
                     assets_render();
                 });
             }
+
+            // Toggle tooltip: float on body to avoid overflow clipping
+            const ttFloat = document.getElementById('toggle-tooltip-float');
+            document.querySelectorAll('.odolo-toggle-wrap[data-tooltip]').forEach(wrap => {
+                wrap.addEventListener('mouseenter', () => {
+                    if (!ttFloat) return;
+                    ttFloat.textContent = wrap.dataset.tooltip;
+                    ttFloat.style.display = 'block';
+                    const rect = wrap.getBoundingClientRect();
+                    ttFloat.style.top = (rect.bottom + 8) + 'px';
+                    ttFloat.style.right = (window.innerWidth - rect.right) + 'px';
+                    ttFloat.style.left = 'auto';
+                });
+                wrap.addEventListener('mouseleave', () => {
+                    if (ttFloat) ttFloat.style.display = 'none';
+                });
+            });
         }
 
         function assets_bindSortHeaders() {
@@ -13713,7 +13712,7 @@
                 let breakdownLines = [];
                 // Dolomite lending yield (from borrowers)
                 if (d.lendingApr > 0.01) {
-                    breakdownLines.push({ label: 'Lending APR', rate: d.lendingApr, cls: 'yield-part', tooltip: 'Interest earned from borrowers on Dolomite' });
+                    breakdownLines.push({ label: 'Lending APR', rate: d.lendingApr, cls: 'lending-part', tooltip: 'Interest earned from borrowers on Dolomite' });
                 }
                 // External yield sources (staking, restaking, etc.)
                 if (d.yieldSources && d.yieldSources.length > 0 && !assets_excludeYield) {
