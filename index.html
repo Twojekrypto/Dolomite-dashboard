@@ -5889,10 +5889,22 @@
             border-radius: 0 0 0 16px;
         }
 
-        /* Prevent enlarging/shifting on earn row hover */
-        .earn-asset-table tbody tr.earn-data-row:hover td,
+        /* COMPLETELY prevent any visual data changes on earn row hover */
+        .earn-asset-table tbody tr.earn-data-row:hover {
+            transform: none !important;
+        }
+
+        .earn-asset-table tbody tr.earn-data-row:hover td {
+            transform: none !important;
+            font-size: inherit !important;
+            padding-top: 14px !important;
+            padding-bottom: 14px !important;
+        }
+
         .earn-asset-table tbody tr.earn-data-row:hover td * {
             transform: none !important;
+            font-size: inherit !important;
+            line-height: inherit !important;
         }
 
         /* Withdrawn bar — pinned below main table */
