@@ -8727,7 +8727,7 @@
                         </div>
                     </div>
                 </div>
-                <div id="toggle-tooltip-float"></div>
+
                 <div id="assets-spinner" class="assets-spinner">
                     <span class="dot"></span><span class="dot"></span><span class="dot"></span>
                     <div style="margin-top:8px">Loading rates from all chains…</div>
@@ -8767,6 +8767,7 @@
                 <div class="protocol-contracts proto-contracts"></div>
             </div>
         </div><!-- /view-assets -->
+        <div id="toggle-tooltip-float"></div>
 
         <!-- BORROW VIEW -->
 
@@ -16515,6 +16516,25 @@
             const filterBar = document.getElementById('earn-filter-bar');
             if (filterBar) filterBar.style.display = '';
 
+            // Bind tooltip float for earn tab toggles (body-level float)
+            const ttFloat = document.getElementById('toggle-tooltip-float');
+            if (ttFloat) {
+                document.querySelectorAll('#earn-filter-bar .odolo-toggle-wrap[data-tooltip]').forEach(wrap => {
+                    if (wrap._ttBound) return; // avoid duplicate binding
+                    wrap._ttBound = true;
+                    wrap.addEventListener('mouseenter', () => {
+                        ttFloat.textContent = wrap.dataset.tooltip;
+                        ttFloat.style.display = 'block';
+                        const rect = wrap.getBoundingClientRect();
+                        ttFloat.style.top = (rect.bottom + 8) + 'px';
+                        ttFloat.style.right = (window.innerWidth - rect.right) + 'px';
+                        ttFloat.style.left = 'auto';
+                    });
+                    wrap.addEventListener('mouseleave', () => {
+                        ttFloat.style.display = 'none';
+                    });
+                });
+            }
             // Update dust count
             const dustToggle = document.getElementById('earn-dust-toggle');
             if (dustToggle) {
