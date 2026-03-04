@@ -14999,7 +14999,7 @@
                     ? `<div style="font-size:10px;color:var(--text-muted);margin-top:1px;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${item.tokenName}">${item.tokenName.replace('Dolomite Isolation: ', '').replace('Dolomite: Fee + Staked ', '')}</div>`
                     : '';
 
-                html += `<tr class="earn-data-row" id="${rowId}" style="animation-delay:${delay}s" onclick="earn_toggleHistDetail(${idx})">
+                html += `<tr class="earn-data-row" id="${rowId}" style="animation-delay:${delay}s">
                     <td>
                         <div class="earn-token-cell">
                             <div class="earn-token-left">
@@ -15019,16 +15019,6 @@
                     </td>
                 </tr>`;
 
-                // Expandable detail row with CA
-                html += `<tr class="earn-detail-row" id="${detailId}">
-                    <td colspan="4">
-                        <div class="earn-ca-line">
-                            <span class="earn-ca-addr" onclick="event.stopPropagation(); earn_copyAddr('${item.tokenAddr}', this)" title="Click to copy">${item.tokenAddr}</span>
-                            <span class="copy-addr-icon" onclick="event.stopPropagation(); earn_copyAddr('${item.tokenAddr}', this)" title="Copy address"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span>
-                            <a class="earn-ca-explorer" href="${explorerUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="View on explorer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>
-                        </div>
-                    </td>
-                </tr>`;
             });
 
             if (html === '') {
@@ -16289,13 +16279,13 @@
                     earnAprCellHtml = `<span style="color:var(--text-muted)">—</span>`;
                 }
 
-                html += `<tr class="earn-data-row" id="earn-row-${idx}" style="animation-delay:${delay}s" onclick="earn_toggleDetail(${idx})">
+                html += `<tr class="earn-data-row" id="earn-row-${idx}" style="animation-delay:${delay}s">
                     <td>
                         <div class="earn-token-cell">
                             <div class="earn-token-left">
                                 ${iconHtml}
                                 <div class="earn-token-info">
-                                    <div class="earn-token-name">${a.symbol} ${chevron}</div>
+                                    <div class="earn-token-name">${a.symbol}</div>
                                     <span class="earn-hist-badge active"><span class="earn-status-dot"></span>ACTIVE</span>
                                 </div>
                             </div>
@@ -16310,19 +16300,6 @@
                     </td>
                     <td>
                         ${yieldCellHtml}
-                    </td>
-                </tr>`;
-
-                // Expandable detail row — simple inline CA
-                const breakdownHtml = earn_buildBreakdown(mid, a.decimals, a.symbol);
-                html += `<tr class="earn-detail-row" id="earn-detail-${idx}">
-                    <td colspan="4">
-                        <div class="earn-ca-line">
-                            <span class="earn-ca-addr" onclick="event.stopPropagation(); earn_copyAddr('${a.tokenAddr}', this)" title="Click to copy">${a.tokenAddr}</span>
-                            <span class="copy-addr-icon" onclick="event.stopPropagation(); earn_copyAddr('${a.tokenAddr}', this)" title="Copy address"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span>
-                            <a class="earn-ca-explorer" href="${explorerUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="View on explorer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>
-                        </div>
-                        ${breakdownHtml}
                     </td>
                 </tr>`;
             });
@@ -16374,13 +16351,13 @@
                     const chevron = `<svg class="earn-row-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
                     const explorerUrl = `${explorerBase}/address/${item.tokenAddr}`;
 
-                    withdrawnHtml += `<tr class="earn-data-row earn-row-inactive" id="earn-row-${ii}" style="animation-delay:${delay}s" onclick="earn_toggleDetail(${ii})">
+                    withdrawnHtml += `<tr class="earn-data-row earn-row-inactive" id="earn-row-${ii}" style="animation-delay:${delay}s">
                         <td>
                             <div class="earn-token-cell">
                                 <div class="earn-token-left">
                                     ${iconHtml}
                                     <div class="earn-token-info">
-                                        <div class="earn-token-name">${item.symbol} ${chevron}</div>
+                                        <div class="earn-token-name">${item.symbol}</div>
                                         <span class="earn-hist-badge withdrawn"><span class="earn-status-dot"></span>WITHDRAWN</span>
                                     </div>
                                 </div>
@@ -16401,16 +16378,6 @@
                         <td>
                             <span class="earn-amount ${yieldColor}">${yieldSign}${yieldFmt}<span class="earn-amount-sym">${item.symbol}</span></span>
                             ${yieldUsdFmt}
-                        </td>
-                    </tr>`;
-
-                    withdrawnHtml += `<tr class="earn-detail-row" id="earn-detail-${ii}">
-                        <td colspan="4">
-                            <div class="earn-ca-line">
-                                <span class="earn-ca-addr" onclick="event.stopPropagation(); earn_copyAddr('${item.tokenAddr}', this)" title="Click to copy">${item.tokenAddr}</span>
-                                <span class="copy-addr-icon" onclick="event.stopPropagation(); earn_copyAddr('${item.tokenAddr}', this)" title="Copy address"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span>
-                                <a class="earn-ca-explorer" href="${explorerUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="View on explorer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>
-                            </div>
                         </td>
                     </tr>`;
                 });
