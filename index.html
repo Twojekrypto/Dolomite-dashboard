@@ -696,10 +696,16 @@
         /* ─── ASSETS tab ─── */
         .assets-controls {
             display: flex;
-            align-items: center;
-            flex-wrap: wrap;
+            flex-direction: column;
             gap: 10px;
             padding: 8px 0 12px;
+        }
+
+        .assets-controls-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
         }
 
         .assets-search-wrap {
@@ -8455,122 +8461,126 @@
                 <div class="card-header">
                     <h3>Dolomite Assets</h3>
                 </div>
-                <div id="assets-chain-filter" class="dolo-chain-pills"></div>
                 <div class="assets-controls">
-                    <div class="assets-search-wrap">
-                        <span class="search-icon">🔍</span>
-                        <input type="text" class="assets-search" id="assets-search"
-                            placeholder="Search token or paste address…" spellcheck="false" autocomplete="off">
-                    </div>
-                    <div class="assets-filters-group">
-                        <div class="assets-cat-pills" id="assets-cat-pills">
-                            <button class="active" data-cat="all">All</button>
-                            <button data-cat="stable">Stables</button>
-                            <button data-cat="btc">BTC</button>
-                            <button data-cat="eth">ETH</button>
+                    <div class="assets-controls-row">
+                        <div class="assets-search-wrap">
+                            <span class="search-icon">🔍</span>
+                            <input type="text" class="assets-search" id="assets-search"
+                                placeholder="Search token or paste address…" spellcheck="false" autocomplete="off">
                         </div>
-                        <span class="divider"></span>
-                        <input type="checkbox" id="assets-exclude-odolo" style="display:none">
-                        <div class="odolo-toggle-wrap" id="assets-odolo-toggle" title="Toggle oDOLO rewards in APR">
-                            <img class="odolo-toggle-icon" src="odolo-logo-official.svg" alt="oDOLO">
-                            <span class="odolo-toggle-label">oDOLO</span>
-                            <div class="odolo-switch">
-                                <div class="knob"></div>
+                        <div id="assets-chain-filter" class="dolo-chain-pills"></div>
+                    </div>
+                    <div class="assets-controls-row">
+                        <div class="assets-filters-group">
+                            <div class="assets-cat-pills" id="assets-cat-pills">
+                                <button class="active" data-cat="all">All</button>
+                                <button data-cat="stable">Stables</button>
+                                <button data-cat="btc">BTC</button>
+                                <button data-cat="eth">ETH</button>
+                            </div>
+                            <span class="divider"></span>
+                            <input type="checkbox" id="assets-exclude-odolo" style="display:none">
+                            <div class="odolo-toggle-wrap" id="assets-odolo-toggle" title="Toggle oDOLO rewards in APR">
+                                <img class="odolo-toggle-icon" src="odolo-logo-official.svg" alt="oDOLO">
+                                <span class="odolo-toggle-label">oDOLO</span>
+                                <div class="odolo-switch">
+                                    <div class="knob"></div>
+                                </div>
+                            </div>
+                            <div class="odolo-toggle-wrap gm-toggle-wrap" id="assets-yield-toggle"
+                                title="Toggle external yield sources (staking, GM Performance, etc.) in APR">
+                                <span class="odolo-toggle-label gm-toggle-label">Yield</span>
+                                <div class="odolo-switch gm-switch">
+                                    <div class="knob"></div>
+                                </div>
                             </div>
                         </div>
-                        <div class="odolo-toggle-wrap gm-toggle-wrap" id="assets-gm-toggle"
-                            title="Toggle GM Performance APR">
-                            <span class="odolo-toggle-label gm-toggle-label">GM</span>
-                            <div class="odolo-switch gm-switch">
-                                <div class="knob"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div id="assets-spinner" class="assets-spinner">
-                    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-                    <div style="margin-top:8px">Loading rates from all chains…</div>
-                </div>
-                <div class="table-section" id="assets-table-wrap" style="display:none">
-                    <div class="table-scroll">
-                        <table class="assets-table" id="assets-table">
-                            <colgroup>
-                                <col style="width:28%">
-                                <col style="width:12%">
-                                <col style="width:14%">
-                                <col style="width:26%">
-                                <col style="width:20%">
-                            </colgroup>
-                            <thead>
-                                <tr>
-                                    <th data-col="symbol">Token <span class="sort-arrow"></span></th>
-                                    <th data-col="chain">Chain <span class="sort-arrow"></span></th>
-                                    <th data-col="price">Price <span class="sort-arrow"></span></th>
-                                    <th data-col="supplyApr" class="sorted">Supply APR <span class="sort-arrow">▼</span>
-                                    </th>
-                                    <th data-col="borrowApr">Borrow APR <span class="sort-arrow"></span></th>
-                                </tr>
-                            </thead>
-                            <tbody id="assets-tbody"></tbody>
-                        </table>
                     </div>
                 </div>
             </div>
-
-            <!-- Protocol Info -->
-            <div class="card anim anim-d4 protocol-info-card" style="margin-top:24px">
-                <div class="card-header">
-                    <div class="proto-brand"><img src="dolomite-logo.svg" alt="Dolomite"></div>
-                </div>
-                <div class="protocol-links-row proto-links"></div>
-                <div class="protocol-contracts proto-contracts"></div>
+            <div id="assets-spinner" class="assets-spinner">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                <div style="margin-top:8px">Loading rates from all chains…</div>
             </div>
-        </div><!-- /view-assets -->
-
-        <!-- BORROW VIEW -->
-
-
-
-        <!-- Snapshot Calendar Picker Modal -->
-        <div class="earn-custom-date-overlay" id="earn-custom-date-overlay"
-            onclick="if(event.target===this)earn_closeCustomDate()">
-            <div class="earn-custom-date-modal">
-                <div class="earn-cal-header">
-                    <h4>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                            <line x1="16" y1="2" x2="16" y2="6" />
-                            <line x1="8" y1="2" x2="8" y2="6" />
-                            <line x1="3" y1="10" x2="21" y2="10" />
-                        </svg>
-                        Select Date
-                    </h4>
-                    <button class="earn-cal-close" onclick="earn_closeCustomDate()">&times;</button>
-                </div>
-                <div class="earn-cal-nav">
-                    <button onclick="earn_calNavigate(-1)">&#8249;</button>
-                    <span class="earn-cal-month-label" id="earn-cal-month-label"></span>
-                    <button onclick="earn_calNavigate(1)">&#8250;</button>
-                </div>
-                <div class="earn-cal-weekdays">
-                    <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
-                </div>
-                <div class="earn-cal-grid" id="earn-cal-grid"></div>
-                <div class="earn-cal-hint">
-                    Only verified on-chain snapshot dates can be selected
-                    <div class="earn-cal-legend">
-                        <span class="legend-item"><span class="legend-dot available"></span> Data available</span>
-                        <span class="legend-item"><span class="legend-dot today-dot"></span> Today</span>
-                    </div>
+            <div class="table-section" id="assets-table-wrap" style="display:none">
+                <div class="table-scroll">
+                    <table class="assets-table" id="assets-table">
+                        <colgroup>
+                            <col style="width:28%">
+                            <col style="width:12%">
+                            <col style="width:14%">
+                            <col style="width:26%">
+                            <col style="width:20%">
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th data-col="symbol">Token <span class="sort-arrow"></span></th>
+                                <th data-col="chain">Chain <span class="sort-arrow"></span></th>
+                                <th data-col="price">Price <span class="sort-arrow"></span></th>
+                                <th data-col="supplyApr" class="sorted">Supply APR <span class="sort-arrow">▼</span>
+                                </th>
+                                <th data-col="borrowApr">Borrow APR <span class="sort-arrow"></span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="assets-tbody"></tbody>
+                    </table>
                 </div>
             </div>
         </div>
 
-        <footer class="site-footer anim anim-d4">
-            Generated <span id="footer-date"></span> · Data from <a href="https://berascan.com"
-                target="_blank">BeraScan</a>
-        </footer>
+        <!-- Protocol Info -->
+        <div class="card anim anim-d4 protocol-info-card" style="margin-top:24px">
+            <div class="card-header">
+                <div class="proto-brand"><img src="dolomite-logo.svg" alt="Dolomite"></div>
+            </div>
+            <div class="protocol-links-row proto-links"></div>
+            <div class="protocol-contracts proto-contracts"></div>
+        </div>
+    </div><!-- /view-assets -->
+
+    <!-- BORROW VIEW -->
+
+
+
+    <!-- Snapshot Calendar Picker Modal -->
+    <div class="earn-custom-date-overlay" id="earn-custom-date-overlay"
+        onclick="if(event.target===this)earn_closeCustomDate()">
+        <div class="earn-custom-date-modal">
+            <div class="earn-cal-header">
+                <h4>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                    Select Date
+                </h4>
+                <button class="earn-cal-close" onclick="earn_closeCustomDate()">&times;</button>
+            </div>
+            <div class="earn-cal-nav">
+                <button onclick="earn_calNavigate(-1)">&#8249;</button>
+                <span class="earn-cal-month-label" id="earn-cal-month-label"></span>
+                <button onclick="earn_calNavigate(1)">&#8250;</button>
+            </div>
+            <div class="earn-cal-weekdays">
+                <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+            </div>
+            <div class="earn-cal-grid" id="earn-cal-grid"></div>
+            <div class="earn-cal-hint">
+                Only verified on-chain snapshot dates can be selected
+                <div class="earn-cal-legend">
+                    <span class="legend-item"><span class="legend-dot available"></span> Data available</span>
+                    <span class="legend-item"><span class="legend-dot today-dot"></span> Today</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="site-footer anim anim-d4">
+        Generated <span id="footer-date"></span> · Data from <a href="https://berascan.com" target="_blank">BeraScan</a>
+    </footer>
     </div>
 
     <!-- PROFILE MODAL -->
@@ -13173,7 +13183,7 @@
         let assets_selectedCat = 'all';
         let assets_searchQuery = '';
         let assets_excludeOdolo = false;
-        let assets_excludeGm = false;
+        let assets_excludeYield = false;
 
         const ASSETS_CHAINS = {
             berachain: { id: 80094, name: 'Berachain', short: 'BERA', icon: 'https://icons.llamao.fi/icons/chains/rsz_berachain.jpg' },
@@ -13238,11 +13248,10 @@
                         // 7d average
                         const avg7d = r.historicalRates && r.historicalRates['7d']
                             ? parseFloat(r.historicalRates['7d'].supplyInterestRate) || 0 : 0;
-                        // Track GM yield APR separately
-                        let gmYieldApr = 0;
+                        // Track total external yield APR
+                        let extYieldApr = 0;
                         yieldSources.forEach(ys => {
-                            const isGm = (ys.label || '').includes('Price Implied') || (ys.label || '').includes('GM ');
-                            if (isGm) gmYieldApr += ys.rate;
+                            extYieldApr += ys.rate;
                         });
                         results.push({
                             symbol: r.token.tokenSymbol,
@@ -13257,7 +13266,7 @@
                             rewards: odoloRewards * 100,
                             lendingApr: baseLending * 100,
                             yieldSources: yieldSources,
-                            gmApr: gmYieldApr,
+                            extYieldApr: extYieldApr,
                             supplyApr7d: avg7d * 100,
                             cat: assets_classify(r.token.tokenSymbol),
                             price: 0,
@@ -13379,12 +13388,12 @@
                     assets_render();
                 });
             }
-            // GM toggle
-            const gmToggle = document.getElementById('assets-gm-toggle');
-            if (gmToggle) {
-                gmToggle.addEventListener('click', () => {
-                    assets_excludeGm = !assets_excludeGm;
-                    gmToggle.classList.toggle('active', assets_excludeGm);
+            // Yield toggle
+            const yieldToggle = document.getElementById('assets-yield-toggle');
+            if (yieldToggle) {
+                yieldToggle.addEventListener('click', () => {
+                    assets_excludeYield = !assets_excludeYield;
+                    yieldToggle.classList.toggle('active', assets_excludeYield);
                     assets_render();
                 });
             }
@@ -13459,7 +13468,7 @@
                 // Compute adjusted supply APR based on active toggles
                 let adjSupply = d.supplyApr;
                 if (assets_excludeOdolo) adjSupply -= d.rewards;
-                if (assets_excludeGm) adjSupply -= d.gmApr;
+                if (assets_excludeYield) adjSupply -= d.extYieldApr;
                 const supplyClass = adjSupply > 0 ? 'assets-apy-green' : (adjSupply < 0 ? 'assets-apy-red' : 'assets-apy-dim');
                 const supplyStyle = adjSupply > 0 ? 'font-size:15px;font-weight:700' : '';
 
@@ -13482,10 +13491,9 @@
                     breakdownLines.push({ label: 'Lending APR', rate: d.lendingApr, cls: 'yield-part' });
                 }
                 // External yield sources (staking, restaking, etc.)
-                if (d.yieldSources && d.yieldSources.length > 0) {
+                if (d.yieldSources && d.yieldSources.length > 0 && !assets_excludeYield) {
                     d.yieldSources.forEach(ys => {
                         const isGm = (ys.label || '').includes('Price Implied') || (ys.label || '').includes('GM ');
-                        if (isGm && assets_excludeGm) return; // skip GM lines if excluded
                         // Shorten GM labels
                         let displayLabel = ys.label;
                         if (isGm) {
