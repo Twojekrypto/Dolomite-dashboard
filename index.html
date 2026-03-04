@@ -8597,10 +8597,9 @@
                     <div class="table-scroll">
                         <table class="earn-asset-table">
                             <colgroup>
-                                <col style="width:25%">
-                                <col style="width:25%">
-                                <col style="width:25%">
-                                <col style="width:25%">
+                                <col style="width:40%">
+                                <col style="width:30%">
+                                <col style="width:30%">
                             </colgroup>
                             <thead>
                                 <tr>
@@ -8618,9 +8617,6 @@
                                                 isolated from deposits, withdrawals, and swaps using supply
                                                 index tracking. Coverage period shown below each
                                                 value.</span></span>
-                                    </th>
-                                    <th data-sort="apr" onclick="earn_sortAssets('apr')">Supply APR
-                                        <span class="earn-sort-arrow">▼</span>
                                     </th>
                                 </tr>
                             </thead>
@@ -16278,6 +16274,7 @@
                                 <div class="earn-token-info">
                                     <div class="earn-token-name">${a.symbol} ${chevron}</div>
                                     <span class="earn-hist-badge active"><span class="earn-status-dot"></span>ACTIVE</span>
+                                    ${earnAprCellHtml}
                                 </div>
                             </div>
                         </div>
@@ -16289,15 +16286,12 @@
                     <td>
                         ${yieldCellHtml}
                     </td>
-                    <td>
-                        ${earnAprCellHtml}
-                    </td>
                 </tr>`;
 
                 // Expandable detail row — simple inline CA
                 const breakdownHtml = earn_buildBreakdown(mid, a.decimals, a.symbol);
                 html += `<tr class="earn-detail-row" id="earn-detail-${idx}">
-                    <td colspan="4">
+                    <td colspan="3">
                         <div class="earn-ca-line">
                             <span class="earn-ca-addr" onclick="event.stopPropagation(); earn_copyAddr('${a.tokenAddr}', this)" title="Click to copy">${a.tokenAddr}</span>
                             <span class="copy-addr-icon" onclick="event.stopPropagation(); earn_copyAddr('${a.tokenAddr}', this)" title="Copy address"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span>
@@ -16382,11 +16376,10 @@
                             <span class="earn-amount ${yieldColor}">${yieldSign}${yieldFmt}<span class="earn-amount-sym">${item.symbol}</span></span>
                             ${yieldUsdFmt}
                         </td>
-                        <td><span style="color:var(--text-muted)">—</span></td>
                     </tr>`;
 
                     withdrawnHtml += `<tr class="earn-detail-row" id="earn-detail-${ii}">
-                        <td colspan="4">
+                        <td colspan="3">
                             <div class="earn-ca-line">
                                 <span class="earn-ca-addr" onclick="event.stopPropagation(); earn_copyAddr('${item.tokenAddr}', this)" title="Click to copy">${item.tokenAddr}</span>
                                 <span class="copy-addr-icon" onclick="event.stopPropagation(); earn_copyAddr('${item.tokenAddr}', this)" title="Copy address"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span>
