@@ -8427,12 +8427,26 @@
                 </div>
                 <div class="assets-controls">
                     <div class="assets-controls-row">
-                        <div class="assets-search-wrap">
-                            <span class="search-icon">🔍</span>
-                            <input type="text" class="assets-search" id="assets-search"
-                                placeholder="Search token or address…" spellcheck="false" autocomplete="off">
+                        <div class="earn-input-row" style="max-width:580px;flex:1">
+                            <div class="earn-input-wrapper">
+                                <input type="text" class="earn-input" id="assets-search"
+                                    placeholder="Search token or paste address…" spellcheck="false" autocomplete="off"
+                                    style="padding:14px 16px;font-family:'Inter',sans-serif;font-size:13px">
+                            </div>
+                            <div class="earn-chain-dropdown" id="assets-chain-dropdown">
+                                <button type="button" class="earn-chain-trigger" id="assets-chain-trigger"
+                                    onclick="assetsChainToggle()">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="1.5" style="flex-shrink:0">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <path
+                                            d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
+                                    </svg>
+                                    <span>All Chains</span>
+                                </button>
+                                <div class="earn-chain-menu" id="assets-chain-menu"></div>
+                            </div>
                         </div>
-                        <div id="assets-chain-filter" class="dolo-chain-pills"></div>
                     </div>
                     <div class="assets-controls-row">
                         <div class="assets-filters-group">
@@ -13255,8 +13269,8 @@
 
             assets_allData = results;
 
-            // Build chain pills
-            assets_buildChainPills();
+            // Build chain dropdown
+            assetsBuildChainMenu();
             // Bind category buttons
             assets_bindCatPills();
             // Bind table header sorting
@@ -13270,38 +13284,41 @@
             document.getElementById('assets-table-wrap').style.display = '';
         }
 
-        function assets_buildChainPills() {
-            const el = document.getElementById('assets-chain-filter');
-            if (!el) return;
-            const GLOBE = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="vertical-align:middle;margin-right:3px;margin-top:-1px"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>`;
-            let html = `<div class="dolo-chain-slider"></div><button class="active" data-chain="all">${GLOBE}All</button>`;
-            Object.entries(ASSETS_CHAINS).forEach(([key, c]) => {
-                html += `<button data-chain="${key}"><img src="${c.icon}" alt="">${c.short}</button>`;
-            });
-            el.innerHTML = html;
-
-            const slider = el.querySelector('.dolo-chain-slider');
-            function posSlider(btn) {
-                const px = el.getBoundingClientRect();
-                const bx = btn.getBoundingClientRect();
-                slider.style.width = bx.width + 'px';
-                slider.style.transform = `translateX(${bx.left - px.left - 2}px)`;
-            }
-            requestAnimationFrame(() => {
-                const ab = el.querySelector('button.active');
-                if (ab) { posSlider(ab); slider.style.opacity = '1'; }
-            });
-
-            el.querySelectorAll('button').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    el.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    posSlider(btn);
-                    assets_selectedChain = btn.dataset.chain;
-                    assets_render();
-                });
-            });
+        function assetsChainToggle() {
+            document.getElementById('assets-chain-dropdown').classList.toggle('open');
         }
+
+        function assetsChainSelect(key) {
+            assets_selectedChain = key;
+            const trigger = document.getElementById('assets-chain-trigger');
+            if (key === 'all') {
+                const GLOBE = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>`;
+                trigger.innerHTML = `${GLOBE}<span>All Chains</span>`;
+            } else {
+                const c = ASSETS_CHAINS[key];
+                trigger.innerHTML = `<img src="${c.icon}" alt=""><span>${c.name}</span>`;
+            }
+            document.getElementById('assets-chain-dropdown').classList.remove('open');
+            document.querySelectorAll('#assets-chain-menu .earn-chain-option').forEach(o => o.classList.toggle('active', o.dataset.chain === key));
+            assets_render();
+        }
+
+        function assetsBuildChainMenu() {
+            const menu = document.getElementById('assets-chain-menu');
+            if (!menu) return;
+            const GLOBE = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>`;
+            let html = `<div class="earn-chain-option active" data-chain="all" onclick="assetsChainSelect('all')">${GLOBE}<span>All Chains</span></div>`;
+            Object.entries(ASSETS_CHAINS).forEach(([key, c]) => {
+                html += `<div class="earn-chain-option" data-chain="${key}" onclick="assetsChainSelect('${key}')"><img src="${c.icon}" alt=""><span>${c.name}</span></div>`;
+            });
+            menu.innerHTML = html;
+        }
+
+        // Close assets chain dropdown on outside click
+        document.addEventListener('click', (e) => {
+            const dd = document.getElementById('assets-chain-dropdown');
+            if (dd && !dd.contains(e.target)) dd.classList.remove('open');
+        });
 
         function assets_bindCatPills() {
             const wrap = document.getElementById('assets-cat-pills');
