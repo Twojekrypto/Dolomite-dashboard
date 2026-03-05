@@ -715,13 +715,10 @@
         .assets-controls-row {
             display: flex;
             align-items: center;
+            justify-content: space-between;
             gap: 10px;
             flex-wrap: wrap;
             width: 100%;
-        }
-
-        .assets-controls-row:last-child {
-            justify-content: space-between;
         }
 
         .assets-search-wrap {
@@ -8898,15 +8895,8 @@
                     <h3>Dolomite Assets</h3>
                 </div>
                 <div class="assets-controls">
-                    <div class="assets-controls-row" style="justify-content:space-between">
-                        <div class="assets-filters-group">
-                            <div class="assets-cat-pills" id="assets-cat-pills" style="display:none">
-                                <button class="active" data-cat="all">All</button>
-                                <button data-cat="stable">Stables</button>
-                                <button data-cat="btc">BTC</button>
-                                <button data-cat="eth">ETH</button>
-                            </div>
-                        </div>
+                    <div class="assets-controls-row">
+                        <div id="assets-chain-filter" class="dolo-chain-pills"></div>
                         <div class="assets-toggles-right">
                             <input type="checkbox" id="assets-exclude-odolo" style="display:none">
                             <div class="odolo-toggle-wrap" id="assets-odolo-toggle">
@@ -8949,8 +8939,6 @@
                         </div>
                     </div>
                 </div>
-
-                <div id="assets-chain-filter" class="dolo-chain-pills" style="margin-bottom:8px"></div>
 
                 <div id="assets-spinner" class="assets-spinner">
                     <span class="dot"></span><span class="dot"></span><span class="dot"></span>
