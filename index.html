@@ -1340,8 +1340,6 @@
             display: flex;
             flex-direction: column;
             gap: 1px;
-            max-width: 100%;
-            overflow: hidden;
         }
 
         .assets-apy-breakdown .lending-part {
@@ -1359,14 +1357,6 @@
 
         .assets-apy-breakdown .odolo-part {
             color: #60a5fa;
-        }
-
-        .assets-apy-breakdown span {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 100%;
-            display: block;
         }
 
         .assets-spinner {
@@ -13987,7 +13977,7 @@
                     <td style="font-size:13px;color:rgba(255,255,255,0.85)">${priceHtml}</td>
                     <td><span class="assets-chain-badge"><img src="${d.chainIcon}" alt="">${d.chainShort}</span></td>
                     <td>
-                        <div style="width:0;min-width:100%;overflow-x:clip;overflow-y:visible">
+                        <div>
                             <div><span class="${supplyClass}" style="${supplyStyle}">${displaySupply.toFixed(2)}%</span></div>
                             ${breakdownHtml}
                         </div>
