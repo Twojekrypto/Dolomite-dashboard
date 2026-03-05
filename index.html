@@ -1140,6 +1140,95 @@
             letter-spacing: 0;
         }
 
+        /* Filter dropdown in Token header */
+        .assets-th-filter-btn {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 3px 10px;
+            cursor: pointer;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 10px;
+            font-weight: 500;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+            user-select: none;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .assets-th-filter-btn:hover {
+            border-color: rgba(99, 102, 241, 0.4);
+            color: rgba(255, 255, 255, 0.65);
+            background: rgba(99, 102, 241, 0.06);
+        }
+
+        .assets-th-filter-btn.open {
+            border-color: rgba(99, 102, 241, 0.5);
+            color: rgba(255, 255, 255, 0.7);
+            background: rgba(99, 102, 241, 0.08);
+        }
+
+        .assets-th-filter-btn.filtered {
+            border-color: rgba(52, 211, 153, 0.4);
+            color: #34d399;
+            background: rgba(52, 211, 153, 0.08);
+        }
+
+        .assets-th-filter-icon {
+            width: 11px;
+            height: 11px;
+        }
+
+        .assets-th-filter-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            background: rgba(15, 23, 42, 0.98);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            border-radius: 10px;
+            padding: 4px;
+            z-index: 100;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            min-width: 100px;
+        }
+
+        .assets-th-filter-dropdown.show {
+            display: block;
+        }
+
+        .assets-th-filter-opt {
+            display: block;
+            width: 100%;
+            padding: 6px 12px;
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 11px;
+            font-weight: 500;
+            text-align: left;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.15s ease;
+        }
+
+        .assets-th-filter-opt:hover {
+            background: rgba(99, 102, 241, 0.1);
+            color: #e2e8f0;
+        }
+
+        .assets-th-filter-opt.active {
+            background: rgba(99, 102, 241, 0.15);
+            color: #818cf8;
+        }
+
         .assets-table tbody td {
             padding: 10px 10px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.03);
@@ -8815,7 +8904,7 @@
                     </div>
                     <div class="assets-controls-row" style="justify-content:space-between">
                         <div class="assets-filters-group">
-                            <div class="assets-cat-pills" id="assets-cat-pills">
+                            <div class="assets-cat-pills" id="assets-cat-pills" style="display:none">
                                 <button class="active" data-cat="all">All</button>
                                 <button data-cat="stable">Stables</button>
                                 <button data-cat="btc">BTC</button>
@@ -8892,6 +8981,25 @@
                                             <input type="text" class="assets-th-search" id="assets-search"
                                                 placeholder="Search token or paste address…" spellcheck="false"
                                                 autocomplete="off">
+                                            <div class="assets-th-filter-btn" id="assets-th-filter-btn"
+                                                onclick="assets_toggleFilterDropdown(event)">
+                                                <svg class="assets-th-filter-icon" viewBox="0 0 24 24" fill="none"
+                                                    stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                                                    stroke-linejoin="round">
+                                                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                                                </svg>
+                                                <span id="assets-th-filter-label">All</span>
+                                                <div class="assets-th-filter-dropdown" id="assets-th-filter-dropdown">
+                                                    <button class="assets-th-filter-opt active" data-cat="all"
+                                                        onclick="assets_selectFilter(event, this)">All</button>
+                                                    <button class="assets-th-filter-opt" data-cat="stable"
+                                                        onclick="assets_selectFilter(event, this)">Stables</button>
+                                                    <button class="assets-th-filter-opt" data-cat="btc"
+                                                        onclick="assets_selectFilter(event, this)">BTC</button>
+                                                    <button class="assets-th-filter-opt" data-cat="eth"
+                                                        onclick="assets_selectFilter(event, this)">ETH</button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </th>
                                     <th data-col="price" style="text-align:center">Price <span
@@ -13770,6 +13878,46 @@
                 });
             });
         }
+
+        // Filter dropdown in Token header
+        function assets_toggleFilterDropdown(e) {
+            e.stopPropagation();
+            const dd = document.getElementById('assets-th-filter-dropdown');
+            const btn = document.getElementById('assets-th-filter-btn');
+            const isOpen = dd.classList.toggle('show');
+            btn.classList.toggle('open', isOpen);
+        }
+
+        function assets_selectFilter(e, el) {
+            e.stopPropagation();
+            const cat = el.dataset.cat;
+            const dd = document.getElementById('assets-th-filter-dropdown');
+            const btn = document.getElementById('assets-th-filter-btn');
+            const label = document.getElementById('assets-th-filter-label');
+            dd.querySelectorAll('.assets-th-filter-opt').forEach(b => b.classList.remove('active'));
+            el.classList.add('active');
+            label.textContent = el.textContent;
+            dd.classList.remove('show');
+            btn.classList.remove('open');
+            btn.classList.toggle('filtered', cat !== 'all');
+            assets_selectedCat = cat;
+            // Sync old cat pills too
+            const oldPills = document.getElementById('assets-cat-pills');
+            if (oldPills) {
+                oldPills.querySelectorAll('button').forEach(b => {
+                    b.classList.toggle('active', b.dataset.cat === cat);
+                });
+            }
+            assets_render();
+        }
+
+        // Close filter dropdown on outside click
+        document.addEventListener('click', function () {
+            const dd = document.getElementById('assets-th-filter-dropdown');
+            const btn = document.getElementById('assets-th-filter-btn');
+            if (dd) dd.classList.remove('show');
+            if (btn) btn.classList.remove('open');
+        });
 
         function assets_bindSearch() {
             const searchEl = document.getElementById('assets-search');
