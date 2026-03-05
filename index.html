@@ -876,7 +876,7 @@
         .odolo-toggle-label {
             font-size: 11px;
             font-weight: 600;
-            color: #34d399;
+            color: #60a5fa;
             transition: color 0.2s;
         }
 
@@ -889,8 +889,8 @@
             width: 32px;
             height: 18px;
             border-radius: 10px;
-            background: rgba(52, 211, 153, 0.25);
-            border: 1px solid rgba(52, 211, 153, 0.4);
+            background: rgba(96, 165, 250, 0.25);
+            border: 1px solid rgba(96, 165, 250, 0.4);
             transition: all 0.25s ease;
             flex-shrink: 0;
         }
@@ -902,8 +902,8 @@
             width: 12px;
             height: 12px;
             border-radius: 50%;
-            background: #34d399;
-            box-shadow: 0 0 6px rgba(52, 211, 153, 0.5);
+            background: #60a5fa;
+            box-shadow: 0 0 6px rgba(96, 165, 250, 0.5);
             transition: all 0.25s ease;
         }
 
@@ -948,9 +948,9 @@
             box-shadow: 0 0 6px rgba(248, 113, 113, 0.5) !important;
         }
 
-        /* Lending toggle blue overrides */
+        /* Lending toggle white overrides */
         .lending-toggle-label {
-            color: #60a5fa !important;
+            color: #e2e8f0 !important;
         }
 
         .lending-toggle-wrap.active .lending-toggle-label {
@@ -958,13 +958,13 @@
         }
 
         .lending-switch {
-            background: rgba(96, 165, 250, 0.25) !important;
-            border-color: rgba(96, 165, 250, 0.4) !important;
+            background: rgba(226, 232, 240, 0.25) !important;
+            border-color: rgba(226, 232, 240, 0.4) !important;
         }
 
         .lending-switch .knob {
-            background: #60a5fa !important;
-            box-shadow: 0 0 6px rgba(96, 165, 250, 0.5) !important;
+            background: #e2e8f0 !important;
+            box-shadow: 0 0 6px rgba(226, 232, 240, 0.5) !important;
         }
 
         .lending-toggle-wrap.active .lending-switch {
@@ -1095,6 +1095,30 @@
             font-size: 13px;
             color: rgba(255, 255, 255, 0.85);
             vertical-align: middle;
+        }
+
+        .assets-table tbody td:nth-child(n+2) {
+            text-align: center;
+        }
+
+        /* APR/APY toggle pill */
+        .apr-apy-toggle {
+            display: inline-block;
+            cursor: pointer;
+            padding: 1px 6px;
+            border-radius: 4px;
+            background: rgba(52, 211, 153, 0.15);
+            border: 1px solid rgba(52, 211, 153, 0.35);
+            color: #34d399;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            transition: all 0.2s ease;
+        }
+
+        .apr-apy-toggle:hover {
+            background: rgba(52, 211, 153, 0.3);
+            color: #6ee7b7;
         }
 
         .assets-table tbody tr {
@@ -8679,7 +8703,9 @@
                                         </div>
                                     </th>
                                     <th data-sort="apr" onclick="earn_sortAssets('apr')">
-                                        Supply APR <span class="earn-sort-arrow">▼</span></th>
+                                        Supply <span id="earn-apr-label" class="apr-apy-toggle"
+                                            onclick="event.stopPropagation();earn_toggleAprApy()">APR</span> <span
+                                            class="earn-sort-arrow">▼</span></th>
                                     <th data-sort="balance" class="sort-active" onclick="earn_sortAssets('balance')">
                                         Current Balance <span class="earn-sort-arrow">▼</span></th>
                                     <th data-sort="yield" onclick="earn_sortAssets('yield')">Total Yield Earned
@@ -8830,11 +8856,17 @@
                                             <span>Token <span class="sort-arrow"></span></span>
                                         </div>
                                     </th>
-                                    <th data-col="chain">Chain <span class="sort-arrow"></span></th>
-                                    <th data-col="price">Price <span class="sort-arrow"></span></th>
-                                    <th data-col="supplyApr" class="sorted">Supply APR <span class="sort-arrow">▼</span>
+                                    <th data-col="chain" style="text-align:center">Chain <span
+                                            class="sort-arrow"></span></th>
+                                    <th data-col="price" style="text-align:center">Price <span
+                                            class="sort-arrow"></span></th>
+                                    <th data-col="supplyApr" class="sorted" style="text-align:center">
+                                        Supply <span id="assets-apr-label" class="apr-apy-toggle"
+                                            onclick="event.stopPropagation();assets_toggleAprApy()">APR</span> <span
+                                            class="sort-arrow">▼</span>
                                     </th>
-                                    <th data-col="borrowApr">Borrow APR <span class="sort-arrow"></span></th>
+                                    <th data-col="borrowApr" style="text-align:center">Borrow APR <span
+                                            class="sort-arrow"></span></th>
                                 </tr>
                             </thead>
                             <tbody id="assets-tbody"></tbody>
@@ -13502,6 +13534,17 @@
         let assets_excludeOdolo = false;
         let assets_excludeYield = false;
         let assets_excludeLending = false;
+        let assets_showApy = false; // false=APR, true=APY
+
+        // Convert APR% to APY% (daily compounding)
+        function aprToApy(apr) { return (Math.pow(1 + apr / 100 / 365, 365) - 1) * 100; }
+
+        function assets_toggleAprApy() {
+            assets_showApy = !assets_showApy;
+            const lbl = document.getElementById('assets-apr-label');
+            if (lbl) lbl.textContent = assets_showApy ? 'APY' : 'APR';
+            assets_render();
+        }
 
         const ASSETS_CHAINS = {
             berachain: { id: 80094, name: 'Berachain', short: 'BERA', icon: 'https://icons.llamao.fi/icons/chains/rsz_berachain.jpg' },
@@ -13556,6 +13599,12 @@
                         (r.outsideSupplyInterestRateParts || []).forEach(p => {
                             if (p.label && p.label.includes('oDOLO') && p.interestRate) {
                                 odoloRewards += parseFloat(p.interestRate) || 0;
+                            } else if (p.category === 'rewards' && p.interestRate) {
+                                // Non-oDOLO rewards (e.g., WLFI) — treat as yield sources
+                                const rate = parseFloat(p.interestRate) || 0;
+                                if (rate > 0) {
+                                    yieldSources.push({ label: p.label.replace(/ \(.*\)$/, ''), rate: rate * 100 });
+                                }
                             } else if (p.category === 'nativeYield' && p.interestRate) {
                                 const rate = parseFloat(p.interestRate) || 0;
                                 if (rate > 0) {
@@ -13818,8 +13867,9 @@
                 if (assets_excludeOdolo) adjSupply -= d.rewards;
                 if (assets_excludeYield) adjSupply -= d.extYieldApr;
                 if (assets_excludeLending) adjSupply -= d.lendingApr;
-                const supplyClass = adjSupply > 0 ? 'assets-apy-green' : (adjSupply < 0 ? 'assets-apy-red' : 'assets-apy-dim');
-                const supplyStyle = adjSupply > 0 ? 'font-size:15px;font-weight:700' : '';
+                const displaySupply = assets_showApy ? aprToApy(adjSupply) : adjSupply;
+                const supplyClass = displaySupply > 0 ? 'assets-apy-green' : (displaySupply < 0 ? 'assets-apy-red' : 'assets-apy-dim');
+                const supplyStyle = displaySupply > 0 ? 'font-size:15px;font-weight:700' : '';
 
                 // Token icon from KNOWN_TOKENS
                 const tkKey = d.chainKey + ':' + (d.addr || '').toLowerCase();
@@ -13837,7 +13887,7 @@
                 let breakdownLines = [];
                 // Dolomite lending yield (from borrowers)
                 if (d.lendingApr > 0.01 && !assets_excludeLending) {
-                    breakdownLines.push({ label: 'Lending APR', rate: d.lendingApr, cls: 'lending-part', tooltip: 'Interest earned from borrowers on Dolomite' });
+                    breakdownLines.push({ label: 'Lending', rate: d.lendingApr, cls: 'lending-part', tooltip: 'Interest earned from borrowers on Dolomite' });
                 }
                 // External yield sources (staking, restaking, etc.)
                 if (d.yieldSources && d.yieldSources.length > 0 && !assets_excludeYield) {
@@ -13858,7 +13908,7 @@
                 }
                 // oDOLO rewards
                 if (d.rewards > 0 && !assets_excludeOdolo) {
-                    breakdownLines.push({ label: 'oDOLO Rewards', rate: d.rewards, cls: 'odolo-part', tooltip: 'oDOLO incentive rewards distributed to suppliers' });
+                    breakdownLines.push({ label: 'oDOLO', rate: d.rewards, cls: 'odolo-part', tooltip: 'oDOLO incentive rewards distributed to suppliers' });
                 }
                 let breakdownHtml = '';
                 if (breakdownLines.length > 0) {
@@ -13867,7 +13917,8 @@
                             const tooltipHtml = l.tooltip
                                 ? ` <span class="breakdown-help-icon">?<span class="tooltip-bubble">${l.tooltip}</span></span>`
                                 : '';
-                            return `<span class="${l.cls}">+ ${l.rate.toFixed(2)}% ${l.label}${tooltipHtml}</span>`;
+                            const displayRate = assets_showApy ? aprToApy(l.rate) : l.rate;
+                            return `<span class="${l.cls}">+ ${displayRate.toFixed(2)}% ${l.label}${tooltipHtml}</span>`;
                         }).join('') +
                         '</div>';
                 }
@@ -13897,7 +13948,7 @@
                     <td><span class="assets-chain-badge"><img src="${d.chainIcon}" alt="">${d.chainShort}</span></td>
                     <td style="font-size:13px;color:rgba(255,255,255,0.85)">${priceHtml}</td>
                     <td>
-                        <div><span class="${supplyClass}" style="${supplyStyle}">${adjSupply.toFixed(2)}%</span></div>
+                        <div><span class="${supplyClass}" style="${supplyStyle}">${displaySupply.toFixed(2)}%</span></div>
                         ${breakdownHtml}
                     </td>
                     <td><span class="assets-apy-red">${d.borrowApr > 0 ? d.borrowApr.toFixed(2) + '%' : '—'}</span></td>
@@ -15215,6 +15266,14 @@
         let earn_excludeOdolo = false;
         let earn_excludeYield = false;
         let earn_excludeLending = false;
+        let earn_showApy = false; // false=APR, true=APY
+
+        function earn_toggleAprApy() {
+            earn_showApy = !earn_showApy;
+            const lbl = document.getElementById('earn-apr-label');
+            if (lbl) lbl.textContent = earn_showApy ? 'APY' : 'APR';
+            earn_renderResults({ skipSummary: true });
+        }
 
         // Compute yield BigInt for a single asset (used for sort comparison)
         function earn_getYieldForAsset(a) {
@@ -16073,6 +16132,10 @@
                                 (r.outsideSupplyInterestRateParts || []).forEach(p => {
                                     if (p.label && p.label.includes('oDOLO') && p.interestRate) {
                                         odoloRewards += parseFloat(p.interestRate) || 0;
+                                    } else if (p.category === 'rewards' && p.interestRate) {
+                                        // Non-oDOLO rewards (e.g., WLFI) — treat as yield sources
+                                        const yr = parseFloat(p.interestRate) || 0;
+                                        if (yr > 0) yieldSources.push({ label: p.label.replace(/ \(.*\)$/, ''), rate: yr * 100 });
                                     } else if (p.category === 'nativeYield' && p.interestRate) {
                                         const yr = parseFloat(p.interestRate) || 0;
                                         if (yr > 0) yieldSources.push({ label: p.label, rate: yr * 100 });
@@ -16392,11 +16455,12 @@
                     if (earn_excludeYield) adjApr -= (rateData.extYieldApr || 0);
                     if (earn_excludeLending) adjApr -= (rateData.lendingApr || 0);
                     const aprClass = adjApr > 0 ? 'assets-apy-green' : (adjApr < 0 ? 'assets-apy-red' : 'assets-apy-dim');
-                    const aprStyle = adjApr > 0 ? 'font-size:15px;font-weight:700' : '';
+                    const displayApr = earn_showApy ? aprToApy(adjApr) : adjApr;
+                    const aprStyle = displayApr > 0 ? 'font-size:15px;font-weight:700' : '';
                     // Build breakdown lines
                     let bLines = [];
                     if ((rateData.lendingApr || 0) > 0.01 && !earn_excludeLending) {
-                        bLines.push({ label: 'Lending APR', rate: rateData.lendingApr, cls: 'lending-part', tooltip: 'Interest earned from borrowers on Dolomite' });
+                        bLines.push({ label: 'Lending', rate: rateData.lendingApr, cls: 'lending-part', tooltip: 'Interest earned from borrowers on Dolomite' });
                     }
                     if (rateData.yieldSources && rateData.yieldSources.length > 0 && !earn_excludeYield) {
                         rateData.yieldSources.forEach(ys => {
@@ -16410,18 +16474,19 @@
                         });
                     }
                     if ((rateData.rewards || 0) > 0 && !earn_excludeOdolo) {
-                        bLines.push({ label: 'oDOLO Rewards', rate: rateData.rewards, cls: 'odolo-part', tooltip: 'oDOLO incentive rewards distributed to suppliers' });
+                        bLines.push({ label: 'oDOLO', rate: rateData.rewards, cls: 'odolo-part', tooltip: 'oDOLO incentive rewards distributed to suppliers' });
                     }
                     let bHtml = '';
                     if (bLines.length > 0) {
                         bHtml = '<div class="assets-apy-breakdown">' +
                             bLines.map(l => {
                                 const tt = l.tooltip ? ` <span class="breakdown-help-icon">?<span class="tooltip-bubble">${l.tooltip}</span></span>` : '';
-                                return `<span class="${l.cls}">+ ${l.rate.toFixed(2)}% ${l.label}${tt}</span>`;
+                                const displayRate = earn_showApy ? aprToApy(l.rate) : l.rate;
+                                return `<span class="${l.cls}">+ ${displayRate.toFixed(2)}% ${l.label}${tt}</span>`;
                             }).join('') +
                             '</div>';
                     }
-                    earnAprCellHtml = `<div><span class="${aprClass}" style="${aprStyle}">${adjApr.toFixed(2)}%</span></div>${bHtml}`;
+                    earnAprCellHtml = `<div><span class="${aprClass}" style="${aprStyle}">${displayApr.toFixed(2)}%</span></div>${bHtml}`;
                 } else {
                     earnAprCellHtml = `<span style="color:var(--text-muted)">—</span>`;
                 }
