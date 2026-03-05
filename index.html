@@ -1103,7 +1103,7 @@
             text-align: center;
         }
 
-        /* APR/APY toggle — matches Yield/Lending toggle style */
+        /* APR/APY toggle — white style matching Lending toggle */
         .apr-toggle-wrap {
             display: inline-flex;
             align-items: center;
@@ -1112,24 +1112,24 @@
             user-select: none;
             padding: 4px 8px;
             border-radius: 8px;
-            border: 1px solid rgba(52, 211, 153, 0.25);
+            border: 1px solid rgba(226, 232, 240, 0.25);
             transition: background 0.2s, border-color 0.2s;
         }
 
         .apr-toggle-wrap:hover {
             background: rgba(255, 255, 255, 0.04);
-            border-color: rgba(52, 211, 153, 0.45);
+            border-color: rgba(226, 232, 240, 0.45);
         }
 
         .apr-toggle-label {
             font-size: 11px;
             font-weight: 600;
-            color: #34d399;
+            color: #e2e8f0;
             transition: color 0.2s;
         }
 
         .apr-toggle-wrap.active .apr-toggle-label {
-            color: #6ee7b7;
+            color: #e2e8f0;
         }
 
         .apr-switch {
@@ -1137,8 +1137,8 @@
             width: 32px;
             height: 18px;
             border-radius: 10px;
-            background: rgba(52, 211, 153, 0.25);
-            border: 1px solid rgba(52, 211, 153, 0.4);
+            background: rgba(226, 232, 240, 0.25);
+            border: 1px solid rgba(226, 232, 240, 0.4);
             transition: all 0.25s ease;
             flex-shrink: 0;
         }
@@ -1150,8 +1150,8 @@
             width: 12px;
             height: 12px;
             border-radius: 50%;
-            background: #34d399;
-            box-shadow: 0 0 6px rgba(52, 211, 153, 0.5);
+            background: #e2e8f0;
+            box-shadow: 0 0 6px rgba(226, 232, 240, 0.5);
             transition: all 0.25s ease;
         }
 
@@ -1160,8 +1160,8 @@
         }
 
         .apr-toggle-wrap.active .apr-switch {
-            background: rgba(110, 231, 183, 0.3);
-            border-color: rgba(110, 231, 183, 0.5);
+            background: rgba(226, 232, 240, 0.35);
+            border-color: rgba(226, 232, 240, 0.5);
         }
 
         .assets-table tbody tr {
@@ -8740,8 +8740,8 @@
                         <table class="earn-asset-table">
                             <colgroup>
                                 <col style="width:25%">
-                                <col style="width:20%">
-                                <col style="width:30%">
+                                <col style="width:25%">
+                                <col style="width:25%">
                                 <col style="width:25%">
                             </colgroup>
                             <thead>
@@ -8898,10 +8898,10 @@
                     <div class="table-scroll">
                         <table class="assets-table" id="assets-table">
                             <colgroup>
-                                <col style="width:25%">
-                                <col style="width:15%">
-                                <col style="width:15%">
-                                <col style="width:25%">
+                                <col style="width:20%">
+                                <col style="width:20%">
+                                <col style="width:20%">
+                                <col style="width:20%">
                                 <col style="width:20%">
                             </colgroup>
                             <thead>
@@ -14168,11 +14168,8 @@
         };
         async function earn_fetchOdoloClaimed(userAddr) {
             earn_odoloClaimed = 0;
-            const chainId = document.getElementById('earn-chain').value;
-            const endpoint = ODOLO_SUBGRAPH_CHAINS[chainId];
-            if (!endpoint) {
-                return -1; // signal: not supported on this chain
-            }
+            // Always fetch from Berachain (oDOLO only exists there)
+            const endpoint = ODOLO_SUBGRAPH_CHAINS['berachain'];
             try {
                 const addr = userAddr.toLowerCase();
                 let allClaims = [];
@@ -16784,11 +16781,7 @@
                         const valEl = document.getElementById('earn-odolo-claimed-val');
                         const subEl = document.getElementById('earn-odolo-claimed-sub');
                         if (valEl) {
-                            if (claimed === -1) {
-                                valEl.textContent = 'N/A';
-                                valEl.className = 'earn-summary-value neutral';
-                                subEl.textContent = 'Only on Berachain';
-                            } else if (claimed > 0) {
+                            if (claimed > 0) {
                                 valEl.textContent = claimed >= 1000 ? (claimed / 1000).toFixed(2) + 'K' : claimed.toFixed(2);
                                 valEl.className = 'earn-summary-value positive';
                                 subEl.textContent = 'All-time rewards';
