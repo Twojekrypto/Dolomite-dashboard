@@ -5253,7 +5253,7 @@
 
         .earn-summary-label {
             font-size: 10px;
-            color: rgba(148, 163, 184, 0.85);
+            color: rgba(255, 255, 255, 0.95);
             text-transform: uppercase;
             letter-spacing: 1.8px;
             margin-bottom: 8px;
@@ -5800,7 +5800,7 @@
         .earn-asset-table thead th:first-child {
             border-radius: 12px 0 0 0;
             letter-spacing: 0.8px;
-            padding-left: 60px !important;
+            padding-left: 14px !important;
             text-align: left !important;
         }
 
@@ -5984,6 +5984,10 @@
         /* Staggered row entrance */
         .earn-asset-table tbody tr.earn-data-row {
             animation: earnRowSlideIn 0.5s ease both;
+        }
+
+        .earn-asset-table.no-animate tbody tr.earn-data-row {
+            animation: none !important;
         }
 
         @keyframes earnRowSlideIn {
@@ -8628,7 +8632,8 @@
                             <thead>
                                 <tr>
                                     <th>
-                                        <div style="display:flex;align-items:center;gap:10px">
+                                        <div style="display:flex;align-items:center;gap:12px">
+                                            <div style="width:34px;flex-shrink:0"></div>
                                             <span>Token</span>
                                         </div>
                                     </th>
@@ -8768,7 +8773,13 @@
                             </colgroup>
                             <thead>
                                 <tr>
-                                    <th data-col="symbol">Token <span class="sort-arrow"></span></th>
+                                    <th data-col="symbol">
+                                        <div style="display:flex;align-items:center;gap:10px">
+                                            <div style="width:28px;flex-shrink:0"></div>
+                                            <span>Token</span>
+                                            <span class="sort-arrow"></span>
+                                        </div>
+                                    </th>
                                     <th data-col="chain">Chain <span class="sort-arrow"></span></th>
                                     <th data-col="price">Price <span class="sort-arrow"></span></th>
                                     <th data-col="supplyApr" class="sorted">Supply APR <span class="sort-arrow">▼</span>
@@ -14772,6 +14783,9 @@
             if (btn) {
                 btn.classList.toggle('active', earn_showDust);
             }
+            // Suppress row animations on toggle re-render
+            const tbl = document.querySelector('.earn-asset-table');
+            if (tbl) tbl.classList.add('no-animate');
             // Re-render
             if (earn_cachedAssets.length > 0 || earn_historyData) {
                 earn_renderResults(earn_cachedAssets);
@@ -15225,6 +15239,9 @@
             earn_excludeOdolo = !earn_excludeOdolo;
             const wrap = document.getElementById('earn-odolo-toggle');
             if (wrap) wrap.classList.toggle('active', earn_excludeOdolo);
+            // Suppress row animations on toggle re-render
+            const tbl = document.querySelector('.earn-asset-table');
+            if (tbl) tbl.classList.add('no-animate');
             if (earn_cachedAssets) earn_renderResults(earn_cachedAssets);
         }
 
@@ -15233,6 +15250,9 @@
             earn_excludeYield = !earn_excludeYield;
             const wrap = document.getElementById('earn-yield-toggle');
             if (wrap) wrap.classList.toggle('active', earn_excludeYield);
+            // Suppress row animations on toggle re-render
+            const tbl = document.querySelector('.earn-asset-table');
+            if (tbl) tbl.classList.add('no-animate');
             if (earn_cachedAssets) earn_renderResults(earn_cachedAssets);
         }
 
@@ -15847,6 +15867,10 @@
         }
 
         async function earn_lookup() {
+            // Reset animation suppression for fresh search
+            const tbl = document.querySelector('.earn-asset-table');
+            if (tbl) tbl.classList.remove('no-animate');
+
             const addr = document.getElementById('earn-address').value.trim();
             const accountNum = document.getElementById('earn-account-num').value;
             const btn = document.getElementById('earn-search-btn');
@@ -16523,17 +16547,17 @@
 
                     summaryEl.innerHTML = `
                         <div class="earn-summary-stat">
-                            <div class="earn-summary-label"><span class="stat-icon">💰</span> Portfolio Value</div>
+                            <div class="earn-summary-label">Portfolio Value</div>
                             <div class="earn-summary-value neutral">${fmtUsd(totalUsd)}</div>
                             <div class="earn-summary-sub"><span class="sub-highlight">${activeCount}</span> active asset${activeCount !== 1 ? 's' : ''}</div>
                         </div>
                         <div class="earn-summary-stat">
-                            <div class="earn-summary-label"><span class="stat-icon">📈</span> Total Yield</div>
+                            <div class="earn-summary-label">Total Yield</div>
                             <div class="earn-summary-value ${yieldClass}">${yieldSign}${fmtUsd(Math.abs(totalYieldUsd))}</div>
                             <div class="earn-summary-sub">All-time lending yield</div>
                         </div>
                         <div class="earn-summary-stat">
-                            <div class="earn-summary-label"><span class="stat-icon">🏆</span> Best Performer</div>
+                            <div class="earn-summary-label">Best Performer</div>
                             <div class="earn-summary-value positive">${bestIconHtml}${bestSymbol || '—'}</div>
                             <div class="earn-summary-sub">${bestYieldUsd > 0 ? '<span class="sub-highlight">' + yieldSign + fmtUsd(bestYieldUsd) + '</span> earned' : 'No yield data'}</div>
                         </div>
