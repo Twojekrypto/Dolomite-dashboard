@@ -8698,6 +8698,10 @@
                                     <div class="knob"></div>
                                 </div>
                             </div>
+                            <span id="earn-apr-slider" class="apr-apy-slider" onclick="earn_toggleAprApy()"
+                                style="margin-left:6px">
+                                <span class="apr-opt active">APR</span><span class="apy-opt">APY</span>
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -8720,11 +8724,7 @@
                                         </div>
                                     </th>
                                     <th data-sort="apr" onclick="earn_sortAssets('apr')">
-                                        Supply <span class="earn-sort-arrow">▼</span><br>
-                                        <span id="earn-apr-slider" class="apr-apy-slider"
-                                            onclick="event.stopPropagation();earn_toggleAprApy()">
-                                            <span class="apr-opt active">APR</span><span class="apy-opt">APY</span>
-                                        </span>
+                                        Supply APR <span class="earn-sort-arrow">▼</span>
                                     </th>
                                     <th data-sort="balance" class="sort-active" onclick="earn_sortAssets('balance')">
                                         Current Balance <span class="earn-sort-arrow">▼</span></th>
@@ -8850,6 +8850,10 @@
                                     <div class="knob"></div>
                                 </div>
                             </div>
+                            <span id="assets-apr-slider" class="apr-apy-slider" onclick="assets_toggleAprApy()"
+                                style="margin-left:6px">
+                                <span class="apr-opt active">APR</span><span class="apy-opt">APY</span>
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -8881,11 +8885,7 @@
                                     <th data-col="price" style="text-align:center">Price <span
                                             class="sort-arrow"></span></th>
                                     <th data-col="supplyApr" class="sorted">
-                                        Supply <span class="sort-arrow">▼</span><br>
-                                        <span id="assets-apr-slider" class="apr-apy-slider"
-                                            onclick="event.stopPropagation();assets_toggleAprApy()">
-                                            <span class="apr-opt active">APR</span><span class="apy-opt">APY</span>
-                                        </span>
+                                        Supply APR <span class="sort-arrow">▼</span>
                                     </th>
                                     <th data-col="borrowApr" style="text-align:center">Borrow APR <span
                                             class="sort-arrow"></span></th>
@@ -13920,8 +13920,10 @@
                         const isGm = (ys.label || '').includes('Price Implied') || (ys.label || '').includes('GM ');
                         let displayLabel = ys.label;
                         let tooltip = 'External yield from the underlying protocol';
+                        // Strip APR/APY from all display labels
+                        displayLabel = displayLabel.replace(/\s*\(APR\)\s*/g, '').replace(/\s+APR$/i, '').replace(/\s+APY$/i, '');
                         if (isGm) {
-                            displayLabel = 'GM Performance APR';
+                            displayLabel = 'GM Performance';
                             tooltip = 'Annualized return from GM token price change over the past 30 days';
                         } else if (displayLabel.includes('Staking')) {
                             tooltip = 'Yield from native ETH staking (validator rewards)';
@@ -13952,7 +13954,7 @@
                 let priceHtml = '';
                 if (d.price > 0) {
                     if (d.price >= 1) {
-                        priceHtml = `$${d.price.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`;
+                        priceHtml = `$${d.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                     } else {
                         priceHtml = `$${d.price.toFixed(6)}`;
                     }
@@ -16497,7 +16499,8 @@
                             const isGm = (ys.label || '').includes('Price Implied') || (ys.label || '').includes('GM ');
                             let displayLabel = ys.label;
                             let tooltip = 'External yield from the underlying protocol';
-                            if (isGm) { displayLabel = 'GM Performance APR'; tooltip = 'Annualized return from GM token price change over the past 30 days'; }
+                            displayLabel = displayLabel.replace(/\s*\(APR\)\s*/g, '').replace(/\s+APR$/i, '').replace(/\s+APY$/i, '');
+                            if (isGm) { displayLabel = 'GM Performance'; tooltip = 'Annualized return from GM token price change over the past 30 days'; }
                             else if (displayLabel.includes('Staking')) { tooltip = 'Yield from native ETH staking (validator rewards)'; }
                             else if (displayLabel.includes('Sky') || displayLabel.includes('Savings Rate')) { tooltip = 'Yield from Sky (formerly Maker) Savings Rate'; }
                             bLines.push({ label: displayLabel, rate: ys.rate, cls: isGm ? 'gm-part' : 'yield-part', tooltip });
