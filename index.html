@@ -1089,6 +1089,57 @@
             color: #34d399;
         }
 
+        /* Token column inline search */
+        .assets-th-search-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 4px 12px;
+            transition: all 0.25s ease;
+            max-width: 280px;
+        }
+
+        .assets-th-search-wrap:focus-within {
+            border-color: rgba(99, 102, 241, 0.5);
+            background: rgba(99, 102, 241, 0.06);
+            box-shadow: 0 0 12px rgba(99, 102, 241, 0.15);
+        }
+
+        .assets-th-search-icon {
+            width: 13px;
+            height: 13px;
+            color: rgba(255, 255, 255, 0.3);
+            flex-shrink: 0;
+            transition: color 0.25s ease;
+        }
+
+        .assets-th-search-wrap:focus-within .assets-th-search-icon {
+            color: rgba(99, 102, 241, 0.7);
+        }
+
+        .assets-th-search {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #e2e8f0;
+            font-size: 11px;
+            font-weight: 400;
+            letter-spacing: 0.02em;
+            width: 100%;
+            padding: 0;
+            font-family: inherit;
+        }
+
+        .assets-th-search::placeholder {
+            color: rgba(255, 255, 255, 0.25);
+            font-weight: 400;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+
         .assets-table tbody td {
             padding: 10px 10px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.03);
@@ -6287,11 +6338,7 @@
 
         .breakdown-help-icon .tooltip-bubble {
             display: none;
-            position: absolute;
-            top: calc(100% + 8px);
-            left: -10px;
-            right: auto;
-            transform: none;
+            position: fixed;
             background: rgba(15, 23, 42, 0.98);
             border: 1px solid rgba(99, 102, 241, 0.3);
             border-radius: 8px;
@@ -6300,7 +6347,7 @@
             font-weight: 400;
             color: #e2e8f0;
             width: 220px;
-            z-index: 9999;
+            z-index: 99999;
             text-transform: none;
             letter-spacing: normal;
             line-height: 1.5;
@@ -6313,14 +6360,7 @@
         }
 
         .breakdown-help-icon .tooltip-bubble::after {
-            content: '';
-            position: absolute;
-            bottom: 100%;
-            left: 16px;
-            right: auto;
-            transform: none;
-            border: 5px solid transparent;
-            border-bottom-color: rgba(99, 102, 241, 0.3);
+            display: none;
         }
 
         .breakdown-help-icon:hover .tooltip-bubble {
@@ -6594,11 +6634,10 @@
             background: var(--bg-card);
             border: 1px solid var(--border-subtle);
             border-radius: 16px;
-            overflow: visible;
+            overflow: hidden;
             box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(52, 211, 153, 0.05);
             max-height: 70vh;
             overflow-y: auto;
-            position: relative;
         }
 
         /* Custom scrollbar for table section */
@@ -8843,12 +8882,16 @@
                             <thead>
                                 <tr>
                                     <th data-col="symbol">
-                                        <div class="assets-token-cell">
-                                            <div style="width:28px;height:1px;flex-shrink:0"></div>
-                                            <input type="text" class="assets-search" id="assets-search"
+                                        <div class="assets-th-search-wrap">
+                                            <svg class="assets-th-search-icon" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                                                stroke-linejoin="round">
+                                                <circle cx="11" cy="11" r="7" />
+                                                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                            </svg>
+                                            <input type="text" class="assets-th-search" id="assets-search"
                                                 placeholder="Search token or paste address…" spellcheck="false"
-                                                autocomplete="off"
-                                                style="background:transparent;border:none;outline:none;color:#e2e8f0;font-size:12px;font-weight:500;letter-spacing:0.05em;text-transform:uppercase;width:100%;padding:0;font-family:inherit">
+                                                autocomplete="off">
                                         </div>
                                     </th>
                                     <th data-col="price" style="text-align:center">Price <span
@@ -15272,6 +15315,8 @@
             earn_showApy = !earn_showApy;
             document.getElementById('earn-apr-opt').classList.toggle('active', !earn_showApy);
             document.getElementById('earn-apy-opt').classList.toggle('active', earn_showApy);
+            const tbl = document.querySelector('.earn-asset-table');
+            if (tbl) tbl.classList.add('no-animate');
             if (earn_cachedAssets) earn_renderResults(earn_cachedAssets, { skipSummary: true });
         }
 
@@ -16814,6 +16859,26 @@
         odolo_init();    // oDOLO contract data (static JSON first)
         doloLoaded = true;
         odoloLoaded = true;
+
+        // === Breakdown tooltip positioning (position:fixed) ===
+        document.addEventListener('mouseenter', function (e) {
+            const icon = e.target.closest('.breakdown-help-icon');
+            if (!icon) return;
+            const bubble = icon.querySelector('.tooltip-bubble');
+            if (!bubble) return;
+            const rect = icon.getBoundingClientRect();
+            const bH = 120; // estimated tooltip height
+            if (rect.bottom + bH + 10 > window.innerHeight) {
+                // Show above
+                bubble.style.top = '';
+                bubble.style.bottom = (window.innerHeight - rect.top + 6) + 'px';
+            } else {
+                // Show below
+                bubble.style.bottom = '';
+                bubble.style.top = (rect.bottom + 6) + 'px';
+            }
+            bubble.style.left = Math.max(8, rect.left - 10) + 'px';
+        }, true);
     </script>
     <div class="expiry-tooltip" id="expiry-tooltip"></div>
 </body>
