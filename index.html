@@ -6450,7 +6450,7 @@
         }
 
         .breakdown-help-icon:hover .tooltip-bubble {
-            display: block;
+            display: none;
         }
 
         .earn-breakdown-bar {
@@ -16996,27 +16996,63 @@
         doloLoaded = true;
         odoloLoaded = true;
 
-        // === Breakdown tooltip positioning (position:fixed) ===
-        document.addEventListener('mouseenter', function (e) {
-            const icon = e.target.closest('.breakdown-help-icon');
-            if (!icon) return;
-            const bubble = icon.querySelector('.tooltip-bubble');
-            if (!bubble) return;
-            const rect = icon.getBoundingClientRect();
-            const spaceBelow = window.innerHeight - rect.bottom;
-            if (spaceBelow < 140) {
-                // Show above icon
-                bubble.style.top = 'auto';
-                bubble.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
-            } else {
-                // Show below icon
-                bubble.style.bottom = 'auto';
-                bubble.style.top = (rect.bottom + 4) + 'px';
+        // === Global floating tooltip for breakdown-help-icon ===
+        // Appended to <body> to escape all overflow:hidden containers
+        (function () {
+            const floatTip = document.createElement('div');
+            floatTip.id = 'breakdown-float-tooltip';
+            floatTip.style.cssText = 'display:none;position:fixed;background:rgba(15,23,42,0.98);border:1px solid rgba(99,102,241,0.3);border-radius:8px;padding:8px 12px;font-size:11px;font-weight:400;color:#e2e8f0;width:220px;z-index:999999;line-height:1.5;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.5);pointer-events:none;word-wrap:break-word;overflow-wrap:break-word;white-space:normal;transition:opacity 0.15s;';
+            document.body.appendChild(floatTip);
+
+            let activeIcon = null;
+
+            function positionTip(x, y) {
+                const tipW = 220, tipH = floatTip.offsetHeight || 80;
+                const vw = window.innerWidth, vh = window.innerHeight;
+                // Horizontal: prefer right of cursor, clamp to viewport
+                let left = x + 12;
+                if (left + tipW > vw - 8) left = x - tipW - 12;
+                left = Math.max(8, Math.min(left, vw - tipW - 8));
+                // Vertical: prefer below cursor, flip above if near bottom
+                let top = y + 16;
+                if (top + tipH > vh - 8) top = y - tipH - 8;
+                top = Math.max(8, top);
+                floatTip.style.left = left + 'px';
+                floatTip.style.top = top + 'px';
             }
-            // Align left with the icon, keep on-screen
-            const leftPos = Math.min(rect.left, window.innerWidth - 230);
-            bubble.style.left = Math.max(8, leftPos) + 'px';
-        }, true);
+
+            document.addEventListener('mouseenter', function (e) {
+                const icon = e.target.closest('.breakdown-help-icon');
+                if (!icon) return;
+                const bubble = icon.querySelector('.tooltip-bubble');
+                if (!bubble) return;
+                activeIcon = icon;
+                floatTip.innerHTML = bubble.innerHTML;
+                floatTip.style.display = 'block';
+                floatTip.style.opacity = '1';
+                // Initial position at icon center
+                const r = icon.getBoundingClientRect();
+                positionTip(r.left + r.width / 2, r.bottom);
+            }, true);
+
+            document.addEventListener('mousemove', function (e) {
+                if (!activeIcon || floatTip.style.display === 'none') return;
+                if (!activeIcon.matches(':hover')) {
+                    floatTip.style.display = 'none';
+                    activeIcon = null;
+                    return;
+                }
+                positionTip(e.clientX, e.clientY);
+            });
+
+            document.addEventListener('mouseleave', function (e) {
+                const icon = e.target.closest('.breakdown-help-icon');
+                if (icon && icon === activeIcon) {
+                    floatTip.style.display = 'none';
+                    activeIcon = null;
+                }
+            }, true);
+        })();
     </script>
     <div class="expiry-tooltip" id="expiry-tooltip"></div>
 </body>
