@@ -1103,43 +1103,33 @@
             text-align: center;
         }
 
-        /* APR/APY toggle — white style matching Lending toggle */
-        .apr-toggle-wrap {
-            border-color: rgba(226, 232, 240, 0.25) !important;
+        /* APR/APY dual-label pill toggle */
+        .apr-pill {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            padding: 2px;
+            cursor: pointer;
+            user-select: none;
         }
 
-        .apr-toggle-wrap:hover {
-            border-color: rgba(226, 232, 240, 0.45) !important;
+        .apr-pill-opt {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            padding: 4px 10px;
+            border-radius: 16px;
+            transition: all 0.25s ease;
+            color: rgba(255, 255, 255, 0.35);
+            line-height: 1;
         }
 
-        .apr-toggle-label {
-            font-size: 11px;
-            font-weight: 600;
-            color: #e2e8f0 !important;
-            transition: color 0.2s;
-        }
-
-        .apr-toggle-wrap.active .apr-toggle-label {
-            color: #e2e8f0 !important;
-        }
-
-        .apr-switch {
-            background: rgba(226, 232, 240, 0.25) !important;
-            border-color: rgba(226, 232, 240, 0.4) !important;
-        }
-
-        .apr-switch .knob {
-            background: #e2e8f0 !important;
-            box-shadow: 0 0 6px rgba(226, 232, 240, 0.5) !important;
-        }
-
-        .apr-toggle-wrap.active .apr-switch .knob {
-            left: 16px !important;
-        }
-
-        .apr-toggle-wrap.active .apr-switch {
-            background: rgba(226, 232, 240, 0.35) !important;
-            border-color: rgba(226, 232, 240, 0.5) !important;
+        .apr-pill-opt.active {
+            background: rgba(226, 232, 240, 0.18);
+            color: #e2e8f0;
+            box-shadow: 0 0 8px rgba(226, 232, 240, 0.15);
         }
 
         .assets-table tbody tr {
@@ -8702,12 +8692,9 @@
                                     <div class="knob"></div>
                                 </div>
                             </div>
-                            <div class="odolo-toggle-wrap apr-toggle-wrap" id="earn-apr-toggle"
-                                onclick="earn_toggleAprApy()">
-                                <span class="odolo-toggle-label apr-toggle-label" id="earn-apr-label">APR</span>
-                                <div class="odolo-switch apr-switch">
-                                    <div class="knob"></div>
-                                </div>
+                            <div class="apr-pill" id="earn-apr-pill" onclick="earn_toggleAprApy()">
+                                <span class="apr-pill-opt active" id="earn-apr-opt">APR</span>
+                                <span class="apr-pill-opt" id="earn-apy-opt">APY</span>
                             </div>
                         </div>
                     </div>
@@ -8857,12 +8844,9 @@
                                     <div class="knob"></div>
                                 </div>
                             </div>
-                            <div class="odolo-toggle-wrap apr-toggle-wrap" id="assets-apr-toggle"
-                                onclick="assets_toggleAprApy()">
-                                <span class="odolo-toggle-label apr-toggle-label" id="assets-apr-label">APR</span>
-                                <div class="odolo-switch apr-switch">
-                                    <div class="knob"></div>
-                                </div>
+                            <div class="apr-pill" id="assets-apr-pill" onclick="assets_toggleAprApy()">
+                                <span class="apr-pill-opt active" id="assets-apr-opt">APR</span>
+                                <span class="apr-pill-opt" id="assets-apy-opt">APY</span>
                             </div>
                         </div>
                     </div>
@@ -13573,11 +13557,8 @@
 
         function assets_toggleAprApy() {
             assets_showApy = !assets_showApy;
-            const wrap = document.getElementById('assets-apr-toggle');
-            if (wrap) {
-                wrap.classList.toggle('active', assets_showApy);
-                document.getElementById('assets-apr-label').textContent = assets_showApy ? 'APY' : 'APR';
-            }
+            document.getElementById('assets-apr-opt').classList.toggle('active', !assets_showApy);
+            document.getElementById('assets-apy-opt').classList.toggle('active', assets_showApy);
             assets_render();
         }
 
@@ -15308,11 +15289,8 @@
 
         function earn_toggleAprApy() {
             earn_showApy = !earn_showApy;
-            const wrap = document.getElementById('earn-apr-toggle');
-            if (wrap) {
-                wrap.classList.toggle('active', earn_showApy);
-                document.getElementById('earn-apr-label').textContent = earn_showApy ? 'APY' : 'APR';
-            }
+            document.getElementById('earn-apr-opt').classList.toggle('active', !earn_showApy);
+            document.getElementById('earn-apy-opt').classList.toggle('active', earn_showApy);
             earn_renderResults({ skipSummary: true });
         }
 
