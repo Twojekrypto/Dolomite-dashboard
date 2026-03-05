@@ -1103,39 +1103,65 @@
             text-align: center;
         }
 
-        /* APR/APY slider toggle */
-        .apr-apy-slider {
+        /* APR/APY toggle — matches Yield/Lending toggle style */
+        .apr-toggle-wrap {
             display: inline-flex;
             align-items: center;
-            background: rgba(255, 255, 255, 0.06);
-            border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 1px;
+            gap: 5px;
             cursor: pointer;
-            vertical-align: middle;
-            margin-left: 2px;
-        }
-
-        .apr-apy-slider .apr-opt,
-        .apr-apy-slider .apy-opt {
-            font-size: 9px;
-            font-weight: 700;
-            letter-spacing: 0.3px;
-            padding: 2px 6px;
+            user-select: none;
+            padding: 4px 8px;
             border-radius: 8px;
-            transition: all 0.2s ease;
-            color: rgba(255, 255, 255, 0.35);
-            line-height: 1;
+            border: 1px solid rgba(52, 211, 153, 0.25);
+            transition: background 0.2s, border-color 0.2s;
         }
 
-        .apr-apy-slider .apr-opt.active {
-            background: rgba(52, 211, 153, 0.2);
-            color: #34d399;
+        .apr-toggle-wrap:hover {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(52, 211, 153, 0.45);
         }
 
-        .apr-apy-slider .apy-opt.active {
-            background: rgba(52, 211, 153, 0.2);
+        .apr-toggle-label {
+            font-size: 11px;
+            font-weight: 600;
             color: #34d399;
+            transition: color 0.2s;
+        }
+
+        .apr-toggle-wrap.active .apr-toggle-label {
+            color: #6ee7b7;
+        }
+
+        .apr-switch {
+            position: relative;
+            width: 32px;
+            height: 18px;
+            border-radius: 10px;
+            background: rgba(52, 211, 153, 0.25);
+            border: 1px solid rgba(52, 211, 153, 0.4);
+            transition: all 0.25s ease;
+            flex-shrink: 0;
+        }
+
+        .apr-switch .knob {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #34d399;
+            box-shadow: 0 0 6px rgba(52, 211, 153, 0.5);
+            transition: all 0.25s ease;
+        }
+
+        .apr-toggle-wrap.active .apr-switch .knob {
+            left: 16px;
+        }
+
+        .apr-toggle-wrap.active .apr-switch {
+            background: rgba(110, 231, 183, 0.3);
+            border-color: rgba(110, 231, 183, 0.5);
         }
 
         .assets-table tbody tr {
@@ -8698,10 +8724,13 @@
                                     <div class="knob"></div>
                                 </div>
                             </div>
-                            <span id="earn-apr-slider" class="apr-apy-slider" onclick="earn_toggleAprApy()"
-                                style="margin-left:6px">
-                                <span class="apr-opt active">APR</span><span class="apy-opt">APY</span>
-                            </span>
+                            <div class="odolo-toggle-wrap apr-toggle-wrap" id="earn-apr-toggle"
+                                onclick="earn_toggleAprApy()">
+                                <span class="odolo-toggle-label apr-toggle-label" id="earn-apr-label">APR</span>
+                                <div class="odolo-switch apr-switch">
+                                    <div class="knob"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -8710,10 +8739,10 @@
                     <div class="table-scroll">
                         <table class="earn-asset-table">
                             <colgroup>
-                                <col style="width:22%">
-                                <col style="width:22%">
-                                <col style="width:28%">
-                                <col style="width:28%">
+                                <col style="width:25%">
+                                <col style="width:20%">
+                                <col style="width:30%">
+                                <col style="width:25%">
                             </colgroup>
                             <thead>
                                 <tr>
@@ -8850,10 +8879,13 @@
                                     <div class="knob"></div>
                                 </div>
                             </div>
-                            <span id="assets-apr-slider" class="apr-apy-slider" onclick="assets_toggleAprApy()"
-                                style="margin-left:6px">
-                                <span class="apr-opt active">APR</span><span class="apy-opt">APY</span>
-                            </span>
+                            <div class="odolo-toggle-wrap apr-toggle-wrap" id="assets-apr-toggle"
+                                onclick="assets_toggleAprApy()">
+                                <span class="odolo-toggle-label apr-toggle-label" id="assets-apr-label">APR</span>
+                                <div class="odolo-switch apr-switch">
+                                    <div class="knob"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -8866,10 +8898,10 @@
                     <div class="table-scroll">
                         <table class="assets-table" id="assets-table">
                             <colgroup>
-                                <col style="width:28%">
-                                <col style="width:12%">
-                                <col style="width:14%">
-                                <col style="width:26%">
+                                <col style="width:25%">
+                                <col style="width:15%">
+                                <col style="width:15%">
+                                <col style="width:25%">
                                 <col style="width:20%">
                             </colgroup>
                             <thead>
@@ -13563,10 +13595,10 @@
 
         function assets_toggleAprApy() {
             assets_showApy = !assets_showApy;
-            const sl = document.getElementById('assets-apr-slider');
-            if (sl) {
-                sl.querySelector('.apr-opt').classList.toggle('active', !assets_showApy);
-                sl.querySelector('.apy-opt').classList.toggle('active', assets_showApy);
+            const wrap = document.getElementById('assets-apr-toggle');
+            if (wrap) {
+                wrap.classList.toggle('active', assets_showApy);
+                document.getElementById('assets-apr-label').textContent = assets_showApy ? 'APY' : 'APR';
             }
             assets_render();
         }
@@ -13953,7 +13985,9 @@
                 // Price display
                 let priceHtml = '';
                 if (d.price > 0) {
-                    if (d.price >= 1) {
+                    if (d.price >= 0.90 && d.price <= 1.10) {
+                        priceHtml = `$${d.price.toFixed(2)}`;
+                    } else if (d.price >= 1) {
                         priceHtml = `$${d.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                     } else {
                         priceHtml = `$${d.price.toFixed(6)}`;
@@ -15299,10 +15333,10 @@
 
         function earn_toggleAprApy() {
             earn_showApy = !earn_showApy;
-            const sl = document.getElementById('earn-apr-slider');
-            if (sl) {
-                sl.querySelector('.apr-opt').classList.toggle('active', !earn_showApy);
-                sl.querySelector('.apy-opt').classList.toggle('active', earn_showApy);
+            const wrap = document.getElementById('earn-apr-toggle');
+            if (wrap) {
+                wrap.classList.toggle('active', earn_showApy);
+                document.getElementById('earn-apr-label').textContent = earn_showApy ? 'APY' : 'APR';
             }
             earn_renderResults({ skipSummary: true });
         }
