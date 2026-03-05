@@ -8720,12 +8720,11 @@
                                         </div>
                                     </th>
                                     <th data-sort="apr" onclick="earn_sortAssets('apr')">
-                                        Supply
+                                        Supply <span class="earn-sort-arrow">▼</span><br>
                                         <span id="earn-apr-slider" class="apr-apy-slider"
                                             onclick="event.stopPropagation();earn_toggleAprApy()">
                                             <span class="apr-opt active">APR</span><span class="apy-opt">APY</span>
                                         </span>
-                                        <span class="earn-sort-arrow">▼</span>
                                     </th>
                                     <th data-sort="balance" class="sort-active" onclick="earn_sortAssets('balance')">
                                         Current Balance <span class="earn-sort-arrow">▼</span></th>
@@ -8882,12 +8881,11 @@
                                     <th data-col="price" style="text-align:center">Price <span
                                             class="sort-arrow"></span></th>
                                     <th data-col="supplyApr" class="sorted">
-                                        Supply
+                                        Supply <span class="sort-arrow">▼</span><br>
                                         <span id="assets-apr-slider" class="apr-apy-slider"
                                             onclick="event.stopPropagation();assets_toggleAprApy()">
                                             <span class="apr-opt active">APR</span><span class="apy-opt">APY</span>
                                         </span>
-                                        <span class="sort-arrow">▼</span>
                                     </th>
                                     <th data-col="borrowApr" style="text-align:center">Borrow APR <span
                                             class="sort-arrow"></span></th>
@@ -13954,7 +13952,7 @@
                 let priceHtml = '';
                 if (d.price > 0) {
                     if (d.price >= 1) {
-                        priceHtml = `$${d.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                        priceHtml = `$${d.price.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`;
                     } else {
                         priceHtml = `$${d.price.toFixed(6)}`;
                     }
@@ -15270,8 +15268,10 @@
             const frac = abs % (10n ** BigInt(decimals));
             const fracStr = frac.toString().padStart(decimals, '0');
 
-            // Always show exactly 6 decimal places
-            const fracDisplay = fracStr.slice(0, 6).padEnd(6, '0');
+            // Stablecoins: 1 decimal; others: 6 decimals
+            const STABLES = new Set(['USDC', 'USDT', 'USDC.e', 'DAI', 'USDe', 'sUSDe', 'USD0', 'USD0++', 'deUSD', 'sdeUSD', 'HONEY', 'NECT', 'USDbC', 'FRAX', 'LUSD', 'crvUSD', 'GHO', 'USDS', 'sUSDS', 'USD1', 'stcUSD', 'cUSD']);
+            const fracLen = STABLES.has(symbol) ? 1 : 6;
+            const fracDisplay = fracStr.slice(0, fracLen).padEnd(fracLen, '0');
 
             const wholeStr = whole.toLocaleString('en-US');
             const result = `${wholeStr}.${fracDisplay}`;
