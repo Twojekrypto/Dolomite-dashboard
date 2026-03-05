@@ -948,6 +948,36 @@
             box-shadow: 0 0 6px rgba(248, 113, 113, 0.5) !important;
         }
 
+        /* Lending toggle blue overrides */
+        .lending-toggle-label {
+            color: #60a5fa !important;
+        }
+
+        .lending-toggle-wrap.active .lending-toggle-label {
+            color: #f87171 !important;
+        }
+
+        .lending-switch {
+            background: rgba(96, 165, 250, 0.25) !important;
+            border-color: rgba(96, 165, 250, 0.4) !important;
+        }
+
+        .lending-switch .knob {
+            background: #60a5fa !important;
+            box-shadow: 0 0 6px rgba(96, 165, 250, 0.5) !important;
+        }
+
+        .lending-toggle-wrap.active .lending-switch {
+            background: rgba(239, 68, 68, 0.25) !important;
+            border-color: rgba(239, 68, 68, 0.4) !important;
+        }
+
+        .lending-toggle-wrap.active .lending-switch .knob {
+            left: 2px !important;
+            background: #f87171 !important;
+            box-shadow: 0 0 6px rgba(248, 113, 113, 0.5) !important;
+        }
+
         /* GM breakdown tooltip */
         .gm-part[title] {
             cursor: help;
@@ -8616,6 +8646,17 @@
                                     <div class="knob"></div>
                                 </div>
                             </div>
+                            <div class="odolo-toggle-wrap lending-toggle-wrap" id="earn-lending-toggle"
+                                onclick="earn_toggleLending()">
+                                <span class="odolo-toggle-label lending-toggle-label">Lending</span>
+                                <span class="yield-help-icon" onclick="event.stopPropagation()">?<span
+                                        class="tooltip-bubble">Toggle base Dolomite lending APR in the Supply APR
+                                        column.<br><br>This is interest earned from borrowers on Dolomite.<br><br>When
+                                        OFF, only external yield and oDOLO rewards are shown.</span></span>
+                                <div class="odolo-switch lending-switch">
+                                    <div class="knob"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -8753,6 +8794,16 @@
                                     <div class="knob"></div>
                                 </div>
                             </div>
+                            <div class="odolo-toggle-wrap lending-toggle-wrap" id="assets-lending-toggle">
+                                <span class="odolo-toggle-label lending-toggle-label">Lending</span>
+                                <span class="yield-help-icon" onclick="event.stopPropagation()">?<span
+                                        class="tooltip-bubble">Toggle base Dolomite lending APR in the Supply APR
+                                        column.<br><br>This is interest earned from borrowers on Dolomite.<br><br>When
+                                        OFF, only external yield and oDOLO rewards are shown.</span></span>
+                                <div class="odolo-switch lending-switch">
+                                    <div class="knob"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -8773,13 +8824,8 @@
                             </colgroup>
                             <thead>
                                 <tr>
-                                    <th data-col="symbol">
-                                        <div style="display:flex;align-items:center;gap:10px">
-                                            <div style="width:28px;flex-shrink:0"></div>
-                                            <span>Token</span>
-                                            <span class="sort-arrow"></span>
-                                        </div>
-                                    </th>
+                                    <th data-col="symbol" style="padding-left:50px">Token <span
+                                            class="sort-arrow"></span></th>
                                     <th data-col="chain">Chain <span class="sort-arrow"></span></th>
                                     <th data-col="price">Price <span class="sort-arrow"></span></th>
                                     <th data-col="supplyApr" class="sorted">Supply APR <span class="sort-arrow">▼</span>
@@ -13451,6 +13497,7 @@
         let assets_searchQuery = '';
         let assets_excludeOdolo = false;
         let assets_excludeYield = false;
+        let assets_excludeLending = false;
 
         const ASSETS_CHAINS = {
             berachain: { id: 80094, name: 'Berachain', short: 'BERA', icon: 'https://icons.llamao.fi/icons/chains/rsz_berachain.jpg' },
@@ -13663,6 +13710,14 @@
                     yieldToggle.classList.toggle('active', assets_excludeYield);
                     assets_render();
                 });
+
+                // Lending toggle
+                const lendingToggle = document.getElementById('assets-lending-toggle');
+                lendingToggle.addEventListener('click', () => {
+                    assets_excludeLending = !assets_excludeLending;
+                    lendingToggle.classList.toggle('active', assets_excludeLending);
+                    assets_render();
+                });
             }
 
             // Toggle tooltip: float on body to avoid overflow clipping
@@ -13729,6 +13784,7 @@
                 d._adjSupplyApr = d.supplyApr;
                 if (assets_excludeOdolo) d._adjSupplyApr -= d.rewards;
                 if (assets_excludeYield) d._adjSupplyApr -= d.extYieldApr;
+                if (assets_excludeLending) d._adjSupplyApr -= d.lendingApr;
             });
             // Sort
             const col = assets_sortCol;
@@ -13757,6 +13813,7 @@
                 let adjSupply = d.supplyApr;
                 if (assets_excludeOdolo) adjSupply -= d.rewards;
                 if (assets_excludeYield) adjSupply -= d.extYieldApr;
+                if (assets_excludeLending) adjSupply -= d.lendingApr;
                 const supplyClass = adjSupply > 0 ? 'assets-apy-green' : (adjSupply < 0 ? 'assets-apy-red' : 'assets-apy-dim');
                 const supplyStyle = adjSupply > 0 ? 'font-size:15px;font-weight:700' : '';
 
@@ -13775,7 +13832,7 @@
                 // Supply APR breakdown: lending + yield sources + oDOLO
                 let breakdownLines = [];
                 // Dolomite lending yield (from borrowers)
-                if (d.lendingApr > 0.01) {
+                if (d.lendingApr > 0.01 && !assets_excludeLending) {
                     breakdownLines.push({ label: 'Lending APR', rate: d.lendingApr, cls: 'lending-part', tooltip: 'Interest earned from borrowers on Dolomite' });
                 }
                 // External yield sources (staking, restaking, etc.)
@@ -14786,9 +14843,9 @@
             // Suppress row animations on toggle re-render
             const tbl = document.querySelector('.earn-asset-table');
             if (tbl) tbl.classList.add('no-animate');
-            // Re-render
+            // Re-render (skip summary card rebuild)
             if (earn_cachedAssets.length > 0 || earn_historyData) {
-                earn_renderResults(earn_cachedAssets);
+                earn_renderResults(earn_cachedAssets, { skipSummary: true });
             }
         }
 
@@ -15153,6 +15210,7 @@
         let earn_marketRates = {}; // { addr: { apy, lendingApr, rewards, yieldSources, extYieldApr } }
         let earn_excludeOdolo = false;
         let earn_excludeYield = false;
+        let earn_excludeLending = false;
 
         // Compute yield BigInt for a single asset (used for sort comparison)
         function earn_getYieldForAsset(a) {
@@ -15226,6 +15284,7 @@
                     let aprB = rB.apy || 0;
                     if (earn_excludeOdolo) { aprA -= (rA.rewards || 0); aprB -= (rB.rewards || 0); }
                     if (earn_excludeYield) { aprA -= (rA.extYieldApr || 0); aprB -= (rB.extYieldApr || 0); }
+                    if (earn_excludeLending) { aprA -= (rA.lendingApr || 0); aprB -= (rB.lendingApr || 0); }
                     const diff = aprA - aprB;
                     return earn_sortDesc ? -diff : diff;
                 });
@@ -15242,7 +15301,7 @@
             // Suppress row animations on toggle re-render
             const tbl = document.querySelector('.earn-asset-table');
             if (tbl) tbl.classList.add('no-animate');
-            if (earn_cachedAssets) earn_renderResults(earn_cachedAssets);
+            if (earn_cachedAssets) earn_renderResults(earn_cachedAssets, { skipSummary: true });
         }
 
         // Toggle external yield in earn Supply APR column
@@ -15253,7 +15312,18 @@
             // Suppress row animations on toggle re-render
             const tbl = document.querySelector('.earn-asset-table');
             if (tbl) tbl.classList.add('no-animate');
-            if (earn_cachedAssets) earn_renderResults(earn_cachedAssets);
+            if (earn_cachedAssets) earn_renderResults(earn_cachedAssets, { skipSummary: true });
+        }
+
+        // Toggle lending APR in earn Supply APR column
+        function earn_toggleLending() {
+            earn_excludeLending = !earn_excludeLending;
+            const wrap = document.getElementById('earn-lending-toggle');
+            if (wrap) wrap.classList.toggle('active', earn_excludeLending);
+            // Suppress row animations on toggle re-render
+            const tbl = document.querySelector('.earn-asset-table');
+            if (tbl) tbl.classList.add('no-animate');
+            if (earn_cachedAssets) earn_renderResults(earn_cachedAssets, { skipSummary: true });
         }
 
         // Historical snapshot cache: { '2026-02-11': { snapshots: { arbitrum: { ... } } } }
@@ -16225,7 +16295,8 @@
             </div>`;
         }
 
-        function earn_renderResults(assets) {
+        function earn_renderResults(assets, opts) {
+            opts = opts || {};
             earn_openDetailIdx = null; // reset tracked open detail on re-render
             // Get current chain explorer
             const chain = earn_getChain();
@@ -16315,11 +16386,12 @@
                     let adjApr = rateData.apy;
                     if (earn_excludeOdolo) adjApr -= (rateData.rewards || 0);
                     if (earn_excludeYield) adjApr -= (rateData.extYieldApr || 0);
+                    if (earn_excludeLending) adjApr -= (rateData.lendingApr || 0);
                     const aprClass = adjApr > 0 ? 'assets-apy-green' : (adjApr < 0 ? 'assets-apy-red' : 'assets-apy-dim');
                     const aprStyle = adjApr > 0 ? 'font-size:15px;font-weight:700' : '';
                     // Build breakdown lines
                     let bLines = [];
-                    if ((rateData.lendingApr || 0) > 0.01) {
+                    if ((rateData.lendingApr || 0) > 0.01 && !earn_excludeLending) {
                         bLines.push({ label: 'Lending APR', rate: rateData.lendingApr, cls: 'lending-part', tooltip: 'Interest earned from borrowers on Dolomite' });
                     }
                     if (rateData.yieldSources && rateData.yieldSources.length > 0 && !earn_excludeYield) {
@@ -16455,26 +16527,28 @@
             }
 
             // Populate withdrawn section (outside the main table)
-            const withdrawnSection = document.getElementById('earn-withdrawn-section');
-            const withdrawnTbody = document.getElementById('earn-withdrawn-tbody');
-            const withdrawnCountEl = document.getElementById('earn-withdrawn-count');
-            if (withdrawnCount > 0) {
-                withdrawnSection.style.display = '';
-                withdrawnTbody.innerHTML = withdrawnHtml;
-                withdrawnCountEl.textContent = withdrawnCount;
-                // Keep collapsed state
-                const body = document.getElementById('earn-withdrawn-body');
-                body.style.display = earn_withdrawnCollapsed ? 'none' : '';
-                const chevron = document.getElementById('earn-withdrawn-chevron-icon');
-                if (chevron) chevron.style.transform = earn_withdrawnCollapsed ? '' : 'rotate(180deg)';
-            } else {
-                withdrawnSection.style.display = 'none';
-            }
+            if (!opts.skipSummary) {
+                const withdrawnSection = document.getElementById('earn-withdrawn-section');
+                const withdrawnTbody = document.getElementById('earn-withdrawn-tbody');
+                const withdrawnCountEl = document.getElementById('earn-withdrawn-count');
+                if (withdrawnCount > 0) {
+                    withdrawnSection.style.display = '';
+                    withdrawnTbody.innerHTML = withdrawnHtml;
+                    withdrawnCountEl.textContent = withdrawnCount;
+                    // Keep collapsed state
+                    const body = document.getElementById('earn-withdrawn-body');
+                    body.style.display = earn_withdrawnCollapsed ? 'none' : '';
+                    const chevron = document.getElementById('earn-withdrawn-chevron-icon');
+                    if (chevron) chevron.style.transform = earn_withdrawnCollapsed ? '' : 'rotate(180deg)';
+                } else {
+                    withdrawnSection.style.display = 'none';
+                }
+            } // end skipSummary guard for withdrawn
 
             tbody.innerHTML = html;
 
             // ═══════ UX: Build Summary Card ═══════
-            {
+            if (!opts.skipSummary) {
                 const summaryEl = document.getElementById('earn-summary-card');
                 if (summaryEl) {
                     let totalUsd = 0;
@@ -16590,7 +16664,7 @@
                         }
                     });
                 }
-            }
+            } // end skipSummary guard for summary card
 
             // Show results
             document.getElementById('earn-results').classList.add('visible');
