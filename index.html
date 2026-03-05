@@ -8898,10 +8898,6 @@
                     <h3>Dolomite Assets</h3>
                 </div>
                 <div class="assets-controls">
-                    <div class="assets-controls-row">
-
-                        <div id="assets-chain-filter" class="dolo-chain-pills"></div>
-                    </div>
                     <div class="assets-controls-row" style="justify-content:space-between">
                         <div class="assets-filters-group">
                             <div class="assets-cat-pills" id="assets-cat-pills" style="display:none">
@@ -8953,6 +8949,8 @@
                         </div>
                     </div>
                 </div>
+
+                <div id="assets-chain-filter" class="dolo-chain-pills" style="margin-bottom:8px"></div>
 
                 <div id="assets-spinner" class="assets-spinner">
                     <span class="dot"></span><span class="dot"></span><span class="dot"></span>
@@ -13980,23 +13978,25 @@
         function assets_bindSortHeaders() {
             document.querySelectorAll('#assets-table thead th[data-col]').forEach(th => {
                 th.addEventListener('click', () => {
-                    const col = th.dataset.col;
+
+                    docum                    const col = th.dataset.col;
                     if (assets_sortCol === col) {
                         assets_sortAsc = !assets_sortAsc;
                     } else {
                         assets_sortCol = col;
                         assets_sortAsc = col === 'symbol' || col === 'chain';
                     }
-                    // Update header UI
-                    document.querySelectorAll('#assets-table thead th').forEach(h => {
-                        h.classList.remove('sorted');
-                        h.querySelector('.sort-arrow').textContent = '';
-                    });
-                    th.classList.add('sorted');
-                    th.querySelector('.sort-arrow').textContent = assets_sortAsc ? '▲' : '▼';
-                    assets_render();
+                    // Update header UIent.querySelectorAll('#assets-table thead th').forEach(h => {
+                    h.classList.remove('sorted');
+                    const arrow = h.querySelector('.sort-arrow');
+                    if (arrow) arrow.textContent = '';
                 });
+                th.classList.add('sorted');
+                const thisArrow = th.querySelector('.sort-arrow');
+                if (thisArrow) thisArrow.textContent = assets_sortAsc ? '▲' : '▼';
+                assets_render();
             });
+        });
         }
 
         function assets_render() {
@@ -17015,17 +17015,19 @@
             const bubble = icon.querySelector('.tooltip-bubble');
             if (!bubble) return;
             const rect = icon.getBoundingClientRect();
-            const bH = 120; // estimated tooltip height
-            if (rect.bottom + bH + 10 > window.innerHeight) {
-                // Show above
-                bubble.style.top = '';
-                bubble.style.bottom = (window.innerHeight - rect.top + 6) + 'px';
+            const spaceBelow = window.innerHeight - rect.bottom;
+            if (spaceBelow < 140) {
+                // Show above icon
+                bubble.style.top = 'auto';
+                bubble.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
             } else {
-                // Show below
-                bubble.style.bottom = '';
-                bubble.style.top = (rect.bottom + 6) + 'px';
+                // Show below icon
+                bubble.style.bottom = 'auto';
+                bubble.style.top = (rect.bottom + 4) + 'px';
             }
-            bubble.style.left = Math.max(8, rect.left - 10) + 'px';
+            // Align left with the icon, keep on-screen
+            const leftPos = Math.min(rect.left, window.innerWidth - 230);
+            bubble.style.left = Math.max(8, leftPos) + 'px';
         }, true);
     </script>
     <div class="expiry-tooltip" id="expiry-tooltip"></div>
