@@ -1061,7 +1061,7 @@
             top: 0;
             background: var(--card-bg, #1a1a2e);
             border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-            padding: 12px 18px;
+            padding: 10px 10px;
             font-size: 10px;
             font-weight: 600;
             letter-spacing: 0.8px;
@@ -1090,11 +1090,12 @@
         }
 
         .assets-table tbody td {
-            padding: 12px 16px;
+            padding: 10px 10px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.03);
             font-size: 13px;
             color: rgba(255, 255, 255, 0.85);
             vertical-align: middle;
+            overflow: hidden;
         }
 
         .assets-table tbody td:nth-child(2) {
@@ -1106,7 +1107,7 @@
         }
 
         .assets-table tbody td:nth-child(5) {
-            text-align: left;
+            text-align: right;
         }
 
         /* APR/APY dual-label pill toggle */
@@ -1339,6 +1340,8 @@
             display: flex;
             flex-direction: column;
             gap: 1px;
+            max-width: 100%;
+            overflow: hidden;
         }
 
         .assets-apy-breakdown .lending-part {
@@ -1356,6 +1359,14 @@
 
         .assets-apy-breakdown .odolo-part {
             color: #60a5fa;
+        }
+
+        .assets-apy-breakdown span {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            display: block;
         }
 
         .assets-spinner {
@@ -8866,11 +8877,11 @@
                     <div class="table-scroll">
                         <table class="assets-table" id="assets-table">
                             <colgroup>
-                                <col style="width:46%">
+                                <col style="width:60%">
                                 <col style="width:10%">
                                 <col style="width:9%">
-                                <col style="width:18%">
-                                <col style="width:17%">
+                                <col style="width:12%">
+                                <col style="width:9%">
                             </colgroup>
                             <thead>
                                 <tr>
@@ -8885,9 +8896,10 @@
                                     <th data-col="chain" style="text-align:center">Chain <span
                                             class="sort-arrow"></span></th>
                                     <th data-col="supplyApr" class="sorted">
-                                        Supply APR <span class="sort-arrow">▼</span>
+                                        Supply <span class="sort-arrow">▼</span>
                                     </th>
-                                    <th data-col="borrowApr">Borrow APR <span class="sort-arrow"></span></th>
+                                    <th data-col="borrowApr" style="text-align:right">Borrow <span
+                                            class="sort-arrow"></span></th>
                                 </tr>
                             </thead>
                             <tbody id="assets-tbody"></tbody>
@@ -13975,8 +13987,10 @@
                     <td style="font-size:13px;color:rgba(255,255,255,0.85)">${priceHtml}</td>
                     <td><span class="assets-chain-badge"><img src="${d.chainIcon}" alt="">${d.chainShort}</span></td>
                     <td>
-                        <div><span class="${supplyClass}" style="${supplyStyle}">${displaySupply.toFixed(2)}%</span></div>
-                        ${breakdownHtml}
+                        <div style="width:0;min-width:100%;overflow:hidden">
+                            <div><span class="${supplyClass}" style="${supplyStyle}">${displaySupply.toFixed(2)}%</span></div>
+                            ${breakdownHtml}
+                        </div>
                     </td>
                     <td><span class="assets-apy-red">${d.borrowApr > 0 ? d.borrowApr.toFixed(2) + '%' : '—'}</span></td>
                 </tr>`;
