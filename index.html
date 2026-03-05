@@ -6594,10 +6594,11 @@
             background: var(--bg-card);
             border: 1px solid var(--border-subtle);
             border-radius: 16px;
-            overflow: hidden;
+            overflow: visible;
             box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(52, 211, 153, 0.05);
             max-height: 70vh;
             overflow-y: auto;
+            position: relative;
         }
 
         /* Custom scrollbar for table section */
@@ -8667,40 +8668,7 @@
                     </div>
                     <div class="earn-filter-right">
                         <div class="assets-toggles-right" style="display:flex;align-items:center;gap:10px">
-                            <div class="odolo-toggle-wrap" id="earn-odolo-toggle" onclick="earn_toggleOdolo()">
-                                <img class="odolo-toggle-icon" src="odolo-logo-official.svg" alt="oDOLO">
-                                <span class="odolo-toggle-label">oDOLO</span>
-                                <span class="yield-help-icon" onclick="event.stopPropagation()">?<span
-                                        class="tooltip-bubble">Toggle oDOLO rewards in the Supply APR
-                                        column.<br><br>When ON, oDOLO incentive rewards are included. When OFF, only
-                                        lending and external yield are shown.</span></span>
-                                <div class="odolo-switch">
-                                    <div class="knob"></div>
-                                </div>
-                            </div>
-                            <div class="odolo-toggle-wrap gm-toggle-wrap" id="earn-yield-toggle"
-                                onclick="earn_toggleYield()">
-                                <span class="odolo-toggle-label gm-toggle-label">Yield</span>
-                                <span class="yield-help-icon" onclick="event.stopPropagation()">?<span
-                                        class="tooltip-bubble">Toggle external yield sources in the Supply APR
-                                        column.<br><br>Sources include: ETH Staking APR, Sky Savings Rate, GM
-                                        Performance APR, and other native yields.<br><br>When OFF, only the base
-                                        Dolomite lending rate is shown.</span></span>
-                                <div class="odolo-switch gm-switch">
-                                    <div class="knob"></div>
-                                </div>
-                            </div>
-                            <div class="odolo-toggle-wrap lending-toggle-wrap" id="earn-lending-toggle"
-                                onclick="earn_toggleLending()">
-                                <span class="odolo-toggle-label lending-toggle-label">Lending</span>
-                                <span class="yield-help-icon" onclick="event.stopPropagation()">?<span
-                                        class="tooltip-bubble">Toggle base Dolomite lending APR in the Supply APR
-                                        column.<br><br>This is interest earned from borrowers on Dolomite.<br><br>When
-                                        OFF, only external yield and oDOLO rewards are shown.</span></span>
-                                <div class="odolo-switch lending-switch">
-                                    <div class="knob"></div>
-                                </div>
-                            </div>
+
                             <div class="apr-pill" id="earn-apr-pill" onclick="earn_toggleAprApy()">
                                 <span class="apr-pill-opt active" id="earn-apr-opt">APR</span>
                                 <span class="apr-pill-opt" id="earn-apy-opt">APY</span>
@@ -8803,10 +8771,7 @@
                 </div>
                 <div class="assets-controls">
                     <div class="assets-controls-row">
-                        <div class="assets-search-wrap">
-                            <input type="text" class="assets-search" id="assets-search"
-                                placeholder="Search token or paste address…" spellcheck="false" autocomplete="off">
-                        </div>
+
                         <div id="assets-chain-filter" class="dolo-chain-pills"></div>
                     </div>
                     <div class="assets-controls-row" style="justify-content:space-between">
@@ -8880,7 +8845,10 @@
                                     <th data-col="symbol">
                                         <div class="assets-token-cell">
                                             <div style="width:28px;height:1px;flex-shrink:0"></div>
-                                            <span>Token <span class="sort-arrow"></span></span>
+                                            <input type="text" class="assets-search" id="assets-search"
+                                                placeholder="Search token or paste address…" spellcheck="false"
+                                                autocomplete="off"
+                                                style="background:transparent;border:none;outline:none;color:#e2e8f0;font-size:12px;font-weight:500;letter-spacing:0.05em;text-transform:uppercase;width:100%;padding:0;font-family:inherit">
                                         </div>
                                     </th>
                                     <th data-col="price" style="text-align:center">Price <span
@@ -15304,7 +15272,7 @@
             earn_showApy = !earn_showApy;
             document.getElementById('earn-apr-opt').classList.toggle('active', !earn_showApy);
             document.getElementById('earn-apy-opt').classList.toggle('active', earn_showApy);
-            earn_renderResults({ skipSummary: true });
+            if (earn_cachedAssets) earn_renderResults(earn_cachedAssets, { skipSummary: true });
         }
 
         // Compute yield BigInt for a single asset (used for sort comparison)
