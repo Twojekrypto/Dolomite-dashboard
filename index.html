@@ -15534,7 +15534,11 @@
                 });
             }
 
-            earn_renderResults(earn_cachedAssets);
+            // Suppress row animations on re-sort and skip summary rebuild
+            const table = document.querySelector('.earn-asset-table');
+            if (table) table.classList.add('no-animate');
+            earn_renderResults(earn_cachedAssets, { skipSummary: true });
+            if (table) requestAnimationFrame(() => table.classList.remove('no-animate'));
         }
 
         // Toggle oDOLO rewards in earn Supply APR column
