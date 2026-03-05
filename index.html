@@ -1097,28 +1097,45 @@
             vertical-align: middle;
         }
 
-        .assets-table tbody td:nth-child(n+2) {
+        .assets-table tbody td:nth-child(2),
+        .assets-table tbody td:nth-child(3),
+        .assets-table tbody td:nth-child(5) {
             text-align: center;
         }
 
-        /* APR/APY toggle pill */
-        .apr-apy-toggle {
-            display: inline-block;
+        /* APR/APY slider toggle */
+        .apr-apy-slider {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 1px;
             cursor: pointer;
-            padding: 1px 6px;
-            border-radius: 4px;
-            background: rgba(52, 211, 153, 0.15);
-            border: 1px solid rgba(52, 211, 153, 0.35);
-            color: #34d399;
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            transition: all 0.2s ease;
+            vertical-align: middle;
+            margin-left: 2px;
         }
 
-        .apr-apy-toggle:hover {
-            background: rgba(52, 211, 153, 0.3);
-            color: #6ee7b7;
+        .apr-apy-slider .apr-opt,
+        .apr-apy-slider .apy-opt {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            padding: 2px 6px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            color: rgba(255, 255, 255, 0.35);
+            line-height: 1;
+        }
+
+        .apr-apy-slider .apr-opt.active {
+            background: rgba(52, 211, 153, 0.2);
+            color: #34d399;
+        }
+
+        .apr-apy-slider .apy-opt.active {
+            background: rgba(52, 211, 153, 0.2);
+            color: #34d399;
         }
 
         .assets-table tbody tr {
@@ -8703,9 +8720,13 @@
                                         </div>
                                     </th>
                                     <th data-sort="apr" onclick="earn_sortAssets('apr')">
-                                        Supply <span id="earn-apr-label" class="apr-apy-toggle"
-                                            onclick="event.stopPropagation();earn_toggleAprApy()">APR</span> <span
-                                            class="earn-sort-arrow">▼</span></th>
+                                        Supply
+                                        <span id="earn-apr-slider" class="apr-apy-slider"
+                                            onclick="event.stopPropagation();earn_toggleAprApy()">
+                                            <span class="apr-opt active">APR</span><span class="apy-opt">APY</span>
+                                        </span>
+                                        <span class="earn-sort-arrow">▼</span>
+                                    </th>
                                     <th data-sort="balance" class="sort-active" onclick="earn_sortAssets('balance')">
                                         Current Balance <span class="earn-sort-arrow">▼</span></th>
                                     <th data-sort="yield" onclick="earn_sortAssets('yield')">Total Yield Earned
@@ -13541,8 +13562,11 @@
 
         function assets_toggleAprApy() {
             assets_showApy = !assets_showApy;
-            const lbl = document.getElementById('assets-apr-label');
-            if (lbl) lbl.textContent = assets_showApy ? 'APY' : 'APR';
+            const sl = document.getElementById('assets-apr-slider');
+            if (sl) {
+                sl.querySelector('.apr-opt').classList.toggle('active', !assets_showApy);
+                sl.querySelector('.apy-opt').classList.toggle('active', assets_showApy);
+            }
             assets_render();
         }
 
@@ -15270,8 +15294,11 @@
 
         function earn_toggleAprApy() {
             earn_showApy = !earn_showApy;
-            const lbl = document.getElementById('earn-apr-label');
-            if (lbl) lbl.textContent = earn_showApy ? 'APY' : 'APR';
+            const sl = document.getElementById('earn-apr-slider');
+            if (sl) {
+                sl.querySelector('.apr-opt').classList.toggle('active', !earn_showApy);
+                sl.querySelector('.apy-opt').classList.toggle('active', earn_showApy);
+            }
             earn_renderResults({ skipSummary: true });
         }
 
