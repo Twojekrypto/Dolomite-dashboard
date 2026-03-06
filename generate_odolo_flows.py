@@ -38,6 +38,39 @@ EXCLUDED_ADDRS = {
     "0xf909c4ae16622898b885b89d7f839e0244851c66",
     # Contract
     "0xa575f37e869e6887564f87c07e2885e08d542c4a",
+    # --- Contracts discovered during top-50 verification (2026-03-06) ---
+    # LP/router contract (921 txs)
+    "0x7ab286e9da6b5a1c80664b382092a8a4b91c276c",
+    # Router/aggregator (393 txs)
+    "0x12622dae56ec7a25f6cfeb96db88651c5bf7861d",
+    # DEX/aggregator (65 txs)
+    "0x089b95152253b6af73e7f7267d749058d56ce231",
+    # LP/swap contract (254 txs)
+    "0x16f13296c85c308b37bae567284e62b4c21a1ee9",
+    # DEX contract (201 txs)
+    "0x8430e3574eeb85b39b053b4022cfa27f951f48c7",
+    # Router (313 txs)
+    "0x8c7ba8f245aef3216698087461e05b85483f791f",
+    # Bot/aggregator (1602 txs)
+    "0x893785e5c2a4ccfe0790e580c8e4ef363fabde1e",
+    # Protocol contract (135 txs)
+    "0x4fe93ebc4ce6ae4f81601cc7ce7139023919e003",
+    # LP contract (116 txs)
+    "0xf5042e6ffac5a625d4e7848e0b01373d8eb9e222",
+    # Bot/aggregator (2899 txs)
+    "0x4be03f781c497a489e3cb0287833452ca9b9e80b",
+    # Router (4403 txs)
+    "0x221dd2bb8b25f5e46b00c174b0111d383eb5c0bc",
+    # Bot/aggregator (4692 txs)
+    "0x71355972c9e332f73ff6921f9b3a02f349ff9752",
+    # Contract (576 txs)
+    "0x08b14bb09ac4819c16f68d7c92f7dcc20750eaff",
+    # DEX contract (249 txs)
+    "0x062a2b0eea575f659a1aaf18c1df5d93e0528245",
+    # LP contract (44 txs)
+    "0x36f4e1803f6ff34562db567f347dea00dec87246",
+    # Contract (92 txs)
+    "0x74d09665900a5f29bac25befd30c73a5962d44e7",
 }
 
 RPC_URLS = [
@@ -330,11 +363,11 @@ def main():
         if t[3] >= oldest_needed
     ]
 
-    # Detect contracts
+    # Detect contracts — check top 100 by gross outflow
     print("\n🔍 Detecting contract addresses to exclude...")
-    flows_30d = calculate_flows(all_transfers, EXCLUDED_ADDRS)
-    top_by_flow = sorted(flows_30d.items(), key=lambda x: abs(x[1]), reverse=True)[:30]
-    addrs_to_check = [addr for addr, _ in top_by_flow]
+    gross_all = calculate_gross_outflows(all_transfers, EXCLUDED_ADDRS)
+    top_by_outflow = sorted(gross_all.items(), key=lambda x: x[1], reverse=True)[:100]
+    addrs_to_check = [addr for addr, _ in top_by_outflow if addr not in EXCLUDED_ADDRS]
     contracts = detect_contracts_batch(addrs_to_check)
     EXCLUDED_ADDRS.update(contracts)
     print(f"  Excluded {len(contracts)} contract(s)")
