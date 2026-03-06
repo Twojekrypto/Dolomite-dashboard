@@ -1544,7 +1544,7 @@
             transition: background 0.15s;
         }
         .assets-table tbody tr.assets-data-row:hover td {
-            background: rgba(99, 102, 241, 0.04);
+            background: transparent;
         }
         .assets-table tbody tr.assets-data-row.expanded td {
             border-bottom-color: transparent;
@@ -1600,13 +1600,13 @@
             border-color: rgba(255, 77, 106, 0.2);
         }
         .assets-detail-ca {
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 8px;
-            margin-top: 8px;
-            padding: 6px 10px;
-            background: rgba(255,255,255,0.02);
-            border: 1px solid rgba(255,255,255,0.05);
+            margin-bottom: 10px;
+            padding: 5px 10px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
             border-radius: 8px;
             font-size: 12px;
         }
@@ -1622,9 +1622,9 @@
             letter-spacing: 0.5px;
         }
         .assets-ca-address {
-            color: rgba(255,255,255,0.7);
+            color: rgba(255,255,255,0.65);
             font-family: 'SF Mono', 'Fira Code', monospace;
-            font-size: 12px;
+            font-size: 11px;
             text-decoration: none;
             transition: color 0.2s;
         }
@@ -1634,18 +1634,23 @@
         }
         .assets-ca-copy {
             background: none;
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 4px;
-            padding: 2px 6px;
+            border: none;
+            padding: 2px;
             cursor: pointer;
-            font-size: 12px;
-            color: rgba(255,255,255,0.5);
-            transition: all 0.2s;
+            color: rgba(255,255,255,0.35);
+            transition: color 0.2s;
+            display: flex;
+            align-items: center;
         }
         .assets-ca-copy:hover {
-            background: rgba(255,255,255,0.08);
-            border-color: rgba(255,255,255,0.2);
             color: #fff;
+        }
+        .assets-ca-copy svg {
+            width: 14px;
+            height: 14px;
+        }
+        .assets-ca-copy.copied {
+            color: #4ade80;
         }
         .assets-detail-stat-label {
             font-size: 10px;
@@ -14410,6 +14415,16 @@
             return n.toFixed(decimals || 4);
         }
 
+        function assets_copyCA(btn, addr) {
+            navigator.clipboard.writeText(addr);
+            btn.classList.add('copied');
+            btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+            setTimeout(() => {
+                btn.classList.remove('copied');
+                btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+            }, 1500);
+        }
+
         function assets_buildDetailRow(rowId, d, md) {
             if (!md) {
                 const msg = assets_marketDataLoaded ? 'Data not available on this chain' : 'Loading market data...';
@@ -14436,6 +14451,12 @@
             const sym = d.symbol || '';
 
             return `<tr class="assets-detail-row" id="${rowId}-detail"><td colspan="5">
+                ${d.addr ? `<div class="assets-detail-ca">
+                    <img src="${d.chainIcon}" alt="${d.chainShort}" class="assets-ca-chain-icon">
+                    <span class="assets-ca-label">Contract</span>
+                    <a href="${(ASSETS_CHAINS[d.chainKey]?.explorer || '#') + d.addr}" target="_blank" rel="noopener" class="assets-ca-address">${d.addr}</a>
+                    <button class="assets-ca-copy" onclick="assets_copyCA(this,'${d.addr}')" title="Copy address"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+                </div>` : ''}
                 <div class="assets-detail-grid">
                     <div class="assets-detail-stat">
                         <div class="assets-detail-stat-label">Supplied</div>
@@ -14477,12 +14498,6 @@
                                <div class="assets-detail-stat-sub">Utilization ${utilPct.toFixed(1)}%</div>`}
                     </div>
                 </div>
-                ${d.addr ? `<div class="assets-detail-ca">
-                    <img src="${d.chainIcon}" alt="${d.chainShort}" class="assets-ca-chain-icon">
-                    <span class="assets-ca-label">Contract</span>
-                    <a href="${(ASSETS_CHAINS[d.chainKey]?.explorer || '#') + d.addr}" target="_blank" rel="noopener" class="assets-ca-address" title="${d.addr}">${d.addr.slice(0, 6)}...${d.addr.slice(-4)}</a>
-                    <button class="assets-ca-copy" onclick="navigator.clipboard.writeText('${d.addr}');this.textContent='✓';setTimeout(()=>this.textContent='📋',1500)" title="Copy address">📋</button>
-                </div>` : ''}
             </td></tr>`;
         }
 
