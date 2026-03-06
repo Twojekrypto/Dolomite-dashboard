@@ -231,15 +231,19 @@ def detect_contracts_batch(addresses):
     return contracts
 
 
+# oDOLO Vester — exercising oDOLO sends tokens here, NOT selling
+VESTER_CONTRACT = "0x3e9b9a16743551da49b5e136c716bba7932d2cec"
+
+
 def calculate_flows(transfers, excluded):
     """Calculate net flow per address.
-    Transfers involving mint/burn addresses are skipped entirely —
-    mints are not accumulation and burns are not selling.
-    DEX/LP contracts are kept in the calculation but filtered from results."""
+    Transfers involving mint/burn/vester addresses are skipped —
+    mints, burns and exercising are not real market flow."""
     SKIP_ADDRS = {
         ZERO,
         ODOLO_CONTRACT,
         "0x0000000000000000000000000000000000000001",
+        VESTER_CONTRACT,
     }
     flows = {}
     for from_addr, to_addr, value_wei, _ in transfers:
@@ -253,12 +257,13 @@ def calculate_flows(transfers, excluded):
 
 def calculate_gross_outflows(transfers, excluded):
     """Calculate total gross outflow per address (sum of all transfers OUT).
-    Unlike net flow, this doesn't cancel against inflows — shows who
-    transferred the most oDOLO out regardless of how much they received."""
+    Unlike net flow, this doesn't cancel against inflows.
+    Excludes transfers to Vester (exercising is not selling)."""
     SKIP_ADDRS = {
         ZERO,
         ODOLO_CONTRACT,
         "0x0000000000000000000000000000000000000001",
+        VESTER_CONTRACT,
     }
     outflows = {}
     for from_addr, to_addr, value_wei, _ in transfers:
