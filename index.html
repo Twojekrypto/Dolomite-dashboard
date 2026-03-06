@@ -13810,7 +13810,10 @@
                     token { id symbol decimals marketId }
                 }
                 marketRiskInfos(first: 1000) {
-                    id supplyMaxWei borrowMaxWei
+                    id supplyMaxWei borrowMaxWei isBorrowingDisabled
+                }
+                interestIndexes(first: 1000) {
+                    id supplyIndex borrowIndex
                 }
             }`;
 
@@ -13828,15 +13831,24 @@
                     const json = await resp.json();
                     if (!json.data) return;
 
-                    const { totalPars, marketRiskInfos } = json.data;
-                    // Build caps lookup by token address
+                    const { totalPars, marketRiskInfos, interestIndexes } = json.data;
+                    // Build caps + borrow-disabled lookup by token address
                     const capsMap = {};
                     (marketRiskInfos || []).forEach(r => {
-                        const bMax = r.borrowMaxWei ? parseFloat(r.borrowMaxWei) : -1;
+                        const sCap = r.supplyMaxWei ? parseFloat(r.supplyMaxWei) : 0;
+                        const bCap = r.borrowMaxWei ? parseFloat(r.borrowMaxWei) : 0;
                         capsMap[r.id.toLowerCase()] = {
-                            supplyCap: r.supplyMaxWei ? parseFloat(r.supplyMaxWei) : 0,
-                            borrowCap: bMax > 0 ? bMax : 0,
-                            isBorrowDisabled: bMax >= 0 && bMax < 0.001, // tiny value = disabled
+                            supplyCap: sCap > 0.001 ? sCap : 0,
+                            borrowCap: bCap > 0.001 ? bCap : 0,
+                            isBorrowDisabled: r.isBorrowingDisabled === true,
+                        };
+                    });
+                    // Build interest index lookup
+                    const indexMap = {};
+                    (interestIndexes || []).forEach(r => {
+                        indexMap[r.id.toLowerCase()] = {
+                            supplyIdx: parseFloat(r.supplyIndex) || 1,
+                            borrowIdx: parseFloat(r.borrowIndex) || 1,
                         };
                     });
 
@@ -13844,8 +13856,9 @@
                     (totalPars || []).forEach(tp => {
                         const tokenAddr = tp.token?.id?.toLowerCase();
                         if (!tokenAddr) return;
-                        const supplied = parseFloat(tp.supplyPar) || 0;
-                        const borrowed = parseFloat(tp.borrowPar) || 0;
+                        const idx = indexMap[tokenAddr] || { supplyIdx: 1, borrowIdx: 1 };
+                        const supplied = (parseFloat(tp.supplyPar) || 0) * idx.supplyIdx;
+                        const borrowed = (parseFloat(tp.borrowPar) || 0) * idx.borrowIdx;
                         const caps = capsMap[tokenAddr] || {};
                         const key = chainKey + ':' + tokenAddr;
                         assets_marketData[key] = {
