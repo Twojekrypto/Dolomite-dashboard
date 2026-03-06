@@ -11227,20 +11227,34 @@
             const pd = odolo_flowsData.periods[odolo_anOutflowPeriod];
             if (!pd) return;
 
-            const sellers = pd.sellers || [];
+            const sellers = (pd.sellers || []).filter(s => Math.abs(s.net_flow) > 0);
             const totalOut = sellers.reduce((s, x) => s + Math.abs(x.net_flow), 0);
             const totalEl = document.getElementById('odolo-an-outflow-total');
-            if (totalEl) totalEl.textContent = totalOut >= 1e6 ? (totalOut/1e6).toFixed(2)+'M' : totalOut >= 1e3 ? (totalOut/1e3).toFixed(1)+'K' : totalOut.toFixed(0);
+            if (totalEl) {
+                if (totalOut === 0) {
+                    totalEl.textContent = 'No net outflows';
+                    totalEl.style.fontSize = '16px';
+                    totalEl.style.color = 'rgba(255,255,255,0.4)';
+                } else {
+                    totalEl.textContent = totalOut >= 1e6 ? (totalOut/1e6).toFixed(2)+'M' : totalOut >= 1e3 ? (totalOut/1e3).toFixed(1)+'K' : totalOut.toFixed(0);
+                    totalEl.style.fontSize = '';
+                    totalEl.style.color = '';
+                }
+            }
 
             const listEl = document.getElementById('odolo-an-outflow-list');
             if (listEl) {
-                const top3 = sellers.slice(0, 3);
-                listEl.innerHTML = top3.map(s => {
-                    const addr = s.address.slice(0,6) + '…' + s.address.slice(-4);
-                    const amt = Math.abs(s.net_flow);
-                    const fmtAmt = amt >= 1e6 ? (amt/1e6).toFixed(1)+'M' : amt >= 1e3 ? (amt/1e3).toFixed(1)+'K' : amt.toFixed(0);
-                    return `<div class="odolo-outflow-item"><span class="odolo-outflow-addr">${addr}</span><span class="odolo-outflow-amt">-${fmtAmt}</span></div>`;
-                }).join('');
+                if (sellers.length === 0) {
+                    listEl.innerHTML = '<div style="font-size:11px;color:rgba(255,255,255,0.3);text-align:center;padding:8px 0">Net flows balanced — no dominant sellers</div>';
+                } else {
+                    const top3 = sellers.slice(0, 3);
+                    listEl.innerHTML = top3.map(s => {
+                        const addr = s.address.slice(0,6) + '\u2026' + s.address.slice(-4);
+                        const amt = Math.abs(s.net_flow);
+                        const fmtAmt = amt >= 1e6 ? (amt/1e6).toFixed(1)+'M' : amt >= 1e3 ? (amt/1e3).toFixed(1)+'K' : amt.toFixed(0);
+                        return `<div class="odolo-outflow-item"><span class="odolo-outflow-addr">${addr}</span><span class="odolo-outflow-amt">-${fmtAmt}</span></div>`;
+                    }).join('');
+                }
             }
         }
 
