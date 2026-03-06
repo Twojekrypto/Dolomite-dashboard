@@ -4806,7 +4806,11 @@
         }
         .odolo-analytics-row .card-title .tooltip-icon {
             vertical-align: middle;
+            position: relative;
         }
+        /* Only show tooltip on ? hover, not entire title */
+        .odolo-analytics-row .tooltip-wrap:hover > .tooltip-bubble { display: none; }
+        .odolo-analytics-row .tooltip-icon:hover .tooltip-bubble { display: block; }
         /* Left card: tooltip aligns left */
         .odolo-analytics-row .card:first-child .tooltip-bubble {
             left: 0;
@@ -8627,11 +8631,10 @@
                 <!-- Card 1: Claimed vs Unclaimed -->
                 <div class="card">
                     <div class="card-title">
-                        <span class="tooltip-wrap">
-                            Claimed vs Unclaimed
-                            <i class="tooltip-icon">?</i>
+                        Claimed vs Unclaimed
+                        <i class="tooltip-icon">?
                             <span class="tooltip-bubble">Breakdown of all oDOLO that entered the Vester contract. <b>Exercised</b> = successfully converted to veDOLO. <b>Vesting</b> = paired with DOLO, currently in 7-day cooldown. <b>Unclaimed</b> = sitting in the Vester, users earned it but haven't claimed yet — they can do so at any time.</span>
-                        </span>
+                        </i>
                     </div>
                     <div class="odolo-an-body" id="odolo-an-claimed">
                         <div class="odolo-ring-wrap">
@@ -8653,11 +8656,10 @@
                 <!-- Card 2: Avg Bond Duration -->
                 <div class="card">
                     <div class="card-title">
-                        <span class="tooltip-wrap">
-                            Average Bond Duration
-                            <i class="tooltip-icon">?</i>
+                        Average Bond Duration
+                        <i class="tooltip-icon">?
                             <span class="tooltip-bubble">Average veDOLO lock duration chosen when exercising oDOLO. Longer locks = bigger discounts (5% for 1 week up to 50% for 2 years). The scale bar shows where the average falls on the full range.</span>
-                        </span>
+                        </i>
                     </div>
                     <div class="odolo-an-body" id="odolo-an-bond">
                         <div class="odolo-bond-big" id="odolo-an-bond-val">—<span>months</span></div>
@@ -8680,11 +8682,10 @@
                 <!-- Card 3: oDOLO Outflows -->
                 <div class="card">
                     <div class="card-title">
-                        <span class="tooltip-wrap">
-                            oDOLO Outflows
-                            <i class="tooltip-icon">?</i>
+                        oDOLO Outflows
+                        <i class="tooltip-icon">?
                             <span class="tooltip-bubble">Net oDOLO transferred out (sold on DEX, sent to other wallets). Shows top addresses with largest net outflows for the selected period. A high outflow may indicate selling pressure.</span>
-                        </span>
+                        </i>
                     </div>
                     <div class="odolo-an-body" id="odolo-an-outflows">
                         <div class="odolo-outflow-period" id="odolo-an-outflow-pills">
