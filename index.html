@@ -14418,12 +14418,15 @@
                             : `<div class="assets-detail-stat-value">${md.borrowCapNum > 0 ? assets_fmtNum(md.borrowCapNum) + ' ' + sym : '∞ No cap'}</div>
                                <div class="assets-detail-stat-sub">${borrowCapUsd}</div>`}
                     </div>
-                    <div class="assets-detail-stat">
+                    <div class="assets-detail-stat${md.isBorrowDisabled ? ' borrow-disabled' : ''}">
                         <div class="assets-detail-stat-label">Available Liquidity</div>
-                        <div class="assets-detail-stat-value">${assets_fmtNum(md.availableLiquidity)} ${sym}</div>
-                        <div class="assets-detail-stat-sub">${liquidityUsd}</div>
-                        <div class="assets-detail-bar-wrap"><div class="assets-detail-bar-fill liquidity" style="width:${(100 - utilPct).toFixed(1)}%"></div></div>
-                        <div class="assets-detail-stat-sub">Utilization ${utilPct.toFixed(1)}%</div>
+                        ${md.isBorrowDisabled
+                            ? `<div class="assets-detail-stat-value" style="color:#ff4d6a">🚫 Not borrowable</div>
+                               <div class="assets-detail-stat-sub" style="color:#ff4d6a80">Liquidity not available for borrowing</div>`
+                            : `<div class="assets-detail-stat-value">${assets_fmtNum(md.availableLiquidity)} ${sym}</div>
+                               <div class="assets-detail-stat-sub">${liquidityUsd}</div>
+                               <div class="assets-detail-bar-wrap"><div class="assets-detail-bar-fill liquidity" style="width:${(100 - utilPct).toFixed(1)}%"></div></div>
+                               <div class="assets-detail-stat-sub">Utilization ${utilPct.toFixed(1)}%</div>`}
                     </div>
                 </div>
             </td></tr>`;
