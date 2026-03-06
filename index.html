@@ -1595,6 +1595,10 @@
             flex-direction: column;
             gap: 4px;
         }
+        .assets-detail-stat.borrow-disabled {
+            background: rgba(255, 77, 106, 0.06);
+            border-color: rgba(255, 77, 106, 0.2);
+        }
         .assets-detail-stat-label {
             font-size: 10px;
             text-transform: uppercase;
@@ -13828,9 +13832,11 @@
                     // Build caps lookup by token address
                     const capsMap = {};
                     (marketRiskInfos || []).forEach(r => {
+                        const bMax = r.borrowMaxWei ? parseFloat(r.borrowMaxWei) : -1;
                         capsMap[r.id.toLowerCase()] = {
                             supplyCap: r.supplyMaxWei ? parseFloat(r.supplyMaxWei) : 0,
-                            borrowCap: r.borrowMaxWei ? parseFloat(r.borrowMaxWei) : 0,
+                            borrowCap: bMax > 0 ? bMax : 0,
+                            isBorrowDisabled: bMax >= 0 && bMax < 0.001, // tiny value = disabled
                         };
                     });
 
@@ -13847,6 +13853,7 @@
                             borrowed,
                             supplyCapNum: caps.supplyCap || 0,
                             borrowCapNum: caps.borrowCap || 0,
+                            isBorrowDisabled: caps.isBorrowDisabled || false,
                             availableLiquidity: supplied - borrowed,
                         };
                         count++;
@@ -14381,17 +14388,22 @@
                         <div class="assets-detail-stat-value">${md.supplyCapNum > 0 ? assets_fmtNum(md.supplyCapNum) + ' ' + sym : '∞ No cap'}</div>
                         <div class="assets-detail-stat-sub">${supplyCapUsd}</div>
                     </div>
-                    <div class="assets-detail-stat">
+                    <div class="assets-detail-stat${md.isBorrowDisabled ? ' borrow-disabled' : ''}">
                         <div class="assets-detail-stat-label">Borrowed</div>
-                        <div class="assets-detail-stat-value">${assets_fmtNum(md.borrowed)} ${sym}</div>
-                        <div class="assets-detail-stat-sub">${borrowedUsd}</div>
-                        ${md.borrowCapNum > 0 ? `<div class="assets-detail-bar-wrap"><div class="assets-detail-bar-fill borrow" style="width:${borrowPct.toFixed(1)}%"></div></div>
-                        <div class="assets-detail-stat-sub">${borrowPct.toFixed(1)}% of cap</div>` : ''}
+                        ${md.isBorrowDisabled
+                            ? `<div class="assets-detail-stat-value" style="color:#ff4d6a">🚫 Disabled</div>
+                               <div class="assets-detail-stat-sub" style="color:#ff4d6a80">Borrowing not allowed</div>`
+                            : `<div class="assets-detail-stat-value">${assets_fmtNum(md.borrowed)} ${sym}</div>
+                               <div class="assets-detail-stat-sub">${borrowedUsd}</div>
+                               ${md.borrowCapNum > 0 ? `<div class="assets-detail-bar-wrap"><div class="assets-detail-bar-fill borrow" style="width:${borrowPct.toFixed(1)}%"></div></div>
+                               <div class="assets-detail-stat-sub">${borrowPct.toFixed(1)}% of cap</div>` : ''}`}
                     </div>
-                    <div class="assets-detail-stat">
+                    <div class="assets-detail-stat${md.isBorrowDisabled ? ' borrow-disabled' : ''}">
                         <div class="assets-detail-stat-label">Borrow Cap</div>
-                        <div class="assets-detail-stat-value">${md.borrowCapNum > 0 ? assets_fmtNum(md.borrowCapNum) + ' ' + sym : '∞ No cap'}</div>
-                        <div class="assets-detail-stat-sub">${borrowCapUsd}</div>
+                        ${md.isBorrowDisabled
+                            ? `<div class="assets-detail-stat-value" style="color:#ff4d6a">🚫 Disabled</div>`
+                            : `<div class="assets-detail-stat-value">${md.borrowCapNum > 0 ? assets_fmtNum(md.borrowCapNum) + ' ' + sym : '∞ No cap'}</div>
+                               <div class="assets-detail-stat-sub">${borrowCapUsd}</div>`}
                     </div>
                     <div class="assets-detail-stat">
                         <div class="assets-detail-stat-label">Available Liquidity</div>
