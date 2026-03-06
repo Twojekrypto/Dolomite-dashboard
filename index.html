@@ -13773,12 +13773,12 @@
         }
 
         const ASSETS_CHAINS = {
-            berachain: { id: 80094, name: 'Berachain', short: 'BERA', icon: 'https://icons.llamao.fi/icons/chains/rsz_berachain.jpg', margin: '0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D', rpcs: ['https://berachain-rpc.publicnode.com/', 'https://rpc.berachain.com/', 'https://berachain.drpc.org/'] },
-            arbitrum: { id: 42161, name: 'Arbitrum', short: 'ARB', icon: 'https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg', margin: '0x6bd780e7fDf01D77e4d475c821f1e7AE05409072', rpcs: ['https://arbitrum.drpc.org/', 'https://1rpc.io/arb'] },
-            ethereum: { id: 1, name: 'Ethereum', short: 'ETH', icon: 'https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg', margin: '0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D', rpcs: ['https://ethereum-rpc.publicnode.com/', 'https://eth.drpc.org/', 'https://1rpc.io/eth'] },
-            mantle: { id: 5000, name: 'Mantle', short: 'MNT', icon: 'https://icons.llamao.fi/icons/chains/rsz_mantle.jpg', margin: '0xe6ef4f0b2455bab92ce7cc78e35324ab58917de8', rpcs: ['https://mantle-rpc.publicnode.com/', 'https://mantle.drpc.org/', 'https://rpc.mantle.xyz/'] },
-            polygonzkevm: { id: 1101, name: 'Polygon zkEVM', short: 'zkEVM', icon: 'https://icons.llamao.fi/icons/chains/rsz_polygon%20zkevm.jpg', margin: '0x836b557cf9ef29fcf49c776841191782df34e4e5', rpcs: ['https://polygon-zkevm.drpc.org/', 'https://zkevm-rpc.com/'] },
-            xlayer: { id: 196, name: 'X Layer', short: 'XLAY', icon: 'https://icons.llamao.fi/icons/chains/rsz_x%20layer.jpg', margin: '0x836b557cf9ef29fcf49c776841191782df34e4e5', rpcs: ['https://xlayer.drpc.org/', 'https://rpc.xlayer.tech/'] },
+            berachain: { id: 80094, name: 'Berachain', short: 'BERA', icon: 'https://icons.llamao.fi/icons/chains/rsz_berachain.jpg', subgraph: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-berachain-mainnet/latest/gn' },
+            arbitrum: { id: 42161, name: 'Arbitrum', short: 'ARB', icon: 'https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg', subgraph: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-arbitrum/latest/gn' },
+            ethereum: { id: 1, name: 'Ethereum', short: 'ETH', icon: 'https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg', subgraph: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-ethereum/latest/gn' },
+            mantle: { id: 5000, name: 'Mantle', short: 'MNT', icon: 'https://icons.llamao.fi/icons/chains/rsz_mantle.jpg', subgraph: 'https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-mantle/latest/gn' },
+            polygonzkevm: { id: 1101, name: 'Polygon zkEVM', short: 'zkEVM', icon: 'https://icons.llamao.fi/icons/chains/rsz_polygon%20zkevm.jpg', subgraph: 'https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-polygon-zkevm/latest/gn' },
+            xlayer: { id: 196, name: 'X Layer', short: 'XLAY', icon: 'https://icons.llamao.fi/icons/chains/rsz_x%20layer.jpg', subgraph: 'https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-x-layer/latest/gn' },
         };
 
         const ASSETS_STABLES = new Set(['USDC', 'USDT', 'USDT0', 'DAI', 'USDC.E', 'HONEY', 'USDE', 'SUSDE', 'NECT', 'RUSD', 'SRUSD', 'WSRUSD', 'BYUSD', 'MIM', 'GRAI', 'EUSD', 'USDS', 'SUSDS', 'WUSDM', 'USDM', 'SUSD', 'CRVUSD', 'FRAX', 'LUSD', 'GHO', 'JUSC', 'JUSDC', 'USDA', 'USDAI', 'SUSDAI', 'SUSDA', 'SAVUSD', 'PUSD', 'YPUSD', 'USD0', 'USD0++', 'USD1', 'USDY', 'BOLD', 'DEUSD', 'SDEUSD', 'CUSD', 'STCUSD']);
@@ -13794,177 +13794,69 @@
             return false;
         }
 
-        // === On-chain market data (supply, borrow, caps) ===
-        const ASSETS_MARGIN_SEL = {
-            getNumMarkets: '0x295c39a5',
-            getMarketTotalWei: '0xdc6d7846',
-            getMarketMaxSupplyWei: '0x38402762',
-            getMarketMaxBorrowWei: '0x07af1568',
-            getMarketTokenAddress: '0x062bd3e9',
-        };
+        // === Market data via Dolomite subgraph ===
         let assets_marketData = {};
         let assets_marketDataLoaded = false;
-        let assets_rpcId = 900000;
-
-        function assets_padUint(n) {
-            return BigInt(n).toString(16).padStart(64, '0');
-        }
-
-        // JSON-RPC batch with auto-fallback to parallel individual calls
-        async function assets_rpcBatch(rpcs, calls) {
-            // Try each RPC endpoint
-            for (let attempt = 0; attempt < rpcs.length; attempt++) {
-                const endpoint = rpcs[attempt];
-                try {
-                    // Try batch first
-                    const ctrl = new AbortController();
-                    const timer = setTimeout(() => ctrl.abort(), 10000);
-                    const batch = calls.map(c => ({
-                        jsonrpc: '2.0', method: 'eth_call',
-                        params: [{ to: c.to, data: c.data }, 'latest'],
-                        id: assets_rpcId++
-                    }));
-                    const resp = await fetch(endpoint, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(batch),
-                        signal: ctrl.signal
-                    });
-                    clearTimeout(timer);
-                    const results = await resp.json();
-                    if (Array.isArray(results)) {
-                        // Check if batch actually worked (no errors in responses)
-                        const successCount = results.filter(r => r.result).length;
-                        if (successCount > 0) {
-                            const map = {};
-                            results.forEach(r => { map[r.id] = r.result || null; });
-                            return batch.map(b => map[b.id] || null);
-                        }
-                        // Batch returned all errors (e.g. drpc.org limit) — fall through to individual
-                    }
-                    // Batch not supported or all errors — use parallel individual calls
-                    return await assets_rpcIndividual(endpoint, calls);
-                } catch (e) {
-                    // CORS or network error — try next RPC
-                }
-            }
-            return calls.map(() => null);
-        }
-
-        // Send individual eth_call requests in parallel with concurrency limit
-        async function assets_rpcIndividual(endpoint, calls) {
-            const CONCURRENT = 15;
-            const results = new Array(calls.length).fill(null);
-            for (let i = 0; i < calls.length; i += CONCURRENT) {
-                const chunk = calls.slice(i, i + CONCURRENT);
-                const chunkResults = await Promise.all(chunk.map(async c => {
-                    try {
-                        const ctrl = new AbortController();
-                        const timer = setTimeout(() => ctrl.abort(), 5000);
-                        const r = await fetch(endpoint, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                jsonrpc: '2.0', method: 'eth_call',
-                                params: [{ to: c.to, data: c.data }, 'latest'],
-                                id: assets_rpcId++
-                            }),
-                            signal: ctrl.signal
-                        });
-                        clearTimeout(timer);
-                        const j = await r.json();
-                        return j.result || null;
-                    } catch { return null; }
-                }));
-                chunkResults.forEach((r, j) => { results[i + j] = r; });
-            }
-            return results;
-        }
 
         async function assets_fetchMarketData() {
             const t0 = performance.now();
-            // Step 1: Get number of markets for ALL chains in parallel (1 call each)
-            const chainEntries = Object.entries(ASSETS_CHAINS);
-            const numCalls = await Promise.all(chainEntries.map(async ([chainKey, chain]) => {
-                const batch = [{ to: chain.margin, data: ASSETS_MARGIN_SEL.getNumMarkets }];
-                const results = await assets_rpcBatch(chain.rpcs, batch);
-                if (!results || !results[0]) { console.warn(`📊 ${chainKey}: getNumMarkets FAILED`); return 0; }
+            const QUERY = `{
+                totalPars(first: 1000) {
+                    id supplyPar borrowPar
+                    token { id symbol decimals marketId }
+                }
+                marketRiskInfos(first: 1000) {
+                    id supplyMaxWei borrowMaxWei
+                }
+            }`;
+
+            await Promise.all(Object.entries(ASSETS_CHAINS).map(async ([chainKey, chain]) => {
                 try {
-                    const n = Number(BigInt('0x' + results[0].replace('0x', '')));
-                    console.log(`📊 ${chainKey}: ${n} markets`);
-                    return n;
-                } catch { console.warn(`📊 ${chainKey}: parse error`); return 0; }
-            }));
+                    const ctrl = new AbortController();
+                    const timer = setTimeout(() => ctrl.abort(), 10000);
+                    const resp = await fetch(chain.subgraph, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ query: QUERY }),
+                        signal: ctrl.signal
+                    });
+                    clearTimeout(timer);
+                    const json = await resp.json();
+                    if (!json.data) return;
 
-            // Step 2: For all chains with markets, send ONE big batch per chain (all in parallel)
-            await Promise.all(chainEntries.map(async ([chainKey, chain], idx) => {
-                const numMarkets = numCalls[idx];
-                if (numMarkets === 0) return;
-                try {
-                    const calls = [];
-                    for (let i = 0; i < numMarkets; i++) {
-                        const mId = assets_padUint(i);
-                        calls.push({ to: chain.margin, data: ASSETS_MARGIN_SEL.getMarketTokenAddress + mId });
-                        calls.push({ to: chain.margin, data: ASSETS_MARGIN_SEL.getMarketTotalWei + mId });
-                        calls.push({ to: chain.margin, data: ASSETS_MARGIN_SEL.getMarketMaxSupplyWei + mId });
-                        calls.push({ to: chain.margin, data: ASSETS_MARGIN_SEL.getMarketMaxBorrowWei + mId });
-                    }
+                    const { totalPars, marketRiskInfos } = json.data;
+                    // Build caps lookup by token address
+                    const capsMap = {};
+                    (marketRiskInfos || []).forEach(r => {
+                        capsMap[r.id.toLowerCase()] = {
+                            supplyCap: r.supplyMaxWei ? parseFloat(r.supplyMaxWei) : 0,
+                            borrowCap: r.borrowMaxWei ? parseFloat(r.borrowMaxWei) : 0,
+                        };
+                    });
 
-                    const results = await assets_rpcBatch(chain.rpcs, calls);
-                    if (!results) return;
-
-                    for (let i = 0; i < numMarkets; i++) {
-                        const base = i * 4;
-                        const addrRaw = results[base];
-                        const totalWeiRaw = results[base + 1];
-                        const maxSupplyRaw = results[base + 2];
-                        const maxBorrowRaw = results[base + 3];
-                        if (!addrRaw || !totalWeiRaw) continue;
-
-                        const tokenAddr = '0x' + addrRaw.replace('0x', '').slice(24, 64);
-                        const twData = totalWeiRaw.replace('0x', '');
-                        const borrowWei = BigInt('0x' + twData.slice(0, 64));
-                        const supplyWei = BigInt('0x' + twData.slice(64, 128));
-
-                        let supplyCap = 0n;
-                        if (maxSupplyRaw) {
-                            const msData = maxSupplyRaw.replace('0x', '');
-                            supplyCap = BigInt('0x' + msData.slice(64, 128));
-                        }
-                        let borrowCap = 0n;
-                        if (maxBorrowRaw) {
-                            const mbData = maxBorrowRaw.replace('0x', '');
-                            borrowCap = BigInt('0x' + mbData.slice(64, 128));
-                        }
-
-                        const key = chainKey + ':' + tokenAddr.toLowerCase();
-                        assets_marketData[key] = { borrowWei, supplyWei, supplyCap, borrowCap };
-                    }
+                    let count = 0;
+                    (totalPars || []).forEach(tp => {
+                        const tokenAddr = tp.token?.id?.toLowerCase();
+                        if (!tokenAddr) return;
+                        const supplied = parseFloat(tp.supplyPar) || 0;
+                        const borrowed = parseFloat(tp.borrowPar) || 0;
+                        const caps = capsMap[tokenAddr] || {};
+                        const key = chainKey + ':' + tokenAddr;
+                        assets_marketData[key] = {
+                            supplied,
+                            borrowed,
+                            supplyCapNum: caps.supplyCap || 0,
+                            borrowCapNum: caps.borrowCap || 0,
+                            availableLiquidity: supplied - borrowed,
+                        };
+                        count++;
+                    });
+                    console.log(`📊 ${chainKey}: ${count} markets from subgraph`);
                 } catch (e) {
-                    console.warn(`Assets market data: ${chain.name} failed`, e);
+                    console.warn(`📊 ${chainKey}: subgraph failed`, e.message);
                 }
             }));
 
-            // Convert BigInt wei to human-readable using known decimals
-            const tokenDecimals = {};
-            assets_allData.forEach(d => {
-                const key = d.chainKey + ':' + (d.addr || '').toLowerCase();
-                const sym = (d.symbol || '').toUpperCase();
-                let dec = 18;
-                if (['USDC', 'USDT', 'USDC.E', 'USDT0'].includes(sym)) dec = 6;
-                else if (['WBTC'].includes(sym)) dec = 8;
-                tokenDecimals[key] = dec;
-            });
-
-            for (const [key, md] of Object.entries(assets_marketData)) {
-                const dec = tokenDecimals[key] || 18;
-                const div = 10n ** BigInt(dec);
-                md.supplied = Number(md.supplyWei * 10000n / div) / 10000;
-                md.borrowed = Number(md.borrowWei * 10000n / div) / 10000;
-                md.supplyCapNum = md.supplyCap > 0n ? Number(md.supplyCap * 10000n / div) / 10000 : 0;
-                md.borrowCapNum = md.borrowCap > 0n ? Number(md.borrowCap * 10000n / div) / 10000 : 0;
-                md.availableLiquidity = md.supplied - md.borrowed;
-            }
             assets_marketDataLoaded = true;
             console.log(`✅ Assets market data: ${Object.keys(assets_marketData).length} markets in ${((performance.now() - t0) / 1000).toFixed(1)}s`);
             // Re-render any already-open detail rows now that data is available
