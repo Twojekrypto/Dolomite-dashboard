@@ -1538,6 +1538,100 @@
             }
         }
 
+        /* Expandable asset detail rows */
+        .assets-table tbody tr.assets-data-row {
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .assets-table tbody tr.assets-data-row:hover td {
+            background: rgba(99, 102, 241, 0.04);
+        }
+        .assets-table tbody tr.assets-data-row.expanded td {
+            border-bottom-color: transparent;
+            background: rgba(99, 102, 241, 0.06);
+        }
+        .assets-table tbody tr.assets-data-row td:first-child .assets-expand-chevron {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            transition: transform 0.25s ease;
+            opacity: 0.3;
+            flex-shrink: 0;
+        }
+        .assets-table tbody tr.assets-data-row:hover td:first-child .assets-expand-chevron {
+            opacity: 0.7;
+        }
+        .assets-table tbody tr.assets-data-row.expanded td:first-child .assets-expand-chevron {
+            transform: rotate(180deg);
+            opacity: 0.9;
+        }
+        tr.assets-detail-row {
+            display: none;
+        }
+        tr.assets-detail-row.open {
+            display: table-row;
+        }
+        tr.assets-detail-row td {
+            padding: 0 16px 16px 16px !important;
+            background: rgba(99, 102, 241, 0.03);
+            border-bottom: 1px solid rgba(99, 102, 241, 0.12) !important;
+        }
+        .assets-detail-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+            animation: assets-detail-in 0.2s ease;
+        }
+        @keyframes assets-detail-in {
+            from { opacity: 0; transform: translateY(-6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .assets-detail-stat {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .assets-detail-stat-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: rgba(255, 255, 255, 0.4);
+            font-weight: 600;
+        }
+        .assets-detail-stat-value {
+            font-size: 15px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.9);
+        }
+        .assets-detail-stat-sub {
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.3);
+        }
+        .assets-detail-bar-wrap {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+        .assets-detail-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.5s ease;
+        }
+        .assets-detail-bar-fill.supply { background: linear-gradient(90deg, #34d399, #10b981); }
+        .assets-detail-bar-fill.borrow { background: linear-gradient(90deg, #f87171, #ef4444); }
+        .assets-detail-bar-fill.liquidity { background: linear-gradient(90deg, #60a5fa, #3b82f6); }
+        @media (max-width: 700px) {
+            .assets-detail-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
         .earn-asset-table thead {
             position: sticky;
             top: 0;
@@ -13679,12 +13773,12 @@
         }
 
         const ASSETS_CHAINS = {
-            berachain: { id: 80094, name: 'Berachain', short: 'BERA', icon: 'https://icons.llamao.fi/icons/chains/rsz_berachain.jpg' },
-            arbitrum: { id: 42161, name: 'Arbitrum', short: 'ARB', icon: 'https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg' },
-            ethereum: { id: 1, name: 'Ethereum', short: 'ETH', icon: 'https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg' },
-            mantle: { id: 5000, name: 'Mantle', short: 'MNT', icon: 'https://icons.llamao.fi/icons/chains/rsz_mantle.jpg' },
-            polygonzkevm: { id: 1101, name: 'Polygon zkEVM', short: 'zkEVM', icon: 'https://icons.llamao.fi/icons/chains/rsz_polygon%20zkevm.jpg' },
-            xlayer: { id: 196, name: 'X Layer', short: 'XLAY', icon: 'https://icons.llamao.fi/icons/chains/rsz_x%20layer.jpg' },
+            berachain: { id: 80094, name: 'Berachain', short: 'BERA', icon: 'https://icons.llamao.fi/icons/chains/rsz_berachain.jpg', margin: '0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D', rpcs: ['https://rpc.berachain.com/', 'https://berachain-rpc.publicnode.com/', 'https://berachain.drpc.org/'] },
+            arbitrum: { id: 42161, name: 'Arbitrum', short: 'ARB', icon: 'https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg', margin: '0x6bd780e7fDf01D77e4d475c821f1e7AE05409072', rpcs: ['https://arb1.arbitrum.io/rpc', 'https://arbitrum.drpc.org/', 'https://arbitrum-one-rpc.publicnode.com/'] },
+            ethereum: { id: 1, name: 'Ethereum', short: 'ETH', icon: 'https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg', margin: '0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D', rpcs: ['https://eth.llamarpc.com/', 'https://ethereum-rpc.publicnode.com/', 'https://eth.drpc.org/'] },
+            mantle: { id: 5000, name: 'Mantle', short: 'MNT', icon: 'https://icons.llamao.fi/icons/chains/rsz_mantle.jpg', margin: '0xe6ef4f0b2455bab92ce7cc78e35324ab58917de8', rpcs: ['https://rpc.mantle.xyz/', 'https://mantle-rpc.publicnode.com/', 'https://mantle.drpc.org/'] },
+            polygonzkevm: { id: 1101, name: 'Polygon zkEVM', short: 'zkEVM', icon: 'https://icons.llamao.fi/icons/chains/rsz_polygon%20zkevm.jpg', margin: '0x836b557cf9ef29fcf49c776841191782df34e4e5', rpcs: ['https://zkevm-rpc.com/', 'https://polygon-zkevm.drpc.org/'] },
+            xlayer: { id: 196, name: 'X Layer', short: 'XLAY', icon: 'https://icons.llamao.fi/icons/chains/rsz_x%20layer.jpg', margin: '0x836b557cf9ef29fcf49c776841191782df34e4e5', rpcs: ['https://rpc.xlayer.tech/', 'https://xlayer.drpc.org/'] },
         };
 
         const ASSETS_STABLES = new Set(['USDC', 'USDT', 'USDT0', 'DAI', 'USDC.E', 'HONEY', 'USDE', 'SUSDE', 'NECT', 'RUSD', 'SRUSD', 'WSRUSD', 'BYUSD', 'MIM', 'GRAI', 'EUSD', 'USDS', 'SUSDS', 'WUSDM', 'USDM', 'SUSD', 'CRVUSD', 'FRAX', 'LUSD', 'GHO', 'JUSC', 'JUSDC', 'USDA', 'USDAI', 'SUSDAI', 'SUSDA', 'SAVUSD', 'PUSD', 'YPUSD', 'USD0', 'USD0++', 'USD1', 'USDY', 'BOLD', 'DEUSD', 'SDEUSD', 'CUSD', 'STCUSD']);
@@ -13692,6 +13786,150 @@
         const ASSETS_ETH = new Set(['ETH', 'WETH', 'WSTETH', 'STETH', 'RETH', 'WEETH', 'BERAETH', 'EZETH', 'RSETH', 'STONE', 'WOETH', 'METH', 'CMETH', 'ETH+', 'ETHX', 'WBETH', 'CBETH', 'SFRXETH', 'RSWETH', 'TETH', 'XRETH', 'YLSTETH', 'INEUR']);
 
         const ASSETS_SKIP_PREFIXES = ['dPT-', 'dYT-', 'Dolomite Isolation', 'djUSDC', 'dfsGLP', 'dplvGLP', 'dARB', 'dGMX', 'mGLP', 'sGLP'];
+
+        function assets_shouldSkip(r) {
+            const sym = r.token?.tokenSymbol || '';
+            const name = r.token?.tokenName || '';
+            if (ASSETS_SKIP_PREFIXES.some(p => sym.startsWith(p) || name.startsWith(p))) return true;
+            if (sym.startsWith('di') && sym.length > 3) return false; // allow diBGT etc.
+            return false;
+        }
+
+        // === On-chain market data (supply, borrow, caps) ===
+        const ASSETS_MARGIN_SEL = {
+            getNumMarkets: '0x295c39a5',
+            getMarketTotalWei: '0xdc6d7846',
+            getMarketMaxSupplyWei: '0x38402762',
+            getMarketMaxBorrowWei: '0x07af1568',
+            getMarketTokenAddress: '0x062bd3e9',
+        };
+        let assets_marketData = {};  // key: 'chainKey:tokenAddress' => { supplied, supplyCap, borrowed, borrowCap }
+        let assets_rpcId = 900000;
+
+        async function assets_rpcBatch(rpcs, calls, retries = 3) {
+            let rpcIdx = 0;
+            const batch = calls.map((c, i) => ({
+                jsonrpc: '2.0',
+                method: 'eth_call',
+                params: [{ to: c.to, data: c.data }, 'latest'],
+                id: assets_rpcId++
+            }));
+            for (let attempt = 0; attempt < retries; attempt++) {
+                const endpoint = rpcs[rpcIdx % rpcs.length];
+                rpcIdx++;
+                try {
+                    const resp = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(batch)
+                    });
+                    const results = await resp.json();
+                    if (Array.isArray(results)) {
+                        const map = {};
+                        results.forEach(r => { map[r.id] = r.result || null; });
+                        return batch.map(b => map[b.id] || null);
+                    }
+                } catch (e) {
+                    if (attempt === retries - 1) return batch.map(() => null);
+                }
+            }
+            return batch.map(() => null);
+        }
+
+        function assets_padUint(n) {
+            return BigInt(n).toString(16).padStart(64, '0');
+        }
+
+        async function assets_fetchMarketData() {
+            const chainFetches = Object.entries(ASSETS_CHAINS).map(async ([chainKey, chain]) => {
+                try {
+                    // Step 1: get number of markets
+                    const numResult = await assets_rpcBatch(chain.rpcs, [{ to: chain.margin, data: ASSETS_MARGIN_SEL.getNumMarkets }]);
+                    if (!numResult || !numResult[0]) return;
+                    const numMarkets = Number(BigInt('0x' + numResult[0].replace('0x', '')));
+                    if (numMarkets === 0) return;
+
+                    // Step 2: batch all queries for all markets: tokenAddress + totalWei + maxSupply + maxBorrow
+                    const calls = [];
+                    for (let i = 0; i < numMarkets; i++) {
+                        const mId = assets_padUint(i);
+                        calls.push({ to: chain.margin, data: ASSETS_MARGIN_SEL.getMarketTokenAddress + mId });
+                        calls.push({ to: chain.margin, data: ASSETS_MARGIN_SEL.getMarketTotalWei + mId });
+                        calls.push({ to: chain.margin, data: ASSETS_MARGIN_SEL.getMarketMaxSupplyWei + mId });
+                        calls.push({ to: chain.margin, data: ASSETS_MARGIN_SEL.getMarketMaxBorrowWei + mId });
+                    }
+
+                    const results = await assets_rpcBatch(chain.rpcs, calls);
+                    if (!results) return;
+
+                    for (let i = 0; i < numMarkets; i++) {
+                        const base = i * 4;
+                        const addrRaw = results[base];
+                        const totalWeiRaw = results[base + 1];
+                        const maxSupplyRaw = results[base + 2];
+                        const maxBorrowRaw = results[base + 3];
+
+                        if (!addrRaw || !totalWeiRaw) continue;
+
+                        // Decode address (last 40 hex chars)
+                        const tokenAddr = '0x' + addrRaw.replace('0x', '').slice(24, 64);
+
+                        // Decode totalWei: (uint256 borrow, uint256 supply)
+                        const twData = totalWeiRaw.replace('0x', '');
+                        const borrowWei = BigInt('0x' + twData.slice(0, 64));
+                        const supplyWei = BigInt('0x' + twData.slice(64, 128));
+
+                        // Decode maxSupplyWei: (bool sign, uint256 value) => if sign=0 and value=0, no cap
+                        let supplyCap = 0n;
+                        if (maxSupplyRaw) {
+                            const msData = maxSupplyRaw.replace('0x', '');
+                            supplyCap = BigInt('0x' + msData.slice(64, 128));
+                        }
+
+                        // Decode maxBorrowWei: same struct
+                        let borrowCap = 0n;
+                        if (maxBorrowRaw) {
+                            const mbData = maxBorrowRaw.replace('0x', '');
+                            borrowCap = BigInt('0x' + mbData.slice(64, 128));
+                        }
+
+                        // Find the matching asset to get decimals
+                        const key = chainKey + ':' + tokenAddr.toLowerCase();
+                        assets_marketData[key] = {
+                            borrowWei, supplyWei, supplyCap, borrowCap
+                        };
+                    }
+                } catch (e) {
+                    console.warn(`Assets market data: ${chain.name} failed`, e);
+                }
+            });
+            await Promise.all(chainFetches);
+
+            // Now convert BigInt wei to human-readable values using token decimals from assets_allData
+            // Build a decimals map from known tokens
+            const tokenDecimals = {};
+            assets_allData.forEach(d => {
+                const key = d.chainKey + ':' + (d.addr || '').toLowerCase();
+                // Most ERC-20 tokens are 18 decimals, stablecoins often 6
+                const sym = (d.symbol || '').toUpperCase();
+                let dec = 18;
+                if (['USDC', 'USDT', 'USDC.E', 'USDT0'].includes(sym)) dec = 6;
+                else if (['WBTC'].includes(sym)) dec = 8;
+                tokenDecimals[key] = dec;
+            });
+
+            // Convert and store as float values
+            for (const [key, md] of Object.entries(assets_marketData)) {
+                const dec = tokenDecimals[key] || 18;
+                const div = 10n ** BigInt(dec);
+                md.supplied = Number(md.supplyWei * 10000n / div) / 10000;
+                md.borrowed = Number(md.borrowWei * 10000n / div) / 10000;
+                md.supplyCapNum = md.supplyCap > 0n ? Number(md.supplyCap * 10000n / div) / 10000 : 0;
+                md.borrowCapNum = md.borrowCap > 0n ? Number(md.borrowCap * 10000n / div) / 10000 : 0;
+                md.availableLiquidity = md.supplied - md.borrowed;
+            }
+            console.log('✅ Assets market data loaded for', Object.keys(assets_marketData).length, 'markets');
+        }
 
         function assets_classify(sym) {
             const u = (sym || '').toUpperCase();
@@ -13701,14 +13939,7 @@
             return 'other';
         }
 
-        function assets_shouldSkip(r) {
-            const name = r.token.tokenName || '';
-            const sym = r.token.tokenSymbol || '';
-            for (const p of ASSETS_SKIP_PREFIXES) {
-                if (sym.startsWith(p) || name.startsWith(p)) return true;
-            }
-            return false;
-        }
+
 
         async function assets_init() {
             assets_loaded = true;
@@ -13803,6 +14034,9 @@
             }
 
             assets_allData = results;
+
+            // Fetch on-chain market data (supply, borrow, caps) in background
+            assets_fetchMarketData().then(() => { assets_render(); });
 
             // Build chain pills
             assets_buildChainPills();
@@ -14113,9 +14347,17 @@
                     priceHtml = '<span style="color:rgba(255,255,255,0.2)">—</span>';
                 }
 
-                html += `<tr>
+                // Lookup on-chain market data
+                const mdKey = d.chainKey + ':' + (d.addr || '').toLowerCase();
+                const md = assets_marketData[mdKey];
+                const rowId = 'asset-row-' + mdKey.replace(/[^a-z0-9]/gi, '_');
+
+                const chevronSvg = `<svg class="assets-expand-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+
+                html += `<tr class="assets-data-row" data-row-id="${rowId}" onclick="assets_toggleDetail('${rowId}')">
                     <td>
                         <div class="assets-token-cell">
+                            ${chevronSvg}
                             ${iconHtml}
                             <div>
                                 <div class="assets-token-name">${d.symbol}</div>
@@ -14133,8 +14375,95 @@
                     </td>
                     <td><span class="assets-apy-red">${d.borrowApr > 0 ? d.borrowApr.toFixed(2) + '%' : '—'}</span></td>
                 </tr>`;
+
+                // Build detail row
+                html += assets_buildDetailRow(rowId, d, md);
             });
             tbody.innerHTML = html;
+        }
+
+        function assets_toggleDetail(rowId) {
+            const dataRow = document.querySelector(`tr.assets-data-row[data-row-id="${rowId}"]`);
+            const detailRow = document.getElementById(rowId + '-detail');
+            if (!dataRow || !detailRow) return;
+            const isOpen = detailRow.classList.contains('open');
+            // Close all other open rows first
+            document.querySelectorAll('tr.assets-data-row.expanded').forEach(r => r.classList.remove('expanded'));
+            document.querySelectorAll('tr.assets-detail-row.open').forEach(r => r.classList.remove('open'));
+            if (!isOpen) {
+                dataRow.classList.add('expanded');
+                detailRow.classList.add('open');
+            }
+        }
+
+        function assets_fmtNum(n, decimals) {
+            if (n === 0 || n === undefined) return '—';
+            if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+            if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+            if (n >= 1e3) return n.toLocaleString('en-US', { maximumFractionDigits: decimals || 0 });
+            if (n >= 1) return n.toFixed(decimals || 2);
+            return n.toFixed(decimals || 4);
+        }
+
+        function assets_buildDetailRow(rowId, d, md) {
+            if (!md) {
+                return `<tr class="assets-detail-row" id="${rowId}-detail"><td colspan="5">
+                    <div class="assets-detail-grid" style="justify-items:center">
+                        <div class="assets-detail-stat" style="grid-column:1/-1;text-align:center;opacity:0.4">
+                            <div class="assets-detail-stat-label">Loading market data...</div>
+                        </div>
+                    </div>
+                </td></tr>`;
+            }
+
+            const price = d.price || 0;
+            const suppliedUsd = price > 0 ? '$' + assets_fmtNum(md.supplied * price) : '';
+            const borrowedUsd = price > 0 ? '$' + assets_fmtNum(md.borrowed * price) : '';
+            const liquidityUsd = price > 0 ? '$' + assets_fmtNum(md.availableLiquidity * price) : '';
+            const supplyCapUsd = md.supplyCapNum > 0 && price > 0 ? '$' + assets_fmtNum(md.supplyCapNum * price) : '';
+            const borrowCapUsd = md.borrowCapNum > 0 && price > 0 ? '$' + assets_fmtNum(md.borrowCapNum * price) : '';
+
+            const supplyPct = md.supplyCapNum > 0 ? Math.min(100, (md.supplied / md.supplyCapNum) * 100) : 0;
+            const borrowPct = md.borrowCapNum > 0 ? Math.min(100, (md.borrowed / md.borrowCapNum) * 100) : 0;
+            const utilPct = md.supplied > 0 ? Math.min(100, (md.borrowed / md.supplied) * 100) : 0;
+
+            const sym = d.symbol || '';
+
+            return `<tr class="assets-detail-row" id="${rowId}-detail"><td colspan="5">
+                <div class="assets-detail-grid">
+                    <div class="assets-detail-stat">
+                        <div class="assets-detail-stat-label">Supplied</div>
+                        <div class="assets-detail-stat-value">${assets_fmtNum(md.supplied)} ${sym}</div>
+                        <div class="assets-detail-stat-sub">${suppliedUsd}</div>
+                        ${md.supplyCapNum > 0 ? `<div class="assets-detail-bar-wrap"><div class="assets-detail-bar-fill supply" style="width:${supplyPct.toFixed(1)}%"></div></div>
+                        <div class="assets-detail-stat-sub">${supplyPct.toFixed(1)}% of cap</div>` : ''}
+                    </div>
+                    <div class="assets-detail-stat">
+                        <div class="assets-detail-stat-label">Supply Cap</div>
+                        <div class="assets-detail-stat-value">${md.supplyCapNum > 0 ? assets_fmtNum(md.supplyCapNum) + ' ' + sym : '∞ No cap'}</div>
+                        <div class="assets-detail-stat-sub">${supplyCapUsd}</div>
+                    </div>
+                    <div class="assets-detail-stat">
+                        <div class="assets-detail-stat-label">Borrowed</div>
+                        <div class="assets-detail-stat-value">${assets_fmtNum(md.borrowed)} ${sym}</div>
+                        <div class="assets-detail-stat-sub">${borrowedUsd}</div>
+                        ${md.borrowCapNum > 0 ? `<div class="assets-detail-bar-wrap"><div class="assets-detail-bar-fill borrow" style="width:${borrowPct.toFixed(1)}%"></div></div>
+                        <div class="assets-detail-stat-sub">${borrowPct.toFixed(1)}% of cap</div>` : ''}
+                    </div>
+                    <div class="assets-detail-stat">
+                        <div class="assets-detail-stat-label">Borrow Cap</div>
+                        <div class="assets-detail-stat-value">${md.borrowCapNum > 0 ? assets_fmtNum(md.borrowCapNum) + ' ' + sym : '∞ No cap'}</div>
+                        <div class="assets-detail-stat-sub">${borrowCapUsd}</div>
+                    </div>
+                    <div class="assets-detail-stat">
+                        <div class="assets-detail-stat-label">Available Liquidity</div>
+                        <div class="assets-detail-stat-value">${assets_fmtNum(md.availableLiquidity)} ${sym}</div>
+                        <div class="assets-detail-stat-sub">${liquidityUsd}</div>
+                        <div class="assets-detail-bar-wrap"><div class="assets-detail-bar-fill liquidity" style="width:${(100 - utilPct).toFixed(1)}%"></div></div>
+                        <div class="assets-detail-stat-sub">Utilization ${utilPct.toFixed(1)}%</div>
+                    </div>
+                </div>
+            </td></tr>`;
         }
 
         // ===== EARN TAB NAMESPACE =====
