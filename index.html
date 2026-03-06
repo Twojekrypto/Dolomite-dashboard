@@ -1599,6 +1599,54 @@
             background: rgba(255, 77, 106, 0.06);
             border-color: rgba(255, 77, 106, 0.2);
         }
+        .assets-detail-ca {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            padding: 6px 10px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 8px;
+            font-size: 12px;
+        }
+        .assets-ca-chain-icon {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+        }
+        .assets-ca-label {
+            color: rgba(255,255,255,0.4);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .assets-ca-address {
+            color: rgba(255,255,255,0.7);
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 12px;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .assets-ca-address:hover {
+            color: #4fc3f7;
+            text-decoration: underline;
+        }
+        .assets-ca-copy {
+            background: none;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 4px;
+            padding: 2px 6px;
+            cursor: pointer;
+            font-size: 12px;
+            color: rgba(255,255,255,0.5);
+            transition: all 0.2s;
+        }
+        .assets-ca-copy:hover {
+            background: rgba(255,255,255,0.08);
+            border-color: rgba(255,255,255,0.2);
+            color: #fff;
+        }
         .assets-detail-stat-label {
             font-size: 10px;
             text-transform: uppercase;
@@ -13777,12 +13825,12 @@
         }
 
         const ASSETS_CHAINS = {
-            berachain: { id: 80094, name: 'Berachain', short: 'BERA', icon: 'https://icons.llamao.fi/icons/chains/rsz_berachain.jpg', subgraph: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-berachain-mainnet/latest/gn' },
-            arbitrum: { id: 42161, name: 'Arbitrum', short: 'ARB', icon: 'https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg', subgraph: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-arbitrum/latest/gn' },
-            ethereum: { id: 1, name: 'Ethereum', short: 'ETH', icon: 'https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg', subgraph: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-ethereum/latest/gn' },
-            mantle: { id: 5000, name: 'Mantle', short: 'MNT', icon: 'https://icons.llamao.fi/icons/chains/rsz_mantle.jpg', subgraph: 'https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-mantle/latest/gn' },
-            polygonzkevm: { id: 1101, name: 'Polygon zkEVM', short: 'zkEVM', icon: 'https://icons.llamao.fi/icons/chains/rsz_polygon%20zkevm.jpg', subgraph: 'https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-polygon-zkevm/latest/gn' },
-            xlayer: { id: 196, name: 'X Layer', short: 'XLAY', icon: 'https://icons.llamao.fi/icons/chains/rsz_x%20layer.jpg', subgraph: 'https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-x-layer/latest/gn' },
+            berachain: { id: 80094, name: 'Berachain', short: 'BERA', icon: 'https://icons.llamao.fi/icons/chains/rsz_berachain.jpg', subgraph: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-berachain-mainnet/latest/gn', explorer: 'https://berascan.com/address/' },
+            arbitrum: { id: 42161, name: 'Arbitrum', short: 'ARB', icon: 'https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg', subgraph: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-arbitrum/latest/gn', explorer: 'https://arbiscan.io/address/' },
+            ethereum: { id: 1, name: 'Ethereum', short: 'ETH', icon: 'https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg', subgraph: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-ethereum/latest/gn', explorer: 'https://etherscan.io/address/' },
+            mantle: { id: 5000, name: 'Mantle', short: 'MNT', icon: 'https://icons.llamao.fi/icons/chains/rsz_mantle.jpg', subgraph: 'https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-mantle/latest/gn', explorer: 'https://mantlescan.xyz/address/' },
+            polygonzkevm: { id: 1101, name: 'Polygon zkEVM', short: 'zkEVM', icon: 'https://icons.llamao.fi/icons/chains/rsz_polygon%20zkevm.jpg', subgraph: 'https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-polygon-zkevm/latest/gn', explorer: 'https://zkevm.polygonscan.com/address/' },
+            xlayer: { id: 196, name: 'X Layer', short: 'XLAY', icon: 'https://icons.llamao.fi/icons/chains/rsz_x%20layer.jpg', subgraph: 'https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-x-layer/latest/gn', explorer: 'https://www.okx.com/web3/explorer/xlayer/address/' },
         };
 
         const ASSETS_STABLES = new Set(['USDC', 'USDT', 'USDT0', 'DAI', 'USDC.E', 'HONEY', 'USDE', 'SUSDE', 'NECT', 'RUSD', 'SRUSD', 'WSRUSD', 'BYUSD', 'MIM', 'GRAI', 'EUSD', 'USDS', 'SUSDS', 'WUSDM', 'USDM', 'SUSD', 'CRVUSD', 'FRAX', 'LUSD', 'GHO', 'JUSC', 'JUSDC', 'USDA', 'USDAI', 'SUSDAI', 'SUSDA', 'SAVUSD', 'PUSD', 'YPUSD', 'USD0', 'USD0++', 'USD1', 'USDY', 'BOLD', 'DEUSD', 'SDEUSD', 'CUSD', 'STCUSD']);
@@ -14429,6 +14477,12 @@
                                <div class="assets-detail-stat-sub">Utilization ${utilPct.toFixed(1)}%</div>`}
                     </div>
                 </div>
+                ${d.addr ? `<div class="assets-detail-ca">
+                    <img src="${d.chainIcon}" alt="${d.chainShort}" class="assets-ca-chain-icon">
+                    <span class="assets-ca-label">Contract</span>
+                    <a href="${(ASSETS_CHAINS[d.chainKey]?.explorer || '#') + d.addr}" target="_blank" rel="noopener" class="assets-ca-address" title="${d.addr}">${d.addr.slice(0, 6)}...${d.addr.slice(-4)}</a>
+                    <button class="assets-ca-copy" onclick="navigator.clipboard.writeText('${d.addr}');this.textContent='✓';setTimeout(()=>this.textContent='📋',1500)" title="Copy address">📋</button>
+                </div>` : ''}
             </td></tr>`;
         }
 
