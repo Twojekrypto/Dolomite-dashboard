@@ -25,6 +25,14 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
+      - name: Restore early-exits cache
+        uses: actions/cache@v4
+        with:
+          path: early_exits_cache.json
+          key: early-exits-cache-${{ github.run_id }}
+          restore-keys: |
+            early-exits-cache-
+
       - name: Update exercised USD (incremental)
         run: python3 update_exercised_usd.py
 
@@ -33,6 +41,12 @@ jobs:
 
       - name: Update exercisers by address
         run: python3 generate_exercisers.py
+
+      - name: Fetch early exit penalty data
+        run: python3 fetch_early_exits.py
+        env:
+          ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
+          ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
 
       - name: Fetch oDOLO contract data
         run: python3 fetch_odolo_contract.py
@@ -44,7 +58,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add exercised_usd.json avg_lock_data.json exercisers_by_address.json odolo_contract_data.json
+          git add exercised_usd.json avg_lock_data.json exercisers_by_address.json odolo_contract_data.json early_exits.json
           git diff --staged --quiet && echo "No changes to commit" && exit 0
           git commit -m "📊 oDOLO data update: $(date -u '+%Y-%m-%d %H:%M UTC')"
           # Pull with auto-resolve: our freshly generated data always wins
