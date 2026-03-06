@@ -13786,12 +13786,11 @@
         const ASSETS_ETH = new Set(['ETH', 'WETH', 'WSTETH', 'STETH', 'RETH', 'WEETH', 'BERAETH', 'EZETH', 'RSETH', 'STONE', 'WOETH', 'METH', 'CMETH', 'ETH+', 'ETHX', 'WBETH', 'CBETH', 'SFRXETH', 'RSWETH', 'TETH', 'XRETH', 'YLSTETH', 'INEUR']);
 
         const ASSETS_SKIP_PREFIXES = ['dPT-', 'dYT-', 'Dolomite Isolation', 'djUSDC', 'dfsGLP', 'dplvGLP', 'dARB', 'dGMX', 'mGLP', 'sGLP'];
-
         function assets_shouldSkip(r) {
             const sym = r.token?.tokenSymbol || '';
             const name = r.token?.tokenName || '';
             if (ASSETS_SKIP_PREFIXES.some(p => sym.startsWith(p) || name.startsWith(p))) return true;
-            if (sym.startsWith('di') && sym.length > 3) return false; // allow diBGT etc.
+            if (sym.startsWith('di') && sym.length > 3) return false;
             return false;
         }
 
@@ -13803,32 +13802,23 @@
             getMarketMaxBorrowWei: '0x07af1568',
             getMarketTokenAddress: '0x062bd3e9',
         };
-        let assets_marketData = {};  // key: 'chainKey:tokenAddress' => { supplied, supplyCap, borrowed, borrowCap }
+        let assets_marketData = {};
         let assets_rpcId = 900000;
 
-        async function assets_rpcBatch(rpcs, calls, retries = 3) {
-            // Chunk large batches to avoid RPC limits (max 40 per batch)
-            const CHUNK_SIZE = 40;
-            if (calls.length > CHUNK_SIZE) {
-                const allResults = [];
-                for (let i = 0; i < calls.length; i += CHUNK_SIZE) {
-                    const chunk = calls.slice(i, i + CHUNK_SIZE);
-                    const chunkResults = await assets_rpcBatch(rpcs, chunk, retries);
-                    allResults.push(...chunkResults);
-                }
-                return allResults;
-            }
+        function assets_padUint(n) {
+            return BigInt(n).toString(16).padStart(64, '0');
+        }
 
-            let rpcIdx = 0;
-            const batch = calls.map((c, i) => ({
+        // Single JSON-RPC batch per chain — send all calls at once
+        async function assets_rpcBatch(rpcs, calls) {
+            const batch = calls.map(c => ({
                 jsonrpc: '2.0',
                 method: 'eth_call',
                 params: [{ to: c.to, data: c.data }, 'latest'],
                 id: assets_rpcId++
             }));
-            for (let attempt = 0; attempt < retries; attempt++) {
-                const endpoint = rpcs[rpcIdx % rpcs.length];
-                rpcIdx++;
+            for (let attempt = 0; attempt < rpcs.length; attempt++) {
+                const endpoint = rpcs[attempt];
                 try {
                     const resp = await fetch(endpoint, {
                         method: 'POST',
@@ -13841,44 +13831,27 @@
                         results.forEach(r => { map[r.id] = r.result || null; });
                         return batch.map(b => map[b.id] || null);
                     }
-                    // Some RPCs don't support batch — fall back to individual calls
-                    console.warn('Assets RPC: batch not supported at', endpoint, '— falling back');
-                    const individual = await Promise.all(batch.map(async b => {
-                        try {
-                            const r2 = await fetch(endpoint, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(b)
-                            });
-                            const j2 = await r2.json();
-                            return j2.result || null;
-                        } catch { return null; }
-                    }));
-                    return individual;
-                } catch (e) {
-                    console.warn('Assets RPC attempt', attempt + 1, 'failed at', endpoint, e.message);
-                    if (attempt === retries - 1) return batch.map(() => null);
-                }
+                } catch (e) { /* try next RPC */ }
             }
             return batch.map(() => null);
         }
 
-        function assets_padUint(n) {
-            return BigInt(n).toString(16).padStart(64, '0');
-        }
-
         async function assets_fetchMarketData() {
-            const chainFetches = Object.entries(ASSETS_CHAINS).map(async ([chainKey, chain]) => {
-                try {
-                    // Step 1: get number of markets
-                    console.log(`📊 Assets: fetching markets for ${chain.name}...`);
-                    const numResult = await assets_rpcBatch(chain.rpcs, [{ to: chain.margin, data: ASSETS_MARGIN_SEL.getNumMarkets }]);
-                    if (!numResult || !numResult[0]) { console.warn(`📊 Assets: ${chain.name} — getNumMarkets returned empty`); return; }
-                    const numMarkets = Number(BigInt('0x' + numResult[0].replace('0x', '')));
-                    if (numMarkets === 0) { console.warn(`📊 Assets: ${chain.name} — 0 markets`); return; }
-                    console.log(`📊 Assets: ${chain.name} has ${numMarkets} markets, fetching data...`);
+            const t0 = performance.now();
+            // Step 1: Get number of markets for ALL chains in parallel (1 call each)
+            const chainEntries = Object.entries(ASSETS_CHAINS);
+            const numCalls = await Promise.all(chainEntries.map(async ([, chain]) => {
+                const batch = [{ to: chain.margin, data: ASSETS_MARGIN_SEL.getNumMarkets }];
+                const results = await assets_rpcBatch(chain.rpcs, batch);
+                if (!results || !results[0]) return 0;
+                try { return Number(BigInt('0x' + results[0].replace('0x', ''))); } catch { return 0; }
+            }));
 
-                    // Step 2: batch all queries for all markets
+            // Step 2: For all chains with markets, send ONE big batch per chain (all in parallel)
+            await Promise.all(chainEntries.map(async ([chainKey, chain], idx) => {
+                const numMarkets = numCalls[idx];
+                if (numMarkets === 0) return;
+                try {
                     const calls = [];
                     for (let i = 0; i < numMarkets; i++) {
                         const mId = assets_padUint(i);
@@ -13897,49 +13870,36 @@
                         const totalWeiRaw = results[base + 1];
                         const maxSupplyRaw = results[base + 2];
                         const maxBorrowRaw = results[base + 3];
-
                         if (!addrRaw || !totalWeiRaw) continue;
 
-                        // Decode address (last 40 hex chars)
                         const tokenAddr = '0x' + addrRaw.replace('0x', '').slice(24, 64);
-
-                        // Decode totalWei: (uint256 borrow, uint256 supply)
                         const twData = totalWeiRaw.replace('0x', '');
                         const borrowWei = BigInt('0x' + twData.slice(0, 64));
                         const supplyWei = BigInt('0x' + twData.slice(64, 128));
 
-                        // Decode maxSupplyWei: (bool sign, uint256 value) => if sign=0 and value=0, no cap
                         let supplyCap = 0n;
                         if (maxSupplyRaw) {
                             const msData = maxSupplyRaw.replace('0x', '');
                             supplyCap = BigInt('0x' + msData.slice(64, 128));
                         }
-
-                        // Decode maxBorrowWei: same struct
                         let borrowCap = 0n;
                         if (maxBorrowRaw) {
                             const mbData = maxBorrowRaw.replace('0x', '');
                             borrowCap = BigInt('0x' + mbData.slice(64, 128));
                         }
 
-                        // Find the matching asset to get decimals
                         const key = chainKey + ':' + tokenAddr.toLowerCase();
-                        assets_marketData[key] = {
-                            borrowWei, supplyWei, supplyCap, borrowCap
-                        };
+                        assets_marketData[key] = { borrowWei, supplyWei, supplyCap, borrowCap };
                     }
                 } catch (e) {
                     console.warn(`Assets market data: ${chain.name} failed`, e);
                 }
-            });
-            await Promise.all(chainFetches);
+            }));
 
-            // Now convert BigInt wei to human-readable values using token decimals from assets_allData
-            // Build a decimals map from known tokens
+            // Convert BigInt wei to human-readable using known decimals
             const tokenDecimals = {};
             assets_allData.forEach(d => {
                 const key = d.chainKey + ':' + (d.addr || '').toLowerCase();
-                // Most ERC-20 tokens are 18 decimals, stablecoins often 6
                 const sym = (d.symbol || '').toUpperCase();
                 let dec = 18;
                 if (['USDC', 'USDT', 'USDC.E', 'USDT0'].includes(sym)) dec = 6;
@@ -13947,7 +13907,6 @@
                 tokenDecimals[key] = dec;
             });
 
-            // Convert and store as float values
             for (const [key, md] of Object.entries(assets_marketData)) {
                 const dec = tokenDecimals[key] || 18;
                 const div = 10n ** BigInt(dec);
@@ -13957,7 +13916,7 @@
                 md.borrowCapNum = md.borrowCap > 0n ? Number(md.borrowCap * 10000n / div) / 10000 : 0;
                 md.availableLiquidity = md.supplied - md.borrowed;
             }
-            console.log('✅ Assets market data loaded for', Object.keys(assets_marketData).length, 'markets');
+            console.log(`✅ Assets market data: ${Object.keys(assets_marketData).length} markets in ${((performance.now() - t0) / 1000).toFixed(1)}s`);
         }
 
         function assets_classify(sym) {
