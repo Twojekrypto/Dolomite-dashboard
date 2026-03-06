@@ -218,6 +218,24 @@ def calculate_flows(transfers, excluded):
     return flows
 
 
+def calculate_gross_outflows(transfers, excluded):
+    """Calculate total gross outflow per address (sum of all transfers OUT).
+    Unlike net flow, this doesn't cancel against inflows — shows who
+    transferred the most oDOLO out regardless of how much they received."""
+    SKIP_ADDRS = {
+        ZERO,
+        ODOLO_CONTRACT,
+        "0x0000000000000000000000000000000000000001",
+    }
+    outflows = {}
+    for from_addr, to_addr, value_wei, _ in transfers:
+        if from_addr in SKIP_ADDRS or to_addr in SKIP_ADDRS:
+            continue
+        value = value_wei / (10 ** 18)
+        outflows[from_addr] = outflows.get(from_addr, 0) + value
+    return outflows
+
+
 def count_txs(transfers, excluded):
     counts = {}
     for from_addr, to_addr, _, _ in transfers:
@@ -234,8 +252,9 @@ def get_top(flows, tx_counts, n, mode="accumulator", excluded=None):
         sorted_addrs = sorted(flows.items(), key=lambda x: x[1], reverse=True)
         filtered = [(addr, val) for addr, val in sorted_addrs if val > 0 and addr not in excluded]
     else:
-        sorted_addrs = sorted(flows.items(), key=lambda x: x[1])
-        filtered = [(addr, abs(val)) for addr, val in sorted_addrs if val < 0 and addr not in excluded]
+        # For sellers: flows values are gross outflows (positive = more sold)
+        sorted_addrs = sorted(flows.items(), key=lambda x: x[1], reverse=True)
+        filtered = [(addr, val) for addr, val in sorted_addrs if val > 0 and addr not in excluded]
 
     result = []
     for addr, net in filtered[:n]:
@@ -328,10 +347,11 @@ def main():
         period_transfers = [t for t in all_transfers if t[3] >= cutoff]
 
         flows = calculate_flows(period_transfers, EXCLUDED_ADDRS)
+        gross_out = calculate_gross_outflows(period_transfers, EXCLUDED_ADDRS)
         tx_counts = count_txs(period_transfers, EXCLUDED_ADDRS)
 
         accumulators = get_top(flows, tx_counts, TOP_N, "accumulator", EXCLUDED_ADDRS)
-        sellers = get_top(flows, tx_counts, TOP_N, "seller", EXCLUDED_ADDRS)
+        sellers = get_top(gross_out, tx_counts, TOP_N, "seller", EXCLUDED_ADDRS)
 
         output_periods[period] = {
             "accumulators": accumulators,
