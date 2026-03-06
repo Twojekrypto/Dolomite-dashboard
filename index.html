@@ -13773,12 +13773,12 @@
         }
 
         const ASSETS_CHAINS = {
-            berachain: { id: 80094, name: 'Berachain', short: 'BERA', icon: 'https://icons.llamao.fi/icons/chains/rsz_berachain.jpg', margin: '0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D', rpcs: ['https://rpc.berachain.com/', 'https://berachain-rpc.publicnode.com/', 'https://berachain.drpc.org/'] },
-            arbitrum: { id: 42161, name: 'Arbitrum', short: 'ARB', icon: 'https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg', margin: '0x6bd780e7fDf01D77e4d475c821f1e7AE05409072', rpcs: ['https://arb1.arbitrum.io/rpc', 'https://arbitrum.drpc.org/', 'https://arbitrum-one-rpc.publicnode.com/'] },
-            ethereum: { id: 1, name: 'Ethereum', short: 'ETH', icon: 'https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg', margin: '0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D', rpcs: ['https://eth.llamarpc.com/', 'https://ethereum-rpc.publicnode.com/', 'https://eth.drpc.org/'] },
-            mantle: { id: 5000, name: 'Mantle', short: 'MNT', icon: 'https://icons.llamao.fi/icons/chains/rsz_mantle.jpg', margin: '0xe6ef4f0b2455bab92ce7cc78e35324ab58917de8', rpcs: ['https://rpc.mantle.xyz/', 'https://mantle-rpc.publicnode.com/', 'https://mantle.drpc.org/'] },
-            polygonzkevm: { id: 1101, name: 'Polygon zkEVM', short: 'zkEVM', icon: 'https://icons.llamao.fi/icons/chains/rsz_polygon%20zkevm.jpg', margin: '0x836b557cf9ef29fcf49c776841191782df34e4e5', rpcs: ['https://zkevm-rpc.com/', 'https://polygon-zkevm.drpc.org/'] },
-            xlayer: { id: 196, name: 'X Layer', short: 'XLAY', icon: 'https://icons.llamao.fi/icons/chains/rsz_x%20layer.jpg', margin: '0x836b557cf9ef29fcf49c776841191782df34e4e5', rpcs: ['https://rpc.xlayer.tech/', 'https://xlayer.drpc.org/'] },
+            berachain: { id: 80094, name: 'Berachain', short: 'BERA', icon: 'https://icons.llamao.fi/icons/chains/rsz_berachain.jpg', margin: '0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D', rpcs: ['https://berachain-rpc.publicnode.com/', 'https://rpc.berachain.com/', 'https://berachain.drpc.org/'] },
+            arbitrum: { id: 42161, name: 'Arbitrum', short: 'ARB', icon: 'https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg', margin: '0x6bd780e7fDf01D77e4d475c821f1e7AE05409072', rpcs: ['https://arbitrum-one-rpc.publicnode.com/', 'https://arbitrum.drpc.org/', 'https://1rpc.io/arb'] },
+            ethereum: { id: 1, name: 'Ethereum', short: 'ETH', icon: 'https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg', margin: '0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D', rpcs: ['https://ethereum-rpc.publicnode.com/', 'https://eth.drpc.org/', 'https://eth.llamarpc.com/'] },
+            mantle: { id: 5000, name: 'Mantle', short: 'MNT', icon: 'https://icons.llamao.fi/icons/chains/rsz_mantle.jpg', margin: '0xe6ef4f0b2455bab92ce7cc78e35324ab58917de8', rpcs: ['https://mantle-rpc.publicnode.com/', 'https://rpc.mantle.xyz/', 'https://mantle.drpc.org/'] },
+            polygonzkevm: { id: 1101, name: 'Polygon zkEVM', short: 'zkEVM', icon: 'https://icons.llamao.fi/icons/chains/rsz_polygon%20zkevm.jpg', margin: '0x836b557cf9ef29fcf49c776841191782df34e4e5', rpcs: ['https://polygon-zkevm-rpc.publicnode.com/', 'https://zkevm-rpc.com/', 'https://polygon-zkevm.drpc.org/'] },
+            xlayer: { id: 196, name: 'X Layer', short: 'XLAY', icon: 'https://icons.llamao.fi/icons/chains/rsz_x%20layer.jpg', margin: '0x836b557cf9ef29fcf49c776841191782df34e4e5', rpcs: ['https://xlayer.drpc.org/', 'https://rpc.xlayer.tech/'] },
         };
 
         const ASSETS_STABLES = new Set(['USDC', 'USDT', 'USDT0', 'DAI', 'USDC.E', 'HONEY', 'USDE', 'SUSDE', 'NECT', 'RUSD', 'SRUSD', 'WSRUSD', 'BYUSD', 'MIM', 'GRAI', 'EUSD', 'USDS', 'SUSDS', 'WUSDM', 'USDM', 'SUSD', 'CRVUSD', 'FRAX', 'LUSD', 'GHO', 'JUSC', 'JUSDC', 'USDA', 'USDAI', 'SUSDAI', 'SUSDA', 'SAVUSD', 'PUSD', 'YPUSD', 'USD0', 'USD0++', 'USD1', 'USDY', 'BOLD', 'DEUSD', 'SDEUSD', 'CUSD', 'STCUSD']);
@@ -13807,6 +13807,18 @@
         let assets_rpcId = 900000;
 
         async function assets_rpcBatch(rpcs, calls, retries = 3) {
+            // Chunk large batches to avoid RPC limits (max 40 per batch)
+            const CHUNK_SIZE = 40;
+            if (calls.length > CHUNK_SIZE) {
+                const allResults = [];
+                for (let i = 0; i < calls.length; i += CHUNK_SIZE) {
+                    const chunk = calls.slice(i, i + CHUNK_SIZE);
+                    const chunkResults = await assets_rpcBatch(rpcs, chunk, retries);
+                    allResults.push(...chunkResults);
+                }
+                return allResults;
+            }
+
             let rpcIdx = 0;
             const batch = calls.map((c, i) => ({
                 jsonrpc: '2.0',
@@ -13829,7 +13841,22 @@
                         results.forEach(r => { map[r.id] = r.result || null; });
                         return batch.map(b => map[b.id] || null);
                     }
+                    // Some RPCs don't support batch — fall back to individual calls
+                    console.warn('Assets RPC: batch not supported at', endpoint, '— falling back');
+                    const individual = await Promise.all(batch.map(async b => {
+                        try {
+                            const r2 = await fetch(endpoint, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(b)
+                            });
+                            const j2 = await r2.json();
+                            return j2.result || null;
+                        } catch { return null; }
+                    }));
+                    return individual;
                 } catch (e) {
+                    console.warn('Assets RPC attempt', attempt + 1, 'failed at', endpoint, e.message);
                     if (attempt === retries - 1) return batch.map(() => null);
                 }
             }
@@ -13844,12 +13871,14 @@
             const chainFetches = Object.entries(ASSETS_CHAINS).map(async ([chainKey, chain]) => {
                 try {
                     // Step 1: get number of markets
+                    console.log(`📊 Assets: fetching markets for ${chain.name}...`);
                     const numResult = await assets_rpcBatch(chain.rpcs, [{ to: chain.margin, data: ASSETS_MARGIN_SEL.getNumMarkets }]);
-                    if (!numResult || !numResult[0]) return;
+                    if (!numResult || !numResult[0]) { console.warn(`📊 Assets: ${chain.name} — getNumMarkets returned empty`); return; }
                     const numMarkets = Number(BigInt('0x' + numResult[0].replace('0x', '')));
-                    if (numMarkets === 0) return;
+                    if (numMarkets === 0) { console.warn(`📊 Assets: ${chain.name} — 0 markets`); return; }
+                    console.log(`📊 Assets: ${chain.name} has ${numMarkets} markets, fetching data...`);
 
-                    // Step 2: batch all queries for all markets: tokenAddress + totalWei + maxSupply + maxBorrow
+                    // Step 2: batch all queries for all markets
                     const calls = [];
                     for (let i = 0; i < numMarkets; i++) {
                         const mId = assets_padUint(i);
