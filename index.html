@@ -13774,10 +13774,10 @@
 
         const ASSETS_CHAINS = {
             berachain: { id: 80094, name: 'Berachain', short: 'BERA', icon: 'https://icons.llamao.fi/icons/chains/rsz_berachain.jpg', margin: '0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D', rpcs: ['https://berachain-rpc.publicnode.com/', 'https://rpc.berachain.com/', 'https://berachain.drpc.org/'] },
-            arbitrum: { id: 42161, name: 'Arbitrum', short: 'ARB', icon: 'https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg', margin: '0x6bd780e7fDf01D77e4d475c821f1e7AE05409072', rpcs: ['https://arbitrum-one-rpc.publicnode.com/', 'https://arbitrum.drpc.org/', 'https://1rpc.io/arb'] },
-            ethereum: { id: 1, name: 'Ethereum', short: 'ETH', icon: 'https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg', margin: '0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D', rpcs: ['https://ethereum-rpc.publicnode.com/', 'https://eth.drpc.org/', 'https://eth.llamarpc.com/'] },
-            mantle: { id: 5000, name: 'Mantle', short: 'MNT', icon: 'https://icons.llamao.fi/icons/chains/rsz_mantle.jpg', margin: '0xe6ef4f0b2455bab92ce7cc78e35324ab58917de8', rpcs: ['https://mantle-rpc.publicnode.com/', 'https://rpc.mantle.xyz/', 'https://mantle.drpc.org/'] },
-            polygonzkevm: { id: 1101, name: 'Polygon zkEVM', short: 'zkEVM', icon: 'https://icons.llamao.fi/icons/chains/rsz_polygon%20zkevm.jpg', margin: '0x836b557cf9ef29fcf49c776841191782df34e4e5', rpcs: ['https://polygon-zkevm-rpc.publicnode.com/', 'https://zkevm-rpc.com/', 'https://polygon-zkevm.drpc.org/'] },
+            arbitrum: { id: 42161, name: 'Arbitrum', short: 'ARB', icon: 'https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg', margin: '0x6bd780e7fDf01D77e4d475c821f1e7AE05409072', rpcs: ['https://arbitrum.drpc.org/', 'https://1rpc.io/arb'] },
+            ethereum: { id: 1, name: 'Ethereum', short: 'ETH', icon: 'https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg', margin: '0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D', rpcs: ['https://ethereum-rpc.publicnode.com/', 'https://eth.drpc.org/', 'https://1rpc.io/eth'] },
+            mantle: { id: 5000, name: 'Mantle', short: 'MNT', icon: 'https://icons.llamao.fi/icons/chains/rsz_mantle.jpg', margin: '0xe6ef4f0b2455bab92ce7cc78e35324ab58917de8', rpcs: ['https://mantle-rpc.publicnode.com/', 'https://mantle.drpc.org/', 'https://rpc.mantle.xyz/'] },
+            polygonzkevm: { id: 1101, name: 'Polygon zkEVM', short: 'zkEVM', icon: 'https://icons.llamao.fi/icons/chains/rsz_polygon%20zkevm.jpg', margin: '0x836b557cf9ef29fcf49c776841191782df34e4e5', rpcs: ['https://polygon-zkevm.drpc.org/', 'https://zkevm-rpc.com/'] },
             xlayer: { id: 196, name: 'X Layer', short: 'XLAY', icon: 'https://icons.llamao.fi/icons/chains/rsz_x%20layer.jpg', margin: '0x836b557cf9ef29fcf49c776841191782df34e4e5', rpcs: ['https://xlayer.drpc.org/', 'https://rpc.xlayer.tech/'] },
         };
 
@@ -13803,48 +13803,97 @@
             getMarketTokenAddress: '0x062bd3e9',
         };
         let assets_marketData = {};
+        let assets_marketDataLoaded = false;
         let assets_rpcId = 900000;
 
         function assets_padUint(n) {
             return BigInt(n).toString(16).padStart(64, '0');
         }
 
-        // Single JSON-RPC batch per chain — send all calls at once
+        // JSON-RPC batch with auto-fallback to parallel individual calls
         async function assets_rpcBatch(rpcs, calls) {
-            const batch = calls.map(c => ({
-                jsonrpc: '2.0',
-                method: 'eth_call',
-                params: [{ to: c.to, data: c.data }, 'latest'],
-                id: assets_rpcId++
-            }));
+            // Try each RPC endpoint
             for (let attempt = 0; attempt < rpcs.length; attempt++) {
                 const endpoint = rpcs[attempt];
                 try {
+                    // Try batch first
+                    const ctrl = new AbortController();
+                    const timer = setTimeout(() => ctrl.abort(), 10000);
+                    const batch = calls.map(c => ({
+                        jsonrpc: '2.0', method: 'eth_call',
+                        params: [{ to: c.to, data: c.data }, 'latest'],
+                        id: assets_rpcId++
+                    }));
                     const resp = await fetch(endpoint, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(batch)
+                        body: JSON.stringify(batch),
+                        signal: ctrl.signal
                     });
+                    clearTimeout(timer);
                     const results = await resp.json();
                     if (Array.isArray(results)) {
-                        const map = {};
-                        results.forEach(r => { map[r.id] = r.result || null; });
-                        return batch.map(b => map[b.id] || null);
+                        // Check if batch actually worked (no errors in responses)
+                        const successCount = results.filter(r => r.result).length;
+                        if (successCount > 0) {
+                            const map = {};
+                            results.forEach(r => { map[r.id] = r.result || null; });
+                            return batch.map(b => map[b.id] || null);
+                        }
+                        // Batch returned all errors (e.g. drpc.org limit) — fall through to individual
                     }
-                } catch (e) { /* try next RPC */ }
+                    // Batch not supported or all errors — use parallel individual calls
+                    return await assets_rpcIndividual(endpoint, calls);
+                } catch (e) {
+                    // CORS or network error — try next RPC
+                }
             }
-            return batch.map(() => null);
+            return calls.map(() => null);
+        }
+
+        // Send individual eth_call requests in parallel with concurrency limit
+        async function assets_rpcIndividual(endpoint, calls) {
+            const CONCURRENT = 15;
+            const results = new Array(calls.length).fill(null);
+            for (let i = 0; i < calls.length; i += CONCURRENT) {
+                const chunk = calls.slice(i, i + CONCURRENT);
+                const chunkResults = await Promise.all(chunk.map(async c => {
+                    try {
+                        const ctrl = new AbortController();
+                        const timer = setTimeout(() => ctrl.abort(), 5000);
+                        const r = await fetch(endpoint, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                jsonrpc: '2.0', method: 'eth_call',
+                                params: [{ to: c.to, data: c.data }, 'latest'],
+                                id: assets_rpcId++
+                            }),
+                            signal: ctrl.signal
+                        });
+                        clearTimeout(timer);
+                        const j = await r.json();
+                        return j.result || null;
+                    } catch { return null; }
+                }));
+                chunkResults.forEach((r, j) => { results[i + j] = r; });
+            }
+            return results;
         }
 
         async function assets_fetchMarketData() {
             const t0 = performance.now();
             // Step 1: Get number of markets for ALL chains in parallel (1 call each)
             const chainEntries = Object.entries(ASSETS_CHAINS);
-            const numCalls = await Promise.all(chainEntries.map(async ([, chain]) => {
+            const numCalls = await Promise.all(chainEntries.map(async ([chainKey, chain]) => {
                 const batch = [{ to: chain.margin, data: ASSETS_MARGIN_SEL.getNumMarkets }];
                 const results = await assets_rpcBatch(chain.rpcs, batch);
-                if (!results || !results[0]) return 0;
-                try { return Number(BigInt('0x' + results[0].replace('0x', ''))); } catch { return 0; }
+                if (!results || !results[0]) { console.warn(`📊 ${chainKey}: getNumMarkets FAILED`); return 0; }
+                try {
+                    const n = Number(BigInt('0x' + results[0].replace('0x', '')));
+                    console.log(`📊 ${chainKey}: ${n} markets`);
+                    return n;
+                } catch { console.warn(`📊 ${chainKey}: parse error`); return 0; }
             }));
 
             // Step 2: For all chains with markets, send ONE big batch per chain (all in parallel)
@@ -13916,7 +13965,15 @@
                 md.borrowCapNum = md.borrowCap > 0n ? Number(md.borrowCap * 10000n / div) / 10000 : 0;
                 md.availableLiquidity = md.supplied - md.borrowed;
             }
+            assets_marketDataLoaded = true;
             console.log(`✅ Assets market data: ${Object.keys(assets_marketData).length} markets in ${((performance.now() - t0) / 1000).toFixed(1)}s`);
+            // Re-render any already-open detail rows now that data is available
+            document.querySelectorAll('tr.assets-detail-row.open').forEach(row => {
+                const rowId = row.id.replace('-detail', '');
+                const dataRow = document.querySelector(`[data-row-id="${rowId}"]`);
+                if (dataRow) assets_toggleDetail(rowId);
+                if (dataRow) assets_toggleDetail(rowId);
+            });
         }
 
         function assets_classify(sym) {
@@ -14395,10 +14452,11 @@
 
         function assets_buildDetailRow(rowId, d, md) {
             if (!md) {
+                const msg = assets_marketDataLoaded ? 'Data not available on this chain' : 'Loading market data...';
                 return `<tr class="assets-detail-row" id="${rowId}-detail"><td colspan="5">
                     <div class="assets-detail-grid" style="justify-items:center">
                         <div class="assets-detail-stat" style="grid-column:1/-1;text-align:center;opacity:0.4">
-                            <div class="assets-detail-stat-label">Loading market data...</div>
+                            <div class="assets-detail-stat-label">${msg}</div>
                         </div>
                     </div>
                 </td></tr>`;
