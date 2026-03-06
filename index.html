@@ -1565,6 +1565,7 @@
             transform: rotate(180deg);
             opacity: 0.9;
         }
+        /* === DETAIL ROW: Expand/Collapse === */
         tr.assets-detail-row {
             display: none;
         }
@@ -1572,135 +1573,211 @@
             display: table-row;
         }
         tr.assets-detail-row td {
-            padding: 0 16px 16px 16px !important;
+            padding: 0 16px 20px 16px !important;
             background: transparent;
-            border-bottom: 1px solid rgba(99, 102, 241, 0.12) !important;
+            border-bottom: 1px solid rgba(99, 102, 241, 0.10) !important;
         }
-        .assets-detail-grid {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 12px;
-            animation: assets-detail-in 0.2s ease;
+
+        /* === DETAIL ROW: Container with entrance animation === */
+        .assets-detail-wrap {
+            animation: assets-detail-in 0.3s cubic-bezier(0.22, 1, 0.36, 1);
         }
         @keyframes assets-detail-in {
-            from { opacity: 0; transform: translateY(-6px); }
+            from { opacity: 0; transform: translateY(-8px); }
             to   { opacity: 1; transform: translateY(0); }
         }
-        .assets-detail-stat {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            border-radius: 10px;
-            padding: 12px 14px;
+
+        /* === DETAIL ROW: Two-section layout === */
+        .assets-detail-sections {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        .assets-detail-section {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 14px;
+            padding: 18px 20px;
+            transition: border-color 0.3s, background 0.3s;
+        }
+        .assets-detail-section:hover {
+            background: rgba(255, 255, 255, 0.035);
+            border-color: rgba(255, 255, 255, 0.09);
+        }
+        .assets-detail-section.borrow-disabled {
+            background: rgba(255, 77, 106, 0.03);
+            border-color: rgba(255, 77, 106, 0.12);
+        }
+        .assets-detail-section.borrow-disabled:hover {
+            background: rgba(255, 77, 106, 0.05);
+            border-color: rgba(255, 77, 106, 0.20);
+        }
+
+        /* Section header */
+        .assets-section-header {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            font-weight: 700;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .assets-section-header.supply { color: #34d399; }
+        .assets-section-header.borrow { color: #f87171; }
+        .assets-section-header .section-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .assets-section-header.supply .section-dot { background: #34d399; box-shadow: 0 0 6px rgba(52, 211, 153, 0.5); }
+        .assets-section-header.borrow .section-dot { background: #f87171; box-shadow: 0 0 6px rgba(248, 113, 113, 0.5); }
+
+        /* Section body: ring + metrics side by side */
+        .assets-section-body {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        /* === Ring Gauge === */
+        .assets-ring-wrap {
+            position: relative;
+            width: 72px;
+            height: 72px;
+            flex-shrink: 0;
+        }
+        .assets-ring-wrap svg {
+            width: 72px;
+            height: 72px;
+            transform: rotate(-90deg);
+        }
+        .assets-ring-bg {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.06);
+            stroke-width: 5;
+        }
+        .assets-ring-fill {
+            fill: none;
+            stroke-width: 5;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .assets-ring-fill.supply { stroke: #34d399; filter: drop-shadow(0 0 3px rgba(52, 211, 153, 0.4)); }
+        .assets-ring-fill.borrow { stroke: #f87171; filter: drop-shadow(0 0 3px rgba(248, 113, 113, 0.4)); }
+        .assets-ring-fill.liquidity { stroke: #60a5fa; filter: drop-shadow(0 0 3px rgba(96, 165, 250, 0.4)); }
+        .assets-ring-pct {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.85);
+        }
+        .assets-ring-pct span { font-size: 9px; opacity: 0.5; margin-left: 1px; }
+
+        /* === Metrics grid inside section === */
+        .assets-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px 16px;
+            flex: 1;
+        }
+        .assets-metric {
             display: flex;
             flex-direction: column;
-            gap: 4px;
-            transition: background 0.2s, border-color 0.2s;
+            gap: 2px;
         }
-        .assets-detail-stat:hover {
-            background: rgba(255, 255, 255, 0.06);
-            border-color: rgba(255, 255, 255, 0.12);
+        .assets-metric-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: rgba(255, 255, 255, 0.35);
+            font-weight: 600;
         }
-        .assets-detail-stat.borrow-disabled {
-            background: rgba(255, 77, 106, 0.06);
-            border-color: rgba(255, 77, 106, 0.2);
+        .assets-metric-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.92);
+            line-height: 1.2;
         }
-        .assets-detail-stat.borrow-disabled:hover {
-            background: rgba(255, 77, 106, 0.10);
-            border-color: rgba(255, 77, 106, 0.3);
+        .assets-metric-sub {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.3);
         }
+
+        /* === Staggered entrance for sections === */
+        .assets-detail-section:nth-child(1) { animation: assets-card-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
+        .assets-detail-section:nth-child(2) { animation: assets-card-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) 0.06s both; }
+        @keyframes assets-card-in {
+            from { opacity: 0; transform: translateY(8px) scale(0.97); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* === CA Row === */
         .assets-detail-ca {
             display: inline-flex;
             align-items: center;
             gap: 8px;
             margin-top: 6px;
-            margin-bottom: 10px;
-            padding: 5px 10px;
-            background: rgba(255,255,255,0.03);
+            margin-bottom: 14px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.025);
             border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 8px;
+            border-radius: 10px;
             font-size: 12px;
-            transition: background 0.2s, border-color 0.2s;
+            transition: background 0.25s, border-color 0.25s, box-shadow 0.25s;
         }
         .assets-detail-ca:hover {
-            background: rgba(255,255,255,0.06);
+            background: rgba(255,255,255,0.05);
             border-color: rgba(255,255,255,0.12);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.15);
         }
         .assets-ca-chain-icon {
             width: 16px;
             height: 16px;
             border-radius: 50%;
         }
-        .assets-ca-label {
-            color: rgba(255,255,255,0.4);
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
         .assets-ca-address {
-            color: rgba(255,255,255,0.65);
-            font-family: 'SF Mono', 'Fira Code', monospace;
-            font-size: 11px;
+            color: rgba(255,255,255,0.55);
+            font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+            font-size: 11.5px;
             text-decoration: none;
             transition: color 0.2s;
+            letter-spacing: 0.3px;
         }
         .assets-ca-address:hover {
             color: #4fc3f7;
-            text-decoration: underline;
         }
         .assets-ca-copy {
             background: none;
             border: none;
             padding: 2px;
             cursor: pointer;
-            color: rgba(255,255,255,0.35);
-            transition: color 0.2s;
+            color: rgba(255,255,255,0.3);
+            transition: color 0.2s, transform 0.15s;
             display: flex;
             align-items: center;
         }
         .assets-ca-copy:hover {
             color: #fff;
+            transform: scale(1.15);
         }
         .assets-ca-copy svg {
-            width: 14px;
-            height: 14px;
+            width: 13px;
+            height: 13px;
         }
         .assets-ca-copy.copied {
             color: #4ade80;
         }
-        .assets-detail-stat-label {
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            color: rgba(255, 255, 255, 0.4);
-            font-weight: 600;
-        }
-        .assets-detail-stat-value {
-            font-size: 15px;
-            font-weight: 700;
-            color: rgba(255, 255, 255, 0.9);
-        }
-        .assets-detail-stat-sub {
-            font-size: 10px;
-            color: rgba(255, 255, 255, 0.3);
-        }
-        .assets-detail-bar-wrap {
-            height: 4px;
-            background: rgba(255, 255, 255, 0.06);
-            border-radius: 2px;
-            overflow: hidden;
-            margin-top: 4px;
-        }
-        .assets-detail-bar-fill {
-            height: 100%;
-            border-radius: 2px;
-            transition: width 0.5s ease;
-        }
-        .assets-detail-bar-fill.supply { background: linear-gradient(90deg, #34d399, #10b981); }
-        .assets-detail-bar-fill.borrow { background: linear-gradient(90deg, #f87171, #ef4444); }
-        .assets-detail-bar-fill.liquidity { background: linear-gradient(90deg, #60a5fa, #3b82f6); }
-        @media (max-width: 700px) {
-            .assets-detail-grid {
-                grid-template-columns: repeat(2, 1fr);
+
+        /* === Responsive === */
+        @media (max-width: 800px) {
+            .assets-detail-sections {
+                grid-template-columns: 1fr;
             }
         }
 
@@ -14446,10 +14523,8 @@
             if (!md) {
                 const msg = assets_marketDataLoaded ? 'Data not available on this chain' : 'Loading market data...';
                 return `<tr class="assets-detail-row" id="${rowId}-detail"><td colspan="5">
-                    <div class="assets-detail-grid" style="justify-items:center">
-                        <div class="assets-detail-stat" style="grid-column:1/-1;text-align:center;opacity:0.4">
-                            <div class="assets-detail-stat-label">${msg}</div>
-                        </div>
+                    <div class="assets-detail-wrap" style="text-align:center;padding:20px 0;opacity:0.4">
+                        <div class="assets-metric-label">${msg}</div>
                     </div>
                 </td></tr>`;
             }
@@ -14466,52 +14541,86 @@
             const utilPct = md.supplied > 0 ? Math.min(100, (md.borrowed / md.supplied) * 100) : 0;
 
             const sym = d.symbol || '';
+            const circ = 188.5;
+
+            const ringGauge = (pct, cls) => `<div class="assets-ring-wrap">
+                <svg viewBox="0 0 72 72"><circle class="assets-ring-bg" cx="36" cy="36" r="30"/><circle class="assets-ring-fill ${cls}" cx="36" cy="36" r="30" stroke-dasharray="${circ}" stroke-dashoffset="${circ - (circ * pct / 100)}"/></svg>
+                <div class="assets-ring-pct">${pct.toFixed(1)}<span>%</span></div>
+            </div>`;
+
+            const supplySection = `<div class="assets-detail-section">
+                <div class="assets-section-header supply"><span class="section-dot"></span>Supply</div>
+                <div class="assets-section-body">
+                    ${md.supplyCapNum > 0 ? ringGauge(supplyPct, 'supply') : ''}
+                    <div class="assets-metrics">
+                        <div class="assets-metric">
+                            <div class="assets-metric-label">Supplied</div>
+                            <div class="assets-metric-value">${assets_fmtNum(md.supplied)}</div>
+                            <div class="assets-metric-sub">${suppliedUsd}</div>
+                        </div>
+                        <div class="assets-metric">
+                            <div class="assets-metric-label">Supply Cap</div>
+                            <div class="assets-metric-value">${md.supplyCapNum > 0 ? assets_fmtNum(md.supplyCapNum) : '∞'}</div>
+                            <div class="assets-metric-sub">${supplyCapUsd || 'No cap'}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+
+            let borrowSection;
+            if (md.isBorrowDisabled) {
+                borrowSection = `<div class="assets-detail-section borrow-disabled">
+                    <div class="assets-section-header borrow"><span class="section-dot"></span>Borrow</div>
+                    <div class="assets-section-body">
+                        <div class="assets-metrics" style="grid-template-columns:1fr">
+                            <div class="assets-metric">
+                                <div class="assets-metric-label">Status</div>
+                                <div class="assets-metric-value" style="color:#ff4d6a">🚫 Disabled</div>
+                                <div class="assets-metric-sub" style="color:rgba(255,77,106,0.5)">Borrowing is not available for this asset</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            } else {
+                borrowSection = `<div class="assets-detail-section">
+                    <div class="assets-section-header borrow"><span class="section-dot"></span>Borrow</div>
+                    <div class="assets-section-body">
+                        ${ringGauge(utilPct, 'borrow')}
+                        <div class="assets-metrics">
+                            <div class="assets-metric">
+                                <div class="assets-metric-label">Borrowed</div>
+                                <div class="assets-metric-value">${assets_fmtNum(md.borrowed)}</div>
+                                <div class="assets-metric-sub">${borrowedUsd}</div>
+                            </div>
+                            <div class="assets-metric">
+                                <div class="assets-metric-label">Borrow Cap</div>
+                                <div class="assets-metric-value">${md.borrowCapNum > 0 ? assets_fmtNum(md.borrowCapNum) : '∞'}</div>
+                                <div class="assets-metric-sub">${borrowCapUsd || 'No cap'}</div>
+                            </div>
+                            <div class="assets-metric">
+                                <div class="assets-metric-label">Available</div>
+                                <div class="assets-metric-value">${assets_fmtNum(md.availableLiquidity)}</div>
+                                <div class="assets-metric-sub">${liquidityUsd}</div>
+                            </div>
+                            <div class="assets-metric">
+                                <div class="assets-metric-label">Utilization</div>
+                                <div class="assets-metric-value">${utilPct.toFixed(1)}%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            }
 
             return `<tr class="assets-detail-row" id="${rowId}-detail"><td colspan="5">
-                ${d.addr ? `<div class="assets-detail-ca">
-                    <img src="${d.chainIcon}" alt="${d.chainShort}" class="assets-ca-chain-icon">
-                    <a href="${(ASSETS_CHAINS[d.chainKey]?.explorer || '#') + d.addr}" target="_blank" rel="noopener" class="assets-ca-address">${d.addr}</a>
-                    <button class="assets-ca-copy" onclick="assets_copyCA(this,'${d.addr}')" title="Copy address"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
-                </div>` : ''}
-                <div class="assets-detail-grid">
-                    <div class="assets-detail-stat">
-                        <div class="assets-detail-stat-label">Supplied</div>
-                        <div class="assets-detail-stat-value">${assets_fmtNum(md.supplied)} ${sym}</div>
-                        <div class="assets-detail-stat-sub">${suppliedUsd}</div>
-                        ${md.supplyCapNum > 0 ? `<div class="assets-detail-bar-wrap"><div class="assets-detail-bar-fill supply" style="width:${supplyPct.toFixed(1)}%"></div></div>
-                        <div class="assets-detail-stat-sub">${supplyPct.toFixed(1)}% of cap</div>` : ''}
-                    </div>
-                    <div class="assets-detail-stat">
-                        <div class="assets-detail-stat-label">Supply Cap</div>
-                        <div class="assets-detail-stat-value">${md.supplyCapNum > 0 ? assets_fmtNum(md.supplyCapNum) + ' ' + sym : '∞ No cap'}</div>
-                        <div class="assets-detail-stat-sub">${supplyCapUsd}</div>
-                    </div>
-                    <div class="assets-detail-stat${md.isBorrowDisabled ? ' borrow-disabled' : ''}">
-                        <div class="assets-detail-stat-label">Borrowed</div>
-                        ${md.isBorrowDisabled
-                            ? `<div class="assets-detail-stat-value" style="color:#ff4d6a">🚫 Disabled</div>
-                               <div class="assets-detail-stat-sub" style="color:#ff4d6a80">Borrowing not allowed</div>`
-                            : `<div class="assets-detail-stat-value">${assets_fmtNum(md.borrowed)} ${sym}</div>
-                               <div class="assets-detail-stat-sub">${borrowedUsd}</div>
-                               ${md.borrowCapNum > 0 ? `<div class="assets-detail-bar-wrap"><div class="assets-detail-bar-fill borrow" style="width:${borrowPct.toFixed(1)}%"></div></div>
-                               <div class="assets-detail-stat-sub">${borrowPct.toFixed(1)}% of cap</div>` : ''}`}
-                    </div>
-                    <div class="assets-detail-stat${md.isBorrowDisabled ? ' borrow-disabled' : ''}">
-                        <div class="assets-detail-stat-label">Borrow Cap</div>
-                        ${md.isBorrowDisabled
-                            ? `<div class="assets-detail-stat-value" style="color:#ff4d6a">🚫 Disabled</div>`
-                            : `<div class="assets-detail-stat-value">${md.borrowCapNum > 0 ? assets_fmtNum(md.borrowCapNum) + ' ' + sym : '∞ No cap'}</div>
-                               <div class="assets-detail-stat-sub">${borrowCapUsd}</div>`}
-                    </div>
-                    <div class="assets-detail-stat${md.isBorrowDisabled ? ' borrow-disabled' : ''}">
-                        <div class="assets-detail-stat-label">Available Liquidity</div>
-                        ${md.isBorrowDisabled
-                            ? `<div class="assets-detail-stat-value" style="color:#ff4d6a">🚫 Not borrowable</div>
-                               <div class="assets-detail-stat-sub" style="color:#ff4d6a80">Liquidity not available for borrowing</div>`
-                            : `<div class="assets-detail-stat-value">${assets_fmtNum(md.availableLiquidity)} ${sym}</div>
-                               <div class="assets-detail-stat-sub">${liquidityUsd}</div>
-                               <div class="assets-detail-bar-wrap"><div class="assets-detail-bar-fill liquidity" style="width:${(100 - utilPct).toFixed(1)}%"></div></div>
-                               <div class="assets-detail-stat-sub">Utilization ${utilPct.toFixed(1)}%</div>`}
+                <div class="assets-detail-wrap">
+                    ${d.addr ? `<div class="assets-detail-ca">
+                        <img src="${d.chainIcon}" alt="${d.chainShort}" class="assets-ca-chain-icon">
+                        <a href="${(ASSETS_CHAINS[d.chainKey]?.explorer || '#') + d.addr}" target="_blank" rel="noopener" class="assets-ca-address">${d.addr}</a>
+                        <button class="assets-ca-copy" onclick="assets_copyCA(this,'${d.addr}')" title="Copy address"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+                    </div>` : ''}
+                    <div class="assets-detail-sections">
+                        ${supplySection}
+                        ${borrowSection}
                     </div>
                 </div>
             </td></tr>`;
