@@ -8652,9 +8652,9 @@
                 <!-- Card 3: oDOLO Outflows -->
                 <div class="card">
                     <div class="card-title">
-                        oDOLO Outflows
+                        oDOLO Claimer Outflow
                         <i class="tooltip-icon">?
-                            <span class="tooltip-bubble">Total oDOLO transferred out by wallets (sold on DEX, sent to other addresses). Ranked by gross outflow — the sum of all transfers OUT, regardless of what was received. Contracts are excluded.</span>
+                            <span class="tooltip-bubble">oDOLO transferred out by claimers — sold on DEX or sent to other addresses. Ranked by gross outflow per wallet. Contracts are excluded.</span>
                         </i>
                     </div>
                     <div class="odolo-an-body" id="odolo-an-outflows">
@@ -8665,7 +8665,7 @@
                             <button data-p="all">ALL</button>
                         </div>
                         <div class="odolo-outflow-big" id="odolo-an-outflow-total">—</div>
-                        <div class="odolo-bond-sub">top 3 outflows combined</div>
+                        <div class="odolo-bond-sub">total outflow</div>
                         <div class="odolo-outflow-list" id="odolo-an-outflow-list"></div>
                     </div>
                 </div>
@@ -11195,7 +11195,7 @@
         }
 
         // === Generic canvas donut with hover ===
-        function odolo_drawDonut(canvasId, segments, centerValId, centerSubId, defaultLabel) {
+        function odolo_drawMiniDonut(canvasId, segments, centerValId, centerSubId, defaultLabel) {
             const canvas = document.getElementById(canvasId);
             if (!canvas) return;
             const ctx = canvas.getContext('2d');
@@ -11275,7 +11275,7 @@
                 { label: 'Vesting', value: data.promisedTokens || 0, color: '#f59e0b' },
                 { label: 'Unclaimed', value: data.availableTokens || 0, color: '#22d3ee' },
             ];
-            odolo_drawDonut('odolo-dist-donut', segments, 'odolo-dist-center-val', 'odolo-dist-center-sub', 'exercised');
+            odolo_drawMiniDonut('odolo-dist-donut', segments, 'odolo-dist-center-val', 'odolo-dist-center-sub', 'exercised');
 
             const fmtK = n => n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(0)+'K' : n.toFixed(0);
             const total = segments.reduce((s, x) => s + x.value, 0);
@@ -11292,7 +11292,7 @@
 
             const sellers = (pd.sellers || []).filter(s => Math.abs(s.net_flow) > 0);
             const top3 = sellers.slice(0, 3);
-            const totalOut = top3.reduce((s, x) => s + Math.abs(x.net_flow), 0);
+            const totalOut = sellers.reduce((s, x) => s + Math.abs(x.net_flow), 0);
             const totalEl = document.getElementById('odolo-an-outflow-total');
             if (totalEl) {
                 if (totalOut === 0) {
@@ -11351,20 +11351,20 @@
                 { label: 'Outflow', value: outVal, color: '#f87171' },
                 { label: 'Held', value: heldVal, color: '#22d3ee' },
             ];
-            odolo_drawDonut('odolo-claimer-donut', segments, 'odolo-claimer-center-val', 'odolo-claimer-center-sub', 'of claimed');
+            odolo_drawMiniDonut('odolo-claimer-donut', segments, 'odolo-claimer-center-val', 'odolo-claimer-center-sub', 'of claimed');
 
-            // Legend
+            // Legend — all 3 on same line, bought extra below
             const fmtK = n => n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(0)+'K' : n.toFixed(0);
             const legendEl = document.getElementById('odolo-an-claimer-legend');
             if (legendEl) {
                 const bePct = cb.pct_bought_extra || 0;
                 legendEl.innerHTML = `
-                    <span style="display:flex;flex-direction:column;gap:1px">
+                    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
                         <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#34d399"></span>Exercised ${cb.pct_exercised}%</span>
-                        <span style="font-size:9px;color:#fbbf24;padding-left:12px">↳ ${bePct}% bought extra</span>
-                    </span>
-                    <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#f87171"></span>Outflow ${cb.pct_outflow}%</span>
-                    <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#22d3ee"></span>Held ${cb.pct_held}%</span>
+                        <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#f87171"></span>Outflow ${cb.pct_outflow}%</span>
+                        <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#22d3ee"></span>Held ${cb.pct_held}%</span>
+                    </div>
+                    <div style="text-align:center;font-size:9px;color:#fbbf24;margin-top:4px">↳ ${bePct}% of claimers bought extra oDOLO</div>
                 `;
             }
 
