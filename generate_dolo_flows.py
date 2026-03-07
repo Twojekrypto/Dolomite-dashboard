@@ -17,11 +17,45 @@ TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523
 ZERO = "0x0000000000000000000000000000000000000000"
 TOP_N = 100
 
-# Known contract addresses to exclude (DEX routers, LP pools, etc.)
+# Known contract addresses to exclude (DEX routers, LP pools, bots, etc.)
 EXCLUDED_ADDRS = {
     ZERO,
     DOLO_CONTRACT,
     "0x0000000000000000000000000000000000000001",
+    # --- Berachain contracts (verified via eth_getCode, 2026-03-06) ---
+    # oDOLO Vester
+    "0x3e9b9a16743551da49b5e136c716bba7932d2cec",
+    # Kodiak DEX
+    "0x43dac637c4383f91b4368041e7a8687da3806cae",
+    # Protocol contracts
+    "0x63242a4ea82847b20e506b63b0e2e2eff0cc6cb0",
+    "0x596384bdffc9f563b53791aeec50a42ff51c3e42",
+    "0x27f66ba3fda600239f48526bb26a1f8d5700ccf7",
+    "0xa575f37e869e6887564f87c07e2885e08d542c4a",
+    # DEX swap router
+    "0xbedfac7488dccaafdd66d1d7d56349780fe0477e",
+    # Contract (proxy)
+    "0xf909c4ae16622898b885b89d7f839e0244851c66",
+    # LP/router contracts
+    "0x7ab286e9da6b5a1c80664b382092a8a4b91c276c",
+    "0x16f13296c85c308b37bae567284e62b4c21a1ee9",
+    "0xf5042e6ffac5a625d4e7848e0b01373d8eb9e222",
+    "0x36f4e1803f6ff34562db567f347dea00dec87246",
+    # DEX/aggregator contracts
+    "0x12622dae56ec7a25f6cfeb96db88651c5bf7861d",
+    "0x089b95152253b6af73e7f7267d749058d56ce231",
+    "0x8430e3574eeb85b39b053b4022cfa27f951f48c7",
+    "0x8c7ba8f245aef3216698087461e05b85483f791f",
+    "0x062a2b0eea575f659a1aaf18c1df5d93e0528245",
+    # Bot/aggregator contracts
+    "0x893785e5c2a4ccfe0790e580c8e4ef363fabde1e",
+    "0x4be03f781c497a489e3cb0287833452ca9b9e80b",
+    "0x221dd2bb8b25f5e46b00c174b0111d383eb5c0bc",
+    "0x71355972c9e332f73ff6921f9b3a02f349ff9752",
+    # Protocol/other contracts
+    "0x4fe93ebc4ce6ae4f81601cc7ce7139023919e003",
+    "0x08b14bb09ac4819c16f68d7c92f7dcc20750eaff",
+    "0x74d09665900a5f29bac25befd30c73a5962d44e7",
 }
 
 CHAINS = {
