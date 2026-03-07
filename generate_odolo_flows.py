@@ -492,6 +492,16 @@ def main():
     total_outflow = sum(s["outflow"] for s in claimer_stats.values())
     total_held = sum(s["held"] for s in claimer_stats.values())
 
+    # Count wallets that bought extra oDOLO and exercised
+    bought_extra_count = 0
+    for wallet, claimed in claims_by_wallet.items():
+        raw_exercised = 0
+        for from_addr, to_addr, value_wei, _ in all_transfers:
+            if from_addr == wallet and to_addr == VESTER_CONTRACT:
+                raw_exercised += value_wei / (10 ** 18)
+        if raw_exercised > claimed:
+            bought_extra_count += 1
+
     # Top 10 claimers by claimed amount
     top_claimers = sorted(claimer_stats.items(), key=lambda x: x[1]["claimed"], reverse=True)[:10]
     top_claimers_list = []
@@ -506,6 +516,8 @@ def main():
         "pct_exercised": round(total_exercised / max(total_claimed, 1) * 100, 1),
         "pct_outflow": round(total_outflow / max(total_claimed, 1) * 100, 1),
         "pct_held": round(total_held / max(total_claimed, 1) * 100, 1),
+        "pct_bought_extra": round(bought_extra_count / max(len(claimer_stats), 1) * 100, 1),
+        "count_bought_extra": bought_extra_count,
         "top_claimers": top_claimers_list,
     }
     print(f"  Claimers: {len(claimer_stats)}, Claimed: {total_claimed:,.0f}")
