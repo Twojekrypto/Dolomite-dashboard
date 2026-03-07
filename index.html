@@ -8665,7 +8665,7 @@
                             <button data-p="all">ALL</button>
                         </div>
                         <div class="odolo-outflow-big" id="odolo-an-outflow-total">—</div>
-                        <div class="odolo-bond-sub">total outflow</div>
+                        <div class="odolo-bond-sub">top 3 outflows combined</div>
                         <div class="odolo-outflow-list" id="odolo-an-outflow-list"></div>
                     </div>
                 </div>
@@ -11292,7 +11292,7 @@
 
             const sellers = (pd.sellers || []).filter(s => Math.abs(s.net_flow) > 0);
             const top3 = sellers.slice(0, 3);
-            const totalOut = sellers.reduce((s, x) => s + Math.abs(x.net_flow), 0);
+            const totalOut = top3.reduce((s, x) => s + Math.abs(x.net_flow), 0);
             const totalEl = document.getElementById('odolo-an-outflow-total');
             if (totalEl) {
                 if (totalOut === 0) {
