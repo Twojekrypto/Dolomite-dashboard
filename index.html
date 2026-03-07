@@ -11359,12 +11359,14 @@
             if (legendEl) {
                 const bePct = cb.pct_bought_extra || 0;
                 legendEl.innerHTML = `
-                    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-                        <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#34d399"></span>Exercised ${cb.pct_exercised}%</span>
+                    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;align-items:flex-start">
+                        <span style="display:flex;flex-direction:column;gap:1px">
+                            <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#34d399"></span>Exercised ${cb.pct_exercised}%</span>
+                            <span style="font-size:9px;color:#fbbf24;padding-left:12px">↳ ${bePct}% bought extra</span>
+                        </span>
                         <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#f87171"></span>Outflow ${cb.pct_outflow}%</span>
                         <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#22d3ee"></span>Held ${cb.pct_held}%</span>
                     </div>
-                    <div style="text-align:center;font-size:9px;color:#fbbf24;margin-top:4px">↳ ${bePct}% of claimers bought extra oDOLO</div>
                 `;
             }
 
