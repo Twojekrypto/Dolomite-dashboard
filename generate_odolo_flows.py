@@ -447,9 +447,71 @@ def main():
     except ImportError:
         pass
 
+    # ── Claimer behavior analysis ──
+    # Trace: rewards contract (0x79e6...) → wallets = claims
+    # For each claimer: exercised (→ Vester), outflow (→ others), held
+    print("\n📊 Analyzing claimer behavior...")
+    REWARDS_CONTRACT = "0x79e6e932bf6686a4d357d7821e6e08835ba8a026"
+    SKIP_ADDRS = {ZERO, ODOLO_CONTRACT, "0x0000000000000000000000000000000000000001"}
+
+    # Find claims: FROM rewards contract TO wallets
+    claims_by_wallet = {}
+    for from_addr, to_addr, value_wei, _ in all_transfers:
+        if from_addr == REWARDS_CONTRACT and to_addr not in SKIP_ADDRS and to_addr not in EXCLUDED_ADDRS:
+            val = value_wei / (10 ** 18)
+            claims_by_wallet[to_addr] = claims_by_wallet.get(to_addr, 0) + val
+
+    # For each claimer, track outgoing transfers
+    claimer_stats = {}
+    for wallet, claimed in claims_by_wallet.items():
+        exercised = 0
+        outflow = 0
+        for from_addr, to_addr, value_wei, _ in all_transfers:
+            if from_addr == wallet:
+                val = value_wei / (10 ** 18)
+                if to_addr == VESTER_CONTRACT:
+                    exercised += val
+                elif to_addr not in SKIP_ADDRS and to_addr != REWARDS_CONTRACT:
+                    outflow += val
+        held = max(0, claimed - exercised - outflow)
+        claimer_stats[wallet] = {
+            "claimed": round(claimed, 2),
+            "exercised": round(exercised, 2),
+            "outflow": round(outflow, 2),
+            "held": round(held, 2),
+        }
+
+    # Aggregate
+    total_claimed = sum(s["claimed"] for s in claimer_stats.values())
+    total_exercised = sum(s["exercised"] for s in claimer_stats.values())
+    total_outflow = sum(s["outflow"] for s in claimer_stats.values())
+    total_held = sum(s["held"] for s in claimer_stats.values())
+
+    # Top 10 claimers by claimed amount
+    top_claimers = sorted(claimer_stats.items(), key=lambda x: x[1]["claimed"], reverse=True)[:10]
+    top_claimers_list = []
+    for addr, stats in top_claimers:
+        entry = {"address": addr}
+        entry.update(stats)
+        top_claimers_list.append(entry)
+
+    claimer_behavior = {
+        "total_claimers": len(claimer_stats),
+        "total_claimed": round(total_claimed, 2),
+        "pct_exercised": round(total_exercised / max(total_claimed, 1) * 100, 1),
+        "pct_outflow": round(total_outflow / max(total_claimed, 1) * 100, 1),
+        "pct_held": round(total_held / max(total_claimed, 1) * 100, 1),
+        "top_claimers": top_claimers_list,
+    }
+    print(f"  Claimers: {len(claimer_stats)}, Claimed: {total_claimed:,.0f}")
+    print(f"  Exercised: {total_exercised:,.0f} ({claimer_behavior['pct_exercised']}%)")
+    print(f"  Outflow: {total_outflow:,.0f} ({claimer_behavior['pct_outflow']}%)")
+    print(f"  Held: {total_held:,.0f} ({claimer_behavior['pct_held']}%)")
+
     output = {
         "timestamp": datetime.utcnow().isoformat(),
         "periods": output_periods,
+        "claimer_behavior": claimer_behavior,
     }
 
     with open(OUTPUT_JSON, "w") as f:

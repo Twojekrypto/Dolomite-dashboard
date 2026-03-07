@@ -4610,7 +4610,7 @@
         /* === oDOLO Analytics Cards Row === */
         .odolo-analytics-row {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-columns: 1fr 1fr;
             gap: 20px;
             margin-top: 20px;
         }
@@ -8699,6 +8699,26 @@
                         <div class="odolo-outflow-list" id="odolo-an-outflow-list"></div>
                     </div>
                 </div>
+
+                <!-- Card 4: Claimer Behavior -->
+                <div class="card">
+                    <div class="card-title">
+                        Claimer Behavior
+                        <i class="tooltip-icon">?
+                            <span class="tooltip-bubble">What do wallets do after claiming oDOLO from rewards? Exercised = paired with DOLO for veDOLO. Outflow = sold or transferred out. Held = still in wallet. Percentages may exceed 100% if wallets exercised extra oDOLO they acquired separately.</span>
+                        </i>
+                    </div>
+                    <div class="odolo-an-body" id="odolo-an-claimer">
+                        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px">
+                            <span class="odolo-outflow-big" id="odolo-an-claimer-count" style="font-size:24px">—</span>
+                            <span class="odolo-bond-sub">unique claimers</span>
+                        </div>
+                        <div id="odolo-an-claimer-bar" style="display:flex;height:24px;border-radius:6px;overflow:hidden;margin:10px 0 8px"></div>
+                        <div id="odolo-an-claimer-legend" style="display:flex;gap:14px;font-size:11px;margin-bottom:12px"></div>
+                        <div class="odolo-bond-sub" style="margin-bottom:6px">Top 5 claimers</div>
+                        <div id="odolo-an-claimer-list"></div>
+                    </div>
+                </div>
             </div>
 
             <!-- LAST 7D EXERCISERS TABLE -->
@@ -11168,6 +11188,7 @@
             odolo_renderClaimedRing(data);
             odolo_renderBondDuration(data);
             odolo_renderOutflows();
+            odolo_renderClaimerBehavior();
         }
 
         function odolo_renderClaimedRing(data) {
@@ -11269,6 +11290,61 @@
             odolo_anOutflowPeriod = btn.dataset.p;
             odolo_renderOutflows();
         });
+
+        // ===== Claimer Behavior card =====
+        function odolo_renderClaimerBehavior() {
+            if (!odolo_flowsData || !odolo_flowsData.claimer_behavior) return;
+            const cb = odolo_flowsData.claimer_behavior;
+
+            // Count
+            const countEl = document.getElementById('odolo-an-claimer-count');
+            if (countEl) countEl.textContent = cb.total_claimers.toLocaleString();
+
+            // Stacked bar — normalize to actual 100%
+            const rawTotal = cb.pct_exercised + cb.pct_outflow + cb.pct_held;
+            const normEx = rawTotal > 0 ? cb.pct_exercised / rawTotal * 100 : 33;
+            const normOut = rawTotal > 0 ? cb.pct_outflow / rawTotal * 100 : 33;
+            const normHeld = rawTotal > 0 ? cb.pct_held / rawTotal * 100 : 34;
+
+            const barEl = document.getElementById('odolo-an-claimer-bar');
+            if (barEl) {
+                barEl.innerHTML = [
+                    {pct: normEx, color: '#34d399', label: 'Exercised'},
+                    {pct: normOut, color: '#f87171', label: 'Outflow'},
+                    {pct: normHeld, color: '#22d3ee', label: 'Held'},
+                ].map(s => `<div style="width:${s.pct}%;background:${s.color};transition:width 0.4s" title="${s.label}: ${s.pct.toFixed(0)}%"></div>`).join('');
+            }
+
+            // Legend
+            const legendEl = document.getElementById('odolo-an-claimer-legend');
+            if (legendEl) {
+                legendEl.innerHTML = [
+                    {color: '#34d399', label: 'Exercised', pct: cb.pct_exercised},
+                    {color: '#f87171', label: 'Outflow', pct: cb.pct_outflow},
+                    {color: '#22d3ee', label: 'Held', pct: cb.pct_held},
+                ].map(s => `<span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:${s.color}"></span>${s.label} ${s.pct}%</span>`).join('');
+            }
+
+            // Top 5 claimers
+            const listEl = document.getElementById('odolo-an-claimer-list');
+            if (listEl && cb.top_claimers) {
+                const top5 = cb.top_claimers.slice(0, 5);
+                listEl.innerHTML = top5.map(c => {
+                    const addr = c.address.slice(0,6) + '\u2026' + c.address.slice(-4);
+                    const claimed = c.claimed >= 1e6 ? (c.claimed/1e6).toFixed(1)+'M' : c.claimed >= 1e3 ? (c.claimed/1e3).toFixed(0)+'K' : c.claimed.toFixed(0);
+                    const exPct = c.claimed > 0 ? Math.round(c.exercised / c.claimed * 100) : 0;
+                    const outPct = c.claimed > 0 ? Math.round(c.outflow / c.claimed * 100) : 0;
+                    return `<div class="odolo-outflow-item" style="font-size:11px;padding:3px 0">
+                        <span class="odolo-outflow-addr">${addr}</span>
+                        <span style="color:rgba(255,255,255,0.5)">${claimed}</span>
+                        <span style="margin-left:auto;display:flex;gap:8px">
+                            <span style="color:#34d399">${exPct}% ex</span>
+                            <span style="color:#f87171">${outPct}% out</span>
+                        </span>
+                    </div>`;
+                }).join('');
+            }
+        }
 
         // ===== oDOLO DONUT =====
         let odolo_donutSegments = [];
@@ -14173,6 +14249,7 @@
                     odolo_flowsData = data;
                     odolo_renderFlows();
                     odolo_renderOutflows();
+                    odolo_renderClaimerBehavior();
                     const ts = document.getElementById('odolo-flow-ts');
                     if (ts && data.timestamp) {
                         const d = new Date(data.timestamp + 'Z');
