@@ -8654,7 +8654,7 @@
                     <div class="card-title">
                         oDOLO Claimer Outflow
                         <i class="tooltip-icon">?
-                            <span class="tooltip-bubble">oDOLO transferred out by claimers — sold on DEX or sent to other addresses. Ranked by gross outflow per wallet. Contracts are excluded.</span>
+                            <span class="tooltip-bubble">Gross outflow of oDOLO from wallets that <b>claimed</b> oDOLO from rewards. Only transfers OUT are counted (sold on DEX, sent to other addresses). If a claimer also <b>bought extra</b> oDOLO and then sold it, that purchased portion is included in the outflow. Transfers to the Vester (exercising) are excluded. Contracts are excluded. Ranked by gross outflow per wallet.</span>
                         </i>
                     </div>
                     <div class="odolo-an-body" id="odolo-an-outflows">
@@ -11289,7 +11289,7 @@
             const pd = odolo_flowsData.periods[odolo_anOutflowPeriod];
             if (!pd) return;
 
-            const sellers = (pd.sellers || []).filter(s => Math.abs(s.net_flow) > 0);
+            const sellers = (pd.claimer_sellers || pd.sellers || []).filter(s => Math.abs(s.net_flow) > 0);
             const top3 = sellers.slice(0, 3);
             const totalOut = top3.reduce((s, x) => s + Math.abs(x.net_flow), 0);
             const totalEl = document.getElementById('odolo-an-outflow-total');

@@ -377,6 +377,17 @@ def main():
     EXCLUDED_ADDRS.update(contracts)
     print(f"  Excluded {len(contracts)} contract(s)")
 
+    # ── Identify claimer wallets first (needed for per-period filtering) ──
+    REWARDS_CONTRACT = "0x79e6e932bf6686a4d357d7821e6e08835ba8a026"
+    SKIP_ADDRS_CB = {ZERO, ODOLO_CONTRACT, "0x0000000000000000000000000000000000000001"}
+    claims_by_wallet = {}
+    for from_addr, to_addr, value_wei, _ in all_transfers:
+        if from_addr == REWARDS_CONTRACT and to_addr not in SKIP_ADDRS_CB and to_addr not in EXCLUDED_ADDRS:
+            val = value_wei / (10 ** 18)
+            claims_by_wallet[to_addr] = claims_by_wallet.get(to_addr, 0) + val
+    claimer_addrs = set(claims_by_wallet.keys())
+    print(f"  Found {len(claimer_addrs)} claimer wallets")
+
     # Calculate flows for each period
     print("\n📊 Calculating flows...")
     output_periods = {}
@@ -391,9 +402,14 @@ def main():
         accumulators = get_top(flows, tx_counts, TOP_N, "accumulator", EXCLUDED_ADDRS)
         sellers = get_top(gross_out, tx_counts, TOP_N, "seller", EXCLUDED_ADDRS)
 
+        # Filter sellers to only claimers
+        claimer_gross = {addr: val for addr, val in gross_out.items() if addr in claimer_addrs}
+        claimer_sellers = get_top(claimer_gross, tx_counts, TOP_N, "seller", EXCLUDED_ADDRS)
+
         output_periods[period] = {
             "accumulators": accumulators,
             "sellers": sellers,
+            "claimer_sellers": claimer_sellers,
             "total_transfers": len(period_transfers),
         }
 
@@ -451,7 +467,6 @@ def main():
     # Trace: rewards contract (0x79e6...) → wallets = claims
     # For each claimer: exercised (→ Vester), outflow (→ others), held
     print("\n📊 Analyzing claimer behavior...")
-    REWARDS_CONTRACT = "0x79e6e932bf6686a4d357d7821e6e08835ba8a026"
     SKIP_ADDRS = {ZERO, ODOLO_CONTRACT, "0x0000000000000000000000000000000000000001"}
 
     # Find claims: FROM rewards contract TO wallets
