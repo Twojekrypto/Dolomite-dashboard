@@ -11309,17 +11309,29 @@
         }
 
         function odolo_renderOutflows() {
-            if (!odolo_flowsData || !odolo_flowsData.periods) return;
-            const pd = odolo_flowsData.periods[odolo_anOutflowPeriod];
-            if (!pd) return;
+            if (!odolo_flowsData) return;
 
-            const sellers = (pd.claimer_sellers || pd.sellers || []).filter(s => Math.abs(s.net_flow) > 0);
+            // Use claimer_periods data (capped outflow) — same as Breakdown table
+            const cp = odolo_flowsData.claimer_periods;
+            let claimers;
+            if (cp && cp[odolo_anOutflowPeriod]) {
+                claimers = cp[odolo_anOutflowPeriod].all_claimers || [];
+            } else {
+                // Fallback to claimer_behavior all-time
+                claimers = odolo_flowsData.claimer_behavior?.all_claimers || [];
+            }
+
+            // Sort by outflow descending, filter to wallets with outflow > 0
+            const sellers = claimers
+                .filter(c => c.outflow > 0)
+                .sort((a, b) => b.outflow - a.outflow);
+
             const top3 = sellers.slice(0, 3);
-            const totalOut = top3.reduce((s, x) => s + Math.abs(x.net_flow), 0);
+            const totalOut = top3.reduce((s, x) => s + x.outflow, 0);
             const totalEl = document.getElementById('odolo-an-outflow-total');
             if (totalEl) {
                 if (totalOut === 0) {
-                    totalEl.textContent = 'No net outflows';
+                    totalEl.textContent = 'No outflows';
                     totalEl.style.fontSize = '16px';
                     totalEl.style.color = 'rgba(255,255,255,0.4)';
                 } else {
@@ -11332,13 +11344,11 @@
             const listEl = document.getElementById('odolo-an-outflow-list');
             if (listEl) {
                 if (sellers.length === 0) {
-                    listEl.innerHTML = '<div style="font-size:11px;color:rgba(255,255,255,0.3);text-align:center;padding:8px 0;line-height:1.5">All wallets hold net-positive oDOLO over this period. Use shorter timeframes (7D–180D) to see selling activity.</div>';
+                    listEl.innerHTML = '<div style="font-size:11px;color:rgba(255,255,255,0.3);text-align:center;padding:8px 0;line-height:1.5">No claimer outflows in this period.</div>';
                 } else {
-                    const top3 = sellers.slice(0, 3);
                     listEl.innerHTML = top3.map(s => {
                         const addr = s.address.slice(0,6) + '\u2026' + s.address.slice(-4);
-                        const amt = Math.abs(s.net_flow);
-                        const fmtAmt = amt >= 1e6 ? (amt/1e6).toFixed(1)+'M' : amt >= 1e3 ? (amt/1e3).toFixed(1)+'K' : amt.toFixed(0);
+                        const fmtAmt = s.outflow >= 1e6 ? (s.outflow/1e6).toFixed(1)+'M' : s.outflow >= 1e3 ? (s.outflow/1e3).toFixed(1)+'K' : s.outflow.toFixed(0);
                         return `<div class="odolo-outflow-item"><span class="odolo-outflow-addr">${addr}</span><span class="odolo-outflow-amt">-${fmtAmt}</span></div>`;
                     }).join('');
                 }
