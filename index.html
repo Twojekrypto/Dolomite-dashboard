@@ -8708,16 +8708,16 @@
                     </h3>
                 </div>
                 <div style="overflow-x:auto;overflow-y:auto;max-height:500px">
-                    <table style="width:100%;border-collapse:collapse;font-size:12px">
+                    <table style="width:100%;border-collapse:collapse;font-size:12px" id="odolo-claimer-table">
                         <thead style="position:sticky;top:0;z-index:2;background:#141825">
                             <tr>
                                 <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">#</th>
                                 <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">Address</th>
-                                <th style="padding:8px 6px;text-align:right;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">Claimed</th>
-                                <th style="padding:8px 6px;text-align:right;color:#34d399;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">🟢 Exercised</th>
-                                <th style="padding:8px 6px;text-align:right;color:#f87171;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">🔴 Outflow</th>
-                                <th style="padding:8px 6px;text-align:right;color:#22d3ee;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">🔵 Held</th>
-                                <th style="padding:8px 6px;text-align:right;color:#fbbf24;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">🟡 Bought Extra</th>
+                                <th style="padding:8px 6px;text-align:right;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" onclick="odolo_sortClaimerTable('claimed')">Claimed <span class="sort-arrow" id="ct-sort-claimed">▼</span></th>
+                                <th style="padding:8px 6px;text-align:right;color:#34d399;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" onclick="odolo_sortClaimerTable('exercised')">🟢 Exercised <span class="sort-arrow" id="ct-sort-exercised"></span></th>
+                                <th style="padding:8px 6px;text-align:right;color:#f87171;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" onclick="odolo_sortClaimerTable('outflow')">🔴 Outflow <span class="sort-arrow" id="ct-sort-outflow"></span></th>
+                                <th style="padding:8px 6px;text-align:right;color:#22d3ee;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" onclick="odolo_sortClaimerTable('held')">🔵 Held <span class="sort-arrow" id="ct-sort-held"></span></th>
+                                <th style="padding:8px 6px;text-align:right;color:#fbbf24;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" onclick="odolo_sortClaimerTable('bought_extra')">🟡 Bought Extra <span class="sort-arrow" id="ct-sort-bought_extra"></span></th>
                             </tr>
                         </thead>
                         <tbody id="odolo-claimer-table-body"></tbody>
@@ -11372,32 +11372,59 @@
             odolo_renderClaimerTable();
         }
 
+        let odolo_claimerSortField = 'claimed';
+        let odolo_claimerSortAsc = false; // descending by default
+
+        function odolo_sortClaimerTable(field) {
+            if (odolo_claimerSortField === field) {
+                odolo_claimerSortAsc = !odolo_claimerSortAsc;
+            } else {
+                odolo_claimerSortField = field;
+                odolo_claimerSortAsc = false;
+            }
+            // Update arrows
+            ['claimed','exercised','outflow','held','bought_extra'].forEach(f => {
+                const el = document.getElementById('ct-sort-' + f);
+                if (el) el.textContent = f === field ? (odolo_claimerSortAsc ? '▲' : '▼') : '';
+            });
+            odolo_renderClaimerTable();
+        }
+
         function odolo_renderClaimerTable() {
             const container = document.getElementById('odolo-claimer-table-body');
             if (!container) return;
             const cb = odolo_flowsData?.claimer_behavior;
             if (!cb || !cb.all_claimers) return;
 
+            const COPY_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+
+            // Sort
+            const sorted = [...cb.all_claimers].sort((a, b) => {
+                const av = a[odolo_claimerSortField] || 0;
+                const bv = b[odolo_claimerSortField] || 0;
+                return odolo_claimerSortAsc ? av - bv : bv - av;
+            });
+
             const fmt = v => v >= 1e6 ? (v/1e6).toFixed(2)+'M' : v >= 1e3 ? (v/1e3).toFixed(1)+'K' : v.toFixed(0);
 
-            container.innerHTML = cb.all_claimers.map((c, i) => {
-                const addr = c.address.slice(0,6) + '\u2026' + c.address.slice(-4);
+            container.innerHTML = sorted.map((c, i) => {
+                const short = c.address.slice(0,6) + '\u2026' + c.address.slice(-4);
                 const be = c.bought_extra > 0 ? fmt(c.bought_extra) : '—';
-                const beClass = c.bought_extra > 0 ? 'color:#fbbf24' : 'color:rgba(255,255,255,0.2)';
-                return `<tr>
-                    <td style="color:rgba(255,255,255,0.4)">${i+1}</td>
-                    <td><a href="https://debank.com/profile/${c.address}" target="_blank" style="color:#818cf8;font-family:monospace;font-size:11px">${addr}</a></td>
-                    <td style="text-align:right;color:rgba(255,255,255,0.5)">${fmt(c.claimed)}</td>
-                    <td style="text-align:right;color:#34d399">${fmt(c.exercised)}</td>
-                    <td style="text-align:right;color:#f87171">${fmt(c.outflow)}</td>
-                    <td style="text-align:right;color:#22d3ee">${fmt(c.held)}</td>
-                    <td style="text-align:right;${beClass}">${be}</td>
+                const beStyle = c.bought_extra > 0 ? 'color:#fbbf24' : 'color:rgba(255,255,255,0.2)';
+                return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+                    <td style="padding:5px 6px;color:rgba(255,255,255,0.3)">${i+1}</td>
+                    <td style="padding:5px 6px"><span style="display:inline-flex;align-items:center;gap:4px"><a href="https://debank.com/profile/${c.address}?chain=bera" target="_blank" style="color:#818cf8;font-family:monospace;font-size:11px">${short}</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${c.address}',this)" title="Copy address">${COPY_SVG}</span><a href="https://debank.com/profile/${c.address}?chain=bera" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a></span></td>
+                    <td style="padding:5px 6px;text-align:right;color:rgba(255,255,255,0.5)">${fmt(c.claimed)}</td>
+                    <td style="padding:5px 6px;text-align:right;color:#34d399">${fmt(c.exercised)}</td>
+                    <td style="padding:5px 6px;text-align:right;color:#f87171">${fmt(c.outflow)}</td>
+                    <td style="padding:5px 6px;text-align:right;color:#22d3ee">${fmt(c.held)}</td>
+                    <td style="padding:5px 6px;text-align:right;${beStyle}">${be}</td>
                 </tr>`;
             }).join('');
 
             // Update count badge
             const badge = document.getElementById('odolo-claimer-table-count');
-            if (badge) badge.textContent = cb.all_claimers.length;
+            if (badge) badge.textContent = sorted.length;
         }
 
         // ===== oDOLO DONUT =====
