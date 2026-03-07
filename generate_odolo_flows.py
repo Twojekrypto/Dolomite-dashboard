@@ -473,11 +473,16 @@ def main():
                     exercised += val
                 elif to_addr not in SKIP_ADDRS and to_addr != REWARDS_CONTRACT:
                     outflow += val
-        held = max(0, claimed - exercised - outflow)
+        # Cap at claimed amount — don't count extra purchased oDOLO
+        # Priority: exercised first, then outflow, remainder = held
+        exercised_capped = min(exercised, claimed)
+        remaining = claimed - exercised_capped
+        outflow_capped = min(outflow, remaining)
+        held = max(0, remaining - outflow_capped)
         claimer_stats[wallet] = {
             "claimed": round(claimed, 2),
-            "exercised": round(exercised, 2),
-            "outflow": round(outflow, 2),
+            "exercised": round(exercised_capped, 2),
+            "outflow": round(outflow_capped, 2),
             "held": round(held, 2),
         }
 
