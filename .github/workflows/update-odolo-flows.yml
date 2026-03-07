@@ -2,8 +2,12 @@ name: Update oDOLO Flows
 
 on:
   schedule:
-    - cron: '30 */6 * * *'  # Every 6 hours
+    - cron: '0 */6 * * *'  # Every 6 hours at :00
   workflow_dispatch:
+
+concurrency:
+  group: odolo-data-push
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -11,11 +15,12 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 360  # Temporarily 6h for first full scan — revert to 120 after cache is populated
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
         with:
           ref: master
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -44,6 +49,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add odolo_flows.json
-          git diff --cached --quiet || git commit -m "chore: update oDOLO flows data"
-          git pull --rebase origin master || true
-          git push || git push --force-with-lease
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "🔄 Update oDOLO flows data — $(date -u '+%Y-%m-%d %H:%M UTC')"
+          # Retry push with rebase up to 3 times to handle concurrent pushes
+          for i in 1 2 3; do
+            git pull --rebase origin master && git push && break
+            echo "⚠️ Push attempt $i failed, retrying..."
+            sleep 5
+          done

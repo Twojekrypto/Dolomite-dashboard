@@ -2,8 +2,12 @@ name: Update oDOLO Data
 
 on:
   schedule:
-    - cron: '45 */6 * * *'  # Every 6 hours at :45
+    - cron: '15 */6 * * *'  # Every 6 hours at :15 (staggered from Flows at :00)
   workflow_dispatch:  # Allow manual trigger
+
+concurrency:
+  group: odolo-data-push
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -16,6 +20,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -61,11 +68,10 @@ jobs:
           git add exercised_usd.json avg_lock_data.json exercisers_by_address.json odolo_contract_data.json early_exits.json
           git diff --staged --quiet && echo "No changes to commit" && exit 0
           git commit -m "📊 oDOLO data update: $(date -u '+%Y-%m-%d %H:%M UTC')"
-          # Pull with auto-resolve: our freshly generated data always wins
-          if ! git pull --rebase origin master; then
-            echo "⚠️ Rebase conflict — resolving with our data..."
-            git rebase --abort
-            git pull -X ours origin master
-          fi
-          git pull --rebase
-          git push
+          # Retry push with rebase up to 3 times to handle concurrent pushes
+          for i in 1 2 3; do
+            git pull --rebase origin master && git push && break
+            echo "⚠️ Push attempt $i failed, retrying..."
+            sleep 5
+          done
+
