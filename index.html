@@ -8706,6 +8706,30 @@
                         </i>
                     </h3>
                 </div>
+                <div class="dolo-flow-toolbar">
+                    <div style="display:flex;flex-direction:column;gap:3px">
+                        <div class="search-input-wrapper" style="width:300px;min-width:160px">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8" />
+                                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                            </svg>
+                            <input type="text" id="ct-search" placeholder="Search address 0x…"
+                                oninput="odolo_renderClaimerTable()" style="font-size:12px;padding:7px 12px 7px 32px">
+                        </div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:3px;margin-left:auto">
+                        <div id="ct-period-btns" class="dolo-chain-pills" style="width:fit-content">
+                            <div class="dolo-chain-slider"></div>
+                            <button data-period="1d">1D</button>
+                            <button data-period="7d">7D</button>
+                            <button data-period="30d">30D</button>
+                            <button data-period="90d">90D</button>
+                            <button data-period="180d">180D</button>
+                            <button class="active" data-period="all">ALL</button>
+                        </div>
+                    </div>
+                </div>
                 <div style="overflow-x:auto;overflow-y:auto;max-height:500px">
                     <table style="width:100%;border-collapse:collapse;font-size:12px" id="odolo-claimer-table">
                         <thead style="position:sticky;top:0;z-index:2;background:#141825">
@@ -11375,6 +11399,7 @@
 
         let odolo_claimerSortField = 'claimed';
         let odolo_claimerSortAsc = false; // descending by default
+        let odolo_claimerPeriod = 'all';
 
         function odolo_sortClaimerTable(field) {
             if (odolo_claimerSortField === field) {
@@ -11394,13 +11419,29 @@
         function odolo_renderClaimerTable() {
             const container = document.getElementById('odolo-claimer-table-body');
             if (!container) return;
-            const cb = odolo_flowsData?.claimer_behavior;
-            if (!cb || !cb.all_claimers) return;
+
+            // Get data from period or fallback to all-time
+            let claimers;
+            const cp = odolo_flowsData?.claimer_periods;
+            if (cp && cp[odolo_claimerPeriod] && cp[odolo_claimerPeriod].all_claimers) {
+                claimers = cp[odolo_claimerPeriod].all_claimers;
+            } else {
+                const cb = odolo_flowsData?.claimer_behavior;
+                claimers = cb?.all_claimers;
+            }
+            if (!claimers) return;
+
+            // Search filter
+            const searchVal = (document.getElementById('ct-search')?.value || '').trim().toLowerCase();
+            let filtered = claimers;
+            if (searchVal.length > 0) {
+                filtered = claimers.filter(c => c.address.toLowerCase().includes(searchVal));
+            }
 
             const COPY_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
 
             // Sort
-            const sorted = [...cb.all_claimers].sort((a, b) => {
+            const sorted = [...filtered].sort((a, b) => {
                 const av = a[odolo_claimerSortField] || 0;
                 const bv = b[odolo_claimerSortField] || 0;
                 return odolo_claimerSortAsc ? av - bv : bv - av;
@@ -11427,6 +11468,30 @@
             const badge = document.getElementById('odolo-claimer-table-count');
             if (badge) badge.textContent = sorted.length;
         }
+
+        // Period pills for claimer table
+        (function() {
+            const wrap = document.getElementById('ct-period-btns');
+            if (!wrap) return;
+            const btns = wrap.querySelectorAll('button[data-period]');
+            const slider = wrap.querySelector('.dolo-chain-slider');
+            function posSlider(btn) {
+                if (slider && btn) {
+                    slider.style.width = btn.offsetWidth + 'px';
+                    slider.style.left = btn.offsetLeft + 'px';
+                }
+            }
+            btns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    btns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    posSlider(btn);
+                    odolo_claimerPeriod = btn.dataset.period;
+                    odolo_renderClaimerTable();
+                });
+                if (btn.classList.contains('active')) setTimeout(() => posSlider(btn), 100);
+            });
+        })();
 
         // ===== oDOLO DONUT =====
         let odolo_donutSegments = [];

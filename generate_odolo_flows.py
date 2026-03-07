@@ -532,10 +532,51 @@ def main():
     print(f"  Outflow: {total_outflow:,.0f} ({claimer_behavior['pct_outflow']}%)")
     print(f"  Held: {total_held:,.0f} ({claimer_behavior['pct_held']}%)")
 
+    # ── Per-period claimer breakdown (for date range filtering) ──
+    print("\n📊 Generating per-period claimer breakdown...")
+    claimer_periods = {}
+    for period, seconds in PERIODS.items():
+        cutoff = cutoff_blocks[period]
+        p_transfers = [t for t in all_transfers if t[3] >= cutoff]
+
+        p_claims = {}
+        for from_addr, to_addr, value_wei, _ in p_transfers:
+            if from_addr == REWARDS_CONTRACT and to_addr not in SKIP_ADDRS and to_addr not in EXCLUDED_ADDRS:
+                p_claims[to_addr] = p_claims.get(to_addr, 0) + value_wei / (10 ** 18)
+
+        p_all = []
+        for wallet, claimed in p_claims.items():
+            exercised = 0
+            outflow = 0
+            for from_addr, to_addr, value_wei, _ in p_transfers:
+                if from_addr == wallet:
+                    val = value_wei / (10 ** 18)
+                    if to_addr == VESTER_CONTRACT:
+                        exercised += val
+                    elif to_addr not in SKIP_ADDRS and to_addr != REWARDS_CONTRACT:
+                        outflow += val
+            ex_cap = min(exercised, claimed)
+            rem = claimed - ex_cap
+            out_cap = min(outflow, rem)
+            held = max(0, rem - out_cap)
+            p_all.append({
+                "address": wallet,
+                "claimed": round(claimed, 2),
+                "exercised": round(ex_cap, 2),
+                "outflow": round(out_cap, 2),
+                "held": round(held, 2),
+                "bought_extra": round(max(0, exercised - claimed), 2),
+            })
+
+        p_all.sort(key=lambda x: x["claimed"], reverse=True)
+        claimer_periods[period] = {"all_claimers": p_all, "total_claimers": len(p_all)}
+        print(f"  {period}: {len(p_all)} claimers")
+
     output = {
         "timestamp": datetime.utcnow().isoformat(),
         "periods": output_periods,
         "claimer_behavior": claimer_behavior,
+        "claimer_periods": claimer_periods,
     }
 
     with open(OUTPUT_JSON, "w") as f:
