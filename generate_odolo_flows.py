@@ -572,11 +572,27 @@ def main():
         claimer_periods[period] = {"all_claimers": p_all, "total_claimers": len(p_all)}
         print(f"  {period}: {len(p_all)} claimers")
 
+    # ── Data protection: don't overwrite good data with empty data ──
+    # If this run produced 0 claimers but existing file has data, preserve it
+    existing_cb = None
+    existing_cp = None
+    if len(claimer_stats) == 0 and os.path.exists(OUTPUT_JSON):
+        try:
+            with open(OUTPUT_JSON) as f:
+                old = json.load(f)
+            old_count = old.get("claimer_behavior", {}).get("total_claimers", 0)
+            if old_count > 0:
+                print(f"\n⚠️ This run found 0 claimers but existing file has {old_count}. Preserving old data.")
+                existing_cb = old["claimer_behavior"]
+                existing_cp = old.get("claimer_periods", {})
+        except Exception:
+            pass
+
     output = {
         "timestamp": datetime.utcnow().isoformat(),
         "periods": output_periods,
-        "claimer_behavior": claimer_behavior,
-        "claimer_periods": claimer_periods,
+        "claimer_behavior": existing_cb if existing_cb else claimer_behavior,
+        "claimer_periods": existing_cp if existing_cp else claimer_periods,
     }
 
     with open(OUTPUT_JSON, "w") as f:
