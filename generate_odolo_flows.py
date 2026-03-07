@@ -499,6 +499,7 @@ def main():
             "exercised": round(exercised_capped, 2),
             "outflow": round(outflow_capped, 2),
             "held": round(held, 2),
+            "bought_extra": round(max(0, exercised - claimed), 2),
         }
 
     # Aggregate
@@ -508,22 +509,13 @@ def main():
     total_held = sum(s["held"] for s in claimer_stats.values())
 
     # Count wallets that bought extra oDOLO and exercised
-    bought_extra_count = 0
-    for wallet, claimed in claims_by_wallet.items():
-        raw_exercised = 0
-        for from_addr, to_addr, value_wei, _ in all_transfers:
-            if from_addr == wallet and to_addr == VESTER_CONTRACT:
-                raw_exercised += value_wei / (10 ** 18)
-        if raw_exercised > claimed:
-            bought_extra_count += 1
+    bought_extra_count = sum(1 for s in claimer_stats.values() if s["bought_extra"] > 0)
 
-    # Top 10 claimers by claimed amount
-    top_claimers = sorted(claimer_stats.items(), key=lambda x: x[1]["claimed"], reverse=True)[:10]
-    top_claimers_list = []
-    for addr, stats in top_claimers:
-        entry = {"address": addr}
-        entry.update(stats)
-        top_claimers_list.append(entry)
+    # All claimers sorted by claimed desc (for the breakdown table)
+    all_claimers_list = sorted(
+        [{"address": addr, **stats} for addr, stats in claimer_stats.items()],
+        key=lambda x: x["claimed"], reverse=True,
+    )
 
     claimer_behavior = {
         "total_claimers": len(claimer_stats),
@@ -533,7 +525,7 @@ def main():
         "pct_held": round(total_held / max(total_claimed, 1) * 100, 1),
         "pct_bought_extra": round(bought_extra_count / max(len(claimer_stats), 1) * 100, 1),
         "count_bought_extra": bought_extra_count,
-        "top_claimers": top_claimers_list,
+        "all_claimers": all_claimers_list,
     }
     print(f"  Claimers: {len(claimer_stats)}, Claimed: {total_claimed:,.0f}")
     print(f"  Exercised: {total_exercised:,.0f} ({claimer_behavior['pct_exercised']}%)")
