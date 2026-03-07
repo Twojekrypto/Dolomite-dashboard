@@ -11323,6 +11323,9 @@
                     {color: '#f87171', label: 'Outflow', pct: cb.pct_outflow},
                     {color: '#22d3ee', label: 'Held', pct: cb.pct_held},
                 ].map(s => `<span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:${s.color}"></span>${s.label} ${s.pct}%</span>`).join('');
+                if (cb.pct_bought_extra != null) {
+                    legendEl.innerHTML += `<span style="display:flex;align-items:center;gap:4px;color:#fbbf24"><span style="width:8px;height:8px;border-radius:50%;background:#fbbf24"></span>Bought extra ${cb.pct_bought_extra}%</span>`;
+                }
             }
 
             // Top 5 claimers
