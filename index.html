@@ -8746,7 +8746,7 @@
             <div class="card anim anim-d3" id="recent-exercisers-section" style="margin-top: 20px;">
                 <div class="card-header">
                     <h3 style="display:flex;align-items:center;gap:8px;margin:0"><img src="odolo-logo-official.svg"
-                            width="22" height="22" alt="oDOLO" style="flex-shrink:0"> Recent oDOLO Exercises <span
+                            width="22" height="22" alt="oDOLO" style="flex-shrink:0"> Latest oDOLO Exercises <span
                             class="toolbar-count" id="recent-ex-count"
                             style="font-size:0.85em;opacity:0.7;font-weight:500"></span></h3>
                 </div>
@@ -8806,7 +8806,7 @@
             <div class="card anim anim-d3" id="exercisers-section" style="margin-top: 20px;">
                 <div class="card-header">
                     <h3 style="display:flex;align-items:center;gap:8px"><img src="odolo-logo-official.svg" width="22"
-                            height="22" alt="oDOLO" style="flex-shrink:0"> oDOLO Exercisers</h3>
+                            height="22" alt="oDOLO" style="flex-shrink:0"> oDOLO Exerciser Ranking</h3>
                 </div>
                 <div class="dolo-flow-toolbar">
                     <div style="display:flex;flex-direction:column;gap:3px">
@@ -8833,26 +8833,14 @@
                             <col style="width:calc((100% - 28px) * 0.20)">
                             <col style="width:calc((100% - 28px) * 0.20)">
                         </colgroup>
-                        <thead>
+                        <thead style="position:sticky;top:0;z-index:2;background:#141825">
                             <tr>
-                                <th class="c-rank sorted" data-sort="rank" onclick="sortExercisers('rank')">
-                                    # <span class="arrow">▲</span>
-                                </th>
-                                <th data-sort="address" onclick="sortExercisers('address')">
-                                    Address <span class="arrow">⇅</span>
-                                </th>
-                                <th data-sort="total_usdc" onclick="sortExercisers('total_usdc')">
-                                    USDC.e Spent <span class="arrow">⇅</span>
-                                </th>
-                                <th data-sort="exercises" onclick="sortExercisers('exercises')">
-                                    Exercises <span class="arrow">⇅</span>
-                                </th>
-                                <th data-sort="avg_lock" onclick="sortExercisers('avg_lock')">
-                                    Avg Lock <span class="arrow">⇅</span>
-                                </th>
-                                <th data-sort="avg_price" onclick="sortExercisers('avg_price')">
-                                    Avg Price <span class="arrow">⇅</span>
-                                </th>
+                                <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">#</th>
+                                <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">Address</th>
+                                <th style="padding:8px 6px;text-align:right;color:#fbbf24;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="total_usdc" onclick="sortExercisers('total_usdc')">🟡 USDC.e Spent <span class="arrow">⇅</span></th>
+                                <th style="padding:8px 6px;text-align:right;color:rgba(255,255,255,0.6);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="exercises" onclick="sortExercisers('exercises')">Exercises <span class="arrow">⇅</span></th>
+                                <th style="padding:8px 6px;text-align:right;color:#22d3ee;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="avg_lock" onclick="sortExercisers('avg_lock')">🔵 Avg Lock <span class="arrow">⇅</span></th>
+                                <th style="padding:8px 6px;text-align:right;color:#34d399;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="avg_price" onclick="sortExercisers('avg_price')">🟢 Avg Price <span class="arrow">⇅</span></th>
                             </tr>
                         </thead>
                         <tbody id="exercisers-tbody"></tbody>
@@ -12132,7 +12120,7 @@
                 html += '<a href="' + berascanUrl + '" target="_blank" class="addr-link" style="color:#60a5fa" onclick="event.stopPropagation()">' + shortHash + '</a>';
                 html += '<span style="font-size:0.75em;opacity:0.5">' + vedolo_fmtDate(c.date) + '</span>';
                 html += '</div></td>';
-                html += '<td class="c-addr"><span style="display:inline-flex;align-items:center;gap:4px"><span class="addr-link">' + vedolo_shortAddr(c.address) + '</span><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr(\'' + c.address + '\',this)" title="Copy address">' + COPY_ICON + '</span><a href="https://debank.com/profile/' + c.address + '?chain=bera" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display=\'none\'"></a></span></td>';
+                html += '<td style="padding:5px 6px"><span style="display:inline-flex;align-items:center;gap:4px"><span class="addr-link">' + vedolo_shortAddr(c.address) + '</span><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr(\'' + c.address + '\',this)" title="Copy address">' + COPY_ICON + '</span><a href="https://debank.com/profile/' + c.address + '?chain=bera" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display=\'none\'"></a></span></td>';
                 html += '<td class="c-num" style="color:#34d399;font-weight:600">' + vedolo_fmtDolo(c.dolo) + ' DOLO</td>';
                 html += '<td class="c-num">' + vedolo_fmtDate(c.date) + '</td>';
                 html += '</tr>';
@@ -12231,7 +12219,7 @@
                 html += '<a href="' + berascanUrl + '" target="_blank" class="addr-link" style="color:#60a5fa" onclick="event.stopPropagation()">' + shortHash + '</a>';
                 html += '<span style="font-size:0.75em;opacity:0.5">' + vedolo_fmtDate(l.date) + '</span>';
                 html += '</div></td>';
-                html += '<td class="c-addr"><span style="display:inline-flex;align-items:center;gap:4px"><span class="addr-link">' + vedolo_shortAddr(l.address) + '</span><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr(\'' + l.address + '\',this)" title="Copy address">' + COPY_ICON + '</span><a href="https://debank.com/profile/' + l.address + '?chain=bera" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display=\'none\'"></a></span></td>';
+                html += '<td style="padding:5px 6px"><span style="display:inline-flex;align-items:center;gap:4px"><span class="addr-link">' + vedolo_shortAddr(l.address) + '</span><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr(\'' + l.address + '\',this)" title="Copy address">' + COPY_ICON + '</span><a href="https://debank.com/profile/' + l.address + '?chain=bera" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display=\'none\'"></a></span></td>';
                 html += '<td class="c-num" style="color:#34d399;font-weight:600">' + vedolo_fmtDolo(l.dolo) + ' DOLO' + (l.isOdolo ? ' <span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;background:rgba(99,102,241,0.18);color:#a5b4fc;margin-left:4px;vertical-align:middle">via oDOLO</span>' : ' <span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;background:rgba(52,211,153,0.15);color:#34d399;margin-left:4px;vertical-align:middle">Direct</span>') + '</td>';
                 html += '<td class="c-num">' + vedolo_fmtLock(l.lockDays) + '</td>';
                 html += '<td class="c-num">' + vedolo_fmtDate(l.date) + '</td>';
@@ -12303,18 +12291,18 @@
                 const rowClass = isWhale ? 'exerciser-row whale-row' : 'exerciser-row';
 
                 html += '<tr class="' + rowClass + '" style="transition:transform 0.15s,background 0.15s" onmouseenter="this.style.transform=\'scale(1.01)\';this.style.background=\'rgba(255,255,255,0.03)\'" onmouseleave="this.style.transform=\'\';this.style.background=\'\'" onclick="openExerciserModal(\'' + e.address + '\',' + rank + ')">';
-                html += '<td class="c-rank"><div class="rank-cell-inner">';
+                html += '<td style="padding:5px 6px;color:rgba(255,255,255,0.3)"><div style="display:flex;align-items:center">';
                 if (rc) {
                     html += '<span class="rank-medal ' + rc + '">' + rank + '</span>';
                 } else {
                     html += '<span class="rank-plain">' + rank + '</span>';
                 }
                 html += '</div></td>';
-                html += '<td class="c-addr"><span style="display:inline-flex;align-items:center;gap:4px"><span class="addr-link">' + exShortAddr(e.address) + '</span><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr(\'' + e.address + '\',this)" title="Copy address"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span><a href="https://debank.com/profile/' + e.address + '?chain=bera" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display=\'none\'"></a></span></td>';
-                html += '<td class="c-num">' + exFmtUsd(e.total_usdc) + '</td>';
-                html += '<td class="c-num">' + e.exercises + '</td>';
-                html += '<td class="c-num">' + exFmtLock(e.avg_lock_days) + '</td>';
-                html += '<td class="c-num" style="color:#34d399">' + (avgPrice ? '$' + avgPrice.toFixed(4) : '\u2014') + '</td>';
+                html += '<td style="padding:5px 6px"><span style="display:inline-flex;align-items:center;gap:4px"><a href="https://debank.com/profile/' + e.address + '?chain=bera" target="_blank" style="color:#fff;font-family:monospace;font-size:12px;text-decoration:none" onclick="event.stopPropagation()">' + exShortAddr(e.address) + '</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr(\'' + e.address + '\',this)" title="Copy address"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span><a href="https://debank.com/profile/' + e.address + '?chain=bera" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display=\'none\'"></a></span></td>';
+                html += '<td style="padding:5px 6px;text-align:right;color:#fbbf24">' + exFmtUsd(e.total_usdc) + '</td>';
+                html += '<td style="padding:5px 6px;text-align:right;color:rgba(255,255,255,0.7)">' + e.exercises + '</td>';
+                html += '<td style="padding:5px 6px;text-align:right;color:#22d3ee">' + exFmtLock(e.avg_lock_days) + '</td>';
+                html += '<td style="padding:5px 6px;text-align:right;color:#34d399">' + (avgPrice ? '$' + avgPrice.toFixed(4) : '\u2014') + '</td>';
                 html += '</tr>';
             });
             tbody.innerHTML = html;
@@ -14347,7 +14335,7 @@
                 if (!isNaN(days)) dolo_setRange(days);
             });
 
-            // Recent oDOLO Exercises period pills
+            // Latest oDOLO Exercises period pills
             setupPills('recent-ex-period-btns', btn => {
                 const period = parseInt(btn.dataset.period);
                 if (!isNaN(period)) setRecentExPeriod(period);
