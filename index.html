@@ -8704,7 +8704,7 @@
                         </div>
                     </div>
                 </div>
-                <div style="overflow-x:auto;overflow-y:auto;max-height:500px">
+                <div style="overflow-x:auto">
                     <table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed" id="odolo-claimer-table">
                         <colgroup>
                             <col style="width:36px">
@@ -8729,6 +8729,7 @@
                         <tbody id="odolo-claimer-table-body"></tbody>
                     </table>
                 </div>
+                <div class="table-footer" id="ct-pagination"></div>
             </div>
 
             <!-- LAST 7D EXERCISERS TABLE -->
@@ -11367,6 +11368,8 @@
         let odolo_claimerSortField = 'claimed';
         let odolo_claimerSortAsc = false; // descending by default
         let odolo_claimerPeriod = 'all';
+        let odolo_claimerPage = 1;
+        const ODOLO_CLAIMER_PER_PAGE = 25;
 
         function odolo_sortClaimerTable(field) {
             if (odolo_claimerSortField === field) {
@@ -11380,6 +11383,7 @@
                 const el = document.getElementById('ct-sort-' + f);
                 if (el) el.textContent = f === field ? (odolo_claimerSortAsc ? '▲' : '▼') : '⇅';
             });
+            odolo_claimerPage = 1;
             odolo_renderClaimerTable();
         }
 
@@ -11403,6 +11407,7 @@
             let filtered = claimers;
             if (searchVal.length > 0) {
                 filtered = claimers.filter(c => c.address.toLowerCase().includes(searchVal));
+                odolo_claimerPage = 1;
             }
 
             const COPY_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
@@ -11416,12 +11421,19 @@
 
             const fmt = v => v >= 1e6 ? (v/1e6).toFixed(2)+'M' : v >= 1e3 ? (v/1e3).toFixed(1)+'K' : v.toFixed(0);
 
-            container.innerHTML = sorted.map((c, i) => {
+            // Pagination
+            const totalPages = Math.max(1, Math.ceil(sorted.length / ODOLO_CLAIMER_PER_PAGE));
+            if (odolo_claimerPage > totalPages) odolo_claimerPage = totalPages;
+            const start = (odolo_claimerPage - 1) * ODOLO_CLAIMER_PER_PAGE;
+            const pageData = sorted.slice(start, start + ODOLO_CLAIMER_PER_PAGE);
+
+            container.innerHTML = pageData.map((c, i) => {
+                const rank = start + i + 1;
                 const short = c.address.slice(0,6) + '\u2026' + c.address.slice(-4);
                 const be = c.bought_extra > 0 ? fmt(c.bought_extra) : '—';
                 const beStyle = c.bought_extra > 0 ? 'color:#fbbf24' : 'color:rgba(255,255,255,0.2)';
                 return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);transition:transform 0.15s,background 0.15s" onmouseenter="this.style.transform='scale(1.01)';this.style.background='rgba(255,255,255,0.03)'" onmouseleave="this.style.transform='';this.style.background=''">
-                    <td style="padding:5px 6px;color:rgba(255,255,255,0.3)">${i+1}</td>
+                    <td style="padding:5px 6px;color:rgba(255,255,255,0.3)">${rank}</td>
                     <td style="padding:5px 6px"><span style="display:inline-flex;align-items:center;gap:4px;max-width:100%"><a href="https://debank.com/profile/${c.address}?chain=bera" target="_blank" style="color:#fff;font-family:monospace;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0" class="addr-tooltip-wrap" data-full-addr="${c.address}">${c.address.slice(0,6)}…${c.address.slice(-4)}</a><span class="copy-addr-icon" style="flex-shrink:0" onclick="event.stopPropagation();copyAddr('${c.address}',this)" title="Copy address">${COPY_SVG}</span><a href="https://debank.com/profile/${c.address}?chain=bera" target="_blank" onclick="event.stopPropagation()" class="debank-icon" style="flex-shrink:0" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a></span></td>
                     <td style="padding:5px 6px;text-align:right;color:#fff">${fmt(c.claimed)}</td>
                     <td style="padding:4px 5px;text-align:right;color:#34d399;font-size:11px">${fmt(c.exercised)}</td>
@@ -11434,6 +11446,21 @@
             // Update count badge
             const badge = document.getElementById('odolo-claimer-table-count');
             if (badge) badge.textContent = sorted.length;
+
+            // Render pagination
+            const el = document.getElementById('ct-pagination');
+            if (!el) return;
+            if (totalPages <= 1) { el.innerHTML = `<span style="color:rgba(255,255,255,0.3);font-size:12px">1 / 1</span>`; return; }
+
+            let h = `<button class="pg-btn" onclick="odolo_claimerPage=1;odolo_renderClaimerTable()" ${odolo_claimerPage === 1 ? 'disabled' : ''}>«</button>`;
+            h += `<button class="pg-btn" onclick="odolo_claimerPage--;odolo_renderClaimerTable()" ${odolo_claimerPage === 1 ? 'disabled' : ''}>‹</button>`;
+            for (let p = Math.max(1, odolo_claimerPage - 1); p <= Math.min(totalPages, odolo_claimerPage + 1); p++) {
+                h += `<button class="pg-btn${p === odolo_claimerPage ? ' pg-active' : ''}" onclick="odolo_claimerPage=${p};odolo_renderClaimerTable()">${p}</button>`;
+            }
+            h += `<button class="pg-btn" onclick="odolo_claimerPage++;odolo_renderClaimerTable()" ${odolo_claimerPage === totalPages ? 'disabled' : ''}>›</button>`;
+            h += `<button class="pg-btn" onclick="odolo_claimerPage=${totalPages};odolo_renderClaimerTable()" ${odolo_claimerPage === totalPages ? 'disabled' : ''}>»</button>`;
+            h += `<span style="color:rgba(255,255,255,0.3);font-size:12px;margin-left:8px">${odolo_claimerPage} / ${totalPages}</span>`;
+            el.innerHTML = h;
         }
 
         // Period pills for claimer table
@@ -11454,6 +11481,7 @@
                     btn.classList.add('active');
                     posSlider(btn);
                     odolo_claimerPeriod = btn.dataset.period;
+                    odolo_claimerPage = 1;
                     odolo_renderClaimerTable();
                 });
                 if (btn.classList.contains('active')) setTimeout(() => posSlider(btn), 100);
@@ -11805,7 +11833,7 @@
                 html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);transition:transform 0.15s,background 0.15s" onmouseenter="this.style.transform=\'scale(1.01)\';this.style.background=\'rgba(255,255,255,0.03)\'" onmouseleave="this.style.transform=\'\';this.style.background=\'\'"><td style="padding:5px 6px;color:rgba(255,255,255,0.3)">' + rank + '</td>';
                 html += '<td style="padding:5px 6px"><div style="display:flex;flex-direction:column;gap:3px">' +
                     '<div style="display:flex;align-items:center;gap:6px"><a href="' + berascanUrl + '" target="_blank" style="color:#60a5fa;font-family:monospace;font-size:11px;text-decoration:none" onclick="event.stopPropagation()">' + shortHash + '</a><a href="' + berascanUrl + '" target="_blank" onclick="event.stopPropagation()" class="tx-ext-icon" title="View on BeraScan" style="display:inline-flex;align-items:center;margin-left:3px;opacity:0.35;color:rgba(255,255,255,0.5);transition:opacity 0.2s,transform 0.2s;vertical-align:middle"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a><span style="font-size:10px;color:rgba(255,255,255,0.25)">' + dateLabel + '</span></div>' +
-                    '<div style="display:inline-flex;align-items:center;gap:4px"><a href="https://debank.com/profile/' + tx.address + '?chain=bera" target="_blank" style="color:rgba(255,255,255,0.7);font-family:monospace;font-size:11px;text-decoration:none" class="addr-tooltip-wrap" data-full-addr="' + tx.address + '" onclick="event.stopPropagation()">' + shortAddr + '</a><span class="copy-addr-icon" style="flex-shrink:0" onclick="event.stopPropagation();copyAddr(\'' + tx.address + '\',this)" title="Copy address">' + COPY_SVG + '</span><a href="https://debank.com/profile/' + tx.address + '?chain=bera" target="_blank" onclick="event.stopPropagation()" class="debank-icon" style="flex-shrink:0" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display=\'none\'"></a></div>' +
+                    '<div style="display:inline-flex;align-items:center;gap:4px"><a href="https://debank.com/profile/' + tx.address + '?chain=bera" target="_blank" style="color:#fff;font-family:monospace;font-size:11px;text-decoration:none" class="addr-tooltip-wrap" data-full-addr="' + tx.address + '" onclick="event.stopPropagation()">' + shortAddr + '</a><span class="copy-addr-icon" style="flex-shrink:0" onclick="event.stopPropagation();copyAddr(\'' + tx.address + '\',this)" title="Copy address">' + COPY_SVG + '</span><a href="https://debank.com/profile/' + tx.address + '?chain=bera" target="_blank" onclick="event.stopPropagation()" class="debank-icon" style="flex-shrink:0" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display=\'none\'"></a></div>' +
                     '</div></td>';
                 html += '<td style="padding:4px 5px;text-align:right;color:#fff;font-weight:600;font-size:11px">' + (tx.vedolo ? vedolo_fmtDolo(tx.vedolo) + ' DOLO' : '—') + '</td>';
                 html += '<td style="padding:4px 5px;text-align:right;color:#22d3ee;font-size:11px">' + exFmtLock(tx.lock_days) + '</td>';
@@ -14359,7 +14387,7 @@
 
         let odolo_flowAccPage = 0;
         let odolo_flowSellPage = 0;
-        const ODOLO_FLOW_PER_PAGE = 10;
+        const ODOLO_FLOW_PER_PAGE = 5;
 
         function odolo_renderFlows() {
             if (!odolo_flowsData || !odolo_flowsData.periods) return;
