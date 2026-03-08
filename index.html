@@ -14377,7 +14377,7 @@
             function renderRows(items, isAccumulator, pageOffset) {
                 if (!items.length) return '<tr><td colspan="4" style="text-align:center;color:rgba(255,255,255,0.3);padding:20px;font-size:12px">No data</td></tr>';
                 const flowColor = isAccumulator ? '#34d399' : '#f87171';
-                return items.map((item, i) => {
+                const rows = items.map((item, i) => {
                     const addr = item.address;
                     const short = addr.slice(0, 6) + '\u2026' + addr.slice(-4);
                     const sign = isAccumulator ? '+' : '-';
@@ -14393,6 +14393,13 @@
                         <td style="padding:4px 5px;text-align:right;color:${flowColor};font-size:11px;font-weight:600">${sign}${flowFmt}</td>
                     </tr>`;
                 }).join('');
+                // Pad with empty rows to always fill 10 rows
+                const emptyRows = ODOLO_FLOW_PER_PAGE - items.length;
+                let padding = '';
+                for (let e = 0; e < emptyRows; e++) {
+                    padding += `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)"><td style="padding:4px 5px">&nbsp;</td><td style="padding:4px 5px"></td><td style="padding:4px 5px"></td><td style="padding:4px 5px"></td></tr>`;
+                }
+                return rows + padding;
             }
 
             // Pagination
@@ -14413,13 +14420,13 @@
             const accPager = document.getElementById('odolo-flow-acc-pager');
             const sellPager = document.getElementById('odolo-flow-sell-pager');
             if (accPager) {
-                accPager.style.display = accPages > 1 ? 'flex' : 'none';
+                accPager.style.display = 'flex';
                 document.getElementById('odolo-flow-acc-info').textContent = `${odolo_flowAccPage + 1} / ${accPages}`;
                 document.getElementById('odolo-flow-acc-prev').disabled = odolo_flowAccPage === 0;
                 document.getElementById('odolo-flow-acc-next').disabled = odolo_flowAccPage >= accPages - 1;
             }
             if (sellPager) {
-                sellPager.style.display = sellPages > 1 ? 'flex' : 'none';
+                sellPager.style.display = 'flex';
                 document.getElementById('odolo-flow-sell-info').textContent = `${odolo_flowSellPage + 1} / ${sellPages}`;
                 document.getElementById('odolo-flow-sell-prev').disabled = odolo_flowSellPage === 0;
                 document.getElementById('odolo-flow-sell-next').disabled = odolo_flowSellPage >= sellPages - 1;
