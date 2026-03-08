@@ -3182,15 +3182,15 @@
             transition: background var(--transition);
         }
 
-        tbody:not(#assets-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body) tr:hover {
+        tbody:not(#assets-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody) tr:hover {
             background: rgba(99, 102, 241, 0.06);
         }
 
-        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body) tr:hover td,
-        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body) tr:hover td span,
-        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body) tr:hover td .mini-bar span,
-        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body) tr:hover td .addr-link,
-        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body) tr:hover td a:not(.debank-icon) {
+        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody) tr:hover td,
+        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody) tr:hover td span,
+        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody) tr:hover td .mini-bar span,
+        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody) tr:hover td .addr-link,
+        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody) tr:hover td a:not(.debank-icon) {
             color: var(--accent-cyan) !important;
             font-size: 14px;
         }
@@ -12302,7 +12302,7 @@
                 const avgPrice = getExerciserAvgPrice(e);
                 const rowClass = isWhale ? 'exerciser-row whale-row' : 'exerciser-row';
 
-                html += '<tr class="' + rowClass + '" onclick="openExerciserModal(\'' + e.address + '\',' + rank + ')">';
+                html += '<tr class="' + rowClass + '" style="transition:transform 0.15s,background 0.15s" onmouseenter="this.style.transform='scale(1.01)';this.style.background='rgba(255,255,255,0.03)'" onmouseleave="this.style.transform='';this.style.background=''" onclick="openExerciserModal(\'' + e.address + '\',' + rank + ')">';
                 html += '<td class="c-rank"><div class="rank-cell-inner">';
                 if (rc) {
                     html += '<span class="rank-medal ' + rc + '">' + rank + '</span>';
