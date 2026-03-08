@@ -8778,21 +8778,21 @@
                     <table id="recent-exercisers-table" style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
                         <colgroup>
                             <col style="width:36px">
-                            <col style="width:22%">
-                            <col style="width:22%">
-                            <col style="width:calc((100% - 36px - 44%) / 4)">
-                            <col style="width:calc((100% - 36px - 44%) / 4)">
-                            <col style="width:calc((100% - 36px - 44%) / 4)">
-                            <col style="width:calc((100% - 36px - 44%) / 4)">
+                            <col style="width:15%">
+                            <col style="width:20%">
+                            <col style="width:calc((100% - 36px - 35%) / 4)">
+                            <col style="width:calc((100% - 36px - 35%) / 4)">
+                            <col style="width:calc((100% - 36px - 35%) / 4)">
+                            <col style="width:calc((100% - 36px - 35%) / 4)">
                         </colgroup>
                         <thead style="position:sticky;top:0;z-index:2;background:#141825">
                             <tr>
-                                <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="rank" onclick="sortRecentExercisers('rank')"># <span class="arrow">▼</span></th>
+                                <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">#</th>
                                 <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">TX</th>
                                 <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">Address</th>
                                 <th style="padding:8px 6px;text-align:right;color:#fff;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="dolo" onclick="sortRecentExercisers('dolo')">⚪ DOLO Locked <span class="arrow">⇅</span></th>
-                                <th style="padding:8px 6px;text-align:right;color:#fbbf24;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="usdc" onclick="sortRecentExercisers('usdc')">🟡 USDC.e Spent <span class="arrow">⇅</span></th>
                                 <th style="padding:8px 6px;text-align:right;color:#22d3ee;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="lock" onclick="sortRecentExercisers('lock')">🔵 Lock <span class="arrow">⇅</span></th>
+                                <th style="padding:8px 6px;text-align:right;color:#fbbf24;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="usdc" onclick="sortRecentExercisers('usdc')">🟡 USDC.e Spent <span class="arrow">⇅</span></th>
                                 <th style="padding:8px 6px;text-align:right;color:#34d399;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="price" onclick="sortRecentExercisers('price')">🟢 Price <span class="arrow">⇅</span></th>
                             </tr>
                         </thead>
@@ -11829,8 +11829,8 @@
                 html += '<td style="padding:5px 6px"><div style="display:flex;flex-direction:column;gap:2px"><a href="' + berascanUrl + '" target="_blank" style="color:#60a5fa;font-family:monospace;font-size:12px;text-decoration:none" onclick="event.stopPropagation()">' + shortHash + '</a><span style="font-size:10px;color:rgba(255,255,255,0.35)">' + dateLabel + '</span></div></td>';
                 html += '<td style="padding:5px 6px"><span style="display:inline-flex;align-items:center;gap:4px"><a href="https://debank.com/profile/' + tx.address + '?chain=bera" target="_blank" style="color:#fff;font-family:monospace;font-size:12px;text-decoration:none" onclick="event.stopPropagation()">' + shortAddr + '</a><span class="copy-addr-icon" style="flex-shrink:0" onclick="event.stopPropagation();copyAddr(\'' + tx.address + '\',this)" title="Copy address">' + COPY_SVG + '</span><a href="https://debank.com/profile/' + tx.address + '?chain=bera" target="_blank" onclick="event.stopPropagation()" class="debank-icon" style="flex-shrink:0" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display=\'none\'"></a></span></td>';
                 html += '<td style="padding:5px 6px;text-align:right;color:#fff;font-weight:600">' + (tx.vedolo ? vedolo_fmtDolo(tx.vedolo) + ' DOLO' : '—') + '</td>';
-                html += '<td style="padding:5px 6px;text-align:right;color:#fbbf24">' + exFmtUsd(tx.usdc) + '</td>';
                 html += '<td style="padding:5px 6px;text-align:right;color:#22d3ee">' + exFmtLock(tx.lock_days) + '</td>';
+                html += '<td style="padding:5px 6px;text-align:right;color:#fbbf24">' + exFmtUsd(tx.usdc) + '</td>';
                 html += '<td style="padding:5px 6px;text-align:right;color:#34d399">' + (tx.price ? '$' + tx.price.toFixed(4) : '—') + '</td>';
                 html += '</tr>';
             });
