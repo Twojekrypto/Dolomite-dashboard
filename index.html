@@ -3144,15 +3144,15 @@
             transition: background var(--transition);
         }
 
-        tbody:not(#assets-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody):not(#odolo-flow-acc-tbody):not(#odolo-flow-sell-tbody):not(#dolo-flow-acc-tbody):not(#dolo-flow-sell-tbody) tr:hover {
+        tbody:not(#assets-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody):not(#odolo-flow-acc-tbody):not(#odolo-flow-sell-tbody):not(#dolo-flow-acc-tbody):not(#dolo-flow-sell-tbody):not(#dolo-holder-tbody) tr:hover {
             background: rgba(99, 102, 241, 0.06);
         }
 
-        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody):not(#odolo-flow-acc-tbody):not(#odolo-flow-sell-tbody):not(#dolo-flow-acc-tbody):not(#dolo-flow-sell-tbody) tr:hover td,
-        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody):not(#odolo-flow-acc-tbody):not(#odolo-flow-sell-tbody):not(#dolo-flow-acc-tbody):not(#dolo-flow-sell-tbody) tr:hover td span,
-        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody):not(#odolo-flow-acc-tbody):not(#odolo-flow-sell-tbody):not(#dolo-flow-acc-tbody):not(#dolo-flow-sell-tbody) tr:hover td .mini-bar span,
-        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody):not(#odolo-flow-acc-tbody):not(#odolo-flow-sell-tbody):not(#dolo-flow-acc-tbody):not(#dolo-flow-sell-tbody) tr:hover td .addr-link,
-        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody):not(#odolo-flow-acc-tbody):not(#odolo-flow-sell-tbody):not(#dolo-flow-acc-tbody):not(#dolo-flow-sell-tbody) tr:hover td a:not(.debank-icon) {
+        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody):not(#odolo-flow-acc-tbody):not(#odolo-flow-sell-tbody):not(#dolo-flow-acc-tbody):not(#dolo-flow-sell-tbody):not(#dolo-holder-tbody) tr:hover td,
+        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody):not(#odolo-flow-acc-tbody):not(#odolo-flow-sell-tbody):not(#dolo-flow-acc-tbody):not(#dolo-flow-sell-tbody):not(#dolo-holder-tbody) tr:hover td span,
+        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody):not(#odolo-flow-acc-tbody):not(#odolo-flow-sell-tbody):not(#dolo-flow-acc-tbody):not(#dolo-flow-sell-tbody):not(#dolo-holder-tbody) tr:hover td .mini-bar span,
+        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody):not(#odolo-flow-acc-tbody):not(#odolo-flow-sell-tbody):not(#dolo-flow-acc-tbody):not(#dolo-flow-sell-tbody):not(#dolo-holder-tbody) tr:hover td .addr-link,
+        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody):not(#odolo-flow-acc-tbody):not(#odolo-flow-sell-tbody):not(#dolo-flow-acc-tbody):not(#dolo-flow-sell-tbody):not(#dolo-holder-tbody) tr:hover td a:not(.debank-icon) {
             color: var(--accent-cyan) !important;
             font-size: 14px;
         }
@@ -9124,27 +9124,27 @@
                 </div>
 
                 <div class="table-scroll">
-                    <table style="table-layout:fixed;width:100%" id="dolo-holders-table">
+                    <table style="table-layout:fixed;width:100%;border-collapse:collapse;font-size:12px" id="dolo-holders-table">
                         <colgroup>
-                            <col style="width:28px">
-                            <col style="width:calc((100% - 28px) * 0.34)">
-                            <col style="width:calc((100% - 28px) * 0.22)" class="dolo-col-eth">
-                            <col style="width:calc((100% - 28px) * 0.22)" class="dolo-col-bera">
-                            <col style="width:calc((100% - 28px) * 0.22)">
+                            <col style="width:32px">
+                            <col style="width:calc((100% - 32px) * 0.34)">
+                            <col style="width:calc((100% - 32px) * 0.22)" class="dolo-col-eth">
+                            <col style="width:calc((100% - 32px) * 0.22)" class="dolo-col-bera">
+                            <col style="width:calc((100% - 32px) * 0.22)">
                         </colgroup>
-                        <thead>
+                        <thead style="position:sticky;top:0;z-index:2;background:#141825">
                             <tr>
-                                <th class="c-rank sorted" data-sort="dolo-rank" onclick="dolo_sortHolders('rank')">
-                                    # <span class="arrow">▲</span>
+                                <th style="padding:8px 5px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="dolo-rank" onclick="dolo_sortHolders('rank')">
+                                    # <span class="sort-arrow">▲</span>
                                 </th>
-                                <th data-sort="dolo-address" onclick="dolo_sortHolders('address')">
-                                    Address <span class="arrow">⇅</span>
+                                <th style="padding:8px 5px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="dolo-address" onclick="dolo_sortHolders('address')">
+                                    Address <span class="sort-arrow">⇅</span>
                                 </th>
-                                <th class="dolo-col-eth" style="text-align:right">
+                                <th class="dolo-col-eth" style="padding:8px 5px;text-align:right;color:#627eea;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">
                                     <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
                                         <img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" width="16"
                                             height="16" style="border-radius:50%" alt="ETH">
-                                        <span style="font-size:12px;font-weight:600">ETH</span>
+                                        <span style="font-size:10px;font-weight:600">ETH</span>
                                         <label class="chain-toggle" title="Toggle ETH balance">
                                             <input type="checkbox" id="dolo-filter-eth" checked
                                                 onchange="dolo_toggleChainColumns()">
@@ -9152,11 +9152,11 @@
                                         </label>
                                     </div>
                                 </th>
-                                <th class="dolo-col-bera" style="text-align:right">
+                                <th class="dolo-col-bera" style="padding:8px 5px;text-align:right;color:#f59e0b;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">
                                     <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
                                         <img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" width="16"
                                             height="16" style="border-radius:50%" alt="BERA">
-                                        <span style="font-size:12px;font-weight:600">BERA</span>
+                                        <span style="font-size:10px;font-weight:600">BERA</span>
                                         <label class="chain-toggle" title="Toggle BERA balance">
                                             <input type="checkbox" id="dolo-filter-bera" checked
                                                 onchange="dolo_toggleChainColumns()">
@@ -9164,9 +9164,8 @@
                                         </label>
                                     </div>
                                 </th>
-                                <th data-sort="dolo-balance" onclick="dolo_sortHolders('balance')"
-                                    style="text-align:right">
-                                    <span id="dolo-balance-header">Balance</span> <span class="arrow">⇅</span>
+                                <th style="padding:8px 5px;text-align:right;color:#fff;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="dolo-balance" onclick="dolo_sortHolders('balance')">
+                                    ⚪ <span id="dolo-balance-header">Balance</span> <span class="sort-arrow">⇅</span>
                                 </th>
                             </tr>
                         </thead>
@@ -12875,22 +12874,18 @@
                     }
                 }
 
-                return `<tr class="${isWhale ? 'whale-row' : ''}" style="cursor:pointer" onclick="window.open('${dbUrl}','_blank')">
-                        <td class="c-rank">
-                            <div class="rank-cell-inner">
-                                ${rc ? `<span class="rank-medal ${rc}">${dispRank}</span>` : `<span class="rank-plain">${dispRank}</span>`}
-                            </div>
-                        </td>
-                        <td class="c-addr" style="white-space:nowrap">
+                return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);transition:transform 0.15s,background 0.15s;cursor:pointer" onmouseenter="this.style.transform='scale(1.01)';this.style.background='rgba(255,255,255,0.03)'" onmouseleave="this.style.transform='';this.style.background=''" onclick="window.open('${dbUrl}','_blank')">
+                        <td style="padding:5px 6px;color:rgba(255,255,255,0.3)">${dispRank}</td>
+                        <td style="padding:5px 6px;white-space:nowrap">
                             <span style="display:inline-flex;align-items:center;gap:4px;white-space:nowrap">
-                                ${contractIcon}<a href="${dbUrl}" target="_blank" onclick="event.stopPropagation()" class="dolo-holder-addr" title="${h.address}">${h.address.slice(0, 6)}…${h.address.slice(-4)}</a>${addrLabelHtml}
+                                ${contractIcon}<a href="${dbUrl}" target="_blank" onclick="event.stopPropagation()" style="color:#fff;font-family:monospace;font-size:11px;text-decoration:none" class="addr-tooltip-wrap" data-full-addr="${h.address}">${h.address.slice(0, 6)}…${h.address.slice(-4)}</a>${addrLabelHtml}
                                 <span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${h.address}',this)" title="Copy address"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span>
                                 <a href="${dbUrl}" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a>
                             </span>
                         </td>
-                        <td class="c-dolo" style="text-align:right">${ethCell}</td>
-                        <td class="c-dolo" style="text-align:right">${beraCell}</td>
-                        <td class="c-dolo" style="text-align:right" title="${balExact} DOLO"><span style="font-weight:700;font-size:14px;color:var(--text-primary)">${dolo_fmtBal(dispBal)}</span>${flowCell !== '<span style="opacity:0.3">—</span>' ? '<br>' + flowCell : ''}</td>
+                        <td style="padding:5px 6px;text-align:right;font-size:11px">${ethCell}</td>
+                        <td style="padding:5px 6px;text-align:right;font-size:11px">${beraCell}</td>
+                        <td style="padding:5px 6px;text-align:right" title="${balExact} DOLO"><span style="font-weight:600;font-size:11px;color:#fff">${dolo_fmtBal(dispBal)}</span>${flowCell !== '<span style="opacity:0.3">—</span>' ? '<br>' + flowCell : ''}</td>
                     </tr>`;
             }).join('');
 
