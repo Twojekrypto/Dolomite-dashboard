@@ -3959,48 +3959,12 @@
         }
 
         
-        /* Address tooltip — shows full address above short */
+        /* Address tooltip — JS-powered, positioned fixed to viewport */
         .addr-tooltip-wrap {
             position: relative;
             display: inline-flex;
             align-items: center;
-        }
-        .addr-tooltip-wrap::before {
-            content: attr(data-full-addr);
-            position: absolute;
-            bottom: calc(100% + 6px);
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(20, 24, 40, 0.97);
-            border: 1px solid rgba(255,255,255,0.12);
-            color: #fff;
-            font-family: monospace;
-            font-size: 11px;
-            padding: 5px 10px;
-            border-radius: 6px;
-            white-space: nowrap;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.15s;
-            z-index: 100;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-        }
-        .addr-tooltip-wrap::after {
-            content: '';
-            position: absolute;
-            bottom: calc(100% + 2px);
-            left: 50%;
-            transform: translateX(-50%);
-            border: 4px solid transparent;
-            border-top-color: rgba(20, 24, 40, 0.97);
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.15s;
-            z-index: 100;
-        }
-        .addr-tooltip-wrap:hover::before,
-        .addr-tooltip-wrap:hover::after {
-            opacity: 1;
+            cursor: pointer;
         }
 
         /* TX & Address hover feedback */
@@ -18222,6 +18186,47 @@
                 }
             }, true);
         })();
+
+        // === Address tooltip (fixed position, escapes overflow) ===
+        (function() {
+            var tip = document.createElement('div');
+            tip.id = 'addr-tooltip';
+            tip.style.cssText = 'position:fixed;z-index:9999;background:rgba(20,24,40,0.97);border:1px solid rgba(255,255,255,0.15);color:#fff;font-family:monospace;font-size:11px;padding:6px 12px;border-radius:6px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;box-shadow:0 4px 16px rgba(0,0,0,0.5);';
+            document.body.appendChild(tip);
+
+            var arrow = document.createElement('div');
+            arrow.style.cssText = 'position:fixed;z-index:9999;width:0;height:0;border:5px solid transparent;border-top-color:rgba(20,24,40,0.97);pointer-events:none;opacity:0;transition:opacity 0.15s;';
+            document.body.appendChild(arrow);
+
+            document.addEventListener('mouseover', function(e) {
+                var el = e.target.closest('.addr-tooltip-wrap');
+                if (!el) return;
+                var addr = el.getAttribute('data-full-addr');
+                if (!addr) return;
+                tip.textContent = addr;
+                tip.style.opacity = '1';
+                arrow.style.opacity = '1';
+
+                var rect = el.getBoundingClientRect();
+                tip.style.display = 'block';
+                var tw = tip.offsetWidth;
+                var left = rect.left + rect.width / 2 - tw / 2;
+                if (left < 4) left = 4;
+                if (left + tw > window.innerWidth - 4) left = window.innerWidth - tw - 4;
+                tip.style.left = left + 'px';
+                tip.style.top = (rect.top - 32) + 'px';
+                arrow.style.left = (rect.left + rect.width / 2 - 5) + 'px';
+                arrow.style.top = (rect.top - 6) + 'px';
+            });
+
+            document.addEventListener('mouseout', function(e) {
+                var el = e.target.closest('.addr-tooltip-wrap');
+                if (!el) return;
+                tip.style.opacity = '0';
+                arrow.style.opacity = '0';
+            });
+        })();
+
     </script>
     <div class="expiry-tooltip" id="expiry-tooltip"></div>
 </body>
