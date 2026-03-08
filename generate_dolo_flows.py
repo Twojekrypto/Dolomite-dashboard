@@ -462,6 +462,42 @@ def main():
             print(f"  {period} {cfg['name']}: {len(period_transfers):,} transfers, "
                   f"top accumulator: {accumulators[0]['net_flow']:,.0f} DOLO" if accumulators else
                   f"  {period} {cfg['name']}: no data")
+
+    # Fetch DOLO balances for all addresses across both chains
+    all_addrs = set()
+    for period_data in output_periods.values():
+        for chain_data in period_data.values():
+            for entry in chain_data["accumulators"] + chain_data["sellers"]:
+                all_addrs.add(entry["address"])
+
+    print(f"\n💰 Fetching DOLO balances for {len(all_addrs)} addresses...")
+    balances = {}
+    bal_selector = "0x70a08231"  # balanceOf(address)
+    for addr in all_addrs:
+        padded = addr.replace("0x", "").lower().zfill(64)
+        total_bal = 0
+        for chain_key, cfg in CHAINS.items():
+            for rpc in cfg["rpcs"]:
+                try:
+                    resp = requests.post(rpc, json={
+                        "jsonrpc": "2.0", "method": "eth_call",
+                        "params": [{"to": DOLO_CONTRACT, "data": bal_selector + padded}, "latest"],
+                        "id": 1
+                    }, timeout=5, headers={"Content-Type": "application/json"})
+                    result = resp.json().get("result", "0x0")
+                    bal = int(result, 16) / (10 ** 18) if result and result != "0x" else 0
+                    total_bal += bal
+                    break
+                except Exception:
+                    time.sleep(0.3)
+        balances[addr] = round(total_bal, 2)
+        time.sleep(0.05)
+
+    # Add balances to all entries
+    for period_data in output_periods.values():
+        for chain_data in period_data.values():
+            for entry in chain_data["accumulators"] + chain_data["sellers"]:
+                entry["balance"] = balances.get(entry["address"], 0)
     # Build balance_changes: address -> net_flow for ALL addresses per period
     # Merge both chains into a single map per period
     balance_changes = {}
