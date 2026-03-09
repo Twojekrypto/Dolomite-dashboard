@@ -8973,53 +8973,73 @@
                     pointer-events:none;
                 }
                 .tvl-metric-card {
-                    background:rgba(255,255,255,.025);
-                    border:1px solid rgba(255,255,255,.06);
-                    border-radius:12px;
-                    padding:16px 18px;
-                    transition:all .3s ease;
+                    background:rgba(255,255,255,.03);
+                    backdrop-filter:blur(16px);
+                    -webkit-backdrop-filter:blur(16px);
+                    border:1px solid rgba(255,255,255,.08);
+                    border-radius:14px;
+                    padding:18px 20px;
+                    transition:all .35s cubic-bezier(.4,0,.2,1);
                     position:relative;
                     overflow:hidden;
                 }
                 .tvl-metric-card:hover {
-                    background:rgba(255,255,255,.05);
-                    border-color:rgba(255,255,255,.12);
-                    transform:translateY(-2px);
-                    box-shadow:0 8px 24px rgba(0,0,0,.25);
+                    background:rgba(255,255,255,.06);
+                    border-color:rgba(255,255,255,.15);
+                    transform:translateY(-3px);
+                    box-shadow:0 12px 32px rgba(0,0,0,.3),0 0 0 1px rgba(255,255,255,.05);
                 }
                 .tvl-metric-card::before {
                     content:'';
                     position:absolute;
                     top:0;left:0;right:0;height:2px;
-                    border-radius:12px 12px 0 0;
+                    border-radius:14px 14px 0 0;
                 }
                 .tvl-metric-card.supply::before { background:linear-gradient(90deg,#3b82f6,#60a5fa); }
                 .tvl-metric-card.borrowed::before { background:linear-gradient(90deg,#f59e0b,#fbbf24); }
                 .tvl-metric-card.chains::before { background:linear-gradient(90deg,#818cf8,#a78bfa); }
                 .tvl-metric-card.utilization::before { background:linear-gradient(90deg,#10b981,#34d399); }
                 .tvl-metric-icon {
-                    width:32px;height:32px;border-radius:8px;
+                    width:36px;height:36px;border-radius:10px;
                     display:flex;align-items:center;justify-content:center;
-                    margin-bottom:10px;
+                    margin-bottom:12px;
+                    position:relative;
+                }
+                .tvl-metric-icon::after {
+                    content:'';position:absolute;inset:0;border-radius:10px;
+                    opacity:0;transition:opacity .3s;
+                }
+                .tvl-metric-card:hover .tvl-metric-icon::after { opacity:1; }
+                .tvl-metric-card.supply .tvl-metric-icon::after { box-shadow:0 0 12px rgba(59,130,246,.3); }
+                .tvl-metric-card.borrowed .tvl-metric-icon::after { box-shadow:0 0 12px rgba(245,158,11,.3); }
+                .tvl-metric-card.chains .tvl-metric-icon::after { box-shadow:0 0 12px rgba(129,140,248,.3); }
+                .tvl-metric-card.utilization .tvl-metric-icon::after { box-shadow:0 0 12px rgba(16,185,129,.3); }
+                .tvl-metric-label {
+                    font-size:11px;color:var(--text-muted);text-transform:uppercase;
+                    letter-spacing:.8px;margin-bottom:6px;
+                }
+                .tvl-metric-value {
+                    font-size:22px;font-weight:700;letter-spacing:-.5px;
                 }
                 .tvl-ath-badge {
                     display:inline-flex;align-items:center;gap:4px;
                     font-size:11px;font-weight:600;letter-spacing:.5px;
-                    padding:3px 8px;border-radius:6px;
-                    background:rgba(251,191,36,.12);color:#fbbf24;
+                    padding:3px 10px;border-radius:20px;
+                    background:rgba(251,191,36,.1);color:#fbbf24;
                     border:1px solid rgba(251,191,36,.2);
+                    backdrop-filter:blur(8px);
                 }
                 .tvl-sparkline-wrap {
-                    position:absolute;bottom:0;right:0;width:200px;height:80px;opacity:.25;
+                    position:absolute;top:20px;right:0;width:240px;height:90px;opacity:.15;
                     pointer-events:none;
                 }
                 @media (max-width:768px) {
                     .tvl-hero-inner { padding:20px 16px 18px; }
-                    .tvl-sparkline-wrap { width:140px;height:60px; }
+                    .tvl-sparkline-wrap { width:160px;height:65px; }
                     .tvl-hero-grid { grid-template-columns:1fr 1fr !important; }
                 }
                 @media (max-width:480px) {
-                    .tvl-hero-grid { grid-template-columns:1fr !important; }
+                    .tvl-hero-grid { grid-template-columns:1fr !important; };
                 }
             </style>
 
@@ -9060,47 +9080,43 @@
                     </div>
 
                     <!-- Metrics grid -->
-                    <div class="tvl-hero-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:22px">
+                    <div class="tvl-hero-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:24px">
                         <!-- Supply Liquidity -->
                         <div class="tvl-metric-card supply">
                             <div class="tvl-metric-icon" style="background:rgba(59,130,246,.12)">
-                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 14V6l6-4 6 4v8H2z" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 14v-4h4v4" stroke="#3b82f6" stroke-width="1.5"/></svg>
+                                <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M2 14V6l6-4 6 4v8H2z" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 14v-4h4v4" stroke="#3b82f6" stroke-width="1.5"/></svg>
                             </div>
-                            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Supply Liquidity</div>
-                            <div id="tvl-supply-liquidity" style="font-size:22px;font-weight:700;color:var(--text-primary);letter-spacing:-.5px">—</div>
+                            <div class="tvl-metric-label">Supply Liquidity</div>
+                            <div id="tvl-supply-liquidity" class="tvl-metric-value" style="color:var(--text-primary)">—</div>
                         </div>
                         <!-- Total Borrowed -->
                         <div class="tvl-metric-card borrowed">
                             <div class="tvl-metric-icon" style="background:rgba(245,158,11,.12)">
-                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 13V3h2v10H3zm4-6V3h2v4H7zm4 3V3h2v7h-2z" fill="#f59e0b"/></svg>
+                                <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M3 13V3h2v10H3zm4-6V3h2v4H7zm4 3V3h2v7h-2z" fill="#f59e0b"/></svg>
                             </div>
-                            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Total Borrowed</div>
-                            <div id="tvl-total-borrowed" style="font-size:22px;font-weight:700;color:#f59e0b;letter-spacing:-.5px">—</div>
+                            <div class="tvl-metric-label">Total Borrowed</div>
+                            <div id="tvl-total-borrowed" class="tvl-metric-value" style="color:#f59e0b">—</div>
                         </div>
                         <!-- Utilization -->
                         <div class="tvl-metric-card utilization">
-                            <div style="display:flex;align-items:flex-start;gap:12px">
-                                <div style="flex-shrink:0;margin-top:2px">
-                                    <svg id="tvl-util-ring" width="44" height="44" viewBox="0 0 44 44" style="animation:tvl-pulse-ring 3s ease-in-out infinite">
-                                        <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="4"/>
-                                        <circle id="tvl-util-arc" cx="22" cy="22" r="18" fill="none" stroke="#10b981" stroke-width="4" stroke-linecap="round"
-                                            stroke-dasharray="0 113.1" transform="rotate(-90 22 22)" style="transition:stroke-dasharray 1.5s cubic-bezier(.4,0,.2,1)"/>
-                                        <text x="22" y="24" text-anchor="middle" fill="#10b981" font-size="11" font-weight="700" id="tvl-util-pct">—</text>
-                                    </svg>
-                                </div>
-                                <div>
-                                    <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Utilization</div>
-                                    <div id="tvl-utilization-val" style="font-size:22px;font-weight:700;color:#10b981;letter-spacing:-.5px">—</div>
-                                </div>
+                            <div class="tvl-metric-icon" style="background:rgba(16,185,129,.12);position:relative">
+                                <svg width="36" height="36" viewBox="0 0 44 44" style="position:absolute;inset:0;animation:tvl-pulse-ring 3s ease-in-out infinite">
+                                    <circle cx="22" cy="22" r="16" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="3"/>
+                                    <circle id="tvl-util-arc" cx="22" cy="22" r="16" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round"
+                                        stroke-dasharray="0 100.5" transform="rotate(-90 22 22)" style="transition:stroke-dasharray 1.5s cubic-bezier(.4,0,.2,1)"/>
+                                </svg>
+                                <span id="tvl-util-pct" style="font-size:9px;font-weight:700;color:#10b981;z-index:1">—</span>
                             </div>
+                            <div class="tvl-metric-label">Utilization</div>
+                            <div id="tvl-utilization-val" class="tvl-metric-value" style="color:#10b981">—</div>
                         </div>
                         <!-- Active Chains -->
                         <div class="tvl-metric-card chains">
                             <div class="tvl-metric-icon" style="background:rgba(129,140,248,.12)">
-                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="4" cy="4" r="2" fill="#818cf8"/><circle cx="12" cy="4" r="2" fill="#818cf8"/><circle cx="8" cy="12" r="2" fill="#818cf8"/><path d="M5.5 5.5L7 10.5M10.5 5.5L9 10.5M5 4h6" stroke="#818cf8" stroke-width="1" stroke-linecap="round"/></svg>
+                                <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><circle cx="4" cy="4" r="2" fill="#818cf8"/><circle cx="12" cy="4" r="2" fill="#818cf8"/><circle cx="8" cy="12" r="2" fill="#818cf8"/><path d="M5.5 5.5L7 10.5M10.5 5.5L9 10.5M5 4h6" stroke="#818cf8" stroke-width="1" stroke-linecap="round"/></svg>
                             </div>
-                            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Active Chains</div>
-                            <div id="tvl-chain-count" style="font-size:22px;font-weight:700;color:#818cf8;letter-spacing:-.5px">—</div>
+                            <div class="tvl-metric-label">Active Chains</div>
+                            <div id="tvl-chain-count" class="tvl-metric-value" style="color:#818cf8">—</div>
                         </div>
                     </div>
                 </div>
@@ -12782,7 +12798,7 @@
                 if (utilValEl) utilValEl.textContent = utilPct.toFixed(1) + '%';
                 if (utilPctEl) utilPctEl.textContent = Math.round(utilPct) + '%';
                 if (utilArc) {
-                    const circumference = 2 * Math.PI * 18; // r=18
+                    const circumference = 2 * Math.PI * 16; // r=16
                     const dashLen = (utilPct / 100) * circumference;
                     setTimeout(() => { utilArc.setAttribute('stroke-dasharray', `${dashLen} ${circumference}`); }, 100);
                 }
