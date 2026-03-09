@@ -8889,11 +8889,15 @@
                             <tbody id="odolo-flow-acc-tbody"></tbody>
                         </table>
                         <div id="odolo-flow-acc-pager" class="flow-pager" style="display:none">
+                            <button onclick="odolo_flowAccPage=0;odolo_renderFlows()" id="odolo-flow-acc-first"
+                                class="flow-pager-btn">«</button>
                             <button onclick="odolo_flowAccPage--;odolo_renderFlows()" id="odolo-flow-acc-prev"
                                 class="flow-pager-btn">‹</button>
                             <span id="odolo-flow-acc-info" class="flow-pager-info"></span>
                             <button onclick="odolo_flowAccPage++;odolo_renderFlows()" id="odolo-flow-acc-next"
                                 class="flow-pager-btn">›</button>
+                            <button onclick="odolo_flowAccPage=999;odolo_renderFlows()" id="odolo-flow-acc-last"
+                                class="flow-pager-btn">»</button>
                         </div>
                     </div>
                     <div class="dolo-flow-table-wrap">
@@ -8916,11 +8920,15 @@
                             <tbody id="odolo-flow-sell-tbody"></tbody>
                         </table>
                         <div id="odolo-flow-sell-pager" class="flow-pager" style="display:none">
+                            <button onclick="odolo_flowSellPage=0;odolo_renderFlows()" id="odolo-flow-sell-first"
+                                class="flow-pager-btn">«</button>
                             <button onclick="odolo_flowSellPage--;odolo_renderFlows()" id="odolo-flow-sell-prev"
                                 class="flow-pager-btn">‹</button>
                             <span id="odolo-flow-sell-info" class="flow-pager-info"></span>
                             <button onclick="odolo_flowSellPage++;odolo_renderFlows()" id="odolo-flow-sell-next"
                                 class="flow-pager-btn">›</button>
+                            <button onclick="odolo_flowSellPage=999;odolo_renderFlows()" id="odolo-flow-sell-last"
+                                class="flow-pager-btn">»</button>
                         </div>
                     </div>
                 </div>
@@ -14522,14 +14530,18 @@
             if (accPager) {
                 accPager.style.display = 'flex';
                 document.getElementById('odolo-flow-acc-info').textContent = `${odolo_flowAccPage + 1} / ${accPages}`;
+                document.getElementById('odolo-flow-acc-first').disabled = odolo_flowAccPage === 0;
                 document.getElementById('odolo-flow-acc-prev').disabled = odolo_flowAccPage === 0;
                 document.getElementById('odolo-flow-acc-next').disabled = odolo_flowAccPage >= accPages - 1;
+                document.getElementById('odolo-flow-acc-last').disabled = odolo_flowAccPage >= accPages - 1;
             }
             if (sellPager) {
                 sellPager.style.display = 'flex';
                 document.getElementById('odolo-flow-sell-info').textContent = `${odolo_flowSellPage + 1} / ${sellPages}`;
+                document.getElementById('odolo-flow-sell-first').disabled = odolo_flowSellPage === 0;
                 document.getElementById('odolo-flow-sell-prev').disabled = odolo_flowSellPage === 0;
                 document.getElementById('odolo-flow-sell-next').disabled = odolo_flowSellPage >= sellPages - 1;
+                document.getElementById('odolo-flow-sell-last').disabled = odolo_flowSellPage >= sellPages - 1;
             }
         }
 
