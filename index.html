@@ -15155,7 +15155,7 @@
                             ${iconHtml}
                             <div>
                                 <div class="assets-token-name">${d.symbol}</div>
-                                <div class="assets-token-full">${d.name}</div>
+                                ${d.addr ? `<div class="assets-token-full" style="display:inline-flex;align-items:center;gap:3px"><a href="${(ASSETS_CHAINS[d.chainKey]?.explorer || '#') + d.addr}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:rgba(255,255,255,0.35);font-family:monospace;font-size:9px;text-decoration:none" class="addr-tooltip-wrap" data-full-addr="${d.addr}">${d.addr.slice(0,6)}…${d.addr.slice(-4)}</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${d.addr}',this)" title="Copy address" style="opacity:0.4"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span></div>` : `<div class="assets-token-full">${d.name}</div>`}
                             </div>
                         </div>
                     </td>
