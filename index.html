@@ -18248,13 +18248,29 @@
                 var rect = el.getBoundingClientRect();
                 tip.style.display = 'block';
                 var tw = tip.offsetWidth;
+                var th = tip.offsetHeight || 28;
+
+                // Horizontal: clamp to viewport
                 var left = rect.left + rect.width / 2 - tw / 2;
                 if (left < 4) left = 4;
                 if (left + tw > window.innerWidth - 4) left = window.innerWidth - tw - 4;
                 tip.style.left = left + 'px';
-                tip.style.top = (rect.top - 32) + 'px';
-                arrow.style.left = (rect.left + rect.width / 2 - 5) + 'px';
-                arrow.style.top = (rect.top - 6) + 'px';
+
+                // Vertical: show above, flip below if no space
+                var arrowLeft = Math.min(Math.max(rect.left + rect.width / 2 - 5, 8), window.innerWidth - 14);
+                if (rect.top - th - 8 > 0) {
+                    // Above
+                    tip.style.top = (rect.top - th - 6) + 'px';
+                    arrow.style.cssText = 'position:fixed;z-index:9999;width:0;height:0;border:5px solid transparent;border-top-color:rgba(20,24,40,0.97);pointer-events:none;opacity:1;';
+                    arrow.style.left = arrowLeft + 'px';
+                    arrow.style.top = (rect.top - 6) + 'px';
+                } else {
+                    // Below
+                    tip.style.top = (rect.bottom + 6) + 'px';
+                    arrow.style.cssText = 'position:fixed;z-index:9999;width:0;height:0;border:5px solid transparent;border-bottom-color:rgba(20,24,40,0.97);pointer-events:none;opacity:1;';
+                    arrow.style.left = arrowLeft + 'px';
+                    arrow.style.top = (rect.bottom - 4) + 'px';
+                }
             });
 
             document.addEventListener('mouseout', function(e) {
