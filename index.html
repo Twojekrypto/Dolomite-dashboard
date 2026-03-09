@@ -14296,9 +14296,29 @@
                     const debankUrl = `https://debank.com/profile/${addr}?chain=bera`;
                     const bal = item.balance || 0;
                     const balFmt = bal > 0 ? dolo_fmtBal(bal) : '\u2014';
+                    const copySvg = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+                    const dbIcon = `<a href="${debankUrl}" target="_blank" class="debank-icon" style="flex-shrink:0" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a>`;
+
+                    // Check for known address label
+                    const addrInfo = (typeof DOLO_ADDR_LABELS !== 'undefined') ? DOLO_ADDR_LABELS[addr.toLowerCase()] : null;
+                    let addrCell;
+                    if (addrInfo && addrInfo.label !== 'CA') {
+                        const badgeColors = {
+                            cex: 'background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.25)',
+                            lp: 'background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.25)',
+                            protocol: 'background:rgba(139,92,246,0.15);color:#a78bfa;border:1px solid rgba(139,92,246,0.25)',
+                        };
+                        const bStyle = badgeColors[addrInfo.type] || badgeColors.protocol;
+                        const typeBadge = `<span style="display:inline-block;font-size:8px;font-weight:600;padding:1px 5px;border-radius:3px;margin-left:5px;letter-spacing:0.3px;white-space:nowrap;vertical-align:middle;${bStyle}">${addrInfo.type.toUpperCase()}</span>`;
+                        addrCell = `<td style="padding:4px 5px"><div style="display:flex;flex-direction:column;gap:1px"><div style="display:flex;align-items:center;gap:4px"><span style="color:#fff;font-size:11px;font-weight:600;white-space:nowrap">${addrInfo.label}</span>${typeBadge}</div><div style="display:inline-flex;align-items:center;gap:4px"><a href="${debankUrl}" target="_blank" style="color:rgba(255,255,255,0.35);font-family:monospace;font-size:9px;text-decoration:none" class="addr-tooltip-wrap" data-full-addr="${addr}">${short}</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${addr}',this)" title="Copy address">${copySvg}</span>${dbIcon}</div></div></td>`;
+                    } else {
+                        const caIcon = (addrInfo && addrInfo.label === 'CA') ? '<span style="margin-right:2px;font-size:10px" title="Smart contract">📜</span>' : '';
+                        addrCell = `<td style="padding:4px 5px"><span style="display:inline-flex;align-items:center;gap:4px">${caIcon}<a href="${debankUrl}" target="_blank" class="addr-tooltip-wrap" data-full-addr="${addr}" style="color:#fff;font-family:monospace;font-size:11px;text-decoration:none">${short}</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${addr}',this)" title="Copy address">${copySvg}</span>${dbIcon}</span></td>`;
+                    }
+
                     return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);transition:transform 0.15s,background 0.15s" onmouseenter="this.style.transform='scale(1.01)';this.style.background='rgba(255,255,255,0.03)'" onmouseleave="this.style.transform='';this.style.background=''">
                         <td style="padding:4px 5px;color:rgba(255,255,255,0.3);font-size:11px">${pageOffset + i + 1}</td>
-                        <td style="padding:4px 5px"><span style="display:inline-flex;align-items:center;gap:4px"><a href="${debankUrl}" target="_blank" class="addr-tooltip-wrap" data-full-addr="${addr}" style="color:#fff;font-family:monospace;font-size:11px;text-decoration:none">${short}</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${addr}',this)" title="Copy address"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span><a href="${debankUrl}" target="_blank" class="debank-icon" style="flex-shrink:0" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a></span></td>
+                        ${addrCell}
                         <td style="padding:4px 5px;text-align:right;color:#fff;font-size:11px">${balFmt}</td>
                         <td style="padding:4px 5px;text-align:right;color:${flowColor};font-size:11px;font-weight:600">${sign}${flowFmt}</td>
                     </tr>`;
