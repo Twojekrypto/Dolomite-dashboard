@@ -8276,8 +8276,8 @@
                     <div style="display:flex;flex-direction:column;gap:3px;margin-left:auto">
                         <div id="vedolo-flow-period-btns" class="dolo-chain-pills" style="width:fit-content">
                             <div class="dolo-chain-slider"></div>
-                            <button data-period="1">1D</button>
-                            <button class="active" data-period="7">7D</button>
+                            <button class="active" data-period="1">1D</button>
+                            <button data-period="7">7D</button>
                             <button data-period="30">30D</button>
                             <button data-period="90">90D</button>
                             <button data-period="180">180D</button>
@@ -8302,9 +8302,9 @@
                             </colgroup>
                             <thead style="position:sticky;top:0;z-index:2;background:#141825">
                                 <tr>
-                                    <th style="padding:8px 5px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="rank" onclick="sortRecentLocks('rank')"># <span class="arrow">▼</span></th>
+                                    <th style="padding:8px 5px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="rank" onclick="sortRecentLocks('rank')"># <span class="arrow">⇅</span></th>
                                     <th style="padding:8px 5px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">TX / Address</th>
-                                    <th style="padding:8px 5px;text-align:right;color:#34d399;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="dolo" onclick="sortRecentLocks('dolo')">🟢 DOLO <span class="arrow">⇅</span></th>
+                                    <th style="padding:8px 5px;text-align:right;color:#34d399;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="dolo" onclick="sortRecentLocks('dolo')">🟢 DOLO <span class="arrow">▼</span></th>
                                     <th style="padding:8px 5px;text-align:right;color:#22d3ee;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="lock" onclick="sortRecentLocks('lock')">🔵 Lock <span class="arrow">⇅</span></th>
                                 </tr>
                             </thead>
@@ -8323,9 +8323,9 @@
                             </colgroup>
                             <thead style="position:sticky;top:0;z-index:2;background:#141825">
                                 <tr>
-                                    <th style="padding:8px 5px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="rank" onclick="sortRecentClaims('rank')"># <span class="arrow">▼</span></th>
+                                    <th style="padding:8px 5px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="rank" onclick="sortRecentClaims('rank')"># <span class="arrow">⇅</span></th>
                                     <th style="padding:8px 5px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">TX / Address</th>
-                                    <th style="padding:8px 5px;text-align:right;color:#f87171;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="dolo" onclick="sortRecentClaims('dolo')">🔴 DOLO Unlocked <span class="arrow">⇅</span></th>
+                                    <th style="padding:8px 5px;text-align:right;color:#f87171;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="dolo" onclick="sortRecentClaims('dolo')">🔴 DOLO Unlocked <span class="arrow">▼</span></th>
                                 </tr>
                             </thead>
                             <tbody id="recent-claims-tbody"></tbody>
@@ -11857,13 +11857,13 @@
         let vedolo_allLocks = [];  // All Deposit events from pre-cached JSON
         let vedolo_filteredClaims = [];
         let vedolo_filteredLocks = [];
-        let vedolo_claimsPeriod = 7;
-        let vedolo_locksPeriod = 7;
+        let vedolo_claimsPeriod = 1;
+        let vedolo_locksPeriod = 1;
         let vedolo_claimsPage = 1;
         let vedolo_locksPage = 1;
-        let vedolo_claimsSortKey = 'rank';
+        let vedolo_claimsSortKey = 'dolo';
         let vedolo_claimsSortAsc = false;
-        let vedolo_locksSortKey = 'rank';
+        let vedolo_locksSortKey = 'dolo';
         let vedolo_locksSortAsc = false;
         let vedolo_eventsLoaded = false;
         let recentClaimsSearchTerm = '';
