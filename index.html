@@ -8216,33 +8216,33 @@
                 </div>
 
                 <div class="table-scroll">
-                    <table style="table-layout:fixed;width:100%">
+                    <table style="table-layout:fixed;width:100%;border-collapse:collapse;font-size:12px">
                         <colgroup>
-                            <col style="width:28px">
-                            <col style="width:calc((100% - 28px) * 0.25)">
-                            <col style="width:calc((100% - 28px) * 0.15)">
-                            <col style="width:calc((100% - 28px) * 0.20)">
-                            <col style="width:calc((100% - 28px) * 0.20)">
-                            <col style="width:calc((100% - 28px) * 0.20)">
+                            <col style="width:32px">
+                            <col style="width:38%">
+                            <col style="width:calc((100% - 32px - 38%) / 4)">
+                            <col style="width:calc((100% - 32px - 38%) / 4)">
+                            <col style="width:calc((100% - 32px - 38%) / 4)">
+                            <col style="width:calc((100% - 32px - 38%) / 4)">
                         </colgroup>
-                        <thead>
+                        <thead style="position:sticky;top:0;z-index:2;background:#141825">
                             <tr>
-                                <th class="c-rank sorted" data-sort="rank" onclick="sortTable('rank')">
+                                <th style="padding:8px 5px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="rank" onclick="sortTable('rank')">
                                     # <span class="arrow">▲</span>
                                 </th>
-                                <th data-sort="address" onclick="sortTable('address')">
+                                <th style="padding:8px 5px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="address" onclick="sortTable('address')">
                                     Address <span class="arrow">⇅</span>
                                 </th>
-                                <th data-sort="nft_count" onclick="sortTable('nft_count')">
-                                    NFT <span class="arrow">⇅</span>
+                                <th style="padding:8px 5px;text-align:right;color:#22d3ee;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="nft_count" onclick="sortTable('nft_count')">
+                                    🔵 NFT <span class="arrow">⇅</span>
                                 </th>
-                                <th data-sort="total_dolo" onclick="sortTable('total_dolo')">
-                                    DOLO 🔒 <span class="arrow">⇅</span>
+                                <th style="padding:8px 5px;text-align:right;color:#34d399;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="total_dolo" onclick="sortTable('total_dolo')">
+                                    🟢 DOLO 🔒 <span class="arrow">⇅</span>
                                 </th>
-                                <th data-sort="total_vote_weight" onclick="sortTable('total_vote_weight')">
-                                    Vote Weight <span class="arrow">⇅</span>
+                                <th style="padding:8px 5px;text-align:right;color:#fbbf24;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="total_vote_weight" onclick="sortTable('total_vote_weight')">
+                                    🟡 Vote Weight <span class="arrow">⇅</span>
                                 </th>
-                                <th>Token IDs</th>
+                                <th style="padding:8px 5px;text-align:right;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">Token IDs</th>
                             </tr>
                         </thead>
                         <tbody id="table-body"></tbody>
@@ -8288,31 +8288,19 @@
                     Scanning on-chain events…
                 </div>
                 <div class="table-scroll" id="recent-claims-table-wrap" style="display:none">
-                    <table id="recent-claims-table" style="table-layout:fixed;width:100%">
+                    <table id="recent-claims-table" style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
                         <colgroup>
-                            <col style="width:32px">
-                            <col style="width:calc((100% - 32px) * 0.28)">
-                            <col style="width:calc((100% - 32px) * 0.32)">
-                            <col style="width:calc((100% - 32px) * 0.20)">
-                            <col style="width:calc((100% - 32px) * 0.20)">
+                            <col style="width:36px">
+                            <col style="width:38%">
+                            <col style="width:calc((100% - 36px - 38%) / 2)">
+                            <col style="width:calc((100% - 36px - 38%) / 2)">
                         </colgroup>
-                        <thead>
+                        <thead style="position:sticky;top:0;z-index:2;background:#141825">
                             <tr>
-                                <th class="c-rank sorted" data-sort="rank" onclick="sortRecentClaims('rank')">
-                                    # <span class="arrow">▼</span>
-                                </th>
-                                <th data-sort="tx" onclick="sortRecentClaims('tx')">
-                                    TX <span class="arrow">⇅</span>
-                                </th>
-                                <th data-sort="address" onclick="sortRecentClaims('address')">
-                                    Address <span class="arrow">⇅</span>
-                                </th>
-                                <th data-sort="dolo" onclick="sortRecentClaims('dolo')">
-                                    DOLO Unlocked <span class="arrow">⇅</span>
-                                </th>
-                                <th data-sort="date" onclick="sortRecentClaims('date')">
-                                    Date <span class="arrow">⇅</span>
-                                </th>
+                                <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)" data-sort="rank" onclick="sortRecentClaims('rank')"># <span class="arrow">▼</span></th>
+                                <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="tx" onclick="sortRecentClaims('tx')">TX / Address <span class="arrow">⇅</span></th>
+                                <th style="padding:8px 6px;text-align:right;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="address" onclick="sortRecentClaims('address')">Address <span class="arrow">⇅</span></th>
+                                <th style="padding:8px 6px;text-align:right;color:#34d399;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="dolo" onclick="sortRecentClaims('dolo')">🟢 DOLO Unlocked <span class="arrow">⇅</span></th>
                             </tr>
                         </thead>
                         <tbody id="recent-claims-tbody"></tbody>
@@ -8364,35 +8352,21 @@
                     Scanning on-chain events…
                 </div>
                 <div class="table-scroll" id="recent-locks-table-wrap" style="display:none">
-                    <table id="recent-locks-table" style="table-layout:fixed;width:100%">
+                    <table id="recent-locks-table" style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
                         <colgroup>
-                            <col style="width:32px">
-                            <col style="width:calc((100% - 32px) * 0.25)">
-                            <col style="width:calc((100% - 32px) * 0.28)">
-                            <col style="width:calc((100% - 32px) * 0.18)">
-                            <col style="width:calc((100% - 32px) * 0.15)">
-                            <col style="width:calc((100% - 32px) * 0.14)">
+                            <col style="width:36px">
+                            <col style="width:38%">
+                            <col style="width:calc((100% - 36px - 38%) / 3)">
+                            <col style="width:calc((100% - 36px - 38%) / 3)">
+                            <col style="width:calc((100% - 36px - 38%) / 3)">
                         </colgroup>
-                        <thead>
+                        <thead style="position:sticky;top:0;z-index:2;background:#141825">
                             <tr>
-                                <th class="c-rank sorted" data-sort="rank" onclick="sortRecentLocks('rank')">
-                                    # <span class="arrow">▼</span>
-                                </th>
-                                <th data-sort="tx" onclick="sortRecentLocks('tx')">
-                                    TX <span class="arrow">⇅</span>
-                                </th>
-                                <th data-sort="address" onclick="sortRecentLocks('address')">
-                                    Address <span class="arrow">⇅</span>
-                                </th>
-                                <th data-sort="dolo" onclick="sortRecentLocks('dolo')">
-                                    DOLO Locked <span class="arrow">⇅</span>
-                                </th>
-                                <th data-sort="lock" onclick="sortRecentLocks('lock')">
-                                    Lock Duration <span class="arrow">⇅</span>
-                                </th>
-                                <th data-sort="date" onclick="sortRecentLocks('date')">
-                                    Date <span class="arrow">⇅</span>
-                                </th>
+                                <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)" data-sort="rank" onclick="sortRecentLocks('rank')"># <span class="arrow">▼</span></th>
+                                <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="tx" onclick="sortRecentLocks('tx')">TX / Address <span class="arrow">⇅</span></th>
+                                <th style="padding:8px 6px;text-align:right;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="address" onclick="sortRecentLocks('address')">Address <span class="arrow">⇅</span></th>
+                                <th style="padding:8px 6px;text-align:right;color:#34d399;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="dolo" onclick="sortRecentLocks('dolo')">🟢 DOLO Locked <span class="arrow">⇅</span></th>
+                                <th style="padding:8px 6px;text-align:right;color:#22d3ee;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="lock" onclick="sortRecentLocks('lock')">🔵 Lock <span class="arrow">⇅</span></th>
                             </tr>
                         </thead>
                         <tbody id="recent-locks-tbody"></tbody>
@@ -12182,7 +12156,7 @@
 
             let html = '';
             if (pageData.length === 0) {
-                html = '<tr><td colspan="5" style="text-align:center;opacity:0.5;padding:2em">No unlocks in the last ' + vedolo_claimsPeriod + ' days</td></tr>';
+                html = '<tr><td colspan="4" style="text-align:center;opacity:0.5;padding:2em">No unlocks in the last ' + vedolo_claimsPeriod + ' days</td></tr>';
             }
             const COPY_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
             pageData.forEach((c, i) => {
@@ -12198,7 +12172,6 @@
                 html += '</div></td>';
                 html += '<td style="padding:5px 6px"><span style="display:inline-flex;align-items:center;gap:4px"><span class="addr-link">' + vedolo_shortAddr(c.address) + '</span><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr(\'' + c.address + '\',this)" title="Copy address">' + COPY_ICON + '</span><a href="https://debank.com/profile/' + c.address + '?chain=bera" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display=\'none\'"></a></span></td>';
                 html += '<td class="c-num" style="color:#34d399;font-weight:600">' + vedolo_fmtDolo(c.dolo) + ' DOLO</td>';
-                html += '<td class="c-num">' + vedolo_fmtDate(c.date) + '</td>';
                 html += '</tr>';
             });
             tbody.innerHTML = html;
@@ -12281,7 +12254,7 @@
 
             let html = '';
             if (pageData.length === 0) {
-                html = '<tr><td colspan="6" style="text-align:center;opacity:0.5;padding:2em">No locks in the last ' + vedolo_locksPeriod + ' days</td></tr>';
+                html = '<tr><td colspan="5" style="text-align:center;opacity:0.5;padding:2em">No locks in the last ' + vedolo_locksPeriod + ' days</td></tr>';
             }
             const COPY_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
             pageData.forEach((l, i) => {
@@ -12298,7 +12271,6 @@
                 html += '<td style="padding:5px 6px"><span style="display:inline-flex;align-items:center;gap:4px"><span class="addr-link">' + vedolo_shortAddr(l.address) + '</span><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr(\'' + l.address + '\',this)" title="Copy address">' + COPY_ICON + '</span><a href="https://debank.com/profile/' + l.address + '?chain=bera" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display=\'none\'"></a></span></td>';
                 html += '<td class="c-num" style="color:#34d399;font-weight:600">' + vedolo_fmtDolo(l.dolo) + ' DOLO' + (l.isOdolo ? ' <span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;background:rgba(99,102,241,0.18);color:#a5b4fc;margin-left:4px;vertical-align:middle">via oDOLO</span>' : ' <span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;background:rgba(52,211,153,0.15);color:#34d399;margin-left:4px;vertical-align:middle">Direct</span>') + '</td>';
                 html += '<td class="c-num">' + vedolo_fmtLock(l.lockDays) + '</td>';
-                html += '<td class="c-num">' + vedolo_fmtDate(l.date) + '</td>';
                 html += '</tr>';
             });
             tbody.innerHTML = html;
