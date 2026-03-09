@@ -76,17 +76,19 @@ def rpc_call(method, params, retries=3):
     return None
 
 
-def fetch_withdraw_events():
-    """Fetch all Withdraw events from the veDOLO contract using RPC getLogs with pagination."""
+def fetch_withdraw_events(start_block=0):
+    """Fetch Withdraw events from the veDOLO contract using RPC getLogs with pagination.
+    Supports incremental fetching from a given start_block."""
     print("📡 Phase 1: Fetching Withdraw events...")
 
     # Get latest block
     latest_block = int(rpc_call("eth_blockNumber", []), 16)
     print(f"  Latest block: {latest_block:,}")
+    print(f"  Scanning from block: {start_block:,}")
 
     all_logs = []
-    block = 0
-    step = 10000  # 10K block pages (RPC limit for free tier)
+    block = start_block
+    step = 50000  # 50K block pages
 
     while block <= latest_block:
         to_block = min(block + step - 1, latest_block)
@@ -106,11 +108,11 @@ def fetch_withdraw_events():
         block = to_block + 1
 
         # Small delay to avoid rate limits
-        if block % 100000 == 0:
+        if block % 500000 == 0:
             time.sleep(0.1)
 
-    print(f"  ✅ Found {len(all_logs)} total Withdraw events")
-    return all_logs
+    print(f"  ✅ Found {len(all_logs)} new Withdraw events")
+    return all_logs, latest_block
 
 
 def decode_withdraw_event(log):
@@ -196,15 +198,33 @@ def main():
     print(f"   {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
     print("=" * 60)
 
-    # Load cache
+    # Load cache (receipts + last scanned block + cached logs)
     cache = {}
+    cached_logs = []
+    last_scanned_block = 0
     if os.path.exists(CACHE_FILE):
         with open(CACHE_FILE) as f:
-            cache = json.load(f)
-        print(f"  📦 Loaded {len(cache)} cached tx receipts")
+            cache_data = json.load(f)
+        # Support both old format (flat dict) and new format (with metadata)
+        if isinstance(cache_data, dict) and "_meta" in cache_data:
+            cache = cache_data.get("receipts", {})
+            cached_logs = cache_data.get("logs", [])
+            last_scanned_block = cache_data.get("_meta", {}).get("last_scanned_block", 0)
+        else:
+            cache = cache_data  # old format: just receipts
+        print(f"  📦 Loaded {len(cache)} cached tx receipts, {len(cached_logs)} cached logs")
+        if last_scanned_block:
+            print(f"  📦 Last scanned block: {last_scanned_block:,}")
 
-    # Phase 1: Fetch all Withdraw events
-    logs = fetch_withdraw_events()
+    # Phase 1: Fetch new Withdraw events (incremental from last scanned block)
+    new_logs, latest_block = fetch_withdraw_events(start_block=last_scanned_block)
+    # Merge: deduplicate by transactionHash
+    seen_hashes = {log["transactionHash"] for log in cached_logs}
+    for log in new_logs:
+        if log["transactionHash"] not in seen_hashes:
+            cached_logs.append(log)
+            seen_hashes.add(log["transactionHash"])
+    logs = cached_logs
     if not logs:
         print("⚠️ No Withdraw events found!")
         sys.exit(0)
@@ -247,14 +267,22 @@ def main():
 
             if (chunk_idx + 1) % 10 == 0 or (chunk_idx + 1) == len(chunks):
                 print(f"  Progress: {done:,}/{len(tx_hashes_needed):,} (errors: {errors})")
+                cache_progress = {"_meta": {"last_scanned_block": latest_block}, "receipts": cache, "logs": cached_logs}
                 with open(CACHE_FILE, "w") as f:
-                    json.dump(cache, f)
+                    json.dump(cache_progress, f)
 
             time.sleep(0.05)  # Small delay between batches
 
         # Final cache save
+        cache_output = {"_meta": {"last_scanned_block": latest_block}, "receipts": cache, "logs": cached_logs}
         with open(CACHE_FILE, "w") as f:
-            json.dump(cache, f)
+            json.dump(cache_output, f)
+    else:
+        # No new receipts needed, but still save updated metadata (logs + block number)
+        cache_output = {"_meta": {"last_scanned_block": latest_block}, "receipts": cache, "logs": cached_logs}
+        with open(CACHE_FILE, "w") as f:
+            json.dump(cache_output, f)
+        print(f"  💾 Cache updated with latest block {latest_block:,}")
 
 
     # Phase 4: Merge data and calculate stats

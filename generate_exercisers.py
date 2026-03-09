@@ -2,11 +2,14 @@
 """
 Generate exercisers_by_address.json with per-address aggregation AND per-tx details
 including lock duration, oDOLO amount, and price per veDOLO.
+
+Uses incremental caching — only fetches receipts for NEW transactions since the last run.
 """
 
 import requests
 import time
 import json
+import os
 from collections import defaultdict
 from datetime import datetime
 
@@ -23,6 +26,28 @@ PAGE_SIZE = 100
 RATE_LIMIT_DELAY = 0.35
 REQUEST_TIMEOUT = 20
 MAX_RETRIES = 3
+
+DATA_DIR = os.path.dirname(os.path.abspath(__file__))
+CACHE_FILE = os.path.join(DATA_DIR, "exercisers_cache.json")
+
+
+def load_cache():
+    """Load incremental cache: already-processed tx hashes → receipt data."""
+    if os.path.exists(CACHE_FILE):
+        try:
+            with open(CACHE_FILE) as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+
+def save_cache(cache):
+    """Save incremental cache."""
+    tmp = CACHE_FILE + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(cache, f)
+    os.replace(tmp, CACHE_FILE)
 
 
 def get_all_transactions():
@@ -123,8 +148,14 @@ def get_tx_details_from_receipt(tx_hash, retries=MAX_RETRIES):
 
 def main():
     print("=" * 60)
-    print("oDOLO Exercisers — Enhanced Data Generator")
+    print("oDOLO Exercisers — Enhanced Data Generator (Incremental)")
     print("=" * 60)
+
+    # Load receipt cache
+    cache = load_cache()
+    cached_count = len(cache)
+    if cached_count:
+        print(f"  📦 Loaded {cached_count} cached tx receipts")
 
     print("\n[1/3] Fetching Vester transactions...")
     all_txs = get_all_transactions()
@@ -138,54 +169,33 @@ def main():
     ]
     print(f"\n[2/3] Exercise transactions: {len(exercise_txs)}")
 
-    print("\n[3/3] Scanning receipts for USDC.e + oDOLO amounts + lock durations...")
-    address_data = defaultdict(lambda: {
-        "total_usdc": 0, "exercises": 0, "lock_days_sum": 0,
-        "lock_count": 0, "first": None, "last": None, "txs": []
-    })
+    # Split into cached and uncached
+    uncached_txs = [tx for tx in exercise_txs if tx["hash"] not in cache]
+    cached_txs = [tx for tx in exercise_txs if tx["hash"] in cache]
+    print(f"  Cached: {len(cached_txs)}, Need fetch: {len(uncached_txs)}")
+
+    print("\n[3/3] Scanning receipts for uncached transactions...")
     errors = 0
     failed_txs = []
 
-    for i, tx in enumerate(exercise_txs):
+    # Process uncached transactions (the slow part — only new ones)
+    for i, tx in enumerate(uncached_txs):
         tx_hash = tx["hash"]
-        addr = tx["from"].lower()
-        timestamp = int(tx["timeStamp"])
-        date_str = time.strftime("%Y-%m-%d", time.gmtime(timestamp))
-
         usdc_amount, odolo_amount = get_tx_details_from_receipt(tx_hash)
         lock_days = extract_lock_duration(tx)
 
         if usdc_amount is not None:
-            d = address_data[addr]
-            d["total_usdc"] += usdc_amount
-            d["exercises"] += 1
-            if lock_days is not None:
-                d["lock_days_sum"] += lock_days
-                d["lock_count"] += 1
-            if d["first"] is None or date_str < d["first"]:
-                d["first"] = date_str
-            if d["last"] is None or date_str > d["last"]:
-                d["last"] = date_str
-
-            vedolo_amount = odolo_amount if odolo_amount else None
-            price_per_vedolo = None
-            if usdc_amount and vedolo_amount and vedolo_amount > 0:
-                price_per_vedolo = round(usdc_amount / vedolo_amount, 6)
-
-            d["txs"].append({
-                "hash": tx_hash,
-                "date": date_str,
+            cache[tx_hash] = {
                 "usdc": round(usdc_amount, 2),
-                "vedolo": round(vedolo_amount, 2) if vedolo_amount else None,
-                "price": price_per_vedolo,
-                "lock_days": lock_days
-            })
+                "odolo": round(odolo_amount, 2) if odolo_amount else None,
+                "lock_days": lock_days,
+            }
         else:
             errors += 1
             failed_txs.append(tx)
 
-        if (i + 1) % 100 == 0 or i == len(exercise_txs) - 1:
-            print(f"  [{i+1}/{len(exercise_txs)}] Addresses: {len(address_data)}, Errors: {errors}")
+        if (i + 1) % 50 == 0 or i == len(uncached_txs) - 1:
+            print(f"  [{i+1}/{len(uncached_txs)}] Fetched, Errors: {errors}")
 
         time.sleep(RATE_LIMIT_DELAY)
 
@@ -195,9 +205,6 @@ def main():
         recovered = 0
         for i, tx in enumerate(failed_txs):
             tx_hash = tx["hash"]
-            addr = tx["from"].lower()
-            timestamp = int(tx["timeStamp"])
-            date_str = time.strftime("%Y-%m-%d", time.gmtime(timestamp))
             lock_days = extract_lock_duration(tx)
 
             time.sleep(1.5)
@@ -206,35 +213,65 @@ def main():
             if usdc_amount is not None:
                 recovered += 1
                 errors -= 1
-                d = address_data[addr]
-                d["total_usdc"] += usdc_amount
-                d["exercises"] += 1
-                if lock_days is not None:
-                    d["lock_days_sum"] += lock_days
-                    d["lock_count"] += 1
-                if d["first"] is None or date_str < d["first"]:
-                    d["first"] = date_str
-                if d["last"] is None or date_str > d["last"]:
-                    d["last"] = date_str
-
-                vedolo_amount = odolo_amount if odolo_amount else None
-                price_per_vedolo = None
-                if usdc_amount and vedolo_amount and vedolo_amount > 0:
-                    price_per_vedolo = round(usdc_amount / vedolo_amount, 6)
-
-                d["txs"].append({
-                    "hash": tx_hash,
-                    "date": date_str,
+                cache[tx_hash] = {
                     "usdc": round(usdc_amount, 2),
-                    "vedolo": round(vedolo_amount, 2) if vedolo_amount else None,
-                    "price": price_per_vedolo,
-                    "lock_days": lock_days
-                })
+                    "odolo": round(odolo_amount, 2) if odolo_amount else None,
+                    "lock_days": lock_days,
+                }
 
             if (i + 1) % 25 == 0 or i == len(failed_txs) - 1:
                 print(f"    Retry [{i+1}/{len(failed_txs)}] Recovered: {recovered}")
 
         print(f"  Recovered {recovered}/{len(failed_txs)} previously failed receipts")
+
+    # Save cache for next run
+    save_cache(cache)
+    print(f"  💾 Saved {len(cache)} cached receipts to {CACHE_FILE}")
+
+    # Build final output from ALL exercise txs (cached + newly fetched)
+    print("\n  Building final output...")
+    address_data = defaultdict(lambda: {
+        "total_usdc": 0, "exercises": 0, "lock_days_sum": 0,
+        "lock_count": 0, "first": None, "last": None, "txs": []
+    })
+
+    for tx in exercise_txs:
+        tx_hash = tx["hash"]
+        if tx_hash not in cache:
+            continue  # skip any that still failed
+
+        cached = cache[tx_hash]
+        addr = tx["from"].lower()
+        timestamp = int(tx["timeStamp"])
+        date_str = time.strftime("%Y-%m-%d", time.gmtime(timestamp))
+        usdc_amount = cached["usdc"]
+        odolo_amount = cached.get("odolo")
+        lock_days = cached.get("lock_days")
+
+        d = address_data[addr]
+        d["total_usdc"] += usdc_amount
+        d["exercises"] += 1
+        if lock_days is not None:
+            d["lock_days_sum"] += lock_days
+            d["lock_count"] += 1
+        if d["first"] is None or date_str < d["first"]:
+            d["first"] = date_str
+        if d["last"] is None or date_str > d["last"]:
+            d["last"] = date_str
+
+        vedolo_amount = odolo_amount if odolo_amount else None
+        price_per_vedolo = None
+        if usdc_amount and vedolo_amount and vedolo_amount > 0:
+            price_per_vedolo = round(usdc_amount / vedolo_amount, 6)
+
+        d["txs"].append({
+            "hash": tx_hash,
+            "date": date_str,
+            "usdc": round(usdc_amount, 2),
+            "vedolo": round(vedolo_amount, 2) if vedolo_amount else None,
+            "price": price_per_vedolo,
+            "lock_days": lock_days
+        })
 
     # Build sorted list
     exercisers = []

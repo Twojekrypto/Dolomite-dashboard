@@ -15,7 +15,7 @@ permissions:
 jobs:
   update-odolo:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
 
     steps:
       - name: Checkout
@@ -39,6 +39,14 @@ jobs:
           key: early-exits-cache-${{ github.run_id }}
           restore-keys: |
             early-exits-cache-
+
+      - name: Restore exercisers cache
+        uses: actions/cache@v4
+        with:
+          path: exercisers_cache.json
+          key: exercisers-cache-${{ github.run_id }}
+          restore-keys: |
+            exercisers-cache-
 
       - name: Update exercised USD (incremental)
         run: python3 update_exercised_usd.py
@@ -65,12 +73,12 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add exercised_usd.json avg_lock_data.json exercisers_by_address.json odolo_contract_data.json early_exits.json
+          git add exercised_usd.json avg_lock_data.json exercisers_by_address.json odolo_contract_data.json early_exits.json early_exits_full.json
           git diff --staged --quiet && echo "No changes to commit" && exit 0
           git commit -m "📊 oDOLO data update: $(date -u '+%Y-%m-%d %H:%M UTC')"
           # Retry push with rebase up to 3 times to handle concurrent pushes
           for i in 1 2 3; do
-            git pull --rebase origin master && git push && break
+            git pull --rebase -X theirs origin master && git push && break
             echo "⚠️ Push attempt $i failed, retrying..."
             sleep 5
           done
