@@ -1286,6 +1286,8 @@
 
         .assets-table tbody tr.assets-data-row:hover {
             background: rgba(52, 211, 153, 0.04);
+            transform: scale(1.005);
+            transition: transform 0.15s, background 0.15s;
         }
 
         .assets-table tbody tr.assets-data-row:hover td:first-child {
@@ -9542,11 +9544,11 @@
                     <div class="table-scroll">
                         <table class="assets-table" id="assets-table">
                             <colgroup>
-                                <col style="width:51%">
-                                <col style="width:10%">
-                                <col style="width:10%">
-                                <col style="width:15%">
-                                <col style="width:14%">
+                                <col style="width:40%">
+                                <col style="width:12%">
+                                <col style="width:12%">
+                                <col style="width:18%">
+                                <col style="width:18%">
                             </colgroup>
                             <thead>
                                 <tr>
@@ -9582,15 +9584,15 @@
                                             </div>
                                         </div>
                                     </th>
-                                    <th data-col="price" style="text-align:center">Price <span
+                                    <th data-col="price" style="text-align:right">💰 Price <span
                                             class="sort-arrow"></span>
                                     </th>
-                                    <th data-col="chain" style="text-align:center">Chain <span
+                                    <th data-col="chain" style="text-align:center">⛓ Chain <span
                                             class="sort-arrow"></span></th>
-                                    <th data-col="supplyApr" class="sorted">
-                                        Supply <span class="sort-arrow">▼</span>
+                                    <th data-col="supplyApr" class="sorted" style="text-align:right">
+                                        📈 Supply <span class="sort-arrow">▼</span>
                                     </th>
-                                    <th data-col="borrowApr">Borrow <span class="sort-arrow"></span></th>
+                                    <th data-col="borrowApr" style="text-align:right">📉 Borrow <span class="sort-arrow"></span></th>
                                 </tr>
                             </thead>
                             <tbody id="assets-tbody"></tbody>
@@ -15167,19 +15169,19 @@
                             ${iconHtml}
                             <div>
                                 <div class="assets-token-name">${d.symbol}</div>
-                                ${d.addr ? `<div class="assets-token-full" style="display:inline-flex;align-items:center;gap:3px"><a href="${(ASSETS_CHAINS[d.chainKey]?.explorer || '#') + d.addr}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:rgba(255,255,255,0.35);font-family:monospace;font-size:9px;text-decoration:none" class="addr-tooltip-wrap" data-full-addr="${d.addr}">${d.addr.slice(0,6)}…${d.addr.slice(-4)}</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${d.addr}',this)" title="Copy address" style="opacity:0.4"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span></div>` : `<div class="assets-token-full">${d.name}</div>`}
+                                ${d.addr ? `<div class="assets-token-full" style="display:inline-flex;align-items:center;gap:3px"><a href="${(ASSETS_CHAINS[d.chainKey]?.explorer || '#') + d.addr}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:rgba(255,255,255,0.35);font-family:monospace;font-size:9px;text-decoration:none" class="addr-tooltip-wrap" data-full-addr="${d.addr}">${d.addr.slice(0,6)}…${d.addr.slice(-4)}</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${d.addr}',this)" title="Copy address" style="opacity:0.4"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span><a href="${(ASSETS_CHAINS[d.chainKey]?.explorer || '#') + d.addr}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="View on explorer" style="opacity:0.4;color:rgba(255,255,255,0.5);display:inline-flex"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div>` : `<div class="assets-token-full">${d.name}</div>`}
                             </div>
                         </div>
                     </td>
-                    <td style="font-size:13px;color:rgba(255,255,255,0.85)">${priceHtml}</td>
+                    <td style="font-size:13px;color:rgba(255,255,255,0.85);text-align:right">${priceHtml}</td>
                     <td><span class="assets-chain-badge"><img src="${d.chainIcon}" alt="">${d.chainShort}</span></td>
-                    <td>
+                    <td style="text-align:right">
                         <div>
                             <div><span class="${supplyClass}" style="${supplyStyle}">${displaySupply.toFixed(2)}%</span></div>
                             ${breakdownHtml}
                         </div>
                     </td>
-                    <td><span class="assets-apy-red">${d.borrowApr > 0 ? d.borrowApr.toFixed(2) + '%' : '—'}</span></td>
+                    <td style="text-align:right"><span class="assets-apy-red">${d.borrowApr > 0 ? d.borrowApr.toFixed(2) + '%' : '—'}</span></td>
                 </tr>`;
 
                 // Build detail row
@@ -15315,11 +15317,7 @@
 
             return `<tr class="assets-detail-row" id="${rowId}-detail"><td colspan="5">
                 <div class="assets-detail-wrap">
-                    ${d.addr ? `<div class="assets-detail-ca">
-                        <img src="${d.chainIcon}" alt="${d.chainShort}" class="assets-ca-chain-icon">
-                        <a href="${(ASSETS_CHAINS[d.chainKey]?.explorer || '#') + d.addr}" target="_blank" rel="noopener" class="assets-ca-address">${d.addr}</a>
-                        <button class="assets-ca-copy" onclick="assets_copyCA(this,'${d.addr}')" title="Copy address"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
-                    </div>` : ''}
+
                     <div class="assets-detail-sections">
                         ${supplySection}
                         ${borrowSection}
