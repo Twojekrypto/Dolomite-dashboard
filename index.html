@@ -8923,43 +8923,190 @@
         <!-- TVL VIEW -->
         <div id="view-tvl" class="view-section">
 
-            <!-- TVL Hero Section -->
-            <div class="anim anim-d1" style="margin-bottom:24px">
-                <div style="background:linear-gradient(135deg,rgba(16,185,129,0.08) 0%,rgba(99,102,241,0.06) 50%,rgba(16,185,129,0.04) 100%);border:1px solid rgba(16,185,129,0.15);border-radius:16px;padding:32px 32px 28px;position:relative;overflow:hidden">
-                    <!-- Subtle glow -->
-                    <div style="position:absolute;top:-40px;right:-40px;width:200px;height:200px;background:radial-gradient(circle,rgba(16,185,129,0.12) 0%,transparent 70%);pointer-events:none"></div>
+            <!-- ═══ TVL HERO — PREMIUM ═══ -->
+            <style>
+                @keyframes tvl-border-glow {
+                    0%,100% { opacity:.6; filter:blur(12px); }
+                    50% { opacity:1; filter:blur(18px); }
+                }
+                @keyframes tvl-shine {
+                    0% { transform:translateX(-100%) skewX(-15deg); }
+                    100% { transform:translateX(300%) skewX(-15deg); }
+                }
+                @keyframes tvl-pulse-ring {
+                    0%,100% { filter:drop-shadow(0 0 4px rgba(16,185,129,.3)); }
+                    50% { filter:drop-shadow(0 0 8px rgba(16,185,129,.5)); }
+                }
+                .tvl-hero-outer {
+                    position:relative;
+                    border-radius:18px;
+                    padding:2px;
+                    background:linear-gradient(135deg,rgba(16,185,129,.35),rgba(99,102,241,.25),rgba(16,185,129,.15));
+                    overflow:hidden;
+                    margin-bottom:24px;
+                }
+                .tvl-hero-outer::before {
+                    content:'';
+                    position:absolute;
+                    inset:-2px;
+                    border-radius:20px;
+                    background:linear-gradient(135deg,rgba(16,185,129,.25),rgba(99,102,241,.2),rgba(16,185,129,.1));
+                    animation:tvl-border-glow 4s ease-in-out infinite;
+                    z-index:0;
+                    pointer-events:none;
+                }
+                .tvl-hero-inner {
+                    position:relative;
+                    z-index:1;
+                    border-radius:16px;
+                    background:linear-gradient(145deg,rgba(10,15,28,.97) 0%,rgba(14,22,39,.96) 40%,rgba(10,18,32,.98) 100%);
+                    padding:28px 32px 24px;
+                    overflow:hidden;
+                }
+                .tvl-hero-inner::after {
+                    content:'';
+                    position:absolute;
+                    top:-50%;left:-20%;
+                    width:60%;height:120%;
+                    background:linear-gradient(90deg,transparent,rgba(255,255,255,.015),transparent);
+                    animation:tvl-shine 8s ease-in-out infinite;
+                    pointer-events:none;
+                }
+                .tvl-metric-card {
+                    background:rgba(255,255,255,.025);
+                    border:1px solid rgba(255,255,255,.06);
+                    border-radius:12px;
+                    padding:16px 18px;
+                    transition:all .3s ease;
+                    position:relative;
+                    overflow:hidden;
+                }
+                .tvl-metric-card:hover {
+                    background:rgba(255,255,255,.05);
+                    border-color:rgba(255,255,255,.12);
+                    transform:translateY(-2px);
+                    box-shadow:0 8px 24px rgba(0,0,0,.25);
+                }
+                .tvl-metric-card::before {
+                    content:'';
+                    position:absolute;
+                    top:0;left:0;right:0;height:2px;
+                    border-radius:12px 12px 0 0;
+                }
+                .tvl-metric-card.supply::before { background:linear-gradient(90deg,#3b82f6,#60a5fa); }
+                .tvl-metric-card.borrowed::before { background:linear-gradient(90deg,#f59e0b,#fbbf24); }
+                .tvl-metric-card.chains::before { background:linear-gradient(90deg,#818cf8,#a78bfa); }
+                .tvl-metric-card.utilization::before { background:linear-gradient(90deg,#10b981,#34d399); }
+                .tvl-metric-icon {
+                    width:32px;height:32px;border-radius:8px;
+                    display:flex;align-items:center;justify-content:center;
+                    margin-bottom:10px;
+                }
+                .tvl-ath-badge {
+                    display:inline-flex;align-items:center;gap:4px;
+                    font-size:11px;font-weight:600;letter-spacing:.5px;
+                    padding:3px 8px;border-radius:6px;
+                    background:rgba(251,191,36,.12);color:#fbbf24;
+                    border:1px solid rgba(251,191,36,.2);
+                }
+                .tvl-sparkline-wrap {
+                    position:absolute;bottom:0;right:0;width:200px;height:80px;opacity:.25;
+                    pointer-events:none;
+                }
+                @media (max-width:768px) {
+                    .tvl-hero-inner { padding:20px 16px 18px; }
+                    .tvl-sparkline-wrap { width:140px;height:60px; }
+                    .tvl-hero-grid { grid-template-columns:1fr 1fr !important; }
+                }
+                @media (max-width:480px) {
+                    .tvl-hero-grid { grid-template-columns:1fr !important; }
+                }
+            </style>
 
-                    <!-- Dolomite icon + label -->
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-                        <img src="https://icons.llama.fi/dolomite.jpg" alt="" style="width:22px;height:22px;border-radius:50%;border:1px solid rgba(255,255,255,0.1)">
-                        <span style="font-size:13px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:600">Dolomite Protocol — Total Value Locked</span>
+            <div class="tvl-hero-outer anim anim-d1">
+                <div class="tvl-hero-inner">
+                    <!-- Glow orbs -->
+                    <div style="position:absolute;top:-60px;right:-30px;width:220px;height:220px;background:radial-gradient(circle,rgba(16,185,129,.1) 0%,transparent 65%);pointer-events:none"></div>
+                    <div style="position:absolute;bottom:-40px;left:-20px;width:160px;height:160px;background:radial-gradient(circle,rgba(99,102,241,.08) 0%,transparent 65%);pointer-events:none"></div>
+
+                    <!-- Top row: label + ATH badge -->
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap">
+                        <img src="https://icons.llama.fi/dolomite.jpg" alt="" style="width:20px;height:20px;border-radius:50%;border:1px solid rgba(255,255,255,.1)">
+                        <span style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.8px;font-weight:600">Total Value Locked</span>
+                        <span id="tvl-ath-badge" class="tvl-ath-badge" style="display:none">
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1 L9 9 L1 9 Z" fill="#fbbf24"/></svg>
+                            ATH: <span id="tvl-ath-value">—</span>
+                        </span>
                     </div>
 
-                    <!-- Big TVL Value -->
-                    <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
-                        <div id="dolo-tvl" style="font-size:clamp(36px,5vw,48px);font-weight:700;color:#10b981;text-shadow:0 0 40px rgba(16,185,129,0.25);line-height:1.1;letter-spacing:-1px">—</div>
-                        <div id="dolo-tvl-24h" style="font-size:14px"></div>
+                    <!-- Main TVL value row -->
+                    <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;position:relative">
+                        <div id="dolo-tvl" style="font-size:clamp(40px,6vw,56px);font-weight:800;color:#10b981;text-shadow:0 0 60px rgba(16,185,129,.3),0 0 120px rgba(16,185,129,.1);line-height:1.05;letter-spacing:-1.5px;font-variant-numeric:tabular-nums">—</div>
+                        <div id="dolo-tvl-24h" style="font-size:14px;font-weight:600"></div>
                     </div>
 
-                    <!-- Secondary metrics row -->
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-top:24px">
-                        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px 16px">
-                            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Supply Liquidity</div>
-                            <div id="tvl-supply-liquidity" style="font-size:20px;font-weight:600;color:var(--text-primary)">—</div>
+                    <!-- 7-day mini sparkline -->
+                    <div class="tvl-sparkline-wrap">
+                        <svg id="tvl-sparkline" width="100%" height="100%" viewBox="0 0 200 80" preserveAspectRatio="none">
+                            <defs>
+                                <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stop-color="#10b981" stop-opacity=".4"/>
+                                    <stop offset="100%" stop-color="#10b981" stop-opacity="0"/>
+                                </linearGradient>
+                            </defs>
+                            <path id="tvl-spark-area" fill="url(#sparkGrad)" d=""/>
+                            <path id="tvl-spark-line" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d=""/>
+                        </svg>
+                    </div>
+
+                    <!-- Metrics grid -->
+                    <div class="tvl-hero-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:22px">
+                        <!-- Supply Liquidity -->
+                        <div class="tvl-metric-card supply">
+                            <div class="tvl-metric-icon" style="background:rgba(59,130,246,.12)">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 14V6l6-4 6 4v8H2z" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 14v-4h4v4" stroke="#3b82f6" stroke-width="1.5"/></svg>
+                            </div>
+                            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Supply Liquidity</div>
+                            <div id="tvl-supply-liquidity" style="font-size:22px;font-weight:700;color:var(--text-primary);letter-spacing:-.5px">—</div>
                         </div>
-                        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px 16px">
-                            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Total Borrowed</div>
-                            <div id="tvl-total-borrowed" style="font-size:20px;font-weight:600;color:#f59e0b">—</div>
+                        <!-- Total Borrowed -->
+                        <div class="tvl-metric-card borrowed">
+                            <div class="tvl-metric-icon" style="background:rgba(245,158,11,.12)">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 13V3h2v10H3zm4-6V3h2v4H7zm4 3V3h2v7h-2z" fill="#f59e0b"/></svg>
+                            </div>
+                            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Total Borrowed</div>
+                            <div id="tvl-total-borrowed" style="font-size:22px;font-weight:700;color:#f59e0b;letter-spacing:-.5px">—</div>
                         </div>
-                        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px 16px">
-                            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Active Chains</div>
-                            <div id="tvl-chain-count" style="font-size:20px;font-weight:600;color:#818cf8">—</div>
+                        <!-- Utilization -->
+                        <div class="tvl-metric-card utilization">
+                            <div style="display:flex;align-items:flex-start;gap:12px">
+                                <div style="flex-shrink:0;margin-top:2px">
+                                    <svg id="tvl-util-ring" width="44" height="44" viewBox="0 0 44 44" style="animation:tvl-pulse-ring 3s ease-in-out infinite">
+                                        <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="4"/>
+                                        <circle id="tvl-util-arc" cx="22" cy="22" r="18" fill="none" stroke="#10b981" stroke-width="4" stroke-linecap="round"
+                                            stroke-dasharray="0 113.1" transform="rotate(-90 22 22)" style="transition:stroke-dasharray 1.5s cubic-bezier(.4,0,.2,1)"/>
+                                        <text x="22" y="24" text-anchor="middle" fill="#10b981" font-size="11" font-weight="700" id="tvl-util-pct">—</text>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Utilization</div>
+                                    <div id="tvl-utilization-val" style="font-size:22px;font-weight:700;color:#10b981;letter-spacing:-.5px">—</div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Active Chains -->
+                        <div class="tvl-metric-card chains">
+                            <div class="tvl-metric-icon" style="background:rgba(129,140,248,.12)">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="4" cy="4" r="2" fill="#818cf8"/><circle cx="12" cy="4" r="2" fill="#818cf8"/><circle cx="8" cy="12" r="2" fill="#818cf8"/><path d="M5.5 5.5L7 10.5M10.5 5.5L9 10.5M5 4h6" stroke="#818cf8" stroke-width="1" stroke-linecap="round"/></svg>
+                            </div>
+                            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Active Chains</div>
+                            <div id="tvl-chain-count" style="font-size:22px;font-weight:700;color:#818cf8;letter-spacing:-.5px">—</div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- TVL by Chain -->
+            <!-- ═══ TVL BY CHAIN ═══ -->
             <div class="card anim anim-d2">
                 <div class="card-header" style="flex-direction:column;align-items:stretch">
                     <h3>TVL by Chain</h3>
@@ -12627,8 +12774,53 @@
                 if (tbEl) tbEl.textContent = dolo_fmt(totalBorrowed);
                 if (ccEl) ccEl.textContent = chainTvls.length;
 
+                // Utilization ring
+                const utilPct = supplyLiquidity > 0 ? ((totalBorrowed / supplyLiquidity) * 100) : 0;
+                const utilValEl = document.getElementById('tvl-utilization-val');
+                const utilPctEl = document.getElementById('tvl-util-pct');
+                const utilArc = document.getElementById('tvl-util-arc');
+                if (utilValEl) utilValEl.textContent = utilPct.toFixed(1) + '%';
+                if (utilPctEl) utilPctEl.textContent = Math.round(utilPct) + '%';
+                if (utilArc) {
+                    const circumference = 2 * Math.PI * 18; // r=18
+                    const dashLen = (utilPct / 100) * circumference;
+                    setTimeout(() => { utilArc.setAttribute('stroke-dasharray', `${dashLen} ${circumference}`); }, 100);
+                }
+
+                // TVL History + sparkline + ATH
                 const tvlHist = llRes.tvl || [];
                 dolo_allTvlPoints = tvlHist.map(p => ({ date: new Date(p.date * 1000), tvl: p.totalLiquidityUSD }));
+
+                // Draw 30-day sparkline in hero
+                if (dolo_allTvlPoints.length > 1) {
+                    const recent = dolo_allTvlPoints.slice(-30);
+                    const minY = Math.min(...recent.map(p => p.tvl));
+                    const maxY = Math.max(...recent.map(p => p.tvl));
+                    const range = maxY - minY || 1;
+                    const pts = recent.map((p, i) => {
+                        const x = (i / (recent.length - 1)) * 200;
+                        const y = 75 - ((p.tvl - minY) / range) * 70;
+                        return `${x.toFixed(1)},${y.toFixed(1)}`;
+                    });
+                    const lineD = 'M' + pts.join('L');
+                    const areaD = lineD + `L200,80L0,80Z`;
+                    const sparkLine = document.getElementById('tvl-spark-line');
+                    const sparkArea = document.getElementById('tvl-spark-area');
+                    if (sparkLine) sparkLine.setAttribute('d', lineD);
+                    if (sparkArea) sparkArea.setAttribute('d', areaD);
+                }
+
+                // ATH badge
+                if (dolo_allTvlPoints.length > 0) {
+                    const athVal = Math.max(...dolo_allTvlPoints.map(p => p.tvl));
+                    const athBadge = document.getElementById('tvl-ath-badge');
+                    const athValue = document.getElementById('tvl-ath-value');
+                    if (athBadge && athValue) {
+                        athValue.textContent = dolo_fmt(athVal);
+                        athBadge.style.display = 'inline-flex';
+                    }
+                }
+
                 dolo_currentRange = 360;
                 dolo_applyRange(360);
                 dolo_renderTvlChart(dolo_cachedData);
