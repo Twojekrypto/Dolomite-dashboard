@@ -8287,7 +8287,7 @@
                 </div>
                 <div id="vedolo-flow-loading" style="text-align:center;padding:30px;color:var(--text-muted)">
                     <div class="spinner" style="margin:0 auto 8px"></div>
-                    Scanning on-chain events…
+                    Loading veDOLO events…
                 </div>
                 <div class="dolo-flow-grid" id="vedolo-flow-grid" style="display:none">
                     <!-- LEFT: Recent DOLO Locks (green) -->
@@ -11851,19 +11851,10 @@
         }
 
         // ========== RECENT veDOLO CLAIMS + DOLO LOCKS ==========
-        const VEDOLO_CONTRACT_ADDR = '0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4';
-        const VEDOLO_WITHDRAW_TOPIC = '0x02f25270a4d87bea75db541cdfe559334a275b4a233520ed6c0a2429667cca94';
-        const VEDOLO_DEPOSIT_TOPIC = '0xff04ccafc360e16b67d682d17bd9503c4c6b9a131f6be6325762dc9ffc7de624';
-        const VEDOLO_RPC_URLS = [
-            'https://berachain-rpc.publicnode.com/',
-            'https://berachain.drpc.org/',
-            'https://rpc.berachain.com/',
-        ];
-        const VEDOLO_BLOCK_STEP = 49999;
         const VEDOLO_PER_PAGE = 5;
 
-        let vedolo_allClaims = []; // All Withdraw events from 180d scan
-        let vedolo_allLocks = [];  // All Deposit events from 180d scan
+        let vedolo_allClaims = []; // All Withdraw events from pre-cached JSON
+        let vedolo_allLocks = [];  // All Deposit events from pre-cached JSON
         let vedolo_filteredClaims = [];
         let vedolo_filteredLocks = [];
         let vedolo_claimsPeriod = 7;
@@ -11901,120 +11892,27 @@
             renderRecentLocks();
         }
 
-        async function vedolo_rpcCall(method, params) {
-            for (const rpc of VEDOLO_RPC_URLS) {
-                try {
-                    const resp = await fetch(rpc, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })
-                    });
-                    const data = await resp.json();
-                    if (data.result !== undefined) return data.result;
-                } catch (e) { /* try next */ }
-            }
-            return null;
-        }
-
         async function vedolo_fetchEvents() {
             if (vedolo_eventsLoaded) return;
-            console.log('veDOLO: Fetching on-chain events...');
+            console.log('veDOLO: Loading pre-cached events from JSON...');
 
-            const latestHex = await vedolo_rpcCall('eth_blockNumber', []);
-            if (!latestHex) {
-                console.warn('veDOLO: Could not get latest block');
+            try {
+                const resp = await fetch('vedolo_flows.json?t=' + Date.now());
+                if (!resp.ok) throw new Error('Failed to fetch vedolo_flows.json');
+                const json = await resp.json();
+
+                vedolo_allClaims = (json.unlocks || []);
+                vedolo_allLocks = (json.locks || []);
+
+                // Sort by timestamp desc
+                vedolo_allClaims.sort((a, b) => b.timestamp - a.timestamp);
+                vedolo_allLocks.sort((a, b) => b.timestamp - a.timestamp);
+
+                console.log(`veDOLO: Loaded ${vedolo_allClaims.length} unlocks, ${vedolo_allLocks.length} locks`);
+            } catch (e) {
+                console.warn('veDOLO: Could not load events JSON:', e);
                 return;
             }
-            const latestBlock = parseInt(latestHex, 16);
-            // ~5s per block, 180 days = 180*24*3600/5 = 3110400 blocks
-            const fromBlock = Math.max(0, latestBlock - 3110400);
-
-            const allWithdrawLogs = [];
-            const allDepositLogs = [];
-
-            // Paginate in 10K block chunks
-            for (let block = fromBlock; block <= latestBlock; block += VEDOLO_BLOCK_STEP + 1) {
-                const toBlock = Math.min(block + VEDOLO_BLOCK_STEP, latestBlock);
-
-                // Fetch both event types in parallel
-                const [wdLogs, depLogs] = await Promise.all([
-                    vedolo_rpcCall('eth_getLogs', [{
-                        address: VEDOLO_CONTRACT_ADDR,
-                        topics: [VEDOLO_WITHDRAW_TOPIC],
-                        fromBlock: '0x' + block.toString(16),
-                        toBlock: '0x' + toBlock.toString(16)
-                    }]),
-                    vedolo_rpcCall('eth_getLogs', [{
-                        address: VEDOLO_CONTRACT_ADDR,
-                        topics: [VEDOLO_DEPOSIT_TOPIC],
-                        fromBlock: '0x' + block.toString(16),
-                        toBlock: '0x' + toBlock.toString(16)
-                    }])
-                ]);
-
-                if (wdLogs) allWithdrawLogs.push(...wdLogs);
-                if (depLogs) allDepositLogs.push(...depLogs);
-            }
-
-            console.log(`veDOLO: Found ${allWithdrawLogs.length} Withdraw, ${allDepositLogs.length} Deposit events`);
-
-            // Decode Withdraw events (Claims)
-            // Withdraw(address indexed provider) + data: [tokenId, value, timestamp]
-            vedolo_allClaims = allWithdrawLogs.map(log => {
-                const provider = '0x' + log.topics[1].slice(26);
-                const data = log.data.slice(2);
-                const tokenId = parseInt(data.slice(0, 64), 16);
-                const value = parseInt(data.slice(64, 128), 16) / 1e18;
-                const ts = parseInt(data.slice(128, 192), 16);
-                return {
-                    address: provider.toLowerCase(),
-                    txHash: log.transactionHash,
-                    tokenId,
-                    dolo: value,
-                    timestamp: ts,
-                    date: new Date(ts * 1000).toISOString().slice(0, 10),
-                    block: parseInt(log.blockNumber, 16),
-                };
-            });
-
-            // Build set of oDOLO exercise tx hashes for badge detection
-            const exerciseTxSet = new Set();
-            (typeof EXERCISER_DATA !== 'undefined' ? EXERCISER_DATA : []).forEach(e => {
-                (e.txs || []).forEach(tx => { if (tx.hash) exerciseTxSet.add(tx.hash.toLowerCase()); });
-            });
-
-            // Decode Deposit events (Locks)
-            // Deposit(address indexed provider, uint256 indexed locktime) + data: [tokenId, value, deposit_type, timestamp]
-            vedolo_allLocks = allDepositLogs.map(log => {
-                const provider = '0x' + log.topics[1].slice(26);
-                const locktime = parseInt(log.topics[2], 16); // Unix timestamp of lock end
-                const data = log.data.slice(2);
-                const tokenId = parseInt(data.slice(0, 64), 16);
-                const value = parseInt(data.slice(64, 128), 16) / 1e18;
-                const depositType = parseInt(data.slice(128, 192), 16);
-                const ts = parseInt(data.slice(192, 256), 16);
-
-                // Calculate lock duration = locktime - timestamp
-                const lockDurationDays = Math.round((locktime - ts) / 86400);
-
-                return {
-                    address: provider.toLowerCase(),
-                    txHash: log.transactionHash,
-                    tokenId,
-                    dolo: value,
-                    lockDays: lockDurationDays,
-                    locktime,
-                    depositType,
-                    isOdolo: exerciseTxSet.has(log.transactionHash.toLowerCase()),
-                    timestamp: ts,
-                    date: new Date(ts * 1000).toISOString().slice(0, 10),
-                    block: parseInt(log.blockNumber, 16),
-                };
-            });
-
-            // Sort by date desc
-            vedolo_allClaims.sort((a, b) => b.timestamp - a.timestamp);
-            vedolo_allLocks.sort((a, b) => b.timestamp - a.timestamp);
 
             vedolo_eventsLoaded = true;
 

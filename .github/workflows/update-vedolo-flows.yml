@@ -1,0 +1,58 @@
+name: Update veDOLO Flows
+
+on:
+  schedule:
+    - cron: '15 */6 * * *'  # Every 6 hours at :15
+  workflow_dispatch:
+
+concurrency:
+  group: vedolo-flows-push
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Restore veDOLO flows sync state
+        uses: actions/cache@v4
+        with:
+          path: vedolo_flows_state.json
+          key: vedolo-flows-state-${{ github.run_number }}
+          restore-keys: |
+            vedolo-flows-state-
+
+      - name: Generate veDOLO flows
+        env:
+          ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
+          ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
+        run: python generate_vedolo_flows.py
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add vedolo_flows.json
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "🔄 Update veDOLO flows data — $(date -u '+%Y-%m-%d %H:%M UTC')"
+          for i in 1 2 3; do
+            git pull --rebase origin master && git push && break
+            echo "⚠️ Push attempt $i failed, retrying..."
+            sleep 5
+          done
