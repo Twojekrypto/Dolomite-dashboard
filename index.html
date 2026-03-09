@@ -11506,17 +11506,13 @@
             // Render pagination
             const el = document.getElementById('ct-pagination');
             if (!el) return;
-            if (totalPages <= 1) { el.innerHTML = `<span style="color:rgba(255,255,255,0.3);font-size:12px">1 / 1</span>`; return; }
+            if (totalPages <= 1) { el.innerHTML = `<span class="flow-pager-info">1 / 1</span>`; return; }
 
-            let h = `<button class="pg-btn" onclick="odolo_claimerPage=1;odolo_renderClaimerTable()" ${odolo_claimerPage === 1 ? 'disabled' : ''}>«</button>`;
-            h += `<button class="pg-btn" onclick="odolo_claimerPage--;odolo_renderClaimerTable()" ${odolo_claimerPage === 1 ? 'disabled' : ''}>‹</button>`;
-            for (let p = Math.max(1, odolo_claimerPage - 1); p <= Math.min(totalPages, odolo_claimerPage + 1); p++) {
-                h += `<button class="pg-btn${p === odolo_claimerPage ? ' pg-active' : ''}" onclick="odolo_claimerPage=${p};odolo_renderClaimerTable()">${p}</button>`;
-            }
-            h += `<button class="pg-btn" onclick="odolo_claimerPage++;odolo_renderClaimerTable()" ${odolo_claimerPage === totalPages ? 'disabled' : ''}>›</button>`;
-            h += `<button class="pg-btn" onclick="odolo_claimerPage=${totalPages};odolo_renderClaimerTable()" ${odolo_claimerPage === totalPages ? 'disabled' : ''}>»</button>`;
-            h += `<span style="color:rgba(255,255,255,0.3);font-size:12px;margin-left:8px">${odolo_claimerPage} / ${totalPages}</span>`;
-            el.innerHTML = h;
+            el.innerHTML = `<button class="flow-pager-btn" onclick="odolo_claimerPage=1;odolo_renderClaimerTable()" ${odolo_claimerPage === 1 ? 'disabled' : ''}>«</button>` +
+                `<button class="flow-pager-btn" onclick="odolo_claimerPage--;odolo_renderClaimerTable()" ${odolo_claimerPage === 1 ? 'disabled' : ''}>‹</button>` +
+                `<span class="flow-pager-info">${odolo_claimerPage} / ${totalPages}</span>` +
+                `<button class="flow-pager-btn" onclick="odolo_claimerPage++;odolo_renderClaimerTable()" ${odolo_claimerPage === totalPages ? 'disabled' : ''}>›</button>` +
+                `<button class="flow-pager-btn" onclick="odolo_claimerPage=${totalPages};odolo_renderClaimerTable()" ${odolo_claimerPage === totalPages ? 'disabled' : ''}>»</button>`;
         }
 
         // Period pills for claimer table
@@ -11908,17 +11904,11 @@
             const el = document.getElementById('recent-ex-pagination');
             if (!el || totalPages <= 1) { if (el) el.innerHTML = ''; return; }
 
-            let h = `<button class="pg-btn" onclick="recentExPage=1;renderRecentExercisers()" ${recentExPage === 1 ? 'disabled' : ''}>«</button>`;
-            h += `<button class="pg-btn" onclick="recentExPage--;renderRecentExercisers()" ${recentExPage === 1 ? 'disabled' : ''}>‹</button>`;
-
-            for (let p = Math.max(1, recentExPage - 1); p <= Math.min(totalPages, recentExPage + 1); p++) {
-                h += `<button class="pg-btn ${p === recentExPage ? 'active' : ''}" onclick="recentExPage=${p};renderRecentExercisers()">${p}</button>`;
-            }
-
-            h += `<button class="pg-btn" onclick="recentExPage++;renderRecentExercisers()" ${recentExPage === totalPages ? 'disabled' : ''}>›</button>`;
-            h += `<button class="pg-btn" onclick="recentExPage=${totalPages};renderRecentExercisers()" ${recentExPage === totalPages ? 'disabled' : ''}>»</button>`;
-            h += `<span class="pg-info">${recentExPage} / ${totalPages}</span>`;
-            el.innerHTML = h;
+            el.innerHTML = `<button class="flow-pager-btn" onclick="recentExPage=1;renderRecentExercisers()" ${recentExPage === 1 ? 'disabled' : ''}>«</button>` +
+                `<button class="flow-pager-btn" onclick="recentExPage--;renderRecentExercisers()" ${recentExPage === 1 ? 'disabled' : ''}>‹</button>` +
+                `<span class="flow-pager-info">${recentExPage} / ${totalPages}</span>` +
+                `<button class="flow-pager-btn" onclick="recentExPage++;renderRecentExercisers()" ${recentExPage === totalPages ? 'disabled' : ''}>›</button>` +
+                `<button class="flow-pager-btn" onclick="recentExPage=${totalPages};renderRecentExercisers()" ${recentExPage === totalPages ? 'disabled' : ''}>»</button>`;
         }
 
         // ========== RECENT veDOLO CLAIMS + DOLO LOCKS ==========
@@ -12311,15 +12301,11 @@
             const el = document.getElementById(containerId);
             if (!el || totalPages <= 1) { if (el) el.innerHTML = ''; return; }
 
-            let h = `<button class="pg-btn" onclick="${pageVar}=1;${renderFn}()" ${currentPage === 1 ? 'disabled' : ''}>«</button>`;
-            h += `<button class="pg-btn" onclick="${pageVar}--;${renderFn}()" ${currentPage === 1 ? 'disabled' : ''}>‹</button>`;
-            for (let p = Math.max(1, currentPage - 1); p <= Math.min(totalPages, currentPage + 1); p++) {
-                h += `<button class="pg-btn ${p === currentPage ? 'active' : ''}" onclick="${pageVar}=${p};${renderFn}()">${p}</button>`;
-            }
-            h += `<button class="pg-btn" onclick="${pageVar}++;${renderFn}()" ${currentPage === totalPages ? 'disabled' : ''}>›</button>`;
-            h += `<button class="pg-btn" onclick="${pageVar}=${totalPages};${renderFn}()" ${currentPage === totalPages ? 'disabled' : ''}>»</button>`;
-            h += `<span class="pg-info">${currentPage} / ${totalPages}</span>`;
-            el.innerHTML = h;
+            el.innerHTML = `<button class="flow-pager-btn" onclick="${pageVar}=1;${renderFn}()" ${currentPage === 1 ? 'disabled' : ''}>«</button>` +
+                `<button class="flow-pager-btn" onclick="${pageVar}--;${renderFn}()" ${currentPage === 1 ? 'disabled' : ''}>‹</button>` +
+                `<span class="flow-pager-info">${currentPage} / ${totalPages}</span>` +
+                `<button class="flow-pager-btn" onclick="${pageVar}++;${renderFn}()" ${currentPage === totalPages ? 'disabled' : ''}>›</button>` +
+                `<button class="flow-pager-btn" onclick="${pageVar}=${totalPages};${renderFn}()" ${currentPage === totalPages ? 'disabled' : ''}>»</button>`;
         }
 
         function renderExercisersTable() {
@@ -12385,17 +12371,11 @@
             const el = document.getElementById('exerciser-pagination');
             if (!el || totalPages <= 1) { if (el) el.innerHTML = ''; return; }
 
-            let h = `<button class="pg-btn" onclick="exerciserPage=1;renderExercisersTable()" ${exerciserPage === 1 ? 'disabled' : ''}>«</button>`;
-            h += `<button class="pg-btn" onclick="exerciserPage--;renderExercisersTable()" ${exerciserPage === 1 ? 'disabled' : ''}>‹</button>`;
-
-            for (let p = Math.max(1, exerciserPage - 1); p <= Math.min(totalPages, exerciserPage + 1); p++) {
-                h += `<button class="pg-btn ${p === exerciserPage ? 'active' : ''}" onclick="exerciserPage=${p};renderExercisersTable()">${p}</button>`;
-            }
-
-            h += `<button class="pg-btn" onclick="exerciserPage++;renderExercisersTable()" ${exerciserPage === totalPages ? 'disabled' : ''}>›</button>`;
-            h += `<button class="pg-btn" onclick="exerciserPage=${totalPages};renderExercisersTable()" ${exerciserPage === totalPages ? 'disabled' : ''}>»</button>`;
-            h += `<span class="pg-info">${exerciserPage} / ${totalPages}</span>`;
-            el.innerHTML = h;
+            el.innerHTML = `<button class="flow-pager-btn" onclick="exerciserPage=1;renderExercisersTable()" ${exerciserPage === 1 ? 'disabled' : ''}>«</button>` +
+                `<button class="flow-pager-btn" onclick="exerciserPage--;renderExercisersTable()" ${exerciserPage === 1 ? 'disabled' : ''}>‹</button>` +
+                `<span class="flow-pager-info">${exerciserPage} / ${totalPages}</span>` +
+                `<button class="flow-pager-btn" onclick="exerciserPage++;renderExercisersTable()" ${exerciserPage === totalPages ? 'disabled' : ''}>›</button>` +
+                `<button class="flow-pager-btn" onclick="exerciserPage=${totalPages};renderExercisersTable()" ${exerciserPage === totalPages ? 'disabled' : ''}>»</button>`;
         }
 
         function openExerciserModal(addr, rank) {
@@ -12952,17 +12932,11 @@
             const el = document.getElementById('dolo-holder-pagination');
             if (total <= 1) { el.innerHTML = ''; return; }
 
-            let h = `<button class="pg-btn" onclick="dolo_goHolderPage(1)" ${dolo_holderPage === 1 ? 'disabled' : ''}>«</button>`;
-            h += `<button class="pg-btn" onclick="dolo_goHolderPage(${dolo_holderPage - 1})" ${dolo_holderPage === 1 ? 'disabled' : ''}>‹</button>`;
-
-            for (let p = Math.max(1, dolo_holderPage - 1); p <= Math.min(total, dolo_holderPage + 1); p++) {
-                h += `<button class="pg-btn ${p === dolo_holderPage ? 'active' : ''}" onclick="dolo_goHolderPage(${p})">${p}</button>`;
-            }
-
-            h += `<button class="pg-btn" onclick="dolo_goHolderPage(${dolo_holderPage + 1})" ${dolo_holderPage === total ? 'disabled' : ''}>›</button>`;
-            h += `<button class="pg-btn" onclick="dolo_goHolderPage(${total})" ${dolo_holderPage === total ? 'disabled' : ''}>»</button>`;
-            h += `<span class="pg-info">${dolo_holderPage} / ${total}</span>`;
-            el.innerHTML = h;
+            el.innerHTML = `<button class="flow-pager-btn" onclick="dolo_goHolderPage(1)" ${dolo_holderPage === 1 ? 'disabled' : ''}>«</button>` +
+                `<button class="flow-pager-btn" onclick="dolo_goHolderPage(${dolo_holderPage - 1})" ${dolo_holderPage === 1 ? 'disabled' : ''}>‹</button>` +
+                `<span class="flow-pager-info">${dolo_holderPage} / ${total}</span>` +
+                `<button class="flow-pager-btn" onclick="dolo_goHolderPage(${dolo_holderPage + 1})" ${dolo_holderPage === total ? 'disabled' : ''}>›</button>` +
+                `<button class="flow-pager-btn" onclick="dolo_goHolderPage(${total})" ${dolo_holderPage === total ? 'disabled' : ''}>»</button>`;
         }
 
         function dolo_goHolderPage(p) {
