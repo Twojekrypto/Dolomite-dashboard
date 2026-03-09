@@ -8249,69 +8249,11 @@
                 <div class="table-footer" id="pagination"></div>
             </div>
 
-            <!-- RECENT veDOLO UNLOCKS (COMPLETED VESTINGS) -->
-            <div class="card anim anim-d3" id="recent-claims-section" style="margin-top: 20px;">
+            <!-- veDOLO FLOW (LOCKS + UNLOCKS) -->
+            <div class="card anim anim-d3" id="vedolo-flow-card" style="margin-top: 20px;">
                 <div class="card-header">
                     <h3 style="display:flex;align-items:center;gap:8px"><img src="vedolo-logo.svg" width="22"
-                            height="22" alt="veDOLO" style="flex-shrink:0"> Recent veDOLO Unlocks <span
-                            class="toolbar-count" id="recent-claims-count"
-                            style="font-size:0.85em;opacity:0.7;font-weight:500"></span></h3>
-                </div>
-                <div class="dolo-flow-toolbar">
-                    <div style="display:flex;flex-direction:column;gap:3px">
-                        <div class="search-input-wrapper" style="width:300px;min-width:160px">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="11" cy="11" r="8" />
-                                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                            </svg>
-                            <input type="text" id="recent-claims-search" placeholder="0x… or TX hash"
-                                oninput="recentClaimsSearchChanged()" style="font-size:12px;padding:7px 12px 7px 32px">
-                        </div>
-                    </div>
-                    <div style="display:flex;flex-direction:column;gap:3px;margin-left:auto">
-                        <div id="recent-claims-period-btns" class="dolo-chain-pills" style="width:fit-content">
-                            <div class="dolo-chain-slider"></div>
-                            <button data-period="1">1D</button>
-                            <button class="active" data-period="7">7D</button>
-                            <button data-period="30">30D</button>
-                            <button data-period="90">90D</button>
-                            <button data-period="180">180D</button>
-                            <button data-period="99999">ALL</button>
-                        </div>
-                    </div>
-                </div>
-                <div id="recent-claims-loading" style="text-align:center;padding:30px;color:var(--text-muted)">
-                    <div class="spinner" style="margin:0 auto 8px"></div>
-                    Scanning on-chain events…
-                </div>
-                <div class="table-scroll" id="recent-claims-table-wrap" style="display:none">
-                    <table id="recent-claims-table" style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
-                        <colgroup>
-                            <col style="width:36px">
-                            <col style="width:50%">
-                            <col style="width:calc(100% - 36px - 50%)">
-                        </colgroup>
-                        <thead style="position:sticky;top:0;z-index:2;background:#141825">
-                            <tr>
-                                <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)" data-sort="rank" onclick="sortRecentClaims('rank')"># <span class="arrow">▼</span></th>
-                                <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="tx" onclick="sortRecentClaims('tx')">TX / Address <span class="arrow">⇅</span></th>
-                                <th style="padding:8px 6px;text-align:right;color:#34d399;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="dolo" onclick="sortRecentClaims('dolo')">🟢 DOLO Unlocked <span class="arrow">⇅</span></th>
-                            </tr>
-                        </thead>
-                        <tbody id="recent-claims-tbody"></tbody>
-                    </table>
-                </div>
-                <div class="table-footer" id="recent-claims-pagination"></div>
-            </div>
-
-            <!-- RECENT DOLO LOCKS -->
-            <div class="card anim anim-d3" id="recent-locks-section" style="margin-top: 20px;">
-                <div class="card-header">
-                    <h3 style="display:flex;align-items:center;gap:8px"><img src="vedolo-logo.svg" width="22"
-                            height="22" alt="veDOLO" style="flex-shrink:0"> Recent DOLO Locks <span
-                            class="toolbar-count" id="recent-locks-count"
-                            style="font-size:0.85em;opacity:0.7;font-weight:500"></span></h3>
+                            height="22" alt="veDOLO" style="flex-shrink:0"> veDOLO Flow</h3>
                 </div>
                 <div class="dolo-flow-toolbar">
                     <div style="display:flex;align-items:center;gap:8px">
@@ -8321,8 +8263,8 @@
                                 <circle cx="11" cy="11" r="8" />
                                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
                             </svg>
-                            <input type="text" id="recent-locks-search" placeholder="0x… or TX hash"
-                                oninput="recentLocksSearchChanged()" style="font-size:12px;padding:7px 12px 7px 32px">
+                            <input type="text" id="vedolo-flow-search" placeholder="0x… or TX hash"
+                                oninput="vedoloFlowSearchChanged()" style="font-size:12px;padding:7px 12px 7px 32px">
                         </div>
                         <div id="recent-locks-type-btns" class="dolo-chain-pills" style="width:fit-content">
                             <div class="dolo-chain-slider"></div>
@@ -8331,8 +8273,8 @@
                             <button data-locktype="direct">Direct</button>
                         </div>
                     </div>
-                    <div style="margin-left:auto">
-                        <div id="recent-locks-period-btns" class="dolo-chain-pills" style="width:fit-content">
+                    <div style="display:flex;flex-direction:column;gap:3px;margin-left:auto">
+                        <div id="vedolo-flow-period-btns" class="dolo-chain-pills" style="width:fit-content">
                             <div class="dolo-chain-slider"></div>
                             <button data-period="1">1D</button>
                             <button class="active" data-period="7">7D</button>
@@ -8343,30 +8285,54 @@
                         </div>
                     </div>
                 </div>
-                <div id="recent-locks-loading" style="text-align:center;padding:30px;color:var(--text-muted)">
+                <div id="vedolo-flow-loading" style="text-align:center;padding:30px;color:var(--text-muted)">
                     <div class="spinner" style="margin:0 auto 8px"></div>
                     Scanning on-chain events…
                 </div>
-                <div class="table-scroll" id="recent-locks-table-wrap" style="display:none">
-                    <table id="recent-locks-table" style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
-                        <colgroup>
-                            <col style="width:36px">
-                            <col style="width:42%">
-                            <col style="width:calc((100% - 36px - 42%) / 2)">
-                            <col style="width:calc((100% - 36px - 42%) / 2)">
-                        </colgroup>
-                        <thead style="position:sticky;top:0;z-index:2;background:#141825">
-                            <tr>
-                                <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)" data-sort="rank" onclick="sortRecentLocks('rank')"># <span class="arrow">▼</span></th>
-                                <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="tx" onclick="sortRecentLocks('tx')">TX / Address <span class="arrow">⇅</span></th>
-                                <th style="padding:8px 6px;text-align:right;color:#34d399;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="dolo" onclick="sortRecentLocks('dolo')">🟢 DOLO Locked <span class="arrow">⇅</span></th>
-                                <th style="padding:8px 6px;text-align:right;color:#22d3ee;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="lock" onclick="sortRecentLocks('lock')">🔵 Lock <span class="arrow">⇅</span></th>
-                            </tr>
-                        </thead>
-                        <tbody id="recent-locks-tbody"></tbody>
-                    </table>
+                <div class="dolo-flow-grid" id="vedolo-flow-grid" style="display:none">
+                    <!-- LEFT: Recent DOLO Locks (green) -->
+                    <div class="dolo-flow-table-wrap">
+                        <div class="dolo-flow-label dolo-flow-label-buy">🟢 Recent DOLO Locks <span class="toolbar-count" id="recent-locks-count" style="font-size:0.85em;opacity:0.7;font-weight:500"></span></div>
+                        <table style="table-layout:fixed;width:100%;border-collapse:collapse;font-size:12px">
+                            <colgroup>
+                                <col style="width:28px">
+                                <col style="width:45%">
+                                <col style="width:calc((100% - 28px - 45%) / 2)">
+                                <col style="width:calc((100% - 28px - 45%) / 2)">
+                            </colgroup>
+                            <thead style="position:sticky;top:0;z-index:2;background:#141825">
+                                <tr>
+                                    <th style="padding:8px 5px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" onclick="sortRecentLocks('rank')"># <span class="arrow">▼</span></th>
+                                    <th style="padding:8px 5px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" onclick="sortRecentLocks('tx')">TX / Address <span class="arrow">⇅</span></th>
+                                    <th style="padding:8px 5px;text-align:right;color:#34d399;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" onclick="sortRecentLocks('dolo')">🟢 DOLO <span class="arrow">⇅</span></th>
+                                    <th style="padding:8px 5px;text-align:right;color:#22d3ee;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" onclick="sortRecentLocks('lock')">🔵 Lock <span class="arrow">⇅</span></th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-locks-tbody"></tbody>
+                        </table>
+                        <div id="recent-locks-pagination" class="flow-pager" style="display:none"></div>
+                    </div>
+                    <!-- RIGHT: Recent veDOLO Unlocks (red) -->
+                    <div class="dolo-flow-table-wrap">
+                        <div class="dolo-flow-label dolo-flow-label-sell">🔴 Recent veDOLO Unlocks <span class="toolbar-count" id="recent-claims-count" style="font-size:0.85em;opacity:0.7;font-weight:500"></span></div>
+                        <table style="table-layout:fixed;width:100%;border-collapse:collapse;font-size:12px">
+                            <colgroup>
+                                <col style="width:28px">
+                                <col style="width:50%">
+                                <col style="width:calc(100% - 28px - 50%)">
+                            </colgroup>
+                            <thead style="position:sticky;top:0;z-index:2;background:#141825">
+                                <tr>
+                                    <th style="padding:8px 5px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" onclick="sortRecentClaims('rank')"># <span class="arrow">▼</span></th>
+                                    <th style="padding:8px 5px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" onclick="sortRecentClaims('tx')">TX / Address <span class="arrow">⇅</span></th>
+                                    <th style="padding:8px 5px;text-align:right;color:#f87171;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" onclick="sortRecentClaims('dolo')">🔴 DOLO Unlocked <span class="arrow">⇅</span></th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-claims-tbody"></tbody>
+                        </table>
+                        <div id="recent-claims-pagination" class="flow-pager" style="display:none"></div>
+                    </div>
                 </div>
-                <div class="table-footer" id="recent-locks-pagination"></div>
             </div>
 
             <!-- Protocol Info -->
@@ -11919,14 +11885,24 @@
         let recentLocksTypeFilter = 'all'; // 'all', 'odolo', 'direct'
 
         function recentClaimsSearchChanged() {
-            recentClaimsSearchTerm = (document.getElementById('recent-claims-search').value || '').trim().toLowerCase();
+            recentClaimsSearchTerm = (document.getElementById('vedolo-flow-search').value || '').trim().toLowerCase();
             vedolo_claimsPage = 1;
             renderRecentClaims();
         }
 
         function recentLocksSearchChanged() {
-            recentLocksSearchTerm = (document.getElementById('recent-locks-search').value || '').trim().toLowerCase();
+            recentLocksSearchTerm = (document.getElementById('vedolo-flow-search').value || '').trim().toLowerCase();
             vedolo_locksPage = 1;
+            renderRecentLocks();
+        }
+
+        function vedoloFlowSearchChanged() {
+            const term = (document.getElementById('vedolo-flow-search').value || '').trim().toLowerCase();
+            recentClaimsSearchTerm = term;
+            recentLocksSearchTerm = term;
+            vedolo_claimsPage = 1;
+            vedolo_locksPage = 1;
+            renderRecentClaims();
             renderRecentLocks();
         }
 
@@ -12047,15 +12023,11 @@
 
             vedolo_eventsLoaded = true;
 
-            // Hide loading, show tables
-            const cl = document.getElementById('recent-claims-loading');
-            const ll = document.getElementById('recent-locks-loading');
-            if (cl) cl.style.display = 'none';
-            if (ll) ll.style.display = 'none';
-            const cw = document.getElementById('recent-claims-table-wrap');
-            const lw = document.getElementById('recent-locks-table-wrap');
-            if (cw) cw.style.display = '';
-            if (lw) lw.style.display = '';
+            // Hide loading, show grid
+            const fl = document.getElementById('vedolo-flow-loading');
+            const fg = document.getElementById('vedolo-flow-grid');
+            if (fl) fl.style.display = 'none';
+            if (fg) fg.style.display = '';
 
             vedolo_filterAndRenderClaims();
             vedolo_filterAndRenderLocks();
@@ -12086,9 +12058,6 @@
         // ---- CLAIMS ----
         function setRecentClaimsPeriod(days) {
             vedolo_claimsPeriod = days;
-            document.querySelectorAll('#recent-claims-period-btns button[data-period]').forEach(btn => {
-                btn.classList.toggle('active', parseInt(btn.dataset.period) === days);
-            });
             vedolo_claimsPage = 1;
             vedolo_filterAndRenderClaims();
         }
@@ -12163,7 +12132,7 @@
                     '<div style="display:flex;align-items:center;gap:6px"><a href="' + berascanUrl + '" target="_blank" style="color:#60a5fa;font-family:monospace;font-size:11px;text-decoration:none" onclick="event.stopPropagation()">' + shortHash + '</a><a href="' + berascanUrl + '" target="_blank" onclick="event.stopPropagation()" class="tx-ext-icon" title="View on BeraScan" style="display:inline-flex;align-items:center;margin-left:3px;opacity:0.35;color:rgba(255,255,255,0.5);transition:opacity 0.2s,transform 0.2s;vertical-align:middle"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a><span style="font-size:10px;color:rgba(255,255,255,0.25)">' + vedolo_fmtDate(c.date) + '</span></div>' +
                     '<div style="display:inline-flex;align-items:center;gap:4px"><a href="https://debank.com/profile/' + c.address + '?chain=bera" target="_blank" style="color:#fff;font-family:monospace;font-size:11px;text-decoration:none" class="addr-tooltip-wrap" data-full-addr="' + c.address + '" onclick="event.stopPropagation()">' + vedolo_shortAddr(c.address) + '</a><span class="copy-addr-icon" style="flex-shrink:0" onclick="event.stopPropagation();copyAddr(\'' + c.address + '\',this)" title="Copy address">' + COPY_ICON + '</span><a href="https://debank.com/profile/' + c.address + '?chain=bera" target="_blank" onclick="event.stopPropagation()" class="debank-icon" style="flex-shrink:0" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display=\'none\'"></a></div>' +
                     '</div></td>';
-                html += '<td style="padding:4px 5px;text-align:right;color:#34d399;font-weight:600;font-size:11px">' + vedolo_fmtDolo(c.dolo) + ' DOLO</td>';
+                html += '<td style="padding:4px 5px;text-align:right;color:#f87171;font-weight:600;font-size:11px">' + vedolo_fmtDolo(c.dolo) + ' DOLO</td>';
                 html += '</tr>';
             });
             tbody.innerHTML = html;
@@ -12175,10 +12144,16 @@
         // ---- LOCKS ----
         function setRecentLocksPeriod(days) {
             vedolo_locksPeriod = days;
-            document.querySelectorAll('#recent-locks-period-btns button[data-period]').forEach(btn => {
-                btn.classList.toggle('active', parseInt(btn.dataset.period) === days);
-            });
             vedolo_locksPage = 1;
+            vedolo_filterAndRenderLocks();
+        }
+
+        function setVedoloFlowPeriod(days) {
+            vedolo_claimsPeriod = days;
+            vedolo_locksPeriod = days;
+            vedolo_claimsPage = 1;
+            vedolo_locksPage = 1;
+            vedolo_filterAndRenderClaims();
             vedolo_filterAndRenderLocks();
         }
 
@@ -14389,16 +14364,10 @@
                 if (!isNaN(period)) setRecentExPeriod(period);
             });
 
-            // Recent veDOLO Unlocks period pills
-            setupPills('recent-claims-period-btns', btn => {
+            // veDOLO Flow — unified period pills
+            setupPills('vedolo-flow-period-btns', btn => {
                 const period = parseInt(btn.dataset.period);
-                if (!isNaN(period)) setRecentClaimsPeriod(period);
-            });
-
-            // Recent DOLO Locks period pills
-            setupPills('recent-locks-period-btns', btn => {
-                const period = parseInt(btn.dataset.period);
-                if (!isNaN(period)) setRecentLocksPeriod(period);
+                if (!isNaN(period)) setVedoloFlowPeriod(period);
             });
 
             // Recent DOLO Locks type filter pills
