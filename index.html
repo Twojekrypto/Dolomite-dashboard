@@ -7975,6 +7975,22 @@
             </div>
             <nav class="header-nav-bar">
                 <div class="nav-tabs">
+                    <button class="nav-tab" id="tab-assets" onclick="switchView('assets')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 3v18h18" />
+                            <path d="M7 16l4-8 4 4 4-6" />
+                        </svg>
+                        ASSETS
+                    </button>
+                    <button class="nav-tab" id="tab-tvl" onclick="switchView('tvl')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 21H4.6c-.56 0-.84 0-1.054-.109a1 1 0 01-.437-.437C3 20.24 3 19.96 3 19.4V3" />
+                            <path d="M7 14l4-4 4 4 6-6" />
+                        </svg>
+                        TVL
+                    </button>
                     <button class="nav-tab active" id="tab-dolo" onclick="switchView('dolo')">
                         <img src="dolo-logo.svg" alt="DOLO">
                         DOLO
@@ -7993,14 +8009,6 @@
                             <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                         </svg>
                         EARN
-                    </button>
-                    <button class="nav-tab" id="tab-assets" onclick="switchView('assets')">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M3 3v18h18" />
-                            <path d="M7 16l4-8 4 4 4-6" />
-                        </svg>
-                        ASSETS
                     </button>
 
                 </div>
@@ -8912,71 +8920,24 @@
 
         </div><!-- /view-odolo -->
 
-        <!-- DOLO TOKEN VIEW -->
-        <div id="view-dolo" class="view-section active">
-
-            <!-- DOLO METRICS -->
+        <!-- TVL VIEW -->
+        <div id="view-tvl" class="view-section">
+            <!-- TVL METRICS -->
             <div class="metrics-strip anim anim-d1">
-                <div class="metric-cell">
-                    <div class="metric-label" style="display:flex;align-items:center;gap:5px"><img
-                            src="https://icons.llama.fi/dolomite.jpg" alt=""
-                            style="width:14px;height:14px;border-radius:50%">DOLO Price</div>
-                    <div class="metric-value" id="dolo-price">—</div>
-                    <div class="metric-sub" id="dolo-change"></div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-label">Market Cap</div>
-                    <div class="metric-value" id="dolo-mcap">—</div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-label">FDV</div>
-                    <div class="metric-value" id="dolo-fdv">—</div>
-                </div>
                 <div class="metric-cell">
                     <div class="metric-label">Total TVL</div>
                     <div class="metric-value" style="color:var(--accent-green)" id="dolo-tvl">—</div>
                     <div class="metric-sub" id="dolo-tvl-24h"></div>
                 </div>
-                <div class="metric-cell">
-                    <div class="metric-label">24h Volume</div>
-                    <div class="metric-value" id="dolo-vol">—</div>
-                    <div class="metric-sub" id="dolo-vol-24h"></div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-label" style="display:flex;align-items:center;gap:5px"><img
-                            src="https://icons.llama.fi/dolomite.jpg" alt=""
-                            style="width:14px;height:14px;border-radius:50%">Circulating Supply</div>
-                    <div class="metric-value" id="dolo-circ-supply">—</div>
-                </div>
             </div>
 
-            <!-- DOLO ANALYTICS -->
-            <div class="analytics-grid anim anim-d2" style="grid-template-columns:1fr 1fr">
-                <!-- TVL by Chain -->
-                <div class="card">
-                    <div class="card-header" style="flex-direction:column;align-items:stretch">
-                        <h3>Total TVL</h3>
-                        <div id="dolo-chain-summary" style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap"></div>
-                    </div>
-                    <div id="dolo-chain-bars" style="padding:8px 0 12px 0"></div>
+            <!-- TVL by Chain -->
+            <div class="card anim anim-d2" style="margin-top:24px">
+                <div class="card-header" style="flex-direction:column;align-items:stretch">
+                    <h3>Total TVL</h3>
+                    <div id="dolo-chain-summary" style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap"></div>
                 </div>
-
-                <!-- Token Composition Donut -->
-                <div class="card">
-                    <div class="card-header">
-                        <h3>Token Composition</h3>
-                    </div>
-                    <div id="dolo-chain-filter" class="dolo-chain-pills"></div>
-                    <div style="display:flex;flex-direction:column;align-items:center;padding:20px">
-                        <div id="dolo-donut-wrap" style="position:relative;width:260px;height:260px;flex-shrink:0">
-                            <canvas id="dolo-token-donut" style="width:260px;height:260px"></canvas>
-                            <div id="dolo-donut-center"
-                                style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
-                            </div>
-                        </div>
-                        <div id="dolo-token-legend" class="dolo-legend-v2"></div>
-                    </div>
-                </div>
+                <div id="dolo-chain-bars" style="padding:8px 0 12px 0"></div>
             </div>
 
             <!-- TVL History Chart -->
@@ -9052,6 +9013,58 @@
                     </div>
                 </div>
             </div><!-- /TVL History card -->
+
+        </div><!-- /view-tvl -->
+
+        <!-- DOLO TOKEN VIEW -->
+        <div id="view-dolo" class="view-section active">
+
+            <!-- DOLO METRICS -->
+            <div class="metrics-strip anim anim-d1">
+                <div class="metric-cell">
+                    <div class="metric-label" style="display:flex;align-items:center;gap:5px"><img
+                            src="https://icons.llama.fi/dolomite.jpg" alt=""
+                            style="width:14px;height:14px;border-radius:50%">DOLO Price</div>
+                    <div class="metric-value" id="dolo-price">—</div>
+                    <div class="metric-sub" id="dolo-change"></div>
+                </div>
+                <div class="metric-cell">
+                    <div class="metric-label">Market Cap</div>
+                    <div class="metric-value" id="dolo-mcap">—</div>
+                </div>
+                <div class="metric-cell">
+                    <div class="metric-label">FDV</div>
+                    <div class="metric-value" id="dolo-fdv">—</div>
+                </div>
+                <div class="metric-cell">
+                    <div class="metric-label">24h Volume</div>
+                    <div class="metric-value" id="dolo-vol">—</div>
+                    <div class="metric-sub" id="dolo-vol-24h"></div>
+                </div>
+                <div class="metric-cell">
+                    <div class="metric-label" style="display:flex;align-items:center;gap:5px"><img
+                            src="https://icons.llama.fi/dolomite.jpg" alt=""
+                            style="width:14px;height:14px;border-radius:50%">Circulating Supply</div>
+                    <div class="metric-value" id="dolo-circ-supply">—</div>
+                </div>
+            </div>
+
+            <!-- Token Composition -->
+            <div class="card anim anim-d2" style="margin-top:24px">
+                <div class="card-header">
+                    <h3>Token Composition</h3>
+                </div>
+                <div id="dolo-chain-filter" class="dolo-chain-pills"></div>
+                <div style="display:flex;flex-direction:column;align-items:center;padding:20px">
+                    <div id="dolo-donut-wrap" style="position:relative;width:260px;height:260px;flex-shrink:0">
+                        <canvas id="dolo-token-donut" style="width:260px;height:260px"></canvas>
+                        <div id="dolo-donut-center"
+                            style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
+                        </div>
+                    </div>
+                    <div id="dolo-token-legend" class="dolo-legend-v2"></div>
+                </div>
+            </div>
 
             <!-- DOLO Holders Table -->
             <div class="card anim anim-d4" style="margin-top:24px" id="dolo-holders-card">
@@ -10849,7 +10862,7 @@
             currentView = view;
 
             // Toggle view sections
-            ['vedolo', 'odolo', 'dolo', 'earn', 'assets'].forEach(v => {
+            ['vedolo', 'odolo', 'dolo', 'earn', 'assets', 'tvl'].forEach(v => {
                 document.getElementById('view-' + v).classList.toggle('active', view === v);
                 document.getElementById('tab-' + v).classList.toggle('active', view === v);
             });
@@ -10858,7 +10871,7 @@
             setTimeout(repositionAllSliders, 50);
 
             // Update page title
-            const titles = { vedolo: 'veDOLO', odolo: 'oDOLO', dolo: 'DOLO', earn: 'EARN', assets: 'ASSETS' };
+            const titles = { vedolo: 'veDOLO', odolo: 'oDOLO', dolo: 'DOLO', earn: 'EARN', assets: 'ASSETS', tvl: 'TVL' };
             document.title = (titles[view] || 'Dashboard') + ' — Berachain Dashboard';
 
             // Load assets data on first visit
@@ -10871,10 +10884,16 @@
                 setTimeout(() => odolo_renderDonut(odolo_cachedData), 50);
             }
 
+            // Re-render TVL charts on switch to TVL tab
+            if (view === 'tvl' && dolo_cachedData) {
+                setTimeout(() => {
+                    dolo_renderTvlChart(dolo_cachedData);
+                }, 50);
+            }
+
             // Re-render DOLO charts on switch
             if (view === 'dolo' && dolo_cachedData) {
                 setTimeout(() => {
-                    dolo_renderTvlChart(dolo_cachedData);
                     dolo_renderTokenDonut(dolo_cachedData);
                 }, 50);
             }
