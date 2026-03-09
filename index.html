@@ -1326,6 +1326,23 @@
             padding: 2px;
         }
 
+        .assets-token-icon-wrap {
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .assets-chain-overlay {
+            position: absolute;
+            bottom: -2px;
+            right: -3px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 1.5px solid #1a1f2e;
+            background: #1a1f2e;
+            object-fit: cover;
+        }
+
         .assets-token-name {
             font-weight: 600;
             font-size: 13px;
@@ -8860,7 +8877,7 @@
             <!-- oDOLO Flow — Top Accumulators & Sellers -->
             <div class="card anim anim-d4" style="margin-top:24px" id="odolo-flows-card">
                 <div class="card-header">
-                    <h3>oDOLO Flow</h3>
+                    <h3 style="display:flex;align-items:center;gap:8px"><img src="odolo-logo-official.svg" width="22" height="22" alt="oDOLO" style="flex-shrink:0"> oDOLO Flow</h3>
                 </div>
                 <div class="dolo-flow-toolbar">
                     <div style="display:flex;flex-direction:column;gap:3px">
@@ -9560,11 +9577,10 @@
                     <div class="table-scroll">
                         <table class="assets-table" id="assets-table">
                             <colgroup>
-                                <col style="width:38%">
-                                <col style="width:10%">
-                                <col style="width:16%">
+                                <col style="width:30%">
                                 <col style="width:18%">
-                                <col style="width:18%">
+                                <col style="width:26%">
+                                <col style="width:26%">
                             </colgroup>
                             <thead>
                                 <tr>
@@ -9600,15 +9616,13 @@
                                             </div>
                                         </div>
                                     </th>
-                                    <th data-col="chain" style="text-align:center">⛓ Chain <span
-                                            class="sort-arrow">⇅</span></th>
                                     <th data-col="price" style="text-align:right;color:#fff">⚪ Price <span
                                             class="sort-arrow">⇅</span>
                                     </th>
-                                    <th data-col="supplyApr" class="sorted" style="text-align:right;color:#34d399">
+                                    <th data-col="supplyApr" class="sorted" style="text-align:left;color:#34d399">
                                         🟢 Supply <span class="sort-arrow">▼</span>
                                     </th>
-                                    <th data-col="borrowApr" style="text-align:right;color:#f87171">🔴 Borrow <span class="sort-arrow">⇅</span></th>
+                                    <th data-col="borrowApr" style="text-align:left;color:#f87171">🔴 Borrow <span class="sort-arrow">⇅</span></th>
                                 </tr>
                             </thead>
                             <tbody id="assets-tbody"></tbody>
@@ -14997,7 +15011,9 @@
 
         function assets_bindSortHeaders() {
             document.querySelectorAll('#assets-table thead th[data-col]').forEach(th => {
-                th.addEventListener('click', () => {
+                th.addEventListener('click', (e) => {
+                    // Don't sort when clicking inside search input, filter buttons, etc.
+                    if (e.target.closest('input, .assets-th-filter-btn, .assets-th-filter-dropdown, button')) return;
                     const col = th.dataset.col;
                     if (assets_sortCol === col) {
                         assets_sortAsc = !assets_sortAsc;
@@ -15062,7 +15078,7 @@
             const tbody = document.getElementById('assets-tbody');
             if (!tbody) return;
             if (data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:40px;color:rgba(255,255,255,0.3)">No assets found</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:40px;color:rgba(255,255,255,0.3)">No assets found</td></tr>`;
                 return;
             }
 
@@ -15084,9 +15100,9 @@
                 const grayStyle = GRAYSCALE_SYMBOLS.has(d.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
                 let iconHtml;
                 if (known && known.icon) {
-                    iconHtml = `<div class="assets-token-icon"><img src="${known.icon}" alt="${d.symbol}"${grayStyle} onerror="this.parentElement.textContent='${(d.symbol || '?').slice(0, 2)}'"></div>`;
+                    iconHtml = `<div class="assets-token-icon-wrap"><div class="assets-token-icon"><img src="${known.icon}" alt="${d.symbol}"${grayStyle} onerror="this.parentElement.textContent='${(d.symbol || '?').slice(0, 2)}'"></div><img class="assets-chain-overlay" src="${d.chainIcon}" alt="${d.chainShort}"></div>`;
                 } else {
-                    iconHtml = `<div class="assets-token-icon">${(d.symbol || '?').slice(0, 2)}</div>`;
+                    iconHtml = `<div class="assets-token-icon-wrap"><div class="assets-token-icon">${(d.symbol || '?').slice(0, 2)}</div><img class="assets-chain-overlay" src="${d.chainIcon}" alt="${d.chainShort}"></div>`;
                 }
 
                 // Supply APR breakdown: lending + yield sources + oDOLO
@@ -15163,15 +15179,14 @@
                             </div>
                         </div>
                     </td>
-                    <td><span class="assets-chain-badge"><img src="${d.chainIcon}" alt="">${d.chainShort}</span></td>
                     <td style="font-size:13px;color:rgba(255,255,255,0.85);text-align:right">${priceHtml}</td>
-                    <td style="text-align:right">
+                    <td style="text-align:left">
                         <div>
                             <div><span class="${supplyClass}" style="${supplyStyle}">${displaySupply.toFixed(2)}%</span></div>
                             ${breakdownHtml}
                         </div>
                     </td>
-                    <td style="text-align:right"><span class="assets-apy-red">${d.borrowApr > 0 ? d.borrowApr.toFixed(2) + '%' : '—'}</span></td>
+                    <td style="text-align:left"><span class="assets-apy-red">${d.borrowApr > 0 ? d.borrowApr.toFixed(2) + '%' : '—'}</span></td>
                 </tr>`;
 
                 // Build detail row
@@ -15216,7 +15231,7 @@
         function assets_buildDetailRow(rowId, d, md) {
             if (!md) {
                 const msg = assets_marketDataLoaded ? 'Data not available on this chain' : 'Loading market data...';
-                return `<tr class="assets-detail-row" id="${rowId}-detail"><td colspan="5">
+                return `<tr class="assets-detail-row" id="${rowId}-detail"><td colspan="4">
                     <div class="assets-detail-wrap" style="text-align:center;padding:20px 0;opacity:0.4">
                         <div class="assets-metric-label">${msg}</div>
                     </div>
@@ -15305,7 +15320,7 @@
                 </div>`;
             }
 
-            return `<tr class="assets-detail-row" id="${rowId}-detail"><td colspan="5">
+            return `<tr class="assets-detail-row" id="${rowId}-detail"><td colspan="4">
                 <div class="assets-detail-wrap">
 
                     <div class="assets-detail-sections">
