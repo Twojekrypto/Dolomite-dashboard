@@ -11859,11 +11859,11 @@
             'https://berachain.drpc.org/',
             'https://rpc.berachain.com/',
         ];
-        const VEDOLO_BLOCK_STEP = 9999;
+        const VEDOLO_BLOCK_STEP = 49999;
         const VEDOLO_PER_PAGE = 5;
 
-        let vedolo_allClaims = []; // All Withdraw events from 30d scan
-        let vedolo_allLocks = [];  // All Deposit events from 30d scan
+        let vedolo_allClaims = []; // All Withdraw events from 180d scan
+        let vedolo_allLocks = [];  // All Deposit events from 180d scan
         let vedolo_filteredClaims = [];
         let vedolo_filteredLocks = [];
         let vedolo_claimsPeriod = 7;
@@ -11926,8 +11926,8 @@
                 return;
             }
             const latestBlock = parseInt(latestHex, 16);
-            // ~5s per block, 30 days = 30*24*3600/5 = 518400 blocks
-            const fromBlock = Math.max(0, latestBlock - 518400);
+            // ~5s per block, 180 days = 180*24*3600/5 = 3110400 blocks
+            const fromBlock = Math.max(0, latestBlock - 3110400);
 
             const allWithdrawLogs = [];
             const allDepositLogs = [];
