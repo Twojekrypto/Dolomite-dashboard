@@ -8291,7 +8291,7 @@
                 </div>
                 <div class="dolo-flow-grid" id="vedolo-flow-grid" style="display:none">
                     <!-- LEFT: Recent DOLO Locks (green) -->
-                    <div class="dolo-flow-table-wrap">
+                    <div class="dolo-flow-table-wrap" style="min-height:320px;display:flex;flex-direction:column">
                         <div class="dolo-flow-label dolo-flow-label-buy">🟢 Recent DOLO Locks <span class="toolbar-count" id="recent-locks-count" style="font-size:0.85em;opacity:0.7;font-weight:500"></span></div>
                         <table id="recent-locks-table" style="table-layout:fixed;width:100%;border-collapse:collapse;font-size:12px">
                             <colgroup>
@@ -8310,10 +8310,10 @@
                             </thead>
                             <tbody id="recent-locks-tbody"></tbody>
                         </table>
-                        <div id="recent-locks-pagination" class="flow-pager" style="display:none"></div>
+                        <div id="recent-locks-pagination" class="flow-pager" style="margin-top:auto"></div>
                     </div>
                     <!-- RIGHT: Recent veDOLO Unlocks (red) -->
-                    <div class="dolo-flow-table-wrap">
+                    <div class="dolo-flow-table-wrap" style="min-height:320px;display:flex;flex-direction:column">
                         <div class="dolo-flow-label dolo-flow-label-sell">🔴 Recent veDOLO Unlocks <span class="toolbar-count" id="recent-claims-count" style="font-size:0.85em;opacity:0.7;font-weight:500"></span></div>
                         <table id="recent-claims-table" style="table-layout:fixed;width:100%;border-collapse:collapse;font-size:12px">
                             <colgroup>
@@ -8330,7 +8330,7 @@
                             </thead>
                             <tbody id="recent-claims-tbody"></tbody>
                         </table>
-                        <div id="recent-claims-pagination" class="flow-pager" style="display:none"></div>
+                        <div id="recent-claims-pagination" class="flow-pager" style="margin-top:auto"></div>
                     </div>
                 </div>
             </div>
@@ -12139,9 +12139,9 @@
 
         // Generic pagination renderer for vedolo tables
         function vedolo_renderPagination(containerId, total, perPage, currentPage, pageVar, renderFn) {
-            const totalPages = Math.ceil(total / perPage);
+            const totalPages = Math.max(1, Math.ceil(total / perPage));
             const el = document.getElementById(containerId);
-            if (!el || totalPages <= 1) { if (el) { el.innerHTML = ''; el.style.display = 'none'; } return; }
+            if (!el) return;
             el.style.display = '';
 
             el.innerHTML = `<button class="flow-pager-btn" onclick="${pageVar}=1;${renderFn}()" ${currentPage === 1 ? 'disabled' : ''}>«</button>` +
