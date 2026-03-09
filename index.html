@@ -9210,33 +9210,135 @@
         <!-- DOLO TOKEN VIEW -->
         <div id="view-dolo" class="view-section active">
 
-            <!-- DOLO METRICS -->
-            <div class="metrics-strip anim anim-d1">
-                <div class="metric-cell">
-                    <div class="metric-label" style="display:flex;align-items:center;gap:5px"><img
-                            src="https://icons.llama.fi/dolomite.jpg" alt=""
-                            style="width:14px;height:14px;border-radius:50%">DOLO Price</div>
-                    <div class="metric-value" id="dolo-price">—</div>
-                    <div class="metric-sub" id="dolo-change"></div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-label">Market Cap</div>
-                    <div class="metric-value" id="dolo-mcap">—</div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-label">FDV</div>
-                    <div class="metric-value" id="dolo-fdv">—</div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-label">24h Volume</div>
-                    <div class="metric-value" id="dolo-vol">—</div>
-                    <div class="metric-sub" id="dolo-vol-24h"></div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-label" style="display:flex;align-items:center;gap:5px"><img
-                            src="https://icons.llama.fi/dolomite.jpg" alt=""
-                            style="width:14px;height:14px;border-radius:50%">Circulating Supply</div>
-                    <div class="metric-value" id="dolo-circ-supply">—</div>
+            <!-- ═══ DOLO HERO — PREMIUM ═══ -->
+            <style>
+                @keyframes dolo-border-glow {
+                    0%,100% { opacity:.6; filter:blur(12px); }
+                    50% { opacity:1; filter:blur(18px); }
+                }
+                .dolo-hero-outer {
+                    position:relative;
+                    border-radius:18px;
+                    padding:2px;
+                    background:linear-gradient(135deg,rgba(99,102,241,.35),rgba(168,85,247,.25),rgba(99,102,241,.15));
+                    overflow:hidden;
+                }
+                .dolo-hero-outer::before {
+                    content:'';position:absolute;inset:-2px;border-radius:20px;
+                    background:linear-gradient(135deg,rgba(99,102,241,.25),rgba(168,85,247,.2),rgba(99,102,241,.1));
+                    animation:dolo-border-glow 4s ease-in-out infinite;
+                    z-index:0;pointer-events:none;
+                }
+                .dolo-hero-inner {
+                    position:relative;z-index:1;border-radius:16px;
+                    background:linear-gradient(145deg,rgba(10,12,28,.97) 0%,rgba(14,16,39,.96) 40%,rgba(10,14,32,.98) 100%);
+                    padding:28px 32px 24px;overflow:hidden;
+                }
+                .dolo-hero-inner::after {
+                    content:'';position:absolute;top:-50%;left:-20%;width:60%;height:120%;
+                    background:linear-gradient(90deg,transparent,rgba(255,255,255,.015),transparent);
+                    animation:tvl-shine 8s ease-in-out infinite;pointer-events:none;
+                }
+                .dolo-metric-card {
+                    background:rgba(255,255,255,.03);
+                    backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+                    border:1px solid rgba(255,255,255,.08);border-radius:14px;
+                    padding:18px 20px;transition:all .35s cubic-bezier(.4,0,.2,1);
+                    position:relative;overflow:hidden;
+                }
+                .dolo-metric-card:hover {
+                    background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.15);
+                    transform:translateY(-3px);
+                    box-shadow:0 12px 32px rgba(0,0,0,.3),0 0 0 1px rgba(255,255,255,.05);
+                }
+                .dolo-metric-card::before {
+                    content:'';position:absolute;top:0;left:0;right:0;height:2px;
+                    border-radius:14px 14px 0 0;
+                }
+                .dolo-metric-card.price-card::before { background:linear-gradient(90deg,#6366f1,#818cf8); }
+                .dolo-metric-card.mcap-card::before { background:linear-gradient(90deg,#10b981,#34d399); }
+                .dolo-metric-card.fdv-card::before { background:linear-gradient(90deg,#3b82f6,#60a5fa); }
+                .dolo-metric-card.vol-card::before { background:linear-gradient(90deg,#f59e0b,#fbbf24); }
+                .dolo-metric-card.supply-card::before { background:linear-gradient(90deg,#a78bfa,#c4b5fd); }
+                .dolo-metric-icon {
+                    width:36px;height:36px;border-radius:10px;
+                    display:flex;align-items:center;justify-content:center;
+                    margin-bottom:12px;position:relative;
+                }
+                .dolo-metric-icon::after {
+                    content:'';position:absolute;inset:0;border-radius:10px;
+                    opacity:0;transition:opacity .3s;
+                }
+                .dolo-metric-card:hover .dolo-metric-icon::after { opacity:1; }
+                .dolo-metric-card.price-card .dolo-metric-icon::after { box-shadow:0 0 12px rgba(99,102,241,.3); }
+                .dolo-metric-card.mcap-card .dolo-metric-icon::after { box-shadow:0 0 12px rgba(16,185,129,.3); }
+                .dolo-metric-card.fdv-card .dolo-metric-icon::after { box-shadow:0 0 12px rgba(59,130,246,.3); }
+                .dolo-metric-card.vol-card .dolo-metric-icon::after { box-shadow:0 0 12px rgba(245,158,11,.3); }
+                .dolo-metric-card.supply-card .dolo-metric-icon::after { box-shadow:0 0 12px rgba(167,139,250,.3); }
+                @media (max-width:768px) {
+                    .dolo-hero-inner { padding:20px 16px 18px; }
+                    .dolo-hero-grid { grid-template-columns:1fr 1fr !important; }
+                }
+                @media (max-width:480px) {
+                    .dolo-hero-grid { grid-template-columns:1fr !important; }
+                }
+            </style>
+
+            <div class="dolo-hero-outer anim anim-d1">
+                <div class="dolo-hero-inner">
+                    <!-- Glow orbs -->
+                    <div style="position:absolute;top:-60px;right:-30px;width:220px;height:220px;background:radial-gradient(circle,rgba(99,102,241,.1) 0%,transparent 65%);pointer-events:none"></div>
+                    <div style="position:absolute;bottom:-40px;left:-20px;width:160px;height:160px;background:radial-gradient(circle,rgba(168,85,247,.08) 0%,transparent 65%);pointer-events:none"></div>
+
+                    <!-- Top label -->
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap">
+                        <img src="https://icons.llama.fi/dolomite.jpg" alt="" style="width:20px;height:20px;border-radius:50%;border:1px solid rgba(255,255,255,.1)">
+                        <span style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.8px;font-weight:600">DOLO Token</span>
+                        <span style="font-size:10px;color:var(--text-muted);padding:2px 8px;border-radius:20px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(8px)">via CoinGecko</span>
+                    </div>
+
+                    <!-- Main Price row -->
+                    <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;position:relative">
+                        <div id="dolo-price" style="font-size:clamp(40px,6vw,56px);font-weight:800;color:#818cf8;text-shadow:0 0 60px rgba(99,102,241,.3),0 0 120px rgba(99,102,241,.1);line-height:1.05;letter-spacing:-1.5px;font-variant-numeric:tabular-nums">—</div>
+                        <div id="dolo-change" style="font-size:14px;font-weight:600"></div>
+                    </div>
+
+                    <!-- Metrics grid -->
+                    <div class="dolo-hero-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:24px">
+                        <!-- Market Cap -->
+                        <div class="dolo-metric-card mcap-card">
+                            <div class="dolo-metric-icon" style="background:rgba(16,185,129,.12)">
+                                <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#10b981" stroke-width="1.5"/><path d="M8 5v6M6 7l2-2 2 2M6 9l2 2 2-2" stroke="#10b981" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </div>
+                            <div class="tvl-metric-label">Market Cap</div>
+                            <div id="dolo-mcap" class="tvl-metric-value" style="color:#10b981">—</div>
+                        </div>
+                        <!-- FDV -->
+                        <div class="dolo-metric-card fdv-card">
+                            <div class="dolo-metric-icon" style="background:rgba(59,130,246,.12)">
+                                <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="10" rx="2" stroke="#3b82f6" stroke-width="1.5"/><path d="M5 7h6M5 10h3" stroke="#3b82f6" stroke-width="1.2" stroke-linecap="round"/></svg>
+                            </div>
+                            <div class="tvl-metric-label">Fully Diluted Val.</div>
+                            <div id="dolo-fdv" class="tvl-metric-value" style="color:#3b82f6">—</div>
+                        </div>
+                        <!-- 24h Volume -->
+                        <div class="dolo-metric-card vol-card">
+                            <div class="dolo-metric-icon" style="background:rgba(245,158,11,.12)">
+                                <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M3 13V7h2v6H3zm4-4V5h2v4H7zm4 4V3h2v10h-2z" fill="#f59e0b"/></svg>
+                            </div>
+                            <div class="tvl-metric-label">24h Volume</div>
+                            <div id="dolo-vol" class="tvl-metric-value" style="color:#f59e0b">—</div>
+                            <div id="dolo-vol-24h" style="margin-top:4px"></div>
+                        </div>
+                        <!-- Circulating Supply -->
+                        <div class="dolo-metric-card supply-card">
+                            <div class="dolo-metric-icon" style="background:rgba(167,139,250,.12)">
+                                <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#a78bfa" stroke-width="1.5"/><path d="M8 4v4l3 2" stroke="#a78bfa" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </div>
+                            <div class="tvl-metric-label">Circulating Supply</div>
+                            <div id="dolo-circ-supply" class="tvl-metric-value" style="color:#a78bfa">—</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
