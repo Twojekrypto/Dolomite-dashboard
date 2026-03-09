@@ -8219,11 +8219,10 @@
                     <table style="table-layout:fixed;width:100%;border-collapse:collapse;font-size:12px">
                         <colgroup>
                             <col style="width:32px">
-                            <col style="width:38%">
-                            <col style="width:calc((100% - 32px - 38%) / 4)">
-                            <col style="width:calc((100% - 32px - 38%) / 4)">
-                            <col style="width:calc((100% - 32px - 38%) / 4)">
-                            <col style="width:calc((100% - 32px - 38%) / 4)">
+                            <col style="width:42%">
+                            <col style="width:calc((100% - 32px - 42%) / 3)">
+                            <col style="width:calc((100% - 32px - 42%) / 3)">
+                            <col style="width:calc((100% - 32px - 42%) / 3)">
                         </colgroup>
                         <thead style="position:sticky;top:0;z-index:2;background:#141825">
                             <tr>
@@ -8242,7 +8241,6 @@
                                 <th style="padding:8px 5px;text-align:right;color:#fbbf24;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="total_vote_weight" onclick="sortTable('total_vote_weight')">
                                     🟡 Vote Weight <span class="arrow">⇅</span>
                                 </th>
-                                <th style="padding:8px 5px;text-align:right;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">Token IDs</th>
                             </tr>
                         </thead>
                         <tbody id="table-body"></tbody>
@@ -10468,7 +10466,6 @@
             <td style="padding:4px 5px;text-align:right;color:#22d3ee;font-size:11px;font-weight:600">${h.nft_count}</td>
             <td style="padding:4px 5px;text-align:right;color:#34d399;font-size:11px;font-weight:600" title="${doloExact} DOLO">${fmtDolo(h.total_dolo || 0)}</td>
             <td style="padding:4px 5px;text-align:right;color:#fbbf24;font-size:11px;font-weight:600" title="${voteExact} veDOLO">${fmtDolo(h.total_vote_weight || 0)}</td>
-            <td style="padding:4px 5px;text-align:right;font-size:10px;color:rgba(255,255,255,0.4)"><div class="tokens-truncated" title="${h.token_ids.join(', ')}">${tokPrev}</div></td>
         </tr>`;
             }).join('');
 
