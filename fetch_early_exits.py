@@ -134,9 +134,8 @@ def decode_withdraw_event(log):
     }
 
 
-def fetch_receipt_and_calc_penalty(tx_hash):
-    """Fetch transaction receipt and calculate penalty from Transfer events."""
-    receipt = rpc_call("eth_getTransactionReceipt", [tx_hash])
+def _calc_penalty_from_receipt(receipt):
+    """Calculate penalty from a transaction receipt."""
     if not receipt:
         return None
 
@@ -190,6 +189,14 @@ def fetch_receipt_and_calc_penalty(tx_hash):
         "penalty_pct": round((total_penalty / original_locked * 100) if original_locked > 0 else 0, 2),
         "is_early_exit": total_penalty > 0,
     }
+
+
+def fetch_receipt_and_calc_penalty(tx_hash):
+    """Fetch transaction receipt and calculate penalty from Transfer events."""
+    receipt = rpc_call("eth_getTransactionReceipt", [tx_hash])
+    if not receipt:
+        return None
+    return _calc_penalty_from_receipt(receipt)
 
 
 def main():
@@ -248,30 +255,62 @@ def main():
     if tx_hashes_needed:
         done = 0
         errors = 0
-        MAX_WORKERS = 8
+        BATCH_SIZE = 50  # JSON-RPC batch: 50 receipts per HTTP request
 
-        def fetch_one(tx_hash):
-            return tx_hash, fetch_receipt_and_calc_penalty(tx_hash)
+        def fetch_batch_receipts(batch_hashes):
+            """Fetch multiple tx receipts in a single JSON-RPC batch call."""
+            payload = [
+                {"jsonrpc": "2.0", "method": "eth_getTransactionReceipt",
+                 "params": [tx_hash], "id": i}
+                for i, tx_hash in enumerate(batch_hashes)
+            ]
+            for rpc_url in RPC_URLS:
+                try:
+                    resp = requests.post(rpc_url, json=payload,
+                                         timeout=60, headers={"Content-Type": "application/json"})
+                    results = resp.json()
+                    if isinstance(results, list):
+                        return results
+                except Exception:
+                    time.sleep(0.3)
+            return None
 
-        chunks = [tx_hashes_needed[i:i+MAX_WORKERS] for i in range(0, len(tx_hashes_needed), MAX_WORKERS)]
-        for chunk_idx, chunk in enumerate(chunks):
-            with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-                futures = [executor.submit(fetch_one, th) for th in chunk]
-                for future in as_completed(futures):
-                    tx_hash, result = future.result()
+        # Process in batches
+        batches = [tx_hashes_needed[i:i+BATCH_SIZE] for i in range(0, len(tx_hashes_needed), BATCH_SIZE)]
+        for batch_idx, batch in enumerate(batches):
+            batch_results = fetch_batch_receipts(batch)
+            if batch_results:
+                for resp_item in batch_results:
+                    idx = resp_item.get("id", 0)
+                    if idx < len(batch):
+                        tx_hash = batch[idx]
+                        receipt = resp_item.get("result")
+                        if receipt:
+                            penalty = _calc_penalty_from_receipt(receipt)
+                            if penalty:
+                                cache[tx_hash] = penalty
+                            else:
+                                errors += 1
+                        else:
+                            errors += 1
+                        done += 1
+            else:
+                # Fallback: fetch individually for this batch
+                for tx_hash in batch:
+                    result = fetch_receipt_and_calc_penalty(tx_hash)
                     if result:
                         cache[tx_hash] = result
                     else:
                         errors += 1
                     done += 1
 
-            if (chunk_idx + 1) % 10 == 0 or (chunk_idx + 1) == len(chunks):
+            if (batch_idx + 1) % 5 == 0 or (batch_idx + 1) == len(batches):
                 print(f"  Progress: {done:,}/{len(tx_hashes_needed):,} (errors: {errors})")
                 cache_progress = {"_meta": {"last_scanned_block": latest_block}, "receipts": cache, "logs": cached_logs}
                 with open(CACHE_FILE, "w") as f:
                     json.dump(cache_progress, f)
 
-            time.sleep(0.05)  # Small delay between batches
+            time.sleep(0.1)  # Small delay between batches
 
         # Final cache save
         cache_output = {"_meta": {"last_scanned_block": latest_block}, "receipts": cache, "logs": cached_logs}

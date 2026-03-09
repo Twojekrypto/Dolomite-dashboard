@@ -79,15 +79,31 @@ def rpc_call(method, params, timeout=15):
 
 
 def get_current_block():
-    for rpc in RPC_URLS:
-        try:
-            resp = requests.post(rpc, json={
-                "jsonrpc": "2.0", "method": "eth_blockNumber", "params": [], "id": 1
-            }, timeout=10, headers={"Content-Type": "application/json"})
-            return int(resp.json().get("result", "0x0"), 16)
-        except Exception:
-            time.sleep(1)
+    """Get current block number with robust retries."""
+    for round_num in range(3):  # 3 full rounds across all RPCs
+        for rpc in RPC_URLS:
+            try:
+                resp = requests.post(rpc, json={
+                    "jsonrpc": "2.0", "method": "eth_blockNumber", "params": [], "id": 1
+                }, timeout=15, headers={"Content-Type": "application/json"})
+                data = resp.json()
+                if "error" in data:
+                    print(f"  ⚠️ RPC error from {rpc[:50]}...: {data['error']}")
+                    continue
+                block = int(data.get("result", "0x0"), 16)
+                if block > 0:
+                    return block
+                print(f"  ⚠️ Got block 0 from {rpc[:50]}...")
+            except requests.exceptions.Timeout:
+                print(f"  ⚠️ Timeout from {rpc[:50]}...")
+            except Exception as e:
+                print(f"  ⚠️ Error from {rpc[:50]}...: {e}")
+            time.sleep(0.5)
+        if round_num < 2:
+            print(f"  Retry round {round_num + 2}/3...")
+            time.sleep(2)
     return 0
+
 
 
 def fetch_event_logs(start_block, end_block, topic):
