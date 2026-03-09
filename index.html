@@ -8018,51 +8018,121 @@
         <!-- veDOLO VIEW -->
         <div id="view-vedolo" class="view-section">
 
-            <!-- METRICS -->
-            <div class="metrics-strip anim anim-d1">
-                <div class="metric-cell">
-                    <div class="metric-label">Unique Holders
-                        <span class="tooltip-icon">?
-                            <span class="tooltip-bubble">Number of unique wallet addresses holding at least one veDOLO
-                                NFT
-                                position.</span>
-                        </span>
-                    </div>
-                    <div class="metric-value" id="m-holders">—</div>
-                    <div class="metric-sub" id="vedolo-holders-24h"></div>
-                </div>
+            <!-- ═══ veDOLO HERO — PREMIUM ═══ -->
+            <style>
+                @keyframes vedolo-border-glow {
+                    0%,100% { opacity:.6; filter:blur(12px); }
+                    50% { opacity:1; filter:blur(18px); }
+                }
+                .vedolo-hero-outer {
+                    position:relative;border-radius:18px;padding:2px;
+                    background:linear-gradient(135deg,rgba(16,185,129,.35),rgba(20,184,166,.25),rgba(16,185,129,.15));
+                    overflow:hidden;
+                }
+                .vedolo-hero-outer::before {
+                    content:'';position:absolute;inset:-2px;border-radius:20px;
+                    background:linear-gradient(135deg,rgba(16,185,129,.25),rgba(20,184,166,.2),rgba(16,185,129,.1));
+                    animation:vedolo-border-glow 4s ease-in-out infinite;
+                    z-index:0;pointer-events:none;
+                }
+                .vedolo-hero-inner {
+                    position:relative;z-index:1;border-radius:16px;
+                    background:linear-gradient(145deg,rgba(10,15,28,.97) 0%,rgba(10,22,30,.96) 40%,rgba(10,18,28,.98) 100%);
+                    padding:28px 32px 24px;overflow:hidden;
+                }
+                .vedolo-hero-inner::after {
+                    content:'';position:absolute;top:-50%;left:-20%;width:60%;height:120%;
+                    background:linear-gradient(90deg,transparent,rgba(255,255,255,.015),transparent);
+                    animation:tvl-shine 8s ease-in-out infinite;pointer-events:none;
+                }
+                .vedolo-metric-card {
+                    background:rgba(255,255,255,.03);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+                    border:1px solid rgba(255,255,255,.08);border-radius:14px;
+                    padding:18px 20px;transition:all .35s cubic-bezier(.4,0,.2,1);
+                    position:relative;overflow:hidden;
+                }
+                .vedolo-metric-card:hover {
+                    background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.15);
+                    transform:translateY(-3px);
+                    box-shadow:0 12px 32px rgba(0,0,0,.3),0 0 0 1px rgba(255,255,255,.05);
+                }
+                .vedolo-metric-card::before {
+                    content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:14px 14px 0 0;
+                }
+                .vedolo-metric-card.holders-c::before { background:linear-gradient(90deg,#3b82f6,#60a5fa); }
+                .vedolo-metric-card.active-c::before { background:linear-gradient(90deg,#a78bfa,#c4b5fd); }
+                .vedolo-metric-card.vote-c::before { background:linear-gradient(90deg,#f59e0b,#fbbf24); }
+                .vedolo-metric-icon {
+                    width:36px;height:36px;border-radius:10px;
+                    display:flex;align-items:center;justify-content:center;
+                    margin-bottom:12px;position:relative;
+                }
+                .vedolo-metric-icon::after {
+                    content:'';position:absolute;inset:0;border-radius:10px;
+                    opacity:0;transition:opacity .3s;
+                }
+                .vedolo-metric-card:hover .vedolo-metric-icon::after { opacity:1; }
+                .vedolo-metric-card.holders-c .vedolo-metric-icon::after { box-shadow:0 0 12px rgba(59,130,246,.3); }
+                .vedolo-metric-card.active-c .vedolo-metric-icon::after { box-shadow:0 0 12px rgba(167,139,250,.3); }
+                .vedolo-metric-card.vote-c .vedolo-metric-icon::after { box-shadow:0 0 12px rgba(245,158,11,.3); }
+                @media (max-width:768px) {
+                    .vedolo-hero-inner { padding:20px 16px 18px; }
+                    .vedolo-hero-grid { grid-template-columns:1fr 1fr !important; }
+                }
+                @media (max-width:480px) {
+                    .vedolo-hero-grid { grid-template-columns:1fr !important; }
+                }
+            </style>
 
-                <div class="metric-cell">
-                    <div class="metric-label">Active
-                        <span class="tooltip-icon">?
-                            <span class="tooltip-bubble">Currently active veDOLO positions — Total Minted minus Burned.
-                                These are in circulation.</span>
-                        </span>
-                    </div>
-                    <div class="metric-value" id="m-active">—</div>
-                    <div class="metric-sub">in circulation</div>
-                </div>
+            <div class="vedolo-hero-outer anim anim-d1">
+                <div class="vedolo-hero-inner">
+                    <!-- Glow orbs -->
+                    <div style="position:absolute;top:-60px;right:-30px;width:220px;height:220px;background:radial-gradient(circle,rgba(16,185,129,.1) 0%,transparent 65%);pointer-events:none"></div>
+                    <div style="position:absolute;bottom:-40px;left:-20px;width:160px;height:160px;background:radial-gradient(circle,rgba(20,184,166,.08) 0%,transparent 65%);pointer-events:none"></div>
 
-                <div class="metric-cell">
-                    <div class="metric-label">DOLO Locked (veDOLO)
-                        <span class="tooltip-icon">?
-                            <span class="tooltip-bubble">Total amount of DOLO locked across all active veDOLO positions.
-                                Locked DOLO earns governance power.</span>
-                        </span>
+                    <!-- Top label -->
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap">
+                        <img src="dolo-logo.svg" alt="" style="width:20px;height:20px;border-radius:50%;border:1px solid rgba(255,255,255,.1)">
+                        <span style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.8px;font-weight:600">veDOLO Governance</span>
                     </div>
-                    <div class="metric-value accent-green" id="m-dolo">—</div>
-                    <div class="metric-sub" id="vedolo-locked-24h">total in lock</div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-label">Vote Weight
-                        <span class="tooltip-icon">?
-                            <span class="tooltip-bubble">Combined voting power across all veDOLO holders. Longer lock =
-                                more
-                                vote weight per DOLO locked.</span>
-                        </span>
+
+                    <!-- Main metric: DOLO Locked -->
+                    <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;position:relative">
+                        <div id="m-dolo" style="font-size:clamp(40px,6vw,56px);font-weight:800;color:#10b981;text-shadow:0 0 60px rgba(16,185,129,.3),0 0 120px rgba(16,185,129,.1);line-height:1.05;letter-spacing:-1.5px;font-variant-numeric:tabular-nums">—</div>
+                        <div id="vedolo-locked-24h" style="font-size:14px;font-weight:600"></div>
                     </div>
-                    <div class="metric-value" id="m-vote" style="color:#f59e0b">—</div>
-                    <div class="metric-sub" id="vedolo-vote-24h">total veDOLO power</div>
+                    <div style="font-size:12px;color:var(--text-muted);margin-top:2px;letter-spacing:.5px">DOLO LOCKED IN veDOLO</div>
+
+                    <!-- Metrics grid -->
+                    <div class="vedolo-hero-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:24px">
+                        <!-- Unique Holders -->
+                        <div class="vedolo-metric-card holders-c">
+                            <div class="vedolo-metric-icon" style="background:rgba(59,130,246,.12)">
+                                <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="3" stroke="#3b82f6" stroke-width="1.5"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round"/></svg>
+                            </div>
+                            <div class="tvl-metric-label">Unique Holders</div>
+                            <div id="m-holders" class="tvl-metric-value" style="color:#3b82f6">—</div>
+                            <div id="vedolo-holders-24h" style="margin-top:4px"></div>
+                        </div>
+                        <!-- Active Positions -->
+                        <div class="vedolo-metric-card active-c">
+                            <div class="vedolo-metric-icon" style="background:rgba(167,139,250,.12)">
+                                <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="3" stroke="#a78bfa" stroke-width="1.5"/><path d="M5 8h6M8 5v6" stroke="#a78bfa" stroke-width="1.2" stroke-linecap="round"/></svg>
+                            </div>
+                            <div class="tvl-metric-label">Active Positions</div>
+                            <div id="m-active" class="tvl-metric-value" style="color:#a78bfa">—</div>
+                            <div style="font-size:11px;color:var(--text-muted);margin-top:4px">in circulation</div>
+                        </div>
+                        <!-- Vote Weight -->
+                        <div class="vedolo-metric-card vote-c">
+                            <div class="vedolo-metric-icon" style="background:rgba(245,158,11,.12)">
+                                <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M8 2l2 4h4l-3 3 1 4-4-2-4 2 1-4-3-3h4l2-4z" stroke="#f59e0b" stroke-width="1.3" stroke-linejoin="round"/></svg>
+                            </div>
+                            <div class="tvl-metric-label">Vote Weight</div>
+                            <div id="m-vote" class="tvl-metric-value" style="color:#f59e0b">—</div>
+                            <div id="vedolo-vote-24h" style="font-size:11px;color:var(--text-muted);margin-top:4px">total veDOLO power</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -8357,110 +8427,168 @@
         <!-- oDOLO VIEW -->
         <div id="view-odolo" class="view-section">
 
-            <!-- oDOLO METRICS -->
-            <div class="metrics-strip anim anim-d1">
-                <div class="metric-cell">
-                    <div class="metric-label">
-                        <span class="tooltip-wrap">
-                            TOTAL SUPPLY
-                            <i class="tooltip-icon">?</i>
-                            <span class="tooltip-bubble">Total number of oDOLO tokens ever minted by the protocol. This
-                                is the maximum possible supply.</span>
-                        </span>
+            <!-- ═══ oDOLO HERO — PREMIUM ═══ -->
+            <style>
+                @keyframes odolo-border-glow {
+                    0%,100% { opacity:.6; filter:blur(12px); }
+                    50% { opacity:1; filter:blur(18px); }
+                }
+                .odolo-hero-outer {
+                    position:relative;border-radius:18px;padding:2px;
+                    background:linear-gradient(135deg,rgba(245,158,11,.35),rgba(251,191,36,.25),rgba(245,158,11,.15));
+                    overflow:hidden;
+                }
+                .odolo-hero-outer::before {
+                    content:'';position:absolute;inset:-2px;border-radius:20px;
+                    background:linear-gradient(135deg,rgba(245,158,11,.25),rgba(251,191,36,.2),rgba(245,158,11,.1));
+                    animation:odolo-border-glow 4s ease-in-out infinite;
+                    z-index:0;pointer-events:none;
+                }
+                .odolo-hero-inner {
+                    position:relative;z-index:1;border-radius:16px;
+                    background:linear-gradient(145deg,rgba(10,15,28,.97) 0%,rgba(18,16,28,.96) 40%,rgba(12,14,28,.98) 100%);
+                    padding:28px 32px 24px;overflow:hidden;
+                }
+                .odolo-hero-inner::after {
+                    content:'';position:absolute;top:-50%;left:-20%;width:60%;height:120%;
+                    background:linear-gradient(90deg,transparent,rgba(255,255,255,.015),transparent);
+                    animation:tvl-shine 8s ease-in-out infinite;pointer-events:none;
+                }
+                .odolo-metric-card {
+                    background:rgba(255,255,255,.03);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+                    border:1px solid rgba(255,255,255,.08);border-radius:14px;
+                    padding:16px 18px;transition:all .35s cubic-bezier(.4,0,.2,1);
+                    position:relative;overflow:hidden;
+                }
+                .odolo-metric-card:hover {
+                    background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.15);
+                    transform:translateY(-3px);
+                    box-shadow:0 12px 32px rgba(0,0,0,.3),0 0 0 1px rgba(255,255,255,.05);
+                }
+                .odolo-metric-card::before {
+                    content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:14px 14px 0 0;
+                }
+                .odolo-metric-card.holders-c::before { background:linear-gradient(90deg,#3b82f6,#60a5fa); }
+                .odolo-metric-card.unclaimed-c::before { background:linear-gradient(90deg,#06b6d4,#22d3ee); }
+                .odolo-metric-card.vesting-c::before { background:linear-gradient(90deg,#a78bfa,#c4b5fd); }
+                .odolo-metric-card.exercised-c::before { background:linear-gradient(90deg,#10b981,#34d399); }
+                .odolo-metric-card.volume-c::before { background:linear-gradient(90deg,#10b981,#34d399); }
+                .odolo-metric-card.price-c::before { background:linear-gradient(90deg,#3b82f6,#60a5fa); }
+                .odolo-metric-card.lock-c::before { background:linear-gradient(90deg,#6366f1,#818cf8); }
+                .odolo-metric-card.discount-c::before { background:linear-gradient(90deg,#10b981,#34d399); }
+                .odolo-metric-icon {
+                    width:32px;height:32px;border-radius:8px;
+                    display:flex;align-items:center;justify-content:center;
+                    margin-bottom:10px;position:relative;
+                }
+                .odolo-metric-icon::after {
+                    content:'';position:absolute;inset:0;border-radius:8px;
+                    opacity:0;transition:opacity .3s;
+                }
+                .odolo-metric-card:hover .odolo-metric-icon::after { opacity:1; box-shadow:0 0 10px rgba(255,255,255,.1); }
+                @media (max-width:768px) {
+                    .odolo-hero-inner { padding:20px 16px 18px; }
+                    .odolo-hero-grid { grid-template-columns:1fr 1fr !important; }
+                }
+                @media (max-width:480px) {
+                    .odolo-hero-grid { grid-template-columns:1fr !important; }
+                }
+            </style>
+
+            <div class="odolo-hero-outer anim anim-d1">
+                <div class="odolo-hero-inner">
+                    <!-- Glow orbs -->
+                    <div style="position:absolute;top:-60px;right:-30px;width:220px;height:220px;background:radial-gradient(circle,rgba(245,158,11,.08) 0%,transparent 65%);pointer-events:none"></div>
+                    <div style="position:absolute;bottom:-40px;left:-20px;width:160px;height:160px;background:radial-gradient(circle,rgba(251,191,36,.06) 0%,transparent 65%);pointer-events:none"></div>
+
+                    <!-- Top label -->
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap">
+                        <img src="dolo-logo.svg" alt="" style="width:20px;height:20px;border-radius:50%;border:1px solid rgba(255,255,255,.1)">
+                        <span style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.8px;font-weight:600">oDOLO Options</span>
                     </div>
-                    <div class="metric-value amber" id="o-m-supply"><span class="odolo-loading-shimmer"></span></div>
-                    <div class="metric-sub">oDOLO minted</div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-label">
-                        <span class="tooltip-wrap">
-                            HOLDERS
-                            <i class="tooltip-icon">?</i>
-                            <span class="tooltip-bubble">Number of unique wallet addresses currently holding oDOLO
-                                tokens.</span>
-                        </span>
+
+                    <!-- Main metric: Total Supply -->
+                    <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;position:relative">
+                        <div id="o-m-supply" style="font-size:clamp(36px,5.5vw,50px);font-weight:800;color:#f59e0b;text-shadow:0 0 60px rgba(245,158,11,.3),0 0 120px rgba(245,158,11,.1);line-height:1.05;letter-spacing:-1.5px;font-variant-numeric:tabular-nums">—</div>
                     </div>
-                    <div class="metric-value" id="o-m-holders"><span class="odolo-loading-shimmer"></span></div>
-                    <div class="metric-sub">unique wallets</div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-label">
-                        <span class="tooltip-wrap">
-                            UNCLAIMED
-                            <i class="tooltip-icon">?</i>
-                            <span class="tooltip-bubble">Unclaimed oDOLO sitting in the Vester contract. Users earned these tokens through liquidity mining but haven't claimed them yet — they can do so at any time from the Dolomite app.</span>
-                        </span>
+                    <div style="font-size:12px;color:var(--text-muted);margin-top:2px;letter-spacing:.5px">TOTAL oDOLO SUPPLY</div>
+
+                    <!-- Metrics grid — 4 cols, 2 rows -->
+                    <div class="odolo-hero-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:22px">
+                        <!-- Holders -->
+                        <div class="odolo-metric-card holders-c">
+                            <div class="odolo-metric-icon" style="background:rgba(59,130,246,.12)">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="3" stroke="#3b82f6" stroke-width="1.5"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round"/></svg>
+                            </div>
+                            <div class="tvl-metric-label">Holders</div>
+                            <div id="o-m-holders" class="tvl-metric-value" style="color:#3b82f6">—</div>
+                            <div style="font-size:10px;color:var(--text-muted);margin-top:2px">unique wallets</div>
+                        </div>
+                        <!-- Unclaimed -->
+                        <div class="odolo-metric-card unclaimed-c">
+                            <div class="odolo-metric-icon" style="background:rgba(6,182,212,.12)">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="3" y="5" width="10" height="8" rx="2" stroke="#06b6d4" stroke-width="1.5"/><path d="M6 5V3a2 2 0 0 1 4 0v2" stroke="#06b6d4" stroke-width="1.5" stroke-linecap="round"/></svg>
+                            </div>
+                            <div class="tvl-metric-label">Unclaimed</div>
+                            <div id="o-m-vester" class="tvl-metric-value" style="color:#06b6d4">—</div>
+                            <div id="o-m-vester-pct" style="font-size:10px;color:var(--text-muted);margin-top:2px">awaiting claim</div>
+                        </div>
+                        <!-- Currently Vesting -->
+                        <div class="odolo-metric-card vesting-c">
+                            <div class="odolo-metric-icon" style="background:rgba(167,139,250,.12)">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#a78bfa" stroke-width="1.5"/><path d="M8 4v4l3 2" stroke="#a78bfa" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </div>
+                            <div class="tvl-metric-label">Vesting</div>
+                            <div id="o-m-vesting" class="tvl-metric-value" style="color:#a78bfa">—</div>
+                            <div style="font-size:10px;color:var(--text-muted);margin-top:2px">paired with DOLO</div>
+                        </div>
+                        <!-- Exercised -->
+                        <div class="odolo-metric-card exercised-c">
+                            <div class="odolo-metric-icon" style="background:rgba(16,185,129,.12)">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 8l3 3 5-6" stroke="#10b981" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </div>
+                            <div class="tvl-metric-label">Exercised</div>
+                            <div id="o-m-exercised" class="tvl-metric-value" style="color:#10b981">—</div>
+                            <div id="odolo-exercised-24h" style="font-size:10px;color:var(--text-muted);margin-top:2px">converted to veDOLO</div>
+                        </div>
+                        <!-- Exercised Volume (USD) -->
+                        <div class="odolo-metric-card volume-c">
+                            <div class="odolo-metric-icon" style="background:rgba(16,185,129,.12)">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M5 5l3-3 3 3M5 11l3 3 3-3" stroke="#10b981" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </div>
+                            <div class="tvl-metric-label">Exercise Vol. (USD)</div>
+                            <div id="o-m-revenue" class="tvl-metric-value" style="color:#10b981">—</div>
+                            <div id="odolo-volume-24h" style="font-size:10px;margin-top:2px"></div>
+                            <div id="o-m-revenue-sub" style="font-size:10px;color:var(--text-muted)">USDC.e paid for veDOLO</div>
+                        </div>
+                        <!-- AVG veDOLO Price -->
+                        <div class="odolo-metric-card price-c">
+                            <div class="odolo-metric-icon" style="background:rgba(59,130,246,.12)">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#3b82f6" stroke-width="1.5"/><path d="M8 5v6M6 7h4M6 9h4" stroke="#3b82f6" stroke-width="1.2" stroke-linecap="round"/></svg>
+                            </div>
+                            <div class="tvl-metric-label">Avg veDOLO Price</div>
+                            <div id="o-m-avg-price" class="tvl-metric-value" style="color:#3b82f6">—</div>
+                            <div style="font-size:10px;color:var(--text-muted);margin-top:2px">USDC.e per veDOLO</div>
+                        </div>
+                        <!-- AVG Lock Duration -->
+                        <div class="odolo-metric-card lock-c">
+                            <div class="odolo-metric-icon" style="background:rgba(99,102,241,.12)">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="3" y="7" width="10" height="6" rx="2" stroke="#6366f1" stroke-width="1.5"/><path d="M5 7V5a3 3 0 0 1 6 0v2" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round"/></svg>
+                            </div>
+                            <div class="tvl-metric-label">Avg Lock Duration</div>
+                            <div id="o-m-avg-lock" class="tvl-metric-value" style="color:#6366f1">—</div>
+                            <div id="o-m-avg-lock-sub" style="font-size:10px;color:var(--text-muted);margin-top:2px">avg discount</div>
+                        </div>
+                        <!-- AVG Discount -->
+                        <div class="odolo-metric-card discount-c">
+                            <div class="odolo-metric-icon" style="background:rgba(16,185,129,.12)">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M5.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zM10.5 9a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3z" stroke="#10b981" stroke-width="1.3" stroke-linecap="round"/></svg>
+                            </div>
+                            <div class="tvl-metric-label">Avg Discount</div>
+                            <div id="o-m-avg-discount" class="tvl-metric-value" style="color:#10b981">—</div>
+                            <div style="font-size:10px;color:var(--text-muted);margin-top:2px">from veDOLO market price</div>
+                        </div>
                     </div>
-                    <div class="metric-value" id="o-m-vester"><span class="odolo-loading-shimmer"></span></div>
-                    <div class="metric-sub" id="o-m-vester-pct">awaiting claim</div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-label">
-                        <span class="tooltip-wrap">
-                            CURRENTLY VESTING
-                            <i class="tooltip-icon">?</i>
-                            <span class="tooltip-bubble">oDOLO that users have paired with DOLO and are actively
-                                vesting. These are locked and in the process of converting to veDOLO.</span>
-                        </span>
-                    </div>
-                    <div class="metric-value" id="o-m-vesting"><span class="odolo-loading-shimmer"></span></div>
-                    <div class="metric-sub">paired with DOLO</div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-label">
-                        <span class="tooltip-wrap">
-                            EXERCISED
-                            <i class="tooltip-icon">?</i>
-                            <span class="tooltip-bubble">oDOLO that has been successfully exercised (redeemed) into
-                                veDOLO. These tokens completed the full vesting cycle.</span>
-                        </span>
-                    </div>
-                    <div class="metric-value green" id="o-m-exercised"><span class="odolo-loading-shimmer"></span></div>
-                    <div class="metric-sub" id="odolo-exercised-24h">converted to veDOLO</div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-label">
-                        <span class="tooltip-wrap">
-                            EXERCISED VOLUME (USD)
-                            <i class="tooltip-icon">?</i>
-                            <span class="tooltip-bubble">Exact total USDC.e paid by users when exercising oDOLO into
-                                veDOLO. Calculated from on-chain Transfer events for each exercise transaction. Updated
-                                periodically.</span>
-                        </span>
-                    </div>
-                    <div class="metric-value green" id="o-m-revenue"><span class="odolo-loading-shimmer"></span></div>
-                    <div class="metric-sub" id="odolo-volume-24h"></div>
-                    <div class="metric-sub" id="o-m-revenue-sub">USDC.e paid for veDOLO</div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-label">AVG veDOLO PRICE</div>
-                    <div class="metric-value" id="o-m-avg-price"><span class="odolo-loading-shimmer"></span></div>
-                    <div class="metric-sub">USDC.e per veDOLO</div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-label">
-                        <span class="tooltip-wrap">
-                            AVG LOCK DURATION
-                            <i class="tooltip-icon">?</i>
-                            <span class="tooltip-bubble">Average veDOLO lock duration chosen by users when exercising
-                                oDOLO. Longer locks get bigger discounts (5% for 1 week up to 50% for 2 years).</span>
-                        </span>
-                    </div>
-                    <div class="metric-value" id="o-m-avg-lock"><span class="odolo-loading-shimmer"></span></div>
-                    <div class="metric-sub" id="o-m-avg-lock-sub">avg discount</div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-label">
-                        <span class="tooltip-wrap">
-                            AVG DISCOUNT
-                            <i class="tooltip-icon">?</i>
-                            <span class="tooltip-bubble">Average discount received when exercising oDOLO into veDOLO.
-                                Linear scale from 5% (1 week lock) to 50% (2 year lock).</span>
-                        </span>
-                    </div>
-                    <div class="metric-value green" id="o-m-avg-discount"><span class="odolo-loading-shimmer"></span>
-                    </div>
-                    <div class="metric-sub">from veDOLO market price</div>
                 </div>
             </div>
 
@@ -9205,6 +9333,23 @@
                 </div>
             </div><!-- /TVL History card -->
 
+            <!-- Token Composition (moved from DOLO) -->
+            <div class="card anim anim-d3" style="margin-top:24px">
+                <div class="card-header">
+                    <h3>Token Composition</h3>
+                </div>
+                <div id="dolo-chain-filter" class="dolo-chain-pills"></div>
+                <div style="display:flex;flex-direction:column;align-items:center;padding:20px">
+                    <div id="dolo-donut-wrap" style="position:relative;width:260px;height:260px;flex-shrink:0">
+                        <canvas id="dolo-token-donut" style="width:260px;height:260px"></canvas>
+                        <div id="dolo-donut-center"
+                            style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
+                        </div>
+                    </div>
+                    <div id="dolo-token-legend" class="dolo-legend-v2"></div>
+                </div>
+            </div>
+
         </div><!-- /view-tvl -->
 
         <!-- DOLO TOKEN VIEW -->
@@ -9342,22 +9487,6 @@
                 </div>
             </div>
 
-            <!-- Token Composition -->
-            <div class="card anim anim-d2" style="margin-top:24px">
-                <div class="card-header">
-                    <h3>Token Composition</h3>
-                </div>
-                <div id="dolo-chain-filter" class="dolo-chain-pills"></div>
-                <div style="display:flex;flex-direction:column;align-items:center;padding:20px">
-                    <div id="dolo-donut-wrap" style="position:relative;width:260px;height:260px;flex-shrink:0">
-                        <canvas id="dolo-token-donut" style="width:260px;height:260px"></canvas>
-                        <div id="dolo-donut-center"
-                            style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
-                        </div>
-                    </div>
-                    <div id="dolo-token-legend" class="dolo-legend-v2"></div>
-                </div>
-            </div>
 
             <!-- DOLO Holders Table -->
             <div class="card anim anim-d4" style="margin-top:24px" id="dolo-holders-card">
