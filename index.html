@@ -14078,17 +14078,19 @@
                     if (!cd) continue;
                     for (const a of cd.accumulators || []) {
                         const addr = a.address.toLowerCase();
-                        if (!accMap[addr]) accMap[addr] = { address: a.address, net_flow: 0, usd_value: 0, tx_count: 0 };
+                        if (!accMap[addr]) accMap[addr] = { address: a.address, net_flow: 0, usd_value: 0, tx_count: 0, balance: 0 };
                         accMap[addr].net_flow += a.net_flow;
                         accMap[addr].usd_value += (a.usd_value || 0);
                         accMap[addr].tx_count += (a.tx_count || 0);
+                        accMap[addr].balance += (a.balance || 0);
                     }
                     for (const s of cd.sellers || []) {
                         const addr = s.address.toLowerCase();
-                        if (!sellMap[addr]) sellMap[addr] = { address: s.address, net_flow: 0, usd_value: 0, tx_count: 0 };
+                        if (!sellMap[addr]) sellMap[addr] = { address: s.address, net_flow: 0, usd_value: 0, tx_count: 0, balance: 0 };
                         sellMap[addr].net_flow += s.net_flow;
                         sellMap[addr].usd_value += (s.usd_value || 0);
                         sellMap[addr].tx_count += (s.tx_count || 0);
+                        sellMap[addr].balance += (s.balance || 0);
                     }
                 }
                 accumulators = Object.values(accMap).filter(a => !isHidden(a.address)).sort((a, b) => b.net_flow - a.net_flow);
