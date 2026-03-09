@@ -12863,7 +12863,7 @@
                     };
                     const bStyle = badgeColors[addrInfo.type] || badgeColors.protocol;
                     const typeBadge = `<span style="display:inline-block;font-size:7px;font-weight:600;padding:1px 4px;border-radius:3px;margin-left:4px;letter-spacing:0.3px;white-space:nowrap;vertical-align:middle;cursor:pointer;${bStyle}">${addrInfo.type.toUpperCase()}</span>`;
-                    addrCell = `<td style="padding:5px 6px;white-space:nowrap">
+                    addrCell = `<td style="padding:5px 6px;white-space:nowrap;overflow:visible">
                         <span style="display:inline-flex;align-items:center;gap:4px;white-space:nowrap">
                             <a href="${dbUrl}" target="_blank" onclick="event.stopPropagation()" style="color:#fff;font-size:11px;font-weight:600;text-decoration:none;white-space:nowrap" class="addr-tooltip-wrap" data-full-addr="${h.address}">${addrInfo.label}</a>${typeBadge}
                             <span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${h.address}',this)" title="Copy address">${copySvg}</span>${dbIcon}
@@ -12872,7 +12872,7 @@
                 } else {
                     // Unlabeled or CA: normal single-line hex
                     const caIcon = (addrInfo && addrInfo.label === 'CA') ? '<span style="margin-right:3px;font-size:11px" title="Smart contract">📜</span>' : '';
-                    addrCell = `<td style="padding:5px 6px;white-space:nowrap">
+                    addrCell = `<td style="padding:5px 6px;white-space:nowrap;overflow:visible">
                         <span style="display:inline-flex;align-items:center;gap:4px;white-space:nowrap">
                             ${caIcon}<a href="${dbUrl}" target="_blank" onclick="event.stopPropagation()" style="color:#fff;font-family:monospace;font-size:11px;text-decoration:none" class="addr-tooltip-wrap" data-full-addr="${h.address}">${shortAddr}</a>
                             <span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${h.address}',this)" title="Copy address">${copySvg}</span>${dbIcon}
