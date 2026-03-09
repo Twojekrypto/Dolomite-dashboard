@@ -12959,7 +12959,7 @@
             const th = card.querySelector(`th[data-sort="dolo-${field}"]`);
             if (th) {
                 th.classList.add('sorted');
-                th.querySelector('.arrow').textContent = dolo_holderSortAsc ? '▲' : '▼';
+                th.querySelector('.sort-arrow').textContent = dolo_holderSortAsc ? '▲' : '▼';
             }
 
             const flowKey = (h) => {
@@ -13011,7 +13011,7 @@
             const card = document.getElementById('dolo-holders-card');
             card.querySelectorAll('thead th').forEach(h => h.classList.remove('sorted'));
             const rankTh = card.querySelector('th[data-sort="dolo-rank"]');
-            if (rankTh) { rankTh.classList.add('sorted'); rankTh.querySelector('.arrow').textContent = '▲'; }
+            if (rankTh) { rankTh.classList.add('sorted'); rankTh.querySelector('.sort-arrow').textContent = '▲'; }
 
             dolo_holderPage = 1;
             dolo_renderHoldersTable();
