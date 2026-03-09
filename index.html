@@ -8922,19 +8922,47 @@
 
         <!-- TVL VIEW -->
         <div id="view-tvl" class="view-section">
-            <!-- TVL METRICS -->
-            <div class="metrics-strip anim anim-d1">
-                <div class="metric-cell">
-                    <div class="metric-label">Total TVL</div>
-                    <div class="metric-value" style="color:var(--accent-green)" id="dolo-tvl">—</div>
-                    <div class="metric-sub" id="dolo-tvl-24h"></div>
+
+            <!-- TVL Hero Section -->
+            <div class="anim anim-d1" style="margin-bottom:24px">
+                <div style="background:linear-gradient(135deg,rgba(16,185,129,0.08) 0%,rgba(99,102,241,0.06) 50%,rgba(16,185,129,0.04) 100%);border:1px solid rgba(16,185,129,0.15);border-radius:16px;padding:32px 32px 28px;position:relative;overflow:hidden">
+                    <!-- Subtle glow -->
+                    <div style="position:absolute;top:-40px;right:-40px;width:200px;height:200px;background:radial-gradient(circle,rgba(16,185,129,0.12) 0%,transparent 70%);pointer-events:none"></div>
+
+                    <!-- Dolomite icon + label -->
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                        <img src="https://icons.llama.fi/dolomite.jpg" alt="" style="width:22px;height:22px;border-radius:50%;border:1px solid rgba(255,255,255,0.1)">
+                        <span style="font-size:13px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:600">Dolomite Protocol — Total Value Locked</span>
+                    </div>
+
+                    <!-- Big TVL Value -->
+                    <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+                        <div id="dolo-tvl" style="font-size:clamp(36px,5vw,48px);font-weight:700;color:#10b981;text-shadow:0 0 40px rgba(16,185,129,0.25);line-height:1.1;letter-spacing:-1px">—</div>
+                        <div id="dolo-tvl-24h" style="font-size:14px"></div>
+                    </div>
+
+                    <!-- Secondary metrics row -->
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-top:24px">
+                        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px 16px">
+                            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Supply Liquidity</div>
+                            <div id="tvl-supply-liquidity" style="font-size:20px;font-weight:600;color:var(--text-primary)">—</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px 16px">
+                            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Total Borrowed</div>
+                            <div id="tvl-total-borrowed" style="font-size:20px;font-weight:600;color:#f59e0b">—</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px 16px">
+                            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Active Chains</div>
+                            <div id="tvl-chain-count" style="font-size:20px;font-weight:600;color:#818cf8">—</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <!-- TVL by Chain -->
-            <div class="card anim anim-d2" style="margin-top:24px">
+            <div class="card anim anim-d2">
                 <div class="card-header" style="flex-direction:column;align-items:stretch">
-                    <h3>Total TVL</h3>
+                    <h3>TVL by Chain</h3>
                     <div id="dolo-chain-summary" style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap"></div>
                 </div>
                 <div id="dolo-chain-bars" style="padding:8px 0 12px 0"></div>
@@ -12590,6 +12618,14 @@
                 const supplyLiquidity = totalTvl + totalBorrowed;
 
                 dolo_renderChainBars(chainTvls, totalTvl, tvl, totalBorrowed, supplyLiquidity);
+
+                // Populate TVL hero metrics
+                const slEl = document.getElementById('tvl-supply-liquidity');
+                const tbEl = document.getElementById('tvl-total-borrowed');
+                const ccEl = document.getElementById('tvl-chain-count');
+                if (slEl) slEl.textContent = dolo_fmt(supplyLiquidity);
+                if (tbEl) tbEl.textContent = dolo_fmt(totalBorrowed);
+                if (ccEl) ccEl.textContent = chainTvls.length;
 
                 const tvlHist = llRes.tvl || [];
                 dolo_allTvlPoints = tvlHist.map(p => ({ date: new Date(p.date * 1000), tvl: p.totalLiquidityUSD }));
