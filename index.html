@@ -8246,7 +8246,7 @@
                         <tbody id="table-body"></tbody>
                     </table>
                 </div>
-                <div class="table-footer" id="pagination"></div>
+                <div class="flow-pager" id="pagination"></div>
             </div>
 
             <!-- veDOLO FLOW (LOCKS + UNLOCKS) -->
@@ -10439,19 +10439,14 @@
         function renderPagination() {
             const total = Math.ceil(filteredData.length / PER_PAGE);
             const el = document.getElementById('pagination');
-            if (total <= 1) { el.innerHTML = ''; return; }
+            if (total <= 1) { el.innerHTML = ''; el.style.display = 'none'; return; }
+            el.style.display = '';
 
-            let h = `<button class="pg-btn" onclick="goPage(1)" ${currentPage === 1 ? 'disabled' : ''}>«</button>`;
-            h += `<button class="pg-btn" onclick="goPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>‹</button>`;
-
-            for (let p = Math.max(1, currentPage - 1); p <= Math.min(total, currentPage + 1); p++) {
-                h += `<button class="pg-btn ${p === currentPage ? 'active' : ''}" onclick="goPage(${p})">${p}</button>`;
-            }
-
-            h += `<button class="pg-btn" onclick="goPage(${currentPage + 1})" ${currentPage === total ? 'disabled' : ''}>›</button>`;
-            h += `<button class="pg-btn" onclick="goPage(${total})" ${currentPage === total ? 'disabled' : ''}>»</button>`;
-            h += `<span class="pg-info">${currentPage} / ${total}</span>`;
-            el.innerHTML = h;
+            el.innerHTML = `<button class="flow-pager-btn" onclick="goPage(1)" ${currentPage === 1 ? 'disabled' : ''}>«</button>` +
+                `<button class="flow-pager-btn" onclick="goPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>‹</button>` +
+                `<span class="flow-pager-info">${currentPage} / ${total}</span>` +
+                `<button class="flow-pager-btn" onclick="goPage(${currentPage + 1})" ${currentPage === total ? 'disabled' : ''}>›</button>` +
+                `<button class="flow-pager-btn" onclick="goPage(${total})" ${currentPage === total ? 'disabled' : ''}>»</button>`;
         }
 
         function goPage(p) {
