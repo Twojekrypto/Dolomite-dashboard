@@ -9560,9 +9560,9 @@
                     <div class="table-scroll">
                         <table class="assets-table" id="assets-table">
                             <colgroup>
-                                <col style="width:40%">
-                                <col style="width:12%">
-                                <col style="width:12%">
+                                <col style="width:38%">
+                                <col style="width:10%">
+                                <col style="width:16%">
                                 <col style="width:18%">
                                 <col style="width:18%">
                             </colgroup>
@@ -9600,15 +9600,15 @@
                                             </div>
                                         </div>
                                     </th>
-                                    <th data-col="price" style="text-align:right">⚪ Price <span
-                                            class="sort-arrow"></span>
-                                    </th>
                                     <th data-col="chain" style="text-align:center">⛓ Chain <span
-                                            class="sort-arrow"></span></th>
-                                    <th data-col="supplyApr" class="sorted" style="text-align:right">
+                                            class="sort-arrow">⇅</span></th>
+                                    <th data-col="price" style="text-align:right;color:#fff">⚪ Price <span
+                                            class="sort-arrow">⇅</span>
+                                    </th>
+                                    <th data-col="supplyApr" class="sorted" style="text-align:right;color:#34d399">
                                         🟢 Supply <span class="sort-arrow">▼</span>
                                     </th>
-                                    <th data-col="borrowApr" style="text-align:right">🔴 Borrow <span class="sort-arrow"></span></th>
+                                    <th data-col="borrowApr" style="text-align:right;color:#f87171">🔴 Borrow <span class="sort-arrow">⇅</span></th>
                                 </tr>
                             </thead>
                             <tbody id="assets-tbody"></tbody>
@@ -15009,7 +15009,7 @@
                     document.querySelectorAll('#assets-table thead th').forEach(h => {
                         h.classList.remove('sorted');
                         const arrow = h.querySelector('.sort-arrow');
-                        if (arrow) arrow.textContent = '';
+                        if (arrow) arrow.textContent = '⇅';
                     });
                     th.classList.add('sorted');
                     const thisArrow = th.querySelector('.sort-arrow');
@@ -15163,8 +15163,8 @@
                             </div>
                         </div>
                     </td>
-                    <td style="font-size:13px;color:rgba(255,255,255,0.85);text-align:right">${priceHtml}</td>
                     <td><span class="assets-chain-badge"><img src="${d.chainIcon}" alt="">${d.chainShort}</span></td>
+                    <td style="font-size:13px;color:rgba(255,255,255,0.85);text-align:right">${priceHtml}</td>
                     <td style="text-align:right">
                         <div>
                             <div><span class="${supplyClass}" style="${supplyStyle}">${displaySupply.toFixed(2)}%</span></div>
