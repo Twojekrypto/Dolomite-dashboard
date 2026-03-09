@@ -9240,11 +9240,15 @@
                             <tbody id="dolo-flow-acc-tbody"></tbody>
                         </table>
                         <div id="dolo-flow-acc-pager" class="flow-pager" style="display:none">
+                            <button onclick="dolo_flowAccPage=0;dolo_renderFlows()" id="dolo-flow-acc-first"
+                                class="flow-pager-btn">«</button>
                             <button onclick="dolo_flowAccPage--;dolo_renderFlows()" id="dolo-flow-acc-prev"
                                 class="flow-pager-btn">‹</button>
                             <span id="dolo-flow-acc-info" class="flow-pager-info"></span>
                             <button onclick="dolo_flowAccPage++;dolo_renderFlows()" id="dolo-flow-acc-next"
                                 class="flow-pager-btn">›</button>
+                            <button onclick="dolo_flowAccPage=999;dolo_renderFlows()" id="dolo-flow-acc-last"
+                                class="flow-pager-btn">»</button>
                         </div>
                     </div>
                     <div class="dolo-flow-table-wrap">
@@ -9267,11 +9271,15 @@
                             <tbody id="dolo-flow-sell-tbody"></tbody>
                         </table>
                         <div id="dolo-flow-sell-pager" class="flow-pager" style="display:none">
+                            <button onclick="dolo_flowSellPage=0;dolo_renderFlows()" id="dolo-flow-sell-first"
+                                class="flow-pager-btn">«</button>
                             <button onclick="dolo_flowSellPage--;dolo_renderFlows()" id="dolo-flow-sell-prev"
                                 class="flow-pager-btn">‹</button>
                             <span id="dolo-flow-sell-info" class="flow-pager-info"></span>
                             <button onclick="dolo_flowSellPage++;dolo_renderFlows()" id="dolo-flow-sell-next"
                                 class="flow-pager-btn">›</button>
+                            <button onclick="dolo_flowSellPage=999;dolo_renderFlows()" id="dolo-flow-sell-last"
+                                class="flow-pager-btn">»</button>
                         </div>
                     </div>
                 </div>
@@ -14329,14 +14337,18 @@
             if (accPager) {
                 accPager.style.display = accPages > 1 ? 'flex' : 'none';
                 document.getElementById('dolo-flow-acc-info').textContent = `${dolo_flowAccPage + 1} / ${accPages}`;
+                document.getElementById('dolo-flow-acc-first').disabled = dolo_flowAccPage === 0;
                 document.getElementById('dolo-flow-acc-prev').disabled = dolo_flowAccPage === 0;
                 document.getElementById('dolo-flow-acc-next').disabled = dolo_flowAccPage >= accPages - 1;
+                document.getElementById('dolo-flow-acc-last').disabled = dolo_flowAccPage >= accPages - 1;
             }
             if (sellPager) {
                 sellPager.style.display = sellPages > 1 ? 'flex' : 'none';
                 document.getElementById('dolo-flow-sell-info').textContent = `${dolo_flowSellPage + 1} / ${sellPages}`;
+                document.getElementById('dolo-flow-sell-first').disabled = dolo_flowSellPage === 0;
                 document.getElementById('dolo-flow-sell-prev').disabled = dolo_flowSellPage === 0;
                 document.getElementById('dolo-flow-sell-next').disabled = dolo_flowSellPage >= sellPages - 1;
+                document.getElementById('dolo-flow-sell-last').disabled = dolo_flowSellPage >= sellPages - 1;
             }
         }
 
