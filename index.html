@@ -1241,7 +1241,7 @@
 
         .assets-table tbody td:nth-child(3),
         .assets-table tbody td:nth-child(4) {
-            text-align: left;
+            text-align: right;
             overflow: hidden;
         }
 
@@ -1494,7 +1494,7 @@
             display: flex;
             flex-direction: column;
             gap: 1px;
-            align-items: flex-start;
+            align-items: flex-end;
         }
 
         .assets-apy-breakdown .lending-part {
@@ -15176,13 +15176,13 @@
                         </div>
                     </td>
                     <td style="font-size:13px;color:rgba(255,255,255,0.85);text-align:right">${priceHtml}</td>
-                    <td style="text-align:left">
+                    <td>
                         <div>
                             <div><span class="${supplyClass}" style="${supplyStyle}">${displaySupply.toFixed(2)}%</span></div>
                             ${breakdownHtml}
                         </div>
                     </td>
-                    <td style="text-align:left"><span class="assets-apy-red">${d.borrowApr > 0 ? d.borrowApr.toFixed(2) + '%' : '—'}</span></td>
+                    <td><span class="assets-apy-red">${d.borrowApr > 0 ? d.borrowApr.toFixed(2) + '%' : '—'}</span></td>
                 </tr>`;
 
                 // Build detail row
