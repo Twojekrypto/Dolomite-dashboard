@@ -268,6 +268,7 @@ def save_cache(cache):
 
 
 CACHE_MAX_AGE = 86400  # 24 hours in seconds
+VOTE_CACHE_MAX_AGE = 21600  # 6 hours — vote weights decay, need fresher data
 
 
 def fetch_contract_dolo_balance():
@@ -378,7 +379,7 @@ def fetch_locked_dolo(all_token_ids, vote_weights=None):
         print(f"     Discrepancy:    {discrepancy_pct:.2f}%")
 
         # Convergence-based retry: keep going until <5% discrepancy or stalled
-        MAX_ROUNDS = 15
+        MAX_ROUNDS = 5
         TARGET_DISCREPANCY = 5.0  # %
 
         for round_num in range(MAX_ROUNDS):
@@ -413,8 +414,8 @@ def fetch_locked_dolo(all_token_ids, vote_weights=None):
 
             # If no progress at all in this round, wait longer before next attempt
             if fixed == 0:
-                print(f"  ⏳ No progress this round — waiting 10s before next attempt...")
-                time.sleep(10)
+                print(f"  ⏳ No progress this round — waiting 3s before next attempt...")
+                time.sleep(3)
         else:
             if discrepancy_pct > TARGET_DISCREPANCY:
                 print(f"  ⚠️  Still {discrepancy_pct:.1f}% off after {MAX_ROUNDS} rounds")
@@ -489,13 +490,39 @@ def make_vote_batch_call(token_ids):
 
 def fetch_vote_weights(all_token_ids, locked_cache=None):
     """Fetch current vote weights for all tokens using true JSON-RPC batch calls.
-    Much faster than individual calls — sends BATCH_SIZE calls per request.
-    Retries failed tokens and validates against locked DOLO data."""
+    Uses locked_cache to store/retrieve cached vote weights (key: 'vote_weight', 'vote_fetched_at').
+    Only re-fetches tokens with missing or stale (>6h) vote weights."""
     print(f"\n⚖️  Phase 3: Fetching vote weights for {len(all_token_ids):,} tokens...")
 
+    now_ts = int(time.time())
     vote_weights = {}
+    to_fetch = []
+
+    # Check cache for existing vote weights
+    if locked_cache:
+        for tid in all_token_ids:
+            entry = locked_cache.get(str(tid))
+            if entry and "vote_weight" in entry:
+                vote_age = now_ts - entry.get("vote_fetched_at", 0)
+                if vote_age <= VOTE_CACHE_MAX_AGE:
+                    vote_weights[tid] = entry["vote_weight"]
+                    continue
+            to_fetch.append(tid)
+    else:
+        to_fetch = list(all_token_ids)
+
+    print(f"  Cached (fresh): {len(vote_weights):,}/{len(all_token_ids):,}")
+    print(f"  To fetch: {len(to_fetch):,}")
+
+    if not to_fetch:
+        print("  ✅ All vote weights cached & fresh!")
+        for tid in all_token_ids:
+            if tid not in vote_weights:
+                vote_weights[tid] = 0.0
+        return vote_weights
+
     all_failed = []
-    chunks = [all_token_ids[i:i+BATCH_SIZE] for i in range(0, len(all_token_ids), BATCH_SIZE)]
+    chunks = [to_fetch[i:i+BATCH_SIZE] for i in range(0, len(to_fetch), BATCH_SIZE)]
     done = 0
     chunk_idx = 0
 
@@ -512,8 +539,8 @@ def fetch_vote_weights(all_token_ids, locked_cache=None):
                 all_failed.extend(failed)
 
         chunk_idx += len(window)
-        pct = (done / len(all_token_ids)) * 100 if all_token_ids else 100
-        print(f"  Progress: {pct:.0f}% ({done:,}/{len(all_token_ids):,})")
+        pct = (done / len(to_fetch)) * 100 if to_fetch else 100
+        print(f"  Progress: {pct:.0f}% ({done:,}/{len(to_fetch):,})")
         time.sleep(0.1)
 
     # --- Retry 1: retry all tokens that failed the initial pass ---
@@ -542,7 +569,7 @@ def fetch_vote_weights(all_token_ids, locked_cache=None):
     if suspicious:
         print(f"  🔍 {len(suspicious)} tokens have active locks but 0 vote weight — retrying...")
         # Convergence-based retry: keep going until no more progress
-        MAX_VOTE_ROUNDS = 10
+        MAX_VOTE_ROUNDS = 5
         for round_num in range(MAX_VOTE_ROUNDS):
             zero_vote_active = [tid for tid in all_token_ids
                                 if locked_cache.get(str(tid), {"amount": 0, "end": 0}).get("amount", 0) > 0
@@ -567,8 +594,8 @@ def fetch_vote_weights(all_token_ids, locked_cache=None):
                 time.sleep(0.25)
             print(f"     Fixed {fixed}/{len(zero_vote_active)} tokens.")
             if fixed == 0:
-                print(f"  ⏳ No progress — waiting 10s before next attempt...")
-                time.sleep(10)
+                print(f"  ⏳ No progress — waiting 3s before next attempt...")
+                time.sleep(3)
 
     # Fill any still-missing tokens with 0
     for tid in all_token_ids:
@@ -576,6 +603,18 @@ def fetch_vote_weights(all_token_ids, locked_cache=None):
             vote_weights[tid] = 0.0
 
     print(f"  ✅ Done. {len(vote_weights):,} vote weights fetched.")
+
+    # Save vote weights back to locked_cache for next run
+    if locked_cache:
+        for tid, vw in vote_weights.items():
+            key = str(tid)
+            if key not in locked_cache:
+                locked_cache[key] = {}
+            locked_cache[key]["vote_weight"] = vw
+            locked_cache[key]["vote_fetched_at"] = now_ts
+        save_cache(locked_cache)
+        print(f"  💾 Vote weights saved to cache")
+
     return vote_weights
 
 

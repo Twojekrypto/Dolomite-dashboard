@@ -1234,10 +1234,14 @@
             vertical-align: middle;
         }
 
-        .assets-table tbody td:nth-child(2),
+        .assets-table tbody td:nth-child(2) {
+            text-align: right;
+            overflow: hidden;
+        }
+
         .assets-table tbody td:nth-child(3),
         .assets-table tbody td:nth-child(4) {
-            text-align: right;
+            text-align: left;
             overflow: hidden;
         }
 
@@ -1490,7 +1494,7 @@
             display: flex;
             flex-direction: column;
             gap: 1px;
-            align-items: flex-end;
+            align-items: flex-start;
         }
 
         .assets-apy-breakdown .lending-part {
@@ -9611,10 +9615,10 @@
                                     <th data-col="price" style="text-align:right;color:#fff">⚪ Price <span
                                             class="sort-arrow">⇅</span>
                                     </th>
-                                    <th data-col="supplyApr" class="sorted" style="text-align:right;color:#34d399">
+                                    <th data-col="supplyApr" class="sorted" style="text-align:left;color:#34d399">
                                         🟢 Supply <span class="sort-arrow">▼</span>
                                     </th>
-                                    <th data-col="borrowApr" style="text-align:right;color:#f87171">🔴 Borrow <span class="sort-arrow">⇅</span></th>
+                                    <th data-col="borrowApr" style="text-align:left;color:#f87171">🔴 Borrow <span class="sort-arrow">⇅</span></th>
                                 </tr>
                             </thead>
                             <tbody id="assets-tbody"></tbody>
@@ -15172,13 +15176,13 @@
                         </div>
                     </td>
                     <td style="font-size:13px;color:rgba(255,255,255,0.85);text-align:right">${priceHtml}</td>
-                    <td style="text-align:right">
+                    <td style="text-align:left">
                         <div>
                             <div><span class="${supplyClass}" style="${supplyStyle}">${displaySupply.toFixed(2)}%</span></div>
                             ${breakdownHtml}
                         </div>
                     </td>
-                    <td style="text-align:right"><span class="assets-apy-red">${d.borrowApr > 0 ? d.borrowApr.toFixed(2) + '%' : '—'}</span></td>
+                    <td style="text-align:left"><span class="assets-apy-red">${d.borrowApr > 0 ? d.borrowApr.toFixed(2) + '%' : '—'}</span></td>
                 </tr>`;
 
                 // Build detail row
