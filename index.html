@@ -10419,7 +10419,7 @@
                 return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);transition:transform 0.15s,background 0.15s;cursor:pointer" onmouseenter="this.style.transform='scale(1.01)';this.style.background='rgba(255,255,255,0.03)'" onmouseleave="this.style.transform='';this.style.background=''" onclick="showProfile('${h.address}')">
             <td style="padding:5px 6px;color:rgba(255,255,255,0.3)">
                 <div class="rank-cell-inner">
-                    ${rc ? `<span class="rank-medal ${rc}">${h.rank}</span>` : `<span class="rank-plain">${h.rank}</span>`}
+                    ${`<span class="rank-plain">${h.rank}</span>`}
                 </div>
             </td>
             <td style="padding:5px 6px;white-space:nowrap;overflow:visible">
@@ -12248,7 +12248,8 @@
         function vedolo_renderPagination(containerId, total, perPage, currentPage, pageVar, renderFn) {
             const totalPages = Math.ceil(total / perPage);
             const el = document.getElementById(containerId);
-            if (!el || totalPages <= 1) { if (el) el.innerHTML = ''; return; }
+            if (!el || totalPages <= 1) { if (el) { el.innerHTML = ''; el.style.display = 'none'; } return; }
+            el.style.display = '';
 
             el.innerHTML = `<button class="flow-pager-btn" onclick="${pageVar}=1;${renderFn}()" ${currentPage === 1 ? 'disabled' : ''}>«</button>` +
                 `<button class="flow-pager-btn" onclick="${pageVar}--;${renderFn}()" ${currentPage === 1 ? 'disabled' : ''}>‹</button>` +
