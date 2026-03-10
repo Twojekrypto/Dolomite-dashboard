@@ -4606,10 +4606,15 @@
         }
 
         /* ===== oDOLO SPECIFIC STYLES ===== */
-        .odolo-analytics-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
+        .odolo-howit-card {
+            margin-bottom: 20px;
+        }
+        .odolo-howit-card .card {
+            border-top: 2px solid;
+            border-image: linear-gradient(90deg, #f59e0b, #6366f1, #22d3ee) 1;
+        }
+        .odolo-howit-card .odolo-flow-steps {
+            justify-content: center;
         }
 
         /* === oDOLO Analytics Cards Row === */
@@ -4794,8 +4799,9 @@
 
         .odolo-donut-layout {
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 40px;
+            gap: 16px;
         }
 
         .odolo-donut-container {
@@ -4836,8 +4842,8 @@
         .odolo-donut-legend {
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            flex: 1;
+            gap: 8px;
+            width: 100%;
         }
 
         .odolo-legend-item {
@@ -5007,12 +5013,11 @@
 
         /* oDOLO responsive */
         @media (max-width: 768px) {
-            .odolo-analytics-grid {
-                grid-template-columns: 1fr;
-            }
+
 
             .odolo-donut-layout {
                 flex-direction: column;
+                align-items: center;
                 gap: 20px;
             }
 
@@ -8612,51 +8617,10 @@
                 </div>
             </div>
 
-            <!-- oDOLO CHARTS -->
-            <div class="odolo-analytics-grid anim anim-d2">
-                <!-- DISTRIBUTION DONUT -->
-                <div class="card">
-                    <div class="card-title">oDOLO Distribution</div>
-                    <div class="odolo-donut-layout">
-                        <div class="odolo-donut-container" style="position:relative;">
-                            <canvas class="odolo-donut-canvas" id="o-dist-donut"></canvas>
-                            <div class="odolo-donut-center">
-                                <div class="odolo-donut-center-value" id="o-donut-total">—</div>
-                                <div class="odolo-donut-center-label">total oDOLO</div>
-                            </div>
-                            <div id="o-donut-tooltip" style="
-                            display: none;
-                            position: fixed;
-                            pointer-events: none;
-                            background: rgba(15, 23, 42, 0.95);
-                            border: 1px solid rgba(99, 102, 241, 0.4);
-                            border-radius: 8px;
-                            padding: 10px 14px;
-                            font-size: 13px;
-                            color: #e2e8f0;
-                            z-index: 200;
-                            backdrop-filter: blur(8px);
-                            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-                            white-space: nowrap;
-                            transition: opacity 0.15s ease;
-                        "></div>
-                        </div>
-                        <div class="odolo-donut-legend" id="o-dist-legend">
-                            <!-- filled by JS -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- HOW IT WORKS -->
+            <!-- HOW oDOLO WORKS — full-width educational card -->
+            <div class="odolo-howit-card anim anim-d2">
                 <div class="card">
                     <div class="card-title">How oDOLO Works</div>
-                    <div class="odolo-info-box">
-                        <div class="odolo-info-box-title">⚡ Option Token Mechanics</div>
-                        <p>oDOLO is an option token that lets you acquire veDOLO at a discount. Pair oDOLO + DOLO,
-                            choose a lock duration (longer lock = bigger discount), then exercise to receive veDOLO.</p>
-                        <p style="margin-top: 10px; color: var(--accent-amber); font-size: 12px;">⚠️ The discounted
-                            veDOLO price is determined at execution (redemption time), not when pairing.</p>
-                    </div>
                     <div class="odolo-flow-steps">
                         <div class="odolo-flow-step">
                             <div class="odolo-flow-icon-wrap">
@@ -8704,6 +8668,13 @@
                             <div class="odolo-flow-desc">(50% off DOLO price, 2y lock)</div>
                         </div>
                     </div>
+                    <div class="odolo-info-box" style="margin-top:8px;margin-bottom:0">
+                        <div class="odolo-info-box-title">⚡ Option Token Mechanics</div>
+                        <p>oDOLO is an option token that lets you acquire veDOLO at a discount. Pair oDOLO + DOLO,
+                            choose a lock duration (longer lock = bigger discount), then exercise to receive veDOLO.</p>
+                        <p style="margin-top: 10px; color: var(--accent-amber); font-size: 12px;">⚠️ The discounted
+                            veDOLO price is determined at execution (redemption time), not when pairing.</p>
+                    </div>
                 </div>
                 <script>
                     // Click-to-toggle only for step 1 (has clickable link)
@@ -8719,11 +8690,44 @@
                         document.querySelectorAll('.odolo-flow-icon-wrap.active').forEach(w => w.classList.remove('active'));
                     });
                 </script>
-            </div><!-- /odolo-analytics-grid -->
+            </div>
 
-            <!-- oDOLO ANALYTICS CARDS -->
+            <!-- oDOLO ANALYTICS — 3 donut charts -->
             <div class="odolo-analytics-row anim anim-d2">
-                <!-- Card 1: Claimed vs Unclaimed (interactive donut) -->
+                <!-- Card 1: oDOLO Distribution (main donut) -->
+                <div class="card">
+                    <div class="card-title">oDOLO Distribution</div>
+                    <div class="odolo-donut-layout">
+                        <div class="odolo-donut-container" style="position:relative;width:200px;height:200px;padding:10px;">
+                            <canvas class="odolo-donut-canvas" id="o-dist-donut"></canvas>
+                            <div class="odolo-donut-center">
+                                <div class="odolo-donut-center-value" id="o-donut-total">—</div>
+                                <div class="odolo-donut-center-label">total oDOLO</div>
+                            </div>
+                            <div id="o-donut-tooltip" style="
+                            display: none;
+                            position: fixed;
+                            pointer-events: none;
+                            background: rgba(15, 23, 42, 0.95);
+                            border: 1px solid rgba(99, 102, 241, 0.4);
+                            border-radius: 8px;
+                            padding: 10px 14px;
+                            font-size: 13px;
+                            color: #e2e8f0;
+                            z-index: 200;
+                            backdrop-filter: blur(8px);
+                            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+                            white-space: nowrap;
+                            transition: opacity 0.15s ease;
+                        "></div>
+                        </div>
+                        <div class="odolo-donut-legend" id="o-dist-legend">
+                            <!-- filled by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 2: Claimer Distribution (interactive donut) -->
                 <div class="card">
                     <div class="card-title">
                         oDOLO Claimer Distribution
@@ -8742,8 +8746,6 @@
                         <div class="odolo-an-legend" id="odolo-an-claimed-legend" style="margin-top:12px"></div>
                     </div>
                 </div>
-
-
 
                 <!-- Card 3: Claimer Behavior (donut) -->
                 <div class="card">
@@ -8768,6 +8770,7 @@
                     </div>
                 </div>
             </div>
+
 
             <!-- CLAIMER BEHAVIOR TABLE -->
             <div class="card anim anim-d3" id="odolo-claimer-table-section" style="margin-top: 20px;">
