@@ -5040,6 +5040,7 @@
             flex: 1;
             display: flex;
             flex-direction: column;
+            justify-content: center;
             padding: 24px;
             min-width: 0;
         }
@@ -11996,13 +11997,11 @@
             const canvas = document.getElementById(canvasId);
             if (!canvas) return;
             const dpr = window.devicePixelRatio || 1;
-            const container = canvas.parentElement;
-            const cw = container.clientWidth || 240;
-            const ch = container.clientHeight || 240;
+            const rect = canvas.getBoundingClientRect();
+            const cw = rect.width || 240;
+            const ch = rect.height || 240;
             canvas.width = cw * dpr;
             canvas.height = ch * dpr;
-            canvas.style.width = cw + 'px';
-            canvas.style.height = ch + 'px';
             canvas.style.cursor = 'pointer';
             const ctx = canvas.getContext('2d');
             ctx.scale(dpr, dpr);
@@ -12010,14 +12009,15 @@
             const cx = w/2, cy = h/2;
             const outerR = Math.min(cx, cy) * 0.88;
             const innerR = outerR * 0.62;
-            const total = segments.reduce((s, x) => s + x.value, 0);
+            const sorted = [...segments].sort((a, b) => b.value - a.value);
+            const total = sorted.reduce((s, x) => s + x.value, 0);
             if (total <= 0) return;
 
             const fmtK = n => n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(0)+'K' : n.toFixed(0);
 
             // Compute angles
             let angle = -Math.PI / 2;
-            const arcs = segments.map(s => {
+            const arcs = sorted.map(s => {
                 const swept = (s.value / total) * Math.PI * 2;
                 const arc = { start: angle, end: angle + swept, color: s.color, label: s.label, value: s.value, pct: (s.value/total*100).toFixed(1) };
                 angle += swept;
@@ -12327,7 +12327,7 @@
                 { label: 'Reward Emissions', value: data.inCirculation, color: '#fbbf24' },
                 { label: 'Currently Vesting', value: data.promisedTokens, color: '#6366f1' },
                 { label: 'Exercised (Redeemed)', value: data.pushedTokens, color: '#34d399' },
-            ].filter(s => s.value > 0);
+            ].filter(s => s.value > 0).sort((a, b) => b.value - a.value);
 
             const total = segments.reduce((s, seg) => s + seg.value, 0);
             odolo_donutSegments = segments;
