@@ -8502,23 +8502,21 @@
                 </div>
             </div>
 
-            <!-- CHARTS -->
-            <div class="analytics-grid anim anim-d2">
-                <div class="card">
-                    <div class="card-header">
-                        <div class="card-title">Holder Distribution</div>
-
+            <!-- NFT SHARE — Token Composition style -->
+            <div class="card anim anim-d2">
+                <div class="dolo-composition-layout">
+                    <div class="dolo-composition-legend-side" id="nft-share-legend">
+                        <h3 style="margin:0 0 12px;font-size:18px;font-weight:600;color:var(--text-primary)">NFT Share by Wallet</h3>
+                        <!-- filled by JS -->
                     </div>
-                    <div class="dist-stack" id="dist-bars"></div>
-                </div>
-                <div class="card">
-                    <div class="card-header">
-                        <div class="card-title">NFT Share by Wallet</div>
-
-                    </div>
-                    <div class="donut-layout">
-                        <svg class="donut-svg" viewBox="0 0 42 42" id="donut-chart"></svg>
-                        <div class="donut-legend" id="donut-legend"></div>
+                    <div class="dolo-composition-donut-side">
+                        <div class="dolo-donut-wrap" style="position:relative;width:100%;max-width:420px;aspect-ratio:1">
+                            <canvas id="nft-share-canvas" style="width:100%;height:100%"></canvas>
+                            <div class="odolo-donut-center">
+                                <div class="odolo-donut-center-value" id="nft-share-total">—</div>
+                                <div class="odolo-donut-center-label">NFT</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -8962,24 +8960,21 @@
                 </div>
             </div>
 
-            <!-- oDOLO ANALYTICS — 3 donut charts -->
             <div class="odolo-analytics-row anim anim-d2">
-                <!-- Card 1: oDOLO Distribution (main donut) -->
+                <!-- Card 1: oDOLO Distribution -->
                 <div class="card">
-                    <div class="odolo-donut-layout">
-                        <div class="odolo-donut-legend" id="o-dist-legend">
-                            <h3 style="margin:0 0 12px;font-size:18px;font-weight:600;color:var(--text-primary)">oDOLO Distribution</h3>
-                            <!-- filled by JS -->
-                        </div>
-                        <div class="odolo-donut-container">
-                            <div class="odolo-donut-canvas-wrap">
-                                <canvas class="odolo-donut-canvas" id="o-dist-donut"></canvas>
-                                <div class="odolo-donut-center">
-                                    <div class="odolo-donut-center-value" id="o-donut-total">—</div>
-                                    <div class="odolo-donut-center-label">total oDOLO</div>
-                                </div>
+                    <div class="card-header">
+                        <div class="card-title">oDOLO Distribution</div>
+                    </div>
+                    <div class="odolo-donut-container" style="border-top:none">
+                        <div class="odolo-donut-canvas-wrap">
+                            <canvas class="odolo-donut-canvas" id="o-dist-donut"></canvas>
+                            <div class="odolo-donut-center">
+                                <div class="odolo-donut-center-value" id="o-donut-total">—</div>
+                                <div class="odolo-donut-center-label">total oDOLO</div>
                             </div>
-                            <div id="o-donut-tooltip" style="
+                        </div>
+                        <div id="o-donut-tooltip" style="
                             display: none;
                             position: fixed;
                             pointer-events: none;
@@ -8995,33 +8990,35 @@
                             white-space: nowrap;
                             transition: opacity 0.15s ease;
                         "></div>
-                        </div>
+                    </div>
+                    <div class="odolo-donut-legend" id="o-dist-legend" style="border-top:1px solid rgba(255,255,255,0.04)">
+                        <!-- filled by JS -->
                     </div>
                 </div>
 
 
-                <!-- Card 3: Claimer Behavior (donut) -->
+                <!-- Card 2: Claimer Behavior -->
                 <div class="card">
-                    <div class="odolo-donut-layout" id="odolo-an-claimer">
-                        <div class="odolo-donut-legend" id="odolo-an-claimer-legend">
-                            <h3 style="margin:0 0 12px;font-size:18px;font-weight:600;color:var(--text-primary);display:flex;align-items:center;gap:8px">
-                                Claimer Behavior
-                                <span id="odolo-an-claimer-count" style="font-size:14px;font-weight:600;color:rgba(255,255,255,0.5);cursor:default;position:relative" onmouseenter="this.querySelector('.ct-tip').style.opacity=1" onmouseleave="this.querySelector('.ct-tip').style.opacity=0">—<span class="ct-tip" style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:rgba(20,24,37,0.95);color:rgba(255,255,255,0.7);font-size:10px;padding:4px 8px;border-radius:6px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;margin-bottom:4px;border:1px solid rgba(255,255,255,0.1)">unique claimers</span></span>
-                                <i class="tooltip-icon">?
-                                    <span class="tooltip-bubble">What do wallets do after claiming oDOLO? Exercised = paired with DOLO for veDOLO. Outflow = sold/transferred. Held = still in wallet. Only claimed oDOLO is tracked. Hover for amounts.</span>
-                                </i>
-                            </h3>
-                            <!-- filled by JS -->
+                    <div class="card-header">
+                        <div class="card-title" style="display:flex;align-items:center;gap:8px">
+                            Claimer Behavior
+                            <span id="odolo-an-claimer-count" style="font-size:14px;font-weight:600;color:rgba(255,255,255,0.5);cursor:default;position:relative" onmouseenter="this.querySelector('.ct-tip').style.opacity=1" onmouseleave="this.querySelector('.ct-tip').style.opacity=0">—<span class="ct-tip" style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:rgba(20,24,37,0.95);color:rgba(255,255,255,0.7);font-size:10px;padding:4px 8px;border-radius:6px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;margin-bottom:4px;border:1px solid rgba(255,255,255,0.1)">unique claimers</span></span>
+                            <i class="tooltip-icon">?
+                                <span class="tooltip-bubble">What do wallets do after claiming oDOLO? Exercised = paired with DOLO for veDOLO. Outflow = sold/transferred. Held = still in wallet. Only claimed oDOLO is tracked. Hover for amounts.</span>
+                            </i>
                         </div>
-                        <div class="odolo-donut-container">
-                            <div class="odolo-donut-canvas-wrap">
-                                <canvas id="odolo-claimer-donut" class="odolo-donut-canvas"></canvas>
-                                <div class="odolo-donut-center">
-                                    <div class="odolo-donut-center-value" id="odolo-claimer-center-val">—</div>
-                                    <div class="odolo-donut-center-label" id="odolo-claimer-center-sub"></div>
-                                </div>
+                    </div>
+                    <div class="odolo-donut-container" style="border-top:none">
+                        <div class="odolo-donut-canvas-wrap">
+                            <canvas id="odolo-claimer-donut" class="odolo-donut-canvas"></canvas>
+                            <div class="odolo-donut-center">
+                                <div class="odolo-donut-center-value" id="odolo-claimer-center-val">—</div>
+                                <div class="odolo-donut-center-label" id="odolo-claimer-center-sub"></div>
                             </div>
                         </div>
+                    </div>
+                    <div class="odolo-donut-legend" id="odolo-an-claimer-legend" style="border-top:1px solid rgba(255,255,255,0.04)">
+                        <!-- filled by JS -->
                     </div>
                 </div>
             </div>
@@ -10719,8 +10716,7 @@
                 year: 'numeric', month: 'long', day: 'numeric'
             });
 
-            renderDist();
-            renderDonut();
+            renderNftShare();
             renderExpiryChart();
             setupExpiryInteraction();
 
@@ -10755,197 +10751,15 @@
             })(start);
         }
 
-        // ===== CHARTS =====
-        function renderDist() {
-            const el = document.getElementById('dist-bars');
-            const counts = DIST.map(d => ({ ...d, count: HOLDER_DATA.filter(h => h.nft_count >= d.min && h.nft_count <= d.max).length }));
-            const mx = Math.max(...counts.map(c => c.count));
-            const totalHolders = counts.reduce((s, d) => s + d.count, 0);
-            el.innerHTML = counts.map(d => {
-                const pct = ((d.count / totalHolders) * 100).toFixed(1);
-                return `
-        <div class="dist-item" onmouseenter="this.querySelector('.dist-tooltip').style.display='block'" onmouseleave="this.querySelector('.dist-tooltip').style.display='none'">
-            <div class="label">${d.label}</div>
-            <div class="track" style="position:relative">
-                <div class="fill" style="width:${Math.max(3, (d.count / mx) * 100)}%;background:${d.color}">
-                    <span>${d.count.toLocaleString('en-US')}</span>
-                </div>
-                <div class="dist-tooltip" style="position:absolute;top:-36px;right:0">
-                    <strong style="color:${d.color}">${d.label}</strong>: ${d.count.toLocaleString('en-US')} holders · <strong>${pct}%</strong>
-                </div>
-            </div>
-        </div>
-    `}).join('');
-        }
-
-        // Arc helper: compute SVG arc path for a donut segment
-        function describeArc(cx, cy, r, startAngle, endAngle) {
-            const rad = Math.PI / 180;
-            const x1 = cx + r * Math.cos((startAngle - 90) * rad);
-            const y1 = cy + r * Math.sin((startAngle - 90) * rad);
-            const x2 = cx + r * Math.cos((endAngle - 90) * rad);
-            const y2 = cy + r * Math.sin((endAngle - 90) * rad);
-            const largeArc = (endAngle - startAngle) > 180 ? 1 : 0;
-            return `M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2}`;
-        }
-
-        function renderDonut() {
-            const svg = document.getElementById('donut-chart');
-            const leg = document.getElementById('donut-legend');
+        // ===== NFT SHARE (Token Composition style) =====
+        function renderNftShare() {
             const segs = DIST.map(d => ({
-                ...d,
-                nfts: HOLDER_DATA.filter(h => h.nft_count >= d.min && h.nft_count <= d.max).reduce((s, h) => s + h.nft_count, 0)
-            })).filter(s => s.nfts > 0);
+                label: d.label,
+                value: HOLDER_DATA.filter(h => h.nft_count >= d.min && h.nft_count <= d.max).reduce((s, h) => s + h.nft_count, 0),
+                color: d.color
+            })).filter(s => s.value > 0).sort((a, b) => b.value - a.value);
 
-            const total = segs.reduce((s, d) => s + d.nfts, 0);
-            const cx = 21, cy = 21, r = 15.91549;
-
-            // Create tooltip element if not exists
-            let tooltip = document.getElementById('donut-hover-tip');
-            if (!tooltip) {
-                tooltip = document.createElement('div');
-                tooltip.id = 'donut-hover-tip';
-                tooltip.className = 'donut-tooltip';
-                document.body.appendChild(tooltip);
-            }
-
-            // Background circle
-            let html = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="5"/>`;
-
-            let currentAngle = 0;
-            segs.forEach((seg, i) => {
-                const pct = seg.nfts / total;
-                const angle = pct * 360;
-                // Clamp to avoid floating-point overshoot
-                const endAngle = Math.min(currentAngle + angle, 360);
-                // For a full circle (single segment), use two half-arcs
-                if (angle >= 359.99) {
-                    html += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${seg.color}" stroke-width="5"
-                    style="cursor:pointer"
-                    data-idx="${i}" data-label="${seg.label}" data-nfts="${seg.nfts}" data-pct="${(pct * 100).toFixed(1)}" data-color="${seg.color}"
-                    onmouseenter="donutHover(this, event)" onmouseleave="donutUnhover(this)" onmousemove="donutMove(event)"/>`;
-                } else {
-                    const d = describeArc(cx, cy, r, currentAngle, endAngle);
-                    html += `<path d="${d}" fill="none" stroke="${seg.color}" stroke-width="5"
-                    style="cursor:pointer"
-                    data-idx="${i}" data-label="${seg.label}" data-nfts="${seg.nfts}" data-pct="${(pct * 100).toFixed(1)}" data-color="${seg.color}"
-                    onmouseenter="donutHover(this, event)" onmouseleave="donutUnhover(this)" onmousemove="donutMove(event)"/>`;
-                }
-                currentAngle = endAngle;
-            });
-
-            html += `<text x="${cx}" y="20" text-anchor="middle" fill="var(--text-primary)" font-size="4" font-weight="700"
-        font-family="Inter">${total.toLocaleString('en-US')}</text>
-        <text x="${cx}" y="24" text-anchor="middle" fill="var(--text-muted)" font-size="2"
-        font-family="Inter">NFT</text>`;
-            svg.innerHTML = html;
-
-            leg.innerHTML = segs.map((s, i) => {
-                const pct = ((s.nfts / total) * 100).toFixed(1);
-                return `
-        <div class="legend-row" data-idx="${i}"
-            onmouseenter="legendHover(${i}, '${s.color}')" onmouseleave="legendUnhover(${i})">
-            <div class="legend-swatch" style="background:${s.color}"></div>
-            ${s.label}: ${s.nfts.toLocaleString('en-US')} (${pct}%)
-        </div>
-    `}).join('');
-        }
-
-        // Donut hover helpers — query both path and circle elements
-        function donutSegments() {
-            return document.querySelectorAll('#donut-chart path[data-idx], #donut-chart circle[data-idx]');
-        }
-        function donutHover(el, e) {
-            const idx = parseInt(el.dataset.idx);
-            el.setAttribute('stroke-width', '7');
-            el.style.filter = 'brightness(1.4) drop-shadow(0 0 6px ' + el.dataset.color + ')';
-            const tip = document.getElementById('donut-hover-tip');
-            tip.innerHTML = `<strong style="color:${el.dataset.color}">${el.dataset.label}</strong><br>${parseInt(el.dataset.nfts).toLocaleString('en-US')} NFTs · <strong>${el.dataset.pct}%</strong>`;
-            tip.style.display = 'block';
-            donutMove(e);
-            // Highlight corresponding legend row
-            const rows = document.querySelectorAll('#donut-legend .legend-row');
-            rows.forEach(r => {
-                if (parseInt(r.dataset.idx) === idx) {
-                    r.style.background = 'rgba(255,255,255,0.08)';
-                    r.style.borderLeft = '3px solid ' + el.dataset.color;
-                    r.style.paddingLeft = '8px';
-                    r.style.color = '#fff';
-                    r.style.fontWeight = '700';
-                } else {
-                    r.style.opacity = '0.4';
-                }
-            });
-            // Dim other segments
-            donutSegments().forEach(c => {
-                if (parseInt(c.dataset.idx) !== idx) {
-                    c.style.opacity = '0.3';
-                }
-            });
-        }
-        function donutUnhover(el) {
-            el.setAttribute('stroke-width', '5');
-            el.style.filter = '';
-            document.getElementById('donut-hover-tip').style.display = 'none';
-            // Reset legend rows
-            const rows = document.querySelectorAll('#donut-legend .legend-row');
-            rows.forEach(r => {
-                r.style.background = '';
-                r.style.borderLeft = '';
-                r.style.paddingLeft = '';
-                r.style.color = '';
-                r.style.fontWeight = '';
-                r.style.opacity = '1';
-            });
-            // Reset other segments
-            donutSegments().forEach(c => {
-                c.style.opacity = '1';
-            });
-        }
-        function donutMove(e) {
-            const tip = document.getElementById('donut-hover-tip');
-            tip.style.left = (e.clientX + 14) + 'px';
-            tip.style.top = (e.clientY - 10) + 'px';
-        }
-        function legendHover(idx, color) {
-            donutSegments().forEach(c => {
-                if (parseInt(c.dataset.idx) === idx) {
-                    c.setAttribute('stroke-width', '7');
-                    c.style.filter = 'brightness(1.4) drop-shadow(0 0 6px ' + color + ')';
-                } else {
-                    c.style.opacity = '0.3';
-                }
-            });
-            // Highlight this legend row, dim others
-            const rows = document.querySelectorAll('#donut-legend .legend-row');
-            rows.forEach(r => {
-                if (parseInt(r.dataset.idx) === idx) {
-                    r.style.background = 'rgba(255,255,255,0.08)';
-                    r.style.borderLeft = '3px solid ' + color;
-                    r.style.paddingLeft = '8px';
-                    r.style.color = '#fff';
-                    r.style.fontWeight = '700';
-                } else {
-                    r.style.opacity = '0.4';
-                }
-            });
-        }
-        function legendUnhover(idx) {
-            donutSegments().forEach(c => {
-                c.setAttribute('stroke-width', '5');
-                c.style.filter = '';
-                c.style.opacity = '1';
-            });
-            // Reset all legend rows
-            const rows = document.querySelectorAll('#donut-legend .legend-row');
-            rows.forEach(r => {
-                r.style.background = '';
-                r.style.borderLeft = '';
-                r.style.paddingLeft = '';
-                r.style.color = '';
-                r.style.fontWeight = '';
-                r.style.opacity = '1';
-            });
+            odolo_drawMiniDonut('nft-share-canvas', segs, 'nft-share-total', null, 'NFT', 'nft-share-legend');
         }
 
         // ===== EXPIRY TIMELINE CHART =====
