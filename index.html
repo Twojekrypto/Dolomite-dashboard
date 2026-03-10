@@ -8501,7 +8501,7 @@
             <!-- NFT SHARE — Token Composition style -->
             <div class="card anim anim-d2" style="margin-top:20px">
                 <div class="card-header">
-                    <div class="card-title">NFT Share by Wallet</div>
+                    <h3 style="display:flex;align-items:center;gap:8px;margin:0"><img src="vedolo-logo.svg" width="22" height="22" alt="veDOLO" style="flex-shrink:0"> NFT Share by Wallet</h3>
                 </div>
                 <div class="dolo-composition-layout">
                     <div class="dolo-composition-legend-side" id="nft-share-legend">
@@ -8522,7 +8522,7 @@
             <!-- EXPIRY TIMELINE -->
             <div class="expiry-chart-card anim anim-d2" id="expiry-section" style="margin-top:20px">
                 <div class="card-header">
-                    <div class="card-title">Lock Expiry Timeline</div>
+                    <h3 style="display:flex;align-items:center;gap:8px;margin:0"><img src="vedolo-logo.svg" width="22" height="22" alt="veDOLO" style="flex-shrink:0"> Lock Expiry Timeline</h3>
 
                 </div>
                 <div class="expiry-chart-scroll" style="position:relative">
@@ -8962,7 +8962,7 @@
                 <!-- Card 1: oDOLO Distribution -->
                 <div class="card">
                     <div class="card-header">
-                        <div class="card-title">oDOLO Distribution</div>
+                        <h3 style="display:flex;align-items:center;gap:8px;margin:0"><img src="odolo-logo-official.svg" width="22" height="22" alt="oDOLO" style="flex-shrink:0"> oDOLO Distribution</h3>
                     </div>
                     <div class="odolo-donut-container" style="border-top:none">
                         <div class="odolo-donut-canvas-wrap">
@@ -8998,13 +8998,14 @@
                 <!-- Card 2: Claimer Behavior -->
                 <div class="card">
                     <div class="card-header">
-                        <div class="card-title" style="display:flex;align-items:center;gap:8px">
+                        <h3 style="display:flex;align-items:center;gap:8px;margin:0">
+                            <img src="odolo-logo-official.svg" width="22" height="22" alt="oDOLO" style="flex-shrink:0">
                             Claimer Behavior
-                            <span id="odolo-an-claimer-count" style="font-size:inherit;font-weight:500;color:rgba(255,255,255,0.5);cursor:default;position:relative" onmouseenter="this.querySelector('.ct-tip').style.opacity=1" onmouseleave="this.querySelector('.ct-tip').style.opacity=0">—<span class="ct-tip" style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:rgba(20,24,37,0.95);color:rgba(255,255,255,0.7);font-size:10px;padding:4px 8px;border-radius:6px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;margin-bottom:4px;border:1px solid rgba(255,255,255,0.1)">unique claimers</span></span>
+                            <span id="odolo-an-claimer-count" style="font-size:0.85em;font-weight:500;color:rgba(255,255,255,0.5);cursor:default;position:relative" onmouseenter="this.querySelector('.ct-tip').style.opacity=1" onmouseleave="this.querySelector('.ct-tip').style.opacity=0">—<span class="ct-tip" style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:rgba(20,24,37,0.95);color:rgba(255,255,255,0.7);font-size:10px;padding:4px 8px;border-radius:6px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;margin-bottom:4px;border:1px solid rgba(255,255,255,0.1)">unique claimers</span></span>
                             <i class="tooltip-icon">?
                                 <span class="tooltip-bubble">What do wallets do after claiming oDOLO? Exercised = paired with DOLO for veDOLO. Outflow = sold/transferred. Held = still in wallet. Only claimed oDOLO is tracked. Hover for amounts.</span>
                             </i>
-                        </div>
+                        </h3>
                     </div>
                     <div class="odolo-donut-container" style="border-top:none">
                         <div class="odolo-donut-canvas-wrap">
@@ -10757,7 +10758,7 @@
                 color: d.color
             })).filter(s => s.value > 0).sort((a, b) => b.value - a.value);
 
-            odolo_drawMiniDonut('nft-share-canvas', segs, 'nft-share-total', null, 'NFT', 'nft-share-legend');
+            odolo_drawMiniDonut('nft-share-canvas', segs, 'nft-share-total', null, 'NFT', 'nft-share-legend', segs.reduce((s, x) => s + x.value, 0));
         }
 
         // ===== EXPIRY TIMELINE CHART =====
@@ -11786,7 +11787,7 @@
         }
 
         // === Generic canvas donut with hover ===
-        function odolo_drawMiniDonut(canvasId, segments, centerValId, centerSubId, defaultLabel, legendContainerId) {
+        function odolo_drawMiniDonut(canvasId, segments, centerValId, centerSubId, defaultLabel, legendContainerId, defaultCenterValue) {
             const canvas = document.getElementById(canvasId);
             if (!canvas) return;
             const dpr = window.devicePixelRatio || 1;
@@ -11837,8 +11838,12 @@
                     if (cVal) { cVal.textContent = fmtK(a.value); cVal.style.fontSize = '22px'; }
                     if (cSub) cSub.textContent = a.label + ' (' + a.pct + '%)';
                 } else {
-                    const main = arcs[0];
-                    if (cVal) { cVal.textContent = main.pct + '%'; cVal.style.fontSize = '24px'; }
+                    if (defaultCenterValue != null) {
+                        if (cVal) { cVal.textContent = fmtK(defaultCenterValue); cVal.style.fontSize = '24px'; }
+                    } else {
+                        const main = arcs[0];
+                        if (cVal) { cVal.textContent = main.pct + '%'; cVal.style.fontSize = '24px'; }
+                    }
                     if (cSub) cSub.textContent = defaultLabel;
                 }
             }
@@ -11956,7 +11961,7 @@
 
             // Add "bought extra" as annotation
             const bePct = cb.pct_bought_extra || 0;
-            odolo_drawMiniDonut('odolo-claimer-donut', segments, 'odolo-claimer-center-val', 'odolo-claimer-center-sub', 'of claimed', 'odolo-an-claimer-legend');
+            odolo_drawMiniDonut('odolo-claimer-donut', segments, 'odolo-claimer-center-val', 'odolo-claimer-center-sub', 'unique claimers', 'odolo-an-claimer-legend', cb.total_claimers);
 
             // Add bought extra note under exercised row
             if (bePct > 0) {
