@@ -5691,6 +5691,7 @@
             position: relative;
             display: flex;
             align-items: center;
+            z-index: 200;
         }
 
         .earn-input-row .earn-chain-dropdown::before {
@@ -7461,7 +7462,7 @@
         .earn-chain-dropdown {
             position: relative;
             display: inline-block;
-            z-index: 100;
+            z-index: 200;
         }
 
         .earn-chain-trigger {
@@ -7520,7 +7521,7 @@
             border: 1px solid var(--border-subtle);
             border-radius: 10px;
             padding: 4px;
-            z-index: 1000;
+            z-index: 9999;
             display: none;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(99, 102, 241, 0.08);
         }
@@ -9633,8 +9634,8 @@
                 </div>
                 <div class="dolo-composition-layout">
                     <div class="dolo-composition-donut-side">
-                        <div id="dolo-donut-wrap" style="position:relative;width:300px;height:300px;flex-shrink:0">
-                            <canvas id="dolo-token-donut" style="width:300px;height:300px"></canvas>
+                        <div id="dolo-donut-wrap" style="position:relative;width:360px;height:360px;flex-shrink:0">
+                            <canvas id="dolo-token-donut" style="width:360px;height:360px"></canvas>
                             <div id="dolo-donut-center"
                                 style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
                             </div>
@@ -10011,7 +10012,7 @@
                 .earn-hero-outer {
                     position:relative;border-radius:18px;padding:2px;
                     background:linear-gradient(135deg,rgba(52,211,153,.35),rgba(34,211,238,.25),rgba(99,102,241,.15));
-                    overflow:visible;margin-bottom:28px;
+                    overflow:visible;margin-bottom:28px;z-index:10;
                 }
                 .earn-hero-outer::before {
                     content:'';position:absolute;inset:-2px;border-radius:20px;
@@ -14530,7 +14531,7 @@
             svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
             svg.setAttribute('width', size);
             svg.setAttribute('height', size);
-            svg.style.cssText = 'display:block;width:300px;height:300px';
+            svg.style.cssText = 'display:block;width:360px;height:360px';
             svg.id = 'dolo-token-svg';
 
             pathElems.forEach(p => {
