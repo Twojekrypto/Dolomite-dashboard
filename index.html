@@ -8572,7 +8572,7 @@
 
                     <!-- Top label -->
                     <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap">
-                        <img src="dolo-logo.svg" alt="" style="width:20px;height:20px;border-radius:50%;border:1px solid rgba(255,255,255,.1)">
+                        <img src="odolo-logo-official.svg" alt="" style="width:20px;height:20px;border-radius:50%;border:1px solid rgba(255,255,255,.1)">
                         <span style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.8px;font-weight:600">oDOLO Options</span>
                     </div>
 
@@ -9229,62 +9229,48 @@
                 .hero-label-tip:hover {
                     border-bottom-color:rgba(255,255,255,.4);
                 }
-                /* Hide ? icon circles — replaced by underline */
+                /* Hide ? icon circles everywhere — replaced by underline */
                 .tvl-metric-label .tooltip-icon,
                 .exit-hero-inner .tooltip-icon,
                 .hero-label-tip .tooltip-icon {
                     display:none;
                 }
-                /* Tooltip bubble on label hover */
+                /* Hide inline tooltip-bubble (JS uses #float-tip instead) */
                 .tvl-metric-label .tooltip-bubble,
                 .hero-label-tip .tooltip-bubble {
+                    display:none !important;
+                }
+                /* Floating tooltip rendered by JS at body level */
+                #float-tip {
                     display:none;
-                    position:absolute;
-                    bottom:calc(100% + 10px);
-                    left:0;
-                    width:240px;
+                    position:fixed;
+                    width:260px;
                     background:rgba(10,15,30,.97);
-                    border:1px solid rgba(99,102,241,.25);
+                    border:1px solid rgba(99,102,241,.3);
                     border-radius:10px;
-                    padding:10px 14px;
+                    padding:11px 15px;
                     font-size:12px;
                     font-weight:400;
                     color:#cbd5e1;
                     line-height:1.55;
-                    text-transform:none;
-                    letter-spacing:normal;
-                    z-index:9999;
+                    z-index:99999;
                     backdrop-filter:blur(16px);
                     box-shadow:0 8px 32px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.04);
                     pointer-events:none;
                     word-wrap:break-word;
                     white-space:normal;
                 }
-                .tvl-metric-label .tooltip-bubble::before,
-                .hero-label-tip .tooltip-bubble::before {
+                #float-tip::after {
                     content:'';
                     position:absolute;
                     bottom:-6px;
-                    left:20px;
+                    left:24px;
                     width:10px;
                     height:10px;
                     background:rgba(10,15,30,.97);
-                    border-right:1px solid rgba(99,102,241,.25);
-                    border-bottom:1px solid rgba(99,102,241,.25);
+                    border-right:1px solid rgba(99,102,241,.3);
+                    border-bottom:1px solid rgba(99,102,241,.3);
                     transform:rotate(45deg);
-                }
-                .tvl-metric-label:hover .tooltip-bubble,
-                .hero-label-tip:hover .tooltip-bubble {
-                    display:block;
-                }
-                /* Ensure parent cards don't clip tooltips */
-                .vedolo-metric-card, .odolo-metric-card,
-                .exit-sub-card, .tvl-metric-card {
-                    overflow:visible !important;
-                }
-                .vedolo-hero-inner, .odolo-hero-inner,
-                .exit-hero-inner, .tvl-hero-inner {
-                    overflow:visible !important;
                 }
                 .tvl-metric-value {
                     font-size:22px;font-weight:700;letter-spacing:-.5px;
@@ -18766,6 +18752,40 @@
             });
         })();
 
+    </script>
+    <div id="float-tip"></div>
+    <script>
+    /* ── Floating Tooltip Engine ── */
+    (function(){
+        var tip = document.getElementById('float-tip');
+        if(!tip) return;
+        /* Collect all tip-enabled labels */
+        var labels = document.querySelectorAll('.tvl-metric-label[data-tip], .hero-label-tip');
+        labels.forEach(function(el){
+            var bubble = el.querySelector('.tooltip-bubble');
+            if(!bubble) return;
+            var text = bubble.textContent.trim();
+            el.addEventListener('mouseenter', function(){
+                var r = el.getBoundingClientRect();
+                tip.textContent = text;
+                tip.style.display = 'block';
+                /* Position above the label */
+                var tipH = tip.offsetHeight;
+                var top = r.top - tipH - 10;
+                var left = r.left;
+                /* Flip below if above viewport */
+                if(top < 8){ top = r.bottom + 10; }
+                /* Keep within right edge */
+                if(left + 260 > window.innerWidth - 12){ left = window.innerWidth - 272; }
+                if(left < 8) left = 8;
+                tip.style.top = top + 'px';
+                tip.style.left = left + 'px';
+            });
+            el.addEventListener('mouseleave', function(){
+                tip.style.display = 'none';
+            });
+        });
+    })();
     </script>
     <div class="expiry-tooltip" id="expiry-tooltip"></div>
 </body>
