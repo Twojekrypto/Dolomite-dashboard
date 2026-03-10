@@ -1986,6 +1986,10 @@
             width: fit-content;
         }
 
+        .dolo-chain-pills:empty {
+            display: none;
+        }
+
         .dolo-chain-pills button img {
             width: 14px;
             height: 14px;
@@ -2099,9 +2103,9 @@
 
         .dolo-composition-layout {
             display: flex;
-            align-items: flex-start;
-            gap: 28px;
-            padding: 20px;
+            align-items: center;
+            gap: 32px;
+            padding: 24px;
         }
 
         .dolo-composition-donut-side {
@@ -5708,6 +5712,8 @@
             font-size: 13px;
             font-weight: 500;
             gap: 8px;
+            min-width: 140px;
+            white-space: nowrap;
             transition: background 0.2s ease, color 0.2s ease;
         }
 
@@ -9559,9 +9565,9 @@
                             <div class="dolo-chain-slider"></div>
                             <button data-days="7">7D</button>
                             <button data-days="30">30D</button>
-                            <button data-days="90">90D</button>
+                            <button data-days="90" class="active">90D</button>
                             <button data-days="180">180D</button>
-                            <button class="active" data-days="99999">ALL</button>
+                            <button data-days="99999">ALL</button>
                         </div>
                     </div>
                     <button onclick="dolo_resetZoom()" class="dolo-range-btn" id="dolo-reset-zoom-btn"
@@ -9623,12 +9629,12 @@
             <div class="card anim anim-d3" style="margin-top:24px">
                 <div class="card-header" style="flex-direction:column;align-items:flex-start;gap:12px">
                     <h3>Token Composition</h3>
-                    <div id="dolo-chain-filter" class="dolo-chain-pills" style="width:100%;overflow-x:auto;display:none"></div>
+                    <div id="dolo-chain-filter" class="dolo-chain-pills" style="overflow-x:auto"></div>
                 </div>
                 <div class="dolo-composition-layout">
                     <div class="dolo-composition-donut-side">
-                        <div id="dolo-donut-wrap" style="position:relative;width:240px;height:240px;flex-shrink:0">
-                            <canvas id="dolo-token-donut" style="width:240px;height:240px"></canvas>
+                        <div id="dolo-donut-wrap" style="position:relative;width:300px;height:300px;flex-shrink:0">
+                            <canvas id="dolo-token-donut" style="width:300px;height:300px"></canvas>
                             <div id="dolo-donut-center"
                                 style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
                             </div>
@@ -10005,7 +10011,7 @@
                 .earn-hero-outer {
                     position:relative;border-radius:18px;padding:2px;
                     background:linear-gradient(135deg,rgba(52,211,153,.35),rgba(34,211,238,.25),rgba(99,102,241,.15));
-                    overflow:hidden;margin-bottom:28px;
+                    overflow:visible;margin-bottom:28px;
                 }
                 .earn-hero-outer::before {
                     content:'';position:absolute;inset:-2px;border-radius:20px;
@@ -10016,7 +10022,7 @@
                 .earn-hero-inner {
                     position:relative;z-index:1;border-radius:16px;
                     background:linear-gradient(145deg,rgba(10,15,28,.97) 0%,rgba(10,20,30,.96) 40%,rgba(12,14,28,.98) 100%);
-                    padding:28px 32px 24px;overflow:hidden;
+                    padding:28px 32px 24px;overflow:visible;
                 }
                 .earn-hero-inner::after {
                     content:'';position:absolute;top:-50%;left:-20%;width:60%;height:120%;
@@ -13131,7 +13137,7 @@
         let dolo_cachedData = null;
         let dolo_tvlPoints = [];
         let dolo_allTvlPoints = [];
-        let dolo_currentRange = 360;
+        let dolo_currentRange = 90;
         let dolo_refreshTimer = null;
 
         function dolo_applyRange(days) {
@@ -13348,8 +13354,8 @@
                     }
                 }
 
-                dolo_currentRange = 360;
-                dolo_applyRange(360);
+                dolo_currentRange = 90;
+                dolo_applyRange(90);
                 dolo_renderTvlChart(dolo_cachedData);
 
                 dolo_buildChainPills(dolo_cachedData);
@@ -14524,7 +14530,7 @@
             svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
             svg.setAttribute('width', size);
             svg.setAttribute('height', size);
-            svg.style.cssText = 'display:block;width:240px;height:240px';
+            svg.style.cssText = 'display:block;width:300px;height:300px';
             svg.id = 'dolo-token-svg';
 
             pathElems.forEach(p => {
