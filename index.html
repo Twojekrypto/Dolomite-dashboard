@@ -4612,9 +4612,17 @@
         .odolo-howit-card .card {
             border-top: 2px solid;
             border-image: linear-gradient(90deg, #f59e0b, #6366f1, #22d3ee) 1;
+            padding: 28px 32px;
+        }
+        .odolo-howit-card .card-title {
+            font-size: 16px;
+            letter-spacing: 0.3px;
+            margin-bottom: 4px;
         }
         .odolo-howit-card .odolo-flow-steps {
             justify-content: center;
+            padding: 24px 0 16px;
+            gap: 0;
         }
 
         /* === oDOLO Analytics Cards Row === */
@@ -4627,6 +4635,18 @@
         .odolo-analytics-row .card {
             display: flex;
             flex-direction: column;
+            min-height: 380px;
+        }
+        .odolo-analytics-row .card-title {
+            font-size: 13px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.6);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
         }
         .odolo-an-body {
             flex: 1;
@@ -4873,24 +4893,26 @@
         }
 
         .odolo-info-box {
-            background: var(--bg-surface);
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius-md);
-            padding: 20px 24px;
+            background: rgba(245,158,11,0.03);
+            border: none;
+            border-left: 3px solid rgba(245,158,11,0.4);
+            border-radius: 0 var(--radius-md) var(--radius-md) 0;
+            padding: 16px 20px;
             margin-bottom: 16px;
         }
 
         .odolo-info-box-title {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
             color: var(--accent-amber);
-            margin-bottom: 8px;
+            margin-bottom: 6px;
+            letter-spacing: 0.3px;
         }
 
         .odolo-info-box p {
-            font-size: 13px;
-            color: var(--text-secondary);
-            line-height: 1.7;
+            font-size: 12px;
+            color: rgba(255,255,255,0.5);
+            line-height: 1.6;
         }
 
         .odolo-flow-steps {
@@ -4905,14 +4927,14 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             flex-shrink: 0;
-            min-width: 100px;
+            min-width: 120px;
         }
 
         .odolo-flow-icon {
-            width: 48px;
-            height: 48px;
+            width: 52px;
+            height: 52px;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -4921,12 +4943,26 @@
             font-weight: 700;
             border: 2px solid;
             cursor: help;
-            transition: all var(--transition);
+            transition: all 0.25s ease;
+            background: rgba(255,255,255,0.03);
+        }
+
+        .odolo-flow-step:nth-child(1) .odolo-flow-icon {
+            box-shadow: 0 0 20px rgba(245,158,11,0.15), inset 0 0 12px rgba(245,158,11,0.05);
+        }
+        .odolo-flow-step:nth-child(3) .odolo-flow-icon {
+            box-shadow: 0 0 20px rgba(99,102,241,0.15), inset 0 0 12px rgba(99,102,241,0.05);
+        }
+        .odolo-flow-step:nth-child(5) .odolo-flow-icon {
+            box-shadow: 0 0 20px rgba(34,211,238,0.15), inset 0 0 12px rgba(34,211,238,0.05);
+        }
+        .odolo-flow-step:nth-child(7) .odolo-flow-icon {
+            box-shadow: 0 0 20px rgba(52,211,153,0.15), inset 0 0 12px rgba(52,211,153,0.05);
         }
 
         .odolo-flow-icon:hover {
-            transform: scale(1.1);
-            box-shadow: 0 0 16px rgba(255, 255, 255, 0.15);
+            transform: scale(1.12);
+            filter: brightness(1.2);
         }
 
         .odolo-flow-icon-wrap {
@@ -4984,11 +5020,12 @@
         }
 
         .odolo-flow-arrow {
-            font-size: 20px;
-            color: var(--text-muted);
+            font-size: 18px;
+            color: rgba(255,255,255,0.15);
             flex-shrink: 0;
-            padding: 0 8px;
-            margin-top: 14px;
+            padding: 0 12px;
+            margin-top: 16px;
+            letter-spacing: -2px;
         }
 
         .odolo-loading-shimmer {
@@ -8634,7 +8671,7 @@
                             <div class="odolo-flow-label">Have oDOLO</div>
                             <div class="odolo-flow-desc">(Earn or buy)</div>
                         </div>
-                        <div class="odolo-flow-arrow">→</div>
+                        <div class="odolo-flow-arrow">›››</div>
                         <div class="odolo-flow-step">
                             <div class="odolo-flow-icon-wrap">
                                 <div class="odolo-flow-icon"
@@ -8645,7 +8682,7 @@
                             <div class="odolo-flow-label">Pair oDOLO + DOLO</div>
                             <div class="odolo-flow-desc">(Activate discount)</div>
                         </div>
-                        <div class="odolo-flow-arrow">→</div>
+                        <div class="odolo-flow-arrow">›››</div>
                         <div class="odolo-flow-step">
                             <div class="odolo-flow-icon-wrap">
                                 <div class="odolo-flow-icon"
@@ -8656,7 +8693,7 @@
                             <div class="odolo-flow-label">Wait 7 Days</div>
                             <div class="odolo-flow-desc">(Cooldown period)</div>
                         </div>
-                        <div class="odolo-flow-arrow">→</div>
+                        <div class="odolo-flow-arrow">›››</div>
                         <div class="odolo-flow-step">
                             <div class="odolo-flow-icon-wrap">
                                 <div class="odolo-flow-icon"
@@ -8698,7 +8735,7 @@
                 <div class="card">
                     <div class="card-title">oDOLO Distribution</div>
                     <div class="odolo-donut-layout">
-                        <div class="odolo-donut-container" style="position:relative;width:200px;height:200px;padding:10px;">
+                        <div class="odolo-donut-container" style="position:relative;width:190px;height:190px;padding:10px;">
                             <canvas class="odolo-donut-canvas" id="o-dist-donut"></canvas>
                             <div class="odolo-donut-center">
                                 <div class="odolo-donut-center-value" id="o-donut-total">—</div>
@@ -8759,8 +8796,8 @@
                         <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
                             <span id="odolo-an-claimer-count" style="font-size:22px;font-weight:700;color:#fff;cursor:default;position:relative" onmouseenter="this.querySelector('.ct-tip').style.opacity=1" onmouseleave="this.querySelector('.ct-tip').style.opacity=0">—<span class="ct-tip" style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:rgba(20,24,37,0.95);color:rgba(255,255,255,0.7);font-size:10px;padding:4px 8px;border-radius:6px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;margin-bottom:4px;border:1px solid rgba(255,255,255,0.1)">unique claimers</span></span>
                         </div>
-                        <div style="position:relative;width:160px;height:160px">
-                            <canvas id="odolo-claimer-donut" width="320" height="320" style="width:160px;height:160px;cursor:pointer"></canvas>
+                        <div style="position:relative;width:170px;height:170px">
+                            <canvas id="odolo-claimer-donut" width="340" height="340" style="width:170px;height:170px;cursor:pointer"></canvas>
                             <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
                                 <div id="odolo-claimer-center-val" style="font-size:18px;font-weight:700;color:#fff">—</div>
                                 <div id="odolo-claimer-center-sub" style="font-size:9px;color:rgba(255,255,255,0.5)"></div>
