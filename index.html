@@ -8136,70 +8136,139 @@
                 </div>
             </div>
 
-            <!-- EARLY EXITS -->
-            <div class="early-exit-card anim anim-d1">
-                <div class="early-exit-header">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fca5a5" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                        <polyline points="16 17 21 12 16 7" />
-                        <line x1="21" y1="12" x2="9" y2="12" />
-                    </svg>
-                    <h3>Early Exits</h3>
-                </div>
-                <div class="early-exit-grid">
-                    <div class="early-exit-cell">
-                        <div class="metric-label">Total Penalty
-                            <span class="tooltip-icon">?
-                                <span class="tooltip-bubble">Total DOLO lost by users who exited veDOLO before lock
-                                    maturity.
-                                    Penalty = 5% burn fee + variable recoup fee (up to 50%, decreasing linearly to 0% at
-                                    maturity).</span>
-                            </span>
+            <!-- ═══ EARLY EXITS — PREMIUM ═══ -->
+            <style>
+                @keyframes exit-border-glow {
+                    0%,100% { opacity:.5; filter:blur(12px); }
+                    50% { opacity:.85; filter:blur(16px); }
+                }
+                .exit-hero-outer {
+                    position:relative;border-radius:18px;padding:2px;
+                    background:linear-gradient(135deg,rgba(239,68,68,.3),rgba(249,115,22,.2),rgba(239,68,68,.12));
+                    overflow:hidden;margin-top:24px;
+                }
+                .exit-hero-outer::before {
+                    content:'';position:absolute;inset:-2px;border-radius:20px;
+                    background:linear-gradient(135deg,rgba(239,68,68,.2),rgba(249,115,22,.15),rgba(239,68,68,.08));
+                    animation:exit-border-glow 4s ease-in-out infinite;
+                    z-index:0;pointer-events:none;
+                }
+                .exit-hero-inner {
+                    position:relative;z-index:1;border-radius:16px;
+                    background:linear-gradient(145deg,rgba(10,12,20,.97) 0%,rgba(18,10,14,.96) 40%,rgba(12,10,18,.98) 100%);
+                    padding:24px 28px 22px;overflow:hidden;
+                }
+                .exit-hero-inner::after {
+                    content:'';position:absolute;top:-50%;left:-20%;width:60%;height:120%;
+                    background:linear-gradient(90deg,transparent,rgba(255,255,255,.012),transparent);
+                    animation:tvl-shine 8s ease-in-out infinite;pointer-events:none;
+                }
+                .exit-sub-card {
+                    background:rgba(255,255,255,.03);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+                    border:1px solid rgba(255,255,255,.08);border-radius:14px;
+                    padding:16px 18px;transition:all .35s cubic-bezier(.4,0,.2,1);
+                    position:relative;overflow:hidden;
+                }
+                .exit-sub-card:hover {
+                    background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.15);
+                    transform:translateY(-2px);
+                    box-shadow:0 8px 24px rgba(0,0,0,.3),0 0 0 1px rgba(255,255,255,.05);
+                }
+                .exit-sub-card::before {
+                    content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:14px 14px 0 0;
+                }
+                .exit-sub-card.exits-c::before { background:linear-gradient(90deg,#ef4444,#f87171); }
+                .exit-sub-card.avg-c::before { background:linear-gradient(90deg,#f59e0b,#fbbf24); }
+                .exit-sub-icon {
+                    width:32px;height:32px;border-radius:8px;
+                    display:flex;align-items:center;justify-content:center;
+                    margin-bottom:10px;position:relative;
+                }
+                .exit-sub-icon::after {
+                    content:'';position:absolute;inset:0;border-radius:8px;
+                    opacity:0;transition:opacity .3s;
+                }
+                .exit-sub-card:hover .exit-sub-icon::after { opacity:1; }
+                .exit-sub-card.exits-c .exit-sub-icon::after { box-shadow:0 0 10px rgba(239,68,68,.25); }
+                .exit-sub-card.avg-c .exit-sub-icon::after { box-shadow:0 0 10px rgba(245,158,11,.25); }
+                /* Keep existing bar styles but make them fit the new layout */
+                .exit-hero-inner .exit-bar-section { margin-top:10px; }
+                .exit-hero-inner .exit-bar-track {
+                    height:6px;border-radius:3px;background:rgba(255,255,255,.06);overflow:hidden;
+                }
+                .exit-hero-inner .penalty-bar-legend {
+                    display:flex;gap:14px;margin-top:6px;font-size:11px;color:var(--text-muted);
+                }
+                @media (max-width:768px) {
+                    .exit-hero-inner { padding:18px 14px 16px; }
+                    .exit-hero-grid { grid-template-columns:1fr !important; }
+                }
+            </style>
+
+            <div class="exit-hero-outer anim anim-d1">
+                <div class="exit-hero-inner">
+                    <!-- Glow orb -->
+                    <div style="position:absolute;top:-50px;right:-20px;width:180px;height:180px;background:radial-gradient(circle,rgba(239,68,68,.06) 0%,transparent 65%);pointer-events:none"></div>
+
+                    <!-- Header -->
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+                        <div style="width:28px;height:28px;border-radius:8px;background:rgba(239,68,68,.12);display:flex;align-items:center;justify-content:center">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fca5a5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+                            </svg>
                         </div>
-                        <div class="metric-value" id="m-penalty" style="color:#ef4444">—</div>
-                        <div class="exit-bar-section">
-                            <div class="exit-bar-track">
-                                <div class="penalty-bar" id="penalty-bar">
-                                    <div class="penalty-bar-burn" id="penalty-bar-burn" style="width:0%"></div>
-                                    <div class="penalty-bar-recoup" id="penalty-bar-recoup" style="width:0%"></div>
+                        <span style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.8px;font-weight:600">Early Exits</span>
+                    </div>
+
+                    <!-- Main metric: Total Penalty -->
+                    <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;position:relative">
+                        <div id="m-penalty" style="font-size:clamp(32px,5vw,44px);font-weight:800;color:#ef4444;text-shadow:0 0 50px rgba(239,68,68,.25),0 0 100px rgba(239,68,68,.08);line-height:1.1;letter-spacing:-1px;font-variant-numeric:tabular-nums">—</div>
+                    </div>
+                    <div style="font-size:12px;color:var(--text-muted);margin-top:2px;letter-spacing:.5px">TOTAL DOLO PENALTY</div>
+
+                    <!-- Burn/Recoup bar -->
+                    <div class="exit-bar-section">
+                        <div class="exit-bar-track">
+                            <div class="penalty-bar" id="penalty-bar">
+                                <div class="penalty-bar-burn" id="penalty-bar-burn" style="width:0%"></div>
+                                <div class="penalty-bar-recoup" id="penalty-bar-recoup" style="width:0%"></div>
+                            </div>
+                        </div>
+                        <div class="penalty-bar-legend" id="penalty-bar-legend">
+                            <span><span class="dot dot-burn"></span> <span id="m-burn-label">Burned</span></span>
+                            <span><span class="dot dot-recoup"></span> <span id="m-recoup-label">Recouped</span></span>
+                        </div>
+                    </div>
+
+                    <!-- Sub-cards grid -->
+                    <div class="exit-hero-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:20px">
+                        <!-- Early Exits count -->
+                        <div class="exit-sub-card exits-c">
+                            <div class="exit-sub-icon" style="background:rgba(239,68,68,.12)">
+                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 3v10h10" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round"/><path d="M6 10l3-4 3 4" stroke="#ef4444" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </div>
+                            <div class="tvl-metric-label">Early Exits</div>
+                            <div id="m-exits" class="tvl-metric-value" style="color:#ef4444">—</div>
+                            <div class="exit-bar-section">
+                                <div class="exit-bar-track">
+                                    <div class="exit-ratio-fill" id="exit-ratio-fill" style="width:0%"></div>
                                 </div>
-                            </div>
-                            <div class="penalty-bar-legend" id="penalty-bar-legend">
-                                <span><span class="dot dot-burn"></span> <span id="m-burn-label">Burned</span></span>
-                                <span><span class="dot dot-recoup"></span> <span
-                                        id="m-recoup-label">Recouped</span></span>
+                                <div class="exit-bar-sub" id="m-exits-sub" style="font-size:10px;color:var(--text-muted);margin-top:4px"></div>
                             </div>
                         </div>
-                    </div>
-                    <div class="early-exit-cell">
-                        <div class="metric-label">Early Exits
-                            <span class="tooltip-icon">?
-                                <span class="tooltip-bubble">Number of veDOLO positions withdrawn before lock expiry,
-                                    out of all withdrawals.</span>
-                            </span>
-                        </div>
-                        <div class="metric-value" id="m-exits">—</div>
-                        <div class="exit-bar-section">
-                            <div class="exit-bar-track">
-                                <div class="exit-ratio-fill" id="exit-ratio-fill" style="width:0%"></div>
+                        <!-- Avg Penalty -->
+                        <div class="exit-sub-card avg-c">
+                            <div class="exit-sub-icon" style="background:rgba(245,158,11,.12)">
+                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#f59e0b" stroke-width="1.5"/><path d="M8 5v3M8 10h0" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round"/></svg>
                             </div>
-                            <div class="exit-bar-sub" id="m-exits-sub"></div>
-                        </div>
-                    </div>
-                    <div class="early-exit-cell">
-                        <div class="metric-label">Avg Penalty
-                            <span class="tooltip-icon">?
-                                <span class="tooltip-bubble">Average penalty percentage across all early exits.
-                                    Max is ~55% (5% burn + 50% recoup for a fresh 2-year lock).</span>
-                            </span>
-                        </div>
-                        <div class="metric-value" id="m-avg-penalty" style="color:#f97316">—</div>
-                        <div class="exit-bar-section">
-                            <div class="exit-bar-track">
-                                <div class="penalty-gauge-fill" id="penalty-gauge-fill" style="width:0%"></div>
+                            <div class="tvl-metric-label">Avg Penalty</div>
+                            <div id="m-avg-penalty" class="tvl-metric-value" style="color:#f59e0b">—</div>
+                            <div class="exit-bar-section">
+                                <div class="exit-bar-track">
+                                    <div class="penalty-gauge-fill" id="penalty-gauge-fill" style="width:0%"></div>
+                                </div>
+                                <div class="exit-bar-sub" id="m-avg-penalty-sub" style="font-size:10px;color:var(--text-muted);margin-top:4px"></div>
                             </div>
-                            <div class="exit-bar-sub" id="m-avg-penalty-sub"></div>
                         </div>
                     </div>
                 </div>
