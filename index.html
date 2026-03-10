@@ -9460,14 +9460,7 @@
                 .tvl-metric-value {
                     font-size:22px;font-weight:700;letter-spacing:-.5px;
                 }
-                .tvl-ath-badge {
-                    display:inline-flex;align-items:center;gap:4px;
-                    font-size:11px;font-weight:600;letter-spacing:.5px;
-                    padding:3px 10px;border-radius:20px;
-                    background:rgba(251,191,36,.1);color:#fbbf24;
-                    border:1px solid rgba(251,191,36,.2);
-                    backdrop-filter:blur(8px);
-                }
+
                 .tvl-sparkline-wrap {
                     position:absolute;top:20px;right:0;width:240px;height:90px;opacity:.15;
                     pointer-events:none;
@@ -9492,10 +9485,6 @@
                     <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;flex-wrap:wrap">
                         <img src="dolo-logo.svg" alt="" style="width:14px;height:14px;border-radius:50%;border:1px solid rgba(255,255,255,.1)">
                         <span style="font-size:12px;color:#fff;text-transform:uppercase;letter-spacing:1.8px;font-weight:600">Total Value Locked</span>
-                        <span id="tvl-ath-badge" class="tvl-ath-badge" style="display:none">
-                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1 L9 9 L1 9 Z" fill="#fbbf24"/></svg>
-                            ATH: <span id="tvl-ath-value">—</span>
-                        </span>
                     </div>
 
                     <!-- Main TVL value row -->
@@ -10541,7 +10530,7 @@
         // ===== DATA =====
         let HOLDER_DATA = [];
         const STATS = { total_minted: 23516, total_burned: 8659, active_nfts: 14857, unique_holders: 10971, total_locked_dolo: 50842522.01, total_vote_weight: 32432491.2401 };
-        const PER_PAGE = 10;
+        const PER_PAGE = 15;
         let currentPage = 1;
         let filteredData = [];
         let sortField = 'rank';
@@ -11982,7 +11971,7 @@
         let odolo_claimerSortAsc = false; // descending by default
         let odolo_claimerPeriod = 'all';
         let odolo_claimerPage = 1;
-        const ODOLO_CLAIMER_PER_PAGE = 25;
+        const ODOLO_CLAIMER_PER_PAGE = 15;
 
         function odolo_sortClaimerTable(field) {
             if (odolo_claimerSortField === field) {
@@ -12311,7 +12300,7 @@
         let exerciserSearchTerm = '';
         let currentExerciserAddr = '';
         let exerciserPage = 1;
-        const EXERCISER_PER_PAGE = 25;
+        const EXERCISER_PER_PAGE = 15;
 
         async function loadExercisers() {
             try {
@@ -13256,16 +13245,7 @@
                     if (sparkArea) sparkArea.setAttribute('d', areaD);
                 }
 
-                // ATH badge
-                if (dolo_allTvlPoints.length > 0) {
-                    const athVal = Math.max(...dolo_allTvlPoints.map(p => p.tvl));
-                    const athBadge = document.getElementById('tvl-ath-badge');
-                    const athValue = document.getElementById('tvl-ath-value');
-                    if (athBadge && athValue) {
-                        athValue.textContent = dolo_fmt(athVal);
-                        athBadge.style.display = 'inline-flex';
-                    }
-                }
+
 
                 dolo_currentRange = 90;
                 dolo_applyRange(90);
@@ -13315,7 +13295,7 @@
         let dolo_holderSortAsc = true;
         let dolo_holderPeriod = 'none';  // period for balance change %
         let dolo_balanceChanges = {};    // from dolo_flows.json
-        const DOLO_HOLDER_PER_PAGE = 25;
+        const DOLO_HOLDER_PER_PAGE = 15;
 
         const ETH_CHAIN_ICON = `<img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" width="14" height="14" style="border-radius:50%;flex-shrink:0" alt="ETH">`;
         const BERA_CHAIN_ICON = `<img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" width="14" height="14" style="border-radius:50%;flex-shrink:0" alt="BERA">`;
