@@ -2496,27 +2496,31 @@
         }
 
         .protocol-contracts {
-            padding: 0;
+            padding: 20px 28px 24px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
         }
 
         .protocol-addr-row {
             display: flex;
-            align-items: center;
-            gap: 14px;
-            padding: 14px 28px;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
-            transition: all 0.25s cubic-bezier(.4,0,.2,1);
+            flex-direction: column;
+            gap: 10px;
+            padding: 16px 18px;
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 12px;
+            background: rgba(255,255,255,0.02);
+            transition: all 0.3s cubic-bezier(.4,0,.2,1);
             border-left: 3px solid transparent;
             cursor: pointer;
             position: relative;
         }
 
-        .protocol-addr-row:last-child {
-            border-bottom: none;
-        }
-
         .protocol-addr-row:hover {
-            transform: translateX(4px);
+            background: rgba(255,255,255,0.04);
+            border-color: rgba(255,255,255,0.08);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
             z-index: 1;
         }
 
@@ -2552,21 +2556,25 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            min-width: 110px;
-            flex-shrink: 0;
         }
 
         .protocol-addr-token img {
-            width: 20px;
-            height: 20px;
+            width: 22px;
+            height: 22px;
             flex-shrink: 0;
         }
 
         .protocol-addr-token span {
-            font-size: 13px;
-            font-weight: 600;
+            font-size: 14px;
+            font-weight: 700;
             color: var(--text-primary);
             letter-spacing: 0.3px;
+        }
+
+        .protocol-addr-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
 
         .protocol-addr-chain {
@@ -2596,15 +2604,15 @@
         }
 
         .protocol-addr-value a {
-            font-size: 12px;
+            font-size: 11px;
             font-family: 'JetBrains Mono', monospace;
-            color: var(--text-muted);
+            color: rgba(148,163,184,0.5);
             text-decoration: none;
             transition: color 0.3s ease;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.3px;
         }
 
         .protocol-addr-row[data-token="dolo"]:hover .protocol-addr-value a {
@@ -2656,18 +2664,19 @@
                 gap: 5px;
             }
 
-            .protocol-addr-row {
-                padding: 10px 16px;
-                flex-wrap: wrap;
+            .protocol-contracts {
+                grid-template-columns: 1fr;
+                padding: 12px 16px 16px;
                 gap: 8px;
             }
 
-            .protocol-addr-token {
-                min-width: 90px;
+            .protocol-addr-row {
+                padding: 12px 14px;
+                gap: 8px;
             }
 
             .protocol-addr-value a {
-                font-size: 11px;
+                font-size: 10px;
             }
         }
 
@@ -3444,17 +3453,32 @@
         .site-footer {
             text-align: center;
             padding: 32px 0 0;
-            font-size: 12px;
-            color: var(--text-muted);
+            font-size: 11px;
+            color: rgba(148,163,184,0.5);
+            letter-spacing: 0.5px;
+            position: relative;
+        }
+
+        .site-footer::before {
+            content: '';
+            position: absolute;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(99,102,241,0.2), rgba(245,158,11,0.15), rgba(34,211,238,0.2), transparent);
         }
 
         .site-footer a {
-            color: var(--accent-indigo);
+            color: rgba(99,102,241,0.6);
             text-decoration: none;
+            transition: all 0.3s ease;
         }
 
         .site-footer a:hover {
-            text-decoration: underline;
+            color: var(--accent-indigo);
+            text-shadow: 0 0 8px rgba(99,102,241,0.3);
         }
 
         /* ===== TOAST ===== */
@@ -13483,8 +13507,7 @@
                 expandHtml = `<div id="dolo-chains-expand" style="overflow:hidden;max-height:0;transition:max-height 0.4s ease">
                     ${rest.map((c, i) => renderRow(c, i + 3)).join('')}
                 </div>
-                <button id="dolo-chains-toggle" onclick="dolo_toggleChains()" style="display:flex;align-items:center;gap:4px;width:100%;padding:8px;margin-top:4px;background:transparent;border:1px solid var(--border-default);border-radius:8px;color:var(--text-muted);font-size:12px;cursor:pointer;justify-content:center;transition:all 0.2s;font-family:'Inter',sans-serif" onmouseover="this.style.borderColor='var(--accent-indigo)';this.style.color='var(--text-primary)'" onmouseout="this.style.borderColor='var(--border-default)';this.style.color='var(--text-muted)'">
-                    <span>Show ${rest.length} more chains</span>
+                <button id="dolo-chains-toggle" onclick="dolo_toggleChains()" style="display:flex;align-items:center;gap:6px;width:100%;padding:10px;margin-top:8px;background:rgba(99,102,241,0.04);border:1px solid rgba(99,102,241,0.12);border-radius:10px;color:var(--text-muted);font-size:12px;cursor:pointer;justify-content:center;transition:all 0.3s cubic-bezier(.4,0,.2,1);font-family:'Inter',sans-serif;letter-spacing:0.3px" onmouseover="this.style.borderColor='rgba(99,102,241,0.35)';this.style.color='var(--text-primary)';this.style.background='rgba(99,102,241,0.08)';this.style.boxShadow='0 2px 12px rgba(99,102,241,0.1)'" onmouseout="this.style.borderColor='rgba(99,102,241,0.12)';this.style.color='var(--text-muted)';this.style.background='rgba(99,102,241,0.04)';this.style.boxShadow='none'">                    <span>Show ${rest.length} more chains</span>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
                 </button>`;
             }
@@ -14446,11 +14469,13 @@
                 const slug = tokenName.toLowerCase().replace(/\s/g, '');
                 const url = `${explorer}/token/${addr}`;
                 return `<div class="protocol-addr-row" data-token="${slug}" onclick="window.open('${url}','_blank')">
-                    <div class="protocol-addr-token">
-                        <img src="${tokenIcon}" alt="${tokenName}">
-                        <span>${tokenName}</span>
+                    <div class="protocol-addr-top">
+                        <div class="protocol-addr-token">
+                            <img src="${tokenIcon}" alt="${tokenName}">
+                            <span>${tokenName}</span>
+                        </div>
+                        <div class="protocol-addr-chain">${chainIcon} ${chainName}</div>
                     </div>
-                    <div class="protocol-addr-chain">${chainIcon} ${chainName}</div>
                     <div class="protocol-addr-value">
                         <a href="${url}" target="_blank" onclick="event.stopPropagation()">${addr}</a>
                         <button class="protocol-addr-copy" onclick="event.stopPropagation();copyAddr('${addr}',this)" title="Copy address">${COPY_SVG}</button>
