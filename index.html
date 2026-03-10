@@ -2085,8 +2085,30 @@
             display: flex;
             flex-direction: column;
             gap: 1px;
-            width: 100%;
-            margin-top: 18px;
+            flex: 1;
+            min-width: 0;
+            max-height: 320px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.1) transparent;
+        }
+
+        .dolo-legend-v2::-webkit-scrollbar { width: 4px; }
+        .dolo-legend-v2::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+        .dolo-legend-v2::-webkit-scrollbar-track { background: transparent; }
+
+        .dolo-composition-layout {
+            display: flex;
+            align-items: flex-start;
+            gap: 28px;
+            padding: 20px;
+        }
+
+        .dolo-composition-donut-side {
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         .dolo-leg-row {
@@ -2102,12 +2124,21 @@
 
         .dolo-leg-row:hover,
         .dolo-leg-row.active {
-            background: rgba(255, 255, 255, 0.03);
+            background: rgba(255, 255, 255, 0.04);
             border-left-color: var(--leg-color);
         }
 
         .dolo-leg-row.dim {
             opacity: 0.22;
+        }
+
+        .dolo-leg-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            object-fit: cover;
+            border: 1px solid rgba(255,255,255,0.08);
         }
 
         .dolo-leg-dot {
@@ -2118,28 +2149,70 @@
             box-shadow: 0 0 6px var(--leg-color);
         }
 
-        .dolo-leg-name {
-            font-size: 12.5px;
-            color: var(--text-secondary);
+        .dolo-leg-info {
             flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .dolo-leg-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .dolo-leg-name {
+            font-size: 12px;
+            color: var(--text-secondary);
             font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .dolo-leg-pct {
             font-size: 11px;
             color: var(--text-muted);
             font-weight: 600;
-            min-width: 42px;
+            min-width: 38px;
             text-align: right;
+            flex-shrink: 0;
         }
 
         .dolo-leg-val {
-            font-size: 11px;
+            font-size: 10.5px;
             color: var(--text-secondary);
             font-family: 'JetBrains Mono', monospace;
-            min-width: 68px;
             text-align: right;
-            opacity: 0.8;
+            opacity: 0.7;
+            flex-shrink: 0;
+        }
+
+        .dolo-leg-bar-track {
+            width: 100%;
+            height: 3px;
+            background: rgba(255,255,255,0.04);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .dolo-leg-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.5s ease;
+        }
+
+        @media (max-width: 768px) {
+            .dolo-composition-layout {
+                flex-direction: column;
+                align-items: center;
+            }
+            .dolo-legend-v2 {
+                max-height: none;
+            }
         }
 
         /* ===== DOLO FLOW TABLES ===== */
@@ -9552,11 +9625,13 @@
                     <h3>Token Composition</h3>
                 </div>
                 <div id="dolo-chain-filter" class="dolo-chain-pills"></div>
-                <div style="display:flex;flex-direction:column;align-items:center;padding:20px">
-                    <div id="dolo-donut-wrap" style="position:relative;width:260px;height:260px;flex-shrink:0">
-                        <canvas id="dolo-token-donut" style="width:260px;height:260px"></canvas>
-                        <div id="dolo-donut-center"
-                            style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
+                <div class="dolo-composition-layout">
+                    <div class="dolo-composition-donut-side">
+                        <div id="dolo-donut-wrap" style="position:relative;width:220px;height:220px;flex-shrink:0">
+                            <canvas id="dolo-token-donut" style="width:220px;height:220px"></canvas>
+                            <div id="dolo-donut-center"
+                                style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
+                            </div>
                         </div>
                     </div>
                     <div id="dolo-token-legend" class="dolo-legend-v2"></div>
@@ -14448,7 +14523,7 @@
             svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
             svg.setAttribute('width', size);
             svg.setAttribute('height', size);
-            svg.style.cssText = 'display:block;width:260px;height:260px';
+            svg.style.cssText = 'display:block;width:220px;height:220px';
             svg.id = 'dolo-token-svg';
 
             pathElems.forEach(p => {
@@ -14473,15 +14548,31 @@
                 centerOverlay.innerHTML = `<div style="font-weight:600;font-size:16px;color:#f0f0f6">${dolo_fmt(total)}</div><div style="font-size:11px;color:#555770;margin-top:2px">${label}</div>`;
             }
 
-            // Legend — v3 clean
+            // Legend — v4 premium with icons + mini bars
             const legend = document.getElementById('dolo-token-legend');
-            legend.innerHTML = sliceData.map((s, i) => `<div data-idx="${i}" class="dolo-leg-row" style="--leg-color:${s.color}"
-                onmouseover="dolo_highlightSlice(${i})" onmouseout="dolo_highlightSlice(-1)">
-                <span class="dolo-leg-dot" style="background:${s.color}"></span>
-                <span class="dolo-leg-name">${s.name}${s.chainBadge}</span>
-                <span class="dolo-leg-pct">${s.pct}%</span>
-                <span class="dolo-leg-val">${dolo_fmt(s.value)}</span>
-            </div>`).join('');
+            legend.innerHTML = sliceData.map((s, i) => {
+                const iconUrl = typeof SYMBOL_ICONS !== 'undefined' ? (SYMBOL_ICONS[s.name] || SYMBOL_ICONS[s.name.toUpperCase()]) : null;
+                const iconHtml = iconUrl
+                    ? `<img class="dolo-leg-icon" src="${iconUrl}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">`
+                    : '';
+                const dotFallback = iconUrl
+                    ? `<span class="dolo-leg-dot" style="background:${s.color};display:none"></span>`
+                    : `<span class="dolo-leg-dot" style="background:${s.color}"></span>`;
+                return `<div data-idx="${i}" class="dolo-leg-row" style="--leg-color:${s.color}"
+                    onmouseover="dolo_highlightSlice(${i})" onmouseout="dolo_highlightSlice(-1)">
+                    ${iconHtml}${dotFallback}
+                    <div class="dolo-leg-info">
+                        <div class="dolo-leg-top">
+                            <span class="dolo-leg-name">${s.name}${s.chainBadge}</span>
+                            <span class="dolo-leg-val">${dolo_fmt(s.value)}</span>
+                        </div>
+                        <div class="dolo-leg-bar-track">
+                            <div class="dolo-leg-bar-fill" style="width:${s.pct}%;background:${s.color}"></div>
+                        </div>
+                    </div>
+                    <span class="dolo-leg-pct">${s.pct}%</span>
+                </div>`;
+            }).join('');
 
             dolo_donutSlices = sliceData;
             dolo_donutTotal = total;
