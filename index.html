@@ -5032,18 +5032,17 @@
 
         .odolo-donut-layout {
             display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 16px;
+            align-items: flex-start;
+            gap: 20px;
         }
 
         .odolo-donut-container {
             position: relative;
-            width: 250px;
-            height: 250px;
+            width: 240px;
+            height: 240px;
             flex-shrink: 0;
             overflow: visible;
-            padding: 15px;
+            padding: 10px;
         }
 
         .odolo-donut-canvas {
@@ -5060,13 +5059,14 @@
         }
 
         .odolo-donut-center-value {
-            font-size: 22px;
+            font-size: 24px;
             font-weight: 700;
             color: var(--text-primary);
+            letter-spacing: -0.5px;
         }
 
         .odolo-donut-center-label {
-            font-size: 11px;
+            font-size: 12px;
             color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -5075,8 +5075,9 @@
         .odolo-donut-legend {
             display: flex;
             flex-direction: column;
-            gap: 8px;
-            width: 100%;
+            gap: 4px;
+            flex: 1;
+            min-width: 0;
         }
 
         .odolo-legend-item {
@@ -8949,7 +8950,10 @@
                 <div class="card">
                     <div class="card-title">oDOLO Distribution</div>
                     <div class="odolo-donut-layout">
-                        <div class="odolo-donut-container" style="position:relative;width:190px;height:190px;padding:10px;">
+                        <div class="odolo-donut-legend" id="o-dist-legend">
+                            <!-- filled by JS -->
+                        </div>
+                        <div class="odolo-donut-container" style="position:relative;">
                             <canvas class="odolo-donut-canvas" id="o-dist-donut"></canvas>
                             <div class="odolo-donut-center">
                                 <div class="odolo-donut-center-value" id="o-donut-total">—</div>
@@ -8972,9 +8976,6 @@
                             transition: opacity 0.15s ease;
                         "></div>
                         </div>
-                        <div class="odolo-donut-legend" id="o-dist-legend">
-                            <!-- filled by JS -->
-                        </div>
                     </div>
                 </div>
 
@@ -8986,38 +8987,40 @@
                             <span class="tooltip-bubble">Breakdown of all oDOLO that entered the Vester. <b>Exercised</b> = converted to veDOLO. <b>Vesting</b> = in 7-day cooldown. <b>Unclaimed</b> = earned but not yet claimed. Hover segments to see amounts.</span>
                         </i>
                     </div>
-                    <div class="odolo-an-body" id="odolo-an-claimed" style="display:flex;flex-direction:column;align-items:center">
-                        <div style="position:relative;width:180px;height:180px">
-                            <canvas id="odolo-dist-donut" width="360" height="360" style="width:180px;height:180px;cursor:pointer"></canvas>
-                            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
-                                <div id="odolo-dist-center-val" style="font-size:22px;font-weight:700;color:#fff">—</div>
-                                <div id="odolo-dist-center-sub" style="font-size:10px;color:rgba(255,255,255,0.5)">exercised</div>
+                    <div class="odolo-donut-layout" id="odolo-an-claimed">
+                        <div class="odolo-donut-legend" id="odolo-an-claimed-legend">
+                            <!-- filled by JS -->
+                        </div>
+                        <div class="odolo-donut-container" style="position:relative;">
+                            <canvas id="odolo-dist-donut" class="odolo-donut-canvas"></canvas>
+                            <div class="odolo-donut-center">
+                                <div class="odolo-donut-center-value" id="odolo-dist-center-val">—</div>
+                                <div class="odolo-donut-center-label" id="odolo-dist-center-sub">exercised</div>
                             </div>
                         </div>
-                        <div class="odolo-an-legend" id="odolo-an-claimed-legend" style="margin-top:12px"></div>
                     </div>
                 </div>
 
                 <!-- Card 3: Claimer Behavior (donut) -->
                 <div class="card">
-                    <div class="card-title">
+                    <div class="card-title" style="display:flex;align-items:center;gap:10px;">
                         Claimer Behavior
+                        <span id="odolo-an-claimer-count" style="font-size:14px;font-weight:600;color:rgba(255,255,255,0.5);cursor:default;position:relative" onmouseenter="this.querySelector('.ct-tip').style.opacity=1" onmouseleave="this.querySelector('.ct-tip').style.opacity=0">—<span class="ct-tip" style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:rgba(20,24,37,0.95);color:rgba(255,255,255,0.7);font-size:10px;padding:4px 8px;border-radius:6px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;margin-bottom:4px;border:1px solid rgba(255,255,255,0.1)">unique claimers</span></span>
                         <i class="tooltip-icon">?
                             <span class="tooltip-bubble">What do wallets do after claiming oDOLO? Exercised = paired with DOLO for veDOLO. Outflow = sold/transferred. Held = still in wallet. Only claimed oDOLO is tracked. Hover for amounts.</span>
                         </i>
                     </div>
-                    <div class="odolo-an-body" id="odolo-an-claimer" style="display:flex;flex-direction:column;align-items:center">
-                        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
-                            <span id="odolo-an-claimer-count" style="font-size:22px;font-weight:700;color:#fff;cursor:default;position:relative" onmouseenter="this.querySelector('.ct-tip').style.opacity=1" onmouseleave="this.querySelector('.ct-tip').style.opacity=0">—<span class="ct-tip" style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:rgba(20,24,37,0.95);color:rgba(255,255,255,0.7);font-size:10px;padding:4px 8px;border-radius:6px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;margin-bottom:4px;border:1px solid rgba(255,255,255,0.1)">unique claimers</span></span>
+                    <div class="odolo-donut-layout" id="odolo-an-claimer">
+                        <div class="odolo-donut-legend" id="odolo-an-claimer-legend">
+                            <!-- filled by JS -->
                         </div>
-                        <div style="position:relative;width:170px;height:170px">
-                            <canvas id="odolo-claimer-donut" width="340" height="340" style="width:170px;height:170px;cursor:pointer"></canvas>
-                            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
-                                <div id="odolo-claimer-center-val" style="font-size:18px;font-weight:700;color:#fff">—</div>
-                                <div id="odolo-claimer-center-sub" style="font-size:9px;color:rgba(255,255,255,0.5)"></div>
+                        <div class="odolo-donut-container" style="position:relative;">
+                            <canvas id="odolo-claimer-donut" class="odolo-donut-canvas"></canvas>
+                            <div class="odolo-donut-center">
+                                <div class="odolo-donut-center-value" id="odolo-claimer-center-val">—</div>
+                                <div class="odolo-donut-center-label" id="odolo-claimer-center-sub"></div>
                             </div>
                         </div>
-                        <div id="odolo-an-claimer-legend" style="display:flex;flex-wrap:wrap;gap:10px;font-size:11px;margin-top:10px;justify-content:center"></div>
                     </div>
                 </div>
             </div>
@@ -11972,12 +11975,21 @@
         }
 
         // === Generic canvas donut with hover ===
-        function odolo_drawMiniDonut(canvasId, segments, centerValId, centerSubId, defaultLabel) {
+        function odolo_drawMiniDonut(canvasId, segments, centerValId, centerSubId, defaultLabel, legendContainerId) {
             const canvas = document.getElementById(canvasId);
             if (!canvas) return;
-            const ctx = canvas.getContext('2d');
             const dpr = window.devicePixelRatio || 1;
-            const w = canvas.width, h = canvas.height;
+            const container = canvas.parentElement;
+            const cw = container.clientWidth || 240;
+            const ch = container.clientHeight || 240;
+            canvas.width = cw * dpr;
+            canvas.height = ch * dpr;
+            canvas.style.width = cw + 'px';
+            canvas.style.height = ch + 'px';
+            canvas.style.cursor = 'pointer';
+            const ctx = canvas.getContext('2d');
+            ctx.scale(dpr, dpr);
+            const w = cw, h = ch;
             const cx = w/2, cy = h/2;
             const outerR = Math.min(cx, cy) * 0.88;
             const innerR = outerR * 0.62;
@@ -12012,25 +12024,74 @@
                 const cSub = document.getElementById(centerSubId);
                 if (hoveredIdx >= 0) {
                     const a = arcs[hoveredIdx];
-                    if (cVal) cVal.textContent = fmtK(a.value);
+                    if (cVal) { cVal.textContent = fmtK(a.value); cVal.style.fontSize = '22px'; }
                     if (cSub) cSub.textContent = a.label + ' (' + a.pct + '%)';
                 } else {
                     const main = arcs[0];
-                    if (cVal) cVal.textContent = main.pct + '%';
+                    if (cVal) { cVal.textContent = main.pct + '%'; cVal.style.fontSize = '24px'; }
                     if (cSub) cSub.textContent = defaultLabel;
                 }
             }
 
             draw(-1);
 
-            // Hover detection
+            // Build premium legend (matching Token Composition style)
+            if (legendContainerId) {
+                const legendEl = document.getElementById(legendContainerId);
+                if (legendEl) {
+                    legendEl.innerHTML = arcs.map((arc, i) => {
+                        const pctNum = parseFloat(arc.pct);
+                        return `<div class="dolo-leg-row" data-mini-idx="${i}" style="--leg-color:${arc.color}">
+                            <span class="dolo-leg-dot" style="background:${arc.color}"></span>
+                            <div class="dolo-leg-info">
+                                <div class="dolo-leg-top">
+                                    <span class="dolo-leg-name">${arc.label}</span>
+                                    <span class="dolo-leg-val">${fmtK(arc.value)}</span>
+                                </div>
+                                <div class="dolo-leg-bar-wrap">
+                                    <span class="dolo-leg-pct" style="left:${Math.min(pctNum, 92)}%">${arc.pct}%</span>
+                                    <div class="dolo-leg-bar-track">
+                                        <div class="dolo-leg-bar-fill" style="width:${pctNum}%;background:${arc.color}"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>`;
+                    }).join('');
+
+                    // Bidirectional hover: legend ↔ donut
+                    legendEl.querySelectorAll('.dolo-leg-row').forEach(row => {
+                        const idx = parseInt(row.dataset.miniIdx);
+                        row.addEventListener('mouseenter', () => {
+                            draw(idx);
+                            legendEl.querySelectorAll('.dolo-leg-row').forEach((r, j) => {
+                                r.classList.toggle('dim', j !== idx);
+                                r.classList.toggle('active', j === idx);
+                            });
+                        });
+                        row.addEventListener('mouseleave', () => {
+                            draw(-1);
+                            legendEl.querySelectorAll('.dolo-leg-row').forEach(r => {
+                                r.classList.remove('dim', 'active');
+                            });
+                        });
+                    });
+                }
+            }
+
+            // Hover detection on canvas
             canvas.onmousemove = function(e) {
                 const rect = canvas.getBoundingClientRect();
                 const mx = (e.clientX - rect.left) * (w / rect.width);
                 const my = (e.clientY - rect.top) * (h / rect.height);
                 const dx = mx - cx, dy = my - cy;
                 const dist = Math.sqrt(dx*dx + dy*dy);
-                if (dist < innerR || dist > outerR + 6) { draw(-1); return; }
+                if (dist < innerR || dist > outerR + 6) {
+                    draw(-1);
+                    if (legendContainerId) {
+                        document.querySelectorAll('#' + legendContainerId + ' .dolo-leg-row').forEach(r => r.classList.remove('dim', 'active'));
+                    }
+                    return;
+                }
                 let a = Math.atan2(dy, dx);
                 if (a < -Math.PI/2) a += Math.PI*2;
                 const idx = arcs.findIndex(arc => {
@@ -12040,8 +12101,19 @@
                     return a >= s && a < en;
                 });
                 draw(idx);
+                if (legendContainerId && idx >= 0) {
+                    document.querySelectorAll('#' + legendContainerId + ' .dolo-leg-row').forEach((r, j) => {
+                        r.classList.toggle('dim', j !== idx);
+                        r.classList.toggle('active', j === idx);
+                    });
+                }
             };
-            canvas.onmouseleave = () => draw(-1);
+            canvas.onmouseleave = () => {
+                draw(-1);
+                if (legendContainerId) {
+                    document.querySelectorAll('#' + legendContainerId + ' .dolo-leg-row').forEach(r => r.classList.remove('dim', 'active'));
+                }
+            };
 
             return arcs;
         }
@@ -12052,14 +12124,7 @@
                 { label: 'Vesting', value: data.promisedTokens || 0, color: '#f59e0b' },
                 { label: 'Unclaimed', value: data.availableTokens || 0, color: '#22d3ee' },
             ];
-            odolo_drawMiniDonut('odolo-dist-donut', segments, 'odolo-dist-center-val', 'odolo-dist-center-sub', 'exercised');
-
-            const fmtK = n => n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(0)+'K' : n.toFixed(0);
-            const total = segments.reduce((s, x) => s + x.value, 0);
-            const legend = document.getElementById('odolo-an-claimed-legend');
-            if (legend) legend.innerHTML = segments.map(s =>
-                `<div class="odolo-an-legend-item"><span class="odolo-an-legend-dot" style="background:${s.color}"></span>${s.label}: ${fmtK(s.value)} (${(s.value/total*100).toFixed(1)}%)</div>`
-            ).join('');
+            odolo_drawMiniDonut('odolo-dist-donut', segments, 'odolo-dist-center-val', 'odolo-dist-center-sub', 'exercised', 'odolo-an-claimed-legend');
         }
 
 
@@ -12071,7 +12136,7 @@
 
             // Count
             const countEl = document.getElementById('odolo-an-claimer-count');
-            if (countEl) countEl.textContent = cb.total_claimers.toLocaleString();
+            if (countEl) countEl.childNodes[0].textContent = cb.total_claimers.toLocaleString();
 
             // Canvas donut
             const tc = cb.total_claimed || 0;
@@ -12083,23 +12148,20 @@
                 { label: 'Outflow', value: outVal, color: '#f87171' },
                 { label: 'Held', value: heldVal, color: '#22d3ee' },
             ];
-            odolo_drawMiniDonut('odolo-claimer-donut', segments, 'odolo-claimer-center-val', 'odolo-claimer-center-sub', 'of claimed');
 
-            // Legend — all 3 on same line, bought extra below
-            const fmtK = n => n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(0)+'K' : n.toFixed(0);
-            const legendEl = document.getElementById('odolo-an-claimer-legend');
-            if (legendEl) {
-                const bePct = cb.pct_bought_extra || 0;
-                legendEl.innerHTML = `
-                    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;align-items:flex-start">
-                        <span style="display:flex;flex-direction:column;gap:1px">
-                            <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#34d399"></span>Exercised ${cb.pct_exercised}%</span>
-                            <span style="font-size:9px;color:#fbbf24;padding-left:12px">↳ ${bePct}% bought extra</span>
-                        </span>
-                        <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#f87171"></span>Outflow ${cb.pct_outflow}%</span>
-                        <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#22d3ee"></span>Held ${cb.pct_held}%</span>
-                    </div>
-                `;
+            // Add "bought extra" as annotation
+            const bePct = cb.pct_bought_extra || 0;
+            odolo_drawMiniDonut('odolo-claimer-donut', segments, 'odolo-claimer-center-val', 'odolo-claimer-center-sub', 'of claimed', 'odolo-an-claimer-legend');
+
+            // Add bought extra note under exercised row
+            if (bePct > 0) {
+                const firstRow = document.querySelector('#odolo-an-claimer-legend .dolo-leg-row');
+                if (firstRow) {
+                    const note = document.createElement('div');
+                    note.style.cssText = 'font-size:10px;color:#fbbf24;padding:2px 0 0 22px;margin-top:-2px;';
+                    note.textContent = '↳ ' + bePct + '% bought extra';
+                    firstRow.after(note);
+                }
             }
 
             // Full claimer table
@@ -12270,25 +12332,42 @@
             document.getElementById('o-donut-total').textContent = odolo_formatNum(data.totalSupply);
 
             const legend = document.getElementById('o-dist-legend');
-            legend.innerHTML = segments.map((seg, i) => `
-                <div class="odolo-legend-item" data-seg-idx="${i}" style="cursor:pointer; padding: 4px 6px; border-radius: 6px; transition: background 0.2s;">
-                    <span class="odolo-legend-dot" style="background: ${seg.color}"></span>
-                    <span class="odolo-legend-label">${seg.label}</span>
-                    <span class="odolo-legend-value">${odolo_formatNum(seg.value)} (${((seg.value / total) * 100).toFixed(1)}%)</span>
-                </div>
-            `).join('');
+            legend.innerHTML = segments.map((seg, i) => {
+                const pct = ((seg.value / total) * 100).toFixed(1);
+                const pctNum = parseFloat(pct);
+                return `<div class="dolo-leg-row" data-seg-idx="${i}" style="--leg-color:${seg.color}">
+                    <span class="dolo-leg-dot" style="background:${seg.color}"></span>
+                    <div class="dolo-leg-info">
+                        <div class="dolo-leg-top">
+                            <span class="dolo-leg-name">${seg.label}</span>
+                            <span class="dolo-leg-val">${odolo_formatNum(seg.value)}</span>
+                        </div>
+                        <div class="dolo-leg-bar-wrap">
+                            <span class="dolo-leg-pct" style="left:${Math.min(pctNum, 92)}%">${pct}%</span>
+                            <div class="dolo-leg-bar-track">
+                                <div class="dolo-leg-bar-fill" style="width:${pctNum}%;background:${seg.color}"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
 
-            legend.querySelectorAll('.odolo-legend-item').forEach(item => {
+            legend.querySelectorAll('.dolo-leg-row').forEach(item => {
                 const idx = parseInt(item.dataset.segIdx);
                 item.addEventListener('mouseenter', () => {
                     odolo_hoveredSegIdx = idx;
                     odolo_drawDonut(idx);
-                    odolo_highlightLegend(idx);
+                    legend.querySelectorAll('.dolo-leg-row').forEach((r, j) => {
+                        r.classList.toggle('dim', j !== idx);
+                        r.classList.toggle('active', j === idx);
+                    });
                 });
                 item.addEventListener('mouseleave', () => {
                     odolo_hoveredSegIdx = -1;
                     odolo_drawDonut(-1);
-                    odolo_highlightLegend(-1);
+                    legend.querySelectorAll('.dolo-leg-row').forEach(r => {
+                        r.classList.remove('dim', 'active');
+                    });
                 });
             });
 
@@ -12301,7 +12380,10 @@
                 if (idx !== odolo_hoveredSegIdx) {
                     odolo_hoveredSegIdx = idx;
                     odolo_drawDonut(idx);
-                    odolo_highlightLegend(idx);
+                    document.querySelectorAll('#o-dist-legend .dolo-leg-row').forEach((r, j) => {
+                        r.classList.toggle('dim', idx >= 0 && j !== idx);
+                        r.classList.toggle('active', j === idx);
+                    });
                 }
 
                 const tooltip = document.getElementById('o-donut-tooltip');
@@ -12330,7 +12412,7 @@
             canvas.addEventListener('mouseleave', () => {
                 odolo_hoveredSegIdx = -1;
                 odolo_drawDonut(-1);
-                odolo_highlightLegend(-1);
+                document.querySelectorAll('#o-dist-legend .dolo-leg-row').forEach(r => r.classList.remove('dim', 'active'));
                 canvas.style.cursor = 'default';
                 document.getElementById('o-donut-tooltip').style.display = 'none';
             });
