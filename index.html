@@ -2379,55 +2379,72 @@
         /* ===== PROTOCOL INFO ===== */
         .protocol-info-card {
             padding: 0;
-            background: var(--bg-card);
+            background: linear-gradient(145deg, rgba(10,15,28,.97) 0%, var(--bg-card) 40%, rgba(10,18,32,.98) 100%);
             border: 1px solid var(--border-subtle);
             position: relative;
             overflow: hidden;
         }
 
+        .protocol-info-card:hover {
+            border-color: rgba(255,255,255,0.06);
+            box-shadow: 0 0 30px rgba(99,102,241,0.05), 0 4px 12px rgba(0,0,0,0.2);
+        }
+
         .protocol-info-card::before {
             content: '';
             position: absolute;
-            top: -40px;
-            right: -40px;
-            width: 200px;
-            height: 200px;
+            top: -50px;
+            right: -50px;
+            width: 240px;
+            height: 240px;
             background: url('https://icons.llama.fi/dolomite.jpg') no-repeat center center;
             background-size: contain;
-            opacity: 0.04;
+            opacity: 0.05;
             border-radius: 50%;
             pointer-events: none;
-            filter: grayscale(30%);
+            filter: grayscale(20%) blur(1px);
+        }
+
+        .protocol-info-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, rgba(99,102,241,.4), rgba(245,158,11,.3), rgba(34,211,238,.4));
+            pointer-events: none;
         }
 
         .protocol-info-card .card-header {
             margin-bottom: 0;
-            padding: 28px 24px 20px;
+            padding: 28px 28px 20px;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 14px;
         }
 
         .protocol-info-card .card-header .proto-brand {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
 
         .protocol-info-card .card-header .proto-brand img {
-            height: 28px;
+            height: 32px;
             flex-shrink: 0;
-            opacity: 0.9;
+            opacity: 0.95;
+            filter: drop-shadow(0 0 6px rgba(99,102,241,0.15));
         }
 
         .protocol-info-card .card-header .proto-brand-name {
-            font-size: 20px;
+            font-size: 22px;
             font-weight: 700;
-            background: linear-gradient(135deg, #e2e8f0 0%, #94a3b8 100%);
+            background: linear-gradient(135deg, #f0f4f8 0%, #94a3b8 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            letter-spacing: 0.3px;
+            letter-spacing: 0.5px;
         }
 
         .protocol-info-card .card-header h3 {
@@ -2438,8 +2455,8 @@
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
-            padding: 0 24px 20px;
-            border-bottom: 1px solid var(--border-subtle);
+            padding: 0 28px 22px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
             position: relative;
             z-index: 1;
         }
@@ -2448,29 +2465,30 @@
             display: inline-flex;
             align-items: center;
             gap: 7px;
-            padding: 8px 16px;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid var(--border-subtle);
-            border-radius: 8px;
+            padding: 9px 18px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 10px;
             color: var(--text-secondary);
             font-size: 13px;
             font-weight: 500;
             text-decoration: none;
-            transition: all 0.25s ease;
-            letter-spacing: 0.2px;
+            transition: all 0.3s cubic-bezier(.4,0,.2,1);
+            letter-spacing: 0.3px;
         }
 
         .protocol-link-pill:hover {
-            border-color: rgba(255, 255, 255, 0.15);
+            border-color: rgba(99,102,241,0.3);
             color: var(--text-primary);
-            background: rgba(255, 255, 255, 0.08);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+            background: rgba(99,102,241,0.08);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(99,102,241,0.1), 0 2px 8px rgba(0,0,0,0.2);
         }
 
         .protocol-link-pill svg {
             flex-shrink: 0;
-            opacity: 0.65;
+            opacity: 0.55;
+            transition: opacity 0.3s ease;
         }
 
         .protocol-link-pill:hover svg {
@@ -2484,10 +2502,10 @@
         .protocol-addr-row {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 12px 24px;
-            border-bottom: 1px solid var(--border-subtle);
-            transition: all 0.2s ease;
+            gap: 14px;
+            padding: 14px 28px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            transition: all 0.25s cubic-bezier(.4,0,.2,1);
             border-left: 3px solid transparent;
             cursor: pointer;
             position: relative;
@@ -2498,7 +2516,7 @@
         }
 
         .protocol-addr-row:hover {
-            transform: scale(1.012);
+            transform: translateX(4px);
             z-index: 1;
         }
 
@@ -2548,6 +2566,7 @@
             font-size: 13px;
             font-weight: 600;
             color: var(--text-primary);
+            letter-spacing: 0.3px;
         }
 
         .protocol-addr-chain {
@@ -2579,15 +2598,22 @@
         .protocol-addr-value a {
             font-size: 12px;
             font-family: 'JetBrains Mono', monospace;
-            color: var(--text-secondary);
+            color: var(--text-muted);
             text-decoration: none;
-            transition: color 0.2s ease;
+            transition: color 0.3s ease;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            letter-spacing: 0.5px;
         }
 
-        .protocol-addr-row:hover .protocol-addr-value a {
+        .protocol-addr-row[data-token="dolo"]:hover .protocol-addr-value a {
+            color: #818cf8;
+        }
+        .protocol-addr-row[data-token="odolo"]:hover .protocol-addr-value a {
+            color: #fbbf24;
+        }
+        .protocol-addr-row[data-token="vedolo"]:hover .protocol-addr-value a {
             color: #22d3ee;
         }
 
