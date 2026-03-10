@@ -2103,16 +2103,26 @@
 
         .dolo-composition-layout {
             display: flex;
-            align-items: center;
-            gap: 32px;
+            align-items: stretch;
+            gap: 0;
+            padding: 0;
+        }
+
+        .dolo-composition-legend-side {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
             padding: 24px;
+            min-width: 0;
         }
 
         .dolo-composition-donut-side {
-            flex-shrink: 0;
+            flex: 1;
             display: flex;
-            flex-direction: column;
             align-items: center;
+            justify-content: center;
+            padding: 24px;
+            border-left: 1px solid rgba(255,255,255,0.04);
         }
 
         .dolo-leg-row {
@@ -9628,20 +9638,20 @@
 
             <!-- Token Composition (moved from DOLO) -->
             <div class="card anim anim-d3" style="margin-top:24px">
-                <div class="card-header" style="flex-direction:column;align-items:flex-start;gap:12px">
-                    <h3>Token Composition</h3>
-                    <div id="dolo-chain-filter" class="dolo-chain-pills" style="overflow-x:auto"></div>
-                </div>
                 <div class="dolo-composition-layout">
+                    <div class="dolo-composition-legend-side">
+                        <h3 style="margin:0 0 12px;font-size:18px;font-weight:600;color:var(--text-primary)">Token Composition</h3>
+                        <div id="dolo-chain-filter" class="dolo-chain-pills" style="overflow-x:auto;margin-bottom:16px"></div>
+                        <div id="dolo-token-legend" class="dolo-legend-v2" style="max-width:100%;flex:1"></div>
+                    </div>
                     <div class="dolo-composition-donut-side">
-                        <div id="dolo-donut-wrap" style="position:relative;width:360px;height:360px;flex-shrink:0">
-                            <canvas id="dolo-token-donut" style="width:360px;height:360px"></canvas>
+                        <div id="dolo-donut-wrap" style="position:relative;width:100%;max-width:420px;aspect-ratio:1">
+                            <canvas id="dolo-token-donut" style="width:100%;height:100%"></canvas>
                             <div id="dolo-donut-center"
                                 style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
                             </div>
                         </div>
                     </div>
-                    <div id="dolo-token-legend" class="dolo-legend-v2" style="max-width:55%"></div>
                 </div>
             </div>
 
@@ -14531,7 +14541,7 @@
             svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
             svg.setAttribute('width', size);
             svg.setAttribute('height', size);
-            svg.style.cssText = 'display:block;width:360px;height:360px';
+            svg.style.cssText = 'display:block;width:100%;height:100%';
             svg.id = 'dolo-token-svg';
 
             pathElems.forEach(p => {
