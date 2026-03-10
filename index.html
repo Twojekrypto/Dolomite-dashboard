@@ -5031,17 +5031,18 @@
 
         .odolo-donut-layout {
             display: flex;
-            align-items: flex-start;
-            gap: 20px;
+            align-items: stretch;
+            gap: 0;
+            padding: 0;
         }
 
         .odolo-donut-container {
             position: relative;
-            width: 240px;
-            height: 240px;
+            width: 100%;
+            max-width: 340px;
+            aspect-ratio: 1;
             flex-shrink: 0;
             overflow: visible;
-            padding: 10px;
         }
 
         .odolo-donut-canvas {
@@ -5058,7 +5059,7 @@
         }
 
         .odolo-donut-center-value {
-            font-size: 24px;
+            font-size: 28px;
             font-weight: 700;
             color: var(--text-primary);
             letter-spacing: -0.5px;
@@ -5072,11 +5073,21 @@
         }
 
         .odolo-donut-legend {
+            flex: 1;
             display: flex;
             flex-direction: column;
             gap: 4px;
-            flex: 1;
+            padding: 24px;
             min-width: 0;
+        }
+
+        .odolo-donut-layout > .odolo-donut-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            border-left: 1px solid rgba(255,255,255,0.04);
         }
 
         .odolo-legend-item {
@@ -12304,7 +12315,7 @@
 
             const segments = [
                 { label: 'Unclaimed', value: data.availableTokens, color: '#22d3ee' },
-                { label: 'In Circulation', value: data.inCirculation, color: '#fbbf24' },
+                { label: 'Reward Emissions', value: data.inCirculation, color: '#fbbf24' },
                 { label: 'Currently Vesting', value: data.promisedTokens, color: '#6366f1' },
                 { label: 'Exercised (Redeemed)', value: data.pushedTokens, color: '#34d399' },
             ].filter(s => s.value > 0);
