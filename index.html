@@ -5040,9 +5040,16 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            justify-content: center;
             padding: 24px;
             min-width: 0;
+        }
+
+        .odolo-legend-rows {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 4px;
         }
 
         .odolo-donut-legend .dolo-leg-row {
@@ -12058,7 +12065,7 @@
                 if (legendEl) {
                     const existingH3 = legendEl.querySelector('h3');
                     const h3Html = existingH3 ? existingH3.outerHTML : '';
-                    legendEl.innerHTML = h3Html + arcs.map((arc, i) => {
+                    legendEl.innerHTML = h3Html + '<div class="odolo-legend-rows">' + arcs.map((arc, i) => {
                         const pctNum = parseFloat(arc.pct);
                         return `<div class="dolo-leg-row" data-mini-idx="${i}" style="--leg-color:${arc.color}">
                             <span class="dolo-leg-dot" style="background:${arc.color}"></span>
@@ -12075,7 +12082,7 @@
                                 </div>
                             </div>
                         </div>`;
-                    }).join('');
+                    }).join('') + '</div>';
 
                     // Bidirectional hover: legend ↔ donut
                     legendEl.querySelectorAll('.dolo-leg-row').forEach(row => {
@@ -12353,7 +12360,7 @@
             const legend = document.getElementById('o-dist-legend');
             const existingH3 = legend.querySelector('h3');
             const h3Html = existingH3 ? existingH3.outerHTML : '';
-            legend.innerHTML = h3Html + segments.map((seg, i) => {
+            legend.innerHTML = h3Html + '<div class="odolo-legend-rows">' + segments.map((seg, i) => {
                 const pct = ((seg.value / total) * 100).toFixed(1);
                 const pctNum = parseFloat(pct);
                 return `<div class="dolo-leg-row" data-seg-idx="${i}" style="--leg-color:${seg.color}">
@@ -12371,7 +12378,7 @@
                         </div>
                     </div>
                 </div>`;
-            }).join('');
+            }).join('') + '</div>';
 
             legend.querySelectorAll('.dolo-leg-row').forEach(item => {
                 const idx = parseInt(item.dataset.segIdx);
