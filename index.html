@@ -9621,20 +9621,20 @@
 
             <!-- Token Composition (moved from DOLO) -->
             <div class="card anim anim-d3" style="margin-top:24px">
-                <div class="card-header">
+                <div class="card-header" style="flex-direction:column;align-items:flex-start;gap:12px">
                     <h3>Token Composition</h3>
+                    <div id="dolo-chain-filter" class="dolo-chain-pills" style="width:100%;overflow-x:auto;display:none"></div>
                 </div>
-                <div id="dolo-chain-filter" class="dolo-chain-pills"></div>
                 <div class="dolo-composition-layout">
                     <div class="dolo-composition-donut-side">
-                        <div id="dolo-donut-wrap" style="position:relative;width:220px;height:220px;flex-shrink:0">
-                            <canvas id="dolo-token-donut" style="width:220px;height:220px"></canvas>
+                        <div id="dolo-donut-wrap" style="position:relative;width:240px;height:240px;flex-shrink:0">
+                            <canvas id="dolo-token-donut" style="width:240px;height:240px"></canvas>
                             <div id="dolo-donut-center"
                                 style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
                             </div>
                         </div>
                     </div>
-                    <div id="dolo-token-legend" class="dolo-legend-v2"></div>
+                    <div id="dolo-token-legend" class="dolo-legend-v2" style="max-width:55%"></div>
                 </div>
             </div>
 
@@ -14402,6 +14402,7 @@
                 html += `<button data-chain="${c}">${icon}${SHORT[c] || c.slice(0, 5).toUpperCase()}</button>`;
             });
             filterEl.innerHTML = html;
+            filterEl.style.display = 'flex';
 
             const slider = filterEl.querySelector('.dolo-chain-slider');
             function positionSlider(btn) {
@@ -14523,7 +14524,7 @@
             svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
             svg.setAttribute('width', size);
             svg.setAttribute('height', size);
-            svg.style.cssText = 'display:block;width:220px;height:220px';
+            svg.style.cssText = 'display:block;width:240px;height:240px';
             svg.id = 'dolo-token-svg';
 
             pathElems.forEach(p => {
