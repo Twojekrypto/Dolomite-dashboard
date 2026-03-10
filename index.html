@@ -2464,10 +2464,10 @@
         .protocol-link-pill {
             display: inline-flex;
             align-items: center;
-            gap: 7px;
-            padding: 9px 18px;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255,255,255,0.07);
+            gap: 8px;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255,255,255,0.08);
             border-radius: 10px;
             color: var(--text-secondary);
             font-size: 13px;
@@ -2478,18 +2478,31 @@
         }
 
         .protocol-link-pill:hover {
-            border-color: rgba(99,102,241,0.3);
             color: var(--text-primary);
-            background: rgba(99,102,241,0.08);
             transform: translateY(-2px);
             box-shadow: 0 4px 20px rgba(99,102,241,0.1), 0 2px 8px rgba(0,0,0,0.2);
         }
 
         .protocol-link-pill svg {
             flex-shrink: 0;
-            opacity: 0.55;
-            transition: opacity 0.3s ease;
+            transition: all 0.3s ease;
         }
+
+        /* Platform-specific icon colors */
+        .protocol-link-pill[data-platform="website"] svg { color: rgba(99,102,241,0.7); }
+        .protocol-link-pill[data-platform="twitter"] svg { color: rgba(255,255,255,0.7); }
+        .protocol-link-pill[data-platform="telegram"] svg { color: rgba(56,189,248,0.8); }
+        .protocol-link-pill[data-platform="docs"] svg { color: rgba(52,211,153,0.7); }
+        .protocol-link-pill[data-platform="github"] svg { color: rgba(196,181,253,0.7); }
+        .protocol-link-pill[data-platform="audits"] svg { color: rgba(251,191,36,0.7); }
+
+        /* Platform-specific hover accents */
+        .protocol-link-pill[data-platform="website"]:hover { border-color: rgba(99,102,241,0.3); background: rgba(99,102,241,0.08); }
+        .protocol-link-pill[data-platform="twitter"]:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.06); }
+        .protocol-link-pill[data-platform="telegram"]:hover { border-color: rgba(56,189,248,0.3); background: rgba(56,189,248,0.08); }
+        .protocol-link-pill[data-platform="docs"]:hover { border-color: rgba(52,211,153,0.3); background: rgba(52,211,153,0.08); }
+        .protocol-link-pill[data-platform="github"]:hover { border-color: rgba(196,181,253,0.3); background: rgba(196,181,253,0.08); }
+        .protocol-link-pill[data-platform="audits"]:hover { border-color: rgba(251,191,36,0.3); background: rgba(251,191,36,0.08); }
 
         .protocol-link-pill:hover svg {
             opacity: 1;
@@ -14446,15 +14459,15 @@
             const LINK_SVG = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
 
             const linkData = [
-                { icon: GLOBE_SVG, label: 'Website', url: ll.url },
-                { icon: X_SVG, label: 'Twitter', url: ll.twitter ? 'https://twitter.com/' + ll.twitter : null },
-                { icon: TELEGRAM_SVG, label: 'Telegram', url: 'https://t.me/dolomite_official' },
-                { icon: DOCS_SVG, label: 'Docs', url: 'https://docs.dolomite.io/' },
-                { icon: GITHUB_SVG, label: 'GitHub', url: ll.openSource ? ll.github?.[0] : null },
-                { icon: AUDIT_SVG, label: 'Audits', url: ll.audits ? ll.audit_links?.[0] : null },
+                { icon: GLOBE_SVG, label: 'Website', url: ll.url, platform: 'website' },
+                { icon: X_SVG, label: 'Twitter', url: ll.twitter ? 'https://twitter.com/' + ll.twitter : null, platform: 'twitter' },
+                { icon: TELEGRAM_SVG, label: 'Telegram', url: 'https://t.me/dolomite_official', platform: 'telegram' },
+                { icon: DOCS_SVG, label: 'Docs', url: 'https://docs.dolomite.io/', platform: 'docs' },
+                { icon: GITHUB_SVG, label: 'GitHub', url: ll.openSource ? ll.github?.[0] : null, platform: 'github' },
+                { icon: AUDIT_SVG, label: 'Audits', url: ll.audits ? ll.audit_links?.[0] : null, platform: 'audits' },
             ].filter(l => l.url);
             const linksHTML = linkData.map(l =>
-                `<a href="${l.url}" target="_blank" class="protocol-link-pill">${l.icon} ${l.label} ${LINK_SVG}</a>`
+                `<a href="${l.url}" target="_blank" class="protocol-link-pill" data-platform="${l.platform}">${l.icon} ${l.label}</a>`
             ).join('');
 
             // Contract addresses
