@@ -2464,27 +2464,66 @@
         .protocol-link-pill {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            padding: 10px 20px;
+            justify-content: center;
+            width: 42px;
+            height: 42px;
+            padding: 0;
             background: rgba(255, 255, 255, 0.04);
             border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 10px;
+            border-radius: 50%;
             color: var(--text-secondary);
-            font-size: 13px;
-            font-weight: 500;
             text-decoration: none;
             transition: all 0.3s cubic-bezier(.4,0,.2,1);
-            letter-spacing: 0.3px;
+            position: relative;
         }
 
         .protocol-link-pill:hover {
             color: var(--text-primary);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 20px rgba(99,102,241,0.1), 0 2px 8px rgba(0,0,0,0.2);
+            transform: translateY(-3px) scale(1.08);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+        }
+
+        /* Tooltip */
+        .protocol-link-pill .pill-label {
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%) translateY(4px);
+            background: rgba(15,18,30,0.95);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-primary);
+            font-size: 11px;
+            font-weight: 500;
+            padding: 5px 10px;
+            border-radius: 6px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.25s cubic-bezier(.4,0,.2,1);
+            letter-spacing: 0.3px;
+            backdrop-filter: blur(8px);
+            z-index: 10;
+        }
+
+        .protocol-link-pill .pill-label::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 4px solid transparent;
+            border-top-color: rgba(255,255,255,0.1);
+        }
+
+        .protocol-link-pill:hover .pill-label {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
         }
 
         .protocol-link-pill svg {
             flex-shrink: 0;
+            width: 16px;
+            height: 16px;
             transition: all 0.3s ease;
         }
 
@@ -2497,12 +2536,12 @@
         .protocol-link-pill[data-platform="audits"] svg { color: rgba(251,191,36,0.7); }
 
         /* Platform-specific hover accents */
-        .protocol-link-pill[data-platform="website"]:hover { border-color: rgba(99,102,241,0.3); background: rgba(99,102,241,0.08); }
-        .protocol-link-pill[data-platform="twitter"]:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.06); }
-        .protocol-link-pill[data-platform="telegram"]:hover { border-color: rgba(56,189,248,0.3); background: rgba(56,189,248,0.08); }
-        .protocol-link-pill[data-platform="docs"]:hover { border-color: rgba(52,211,153,0.3); background: rgba(52,211,153,0.08); }
-        .protocol-link-pill[data-platform="github"]:hover { border-color: rgba(196,181,253,0.3); background: rgba(196,181,253,0.08); }
-        .protocol-link-pill[data-platform="audits"]:hover { border-color: rgba(251,191,36,0.3); background: rgba(251,191,36,0.08); }
+        .protocol-link-pill[data-platform="website"]:hover { border-color: rgba(99,102,241,0.4); background: rgba(99,102,241,0.12); box-shadow: 0 4px 16px rgba(99,102,241,0.15); }
+        .protocol-link-pill[data-platform="twitter"]:hover { border-color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.08); box-shadow: 0 4px 16px rgba(255,255,255,0.08); }
+        .protocol-link-pill[data-platform="telegram"]:hover { border-color: rgba(56,189,248,0.4); background: rgba(56,189,248,0.12); box-shadow: 0 4px 16px rgba(56,189,248,0.15); }
+        .protocol-link-pill[data-platform="docs"]:hover { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.12); box-shadow: 0 4px 16px rgba(52,211,153,0.15); }
+        .protocol-link-pill[data-platform="github"]:hover { border-color: rgba(196,181,253,0.4); background: rgba(196,181,253,0.12); box-shadow: 0 4px 16px rgba(196,181,253,0.15); }
+        .protocol-link-pill[data-platform="audits"]:hover { border-color: rgba(251,191,36,0.4); background: rgba(251,191,36,0.12); box-shadow: 0 4px 16px rgba(251,191,36,0.15); }
 
         .protocol-link-pill:hover svg {
             opacity: 1;
@@ -14467,7 +14506,7 @@
                 { icon: AUDIT_SVG, label: 'Audits', url: ll.audits ? ll.audit_links?.[0] : null, platform: 'audits' },
             ].filter(l => l.url);
             const linksHTML = linkData.map(l =>
-                `<a href="${l.url}" target="_blank" class="protocol-link-pill" data-platform="${l.platform}">${l.icon} ${l.label}</a>`
+                `<a href="${l.url}" target="_blank" class="protocol-link-pill" data-platform="${l.platform}">${l.icon}<span class="pill-label">${l.label}</span></a>`
             ).join('');
 
             // Contract addresses
