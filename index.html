@@ -9480,47 +9480,25 @@
                 }
 
                 /* TVL 24h change indicator */
-                @keyframes tvl-dot-pulse {
-                    0%, 100% { opacity:1; transform:scale(1); }
-                    50% { opacity:.5; transform:scale(.7); }
-                }
                 .tvl-24h-indicator {
                     display:none;
-                    align-items:center;
-                    gap:10px;
-                    padding:6px 14px 6px 10px;
-                    border-radius:10px;
-                    border:1px solid rgba(255,255,255,.06);
-                    backdrop-filter:blur(8px);
-                    transition:all .3s ease;
+                    align-items:baseline;
+                    gap:6px;
+                    white-space:nowrap;
                 }
-                .tvl-24h-indicator.up {
-                    background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(52,211,153,.05));
-                    border-color:rgba(52,211,153,.15);
-                }
-                .tvl-24h-indicator.down {
-                    background:linear-gradient(135deg,rgba(239,68,68,.1),rgba(251,113,133,.05));
-                    border-color:rgba(251,113,133,.15);
-                }
-                .tvl-24h-dot {
-                    width:8px;height:8px;border-radius:50%;flex-shrink:0;
-                    animation:tvl-dot-pulse 2s ease-in-out infinite;
-                }
-                .tvl-24h-indicator.up .tvl-24h-dot { background:#34d399;box-shadow:0 0 8px rgba(52,211,153,.5); }
-                .tvl-24h-indicator.down .tvl-24h-dot { background:#f87171;box-shadow:0 0 8px rgba(248,113,113,.5); }
                 .tvl-24h-pct {
-                    font-size:14px;font-weight:700;letter-spacing:-.3px;
+                    font-size:clamp(14px,2vw,18px);font-weight:700;letter-spacing:-.3px;
                     font-variant-numeric:tabular-nums;
                 }
                 .tvl-24h-indicator.up .tvl-24h-pct { color:#34d399; }
                 .tvl-24h-indicator.down .tvl-24h-pct { color:#f87171; }
                 .tvl-24h-abs {
-                    font-size:11px;font-weight:500;color:rgba(255,255,255,.35);
+                    font-size:clamp(11px,1.4vw,13px);font-weight:500;color:rgba(255,255,255,.3);
                     font-variant-numeric:tabular-nums;
                 }
                 .tvl-24h-label {
-                    font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;
-                    color:rgba(255,255,255,.25);
+                    font-size:clamp(9px,1.2vw,11px);font-weight:600;letter-spacing:.6px;text-transform:uppercase;
+                    color:rgba(255,255,255,.2);
                 }
             </style>
 
@@ -13247,8 +13225,7 @@
 
             el.className = 'tvl-24h-indicator ' + dirClass;
             el.style.display = 'inline-flex';
-            el.innerHTML = `<span class="tvl-24h-dot"></span>`
-                + `<span class="tvl-24h-pct">${arrow} ${sign}${pct}%</span>`
+            el.innerHTML = `<span class="tvl-24h-pct">${arrow} ${sign}${pct}%</span>`
                 + `<span class="tvl-24h-abs">${absPrefixed}</span>`
                 + `<span class="tvl-24h-label">24h</span>`;
         }
