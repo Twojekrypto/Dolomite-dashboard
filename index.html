@@ -10321,11 +10321,10 @@
                     </div>
 
                     <!-- Main value -->
-                    <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;position:relative">
+                    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;position:relative">
                         <div id="assets-hero-top-apr" style="font-size:clamp(40px,6vw,56px);font-weight:800;color:#34d399;text-shadow:0 0 60px rgba(52,211,153,.3),0 0 120px rgba(52,211,153,.1);line-height:1.05;letter-spacing:-1.5px;font-variant-numeric:tabular-nums">—</div>
-                        <div id="assets-hero-top-token" style="font-size:18px;font-weight:600;color:rgba(255,255,255,.7)"></div>
+                        <div id="assets-hero-top-token" style="display:flex;align-items:center;gap:8px;font-size:18px;font-weight:600;color:rgba(255,255,255,.7)"></div>
                     </div>
-                    <span id="assets-hero-top-detail" style="font-size:12px;color:var(--text-muted);margin-top:2px;letter-spacing:.5px">SUPPLY APR</span>
 
                     <!-- Metrics grid -->
                     <div class="assets-hero-grid">
@@ -15525,8 +15524,13 @@
 
             // Populate hero
             document.getElementById('assets-hero-top-apr').textContent = fmtPct(topSupply.supplyApr);
-            document.getElementById('assets-hero-top-token').textContent = topSupply.symbol;
-            document.getElementById('assets-hero-top-detail').textContent = `SUPPLY APR · ${topSupply.chainName}`;
+            // Token icon + chain icon
+            const tkKey = topSupply.chainKey + ':' + (topSupply.addr || '').toLowerCase();
+            const known = (typeof KNOWN_TOKENS !== 'undefined') ? KNOWN_TOKENS[tkKey] : null;
+            const tokenIcon = known && known.icon
+                ? `<div class="assets-token-icon-wrap" style="width:36px;height:36px"><div class="assets-token-icon" style="width:36px;height:36px"><img src="${known.icon}" alt="${topSupply.symbol}" style="width:36px;height:36px;border-radius:50%"></div><img class="assets-chain-overlay" src="${topSupply.chainIcon}" alt="${topSupply.chainShort}" style="width:16px;height:16px"></div>`
+                : `<div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff">${(topSupply.symbol || '?').slice(0,2)}</div>`;
+            document.getElementById('assets-hero-top-token').innerHTML = tokenIcon + `<span>${topSupply.symbol}</span>`;
 
             document.getElementById('assets-hero-avg-apr').textContent = fmtPct(avgSupply);
             document.getElementById('assets-hero-avg-sub').textContent = `across ${data.length} markets`;
@@ -15540,7 +15544,13 @@
             document.getElementById('assets-hero-markets-sub').textContent = `${chains.size} chains`;
 
             document.getElementById('assets-hero-borrow').textContent = fmtPct(topBorrow.borrowApr);
-            document.getElementById('assets-hero-borrow-sub').textContent = topBorrow.symbol + ' · ' + topBorrow.chainName;
+            // Borrow token icon + chain
+            const bkKey = topBorrow.chainKey + ':' + (topBorrow.addr || '').toLowerCase();
+            const bKnown = (typeof KNOWN_TOKENS !== 'undefined') ? KNOWN_TOKENS[bkKey] : null;
+            const borrowIconHtml = bKnown && bKnown.icon
+                ? `<div class="assets-token-icon-wrap" style="width:18px;height:18px;display:inline-flex;vertical-align:middle;margin-right:4px"><div class="assets-token-icon" style="width:18px;height:18px"><img src="${bKnown.icon}" alt="${topBorrow.symbol}" style="width:18px;height:18px;border-radius:50%"></div><img class="assets-chain-overlay" src="${topBorrow.chainIcon}" alt="${topBorrow.chainShort}" style="width:9px;height:9px"></div>`
+                : '';
+            document.getElementById('assets-hero-borrow-sub').innerHTML = borrowIconHtml + topBorrow.symbol;
 
             // Show hero
             document.getElementById('assets-hero-section').style.display = '';
