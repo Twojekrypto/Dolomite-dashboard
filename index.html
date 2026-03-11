@@ -9478,6 +9478,50 @@
                 @media (max-width:480px) {
                     .tvl-hero-grid { grid-template-columns:1fr !important; };
                 }
+
+                /* TVL 24h change indicator */
+                @keyframes tvl-dot-pulse {
+                    0%, 100% { opacity:1; transform:scale(1); }
+                    50% { opacity:.5; transform:scale(.7); }
+                }
+                .tvl-24h-indicator {
+                    display:none;
+                    align-items:center;
+                    gap:10px;
+                    padding:6px 14px 6px 10px;
+                    border-radius:10px;
+                    border:1px solid rgba(255,255,255,.06);
+                    backdrop-filter:blur(8px);
+                    transition:all .3s ease;
+                }
+                .tvl-24h-indicator.up {
+                    background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(52,211,153,.05));
+                    border-color:rgba(52,211,153,.15);
+                }
+                .tvl-24h-indicator.down {
+                    background:linear-gradient(135deg,rgba(239,68,68,.1),rgba(251,113,133,.05));
+                    border-color:rgba(251,113,133,.15);
+                }
+                .tvl-24h-dot {
+                    width:8px;height:8px;border-radius:50%;flex-shrink:0;
+                    animation:tvl-dot-pulse 2s ease-in-out infinite;
+                }
+                .tvl-24h-indicator.up .tvl-24h-dot { background:#34d399;box-shadow:0 0 8px rgba(52,211,153,.5); }
+                .tvl-24h-indicator.down .tvl-24h-dot { background:#f87171;box-shadow:0 0 8px rgba(248,113,113,.5); }
+                .tvl-24h-pct {
+                    font-size:14px;font-weight:700;letter-spacing:-.3px;
+                    font-variant-numeric:tabular-nums;
+                }
+                .tvl-24h-indicator.up .tvl-24h-pct { color:#34d399; }
+                .tvl-24h-indicator.down .tvl-24h-pct { color:#f87171; }
+                .tvl-24h-abs {
+                    font-size:11px;font-weight:500;color:rgba(255,255,255,.35);
+                    font-variant-numeric:tabular-nums;
+                }
+                .tvl-24h-label {
+                    font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;
+                    color:rgba(255,255,255,.25);
+                }
             </style>
 
             <div class="tvl-hero-outer anim anim-d1">
@@ -9495,7 +9539,7 @@
                     <!-- Main TVL value row -->
                     <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;position:relative">
                         <div id="dolo-tvl" style="font-size:clamp(40px,6vw,56px);font-weight:800;color:#10b981;text-shadow:0 0 60px rgba(16,185,129,.3),0 0 120px rgba(16,185,129,.1);line-height:1.05;letter-spacing:-1.5px;font-variant-numeric:tabular-nums">—</div>
-                        <div id="dolo-tvl-24h" style="font-size:14px;font-weight:600"></div>
+                        <div id="dolo-tvl-24h" class="tvl-24h-indicator"></div>
                     </div>
 
                     <!-- 7-day mini sparkline -->
@@ -13180,6 +13224,34 @@
         }
 
         let dolo_cachedData = null;
+
+        function renderTvl24hChange(elementId, currentVal, oldVal) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            if (!oldVal || oldVal === 0) return;
+            const diff = currentVal - oldVal;
+            if (diff === 0) return;
+
+            const isPos = diff > 0;
+            const pct = ((diff / Math.abs(oldVal)) * 100).toFixed(2);
+            const sign = isPos ? '+' : '';
+            const arrow = isPos ? '↑' : '↓';
+            const dirClass = isPos ? 'up' : 'down';
+
+            // Format absolute $ change
+            const absDiff = Math.abs(diff);
+            const absFmt = absDiff >= 1e6 ? '$' + (absDiff/1e6).toFixed(2) + 'M'
+                         : absDiff >= 1e3 ? '$' + (absDiff/1e3).toFixed(1) + 'K'
+                         : '$' + absDiff.toFixed(0);
+            const absPrefixed = (isPos ? '+' : '-') + absFmt;
+
+            el.className = 'tvl-24h-indicator ' + dirClass;
+            el.style.display = 'inline-flex';
+            el.innerHTML = `<span class="tvl-24h-dot"></span>`
+                + `<span class="tvl-24h-pct">${arrow} ${sign}${pct}%</span>`
+                + `<span class="tvl-24h-abs">${absPrefixed}</span>`
+                + `<span class="tvl-24h-label">24h</span>`;
+        }
         let dolo_tvlPoints = [];
         let dolo_allTvlPoints = [];
         let dolo_currentRange = 90;
@@ -13333,7 +13405,7 @@
                     const snaps = await fetchMetricsSnapshots();
                     const old = get24hOld(snaps);
                     if (old) {
-                        render24hBadge('dolo-tvl-24h', totalTvl, old.tvl, 'pct');
+                        renderTvl24hChange('dolo-tvl-24h', totalTvl, old.tvl);
                         const curVol = dolo_cachedData?.cg?.usd_24h_vol || 0;
                         render24hBadge('dolo-vol-24h', curVol, old.volume_24h, 'pct');
                     }
