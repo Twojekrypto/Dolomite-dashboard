@@ -1240,8 +1240,9 @@
         }
 
         .assets-table tbody td:nth-child(3) {
-            text-align: center;
+            text-align: left;
             overflow: hidden;
+            padding-left: 16px;
         }
 
         .assets-table tbody td:nth-child(4) {
@@ -15880,10 +15881,8 @@
                     </td>
                     <td style="font-size:13px;color:rgba(255,255,255,0.85)">${priceHtml}</td>
                     <td>
-                        <div style="display:inline-block;text-align:left">
-                            <div><span class="${supplyClass}" style="${supplyStyle}">${displaySupply.toFixed(2)}%</span></div>
-                            ${breakdownHtml}
-                        </div>
+                        <div><span class="${supplyClass}" style="${supplyStyle}">${displaySupply.toFixed(2)}%</span></div>
+                        ${breakdownHtml}
                     </td>
                     <td><span class="assets-apy-red">${d.borrowApr > 0 ? d.borrowApr.toFixed(2) + '%' : '—'}</span></td>
                 </tr>`;
