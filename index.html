@@ -11981,16 +11981,28 @@
 
             function draw(hoveredIdx) {
                 ctx.clearRect(0, 0, w, h);
+                const pushOut = 8;
                 arcs.forEach((arc, i) => {
                     const hov = i === hoveredIdx;
+                    const midA = (arc.start + arc.end) / 2;
+                    const offX = hov ? Math.cos(midA) * pushOut : 0;
+                    const offY = hov ? Math.sin(midA) * pushOut : 0;
                     const r = hov ? outerR + 4 : outerR;
                     ctx.beginPath();
-                    ctx.arc(cx, cy, r, arc.start, arc.end);
-                    ctx.arc(cx, cy, innerR, arc.end, arc.start, true);
+                    ctx.arc(cx + offX, cy + offY, r, arc.start, arc.end);
+                    ctx.arc(cx + offX, cy + offY, innerR, arc.end, arc.start, true);
                     ctx.closePath();
-                    ctx.fillStyle = hov ? arc.color : arc.color + (arc.color.length > 7 ? '' : 'cc');
+                    ctx.fillStyle = arc.color;
+                    ctx.globalAlpha = (hoveredIdx >= 0 && !hov) ? 0.4 : 1;
                     ctx.fill();
+                    if (hov) {
+                        ctx.shadowColor = arc.color;
+                        ctx.shadowBlur = 16;
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                    }
                 });
+                ctx.globalAlpha = 1;
                 // Center text
                 const cVal = document.getElementById(centerValId);
                 const cSub = document.getElementById(centerSubId);
@@ -13232,10 +13244,16 @@
 
             el.className = 'tvl-24h-indicator ' + dirClass;
             el.style.display = 'flex';
-            const subHtml = showAbsDelta
-                ? `<div class="tvl-24h-sub"><span class="tvl-24h-abs">${absPrefixed}</span><span class="tvl-24h-label">24h</span></div>`
-                : `<div class="tvl-24h-sub"><span class="tvl-24h-label">24h</span></div>`;
-            el.innerHTML = `<span class="tvl-24h-pct">${arrow} ${sign}${pct}%</span>` + subHtml;
+            let subHtml;
+            if (showAbsDelta) {
+                subHtml = `<div class="tvl-24h-sub"><span class="tvl-24h-abs">${absPrefixed}</span><span class="tvl-24h-label">24h</span></div>`;
+                el.innerHTML = `<span class="tvl-24h-pct">${arrow} ${sign}${pct}%</span>` + subHtml;
+            } else {
+                el.innerHTML = `<span class="tvl-24h-pct">${arrow} ${sign}${pct}%</span> <span class="tvl-24h-label" style="margin-left:4px">24h</span>`;
+                el.style.flexDirection = 'row';
+                el.style.alignItems = 'baseline';
+                el.style.gap = '0';
+            }
         }
         let dolo_tvlPoints = [];
         let dolo_allTvlPoints = [];
