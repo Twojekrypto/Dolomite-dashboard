@@ -10861,7 +10861,7 @@
                 const old = get24hOld(snaps);
                 if (old) {
                     render24hBadge('vedolo-holders-24h', STATS.unique_holders, old.vedolo_holders, 'abs');
-                    renderTvl24hChange('vedolo-locked-24h', STATS.total_locked_dolo, old.dolo_locked);
+                    renderTvl24hChange('vedolo-locked-24h', STATS.total_locked_dolo, old.dolo_locked, false);
                     render24hBadge('vedolo-vote-24h', STATS.total_vote_weight, old.vote_weight, 'pct', 'total veDOLO power');
                 }
             }).catch(() => { });
@@ -13207,7 +13207,7 @@
 
         let dolo_cachedData = null;
 
-        function renderTvl24hChange(elementId, currentVal, oldVal) {
+        function renderTvl24hChange(elementId, currentVal, oldVal, showAbsDelta) {
             const el = document.getElementById(elementId);
             if (!el) return;
             if (!oldVal || oldVal === 0) return;
@@ -13229,8 +13229,10 @@
 
             el.className = 'tvl-24h-indicator ' + dirClass;
             el.style.display = 'flex';
-            el.innerHTML = `<span class="tvl-24h-pct">${arrow} ${sign}${pct}%</span>`
-                + `<div class="tvl-24h-sub"><span class="tvl-24h-abs">${absPrefixed}</span><span class="tvl-24h-label">24h</span></div>`;
+            const subHtml = showAbsDelta
+                ? `<div class="tvl-24h-sub"><span class="tvl-24h-abs">${absPrefixed}</span><span class="tvl-24h-label">24h</span></div>`
+                : `<div class="tvl-24h-sub"><span class="tvl-24h-label">24h</span></div>`;
+            el.innerHTML = `<span class="tvl-24h-pct">${arrow} ${sign}${pct}%</span>` + subHtml;
         }
         let dolo_tvlPoints = [];
         let dolo_allTvlPoints = [];
@@ -13385,7 +13387,7 @@
                     const snaps = await fetchMetricsSnapshots();
                     const old = get24hOld(snaps);
                     if (old) {
-                        renderTvl24hChange('dolo-tvl-24h', totalTvl, old.tvl);
+                        renderTvl24hChange('dolo-tvl-24h', totalTvl, old.tvl, true);
                         const curVol = dolo_cachedData?.cg?.usd_24h_vol || 0;
                         render24hBadge('dolo-vol-24h', curVol, old.volume_24h, 'pct');
                     }
@@ -13477,7 +13479,7 @@
                 if (price) {
                     document.getElementById('dolo-price').textContent = '$' + price.toFixed(4);
                     const sign = ch >= 0 ? '+' : '';
-                    renderTvl24hChange('dolo-change', price, price / (1 + ch / 100));
+                    renderTvl24hChange('dolo-change', price, price / (1 + ch / 100), false);
                 }
             } catch (e) { /* silent */ }
         }
