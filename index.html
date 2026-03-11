@@ -10357,7 +10357,7 @@
                         </div>
                         <!-- Highest Borrow -->
                         <div class="assets-hero-card red">
-                            <div class="assets-hero-icon" style="background:rgba(248,113,113,.12)">
+                            <div id="assets-hero-borrow-icon" class="assets-hero-icon" style="background:rgba(248,113,113,.12)">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
                             </div>
                             <div class="assets-hero-label">Highest Borrow</div>
@@ -15551,6 +15551,11 @@
                 ? `<div class="assets-token-icon-wrap" style="width:18px;height:18px;display:inline-flex;vertical-align:middle;margin-right:4px"><div class="assets-token-icon" style="width:18px;height:18px"><img src="${bKnown.icon}" alt="${topBorrow.symbol}" style="width:18px;height:18px;border-radius:50%"></div><img class="assets-chain-overlay" src="${topBorrow.chainIcon}" alt="${topBorrow.chainShort}" style="width:9px;height:9px"></div>`
                 : '';
             document.getElementById('assets-hero-borrow-sub').innerHTML = borrowIconHtml + topBorrow.symbol;
+            // Replace card header icon with token icon
+            if (bKnown && bKnown.icon) {
+                document.getElementById('assets-hero-borrow-icon').innerHTML = `<div class="assets-token-icon-wrap" style="width:28px;height:28px"><div class="assets-token-icon" style="width:28px;height:28px"><img src="${bKnown.icon}" alt="${topBorrow.symbol}" style="width:28px;height:28px;border-radius:50%"></div><img class="assets-chain-overlay" src="${topBorrow.chainIcon}" alt="${topBorrow.chainShort}" style="width:13px;height:13px"></div>`;
+                document.getElementById('assets-hero-borrow-icon').style.background = 'transparent';
+            }
 
             // Show hero
             document.getElementById('assets-hero-section').style.display = '';
