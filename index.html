@@ -8328,7 +8328,7 @@
                     <!-- Main metric: DOLO Locked -->
                     <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;position:relative">
                         <div id="m-dolo" style="font-size:clamp(40px,6vw,56px);font-weight:800;color:#10b981;text-shadow:0 0 60px rgba(16,185,129,.3),0 0 120px rgba(16,185,129,.1);line-height:1.05;letter-spacing:-1.5px;font-variant-numeric:tabular-nums">—</div>
-                        <div id="vedolo-locked-24h" style="font-size:14px;font-weight:600"></div>
+                        <div id="vedolo-locked-24h" class="tvl-24h-indicator"></div>
                     </div>
                     <span class="hero-label-tip" style="font-size:12px;color:var(--text-muted);margin-top:2px;letter-spacing:.5px;position:relative">DOLO LOCKED IN veDOLO<span class="tooltip-bubble">Total amount of DOLO locked across all active veDOLO positions. Locked DOLO earns governance power and voting rights.</span></span>
 
@@ -9776,7 +9776,7 @@
                     <!-- Main Price row -->
                     <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;position:relative">
                         <div id="dolo-price" style="font-size:clamp(40px,6vw,56px);font-weight:800;color:#818cf8;text-shadow:0 0 60px rgba(99,102,241,.3),0 0 120px rgba(99,102,241,.1);line-height:1.05;letter-spacing:-1.5px;font-variant-numeric:tabular-nums">—</div>
-                        <div id="dolo-change" style="font-size:14px;font-weight:600"></div>
+                        <div id="dolo-change" class="tvl-24h-indicator"></div>
                     </div>
 
                     <!-- Metrics grid -->
@@ -10841,9 +10841,10 @@
 
         function init() {
             // Metrics
-            const vedoloIcon = ' <img src="vedolo-logo.svg" class="metric-icon">';
-            anim('m-holders', STATS.unique_holders, false, '', vedoloIcon);
-            anim('m-active', STATS.active_nfts, false, '', vedoloIcon);
+            const vedoloIcon = ' <img src="vedolo-logo.svg" class="metric-icon" style="width:28px;height:28px">';
+            const vedoloIconSm = ' <img src="vedolo-logo.svg" class="metric-icon">';
+            anim('m-holders', STATS.unique_holders, false, '', vedoloIconSm);
+            anim('m-active', STATS.active_nfts, false, '', vedoloIconSm);
 
             if (STATS.total_locked_dolo !== undefined) {
                 anim('m-dolo', Math.round(STATS.total_locked_dolo), true, '', vedoloIcon);
@@ -10857,7 +10858,7 @@
                 const old = get24hOld(snaps);
                 if (old) {
                     render24hBadge('vedolo-holders-24h', STATS.unique_holders, old.vedolo_holders, 'abs');
-                    render24hBadge('vedolo-locked-24h', STATS.total_locked_dolo, old.dolo_locked, 'pct', 'total in lock');
+                    renderTvl24hChange('vedolo-locked-24h', STATS.total_locked_dolo, old.dolo_locked);
                     render24hBadge('vedolo-vote-24h', STATS.total_vote_weight, old.vote_weight, 'pct', 'total veDOLO power');
                 }
             }).catch(() => { });
@@ -13474,7 +13475,7 @@
                 if (price) {
                     document.getElementById('dolo-price').textContent = '$' + price.toFixed(4);
                     const sign = ch >= 0 ? '+' : '';
-                    document.getElementById('dolo-change').innerHTML = `<span style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600;background:${ch >= 0 ? 'rgba(52,211,153,0.15)' : 'rgba(251,113,133,0.15)'};color:${ch >= 0 ? 'var(--accent-green)' : 'var(--accent-rose)'}">${sign}${ch.toFixed(2)}% 24h</span>`;
+                    renderTvl24hChange('dolo-change', price, price / (1 + ch / 100));
                 }
             } catch (e) { /* silent */ }
         }
