@@ -10235,6 +10235,140 @@
 
         <!-- ASSETS VIEW -->
         <div id="view-assets" class="view-section">
+
+            <!-- ═══ ASSETS HERO — YIELD FOCUS ═══ -->
+            <style>
+                @keyframes assets-border-glow {
+                    0%,100% { opacity:.6; filter:blur(12px); }
+                    50% { opacity:1; filter:blur(18px); }
+                }
+                .assets-hero-outer {
+                    position:relative;border-radius:18px;padding:2px;
+                    background:linear-gradient(135deg,rgba(52,211,153,.35),rgba(251,191,36,.25),rgba(99,102,241,.15));
+                    overflow:hidden;margin-bottom:24px;
+                }
+                .assets-hero-outer::before {
+                    content:'';position:absolute;inset:-2px;border-radius:20px;
+                    background:linear-gradient(135deg,rgba(52,211,153,.25),rgba(251,191,36,.2),rgba(99,102,241,.1));
+                    animation:assets-border-glow 4s ease-in-out infinite;
+                    z-index:0;pointer-events:none;
+                }
+                .assets-hero-inner {
+                    position:relative;z-index:1;border-radius:16px;
+                    background:linear-gradient(145deg,rgba(10,15,28,.97) 0%,rgba(14,22,39,.96) 40%,rgba(10,18,32,.98) 100%);
+                    padding:28px 32px 24px;overflow:hidden;
+                }
+                .assets-hero-inner::after {
+                    content:'';position:absolute;top:-50%;left:-20%;width:60%;height:120%;
+                    background:linear-gradient(90deg,transparent,rgba(255,255,255,.015),transparent);
+                    animation:tvl-shine 8s ease-in-out infinite;pointer-events:none;
+                }
+                .assets-hero-grid {
+                    display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:24px;
+                }
+                .assets-hero-card {
+                    background:rgba(255,255,255,.03);
+                    backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+                    border:1px solid rgba(255,255,255,.08);border-radius:14px;
+                    padding:18px 20px;transition:all .35s cubic-bezier(.4,0,.2,1);
+                    position:relative;overflow:hidden;
+                }
+                .assets-hero-card:hover {
+                    background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.15);
+                    transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.3);
+                }
+                .assets-hero-card::before {
+                    content:'';position:absolute;top:0;left:0;right:0;height:2px;
+                    border-radius:14px 14px 0 0;
+                }
+                .assets-hero-card.green::before { background:linear-gradient(90deg,#34d399,#10b981); }
+                .assets-hero-card.gold::before { background:linear-gradient(90deg,#fbbf24,#f59e0b); }
+                .assets-hero-card.cyan::before { background:linear-gradient(90deg,#22d3ee,#06b6d4); }
+                .assets-hero-card.red::before { background:linear-gradient(90deg,#f87171,#ef4444); }
+                .assets-hero-icon {
+                    width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+                    margin-bottom:12px;
+                }
+                .assets-hero-label {
+                    font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:rgba(255,255,255,.4);
+                    font-weight:600;margin-bottom:6px;
+                }
+                .assets-hero-value {
+                    font-size:22px;font-weight:700;letter-spacing:-.5px;
+                }
+                .assets-hero-sub {
+                    font-size:11px;color:rgba(255,255,255,.35);margin-top:3px;
+                }
+                @media (max-width:768px) {
+                    .assets-hero-inner { padding:20px 16px 18px; }
+                    .assets-hero-grid { grid-template-columns:1fr 1fr !important; }
+                }
+                @media (max-width:480px) {
+                    .assets-hero-grid { grid-template-columns:1fr !important; }
+                }
+            </style>
+
+            <div class="assets-hero-outer anim anim-d1" id="assets-hero-section" style="display:none">
+                <div class="assets-hero-inner">
+                    <!-- Glow orbs -->
+                    <div style="position:absolute;top:-60px;right:-30px;width:220px;height:220px;background:radial-gradient(circle,rgba(52,211,153,.08) 0%,transparent 65%);pointer-events:none"></div>
+                    <div style="position:absolute;bottom:-40px;left:-20px;width:160px;height:160px;background:radial-gradient(circle,rgba(251,191,36,.06) 0%,transparent 65%);pointer-events:none"></div>
+
+                    <!-- Top label -->
+                    <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;flex-wrap:wrap">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                        <span style="font-size:12px;color:#fff;text-transform:uppercase;letter-spacing:1.8px;font-weight:600">Best Yield Opportunity</span>
+                    </div>
+
+                    <!-- Main value -->
+                    <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;position:relative">
+                        <div id="assets-hero-top-apr" style="font-size:clamp(40px,6vw,56px);font-weight:800;color:#34d399;text-shadow:0 0 60px rgba(52,211,153,.3),0 0 120px rgba(52,211,153,.1);line-height:1.05;letter-spacing:-1.5px;font-variant-numeric:tabular-nums">—</div>
+                        <div id="assets-hero-top-token" style="font-size:18px;font-weight:600;color:rgba(255,255,255,.7)"></div>
+                    </div>
+                    <span id="assets-hero-top-detail" style="font-size:12px;color:var(--text-muted);margin-top:2px;letter-spacing:.5px">SUPPLY APR</span>
+
+                    <!-- Metrics grid -->
+                    <div class="assets-hero-grid">
+                        <!-- Avg Supply APR -->
+                        <div class="assets-hero-card green">
+                            <div class="assets-hero-icon" style="background:rgba(52,211,153,.12)">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
+                            </div>
+                            <div class="assets-hero-label">Avg Supply APR</div>
+                            <div id="assets-hero-avg-apr" class="assets-hero-value" style="color:#34d399">—</div>
+                            <div id="assets-hero-avg-sub" class="assets-hero-sub">across all markets</div>
+                        </div>
+                        <!-- oDOLO Boost -->
+                        <div class="assets-hero-card gold">
+                            <div class="assets-hero-icon" style="background:rgba(251,191,36,.12)">
+                                <img src="odolo-logo-official.svg" width="18" height="18" alt="oDOLO">
+                            </div>
+                            <div class="assets-hero-label">oDOLO Boost</div>
+                            <div id="assets-hero-odolo-boost" class="assets-hero-value" style="color:#fbbf24">—</div>
+                            <div id="assets-hero-odolo-sub" class="assets-hero-sub">average incentive</div>
+                        </div>
+                        <!-- Total Markets -->
+                        <div class="assets-hero-card cyan">
+                            <div class="assets-hero-icon" style="background:rgba(34,211,238,.12)">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                            </div>
+                            <div class="assets-hero-label">Total Markets</div>
+                            <div id="assets-hero-markets" class="assets-hero-value" style="color:#22d3ee">—</div>
+                            <div id="assets-hero-markets-sub" class="assets-hero-sub">listed assets</div>
+                        </div>
+                        <!-- Highest Borrow -->
+                        <div class="assets-hero-card red">
+                            <div class="assets-hero-icon" style="background:rgba(248,113,113,.12)">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                            </div>
+                            <div class="assets-hero-label">Highest Borrow</div>
+                            <div id="assets-hero-borrow" class="assets-hero-value" style="color:#f87171">—</div>
+                            <div id="assets-hero-borrow-sub" class="assets-hero-sub">borrow rate</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="card anim anim-d1">
                 <div class="card-header">
                     <h3>Dolomite Assets</h3>
@@ -15356,9 +15490,60 @@
             assets_bindSearch();
             // Initial render
             assets_render();
+            assets_updateHero();
 
             document.getElementById('assets-spinner').style.display = 'none';
             document.getElementById('assets-table-wrap').style.display = '';
+        }
+
+        function assets_updateHero() {
+            const data = assets_allData;
+            if (!data || data.length === 0) return;
+
+            // Find top Supply APR
+            let topSupply = data[0];
+            data.forEach(d => { if (d.supplyApr > topSupply.supplyApr) topSupply = d; });
+
+            // Find top Borrow APR
+            let topBorrow = data[0];
+            data.forEach(d => { if (d.borrowApr > topBorrow.borrowApr) topBorrow = d; });
+
+            // Avg Supply APR (weighted equally)
+            const avgSupply = data.reduce((s, d) => s + d.supplyApr, 0) / data.length;
+
+            // Avg oDOLO boost (only markets that have oDOLO)
+            const odoloMarkets = data.filter(d => d.rewards > 0);
+            const avgOdolo = odoloMarkets.length > 0
+                ? odoloMarkets.reduce((s, d) => s + d.rewards, 0) / odoloMarkets.length
+                : 0;
+
+            // Unique chains
+            const chains = new Set(data.map(d => d.chainKey));
+
+            // Format helper
+            const fmtPct = (v) => v >= 100 ? v.toFixed(0) + '%' : v >= 10 ? v.toFixed(1) + '%' : v.toFixed(2) + '%';
+
+            // Populate hero
+            document.getElementById('assets-hero-top-apr').textContent = fmtPct(topSupply.supplyApr);
+            document.getElementById('assets-hero-top-token').textContent = topSupply.symbol;
+            document.getElementById('assets-hero-top-detail').textContent = `SUPPLY APR · ${topSupply.chainName}`;
+
+            document.getElementById('assets-hero-avg-apr').textContent = fmtPct(avgSupply);
+            document.getElementById('assets-hero-avg-sub').textContent = `across ${data.length} markets`;
+
+            document.getElementById('assets-hero-odolo-boost').textContent = avgOdolo > 0 ? '+' + fmtPct(avgOdolo) : '—';
+            document.getElementById('assets-hero-odolo-sub').textContent = odoloMarkets.length > 0
+                ? `${odoloMarkets.length} boosted markets`
+                : 'no active boosts';
+
+            document.getElementById('assets-hero-markets').textContent = data.length;
+            document.getElementById('assets-hero-markets-sub').textContent = `${chains.size} chains`;
+
+            document.getElementById('assets-hero-borrow').textContent = fmtPct(topBorrow.borrowApr);
+            document.getElementById('assets-hero-borrow-sub').textContent = topBorrow.symbol + ' · ' + topBorrow.chainName;
+
+            // Show hero
+            document.getElementById('assets-hero-section').style.display = '';
         }
 
         function assets_buildChainPills() {
