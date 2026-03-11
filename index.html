@@ -2143,14 +2143,15 @@
 
         .dolo-leg-row:hover,
         .dolo-leg-row.active {
-            background: rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.1);
             border-left-color: var(--leg-color);
-            box-shadow: inset 0 0 20px rgba(255,255,255,.02), 0 0 12px rgba(255,255,255,.03);
+            box-shadow: inset 0 0 24px rgba(255,255,255,.04), 0 0 8px color-mix(in srgb, var(--leg-color) 25%, transparent);
             transform: translateX(4px);
+            opacity: 1 !important;
         }
 
         .dolo-leg-row.dim {
-            opacity: 0.25;
+            opacity: 0.2;
             transform: scale(0.98);
         }
 
@@ -14674,8 +14675,8 @@
                 });
             }
 
-            // Legend rows — use CSS classes
-            document.querySelectorAll('.dolo-leg-row').forEach((el, i) => {
+            // Legend rows — use CSS classes (scoped to Token Composition)
+            document.querySelectorAll('#dolo-token-legend .dolo-leg-row').forEach((el, i) => {
                 el.classList.toggle('active', i === idx);
                 el.classList.toggle('dim', idx >= 0 && i !== idx);
             });
