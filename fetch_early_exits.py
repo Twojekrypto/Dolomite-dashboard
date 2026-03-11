@@ -251,9 +251,9 @@ def main():
     print(f"  Cached: {len(events) - len(tx_hashes_needed)}/{len(events)}")
     print(f"  To fetch: {len(tx_hashes_needed)}")
 
-    # Fetch receipts for uncached transactions (parallel for speed)
+    # Fetch receipts for uncached transactions
     if tx_hashes_needed:
-        done = 0
+        cached_count = 0
         errors = 0
         BATCH_SIZE = 50  # JSON-RPC batch: 50 receipts per HTTP request
 
@@ -270,47 +270,84 @@ def main():
                                          timeout=60, headers={"Content-Type": "application/json"})
                     results = resp.json()
                     if isinstance(results, list):
-                        return results
+                        return results, rpc_url
                 except Exception:
                     time.sleep(0.3)
+            return None, None
+
+        def fetch_single_receipt(tx_hash):
+            """Fetch a single receipt trying ALL RPCs."""
+            for rpc_url in RPC_URLS:
+                try:
+                    resp = requests.post(rpc_url, json={
+                        "jsonrpc": "2.0", "method": "eth_getTransactionReceipt",
+                        "params": [tx_hash], "id": 1
+                    }, timeout=20, headers={"Content-Type": "application/json"})
+                    data = resp.json()
+                    if data.get("result"):
+                        return data["result"]
+                except Exception:
+                    time.sleep(0.2)
             return None
 
         # Process in batches
         batches = [tx_hashes_needed[i:i+BATCH_SIZE] for i in range(0, len(tx_hashes_needed), BATCH_SIZE)]
         for batch_idx, batch in enumerate(batches):
-            batch_results = fetch_batch_receipts(batch)
+            batch_results, used_rpc = fetch_batch_receipts(batch)
+            failed_in_batch = []
+
             if batch_results:
+                # Track which hashes got responses
+                responded_indices = set()
                 for resp_item in batch_results:
-                    idx = resp_item.get("id", 0)
-                    if idx < len(batch):
+                    idx = resp_item.get("id", -1)
+                    if 0 <= idx < len(batch):
+                        responded_indices.add(idx)
                         tx_hash = batch[idx]
                         receipt = resp_item.get("result")
                         if receipt:
                             penalty = _calc_penalty_from_receipt(receipt)
                             if penalty:
                                 cache[tx_hash] = penalty
+                                cached_count += 1
                             else:
-                                errors += 1
+                                failed_in_batch.append(tx_hash)
+                        else:
+                            # Null result from this RPC — retry individually later
+                            failed_in_batch.append(tx_hash)
+
+                # Also add any hashes that had no response at all
+                for idx in range(len(batch)):
+                    if idx not in responded_indices:
+                        failed_in_batch.append(batch[idx])
+            else:
+                # Entire batch failed
+                failed_in_batch = list(batch)
+
+            # Retry failed hashes individually across ALL RPCs
+            if failed_in_batch:
+                for tx_hash in failed_in_batch:
+                    receipt = fetch_single_receipt(tx_hash)
+                    if receipt:
+                        penalty = _calc_penalty_from_receipt(receipt)
+                        if penalty:
+                            cache[tx_hash] = penalty
+                            cached_count += 1
                         else:
                             errors += 1
-                        done += 1
-            else:
-                # Fallback: fetch individually for this batch
-                for tx_hash in batch:
-                    result = fetch_receipt_and_calc_penalty(tx_hash)
-                    if result:
-                        cache[tx_hash] = result
                     else:
                         errors += 1
-                    done += 1
+                    time.sleep(0.05)
 
             if (batch_idx + 1) % 5 == 0 or (batch_idx + 1) == len(batches):
-                print(f"  Progress: {done:,}/{len(tx_hashes_needed):,} (errors: {errors})")
+                print(f"  Progress: batch {batch_idx+1}/{len(batches)} — cached: {cached_count:,} errors: {errors:,} / {len(tx_hashes_needed):,} total")
                 cache_progress = {"_meta": {"last_scanned_block": latest_block}, "receipts": cache, "logs": cached_logs}
                 with open(CACHE_FILE, "w") as f:
                     json.dump(cache_progress, f)
 
             time.sleep(0.1)  # Small delay between batches
+
+        print(f"  ✅ Receipt fetch complete: {cached_count:,} new, {errors:,} failed")
 
         # Final cache save
         cache_output = {"_meta": {"last_scanned_block": latest_block}, "receipts": cache, "logs": cached_logs}
