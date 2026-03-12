@@ -15461,18 +15461,8 @@
 
             assets_allData = results;
 
-            // When subgraph data is ready (may already be done), re-render with badges + hero
-            subgraphPromise.then(() => {
-                // Save currently expanded row before re-render wipes it
-                const expandedRow = document.querySelector('tr.assets-data-row.expanded');
-                const expandedId = expandedRow ? expandedRow.getAttribute('data-row-id') : null;
-                assets_render();
-                assets_updateHero(); // re-calc hero with dust filtering
-                // Re-expand the row that was open
-                if (expandedId) {
-                    assets_toggleDetail(expandedId);
-                }
-            });
+            // Wait for subgraph data so everything renders together (table + hero + badges)
+            await subgraphPromise;
 
             // Build chain pills
             assets_buildChainPills();
@@ -15482,8 +15472,9 @@
             assets_bindSortHeaders();
             // Bind search + checkbox
             assets_bindSearch();
-            // Initial render (hero updated after subgraph data loads to exclude dust)
+            // Render everything at once (table with badges + hero with dust filtering)
             assets_render();
+            assets_updateHero();
 
             document.getElementById('assets-spinner').style.display = 'none';
             document.getElementById('assets-table-wrap').style.display = '';
