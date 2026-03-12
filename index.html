@@ -841,6 +841,32 @@
             border: 1px solid rgba(251, 191, 36, 0.2);
         }
 
+        /* Dust toggle: gray default, red when active */
+        .dust-toggle-wrap .odolo-switch {
+            background: rgba(148, 163, 184, 0.15);
+            border-color: rgba(148, 163, 184, 0.25);
+        }
+
+        .dust-toggle-wrap .odolo-switch .knob {
+            background: #94a3b8;
+            box-shadow: 0 0 6px rgba(148, 163, 184, 0.4);
+        }
+
+        .dust-toggle-wrap.active .odolo-switch {
+            background: rgba(239, 68, 68, 0.25);
+            border-color: rgba(239, 68, 68, 0.4);
+        }
+
+        .dust-toggle-wrap.active .odolo-switch .knob {
+            left: 2px;
+            background: #f87171;
+            box-shadow: 0 0 6px rgba(248, 113, 113, 0.5);
+        }
+
+        .dust-toggle-wrap.active .odolo-toggle-label {
+            color: #f87171;
+        }
+
         .assets-toggles-right {
             display: flex;
             align-items: center;
@@ -10345,13 +10371,13 @@
                                     <div class="knob"></div>
                                 </div>
                             </div>
-                            <div class="odolo-toggle-wrap" id="assets-dust-toggle">
+                            <div class="odolo-toggle-wrap dust-toggle-wrap" id="assets-dust-toggle">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.6"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 6v6l4 2"/></svg>
                                 <span class="odolo-toggle-label" style="color:#94a3b8">Dust</span>
                                 <span class="yield-help-icon" onclick="event.stopPropagation()">?<span
                                         class="tooltip-bubble">Hide dust markets — assets with very low liquidity where the displayed APR is misleading.<br><br>A market is 'dust' when depositing $100 would change the total supply by more than 10% (supply &lt; $1,000).<br><br>'Low' liquidity = supply $1K–$10K.</span></span>
-                                <div class="odolo-switch" style="background:rgba(148,163,184,0.15);border-color:rgba(148,163,184,0.25)">
-                                    <div class="knob" style="background:#94a3b8;box-shadow:0 0 6px rgba(148,163,184,0.4)"></div>
+                                <div class="odolo-switch">
+                                    <div class="knob"></div>
                                 </div>
                             </div>
                             <div class="apr-pill" id="assets-apr-pill" onclick="assets_toggleAprApy()">
