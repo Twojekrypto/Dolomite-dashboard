@@ -8254,6 +8254,14 @@
                         </svg>
                         EARN
                     </button>
+                    <button class="nav-tab" id="tab-treasury" onclick="switchView('treasury')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M2 20h20" /><path d="M5 20V8l7-5 7 5v12" />
+                            <rect x="9" y="12" width="6" height="8" rx="1" />
+                        </svg>
+                        TREASURY
+                    </button>
 
                 </div>
             </nav>
@@ -8542,7 +8550,8 @@
             <!-- EXPIRY TIMELINE -->
             <div class="expiry-chart-card anim anim-d2" id="expiry-section" style="margin-top:20px">
                 <div class="card-header">
-                    <h3 style="display:flex;align-items:center;gap:8px;margin:0"><img src="vedolo-logo.svg" width="22" height="22" alt="veDOLO" style="flex-shrink:0"> Lock Expiry Timeline</h3>
+                    <h3 style="display:flex;align-items:center;gap:8px;margin:0"><img src="vedolo-logo.svg" width="22" height="22" alt="veDOLO" style="flex-shrink:0"> Lock Expiry Timeline <span style="font-size:11px;color:rgba(255,255,255,.35);font-weight:400;margin-left:8px">Voting Power Forward Curve</span></h3>
+                    <p style="margin:6px 0 0;font-size:11px;color:rgba(255,255,255,.4);line-height:1.4">Bars colored by concentration risk: <span style="color:#6366f1">●</span> low &lt;15%&nbsp; <span style="color:#f59e0b">●</span> medium 15-30%&nbsp; <span style="color:#ef4444">●</span> high &gt;30%</p>
 
                 </div>
                 <div class="expiry-chart-scroll" style="position:relative">
@@ -10277,6 +10286,403 @@
 
         </div><!-- /view-earn -->
 
+        <!-- TREASURY VIEW -->
+        <div id="view-treasury" class="view-section">
+
+            <!-- ═══ TREASURY HERO ═══ -->
+            <style>
+                @keyframes treasury-border-glow {
+                    0%,100% { opacity:.6; filter:blur(12px); }
+                    50% { opacity:1; filter:blur(18px); }
+                }
+                .treasury-hero-outer {
+                    position:relative;border-radius:18px;padding:2px;
+                    background:linear-gradient(135deg,rgba(168,85,247,.35),rgba(139,92,246,.25),rgba(168,85,247,.15));
+                    overflow:hidden;
+                }
+                .treasury-hero-outer::before {
+                    content:'';position:absolute;inset:-2px;border-radius:20px;
+                    background:linear-gradient(135deg,rgba(168,85,247,.25),rgba(139,92,246,.2),rgba(168,85,247,.1));
+                    animation:treasury-border-glow 4s ease-in-out infinite;
+                    z-index:0;pointer-events:none;
+                }
+                .treasury-hero-inner {
+                    position:relative;z-index:1;border-radius:16px;
+                    background:linear-gradient(145deg,rgba(10,10,28,.97) 0%,rgba(15,10,30,.96) 40%,rgba(10,10,25,.98) 100%);
+                    padding:28px 32px 24px;overflow:hidden;
+                }
+                .treasury-hero-inner::after {
+                    content:'';position:absolute;top:-50%;left:-20%;width:60%;height:120%;
+                    background:linear-gradient(90deg,transparent,rgba(255,255,255,.015),transparent);
+                    animation:tvl-shine 8s ease-in-out infinite;pointer-events:none;
+                }
+                .treasury-metric-card {
+                    background:rgba(255,255,255,.03);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+                    border:1px solid rgba(255,255,255,.08);border-radius:14px;
+                    padding:18px 20px;transition:all .35s cubic-bezier(.4,0,.2,1);
+                    position:relative;overflow:hidden;
+                }
+                .treasury-metric-card:hover {
+                    background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.15);
+                    transform:translateY(-3px);
+                    box-shadow:0 12px 32px rgba(0,0,0,.3),0 0 0 1px rgba(255,255,255,.05);
+                }
+                .treasury-metric-card::before {
+                    content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:14px 14px 0 0;
+                }
+                .treasury-metric-card.usd-c::before { background:linear-gradient(90deg,#10b981,#34d399); }
+                .treasury-metric-card.pct-c::before { background:linear-gradient(90deg,#3b82f6,#60a5fa); }
+                .treasury-metric-card.locked-c::before { background:linear-gradient(90deg,#f59e0b,#fbbf24); }
+                .treasury-metric-icon {
+                    width:36px;height:36px;border-radius:10px;
+                    display:flex;align-items:center;justify-content:center;
+                    margin-bottom:12px;position:relative;
+                }
+                .treasury-metric-icon::after {
+                    content:'';position:absolute;inset:0;border-radius:10px;
+                    opacity:0;transition:opacity .3s;
+                }
+                .treasury-metric-card:hover .treasury-metric-icon::after { opacity:1; }
+                .treasury-metric-card.usd-c .treasury-metric-icon::after { box-shadow:0 0 12px rgba(16,185,129,.3); }
+                .treasury-metric-card.pct-c .treasury-metric-icon::after { box-shadow:0 0 12px rgba(59,130,246,.3); }
+                .treasury-metric-card.locked-c .treasury-metric-icon::after { box-shadow:0 0 12px rgba(245,158,11,.3); }
+
+                /* Treasury addresses table */
+                #treasury-addr-table { width:100%;border-collapse:collapse;font-size:12px; }
+                #treasury-addr-table tbody td {
+                    padding:10px 12px;font-size:13px;
+                    border-bottom:1px solid rgba(255,255,255,0.03);vertical-align:middle;
+                    transition:background .15s;
+                }
+                #treasury-addr-table tbody td:nth-child(n+3) { text-align:right;font-variant-numeric:tabular-nums; }
+                #treasury-addr-table tbody tr:hover td { background:rgba(255,255,255,.04); }
+                #treasury-addr-table tbody tr:hover .addr-copy-btn,
+                #treasury-addr-table tbody tr:hover a[title="DeBank"] { opacity:.7 !important; }
+                .addr-copy-btn:hover { opacity:1 !important; }
+                .treasury-addr-label {
+                    display:inline-flex;align-items:center;gap:6px;
+                    font-weight:600;color:rgba(255,255,255,.9);
+                }
+                .treasury-addr-hex {
+                    font-family:'JetBrains Mono',monospace;font-size:11px;color:rgba(255,255,255,.35);
+                    text-decoration:none;transition:color .2s;
+                }
+                .treasury-addr-hex:hover { color:rgba(255,255,255,.7); }
+
+                /* Penalty revenue section */
+                .treasury-penalty-outer {
+                    position:relative;border-radius:18px;padding:2px;
+                    background:linear-gradient(135deg,rgba(239,68,68,.2),rgba(249,115,22,.15),rgba(239,68,68,.08));
+                    overflow:hidden;margin-top:24px;
+                }
+                .treasury-penalty-inner {
+                    position:relative;z-index:1;border-radius:16px;
+                    background:linear-gradient(145deg,rgba(10,12,20,.97) 0%,rgba(18,10,14,.96) 40%,rgba(12,10,18,.98) 100%);
+                    padding:24px 28px 22px;overflow:hidden;
+                }
+
+                /* oDOLO revenue */
+                .treasury-odolo-outer {
+                    position:relative;border-radius:18px;padding:2px;
+                    background:linear-gradient(135deg,rgba(16,185,129,.2),rgba(52,211,153,.15),rgba(16,185,129,.08));
+                    overflow:hidden;margin-top:24px;
+                }
+                .treasury-odolo-inner {
+                    position:relative;z-index:1;border-radius:16px;
+                    background:linear-gradient(145deg,rgba(10,15,25,.97) 0%,rgba(10,20,18,.96) 40%,rgba(10,15,22,.98) 100%);
+                    padding:24px 28px 22px;overflow:hidden;
+                }
+
+                /* Supply donut */
+                .treasury-donut-wrap {
+                    position:relative;width:100%;max-width:360px;aspect-ratio:1;margin:0 auto;
+                    overflow:hidden;
+                }
+
+                /* Recoup stat cards */
+                .treasury-recoup-stat {
+                    flex:1;min-width:140px;
+                    background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);
+                    border-radius:10px;padding:12px 14px;
+                    display:flex;flex-direction:column;gap:4px;
+                }
+                .recoup-label {
+                    font-size:10px;text-transform:uppercase;letter-spacing:1px;
+                    color:rgba(255,255,255,.4);font-weight:600;
+                }
+                .recoup-value {
+                    font-size:22px;font-weight:700;font-family:'JetBrains Mono',monospace;
+                }
+
+                @media (max-width:768px) {
+                    .treasury-hero-inner { padding:20px 16px 18px; }
+                    .treasury-hero-grid { grid-template-columns:1fr 1fr !important; }
+                    .treasury-penalty-inner,.treasury-odolo-inner { padding:18px 14px 16px; }
+                    .treasury-revenue-grid { grid-template-columns:1fr !important; }
+                }
+                @media (max-width:480px) {
+                    .treasury-hero-grid { grid-template-columns:1fr !important; }
+                }
+            </style>
+
+            <div class="treasury-hero-outer anim anim-d1">
+                <div class="treasury-hero-inner">
+                    <!-- Glow orbs -->
+                    <div style="position:absolute;top:-60px;right:-30px;width:220px;height:220px;background:radial-gradient(circle,rgba(168,85,247,.1) 0%,transparent 65%);pointer-events:none"></div>
+                    <div style="position:absolute;bottom:-40px;left:-20px;width:160px;height:160px;background:radial-gradient(circle,rgba(139,92,246,.08) 0%,transparent 65%);pointer-events:none"></div>
+
+                    <!-- Top label -->
+                    <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;flex-wrap:wrap">
+                        <div style="width:20px;height:20px;border-radius:5px;background:rgba(168,85,247,.15);display:flex;align-items:center;justify-content:center">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#c084fc" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M2 20h20"/><path d="M5 20V8l7-5 7 5v12"/><rect x="9" y="12" width="6" height="8" rx="1"/>
+                            </svg>
+                        </div>
+                        <span style="font-size:12px;color:#fff;text-transform:uppercase;letter-spacing:1.8px;font-weight:600">Protocol Treasury</span>
+                    </div>
+
+                    <!-- Main metric: Total DOLO in Treasury -->
+                    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;position:relative">
+                        <div id="treasury-total-dolo" style="font-size:clamp(40px,6vw,56px);font-weight:800;color:#a855f7;text-shadow:0 0 60px rgba(168,85,247,.3),0 0 120px rgba(168,85,247,.1);line-height:1.05;letter-spacing:-1.5px;font-variant-numeric:tabular-nums">—</div>
+                    </div>
+                    <span class="hero-label-tip" style="font-size:12px;color:var(--text-muted);margin-top:2px;letter-spacing:.5px;position:relative">TOTAL DOLO IN PROTOCOL WALLETS<span class="tooltip-bubble">Sum of DOLO held across all labeled Dolomite protocol addresses (treasury, contracts, veDOLO).</span></span>
+
+                    <!-- Metrics grid -->
+                    <div class="treasury-hero-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:24px">
+                        <!-- USD Value -->
+                        <div class="treasury-metric-card usd-c">
+                            <div class="treasury-metric-icon" style="background:rgba(16,185,129,.12)">
+                                <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M8 1v14M11 3.5H6.5a2.5 2.5 0 000 5h3a2.5 2.5 0 010 5H5" stroke="#10b981" stroke-width="1.5" stroke-linecap="round"/></svg>
+                            </div>
+                            <div class="tvl-metric-label" data-tip>USD Value<span class="tooltip-bubble">Total USD value of all DOLO held in protocol wallets, based on current DOLO price.</span></div>
+                            <div id="treasury-usd-value" class="tvl-metric-value" style="color:#10b981">—</div>
+                        </div>
+                        <!-- % of Supply -->
+                        <div class="treasury-metric-card pct-c">
+                            <div class="treasury-metric-icon" style="background:rgba(59,130,246,.12)">
+                                <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#3b82f6" stroke-width="1.5"/><path d="M8 2v6l4.2 2.5" stroke="#3b82f6" stroke-width="1.3" stroke-linecap="round"/></svg>
+                            </div>
+                            <div class="tvl-metric-label" data-tip>% of Supply<span class="tooltip-bubble">Percentage of total DOLO supply held by protocol wallets.</span></div>
+                            <div id="treasury-pct-supply" class="tvl-metric-value" style="color:#3b82f6">—</div>
+                        </div>
+                        <!-- veDOLO Locked -->
+                        <div class="treasury-metric-card locked-c">
+                            <div class="treasury-metric-icon" style="background:rgba(245,158,11,.12)">
+                                <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><rect x="3" y="7" width="10" height="7" rx="2" stroke="#f59e0b" stroke-width="1.5"/><path d="M5 7V5a3 3 0 016 0v2" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round"/></svg>
+                            </div>
+                            <div class="tvl-metric-label" data-tip>veDOLO Locked<span class="tooltip-bubble">Total DOLO locked in veDOLO positions across all holders.</span></div>
+                            <div id="treasury-vedolo-locked" class="tvl-metric-value" style="color:#f59e0b">—</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ PROTOCOL ADDRESSES TABLE ═══ -->
+            <div class="card anim anim-d2" style="margin-top:24px">
+                <div class="card-header">
+                    <h3 style="display:flex;align-items:center;gap:8px;margin:0">
+                        <img src="dolo-logo.svg" width="22" height="22" alt="DOLO" style="flex-shrink:0">
+                        Protocol Addresses
+                        <span id="treasury-addr-count" style="font-size:0.8em;opacity:0.5;font-weight:500"></span>
+                    </h3>
+                </div>
+                <div style="overflow-x:auto">
+                    <table style="table-layout:fixed;width:100%;border-collapse:collapse;font-size:12px" id="treasury-addr-table">
+                        <colgroup>
+                            <col style="width:32px">
+                            <col style="width:42%">
+                            <col style="width:calc((100% - 32px - 42%) / 3)">
+                            <col style="width:calc((100% - 32px - 42%) / 3)">
+                            <col style="width:calc((100% - 32px - 42%) / 3)">
+                        </colgroup>
+                        <thead style="position:sticky;top:0;z-index:2;background:#141825">
+                            <tr>
+                                <th style="padding:8px 5px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);user-select:none">#</th>
+                                <th style="padding:8px 5px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);user-select:none">Address</th>
+                                <th style="padding:8px 5px;text-align:right;color:rgba(255,255,255,0.7);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" onclick="treasurySortAddr('balance')">DOLO Balance <span class="sort-arrow">⇅</span></th>
+                                <th style="padding:8px 5px;text-align:right;color:rgba(255,255,255,0.5);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" onclick="treasurySortAddr('usd')">USD Value <span class="sort-arrow">⇅</span></th>
+                                <th style="padding:8px 5px;text-align:right;color:rgba(255,255,255,0.5);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" onclick="treasurySortAddr('pct')">% Supply <span class="sort-arrow">⇅</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="treasury-addr-tbody">
+                            <tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-muted)">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ═══ PENALTY REVENUE ═══ -->
+            <div class="treasury-penalty-outer anim anim-d2">
+                <div class="treasury-penalty-inner">
+                    <div style="position:absolute;top:-50px;right:-20px;width:180px;height:180px;background:radial-gradient(circle,rgba(239,68,68,.06) 0%,transparent 65%);pointer-events:none"></div>
+
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+                        <div style="width:28px;height:28px;border-radius:8px;background:rgba(239,68,68,.12);display:flex;align-items:center;justify-content:center">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fca5a5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+                            </svg>
+                        </div>
+                        <span style="font-size:12px;color:#fff;text-transform:uppercase;letter-spacing:1.8px;font-weight:600">veDOLO Early Exit Revenue</span>
+                    </div>
+
+                    <!-- Total Penalty -->
+                    <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
+                        <div id="treasury-penalty-total" style="font-size:clamp(32px,5vw,44px);font-weight:800;color:#ef4444;text-shadow:0 0 50px rgba(239,68,68,.25);line-height:1.1;letter-spacing:-1px;font-variant-numeric:tabular-nums">—</div>
+                    </div>
+                    <span style="font-size:12px;color:var(--text-muted);margin-top:2px;letter-spacing:.5px">TOTAL DOLO PENALTY</span>
+
+                    <!-- Burn / Recoup breakdown -->
+                    <div class="treasury-revenue-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:20px">
+                        <div style="background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.15);border-radius:12px;padding:16px">
+                            <div style="font-size:10px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">🔥 Burned (permanently)</div>
+                            <div id="treasury-burned" style="font-size:24px;font-weight:700;color:#ef4444;font-variant-numeric:tabular-nums">—</div>
+                            <div id="treasury-burned-pct" style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px"></div>
+                        </div>
+                        <div style="background:rgba(249,115,22,.06);border:1px solid rgba(249,115,22,.15);border-radius:12px;padding:16px">
+                            <div style="font-size:10px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">♻️ Recouped (to protocol)</div>
+                            <div id="treasury-recouped" style="font-size:24px;font-weight:700;color:#f97316;font-variant-numeric:tabular-nums">—</div>
+                            <div id="treasury-recouped-pct" style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px"></div>
+                        </div>
+                    </div>
+
+                    <!-- Stats row -->
+                    <div style="display:flex;gap:24px;margin-top:16px;flex-wrap:wrap">
+                        <div>
+                            <div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px">Total Early Exits</div>
+                            <div id="treasury-exit-count" style="font-size:18px;font-weight:700;color:#f87171;margin-top:2px">—</div>
+                        </div>
+                        <div>
+                            <div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px">Avg Penalty</div>
+                            <div id="treasury-avg-penalty" style="font-size:18px;font-weight:700;color:#f59e0b;margin-top:2px">—</div>
+                        </div>
+                        <div>
+                            <div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px">Original Locked</div>
+                            <div id="treasury-orig-locked" style="font-size:18px;font-weight:700;color:rgba(255,255,255,.7);margin-top:2px">—</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ oDOLO REVENUE ═══ -->
+            <div class="treasury-odolo-outer anim anim-d3">
+                <div class="treasury-odolo-inner">
+                    <div style="position:absolute;top:-50px;right:-20px;width:180px;height:180px;background:radial-gradient(circle,rgba(16,185,129,.06) 0%,transparent 65%);pointer-events:none"></div>
+
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+                        <img src="odolo-logo-official.svg" width="24" height="24" alt="oDOLO" style="border-radius:6px">
+                        <span style="font-size:12px;color:#fff;text-transform:uppercase;letter-spacing:1.8px;font-weight:600">oDOLO Exercise Revenue</span>
+                    </div>
+
+                    <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
+                        <div id="treasury-odolo-revenue" style="font-size:clamp(32px,5vw,44px);font-weight:800;color:#10b981;text-shadow:0 0 50px rgba(16,185,129,.25);line-height:1.1;letter-spacing:-1px;font-variant-numeric:tabular-nums">—</div>
+                    </div>
+                    <span style="font-size:12px;color:var(--text-muted);margin-top:2px;letter-spacing:.5px">TOTAL USDC FROM oDOLO EXERCISES</span>
+
+                    <div style="display:flex;gap:24px;margin-top:16px;flex-wrap:wrap">
+                        <div>
+                            <div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px">Total Exercises</div>
+                            <div id="treasury-odolo-txs" style="font-size:18px;font-weight:700;color:#34d399;margin-top:2px">—</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ DOLO SUPPLY BREAKDOWN ═══ -->
+            <div class="card anim anim-d3" style="margin-top:24px">
+                <div class="card-header">
+                    <h3 style="display:flex;align-items:center;gap:8px;margin:0">
+                        <img src="dolo-logo.svg" width="22" height="22" alt="DOLO" style="flex-shrink:0">
+                        DOLO Supply Breakdown
+                    </h3>
+                </div>
+                <div class="dolo-composition-layout">
+                    <div class="dolo-composition-legend-side" id="treasury-supply-legend">
+                        <!-- filled by JS -->
+                    </div>
+                    <div class="dolo-composition-donut-side">
+                        <div class="dolo-donut-wrap" style="position:relative;width:100%;max-width:420px;aspect-ratio:1">
+                            <canvas id="treasury-supply-canvas" style="width:100%;height:100%"></canvas>
+                            <div class="odolo-donut-center">
+                                <div class="odolo-donut-center-value" id="treasury-supply-total">—</div>
+                                <div class="odolo-donut-center-label" id="treasury-supply-center-sub">TOTAL SUPPLY</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── oDOLO DISCOUNT CURVE ── -->
+            <div class="treasury-card" style="margin-top:24px">
+                <div class="card-header">
+                    <h3 style="display:flex;align-items:center;gap:8px;margin:0">
+                        <img src="dolo-logo.svg" width="22" height="22" alt="oDOLO" style="flex-shrink:0">
+                        oDOLO Discount Curve
+                        <span style="font-size:11px;color:rgba(255,255,255,.35);font-weight:400;margin-left:8px">Theory vs Reality</span>
+                    </h3>
+                </div>
+                <div style="padding:0 20px 10px">
+                    <p style="margin:0 0 12px;font-size:12px;color:rgba(255,255,255,.45);line-height:1.5">
+                        Each dot = one oDOLO exercise. The orange line shows the theoretical discount schedule (5% at 7 days → 50% at 2 years).
+                    </p>
+                </div>
+                <div style="position:relative;width:100%;height:340px;padding:0 20px 20px">
+                    <canvas id="treasury-discount-canvas" style="width:100%;height:100%"></canvas>
+                </div>
+                <div style="display:flex;gap:20px;padding:0 24px 18px;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f59e0b"></span>
+                        <span style="font-size:11px;color:rgba(255,255,255,.5)">Theoretical schedule</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:rgba(16,185,129,.7)"></span>
+                        <span style="font-size:11px;color:rgba(255,255,255,.5)">Actual exercises</span>
+                    </div>
+                    <div id="treasury-discount-stats" style="margin-left:auto;display:flex;gap:16px;font-size:11px;color:rgba(255,255,255,.5)"></div>
+                </div>
+            </div>
+
+            <!-- ── RECOUP POOL FUNDING ── -->
+            <div class="treasury-card" style="margin-top:24px">
+                <div class="card-header">
+                    <h3 style="display:flex;align-items:center;gap:8px;margin:0">
+                        <img src="dolo-logo.svg" width="22" height="22" alt="DOLO" style="flex-shrink:0">
+                        Recoup Pool Funding &amp; Burn
+                    </h3>
+                </div>
+                <div style="padding:16px 24px 20px">
+                    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px">
+                        <div class="treasury-recoup-stat">
+                            <span class="recoup-label">🔥 TOTAL BURNED</span>
+                            <span class="recoup-value" id="treasury-recoup-burned" style="color:#ef4444">—</span>
+                        </div>
+                        <div class="treasury-recoup-stat">
+                            <span class="recoup-label">♻️ TOTAL RECOUPED</span>
+                            <span class="recoup-value" id="treasury-recoup-recouped" style="color:#10b981">—</span>
+                        </div>
+                        <div class="treasury-recoup-stat">
+                            <span class="recoup-label">📊 BURN RATIO</span>
+                            <span class="recoup-value" id="treasury-recoup-ratio" style="color:#f59e0b">—</span>
+                        </div>
+                        <div class="treasury-recoup-stat">
+                            <span class="recoup-label">🏦 COVERAGE RATIO</span>
+                            <span class="recoup-value" id="treasury-recoup-coverage" style="color:#8b5cf6">—</span>
+                        </div>
+                    </div>
+                    <!-- Stacked bar -->
+                    <div style="position:relative;height:48px;border-radius:10px;overflow:hidden;background:rgba(255,255,255,.04);margin-bottom:10px">
+                        <div id="treasury-recoup-bar-burn" style="position:absolute;left:0;top:0;height:100%;background:linear-gradient(90deg,#ef4444,#dc2626);transition:width .6s ease"></div>
+                        <div id="treasury-recoup-bar-recoup" style="position:absolute;top:0;height:100%;background:linear-gradient(90deg,#10b981,#059669);transition:width .6s ease;left:0"></div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:11px;color:rgba(255,255,255,.4)">
+                        <span>0</span>
+                        <span id="treasury-recoup-bar-total">Total Penalty DOLO</span>
+                    </div>
+                </div>
+            </div>
+
+
+        </div><!-- /view-treasury -->
+
         <!-- ASSETS VIEW -->
         <div id="view-assets" class="view-section">
 
@@ -11029,17 +11435,27 @@
                 const barH = (val / maxVal) * chartH;
                 const y = pad.top + chartH - barH;
                 const isHovered = (hoveredIdx === i);
+                const pctOfTotal = totalDoloAll > 0 ? (val / totalDoloAll) * 100 : 0;
 
-                bars.push({ x, y, w: barW, h: barH, label, val, idx: i });
+                bars.push({ x, y, w: barW, h: barH, label, val, idx: i, pctOfTotal });
 
-                // gradient fill
+                // Concentration risk coloring
+                let baseColor, hoverColor, glowColor;
+                if (pctOfTotal > 30) {
+                    baseColor = '#ef4444'; hoverColor = '#f87171'; glowColor = '#ef4444'; // Red = high risk
+                } else if (pctOfTotal > 15) {
+                    baseColor = '#f59e0b'; hoverColor = '#fbbf24'; glowColor = '#f59e0b'; // Orange = medium
+                } else {
+                    baseColor = '#6366f1'; hoverColor = '#818cf8'; glowColor = '#6366f1'; // Violet = normal
+                }
+
                 const grd = ctx.createLinearGradient(x, y, x, y + barH);
                 if (isHovered) {
-                    grd.addColorStop(0, '#818cf8');
-                    grd.addColorStop(1, '#a5b4fc');
+                    grd.addColorStop(0, hoverColor);
+                    grd.addColorStop(1, hoverColor + '88');
                 } else {
-                    grd.addColorStop(0, '#6366f1');
-                    grd.addColorStop(1, '#818cf8');
+                    grd.addColorStop(0, baseColor);
+                    grd.addColorStop(1, baseColor + '66');
                 }
                 ctx.fillStyle = grd;
 
@@ -11054,7 +11470,7 @@
 
                 // glow effect on hovered bar
                 if (isHovered) {
-                    ctx.shadowColor = '#6366f1';
+                    ctx.shadowColor = glowColor;
                     ctx.shadowBlur = 16;
                     ctx.fill();
                     ctx.shadowColor = 'transparent';
@@ -11112,7 +11528,10 @@
                     const bar = expiryBars[hit];
                     const pct = expiryTotalDolo ? ((bar.val / expiryTotalDolo) * 100).toFixed(1) : '0';
                     const doloFmt = bar.val >= 1e6 ? (bar.val / 1e6).toFixed(2) + 'M' : bar.val >= 1e3 ? (bar.val / 1e3).toFixed(1) + 'K' : Math.round(bar.val);
-                    tooltip.innerHTML = `<strong style="color:#a5b4fc">${bar.label}</strong><br>${doloFmt} DOLO<br><span style="opacity:0.7">${pct}% of total</span>`;
+                    const riskPct = bar.pctOfTotal || parseFloat(pct);
+                    const riskLabel = riskPct > 30 ? '🔴 High concentration' : riskPct > 15 ? '🟡 Medium concentration' : '🟢 Low concentration';
+                    const riskColor = riskPct > 30 ? '#ef4444' : riskPct > 15 ? '#f59e0b' : '#10b981';
+                    tooltip.innerHTML = `<strong style="color:#a5b4fc">${bar.label}</strong><br>${doloFmt} DOLO<br><span style="opacity:0.7">${pct}% of total</span><br><span style="color:${riskColor};font-size:10px">${riskLabel}</span>`;
                     tooltip.style.display = 'block';
                     // Position tooltip using viewport coordinates (fixed positioning)
                     const tipX = rect.left + bar.x + bar.w / 2;
@@ -11625,7 +12044,7 @@
             currentView = view;
 
             // Toggle view sections
-            ['vedolo', 'odolo', 'dolo', 'earn', 'assets', 'tvl'].forEach(v => {
+            ['vedolo', 'odolo', 'dolo', 'earn', 'assets', 'tvl', 'treasury'].forEach(v => {
                 document.getElementById('view-' + v).classList.toggle('active', view === v);
                 document.getElementById('tab-' + v).classList.toggle('active', view === v);
             });
@@ -11634,7 +12053,7 @@
             setTimeout(repositionAllSliders, 50);
 
             // Update page title
-            const titles = { vedolo: 'veDOLO', odolo: 'oDOLO', dolo: 'DOLO', earn: 'EARN', assets: 'ASSETS', tvl: 'TVL' };
+            const titles = { vedolo: 'veDOLO', odolo: 'oDOLO', dolo: 'DOLO', earn: 'EARN', assets: 'ASSETS', tvl: 'TVL', treasury: 'TREASURY' };
             document.title = (titles[view] || 'Dashboard') + ' — Berachain Dashboard';
 
             // Load assets data on first visit
@@ -11678,6 +12097,15 @@
 
             // Scroll to top
             window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            // Load treasury data on first visit
+            if (view === 'treasury' && !treasury_loaded) {
+                treasury_init();
+            }
+            // Re-render treasury donut on switch
+            if (view === 'treasury' && treasury_loaded && treasury_supplyData) {
+                setTimeout(() => odolo_drawMiniDonut('treasury-supply-canvas', treasury_supplyData, 'treasury-supply-total', 'treasury-supply-center-sub', 'TOTAL SUPPLY', 'treasury-supply-legend', treasury_supplyData.reduce((s,x) => s + x.value, 0)), 50);
+            }
         }
 
         // ===== oDOLO NAMESPACE =====
@@ -14817,36 +15245,36 @@
             '0x93ae9fe008636d2d6d7376198a54edb20367968f': { label: 'CEX or MM', type: 'cex' },
             '0x753f43cca3dbd2bbe963609f8d25a833433a10c9': { label: 'Gate.io', type: 'cex' },
             '0xb8001c3ec9aa1985f6c747e25c28324e4a361ec1': { label: 'Cobo Custody', type: 'cex' },
-            '0x3e9b9a16743551da49b5e136c716bba7932d2cec': { label: 'Dolomite', type: 'protocol' },
+            '0x3e9b9a16743551da49b5e136c716bba7932d2cec': { label: 'oDOLO Vester', type: 'protocol', treasury: true },
             // LP pools
             '0x003896387666c5c11458eeb3f927b72a11b19783': { label: 'Uniswap V3 DOLO/USDC', type: 'lp' },
             '0xd5980e98a89e2d2361b3be657e8a003c6d3514e3': { label: 'Kodiak DOLO/WBERA', type: 'lp' },
             '0x8991017b74f9f8070bff5b322802dd26e05e0cc7': { label: 'Bulla DOLO/HONEY', type: 'lp' },
             // Protocol contracts
             '0xcb86b75ee6133d179a12d550b09fb3cdb1e141d4': { label: 'veDOLO', type: 'protocol' },
-            '0x89576fce04dd73933f74bbcd4e6f0d9125118542': { label: 'Dolomite', type: 'protocol' },
-            '0x003ca23fd5f0ca87d01f6ec6cd14a8ae60c2b97d': { label: 'Dolomite', type: 'protocol' },
-            '0x06265db7ecd9c5724a97bd4909146625d2e2619c': { label: 'Dolomite', type: 'protocol' },
+            '0x89576fce04dd73933f74bbcd4e6f0d9125118542': { label: 'Borrow Position Proxy', type: 'protocol', treasury: true },
+            '0x003ca23fd5f0ca87d01f6ec6cd14a8ae60c2b97d': { label: 'Dolomite Margin', type: 'protocol', treasury: true },
+            '0x06265db7ecd9c5724a97bd4909146625d2e2619c': { label: 'Operational Wallet', type: 'protocol', treasury: true },
             '0x000000000004444c5dc75cb358380d2e3de08a90': { label: 'Permit2', type: 'protocol' },
-            '0x2f41d42de3eab9e75f3d417259f24421771fb700': { label: 'Dolomite', type: 'protocol' },
-            '0x6e939bbaceb45159982a2cac3a1fcbf7e93cf682': { label: 'Dolomite', type: 'protocol' },
-            '0xa75c21c5be284122a87a37a76cc6c4dd3e55a1d4': { label: 'Dolomite', type: 'protocol' },
-            '0xcfc30d38a47817363a98a46834acf7040b17d7b0': { label: 'Dolomite', type: 'protocol' },
-            '0xd88f473832b0403c7736ef237af5aff8759b99ef': { label: 'Dolomite Airdrop', type: 'protocol' },
-            '0x51b3116ef47073ab8a0353a2751dc533d4238527': { label: 'Dolomite', type: 'protocol' },
-            '0xa3f079292cc35ba64996fe0bce3049928a838bc9': { label: 'Dolomite', type: 'protocol' },
+            '0x2f41d42de3eab9e75f3d417259f24421771fb700': { label: 'Dolomite EOA', type: 'protocol', treasury: true },
+            '0x6e939bbaceb45159982a2cac3a1fcbf7e93cf682': { label: 'Dolomite Main', type: 'protocol', treasury: true },
+            '0xa75c21c5be284122a87a37a76cc6c4dd3e55a1d4': { label: 'Gnosis Safe Multisig', type: 'protocol', treasury: true },
+            '0xcfc30d38a47817363a98a46834acf7040b17d7b0': { label: 'Admin Proxy', type: 'protocol', treasury: true },
+            '0xd88f473832b0403c7736ef237af5aff8759b99ef': { label: 'oDOLO Airdrop', type: 'protocol', treasury: true },
+            '0x51b3116ef47073ab8a0353a2751dc533d4238527': { label: 'Revenue Proxy', type: 'protocol', treasury: true },
+            '0xa3f079292cc35ba64996fe0bce3049928a838bc9': { label: 'Treasury Proxy', type: 'protocol', treasury: true },
             // Core Team (CoinGecko)
-            '0x185000fb4d98acea1a771db3714a431f7fe51cac': { label: 'Core Team 1', type: 'protocol' },
-            '0x882e6d630a8c70a6a8d29a4d33f960b1267aa3d1': { label: 'Core Team 2', type: 'protocol' },
-            '0x6c97802a1815bc459004c686560244de28a2de75': { label: 'Core Team 3', type: 'protocol' },
-            '0x665b3ce67daeb5b19d4d14bbdb6297da0ffa5bf1': { label: 'Core Team 4', type: 'protocol' },
-            '0x3f1f155949f32fa3e688093d176a1b5a72c488eb': { label: 'Core Team 5', type: 'protocol' },
-            '0xf2b42104b5ac0b3145a5e18b84aa3fd76d0fdeec': { label: 'Core Team 6', type: 'protocol' },
-            '0xb8ba44d5e46562ec011ade12603f353b18089a41': { label: 'Core Team 7', type: 'protocol' },
+            '0x185000fb4d98acea1a771db3714a431f7fe51cac': { label: 'Core Team 1', type: 'protocol', treasury: true },
+            '0x882e6d630a8c70a6a8d29a4d33f960b1267aa3d1': { label: 'Core Team 2', type: 'protocol', treasury: true },
+            '0x6c97802a1815bc459004c686560244de28a2de75': { label: 'Core Team 3', type: 'protocol', treasury: true },
+            '0x665b3ce67daeb5b19d4d14bbdb6297da0ffa5bf1': { label: 'Core Team 4', type: 'protocol', treasury: true },
+            '0x3f1f155949f32fa3e688093d176a1b5a72c488eb': { label: 'Core Team 5', type: 'protocol', treasury: true },
+            '0xf2b42104b5ac0b3145a5e18b84aa3fd76d0fdeec': { label: 'Core Team 6', type: 'protocol', treasury: true },
+            '0xb8ba44d5e46562ec011ade12603f353b18089a41': { label: 'Core Team 7', type: 'protocol', treasury: true },
             // Investors (CoinGecko)
-            '0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07': { label: 'Investor 1', type: 'protocol' },
-            '0xbf3c4e55a444ed489736c3d856b0cd0533fc2edd': { label: 'Investor 2', type: 'protocol' },
-            '0x7efd088ae500598a19a242d6d48b9f7e0d061176': { label: 'Investor 3', type: 'protocol' },
+            '0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07': { label: 'Investor 1', type: 'investor' },
+            '0xbf3c4e55a444ed489736c3d856b0cd0533fc2edd': { label: 'Investor 2', type: 'investor' },
+            '0x7efd088ae500598a19a242d6d48b9f7e0d061176': { label: 'Investor 3', type: 'investor' },
         };
 
         function dolo_labelBadge(addr) {
@@ -19110,6 +19538,331 @@
                 arrow.style.opacity = '0';
             });
         })();
+
+        // ===== TREASURY NAMESPACE =====
+        let treasury_loaded = false;
+        let treasury_supplyData = null;
+
+        // ===== Protocol Addresses sort =====
+        let treasuryAddrSortKey = 'balance';
+        let treasuryAddrSortAsc = false;
+        function treasurySortAddr(key) {
+            if (treasuryAddrSortKey === key) { treasuryAddrSortAsc = !treasuryAddrSortAsc; }
+            else { treasuryAddrSortKey = key; treasuryAddrSortAsc = false; }
+            const tbody = document.getElementById('treasury-addr-tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr.treasury-addr-row'));
+            if (!rows.length) return;
+            const attr = 'data-sort-' + key;
+            rows.sort((a, b) => {
+                const va = parseFloat(a.getAttribute(attr)) || 0;
+                const vb = parseFloat(b.getAttribute(attr)) || 0;
+                return treasuryAddrSortAsc ? va - vb : vb - va;
+            });
+            rows.forEach((r, i) => {
+                r.querySelector('td').textContent = i + 1;
+                tbody.appendChild(r);
+            });
+            // Update sort arrows
+            document.querySelectorAll('#treasury-addr-table th .sort-arrow').forEach(a => a.textContent = '⇅');
+            const th = document.querySelector(`#treasury-addr-table th[onclick*="${key}"]`);
+            if (th) {
+                const arrow = th.querySelector('.sort-arrow');
+                if (arrow) arrow.textContent = treasuryAddrSortAsc ? '▲' : '▼';
+            }
+        }
+
+        async function treasury_init() {
+            treasury_loaded = true;
+            const fmt = n => Number(Math.round(n)).toLocaleString();
+            const fmtM = n => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : fmt(n);
+
+            try {
+                // Parallel fetch all data sources
+                const [holdersResp, earlyResp, odoloResp, flowsResp, exercisersResp] = await Promise.all([
+                    fetch('dolo_holders.json').then(r => r.ok ? r.json() : null).catch(() => null),
+                    fetch('early_exits.json').then(r => r.ok ? r.json() : null).catch(() => null),
+                    fetch('exercised_usd.json').then(r => r.ok ? r.json() : null).catch(() => null),
+                    fetch('dolo_flows.json').then(r => r.ok ? r.json() : null).catch(() => null),
+                    fetch('exercisers_by_address.json').then(r => r.ok ? r.json() : null).catch(() => null),
+                ]);
+
+                const doloPrice = flowsResp ? flowsResp.dolo_price : 0;
+                const totalSupply = holdersResp ? holdersResp.stats.total_supply_tracked : 1e9;
+                const vedoloLocked = typeof STATS !== 'undefined' ? STATS.total_locked_dolo : 0;
+
+                // ── 1. Protocol Addresses ──
+                const protocolAddrs = [];
+                if (typeof DOLO_ADDR_LABELS !== 'undefined') {
+                    for (const [addr, info] of Object.entries(DOLO_ADDR_LABELS)) {
+                        if (info.treasury) {
+                            protocolAddrs.push({ address: addr.toLowerCase(), label: info.label });
+                        }
+                    }
+                }
+
+                // Match with holders data to get balances
+                let protocolRows = [];
+                let totalProtocolDolo = 0;
+                if (holdersResp && holdersResp.holders) {
+                    const holderMap = {};
+                    holdersResp.holders.forEach(h => { holderMap[h.address.toLowerCase()] = h; });
+
+                    for (const pa of protocolAddrs) {
+                        const holder = holderMap[pa.address];
+                        const balance = holder ? holder.balance : 0;
+                        if (balance > 0) {
+                            protocolRows.push({
+                                label: pa.label,
+                                address: pa.address,
+                                balance: balance,
+                                usd: balance * doloPrice,
+                                pct: (balance / totalSupply * 100)
+                            });
+                            totalProtocolDolo += balance;
+                        }
+                    }
+                    protocolRows.sort((a, b) => b.balance - a.balance);
+                }
+
+                // ── Hero metrics ──
+                const doloIcon = ' <img src="dolo-logo.svg" class="metric-icon">';
+                document.getElementById('treasury-total-dolo').innerHTML = fmtM(totalProtocolDolo) + doloIcon;
+
+                const usdValue = totalProtocolDolo * doloPrice;
+                document.getElementById('treasury-usd-value').textContent = '$' + fmtM(usdValue);
+
+                const pctSupply = (totalProtocolDolo / totalSupply * 100).toFixed(2);
+                document.getElementById('treasury-pct-supply').textContent = pctSupply + '%';
+
+                document.getElementById('treasury-vedolo-locked').innerHTML = fmtM(vedoloLocked) + doloIcon;
+
+                // ── Protocol addresses table ──
+                const tbody = document.getElementById('treasury-addr-tbody');
+                if (protocolRows.length > 0) {
+                    document.getElementById('treasury-addr-count').textContent = '(' + protocolRows.length + ')';
+                    tbody.innerHTML = protocolRows.map((r, i) => {
+                        const short = r.address.slice(0, 6) + '…' + r.address.slice(-4);
+                        return `
+                        <tr class="treasury-addr-row" data-sort-balance="${r.balance}" data-sort-usd="${r.usd}" data-sort-pct="${r.pct}">
+                            <td style="color:rgba(255,255,255,.3);font-size:11px;vertical-align:top;padding-top:12px">${i + 1}</td>
+                            <td>
+                                <div class="treasury-addr-label" style="font-weight:600;color:rgba(255,255,255,.9);font-size:13px">${r.label}</div>
+                                <div style="display:flex;align-items:center;gap:4px;margin-top:2px">
+                                    <a href="https://berascan.com/address/${r.address}" target="_blank" rel="noopener" class="treasury-addr-hex" style="font-size:11px;color:rgba(255,255,255,.35);font-family:'JetBrains Mono',monospace;text-decoration:none">${short}</a>
+                                    <button class="addr-copy-btn" title="Copy address" onclick="navigator.clipboard.writeText('${r.address}');this.textContent='✓';setTimeout(()=>this.textContent='📋',1500)" style="background:none;border:none;cursor:pointer;padding:1px 3px;font-size:11px;opacity:.4;transition:opacity .2s">📋</button>
+                                    <a href="https://debank.com/profile/${r.address}" target="_blank" rel="noopener" title="DeBank" style="opacity:.35;transition:opacity .2s;display:flex;align-items:center">
+                                        <img src="https://debank.com/favicon.ico" width="12" height="12" alt="DeBank" style="border-radius:2px">
+                                    </a>
+                                </div>
+                            </td>
+                            <td>${fmtM(r.balance)}</td>
+                            <td style="color:rgba(255,255,255,.5)">$${fmtM(r.usd)}</td>
+                            <td style="color:rgba(255,255,255,.5)">${r.pct.toFixed(2)}%</td>
+                        </tr>
+                    `;
+                    }).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-muted)">No data</td></tr>';
+                }
+
+                // ── 2. Penalty Revenue ──
+                if (earlyResp && earlyResp.stats) {
+                    const s = earlyResp.stats;
+                    document.getElementById('treasury-penalty-total').innerHTML = fmtM(s.total_penalty_dolo) + doloIcon;
+                    document.getElementById('treasury-burned').innerHTML = fmtM(s.total_burn_fee_dolo) + doloIcon;
+                    document.getElementById('treasury-recouped').innerHTML = fmtM(s.total_recoup_fee_dolo) + doloIcon;
+
+                    const total = s.total_burn_fee_dolo + s.total_recoup_fee_dolo;
+                    if (total > 0) {
+                        document.getElementById('treasury-burned-pct').textContent = (s.total_burn_fee_dolo / total * 100).toFixed(1) + '% of total penalty';
+                        document.getElementById('treasury-recouped-pct').textContent = (s.total_recoup_fee_dolo / total * 100).toFixed(1) + '% of total penalty';
+                    }
+
+                    document.getElementById('treasury-exit-count').textContent = fmt(s.total_early_exits);
+                    document.getElementById('treasury-avg-penalty').textContent = s.avg_penalty_pct + '%';
+                    document.getElementById('treasury-orig-locked').innerHTML = fmtM(s.total_original_locked) + doloIcon;
+                }
+
+                // ── 3. oDOLO Revenue ──
+                if (odoloResp) {
+                    document.getElementById('treasury-odolo-revenue').textContent = '$' + fmtM(odoloResp.total_usdc || 0);
+                    document.getElementById('treasury-odolo-txs').textContent = fmt(odoloResp.total_txs || 0);
+                }
+
+                // ── 4. Supply Breakdown Donut ──
+                const cexTotal = holdersResp ? holdersResp.holders
+                    .filter(h => {
+                        const la = typeof DOLO_ADDR_LABELS !== 'undefined' ? DOLO_ADDR_LABELS[h.address.toLowerCase()] : null;
+                        return la && la.type === 'cex';
+                    })
+                    .reduce((sum, h) => sum + h.balance, 0) : 0;
+
+                const lpTotal = holdersResp ? holdersResp.holders
+                    .filter(h => {
+                        const la = typeof DOLO_ADDR_LABELS !== 'undefined' ? DOLO_ADDR_LABELS[h.address.toLowerCase()] : null;
+                        return la && la.type === 'lp';
+                    })
+                    .reduce((sum, h) => sum + h.balance, 0) : 0;
+
+                const circulating = totalSupply - totalProtocolDolo - vedoloLocked - cexTotal - lpTotal;
+
+                treasury_supplyData = [
+                    { label: 'Protocol Wallets', value: totalProtocolDolo, color: '#a855f7' },
+                    { label: 'veDOLO Locked', value: vedoloLocked, color: '#f59e0b' },
+                    { label: 'CEX / Exchanges', value: cexTotal, color: '#3b82f6' },
+                    { label: 'LP Pools', value: lpTotal, color: '#10b981' },
+                    { label: 'Circulating', value: Math.max(0, circulating), color: '#6b7280' },
+                ];
+
+                document.getElementById('treasury-supply-total').textContent = fmtM(totalSupply);
+                setTimeout(() => {
+                    odolo_drawMiniDonut('treasury-supply-canvas', treasury_supplyData, 'treasury-supply-total', 'treasury-supply-center-sub', 'TOTAL SUPPLY', 'treasury-supply-legend', totalSupply);
+                }, 80);
+
+                // ── 5. oDOLO Discount Curve ──
+                if (exercisersResp && exercisersResp.exercisers) {
+                    setTimeout(() => treasury_renderDiscountCurve(exercisersResp.exercisers), 100);
+                }
+
+                // ── 6. Recoup Pool Funding ──
+                if (earlyResp && earlyResp.stats) {
+                    treasury_renderRecoupPool(earlyResp.stats, odoloResp);
+                }
+
+
+            } catch (e) {
+                console.error('Treasury init error:', e);
+            }
+        }
+
+
+
+        // ===== oDOLO DISCOUNT CURVE (Scatter) =====
+        function treasury_renderDiscountCurve(exercisers) {
+            const canvas = document.getElementById('treasury-discount-canvas');
+            if (!canvas) return;
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            canvas.style.width = rect.width + 'px';
+            canvas.style.height = rect.height + 'px';
+            const ctx = canvas.getContext('2d');
+            ctx.scale(dpr, dpr);
+            const W = rect.width, H = rect.height;
+            const pad = { top: 20, right: 20, bottom: 40, left: 55 };
+            const plotW = W - pad.left - pad.right, plotH = H - pad.top - pad.bottom;
+
+            // Flatten all txs
+            const txs = [];
+            exercisers.forEach(e => {
+                if (!e.txs) return;
+                e.txs.forEach(tx => {
+                    if (tx.lock_days > 0 && tx.vedolo > 0 && tx.usdc > 0) {
+                        // Effective discount = 1 - (price_paid / market_price_at_time)
+                        // price_paid = usdc / vedolo ; oDOLO docs describe linear 5%→50% schedule
+                        const effectivePrice = tx.usdc / tx.vedolo;
+                        const discount = tx.price > 0 ? (1 - effectivePrice / tx.price) * 100 : 0;
+                        if (discount > 0 && discount < 80) {
+                            txs.push({ days: tx.lock_days, discount, usdc: tx.usdc });
+                        }
+                    }
+                });
+            });
+
+            // Axes
+            const maxDays = 730; // 2 years
+            const maxDisc = 55;
+
+            // Grid & axes
+            ctx.strokeStyle = 'rgba(255,255,255,.06)';
+            ctx.lineWidth = 1;
+            for (let d = 0; d <= maxDisc; d += 10) {
+                const y = pad.top + plotH - (d / maxDisc) * plotH;
+                ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + plotW, y); ctx.stroke();
+                ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.font = '10px JetBrains Mono, monospace';
+                ctx.textAlign = 'right'; ctx.fillText(d + '%', pad.left - 8, y + 3);
+            }
+            const dayLabels = [0, 90, 180, 365, 545, 730];
+            dayLabels.forEach(d => {
+                const x = pad.left + (d / maxDays) * plotW;
+                ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, pad.top + plotH); ctx.stroke();
+                ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.font = '10px JetBrains Mono, monospace';
+                ctx.textAlign = 'center'; ctx.fillText(d > 0 ? (d >= 365 ? (d/365).toFixed(d%365===0?0:1)+'y' : d+'d') : '0', x, pad.top + plotH + 16);
+            });
+
+            // Axis labels
+            ctx.save();
+            ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.font = '10px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Lock Duration', pad.left + plotW/2, H - 4);
+            ctx.translate(12, pad.top + plotH/2);
+            ctx.rotate(-Math.PI/2);
+            ctx.fillText('Effective Discount', 0, 0);
+            ctx.restore();
+
+            // Theoretical line: 5% at 7 days, 50% at 730 days (linear)
+            ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+            ctx.beginPath();
+            for (let d = 7; d <= 730; d += 5) {
+                const theoreticalDisc = 5 + (d - 7) / (730 - 7) * 45;
+                const x = pad.left + (d / maxDays) * plotW;
+                const y = pad.top + plotH - (theoreticalDisc / maxDisc) * plotH;
+                d === 7 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            }
+            ctx.stroke(); ctx.setLineDash([]);
+
+            // Scatter dots
+            txs.forEach(tx => {
+                const x = pad.left + (Math.min(tx.days, maxDays) / maxDays) * plotW;
+                const y = pad.top + plotH - (Math.min(tx.discount, maxDisc) / maxDisc) * plotH;
+                const r = Math.max(2.5, Math.min(6, Math.sqrt(tx.usdc / 500)));
+                ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(16,185,129,0.5)'; ctx.fill();
+                ctx.strokeStyle = 'rgba(16,185,129,0.8)'; ctx.lineWidth = 0.5; ctx.stroke();
+            });
+
+            // Stats
+            const avgLock = txs.reduce((s, t) => s + t.days, 0) / txs.length;
+            const avgDisc = txs.reduce((s, t) => s + t.discount, 0) / txs.length;
+            const statsEl = document.getElementById('treasury-discount-stats');
+            if (statsEl) {
+                statsEl.innerHTML = `
+                    <span>Exercises: <b style="color:rgba(255,255,255,.7)">${txs.length.toLocaleString()}</b></span>
+                    <span>Avg lock: <b style="color:rgba(255,255,255,.7)">${avgLock.toFixed(0)}d</b></span>
+                    <span>Avg discount: <b style="color:rgba(255,255,255,.7)">${avgDisc.toFixed(1)}%</b></span>
+                `;
+            }
+        }
+
+        // ===== RECOUP POOL FUNDING =====
+        function treasury_renderRecoupPool(stats, odoloResp) {
+            const fmtM = n => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : Math.round(n).toLocaleString();
+            const burned = stats.total_burn_fee_dolo || 0;
+            const recouped = stats.total_recoup_fee_dolo || 0;
+            const totalPenalty = stats.total_penalty_dolo || (burned + recouped);
+            const totalOdoloUsdc = odoloResp ? odoloResp.total_usdc : 0;
+
+            document.getElementById('treasury-recoup-burned').textContent = fmtM(burned) + ' DOLO';
+            document.getElementById('treasury-recoup-recouped').textContent = fmtM(recouped) + ' DOLO';
+            document.getElementById('treasury-recoup-ratio').textContent = totalPenalty > 0 ? ((burned / totalPenalty) * 100).toFixed(1) + '%' : '—';
+
+            // Coverage ratio: recouped / oDOLO exercise outflow (in DOLO terms)
+            const coverageDesc = totalOdoloUsdc > 0 ? '$' + fmtM(recouped * 0.0356) + ' / $' + fmtM(totalOdoloUsdc) : '—';
+            document.getElementById('treasury-recoup-coverage').textContent = totalOdoloUsdc > 0
+                ? ((recouped * 0.0356 / totalOdoloUsdc) * 100).toFixed(0) + '%'
+                : '—';
+
+            // Stacked bar
+            const burnPct = totalPenalty > 0 ? (burned / totalPenalty) * 100 : 0;
+            const recoupPct = totalPenalty > 0 ? (recouped / totalPenalty) * 100 : 0;
+            document.getElementById('treasury-recoup-bar-burn').style.width = burnPct + '%';
+            const recoupBar = document.getElementById('treasury-recoup-bar-recoup');
+            recoupBar.style.left = burnPct + '%';
+            recoupBar.style.width = recoupPct + '%';
+            document.getElementById('treasury-recoup-bar-total').textContent = fmtM(totalPenalty) + ' DOLO';
+        }
+
 
     </script>
     <div id="float-tip"></div>
