@@ -942,6 +942,52 @@
             position: relative;
         }
 
+        /* CSS hover tooltip from data-tip attribute */
+        .odolo-toggle-wrap[data-tip]::before {
+            content: attr(data-tip);
+            position: absolute;
+            bottom: calc(100% + 10px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.98);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 12px;
+            font-weight: 400;
+            color: #e2e8f0;
+            width: 260px;
+            line-height: 1.5;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+            white-space: normal;
+            word-wrap: break-word;
+            z-index: 99999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s, visibility 0.2s;
+        }
+        .odolo-toggle-wrap[data-tip]::after {
+            content: '';
+            position: absolute;
+            bottom: calc(100% + 4px);
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: rgba(99, 102, 241, 0.3);
+            pointer-events: none;
+            z-index: 99999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s, visibility 0.2s;
+        }
+        .odolo-toggle-wrap[data-tip]:hover::before,
+        .odolo-toggle-wrap[data-tip]:hover::after {
+            opacity: 1;
+            visibility: visible;
+        }
+
         .odolo-toggle-icon {
             width: 16px;
             height: 16px;
@@ -998,13 +1044,13 @@
             box-shadow: 0 0 6px rgba(248, 113, 113, 0.5);
         }
 
-        /* GM toggle amber overrides */
+        /* GM toggle (Yield) — amber label, but neutral border like others */
         .gm-toggle-wrap {
             border-color: rgba(251, 191, 36, 0.25);
         }
 
         .gm-toggle-wrap:hover {
-            border-color: rgba(251, 191, 36, 0.45);
+            border-color: rgba(255, 255, 255, 0.15);
         }
 
         .gm-toggle-label {
@@ -10378,26 +10424,26 @@
                         <div id="assets-chain-filter" class="dolo-chain-pills"></div>
                         <div class="assets-toggles-right">
                             <input type="checkbox" id="assets-exclude-odolo" style="display:none">
-                            <div class="odolo-toggle-wrap" id="assets-odolo-toggle" title="Toggle oDOLO rewards in Supply APR. When ON, oDOLO incentive rewards are included. When OFF, only lending and external yield are shown.">
+                            <div class="odolo-toggle-wrap" id="assets-odolo-toggle" data-tip="Toggle oDOLO rewards in Supply APR. When ON, oDOLO incentive rewards are included. When OFF, only lending and external yield are shown.">
                                 <img class="odolo-toggle-icon" src="odolo-logo-official.svg" alt="oDOLO">
                                 <span class="odolo-toggle-label">oDOLO</span>
                                 <div class="odolo-switch">
                                     <div class="knob"></div>
                                 </div>
                             </div>
-                            <div class="odolo-toggle-wrap gm-toggle-wrap" id="assets-yield-toggle" title="Include/exclude external yield sources from Supply APR. Sources: ETH Staking, Sky Savings Rate, GM Performance APR, and other native yields. When OFF, only Dolomite lending rate is shown.">
+                            <div class="odolo-toggle-wrap gm-toggle-wrap" id="assets-yield-toggle" data-tip="Include/exclude external yield sources from Supply APR. Sources: ETH Staking, Sky Savings Rate, GM Performance APR, and other native yields. When OFF, only Dolomite lending rate is shown.">
                                 <span class="odolo-toggle-label gm-toggle-label">Yield</span>
                                 <div class="odolo-switch gm-switch">
                                     <div class="knob"></div>
                                 </div>
                             </div>
-                            <div class="odolo-toggle-wrap lending-toggle-wrap" id="assets-lending-toggle" title="Toggle base Dolomite lending APR in Supply APR column. This is interest earned from borrowers. When OFF, only external yield and oDOLO rewards are shown.">
+                            <div class="odolo-toggle-wrap lending-toggle-wrap" id="assets-lending-toggle" data-tip="Toggle base Dolomite lending APR in Supply APR column. This is interest earned from borrowers. When OFF, only external yield and oDOLO rewards are shown.">
                                 <span class="odolo-toggle-label lending-toggle-label">Lending</span>
                                 <div class="odolo-switch lending-switch">
                                     <div class="knob"></div>
                                 </div>
                             </div>
-                            <div class="odolo-toggle-wrap dust-toggle-wrap" id="assets-dust-toggle" title="Hide dust markets — assets with very low liquidity where APR is misleading. A market is 'dust' when depositing $100 would change total supply by more than 10% (supply < $1,000).">
+                            <div class="odolo-toggle-wrap dust-toggle-wrap" id="assets-dust-toggle" data-tip="Hide dust markets — assets with very low liquidity where APR is misleading. A market is 'dust' when depositing $100 would change total supply by more than 10%.">
                                 <span class="odolo-toggle-label">Hide Dust</span>
                                 <div class="odolo-switch">
                                     <div class="knob"></div>
