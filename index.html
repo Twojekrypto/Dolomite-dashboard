@@ -15369,6 +15369,8 @@
             assets_loaded = true;
             const results = [];
             const LLAMA_CHAIN_MAP = { arbitrum: 'arbitrum', berachain: 'berachain', ethereum: 'ethereum', mantle: 'mantle', polygonzkevm: 'polygon_zkevm', xlayer: 'xlayer' };
+            // Start subgraph fetch immediately (runs in parallel with API fetch)
+            const subgraphPromise = assets_fetchMarketData();
             const fetches = Object.entries(ASSETS_CHAINS).map(async ([key, chain]) => {
                 try {
                     const resp = await fetch(`https://api.dolomite.io/tokens/${chain.id}/interest-rates?exclude-odolo=false`);
@@ -15459,8 +15461,8 @@
 
             assets_allData = results;
 
-            // Fetch on-chain market data (supply, borrow, caps) in background
-            assets_fetchMarketData().then(() => {
+            // When subgraph data is ready (may already be done), re-render with badges + hero
+            subgraphPromise.then(() => {
                 // Save currently expanded row before re-render wipes it
                 const expandedRow = document.querySelector('tr.assets-data-row.expanded');
                 const expandedId = expandedRow ? expandedRow.getAttribute('data-row-id') : null;
