@@ -10443,7 +10443,7 @@
                                     <div class="knob"></div>
                                 </div>
                             </div>
-                            <div class="odolo-toggle-wrap dust-toggle-wrap" id="assets-dust-toggle" data-tip="Hide dust markets — assets with very low liquidity where APR is misleading. A market is 'dust' when depositing $100 would change total supply by more than 10%.">
+                            <div class="odolo-toggle-wrap dust-toggle-wrap" id="assets-dust-toggle" data-tip="Hide dust markets — assets with very low liquidity where APR is misleading. A market is 'dust' when depositing $1,000 would change total supply by more than 10%.">
                                 <span class="odolo-toggle-label">Hide Dust</span>
                                 <div class="odolo-switch">
                                     <div class="knob"></div>
@@ -15586,7 +15586,7 @@
                     const md = assets_marketData[mdKey];
                     if (!md) return true;
                     const supplyUSD = (md.supplied || 0) * (d.price || 0);
-                    return supplyUSD >= 1000;
+                    return supplyUSD >= 10000;
                 });
                 if (data.length === 0) data = assets_allData; // fallback
             }
@@ -15855,7 +15855,7 @@
                     const md = assets_marketData[mdKey];
                     if (!md) return true; // keep if no data
                     const supplyUSD = (md.supplied || 0) * (d.price || 0);
-                    return supplyUSD >= 1000;
+                    return supplyUSD >= 10000;
                 });
             }
             // Compute adjusted Supply APR for sorting (respects toggle states)
@@ -15978,7 +15978,7 @@
                             ${chevronSvg}
                             ${iconHtml}
                             <div>
-                                <div class="assets-token-name">${d.symbol}${(() => { const _mk = d.chainKey + ':' + (d.addr || '').toLowerCase(); const _md = assets_marketData[_mk]; if (_md && d.price > 0) { const _susd = (_md.supplied || 0) * d.price; if (_susd < 1000) return '<span class="assets-depth-badge dust">Dust</span>'; if (_susd < 10000) return '<span class="assets-depth-badge low">Low</span>'; } return ''; })()}</div>
+                                <div class="assets-token-name">${d.symbol}${(() => { const _mk = d.chainKey + ':' + (d.addr || '').toLowerCase(); const _md = assets_marketData[_mk]; if (_md && d.price > 0) { const _susd = (_md.supplied || 0) * d.price; if (_susd < 10000) return '<span class="assets-depth-badge dust">Dust</span>'; if (_susd < 100000) return '<span class="assets-depth-badge low">Low</span>'; } return ''; })()}</div>
                                 ${d.addr ? `<div class="assets-token-full" style="display:inline-flex;align-items:center;gap:3px"><a href="${(ASSETS_CHAINS[d.chainKey]?.explorer || '#') + d.addr}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:rgba(255,255,255,0.35);font-family:monospace;font-size:9px;text-decoration:none" class="addr-tooltip-wrap" data-full-addr="${d.addr}">${d.addr.slice(0,6)}…${d.addr.slice(-4)}</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${d.addr}',this)" title="Copy address"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span><a href="${(ASSETS_CHAINS[d.chainKey]?.explorer || '#') + d.addr}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="View on explorer" class="assets-ext-link"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div>` : `<div class="assets-token-full">${d.name}</div>`}
                             </div>
                         </div>
