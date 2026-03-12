@@ -10502,11 +10502,9 @@
             <!-- ═══ PROTOCOL ADDRESSES TABLE ═══ -->
             <div class="card anim anim-d2" style="margin-top:24px" id="treasury-addr-card">
                 <div class="card-header">
-                    <h3 style="display:flex;align-items:center;gap:8px;margin:0">
-                        <img src="dolo-logo.svg" width="22" height="22" alt="DOLO" style="flex-shrink:0">
-                        Protocol Addresses
-                        <span id="treasury-addr-count" style="font-size:13px;font-weight:500;color:var(--text-muted)"></span>
-                    </h3>
+                    <h3 style="display:flex;align-items:center;gap:8px"><img src="dolo-logo.svg" width="22" height="22"
+                            alt="DOLO" style="flex-shrink:0"> Protocol Addresses <span id="treasury-addr-count"
+                            style="font-size:13px;font-weight:500;color:var(--text-muted)"></span></h3>
                 </div>
 
                 <div class="dolo-flow-toolbar">
@@ -10521,15 +10519,6 @@
                                 style="font-size:12px;padding:7px 12px 7px 32px" oninput="treasuryFilterAddrs()">
                         </div>
                     </div>
-                    <div class="dolo-flow-toolbar-divider"></div>
-                    <div style="display:flex;flex-direction:column;gap:3px">
-                        <label class="dolo-flow-toggle"
-                            title="Hide addresses with zero DOLO balance">
-                            <input type="checkbox" id="treasury-addr-hide-zero" onchange="treasuryFilterAddrs()">
-                            <span class="dolo-flow-toggle-track"></span>
-                            <span class="dolo-flow-toggle-label">Hide $0</span>
-                        </label>
-                    </div>
                 </div>
 
                 <div class="table-scroll">
@@ -10543,11 +10532,21 @@
                         </colgroup>
                         <thead style="position:sticky;top:0;z-index:2;background:#141825">
                             <tr>
-                                <th style="padding:8px 5px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);user-select:none">#</th>
-                                <th style="padding:8px 5px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);user-select:none">Address</th>
-                                <th style="padding:8px 5px;text-align:right;color:rgba(255,255,255,0.7);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" onclick="treasurySortAddr('balance')">DOLO Balance <span class="sort-arrow">⇅</span></th>
-                                <th style="padding:8px 5px;text-align:right;color:rgba(255,255,255,0.5);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" onclick="treasurySortAddr('usd')">USD Value <span class="sort-arrow">⇅</span></th>
-                                <th style="padding:8px 5px;text-align:right;color:rgba(255,255,255,0.5);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" onclick="treasurySortAddr('pct')">% Supply <span class="sort-arrow">⇅</span></th>
+                                <th style="padding:8px 5px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="treasury-rank" onclick="treasurySortAddr('rank')">
+                                    # <span class="sort-arrow">▲</span>
+                                </th>
+                                <th style="padding:8px 5px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="treasury-address" onclick="treasurySortAddr('address')">
+                                    Address <span class="sort-arrow">⇅</span>
+                                </th>
+                                <th style="padding:8px 5px;text-align:right;color:#fff;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="treasury-balance" onclick="treasurySortAddr('balance')">
+                                    DOLO Balance <span class="sort-arrow">⇅</span>
+                                </th>
+                                <th style="padding:8px 5px;text-align:right;color:rgba(255,255,255,0.5);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="treasury-usd" onclick="treasurySortAddr('usd')">
+                                    USD Value <span class="sort-arrow">⇅</span>
+                                </th>
+                                <th style="padding:8px 5px;text-align:right;color:rgba(255,255,255,0.5);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="treasury-pct" onclick="treasurySortAddr('pct')">
+                                    % Supply <span class="sort-arrow">⇅</span>
+                                </th>
                             </tr>
                         </thead>
                         <tbody id="treasury-addr-tbody">
@@ -19553,27 +19552,35 @@
         let treasury_supplyData = null;
 
         // ===== Protocol Addresses sort =====
-        let treasuryAddrSortKey = 'balance';
-        let treasuryAddrSortAsc = false;
+        let treasuryAddrSortKey = 'rank';
+        let treasuryAddrSortAsc = true;
         function treasurySortAddr(key) {
             if (treasuryAddrSortKey === key) { treasuryAddrSortAsc = !treasuryAddrSortAsc; }
-            else { treasuryAddrSortKey = key; treasuryAddrSortAsc = false; }
+            else { treasuryAddrSortKey = key; treasuryAddrSortAsc = (key === 'rank' || key === 'address'); }
             const tbody = document.getElementById('treasury-addr-tbody');
             const rows = Array.from(tbody.querySelectorAll('tr.treasury-addr-row'));
             if (!rows.length) return;
             const attr = 'data-sort-' + key;
-            rows.sort((a, b) => {
-                const va = parseFloat(a.getAttribute(attr)) || 0;
-                const vb = parseFloat(b.getAttribute(attr)) || 0;
-                return treasuryAddrSortAsc ? va - vb : vb - va;
-            });
+            if (key === 'address') {
+                rows.sort((a, b) => {
+                    const va = (a.getAttribute(attr) || '').toLowerCase();
+                    const vb = (b.getAttribute(attr) || '').toLowerCase();
+                    return treasuryAddrSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+                });
+            } else {
+                rows.sort((a, b) => {
+                    const va = parseFloat(a.getAttribute(attr)) || 0;
+                    const vb = parseFloat(b.getAttribute(attr)) || 0;
+                    return treasuryAddrSortAsc ? va - vb : vb - va;
+                });
+            }
             rows.forEach((r, i) => {
                 r.querySelector('td').textContent = i + 1;
                 tbody.appendChild(r);
             });
             // Update sort arrows
             document.querySelectorAll('#treasury-addr-table th .sort-arrow').forEach(a => a.textContent = '⇅');
-            const th = document.querySelector(`#treasury-addr-table th[onclick*="${key}"]`);
+            const th = document.querySelector(`#treasury-addr-table th[data-sort="treasury-${key}"]`);
             if (th) {
                 const arrow = th.querySelector('.sort-arrow');
                 if (arrow) arrow.textContent = treasuryAddrSortAsc ? '▲' : '▼';
@@ -19582,16 +19589,12 @@
 
         function treasuryFilterAddrs() {
             const query = (document.getElementById('treasury-addr-search')?.value || '').toLowerCase().trim();
-            const hideZero = document.getElementById('treasury-addr-hide-zero')?.checked || false;
             const rows = document.querySelectorAll('#treasury-addr-tbody tr.treasury-addr-row');
             let visible = 0;
             rows.forEach((r, i) => {
                 const text = r.textContent.toLowerCase();
                 const addr = r.getAttribute('data-addr') || '';
-                const balance = parseFloat(r.getAttribute('data-sort-balance')) || 0;
-                const matchSearch = !query || text.includes(query) || addr.includes(query);
-                const matchZero = !hideZero || balance > 0;
-                const show = matchSearch && matchZero;
+                const show = !query || text.includes(query) || addr.includes(query);
                 r.style.display = show ? '' : 'none';
                 if (show) {
                     visible++;
@@ -19674,7 +19677,7 @@
                     tbody.innerHTML = protocolRows.map((r, i) => {
                         const short = r.address.slice(0, 6) + '…' + r.address.slice(-4);
                         return `
-                        <tr class="treasury-addr-row" data-addr="${r.address}" data-sort-balance="${r.balance}" data-sort-usd="${r.usd}" data-sort-pct="${r.pct}">
+                        <tr class="treasury-addr-row" data-addr="${r.address}" data-sort-rank="${i+1}" data-sort-address="${r.label}" data-sort-balance="${r.balance}" data-sort-usd="${r.usd}" data-sort-pct="${r.pct}">
                             <td style="color:rgba(255,255,255,.3);font-size:11px;vertical-align:top;padding-top:12px">${i + 1}</td>
                             <td>
                                 <div class="treasury-addr-label" style="font-weight:600;color:rgba(255,255,255,.9);font-size:13px">${r.label}</div>
