@@ -3,8 +3,17 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=0">
-    <title>veDOLO Holders — Berachain Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dolomite Analytics Dashboard</title>
+    <meta name="description" content="Real-time analytics dashboard for Dolomite protocol — track TVL, DOLO token flows, oDOLO options, veDOLO governance, and earning yields across Ethereum and Berachain.">
+    <meta property="og:title" content="Dolomite Analytics Dashboard">
+    <meta property="og:description" content="Real-time analytics for Dolomite — TVL, DOLO token flows, oDOLO options, veDOLO governance, and earning yields.">
+    <meta property="og:image" content="preview.png">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Dolomite Analytics Dashboard">
+    <meta name="twitter:description" content="Real-time analytics for Dolomite — TVL, DOLO flows, oDOLO, veDOLO governance, and yields.">
+    <meta name="twitter:image" content="preview.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
@@ -1399,100 +1408,6 @@
             margin-left: 4px;
         }
 
-        .assets-search {
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 10px;
-            padding: 6px 12px;
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.85);
-            outline: none;
-            width: 220px;
-            transition: border-color 0.2s;
-        }
-
-        .assets-search:focus {
-            border-color: rgba(52, 211, 153, 0.4);
-        }
-
-        .assets-search::placeholder {
-            color: rgba(255, 255, 255, 0.25);
-        }
-
-        .assets-toggle-label {
-            display: none;
-        }
-
-        /* oDOLO toggle switch (duplicate for specificity) */
-        .odolo-toggle-wrap {
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-            cursor: pointer;
-            user-select: none;
-            padding: 4px 8px;
-            border-radius: 8px;
-            border: 1px solid rgba(96, 165, 250, 0.25);
-            transition: background 0.2s, border-color 0.2s;
-        }
-
-        .odolo-toggle-wrap:hover {
-            background: rgba(255, 255, 255, 0.04);
-            border-color: rgba(96, 165, 250, 0.45);
-        }
-
-        .odolo-toggle-icon {
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            flex-shrink: 0;
-        }
-
-        .odolo-toggle-label {
-            font-size: 11px;
-            font-weight: 600;
-            color: #60a5fa;
-            transition: color 0.2s;
-        }
-
-        .odolo-toggle-wrap.active .odolo-toggle-label {
-            color: #f87171;
-        }
-
-        .odolo-switch {
-            position: relative;
-            width: 32px;
-            height: 18px;
-            border-radius: 10px;
-            background: rgba(96, 165, 250, 0.25);
-            border: 1px solid rgba(96, 165, 250, 0.4);
-            transition: all 0.25s ease;
-            flex-shrink: 0;
-        }
-
-        .odolo-switch .knob {
-            position: absolute;
-            top: 2px;
-            left: 16px;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: #60a5fa;
-            box-shadow: 0 0 6px rgba(96, 165, 250, 0.5);
-            transition: all 0.25s ease;
-        }
-
-        .odolo-toggle-wrap.active .odolo-switch {
-            background: rgba(239, 68, 68, 0.25);
-            border-color: rgba(239, 68, 68, 0.4);
-        }
-
-        .odolo-toggle-wrap.active .odolo-switch .knob {
-            left: 2px;
-            background: #f87171;
-            box-shadow: 0 0 6px rgba(248, 113, 113, 0.5);
-        }
-
         .assets-apy-breakdown {
             font-size: 10px;
             margin-top: 3px;
@@ -1810,7 +1725,8 @@
         .earn-asset-table thead {
             position: sticky;
             top: 0;
-            z-index: 2;
+            z-index: 10;
+            background: var(--bg-card);
         }
 
         .earn-asset-table thead th {
@@ -1824,6 +1740,7 @@
             font-weight: 600;
             white-space: nowrap;
             text-align: right;
+            overflow: visible;
         }
 
         .tooltip-bubble {
@@ -7458,16 +7375,6 @@
             background: rgba(148, 163, 184, 0.35);
         }
 
-        .earn-asset-table thead {
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            background: var(--bg-card);
-        }
-
-        .earn-asset-table thead th {
-            overflow: visible;
-        }
 
 
         /* Account sub-select */
@@ -7860,42 +7767,6 @@
             .nav-tab svg {
                 width: 13px;
                 height: 13px;
-            }
-
-            /* Metrics strip: all views single column */
-            .metrics-strip {
-                grid-template-columns: 1fr !important;
-            }
-
-            #view-dolo .metrics-strip,
-            #view-odolo .metrics-strip,
-            #view-vedolo .metrics-strip,
-            #view-earn .metrics-strip {
-                grid-template-columns: 1fr !important;
-            }
-
-            .metric-cell {
-                border-radius: 0 !important;
-            }
-
-            .metric-cell:first-child {
-                border-radius: var(--radius-md) var(--radius-md) 0 0 !important;
-            }
-
-            .metric-cell:last-child {
-                border-radius: 0 0 var(--radius-md) var(--radius-md) !important;
-            }
-
-            /* oDOLO metric strip: single column too */
-            #view-odolo .metrics-strip {
-                grid-template-columns: 1fr !important;
-            }
-
-            /* Tables — override inline table-layout on phones */
-            .table-scroll table {
-                table-layout: auto !important;
-                width: auto !important;
-                min-width: 580px;
             }
 
             #dolo-holders-table {
