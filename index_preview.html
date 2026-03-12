@@ -8469,7 +8469,7 @@
                                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
                             </svg>
                         </div>
-                        <span style="font-size:12px;color:#fff;text-transform:uppercase;letter-spacing:1.8px;font-weight:600">Early Exits</span>
+                        <span style="font-size:12px;color:#fff;text-transform:uppercase;letter-spacing:1.8px;font-weight:600">veDOLO Early Exit Revenue</span>
                     </div>
 
                     <!-- Main metric: Total Penalty -->
@@ -8492,8 +8492,22 @@
                         </div>
                     </div>
 
+                    <!-- Burn / Recoup breakdown cards -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:20px">
+                        <div style="background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.15);border-radius:12px;padding:16px">
+                            <div style="font-size:10px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">🔥 Burned (permanently)</div>
+                            <div id="m-burned-amount" style="font-size:24px;font-weight:700;color:#ef4444;font-variant-numeric:tabular-nums">—</div>
+                            <div id="m-burned-pct" style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px"></div>
+                        </div>
+                        <div style="background:rgba(249,115,22,.06);border:1px solid rgba(249,115,22,.15);border-radius:12px;padding:16px">
+                            <div style="font-size:10px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">♻️ Recouped (to protocol)</div>
+                            <div id="m-recouped-amount" style="font-size:24px;font-weight:700;color:#f97316;font-variant-numeric:tabular-nums">—</div>
+                            <div id="m-recouped-pct" style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px"></div>
+                        </div>
+                    </div>
+
                     <!-- Sub-cards grid -->
-                    <div class="exit-hero-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:20px">
+                    <div class="exit-hero-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:14px">
                         <!-- Early Exits count -->
                         <div class="exit-sub-card exits-c">
                             <div class="exit-sub-icon" style="background:rgba(239,68,68,.12)">
@@ -8521,6 +8535,14 @@
                                 </div>
                                 <div class="exit-bar-sub" id="m-avg-penalty-sub" style="font-size:10px;color:var(--text-muted);margin-top:4px"></div>
                             </div>
+                        </div>
+                        <!-- Original Locked -->
+                        <div class="exit-sub-card" style="border-color:rgba(255,255,255,.08)">
+                            <div class="exit-sub-icon" style="background:rgba(255,255,255,.06)">
+                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="3" y="7" width="10" height="7" rx="1.5" stroke="rgba(255,255,255,.5)" stroke-width="1.5"/><path d="M5 7V5a3 3 0 0 1 6 0v2" stroke="rgba(255,255,255,.5)" stroke-width="1.5" stroke-linecap="round"/></svg>
+                            </div>
+                            <div class="tvl-metric-label" data-tip>Original Locked<span class="tooltip-bubble">Total amount of DOLO that was originally locked in early-exited veDOLO positions before penalties were applied.</span></div>
+                            <div id="m-orig-locked" class="tvl-metric-value" style="color:rgba(255,255,255,.7)">—</div>
                         </div>
                     </div>
                 </div>
@@ -10478,15 +10500,39 @@
             </div>
 
             <!-- ═══ PROTOCOL ADDRESSES TABLE ═══ -->
-            <div class="card anim anim-d2" style="margin-top:24px">
+            <div class="card anim anim-d2" style="margin-top:24px" id="treasury-addr-card">
                 <div class="card-header">
                     <h3 style="display:flex;align-items:center;gap:8px;margin:0">
                         <img src="dolo-logo.svg" width="22" height="22" alt="DOLO" style="flex-shrink:0">
                         Protocol Addresses
-                        <span id="treasury-addr-count" style="font-size:0.8em;opacity:0.5;font-weight:500"></span>
+                        <span id="treasury-addr-count" style="font-size:13px;font-weight:500;color:var(--text-muted)"></span>
                     </h3>
                 </div>
-                <div style="overflow-x:auto">
+
+                <div class="dolo-flow-toolbar">
+                    <div style="display:flex;flex-direction:column;gap:3px">
+                        <div class="search-input-wrapper" style="width:340px;min-width:180px">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8" />
+                                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                            </svg>
+                            <input type="text" id="treasury-addr-search" placeholder="Search address or label…"
+                                style="font-size:12px;padding:7px 12px 7px 32px" oninput="treasuryFilterAddrs()">
+                        </div>
+                    </div>
+                    <div class="dolo-flow-toolbar-divider"></div>
+                    <div style="display:flex;flex-direction:column;gap:3px">
+                        <label class="dolo-flow-toggle"
+                            title="Hide addresses with zero DOLO balance">
+                            <input type="checkbox" id="treasury-addr-hide-zero" onchange="treasuryFilterAddrs()">
+                            <span class="dolo-flow-toggle-track"></span>
+                            <span class="dolo-flow-toggle-label">Hide $0</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="table-scroll">
                     <table style="table-layout:fixed;width:100%;border-collapse:collapse;font-size:12px" id="treasury-addr-table">
                         <colgroup>
                             <col style="width:32px">
@@ -10509,59 +10555,9 @@
                         </tbody>
                     </table>
                 </div>
+                <div class="table-footer" id="treasury-addr-pagination"></div>
             </div>
 
-            <!-- ═══ PENALTY REVENUE ═══ -->
-            <div class="treasury-penalty-outer anim anim-d2">
-                <div class="treasury-penalty-inner">
-                    <div style="position:absolute;top:-50px;right:-20px;width:180px;height:180px;background:radial-gradient(circle,rgba(239,68,68,.06) 0%,transparent 65%);pointer-events:none"></div>
-
-                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-                        <div style="width:28px;height:28px;border-radius:8px;background:rgba(239,68,68,.12);display:flex;align-items:center;justify-content:center">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fca5a5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
-                            </svg>
-                        </div>
-                        <span style="font-size:12px;color:#fff;text-transform:uppercase;letter-spacing:1.8px;font-weight:600">veDOLO Early Exit Revenue</span>
-                    </div>
-
-                    <!-- Total Penalty -->
-                    <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
-                        <div id="treasury-penalty-total" style="font-size:clamp(32px,5vw,44px);font-weight:800;color:#ef4444;text-shadow:0 0 50px rgba(239,68,68,.25);line-height:1.1;letter-spacing:-1px;font-variant-numeric:tabular-nums">—</div>
-                    </div>
-                    <span style="font-size:12px;color:var(--text-muted);margin-top:2px;letter-spacing:.5px">TOTAL DOLO PENALTY</span>
-
-                    <!-- Burn / Recoup breakdown -->
-                    <div class="treasury-revenue-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:20px">
-                        <div style="background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.15);border-radius:12px;padding:16px">
-                            <div style="font-size:10px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">🔥 Burned (permanently)</div>
-                            <div id="treasury-burned" style="font-size:24px;font-weight:700;color:#ef4444;font-variant-numeric:tabular-nums">—</div>
-                            <div id="treasury-burned-pct" style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px"></div>
-                        </div>
-                        <div style="background:rgba(249,115,22,.06);border:1px solid rgba(249,115,22,.15);border-radius:12px;padding:16px">
-                            <div style="font-size:10px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">♻️ Recouped (to protocol)</div>
-                            <div id="treasury-recouped" style="font-size:24px;font-weight:700;color:#f97316;font-variant-numeric:tabular-nums">—</div>
-                            <div id="treasury-recouped-pct" style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px"></div>
-                        </div>
-                    </div>
-
-                    <!-- Stats row -->
-                    <div style="display:flex;gap:24px;margin-top:16px;flex-wrap:wrap">
-                        <div>
-                            <div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px">Total Early Exits</div>
-                            <div id="treasury-exit-count" style="font-size:18px;font-weight:700;color:#f87171;margin-top:2px">—</div>
-                        </div>
-                        <div>
-                            <div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px">Avg Penalty</div>
-                            <div id="treasury-avg-penalty" style="font-size:18px;font-weight:700;color:#f59e0b;margin-top:2px">—</div>
-                        </div>
-                        <div>
-                            <div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px">Original Locked</div>
-                            <div id="treasury-orig-locked" style="font-size:18px;font-weight:700;color:rgba(255,255,255,.7);margin-top:2px">—</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             <!-- ═══ oDOLO REVENUE ═══ -->
             <div class="treasury-odolo-outer anim anim-d3">
@@ -11209,6 +11205,7 @@
                 if (!s) return;
 
                 const fmt = n => Number(Math.round(n)).toLocaleString();
+                const fmtM = n => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : Math.round(n).toLocaleString();
 
                 if (s.total_penalty_dolo > 0) {
                     const doloIcon = ' <img src="dolo-logo.svg" class="metric-icon">';
@@ -11225,6 +11222,12 @@
                         }, 300);
                         document.getElementById('m-burn-label').textContent = fmt(s.total_burn_fee_dolo) + ' burned';
                         document.getElementById('m-recoup-label').textContent = fmt(s.total_recoup_fee_dolo) + ' recouped';
+
+                        // Burn/recoup amount cards
+                        document.getElementById('m-burned-amount').innerHTML = fmtM(s.total_burn_fee_dolo) + doloIcon;
+                        document.getElementById('m-burned-pct').textContent = burnPct + '% of total penalty';
+                        document.getElementById('m-recouped-amount').innerHTML = fmtM(s.total_recoup_fee_dolo) + doloIcon;
+                        document.getElementById('m-recouped-pct').textContent = recoupPct + '% of total penalty';
                     }
                 }
 
@@ -11248,6 +11251,12 @@
                     setTimeout(() => {
                         document.getElementById('penalty-gauge-fill').style.width = gaugePct + '%';
                     }, 700);
+                }
+
+                // Original locked
+                if (s.total_original_locked > 0) {
+                    const doloIcon = ' <img src="dolo-logo.svg" class="metric-icon">';
+                    document.getElementById('m-orig-locked').innerHTML = fmtM(s.total_original_locked) + doloIcon;
                 }
             } catch (e) {
                 console.warn('Early exit data not available', e);
@@ -19571,6 +19580,28 @@
             }
         }
 
+        function treasuryFilterAddrs() {
+            const query = (document.getElementById('treasury-addr-search')?.value || '').toLowerCase().trim();
+            const hideZero = document.getElementById('treasury-addr-hide-zero')?.checked || false;
+            const rows = document.querySelectorAll('#treasury-addr-tbody tr.treasury-addr-row');
+            let visible = 0;
+            rows.forEach((r, i) => {
+                const text = r.textContent.toLowerCase();
+                const addr = r.getAttribute('data-addr') || '';
+                const balance = parseFloat(r.getAttribute('data-sort-balance')) || 0;
+                const matchSearch = !query || text.includes(query) || addr.includes(query);
+                const matchZero = !hideZero || balance > 0;
+                const show = matchSearch && matchZero;
+                r.style.display = show ? '' : 'none';
+                if (show) {
+                    visible++;
+                    r.querySelector('td').textContent = visible;
+                }
+            });
+            const counter = document.getElementById('treasury-addr-count');
+            if (counter) counter.textContent = visible + ' shown';
+        }
+
         async function treasury_init() {
             treasury_loaded = true;
             const fmt = n => Number(Math.round(n)).toLocaleString();
@@ -19643,7 +19674,7 @@
                     tbody.innerHTML = protocolRows.map((r, i) => {
                         const short = r.address.slice(0, 6) + '…' + r.address.slice(-4);
                         return `
-                        <tr class="treasury-addr-row" data-sort-balance="${r.balance}" data-sort-usd="${r.usd}" data-sort-pct="${r.pct}">
+                        <tr class="treasury-addr-row" data-addr="${r.address}" data-sort-balance="${r.balance}" data-sort-usd="${r.usd}" data-sort-pct="${r.pct}">
                             <td style="color:rgba(255,255,255,.3);font-size:11px;vertical-align:top;padding-top:12px">${i + 1}</td>
                             <td>
                                 <div class="treasury-addr-label" style="font-weight:600;color:rgba(255,255,255,.9);font-size:13px">${r.label}</div>
@@ -19663,24 +19694,6 @@
                     }).join('');
                 } else {
                     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-muted)">No data</td></tr>';
-                }
-
-                // ── 2. Penalty Revenue ──
-                if (earlyResp && earlyResp.stats) {
-                    const s = earlyResp.stats;
-                    document.getElementById('treasury-penalty-total').innerHTML = fmtM(s.total_penalty_dolo) + doloIcon;
-                    document.getElementById('treasury-burned').innerHTML = fmtM(s.total_burn_fee_dolo) + doloIcon;
-                    document.getElementById('treasury-recouped').innerHTML = fmtM(s.total_recoup_fee_dolo) + doloIcon;
-
-                    const total = s.total_burn_fee_dolo + s.total_recoup_fee_dolo;
-                    if (total > 0) {
-                        document.getElementById('treasury-burned-pct').textContent = (s.total_burn_fee_dolo / total * 100).toFixed(1) + '% of total penalty';
-                        document.getElementById('treasury-recouped-pct').textContent = (s.total_recoup_fee_dolo / total * 100).toFixed(1) + '% of total penalty';
-                    }
-
-                    document.getElementById('treasury-exit-count').textContent = fmt(s.total_early_exits);
-                    document.getElementById('treasury-avg-penalty').textContent = s.avg_penalty_pct + '%';
-                    document.getElementById('treasury-orig-locked').innerHTML = fmtM(s.total_original_locked) + doloIcon;
                 }
 
                 // ── 3. oDOLO Revenue ──
