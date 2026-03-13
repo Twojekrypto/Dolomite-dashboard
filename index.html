@@ -8610,28 +8610,30 @@
                     </div>
 
                     <!-- Recent Early Exits Table -->
-                    <div id="exit-addr-table-wrap" class="dolo-flow-table-wrap" style="margin-top:20px;min-height:0;display:none">
-                        <div class="dolo-flow-label dolo-flow-label-sell">🔴 Recent Early Exits <span class="toolbar-count" id="exit-addr-count" style="font-size:0.85em;opacity:0.7;font-weight:500"></span></div>
-                        <table id="exit-addr-table" style="table-layout:fixed;width:100%;border-collapse:collapse;font-size:12px">
-                            <colgroup>
-                                <col style="width:28px">
-                                <col style="width:40%">
-                                <col style="width:calc((100% - 28px - 40%) / 3)">
-                                <col style="width:calc((100% - 28px - 40%) / 3)">
-                                <col style="width:calc((100% - 28px - 40%) / 3)">
-                            </colgroup>
-                            <thead style="position:sticky;top:0;z-index:2;background:#141825">
-                                <tr>
-                                    <th style="padding:8px 5px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">#</th>
-                                    <th style="padding:8px 5px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">Address</th>
-                                    <th style="padding:8px 5px;text-align:right;color:rgba(255,255,255,0.5);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">🔒 Original</th>
-                                    <th style="padding:8px 5px;text-align:right;color:#ef4444;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">🔴 Penalty</th>
-                                    <th style="padding:8px 5px;text-align:right;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">% Lost</th>
-                                </tr>
-                            </thead>
-                            <tbody id="exit-addr-tbody"></tbody>
-                        </table>
-                        <div id="exit-addr-pagination" class="flow-pager" style="margin-top:8px"></div>
+                    <div id="exit-addr-table-wrap" style="margin-top:20px;display:none">
+                        <h3 style="display:flex;align-items:center;gap:8px;margin:0 0 12px 0;font-size:14px;color:rgba(255,255,255,0.85)"><img src="vedolo-logo.svg" width="22" height="22" alt="veDOLO" style="flex-shrink:0"> 🔴 Recent Early Exits <span class="toolbar-count" id="exit-addr-count" style="font-size:0.85em;opacity:0.7;font-weight:500"></span></h3>
+                        <div style="overflow-x:auto;overflow-y:auto;max-height:500px">
+                            <table id="exit-addr-table" style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
+                                <colgroup>
+                                    <col style="width:36px">
+                                    <col style="width:38%">
+                                    <col style="width:calc((100% - 36px - 38%) / 3)">
+                                    <col style="width:calc((100% - 36px - 38%) / 3)">
+                                    <col style="width:calc((100% - 36px - 38%) / 3)">
+                                </colgroup>
+                                <thead style="position:sticky;top:0;z-index:2;background:#141825">
+                                    <tr>
+                                        <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">#</th>
+                                        <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">TX / Address</th>
+                                        <th style="padding:8px 6px;text-align:right;color:#fff;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="original" onclick="sortExitAddr('original')">🔒 Original <span class="arrow">▼</span></th>
+                                        <th style="padding:8px 6px;text-align:right;color:#ef4444;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="penalty" onclick="sortExitAddr('penalty')">🔴 Penalty <span class="arrow">⇅</span></th>
+                                        <th style="padding:8px 6px;text-align:right;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="pct" onclick="sortExitAddr('pct')">% Lost <span class="arrow">⇅</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="exit-addr-tbody"></tbody>
+                            </table>
+                        </div>
+                        <div class="table-footer" id="exit-addr-pagination"></div>
                     </div>
                 </div>
             </div>
@@ -11438,51 +11440,92 @@
                 // --- Recent Early Exits table ---
                 const exits = data.recent_exits || [];
                 if (exits.length > 0) {
-                    const PER_PAGE = 5;
-                    let exitPage = 0;
-                    const totalPages = Math.ceil(exits.length / PER_PAGE);
+                    const EXIT_ADDR_PER_PAGE = 5;
+                    window._exitAddrData = exits;
+                    window._exitAddrPage = 1;
+                    window._exitAddrSortKey = 'original';
+                    window._exitAddrSortAsc = false;
+                    const COPY_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
 
-                    function renderExitAddrPage() {
+                    function exitFmtDate(dateStr) {
+                        if (!dateStr) return '';
+                        const d = new Date(dateStr + 'T00:00:00');
+                        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                        return d.getDate() + ' ' + months[d.getMonth()];
+                    }
+
+                    window.sortExitAddr = function(key) {
+                        const headers = document.querySelectorAll('#exit-addr-table th');
+                        headers.forEach(th => th.classList.remove('sorted'));
+                        if (window._exitAddrSortKey === key) {
+                            window._exitAddrSortAsc = !window._exitAddrSortAsc;
+                        } else {
+                            window._exitAddrSortKey = key;
+                            window._exitAddrSortAsc = false;
+                        }
+                        const th = document.querySelector('#exit-addr-table th[data-sort="' + key + '"]');
+                        if (th) { th.classList.add('sorted'); th.querySelector('.arrow').textContent = window._exitAddrSortAsc ? '▲' : '▼'; }
+                        window._exitAddrPage = 1;
+                        renderExitAddrTable();
+                    };
+
+                    window.renderExitAddrTable = function() {
                         const tbody = document.getElementById('exit-addr-tbody');
-                        const start = exitPage * PER_PAGE;
-                        const page = exits.slice(start, start + PER_PAGE);
+                        if (!tbody) return;
+                        let sorted = [...window._exitAddrData];
+                        const sk = window._exitAddrSortKey;
+                        const asc = window._exitAddrSortAsc;
+                        sorted.sort((a, b) => {
+                            let va, vb;
+                            if (sk === 'original') { va = a.original_locked || 0; vb = b.original_locked || 0; }
+                            else if (sk === 'penalty') { va = a.total_penalty || 0; vb = b.total_penalty || 0; }
+                            else if (sk === 'pct') { va = a.penalty_pct || 0; vb = b.penalty_pct || 0; }
+                            else { va = a.original_locked || 0; vb = b.original_locked || 0; }
+                            return asc ? va - vb : vb - va;
+                        });
+                        const totalPages = Math.ceil(sorted.length / EXIT_ADDR_PER_PAGE);
+                        if (window._exitAddrPage > totalPages) window._exitAddrPage = totalPages || 1;
+                        const start = (window._exitAddrPage - 1) * EXIT_ADDR_PER_PAGE;
+                        const pageData = sorted.slice(start, start + EXIT_ADDR_PER_PAGE);
                         let html = '';
-                        page.forEach((ex, i) => {
+                        pageData.forEach((ex, i) => {
                             const rank = start + i + 1;
                             const addr = ex.address || '';
-                            const short = addr.slice(0, 6) + '…' + addr.slice(-4);
-                            const dbUrl = 'https://debank.com/profile/' + addr;
+                            const shortAddr = addr.slice(0, 6) + '…' + addr.slice(-4);
+                            const txHash = ex.tx_hash || '';
+                            const shortHash = txHash.slice(0, 6) + '…' + txHash.slice(-4);
+                            const berascanUrl = 'https://berascan.com/tx/' + txHash;
+                            const dbUrl = 'https://debank.com/profile/' + addr + '?chain=bera';
+                            const dateLabel = exitFmtDate(ex.date);
                             const orig = fmtM(ex.original_locked || 0);
                             const pen = fmtM(ex.total_penalty || 0);
                             const pct = (ex.penalty_pct || 0).toFixed(1) + '%';
-                            html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);transition:transform 0.15s,background 0.15s;cursor:pointer" onmouseenter="this.style.transform='scale(1.01)';this.style.background='rgba(255,255,255,0.03)'" onmouseleave="this.style.transform='';this.style.background=''" onclick="window.open('${dbUrl}','_blank')">`;
-                            html += `<td style="padding:6px 5px;color:rgba(255,255,255,0.3);font-size:10px">${rank}</td>`;
-                            html += `<td style="padding:6px 5px"><a href="${dbUrl}" target="_blank" style="color:rgba(255,255,255,0.7);text-decoration:none;font-family:monospace;font-size:11px" onclick="event.stopPropagation()">${short}</a></td>`;
-                            html += `<td style="padding:6px 5px;text-align:right;font-size:11px;font-weight:600;color:rgba(255,255,255,0.6)">${orig}</td>`;
-                            html += `<td style="padding:6px 5px;text-align:right;font-size:11px;font-weight:600;color:#ef4444">${pen}</td>`;
-                            html += `<td style="padding:6px 5px;text-align:right;font-size:11px;color:rgba(255,255,255,0.4)">${pct}</td>`;
+                            html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);transition:transform 0.15s,background 0.15s" onmouseenter="this.style.transform=\'scale(1.01)\';this.style.background=\'rgba(255,255,255,0.03)\'" onmouseleave="this.style.transform=\'\';this.style.background=\'\'">';
+                            html += '<td style="padding:5px 6px;color:rgba(255,255,255,0.3)">' + rank + '</td>';
+                            html += '<td style="padding:5px 6px"><div style="display:flex;flex-direction:column;gap:3px">' +
+                                '<div style="display:flex;align-items:center;gap:6px"><a href="' + berascanUrl + '" target="_blank" style="color:#60a5fa;font-family:monospace;font-size:11px;text-decoration:none" onclick="event.stopPropagation()">' + shortHash + '</a><a href="' + berascanUrl + '" target="_blank" onclick="event.stopPropagation()" class="tx-ext-icon" title="View on BeraScan" style="display:inline-flex;align-items:center;margin-left:3px;opacity:0.35;color:rgba(255,255,255,0.5);transition:opacity 0.2s,transform 0.2s;vertical-align:middle"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a><span style="font-size:10px;color:rgba(255,255,255,0.25)">' + dateLabel + '</span></div>' +
+                                '<div style="display:inline-flex;align-items:center;gap:4px"><a href="' + dbUrl + '" target="_blank" style="color:#fff;font-family:monospace;font-size:11px;text-decoration:none" class="addr-tooltip-wrap" data-full-addr="' + addr + '" onclick="event.stopPropagation()">' + shortAddr + '</a><span class="copy-addr-icon" style="flex-shrink:0" onclick="event.stopPropagation();copyAddr(\'' + addr + '\',this)" title="Copy address">' + COPY_SVG + '</span><a href="' + dbUrl + '" target="_blank" onclick="event.stopPropagation()" class="debank-icon" style="flex-shrink:0" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display=\'none\'"></a></div>' +
+                                '</div></td>';
+                            html += '<td style="padding:4px 5px;text-align:right;color:#fff;font-weight:600;font-size:11px">' + orig + ' DOLO</td>';
+                            html += '<td style="padding:4px 5px;text-align:right;color:#ef4444;font-size:11px;font-weight:600">' + pen + ' DOLO</td>';
+                            html += '<td style="padding:4px 5px;text-align:right;color:rgba(255,255,255,0.5);font-size:11px">' + pct + '</td>';
                             html += '</tr>';
                         });
                         tbody.innerHTML = html;
 
-                        // Pagination
-                        const pager = document.getElementById('exit-addr-pagination');
-                        if (totalPages <= 1) { pager.innerHTML = ''; return; }
-                        let pg = '<button class="flow-pager-btn" ' + (exitPage === 0 ? 'disabled' : '') + ' onclick="window._exitAddrPrev()">‹</button>';
-                        for (let p = 0; p < totalPages; p++) {
-                            pg += `<button class="flow-pager-btn${p === exitPage ? ' active' : ''}" onclick="window._exitAddrGo(${p})">${p + 1}</button>`;
-                        }
-                        pg += '<button class="flow-pager-btn" ' + (exitPage === totalPages - 1 ? 'disabled' : '') + ' onclick="window._exitAddrNext()">›</button>';
-                        pager.innerHTML = pg;
-                    }
-
-                    window._exitAddrPrev = () => { if (exitPage > 0) { exitPage--; renderExitAddrPage(); } };
-                    window._exitAddrNext = () => { if (exitPage < totalPages - 1) { exitPage++; renderExitAddrPage(); } };
-                    window._exitAddrGo = (p) => { exitPage = p; renderExitAddrPage(); };
+                        // Pagination (« ‹ page/total › »)
+                        const el = document.getElementById('exit-addr-pagination');
+                        if (!el || totalPages <= 1) { if (el) el.innerHTML = ''; return; }
+                        el.innerHTML = `<button class="flow-pager-btn" onclick="window._exitAddrPage=1;renderExitAddrTable()" ${window._exitAddrPage === 1 ? 'disabled' : ''}>«</button>` +
+                            `<button class="flow-pager-btn" onclick="window._exitAddrPage--;renderExitAddrTable()" ${window._exitAddrPage === 1 ? 'disabled' : ''}>‹</button>` +
+                            `<span class="flow-pager-info">${window._exitAddrPage} / ${totalPages}</span>` +
+                            `<button class="flow-pager-btn" onclick="window._exitAddrPage++;renderExitAddrTable()" ${window._exitAddrPage === totalPages ? 'disabled' : ''}>›</button>` +
+                            `<button class="flow-pager-btn" onclick="window._exitAddrPage=${totalPages};renderExitAddrTable()" ${window._exitAddrPage === totalPages ? 'disabled' : ''}>»</button>`;
+                    };
 
                     document.getElementById('exit-addr-table-wrap').style.display = '';
                     document.getElementById('exit-addr-count').textContent = '(' + exits.length + ')';
-                    renderExitAddrPage();
+                    renderExitAddrTable();
                 }
             } catch (e) {
                 console.warn('Early exit data not available', e);
