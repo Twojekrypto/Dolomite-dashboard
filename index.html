@@ -8617,11 +8617,26 @@
 
                     <!-- Recent Early Exits Table -->
                     <div id="exit-addr-table-wrap" style="margin-top:24px;display:none">
-                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px">
-                            <h3 style="display:flex;align-items:center;gap:8px;margin:0;font-size:14px;color:rgba(255,255,255,0.85)"><img src="vedolo-logo.svg" width="22" height="22" alt="veDOLO" style="flex-shrink:0"> 🔴 Recent Early Exits <span class="toolbar-count" id="exit-addr-count" style="font-size:0.85em;opacity:0.7;font-weight:500"></span></h3>
-                            <div class="search-input-wrapper" style="width:280px;min-width:160px">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                                <input type="text" id="exit-addr-search" placeholder="0x… or TX hash" oninput="exitAddrSearchChanged()" style="font-size:12px;padding:7px 12px 7px 32px">
+                        <div class="card-header">
+                            <h3 style="display:flex;align-items:center;gap:8px;margin:0"><img src="vedolo-logo.svg" width="22" height="22" alt="veDOLO" style="flex-shrink:0"> 🔴 Early Exits <span class="toolbar-count" id="exit-addr-count" style="font-size:0.85em;opacity:0.7;font-weight:500"></span></h3>
+                        </div>
+                        <div class="dolo-flow-toolbar">
+                            <div style="display:flex;flex-direction:column;gap:3px">
+                                <div class="search-input-wrapper" style="width:300px;min-width:160px">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                    <input type="text" id="exit-addr-search" placeholder="Search address 0x… or TX hash" oninput="exitAddrSearchChanged()" style="font-size:12px;padding:7px 12px 7px 32px">
+                                </div>
+                            </div>
+                            <div style="display:flex;flex-direction:column;gap:3px;margin-left:auto">
+                                <div id="exit-period-btns" class="dolo-chain-pills" style="width:fit-content">
+                                    <div class="dolo-chain-slider"></div>
+                                    <button data-period="1d">1D</button>
+                                    <button data-period="7d">7D</button>
+                                    <button data-period="30d">30D</button>
+                                    <button data-period="90d">90D</button>
+                                    <button data-period="180d">180D</button>
+                                    <button class="active" data-period="all">ALL</button>
+                                </div>
                             </div>
                         </div>
                         <div style="overflow-x:auto;overflow-y:auto;max-height:500px">
@@ -11458,6 +11473,7 @@
                     window._exitAddrSortKey = 'date';
                     window._exitAddrSortAsc = false;
                     window._exitAddrSearch = '';
+                    window._exitAddrPeriod = 'all';
                     const COPY_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
 
                     function exitFmtDate(dateStr) {
@@ -11493,6 +11509,15 @@
                         const tbody = document.getElementById('exit-addr-tbody');
                         if (!tbody) return;
                         let filtered = window._exitAddrData;
+                        // Period filter
+                        if (window._exitAddrPeriod !== 'all') {
+                            const days = parseInt(window._exitAddrPeriod);
+                            const now = new Date();
+                            const cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate() - days);
+                            const cutoffStr = cutoff.toISOString().slice(0, 10);
+                            filtered = filtered.filter(ex => (ex.date || '') >= cutoffStr);
+                        }
+                        // Search filter
                         if (window._exitAddrSearch) {
                             const q = window._exitAddrSearch;
                             filtered = filtered.filter(ex => (ex.address || '').toLowerCase().includes(q) || (ex.tx_hash || '').toLowerCase().includes(q));
@@ -11552,6 +11577,31 @@
                     document.getElementById('exit-addr-table-wrap').style.display = '';
                     document.getElementById('exit-addr-count').textContent = '(' + exits.length + ')';
                     renderExitAddrTable();
+
+                    // Period pills for exit table
+                    (function() {
+                        const wrap = document.getElementById('exit-period-btns');
+                        if (!wrap) return;
+                        const btns = wrap.querySelectorAll('button[data-period]');
+                        const slider = wrap.querySelector('.dolo-chain-slider');
+                        function posSlider(btn) {
+                            if (slider && btn) {
+                                slider.style.width = btn.offsetWidth + 'px';
+                                slider.style.left = btn.offsetLeft + 'px';
+                            }
+                        }
+                        btns.forEach(btn => {
+                            btn.addEventListener('click', () => {
+                                btns.forEach(b => b.classList.remove('active'));
+                                btn.classList.add('active');
+                                posSlider(btn);
+                                window._exitAddrPeriod = btn.dataset.period;
+                                window._exitAddrPage = 1;
+                                renderExitAddrTable();
+                            });
+                            if (btn.classList.contains('active')) setTimeout(() => posSlider(btn), 100);
+                        });
+                    })();
                 }
             } catch (e) {
                 console.warn('Early exit data not available', e);
