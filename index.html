@@ -8475,18 +8475,6 @@
                         <div id="m-exit-updated" style="font-size:10px;color:rgba(255,255,255,.25);font-variant-numeric:tabular-nums"></div>
                     </div>
 
-                    <!-- Primary metric row -->
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:20px">
-                        <div>
-                            <div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Total Penalty Revenue</div>
-                            <div id="m-penalty" style="font-size:clamp(30px,4.5vw,42px);font-weight:800;color:#ef4444;text-shadow:0 0 50px rgba(239,68,68,.25);line-height:1.1;letter-spacing:-1px;font-variant-numeric:tabular-nums">—</div>
-                        </div>
-                        <div>
-                            <div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Originally Locked</div>
-                            <div id="m-orig-locked" style="font-size:clamp(24px,3.5vw,32px);font-weight:700;color:rgba(255,255,255,.6);line-height:1.1;letter-spacing:-.5px;font-variant-numeric:tabular-nums">—</div>
-                            <div id="m-penalty-rate" style="font-size:11px;color:rgba(255,255,255,.35);margin-top:4px">— penalty rate</div>
-                        </div>
-                    </div>
 
                     <!-- Burn/Recoup split bar -->
                     <div class="exit-bar-section" style="margin-bottom:16px">
@@ -11390,16 +11378,7 @@
                 const fmtM = n => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : Math.round(n).toLocaleString();
                 const doloIcon = ' <img src="dolo-logo.svg" class="metric-icon">';
 
-                // --- Primary metrics ---
-                if (s.total_penalty_dolo > 0) {
-                    anim('m-penalty', Math.round(s.total_penalty_dolo), true, doloIcon);
-                }
-                if (s.total_original_locked > 0) {
-                    document.getElementById('m-orig-locked').innerHTML = fmtM(s.total_original_locked) + doloIcon;
-                    // Penalty rate
-                    const rate = (s.total_penalty_dolo / s.total_original_locked * 100).toFixed(1);
-                    document.getElementById('m-penalty-rate').textContent = rate + '% penalty rate';
-                }
+                // --- Primary metrics moved to table ---
 
                 // --- Burn/Recoup bar ---
                 const total = s.total_burn_fee_dolo + s.total_recoup_fee_dolo;
