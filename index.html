@@ -8624,7 +8624,7 @@
                                 <thead style="position:sticky;top:0;z-index:2;background:#141825">
                                     <tr>
                                         <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">#</th>
-                                        <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">TX / Address</th>
+                                        <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="date" onclick="sortExitAddr('date')">TX / Address <span class="arrow">⇅</span></th>
                                         <th style="padding:8px 6px;text-align:right;color:#fff;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="original" onclick="sortExitAddr('original')"><img src="dolo-logo.svg" width="14" height="14" style="vertical-align:-2px;margin-right:3px">Original <span class="arrow">▼</span></th>
                                         <th style="padding:8px 6px;text-align:right;color:#ef4444;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="penalty" onclick="sortExitAddr('penalty')">🔴 Penalty <span class="arrow">⇅</span></th>
                                         <th style="padding:8px 6px;text-align:right;color:#f87171;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="pct" onclick="sortExitAddr('pct')">% Lost <span class="arrow">⇅</span></th>
@@ -11477,6 +11477,7 @@
                         const asc = window._exitAddrSortAsc;
                         sorted.sort((a, b) => {
                             let va, vb;
+                            if (sk === 'date') { va = a.date || ''; vb = b.date || ''; return asc ? va.localeCompare(vb) : vb.localeCompare(va); }
                             if (sk === 'original') { va = a.original_locked || 0; vb = b.original_locked || 0; }
                             else if (sk === 'penalty') { va = a.total_penalty || 0; vb = b.total_penalty || 0; }
                             else if (sk === 'pct') { va = a.penalty_pct || 0; vb = b.penalty_pct || 0; }
