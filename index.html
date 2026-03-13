@@ -10632,17 +10632,31 @@
                 <div style="position:relative;width:100%;height:340px;padding:0 20px 20px">
                     <canvas id="treasury-discount-canvas" style="width:100%;height:100%"></canvas>
                 </div>
-                <div style="display:flex;gap:20px;padding:0 24px 18px;flex-wrap:wrap">
+                <div style="display:flex;gap:16px;padding:0 24px 18px;flex-wrap:wrap;align-items:center">
                     <div style="display:flex;align-items:center;gap:6px">
-                        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f59e0b"></span>
-                        <span style="font-size:11px;color:rgba(255,255,255,.5)">Theoretical schedule</span>
+                        <span style="display:inline-block;width:10px;height:2px;background:#f59e0b;border-radius:1px"></span>
+                        <span style="font-size:11px;color:rgba(255,255,255,.5)">Theoretical</span>
                     </div>
                     <div style="display:flex;align-items:center;gap:6px">
-                        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:rgba(16,185,129,.7)"></span>
-                        <span style="font-size:11px;color:rgba(255,255,255,.5)">Actual exercises</span>
+                        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6"></span>
+                        <span style="font-size:10px;color:rgba(255,255,255,.4)">&lt;$500</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981"></span>
+                        <span style="font-size:10px;color:rgba(255,255,255,.4)">$500–5K</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b"></span>
+                        <span style="font-size:10px;color:rgba(255,255,255,.4)">$5K–25K</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#ec4899;box-shadow:0 0 6px rgba(236,72,153,.5)"></span>
+                        <span style="font-size:10px;color:rgba(255,255,255,.4)">&gt;$25K 🐋</span>
                     </div>
                     <div id="treasury-discount-stats" style="margin-left:auto;display:flex;gap:16px;font-size:11px;color:rgba(255,255,255,.5)"></div>
                 </div>
+                <!-- Hover tooltip for discount chart -->
+                <div id="treasury-discount-tooltip" style="display:none;position:fixed;z-index:9999;background:rgba(15,23,42,0.97);border:1px solid rgba(99,102,241,0.3);border-radius:8px;padding:10px 14px;font-size:11px;color:#e2e8f0;pointer-events:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.5);line-height:1.6;white-space:nowrap"></div>
             </div>
 
             <!-- ── RECOUP POOL FUNDING ── -->
@@ -19769,7 +19783,10 @@
 
 
 
-        // ===== oDOLO DISCOUNT CURVE (Scatter) =====
+        // ===== oDOLO DISCOUNT CURVE (Scatter — Enhanced) =====
+        let _discountCurveTxCache = null; // cached for hover
+        let _discountCurvePad = null;
+        let _discountCurvePlot = null;
         function treasury_renderDiscountCurve(exercisers) {
             const canvas = document.getElementById('treasury-discount-canvas');
             if (!canvas) return;
@@ -19784,6 +19801,16 @@
             const W = rect.width, H = rect.height;
             const pad = { top: 20, right: 20, bottom: 40, left: 55 };
             const plotW = W - pad.left - pad.right, plotH = H - pad.top - pad.bottom;
+            _discountCurvePad = pad;
+            _discountCurvePlot = { W, H, plotW, plotH, maxDays: 730, maxDisc: 55 };
+
+            // ── Color tiers by USDC volume ──
+            function getTierColor(usdc, alpha) {
+                if (usdc >= 25000) return `rgba(236,72,153,${alpha})`;  // whale — magenta
+                if (usdc >= 5000)  return `rgba(245,158,11,${alpha})`;  // large — amber
+                if (usdc >= 500)   return `rgba(16,185,129,${alpha})`;  // medium — emerald
+                return `rgba(59,130,246,${alpha})`;                     // small — blue
+            }
 
             // Flatten all txs
             const txs = [];
@@ -19791,19 +19818,20 @@
                 if (!e.txs) return;
                 e.txs.forEach(tx => {
                     if (tx.lock_days > 0 && tx.vedolo > 0 && tx.usdc > 0) {
-                        // Effective discount = 1 - (price_paid / market_price_at_time)
-                        // price_paid = usdc / vedolo ; oDOLO docs describe linear 5%→50% schedule
-                        const effectivePrice = tx.usdc / tx.vedolo;
-                        const discount = tx.price > 0 ? (1 - effectivePrice / tx.price) * 100 : 0;
-                        if (discount > 0 && discount < 80) {
-                            txs.push({ days: tx.lock_days, discount, usdc: tx.usdc });
+                        // Theoretical discount based on lock duration schedule:
+                        // 5% at 7 days → 50% at 730 days (linear)
+                        const clampedDays = Math.max(7, Math.min(tx.lock_days, 730));
+                        const discount = 5 + (clampedDays - 7) / (730 - 7) * 45;
+                        if (discount > 0 && discount <= 55) {
+                            txs.push({ days: tx.lock_days, discount: Math.round(discount * 10) / 10, usdc: tx.usdc, vedolo: tx.vedolo });
                         }
                     }
                 });
             });
+            _discountCurveTxCache = txs;
 
             // Axes
-            const maxDays = 730; // 2 years
+            const maxDays = 730;
             const maxDisc = 55;
 
             // Grid & axes
@@ -19844,26 +19872,107 @@
             }
             ctx.stroke(); ctx.setLineDash([]);
 
-            // Scatter dots
-            txs.forEach(tx => {
+            // ── Sort txs: draw small first, whales on top ──
+            const sortedTxs = [...txs].sort((a, b) => a.usdc - b.usdc);
+
+            // ── Scatter dots with tier-based colors + glow ──
+            sortedTxs.forEach(tx => {
                 const x = pad.left + (Math.min(tx.days, maxDays) / maxDays) * plotW;
                 const y = pad.top + plotH - (Math.min(tx.discount, maxDisc) / maxDisc) * plotH;
-                const r = Math.max(2.5, Math.min(6, Math.sqrt(tx.usdc / 500)));
+                const r = Math.max(2.5, Math.min(7, Math.sqrt(tx.usdc / 400)));
+
+                // Glow effect for large exercises (>$10K)
+                if (tx.usdc >= 10000) {
+                    const glowR = r * 3.5;
+                    const glow = ctx.createRadialGradient(x, y, r * 0.5, x, y, glowR);
+                    if (tx.usdc >= 25000) {
+                        glow.addColorStop(0, 'rgba(236,72,153,0.25)');
+                        glow.addColorStop(1, 'rgba(236,72,153,0)');
+                    } else {
+                        glow.addColorStop(0, 'rgba(245,158,11,0.18)');
+                        glow.addColorStop(1, 'rgba(245,158,11,0)');
+                    }
+                    ctx.beginPath(); ctx.arc(x, y, glowR, 0, Math.PI * 2);
+                    ctx.fillStyle = glow; ctx.fill();
+                }
+
+                // Main dot
                 ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(16,185,129,0.5)'; ctx.fill();
-                ctx.strokeStyle = 'rgba(16,185,129,0.8)'; ctx.lineWidth = 0.5; ctx.stroke();
+                ctx.fillStyle = getTierColor(tx.usdc, 0.6); ctx.fill();
+                ctx.strokeStyle = getTierColor(tx.usdc, 0.9); ctx.lineWidth = 0.7; ctx.stroke();
             });
 
-            // Stats
+            // ── Stats ──
             const avgLock = txs.reduce((s, t) => s + t.days, 0) / txs.length;
             const avgDisc = txs.reduce((s, t) => s + t.discount, 0) / txs.length;
+            const largest = txs.reduce((max, t) => t.usdc > max.usdc ? t : max, txs[0]);
+            // Most popular lock bucket (round to nearest week)
+            const lockBuckets = {};
+            txs.forEach(t => {
+                const bucket = Math.round(t.days / 7) * 7;
+                lockBuckets[bucket] = (lockBuckets[bucket] || 0) + 1;
+            });
+            const popularLock = Object.entries(lockBuckets).sort((a, b) => b[1] - a[1])[0];
+            const popularLockDays = parseInt(popularLock[0]);
+            const popularLockLabel = popularLockDays >= 365 ? (popularLockDays/365).toFixed(popularLockDays%365===0?0:1)+'y' : popularLockDays+'d';
+
+            const fmtUsd = v => v >= 1000 ? '$' + (v/1000).toFixed(1) + 'K' : '$' + Math.round(v);
             const statsEl = document.getElementById('treasury-discount-stats');
             if (statsEl) {
                 statsEl.innerHTML = `
                     <span>Exercises: <b style="color:rgba(255,255,255,.7)">${txs.length.toLocaleString()}</b></span>
                     <span>Avg lock: <b style="color:rgba(255,255,255,.7)">${avgLock.toFixed(0)}d</b></span>
                     <span>Avg discount: <b style="color:rgba(255,255,255,.7)">${avgDisc.toFixed(1)}%</b></span>
+                    <span>Largest: <b style="color:#ec4899">${fmtUsd(largest.usdc)}</b></span>
+                    <span>Popular lock: <b style="color:rgba(255,255,255,.7)">${popularLockLabel}</b> <span style="color:rgba(255,255,255,.35)">(${popularLock[1]}×)</span></span>
                 `;
+            }
+
+            // ── Hover tooltip ──
+            if (!canvas._hoverBound) {
+                canvas._hoverBound = true;
+                const tip = document.getElementById('treasury-discount-tooltip');
+                canvas.addEventListener('mousemove', function(e) {
+                    if (!_discountCurveTxCache || !tip) return;
+                    const cRect = canvas.getBoundingClientRect();
+                    const mx = e.clientX - cRect.left;
+                    const my = e.clientY - cRect.top;
+                    const p = _discountCurvePad;
+                    const pl = _discountCurvePlot;
+                    let closest = null, closestDist = 20; // 20px threshold
+                    _discountCurveTxCache.forEach(tx => {
+                        const x = p.left + (Math.min(tx.days, pl.maxDays) / pl.maxDays) * pl.plotW;
+                        const y = p.top + pl.plotH - (Math.min(tx.discount, pl.maxDisc) / pl.maxDisc) * pl.plotH;
+                        const dist = Math.sqrt((mx - x) ** 2 + (my - y) ** 2);
+                        if (dist < closestDist) { closestDist = dist; closest = tx; }
+                    });
+                    if (closest) {
+                        const lockLabel = closest.days >= 365 ? (closest.days/365).toFixed(1)+'y' : Math.round(closest.days)+'d';
+                        const usdLabel = closest.usdc >= 1000 ? '$' + (closest.usdc/1000).toFixed(1) + 'K' : '$' + closest.usdc.toFixed(0);
+                        const vedoloLabel = closest.vedolo >= 1000 ? (closest.vedolo/1000).toFixed(1) + 'K' : closest.vedolo.toFixed(0);
+                        tip.innerHTML = `<div style="font-weight:600;margin-bottom:4px;color:#fff">Exercise Details</div>`
+                            + `<div>🔒 Lock: <b style="color:#fff">${lockLabel}</b></div>`
+                            + `<div>📊 Discount: <b style="color:#10b981">${closest.discount.toFixed(1)}%</b></div>`
+                            + `<div>💰 Cost: <b style="color:#22d3ee">${usdLabel}</b> USDC</div>`
+                            + `<div>🏦 veDOLO: <b style="color:#a78bfa">${vedoloLabel}</b></div>`;
+                        tip.style.display = 'block';
+                        // Position near cursor
+                        let left = e.clientX + 16;
+                        if (left + 200 > window.innerWidth) left = e.clientX - 210;
+                        let top = e.clientY - 30;
+                        if (top < 8) top = e.clientY + 16;
+                        tip.style.left = left + 'px';
+                        tip.style.top = top + 'px';
+                        canvas.style.cursor = 'crosshair';
+                    } else {
+                        tip.style.display = 'none';
+                        canvas.style.cursor = '';
+                    }
+                });
+                canvas.addEventListener('mouseleave', function() {
+                    if (tip) tip.style.display = 'none';
+                    canvas.style.cursor = '';
+                });
             }
         }
 
