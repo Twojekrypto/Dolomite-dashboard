@@ -13216,7 +13216,7 @@
 
         const exFmtUsd = v => v >= 1000 ? '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '$' + v.toFixed(2);
         const exShortAddr = a => a.slice(0, 6) + '\u2026' + a.slice(-4);
-        const exFmtDate = d => { if (!d) return '\u2014'; const p = d.split('-'); const m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; return m[parseInt(p[1]) - 1] + ' ' + parseInt(p[2]) + ', ' + p[0].slice(2); };
+        const exFmtDate = d => { if (!d) return '\u2014'; const p = d.split('-'); const m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; return parseInt(p[2]) + ' ' + m[parseInt(p[1]) - 1] + ' ' + p[0]; };
         const exFmtLock = days => { if (!days) return '\u2014'; if (days >= 365) return (days / 365).toFixed(1) + 'y'; if (days >= 30) return Math.round(days / 30) + 'mo'; return Math.round(days) + 'd'; };
 
         function getExerciserAvgPrice(e) {
