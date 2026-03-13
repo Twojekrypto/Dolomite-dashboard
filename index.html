@@ -8476,23 +8476,6 @@
                     </div>
 
 
-                    <!-- Burn/Recoup split bar -->
-                    <div class="exit-bar-section" style="margin-bottom:16px">
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-                            <span style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.6px">Protocol Revenue Split</span>
-                        </div>
-                        <div class="exit-bar-track" style="height:10px;border-radius:5px">
-                            <div class="penalty-bar" id="penalty-bar" style="display:flex;height:100%;border-radius:5px;overflow:hidden">
-                                <div class="penalty-bar-burn" id="penalty-bar-burn" style="width:0%;transition:width .8s ease"></div>
-                                <div class="penalty-bar-recoup" id="penalty-bar-recoup" style="width:0%;transition:width .8s ease"></div>
-                            </div>
-                        </div>
-                        <div class="penalty-bar-legend" id="penalty-bar-legend" style="margin-top:6px">
-                            <span><span class="dot dot-burn"></span> <span id="m-burn-label">Burned</span></span>
-                            <span><span class="dot dot-recoup"></span> <span id="m-recoup-label">Recouped</span></span>
-                        </div>
-                    </div>
-
                     <!-- Financial breakdown table -->
                     <div style="border:1px solid rgba(255,255,255,.06);border-radius:12px;overflow:hidden">
                         <table style="width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums">
@@ -11380,18 +11363,6 @@
 
                 // --- Primary metrics moved to table ---
 
-                // --- Burn/Recoup bar ---
-                const total = s.total_burn_fee_dolo + s.total_recoup_fee_dolo;
-                if (total > 0) {
-                    const burnPct = (s.total_burn_fee_dolo / total * 100).toFixed(1);
-                    const recoupPct = (s.total_recoup_fee_dolo / total * 100).toFixed(1);
-                    setTimeout(() => {
-                        document.getElementById('penalty-bar-burn').style.width = burnPct + '%';
-                        document.getElementById('penalty-bar-recoup').style.width = recoupPct + '%';
-                    }, 300);
-                    document.getElementById('m-burn-label').textContent = fmt(s.total_burn_fee_dolo) + ' burned (' + burnPct + '%)';
-                    document.getElementById('m-recoup-label').textContent = fmt(s.total_recoup_fee_dolo) + ' recouped (' + recoupPct + '%)';
-                }
 
                 // --- Financial table ---
                 if (s.total_original_locked > 0) {
