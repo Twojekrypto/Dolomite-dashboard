@@ -8519,19 +8519,10 @@
                                 <tr style="border-bottom:1px solid rgba(255,255,255,.04);transition:background 0.2s ease" onmouseenter="this.style.background='rgba(255,255,255,0.04)'" onmouseleave="this.style.background=''">
                                     <td style="padding:12px 16px;font-size:12px;color:rgba(255,255,255,.6)">
                                         <span style="display:inline-flex;align-items:center;gap:6px">
-                                            <span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:rgba(255,255,255,.25)"></span>
-                                            Original Locked
-                                        </span>
-                                    </td>
-                                    <td id="m-tbl-original" style="padding:12px 16px;text-align:right;font-size:13px;font-weight:600;color:rgba(255,255,255,.7)">—</td>
-                                    <td style="padding:12px 16px;text-align:right;font-size:11px;color:rgba(255,255,255,.3)">100%</td>
-                                </tr>
-                                <tr style="border-bottom:1px solid rgba(255,255,255,.04);transition:background 0.2s ease" onmouseenter="this.style.background='rgba(255,255,255,0.04)'" onmouseleave="this.style.background=''">
-                                    <td style="padding:12px 16px;font-size:12px;color:rgba(255,255,255,.6)">
-                                        <span style="display:inline-flex;align-items:center;gap:6px">
                                             <span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:#22c55e"></span>
                                             User Received
                                         </span>
+                                        <div id="m-tbl-original-sub" style="font-size:10px;color:rgba(255,255,255,.25);margin-top:2px;padding-left:13px">of — locked</div>
                                     </td>
                                     <td id="m-tbl-user-received" style="padding:12px 16px;text-align:right;font-size:13px;font-weight:600;color:#22c55e">—</td>
                                     <td id="m-tbl-user-pct" style="padding:12px 16px;text-align:right;font-size:11px;color:rgba(255,255,255,.3)">—</td>
@@ -8612,6 +8603,11 @@
                             <div class="tvl-metric-label">Avg per Exit</div>
                             <div id="m-avg-per-exit" class="tvl-metric-value" style="color:#818cf8">—</div>
                             <div id="m-avg-per-exit-sub" style="font-size:10px;color:var(--text-muted);margin-top:4px"></div>
+                            <div class="exit-bar-section">
+                                <div class="exit-bar-track">
+                                    <div id="avg-per-exit-fill" style="width:0%;height:100%;border-radius:4px;background:linear-gradient(90deg,#818cf8,#6366f1);transition:width .8s ease"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -11409,7 +11405,7 @@
 
                 // --- Financial table ---
                 if (s.total_original_locked > 0) {
-                    document.getElementById('m-tbl-original').innerHTML = fmtM(s.total_original_locked) + doloIcon;
+                    document.getElementById('m-tbl-original-sub').textContent = 'of ' + fmtM(s.total_original_locked) + ' locked';
 
                     const userReceived = s.total_original_locked - s.total_penalty_dolo;
                     const userPct = (userReceived / s.total_original_locked * 100).toFixed(1);
@@ -11456,6 +11452,11 @@
                     document.getElementById('m-avg-per-exit').innerHTML = fmtM(avgPerExit) + doloIcon;
                     const avgOrigPerExit = s.total_original_locked / s.total_early_exits;
                     document.getElementById('m-avg-per-exit-sub').textContent = 'from ' + fmtM(avgOrigPerExit) + ' avg locked';
+                    const avgFillPct = Math.min((avgPerExit / avgOrigPerExit) * 100, 100).toFixed(1);
+                    setTimeout(() => {
+                        const fillEl = document.getElementById('avg-per-exit-fill');
+                        if (fillEl) fillEl.style.width = avgFillPct + '%';
+                    }, 700);
                 }
 
                 // Last updated
@@ -11605,7 +11606,7 @@
                                 window._exitAddrPage = 1;
                                 renderExitAddrTable();
                             });
-                            if (btn.classList.contains('active')) setTimeout(() => posSlider(btn), 100);
+                            if (btn.classList.contains('active')) setTimeout(() => { requestAnimationFrame(() => posSlider(btn)); }, 500);
                         });
                     })();
                 }
