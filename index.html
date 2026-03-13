@@ -8632,10 +8632,10 @@
                                     <div class="dolo-chain-slider"></div>
                                     <button data-period="1d">1D</button>
                                     <button data-period="7d">7D</button>
-                                    <button data-period="30d">30D</button>
+                                    <button data-period="30d" class="active">30D</button>
                                     <button data-period="90d">90D</button>
                                     <button data-period="180d">180D</button>
-                                    <button class="active" data-period="all">ALL</button>
+                                    <button data-period="all">ALL</button>
                                 </div>
                             </div>
                         </div>
@@ -11473,7 +11473,7 @@
                     window._exitAddrSortKey = 'date';
                     window._exitAddrSortAsc = false;
                     window._exitAddrSearch = '';
-                    window._exitAddrPeriod = 'all';
+                    window._exitAddrPeriod = '30d';
                     const COPY_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
 
                     function exitFmtDate(dateStr) {
@@ -11535,6 +11535,12 @@
                             return asc ? va - vb : vb - va;
                         });
                         const totalPages = Math.ceil(sorted.length / EXIT_ADDR_PER_PAGE);
+                        // Dynamic count update
+                        const countEl = document.getElementById('exit-addr-count');
+                        if (countEl) {
+                            const total = window._exitAddrData.length;
+                            countEl.textContent = sorted.length === total ? '(' + total + ')' : '(' + sorted.length + ' / ' + total + ')';
+                        }
                         if (window._exitAddrPage > totalPages) window._exitAddrPage = totalPages || 1;
                         const start = (window._exitAddrPage - 1) * EXIT_ADDR_PER_PAGE;
                         const pageData = sorted.slice(start, start + EXIT_ADDR_PER_PAGE);
