@@ -8568,8 +8568,14 @@
                         </table>
                     </div>
 
+                    <!-- Separator -->
+                    <div style="margin-top:22px;margin-bottom:6px;display:flex;align-items:center;gap:10px">
+                        <span style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.3);font-weight:600">Quick Stats</span>
+                        <div style="flex:1;height:1px;background:rgba(255,255,255,0.06)"></div>
+                    </div>
+
                     <!-- Sub-cards grid -->
-                    <div class="exit-hero-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:16px">
+                    <div class="exit-hero-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:10px">
                         <!-- Early Exits count -->
                         <div class="exit-sub-card exits-c">
                             <div class="exit-sub-icon" style="background:rgba(239,68,68,.12)">
@@ -8610,8 +8616,14 @@
                     </div>
 
                     <!-- Recent Early Exits Table -->
-                    <div id="exit-addr-table-wrap" style="margin-top:20px;display:none">
-                        <h3 style="display:flex;align-items:center;gap:8px;margin:0 0 12px 0;font-size:14px;color:rgba(255,255,255,0.85)"><img src="vedolo-logo.svg" width="22" height="22" alt="veDOLO" style="flex-shrink:0"> 🔴 Recent Early Exits <span class="toolbar-count" id="exit-addr-count" style="font-size:0.85em;opacity:0.7;font-weight:500"></span></h3>
+                    <div id="exit-addr-table-wrap" style="margin-top:24px;display:none">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px">
+                            <h3 style="display:flex;align-items:center;gap:8px;margin:0;font-size:14px;color:rgba(255,255,255,0.85)"><img src="vedolo-logo.svg" width="22" height="22" alt="veDOLO" style="flex-shrink:0"> 🔴 Recent Early Exits <span class="toolbar-count" id="exit-addr-count" style="font-size:0.85em;opacity:0.7;font-weight:500"></span></h3>
+                            <div class="search-input-wrapper" style="width:280px;min-width:160px">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                <input type="text" id="exit-addr-search" placeholder="0x… or TX hash" oninput="exitAddrSearchChanged()" style="font-size:12px;padding:7px 12px 7px 32px">
+                            </div>
+                        </div>
                         <div style="overflow-x:auto;overflow-y:auto;max-height:500px">
                             <table id="exit-addr-table" style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
                                 <colgroup>
@@ -8624,8 +8636,8 @@
                                 <thead style="position:sticky;top:0;z-index:2;background:#141825">
                                     <tr>
                                         <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">#</th>
-                                        <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="date" onclick="sortExitAddr('date')">TX / Address <span class="arrow">⇅</span></th>
-                                        <th style="padding:8px 6px;text-align:right;color:#fff;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="original" onclick="sortExitAddr('original')"><img src="dolo-logo.svg" width="14" height="14" style="vertical-align:-2px;margin-right:3px">Locked <span class="arrow">▼</span></th>
+                                        <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="date" onclick="sortExitAddr('date')">TX / Address <span class="arrow">▼</span></th>
+                                        <th style="padding:8px 6px;text-align:right;color:#fff;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="original" onclick="sortExitAddr('original')"><img src="dolo-logo.svg" width="14" height="14" style="vertical-align:-2px;margin-right:3px">Locked <span class="arrow">⇅</span></th>
                                         <th style="padding:8px 6px;text-align:right;color:#ef4444;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="penalty" onclick="sortExitAddr('penalty')">🔴 Penalty <span class="arrow">⇅</span></th>
                                         <th style="padding:8px 6px;text-align:right;color:#f87171;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="pct" onclick="sortExitAddr('pct')">% Lost <span class="arrow">⇅</span></th>
                                     </tr>
@@ -11443,8 +11455,9 @@
                     const EXIT_ADDR_PER_PAGE = 5;
                     window._exitAddrData = exits;
                     window._exitAddrPage = 1;
-                    window._exitAddrSortKey = 'original';
+                    window._exitAddrSortKey = 'date';
                     window._exitAddrSortAsc = false;
+                    window._exitAddrSearch = '';
                     const COPY_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
 
                     function exitFmtDate(dateStr) {
@@ -11469,10 +11482,22 @@
                         renderExitAddrTable();
                     };
 
+                    window.exitAddrSearchChanged = function() {
+                        const q = (document.getElementById('exit-addr-search')?.value || '').trim().toLowerCase();
+                        window._exitAddrSearch = q;
+                        window._exitAddrPage = 1;
+                        renderExitAddrTable();
+                    };
+
                     window.renderExitAddrTable = function() {
                         const tbody = document.getElementById('exit-addr-tbody');
                         if (!tbody) return;
-                        let sorted = [...window._exitAddrData];
+                        let filtered = window._exitAddrData;
+                        if (window._exitAddrSearch) {
+                            const q = window._exitAddrSearch;
+                            filtered = filtered.filter(ex => (ex.address || '').toLowerCase().includes(q) || (ex.tx_hash || '').toLowerCase().includes(q));
+                        }
+                        let sorted = [...filtered];
                         const sk = window._exitAddrSortKey;
                         const asc = window._exitAddrSortAsc;
                         sorted.sort((a, b) => {
