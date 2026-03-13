@@ -417,10 +417,10 @@ def main():
         json.dump(output, f)
     print(f"\n💾 Saved: early_exits_full.json ({os.path.getsize(full_file) / 1024:.0f} KB)")
 
-    # Save slim stats + top 50 recent exits for the dashboard
-    top_exits = []
-    for ex in early_exits[:50]:
-        top_exits.append({
+    # Save stats + all early exits for the dashboard
+    all_exits = []
+    for ex in early_exits:
+        all_exits.append({
             "address": ex.get("provider", ""),
             "tx_hash": ex.get("tx_hash", ""),
             "original_locked": round(ex.get("original_locked", 0), 2),
@@ -431,8 +431,8 @@ def main():
             "date": ex.get("date", ""),
         })
     with open(OUTPUT_FILE, "w") as f:
-        json.dump({"stats": stats, "recent_exits": top_exits}, f, indent=2)
-    print(f"💾 Saved: early_exits.json ({os.path.getsize(OUTPUT_FILE)} bytes) — includes {len(top_exits)} recent exits")
+        json.dump({"stats": stats, "recent_exits": all_exits}, f)
+    print(f"💾 Saved: early_exits.json ({os.path.getsize(OUTPUT_FILE) / 1024:.0f} KB) — includes {len(all_exits)} exits")
 
 
     print(f"\n💾 Saved: early_exits.json")
