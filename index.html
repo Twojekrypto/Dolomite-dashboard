@@ -20208,30 +20208,32 @@
                 const totalBarH = maxVal > 0 ? (totalVal / maxVal) * plotH : 0;
                 const x = pad.left + i * (barW + gap);
 
-                // Glow behind full bar
+                // Glow behind full bar — color from dominant veDOLO tier
                 if (totalBarH > 5) {
                     const topTier = b.tiers.reduce((best, t, ti) => {
-                        const tv = isCount ? t.count : t.vedolo;
-                        return tv > best.val ? { val: tv, idx: ti } : best;
+                        return t.vedolo > best.val ? { val: t.vedolo, idx: ti } : best;
                     }, { val: 0, idx: 0 });
                     ctx.fillStyle = _lockDistTiers[topTier.idx].glow;
                     const yTop = pad.top + plotH - totalBarH;
                     ctx.fillRect(x - 2, yTop - 4, barW + 4, totalBarH + 4);
                 }
 
-                // Draw stacked segments bottom-to-top (small → whale)
+                // Segments always proportional to veDOLO volume
+                // (colors show DOLO distribution, bar height follows toggle)
+                const bucketVedolo = b.vedolo || 1;
                 let yOffset = pad.top + plotH; // start at bottom
                 b.tiers.forEach((t, ti) => {
-                    const segVal = isCount ? t.count : t.vedolo;
-                    if (segVal <= 0) return;
-                    const segH = (segVal / maxVal) * plotH;
+                    if (t.vedolo <= 0) return;
+                    const fraction = t.vedolo / bucketVedolo;
+                    const segH = fraction * totalBarH;
+                    if (segH < 0.5) return;
                     const segY = yOffset - segH;
 
                     ctx.fillStyle = _lockDistTiers[ti].color;
 
                     // Check if this is the topmost visible segment for rounded corners
                     const isTopSegment = ti === b.tiers.reduce((last, seg, si) => {
-                        return (isCount ? seg.count : seg.vedolo) > 0 ? si : last;
+                        return seg.vedolo > 0 ? si : last;
                     }, 0);
 
                     if (isTopSegment && segH > 2) {
