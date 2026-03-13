@@ -11377,7 +11377,7 @@
                     document.getElementById('m-tbl-penalty').innerHTML = fmtM(s.total_penalty_dolo) + doloIcon;
                     document.getElementById('m-tbl-penalty-pct').textContent = penaltyPct + '%';
 
-                    if (total > 0) {
+                    if (s.total_penalty_dolo > 0) {
                         const burnShare = (s.total_burn_fee_dolo / s.total_original_locked * 100).toFixed(1);
                         const recoupShare = (s.total_recoup_fee_dolo / s.total_original_locked * 100).toFixed(1);
                         document.getElementById('m-tbl-burned').innerHTML = fmtM(s.total_burn_fee_dolo) + doloIcon;
