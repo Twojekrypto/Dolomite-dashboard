@@ -10659,6 +10659,27 @@
                 <div id="treasury-discount-tooltip" style="display:none;position:fixed;z-index:9999;background:rgba(15,23,42,0.97);border:1px solid rgba(99,102,241,0.3);border-radius:8px;padding:10px 14px;font-size:11px;color:#e2e8f0;pointer-events:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.5);line-height:1.6;white-space:nowrap"></div>
             </div>
 
+            <!-- ── veDOLO LOCK DURATION DISTRIBUTION ── -->
+            <div class="treasury-card" style="margin-top:24px">
+                <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+                    <h3 style="display:flex;align-items:center;gap:8px;margin:0">
+                        <img src="dolo-logo.svg" width="22" height="22" alt="veDOLO" style="flex-shrink:0">
+                        Lock Duration Distribution
+                        <span style="font-size:11px;color:rgba(255,255,255,.35);font-weight:400;margin-left:8px">How long do users lock?</span>
+                    </h3>
+                    <div style="display:flex;gap:4px;background:rgba(255,255,255,.06);border-radius:6px;padding:2px">
+                        <button id="lock-dist-toggle-count" onclick="treasury_toggleLockDist('count')" style="padding:4px 12px;font-size:11px;border:none;border-radius:4px;cursor:pointer;background:rgba(99,102,241,.5);color:#e2e8f0;font-weight:600;transition:all .2s">Count</button>
+                        <button id="lock-dist-toggle-vedolo" onclick="treasury_toggleLockDist('vedolo')" style="padding:4px 12px;font-size:11px;border:none;border-radius:4px;cursor:pointer;background:transparent;color:rgba(255,255,255,.4);font-weight:500;transition:all .2s">veDOLO</button>
+                    </div>
+                </div>
+                <div style="position:relative;width:100%;height:300px;padding:0 20px 20px">
+                    <canvas id="treasury-lockdist-canvas" style="width:100%;height:100%"></canvas>
+                </div>
+                <div id="treasury-lockdist-stats" style="display:flex;gap:16px;padding:0 24px 18px;flex-wrap:wrap;font-size:11px;color:rgba(255,255,255,.5)"></div>
+                <!-- Hover tooltip -->
+                <div id="treasury-lockdist-tooltip" style="display:none;position:fixed;z-index:9999;background:rgba(15,23,42,0.97);border:1px solid rgba(99,102,241,0.3);border-radius:8px;padding:10px 14px;font-size:11px;color:#e2e8f0;pointer-events:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.5);line-height:1.6;white-space:nowrap"></div>
+            </div>
+
             <!-- ── RECOUP POOL FUNDING ── -->
             <div class="treasury-card" style="margin-top:24px">
                 <div class="card-header">
@@ -19770,6 +19791,11 @@
                     setTimeout(() => treasury_renderDiscountCurve(exercisersResp.exercisers), 100);
                 }
 
+                // ── 5b. Lock Duration Distribution ──
+                if (exercisersResp && exercisersResp.exercisers) {
+                    setTimeout(() => treasury_renderLockDistribution(exercisersResp.exercisers), 120);
+                }
+
                 // ── 6. Recoup Pool Funding ──
                 if (earlyResp && earlyResp.stats) {
                     treasury_renderRecoupPool(earlyResp.stats, odoloResp);
@@ -19975,6 +20001,258 @@
                 });
             }
         }
+
+        // ===== veDOLO LOCK DURATION DISTRIBUTION (Bar Chart) =====
+        let _lockDistMode = 'count';
+        let _lockDistData = null;
+        function treasury_toggleLockDist(mode) {
+            _lockDistMode = mode;
+            // Toggle button styles
+            const btnCount = document.getElementById('lock-dist-toggle-count');
+            const btnVedolo = document.getElementById('lock-dist-toggle-vedolo');
+            if (mode === 'count') {
+                btnCount.style.background = 'rgba(99,102,241,.5)'; btnCount.style.color = '#e2e8f0'; btnCount.style.fontWeight = '600';
+                btnVedolo.style.background = 'transparent'; btnVedolo.style.color = 'rgba(255,255,255,.4)'; btnVedolo.style.fontWeight = '500';
+            } else {
+                btnVedolo.style.background = 'rgba(99,102,241,.5)'; btnVedolo.style.color = '#e2e8f0'; btnVedolo.style.fontWeight = '600';
+                btnCount.style.background = 'transparent'; btnCount.style.color = 'rgba(255,255,255,.4)'; btnCount.style.fontWeight = '500';
+            }
+            if (_lockDistData) treasury_drawLockBars();
+        }
+
+        function treasury_renderLockDistribution(exercisers) {
+            // Define variable-width buckets
+            const buckets = [
+                { min: 0, max: 7, label: '<1w' },
+                { min: 7, max: 30, label: '1w–1m' },
+                { min: 30, max: 90, label: '1–3m' },
+                { min: 90, max: 180, label: '3–6m' },
+                { min: 180, max: 365, label: '6m–1y' },
+                { min: 365, max: 540, label: '1–1.5y' },
+                { min: 540, max: 660, label: '1.5–1.8y' },
+                { min: 660, max: 731, label: '1.8–2y' }
+            ];
+
+            // Aggregate data
+            buckets.forEach(b => { b.count = 0; b.vedolo = 0; b.usdc = 0; });
+            let totalExercises = 0;
+            exercisers.forEach(e => {
+                if (!e.txs) return;
+                e.txs.forEach(tx => {
+                    if (!tx.lock_days || tx.lock_days <= 0) return;
+                    totalExercises++;
+                    for (const b of buckets) {
+                        if (tx.lock_days >= b.min && tx.lock_days < b.max) {
+                            b.count++;
+                            if (tx.vedolo) b.vedolo += tx.vedolo;
+                            if (tx.usdc) b.usdc += tx.usdc;
+                            break;
+                        }
+                    }
+                });
+            });
+
+            _lockDistData = { buckets, totalExercises };
+
+            // Stats
+            const topBucket = buckets.reduce((a, b) => b.count > a.count ? b : a, buckets[0]);
+            const topPct = totalExercises > 0 ? (topBucket.count / totalExercises * 100).toFixed(1) : 0;
+            // Median lock
+            const allDays = [];
+            exercisers.forEach(e => { if (e.txs) e.txs.forEach(tx => { if (tx.lock_days > 0) allDays.push(tx.lock_days); }); });
+            allDays.sort((a, b) => a - b);
+            const median = allDays.length > 0 ? allDays[Math.floor(allDays.length / 2)] : 0;
+            const medianLabel = median >= 365 ? (median / 365).toFixed(1) + 'y' : Math.round(median) + 'd';
+
+            const statsEl = document.getElementById('treasury-lockdist-stats');
+            statsEl.innerHTML = `
+                <span>Exercises: <b style="color:#e2e8f0">${totalExercises.toLocaleString()}</b></span>
+                <span>Median lock: <b style="color:#e2e8f0">${medianLabel}</b></span>
+                <span>Top bucket: <b style="color:#a78bfa">${topBucket.label}</b> (${topPct}%)</span>
+            `;
+
+            treasury_drawLockBars();
+
+            // Tooltip hover
+            const canvas = document.getElementById('treasury-lockdist-canvas');
+            const tooltip = document.getElementById('treasury-lockdist-tooltip');
+            canvas.addEventListener('mousemove', function(evt) {
+                if (!_lockDistData) return;
+                const rect = canvas.getBoundingClientRect();
+                const mx = evt.clientX - rect.left;
+                const my = evt.clientY - rect.top;
+                const pad = { top: 20, right: 20, bottom: 40, left: 55 };
+                const plotW = rect.width - pad.left - pad.right;
+                const plotH = rect.height - pad.top - pad.bottom;
+                const bkts = _lockDistData.buckets;
+                const gap = 6;
+                const barW = (plotW - gap * (bkts.length - 1)) / bkts.length;
+                let hit = null;
+                for (let i = 0; i < bkts.length; i++) {
+                    const x = pad.left + i * (barW + gap);
+                    if (mx >= x && mx <= x + barW && my >= pad.top && my <= pad.top + plotH) {
+                        hit = bkts[i];
+                        break;
+                    }
+                }
+                if (hit) {
+                    const pct = _lockDistData.totalExercises > 0 ? (hit.count / _lockDistData.totalExercises * 100).toFixed(1) : 0;
+                    tooltip.innerHTML = `<b style="color:#a78bfa">${hit.label}</b><br>` +
+                        `Exercises: <b>${hit.count.toLocaleString()}</b> (${pct}%)<br>` +
+                        `veDOLO: <b>${hit.vedolo >= 1e6 ? (hit.vedolo/1e6).toFixed(2)+'M' : hit.vedolo >= 1e3 ? (hit.vedolo/1e3).toFixed(1)+'K' : Math.round(hit.vedolo).toLocaleString()}</b><br>` +
+                        `USDC: <b>$${hit.usdc >= 1e3 ? (hit.usdc/1e3).toFixed(1)+'K' : hit.usdc.toFixed(0)}</b>`;
+                    tooltip.style.display = 'block';
+                    tooltip.style.left = (evt.clientX + 14) + 'px';
+                    tooltip.style.top = (evt.clientY - 20) + 'px';
+                    canvas.style.cursor = 'crosshair';
+                } else {
+                    tooltip.style.display = 'none';
+                    canvas.style.cursor = 'default';
+                }
+            });
+            canvas.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; canvas.style.cursor = 'default'; });
+        }
+
+        function treasury_drawLockBars() {
+            const { buckets, totalExercises } = _lockDistData;
+            const canvas = document.getElementById('treasury-lockdist-canvas');
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            canvas.style.width = rect.width + 'px';
+            canvas.style.height = rect.height + 'px';
+            const ctx = canvas.getContext('2d');
+            ctx.scale(dpr, dpr);
+            const W = rect.width, H = rect.height;
+            const pad = { top: 20, right: 20, bottom: 40, left: 55 };
+            const plotW = W - pad.left - pad.right;
+            const plotH = H - pad.top - pad.bottom;
+
+            // Determine values based on mode
+            const isCount = _lockDistMode === 'count';
+            const values = buckets.map(b => isCount ? b.count : b.vedolo);
+            const maxVal = Math.max(...values, 1);
+
+            // Color gradient: blue → emerald → amber → magenta
+            const barColors = [
+                'rgba(59,130,246,0.85)',   // <1w — blue
+                'rgba(59,130,246,0.7)',    // 1w–1m
+                'rgba(16,185,129,0.75)',   // 1–3m — emerald
+                'rgba(16,185,129,0.65)',   // 3–6m
+                'rgba(245,158,11,0.7)',    // 6m–1y — amber
+                'rgba(245,158,11,0.8)',    // 1–1.5y
+                'rgba(236,72,153,0.65)',   // 1.5–1.8y — magenta
+                'rgba(236,72,153,0.85)'    // 1.8–2y
+            ];
+            const barGlows = [
+                'rgba(59,130,246,0.15)',
+                'rgba(59,130,246,0.1)',
+                'rgba(16,185,129,0.12)',
+                'rgba(16,185,129,0.08)',
+                'rgba(245,158,11,0.12)',
+                'rgba(245,158,11,0.15)',
+                'rgba(236,72,153,0.1)',
+                'rgba(236,72,153,0.2)'
+            ];
+
+            ctx.clearRect(0, 0, W, H);
+
+            // Grid lines
+            ctx.strokeStyle = 'rgba(255,255,255,.06)';
+            ctx.lineWidth = 1;
+            const gridSteps = 5;
+            for (let i = 0; i <= gridSteps; i++) {
+                const y = pad.top + plotH - (i / gridSteps) * plotH;
+                ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+                // Y-axis labels
+                const val = (maxVal / gridSteps) * i;
+                let label;
+                if (isCount) {
+                    label = val >= 1000 ? (val / 1000).toFixed(1) + 'K' : Math.round(val).toString();
+                } else {
+                    label = val >= 1e6 ? (val / 1e6).toFixed(1) + 'M' : val >= 1e3 ? (val / 1e3).toFixed(0) + 'K' : Math.round(val).toString();
+                }
+                ctx.fillStyle = 'rgba(255,255,255,.3)';
+                ctx.font = '10px system-ui';
+                ctx.textAlign = 'right';
+                ctx.fillText(label, pad.left - 8, y + 3);
+            }
+
+            // Y-axis label
+            ctx.save();
+            ctx.translate(14, pad.top + plotH / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillStyle = 'rgba(255,255,255,.3)';
+            ctx.font = '10px system-ui';
+            ctx.textAlign = 'center';
+            ctx.fillText(isCount ? 'Exercises' : 'veDOLO Locked', 0, 0);
+            ctx.restore();
+
+            // Draw bars
+            const gap = 6;
+            const barW = (plotW - gap * (buckets.length - 1)) / buckets.length;
+
+            buckets.forEach((b, i) => {
+                const val = isCount ? b.count : b.vedolo;
+                const barH = maxVal > 0 ? (val / maxVal) * plotH : 0;
+                const x = pad.left + i * (barW + gap);
+                const y = pad.top + plotH - barH;
+
+                // Glow behind bar
+                if (barH > 5) {
+                    ctx.fillStyle = barGlows[i];
+                    ctx.fillRect(x - 2, y - 4, barW + 4, barH + 4);
+                }
+
+                // Bar with gradient
+                const grad = ctx.createLinearGradient(x, y, x, y + barH);
+                grad.addColorStop(0, barColors[i]);
+                grad.addColorStop(1, barColors[i].replace(/[\d.]+\)$/, '0.4)'));
+                ctx.fillStyle = grad;
+
+                // Rounded top corners
+                const r = Math.min(4, barW / 2);
+                ctx.beginPath();
+                ctx.moveTo(x, y + barH);
+                ctx.lineTo(x, y + r);
+                ctx.quadraticCurveTo(x, y, x + r, y);
+                ctx.lineTo(x + barW - r, y);
+                ctx.quadraticCurveTo(x + barW, y, x + barW, y + r);
+                ctx.lineTo(x + barW, y + barH);
+                ctx.closePath();
+                ctx.fill();
+
+                // Value on top of bar
+                if (barH > 20) {
+                    ctx.fillStyle = 'rgba(255,255,255,.8)';
+                    ctx.font = 'bold 10px system-ui';
+                    ctx.textAlign = 'center';
+                    let topLabel;
+                    if (isCount) {
+                        topLabel = val.toLocaleString();
+                    } else {
+                        topLabel = val >= 1e6 ? (val / 1e6).toFixed(1) + 'M' : val >= 1e3 ? (val / 1e3).toFixed(0) + 'K' : Math.round(val).toString();
+                    }
+                    ctx.fillText(topLabel, x + barW / 2, y - 5);
+                }
+
+                // X-axis label
+                ctx.fillStyle = 'rgba(255,255,255,.45)';
+                ctx.font = '10px system-ui';
+                ctx.textAlign = 'center';
+                ctx.fillText(b.label, x + barW / 2, pad.top + plotH + 16);
+
+                // Percentage below label
+                if (totalExercises > 0) {
+                    const pct = (b.count / totalExercises * 100).toFixed(0);
+                    ctx.fillStyle = 'rgba(255,255,255,.25)';
+                    ctx.font = '9px system-ui';
+                    ctx.fillText(pct + '%', x + barW / 2, pad.top + plotH + 28);
+                }
+            });
+        }
+
 
         // ===== RECOUP POOL FUNDING =====
         function treasury_renderRecoupPool(stats, odoloResp) {
