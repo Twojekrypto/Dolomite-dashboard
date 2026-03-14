@@ -547,9 +547,18 @@
         /* Avg penalty gauge fill */
         .penalty-gauge-fill {
             height: 100%;
-            background: linear-gradient(90deg, #22c55e, #f97316, #ef4444);
+            background: linear-gradient(90deg, #f59e0b, #ef4444);
             border-radius: 3px;
             transition: width 1s ease-out;
+        }
+
+        /* Metric table row fade-in */
+        @keyframes exitRowFadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .exit-metric-row {
+            animation: exitRowFadeIn 0.4s ease-out both;
         }
 
         .metric-label {
@@ -8488,50 +8497,50 @@
                             </thead>
                             <tbody id="exit-revenue-tbody">
                                 <!-- Originally Locked (anchor row) -->
-                                <tr style="border-bottom:1px solid rgba(255,255,255,.04);transition:background 0.2s ease" onmouseenter="this.style.background='rgba(255,255,255,0.04)'" onmouseleave="this.style.background=''">
-                                    <td style="padding:12px 16px;font-size:12px;color:rgba(255,255,255,.5)">
+                                <tr class="exit-metric-row" style="border-bottom:1px solid rgba(255,255,255,.04);transition:background 0.2s ease;animation-delay:0s" onmouseenter="this.style.background='rgba(255,255,255,0.04)'" onmouseleave="this.style.background=''">
+                                    <td style="padding:12px 16px;font-size:12px;color:rgba(255,255,255,.5);white-space:nowrap">
                                         <span style="display:inline-flex;align-items:center;gap:6px">
                                             <span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:rgba(255,255,255,.25)"></span>
-                                            Originally Locked
+                                            <span class="tvl-metric-label" data-tip style="margin:0;font-size:12px;text-transform:none;letter-spacing:0">Locked<span class="tooltip-bubble">Total DOLO originally locked by users who performed early exits.</span></span>
                                         </span>
                                     </td>
                                     <td id="m-tbl-original" style="padding:12px 16px;text-align:right;font-size:13px;font-weight:600;color:rgba(255,255,255,.7)">—</td>
                                     <td style="padding:12px 16px;text-align:right;font-size:11px;color:rgba(255,255,255,.3)">100%</td>
                                 </tr>
                                 <!-- User Received -->
-                                <tr style="border-bottom:1px solid rgba(255,255,255,.04);transition:background 0.2s ease" onmouseenter="this.style.background='rgba(255,255,255,0.04)'" onmouseleave="this.style.background=''">
-                                    <td style="padding:12px 16px;font-size:12px;color:rgba(255,255,255,.6)">
+                                <tr class="exit-metric-row" style="border-bottom:1px solid rgba(255,255,255,.04);transition:background 0.2s ease;animation-delay:0.06s" onmouseenter="this.style.background='rgba(255,255,255,0.04)'" onmouseleave="this.style.background=''">
+                                    <td style="padding:12px 16px;font-size:12px;color:rgba(255,255,255,.6);white-space:nowrap">
                                         <span style="display:inline-flex;align-items:center;gap:6px">
                                             <span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:#22c55e"></span>
-                                            User Received
+                                            <span class="tvl-metric-label" data-tip style="margin:0;font-size:12px;text-transform:none;letter-spacing:0">Received<span class="tooltip-bubble">Amount of DOLO returned to users after early exit penalty deduction.</span></span>
                                         </span>
                                     </td>
                                     <td id="m-tbl-user-received" style="padding:12px 16px;text-align:right;font-size:13px;font-weight:600;color:#22c55e">—</td>
                                     <td id="m-tbl-user-pct" style="padding:12px 16px;text-align:right;font-size:11px;color:rgba(255,255,255,.3)">—</td>
                                 </tr>
-                                <tr style="border-bottom:1px solid rgba(239,68,68,.1);transition:background 0.2s ease" onmouseenter="this.style.background='rgba(255,255,255,0.04)'" onmouseleave="this.style.background=''">
-                                    <td style="padding:12px 16px;font-size:12px;font-weight:600;color:rgba(255,255,255,.8)">
+                                <tr class="exit-metric-row" style="border-bottom:1px solid rgba(239,68,68,.1);transition:background 0.2s ease;animation-delay:0.12s" onmouseenter="this.style.background='rgba(255,255,255,0.04)'" onmouseleave="this.style.background=''">
+                                    <td style="padding:12px 16px;font-size:12px;font-weight:600;color:rgba(255,255,255,.8);white-space:nowrap">
                                         <span style="display:inline-flex;align-items:center;gap:6px">
                                             <span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:#ef4444"></span>
-                                            Total Penalty
+                                            <span class="tvl-metric-label" data-tip style="margin:0;font-size:12px;text-transform:none;letter-spacing:0;font-weight:600">Total Penalty<span class="tooltip-bubble">Total DOLO deducted from early exiters — split between permanent burn and protocol recoup.</span></span>
                                         </span>
                                     </td>
                                     <td id="m-tbl-penalty" style="padding:12px 16px;text-align:right;font-size:13px;font-weight:700;color:#ef4444">—</td>
                                     <td id="m-tbl-penalty-pct" style="padding:12px 16px;text-align:right;font-size:11px;font-weight:600;color:#ef4444">—</td>
                                 </tr>
-                                <tr style="border-bottom:1px solid rgba(255,255,255,.04);background:rgba(239,68,68,.02);transition:background 0.2s ease" onmouseenter="this.style.background='rgba(239,68,68,0.06)'" onmouseleave="this.style.background='rgba(239,68,68,0.02)'">
-                                    <td style="padding:10px 16px 10px 32px;font-size:11px;color:rgba(255,255,255,.5)">
+                                <tr class="exit-metric-row" style="border-bottom:1px solid rgba(255,255,255,.04);background:rgba(239,68,68,.02);transition:background 0.2s ease;animation-delay:0.18s" onmouseenter="this.style.background='rgba(239,68,68,0.06)'" onmouseleave="this.style.background='rgba(239,68,68,0.02)'">
+                                    <td style="padding:10px 16px 10px 32px;font-size:11px;color:rgba(255,255,255,.5);white-space:nowrap">
                                         <span style="display:inline-flex;align-items:center;gap:6px">
-                                            🔥 Burned (permanently)
+                                            <span class="tvl-metric-label" data-tip style="margin:0;font-size:11px;text-transform:none;letter-spacing:0">🔥 Burned<span class="tooltip-bubble">DOLO permanently removed from circulating supply, reducing total token count.</span></span>
                                         </span>
                                     </td>
                                     <td id="m-tbl-burned" style="padding:10px 16px;text-align:right;font-size:12px;font-weight:600;color:#ef4444">—</td>
                                     <td id="m-tbl-burned-pct" style="padding:10px 16px;text-align:right;font-size:11px;color:rgba(255,255,255,.3)">—</td>
                                 </tr>
-                                <tr style="background:rgba(249,115,22,.02);transition:background 0.2s ease" onmouseenter="this.style.background='rgba(249,115,22,0.06)'" onmouseleave="this.style.background='rgba(249,115,22,0.02)'">
-                                    <td style="padding:10px 16px 10px 32px;font-size:11px;color:rgba(255,255,255,.5)">
+                                <tr class="exit-metric-row" style="background:rgba(249,115,22,.02);transition:background 0.2s ease;animation-delay:0.24s" onmouseenter="this.style.background='rgba(249,115,22,0.06)'" onmouseleave="this.style.background='rgba(249,115,22,0.02)'">
+                                    <td style="padding:10px 16px 10px 32px;font-size:11px;color:rgba(255,255,255,.5);white-space:nowrap">
                                         <span style="display:inline-flex;align-items:center;gap:6px">
-                                            ♻️ Recouped (to protocol)
+                                            <span class="tvl-metric-label" data-tip style="margin:0;font-size:11px;text-transform:none;letter-spacing:0">♻️ Treasury<span class="tooltip-bubble">DOLO returned to the Dolomite protocol treasury for redistribution.</span></span>
                                         </span>
                                     </td>
                                     <td id="m-tbl-recouped" style="padding:10px 16px;text-align:right;font-size:12px;font-weight:600;color:#f97316">—</td>
@@ -8541,14 +8550,14 @@
                         </table>
                     </div>
 
-                    <!-- Separator -->
+                    <!-- Separator with glow -->
                     <div style="margin-top:22px;margin-bottom:6px;display:flex;align-items:center;gap:10px">
                         <span style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.3);font-weight:600">Quick Stats</span>
-                        <div style="flex:1;height:1px;background:rgba(255,255,255,0.06)"></div>
+                        <div style="flex:1;height:1px;background:linear-gradient(90deg,rgba(255,255,255,0.1),rgba(255,255,255,0.03))"></div>
                     </div>
 
                     <!-- Sub-cards grid -->
-                    <div class="exit-hero-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:10px">
+                    <div class="exit-hero-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px">
                         <!-- Early Exits count -->
                         <div class="exit-sub-card exits-c">
                             <div class="exit-sub-icon" style="background:rgba(239,68,68,.12)">
@@ -8563,20 +8572,6 @@
                                 <div class="exit-bar-sub" id="m-exits-sub" style="font-size:10px;color:var(--text-muted);margin-top:4px"></div>
                             </div>
                         </div>
-                        <!-- Avg Penalty -->
-                        <div class="exit-sub-card avg-c">
-                            <div class="exit-sub-icon" style="background:rgba(245,158,11,.12)">
-                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#f59e0b" stroke-width="1.5"/><path d="M8 5v3M8 10h0" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round"/></svg>
-                            </div>
-                            <div class="tvl-metric-label" data-tip>Avg Penalty<span class="tooltip-bubble">Average penalty percentage across all early exits. Max is ~55% (5% burn + 50% recoup for a fresh 2-year lock).</span></div>
-                            <div id="m-avg-penalty" class="tvl-metric-value" style="color:#f59e0b">—</div>
-                            <div class="exit-bar-section">
-                                <div class="exit-bar-track">
-                                    <div class="penalty-gauge-fill" id="penalty-gauge-fill" style="width:0%"></div>
-                                </div>
-                                <div class="exit-bar-sub" id="m-avg-penalty-sub" style="font-size:10px;color:var(--text-muted);margin-top:4px"></div>
-                            </div>
-                        </div>
                         <!-- Avg per Exit -->
                         <div class="exit-sub-card" style="border-color:rgba(99,102,241,.15)">
                             <div class="exit-sub-icon" style="background:rgba(99,102,241,.12)">
@@ -8586,8 +8581,9 @@
                             <div id="m-avg-per-exit" class="tvl-metric-value" style="color:#818cf8">—</div>
                             <div id="m-avg-per-exit-sub" style="font-size:10px;color:var(--text-muted);margin-top:4px"></div>
                             <div class="exit-bar-section">
-                                <div class="exit-bar-track">
-                                    <div id="avg-per-exit-fill" style="width:0%;height:100%;border-radius:4px;background:linear-gradient(90deg,#818cf8,#6366f1);transition:width .8s ease"></div>
+                                <div class="exit-bar-track" style="position:relative">
+                                    <div id="avg-exit-received-fill" style="position:absolute;left:0;top:0;width:0%;height:100%;border-radius:4px;background:linear-gradient(90deg,#22c55e,#16a34a);transition:width .8s ease;z-index:1"></div>
+                                    <div id="avg-exit-penalty-fill" style="position:absolute;left:0;top:0;width:0%;height:100%;border-radius:4px;background:linear-gradient(90deg,#ef4444,#dc2626);transition:width .8s ease;opacity:0.3"></div>
                                 </div>
                             </div>
                         </div>
@@ -11398,25 +11394,21 @@
                     }, 500);
                 }
 
-                if (s.avg_penalty_pct > 0) {
-                    document.getElementById('m-avg-penalty').textContent = s.avg_penalty_pct + '%';
-                    document.getElementById('m-avg-penalty-sub').textContent = 'out of ~55% max';
-                    const gaugePct = Math.min((s.avg_penalty_pct / 55) * 100, 100).toFixed(1);
-                    setTimeout(() => {
-                        document.getElementById('penalty-gauge-fill').style.width = gaugePct + '%';
-                    }, 700);
-                }
 
-                // Avg per exit
+
+                // Avg per exit — dual bar (received green + penalty red)
                 if (s.total_early_exits > 0 && s.total_penalty_dolo > 0) {
                     const avgPerExit = s.total_penalty_dolo / s.total_early_exits;
                     document.getElementById('m-avg-per-exit').innerHTML = fmtM(avgPerExit) + doloIcon;
                     const avgOrigPerExit = s.total_original_locked / s.total_early_exits;
-                    document.getElementById('m-avg-per-exit-sub').textContent = 'from ' + fmtM(avgOrigPerExit) + ' avg locked';
-                    const avgFillPct = Math.min((avgPerExit / avgOrigPerExit) * 100, 100).toFixed(1);
+                    const avgReceived = avgOrigPerExit - avgPerExit;
+                    document.getElementById('m-avg-per-exit-sub').textContent = fmtM(avgReceived) + ' received / ' + fmtM(avgOrigPerExit) + ' locked';
+                    const receivedPct = (avgReceived / avgOrigPerExit * 100).toFixed(1);
                     setTimeout(() => {
-                        const fillEl = document.getElementById('avg-per-exit-fill');
-                        if (fillEl) fillEl.style.width = avgFillPct + '%';
+                        const rFill = document.getElementById('avg-exit-received-fill');
+                        const pFill = document.getElementById('avg-exit-penalty-fill');
+                        if (rFill) rFill.style.width = receivedPct + '%';
+                        if (pFill) pFill.style.width = '100%';
                     }, 700);
                 }
 
@@ -11444,6 +11436,8 @@
                         const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
                         return d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
                     }
+
+
 
                     window.sortExitAddr = function(key) {
                         const headers = document.querySelectorAll('#exit-addr-table th');
