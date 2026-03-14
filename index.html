@@ -8504,8 +8504,8 @@
                                             <span class="tvl-metric-label" data-tip style="margin:0;font-size:12px;text-transform:none;letter-spacing:0;color:rgba(255,255,255,.85)!important">Locked<span class="tooltip-bubble">Total DOLO originally locked by users who performed early exits.</span></span>
                                         </span>
                                     </td>
-                                    <td id="m-tbl-original" style="padding:12px 16px;text-align:right;font-size:13px;font-weight:600;color:rgba(255,255,255,.7)">—</td>
-                                    <td style="padding:12px 16px;text-align:right;font-size:11px;color:rgba(255,255,255,.5)">100%</td>
+                                    <td id="m-tbl-original" style="padding:12px 16px;text-align:right;font-size:13px;font-weight:600;color:rgba(255,255,255,.9)">—</td>
+                                    <td style="padding:12px 16px;text-align:right;font-size:11px;color:rgba(255,255,255,.6)">100%</td>
                                 </tr>
                                 <!-- User Received -->
                                 <tr class="exit-metric-row" style="border-bottom:1px solid rgba(255,255,255,.04);transition:background 0.2s ease;animation-delay:0.06s" onmouseenter="this.style.background='rgba(255,255,255,0.04)'" onmouseleave="this.style.background=''">
@@ -8516,9 +8516,9 @@
                                         </span>
                                     </td>
                                     <td id="m-tbl-user-received" style="padding:12px 16px;text-align:right;font-size:13px;font-weight:600;color:#22c55e">—</td>
-                                    <td id="m-tbl-user-pct" style="padding:12px 16px;text-align:right;font-size:11px;color:rgba(255,255,255,.5)">—</td>
+                                    <td id="m-tbl-user-pct" style="padding:12px 16px;text-align:right;font-size:11px;color:rgba(255,255,255,.6)">—</td>
                                 </tr>
-                                <tr class="exit-metric-row" style="border-bottom:1px solid rgba(239,68,68,.1);transition:background 0.2s ease;animation-delay:0.12s" onmouseenter="this.style.background='rgba(255,255,255,0.04)'" onmouseleave="this.style.background=''">
+                                <tr class="exit-metric-row" style="border-bottom:1px solid rgba(239,68,68,.1);border-left:3px solid #ef4444;transition:background 0.2s ease;animation-delay:0.12s" onmouseenter="this.style.background='rgba(255,255,255,0.04)'" onmouseleave="this.style.background=''">
                                     <td style="padding:12px 16px;font-size:12px;font-weight:600;color:rgba(255,255,255,.9);white-space:nowrap">
                                         <span style="display:inline-flex;align-items:center;gap:6px">
                                             <span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:#ef4444"></span>
@@ -8531,20 +8531,22 @@
                                 <tr class="exit-metric-row" style="border-bottom:1px solid rgba(255,255,255,.04);background:rgba(239,68,68,.02);transition:background 0.2s ease;animation-delay:0.18s" onmouseenter="this.style.background='rgba(239,68,68,0.06)'" onmouseleave="this.style.background='rgba(239,68,68,0.02)'">
                                     <td style="padding:10px 16px 10px 32px;font-size:11px;color:rgba(255,255,255,.75);white-space:nowrap">
                                         <span style="display:inline-flex;align-items:center;gap:6px">
+                                            <span style="color:rgba(255,255,255,.2);font-size:12px;font-family:monospace">├</span>
                                             <span class="tvl-metric-label" data-tip style="margin:0;font-size:11px;text-transform:none;letter-spacing:0;color:rgba(255,255,255,.75)!important">🔥 Burned<span class="tooltip-bubble">DOLO permanently removed from circulating supply, reducing total token count.</span></span>
                                         </span>
                                     </td>
                                     <td id="m-tbl-burned" style="padding:10px 16px;text-align:right;font-size:12px;font-weight:600;color:#ef4444">—</td>
-                                    <td id="m-tbl-burned-pct" style="padding:10px 16px;text-align:right;font-size:11px;color:rgba(255,255,255,.5)">—</td>
+                                    <td id="m-tbl-burned-pct" style="padding:10px 16px;text-align:right;font-size:11px;color:rgba(255,255,255,.6)">—</td>
                                 </tr>
                                 <tr class="exit-metric-row" style="background:rgba(249,115,22,.02);transition:background 0.2s ease;animation-delay:0.24s" onmouseenter="this.style.background='rgba(249,115,22,0.06)'" onmouseleave="this.style.background='rgba(249,115,22,0.02)'">
                                     <td style="padding:10px 16px 10px 32px;font-size:11px;color:rgba(255,255,255,.75);white-space:nowrap">
                                         <span style="display:inline-flex;align-items:center;gap:6px">
+                                            <span style="color:rgba(255,255,255,.2);font-size:12px;font-family:monospace">└</span>
                                             <span class="tvl-metric-label" data-tip style="margin:0;font-size:11px;text-transform:none;letter-spacing:0;color:rgba(255,255,255,.75)!important">♻️ Treasury<span class="tooltip-bubble">DOLO returned to the Dolomite protocol treasury for redistribution.</span></span>
                                         </span>
                                     </td>
                                     <td id="m-tbl-recouped" style="padding:10px 16px;text-align:right;font-size:12px;font-weight:600;color:#f97316">—</td>
-                                    <td id="m-tbl-recouped-pct" style="padding:10px 16px;text-align:right;font-size:11px;color:rgba(255,255,255,.5)">—</td>
+                                    <td id="m-tbl-recouped-pct" style="padding:10px 16px;text-align:right;font-size:11px;color:rgba(255,255,255,.6)">—</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -11361,23 +11363,23 @@
 
                 // --- Financial table ---
                 if (s.total_original_locked > 0) {
-                    document.getElementById('m-tbl-original').innerHTML = fmtM(s.total_original_locked) + doloIcon;
+                    document.getElementById('m-tbl-original').textContent = fmtM(s.total_original_locked);
 
                     const userReceived = s.total_original_locked - s.total_penalty_dolo;
                     const userPct = (userReceived / s.total_original_locked * 100).toFixed(1);
-                    document.getElementById('m-tbl-user-received').innerHTML = fmtM(userReceived) + doloIcon;
+                    document.getElementById('m-tbl-user-received').textContent = fmtM(userReceived);
                     document.getElementById('m-tbl-user-pct').textContent = userPct + '%';
 
                     const penaltyPct = (s.total_penalty_dolo / s.total_original_locked * 100).toFixed(1);
-                    document.getElementById('m-tbl-penalty').innerHTML = fmtM(s.total_penalty_dolo) + doloIcon;
+                    document.getElementById('m-tbl-penalty').textContent = fmtM(s.total_penalty_dolo);
                     document.getElementById('m-tbl-penalty-pct').textContent = penaltyPct + '%';
 
                     if (s.total_penalty_dolo > 0) {
                         const burnShare = (s.total_burn_fee_dolo / s.total_original_locked * 100).toFixed(1);
                         const recoupShare = (s.total_recoup_fee_dolo / s.total_original_locked * 100).toFixed(1);
-                        document.getElementById('m-tbl-burned').innerHTML = fmtM(s.total_burn_fee_dolo) + doloIcon;
+                        document.getElementById('m-tbl-burned').textContent = fmtM(s.total_burn_fee_dolo);
                         document.getElementById('m-tbl-burned-pct').textContent = burnShare + '%';
-                        document.getElementById('m-tbl-recouped').innerHTML = fmtM(s.total_recoup_fee_dolo) + doloIcon;
+                        document.getElementById('m-tbl-recouped').textContent = fmtM(s.total_recoup_fee_dolo);
                         document.getElementById('m-tbl-recouped-pct').textContent = recoupShare + '%';
                     }
                 }
