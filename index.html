@@ -8618,18 +8618,16 @@
                             <table id="exit-addr-table" style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
                                 <colgroup>
                                     <col style="width:36px">
-                                    <col style="width:32%">
-                                    <col style="width:calc((100% - 36px - 32%) / 4)">
-                                    <col style="width:calc((100% - 36px - 32%) / 4)">
-                                    <col style="width:calc((100% - 36px - 32%) / 4)">
-                                    <col style="width:calc((100% - 36px - 32%) / 4)">
+                                    <col style="width:38%">
+                                    <col style="width:calc((100% - 36px - 38%) / 3)">
+                                    <col style="width:calc((100% - 36px - 38%) / 3)">
+                                    <col style="width:calc((100% - 36px - 38%) / 3)">
                                 </colgroup>
                                 <thead style="position:sticky;top:0;z-index:2;background:#141825">
                                     <tr>
                                         <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">#</th>
                                         <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="date" onclick="sortExitAddr('date')">TX / Address <span class="arrow">▼</span></th>
-                                        <th style="padding:8px 6px;text-align:right;color:#60a5fa;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="original" onclick="sortExitAddr('original')">🔒 Locked <span class="arrow">⇅</span></th>
-                                        <th style="padding:8px 6px;text-align:right;color:#22c55e;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">✅ Received</th>
+                                        <th style="padding:8px 6px;text-align:right;color:#60a5fa;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="original" onclick="sortExitAddr('original')"><img src="dolo-logo.svg" width="14" height="14" style="vertical-align:-2px;margin-right:3px">Locked <span class="arrow">⇅</span></th>
                                         <th style="padding:8px 6px;text-align:right;color:#ef4444;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="penalty" onclick="sortExitAddr('penalty')">🔴 Penalty <span class="arrow">⇅</span></th>
                                         <th style="padding:8px 6px;text-align:right;color:#f87171;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="pct" onclick="sortExitAddr('pct')">% Lost <span class="arrow">⇅</span></th>
                                     </tr>
@@ -11528,27 +11526,35 @@
                             const dateLabel = exitFmtDate(ex.date);
                             const origVal = ex.original_locked || 0;
                             const penVal = ex.total_penalty || 0;
-                            const receivedVal = origVal - penVal;
                             const orig = fmtM(origVal);
                             const pen = fmtM(penVal);
-                            const received = fmtM(receivedVal);
                             const pctVal = ex.penalty_pct || 0;
                             const pct = pctVal.toFixed(1) + '%';
                             const pctColor = pctLostColor(pctVal);
                             const isDup = addrCount[addr] > 1;
                             const dupStyle = isDup ? 'border-left:2px solid rgba(96,165,250,.35);background:rgba(96,165,250,.03);' : '';
-                            html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);' + dupStyle + 'transition:transform 0.15s,background 0.15s" onmouseenter="this.style.transform=\'scale(1.01)\';this.style.background=\'rgba(255,255,255,0.03)\'" onmouseleave="this.style.transform=\'\';this.style.background=\'' + (isDup ? 'rgba(96,165,250,0.03)' : '') + '\'">';
+                            html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);' + dupStyle + 'transition:transform 0.15s,background 0.15s" onmouseenter="this.style.transform=\'scale(1.01)\';this.style.background=\'rgba(255,255,255,0.03)\'" onmouseleave="this.style.transform=\'\';this.style.background=\'' + (isDup ? 'rgba(96,165,250,0.03)' : '') + '\'">'; 
                             html += '<td style="padding:5px 6px;color:rgba(255,255,255,0.3)">' + rank + '</td>';
                             html += '<td style="padding:5px 6px"><div style="display:flex;flex-direction:column;gap:3px">' +
                                 '<div style="display:flex;align-items:center;gap:6px"><a href="' + berascanUrl + '" target="_blank" style="color:#60a5fa;font-family:monospace;font-size:11px;text-decoration:none" onclick="event.stopPropagation()">' + shortHash + '</a><a href="' + berascanUrl + '" target="_blank" onclick="event.stopPropagation()" class="tx-ext-icon" title="View on BeraScan" style="display:inline-flex;align-items:center;margin-left:3px;opacity:0.35;color:rgba(255,255,255,0.5);transition:opacity 0.2s,transform 0.2s;vertical-align:middle"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a><span style="font-size:10px;color:rgba(255,255,255,0.25)">' + dateLabel + '</span></div>' +
                                 '<div style="display:inline-flex;align-items:center;gap:4px"><a href="' + dbUrl + '" target="_blank" style="color:#fff;font-family:monospace;font-size:11px;text-decoration:none" class="addr-tooltip-wrap" data-full-addr="' + addr + '" onclick="event.stopPropagation()">' + shortAddr + '</a><span class="copy-addr-icon" style="flex-shrink:0" onclick="event.stopPropagation();copyAddr(\'' + addr + '\',this)" title="Copy address">' + COPY_SVG + '</span><a href="' + dbUrl + '" target="_blank" onclick="event.stopPropagation()" class="debank-icon" style="flex-shrink:0" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display=\'none\'"></a></div>' +
                                 '</div></td>';
                             html += '<td style="padding:4px 5px;text-align:right;color:#60a5fa;font-weight:600;font-size:11px">' + orig + ' DOLO</td>';
-                            html += '<td style="padding:4px 5px;text-align:right;color:#22c55e;font-size:11px;font-weight:600">' + received + ' DOLO</td>';
                             html += '<td style="padding:4px 5px;text-align:right;color:#ef4444;font-size:11px;font-weight:600">' + pen + ' DOLO</td>';
                             html += '<td style="padding:4px 5px;text-align:right;font-size:11px;font-weight:500;color:' + pctColor + '">' + pct + '</td>';
                             html += '</tr>';
                         });
+                        // Pad with empty rows to maintain fixed 5-row height
+                        const emptyCount = EXIT_ADDR_PER_PAGE - pageData.length;
+                        for (let e = 0; e < emptyCount; e++) {
+                            html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">';
+                            html += '<td style="padding:5px 6px">&nbsp;</td>';
+                            html += '<td style="padding:5px 6px"><div style="height:30px"></div></td>';
+                            html += '<td style="padding:4px 5px">&nbsp;</td>';
+                            html += '<td style="padding:4px 5px">&nbsp;</td>';
+                            html += '<td style="padding:4px 5px">&nbsp;</td>';
+                            html += '</tr>';
+                        }
                         tbody.innerHTML = html;
 
                         // Pagination (« ‹ page/total › »)
@@ -11573,21 +11579,31 @@
                         const slider = wrap.querySelector('.dolo-chain-slider');
                         function posSlider(btn) {
                             if (slider && btn) {
-                                slider.style.width = btn.offsetWidth + 'px';
-                                slider.style.left = btn.offsetLeft + 'px';
+                                const px = wrap.getBoundingClientRect();
+                                const bx = btn.getBoundingClientRect();
+                                if (bx.width > 0) {
+                                    slider.style.width = bx.width + 'px';
+                                    slider.style.transform = 'translateX(' + (bx.left - px.left - 2) + 'px)';
+                                    slider.style.opacity = '1';
+                                }
                             }
                         }
                         btns.forEach(btn => {
                             btn.addEventListener('click', () => {
                                 btns.forEach(b => b.classList.remove('active'));
                                 btn.classList.add('active');
-                                posSlider(btn);
+                                requestAnimationFrame(() => posSlider(btn));
                                 window._exitAddrPeriod = btn.dataset.period;
                                 window._exitAddrPage = 1;
                                 renderExitAddrTable();
                             });
-                            if (btn.classList.contains('active')) setTimeout(() => { requestAnimationFrame(() => posSlider(btn)); }, 500);
                         });
+                        // Initial slider position — wait for layout
+                        const activeBtn = wrap.querySelector('button.active');
+                        if (activeBtn) {
+                            setTimeout(() => { requestAnimationFrame(() => posSlider(activeBtn)); }, 100);
+                            setTimeout(() => { requestAnimationFrame(() => posSlider(activeBtn)); }, 600);
+                        }
                     })();
                 }
             } catch (e) {
