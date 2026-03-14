@@ -11547,13 +11547,20 @@
                         // Pad with empty rows to maintain fixed 5-row height
                         const emptyCount = EXIT_ADDR_PER_PAGE - pageData.length;
                         for (let e = 0; e < emptyCount; e++) {
-                            html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">';
-                            html += '<td style="padding:5px 6px">&nbsp;</td>';
-                            html += '<td style="padding:5px 6px"><div style="height:30px"></div></td>';
-                            html += '<td style="padding:4px 5px">&nbsp;</td>';
-                            html += '<td style="padding:4px 5px">&nbsp;</td>';
-                            html += '<td style="padding:4px 5px">&nbsp;</td>';
-                            html += '</tr>';
+                            if (e === 0 && pageData.length === 0) {
+                                // Show empty state message in first row
+                                html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">';
+                                html += '<td colspan="5" style="padding:12px 6px;text-align:center;color:rgba(255,255,255,0.25);font-size:12px;font-style:italic"><div style="height:30px;display:flex;align-items:center;justify-content:center;gap:6px">No early exits in this period</div></td>';
+                                html += '</tr>';
+                            } else {
+                                html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">';
+                                html += '<td style="padding:5px 6px">&nbsp;</td>';
+                                html += '<td style="padding:5px 6px"><div style="height:30px"></div></td>';
+                                html += '<td style="padding:4px 5px">&nbsp;</td>';
+                                html += '<td style="padding:4px 5px">&nbsp;</td>';
+                                html += '<td style="padding:4px 5px">&nbsp;</td>';
+                                html += '</tr>';
+                            }
                         }
                         tbody.innerHTML = html;
 
