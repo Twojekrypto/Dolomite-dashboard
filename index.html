@@ -11407,7 +11407,8 @@
                 // Last updated
                 if (s.last_updated) {
                     const d = new Date(s.last_updated);
-                    document.getElementById('m-exit-updated').textContent = 'Updated ' + d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+                    const updEl = document.getElementById('m-exit-updated');
+                    if (updEl) updEl.textContent = 'Updated ' + d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
                 }
 
                 // --- Recent Early Exits table ---
