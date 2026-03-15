@@ -1,0 +1,43 @@
+name: Update Liquidation Risk Data
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # Every 30 minutes
+  workflow_dispatch:  # Allow manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests web3 eth_abi
+
+      - name: Fetch liquidation risk data
+        run: python3 fetch_liquidation_risk.py
+
+      - name: Commit & push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add liquidation_risk.json
+          git diff --staged --quiet && echo "No changes to commit" && exit 0
+          git commit -m "📊 Liquidation risk update: $(date -u '+%Y-%m-%d %H:%M UTC')"
+          # Retry push with rebase up to 3 times to handle concurrent pushes
+          for i in 1 2 3; do
+            git pull --rebase -X theirs origin master && git push && break
+            echo "⚠️ Push attempt $i failed, retrying..."
+            sleep 5
+          done
