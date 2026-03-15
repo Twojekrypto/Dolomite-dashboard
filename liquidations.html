@@ -1,0 +1,2060 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dolomite Liquidation Risk Dashboard</title>
+    <meta name="description" content="Monitor Dolomite lending positions at risk of liquidation across all chains.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* ===== DESIGN TOKENS (matched to main dashboard) ===== */
+        :root {
+            --bg-base: #090910;
+            --bg-surface: #111119;
+            --bg-card: #15151f;
+            --bg-card-alt: #1a1a26;
+            --bg-hover: #1e1e2c;
+            --bg-input: #12121c;
+
+            --border-subtle: rgba(255, 255, 255, 0.06);
+            --border-default: rgba(255, 255, 255, 0.08);
+
+            --text-primary: #f0f0f6;
+            --text-secondary: #8b8fa3;
+            --text-muted: #555770;
+
+            --accent-indigo: #6366f1;
+            --accent-blue: #3b82f6;
+            --accent-cyan: #22d3ee;
+            --accent-green: #34d399;
+            --accent-amber: #fbbf24;
+            --accent-rose: #fb7185;
+            --accent-orange: #fb923c;
+
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+
+            --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 0 1px var(--border-subtle);
+            --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-base);
+            color: var(--text-primary);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            line-height: 1.5;
+        }
+
+        .page-wrapper {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 32px 24px 64px;
+        }
+
+        /* ===== HEADER ===== */
+        .dashboard-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 28px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header-left img { height: 40px; width: auto; }
+
+        .header-title {
+            font-size: 22px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fb7185, #fbbf24);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border: 1px solid var(--border-default);
+            transition: all var(--transition);
+        }
+
+        .back-link:hover {
+            color: var(--text-primary);
+            border-color: rgba(255,255,255,0.15);
+            background: var(--bg-hover);
+        }
+
+        /* ===== SUMMARY CARDS ===== */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1px;
+            background: var(--border-subtle);
+            border-radius: var(--radius-lg);
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+
+        .summary-card {
+            background: var(--bg-card);
+            padding: 20px 24px;
+            transition: background var(--transition), box-shadow 0.3s ease;
+        }
+
+        .summary-card:hover { background: var(--bg-hover); }
+
+        /* Risk glow accents on summary cards */
+        .summary-card[data-glow="red"] {
+            box-shadow: inset 0 1px 0 rgba(239, 68, 68, 0.2), 0 0 20px rgba(239, 68, 68, 0.05);
+        }
+        .summary-card[data-glow="orange"] {
+            box-shadow: inset 0 1px 0 rgba(249, 115, 22, 0.2), 0 0 20px rgba(249, 115, 22, 0.05);
+        }
+        .summary-card[data-glow="amber"] {
+            box-shadow: inset 0 1px 0 rgba(251, 191, 36, 0.2), 0 0 20px rgba(251, 191, 36, 0.05);
+        }
+        .summary-card[data-glow="green"] {
+            box-shadow: inset 0 1px 0 rgba(52, 211, 153, 0.15), 0 0 20px rgba(52, 211, 153, 0.04);
+        }
+
+        .summary-card.critical-bg {
+            background: linear-gradient(180deg, rgba(239, 68, 68, 0.08) 0%, var(--bg-card) 100%);
+        }
+
+        .summary-card.critical-bg:hover {
+            background: linear-gradient(180deg, rgba(239, 68, 68, 0.14) 0%, var(--bg-hover) 100%);
+        }
+
+        .summary-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .summary-value {
+            font-size: 28px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            line-height: 1.1;
+        }
+
+        .summary-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* ===== CONTROLS ===== */
+        .controls-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .chain-filter {
+            position: relative;
+            display: inline-block;
+            z-index: 200;
+        }
+
+        .chain-trigger {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 7px 30px 7px 12px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            white-space: nowrap;
+        }
+
+        .chain-trigger::after {
+            content: '';
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 4px solid rgba(148, 163, 184, 0.6);
+            transition: transform 0.2s ease;
+        }
+
+        .chain-filter.open .chain-trigger::after {
+            transform: translateY(-50%) rotate(180deg);
+        }
+
+        .chain-trigger:hover {
+            border-color: rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.06);
+        }
+
+        .chain-trigger .trigger-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .chain-trigger .trigger-icon {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+
+        .chain-menu {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            min-width: 200px;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 4px;
+            z-index: 9999;
+            display: none;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(99, 102, 241, 0.08);
+        }
+
+        .chain-filter.open .chain-menu {
+            display: block;
+            animation: chainDropIn 0.2s ease;
+        }
+
+        @keyframes chainDropIn {
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .chain-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 7px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: all 0.15s ease;
+        }
+
+        .chain-option:hover {
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--text-primary);
+        }
+
+        .chain-option.active {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .chain-option .opt-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .chain-option .opt-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+
+        .chain-option .opt-count {
+            margin-left: auto;
+            font-size: 10px;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        /* Risk dropdown — same pattern as chain dropdown */
+        .risk-dropdown {
+            position: relative;
+            display: inline-block;
+            z-index: 199;
+        }
+
+        .risk-trigger {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 7px 30px 7px 12px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            white-space: nowrap;
+        }
+
+        .risk-trigger::after {
+            content: '';
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 4px solid rgba(148, 163, 184, 0.6);
+            transition: transform 0.2s ease;
+        }
+
+        .risk-dropdown.open .risk-trigger::after {
+            transform: translateY(-50%) rotate(180deg);
+        }
+
+        .risk-trigger:hover {
+            border-color: rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.06);
+        }
+
+        .risk-trigger .risk-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .risk-menu {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            min-width: 180px;
+            background: rgba(15, 23, 42, 0.95);
+            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 4px;
+            z-index: 9999;
+            display: none;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(99, 102, 241, 0.08);
+        }
+
+        .risk-dropdown.open .risk-menu {
+            display: block;
+            animation: chainDropIn 0.2s ease;
+        }
+
+        .risk-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 7px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: all 0.15s ease;
+        }
+
+        .risk-option:hover {
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--text-primary);
+        }
+
+        .risk-option.active {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .risk-option .risk-opt-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .risk-option .risk-opt-count {
+            margin-left: auto;
+            font-size: 10px;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .search-wrap {
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .search-input {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border-default);
+            border-radius: 8px;
+            padding: 7px 14px;
+            font-size: 12px;
+            color: rgba(255,255,255,0.85);
+            outline: none;
+            width: 260px;
+            font-family: 'JetBrains Mono', monospace;
+            transition: border-color 0.2s, box-shadow 0.3s, width 0.3s ease;
+        }
+
+        .search-input:focus {
+            border-color: rgba(34, 211, 238, 0.4);
+            box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.08), 0 0 20px rgba(34, 211, 238, 0.06);
+            width: 320px;
+        }
+        .search-input::placeholder { color: rgba(255,255,255,0.2); }
+
+        .search-clear {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: rgba(255,255,255,0.3);
+            cursor: pointer;
+            font-size: 14px;
+            padding: 2px 4px;
+            line-height: 1;
+            display: none;
+            transition: color 0.15s;
+        }
+        .search-clear:hover { color: rgba(255,255,255,0.7); }
+        .search-wrap.has-value .search-clear { display: block; }
+        .search-wrap.has-value .search-input { padding-right: 28px; }
+
+        .updated-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Results count label */
+        .results-count {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+            margin-left: auto;
+            padding-right: 8px;
+        }
+
+        .results-count strong {
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .live-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            animation: livePulse 2s ease-in-out infinite;
+        }
+
+        @keyframes livePulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(52,211,153,0.4); }
+            50% { opacity: 0.7; box-shadow: 0 0 0 4px rgba(52,211,153,0); }
+        }
+
+        /* ===== TABLE ===== */
+        .table-container {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-subtle);
+            overflow: hidden;
+        }
+
+        .positions-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .positions-table colgroup col:nth-child(1) { width: 80px; }   /* Chain */
+        .positions-table colgroup col:nth-child(2) { width: 14%; }    /* Address */
+        .positions-table colgroup col:nth-child(3) { width: 105px; }  /* HF */
+        .positions-table colgroup col:nth-child(4) { width: 13%; }    /* Collateral */
+        .positions-table colgroup col:nth-child(5) { width: 13%; }    /* Debt */
+        .positions-table colgroup col:nth-child(6) { width: 20%; }    /* Collateral Tokens */
+        .positions-table colgroup col:nth-child(7) { width: 20%; }    /* Debt Tokens */
+
+        .positions-table thead th {
+            background: var(--bg-card-alt);
+            padding: 10px 12px;
+            font-size: 10px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.35);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            cursor: pointer;
+            -webkit-user-select: none;
+            user-select: none;
+            transition: color 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .positions-table thead th:hover { color: rgba(255, 255, 255, 0.6); }
+
+        .positions-table thead th .sort-arrow {
+            display: inline-block;
+            margin-left: 4px;
+            font-size: 9px;
+            opacity: 0.5;
+        }
+
+        .positions-table thead th.sorted .sort-arrow {
+            opacity: 1;
+            color: #34d399;
+        }
+
+        .positions-table thead th.sorted {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .positions-table tbody tr {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .positions-table tbody tr:nth-child(even) {
+            background: rgba(255, 255, 255, 0.015);
+        }
+
+        .positions-table tbody tr:hover {
+            background: rgba(52, 211, 153, 0.04);
+            transform: translateX(2px);
+            position: relative;
+            z-index: 20;
+        }
+
+        .positions-table tbody tr:hover td:first-child {
+            box-shadow: inset 3px 0 0 #34d399;
+        }
+
+        .positions-table tbody tr:hover td {
+            border-bottom-color: rgba(52, 211, 153, 0.08);
+        }
+
+        /* Staggered row fade-in */
+        @keyframes rowFadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .positions-table tbody tr.row-enter {
+            animation: rowFadeIn 0.3s ease both;
+        }
+
+        /* Zebra stripes for readability */
+        .positions-table tbody tr:nth-child(even) {
+            background: rgba(255, 255, 255, 0.015);
+        }
+
+        .positions-table tbody tr.critical-row {
+            background: rgba(239, 68, 68, 0.04);
+        }
+
+        .positions-table tbody tr.critical-row:hover {
+            background: rgba(239, 68, 68, 0.08);
+        }
+
+        .positions-table tbody tr.critical-row:hover td:first-child {
+            box-shadow: inset 3px 0 0 #ef4444;
+        }
+
+        .positions-table tbody tr.danger-row {
+            background: rgba(249, 115, 22, 0.03);
+        }
+
+        .positions-table tbody tr.danger-row:hover {
+            background: rgba(249, 115, 22, 0.06);
+        }
+
+        .positions-table tbody tr.danger-row:hover td:first-child {
+            box-shadow: inset 3px 0 0 #f97316;
+        }
+
+        .positions-table tbody td {
+            padding: 8px 12px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.85);
+            vertical-align: middle;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Chain cell, address, and HF cell — never clip (for tooltips) */
+        .positions-table tbody td:nth-child(1),
+        .positions-table tbody td:nth-child(2),
+        .positions-table tbody td:nth-child(3) {
+            overflow: visible;
+        }
+
+        /* Chain badge — compact icon style */
+        .chain-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+            cursor: default;
+        }
+
+        .chain-badge .chain-icon {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+
+        .chain-badge.berachain { background: rgba(255, 176, 46, 0.10); color: #fbbf24; }
+        .chain-badge.berachain .chain-dot { background: #fbbf24; box-shadow: 0 0 6px rgba(251,191,36,0.4); }
+
+        .chain-badge.arbitrum { background: rgba(40, 160, 240, 0.10); color: #60a5fa; }
+        .chain-badge.arbitrum .chain-dot { background: #3b82f6; box-shadow: 0 0 6px rgba(59,130,246,0.4); }
+
+        .chain-badge.mantle { background: rgba(52, 211, 153, 0.10); color: #34d399; }
+        .chain-badge.mantle .chain-dot { background: #34d399; box-shadow: 0 0 6px rgba(52,211,153,0.4); }
+
+        .chain-badge.base { background: rgba(0, 82, 255, 0.10); color: #4d8ffa; }
+        .chain-badge.base .chain-dot { background: #4d8ffa; box-shadow: 0 0 6px rgba(77,143,250,0.4); }
+
+        .chain-badge.xlayer { background: rgba(150, 100, 255, 0.10); color: #a78bfa; }
+        .chain-badge.xlayer .chain-dot { background: #a78bfa; box-shadow: 0 0 6px rgba(167,139,250,0.4); }
+
+        .chain-badge.polygon_zkevm { background: rgba(130, 71, 229, 0.10); color: #c084fc; }
+        .chain-badge.polygon_zkevm .chain-dot { background: #a855f7; box-shadow: 0 0 6px rgba(168,85,247,0.4); }
+
+        /* External link icon on address */
+        .address-cell .ext-icon {
+            font-size: 10px;
+            opacity: 0;
+            transition: opacity 0.15s;
+            color: var(--text-muted);
+        }
+        .positions-table tbody tr:hover .ext-icon { opacity: 1; }
+
+        .debank-icon {
+            display: inline-flex;
+            align-items: center;
+            opacity: 0.5;
+            transition: opacity 0.2s, transform 0.2s;
+            vertical-align: middle;
+        }
+
+        .debank-icon:hover {
+            opacity: 1;
+            transform: scale(1.6);
+        }
+
+        .debank-icon img {
+            border-radius: 3px;
+        }
+
+        .copy-addr-icon {
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+            opacity: 0.35;
+            color: #9ca3af;
+            transition: opacity 0.2s, transform 0.2s, color 0.2s;
+            vertical-align: middle;
+        }
+
+        .copy-addr-icon:hover {
+            opacity: 1;
+            color: #ffffff;
+            transform: scale(1.4);
+        }
+
+        .copy-addr-icon.copied {
+            opacity: 1;
+            color: #34d399;
+            transform: scale(1.4);
+        }
+
+        .acct-num {
+            font-size: 9px;
+            color: var(--text-muted);
+            background: rgba(255,255,255,0.04);
+            padding: 1px 5px;
+            border-radius: 3px;
+            margin-left: 2px;
+        }
+
+        /* HF badge */
+        .hf-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .hf-badge.critical {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+            box-shadow: 0 0 12px rgba(239, 68, 68, 0.15);
+            animation: criticalPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes criticalPulse {
+            0%, 100% { box-shadow: 0 0 12px rgba(239, 68, 68, 0.15); }
+            50% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.3); }
+        }
+
+        .hf-badge.danger {
+            background: rgba(249, 115, 22, 0.12);
+            color: #f97316;
+        }
+
+        .hf-badge.warning {
+            background: rgba(251, 191, 36, 0.12);
+            color: #fbbf24;
+        }
+
+        .hf-badge.safe {
+            background: rgba(52, 211, 153, 0.08);
+            color: #34d399;
+        }
+
+        .hf-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        .hf-dot.critical { background: #ef4444; }
+        .hf-dot.danger { background: #f97316; }
+        .hf-dot.warning { background: #fbbf24; }
+        .hf-dot.safe { background: #34d399; }
+        .hf-dot.baddebt { background: #fb923c; }
+        .hf-badge.baddebt {
+            color: #fb923c;
+            font-size: 10px;
+            letter-spacing: 0.5px;
+            background: rgba(251, 146, 60, 0.12);
+        }
+
+        /* HF tooltip */
+        .hf-badge {
+            position: relative;
+            cursor: default;
+        }
+        .hf-badge::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1e1e2c;
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            font-weight: 400;
+            letter-spacing: 0;
+            line-height: 1.4;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-default);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            z-index: 9999;
+        }
+        .hf-badge:hover::after {
+            opacity: 1;
+        }
+
+        /* Address */
+        .address-cell {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .address-cell a {
+            color: #fff;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .address-cell a:hover { color: #22d3ee; }
+
+        .addr-tooltip-wrap {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        /* Known address info icon */
+        .addr-note-icon {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: rgba(99, 102, 241, 0.2);
+            color: #818cf8;
+            font-size: 9px;
+            font-style: normal;
+            cursor: help;
+            flex-shrink: 0;
+            transition: background 0.2s, color 0.2s;
+        }
+        .addr-note-icon:hover {
+            background: rgba(99, 102, 241, 0.35);
+            color: #a5b4fc;
+        }
+
+        .acct-num {
+            font-size: 9px;
+            color: var(--text-muted);
+            background: rgba(255,255,255,0.04);
+            padding: 1px 5px;
+            border-radius: 3px;
+        }
+
+        /* USD values */
+        .usd-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .usd-value.collateral { color: var(--accent-green); }
+        .usd-value.collateral.zero { color: var(--text-muted); font-weight: 400; }
+        .usd-value.debt { color: var(--accent-rose); }
+        .usd-value.debt.zero { color: var(--text-muted); font-weight: 400; }
+
+        /* Token pills */
+        .token-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+        }
+
+        .token-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .token-pill .token-usd {
+            margin-left: 4px;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        /* ===== PAGINATION ===== */
+        /* Pagination — flow-pager pattern from DOLO Holders */
+        .table-footer {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 14px 20px;
+            border-top: 1px solid var(--border-subtle);
+            background: var(--bg-card);
+            border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+        }
+
+        .flow-pager-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            border: 1px solid var(--border-subtle);
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 14px;
+            line-height: 1;
+            transition: all 0.15s;
+            font-family: inherit;
+        }
+
+        .flow-pager-btn:hover:not(:disabled) {
+            background: rgba(99, 102, 241, 0.12);
+            color: var(--text-primary);
+            border-color: rgba(99, 102, 241, 0.4);
+            box-shadow: 0 0 8px rgba(99, 102, 241, 0.15);
+            transform: scale(1.08);
+        }
+
+        .flow-pager-btn:disabled {
+            opacity: 0.25;
+            cursor: default;
+        }
+
+        .flow-pager-info {
+            font-size: 11px;
+            color: var(--text-muted);
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .flow-pager-total {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-left: 8px;
+            padding-left: 8px;
+            border-left: 1px solid var(--border-subtle);
+        }
+
+        /* ===== LOADING ===== */
+        .loading-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border-subtle);
+            border-top-color: var(--accent-rose);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .empty-state .emoji { font-size: 40px; margin-bottom: 12px; }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 768px) {
+            .summary-grid { grid-template-columns: repeat(2, 1fr); }
+            .controls-bar { flex-direction: column; align-items: stretch; }
+            .search-wrap { margin-left: 0; }
+            .search-input { width: 100%; }
+            .positions-table { font-size: 11px; }
+            .positions-table colgroup col:nth-child(6),
+            .positions-table colgroup col:nth-child(7) { width: 0; display: none; }
+            .positions-table th:nth-child(6),
+            .positions-table th:nth-child(7),
+            .positions-table td:nth-child(6),
+            .positions-table td:nth-child(7) { display: none; }
+        }
+
+        /* Dust toggle */
+        .toggle-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .toggle-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--border-default);
+            background: transparent;
+            color: var(--text-muted);
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+        .toggle-btn:hover { color: var(--text-secondary); background: rgba(255,255,255,0.05); }
+        .toggle-btn.active {
+            color: #34d399;
+            background: rgba(52, 211, 153, 0.12);
+            border-color: rgba(52, 211, 153, 0.3);
+            box-shadow: 0 0 8px rgba(52, 211, 153, 0.15);
+        }
+        .toggle-btn .icon { margin-right: 4px; }
+
+        /* Debt range dropdown — mirrors risk-dropdown pattern */
+        .debt-dropdown {
+            position: relative;
+            display: inline-block;
+            z-index: 198;
+        }
+        .debt-trigger {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 7px 30px 7px 12px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            white-space: nowrap;
+        }
+        .debt-trigger::after {
+            content: '';
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 4px solid rgba(148, 163, 184, 0.6);
+            transition: transform 0.2s ease;
+        }
+        .debt-dropdown.open .debt-trigger::after {
+            transform: translateY(-50%) rotate(180deg);
+        }
+        .debt-trigger:hover {
+            border-color: rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.06);
+        }
+        .debt-trigger .debt-icon {
+            font-size: 13px;
+            opacity: 0.6;
+        }
+        .debt-menu {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            min-width: 200px;
+            background: rgba(15, 23, 42, 0.95);
+            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 4px;
+            z-index: 9999;
+            display: none;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(99, 102, 241, 0.08);
+        }
+        .debt-dropdown.open .debt-menu {
+            display: block;
+            animation: chainDropIn 0.2s ease;
+        }
+        .debt-option {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 7px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: all 0.15s ease;
+        }
+        .debt-option:hover {
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--text-primary);
+        }
+        .debt-option.active {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+        .debt-option .opt-count {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .debt-custom-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            border-top: 1px solid var(--border-subtle);
+            margin-top: 2px;
+        }
+        .debt-custom-row span {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        .debt-custom-input {
+            width: 60px;
+            padding: 4px 6px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border-default);
+            border-radius: 5px;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            outline: none;
+            text-align: center;
+        }
+        .debt-custom-input:focus { border-color: var(--accent-indigo); }
+        .debt-custom-input::placeholder { color: var(--text-muted); }
+        .debt-custom-input::-webkit-outer-spin-button,
+        .debt-custom-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .debt-custom-input { -moz-appearance: textfield; appearance: textfield; }
+    </style>
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <!-- Header -->
+        <div class="dashboard-header">
+            <div class="header-left">
+                <img src="dolomite-logo.svg" alt="Dolomite">
+                <div>
+                    <div class="header-title">Liquidation Risk Monitor</div>
+                    <div class="header-subtitle">Real-time lending position health across all chains</div>
+                </div>
+            </div>
+            <a href="index.html" class="back-link">
+                ← Back to Dashboard
+            </a>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="summary-grid" id="summary-grid">
+            <div class="summary-card">
+                <div class="summary-label">Total Positions</div>
+                <div class="summary-value" id="stat-total" style="color: var(--text-primary)">—</div>
+                <div class="summary-sub" id="stat-total-sub">Loading...</div>
+            </div>
+            <div class="summary-card critical-bg" data-glow="red">
+                <div class="summary-label">🔴 At Risk</div>
+                <div class="summary-value" id="stat-at-risk" style="color: #ef4444">—</div>
+                <div class="summary-sub" id="stat-at-risk-sub">—</div>
+            </div>
+            <div class="summary-card" data-glow="green">
+                <div class="summary-label">Total Collateral</div>
+                <div class="summary-value" id="stat-collateral" style="color: var(--accent-green)">—</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-label">Total Debt</div>
+                <div class="summary-value" id="stat-debt" style="color: var(--accent-rose)">—</div>
+            </div>
+            <div class="summary-card" data-glow="red">
+                <div class="summary-label">🔴 Critical</div>
+                <div class="summary-value" id="stat-critical" style="color: #ef4444">—</div>
+                <div class="summary-sub">HF &lt; 1.05</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-label">🟠 Danger</div>
+                <div class="summary-value" id="stat-danger" style="color: #f97316">—</div>
+                <div class="summary-sub">HF &lt; 1.15</div>
+            </div>
+            <div class="summary-card" data-glow="orange">
+                <div class="summary-label">🟡 Warning</div>
+                <div class="summary-value" id="stat-warning" style="color: #fbbf24">—</div>
+                <div class="summary-sub">HF &lt; 1.30</div>
+            </div>
+            <div class="summary-card" data-glow="amber">
+                <div class="summary-label">
+                    <span class="live-dot"></span> Updated
+                </div>
+                <div class="summary-value" id="stat-updated" style="color: var(--text-secondary); font-size: 16px;">—</div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls-bar">
+            <div class="search-wrap" id="search-wrap">
+                <input type="text" class="search-input" id="search-input" placeholder="Search by address (0x...)">
+                <button type="button" class="search-clear" id="search-clear" title="Clear search">✕</button>
+            </div>
+
+            <div class="chain-filter" id="chain-filter">
+                <button type="button" class="chain-trigger" id="chain-trigger">
+                    <svg class="trigger-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: rgba(255,255,255,0.6)">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="2" y1="12" x2="22" y2="12"/>
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                    </svg>
+                    <span id="chain-trigger-label">All Chains</span>
+                </button>
+                <div class="chain-menu" id="chain-menu"></div>
+            </div>
+
+            <div class="risk-dropdown" id="risk-dropdown">
+                <button type="button" class="risk-trigger" id="risk-trigger">
+                    <span class="risk-dot" style="background: #6366f1; box-shadow: 0 0 6px rgba(99,102,241,0.4)"></span>
+                    <span id="risk-trigger-label">All Risks</span>
+                </button>
+                <div class="risk-menu" id="risk-menu"></div>
+            </div>
+
+            <div class="debt-dropdown" id="debt-dropdown">
+                <button type="button" class="debt-trigger" id="debt-trigger">
+                    <span class="debt-icon">💰</span>
+                    <span id="debt-trigger-label">All Debt</span>
+                </button>
+                <div class="debt-menu" id="debt-menu"></div>
+            </div>
+
+            <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+                <button class="toggle-btn active" id="hide-dust-btn" title="Hide positions with less than $1 of collateral and debt">
+                    <span class="icon">🧹</span>Hide Dust
+                </button>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-container">
+            <div id="loading-state" class="loading-state">
+                <div class="loading-spinner"></div>
+                <div>Loading positions from liquidation_risk.json...</div>
+            </div>
+
+            <table class="positions-table" id="positions-table" style="display: none;">
+                <colgroup>
+                    <col><col><col><col><col><col><col>
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th data-sort="chain">Chain <span class="sort-arrow"></span></th>
+                        <th data-sort="address">Address <span class="sort-arrow"></span></th>
+                        <th data-sort="hf">Health Factor <span class="sort-arrow">▲</span></th>
+                        <th data-sort="collateral">Collateral <span class="sort-arrow"></span></th>
+                        <th data-sort="debt">Debt <span class="sort-arrow"></span></th>
+                        <th>Collateral Tokens</th>
+                        <th>Debt Tokens</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body"></tbody>
+            </table>
+
+            <div id="empty-state" class="empty-state" style="display: none;">
+                <div class="emoji">🎉</div>
+                <div>No positions match your filters</div>
+            </div>
+
+            <div class="table-footer" id="table-footer" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        // ─── State ───────────────────────────────────────────────────────────
+        let allPositions = [];
+        let filteredPositions = [];
+        let currentPage = 1;
+        const PAGE_SIZE = 15;
+        let sortField = 'hf';
+        let sortDirection = 'asc';
+        let chainFilter = 'all';
+        let riskFilter = 'all';
+        let searchQuery = '';
+        let hideDust = true;  // Hide $0 collateral positions by default
+
+        // ─── Init ────────────────────────────────────────────────────────────
+        async function init() {
+            try {
+                // Read URL search params
+                const urlParams = new URLSearchParams(window.location.search);
+                const urlSearch = urlParams.get('search') || urlParams.get('address') || '';
+                if (urlSearch) {
+                    searchQuery = urlSearch;
+                    document.getElementById('search-input').value = urlSearch;
+                }
+
+                const resp = await fetch('liquidation_risk.json');
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const data = await resp.json();
+                allPositions = data.positions || [];
+                renderSummary(data);
+                renderChainButtons(data);
+                renderRiskMenu();
+                applyFilters();
+                document.getElementById('loading-state').style.display = 'none';
+                document.getElementById('positions-table').style.display = 'table';
+                document.getElementById('table-footer').style.display = 'flex';
+            } catch (e) {
+                document.getElementById('loading-state').innerHTML = `
+                    <div class="emoji" style="font-size:40px; margin-bottom:12px;">⚠️</div>
+                    <div style="color: var(--accent-rose);">Failed to load data</div>
+                    <div style="margin-top:8px; font-size:12px; color: var(--text-muted);">
+                        Run <code style="background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">python3 fetch_liquidation_risk.py</code> first to generate the data.
+                    </div>
+                    <div style="margin-top:4px; font-size:11px; color: var(--text-muted);">Error: ${e.message}</div>
+                `;
+            }
+        }
+
+        // ─── Summary Cards ───────────────────────────────────────────────────
+        function renderSummary(data) {
+            const gs = data.globalStats || {};
+            document.getElementById('stat-total').textContent = (gs.totalPositions || 0).toLocaleString();
+            document.getElementById('stat-total-sub').textContent = `Across ${Object.keys(data.chainStats || {}).length} chains`;
+            document.getElementById('stat-at-risk').textContent = (gs.atRisk || 0).toLocaleString();
+            document.getElementById('stat-at-risk-sub').textContent = `${gs.critical || 0} critical · ${gs.danger || 0} danger · ${gs.warning || 0} warning`;
+            document.getElementById('stat-collateral').textContent = formatUSD(gs.totalCollateralUSD || 0);
+            document.getElementById('stat-debt').textContent = formatUSD(gs.totalDebtUSD || 0);
+            document.getElementById('stat-critical').textContent = (gs.critical || 0).toLocaleString();
+            document.getElementById('stat-danger').textContent = (gs.danger || 0).toLocaleString();
+            document.getElementById('stat-warning').textContent = (gs.warning || 0).toLocaleString();
+            
+            // Updated timestamp — show relative time with auto-refresh
+            if (data.generatedAtISO) {
+                window._dataGeneratedAt = new Date(data.generatedAtISO);
+                updateRelativeTime();
+                // Auto-refresh the relative time every 60 seconds
+                if (window._relativeTimeInterval) clearInterval(window._relativeTimeInterval);
+                window._relativeTimeInterval = setInterval(updateRelativeTime, 60000);
+            }
+        }
+
+        function updateRelativeTime() {
+            if (!window._dataGeneratedAt) return;
+            const now = new Date();
+            const diffMs = now - window._dataGeneratedAt;
+            const diffMin = Math.floor(diffMs / 60000);
+            const el = document.getElementById('stat-updated');
+            if (!el) return;
+            
+            let text, color;
+            if (diffMin < 1) {
+                text = 'just now';
+                color = 'var(--accent-green)';
+            } else if (diffMin < 60) {
+                text = diffMin + ' min ago';
+                color = diffMin < 10 ? 'var(--accent-green)' : diffMin < 30 ? 'var(--accent-amber)' : 'var(--accent-rose)';
+            } else {
+                const diffH = Math.floor(diffMin / 60);
+                text = diffH + 'h ' + (diffMin % 60) + 'm ago';
+                color = 'var(--accent-rose)';
+            }
+            el.textContent = text;
+            el.style.color = color;
+            
+            // Also update the live dot color
+            const dot = document.querySelector('.live-dot');
+            if (dot) dot.style.background = color;
+        }
+
+        // ─── Chain Buttons ───────────────────────────────────────────────────
+        const CHAIN_DISPLAY_NAMES = {
+            'berachain': 'Berachain',
+            'arbitrum': 'Arbitrum',
+            'mantle': 'Mantle',
+            'base': 'Base',
+            'xlayer': 'X Layer',
+            'polygon_zkevm': 'Polygon zkEVM'
+        };
+
+        // Short labels for compact table badges
+        const CHAIN_SHORT_LABELS = {
+            'berachain': 'BERA',
+            'arbitrum': 'ARB',
+            'mantle': 'MNT',
+            'base': 'BASE',
+            'xlayer': 'XL',
+            'polygon_zkevm': 'ZKEVM'
+        };
+
+        // Chain icon URLs (same as EARN tab)
+        const CHAIN_ICONS = {
+            'berachain':     'https://icons.llamao.fi/icons/chains/rsz_berachain.jpg',
+            'arbitrum':      'https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg',
+            'mantle':        'https://icons.llamao.fi/icons/chains/rsz_mantle.jpg',
+            'base':          'https://icons.llamao.fi/icons/chains/rsz_base.jpg',
+            'xlayer':        'https://icons.llamao.fi/icons/chains/rsz_x%20layer.jpg',
+            'polygon_zkevm': 'https://icons.llamao.fi/icons/chains/rsz_polygon%20zkevm.jpg'
+        };
+
+        const COPY_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`;
+
+        const CHAIN_DEBANK_IDS = {
+            'berachain': 'bera',
+            'arbitrum': 'arb',
+            'mantle': 'mantle',
+            'base': 'base',
+            'xlayer': 'xlayer',
+            'polygon_zkevm': 'pzkevm'
+        };
+
+        // Team-verified address explanations
+        const KNOWN_ADDRESSES = {
+            '0x25fc2fc8d44f2e256ab1d65cf70f1d9134d5bfb4': 'Liquidated — lack of on-chain liquidity for srUSD on Berachain',
+            '0x9cb016669c235ccebcd2fbbffa2d8d3a2247b02c': 'Dolomite team — plvGLP exploit spillover. Excess value extracted, stables reserved to cover bad debt'
+        };
+
+        function copyAddr(addr, el) {
+            navigator.clipboard.writeText(addr).then(() => {
+                el.classList.add('copied');
+                const origSvg = el.innerHTML;
+                el.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+                setTimeout(() => {
+                    el.innerHTML = origSvg;
+                    el.classList.remove('copied');
+                }, 1500);
+            });
+        }
+
+        function renderChainButtons(data) {
+            const menu = document.getElementById('chain-menu');
+            const chains = Object.keys(data.chainStats || {});
+            const GLOBE_SVG = `<svg class="opt-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: rgba(255,255,255,0.5); width:20px; height:20px;"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
+
+            // "All Chains" option first
+            let html = `<div class="chain-option active" data-chain="all">
+                ${GLOBE_SVG}
+                All Chains
+                <span class="opt-count">${allPositions.length.toLocaleString()}</span>
+            </div>`;
+
+            chains.forEach(chain => {
+                const stats = data.chainStats[chain] || {};
+                const displayName = CHAIN_DISPLAY_NAMES[chain] || chain;
+                const icon = CHAIN_ICONS[chain] || 'dolomite-logo.svg';
+                html += `<div class="chain-option" data-chain="${chain}">
+                    <img class="opt-icon" src="${icon}" alt="${displayName}">
+                    ${displayName}
+                    <span class="opt-count">${(stats.total || 0).toLocaleString()}</span>
+                </div>`;
+            });
+
+            menu.innerHTML = html;
+        }
+
+        document.getElementById('chain-trigger').addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('chain-filter').classList.toggle('open');
+            // Close other dropdowns
+            document.getElementById('risk-dropdown').classList.remove('open');
+            document.getElementById('debt-dropdown').classList.remove('open');
+        });
+
+        // Close on outside click
+        document.addEventListener('click', (e) => {
+            const dd = document.getElementById('chain-filter');
+            if (!dd.contains(e.target)) dd.classList.remove('open');
+        });
+
+        // Chain option selection
+        document.getElementById('chain-menu').addEventListener('click', (e) => {
+            const opt = e.target.closest('.chain-option');
+            if (!opt) return;
+            const chain = opt.dataset.chain;
+            chainFilter = chain;
+
+            // Update trigger label & icon
+            const label = chain === 'all' ? 'All Chains' : CHAIN_DISPLAY_NAMES[chain] || chain;
+            document.getElementById('chain-trigger-label').textContent = label;
+            const triggerIcon = document.querySelector('#chain-trigger .trigger-icon');
+            if (chain === 'all') {
+                triggerIcon.outerHTML = `<svg class="trigger-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: rgba(255,255,255,0.6)"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
+            } else {
+                triggerIcon.outerHTML = `<img class="trigger-icon" src="${CHAIN_ICONS[chain] || ''}" alt="">`;
+            }
+
+            // Update active class
+            document.querySelectorAll('.chain-option').forEach(o => o.classList.toggle('active', o.dataset.chain === chain));
+
+            // Close & filter
+            document.getElementById('chain-filter').classList.remove('open');
+            applyFilters();
+        });
+
+        // ─── Filtering & Sorting ────────────────────────────────────────────
+        function applyFilters() {
+            filteredPositions = allPositions.filter(p => {
+                if (chainFilter !== 'all' && p.chain !== chainFilter) return false;
+                const isBadDebt = p.collateralUSD < 0.01 && p.debtUSD > 0;
+                if (riskFilter === 'at-risk' && (p.riskLevel === 'SAFE' || isBadDebt)) return false;
+                if (riskFilter === 'BAD_DEBT' && !isBadDebt) return false;
+                if (riskFilter !== 'all' && riskFilter !== 'at-risk' && riskFilter !== 'BAD_DEBT' && riskFilter !== 'custom' && p.riskLevel !== riskFilter) return false;
+                if (searchQuery && !p.address.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+                // Hide dust: positions with < $1 total value
+                if (hideDust && p.collateralUSD < 1 && p.debtUSD < 1) return false;
+                // Debt range filter
+                if (debtRangeMin !== null && p.debtUSD < debtRangeMin) return false;
+                if (debtRangeMax !== null && p.debtUSD > debtRangeMax) return false;
+                // HF range filter
+                if (hfRangeMin !== null || hfRangeMax !== null) {
+                    const hf = p.healthFactor;
+                    if (hf === null) return false;
+                    if (hfRangeMin !== null && hf < hfRangeMin) return false;
+                    if (hfRangeMax !== null && hf > hfRangeMax) return false;
+                }
+                return true;
+            });
+            sortPositions();
+            currentPage = 1;
+            renderTable();
+            // Update results count
+            const rc = document.getElementById('results-count');
+            if (rc) {
+                if (filteredPositions.length === allPositions.length) {
+                    rc.innerHTML = `<strong>${allPositions.length.toLocaleString()}</strong> positions`;
+                } else {
+                    rc.innerHTML = `<strong>${filteredPositions.length.toLocaleString()}</strong> of ${allPositions.length.toLocaleString()} positions`;
+                }
+            }
+        }
+
+        function sortPositions() {
+            filteredPositions.sort((a, b) => {
+                let va, vb;
+                switch (sortField) {
+                    case 'hf': va = a.healthFactor ?? 999; vb = b.healthFactor ?? 999; break;
+                    case 'chain': va = a.chainLabel; vb = b.chainLabel; break;
+                    case 'address': va = a.address; vb = b.address; break;
+                    case 'collateral': va = a.collateralUSD; vb = b.collateralUSD; break;
+                    case 'debt': va = a.debtUSD; vb = b.debtUSD; break;
+                    default: va = a.healthFactor ?? 999; vb = b.healthFactor ?? 999;
+                }
+                if (typeof va === 'string') {
+                    return sortDirection === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+                }
+                return sortDirection === 'asc' ? va - vb : vb - va;
+            });
+        }
+
+        // ─── Table Rendering ─────────────────────────────────────────────────
+        function renderTable() {
+            const tbody = document.getElementById('table-body');
+            const start = (currentPage - 1) * PAGE_SIZE;
+            const end = Math.min(start + PAGE_SIZE, filteredPositions.length);
+            const pageItems = filteredPositions.slice(start, end);
+
+            if (filteredPositions.length === 0) {
+                document.getElementById('positions-table').style.display = 'none';
+                document.getElementById('empty-state').style.display = 'block';
+                document.getElementById('table-footer').style.display = 'none';
+                return;
+            } else {
+                document.getElementById('positions-table').style.display = 'table';
+                document.getElementById('empty-state').style.display = 'none';
+                document.getElementById('table-footer').style.display = 'flex';
+            }
+
+            tbody.innerHTML = pageItems.map((p, i) => {
+                const isBadDebt = p.collateralUSD < 0.01 && p.debtUSD > 0;
+                const riskClass = isBadDebt ? 'baddebt' : p.riskLevel.toLowerCase();
+                const rowClass = p.riskLevel === 'CRITICAL' ? 'critical-row' : p.riskLevel === 'DANGER' ? 'danger-row' : '';
+                const shortAddr = p.address.slice(0, 6) + '...' + p.address.slice(-4);
+                const hfDecimals = (p.riskLevel === 'SAFE') ? 2 : 4;
+                const hfText = isBadDebt ? 'BAD DEBT' : (p.healthFactor !== null ? (p.healthFactor > 10 ? '10<' : p.healthFactor.toFixed(hfDecimals)) : '—');
+                const chainLabel = CHAIN_SHORT_LABELS[p.chain] || p.chainLabel;
+                const chainFull = CHAIN_DISPLAY_NAMES[p.chain] || p.chainLabel;
+                const chainIcon = CHAIN_ICONS[p.chain] || 'dolomite-logo.svg';
+                const acctLabel = (p.accountNumber && p.accountNumber !== '0') ? ` #${p.accountNumber.length > 6 ? p.accountNumber.slice(0,4) + '…' : p.accountNumber}` : '';
+                const tooltip = isBadDebt
+                    ? 'Position has $0 collateral — debt remains after liquidation or withdrawal'
+                    : (p.healthFactor !== null ? 'Health Factor: ' + p.healthFactor.toFixed(4) : '');
+
+                const debankChain = CHAIN_DEBANK_IDS[p.chain] || 'bera';
+                const debankUrl = `https://debank.com/profile/${p.address}?chain=${debankChain}`;
+
+                const collateralClass = p.collateralUSD < 0.01 ? 'zero' : '';
+                const debtClass = p.debtUSD < 0.01 ? 'zero' : '';
+                const collateralDisplay = p.collateralUSD < 0.01 ? '$0.00' : formatUSD(p.collateralUSD);
+                const collateralTokensHtml = p.collateralTokens && p.collateralTokens.length > 0
+                    ? renderTokenPills(p.collateralTokens)
+                    : `<span style="color:var(--text-muted);font-size:11px">—</span>`;
+
+                const addrNote = KNOWN_ADDRESSES[p.address.toLowerCase()];
+                const noteIcon = addrNote ? `<span class="addr-note-icon" data-tooltip="${addrNote.replace(/"/g, '&quot;')}">ℹ</span>` : '';
+
+                return `<tr class="${rowClass}">
+                    <td><span class="chain-badge ${p.chain}" title="${chainFull}"><img class="chain-icon" src="${chainIcon}" alt="">${chainLabel}</span></td>
+                    <td><div class="address-cell">
+                        <a href="${p.explorer}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${p.address}">${shortAddr}</a>${noteIcon}<span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${p.address}',this)" title="Copy address">${COPY_SVG}</span><a href="${debankUrl}" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a>
+                    </div></td>
+                    <td><span class="hf-badge ${riskClass}" data-tooltip="${tooltip}"><span class="hf-dot ${riskClass}"></span>${hfText}</span></td>
+                    <td><span class="usd-value collateral ${collateralClass}">${collateralDisplay}</span></td>
+                    <td><span class="usd-value debt ${debtClass}">${formatUSD(p.debtUSD)}</span></td>
+                    <td><div class="token-pills">${collateralTokensHtml}</div></td>
+                    <td><div class="token-pills">${renderTokenPills(p.debtTokens)}</div></td>
+                </tr>`;
+            }).join('');
+
+            // Staggered row fade-in animation
+            requestAnimationFrame(() => {
+                const rows = tbody.querySelectorAll('tr');
+                rows.forEach((row, i) => {
+                    row.classList.add('row-enter');
+                    row.style.animationDelay = (i * 25) + 'ms';
+                });
+            });
+
+            // Pagination — flow-pager pattern
+            const totalPages = Math.ceil(filteredPositions.length / PAGE_SIZE);
+            const footer = document.getElementById('table-footer');
+
+            if (totalPages <= 1) {
+                footer.innerHTML = `<span class="flow-pager-info">1 / 1</span><span class="flow-pager-total">${filteredPositions.length.toLocaleString()} positions</span>`;
+                return;
+            }
+
+            footer.innerHTML = 
+                `<button class="flow-pager-btn" onclick="goToPage(1)" ${currentPage === 1 ? 'disabled' : ''}>«</button>` +
+                `<button class="flow-pager-btn" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>‹</button>` +
+                `<span class="flow-pager-info">${currentPage} / ${totalPages}</span>` +
+                `<button class="flow-pager-btn" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>›</button>` +
+                `<button class="flow-pager-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>»</button>` +
+                `<span class="flow-pager-total">${filteredPositions.length.toLocaleString()} positions</span>`;
+        }
+
+        function goToPage(p) {
+            const t = Math.ceil(filteredPositions.length / PAGE_SIZE);
+            currentPage = Math.max(1, Math.min(p, t));
+            renderTable();
+            // Scroll table container to top
+            const tc = document.querySelector('.table-container');
+            if (tc) tc.scrollTop = 0;
+        }
+
+        function renderTokenPills(tokens) {
+            if (!tokens || tokens.length === 0) return '<span style="color:var(--text-muted)">—</span>';
+            return tokens.map(t => 
+                `<span class="token-pill">${t.symbol}<span class="token-usd">${formatUSDCompact(t.usd)}</span></span>`
+            ).join('');
+        }
+
+        // ─── Formatting ─────────────────────────────────────────────────────
+        function formatUSD(n) {
+            if (n === null || n === undefined) return '—';
+            if (n >= 1_000_000) return '$' + (n / 1_000_000).toFixed(2) + 'M';
+            if (n >= 1_000) return '$' + (n / 1_000).toFixed(2) + 'K';
+            return '$' + n.toFixed(2);
+        }
+
+        function formatUSDCompact(n) {
+            if (n === null || n === undefined) return '';
+            if (n >= 1_000_000) return '$' + (n / 1_000_000).toFixed(1) + 'M';
+            if (n >= 1_000) return '$' + (n / 1_000).toFixed(1) + 'K';
+            if (n >= 1) return '$' + n.toFixed(0);
+            return '$' + n.toFixed(2);
+        }
+
+        // ─── Event Handlers ──────────────────────────────────────────────────
+        // Chain select handled above in custom dropdown click handler
+
+        // Risk dropdown — same pattern as chain dropdown
+        let hfRangeMin = null;
+        let hfRangeMax = null;
+
+        const RISK_OPTIONS = [
+            { key: 'all', label: 'All Risks', color: '#6366f1' },
+            { key: 'at-risk', label: 'At Risk', color: '#f59e0b' },
+            { key: 'CRITICAL', label: 'Critical', color: '#ef4444' },
+            { key: 'DANGER', label: 'Danger', color: '#f97316' },
+            { key: 'WARNING', label: 'Warning', color: '#eab308' },
+            { key: 'SAFE', label: 'Safe', color: '#34d399' },
+            { key: 'BAD_DEBT', label: 'Bad Debt', color: '#fb923c' }
+        ];
+
+        function renderRiskMenu() {
+            const menu = document.getElementById('risk-menu');
+            let html = RISK_OPTIONS.map(opt => {
+                const active = opt.key === riskFilter ? ' active' : '';
+                const count = opt.key === 'all' ? allPositions.length :
+                    opt.key === 'at-risk' ? allPositions.filter(p => p.riskLevel !== 'SAFE' && !(p.collateralUSD < 0.01 && p.debtUSD > 0)).length :
+                    opt.key === 'BAD_DEBT' ? allPositions.filter(p => p.collateralUSD < 0.01 && p.debtUSD > 0).length :
+                    allPositions.filter(p => p.riskLevel === opt.key).length;
+                return `<div class="risk-option${active}" data-risk="${opt.key}">
+                    <span class="risk-opt-dot" style="background: ${opt.color}; box-shadow: 0 0 6px ${opt.color}40"></span>
+                    ${opt.label}
+                    <span class="risk-opt-count">${count.toLocaleString()}</span>
+                </div>`;
+            }).join('');
+
+            // Custom HF range row
+            const customMin = riskFilter === 'custom' && hfRangeMin !== null ? hfRangeMin : '';
+            const customMax = riskFilter === 'custom' && hfRangeMax !== null ? hfRangeMax : '';
+            html += `<div class="debt-custom-row">
+                <span style="font-size:10px;color:var(--text-muted)">HF</span>
+                <input type="number" step="0.01" class="debt-custom-input" id="hf-custom-min" placeholder="Min" value="${customMin}">
+                <span>–</span>
+                <input type="number" step="0.01" class="debt-custom-input" id="hf-custom-max" placeholder="Max" value="${customMax}">
+            </div>`;
+
+            menu.innerHTML = html;
+
+            // Preset clicks
+            menu.querySelectorAll('.risk-option').forEach(opt => {
+                opt.addEventListener('click', () => {
+                    const risk = opt.dataset.risk;
+                    riskFilter = risk;
+                    hfRangeMin = null;
+                    hfRangeMax = null;
+                    const riskCfg = RISK_OPTIONS.find(r => r.key === risk) || RISK_OPTIONS[0];
+                    document.getElementById('risk-trigger-label').textContent = riskCfg.label;
+                    const dot = document.querySelector('#risk-trigger .risk-dot');
+                    dot.style.background = riskCfg.color;
+                    dot.style.boxShadow = `0 0 6px ${riskCfg.color}40`;
+                    document.getElementById('risk-dropdown').classList.remove('open');
+                    renderRiskMenu();
+                    applyFilters();
+                });
+            });
+
+            // Custom HF inputs
+            let hfTimer;
+            const hMin = document.getElementById('hf-custom-min');
+            const hMax = document.getElementById('hf-custom-max');
+            function applyCustomHF() {
+                const min = parseFloat(hMin.value);
+                const max = parseFloat(hMax.value);
+                riskFilter = 'custom';
+                hfRangeMin = isNaN(min) ? null : min;
+                hfRangeMax = isNaN(max) ? null : max;
+                const label = (hfRangeMin !== null && hfRangeMax !== null)
+                    ? `HF ${hfRangeMin} – ${hfRangeMax}`
+                    : hfRangeMin !== null ? `HF ${hfRangeMin}+`
+                    : hfRangeMax !== null ? `HF < ${hfRangeMax}`
+                    : 'All Risks';
+                document.getElementById('risk-trigger-label').textContent = label;
+                const dot = document.querySelector('#risk-trigger .risk-dot');
+                dot.style.background = '#f59e0b';
+                dot.style.boxShadow = '0 0 6px rgba(245,158,11,0.4)';
+                menu.querySelectorAll('.risk-option').forEach(o => o.classList.remove('active'));
+                applyFilters();
+            }
+            if (hMin) hMin.addEventListener('input', () => { clearTimeout(hfTimer); hfTimer = setTimeout(applyCustomHF, 400); });
+            if (hMax) hMax.addEventListener('input', () => { clearTimeout(hfTimer); hfTimer = setTimeout(applyCustomHF, 400); });
+            if (hMin) hMin.addEventListener('click', e => e.stopPropagation());
+            if (hMax) hMax.addEventListener('click', e => e.stopPropagation());
+        }
+
+        document.getElementById('risk-trigger').addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('risk-dropdown').classList.toggle('open');
+            // Close other dropdowns
+            document.getElementById('chain-filter').classList.remove('open');
+            document.getElementById('debt-dropdown').classList.remove('open');
+            renderRiskMenu();
+        });
+
+        document.addEventListener('click', (e) => {
+            const dd = document.getElementById('risk-dropdown');
+            if (!dd.contains(e.target)) dd.classList.remove('open');
+        });
+
+        document.getElementById('search-input').addEventListener('input', e => {
+            searchQuery = e.target.value.trim();
+            document.getElementById('search-wrap').classList.toggle('has-value', searchQuery.length > 0);
+            applyFilters();
+        });
+
+        document.getElementById('search-clear').addEventListener('click', () => {
+            const input = document.getElementById('search-input');
+            input.value = '';
+            searchQuery = '';
+            document.getElementById('search-wrap').classList.remove('has-value');
+            input.focus();
+            applyFilters();
+        });
+
+        document.getElementById('hide-dust-btn').addEventListener('click', e => {
+            hideDust = !hideDust;
+            e.currentTarget.classList.toggle('active', hideDust);
+            applyFilters();
+        });
+
+        // ─── Debt Range Dropdown ────────────────────────────────────────
+        let debtRangeMin = null;
+        let debtRangeMax = null;
+        let debtRangeKey = 'all';
+
+        const DEBT_PRESETS = [
+            { key: 'all',    label: 'All Debt',  min: null,   max: null },
+            { key: 'u100',   label: '< $100',     min: null,   max: 100 },
+            { key: '100_1k', label: '$100 – $1K',  min: 100,    max: 1000 },
+            { key: '1k_10k', label: '$1K – $10K',  min: 1000,   max: 10000 },
+            { key: '10k_100k', label: '$10K – $100K', min: 10000, max: 100000 },
+            { key: 'o100k',  label: '$100K+',     min: 100000, max: null },
+        ];
+
+        function renderDebtMenu() {
+            const menu = document.getElementById('debt-menu');
+            let html = DEBT_PRESETS.map(p => {
+                const active = p.key === debtRangeKey ? ' active' : '';
+                const count = allPositions.filter(pos => {
+                    if (p.min !== null && pos.debtUSD < p.min) return false;
+                    if (p.max !== null && pos.debtUSD > p.max) return false;
+                    return true;
+                }).length;
+                return `<div class="debt-option${active}" data-key="${p.key}">
+                    <span>${p.label}</span>
+                    <span class="opt-count">${count.toLocaleString()}</span>
+                </div>`;
+            }).join('');
+
+            // Custom row
+            const customMin = debtRangeKey === 'custom' && debtRangeMin !== null ? debtRangeMin : '';
+            const customMax = debtRangeKey === 'custom' && debtRangeMax !== null ? debtRangeMax : '';
+            html += `<div class="debt-custom-row">
+                <span>$</span>
+                <input type="number" class="debt-custom-input" id="debt-custom-min" placeholder="Min" value="${customMin}">
+                <span>–</span>
+                <input type="number" class="debt-custom-input" id="debt-custom-max" placeholder="Max" value="${customMax}">
+            </div>`;
+
+            menu.innerHTML = html;
+
+            // Preset clicks
+            menu.querySelectorAll('.debt-option').forEach(opt => {
+                opt.addEventListener('click', () => {
+                    const key = opt.dataset.key;
+                    const preset = DEBT_PRESETS.find(p => p.key === key);
+                    debtRangeKey = key;
+                    debtRangeMin = preset.min;
+                    debtRangeMax = preset.max;
+                    document.getElementById('debt-trigger-label').textContent = preset.label;
+                    document.getElementById('debt-dropdown').classList.remove('open');
+                    renderDebtMenu();
+                    applyFilters();
+                });
+            });
+
+            // Custom inputs
+            let customTimer;
+            const cMin = document.getElementById('debt-custom-min');
+            const cMax = document.getElementById('debt-custom-max');
+            function applyCustom() {
+                const min = parseFloat(cMin.value);
+                const max = parseFloat(cMax.value);
+                debtRangeKey = 'custom';
+                debtRangeMin = isNaN(min) ? null : min;
+                debtRangeMax = isNaN(max) ? null : max;
+                const label = (debtRangeMin !== null && debtRangeMax !== null)
+                    ? `$${debtRangeMin.toLocaleString()} – $${debtRangeMax.toLocaleString()}`
+                    : debtRangeMin !== null ? `$${debtRangeMin.toLocaleString()}+`
+                    : debtRangeMax !== null ? `< $${debtRangeMax.toLocaleString()}`
+                    : 'All Debt';
+                document.getElementById('debt-trigger-label').textContent = label;
+                menu.querySelectorAll('.debt-option').forEach(o => o.classList.remove('active'));
+                applyFilters();
+            }
+            if (cMin) cMin.addEventListener('input', () => { clearTimeout(customTimer); customTimer = setTimeout(applyCustom, 400); });
+            if (cMax) cMax.addEventListener('input', () => { clearTimeout(customTimer); customTimer = setTimeout(applyCustom, 400); });
+            // Prevent dropdown close on input click
+            if (cMin) cMin.addEventListener('click', e => e.stopPropagation());
+            if (cMax) cMax.addEventListener('click', e => e.stopPropagation());
+        }
+
+        // Toggle debt dropdown
+        document.getElementById('debt-trigger').addEventListener('click', e => {
+            e.stopPropagation();
+            // Close other dropdowns
+            document.getElementById('chain-filter').classList.remove('open');
+            document.getElementById('risk-dropdown').classList.remove('open');
+            document.getElementById('debt-dropdown').classList.toggle('open');
+            renderDebtMenu();
+        });
+
+        // Close debt dropdown on outside click
+        document.addEventListener('click', e => {
+            const dd = document.getElementById('debt-dropdown');
+            if (!dd.contains(e.target)) dd.classList.remove('open');
+        });
+
+        document.querySelectorAll('.positions-table thead th[data-sort]').forEach(th => {
+            th.addEventListener('click', () => {
+                const field = th.dataset.sort;
+                if (sortField === field) {
+                    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    sortField = field;
+                    sortDirection = field === 'hf' ? 'asc' : 'desc';
+                }
+                // Update arrows and highlight
+                document.querySelectorAll('.positions-table thead th').forEach(h => h.classList.remove('sorted'));
+                document.querySelectorAll('.positions-table thead th .sort-arrow').forEach(s => s.textContent = '');
+                th.classList.add('sorted');
+                th.querySelector('.sort-arrow').textContent = sortDirection === 'asc' ? '▲' : '▼';
+                applyFilters();
+            });
+        });
+
+        // ─── Keyboard Shortcuts ──────────────────────────────────────────────
+        document.addEventListener('keydown', (e) => {
+            // `/` to focus search (when not already in an input)
+            if (e.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+                e.preventDefault();
+                document.getElementById('search-input').focus();
+            }
+        });
+
+        // ─── Address Tooltip (matching DOLO Holders) ─────────────────────────
+        (function() {
+            var tip = document.createElement('div');
+            tip.id = 'addr-tooltip';
+            tip.style.cssText = 'position:fixed;z-index:9999;background:rgba(15,23,42,0.85);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid rgba(99,102,241,0.25);color:#fff;font-family:monospace;font-size:11px;padding:6px 12px;border-radius:8px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;box-shadow:0 4px 20px rgba(0,0,0,0.5),0 0 0 1px rgba(99,102,241,0.08);';
+            document.body.appendChild(tip);
+
+            var arrow = document.createElement('div');
+            arrow.style.cssText = 'position:fixed;z-index:9999;width:0;height:0;border:5px solid transparent;border-top-color:rgba(20,24,40,0.97);pointer-events:none;opacity:0;transition:opacity 0.15s;';
+            document.body.appendChild(arrow);
+
+            document.addEventListener('mouseover', function(e) {
+                var el = e.target.closest('.addr-tooltip-wrap');
+                if (!el) return;
+                var addr = el.getAttribute('data-full-addr');
+                if (!addr) return;
+                tip.textContent = addr;
+                tip.style.opacity = '1';
+                arrow.style.opacity = '1';
+
+                var rect = el.getBoundingClientRect();
+                tip.style.display = 'block';
+                var tw = tip.offsetWidth;
+                var th = tip.offsetHeight || 28;
+
+                var left = rect.left + rect.width / 2 - tw / 2;
+                if (left < 4) left = 4;
+                if (left + tw > window.innerWidth - 4) left = window.innerWidth - tw - 4;
+                tip.style.left = left + 'px';
+
+                var arrowLeft = Math.min(Math.max(rect.left + rect.width / 2 - 5, 8), window.innerWidth - 14);
+                if (rect.top - th - 8 > 0) {
+                    tip.style.top = (rect.top - th - 6) + 'px';
+                    arrow.style.cssText = 'position:fixed;z-index:9999;width:0;height:0;border:5px solid transparent;border-top-color:rgba(20,24,40,0.97);pointer-events:none;opacity:1;';
+                    arrow.style.left = arrowLeft + 'px';
+                    arrow.style.top = (rect.top - 6) + 'px';
+                } else {
+                    tip.style.top = (rect.bottom + 6) + 'px';
+                    arrow.style.cssText = 'position:fixed;z-index:9999;width:0;height:0;border:5px solid transparent;border-bottom-color:rgba(20,24,40,0.97);pointer-events:none;opacity:1;';
+                    arrow.style.left = arrowLeft + 'px';
+                    arrow.style.top = (rect.bottom - 4) + 'px';
+                }
+            });
+
+            document.addEventListener('mouseout', function(e) {
+                var el = e.target.closest('.addr-tooltip-wrap');
+                if (!el) return;
+                tip.style.opacity = '0';
+                arrow.style.opacity = '0';
+            });
+
+            // ℹ Note icon tooltip (reuses same fixed tooltip)
+            document.addEventListener('mouseover', function(e) {
+                var el = e.target.closest('.addr-note-icon');
+                if (!el) return;
+                var note = el.getAttribute('data-tooltip');
+                if (!note) return;
+                tip.textContent = note;
+                tip.style.whiteSpace = 'normal';
+                tip.style.maxWidth = '300px';
+                tip.style.opacity = '1';
+                arrow.style.opacity = '1';
+
+                var rect = el.getBoundingClientRect();
+                tip.style.display = 'block';
+                var tw = tip.offsetWidth;
+                var th = tip.offsetHeight || 28;
+
+                var left = rect.left + rect.width / 2 - tw / 2;
+                if (left < 4) left = 4;
+                if (left + tw > window.innerWidth - 4) left = window.innerWidth - tw - 4;
+                tip.style.left = left + 'px';
+
+                var arrowLeft = Math.min(Math.max(rect.left + rect.width / 2 - 5, 8), window.innerWidth - 14);
+                if (rect.top - th - 8 > 0) {
+                    tip.style.top = (rect.top - th - 6) + 'px';
+                    arrow.style.cssText = 'position:fixed;z-index:9999;width:0;height:0;border:5px solid transparent;border-top-color:rgba(20,24,40,0.97);pointer-events:none;opacity:1;';
+                    arrow.style.left = arrowLeft + 'px';
+                    arrow.style.top = (rect.top - 6) + 'px';
+                } else {
+                    tip.style.top = (rect.bottom + 6) + 'px';
+                    arrow.style.cssText = 'position:fixed;z-index:9999;width:0;height:0;border:5px solid transparent;border-bottom-color:rgba(20,24,40,0.97);pointer-events:none;opacity:1;';
+                    arrow.style.left = arrowLeft + 'px';
+                    arrow.style.top = (rect.bottom - 4) + 'px';
+                }
+            });
+            document.addEventListener('mouseout', function(e) {
+                var el = e.target.closest('.addr-note-icon');
+                if (!el) return;
+                tip.style.opacity = '0';
+                arrow.style.opacity = '0';
+                tip.style.whiteSpace = 'nowrap';
+                tip.style.maxWidth = 'none';
+            });
+        })();
+
+        // ─── Launch ──────────────────────────────────────────────────────────
+        init();
+    </script>
+</body>
+</html>
