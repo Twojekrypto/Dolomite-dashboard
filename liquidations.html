@@ -859,27 +859,7 @@
             cursor: pointer;
         }
 
-        /* Known address info icon */
-        .addr-note-icon {
-            position: relative;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background: rgba(99, 102, 241, 0.2);
-            color: #818cf8;
-            font-size: 9px;
-            font-style: normal;
-            cursor: help;
-            flex-shrink: 0;
-            transition: background 0.2s, color 0.2s;
-        }
-        .addr-note-icon:hover {
-            background: rgba(99, 102, 241, 0.35);
-            color: #a5b4fc;
-        }
+
 
         .acct-num {
             font-size: 9px;
@@ -911,6 +891,7 @@
         .token-pill {
             display: inline-flex;
             align-items: center;
+            gap: 4px;
             padding: 2px 7px;
             border-radius: 4px;
             font-size: 10px;
@@ -919,12 +900,49 @@
             color: var(--text-secondary);
             white-space: nowrap;
         }
+        .token-pill-icon {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .token-pill-icon img {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            display: block;
+        }
 
         .token-pill .token-usd {
-            margin-left: 4px;
+            margin-left: 2px;
             color: var(--text-muted);
             font-weight: 400;
         }
+
+        /* HF mini gauge bar */
+        .hf-gauge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .hf-gauge-bar {
+            width: 32px;
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(255,255,255,0.06);
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .hf-gauge-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.4s ease;
+        }
+        .hf-gauge-fill.critical { background: #ef4444; }
+        .hf-gauge-fill.danger { background: #f97316; }
+        .hf-gauge-fill.warning { background: #fbbf24; }
+        .hf-gauge-fill.safe { background: #34d399; }
+        .hf-gauge-fill.baddebt { background: #fb923c; }
 
         /* ===== PAGINATION ===== */
         /* Pagination — flow-pager pattern from DOLO Holders */
@@ -1055,6 +1073,54 @@
         }
         .toggle-btn .icon { margin-right: 4px; }
 
+        /* Premium tooltip for toggle buttons (data-tip) */
+        .toggle-btn[data-tip] {
+            position: relative;
+        }
+        .toggle-btn[data-tip]::before {
+            content: attr(data-tip);
+            position: absolute;
+            bottom: calc(100% + 10px);
+            right: 0;
+            background: rgba(15, 23, 42, 0.98);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 12px;
+            font-weight: 400;
+            color: #e2e8f0;
+            width: 260px;
+            line-height: 1.5;
+            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+            white-space: normal;
+            word-wrap: break-word;
+            z-index: 99999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s, visibility 0.2s;
+        }
+        .toggle-btn[data-tip]::after {
+            content: '';
+            position: absolute;
+            bottom: calc(100% + 4px);
+            right: 30px;
+            border: 6px solid transparent;
+            border-top-color: rgba(99, 102, 241, 0.3);
+            pointer-events: none;
+            z-index: 99999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s, visibility 0.2s;
+        }
+        .toggle-btn[data-tip]:hover::before,
+        .toggle-btn[data-tip]:hover::after {
+            opacity: 1;
+            visibility: visible;
+        }
+
         /* Debt range dropdown — mirrors risk-dropdown pattern */
         .debt-dropdown {
             position: relative;
@@ -1174,10 +1240,47 @@
         .debt-custom-input::-webkit-outer-spin-button,
         .debt-custom-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .debt-custom-input { -moz-appearance: textfield; appearance: textfield; }
+
+        /* Ambient glow blobs */
+        .ambient-blob {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(120px);
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.07;
+        }
+        .ambient-blob.blob-1 {
+            width: 500px;
+            height: 500px;
+            background: #6366f1;
+            top: -100px;
+            left: -100px;
+        }
+        .ambient-blob.blob-2 {
+            width: 400px;
+            height: 400px;
+            background: #34d399;
+            bottom: -50px;
+            right: -50px;
+        }
+        .ambient-blob.blob-3 {
+            width: 350px;
+            height: 350px;
+            background: #ef4444;
+            top: 30%;
+            right: 15%;
+            opacity: 0.04;
+        }
     </style>
 </head>
 
 <body>
+    <!-- Ambient glow blobs -->
+    <div class="ambient-blob blob-1"></div>
+    <div class="ambient-blob blob-2"></div>
+    <div class="ambient-blob blob-3"></div>
+
     <div class="page-wrapper">
         <!-- Header -->
         <div class="dashboard-header">
@@ -1272,7 +1375,7 @@
             </div>
 
             <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
-                <button class="toggle-btn active" id="hide-dust-btn" title="Hide positions with less than $1 of collateral and debt">
+                <button class="toggle-btn active" id="hide-dust-btn" data-tip="Hide dust positions — accounts with less than $1 in both collateral and debt. These are residual/abandoned positions with no real liquidation risk.">
                     <span class="icon">🧹</span>Hide Dust
                 </button>
             </div>
@@ -1362,15 +1465,44 @@
         // ─── Summary Cards ───────────────────────────────────────────────────
         function renderSummary(data) {
             const gs = data.globalStats || {};
-            document.getElementById('stat-total').textContent = (gs.totalPositions || 0).toLocaleString();
+            // CountUp animation helper
+            function animateCount(el, target, isUSD, duration) {
+                duration = duration || 1000;
+                const start = 0;
+                const startTime = performance.now();
+                function step(now) {
+                    const elapsed = now - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    // ease-out quad
+                    const eased = 1 - (1 - progress) * (1 - progress);
+                    const current = Math.round(start + (target - start) * eased);
+                    if (isUSD) {
+                        el.textContent = formatUSD(current);
+                    } else {
+                        el.textContent = current.toLocaleString();
+                    }
+                    if (progress < 1) requestAnimationFrame(step);
+                }
+                requestAnimationFrame(step);
+            }
+
+            const totalEl = document.getElementById('stat-total');
+            const atRiskEl = document.getElementById('stat-at-risk');
+            const collateralEl = document.getElementById('stat-collateral');
+            const debtEl = document.getElementById('stat-debt');
+            const criticalEl = document.getElementById('stat-critical');
+            const dangerEl = document.getElementById('stat-danger');
+            const warningEl = document.getElementById('stat-warning');
+
+            animateCount(totalEl, gs.totalPositions || 0, false, 1200);
             document.getElementById('stat-total-sub').textContent = `Across ${Object.keys(data.chainStats || {}).length} chains`;
-            document.getElementById('stat-at-risk').textContent = (gs.atRisk || 0).toLocaleString();
+            animateCount(atRiskEl, gs.atRisk || 0, false, 1000);
             document.getElementById('stat-at-risk-sub').textContent = `${gs.critical || 0} critical · ${gs.danger || 0} danger · ${gs.warning || 0} warning`;
-            document.getElementById('stat-collateral').textContent = formatUSD(gs.totalCollateralUSD || 0);
-            document.getElementById('stat-debt').textContent = formatUSD(gs.totalDebtUSD || 0);
-            document.getElementById('stat-critical').textContent = (gs.critical || 0).toLocaleString();
-            document.getElementById('stat-danger').textContent = (gs.danger || 0).toLocaleString();
-            document.getElementById('stat-warning').textContent = (gs.warning || 0).toLocaleString();
+            animateCount(collateralEl, gs.totalCollateralUSD || 0, true, 1200);
+            animateCount(debtEl, gs.totalDebtUSD || 0, true, 1200);
+            animateCount(criticalEl, gs.critical || 0, false, 800);
+            animateCount(dangerEl, gs.danger || 0, false, 800);
+            animateCount(warningEl, gs.warning || 0, false, 800);
             
             // Updated timestamp — show relative time with auto-refresh
             if (data.generatedAtISO) {
@@ -1451,11 +1583,6 @@
             'polygon_zkevm': 'pzkevm'
         };
 
-        // Team-verified address explanations
-        const KNOWN_ADDRESSES = {
-            '0x25fc2fc8d44f2e256ab1d65cf70f1d9134d5bfb4': 'Liquidated — lack of on-chain liquidity for srUSD on Berachain',
-            '0x9cb016669c235ccebcd2fbbffa2d8d3a2247b02c': 'Dolomite team — plvGLP exploit spillover. Excess value extracted, stables reserved to cover bad debt'
-        };
 
         function copyAddr(addr, el) {
             navigator.clipboard.writeText(addr).then(() => {
@@ -1632,15 +1759,12 @@
                     ? renderTokenPills(p.collateralTokens)
                     : `<span style="color:var(--text-muted);font-size:11px">—</span>`;
 
-                const addrNote = KNOWN_ADDRESSES[p.address.toLowerCase()];
-                const noteIcon = addrNote ? `<span class="addr-note-icon" data-tooltip="${addrNote.replace(/"/g, '&quot;')}">ℹ</span>` : '';
-
                 return `<tr class="${rowClass}">
                     <td><span class="chain-badge ${p.chain}" title="${chainFull}"><img class="chain-icon" src="${chainIcon}" alt="">${chainLabel}</span></td>
                     <td><div class="address-cell">
-                        <a href="${p.explorer}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${p.address}">${shortAddr}</a>${noteIcon}<span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${p.address}',this)" title="Copy address">${COPY_SVG}</span><a href="${debankUrl}" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a>
+                        <a href="${p.explorer}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${p.address}">${shortAddr}</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${p.address}',this)" title="Copy address">${COPY_SVG}</span><a href="${debankUrl}" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a>
                     </div></td>
-                    <td><span class="hf-badge ${riskClass}" data-tooltip="${tooltip}"><span class="hf-dot ${riskClass}"></span>${hfText}</span></td>
+                    <td><div class="hf-gauge"><div class="hf-gauge-bar"><div class="hf-gauge-fill ${riskClass}" style="width:${p.healthFactor !== null ? Math.min(Math.max((p.healthFactor / 2) * 100, 5), 100) : (riskClass === 'baddebt' ? 2 : 0)}%"></div></div><span class="hf-badge ${riskClass}" data-tooltip="${tooltip}"><span class="hf-dot ${riskClass}"></span>${hfText}</span></div></td>
                     <td><span class="usd-value collateral ${collateralClass}">${collateralDisplay}</span></td>
                     <td><span class="usd-value debt ${debtClass}">${formatUSD(p.debtUSD)}</span></td>
                     <td><div class="token-pills">${collateralTokensHtml}</div></td>
@@ -1684,11 +1808,88 @@
             if (tc) tc.scrollTop = 0;
         }
 
+        // Symbol-based token icons (from Dolomite CDN)
+        const DOLO_CDN = 'https://app.dolomite.io/static/media/';
+        const SYMBOL_ICONS = {
+            'USDC': DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
+            'USDC.e': DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
+            'USDC.E': DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
+            'USDT': DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
+            'USDT0': DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
+            'DAI': 'icons/dai.svg',
+            'USDe': DOLO_CDN + 'USDe-alt.ce2f05f4bb09aa83c4dd5886a5a2886f.svg',
+            'sUSDe': DOLO_CDN + 'sUSDe.60857af2b2de944764d31ffa3711252c.svg',
+            'USD1': DOLO_CDN + 'USD1.b88613f468d884c0a044350162ec22c2.svg',
+            'USDY': DOLO_CDN + 'USDY.56cf7a38e78550dd507090fe52a59b41.svg',
+            'USDa': DOLO_CDN + 'USDa.d95d6e9683a87b9007323745861f6b74.svg',
+            'sUSDa': DOLO_CDN + 'sUSDa.dc563217493f063b521fe276283e0d51.svg',
+            'savUSD': DOLO_CDN + 'savUSD.a2df97177abb3f75f4313a7241aa5fb0.svg',
+            'rUSD': DOLO_CDN + 'rUSD.9b373643ab772af9dab0807b476b9afb.svg',
+            'srUSD': DOLO_CDN + 'srUSD.bef2b101351c2021e25a96dc70122077.svg',
+            'BYUSD': DOLO_CDN + 'BYUSD.8c0a1d051c4192302d739dbae5928286.svg',
+            'NECT': DOLO_CDN + 'NECT.61b2d550cd59933e77667c3d75f73f5a.svg',
+            'HONEY': DOLO_CDN + 'HONEY.3f0a04d651c47e52fb627fd616a9b92e.svg',
+            'crvUSD': DOLO_CDN + 'CRV.f927723690ec12fcc8381902a361c75e.svg',
+            'WETH': DOLO_CDN + 'WETH.8f785563e47cbf373160.png',
+            'ETH': DOLO_CDN + 'ETH.6a879eb637c89695e6c5f5dc65c8c927.svg',
+            'wstETH': DOLO_CDN + 'wstETH.2e97640d284bbe78da3776549d27ec47.svg',
+            'weETH': DOLO_CDN + 'weETH.ac3fd68b653520508855e997e756d116.svg',
+            'rETH': DOLO_CDN + 'rETH.bab59070c249d5b359fa196fed62e60e.svg',
+            'rsETH': DOLO_CDN + 'rsETH.2270aa7836bedfa00c1a1d2967df0c33.svg',
+            'ezETH': DOLO_CDN + 'ezETH.23c954d818f85c10660e5c0a476ff398.svg',
+            'mETH': DOLO_CDN + 'mETH.589d7c134eea64fa2033e80dced1e34d.svg',
+            'cmETH': DOLO_CDN + 'cmETH.8cab59dd270fad4e153b008454f9f54e.svg',
+            'beraETH': DOLO_CDN + 'beraETH.661651b3419b7bb331ab2ebcb427b21b.svg',
+            'WBTC': DOLO_CDN + 'WBTC.f3c8718835179e7543b5.png',
+            'SolvBTC': DOLO_CDN + 'solvBTC.326d594ebd54e4317f078b70f72a58b4.svg',
+            'LBTC': DOLO_CDN + 'LBTC.095d1662f9a83aea1c899fa1eeb84502.svg',
+            'uniBTC': DOLO_CDN + 'uniBTC.bac6fdc858f4d751e79211986782ddd1.svg',
+            'tBTC': DOLO_CDN + 'tBTC.2907801a7fa28c6583322ad3c2931333.svg',
+            'cbBTC': DOLO_CDN + 'CBBTC.fb6f792430a130d980920b6e69857bce.svg',
+            'FBTC': DOLO_CDN + 'FBTC.f29f5d2839b1b765719121f8094c7f11.svg',
+            'PumpBTC': DOLO_CDN + 'PumpBTC.aa48de36289e8439daf0456c4252dd27.svg',
+            'pumpBTC': DOLO_CDN + 'PumpBTC.aa48de36289e8439daf0456c4252dd27.svg',
+            'WBERA': DOLO_CDN + 'wBERA.4ca51f80e3cd585d5152483f427d0416.svg',
+            'BERA': DOLO_CDN + 'BERA.a24a9b40b3447dde7ea1d2cab4dd59e9.svg',
+            'stBERA': DOLO_CDN + 'BERA.a24a9b40b3447dde7ea1d2cab4dd59e9.svg',
+            'iBERA': DOLO_CDN + 'iBERA.10d1ede095601cbc9bb5bf3bcdcb22a1.svg',
+            'BGT': DOLO_CDN + 'BGT.59af0fc7aad30ed3de49e3115ee24d04.svg',
+            'iBGT': DOLO_CDN + 'iBGT.88932437445efa66139716bca4a9c19b.svg',
+            'oriBGT': DOLO_CDN + 'oriBGT.7f3393531bde0f56498780c803133999.svg',
+            'diBGT': DOLO_CDN + 'iBGT.88932437445efa66139716bca4a9c19b.svg',
+            'sWBERA': DOLO_CDN + 'sWBERA.e2be8febc13f6552990168c4e232d62a.svg',
+            'wgBERA': DOLO_CDN + 'wgBERA.e10d0909ba87a40264fe74050034b025.svg',
+            'DOLO': 'dolo-logo.svg',
+            'ARB': DOLO_CDN + 'ARB.f8b26a91d3f23a571be6398aa1a1f119.svg',
+            'LINK': DOLO_CDN + 'LINK.e6e8d688b54af33e1f99.png',
+            'GMX': DOLO_CDN + 'GMX.b836adc14ee095fd9b7671e718878333.svg',
+            'PENDLE': DOLO_CDN + 'PENDLE.e4e3db03c3798bf15a6c384ab5de3fee.svg',
+            'AAVE': DOLO_CDN + 'AAVE.a9c152c66f6bed5f3d0865b8d5ea0dba.svg',
+            'UNI': DOLO_CDN + 'UNI.fbe3002e628fbf39d75525ae192d3665.svg',
+            'WMNT': DOLO_CDN + 'WMNT.a58988c614392a216cc8937be5ab96db.svg',
+            'MNT': DOLO_CDN + 'MNT.7e882ac93f636391a8f7d2e0841cad98.svg',
+            'OKB': DOLO_CDN + 'OKB.dfac9609700af55b3d9ef4e0e5b28f01.svg',
+            'STONE': DOLO_CDN + 'STONE-alt.bf62e30edc6330897c738a4f9f1f5179.svg',
+            'HENLO': DOLO_CDN + 'HENLO.8d50b084294cb406094f0005d46c2c75.svg',
+            'IR': DOLO_CDN + 'IR.4f115e858cbe4dbe82da00a8443ab1af.svg',
+            'KDK': DOLO_CDN + 'KDK.31acd6ac4abb4a8c30812380c009f685.svg',
+            'OHM': DOLO_CDN + 'OHM.2df913d6b9413f26311c1df9718d1461.svg',
+            'pol-rUSD': DOLO_CDN + 'rUSD.9b373643ab772af9dab0807b476b9afb.svg',
+            'USDS': DOLO_CDN + 'sUSDs.788070a4e1bbf5ab8c6130d47bdf8108.svg',
+            'sUSDS': DOLO_CDN + 'sUSDs.788070a4e1bbf5ab8c6130d47bdf8108.svg',
+            'deUSD': 'icons/deusd.png',
+            'sdeUSD': 'icons/deusd.png',
+        };
+
         function renderTokenPills(tokens) {
             if (!tokens || tokens.length === 0) return '<span style="color:var(--text-muted)">—</span>';
-            return tokens.map(t => 
-                `<span class="token-pill">${t.symbol}<span class="token-usd">${formatUSDCompact(t.usd)}</span></span>`
-            ).join('');
+            return tokens.map(t => {
+                const icon = SYMBOL_ICONS[t.symbol];
+                const iconHtml = icon
+                    ? `<span class="token-pill-icon"><img src="${icon}" alt="${t.symbol}" onerror="this.parentElement.textContent='${(t.symbol||'?').slice(0,2)}'"></span>`
+                    : '';
+                return `<span class="token-pill">${iconHtml}${t.symbol}<span class="token-usd">${formatUSDCompact(t.usd)}</span></span>`;
+            }).join('');
         }
 
         // ─── Formatting ─────────────────────────────────────────────────────
@@ -2008,49 +2209,7 @@
                 arrow.style.opacity = '0';
             });
 
-            // ℹ Note icon tooltip (reuses same fixed tooltip)
-            document.addEventListener('mouseover', function(e) {
-                var el = e.target.closest('.addr-note-icon');
-                if (!el) return;
-                var note = el.getAttribute('data-tooltip');
-                if (!note) return;
-                tip.textContent = note;
-                tip.style.whiteSpace = 'normal';
-                tip.style.maxWidth = '300px';
-                tip.style.opacity = '1';
-                arrow.style.opacity = '1';
 
-                var rect = el.getBoundingClientRect();
-                tip.style.display = 'block';
-                var tw = tip.offsetWidth;
-                var th = tip.offsetHeight || 28;
-
-                var left = rect.left + rect.width / 2 - tw / 2;
-                if (left < 4) left = 4;
-                if (left + tw > window.innerWidth - 4) left = window.innerWidth - tw - 4;
-                tip.style.left = left + 'px';
-
-                var arrowLeft = Math.min(Math.max(rect.left + rect.width / 2 - 5, 8), window.innerWidth - 14);
-                if (rect.top - th - 8 > 0) {
-                    tip.style.top = (rect.top - th - 6) + 'px';
-                    arrow.style.cssText = 'position:fixed;z-index:9999;width:0;height:0;border:5px solid transparent;border-top-color:rgba(20,24,40,0.97);pointer-events:none;opacity:1;';
-                    arrow.style.left = arrowLeft + 'px';
-                    arrow.style.top = (rect.top - 6) + 'px';
-                } else {
-                    tip.style.top = (rect.bottom + 6) + 'px';
-                    arrow.style.cssText = 'position:fixed;z-index:9999;width:0;height:0;border:5px solid transparent;border-bottom-color:rgba(20,24,40,0.97);pointer-events:none;opacity:1;';
-                    arrow.style.left = arrowLeft + 'px';
-                    arrow.style.top = (rect.bottom - 4) + 'px';
-                }
-            });
-            document.addEventListener('mouseout', function(e) {
-                var el = e.target.closest('.addr-note-icon');
-                if (!el) return;
-                tip.style.opacity = '0';
-                arrow.style.opacity = '0';
-                tip.style.whiteSpace = 'nowrap';
-                tip.style.maxWidth = 'none';
-            });
         })();
 
         // ─── Launch ──────────────────────────────────────────────────────────
