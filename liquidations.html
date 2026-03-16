@@ -533,17 +533,16 @@
             font-size: 13px; font-weight: 500; color: var(--text-muted);
         }
 
-        /* ===== FILTER BAR — glassmorphism toolbar ===== */
-        .controls-bar {
+        /* ===== FILTER BAR — two-row layout ===== */
+        .controls-row1 {
             display: flex; align-items: center; gap: 10px;
-            margin: 0; padding: 12px 24px 14px; flex-wrap: wrap;
+            margin: 0; padding: 12px 24px 12px; flex-wrap: wrap;
             border-bottom: 1px solid rgba(255,255,255,.04);
         }
-        .controls-divider {
-            width: 1px; height: 22px;
-            background: rgba(255,255,255,.08);
-            margin: 0 2px;
-            flex-shrink: 0;
+        .controls-row2 {
+            display: flex; align-items: center; gap: 6px;
+            margin: 0; padding: 8px 24px 10px; flex-wrap: wrap;
+            border-bottom: 1px solid rgba(255,255,255,.04);
         }
 
         /* Clear Filters X button */
@@ -1775,8 +1774,8 @@
                     </h3>
                 </div>
 
-        <!-- Controls Row 1: Search + Dropdowns -->
-        <div class="controls-bar">
+        <!-- Row 1: Search + Dropdowns + Action Buttons -->
+        <div class="controls-row1">
             <div class="search-wrap" id="search-wrap">
                 <input type="text" class="search-input" id="search-input" placeholder="Search by address (0x...)">
                 <button type="button" class="search-clear" id="search-clear" title="Clear search">✕</button>
@@ -1813,14 +1812,6 @@
                 </div>
             </div>
 
-            <span class="controls-divider"></span>
-            <div class="risk-pills" id="risk-pills"></div>
-
-            <button class="clear-filters-btn" id="clear-filters-btn" title="Reset all filters to defaults">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                Clear
-            </button>
-
             <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
                 <a href="https://t.me/Dolomite_SuperGus_bot" target="_blank" rel="noopener" class="set-alert-header-btn" data-tooltip="Open Telegram bot to set up liquidation alerts for any Dolomite position">
                     <svg viewBox="0 0 24 24" fill="none"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8l-1.68 7.92c-.12.56-.44.7-.9.43l-2.5-1.84-1.2 1.16c-.14.14-.25.25-.5.25l.18-2.52 4.56-4.12c.2-.18-.04-.28-.3-.1L8.9 13.54l-2.42-.76c-.52-.16-.54-.52.12-.78l9.48-3.66c.44-.16.82.1.56.78z" fill="#29B6F6"/></svg>
@@ -1833,6 +1824,16 @@
                     <span class="icon">🧹</span>Hide Dust
                 </button>
             </div>
+        </div>
+
+        <!-- Row 2: Risk Pills + HF Range + Clear -->
+        <div class="controls-row2">
+            <div class="risk-pills" id="risk-pills"></div>
+
+            <button class="clear-filters-btn" id="clear-filters-btn" title="Reset all filters to defaults">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                Clear
+            </button>
         </div>
 
         <!-- Table -->
