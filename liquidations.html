@@ -1051,7 +1051,7 @@
         /* Token pills */
         .token-pills {
             display: flex;
-            flex-wrap: wrap;
+            flex-direction: column;
             gap: 3px;
         }
 
@@ -2595,11 +2595,11 @@
         let hfRangeMax = null;
 
         const RISK_OPTIONS = [
-            { key: 'all', label: 'All Risks', color: '#6366f1' },
-            { key: 'baddebt', label: 'Bad Debt', color: '#9ca3af' },
-            { key: 'liquidation', label: 'Liquidation (<1.0)', color: '#ef4444' },
-            { key: 'danger', label: 'Danger (1.0-1.003)', color: '#fb923c' },
-            { key: 'healthy', label: 'Healthy (>1.003)', color: '#34d399' },
+            { key: 'all', label: 'All', color: '#6366f1', tip: 'Show all positions' },
+            { key: 'baddebt', label: 'Bad Debt', color: '#9ca3af', tip: 'Positions with $0 collateral — cannot be liquidated' },
+            { key: 'liquidation', label: 'Liquidation', color: '#ef4444', tip: 'HF < 1.0 — Full (<0.95) + Partial (0.95–1.0) liquidation zone' },
+            { key: 'danger', label: 'Danger', color: '#fb923c', tip: 'HF 1.0 – 1.003 — extremely close to liquidation' },
+            { key: 'healthy', label: 'Healthy', color: '#34d399', tip: 'HF > 1.003 — safe positions with sufficient buffer' },
         ];
 
         function renderRiskMenu() {
@@ -2613,7 +2613,7 @@
                     opt.key === 'danger' ? base.filter(p => getRiskClass(p) === 'danger').length :
                     opt.key === 'healthy' ? base.filter(p => !['baddebt','full-liq','partial-liq','danger'].includes(getRiskClass(p))).length :
                     base.filter(p => getRiskClass(p) === opt.key).length;
-                return `<button class="risk-pill${active}" data-risk="${opt.key}" style="--pill-glow: ${opt.color}">
+                return `<button class="risk-pill${active}" data-risk="${opt.key}" data-tooltip="${opt.tip}" style="--pill-glow: ${opt.color}">
                     <span class="pill-dot" style="background: ${opt.color}"></span>
                     ${opt.label}
                     <span class="pill-count">${count.toLocaleString()}</span>
@@ -2977,11 +2977,14 @@
                 // NO SOFT LIQ badge
                 var nsl = el.closest('.no-soft-liq-badge[data-tooltip]');
                 if (nsl) return nsl.getAttribute('data-tooltip');
+                // Risk pills
+                var rp = el.closest('.risk-pill[data-tooltip]');
+                if (rp) return rp.getAttribute('data-tooltip');
                 return null;
             }
 
             function getTarget(el) {
-                return el.closest('.addr-tooltip-wrap') || el.closest('.emode-tooltip-wrap') || el.closest('.hf-badge[data-tooltip]') || el.closest('.token-pill[data-tooltip]') || el.closest('.plvglp-badge[data-tooltip]') || el.closest('.debank-icon[data-tooltip]') || el.closest('.tg-icon[data-tooltip]') || el.closest('.alert-btn[data-tooltip]') || el.closest('.set-alert-header-btn[data-tooltip]') || el.closest('.no-soft-liq-badge[data-tooltip]');
+                return el.closest('.addr-tooltip-wrap') || el.closest('.emode-tooltip-wrap') || el.closest('.hf-badge[data-tooltip]') || el.closest('.token-pill[data-tooltip]') || el.closest('.plvglp-badge[data-tooltip]') || el.closest('.debank-icon[data-tooltip]') || el.closest('.tg-icon[data-tooltip]') || el.closest('.alert-btn[data-tooltip]') || el.closest('.set-alert-header-btn[data-tooltip]') || el.closest('.no-soft-liq-badge[data-tooltip]') || el.closest('.risk-pill[data-tooltip]');
             }
 
             function positionTip(targetEl) {
