@@ -913,36 +913,10 @@
             background: rgba(251, 146, 60, 0.12);
         }
 
-        /* HF tooltip */
+        /* HF badge — tooltip handled by unified JS tooltip system */
         .hf-badge {
             position: relative;
             cursor: default;
-        }
-        .hf-badge::after {
-            content: attr(data-tooltip);
-            position: absolute;
-            bottom: calc(100% + 8px);
-            left: 50%;
-            transform: translateX(-50%);
-            background: #1e1e2c;
-            color: var(--text-primary);
-            font-family: 'Inter', sans-serif;
-            font-size: 11px;
-            font-weight: 400;
-            letter-spacing: 0;
-            line-height: 1.4;
-            padding: 8px 12px;
-            border-radius: 8px;
-            border: 1px solid var(--border-default);
-            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-            white-space: nowrap;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.15s ease;
-            z-index: 9999;
-        }
-        .hf-badge:hover::after {
-            opacity: 1;
         }
 
         /* Address */
@@ -2466,10 +2440,10 @@
                     ? `<span class="token-pill-icon"><img src="${icon}" alt="${t.symbol}" onerror="this.parentElement.textContent='${(t.symbol||'?').slice(0,2)}'"></span>`
                     : '';
                 const badge = PLVGLP_TOKENS.includes(t.symbol)
-                    ? `<span class="plvglp-badge" title="${PLVGLP_TIP}">⚠ GLP</span>`
+                    ? `<span class="plvglp-badge" data-tooltip="${PLVGLP_TIP}">⚠ GLP</span>`
                     : '';
                 const short = truncateTokenName(t.symbol);
-                const titleAttr = short !== t.symbol ? ` title="${t.symbol}"` : '';
+                const titleAttr = short !== t.symbol ? ` data-tooltip="${t.symbol}"` : '';
                 return `<span class="token-pill"${titleAttr}>${iconHtml}${short}<span class="token-usd">${formatUSDCompact(t.usd)}</span>${badge}</span>`;
             }).join('');
         }
@@ -2862,103 +2836,84 @@
             }
         });
 
-        // ─── Address Tooltip (matching DOLO Holders) ─────────────────────────
+        // ─── Unified Tooltip System ───────────────────────────────────────────
+        // One tooltip for all: address, HF badge, E-Mode ⚡
+        // Same style everywhere: bg, font, size, padding, border
         (function() {
+            var tipStyle = 'position:fixed;z-index:9999;background:rgba(15,23,42,0.85);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid rgba(99,102,241,0.25);color:#fff;font-family:monospace;font-size:11px;padding:6px 12px;border-radius:8px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;box-shadow:0 4px 20px rgba(0,0,0,0.5),0 0 0 1px rgba(99,102,241,0.08);max-width:420px;';
+            var arrowUpStyle = 'position:fixed;z-index:9999;width:0;height:0;border:5px solid transparent;border-top-color:rgba(15,23,42,0.85);pointer-events:none;opacity:1;';
+            var arrowDownStyle = 'position:fixed;z-index:9999;width:0;height:0;border:5px solid transparent;border-bottom-color:rgba(15,23,42,0.85);pointer-events:none;opacity:1;';
+
             var tip = document.createElement('div');
-            tip.id = 'addr-tooltip';
-            tip.style.cssText = 'position:fixed;z-index:9999;background:rgba(15,23,42,0.85);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid rgba(99,102,241,0.25);color:#fff;font-family:monospace;font-size:11px;padding:6px 12px;border-radius:8px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;box-shadow:0 4px 20px rgba(0,0,0,0.5),0 0 0 1px rgba(99,102,241,0.08);';
+            tip.id = 'unified-tooltip';
+            tip.style.cssText = tipStyle;
             document.body.appendChild(tip);
 
             var arrow = document.createElement('div');
-            arrow.style.cssText = 'position:fixed;z-index:9999;width:0;height:0;border:5px solid transparent;border-top-color:rgba(20,24,40,0.97);pointer-events:none;opacity:0;transition:opacity 0.15s;';
+            arrow.style.cssText = 'position:fixed;z-index:9999;width:0;height:0;border:5px solid transparent;border-top-color:rgba(15,23,42,0.85);pointer-events:none;opacity:0;transition:opacity 0.15s;';
             document.body.appendChild(arrow);
 
-            document.addEventListener('mouseover', function(e) {
-                var el = e.target.closest('.addr-tooltip-wrap');
-                if (!el) return;
-                var addr = el.getAttribute('data-full-addr');
-                if (!addr) return;
-                tip.textContent = addr;
-                tip.style.opacity = '1';
-                arrow.style.opacity = '1';
+            function getTooltipText(el) {
+                // Address tooltip
+                var addr = el.closest('.addr-tooltip-wrap');
+                if (addr) return addr.getAttribute('data-full-addr');
+                // E-Mode tooltip
+                var emode = el.closest('.emode-tooltip-wrap');
+                if (emode) return emode.getAttribute('data-emode-tip');
+                // HF badge tooltip
+                var hf = el.closest('.hf-badge[data-tooltip]');
+                if (hf) return hf.getAttribute('data-tooltip');
+                // Token pill tooltip (truncated token names & plvGLP badges)
+                var pill = el.closest('.token-pill[data-tooltip]');
+                if (pill) return pill.getAttribute('data-tooltip');
+                var plv = el.closest('.plvglp-badge[data-tooltip]');
+                if (plv) return plv.getAttribute('data-tooltip');
+                return null;
+            }
 
-                var rect = el.getBoundingClientRect();
+            function getTarget(el) {
+                return el.closest('.addr-tooltip-wrap') || el.closest('.emode-tooltip-wrap') || el.closest('.hf-badge[data-tooltip]') || el.closest('.token-pill[data-tooltip]') || el.closest('.plvglp-badge[data-tooltip]');
+            }
+
+            function positionTip(targetEl) {
+                var rect = targetEl.getBoundingClientRect();
                 tip.style.display = 'block';
                 var tw = tip.offsetWidth;
                 var th = tip.offsetHeight || 28;
-
                 var left = rect.left + rect.width / 2 - tw / 2;
                 if (left < 4) left = 4;
                 if (left + tw > window.innerWidth - 4) left = window.innerWidth - tw - 4;
                 tip.style.left = left + 'px';
-
                 var arrowLeft = Math.min(Math.max(rect.left + rect.width / 2 - 5, 8), window.innerWidth - 14);
                 if (rect.top - th - 8 > 0) {
                     tip.style.top = (rect.top - th - 6) + 'px';
-                    arrow.style.cssText = 'position:fixed;z-index:9999;width:0;height:0;border:5px solid transparent;border-top-color:rgba(20,24,40,0.97);pointer-events:none;opacity:1;';
+                    arrow.style.cssText = arrowUpStyle;
                     arrow.style.left = arrowLeft + 'px';
                     arrow.style.top = (rect.top - 6) + 'px';
                 } else {
                     tip.style.top = (rect.bottom + 6) + 'px';
-                    arrow.style.cssText = 'position:fixed;z-index:9999;width:0;height:0;border:5px solid transparent;border-bottom-color:rgba(20,24,40,0.97);pointer-events:none;opacity:1;';
+                    arrow.style.cssText = arrowDownStyle;
                     arrow.style.left = arrowLeft + 'px';
                     arrow.style.top = (rect.bottom - 4) + 'px';
                 }
-            });
-
-            document.addEventListener('mouseout', function(e) {
-                var el = e.target.closest('.addr-tooltip-wrap');
-                if (!el) return;
-                tip.style.opacity = '0';
-                arrow.style.opacity = '0';
-            });
-
-
-        })();
-
-        // ─── E-Mode tooltip (same pattern as address tooltip) ─────────────
-        (function() {
-            var emodeTip = document.createElement('div');
-            emodeTip.style.cssText = 'position:fixed;z-index:9999;padding:8px 14px;background:rgba(20,24,40,0.97);border:1px solid rgba(56,189,248,0.3);border-radius:8px;color:#38bdf8;font-size:12px;line-height:1.5;pointer-events:none;opacity:0;transition:opacity 0.15s;max-width:320px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.4);';
-            document.body.appendChild(emodeTip);
-            var emodeArrow = document.createElement('div');
-            emodeArrow.style.cssText = 'position:fixed;z-index:9999;width:0;height:0;border:5px solid transparent;border-top-color:rgba(20,24,40,0.97);pointer-events:none;opacity:0;transition:opacity 0.15s;';
-            document.body.appendChild(emodeArrow);
+            }
 
             document.addEventListener('mouseover', function(e) {
-                var el = e.target.closest('.emode-tooltip-wrap');
-                if (!el) return;
-                var tipText = el.getAttribute('data-emode-tip');
-                if (!tipText) return;
-                emodeTip.textContent = tipText;
-                emodeTip.style.opacity = '1';
-                emodeArrow.style.opacity = '1';
-                var rect = el.getBoundingClientRect();
-                emodeTip.style.display = 'block';
-                var tw = emodeTip.offsetWidth;
-                var th = emodeTip.offsetHeight || 28;
-                var left = rect.left + rect.width / 2 - tw / 2;
-                if (left < 4) left = 4;
-                if (left + tw > window.innerWidth - 4) left = window.innerWidth - tw - 4;
-                emodeTip.style.left = left + 'px';
-                var arrowLeft = Math.min(Math.max(rect.left + rect.width / 2 - 5, 8), window.innerWidth - 14);
-                if (rect.top - th - 8 > 0) {
-                    emodeTip.style.top = (rect.top - th - 6) + 'px';
-                    emodeArrow.style.cssText = 'position:fixed;z-index:9999;width:0;height:0;border:5px solid transparent;border-top-color:rgba(20,24,40,0.97);pointer-events:none;opacity:1;';
-                    emodeArrow.style.left = arrowLeft + 'px';
-                    emodeArrow.style.top = (rect.top - 6) + 'px';
-                } else {
-                    emodeTip.style.top = (rect.bottom + 6) + 'px';
-                    emodeArrow.style.cssText = 'position:fixed;z-index:9999;width:0;height:0;border:5px solid transparent;border-bottom-color:rgba(20,24,40,0.97);pointer-events:none;opacity:1;';
-                    emodeArrow.style.left = arrowLeft + 'px';
-                    emodeArrow.style.top = (rect.bottom - 4) + 'px';
-                }
+                var target = getTarget(e.target);
+                if (!target) return;
+                var text = getTooltipText(e.target);
+                if (!text) return;
+                tip.textContent = text;
+                tip.style.opacity = '1';
+                arrow.style.opacity = '1';
+                positionTip(target);
             });
+
             document.addEventListener('mouseout', function(e) {
-                var el = e.target.closest('.emode-tooltip-wrap');
-                if (!el) return;
-                emodeTip.style.opacity = '0';
-                emodeArrow.style.opacity = '0';
+                var target = getTarget(e.target);
+                if (!target) return;
+                tip.style.opacity = '0';
+                arrow.style.opacity = '0';
             });
         })();
 
