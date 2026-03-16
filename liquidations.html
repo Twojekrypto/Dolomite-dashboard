@@ -675,7 +675,7 @@
 
         .positions-table tbody tr {
             border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-            transition: all 0.25s cubic-bezier(.4,0,.2,1);
+            transition: transform 0.15s, background 0.15s;
             position: relative;
         }
 
@@ -684,11 +684,10 @@
         }
 
         .positions-table tbody tr:hover {
-            background: rgba(52, 211, 153, 0.04);
-            transform: scale(1.005);
+            background: rgba(255, 255, 255, 0.03);
+            transform: scale(1.01);
             position: relative;
             z-index: 20;
-            box-shadow: 0 4px 16px rgba(0,0,0,.15), 0 0 0 1px rgba(52,211,153,.06);
         }
 
         .positions-table tbody tr:hover td:first-child {
@@ -2840,7 +2839,7 @@
         // One tooltip for all: address, HF badge, E-Mode ⚡
         // Same style everywhere: bg, font, size, padding, border
         (function() {
-            var tipStyle = 'position:fixed;z-index:9999;background:rgba(15,23,42,0.85);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid rgba(99,102,241,0.25);color:#fff;font-family:monospace;font-size:11px;padding:6px 12px;border-radius:8px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;box-shadow:0 4px 20px rgba(0,0,0,0.5),0 0 0 1px rgba(99,102,241,0.08);max-width:420px;';
+            var tipStyle = 'position:fixed;z-index:9999;background:rgba(15,23,42,0.85);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid rgba(99,102,241,0.25);color:#fff;font-family:monospace;font-size:11px;padding:6px 12px;border-radius:8px;white-space:normal;pointer-events:none;opacity:0;transition:opacity 0.15s;box-shadow:0 4px 20px rgba(0,0,0,0.5),0 0 0 1px rgba(99,102,241,0.08);max-width:420px;';
             var arrowUpStyle = 'position:fixed;z-index:9999;width:0;height:0;border:5px solid transparent;border-top-color:rgba(15,23,42,0.85);pointer-events:none;opacity:1;';
             var arrowDownStyle = 'position:fixed;z-index:9999;width:0;height:0;border:5px solid transparent;border-bottom-color:rgba(15,23,42,0.85);pointer-events:none;opacity:1;';
 
