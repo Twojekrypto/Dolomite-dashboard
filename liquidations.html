@@ -2103,7 +2103,7 @@
             e.stopPropagation();
             document.getElementById('chain-filter').classList.toggle('open');
             // Close other dropdowns
-            document.getElementById('risk-dropdown').classList.remove('open');
+            // (risk pills are inline, no dropdown to close)
             document.getElementById('debt-dropdown').classList.remove('open');
             document.getElementById('token-dropdown').classList.remove('open');
         });
@@ -2779,7 +2779,7 @@
             e.stopPropagation();
             // Close other dropdowns
             document.getElementById('chain-filter').classList.remove('open');
-            document.getElementById('risk-dropdown').classList.remove('open');
+            // (risk pills are inline, no dropdown to close)
             document.getElementById('token-dropdown').classList.remove('open');
             document.getElementById('debt-dropdown').classList.toggle('open');
             renderDebtMenu();
@@ -2888,7 +2888,7 @@
         document.getElementById('token-trigger').addEventListener('click', e => {
             e.stopPropagation();
             document.getElementById('chain-filter').classList.remove('open');
-            document.getElementById('risk-dropdown').classList.remove('open');
+            // (risk pills are inline, no dropdown to close)
             document.getElementById('debt-dropdown').classList.remove('open');
             const dd = document.getElementById('token-dropdown');
             dd.classList.toggle('open');
