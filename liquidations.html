@@ -627,12 +627,13 @@
         }
 
         .positions-table colgroup col:nth-child(1) { width: 80px; }   /* Chain */
-        .positions-table colgroup col:nth-child(2) { width: 14%; }    /* Address */
-        .positions-table colgroup col:nth-child(3) { width: 105px; }  /* HF */
-        .positions-table colgroup col:nth-child(4) { width: 13%; }    /* Collateral */
-        .positions-table colgroup col:nth-child(5) { width: 13%; }    /* Debt */
-        .positions-table colgroup col:nth-child(6) { width: 20%; }    /* Collateral Tokens */
-        .positions-table colgroup col:nth-child(7) { width: 20%; }    /* Debt Tokens */
+        .positions-table colgroup col:nth-child(2) { width: 13%; }    /* Address */
+        .positions-table colgroup col:nth-child(3) { width: 100px; }  /* HF */
+        .positions-table colgroup col:nth-child(4) { width: 50px; }   /* E-Mode */
+        .positions-table colgroup col:nth-child(5) { width: 12%; }    /* Collateral */
+        .positions-table colgroup col:nth-child(6) { width: 12%; }    /* Debt */
+        .positions-table colgroup col:nth-child(7) { width: 18%; }    /* Collateral Tokens */
+        .positions-table colgroup col:nth-child(8) { width: 18%; }    /* Debt Tokens */
 
         .positions-table thead th {
             background: var(--bg-card-alt);
@@ -1147,12 +1148,12 @@
             .search-wrap { margin-left: 0; }
             .search-input { width: 100%; }
             .positions-table { font-size: 11px; }
-            .positions-table colgroup col:nth-child(6),
-            .positions-table colgroup col:nth-child(7) { width: 0; display: none; }
-            .positions-table th:nth-child(6),
+            .positions-table colgroup col:nth-child(7),
+            .positions-table colgroup col:nth-child(8) { width: 0; display: none; }
             .positions-table th:nth-child(7),
-            .positions-table td:nth-child(6),
-            .positions-table td:nth-child(7) { display: none; }
+            .positions-table th:nth-child(8),
+            .positions-table td:nth-child(7),
+            .positions-table td:nth-child(8) { display: none; }
         }
 
         /* Dust toggle */
@@ -1809,13 +1810,14 @@
 
             <table class="positions-table" id="positions-table" style="display: none;">
                 <colgroup>
-                    <col><col><col><col><col><col><col>
+                    <col><col><col><col><col><col><col><col>
                 </colgroup>
                 <thead>
                     <tr>
                         <th data-sort="chain">Chain <span class="sort-arrow"></span></th>
                         <th data-sort="address">Address <span class="sort-arrow"></span></th>
                         <th data-sort="hf">Health Factor <span class="sort-arrow">▲</span></th>
+                        <th data-sort="emode" style="text-align:center">E-Mode <span class="sort-arrow"></span></th>
                         <th data-sort="collateral">Collateral <span class="sort-arrow"></span></th>
                         <th data-sort="debt">Debt <span class="sort-arrow"></span></th>
                         <th>Collateral Tokens</th>
@@ -2226,6 +2228,7 @@
                     case 'address': va = a.address; vb = b.address; break;
                     case 'collateral': va = a.collateralUSD; vb = b.collateralUSD; break;
                     case 'debt': va = a.debtUSD; vb = b.debtUSD; break;
+                    case 'emode': va = a.eMode ? 1 : 0; vb = b.eMode ? 1 : 0; break;
                     default: va = a.healthFactor ?? 999; vb = b.healthFactor ?? 999;
                 }
                 if (typeof va === 'string') {
@@ -2278,7 +2281,7 @@
                     ? renderTokenPills(p.collateralTokens)
                     : `<span style="color:var(--text-muted);font-size:11px">—</span>`;
 
-                const emodeIcon = p.eMode ? '<span class="emode-icon" data-emode-tip="E-Mode — correlated assets, tighter liquidation ratio">⚡</span>' : '';
+                const emodeCell = p.eMode ? '<span class="emode-icon" data-emode-tip="E-Mode — correlated assets use a tighter liquidation ratio for better capital efficiency">⚡</span>' : '<span style="color:var(--text-muted);font-size:11px">—</span>';
 
                 const emodeRowClass = p.eMode ? ' emode-row' : '';
 
@@ -2287,7 +2290,8 @@
                     <td><div class="address-cell">
                         <a href="${p.explorer}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${p.address}">${shortAddr}</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${p.address}',this)" title="Copy address">${COPY_SVG}</span><a href="${debankUrl}" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a>
                     </div></td>
-                    <td><div class="hf-gauge">${riskClass !== 'baddebt' ? `<div class="hf-gauge-bar"><div class="hf-gauge-fill ${riskClass}" style="width:${p.healthFactor !== null ? Math.min(Math.max((p.healthFactor / 2) * 100, 5), 100) : 0}%"></div></div>` : ''}<span class="hf-badge ${riskClass}" data-tooltip="${tooltip}"><span class="hf-dot ${riskClass}"></span>${hfText}${emodeIcon}</span></div></td>
+                    <td><div class="hf-gauge">${riskClass !== 'baddebt' ? `<div class="hf-gauge-bar"><div class="hf-gauge-fill ${riskClass}" style="width:${p.healthFactor !== null ? Math.min(Math.max((p.healthFactor / 2) * 100, 5), 100) : 0}%"></div></div>` : ''}<span class="hf-badge ${riskClass}" data-tooltip="${tooltip}"><span class="hf-dot ${riskClass}"></span>${hfText}</span></div></td>
+                    <td style="text-align:center">${emodeCell}</td>
                     <td><span class="usd-value collateral ${collateralClass}">${collateralDisplay}</span></td>
                     <td><span class="usd-value debt ${debtClass}">${formatUSD(p.debtUSD)}</span></td>
                     <td><div class="token-pills">${collateralTokensHtml}</div></td>
