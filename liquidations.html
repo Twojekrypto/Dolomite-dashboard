@@ -942,32 +942,64 @@
             font-weight: 700;
         }
 
-        .hf-badge.critical {
+        /* BAD DEBT — gray, dead position */
+        .hf-badge.baddebt {
+            color: #9ca3af;
+            font-size: 10px;
+            letter-spacing: 0.5px;
+            background: rgba(156, 163, 175, 0.12);
+        }
+        /* FULL LIQ — red, HF < 0.95 */
+        .hf-badge.full-liq {
             background: rgba(239, 68, 68, 0.15);
             color: #ef4444;
             box-shadow: 0 0 12px rgba(239, 68, 68, 0.15);
             animation: criticalPulse 2s ease-in-out infinite;
         }
-
         @keyframes criticalPulse {
             0%, 100% { box-shadow: 0 0 12px rgba(239, 68, 68, 0.15); }
             50% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.3); }
         }
-
-        .hf-badge.danger {
-            background: rgba(249, 115, 22, 0.12);
+        /* PARTIAL LIQ — orange, 0.95–1.0 (50% liquidation) */
+        .hf-badge.partial-liq {
+            background: rgba(249, 115, 22, 0.15);
             color: #f97316;
+            box-shadow: 0 0 10px rgba(249, 115, 22, 0.12);
         }
-
-        .hf-badge.warning {
-            background: rgba(251, 191, 36, 0.12);
-            color: #fbbf24;
+        /* DANGER — amber, 1.0–1.003 */
+        .hf-badge.danger {
+            background: rgba(251, 146, 60, 0.12);
+            color: #fb923c;
         }
-
-        .hf-badge.safe {
+        /* LOW BUFFER — yellow, 1.003–1.01 */
+        .hf-badge.low-buffer {
+            background: rgba(234, 179, 8, 0.12);
+            color: #eab308;
+        }
+        /* MODERATE — lime, 1.01–1.10 */
+        .hf-badge.moderate {
+            background: rgba(163, 230, 53, 0.10);
+            color: #a3e635;
+        }
+        /* BALANCED — emerald, 1.10–1.25 */
+        .hf-badge.balanced {
             background: rgba(52, 211, 153, 0.08);
             color: #34d399;
         }
+        /* GOOD — cyan, 1.25–1.50 */
+        .hf-badge.good {
+            background: rgba(34, 211, 238, 0.08);
+            color: #22d3ee;
+        }
+        /* STRONG — indigo, > 1.50 */
+        .hf-badge.strong {
+            background: rgba(99, 102, 241, 0.08);
+            color: #6366f1;
+        }
+        /* Legacy compat */
+        .hf-badge.critical { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+        .hf-badge.warning { background: rgba(234, 179, 8, 0.12); color: #eab308; }
+        .hf-badge.safe { background: rgba(52, 211, 153, 0.08); color: #34d399; }
 
         .hf-dot {
             width: 6px;
@@ -975,16 +1007,36 @@
             border-radius: 50%;
         }
 
+        .hf-dot.baddebt { background: #9ca3af; }
+        .hf-dot.full-liq { background: #ef4444; }
+        .hf-dot.partial-liq { background: #f97316; }
+        .hf-dot.danger { background: #fb923c; }
+        .hf-dot.low-buffer { background: #eab308; }
+        .hf-dot.moderate { background: #a3e635; }
+        .hf-dot.balanced { background: #34d399; }
+        .hf-dot.good { background: #22d3ee; }
+        .hf-dot.strong { background: #6366f1; }
+        /* Legacy compat */
         .hf-dot.critical { background: #ef4444; }
-        .hf-dot.danger { background: #f97316; }
-        .hf-dot.warning { background: #fbbf24; }
+        .hf-dot.warning { background: #eab308; }
         .hf-dot.safe { background: #34d399; }
-        .hf-dot.baddebt { background: #fb923c; }
-        .hf-badge.baddebt {
-            color: #fb923c;
-            font-size: 10px;
-            letter-spacing: 0.5px;
-            background: rgba(251, 146, 60, 0.12);
+
+        /* NO SOFT LIQ badge */
+        .no-soft-liq-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            padding: 1px 5px;
+            margin-left: 4px;
+            border-radius: 4px;
+            font-size: 8px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            white-space: nowrap;
+            cursor: default;
         }
 
         /* HF badge — tooltip handled by unified JS tooltip system */
@@ -1722,32 +1774,32 @@
 
                 <!-- Second row: risk breakdown -->
                 <div class="lending-metrics-grid" style="grid-template-columns: repeat(3, 1fr); margin-top: 12px">
-                    <!-- Critical -->
+                    <!-- Full Liq -->
                     <div class="lending-metric-card critical-c">
                         <div class="lending-metric-icon" style="background:rgba(239,68,68,.12)">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
                         </div>
-                        <div class="lending-metric-label">Critical</div>
-                        <div id="stat-critical" class="lending-metric-value" style="color:#ef4444">—</div>
-                        <div class="lending-metric-sub">HF &lt; 1.05</div>
+                        <div class="lending-metric-label">Full Liquidation</div>
+                        <div id="stat-full-liq" class="lending-metric-value" style="color:#ef4444">—</div>
+                        <div class="lending-metric-sub">HF &lt; 0.95</div>
                     </div>
-                    <!-- Danger -->
+                    <!-- Partial Liq -->
                     <div class="lending-metric-card danger-c">
                         <div class="lending-metric-icon" style="background:rgba(249,115,22,.12)">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                         </div>
-                        <div class="lending-metric-label">Danger</div>
-                        <div id="stat-danger" class="lending-metric-value" style="color:#f97316">—</div>
-                        <div class="lending-metric-sub">HF &lt; 1.15</div>
+                        <div class="lending-metric-label">Partial Liq (50%)</div>
+                        <div id="stat-partial-liq" class="lending-metric-value" style="color:#f97316">—</div>
+                        <div class="lending-metric-sub">HF 0.95 – 1.00</div>
                     </div>
-                    <!-- Warning -->
+                    <!-- Danger -->
                     <div class="lending-metric-card warning-c">
-                        <div class="lending-metric-icon" style="background:rgba(251,191,36,.12)">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        <div class="lending-metric-icon" style="background:rgba(251,146,60,.12)">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fb923c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                         </div>
-                        <div class="lending-metric-label">Warning</div>
-                        <div id="stat-warning" class="lending-metric-value" style="color:#fbbf24">—</div>
-                        <div class="lending-metric-sub">HF &lt; 1.30</div>
+                        <div class="lending-metric-label">Danger</div>
+                        <div id="stat-danger" class="lending-metric-value" style="color:#fb923c">—</div>
+                        <div class="lending-metric-sub">HF 1.00 – 1.003</div>
                     </div>
                 </div>
             </div>
@@ -1942,19 +1994,27 @@
             const atRiskEl = document.getElementById('stat-at-risk');
             const collateralEl = document.getElementById('stat-collateral');
             const debtEl = document.getElementById('stat-debt');
-            const criticalEl = document.getElementById('stat-critical');
-            const dangerEl = document.getElementById('stat-danger');
-            const warningEl = document.getElementById('stat-warning');
 
             animateCount(totalEl, gs.totalPositions || 0, false, 1200);
             document.getElementById('stat-total-sub').textContent = `Across ${Object.keys(data.chainStats || {}).length} chains`;
             animateCount(atRiskEl, gs.atRisk || 0, false, 1000);
-            document.getElementById('stat-at-risk-sub').textContent = `${gs.critical || 0} critical · ${gs.danger || 0} danger · ${gs.warning || 0} warning`;
+
+            // Compute new tier counts from positions
+            const fullLiqCount = allPositions.filter(p => p.healthFactor !== null && p.healthFactor < 0.95 && !(p.collateralUSD < 0.01 && p.debtUSD > 0)).length;
+            const partialLiqCount = allPositions.filter(p => p.healthFactor !== null && p.healthFactor >= 0.95 && p.healthFactor < 1.0 && !(p.collateralUSD < 0.01 && p.debtUSD > 0)).length;
+            const dangerCount = allPositions.filter(p => p.healthFactor !== null && p.healthFactor >= 1.0 && p.healthFactor <= 1.003 && !(p.collateralUSD < 0.01 && p.debtUSD > 0)).length;
+            const badDebtCount = allPositions.filter(p => p.collateralUSD < 0.01 && p.debtUSD > 0).length;
+
+            document.getElementById('stat-at-risk-sub').textContent = `${fullLiqCount + badDebtCount} full liq · ${partialLiqCount} partial · ${dangerCount} danger`;
             animateCount(collateralEl, gs.totalCollateralUSD || 0, true, 1200);
             animateCount(debtEl, gs.totalDebtUSD || 0, true, 1200);
-            animateCount(criticalEl, gs.critical || 0, false, 800);
-            animateCount(dangerEl, gs.danger || 0, false, 800);
-            animateCount(warningEl, gs.warning || 0, false, 800);
+
+            const fullLiqEl = document.getElementById('stat-full-liq');
+            const partialLiqEl = document.getElementById('stat-partial-liq');
+            const dangerEl = document.getElementById('stat-danger');
+            animateCount(fullLiqEl, fullLiqCount + badDebtCount, false, 800);
+            animateCount(partialLiqEl, partialLiqCount, false, 800);
+            animateCount(dangerEl, dangerCount, false, 800);
             
             // Updated timestamp — show relative time with auto-refresh
             if (data.generatedAtISO) {
@@ -2132,10 +2192,9 @@
         function applyFilters() {
             filteredPositions = allPositions.filter(p => {
                 if (chainFilter !== 'all' && p.chain !== chainFilter) return false;
-                const isBadDebt = p.collateralUSD < 0.01 && p.debtUSD > 0;
-                if (riskFilter === 'at-risk' && (p.riskLevel === 'SAFE' || isBadDebt)) return false;
-                if (riskFilter === 'BAD_DEBT' && !isBadDebt) return false;
-                if (riskFilter !== 'all' && riskFilter !== 'at-risk' && riskFilter !== 'BAD_DEBT' && riskFilter !== 'custom' && p.riskLevel !== riskFilter) return false;
+                const rc = getRiskClass(p);
+                if (riskFilter === 'at-risk' && !['baddebt','full-liq','partial-liq','danger','low-buffer'].includes(rc)) return false;
+                if (riskFilter !== 'all' && riskFilter !== 'at-risk' && riskFilter !== 'custom' && rc !== riskFilter) return false;
                 if (searchQuery && !p.address.toLowerCase().includes(searchQuery.toLowerCase())) return false;
                 // Hide dust: positions with < $1 total value
                 if (hideDust && p.collateralUSD < 1 && p.debtUSD < 1) return false;
@@ -2284,19 +2343,28 @@
             }
 
             tbody.innerHTML = pageItems.map((p, i) => {
-                const isBadDebt = p.collateralUSD < 0.01 && p.debtUSD > 0;
-                const riskClass = isBadDebt ? 'baddebt' : p.riskLevel.toLowerCase();
-                const rowClass = p.riskLevel === 'CRITICAL' ? 'critical-row' : p.riskLevel === 'DANGER' ? 'danger-row' : '';
+                const riskClass = getRiskClass(p);
+                const rowClass = ['baddebt','full-liq','partial-liq'].includes(riskClass) ? 'critical-row' : riskClass === 'danger' ? 'danger-row' : '';
                 const shortAddr = p.address.slice(0, 6) + '...' + p.address.slice(-4);
-                const hfDecimals = (p.riskLevel === 'SAFE') ? 2 : 4;
-                const hfText = isBadDebt ? 'BAD DEBT' : (p.healthFactor !== null ? (p.healthFactor > 10 ? '10<' : p.healthFactor.toFixed(hfDecimals)) : '—');
+                const hfDecimals = ['good','strong','balanced'].includes(riskClass) ? 2 : 4;
+                const hfLabels = { 'baddebt': 'BAD DEBT', 'full-liq': 'FULL LIQ', 'partial-liq': 'PARTIAL' };
+                const hfText = hfLabels[riskClass] || (p.healthFactor !== null ? (p.healthFactor > 10 ? '10<' : p.healthFactor.toFixed(hfDecimals)) : '—');
                 const chainLabel = CHAIN_SHORT_LABELS[p.chain] || p.chainLabel;
                 const chainFull = CHAIN_DISPLAY_NAMES[p.chain] || p.chainLabel;
                 const chainIcon = CHAIN_ICONS[p.chain] || 'dolomite-logo.svg';
                 const acctLabel = (p.accountNumber && p.accountNumber !== '0') ? ` #${p.accountNumber.length > 6 ? p.accountNumber.slice(0,4) + '…' : p.accountNumber}` : '';
-                const tooltip = isBadDebt
-                    ? 'Position has $0 collateral — debt remains after liquidation or withdrawal'
-                    : (p.healthFactor !== null ? 'Health Factor: ' + p.healthFactor.toFixed(4) : '');
+                const tooltipMap = {
+                    'baddebt': 'Position has $0 collateral — debt remains after liquidation or withdrawal',
+                    'full-liq': 'HF < 0.95 — Position will be fully liquidated (100% of debt)',
+                    'partial-liq': 'HF 0.95–1.0 — Soft liquidation: only 50% of debt will be liquidated',
+                    'danger': 'HF 1.0–1.003 — Extremely close to liquidation threshold',
+                    'low-buffer': 'HF 1.003–1.01 — Very low safety buffer',
+                    'moderate': 'HF 1.01–1.10 — Moderate buffer, monitor closely',
+                    'balanced': 'HF 1.10–1.25 — Balanced position',
+                    'good': 'HF 1.25–1.50 — Good safety margin',
+                    'strong': 'HF > 1.50 — Strong, well-collateralized position'
+                };
+                const tooltip = tooltipMap[riskClass] || (p.healthFactor !== null ? 'Health Factor: ' + p.healthFactor.toFixed(4) : '');
 
                 const debankChain = CHAIN_DEBANK_IDS[p.chain] || 'bera';
                 const debankUrl = `https://debank.com/profile/${p.address}?chain=${debankChain}`;
@@ -2508,6 +2576,28 @@
             return name;
         }
 
+        const NO_SOFT_LIQ_TOKENS = ['dGM', 'dGMX', 'dGLV [WBTC-USDC]', 'dGLV [WETH-USDC]', 'pol-rUSD'];
+        const NO_SOFT_LIQ_TIP = 'Soft liquidation does not apply to this token — full liquidation below HF 1.0';
+
+        function getRiskClass(p) {
+            if (p.collateralUSD < 0.01 && p.debtUSD > 0) return 'baddebt';
+            const hf = p.healthFactor;
+            if (hf === null) return 'strong';
+            if (hf < 0.95) return 'full-liq';
+            if (hf < 1.0) return 'partial-liq';
+            if (hf <= 1.003) return 'danger';
+            if (hf <= 1.01) return 'low-buffer';
+            if (hf <= 1.10) return 'moderate';
+            if (hf <= 1.25) return 'balanced';
+            if (hf <= 1.50) return 'good';
+            return 'strong';
+        }
+
+        function hasNoSoftLiq(p) {
+            const allTokens = [...(p.collateralTokens||[]), ...(p.debtTokens||[])];
+            return allTokens.some(t => NO_SOFT_LIQ_TOKENS.includes(t.symbol));
+        }
+
         function renderTokenPills(tokens) {
             if (!tokens || tokens.length === 0) return '<span style="color:var(--text-muted)">—</span>';
             const PLVGLP_TOKENS = ['dplvGLP', 'plvGLP', 'mGLP'];
@@ -2517,9 +2607,12 @@
                 const iconHtml = icon
                     ? `<span class="token-pill-icon"><img src="${icon}" alt="${t.symbol}" onerror="this.parentElement.textContent='${(t.symbol||'?').slice(0,2)}'"></span>`
                     : '';
-                const badge = PLVGLP_TOKENS.includes(t.symbol)
-                    ? `<span class="plvglp-badge" data-tooltip="${PLVGLP_TIP}">⚠ GLP</span>`
-                    : '';
+                let badge = '';
+                if (PLVGLP_TOKENS.includes(t.symbol)) {
+                    badge = `<span class="plvglp-badge" data-tooltip="${PLVGLP_TIP}">⚠ GLP</span>`;
+                } else if (NO_SOFT_LIQ_TOKENS.includes(t.symbol)) {
+                    badge = `<span class="no-soft-liq-badge" data-tooltip="${NO_SOFT_LIQ_TIP}">⚠ FULL</span>`;
+                }
                 const short = truncateTokenName(t.symbol);
                 const titleAttr = short !== t.symbol ? ` data-tooltip="${t.symbol}"` : '';
                 return `<span class="token-pill"${titleAttr}>${iconHtml}${short}<span class="token-usd">${formatUSDCompact(t.usd)}</span>${badge}</span>`;
@@ -2552,11 +2645,15 @@
         const RISK_OPTIONS = [
             { key: 'all', label: 'All Risks', color: '#6366f1' },
             { key: 'at-risk', label: 'At Risk', color: '#f59e0b' },
-            { key: 'CRITICAL', label: 'Critical', color: '#ef4444' },
-            { key: 'DANGER', label: 'Danger', color: '#f97316' },
-            { key: 'WARNING', label: 'Warning', color: '#eab308' },
-            { key: 'SAFE', label: 'Safe', color: '#34d399' },
-            { key: 'BAD_DEBT', label: 'Bad Debt', color: '#fb923c' }
+            { key: 'baddebt', label: 'Bad Debt', color: '#9ca3af' },
+            { key: 'full-liq', label: 'Full Liq (<0.95)', color: '#ef4444' },
+            { key: 'partial-liq', label: 'Partial (0.95-1.0)', color: '#f97316' },
+            { key: 'danger', label: 'Danger (1.0-1.003)', color: '#fb923c' },
+            { key: 'low-buffer', label: 'Low Buffer (1.003-1.01)', color: '#eab308' },
+            { key: 'moderate', label: 'Moderate (1.01-1.10)', color: '#a3e635' },
+            { key: 'balanced', label: 'Balanced (1.10-1.25)', color: '#34d399' },
+            { key: 'good', label: 'Good (1.25-1.50)', color: '#22d3ee' },
+            { key: 'strong', label: 'Strong (>1.50)', color: '#6366f1' }
         ];
 
         function renderRiskMenu() {
@@ -2564,9 +2661,8 @@
             let html = RISK_OPTIONS.map(opt => {
                 const active = opt.key === riskFilter ? ' active' : '';
                 const count = opt.key === 'all' ? allPositions.length :
-                    opt.key === 'at-risk' ? allPositions.filter(p => p.riskLevel !== 'SAFE' && !(p.collateralUSD < 0.01 && p.debtUSD > 0)).length :
-                    opt.key === 'BAD_DEBT' ? allPositions.filter(p => p.collateralUSD < 0.01 && p.debtUSD > 0).length :
-                    allPositions.filter(p => p.riskLevel === opt.key).length;
+                    opt.key === 'at-risk' ? allPositions.filter(p => ['baddebt','full-liq','partial-liq','danger','low-buffer'].includes(getRiskClass(p))).length :
+                    allPositions.filter(p => getRiskClass(p) === opt.key).length;
                 return `<div class="risk-option${active}" data-risk="${opt.key}">
                     <span class="risk-opt-dot" style="background: ${opt.color}; box-shadow: 0 0 6px ${opt.color}40"></span>
                     ${opt.label}
@@ -2956,11 +3052,14 @@
                 if (alert) return alert.getAttribute('data-tooltip');
                 var alertH = el.closest('.set-alert-header-btn[data-tooltip]');
                 if (alertH) return alertH.getAttribute('data-tooltip');
+                // NO SOFT LIQ badge
+                var nsl = el.closest('.no-soft-liq-badge[data-tooltip]');
+                if (nsl) return nsl.getAttribute('data-tooltip');
                 return null;
             }
 
             function getTarget(el) {
-                return el.closest('.addr-tooltip-wrap') || el.closest('.emode-tooltip-wrap') || el.closest('.hf-badge[data-tooltip]') || el.closest('.token-pill[data-tooltip]') || el.closest('.plvglp-badge[data-tooltip]') || el.closest('.debank-icon[data-tooltip]') || el.closest('.tg-icon[data-tooltip]') || el.closest('.alert-btn[data-tooltip]') || el.closest('.set-alert-header-btn[data-tooltip]');
+                return el.closest('.addr-tooltip-wrap') || el.closest('.emode-tooltip-wrap') || el.closest('.hf-badge[data-tooltip]') || el.closest('.token-pill[data-tooltip]') || el.closest('.plvglp-badge[data-tooltip]') || el.closest('.debank-icon[data-tooltip]') || el.closest('.tg-icon[data-tooltip]') || el.closest('.alert-btn[data-tooltip]') || el.closest('.set-alert-header-btn[data-tooltip]') || el.closest('.no-soft-liq-badge[data-tooltip]');
             }
 
             function positionTip(targetEl) {
