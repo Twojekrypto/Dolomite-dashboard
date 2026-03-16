@@ -1486,46 +1486,21 @@
             background: rgba(251, 146, 60, 0.2);
             border-color: rgba(251, 146, 60, 0.4);
         }
-        /* E-Mode inline icon next to HF */
-        .emode-icon {
+        /* E-Mode icon in dedicated column — interactive like DeBank/copy icons */
+        .emode-tooltip-wrap {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            font-size: 12px;
+            font-size: 14px;
             cursor: help;
-            position: relative;
-            margin-left: 3px;
-            filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.5));
-            transition: filter 0.2s;
+            opacity: 0.6;
+            filter: drop-shadow(0 0 3px rgba(56, 189, 248, 0.4));
+            transition: opacity 0.2s, transform 0.2s, filter 0.2s;
         }
-        .emode-icon:hover {
-            filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.8));
-        }
-        .emode-icon::after {
-            content: attr(data-emode-tip);
-            position: absolute;
-            bottom: calc(100% + 8px);
-            left: 50%;
-            transform: translateX(-50%);
-            background: #1e1e2c;
-            color: var(--text-primary);
-            font-family: 'Inter', sans-serif;
-            font-size: 11px;
-            font-weight: 400;
-            letter-spacing: 0;
-            line-height: 1.4;
-            padding: 8px 12px;
-            border-radius: 8px;
-            border: 1px solid rgba(56, 189, 248, 0.25);
-            box-shadow: 0 8px 24px rgba(0,0,0,0.4), 0 0 12px rgba(56, 189, 248, 0.1);
-            white-space: nowrap;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.15s ease;
-            z-index: 9999;
-        }
-        .emode-icon:hover::after {
+        .emode-tooltip-wrap:hover {
             opacity: 1;
+            transform: scale(1.4);
+            filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.8));
         }
 
         /* E-Mode row highlight */
@@ -2281,7 +2256,7 @@
                     ? renderTokenPills(p.collateralTokens)
                     : `<span style="color:var(--text-muted);font-size:11px">—</span>`;
 
-                const emodeCell = p.eMode ? '<span class="emode-icon" data-emode-tip="E-Mode — correlated assets use a tighter liquidation ratio for better capital efficiency">⚡</span>' : '<span style="color:var(--text-muted);font-size:11px">—</span>';
+                const emodeCell = p.eMode ? '<span class="emode-tooltip-wrap" data-emode-tip="E-Mode — correlated assets use a tighter liquidation ratio for better capital efficiency">⚡</span>' : '<span style="color:var(--text-muted);font-size:11px">—</span>';
 
                 const emodeRowClass = p.eMode ? ' emode-row' : '';
 
