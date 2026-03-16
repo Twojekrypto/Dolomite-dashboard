@@ -106,11 +106,16 @@ def get_subgraph_url(chain_config):
     """Build the subgraph URL for a chain."""
     return f"{DOLOMITE_SUBGRAPH_BASE}/{chain_config['subgraph_name']}/latest/gn"
 
-# Health factor thresholds
+# Health factor thresholds — standard
 HF_CRITICAL = 1.05   # 🔴
 HF_DANGER = 1.15     # 🟠
 HF_WARNING = 1.30    # 🟡
 HF_SAFE = 1.50       # 🟢 (anything above warning)
+
+# Health factor thresholds — E-Mode (correlated assets, lower risk)
+HF_EMODE_CRITICAL = 1.01   # 🔴
+HF_EMODE_DANGER = 1.03     # 🟠
+HF_EMODE_WARNING = 1.08    # 🟡
 
 OUTPUT_FILE = "liquidation_risk.json"
 
@@ -728,18 +733,29 @@ def fetch_live_oracle_prices(rpc_url, dolomite_margin_address, oracle_prices, ma
     return oracle_prices
 
 
-def classify_risk(hf):
-    """Classify risk level based on health factor."""
+def classify_risk(hf, emode=False):
+    """Classify risk level based on health factor.
+    Uses lower thresholds for E-Mode (correlated assets)."""
     if hf is None:
         return "UNKNOWN"
-    if hf < HF_CRITICAL:
-        return "CRITICAL"
-    elif hf < HF_DANGER:
-        return "DANGER"
-    elif hf < HF_WARNING:
-        return "WARNING"
+    if emode:
+        if hf < HF_EMODE_CRITICAL:
+            return "CRITICAL"
+        elif hf < HF_EMODE_DANGER:
+            return "DANGER"
+        elif hf < HF_EMODE_WARNING:
+            return "WARNING"
+        else:
+            return "SAFE"
     else:
-        return "SAFE"
+        if hf < HF_CRITICAL:
+            return "CRITICAL"
+        elif hf < HF_DANGER:
+            return "DANGER"
+        elif hf < HF_WARNING:
+            return "WARNING"
+        else:
+            return "SAFE"
 
 
 def fetch_chain_data(chain_key, chain_config):
@@ -896,7 +912,8 @@ def fetch_chain_data(chain_key, chain_config):
         )
         
         hf = result["healthFactor"]
-        risk_level = classify_risk(hf)
+        is_emode = mr_override is not None and mr_override > 0
+        risk_level = classify_risk(hf, emode=is_emode)
         
         positions.append({
             "chain": chain_key,
@@ -1118,6 +1135,9 @@ def generate_sample_data():
             "critical": HF_CRITICAL,
             "danger": HF_DANGER,
             "warning": HF_WARNING,
+            "emodeCritical": HF_EMODE_CRITICAL,
+            "emodeDanger": HF_EMODE_DANGER,
+            "emodeWarning": HF_EMODE_WARNING,
         },
         "globalStats": {
             "totalPositions": len(all_positions),
@@ -1197,6 +1217,9 @@ def main():
             "critical": HF_CRITICAL,
             "danger": HF_DANGER,
             "warning": HF_WARNING,
+            "emodeCritical": HF_EMODE_CRITICAL,
+            "emodeDanger": HF_EMODE_DANGER,
+            "emodeWarning": HF_EMODE_WARNING,
         },
         "globalStats": {
             "totalPositions": len(all_positions),
