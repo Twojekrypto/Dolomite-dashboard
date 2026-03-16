@@ -56,7 +56,8 @@ CHAINS = {
         "subgraph_name": "dolomite-ethereum",
         "label": "Ethereum",
         "explorer": "https://etherscan.io/address/",
-        "rpc": "https://eth.llamarpc.com",
+        "rpc": "https://rpc.ankr.com/eth",
+        "rpc_fallbacks": ["https://eth.drpc.org", "https://eth.llamarpc.com", "https://cloudflare-eth.com"],
     },
     "xlayer": {
         "subgraph_name": "dolomite-x-layer",
@@ -153,6 +154,7 @@ QUERY_ORACLE_PRICES = """
     token {
       id
       symbol
+      decimals
       marketId
     }
   }
@@ -349,10 +351,11 @@ def compute_health_factor(token_values, oracle_prices, interest_indices, market_
     }
 
 
-def fetch_risk_overrides(rpc_url, setter_address, accounts, label=""):
+def fetch_risk_overrides(rpc_url, setter_address, accounts, label="", rpc_fallbacks=None):
     """
     Batch-query per-account E-Mode risk overrides via Multicall3.
-    Bundles up to 200 getAccountRiskOverride calls per single RPC request.
+    Uses smaller batch sizes to avoid 413 Payload Too Large on free RPCs.
+    Falls back to individual calls with retry+backoff if multicall fails.
     Returns dict: {accountId: marginRatioOverride} where override > 0 means E-Mode.
     """
     try:
@@ -393,15 +396,28 @@ def fetch_risk_overrides(rpc_url, setter_address, accounts, label=""):
     )
     setter_addr_cs = Web3.to_checksum_address(setter_address)
     
+    # Build list of RPC URLs to try (primary + fallbacks)
+    rpc_urls = [rpc_url] + (rpc_fallbacks or [])
+    
     overrides = {}
-    batch_size = 200  # calls per multicall request
+    # Use smaller batch size to avoid 413 Payload Too Large on free RPCs (Ethereum)
+    batch_size = 50
     total = len(accounts)
     emode_count = 0
+    failed_count = 0
+    current_rpc_idx = 0
     
-    print(f"  🔗 Fetching E-Mode overrides via Multicall3 ({total} accounts, {batch_size}/batch)...")
+    print(f"  🔗 Fetching E-Mode overrides via Multicall3 ({total} accounts, {batch_size}/batch, {len(rpc_urls)} RPCs)...")
     
     for i in range(0, total, batch_size):
         batch = accounts[i:i + batch_size]
+        
+        # Create fresh Web3 connection for this batch (using current RPC)
+        current_rpc = rpc_urls[current_rpc_idx % len(rpc_urls)]
+        w3 = Web3(Web3.HTTPProvider(current_rpc, request_kwargs={"timeout": 120}))
+        setter = w3.eth.contract(address=Web3.to_checksum_address(setter_address), abi=SETTER_ABI)
+        multicall = w3.eth.contract(address=Web3.to_checksum_address(MULTICALL3), abi=MULTICALL3_ABI)
+        setter_addr_cs = Web3.to_checksum_address(setter_address)
         
         # Build multicall3 call array
         calls = []
@@ -423,8 +439,10 @@ def fetch_risk_overrides(rpc_url, setter_address, accounts, label=""):
             batch_meta.append(account_id)
         
         # Execute multicall3.aggregate3 — single RPC request for entire batch
+        batch_ok = False
         try:
             results = multicall.functions.aggregate3(calls).call()
+            batch_ok = True
             
             for j, (success, return_data) in enumerate(results):
                 if success and len(return_data) >= 64:
@@ -435,28 +453,279 @@ def fetch_risk_overrides(rpc_url, setter_address, accounts, label=""):
                         overrides[batch_meta[j]] = mr
                         emode_count += 1
         except Exception as e:
-            # Fallback: try individual calls if multicall fails
-            print(f"     ⚠️ Multicall3 failed, falling back to individual calls: {e}")
-            for acct in batch:
+            # Fallback: try individual calls with retry + RPC rotation if multicall fails
+            print(f"     ⚠️ Multicall3 failed for batch {i//batch_size + 1} on {current_rpc.split('//')[1].split('/')[0]}, falling back to individual calls: {e}")
+            batch_failed = 0
+            for k, acct in enumerate(batch):
                 owner = acct["user"]["id"]
                 account_num = int(acct["accountNumber"])
                 account_id = acct["id"]
-                try:
-                    margin_override, _ = setter.functions.getAccountRiskOverride(
-                        (Web3.to_checksum_address(owner), account_num)
-                    ).call()
-                    mr = margin_override[0] / 10**18
-                    if mr > 0:
-                        overrides[account_id] = mr
-                        emode_count += 1
-                except Exception:
-                    pass
+                
+                # Retry with exponential backoff + RPC rotation
+                success = False
+                for attempt in range(len(rpc_urls) * 2):  # try each RPC twice
+                    try:
+                        retry_rpc = rpc_urls[attempt % len(rpc_urls)]
+                        retry_w3 = Web3(Web3.HTTPProvider(retry_rpc, request_kwargs={"timeout": 30}))
+                        retry_setter = retry_w3.eth.contract(address=Web3.to_checksum_address(setter_address), abi=SETTER_ABI)
+                        margin_override, _ = retry_setter.functions.getAccountRiskOverride(
+                            (Web3.to_checksum_address(owner), account_num)
+                        ).call()
+                        mr = margin_override[0] / 10**18
+                        if mr > 0:
+                            overrides[account_id] = mr
+                            emode_count += 1
+                        success = True
+                        break
+                    except Exception as call_err:
+                        if attempt < len(rpc_urls) * 2 - 1:
+                            time.sleep(1.0 + attempt * 0.5)
+                        else:
+                            batch_failed += 1
+                
+                # Small delay between individual calls to avoid rate limiting
+                if k % 10 == 9:
+                    time.sleep(0.5)
+            
+            if batch_failed > 0:
+                failed_count += batch_failed
+                print(f"     ⚠️ {batch_failed}/{len(batch)} individual calls failed in this batch")
+        
+        # Rotate to next RPC after each batch to distribute load
+        if not batch_ok:
+            current_rpc_idx += 1
+            time.sleep(2.0)
+        else:
+            time.sleep(0.3)
         
         progress = min(i + batch_size, total)
         print(f"     Processed {progress}/{total} accounts ({emode_count} E-Mode)...")
     
+    if failed_count > 0:
+        print(f"     ⚠️ WARNING: {failed_count} accounts failed E-Mode check — results may be incomplete")
     print(f"     ✅ Found {emode_count} accounts with E-Mode overrides")
     return overrides
+
+
+def fetch_live_interest_indices(rpc_url, dolomite_margin_address, interest_indices, label="", rpc_fallbacks=None):
+    """
+    Fetch live interest indices from DolomiteMargin contract via Multicall3.
+    Replaces stale subgraph indices with current on-chain values.
+    
+    Args:
+        rpc_url: Primary RPC URL
+        dolomite_margin_address: DolomiteMargin contract address on this chain
+        interest_indices: Dict from subgraph {token_id: {borrowIndex, supplyIndex}}
+            Token entries must have a 'marketId' key.
+        label: Chain label for logging
+        rpc_fallbacks: Optional list of fallback RPC URLs
+    
+    Returns:
+        Updated interest_indices with live on-chain values, or original if RPC fails.
+    """
+    try:
+        from web3 import Web3
+    except ImportError:
+        print(f"  ⚠️  web3 not installed — using subgraph interest indices for {label}")
+        return interest_indices
+    
+    if not dolomite_margin_address or not rpc_url:
+        return interest_indices
+    
+    # Build market_id → token_id mapping from subgraph data
+    market_to_token = {}
+    for token_id, idx_data in interest_indices.items():
+        market_id = idx_data.get("marketId")
+        if market_id is not None:
+            market_to_token[int(market_id)] = token_id
+    
+    if not market_to_token:
+        print(f"  ⚠️  No marketId mapping found — using subgraph interest indices")
+        return interest_indices
+    
+    MULTICALL3 = "0xcA11bde05977b3631167028862bE2a173976CA11"
+    MULTICALL3_ABI = [{
+        "inputs": [{"components": [
+            {"name": "target", "type": "address"},
+            {"name": "allowFailure", "type": "bool"},
+            {"name": "callData", "type": "bytes"}
+        ], "name": "calls", "type": "tuple[]"}],
+        "name": "aggregate3",
+        "outputs": [{"components": [
+            {"name": "success", "type": "bool"},
+            {"name": "returnData", "type": "bytes"}
+        ], "name": "returnData", "type": "tuple[]"}],
+        "stateMutability": "payable", "type": "function"
+    }]
+    
+    # ABI for getMarketCurrentIndex(uint256) -> (Index { borrow: uint96, supply: uint96, lastUpdate: uint32 })
+    GET_MARKET_CURRENT_INDEX_ABI = [{
+        "inputs": [{"name": "_marketId", "type": "uint256"}],
+        "name": "getMarketCurrentIndex",
+        "outputs": [{"components": [
+            {"name": "borrow", "type": "uint96"},
+            {"name": "supply", "type": "uint96"},
+            {"name": "lastUpdate", "type": "uint32"}
+        ], "name": "", "type": "tuple"}],
+        "stateMutability": "view", "type": "function"
+    }]
+    
+    all_rpcs = [rpc_url] + (rpc_fallbacks or [])
+    
+    for rpc in all_rpcs:
+        try:
+            w3 = Web3(Web3.HTTPProvider(rpc, request_kwargs={"timeout": 60}))
+            dm_contract = w3.eth.contract(
+                address=Web3.to_checksum_address(dolomite_margin_address),
+                abi=GET_MARKET_CURRENT_INDEX_ABI
+            )
+            multicall = w3.eth.contract(
+                address=Web3.to_checksum_address(MULTICALL3),
+                abi=MULTICALL3_ABI
+            )
+            dm_addr_cs = Web3.to_checksum_address(dolomite_margin_address)
+            
+            # Build multicall3 calls for getMarketCurrentIndex
+            market_ids = sorted(market_to_token.keys())
+            calls = []
+            for mid in market_ids:
+                calldata = dm_contract.functions.getMarketCurrentIndex(mid)._encode_transaction_data()
+                calls.append((dm_addr_cs, True, bytes.fromhex(calldata[2:])))
+            
+            print(f"  🔗 Fetching live interest indices via Multicall3 ({len(market_ids)} markets)...")
+            results = multicall.functions.aggregate3(calls).call()
+            
+            updated_count = 0
+            for i, (success, return_data) in enumerate(results):
+                if success and len(return_data) >= 96:
+                    # Decode: borrow (uint96), supply (uint96), lastUpdate (uint32)
+                    # Packed as 3 x uint256 in return data (padded)
+                    borrow_raw = int.from_bytes(return_data[0:32], "big")
+                    supply_raw = int.from_bytes(return_data[32:64], "big")
+                    
+                    market_id = market_ids[i]
+                    token_id = market_to_token[market_id]
+                    
+                    new_borrow = str(borrow_raw / 10**18)
+                    new_supply = str(supply_raw / 10**18)
+                    
+                    old_borrow = interest_indices[token_id]["borrowIndex"]
+                    old_supply = interest_indices[token_id]["supplyIndex"]
+                    
+                    interest_indices[token_id]["borrowIndex"] = new_borrow
+                    interest_indices[token_id]["supplyIndex"] = new_supply
+                    updated_count += 1
+            
+            print(f"     ✅ Updated {updated_count}/{len(market_ids)} interest indices from on-chain")
+            return interest_indices
+            
+        except Exception as e:
+            rpc_host = rpc.split("//")[-1].split("/")[0]
+            print(f"     ⚠️ Live index fetch failed on {rpc_host}: {e}")
+            continue
+    
+    print(f"     ⚠️ All RPCs failed for live indices — using subgraph data (may be stale)")
+    return interest_indices
+
+
+def fetch_live_oracle_prices(rpc_url, dolomite_margin_address, oracle_prices, market_to_token, label="", rpc_fallbacks=None):
+    """
+    Fetch live oracle prices from DolomiteMargin contract via Multicall3.
+    Replaces stale subgraph prices with current on-chain values.
+    
+    Args:
+        rpc_url: Primary RPC URL
+        dolomite_margin_address: DolomiteMargin contract address
+        oracle_prices: Dict {token_id: price_string} from subgraph
+        market_to_token: Dict {int(marketId): token_id} mapping
+        label: Chain label for logging
+        rpc_fallbacks: Optional list of fallback RPC URLs
+    
+    Returns:
+        Updated oracle_prices with live on-chain values.
+    """
+    try:
+        from web3 import Web3
+    except ImportError:
+        return oracle_prices
+    
+    if not dolomite_margin_address or not rpc_url:
+        return oracle_prices
+    
+    if not market_to_token:
+        return oracle_prices
+    
+    MULTICALL3 = "0xcA11bde05977b3631167028862bE2a173976CA11"
+    MULTICALL3_ABI = [{
+        "inputs": [{"components": [
+            {"name": "target", "type": "address"},
+            {"name": "allowFailure", "type": "bool"},
+            {"name": "callData", "type": "bytes"}
+        ], "name": "calls", "type": "tuple[]"}],
+        "name": "aggregate3",
+        "outputs": [{"components": [
+            {"name": "success", "type": "bool"},
+            {"name": "returnData", "type": "bytes"}
+        ], "name": "returnData", "type": "tuple[]"}],
+        "stateMutability": "payable", "type": "function"
+    }]
+    
+    GET_MARKET_PRICE_ABI = [{
+        "inputs": [{"name": "_marketId", "type": "uint256"}],
+        "name": "getMarketPrice",
+        "outputs": [{"components": [{"name": "value", "type": "uint256"}], "name": "", "type": "tuple"}],
+        "stateMutability": "view", "type": "function"
+    }]
+    
+    all_rpcs = [rpc_url] + (rpc_fallbacks or [])
+    
+    for rpc in all_rpcs:
+        try:
+            w3 = Web3(Web3.HTTPProvider(rpc, request_kwargs={"timeout": 60}))
+            dm_contract = w3.eth.contract(
+                address=Web3.to_checksum_address(dolomite_margin_address),
+                abi=GET_MARKET_PRICE_ABI
+            )
+            multicall = w3.eth.contract(
+                address=Web3.to_checksum_address(MULTICALL3),
+                abi=MULTICALL3_ABI
+            )
+            dm_addr_cs = Web3.to_checksum_address(dolomite_margin_address)
+            
+            market_ids = sorted(market_to_token.keys())
+            calls = []
+            for mid in market_ids:
+                calldata = dm_contract.functions.getMarketPrice(mid)._encode_transaction_data()
+                calls.append((dm_addr_cs, True, bytes.fromhex(calldata[2:])))
+            
+            print(f"  🔗 Fetching live oracle prices via Multicall3 ({len(market_ids)} markets)...")
+            results = multicall.functions.aggregate3(calls).call()
+            
+            updated_count = 0
+            for i, (success, return_data) in enumerate(results):
+                if success and len(return_data) >= 32:
+                    price_raw = int.from_bytes(return_data[0:32], "big")
+                    market_id = market_ids[i]
+                    entry = market_to_token[market_id]
+                    
+                    # Price from contract: raw / 10^(36-decimals) = price per TOKEN in USD (matching subgraph)
+                    token_decimals = entry.get("decimals", 18)
+                    divisor = 10 ** (36 - token_decimals)
+                    new_price = str(price_raw / divisor)
+                    token_id = entry["token_id"]
+                    oracle_prices[token_id] = new_price
+                    updated_count += 1
+            
+            print(f"     ✅ Updated {updated_count}/{len(market_ids)} oracle prices from on-chain")
+            return oracle_prices
+            
+        except Exception as e:
+            rpc_host = rpc.split("//")[-1].split("/")[0]
+            print(f"     ⚠️ Live price fetch failed on {rpc_host}: {e}")
+            continue
+    
+    print(f"     ⚠️ All RPCs failed for live prices — using subgraph data (may be stale)")
+    return oracle_prices
 
 
 def classify_risk(hf):
@@ -523,16 +792,34 @@ def fetch_chain_data(chain_key, chain_config):
         label_type = "STABLE" if premium < 0.01 else "VOLATILE"
         print(f"       {symbol:>10s}: marginPremium={premium:.4f} ({label_type})")
     
-    # 3. Fetch oracle prices
+    # 3. Fetch oracle prices (start with subgraph, then upgrade to live on-chain)
     print(f"  📊 Fetching oracle prices...")
     price_data = graphql_request(url, QUERY_ORACLE_PRICES)
     oracle_prices = {}
+    price_market_to_token = {}  # {int(marketId): {token_id, decimals}} for live price fetch
     for op in price_data.get("oraclePrices", []):
         token_id = op["token"]["id"]
         oracle_prices[token_id] = op["price"]
-    print(f"     Found {len(oracle_prices)} oracle prices")
+        market_id = op["token"].get("marketId")
+        decimals = int(op["token"].get("decimals", "18"))
+        if market_id is not None:
+            price_market_to_token[int(market_id)] = {
+                "token_id": token_id,
+                "decimals": decimals,
+            }
+    print(f"     Found {len(oracle_prices)} oracle prices (subgraph)")
     
-    # 4. Fetch interest indices
+    # 3b. Upgrade to live on-chain oracle prices for accurate HF
+    rpc_url_early = chain_config.get("rpc")
+    rpc_fallbacks_early = chain_config.get("rpc_fallbacks", [])
+    if rpc_url_early and dolomite_margin_address and price_market_to_token:
+        oracle_prices = fetch_live_oracle_prices(
+            rpc_url_early, dolomite_margin_address, oracle_prices,
+            price_market_to_token,
+            label=label, rpc_fallbacks=rpc_fallbacks_early
+        )
+    
+    # 4. Fetch interest indices (start with subgraph, then upgrade to live on-chain)
     print(f"  📊 Fetching interest indices...")
     index_data = graphql_request(url, QUERY_INTEREST_INDICES)
     interest_indices = {}
@@ -541,8 +828,18 @@ def fetch_chain_data(chain_key, chain_config):
         interest_indices[token_id] = {
             "borrowIndex": idx["borrowIndex"],
             "supplyIndex": idx["supplyIndex"],
+            "marketId": idx["token"].get("marketId"),
         }
-    print(f"     Found {len(interest_indices)} interest indices")
+    print(f"     Found {len(interest_indices)} interest indices (subgraph)")
+    
+    # 4b. Upgrade to live on-chain interest indices for accurate HF
+    rpc_url = chain_config.get("rpc")
+    rpc_fallbacks = chain_config.get("rpc_fallbacks", [])
+    if rpc_url and dolomite_margin_address:
+        interest_indices = fetch_live_interest_indices(
+            rpc_url, dolomite_margin_address, interest_indices,
+            label=label, rpc_fallbacks=rpc_fallbacks
+        )
     
     # 5. Fetch all margin accounts with borrows (paginated)
     print(f"  📊 Fetching margin accounts with borrows...")
@@ -571,7 +868,8 @@ def fetch_chain_data(chain_key, chain_config):
     risk_overrides = {}
     rpc_url = chain_config.get("rpc")
     if rpc_url and default_setter:
-        risk_overrides = fetch_risk_overrides(rpc_url, default_setter, all_accounts, label)
+        rpc_fallbacks = chain_config.get("rpc_fallbacks", [])
+        risk_overrides = fetch_risk_overrides(rpc_url, default_setter, all_accounts, label, rpc_fallbacks=rpc_fallbacks)
     else:
         print(f"  ℹ️  No E-Mode setter on {label} — using global liquidation ratio for all accounts")
     
@@ -612,6 +910,7 @@ def fetch_chain_data(chain_key, chain_config):
             "debtUSD": round(result["debtUSD"], 2),
             "collateralTokens": result["collateralTokens"],
             "debtTokens": result["debtTokens"],
+            "eMode": mr_override is not None and mr_override > 0,
             "explorer": chain_config["explorer"] + user_addr,
             "lastUpdated": account.get("lastUpdatedTimestamp", ""),
         })
