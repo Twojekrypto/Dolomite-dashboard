@@ -824,6 +824,23 @@
             border-radius: 3px;
         }
 
+        .tg-icon {
+            display: inline-flex;
+            align-items: center;
+            opacity: 0.5;
+            transition: opacity 0.2s, transform 0.2s;
+            vertical-align: middle;
+            margin-left: 2px;
+        }
+        .tg-icon:hover {
+            opacity: 1;
+            transform: scale(1.6);
+        }
+        .tg-icon svg {
+            width: 14px;
+            height: 14px;
+        }
+
         .copy-addr-icon {
             display: inline-flex;
             align-items: center;
@@ -2236,7 +2253,7 @@
                 return `<tr class="${rowClass}${emodeRowClass}">
                     <td><span class="chain-badge ${p.chain}" title="${chainFull}"><img class="chain-icon" src="${chainIcon}" alt="">${chainLabel}</span></td>
                     <td><div class="address-cell">
-                        <a href="${p.explorer}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${p.address}">${shortAddr}</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${p.address}',this)" title="Copy address">${COPY_SVG}</span><a href="${debankUrl}" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a>
+                        <a href="${p.explorer}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${p.address}">${shortAddr}</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${p.address}',this)" title="Copy address">${COPY_SVG}</span><a href="${debankUrl}" target="_blank" onclick="event.stopPropagation()" class="debank-icon" data-tooltip="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a><a href="https://t.me/Dolomite_SuperGus_bot?start=${p.address}" target="_blank" onclick="event.stopPropagation()" class="tg-icon" data-tooltip="🔔 Set up alerts for this position via Telegram bot"><svg viewBox="0 0 24 24" fill="none"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8l-1.68 7.92c-.12.56-.44.7-.9.43l-2.5-1.84-1.2 1.16c-.14.14-.25.25-.5.25l.18-2.52 4.56-4.12c.2-.18-.04-.28-.3-.1L8.9 13.54l-2.42-.76c-.52-.16-.54-.52.12-.78l9.48-3.66c.44-.16.82.1.56.78z" fill="#29B6F6"/></svg></a>
                     </div></td>
                     <td><div class="hf-gauge">${riskClass !== 'baddebt' ? `<div class="hf-gauge-bar"><div class="hf-gauge-fill ${riskClass}" style="width:${p.healthFactor !== null ? Math.min(Math.max((p.healthFactor / 2) * 100, 5), 100) : 0}%"></div></div>` : ''}<span class="hf-badge ${riskClass}" data-tooltip="${tooltip}"><span class="hf-dot ${riskClass}"></span>${hfText}</span></div></td>
                     <td style="text-align:center">${emodeCell}</td>
@@ -2867,11 +2884,16 @@
                 if (pill) return pill.getAttribute('data-tooltip');
                 var plv = el.closest('.plvglp-badge[data-tooltip]');
                 if (plv) return plv.getAttribute('data-tooltip');
+                // DeBank & Telegram icons
+                var db = el.closest('.debank-icon[data-tooltip]');
+                if (db) return db.getAttribute('data-tooltip');
+                var tg = el.closest('.tg-icon[data-tooltip]');
+                if (tg) return tg.getAttribute('data-tooltip');
                 return null;
             }
 
             function getTarget(el) {
-                return el.closest('.addr-tooltip-wrap') || el.closest('.emode-tooltip-wrap') || el.closest('.hf-badge[data-tooltip]') || el.closest('.token-pill[data-tooltip]') || el.closest('.plvglp-badge[data-tooltip]');
+                return el.closest('.addr-tooltip-wrap') || el.closest('.emode-tooltip-wrap') || el.closest('.hf-badge[data-tooltip]') || el.closest('.token-pill[data-tooltip]') || el.closest('.plvglp-badge[data-tooltip]') || el.closest('.debank-icon[data-tooltip]') || el.closest('.tg-icon[data-tooltip]');
             }
 
             function positionTip(targetEl) {
