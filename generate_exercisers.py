@@ -17,8 +17,11 @@ ROUTESCAN_API = "https://api.routescan.io/v2/network/mainnet/evm/80094/etherscan
 VESTER_CONTRACT = "0x3E9b9A16743551DA49b5e136C716bBa7932d2cEc"
 USDC_E_CONTRACT = "0x549943e04f40284185054145c6e4e9568c1d3241".lower()
 ODOLO_CONTRACT = "0x02e513b5b54ee216bf836ceb471507488fc89543".lower()
+DOLO_CONTRACT = "0x0f81001ef0a83ecce5ccebf63eb302c70a39a654".lower()
 TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 EXERCISE_METHOD_ID = "0xa88f8139"
+EXERCISE_METHOD_ID_2 = "0xf3621c90"  # newer exercise variant (DOLO-based, no USDC.e)
+EXERCISE_METHOD_IDS = {EXERCISE_METHOD_ID, EXERCISE_METHOD_ID_2}
 USDC_DECIMALS = 6
 ODOLO_DECIMALS = 18
 
@@ -111,27 +114,44 @@ def get_tx_details_from_receipt(tx_hash, retries=MAX_RETRIES):
 
             usdc_amount = None
             odolo_amount = None
+            dolo_amount = None  # for 0xf3621c90 variant
 
             for log in data["result"].get("logs", []):
                 if len(log["topics"]) < 3 or log["topics"][0] != TRANSFER_TOPIC:
                     continue
 
                 token_addr = log["address"].lower()
+                from_addr = "0x" + log["topics"][1][26:].lower()
                 to_addr = "0x" + log["topics"][2][26:].lower()
 
-                # USDC.e payment: from user TO vester
+                # USDC.e payment: from user TO vester (original exercise)
                 if token_addr == USDC_E_CONTRACT and to_addr == VESTER_CONTRACT.lower():
                     usdc_amount = int(log["data"], 16) / (10 ** USDC_DECIMALS)
+
+                # DOLO payment: from user TO vester (newer exercise variant)
+                if token_addr == DOLO_CONTRACT and to_addr == VESTER_CONTRACT.lower():
+                    raw = log.get("data", "0x")
+                    if len(raw) > 2:
+                        dolo_amount = int(raw, 16) / (10 ** ODOLO_DECIMALS)
 
                 # oDOLO burn: from vester TO 0x0 (burn address) during exercise
                 # The burned oDOLO amount = veDOLO received (1:1)
                 if token_addr == ODOLO_CONTRACT:
-                    from_addr = "0x" + log["topics"][1][26:].lower()
                     to_addr_check = "0x" + log["topics"][2][26:].lower()
                     if from_addr == VESTER_CONTRACT.lower() and to_addr_check == "0x0000000000000000000000000000000000000000":
                         raw = log.get("data", "0x")
                         if len(raw) > 2:
                             odolo_amount = int(raw, 16) / (10 ** ODOLO_DECIMALS)
+
+                # oDOLO transfer: from user TO vester (newer variant where oDOLO is sent, not burned)
+                if token_addr == ODOLO_CONTRACT and to_addr == VESTER_CONTRACT.lower() and from_addr != VESTER_CONTRACT.lower():
+                    raw = log.get("data", "0x")
+                    if len(raw) > 2 and odolo_amount is None:
+                        odolo_amount = int(raw, 16) / (10 ** ODOLO_DECIMALS)
+
+            # For DOLO-based exercises, use DOLO amount as the "payment" if no USDC.e
+            if usdc_amount is None and dolo_amount is not None:
+                usdc_amount = dolo_amount  # Track DOLO amount in the usdc field (we'll note it)
 
             return usdc_amount, odolo_amount
 
@@ -163,10 +183,15 @@ def main():
 
     exercise_txs = [
         tx for tx in all_txs
-        if tx.get("methodId") == EXERCISE_METHOD_ID
+        if tx.get("methodId") in EXERCISE_METHOD_IDS
         and tx.get("isError") == "0"
         and tx.get("txreceipt_status") == "1"
     ]
+    print(f"\n[2/3] Exercise transactions: {len(exercise_txs)}")
+    # Count by method
+    m1 = sum(1 for tx in exercise_txs if tx.get('methodId') == EXERCISE_METHOD_ID)
+    m2 = sum(1 for tx in exercise_txs if tx.get('methodId') == EXERCISE_METHOD_ID_2)
+    print(f"  Method 0xa88f8139: {m1}, Method 0xf3621c90: {m2}")
     print(f"\n[2/3] Exercise transactions: {len(exercise_txs)}")
 
     # Split into cached and uncached
