@@ -4,7 +4,7 @@ DOLO Token Flows — Top Accumulators & Sellers (1d / 7d / 30d)
 Fetches ERC-20 Transfer events via eth_getLogs for ETH and Berachain,
 calculates net inflow/outflow per address, outputs top 5 each.
 """
-import json, time, os, sys
+import json, time, os, sys, signal
 import requests
 from datetime import datetime
 
@@ -82,7 +82,7 @@ CHAINS = {
             "https://rpc.berachain.com/",
         ],
         "block_time": 2,    # ~2 seconds per block
-        "chunk_size": 50_000,
+        "chunk_size": 500_000,  # Berachain: large chunks (sparse DOLO txs, 2s blocks)
         "deploy_block": 2_900_000,   # DOLO deployed on Berachain ~block 2,925,727 (Mar 2025)
     },
 }
@@ -104,6 +104,20 @@ MAX_PERIOD_SECONDS = max(PERIODS.values())  # longest period for pruning
 # Cache ALL transfers from genesis — state file lives only in Actions cache (10 GB limit),
 # never committed to git. After first full scan, every run just fetches new blocks.
 MAX_CACHE_SECONDS = MAX_PERIOD_SECONDS
+
+# Global state reference for signal handler
+_global_state = {}
+
+
+def _sigterm_handler(signum, frame):
+    """Save state to disk on SIGTERM (Actions timeout kill signal)."""
+    print(f"\n⚠️  Received signal {signum} — saving state before exit...")
+    save_state(_global_state)
+    print(f"💾 State saved ({STATE_FILE}). Progress preserved for next run.")
+    sys.exit(0)
+
+signal.signal(signal.SIGTERM, _sigterm_handler)
+signal.signal(signal.SIGINT, _sigterm_handler)
 
 
 def load_state():
@@ -143,8 +157,9 @@ def get_current_block(rpcs):
     return 0
 
 
-def fetch_transfer_logs(chain_key, start_block, end_block):
-    """Fetch ERC-20 Transfer event logs via eth_getLogs."""
+def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_transfers_so_far=None):
+    """Fetch ERC-20 Transfer event logs via eth_getLogs.
+    Saves state progressively during long scans so timeout kills preserve progress."""
     cfg = CHAINS[chain_key]
     rpcs = cfg["rpcs"]
     chunk_size = cfg["chunk_size"]
@@ -180,7 +195,7 @@ def fetch_transfer_logs(chain_key, start_block, end_block):
                         "fromBlock": hex(current),
                         "toBlock": hex(chunk_end),
                     }], "id": 1
-                }, timeout=30, headers={"Content-Type": "application/json"})
+                }, timeout=60, headers={"Content-Type": "application/json"})
 
                 r = resp.json()
                 if "error" in r:
@@ -220,9 +235,13 @@ def fetch_transfer_logs(chain_key, start_block, end_block):
         current = chunk_end + 1
         chunks_done += 1
 
-        if chunks_done % 20 == 0 or current > end_block:
+        if chunks_done % 10 == 0 or current > end_block:
             pct = min(100, (current - start_block) * 100 // max(total_blocks, 1))
             print(f"    {cfg['name']}: {pct}% (block {current:,}/{end_block:,}, {len(all_transfers):,} txs)", flush=True)
+
+        # Progressive state save every 20 chunks — ensures timeout kills preserve progress
+        if state is not None and chunks_done % 20 == 0:
+            _save_scan_progress(state, chain_key, current - 1, all_transfers, cached_transfers_so_far)
 
         if chunk_size < cfg["chunk_size"]:
             chunk_size = min(chunk_size * 2, cfg["chunk_size"])
@@ -238,6 +257,17 @@ def fetch_transfer_logs(chain_key, start_block, end_block):
 
     print(f"  ✅ {cfg['name']}: {len(all_transfers):,} transfers found")
     return all_transfers, chunks_failed, total_chunks_attempted
+
+
+def _save_scan_progress(state, chain_key, last_block_scanned, new_transfers, cached_transfers_so_far):
+    """Save intermediate scan progress to state file so SIGTERM/timeout preserves work."""
+    cached_key = f"{chain_key}_transfers"
+    last_block_key = f"{chain_key}_last_block"
+    # Merge cached + new transfers found so far
+    all_so_far = (cached_transfers_so_far or []) + [list(t) for t in new_transfers]
+    state[cached_key] = all_so_far
+    state[last_block_key] = last_block_scanned
+    save_state(state)
 
 
 def detect_contracts_batch(addresses, chain_key):
@@ -352,7 +382,9 @@ def main():
     print("=" * 60)
 
     # Load incremental state
+    global _global_state
     state = load_state()
+    _global_state = state  # Allow signal handler to save on kill
     is_incremental = bool(state)
     if is_incremental:
         print("📦 Found previous state — running incremental sync")
@@ -404,7 +436,11 @@ def main():
                 new_transfers = []
                 chunks_failed = 0
             else:
-                new_transfers, chunks_failed, _ = fetch_transfer_logs(chain_key, fetch_start, end)
+                # Convert cached for progressive save during fetch
+                cached_as_lists = [list(t) for t in cached_transfers] if isinstance(cached_transfers[0], (list, tuple)) else cached_transfers
+                new_transfers, chunks_failed, _ = fetch_transfer_logs(
+                    chain_key, fetch_start, end, state=state, cached_transfers_so_far=cached_as_lists
+                )
 
             # Convert cached transfers back from lists to tuples
             restored = [tuple(t) for t in cached_transfers]
@@ -418,11 +454,27 @@ def main():
             all_transfers[chain_key] = merged
             print(f"  {CHAINS[chain_key]['name']}: {len(new_transfers):,} new + {len(restored):,} cached → {len(merged):,} total (after pruning)")
         else:
-            # Full scan from the oldest needed block
-            fresh_transfers, chunks_failed, total_chunks = fetch_transfer_logs(chain_key, oldest_needed, end)
+            # Full scan from the oldest needed block (or resume from cached last_block)
+            scan_start = oldest_needed
+            cached_as_lists = None
+            if last_block > 0 and last_block > oldest_needed:
+                # Resume from where we left off (partial previous scan)
+                scan_start = last_block + 1
+                cached_as_lists = cached_transfers  # already lists from JSON
+                print(f"  {CHAINS[chain_key]['name']}: resuming partial scan from block {scan_start:,} (had {len(cached_transfers):,} cached txs)")
 
-            # DEFENSIVE FALLBACK: if fresh scan returns 0 but cache has data, use cache
-            if len(fresh_transfers) == 0 and cached_transfers:
+            fresh_transfers, chunks_failed, total_chunks = fetch_transfer_logs(
+                chain_key, scan_start, end, state=state, cached_transfers_so_far=cached_as_lists
+            )
+
+            # Merge with any cached partial data
+            if cached_as_lists:
+                restored = [tuple(t) for t in cached_as_lists]
+                merged = restored + fresh_transfers
+                merged = [t for t in merged if t[3] >= oldest_needed]
+                all_transfers[chain_key] = merged
+            elif len(fresh_transfers) == 0 and cached_transfers:
+                # DEFENSIVE FALLBACK: if fresh scan returns 0 but cache has data, use cache
                 restored = [tuple(t) for t in cached_transfers]
                 restored = [t for t in restored if t[3] >= oldest_needed]
                 if restored:
@@ -437,7 +489,7 @@ def main():
         if len(all_transfers[chain_key]) == 0:
             print(f"  🚨 WARNING: {CHAINS[chain_key]['name']} has 0 transfers! Flow data will be empty for this chain.")
 
-        # Update state for this chain
+        # Update state for this chain — save immediately so next timeout preserves this chain's data
         state[last_block_key] = end
         # Store transfers as lists (JSON can't serialize tuples)
         # Only cache transfers within MAX_CACHE_SECONDS window (180d)
@@ -448,6 +500,9 @@ def main():
             list(t) for t in all_transfers[chain_key]
             if t[3] >= cache_cutoff
         ]
+        # Save state after each chain completes
+        save_state(state)
+        print(f"  💾 State saved for {CHAINS[chain_key]['name']} (up to block {end:,})")
 
     # Detect contracts among top addresses (to exclude DEX routers, etc.)
     print("\n🔍 Detecting contract addresses to exclude...")
