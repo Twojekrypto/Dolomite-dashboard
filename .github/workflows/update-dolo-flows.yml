@@ -11,7 +11,7 @@ permissions:
 jobs:
   update-flows:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -53,6 +53,7 @@ jobs:
         run: python3 generate_dolo_holders.py
 
       - name: Generate DOLO flows data
+        timeout-minutes: 75
         env:
           PYTHONUNBUFFERED: '1'
           ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
@@ -60,7 +61,22 @@ jobs:
           ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}
         run: python3 generate_dolo_flows.py
 
+      - name: Save flows state cache (even on timeout)
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: dolo_flows_state.json
+          key: dolo-flows-state-${{ github.run_number }}
+
+      - name: Save holders state cache (even on timeout)
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: dolo_holders_state.json
+          key: dolo-holders-state-${{ github.run_number }}
+
       - name: Commit and push if changed
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
