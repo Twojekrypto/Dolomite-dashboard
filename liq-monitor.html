@@ -365,7 +365,7 @@
             gap: 4px;
             padding: 3px;
             border-radius: 10px;
-            background: rgba(255,255,255,0.03);
+            background: rgba(255,255,255,0.025);
             border: 1px solid rgba(255,255,255,0.06);
         }
 
@@ -373,12 +373,12 @@
             display: flex;
             align-items: center;
             gap: 6px;
-            padding: 5px 12px;
-            border-radius: 7px;
+            padding: 6px 14px;
+            border-radius: 8px;
             border: 1px solid transparent;
             background: transparent;
             color: var(--text-muted);
-            font-size: 11px;
+            font-size: 11.5px;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s ease;
@@ -417,27 +417,73 @@
         }
 
         .risk-pill .pill-count {
-            font-size: 9px;
+            font-size: 10px;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+            padding: 1px 6px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.06);
             color: var(--text-muted);
-            font-weight: 400;
-            opacity: 0.7;
+            line-height: 1.3;
         }
 
         .risk-pill.active .pill-count {
-            color: var(--text-secondary);
-            opacity: 1;
+            color: var(--text-primary);
         }
+        /* Specific pill count active color overrides */
+        .risk-pill.active[data-risk="all"]         .pill-count { background: rgba(99,102,241,0.15); color: #c7d2fe; }
+        .risk-pill.active[data-risk="baddebt"]     .pill-count { background: rgba(156,163,175,0.15); color: #d1d5db; }
+        .risk-pill.active[data-risk="liquidation"] .pill-count { background: rgba(239,68,68,0.15); color: #fca5a5; }
+        .risk-pill.active[data-risk="danger"]      .pill-count { background: rgba(249,115,22,0.15); color: #fdba74; }
+        .risk-pill.active[data-risk="healthy"]     .pill-count { background: rgba(52,211,153,0.15); color: #6ee7b7; }
 
         .search-wrap {
             flex-shrink: 0;
             position: relative;
+        }
+        .search-icon {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 14px;
+            height: 14px;
+            color: rgba(255,255,255,0.25);
+            pointer-events: none;
+            transition: color 0.2s;
+        }
+        .search-wrap:focus-within .search-icon {
+            color: rgba(34, 211, 238, 0.6);
+        }
+        .search-kbd {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            padding: 2px 6px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 4px;
+            font-size: 10px;
+            font-family: 'JetBrains Mono', monospace;
+            color: rgba(255,255,255,0.25);
+            line-height: 1;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        .search-wrap:focus-within .search-kbd,
+        .search-wrap.has-value .search-kbd {
+            opacity: 0;
         }
 
         .search-input {
             background: rgba(255,255,255,0.04);
             border: 1px solid var(--border-default);
             border-radius: 8px;
-            padding: 7px 14px;
+            padding: 7px 14px 7px 32px;
             font-size: 12px;
             color: rgba(255,255,255,0.85);
             outline: none;
@@ -543,13 +589,20 @@
         /* ===== FILTER BAR — two-row layout ===== */
         .controls-row1 {
             display: flex; align-items: center; gap: 10px;
-            margin: 0; padding: 12px 24px 12px; flex-wrap: wrap;
+            margin: 0; padding: 14px 24px 14px; flex-wrap: wrap;
             border-bottom: 1px solid rgba(255,255,255,.04);
         }
         .controls-row2 {
-            display: flex; align-items: center; gap: 6px;
-            margin: 0; padding: 8px 24px 10px; flex-wrap: wrap;
+            display: flex; align-items: center; gap: 8px;
+            margin: 0; padding: 10px 24px 12px; flex-wrap: wrap;
             border-bottom: 1px solid rgba(255,255,255,.04);
+        }
+        .controls-separator {
+            width: 1px;
+            height: 24px;
+            background: rgba(255,255,255,0.08);
+            margin: 0 4px;
+            flex-shrink: 0;
         }
 
         /* Clear Filters X button */
@@ -846,23 +899,23 @@
             font-size: 11px;
             font-weight: 600;
             font-family: inherit;
-            color: var(--text-muted);
-            background: transparent;
-            border: 1px solid var(--border-default);
+            color: #29B6F6;
+            background: rgba(41, 182, 246, 0.08);
+            border: 1px solid rgba(41, 182, 246, 0.20);
             text-decoration: none;
             transition: all 0.2s;
             cursor: pointer;
         }
         .set-alert-header-btn:hover {
-            color: #29B6F6;
-            background: rgba(41, 182, 246, 0.08);
-            border-color: rgba(41, 182, 246, 0.3);
-            box-shadow: 0 0 12px rgba(41, 182, 246, 0.08);
+            color: #4fc3f7;
+            background: rgba(41, 182, 246, 0.14);
+            border-color: rgba(41, 182, 246, 0.35);
+            box-shadow: 0 0 16px rgba(41, 182, 246, 0.12);
         }
         .set-alert-header-btn svg {
             width: 14px;
             height: 14px;
-            opacity: 0.5;
+            opacity: 0.8;
             transition: opacity 0.2s;
         }
         .set-alert-header-btn:hover svg {
@@ -1240,7 +1293,7 @@
             gap: 6px;
         }
         .toggle-btn {
-            padding: 5px 12px 5px 8px;
+            padding: 6px 14px 6px 10px;
             border: 1px solid var(--border-default);
             background: rgba(255,255,255,0.02);
             color: var(--text-muted);
@@ -1821,7 +1874,9 @@
         <!-- Row 1: Search + Dropdowns + Action Buttons -->
         <div class="controls-row1">
             <div class="search-wrap" id="search-wrap">
+                <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <input type="text" class="search-input" id="search-input" placeholder="Search by address (0x...)">
+                <span class="search-kbd">⌘K</span>
                 <button type="button" class="search-clear" id="search-clear" title="Clear search">✕</button>
             </div>
 
@@ -1856,10 +1911,12 @@
                 </div>
             </div>
 
-            <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+            <div class="controls-separator" style="margin-left: auto"></div>
+
+            <div style="display: flex; align-items: center; gap: 8px;">
                 <a href="https://t.me/Dolomite_SuperGus_bot" target="_blank" rel="noopener" class="set-alert-header-btn" data-tooltip="Open Telegram bot to set up liquidation alerts for any Dolomite position">
                     <svg viewBox="0 0 24 24" fill="none"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8l-1.68 7.92c-.12.56-.44.7-.9.43l-2.5-1.84-1.2 1.16c-.14.14-.25.25-.5.25l.18-2.52 4.56-4.12c.2-.18-.04-.28-.3-.1L8.9 13.54l-2.42-.76c-.52-.16-.54-.52.12-.78l9.48-3.66c.44-.16.82.1.56.78z" fill="#29B6F6"/></svg>
-                    🔔 Set Alert
+                    Set Alert
                 </a>
                 <button class="toggle-btn emode-toggle" id="emode-filter-btn" data-tip="Show only E-Mode positions — correlated assets using tighter liquidation ratios for better capital efficiency">
                     <span class="toggle-dot"></span><span class="icon">⚡</span>E-Mode
