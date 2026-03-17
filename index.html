@@ -13329,11 +13329,16 @@
                 renderExercisersTable();
                 buildRecentExercisers();
 
-                // Recalculate AVG veDOLO PRICE from consistent data source
+                // Recalculate AVG veDOLO PRICE — USDC exercises only (DOLO conversions are not real $ purchases)
                 const totalUsdc = json.total_usdc || 0;
-                const totalVedolo = json.total_vedolo || 0;
-                if (totalUsdc > 0 && totalVedolo > 0) {
-                    const avgPrice = totalUsdc / totalVedolo;
+                let usdcVedoloTotal = 0;
+                (json.exercisers || []).forEach(e => {
+                    (e.txs || []).forEach(tx => {
+                        if (tx.paid_token !== 'DOLO' && tx.vedolo) usdcVedoloTotal += tx.vedolo;
+                    });
+                });
+                if (totalUsdc > 0 && usdcVedoloTotal > 0) {
+                    const avgPrice = totalUsdc / usdcVedoloTotal;
                     document.getElementById('o-m-avg-price').textContent = '$' + avgPrice.toFixed(4);
                 }
             } catch (e) { console.warn('exercisers error:', e); }
