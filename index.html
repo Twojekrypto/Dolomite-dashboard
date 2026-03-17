@@ -13346,25 +13346,19 @@
 
         function getExerciserAvgPrice(e) {
             let totalVedolo = 0;
-            let totalCostUsd = 0;
+            let totalUsdc = 0;
             (e.txs || []).forEach(tx => {
-                if (tx.vedolo) {
+                if (tx.paid_token !== 'DOLO' && tx.vedolo) {
                     totalVedolo += tx.vedolo;
-                    if (tx.paid_token === 'DOLO' && tx.dolo_paid) {
-                        totalCostUsd += tx.dolo_paid * DOLO_TOKEN_PRICE;
-                    } else {
-                        totalCostUsd += (tx.usdc || 0);
-                    }
+                    totalUsdc += (tx.usdc || 0);
                 }
             });
-            return totalVedolo > 0 ? totalCostUsd / totalVedolo : null;
+            return totalVedolo > 0 ? totalUsdc / totalVedolo : null;
         }
 
-        /** Get USD cost for a single tx */
+        /** Get USD cost for a single tx (DOLO exercises = no real $ cost) */
         function getTxCostUsd(tx) {
-            if (tx.paid_token === 'DOLO') {
-                return tx.dolo_paid ? tx.dolo_paid * DOLO_TOKEN_PRICE : 0;
-            }
+            if (tx.paid_token === 'DOLO') return 0;
             return tx.usdc || 0;
         }
 
@@ -13873,7 +13867,7 @@
                 html += '<td style="padding:4px 5px;text-align:right;color:#fff;font-weight:600;font-size:11px">' + (totalVedolo > 0 ? vedolo_fmtDolo(totalVedolo) + ' DOLO' : '\u2014') + '</td>';
                 html += '<td style="padding:4px 5px;text-align:right;color:#22d3ee;font-size:11px">' + exFmtLock(e.avg_lock_days) + '</td>';
                 var costHtml = '';
-                var totalCostUsd = (e.total_usdc || 0) + (totalDoloPaid * DOLO_TOKEN_PRICE);
+                var totalCostUsd = e.total_usdc || 0;
                 if (totalCostUsd > 0) {
                     costHtml = '<span style="color:#fbbf24">' + exFmtUsd(totalCostUsd) + '</span>';
                 } else {
@@ -13913,23 +13907,22 @@
 
             document.getElementById('em-rank').textContent = '#' + rank;
             document.getElementById('em-addr').textContent = exShortAddr(addr);
-            // Modal cost display: show total in $ only
-            let emTotalDolo = 0; (e.txs || []).forEach(tx => { if (tx.paid_token === 'DOLO' && tx.dolo_paid) emTotalDolo += tx.dolo_paid; });
+            // Modal cost: USDC.e only (DOLO exercises are not real $ purchases)
             const emCostEl = document.getElementById('em-usdc');
-            let emTotalCostUsd = (e.total_usdc || 0) + (emTotalDolo * DOLO_TOKEN_PRICE);
-            if (emTotalCostUsd > 0) {
-                emCostEl.textContent = exFmtUsd(emTotalCostUsd);
+            if (e.total_usdc > 0) {
+                emCostEl.textContent = exFmtUsd(e.total_usdc);
             } else {
                 emCostEl.textContent = '\u2014';
             }
-            document.getElementById('em-exercises').textContent = e.exercises;
+            // Count only USDC exercises for display
+            const usdcTxs = (e.txs || []).filter(tx => tx.paid_token !== 'DOLO');
+            document.getElementById('em-exercises').textContent = usdcTxs.length;
             document.getElementById('em-period').textContent = exFmtDate(e.first) + ' \u2013 ' + exFmtDate(e.last);
             document.getElementById('em-avglock').textContent = exFmtLock(e.avg_lock_days);
             document.getElementById('em-avgprice').textContent = avgPrice ? '$' + avgPrice.toFixed(4) : '\u2014';
             document.getElementById('em-berascan').href = 'https://berascan.com/address/' + addr;
             document.getElementById('em-debank').href = 'https://debank.com/profile/' + addr + '?chain=bera';
 
-            const txs = e.txs || [];
             let html = '<table class="detail-table"><thead><tr>';
             html += '<th style="width:36px">#</th>';
             html += '<th>Date</th>';
@@ -13939,30 +13932,25 @@
             html += '<th style="text-align:center">Lock</th>';
             html += '<th>Tx</th>';
             html += '</tr></thead><tbody>';
-            txs.forEach((tx, i) => {
+            usdcTxs.forEach((tx, i) => {
                 const rowBg = i % 2 === 0 ? '' : 'background:rgba(255,255,255,0.02);';
                 html += '<tr style="' + rowBg + 'cursor:pointer" onclick="window.open(\'https://berascan.com/tx/' + tx.hash + '\',\'_blank\')">';
                 html += '<td>' + (i + 1) + '</td>';
                 html += '<td>' + exFmtDate(tx.date) + '</td>';
-                const isDoloPaid = tx.paid_token === 'DOLO';
-                const txCostUsd = getTxCostUsd(tx);
-                const txCostHtml = txCostUsd > 0 ? '<span style="color:#fbbf24">' + exFmtUsd(txCostUsd) + '</span>' : '\u2014';
+                const txCostHtml = (tx.usdc > 0) ? '<span style="color:#fbbf24">' + exFmtUsd(tx.usdc) + '</span>' : '\u2014';
                 html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px">' + txCostHtml + '</td>';
                 html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px">' + (tx.vedolo != null ? tx.vedolo.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '\u2014') + '</td>';
-                const txPriceVe = (txCostUsd > 0 && tx.vedolo > 0) ? txCostUsd / tx.vedolo : (tx.price || 0);
-                html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px;color:#34d399">' + (txPriceVe > 0 ? '$' + txPriceVe.toFixed(4) : '\u2014') + '</td>';
+                html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px;color:#34d399">' + (tx.price != null ? '$' + tx.price.toFixed(4) : '\u2014') + '</td>';
                 html += '<td style="text-align:center">' + exFmtLock(tx.lock_days) + '</td>';
                 html += '<td><a href="https://berascan.com/tx/' + tx.hash + '" target="_blank" class="tx-link" onclick="event.stopPropagation()">' + tx.hash.slice(0, 8) + '\u2026</a></td>';
                 html += '</tr>';
             });
-            if (txs.length > 1) {
+            if (usdcTxs.length > 1) {
+                let usdcVedolo = 0; usdcTxs.forEach(tx => { if (tx.vedolo) usdcVedolo += tx.vedolo; });
                 html += '<tr style="border-top:2px solid var(--border-subtle);font-weight:600;color:#fff">';
-                html += '<td colspan="2" style="color:#fff">Total (' + txs.length + ' txs)</td>';
-                let totalDoloPaidModal = 0; (e.txs || []).forEach(function(tx2) { if (tx2.paid_token === 'DOLO' && tx2.dolo_paid) totalDoloPaidModal += tx2.dolo_paid; });
-                let modalTotalCostUsd = (e.total_usdc || 0) + (totalDoloPaidModal * DOLO_TOKEN_PRICE);
-                let modalTotalCost = modalTotalCostUsd > 0 ? '<span style="color:#fbbf24">' + exFmtUsd(modalTotalCostUsd) + '</span>' : '\u2014';
-                html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px;color:#fff">' + modalTotalCost + '</td>';
-                html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px;color:#fff">' + (totalVedolo > 0 ? totalVedolo.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '\u2014') + '</td>';
+                html += '<td colspan="2" style="color:#fff">Total (' + usdcTxs.length + ' txs)</td>';
+                html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px;color:#fff">' + (e.total_usdc > 0 ? '<span style="color:#fbbf24">' + exFmtUsd(e.total_usdc) + '</span>' : '\u2014') + '</td>';
+                html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px;color:#fff">' + (usdcVedolo > 0 ? usdcVedolo.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '\u2014') + '</td>';
                 html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px;color:#34d399">' + (avgPrice ? '$' + avgPrice.toFixed(4) : '\u2014') + '</td>';
                 html += '<td style="text-align:center;color:#fff">' + exFmtLock(e.avg_lock_days) + '</td>';
                 html += '<td></td>';
