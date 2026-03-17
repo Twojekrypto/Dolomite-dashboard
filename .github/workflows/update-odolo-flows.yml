@@ -15,7 +15,7 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -40,6 +40,7 @@ jobs:
 
       - name: Generate oDOLO flows
         env:
+          PYTHONUNBUFFERED: '1'
           ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
           ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
         run: python generate_odolo_flows.py

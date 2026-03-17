@@ -27,6 +27,8 @@ jobs:
 
       - name: Fetch liquidation risk data
         run: python3 fetch_liquidation_risk.py
+        env:
+          PYTHONUNBUFFERED: '1'
 
       - name: Commit & push changes
         run: |
