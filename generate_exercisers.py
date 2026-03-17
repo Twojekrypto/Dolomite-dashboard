@@ -13,6 +13,17 @@ import os
 from collections import defaultdict
 from datetime import datetime
 
+# Global timeout: abort gracefully before CI step timeout kills us
+SCRIPT_START = time.time()
+MAX_RUNTIME_SECONDS = 25 * 60  # 25 minutes (CI step timeout = 30 min)
+
+def check_timeout(phase=""):
+    elapsed = time.time() - SCRIPT_START
+    if elapsed > MAX_RUNTIME_SECONDS:
+        print(f"\n⏰ TIMEOUT after {elapsed/60:.0f} min in {phase}! Saving cache and exiting.", flush=True)
+        return True
+    return False
+
 ROUTESCAN_API = "https://api.routescan.io/v2/network/mainnet/evm/80094/etherscan/api"
 VESTER_CONTRACT = "0x3E9b9A16743551DA49b5e136C716bBa7932d2cEc"
 USDC_E_CONTRACT = "0x549943e04f40284185054145c6e4e9568c1d3241".lower()
@@ -57,7 +68,7 @@ def get_all_transactions():
     all_txs = []
     page = 1
     while True:
-        print(f"  Fetching page {page}...")
+        print(f"  Fetching page {page}...", flush=True)
         params = {
             "module": "account", "action": "txlist",
             "address": VESTER_CONTRACT,
@@ -76,6 +87,8 @@ def get_all_transactions():
             break
         page += 1
         time.sleep(RATE_LIMIT_DELAY)
+        if check_timeout("fetch-txs"):
+            break
     return all_txs
 
 
@@ -220,15 +233,20 @@ def main():
             failed_txs.append(tx)
 
         if (i + 1) % 50 == 0 or i == len(uncached_txs) - 1:
-            print(f"  [{i+1}/{len(uncached_txs)}] Fetched, Errors: {errors}")
+            print(f"  [{i+1}/{len(uncached_txs)}] Fetched, Errors: {errors}", flush=True)
+
+        if check_timeout("fetch-receipts"):
+            break
 
         time.sleep(RATE_LIMIT_DELAY)
 
-    # Second-pass retry for failed receipts
-    if failed_txs:
-        print(f"\n[3b/3] Retrying {len(failed_txs)} failed receipts with longer delays...")
+    # Second-pass retry for failed receipts (skip if timed out)
+    if failed_txs and not check_timeout("pre-retry"):
+        print(f"\n[3b/3] Retrying {len(failed_txs)} failed receipts with longer delays...", flush=True)
         recovered = 0
         for i, tx in enumerate(failed_txs):
+            if check_timeout("retry-receipts"):
+                break
             tx_hash = tx["hash"]
             lock_days = extract_lock_duration(tx)
 
@@ -245,9 +263,9 @@ def main():
                 }
 
             if (i + 1) % 25 == 0 or i == len(failed_txs) - 1:
-                print(f"    Retry [{i+1}/{len(failed_txs)}] Recovered: {recovered}")
+                print(f"    Retry [{i+1}/{len(failed_txs)}] Recovered: {recovered}", flush=True)
 
-        print(f"  Recovered {recovered}/{len(failed_txs)} previously failed receipts")
+        print(f"  Recovered {recovered}/{len(failed_txs)} previously failed receipts", flush=True)
 
     # Save cache for next run
     save_cache(cache)
