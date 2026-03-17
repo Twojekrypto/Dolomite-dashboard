@@ -11,7 +11,7 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
 
     steps:
       - name: Checkout
@@ -36,6 +36,7 @@ jobs:
       - name: Run update script
         run: python update_data.py
         env:
+          PYTHONUNBUFFERED: '1'
           BERASCAN_API_KEY: ${{ secrets.BERASCAN_API_KEY }}
           ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
           ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
