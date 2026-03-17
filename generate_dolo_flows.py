@@ -10,6 +10,7 @@ from datetime import datetime
 
 ALCHEMY_BERA_RPC = os.environ.get("ALCHEMY_BERACHAIN_RPC", "")
 ALCHEMY_BERA_RPC_2 = os.environ.get("ALCHEMY_BERACHAIN_RPC_2", "")
+ALCHEMY_BERA_RPC_3 = os.environ.get("ALCHEMY_BERACHAIN_RPC_3", "")
 
 # ===== CONFIG =====
 DOLO_CONTRACT = "0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654".lower()
@@ -75,6 +76,7 @@ CHAINS = {
         "rpcs": [
             *([] if not ALCHEMY_BERA_RPC else [ALCHEMY_BERA_RPC]),
             *([] if not ALCHEMY_BERA_RPC_2 else [ALCHEMY_BERA_RPC_2]),
+            *([] if not ALCHEMY_BERA_RPC_3 else [ALCHEMY_BERA_RPC_3]),
             "https://berachain-rpc.publicnode.com/",
             "https://berachain.drpc.org/",
             "https://rpc.berachain.com/",
