@@ -10,6 +10,18 @@ import requests
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+# Global timeout: abort gracefully before CI kills us
+SCRIPT_START = time.time()
+MAX_RUNTIME_SECONDS = 50 * 60  # 50 minutes (CI timeout = 90 min)
+
+def check_timeout(phase=""):
+    """Check if script has exceeded max runtime. Exit gracefully if so."""
+    elapsed = time.time() - SCRIPT_START
+    if elapsed > MAX_RUNTIME_SECONDS:
+        print(f"\n⏰ TIMEOUT after {elapsed/60:.0f} min in {phase}! Saving current data and exiting.", flush=True)
+        return True
+    return False
+
 # ===== CONFIG =====
 VEDOLO_CONTRACT = "0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4"
 ETHERSCAN_V2 = "https://api.etherscan.io/v2/api"
@@ -50,7 +62,7 @@ def fetch_all_nft_transfers():
     we paginate by block range: fetch 10k sorted asc, then use the last
     block number as the next startblock.
     """
-    print("📡 Phase 1: Fetching NFT transfers via Etherscan V2 API...")
+    print("📡 Phase 1: Fetching NFT transfers via Etherscan V2 API...", flush=True)
 
     if not API_KEY:
         print("❌ BERASCAN_API_KEY not set! Cannot fetch data.")
@@ -91,7 +103,7 @@ def fetch_all_nft_transfers():
                             all_txs.append(tx)
                             new_count += 1
 
-                    print(f"  Block {start_block}+: {len(results)} txs, {new_count} new (total: {len(all_txs)})")
+                    print(f"  Block {start_block}+: {len(results)} txs, {new_count} new (total: {len(all_txs)})", flush=True)
 
                     if len(results) < 10000:
                         # Got all remaining transfers
@@ -110,8 +122,10 @@ def fetch_all_nft_transfers():
                     break
 
                 elif "rate" in str(data.get("result", "")).lower() or "max rate" in str(data.get("message", "")).lower():
-                    print(f"  Rate limited, waiting {2*(retry+1)}s...")
+                    print(f"  Rate limited, waiting {2*(retry+1)}s...", flush=True)
                     time.sleep(2 * (retry + 1))
+                    if check_timeout("Phase1-rate-limit"):
+                        return all_txs
                     continue
 
                 else:
@@ -344,8 +358,11 @@ def fetch_locked_dolo(all_token_ids, vote_weights=None):
             chunk_idx += len(window)
             if chunk_idx % 20 == 0 or chunk_idx >= len(chunks):
                 pct = (done / len(to_fetch)) * 100
-                print(f"  Progress: {pct:.0f}% ({done:,}/{len(to_fetch):,}) | Errors: {errors}")
+                print(f"  Progress: {pct:.0f}% ({done:,}/{len(to_fetch):,}) | Errors: {errors}", flush=True)
                 save_cache(cache)
+            if check_timeout("Phase2-locked"):
+                save_cache(cache)
+                break
             time.sleep(0.3)  # Slower to avoid rate limitin
 
         # Retry failed tokens in smaller batches
@@ -379,7 +396,7 @@ def fetch_locked_dolo(all_token_ids, vote_weights=None):
         print(f"     Discrepancy:    {discrepancy_pct:.2f}%")
 
         # Convergence-based retry: keep going until <5% discrepancy or stalled
-        MAX_ROUNDS = 5
+        MAX_ROUNDS = 3
         TARGET_DISCREPANCY = 5.0  # %
 
         for round_num in range(MAX_ROUNDS):
@@ -409,8 +426,11 @@ def fetch_locked_dolo(all_token_ids, vote_weights=None):
 
             our_total = sum(cache.get(str(tid), {}).get("amount", 0) for tid in all_token_ids)
             discrepancy_pct = abs(our_total - onchain_balance) / onchain_balance * 100
-            print(f"     Fixed {fixed:,} tokens. New total: {our_total:,.2f} DOLO ({discrepancy_pct:.2f}% off)")
+            print(f"     Fixed {fixed:,} tokens. New total: {our_total:,.2f} DOLO ({discrepancy_pct:.2f}% off)", flush=True)
             save_cache(cache)
+
+            if check_timeout("Phase2-convergence"):
+                break
 
             # If no progress at all in this round, wait longer before next attempt
             if fixed == 0:
@@ -569,7 +589,7 @@ def fetch_vote_weights(all_token_ids, locked_cache=None):
     if suspicious:
         print(f"  🔍 {len(suspicious)} tokens have active locks but 0 vote weight — retrying...")
         # Convergence-based retry: keep going until no more progress
-        MAX_VOTE_ROUNDS = 5
+        MAX_VOTE_ROUNDS = 3
         for round_num in range(MAX_VOTE_ROUNDS):
             zero_vote_active = [tid for tid in all_token_ids
                                 if locked_cache.get(str(tid), {"amount": 0, "end": 0}).get("amount", 0) > 0
@@ -594,8 +614,10 @@ def fetch_vote_weights(all_token_ids, locked_cache=None):
                 time.sleep(0.25)
             print(f"     Fixed {fixed}/{len(zero_vote_active)} tokens.")
             if fixed == 0:
-                print(f"  ⏳ No progress — waiting 3s before next attempt...")
+                print(f"  ⏳ No progress — waiting 3s before next attempt...", flush=True)
                 time.sleep(3)
+            if check_timeout("Phase3-convergence"):
+                break
 
     # Fill any still-missing tokens with 0
     for tid in all_token_ids:
