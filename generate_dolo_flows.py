@@ -143,14 +143,20 @@ def fetch_transfer_logs(chain_key, start_block, end_block):
     chunk_size = cfg["chunk_size"]
 
     if start_block >= end_block:
-        return []
+        return [], 0, 0  # transfers, failed_chunks, total_chunks
 
     total_blocks = end_block - start_block
-    print(f"  {cfg['name']}: scanning blocks {start_block:,} → {end_block:,} ({total_blocks:,} blocks)")
+    total_expected_chunks = max(1, (total_blocks + chunk_size - 1) // chunk_size)
+    print(f"  {cfg['name']}: scanning blocks {start_block:,} → {end_block:,} ({total_blocks:,} blocks, ~{total_expected_chunks} chunks)")
+
+    if not rpcs:
+        print(f"  ⚠️ {cfg['name']}: NO RPCs configured! Skipping.")
+        return [], total_expected_chunks, total_expected_chunks
 
     all_transfers = []
     current = start_block
     chunks_done = 0
+    chunks_failed = 0
 
     while current <= end_block:
         chunk_end = min(current + chunk_size - 1, end_block)
@@ -199,7 +205,8 @@ def fetch_transfer_logs(chain_key, start_block, end_block):
                 time.sleep(0.5)
 
         if not success:
-            print(f"    ⚠️ Failed at block {current}, skipping chunk")
+            chunks_failed += 1
+            print(f"    ⚠️ Failed at block {current}, skipping chunk ({chunks_failed} failures so far)")
             current = chunk_end + 1
             continue
 
@@ -215,8 +222,15 @@ def fetch_transfer_logs(chain_key, start_block, end_block):
 
         time.sleep(0.05)
 
+    total_chunks_attempted = chunks_done + chunks_failed
+    if chunks_failed > 0:
+        fail_pct = chunks_failed * 100 // max(total_chunks_attempted, 1)
+        print(f"  ⚠️ {cfg['name']}: {chunks_failed}/{total_chunks_attempted} chunks FAILED ({fail_pct}%)")
+        if fail_pct > 50:
+            print(f"  🚨 {cfg['name']}: >50% chunk failure rate! Data may be incomplete.")
+
     print(f"  ✅ {cfg['name']}: {len(all_transfers):,} transfers found")
-    return all_transfers
+    return all_transfers, chunks_failed, total_chunks_attempted
 
 
 def detect_contracts_batch(addresses, chain_key):
@@ -381,8 +395,9 @@ def main():
             if fetch_start >= end:
                 print(f"  {CHAINS[chain_key]['name']}: already up to date (block {last_block:,})")
                 new_transfers = []
+                chunks_failed = 0
             else:
-                new_transfers = fetch_transfer_logs(chain_key, fetch_start, end)
+                new_transfers, chunks_failed, _ = fetch_transfer_logs(chain_key, fetch_start, end)
 
             # Convert cached transfers back from lists to tuples
             restored = [tuple(t) for t in cached_transfers]
@@ -397,7 +412,23 @@ def main():
             print(f"  {CHAINS[chain_key]['name']}: {len(new_transfers):,} new + {len(restored):,} cached → {len(merged):,} total (after pruning)")
         else:
             # Full scan from the oldest needed block
-            all_transfers[chain_key] = fetch_transfer_logs(chain_key, oldest_needed, end)
+            fresh_transfers, chunks_failed, total_chunks = fetch_transfer_logs(chain_key, oldest_needed, end)
+
+            # DEFENSIVE FALLBACK: if fresh scan returns 0 but cache has data, use cache
+            if len(fresh_transfers) == 0 and cached_transfers:
+                restored = [tuple(t) for t in cached_transfers]
+                restored = [t for t in restored if t[3] >= oldest_needed]
+                if restored:
+                    print(f"  🛡️ {CHAINS[chain_key]['name']}: fresh scan returned 0 transfers but cache has {len(restored):,} — using cached data as fallback")
+                    all_transfers[chain_key] = restored
+                else:
+                    all_transfers[chain_key] = fresh_transfers
+            else:
+                all_transfers[chain_key] = fresh_transfers
+
+        # Diagnostic: warn if chain has 0 transfers
+        if len(all_transfers[chain_key]) == 0:
+            print(f"  🚨 WARNING: {CHAINS[chain_key]['name']} has 0 transfers! Flow data will be empty for this chain.")
 
         # Update state for this chain
         state[last_block_key] = end
