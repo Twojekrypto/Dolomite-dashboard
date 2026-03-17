@@ -4893,6 +4893,13 @@
             display: block;
         }
 
+        .liquidation-frame {
+            width: 100%;
+            min-height: calc(100vh - 180px);
+            border: none;
+            background: transparent;
+        }
+
         /* ===== oDOLO SPECIFIC STYLES ===== */
         .odolo-howit-card {
             margin-bottom: 20px;
@@ -8271,6 +8278,14 @@
                         </svg>
                         TREASURY
                     </button>
+                    <button class="nav-tab" id="tab-lending" onclick="switchView('lending')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                            <path d="M12 8v4M12 16h.01" />
+                        </svg>
+                        LENDING
+                    </button>
 
                 </div>
             </nav>
@@ -9254,11 +9269,11 @@
                         <div id="recent-ex-period-btns" class="dolo-chain-pills" style="width:fit-content">
                             <div class="dolo-chain-slider"></div>
                             <button data-period="1">1D</button>
-                            <button class="active" data-period="7">7D</button>
+                            <button data-period="7">7D</button>
                             <button data-period="30">30D</button>
                             <button data-period="90">90D</button>
                             <button data-period="180">180D</button>
-                            <button data-period="99999">ALL</button>
+                            <button class="active" data-period="99999">ALL</button>
                         </div>
                     </div>
                 </div>
@@ -10828,6 +10843,11 @@
             </div>
 
         </div><!-- /view-treasury -->
+
+        <!-- LENDING VIEW -->
+        <div id="view-lending" class="view-section">
+            <iframe id="lending-iframe" class="liquidation-frame" src="about:blank" frameborder="0" allowtransparency="true"></iframe>
+        </div>
 
         <!-- ASSETS VIEW -->
         <div id="view-assets" class="view-section">
@@ -12409,7 +12429,7 @@
             currentView = view;
 
             // Toggle view sections
-            ['vedolo', 'odolo', 'dolo', 'earn', 'assets', 'tvl', 'treasury'].forEach(v => {
+            ['vedolo', 'odolo', 'dolo', 'earn', 'assets', 'tvl', 'treasury', 'lending'].forEach(v => {
                 document.getElementById('view-' + v).classList.toggle('active', view === v);
                 document.getElementById('tab-' + v).classList.toggle('active', view === v);
             });
@@ -12418,8 +12438,16 @@
             setTimeout(repositionAllSliders, 50);
 
             // Update page title
-            const titles = { vedolo: 'veDOLO', odolo: 'oDOLO', dolo: 'DOLO', earn: 'EARN', assets: 'ASSETS', tvl: 'TVL', treasury: 'TREASURY' };
+            const titles = { vedolo: 'veDOLO', odolo: 'oDOLO', dolo: 'DOLO', earn: 'EARN', assets: 'ASSETS', tvl: 'TVL', treasury: 'TREASURY', lending: 'LENDING' };
             document.title = (titles[view] || 'Dashboard') + ' — Berachain Dashboard';
+
+            // Lazy-load lending iframe on first visit
+            if (view === 'lending') {
+                const iframe = document.getElementById('lending-iframe');
+                if (iframe && iframe.src === 'about:blank') {
+                    iframe.src = 'liquidations.html?embed=1';
+                }
+            }
 
             // Load assets data on first visit
             if (view === 'assets' && !assets_loaded) {
@@ -13317,7 +13345,7 @@
         let recentExSortKey = 'rank';
         let recentExSortAsc = false;  // newest first
         let recentExPage = 1;
-        let recentExPeriodDays = 7;
+        let recentExPeriodDays = 99999;
         const RECENT_EX_PER_PAGE = 5;
         let recentExSearchTerm = '';
 
@@ -13411,7 +13439,7 @@
             });
 
             const countEl = document.getElementById('recent-ex-count');
-            if (countEl) countEl.textContent = data.length + ' exercises (last ' + recentExPeriodDays + 'd)';
+            if (countEl) countEl.textContent = data.length + ' exercises (' + (recentExPeriodDays >= 9999 ? 'all time' : 'last ' + recentExPeriodDays + 'd') + ')';
 
             // Pagination
             const totalPages = Math.ceil(data.length / RECENT_EX_PER_PAGE);
@@ -13421,7 +13449,7 @@
 
             let html = '';
             if (pageData.length === 0) {
-                html = '<tr><td colspan="7" style="text-align:center;opacity:0.5;padding:2em">No exercises in the last 7 days</td></tr>';
+                html = '<tr><td colspan="7" style="text-align:center;opacity:0.5;padding:2em">No exercises found for selected period</td></tr>';
             }
             pageData.forEach((tx, i) => {
                 const rank = start + i + 1;
