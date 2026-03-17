@@ -123,16 +123,21 @@ def save_state(state):
     os.replace(tmp, STATE_FILE)
 
 
-def get_current_block(rpc_url):
-    """Get current block number from RPC."""
-    for _ in range(3):
-        try:
-            resp = requests.post(rpc_url, json={
-                "jsonrpc": "2.0", "method": "eth_blockNumber", "params": [], "id": 1
-            }, timeout=10, headers={"Content-Type": "application/json"})
-            return int(resp.json().get("result", "0x0"), 16)
-        except Exception:
-            time.sleep(1)
+def get_current_block(rpcs):
+    """Get current block number from RPC. Tries all RPCs in sequence."""
+    if isinstance(rpcs, str):
+        rpcs = [rpcs]
+    for rpc in rpcs:
+        for _ in range(3):
+            try:
+                resp = requests.post(rpc, json={
+                    "jsonrpc": "2.0", "method": "eth_blockNumber", "params": [], "id": 1
+                }, timeout=10, headers={"Content-Type": "application/json"})
+                blk = int(resp.json().get("result", "0x0"), 16)
+                if blk > 0:
+                    return blk
+            except Exception:
+                time.sleep(1)
     return 0
 
 
@@ -359,7 +364,7 @@ def main():
     print("\n📡 Getting current block numbers...")
     current_blocks = {}
     for chain_key, cfg in CHAINS.items():
-        blk = get_current_block(cfg["rpcs"][0])
+        blk = get_current_block(cfg["rpcs"])
         current_blocks[chain_key] = blk
         print(f"  {cfg['name']}: block {blk:,}")
 
