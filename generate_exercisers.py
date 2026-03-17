@@ -356,18 +356,23 @@ def main():
 
         d["txs"].append(tx_entry)
 
-    # Build sorted list
+    # Build sorted list — filter out empty txs (vedolo=None = no real exercise data)
     exercisers = []
     for addr, d in address_data.items():
+        # Remove txs with no veDOLO data (failed/empty exercises)
+        valid_txs = [tx for tx in d["txs"] if tx.get("vedolo") is not None and tx["vedolo"] > 0]
+        if not valid_txs:
+            continue  # skip addresses with no valid exercises
+
         avg_lock = round(d["lock_days_sum"] / d["lock_count"], 1) if d["lock_count"] > 0 else None
         exercisers.append({
             "address": addr,
             "total_usdc": round(d["total_usdc"], 2),
-            "exercises": d["exercises"],
+            "exercises": len(valid_txs),
             "avg_lock_days": avg_lock,
             "first": d["first"],
             "last": d["last"],
-            "txs": d["txs"]
+            "txs": valid_txs
         })
 
     exercisers.sort(key=lambda x: x["total_usdc"], reverse=True)
