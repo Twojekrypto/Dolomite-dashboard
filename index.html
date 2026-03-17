@@ -13895,15 +13895,13 @@
 
             document.getElementById('em-rank').textContent = '#' + rank;
             document.getElementById('em-addr').textContent = exShortAddr(addr);
-            // Modal cost display: show USDC + DOLO if mixed
+            // Modal cost display: show total in $ only
             let emTotalDolo = 0; (e.txs || []).forEach(tx => { if (tx.paid_token === 'DOLO' && tx.dolo_paid) emTotalDolo += tx.dolo_paid; });
             const emCostEl = document.getElementById('em-usdc');
-            if (e.total_usdc > 0 && emTotalDolo > 0) {
-                emCostEl.innerHTML = '<span style="color:#fbbf24">' + exFmtUsd(e.total_usdc) + '</span><span style="font-size:10px;color:rgba(255,255,255,0.4)"> + </span><span style="color:#c084fc;font-size:12px">' + vedolo_fmtDolo(emTotalDolo) + ' DOLO</span>';
-            } else if (e.total_usdc > 0) {
-                emCostEl.textContent = exFmtUsd(e.total_usdc);
-            } else if (emTotalDolo > 0) {
-                emCostEl.innerHTML = '<span style="color:#c084fc">' + vedolo_fmtDolo(emTotalDolo) + ' DOLO</span>';
+            let emTotalCostUsd = e.total_usdc || 0;
+            if (emTotalDolo > 0) { emTotalCostUsd += emTotalDolo * (avgPrice || 0); }
+            if (emTotalCostUsd > 0) {
+                emCostEl.textContent = exFmtUsd(emTotalCostUsd);
             } else {
                 emCostEl.textContent = '\u2014';
             }
@@ -13930,9 +13928,10 @@
                 html += '<td>' + (i + 1) + '</td>';
                 html += '<td>' + exFmtDate(tx.date) + '</td>';
                 const isDoloPaid = tx.paid_token === 'DOLO';
-                const txCostHtml = isDoloPaid
-                    ? '<span style="color:#c084fc">' + (tx.dolo_paid ? vedolo_fmtDolo(tx.dolo_paid) + ' DOLO' : '\u2014') + '</span>'
-                    : exFmtUsd(tx.usdc || 0);
+                const txCostUsd = isDoloPaid
+                    ? (tx.dolo_paid && tx.price ? tx.dolo_paid * tx.price : 0)
+                    : (tx.usdc || 0);
+                const txCostHtml = txCostUsd > 0 ? '<span style="color:#fbbf24">' + exFmtUsd(txCostUsd) + '</span>' : '\u2014';
                 html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px">' + txCostHtml + '</td>';
                 html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px">' + (tx.vedolo != null ? tx.vedolo.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '\u2014') + '</td>';
                 html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px;color:#34d399">' + (tx.price != null ? '$' + tx.price.toFixed(4) : '\u2014') + '</td>';
@@ -13944,16 +13943,9 @@
                 html += '<tr style="border-top:2px solid var(--border-subtle);font-weight:600;color:#fff">';
                 html += '<td colspan="2" style="color:#fff">Total (' + txs.length + ' txs)</td>';
                 let totalDoloPaidModal = 0; (e.txs || []).forEach(function(tx2) { if (tx2.paid_token === 'DOLO' && tx2.dolo_paid) totalDoloPaidModal += tx2.dolo_paid; });
-                let modalTotalCost = '';
-                if (e.total_usdc > 0 && totalDoloPaidModal > 0) {
-                    modalTotalCost = '<span style="color:#fbbf24">' + exFmtUsd(e.total_usdc) + '</span> + <span style="color:#c084fc">' + vedolo_fmtDolo(totalDoloPaidModal) + ' DOLO</span>';
-                } else if (e.total_usdc > 0) {
-                    modalTotalCost = exFmtUsd(e.total_usdc);
-                } else if (totalDoloPaidModal > 0) {
-                    modalTotalCost = '<span style="color:#c084fc">' + vedolo_fmtDolo(totalDoloPaidModal) + ' DOLO</span>';
-                } else {
-                    modalTotalCost = '\u2014';
-                }
+                let modalTotalCostUsd = e.total_usdc || 0;
+                if (totalDoloPaidModal > 0) { modalTotalCostUsd += totalDoloPaidModal * (avgPrice || 0); }
+                let modalTotalCost = modalTotalCostUsd > 0 ? '<span style="color:#fbbf24">' + exFmtUsd(modalTotalCostUsd) + '</span>' : '\u2014';
                 html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px;color:#fff">' + modalTotalCost + '</td>';
                 html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px;color:#fff">' + (totalVedolo > 0 ? totalVedolo.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '\u2014') + '</td>';
                 html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px;color:#34d399">' + (avgPrice ? '$' + avgPrice.toFixed(4) : '\u2014') + '</td>';
