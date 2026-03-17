@@ -95,15 +95,27 @@ def get_all_transactions():
 def extract_lock_duration(tx):
     """Extract lock duration in days from tx input data."""
     inp = tx["input"]
-    if len(inp) < 266:
-        return None
+    method_id = tx.get("methodId", inp[:10])
     params_hex = inp[10:]
-    lock_end = int(params_hex[2*64:3*64], 16)
-    tx_time = int(tx["timeStamp"])
-    duration_seconds = lock_end - tx_time
-    if duration_seconds <= 0 or duration_seconds > 3 * 365 * 86400:
-        return None
-    return round(duration_seconds / 86400, 1)
+
+    if method_id == EXERCISE_METHOD_ID_2:
+        # 0xf3621c90: param[0] = lock_duration in SECONDS (e.g. 604800 = 7 days)
+        if len(params_hex) < 64:
+            return None
+        duration_seconds = int(params_hex[0:64], 16)
+        if duration_seconds <= 0 or duration_seconds > 3 * 365 * 86400:
+            return None
+        return round(duration_seconds / 86400, 1)
+    else:
+        # 0xa88f8139: param[2] = lock_end timestamp
+        if len(params_hex) < 3 * 64:
+            return None
+        lock_end = int(params_hex[2*64:3*64], 16)
+        tx_time = int(tx["timeStamp"])
+        duration_seconds = lock_end - tx_time
+        if duration_seconds <= 0 or duration_seconds > 3 * 365 * 86400:
+            return None
+        return round(duration_seconds / 86400, 1)
 
 
 def get_tx_details_from_receipt(tx_hash, retries=MAX_RETRIES):
@@ -162,11 +174,7 @@ def get_tx_details_from_receipt(tx_hash, retries=MAX_RETRIES):
                     if len(raw) > 2 and odolo_amount is None:
                         odolo_amount = int(raw, 16) / (10 ** ODOLO_DECIMALS)
 
-            # For DOLO-based exercises, use DOLO amount as the "payment" if no USDC.e
-            if usdc_amount is None and dolo_amount is not None:
-                usdc_amount = dolo_amount  # Track DOLO amount in the usdc field (we'll note it)
-
-            return usdc_amount, odolo_amount
+            return usdc_amount, odolo_amount, dolo_amount
 
         except (requests.exceptions.RequestException, ValueError, KeyError) as e:
             if attempt < retries - 1:
@@ -174,9 +182,9 @@ def get_tx_details_from_receipt(tx_hash, retries=MAX_RETRIES):
                 time.sleep(delay)
             else:
                 print(f"    Receipt failed after {retries} retries: {tx_hash[:16]}... ({e})")
-                return None, None
+                return None, None, None
 
-    return None, None
+    return None, None, None
 
 
 def main():
@@ -189,6 +197,22 @@ def main():
     cached_count = len(cache)
     if cached_count:
         print(f"  📦 Loaded {cached_count} cached tx receipts")
+
+    # One-time cache invalidation: evict entries with wrong DOLO-as-USDC data
+    evicted = 0
+    evict_keys = []
+    for tx_hash, entry in cache.items():
+        if "paid_token" not in entry:
+            usdc = entry.get("usdc") or 0
+            odolo = entry.get("odolo") or 0
+            if usdc > 0 and odolo > 0 and abs(usdc - odolo) < 1:
+                evict_keys.append(tx_hash)
+    for k in evict_keys:
+        del cache[k]
+        evicted += 1
+    if evicted:
+        print(f"  🔄 Invalidated {evicted} old DOLO exercise cache entries (re-fetch needed)")
+        save_cache(cache)
 
     print("\n[1/3] Fetching Vester transactions...")
     all_txs = get_all_transactions()
@@ -219,14 +243,16 @@ def main():
     # Process uncached transactions (the slow part — only new ones)
     for i, tx in enumerate(uncached_txs):
         tx_hash = tx["hash"]
-        usdc_amount, odolo_amount = get_tx_details_from_receipt(tx_hash)
+        usdc_amount, odolo_amount, dolo_amount = get_tx_details_from_receipt(tx_hash)
         lock_days = extract_lock_duration(tx)
 
-        if usdc_amount is not None:
+        if usdc_amount is not None or dolo_amount is not None or odolo_amount is not None:
             cache[tx_hash] = {
-                "usdc": round(usdc_amount, 2),
+                "usdc": round(usdc_amount, 2) if usdc_amount else None,
                 "odolo": round(odolo_amount, 2) if odolo_amount else None,
                 "lock_days": lock_days,
+                "dolo_paid": round(dolo_amount, 2) if dolo_amount else None,
+                "paid_token": "DOLO" if (dolo_amount and not usdc_amount) else "USDC.e",
             }
         else:
             errors += 1
@@ -251,15 +277,17 @@ def main():
             lock_days = extract_lock_duration(tx)
 
             time.sleep(1.5)
-            usdc_amount, odolo_amount = get_tx_details_from_receipt(tx_hash, retries=5)
+            usdc_amount, odolo_amount, dolo_amount = get_tx_details_from_receipt(tx_hash, retries=5)
 
-            if usdc_amount is not None:
+            if usdc_amount is not None or dolo_amount is not None or odolo_amount is not None:
                 recovered += 1
                 errors -= 1
                 cache[tx_hash] = {
-                    "usdc": round(usdc_amount, 2),
+                    "usdc": round(usdc_amount, 2) if usdc_amount else None,
                     "odolo": round(odolo_amount, 2) if odolo_amount else None,
                     "lock_days": lock_days,
+                    "dolo_paid": round(dolo_amount, 2) if dolo_amount else None,
+                    "paid_token": "DOLO" if (dolo_amount and not usdc_amount) else "USDC.e",
                 }
 
             if (i + 1) % 25 == 0 or i == len(failed_txs) - 1:
@@ -287,12 +315,19 @@ def main():
         addr = tx["from"].lower()
         timestamp = int(tx["timeStamp"])
         date_str = time.strftime("%Y-%m-%d", time.gmtime(timestamp))
-        usdc_amount = cached["usdc"]
+        usdc_amount = cached.get("usdc") or 0
         odolo_amount = cached.get("odolo")
         lock_days = cached.get("lock_days")
+        dolo_paid = cached.get("dolo_paid")
+        paid_token = cached.get("paid_token", "USDC.e")
+
+        # For DOLO-based exercises: usdc=None, dolo_paid has the DOLO amount
+        is_dolo_exercise = paid_token == "DOLO"
 
         d = address_data[addr]
-        d["total_usdc"] += usdc_amount
+        if not is_dolo_exercise:
+            d["total_usdc"] += usdc_amount
+        d["total_dolo_paid"] = d.get("total_dolo_paid", 0) + (dolo_paid or 0)
         d["exercises"] += 1
         if lock_days is not None:
             d["lock_days_sum"] += lock_days
@@ -304,17 +339,22 @@ def main():
 
         vedolo_amount = odolo_amount if odolo_amount else None
         price_per_vedolo = None
-        if usdc_amount and vedolo_amount and vedolo_amount > 0:
+        if not is_dolo_exercise and usdc_amount and vedolo_amount and vedolo_amount > 0:
             price_per_vedolo = round(usdc_amount / vedolo_amount, 6)
 
-        d["txs"].append({
+        tx_entry = {
             "hash": tx_hash,
             "date": date_str,
-            "usdc": round(usdc_amount, 2),
+            "usdc": round(usdc_amount, 2) if not is_dolo_exercise else None,
             "vedolo": round(vedolo_amount, 2) if vedolo_amount else None,
             "price": price_per_vedolo,
-            "lock_days": lock_days
-        })
+            "lock_days": lock_days,
+            "paid_token": paid_token,
+        }
+        if is_dolo_exercise:
+            tx_entry["dolo_paid"] = round(dolo_paid, 2) if dolo_paid else None
+
+        d["txs"].append(tx_entry)
 
     # Build sorted list
     exercisers = []

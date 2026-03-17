@@ -8278,7 +8278,7 @@
                         </svg>
                         TREASURY
                     </button>
-                    <button class="nav-tab" id="tab-lending" onclick="switchView('lending')">
+                    <button class="nav-tab" id="tab-lending" onclick="switchView('lending')" style="display:none">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                             stroke-linecap="round" stroke-linejoin="round">
                             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
@@ -9293,7 +9293,7 @@
                                 <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">TX / Address</th>
                                 <th style="padding:8px 6px;text-align:right;color:#fff;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="dolo" onclick="sortRecentExercisers('dolo')">⚪ DOLO Locked <span class="arrow">⇅</span></th>
                                 <th style="padding:8px 6px;text-align:right;color:#22d3ee;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="lock" onclick="sortRecentExercisers('lock')">🔵 Lock <span class="arrow">⇅</span></th>
-                                <th style="padding:8px 6px;text-align:right;color:#fbbf24;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="usdc" onclick="sortRecentExercisers('usdc')">🟡 USDC.e Spent <span class="arrow">⇅</span></th>
+                                <th style="padding:8px 6px;text-align:right;color:#fbbf24;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="usdc" onclick="sortRecentExercisers('usdc')">💰 Cost <span class="arrow">⇅</span></th>
                                 <th style="padding:8px 6px;text-align:right;color:#34d399;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="price" onclick="sortRecentExercisers('price')">🟢 Price <span class="arrow">⇅</span></th>
                             </tr>
                         </thead>
@@ -9341,7 +9341,7 @@
                                 <th style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">Address</th>
                                 <th style="padding:8px 6px;text-align:right;color:#fff;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="total_vedolo" onclick="sortExercisers('total_vedolo')">⚪ DOLO Locked <span class="arrow">⇅</span></th>
                                 <th style="padding:8px 6px;text-align:right;color:#22d3ee;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="avg_lock" onclick="sortExercisers('avg_lock')">🔵 Avg Lock <span class="arrow">⇅</span></th>
-                                <th style="padding:8px 6px;text-align:right;color:#fbbf24;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="total_usdc" onclick="sortExercisers('total_usdc')">🟡 USDC.e Spent <span class="arrow">⇅</span></th>
+                                <th style="padding:8px 6px;text-align:right;color:#fbbf24;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="total_usdc" onclick="sortExercisers('total_usdc')">💰 Cost <span class="arrow">⇅</span></th>
                                 <th style="padding:8px 6px;text-align:right;color:#34d399;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="avg_price" onclick="sortExercisers('avg_price')">🟢 Avg Price <span class="arrow">⇅</span></th>
                                 <th style="padding:8px 6px;text-align:center;color:rgba(255,255,255,0.5);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="exercises" onclick="sortExercisers('exercises')">Exercises <span class="arrow">⇅</span></th>
                             </tr>
@@ -11219,7 +11219,7 @@
             </div>
             <div class="modal-summary">
                 <div class="modal-stat">
-                    <div class="modal-stat-label">USDC.e Spent</div>
+                    <div class="modal-stat-label">Total Cost</div>
                     <div class="modal-stat-value orange" id="em-usdc"></div>
                     <div class="modal-stat-sub">total</div>
                 </div>
@@ -12445,7 +12445,7 @@
             if (view === 'lending') {
                 const iframe = document.getElementById('lending-iframe');
                 if (iframe && iframe.src === 'about:blank') {
-                    iframe.src = 'liquidations.html?embed=1';
+                    iframe.src = '_liq_monitor.html?embed=1';
                 }
             }
 
@@ -13336,8 +13336,14 @@
 
         function getExerciserAvgPrice(e) {
             let totalVedolo = 0;
-            (e.txs || []).forEach(tx => { if (tx.vedolo) totalVedolo += tx.vedolo; });
-            return totalVedolo > 0 ? e.total_usdc / totalVedolo : null;
+            let totalUsdc = 0;
+            (e.txs || []).forEach(tx => {
+                if (tx.paid_token !== 'DOLO' && tx.vedolo) {
+                    totalVedolo += tx.vedolo;
+                    totalUsdc += (tx.usdc || 0);
+                }
+            });
+            return totalVedolo > 0 ? totalUsdc / totalVedolo : null;
         }
 
         // ===== RECENT EXERCISERS (configurable period) =====
@@ -13374,14 +13380,17 @@
             (EXERCISER_DATA || []).forEach(e => {
                 (e.txs || []).forEach(tx => {
                     if (tx.date && tx.date >= cutoff) {
+                        const isDolo = tx.paid_token === 'DOLO';
                         allTxs.push({
                             address: e.address,
                             hash: tx.hash,
                             date: tx.date,
-                            usdc: tx.usdc || 0,
+                            usdc: isDolo ? 0 : (tx.usdc || 0),
                             vedolo: tx.vedolo || 0,
-                            price: tx.price || (tx.vedolo > 0 ? tx.usdc / tx.vedolo : null),
+                            price: isDolo ? null : (tx.price || (tx.vedolo > 0 && tx.usdc > 0 ? tx.usdc / tx.vedolo : null)),
                             lock_days: tx.lock_days || null,
+                            paid_token: tx.paid_token || 'USDC.e',
+                            dolo_paid: tx.dolo_paid || null,
                         });
                     }
                 });
@@ -13463,9 +13472,14 @@
                     '<div style="display:flex;align-items:center;gap:6px"><a href="' + berascanUrl + '" target="_blank" style="color:#60a5fa;font-family:monospace;font-size:11px;text-decoration:none" onclick="event.stopPropagation()">' + shortHash + '</a><a href="' + berascanUrl + '" target="_blank" onclick="event.stopPropagation()" class="tx-ext-icon" title="View on BeraScan" style="display:inline-flex;align-items:center;margin-left:3px;opacity:0.35;color:rgba(255,255,255,0.5);transition:opacity 0.2s,transform 0.2s;vertical-align:middle"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a><span style="font-size:10px;color:rgba(255,255,255,0.25)">' + dateLabel + '</span></div>' +
                     '<div style="display:inline-flex;align-items:center;gap:4px"><a href="https://debank.com/profile/' + tx.address + '?chain=bera" target="_blank" style="color:#fff;font-family:monospace;font-size:11px;text-decoration:none" class="addr-tooltip-wrap" data-full-addr="' + tx.address + '" onclick="event.stopPropagation()">' + shortAddr + '</a><span class="copy-addr-icon" style="flex-shrink:0" onclick="event.stopPropagation();copyAddr(\'' + tx.address + '\',this)" title="Copy address">' + COPY_SVG + '</span><a href="https://debank.com/profile/' + tx.address + '?chain=bera" target="_blank" onclick="event.stopPropagation()" class="debank-icon" style="flex-shrink:0" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display=\'none\'"></a></div>' +
                     '</div></td>';
+                const isDolo = tx.paid_token === 'DOLO';
+                const costDisplay = isDolo
+                    ? (tx.dolo_paid ? vedolo_fmtDolo(tx.dolo_paid) + ' DOLO' : '—')
+                    : exFmtUsd(tx.usdc);
+                const costColor = isDolo ? '#c084fc' : '#fbbf24';  // purple for DOLO, gold for USDC
                 html += '<td style="padding:4px 5px;text-align:right;color:#fff;font-weight:600;font-size:11px">' + (tx.vedolo ? vedolo_fmtDolo(tx.vedolo) + ' DOLO' : '—') + '</td>';
                 html += '<td style="padding:4px 5px;text-align:right;color:#22d3ee;font-size:11px">' + exFmtLock(tx.lock_days) + '</td>';
-                html += '<td style="padding:4px 5px;text-align:right;color:#fbbf24;font-size:11px">' + exFmtUsd(tx.usdc) + '</td>';
+                html += '<td style="padding:4px 5px;text-align:right;color:' + costColor + ';font-size:11px">' + costDisplay + '</td>';
                 html += '<td style="padding:4px 5px;text-align:right;color:#34d399;font-size:11px">' + (tx.price ? '$' + tx.price.toFixed(4) : '—') + '</td>';
                 html += '</tr>';
             });
@@ -13833,9 +13847,20 @@
                 html += '<td style="padding:5px 6px;color:rgba(255,255,255,0.3)">' + rank + '</td>';
                 html += '<td style="padding:5px 6px"><span style="display:inline-flex;align-items:center;gap:4px"><a href="https://debank.com/profile/' + e.address + '?chain=bera" target="_blank" style="color:#fff;font-family:monospace;font-size:12px;text-decoration:none" class="addr-tooltip-wrap" data-full-addr="' + e.address + '" onclick="event.stopPropagation()">' + exShortAddr(e.address) + '</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr(\'' + e.address + '\',this)" title="Copy address"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span><a href="https://debank.com/profile/' + e.address + '?chain=bera" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display=\'none\'"></a></span></td>';
                 var totalVedolo = 0; (e.txs || []).forEach(function(tx) { if (tx.vedolo) totalVedolo += tx.vedolo; });
+                var totalDoloPaid = 0; (e.txs || []).forEach(function(tx) { if (tx.paid_token === 'DOLO' && tx.dolo_paid) totalDoloPaid += tx.dolo_paid; });
                 html += '<td style="padding:4px 5px;text-align:right;color:#fff;font-weight:600;font-size:11px">' + (totalVedolo > 0 ? vedolo_fmtDolo(totalVedolo) + ' DOLO' : '\u2014') + '</td>';
                 html += '<td style="padding:4px 5px;text-align:right;color:#22d3ee;font-size:11px">' + exFmtLock(e.avg_lock_days) + '</td>';
-                html += '<td style="padding:4px 5px;text-align:right;color:#fbbf24;font-size:11px">' + exFmtUsd(e.total_usdc) + '</td>';
+                var costHtml = '';
+                if (e.total_usdc > 0 && totalDoloPaid > 0) {
+                    costHtml = '<span style="color:#fbbf24">' + exFmtUsd(e.total_usdc) + '</span> + <span style="color:#c084fc">' + vedolo_fmtDolo(totalDoloPaid) + ' DOLO</span>';
+                } else if (e.total_usdc > 0) {
+                    costHtml = '<span style="color:#fbbf24">' + exFmtUsd(e.total_usdc) + '</span>';
+                } else if (totalDoloPaid > 0) {
+                    costHtml = '<span style="color:#c084fc">' + vedolo_fmtDolo(totalDoloPaid) + ' DOLO</span>';
+                } else {
+                    costHtml = '\u2014';
+                }
+                html += '<td style="padding:4px 5px;text-align:right;font-size:11px">' + costHtml + '</td>';
                 html += '<td style="padding:4px 5px;text-align:right;color:#34d399;font-size:11px">' + (avgPrice ? '$' + avgPrice.toFixed(4) : '\u2014') + '</td>';
                 html += '<td style="padding:4px 5px;text-align:center;color:rgba(255,255,255,0.5);font-size:11px">' + e.exercises + '</td>';
                 html += '</tr>';
@@ -13865,11 +13890,22 @@
 
             let totalVedolo = 0;
             (e.txs || []).forEach(tx => { if (tx.vedolo) totalVedolo += tx.vedolo; });
-            const avgPrice = totalVedolo > 0 ? e.total_usdc / totalVedolo : null;
+            const avgPrice = getExerciserAvgPrice(e);
 
             document.getElementById('em-rank').textContent = '#' + rank;
             document.getElementById('em-addr').textContent = exShortAddr(addr);
-            document.getElementById('em-usdc').textContent = exFmtUsd(e.total_usdc);
+            // Modal cost display: show USDC + DOLO if mixed
+            let emTotalDolo = 0; (e.txs || []).forEach(tx => { if (tx.paid_token === 'DOLO' && tx.dolo_paid) emTotalDolo += tx.dolo_paid; });
+            const emCostEl = document.getElementById('em-usdc');
+            if (e.total_usdc > 0 && emTotalDolo > 0) {
+                emCostEl.innerHTML = '<span style="color:#fbbf24">' + exFmtUsd(e.total_usdc) + '</span><span style="font-size:10px;color:rgba(255,255,255,0.4)"> + </span><span style="color:#c084fc;font-size:12px">' + vedolo_fmtDolo(emTotalDolo) + ' DOLO</span>';
+            } else if (e.total_usdc > 0) {
+                emCostEl.textContent = exFmtUsd(e.total_usdc);
+            } else if (emTotalDolo > 0) {
+                emCostEl.innerHTML = '<span style="color:#c084fc">' + vedolo_fmtDolo(emTotalDolo) + ' DOLO</span>';
+            } else {
+                emCostEl.textContent = '\u2014';
+            }
             document.getElementById('em-exercises').textContent = e.exercises;
             document.getElementById('em-period').textContent = exFmtDate(e.first) + ' \u2013 ' + exFmtDate(e.last);
             document.getElementById('em-avglock').textContent = exFmtLock(e.avg_lock_days);
@@ -13881,7 +13917,7 @@
             let html = '<table class="detail-table"><thead><tr>';
             html += '<th style="width:36px">#</th>';
             html += '<th>Date</th>';
-            html += '<th style="text-align:right">USDC.e Paid</th>';
+            html += '<th style="text-align:right">Cost</th>';
             html += '<th style="text-align:right">veDOLO Received</th>';
             html += '<th style="text-align:right">Price/veDOLO</th>';
             html += '<th style="text-align:center">Lock</th>';
@@ -13892,7 +13928,11 @@
                 html += '<tr style="' + rowBg + 'cursor:pointer" onclick="window.open(\'https://berascan.com/tx/' + tx.hash + '\',\'_blank\')">';
                 html += '<td>' + (i + 1) + '</td>';
                 html += '<td>' + exFmtDate(tx.date) + '</td>';
-                html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px">' + exFmtUsd(tx.usdc) + '</td>';
+                const isDoloPaid = tx.paid_token === 'DOLO';
+                const txCostHtml = isDoloPaid
+                    ? '<span style="color:#c084fc">' + (tx.dolo_paid ? vedolo_fmtDolo(tx.dolo_paid) + ' DOLO' : '\u2014') + '</span>'
+                    : exFmtUsd(tx.usdc || 0);
+                html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px">' + txCostHtml + '</td>';
                 html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px">' + (tx.vedolo != null ? tx.vedolo.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '\u2014') + '</td>';
                 html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px;color:#34d399">' + (tx.price != null ? '$' + tx.price.toFixed(4) : '\u2014') + '</td>';
                 html += '<td style="text-align:center">' + exFmtLock(tx.lock_days) + '</td>';
@@ -13902,7 +13942,18 @@
             if (txs.length > 1) {
                 html += '<tr style="border-top:2px solid var(--border-subtle);font-weight:600;color:#fff">';
                 html += '<td colspan="2" style="color:#fff">Total (' + txs.length + ' txs)</td>';
-                html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px;color:#fff">' + exFmtUsd(e.total_usdc) + '</td>';
+                let totalDoloPaidModal = 0; (e.txs || []).forEach(function(tx2) { if (tx2.paid_token === 'DOLO' && tx2.dolo_paid) totalDoloPaidModal += tx2.dolo_paid; });
+                let modalTotalCost = '';
+                if (e.total_usdc > 0 && totalDoloPaidModal > 0) {
+                    modalTotalCost = '<span style="color:#fbbf24">' + exFmtUsd(e.total_usdc) + '</span> + <span style="color:#c084fc">' + vedolo_fmtDolo(totalDoloPaidModal) + ' DOLO</span>';
+                } else if (e.total_usdc > 0) {
+                    modalTotalCost = exFmtUsd(e.total_usdc);
+                } else if (totalDoloPaidModal > 0) {
+                    modalTotalCost = '<span style="color:#c084fc">' + vedolo_fmtDolo(totalDoloPaidModal) + ' DOLO</span>';
+                } else {
+                    modalTotalCost = '\u2014';
+                }
+                html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px;color:#fff">' + modalTotalCost + '</td>';
                 html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px;color:#fff">' + (totalVedolo > 0 ? totalVedolo.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '\u2014') + '</td>';
                 html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px;color:#34d399">' + (avgPrice ? '$' + avgPrice.toFixed(4) : '\u2014') + '</td>';
                 html += '<td style="text-align:center;color:#fff">' + exFmtLock(e.avg_lock_days) + '</td>';
