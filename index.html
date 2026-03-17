@@ -13400,7 +13400,7 @@
             const allTxs = [];
             (EXERCISER_DATA || []).forEach(e => {
                 (e.txs || []).forEach(tx => {
-                    if (tx.date && tx.date >= cutoff) {
+                    if (tx.date && tx.date >= cutoff && tx.paid_token !== 'DOLO') {
                         const isDolo = tx.paid_token === 'DOLO';
                         allTxs.push({
                             address: e.address,
