@@ -42,6 +42,19 @@
 - **Check for `!important` overrides first**: Before changing any CSS padding/margin/position, search for `!important` rules that might target the same element (e.g. `thead th:first-child` overriding a specific th). Root cause analysis saves hours of trial-and-error.
 - **Measure alignment with `getBoundingClientRect()`**: When aligning elements, use JS to get exact `.left` positions of both elements rather than guessing pixel values.
 - **After removing HTML elements, search for ALL JS references**: Removing an HTML element (e.g. `#m-exit-updated`) without fixing the JS that does `getElementById('m-exit-updated').textContent = ...` causes a null reference crash that can silently break entire sections downstream (e.g. the Recent Early Exits table).
+- **⚠️ grep ALL IDs before removing elements**: When converting a dropdown to pills (e.g. `risk-dropdown` → inline `risk-pills`), grep for ALL references across click handlers / toggle / close logic. Missing even 1 stale `getElementById('risk-dropdown')` will break OTHER dropdown handlers that try to close it (because null.classList throws).
 
 ## Local Testing
 - **`file://` protocol blocks `fetch()`**: Modern browsers block `fetch()` for local files due to CORS. Use `python3 -m http.server` for local testing when the page fetches JSON files.
+
+## Dolomite E-Mode & Risk Overrides
+- **Never assume global liquidation ratio applies to all accounts**: Dolomite uses E-Mode (Automatic Efficiency Mode) for correlated asset pairs (e.g., stablecoin↔stablecoin). E-Mode uses a lower liq ratio (111.11% vs 115%) and zeroes margin premiums. This must be queried via RPC `getAccountRiskOverride()` on the `defaultAccountRiskOverrideSetter` contract.
+- **Subgraph doesn't expose per-account risk overrides**: The `MarginAccount` entity has no `marginRatioOverride` field. E-Mode overrides live on the smart contract level only.
+- **Use web3.py with proper ABI, not raw eth_call**: For struct parameters like `Account.Info`, use `w3.eth.contract(abi=...).functions.X().call()` — manual ABI encoding of struct tuples is error-prone.
+- **⚠️ E-Mode RPC: use `user.id`, NOT `effectiveUser.id`**: `getAccountRiskOverride((owner, number))` requires the actual on-chain owner (vault/proxy = `user.id`), not the wallet behind it (`effectiveUser.id`). For vault accounts like iBGT isolation mode, `effectiveUser` returns marginRatioOverride=0 while `user` correctly returns 0.333. Bug pattern: all vault/proxy accounts in e-mode will have incorrect (inflated-risk) health factors if `effectiveUser` is used.
+- **⚠️ NEVER use bare `except: pass` on RPC calls**: Silent exception swallowing on rate-limited RPCs caused 170+ Ethereum E-Mode positions to be missed (2/347 → 173/347). Multicall3 with 200 calls → 413 "Payload Too Large" → individual fallback → 429 rate limit → ALL silently failed. Fix: smaller batch sizes (50), retry with exponential backoff (1-3s), inter-batch delays, and proper error counting.
+
+## Data Pipeline Resilience
+- **Silent chunk failures on RPC → empty chain data**: `eth_getLogs` scanning 15M+ blocks on Berachain with rate-limited RPCs causes chunks to silently fail, producing `total_transfers=0`. Always count failed chunks and add defensive fallback: if fresh scan returns 0 but cache has data, use cached data.
+- **Default period must show data**: If a table uses a configurable period (7d/30d/ALL), default to a period that shows existing data. oDOLO Exercises had latest data from 2025-08-07 but defaulted to 7 days → permanently empty. Default to ALL.
+- **⚠️ Smart contracts can have MULTIPLE method IDs for the same action**: The oDOLO Vester contract has TWO exercise methods (`0xa88f8139` original, `0xf3621c90` newer). The pipeline only tracked the first, missing 51% of recent exercises. Always check for method ID variants when a data pipeline suddenly shows stale data.
