@@ -56,6 +56,9 @@ jobs:
 
       - name: Update exercisers by address
         run: python3 generate_exercisers.py
+        timeout-minutes: 30
+        env:
+          PYTHONUNBUFFERED: '1'
 
       - name: Fetch early exit penalty data
         run: python3 fetch_early_exits.py
