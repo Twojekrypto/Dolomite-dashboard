@@ -2345,10 +2345,8 @@
                 const rowClass = ['baddebt','full-liq','partial-liq'].includes(riskClass) ? 'critical-row' : riskClass === 'danger' ? 'danger-row' : '';
                 const shortAddr = p.address.slice(0, 6) + '...' + p.address.slice(-4);
                 const hfDecimals = ['good','strong','balanced'].includes(riskClass) ? 2 : 4;
-                const hfLabels = { 'baddebt': 'BAD DEBT', 'full-liq': 'FULL LIQ', 'partial-liq': 'PARTIAL' };
                 const hfNumeric = p.healthFactor !== null ? (p.healthFactor > 10 ? '10<' : p.healthFactor.toFixed(hfDecimals)) : '—';
-                const statusTag = hfLabels[riskClass] ? `<span class="hf-status-tag">${hfLabels[riskClass]}</span>` : '';
-                const hfText = hfNumeric + statusTag;
+                const hfText = hfNumeric;
                 const chainLabel = CHAIN_SHORT_LABELS[p.chain] || p.chainLabel;
                 const chainFull = CHAIN_DISPLAY_NAMES[p.chain] || p.chainLabel;
                 const chainIcon = CHAIN_ICONS[p.chain] || 'dolomite-logo.svg';
