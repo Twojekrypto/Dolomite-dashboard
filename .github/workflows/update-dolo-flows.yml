@@ -11,7 +11,7 @@ permissions:
 jobs:
   update-flows:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 350
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -53,7 +53,7 @@ jobs:
         run: python3 generate_dolo_holders.py
 
       - name: Generate DOLO flows data
-        timeout-minutes: 75
+        timeout-minutes: 330
         env:
           PYTHONUNBUFFERED: '1'
           ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
