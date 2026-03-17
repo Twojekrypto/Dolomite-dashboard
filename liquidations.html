@@ -1265,8 +1265,7 @@
             gap: 6px;
             position: relative;
         }
-        .toggle-btn::before {
-            content: '';
+        .toggle-dot {
             width: 8px;
             height: 8px;
             border-radius: 50%;
@@ -1286,12 +1285,12 @@
             border-color: rgba(52, 211, 153, 0.25);
             box-shadow: 0 0 8px rgba(52, 211, 153, 0.12);
         }
-        .toggle-btn.active::before {
+        .toggle-btn.active .toggle-dot {
             background: #34d399;
             opacity: 1;
             box-shadow: 0 0 6px rgba(52, 211, 153, 0.5);
         }
-        .toggle-btn .icon { display: none; /* replaced by ::before dot */ }
+        .toggle-btn .icon { display: none; /* replaced by toggle-dot */ }
 
         /* Premium tooltip for toggle buttons (data-tip) */
         .toggle-btn[data-tip] {
@@ -1641,7 +1640,7 @@
             border-color: rgba(56, 189, 248, 0.25);
             box-shadow: 0 0 8px rgba(56, 189, 248, 0.12);
         }
-        .toggle-btn.emode-toggle.active::before {
+        .toggle-btn.emode-toggle.active .toggle-dot {
             background: #38bdf8;
             box-shadow: 0 0 6px rgba(56, 189, 248, 0.5);
         }
@@ -1873,10 +1872,10 @@
                     🔔 Set Alert
                 </a>
                 <button class="toggle-btn emode-toggle" id="emode-filter-btn" data-tip="Show only E-Mode positions — correlated assets using tighter liquidation ratios for better capital efficiency">
-                    <span class="icon">⚡</span>E-Mode
+                    <span class="toggle-dot"></span><span class="icon">⚡</span>E-Mode
                 </button>
                 <button class="toggle-btn active" id="hide-dust-btn" data-tip="Hide dust positions — accounts with less than $1 in both collateral and debt. These are residual/abandoned positions with no real liquidation risk.">
-                    <span class="icon">🧹</span>Hide Dust
+                    <span class="toggle-dot"></span><span class="icon">🧹</span>Hide Dust
                 </button>
             </div>
         </div>
