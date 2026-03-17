@@ -912,25 +912,16 @@
             font-weight: 700;
         }
 
-        /* BAD DEBT — compact gray tag */
+        /* BAD DEBT — gray, muted */
         .hf-badge.baddebt {
             color: #9ca3af;
-            font-size: 9px;
-            letter-spacing: 0.5px;
-            padding: 2px 8px;
             background: rgba(156, 163, 175, 0.10);
-            box-shadow: none;
         }
         /* FULL LIQ — red, HF < 0.95 */
         .hf-badge.full-liq {
             background: rgba(239, 68, 68, 0.15);
             color: #ef4444;
-            box-shadow: 0 0 12px rgba(239, 68, 68, 0.15);
-            animation: criticalPulse 2s ease-in-out infinite;
-        }
-        @keyframes criticalPulse {
-            0%, 100% { box-shadow: 0 0 12px rgba(239, 68, 68, 0.15); }
-            50% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.3); }
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.12);
         }
         /* PARTIAL LIQ — orange, 0.95–1.0 (50% liquidation) */
         .hf-badge.partial-liq {
@@ -973,19 +964,18 @@
         .hf-badge.warning { background: rgba(234, 179, 8, 0.12); color: #eab308; }
         .hf-badge.safe { background: rgba(52, 211, 153, 0.08); color: #34d399; }
 
-        /* Status tag shown below HF value for liquidation/bad-debt rows */
+        /* Status tag shown inline after HF value for liquidation/bad-debt rows */
         .hf-status-tag {
-            display: block;
-            width: 100%;
-            font-size: 9px;
-            font-weight: 600;
+            display: inline;
+            font-size: 8px;
+            font-weight: 700;
             letter-spacing: 0.5px;
-            margin-top: 2px;
-            opacity: 0.85;
+            margin-left: 4px;
+            opacity: 0.7;
             line-height: 1;
         }
         .hf-badge:has(.hf-status-tag) {
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
         }
 
         .hf-dot {
