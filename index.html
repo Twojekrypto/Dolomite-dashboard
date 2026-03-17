@@ -13405,7 +13405,7 @@
 
         function sortRecentExercisers(key) {
             const headers = document.querySelectorAll('#recent-exercisers-table th');
-            headers.forEach(th => th.classList.remove('sorted'));
+            headers.forEach(th => { th.classList.remove('sorted'); const a = th.querySelector('.arrow'); if (a) a.textContent = '\u21c5'; });
             if (recentExSortKey === key) {
                 recentExSortAsc = !recentExSortAsc;
             } else {
@@ -13413,7 +13413,7 @@
                 recentExSortAsc = key === 'tx' || key === 'date';
             }
             const th = document.querySelector('#recent-exercisers-table th[data-sort="' + key + '"]');
-            if (th) { th.classList.add('sorted'); th.querySelector('.arrow').textContent = recentExSortAsc ? '▲' : '▼'; }
+            if (th) { th.classList.add('sorted'); const a = th.querySelector('.arrow'); if (a) a.textContent = recentExSortAsc ? '\u25b2' : '\u25bc'; }
             recentExPage = 1;
             renderRecentExercisers();
         }
@@ -13982,11 +13982,13 @@
 
         function sortExercisers(key) {
             const th = document.querySelector('#exercisers-table th[data-sort="' + key + '"]');
+            if (!th) return;
             if (exerciserSortKey === key) { exerciserSortAsc = !exerciserSortAsc; }
             else { exerciserSortKey = key; exerciserSortAsc = (key === 'rank' || key === 'total_usdc' || key === 'exercises' || key === 'avg_lock' || key === 'avg_price') ? false : true; if (key === 'rank') exerciserSortAsc = true; }
-            document.querySelectorAll('#exercisers-table th').forEach(t => { t.classList.remove('sorted'); t.querySelector('.arrow').textContent = '\u21c5'; });
+            document.querySelectorAll('#exercisers-table th').forEach(t => { t.classList.remove('sorted'); const a = t.querySelector('.arrow'); if (a) a.textContent = '\u21c5'; });
             th.classList.add('sorted');
-            th.querySelector('.arrow').textContent = exerciserSortAsc ? '\u25b2' : '\u25bc';
+            const arrow = th.querySelector('.arrow');
+            if (arrow) arrow.textContent = exerciserSortAsc ? '\u25b2' : '\u25bc';
             renderExercisersTable();
         }
 
