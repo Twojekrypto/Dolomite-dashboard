@@ -13880,7 +13880,8 @@
                 }
                 html += '<td style="padding:4px 5px;text-align:right;font-size:11px">' + costHtml + '</td>';
                 html += '<td style="padding:4px 5px;text-align:right;color:#34d399;font-size:11px">' + (avgPrice ? '$' + avgPrice.toFixed(4) : '\u2014') + '</td>';
-                html += '<td style="padding:4px 5px;text-align:center;color:rgba(255,255,255,0.5);font-size:11px">' + e.exercises + '</td>';
+                var usdcExCount = (e.txs || []).filter(function(tx) { return tx.paid_token !== 'DOLO'; }).length;
+                html += '<td style="padding:4px 5px;text-align:center;color:rgba(255,255,255,0.5);font-size:11px">' + usdcExCount + '</td>';
                 html += '</tr>';
             });
             tbody.innerHTML = html;
@@ -13919,9 +13920,9 @@
             } else {
                 emCostEl.textContent = '\u2014';
             }
-            // Count only USDC exercises for display
-            const allTxs = (e.txs || []);
-            document.getElementById('em-exercises').textContent = allTxs.length;
+            // Count only USDC.e exercises (real oDOLO buyouts, not DOLO-based)
+            const usdcTxs = (e.txs || []).filter(tx => tx.paid_token !== 'DOLO');
+            document.getElementById('em-exercises').textContent = usdcTxs.length;
             document.getElementById('em-period').textContent = exFmtDate(e.first) + ' \u2013 ' + exFmtDate(e.last);
             document.getElementById('em-avglock').textContent = exFmtLock(e.avg_lock_days);
             document.getElementById('em-avgprice').textContent = avgPrice ? '$' + avgPrice.toFixed(4) : '\u2014';
@@ -13937,37 +13938,25 @@
             html += '<th style="text-align:center">Lock</th>';
             html += '<th>Tx</th>';
             html += '</tr></thead><tbody>';
-            allTxs.forEach((tx, i) => {
+            usdcTxs.forEach((tx, i) => {
                 const rowBg = i % 2 === 0 ? '' : 'background:rgba(255,255,255,0.02);';
-                const isDolo = tx.paid_token === 'DOLO';
                 html += '<tr style="' + rowBg + 'cursor:pointer" onclick="window.open(\'https://berascan.com/tx/' + tx.hash + '\',\'_blank\')">';
                 html += '<td>' + (i + 1) + '</td>';
                 html += '<td>' + exFmtDate(tx.date) + '</td>';
-                // Cost column: show USDC.e or DOLO paid with badge
-                let txCostHtml;
-                if (isDolo) {
-                    const doloPaid = tx.dolo_paid || 0;
-                    txCostHtml = '<span style="color:#a5b4fc">' + vedolo_fmtDolo(doloPaid) + ' DOLO</span> <span style="padding:1px 5px;border-radius:4px;font-size:9px;font-weight:700;background:rgba(99,102,241,0.18);color:#a5b4fc">DOLO</span>';
-                } else {
-                    txCostHtml = (tx.usdc > 0) ? '<span style="color:#fbbf24">' + exFmtUsd(tx.usdc) + '</span> <span style="padding:1px 5px;border-radius:4px;font-size:9px;font-weight:700;background:rgba(251,191,36,0.15);color:#fbbf24">USDC.e</span>' : '\u2014';
-                }
+                const txCostHtml = (tx.usdc > 0) ? '<span style="color:#fbbf24">' + exFmtUsd(tx.usdc) + '</span>' : '\u2014';
                 html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px">' + txCostHtml + '</td>';
                 html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px">' + (tx.vedolo != null ? tx.vedolo.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '\u2014') + '</td>';
-                // Price/veDOLO: only meaningful for USDC.e exercises
-                const txPrice = !isDolo && tx.price != null ? '$' + tx.price.toFixed(4) : '\u2014';
-                html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px;color:#34d399">' + txPrice + '</td>';
+                html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px;color:#34d399">' + (tx.price != null ? '$' + tx.price.toFixed(4) : '\u2014') + '</td>';
                 html += '<td style="text-align:center">' + exFmtLock(tx.lock_days) + '</td>';
                 html += '<td><a href="https://berascan.com/tx/' + tx.hash + '" target="_blank" class="tx-link" onclick="event.stopPropagation()">' + tx.hash.slice(0, 8) + '\u2026</a></td>';
                 html += '</tr>';
             });
-            if (allTxs.length > 1) {
-                let allVedolo = 0; allTxs.forEach(tx => { if (tx.vedolo) allVedolo += tx.vedolo; });
-                const usdcCount = allTxs.filter(tx => tx.paid_token !== 'DOLO').length;
-                const doloCount = allTxs.length - usdcCount;
+            if (usdcTxs.length > 1) {
+                let usdcVedolo = 0; usdcTxs.forEach(tx => { if (tx.vedolo) usdcVedolo += tx.vedolo; });
                 html += '<tr style="border-top:2px solid var(--border-subtle);font-weight:600;color:#fff">';
-                html += '<td colspan="2" style="color:#fff">Total (' + allTxs.length + ' txs' + (doloCount > 0 ? ', ' + doloCount + ' DOLO' : '') + ')</td>';
+                html += '<td colspan="2" style="color:#fff">Total (' + usdcTxs.length + ' txs)</td>';
                 html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px;color:#fff">' + (e.total_usdc > 0 ? '<span style="color:#fbbf24">' + exFmtUsd(e.total_usdc) + '</span>' : '\u2014') + '</td>';
-                html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px;color:#fff">' + (allVedolo > 0 ? allVedolo.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '\u2014') + '</td>';
+                html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px;color:#fff">' + (usdcVedolo > 0 ? usdcVedolo.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '\u2014') + '</td>';
                 html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px;color:#34d399">' + (avgPrice ? '$' + avgPrice.toFixed(4) : '\u2014') + '</td>';
                 html += '<td style="text-align:center;color:#fff">' + exFmtLock(e.avg_lock_days) + '</td>';
                 html += '<td></td>';
