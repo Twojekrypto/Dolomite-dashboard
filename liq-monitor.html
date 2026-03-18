@@ -358,85 +358,99 @@
         }
 
 
-        /* Risk pills — inline segmented filter */
-        .risk-pills {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            padding: 3px;
+        /* Risk dropdown — mirrors chain-filter pattern */
+        .risk-dropdown { position: relative; }
+        .risk-trigger {
+            display: flex; align-items: center; gap: 8px;
+            padding: 7px 14px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
             border-radius: 10px;
-            background: rgba(255,255,255,0.025);
-            border: 1px solid rgba(255,255,255,0.06);
-        }
-
-        .risk-pill {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 14px;
-            border-radius: 8px;
-            border: 1px solid transparent;
-            background: transparent;
-            color: var(--text-muted);
-            font-size: 11.5px;
-            font-weight: 500;
+            color: var(--text-secondary);
+            font-size: 12px; font-weight: 500;
             cursor: pointer;
             transition: all 0.2s ease;
             white-space: nowrap;
-            font-family: inherit;
+            font-family: 'Inter', sans-serif;
         }
-
-        .risk-pill:hover {
-            background: rgba(255,255,255,0.05);
-            color: var(--text-secondary);
-        }
-
-        .risk-pill.active {
-            background: rgba(from var(--pill-glow) r g b / 0.12);
-            border-color: rgba(from var(--pill-glow) r g b / 0.25);
+        .risk-trigger:hover {
+            border-color: rgba(99,102,241,0.25);
+            background: rgba(99,102,241,0.06);
             color: var(--text-primary);
-            font-weight: 600;
         }
-        /* Specific risk pill active color overrides for broad browser support */
-        .risk-pill.active[data-risk="all"]        { background: rgba(99,102,241,0.10); border-color: rgba(99,102,241,0.22); }
-        .risk-pill.active[data-risk="baddebt"]    { background: rgba(156,163,175,0.10); border-color: rgba(156,163,175,0.22); }
-        .risk-pill.active[data-risk="liquidation"]{ background: rgba(239,68,68,0.10);   border-color: rgba(239,68,68,0.22); }
-        .risk-pill.active[data-risk="danger"]     { background: rgba(249,115,22,0.10);  border-color: rgba(249,115,22,0.22); }
-        .risk-pill.active[data-risk="healthy"]    { background: rgba(52,211,153,0.10);  border-color: rgba(52,211,153,0.22); }
-
-        .risk-pill .pill-dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            flex-shrink: 0;
-            transition: box-shadow 0.2s ease;
+        .risk-trigger .trigger-dot {
+            width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
         }
-
-        .risk-pill.active .pill-dot {
-            box-shadow: 0 0 8px var(--pill-glow);
-        }
-
-        .risk-pill .pill-count {
-            font-size: 10px;
-            font-weight: 600;
-            font-family: 'JetBrains Mono', monospace;
-            padding: 1px 6px;
-            border-radius: 4px;
+        .risk-trigger .trigger-count {
+            font-size: 10px; font-weight: 600;
+            padding: 1px 6px; border-radius: 6px;
             background: rgba(255,255,255,0.06);
             color: var(--text-muted);
-            line-height: 1.3;
+            font-family: 'JetBrains Mono', monospace;
         }
-
-        .risk-pill.active .pill-count {
+        .risk-trigger .trigger-chevron {
+            width: 10px; height: 10px;
+            color: rgba(255,255,255,0.3);
+            transition: transform 0.2s ease;
+            flex-shrink: 0;
+        }
+        .risk-dropdown.open .risk-trigger .trigger-chevron {
+            transform: rotate(180deg);
+        }
+        .risk-dropdown.open .risk-trigger {
+            border-color: rgba(99,102,241,0.3);
+            background: rgba(99,102,241,0.08);
             color: var(--text-primary);
-            background: rgba(from var(--pill-glow) r g b / 0.15);
         }
-        /* Specific pill count active color overrides for broad browser support */
-        .risk-pill.active[data-risk="all"]         .pill-count { background: rgba(99,102,241,0.15); color: #c7d2fe; }
-        .risk-pill.active[data-risk="baddebt"]     .pill-count { background: rgba(156,163,175,0.15); color: #d1d5db; }
-        .risk-pill.active[data-risk="liquidation"] .pill-count { background: rgba(239,68,68,0.15); color: #fca5a5; }
-        .risk-pill.active[data-risk="danger"]      .pill-count { background: rgba(249,115,22,0.15); color: #fdba74; }
-        .risk-pill.active[data-risk="healthy"]     .pill-count { background: rgba(52,211,153,0.15); color: #6ee7b7; }
+        .risk-menu {
+            position: absolute; top: calc(100% + 6px); left: 0;
+            min-width: 210px;
+            background: rgba(15,23,42,0.97);
+            -webkit-backdrop-filter: blur(20px) saturate(1.5);
+            backdrop-filter: blur(20px) saturate(1.5);
+            border: 1px solid rgba(99,102,241,0.12);
+            border-radius: 12px;
+            padding: 6px;
+            z-index: 9999;
+            display: none;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(99,102,241,0.08);
+        }
+        .risk-dropdown.open .risk-menu {
+            display: block;
+            animation: chainDropIn 0.2s ease;
+        }
+        .risk-option {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 12px;
+            border-radius: 7px;
+            cursor: pointer;
+            font-size: 12px; font-weight: 500;
+            color: var(--text-secondary);
+            transition: all 0.15s ease;
+        }
+        .risk-option:hover {
+            background: rgba(99,102,241,0.1);
+            color: var(--text-primary);
+        }
+        .risk-option.active {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+        .risk-option .opt-dot {
+            width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+        }
+        .risk-option .opt-count {
+            margin-left: auto;
+            font-size: 10px; font-weight: 600;
+            padding: 1px 7px; border-radius: 6px;
+            background: rgba(255,255,255,0.06);
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .risk-option.active .opt-count {
+            background: rgba(99,102,241,0.12);
+            color: rgba(255,255,255,0.7);
+        }
 
         .search-wrap {
             flex-shrink: 0;
@@ -1754,7 +1768,7 @@
 
         /* ===== Column Filter Button (funnel icon in table header) ===== */
         .col-header-group {
-            display: inline-flex; align-items: center; gap: 4px;
+            display: inline-flex; align-items: center; gap: 2px;
             white-space: nowrap;
         }
         .col-filter-btn {
@@ -1763,7 +1777,7 @@
             background: transparent;
             border: 1px solid transparent;
             border-radius: 5px;
-            color: rgba(255,255,255,0.15);
+            color: rgba(255,255,255,0.35);
             cursor: pointer;
             transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
@@ -2150,6 +2164,16 @@
                 <div class="chain-menu" id="chain-menu"></div>
             </div>
 
+            <div class="risk-dropdown" id="risk-dropdown">
+                <button type="button" class="risk-trigger" id="risk-trigger">
+                    <span class="trigger-dot" id="risk-trigger-dot" style="background:#6366f1"></span>
+                    <span id="risk-trigger-label">All</span>
+                    <span class="trigger-count" id="risk-trigger-count"></span>
+                    <svg class="trigger-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="risk-menu" id="risk-menu"></div>
+            </div>
+
             <div class="controls-separator" style="margin-left: auto"></div>
 
             <div style="display: flex; align-items: center; gap: 8px;">
@@ -2164,16 +2188,6 @@
                     <span class="toggle-dot"></span><span class="icon">🧹</span>Hide Dust
                 </button>
             </div>
-        </div>
-
-        <!-- Row 2: Risk Pills + HF Range + Clear -->
-        <div class="controls-row2">
-            <div class="risk-pills" id="risk-pills"></div>
-
-            <button class="clear-filters-btn" id="clear-filters-btn" title="Reset all filters to defaults">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                Clear
-            </button>
         </div>
 
         <!-- Table -->
@@ -3078,9 +3092,25 @@
         ];
 
         function renderRiskMenu() {
-            const container = document.getElementById('risk-pills');
-            if (!container) return;
+            const menu = document.getElementById('risk-menu');
+            const triggerDot = document.getElementById('risk-trigger-dot');
+            const triggerLabel = document.getElementById('risk-trigger-label');
+            const triggerCount = document.getElementById('risk-trigger-count');
+            if (!menu) return;
             const base = hideDust ? allPositions.filter(p => !(p.collateralUSD < 1 && p.debtUSD < 1)) : allPositions;
+
+            // Update trigger with current selection
+            const current = RISK_OPTIONS.find(o => o.key === riskFilter) || RISK_OPTIONS[0];
+            const currentCount = current.key === 'all' ? base.length :
+                current.key === 'liquidation' ? base.filter(p => ['full-liq','partial-liq'].includes(getRiskClass(p))).length :
+                current.key === 'danger' ? base.filter(p => getRiskClass(p) === 'danger').length :
+                current.key === 'healthy' ? base.filter(p => !['baddebt','full-liq','partial-liq','danger'].includes(getRiskClass(p))).length :
+                base.filter(p => getRiskClass(p) === current.key).length;
+            triggerDot.style.background = current.color;
+            triggerLabel.textContent = current.label;
+            triggerCount.textContent = currentCount.toLocaleString();
+
+            // Render menu options
             let html = RISK_OPTIONS.map(opt => {
                 const active = opt.key === riskFilter ? ' active' : '';
                 const count = opt.key === 'all' ? base.length :
@@ -3088,30 +3118,46 @@
                     opt.key === 'danger' ? base.filter(p => getRiskClass(p) === 'danger').length :
                     opt.key === 'healthy' ? base.filter(p => !['baddebt','full-liq','partial-liq','danger'].includes(getRiskClass(p))).length :
                     base.filter(p => getRiskClass(p) === opt.key).length;
-                return `<button class="risk-pill${active}" data-risk="${opt.key}" data-tooltip="${opt.tip}" style="--pill-glow: ${opt.color}">
-                    <span class="pill-dot" style="background: ${opt.color}"></span>
+                return `<div class="risk-option${active}" data-risk="${opt.key}">
+                    <span class="opt-dot" style="background: ${opt.color}"></span>
                     ${opt.label}
-                    <span class="pill-count">${count.toLocaleString()}</span>
-                </button>`;
+                    <span class="opt-count">${count.toLocaleString()}</span>
+                </div>`;
             }).join('');
+            menu.innerHTML = html;
 
-
-
-            container.innerHTML = html;
-
-            // Pill clicks
-            container.querySelectorAll('.risk-pill[data-risk]').forEach(pill => {
-                pill.addEventListener('click', () => {
-                    const risk = pill.dataset.risk;
-                    riskFilter = risk;
+            // Option clicks
+            menu.querySelectorAll('.risk-option[data-risk]').forEach(opt => {
+                opt.addEventListener('click', () => {
+                    riskFilter = opt.dataset.risk;
                     hfRangeMin = null;
                     hfRangeMax = null;
+                    document.getElementById('risk-dropdown').classList.remove('open');
                     renderRiskMenu();
                     applyFilters();
                 });
             });
-
         }
+
+        // Risk dropdown toggle
+        document.getElementById('risk-trigger').addEventListener('click', function(e) {
+            e.stopPropagation();
+            const dd = document.getElementById('risk-dropdown');
+            const wasOpen = dd.classList.contains('open');
+            // Close chain dropdown if open
+            document.getElementById('chain-filter').classList.remove('open');
+            // Close column filter popovers
+            document.querySelectorAll('th.col-filter-open').forEach(th => th.classList.remove('col-filter-open'));
+            dd.classList.toggle('open', !wasOpen);
+        });
+
+        // Close risk dropdown on outside click
+        document.addEventListener('click', function(e) {
+            const dd = document.getElementById('risk-dropdown');
+            if (dd && !dd.contains(e.target)) {
+                dd.classList.remove('open');
+            }
+        });
 
         document.getElementById('search-input').addEventListener('input', e => {
             searchQuery = e.target.value.trim();
