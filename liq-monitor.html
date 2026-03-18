@@ -719,15 +719,23 @@
         /* Header star toggle */
         .header-star {
             display: inline-flex; align-items: center; justify-content: center;
-            width: 18px; height: 18px;
-            margin-right: 2px;
+            width: 16px; height: 16px;
+            margin-right: 3px;
             cursor: pointer;
             color: rgba(255,255,255,0.2);
             transition: all 0.2s ease;
             vertical-align: middle;
+            position: relative;
+            top: -1px;
         }
         .header-star:hover { color: rgba(251,191,36,0.6); }
         .header-star.active { color: #fbbf24; filter: drop-shadow(0 0 4px rgba(251,191,36,0.4)); }
+        .header-star.flash-empty { color: #ef4444; animation: starShake 0.4s ease; }
+        @keyframes starShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-2px); }
+            75% { transform: translateX(2px); }
+        }
         .header-star svg { width: 12px; height: 12px; }
 
         /* ===== Mobile Responsive ===== */
@@ -2921,14 +2929,19 @@
             const end = Math.min(start + PAGE_SIZE, filteredPositions.length);
             const pageItems = filteredPositions.slice(start, end);
 
+            // Always keep table visible (headers with filter popovers must stay accessible)
+            document.getElementById('positions-table').style.display = 'table';
+            document.getElementById('empty-state').style.display = 'none';
             if (filteredPositions.length === 0) {
-                document.getElementById('positions-table').style.display = 'none';
-                document.getElementById('empty-state').style.display = 'block';
+                const colCount = document.querySelectorAll('#positions-table thead th').length;
+                tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center;padding:48px 20px;border-bottom:none;">
+                    <div style="font-size:36px;margin-bottom:10px;">🎉</div>
+                    <div style="color:var(--text-secondary);font-size:13px;">No positions match your filters</div>
+                    <div style="color:var(--text-muted);font-size:11px;margin-top:4px;">Try adjusting the range or clearing filters</div>
+                </td></tr>`;
                 document.getElementById('table-footer').style.display = 'none';
                 return;
             } else {
-                document.getElementById('positions-table').style.display = 'table';
-                document.getElementById('empty-state').style.display = 'none';
                 document.getElementById('table-footer').style.display = 'flex';
             }
 
@@ -3695,6 +3708,12 @@
         // ─── Header Star (watchlist filter toggle) ─────────────────────────
         document.getElementById('watchlist-header-star').addEventListener('click', function(e) {
             e.stopPropagation();
+            // If trying to activate but watchlist is empty → flash red, don't activate
+            if (!watchlistOnly && watchlist.size === 0) {
+                this.classList.add('flash-empty');
+                setTimeout(() => this.classList.remove('flash-empty'), 500);
+                return;
+            }
             watchlistOnly = !watchlistOnly;
             this.classList.toggle('active', watchlistOnly);
             applyFilters();
