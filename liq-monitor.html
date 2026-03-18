@@ -589,12 +589,12 @@
         /* ===== FILTER BAR — two-row layout ===== */
         .controls-row1 {
             display: flex; align-items: center; gap: 10px;
-            margin: 0; padding: 14px 24px 14px; flex-wrap: wrap;
+            margin: 0; padding: 10px 24px; flex-wrap: wrap;
             border-bottom: 1px solid rgba(255,255,255,.04);
         }
         .controls-row2 {
             display: flex; align-items: center; gap: 8px;
-            margin: 0; padding: 10px 24px 12px; flex-wrap: wrap;
+            margin: 0; padding: 8px 24px 10px; flex-wrap: wrap;
             border-bottom: 1px solid rgba(255,255,255,.04);
         }
         .controls-separator {
@@ -603,6 +603,63 @@
             background: rgba(255,255,255,0.08);
             margin: 0 4px;
             flex-shrink: 0;
+        }
+
+        /* ── Actions zone — shared background group ── */
+        .actions-zone {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 6px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.025);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        /* ── Toggle group — E-Mode + Hide Dust merged ── */
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            padding: 2px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .toggle-group .toggle-btn {
+            border: 1px solid transparent;
+            background: transparent;
+        }
+        .toggle-group .toggle-btn.active {
+            background: rgba(52,211,153,0.10);
+            border-color: rgba(52,211,153,0.20);
+        }
+
+        /* ── Active filter dot on dropdowns ── */
+        .filter-active-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            box-shadow: 0 0 6px rgba(34,211,238,0.5);
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            display: none;
+            animation: filterDotPulse 2s ease-in-out infinite;
+        }
+        .chain-filter.filter-active .filter-active-dot,
+        .debt-dropdown.filter-active .filter-active-dot,
+        .token-dropdown.filter-active .filter-active-dot {
+            display: block;
+        }
+        @keyframes filterDotPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .debt-dropdown, .token-dropdown {
+            position: relative;
         }
 
         /* Clear Filters X button */
@@ -1881,6 +1938,7 @@
             </div>
 
             <div class="chain-filter" id="chain-filter">
+                <span class="filter-active-dot"></span>
                 <button type="button" class="chain-trigger" id="chain-trigger">
                     <svg class="trigger-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: rgba(255,255,255,0.6)">
                         <circle cx="12" cy="12" r="10"/>
@@ -1893,6 +1951,7 @@
             </div>
 
             <div class="debt-dropdown" id="debt-dropdown">
+                <span class="filter-active-dot"></span>
                 <button type="button" class="debt-trigger" id="debt-trigger">
                     <span class="debt-icon">💰</span>
                     <span id="debt-trigger-label">All Debt</span>
@@ -1901,6 +1960,7 @@
             </div>
 
             <div class="token-dropdown" id="token-dropdown">
+                <span class="filter-active-dot"></span>
                 <button type="button" class="token-trigger" id="token-trigger">
                     <span class="token-icon">🪙</span>
                     <span id="token-trigger-label">All Tokens</span>
@@ -1911,19 +1971,19 @@
                 </div>
             </div>
 
-            <div class="controls-separator" style="margin-left: auto"></div>
-
-            <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="actions-zone">
                 <a href="https://t.me/Dolomite_SuperGus_bot" target="_blank" rel="noopener" class="set-alert-header-btn" data-tooltip="Open Telegram bot to set up liquidation alerts for any Dolomite position">
                     <svg viewBox="0 0 24 24" fill="none"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8l-1.68 7.92c-.12.56-.44.7-.9.43l-2.5-1.84-1.2 1.16c-.14.14-.25.25-.5.25l.18-2.52 4.56-4.12c.2-.18-.04-.28-.3-.1L8.9 13.54l-2.42-.76c-.52-.16-.54-.52.12-.78l9.48-3.66c.44-.16.82.1.56.78z" fill="#29B6F6"/></svg>
                     Set Alert
                 </a>
-                <button class="toggle-btn emode-toggle" id="emode-filter-btn" data-tip="Show only E-Mode positions — correlated assets using tighter liquidation ratios for better capital efficiency">
-                    <span class="toggle-dot"></span><span class="icon">⚡</span>E-Mode
-                </button>
-                <button class="toggle-btn active" id="hide-dust-btn" data-tip="Hide dust positions — accounts with less than $1 in both collateral and debt. These are residual/abandoned positions with no real liquidation risk.">
-                    <span class="toggle-dot"></span><span class="icon">🧹</span>Hide Dust
-                </button>
+                <div class="toggle-group">
+                    <button class="toggle-btn emode-toggle" id="emode-filter-btn" data-tip="Show only E-Mode positions — correlated assets using tighter liquidation ratios for better capital efficiency">
+                        <span class="toggle-dot"></span><span class="icon">⚡</span>E-Mode
+                    </button>
+                    <button class="toggle-btn active" id="hide-dust-btn" data-tip="Hide dust positions — accounts with less than $1 in both collateral and debt. These are residual/abandoned positions with no real liquidation risk.">
+                        <span class="toggle-dot"></span><span class="icon">🧹</span>Hide Dust
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -2227,6 +2287,7 @@
             // Update trigger label & icon
             const label = chain === 'all' ? 'All Chains' : CHAIN_DISPLAY_NAMES[chain] || chain;
             document.getElementById('chain-trigger-label').textContent = label;
+            document.getElementById('chain-filter').classList.toggle('filter-active', chain !== 'all');
             const triggerIcon = document.querySelector('#chain-trigger .trigger-icon');
             if (chain === 'all') {
                 triggerIcon.outerHTML = `<svg class="trigger-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: rgba(255,255,255,0.6)"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
@@ -2337,6 +2398,9 @@
             document.getElementById('search-input').value = '';
             document.getElementById('search-wrap').classList.remove('has-value');
             document.getElementById('chain-trigger-label').textContent = 'All Chains';
+            document.getElementById('chain-filter').classList.remove('filter-active');
+            document.getElementById('debt-dropdown').classList.remove('filter-active');
+            document.getElementById('token-dropdown').classList.remove('filter-active');
             const triggerIcon = document.querySelector('#chain-trigger .trigger-icon');
             if (triggerIcon) {
                 triggerIcon.outerHTML = `<svg class="trigger-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: rgba(255,255,255,0.6)"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
@@ -2849,6 +2913,7 @@
                     debtRangeMin = preset.min;
                     debtRangeMax = preset.max;
                     document.getElementById('debt-trigger-label').textContent = preset.label;
+                    document.getElementById('debt-dropdown').classList.toggle('filter-active', key !== 'all');
                     document.getElementById('debt-dropdown').classList.remove('open');
                     renderDebtMenu();
                     applyFilters();
@@ -2871,6 +2936,7 @@
                     : debtRangeMax !== null ? `< $${debtRangeMax.toLocaleString()}`
                     : 'All Debt';
                 document.getElementById('debt-trigger-label').textContent = label;
+                document.getElementById('debt-dropdown').classList.toggle('filter-active', label !== 'All Debt');
                 menu.querySelectorAll('.debt-option').forEach(o => o.classList.remove('active'));
                 applyFilters();
             }
@@ -2983,6 +3049,7 @@
             } else {
                 label.textContent = tokenFilter.size + ' Tokens';
             }
+            document.getElementById('token-dropdown').classList.toggle('filter-active', tokenFilter.size > 0);
         }
 
         // Search input handler (persistent, no re-creation)
