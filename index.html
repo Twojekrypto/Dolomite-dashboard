@@ -13361,6 +13361,18 @@
             return totalVedolo > 0 ? totalUsdc / totalVedolo : null;
         }
 
+        /** Avg lock days from USDC.e exercises only (excludes DOLO 7-day exercises) */
+        function getUsdcAvgLock(e) {
+            let sum = 0, count = 0;
+            (e.txs || []).forEach(tx => {
+                if (tx.paid_token !== 'DOLO' && tx.lock_days != null) {
+                    sum += tx.lock_days;
+                    count++;
+                }
+            });
+            return count > 0 ? Math.round(sum / count * 10) / 10 : null;
+        }
+
         /** Get USD cost for a single tx (DOLO exercises = no real $ cost) */
         function getTxCostUsd(tx) {
             if (tx.paid_token === 'DOLO') return 0;
@@ -13838,7 +13850,7 @@
                 }
                 if (exerciserSortKey === 'exercises') { va = a.exercises; vb = b.exercises; return exerciserSortAsc ? va - vb : vb - va; }
                 if (exerciserSortKey === 'total_vedolo') { va = (a.txs||[]).reduce(function(s,t){return s+(t.vedolo||0);},0); vb = (b.txs||[]).reduce(function(s,t){return s+(t.vedolo||0);},0); return exerciserSortAsc ? va - vb : vb - va; }
-                if (exerciserSortKey === 'avg_lock') { va = a.avg_lock_days || 0; vb = b.avg_lock_days || 0; return exerciserSortAsc ? va - vb : vb - va; }
+                if (exerciserSortKey === 'avg_lock') { va = getUsdcAvgLock(a) || 0; vb = getUsdcAvgLock(b) || 0; return exerciserSortAsc ? va - vb : vb - va; }
                 if (exerciserSortKey === 'avg_price') {
                     va = getExerciserAvgPrice(a) || 0; vb = getExerciserAvgPrice(b) || 0;
                     return exerciserSortAsc ? va - vb : vb - va;
@@ -13870,7 +13882,7 @@
                 var totalVedolo = 0; (e.txs || []).forEach(function(tx) { if (tx.vedolo) totalVedolo += tx.vedolo; });
                 var totalDoloPaid = 0; (e.txs || []).forEach(function(tx) { if (tx.paid_token === 'DOLO' && tx.dolo_paid) totalDoloPaid += tx.dolo_paid; });
                 html += '<td style="padding:4px 5px;text-align:right;color:#fff;font-weight:600;font-size:11px">' + (totalVedolo > 0 ? vedolo_fmtDolo(totalVedolo) + ' DOLO' : '\u2014') + '</td>';
-                html += '<td style="padding:4px 5px;text-align:right;color:#22d3ee;font-size:11px">' + exFmtLock(e.avg_lock_days) + '</td>';
+                html += '<td style="padding:4px 5px;text-align:right;color:#22d3ee;font-size:11px">' + exFmtLock(getUsdcAvgLock(e)) + '</td>';
                 var costHtml = '';
                 var totalCostUsd = e.total_usdc || 0;
                 if (totalCostUsd > 0) {
@@ -13924,7 +13936,7 @@
             const usdcTxs = (e.txs || []).filter(tx => tx.paid_token !== 'DOLO');
             document.getElementById('em-exercises').textContent = usdcTxs.length;
             document.getElementById('em-period').textContent = exFmtDate(e.first) + ' \u2013 ' + exFmtDate(e.last);
-            document.getElementById('em-avglock').textContent = exFmtLock(e.avg_lock_days);
+            document.getElementById('em-avglock').textContent = exFmtLock(getUsdcAvgLock(e));
             document.getElementById('em-avgprice').textContent = avgPrice ? '$' + avgPrice.toFixed(4) : '\u2014';
             document.getElementById('em-berascan').href = 'https://berascan.com/address/' + addr;
             document.getElementById('em-debank').href = 'https://debank.com/profile/' + addr + '?chain=bera';
@@ -13958,7 +13970,7 @@
                 html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px;color:#fff">' + (e.total_usdc > 0 ? '<span style="color:#fbbf24">' + exFmtUsd(e.total_usdc) + '</span>' : '\u2014') + '</td>';
                 html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px;color:#fff">' + (usdcVedolo > 0 ? usdcVedolo.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '\u2014') + '</td>';
                 html += '<td style="text-align:right;font-family:JetBrains Mono,monospace;font-size:11px;color:#34d399">' + (avgPrice ? '$' + avgPrice.toFixed(4) : '\u2014') + '</td>';
-                html += '<td style="text-align:center;color:#fff">' + exFmtLock(e.avg_lock_days) + '</td>';
+                html += '<td style="text-align:center;color:#fff">' + exFmtLock(getUsdcAvgLock(e)) + '</td>';
                 html += '<td></td>';
                 html += '</tr>';
             }
