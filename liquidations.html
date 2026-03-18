@@ -1751,6 +1751,249 @@
             right: 15%;
             opacity: 0.04;
         }
+
+        /* ===== Column Filter Button (funnel icon in table header) ===== */
+        .col-header-group {
+            display: inline-flex; align-items: center; gap: 4px;
+            white-space: nowrap;
+        }
+        .col-filter-btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 18px; height: 18px;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 5px;
+            color: rgba(255,255,255,0.15);
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+        .col-filter-btn svg { width: 10px; height: 10px; }
+        .col-filter-btn:hover {
+            color: #22d3ee;
+            background: rgba(34,211,238,0.08);
+            border-color: rgba(34,211,238,0.18);
+            box-shadow: 0 0 8px rgba(34,211,238,0.1);
+            transform: scale(1.1);
+        }
+        .col-filter-btn.has-active {
+            color: #22d3ee;
+            background: rgba(34,211,238,0.10);
+            border-color: rgba(34,211,238,0.25);
+        }
+        /* Pulsing dot indicator when filter is active */
+        .col-filter-btn.has-active::after {
+            content: '';
+            position: absolute; top: -3px; right: -3px;
+            width: 6px; height: 6px; border-radius: 50%;
+            background: #22d3ee;
+            box-shadow: 0 0 6px rgba(34,211,238,0.8);
+            animation: filterDotPulse 2s ease-in-out infinite;
+        }
+        @keyframes filterDotPulse {
+            0%, 100% { box-shadow: 0 0 4px rgba(34,211,238,0.5); transform: scale(1); }
+            50% { box-shadow: 0 0 8px rgba(34,211,238,1); transform: scale(1.2); }
+        }
+        /* Highlight th when popover is open */
+        th.col-filter-open { z-index: 100 !important; }
+        th.col-filter-open .col-filter-btn {
+            color: #22d3ee;
+            background: rgba(34,211,238,0.12);
+            border-color: rgba(34,211,238,0.3);
+            box-shadow: 0 0 10px rgba(34,211,238,0.15);
+        }
+
+        /* ===== Column Filter Popover ===== */
+        .col-filter-popover {
+            position: absolute; top: calc(100% + 6px); left: 0;
+            min-width: 240px;
+            background: rgba(15,23,42,0.97);
+            -webkit-backdrop-filter: blur(20px) saturate(1.5);
+            backdrop-filter: blur(20px) saturate(1.5);
+            border: 1px solid rgba(99,102,241,0.12);
+            border-radius: 12px;
+            padding: 0;
+            z-index: 9999; display: none;
+            box-shadow:
+                0 12px 40px rgba(0,0,0,0.55),
+                0 0 0 1px rgba(99,102,241,0.06),
+                inset 0 1px 0 rgba(255,255,255,0.04);
+            overflow: hidden;
+        }
+        th.col-filter-open .col-filter-popover {
+            display: block; animation: colPopIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes colPopIn {
+            from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        /* Top accent gradient bar */
+        .col-filter-popover::before {
+            content: '';
+            display: block;
+            height: 2px;
+            background: linear-gradient(90deg, #6366f1, #22d3ee, #34d399);
+            border-radius: 12px 12px 0 0;
+        }
+        /* Popover inner padding */
+        .col-filter-inner {
+            padding: 14px 14px 12px;
+        }
+        .col-filter-label {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 10px; font-weight: 700; color: var(--text-secondary);
+            text-transform: uppercase; letter-spacing: 1px;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .col-filter-label svg {
+            width: 11px; height: 11px;
+            color: #22d3ee;
+            opacity: 0.7;
+        }
+        .col-filter-row {
+            display: flex; align-items: center; gap: 6px;
+            margin-bottom: 10px;
+        }
+        .col-filter-row span {
+            font-size: 10px; color: var(--text-muted); flex-shrink: 0;
+        }
+        /* Styled range inputs */
+        .col-range-input {
+            flex: 1; width: auto;
+            padding: 7px 8px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 7px;
+            color: var(--text-primary);
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+        .col-range-input:focus {
+            border-color: rgba(34,211,238,0.35);
+            background: rgba(34,211,238,0.04);
+            box-shadow: 0 0 0 2px rgba(34,211,238,0.08);
+        }
+        .col-range-input::placeholder { color: var(--text-muted); font-family: 'Inter', sans-serif; }
+        /* Also make debt-custom-input inside popovers look nice */
+        .col-filter-row .debt-custom-input {
+            flex: 1; width: auto;
+            padding: 7px 8px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 7px;
+            color: var(--text-primary);
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+        .col-filter-row .debt-custom-input:focus {
+            border-color: rgba(34,211,238,0.35);
+            background: rgba(34,211,238,0.04);
+            box-shadow: 0 0 0 2px rgba(34,211,238,0.08);
+        }
+        /* Preset chips */
+        .col-preset-chips {
+            display: flex; flex-wrap: wrap; gap: 5px;
+        }
+        .col-preset {
+            padding: 5px 10px; border-radius: 20px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.07);
+            color: var(--text-muted);
+            font-size: 10px; font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .col-preset:hover {
+            background: rgba(34,211,238,0.08);
+            border-color: rgba(34,211,238,0.2);
+            color: var(--text-primary);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(34,211,238,0.1);
+        }
+        .col-preset.active {
+            background: rgba(34,211,238,0.12);
+            border-color: rgba(34,211,238,0.35);
+            color: #22d3ee;
+            box-shadow: 0 0 12px rgba(34,211,238,0.12), inset 0 0 0 1px rgba(34,211,238,0.08);
+        }
+
+        /* ===== Token Filter Popover ===== */
+        .col-token-search {
+            width: 100%; padding: 7px 10px 7px 28px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 7px;
+            color: var(--text-secondary);
+            font-size: 11px; font-family: inherit;
+            margin-bottom: 8px; outline: none;
+            transition: all 0.2s ease;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23555770' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: 8px center;
+        }
+        .col-token-search:focus {
+            border-color: rgba(99,102,241,0.35);
+            background-color: rgba(99,102,241,0.04);
+            box-shadow: 0 0 0 2px rgba(99,102,241,0.08);
+        }
+        .col-token-search::placeholder { color: var(--text-muted); }
+        .col-token-list {
+            max-height: 200px; overflow-y: auto;
+        }
+        .col-token-list::-webkit-scrollbar { width: 4px; }
+        .col-token-list::-webkit-scrollbar-track { background: transparent; }
+        .col-token-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+        .col-token-list::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+        .col-token-opt {
+            display: flex; align-items: center; gap: 8px;
+            padding: 6px 8px; border-radius: 7px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-size: 11px; color: var(--text-secondary);
+            position: relative;
+        }
+        .col-token-opt:hover {
+            background: rgba(255,255,255,0.04);
+            color: var(--text-primary);
+        }
+        .col-token-opt.selected {
+            background: rgba(34,211,238,0.06);
+            color: #22d3ee;
+        }
+        .col-token-opt .opt-count {
+            margin-left: auto; font-size: 10px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Checkbox indicator for token options */
+        .col-token-opt .tok-check {
+            width: 14px; height: 14px;
+            border-radius: 4px;
+            border: 1.5px solid rgba(255,255,255,0.15);
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.15s ease;
+            font-size: 9px; color: transparent;
+        }
+        .col-token-opt.selected .tok-check {
+            background: rgba(34,211,238,0.3);
+            border-color: #22d3ee;
+            color: #fff;
+        }
+        .col-token-opt .tok-icon {
+            width: 16px; height: 16px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
     </style>
 </head>
 
@@ -1895,25 +2138,6 @@
                 <div class="chain-menu" id="chain-menu"></div>
             </div>
 
-            <div class="debt-dropdown" id="debt-dropdown">
-                <button type="button" class="debt-trigger" id="debt-trigger">
-                    <span class="debt-icon">💰</span>
-                    <span id="debt-trigger-label">All Debt</span>
-                </button>
-                <div class="debt-menu" id="debt-menu"></div>
-            </div>
-
-            <div class="token-dropdown" id="token-dropdown">
-                <button type="button" class="token-trigger" id="token-trigger">
-                    <span class="token-icon">🪙</span>
-                    <span id="token-trigger-label">All Tokens</span>
-                </button>
-                <div class="token-menu" id="token-menu">
-                    <input type="text" class="token-search" id="token-search" placeholder="Search token...">
-                    <div class="token-options-list" id="token-options-list"></div>
-                </div>
-            </div>
-
             <div class="controls-separator" style="margin-left: auto"></div>
 
             <div style="display: flex; align-items: center; gap: 8px;">
@@ -1955,12 +2179,131 @@
                     <tr>
                         <th data-sort="chain">Chain <span class="sort-arrow"></span></th>
                         <th data-sort="address">Address <span class="sort-arrow"></span></th>
-                        <th data-sort="hf">Health Factor <span class="sort-arrow">▲</span></th>
+                        <th data-sort="hf" style="position:relative; overflow:visible">
+                            <span class="col-header-group">
+                                Health Factor
+                                <button type="button" class="col-filter-btn" id="hf-filter-trigger" title="Filter by HF range">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                </button>
+                                <span class="sort-arrow">▲</span>
+                            </span>
+                            <div class="col-filter-popover" id="hf-popover">
+                                <div class="col-filter-inner">
+                                <div class="col-filter-label">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                    Health Factor Range
+                                </div>
+                                <div class="col-filter-row">
+                                    <input type="number" step="0.01" class="debt-custom-input" id="hf-custom-min" placeholder="Min">
+                                    <span>–</span>
+                                    <input type="number" step="0.01" class="debt-custom-input" id="hf-custom-max" placeholder="Max">
+                                </div>
+                                <div class="col-preset-chips" id="hf-presets">
+                                    <button class="col-preset" data-min="" data-max="1.0">< 1.0</button>
+                                    <button class="col-preset" data-min="1.0" data-max="1.05">1.0–1.05</button>
+                                    <button class="col-preset" data-min="1.05" data-max="1.25">1.05–1.25</button>
+                                    <button class="col-preset" data-min="1.25" data-max="">> 1.25</button>
+                                </div>
+                                </div>
+                            </div>
+                        </th>
                         <th data-sort="emode" style="text-align:center">E-Mode <span class="sort-arrow"></span></th>
-                        <th data-sort="collateral">Collateral <span class="sort-arrow"></span></th>
-                        <th data-sort="debt">Debt <span class="sort-arrow"></span></th>
-                        <th>Collateral Tokens</th>
-                        <th>Debt Tokens</th>
+                        <th data-sort="collateral" style="position:relative; overflow:visible">
+                            <span class="col-header-group">
+                                Collateral
+                                <button type="button" class="col-filter-btn" id="collateral-filter-trigger" title="Filter by Collateral range">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                </button>
+                                <span class="sort-arrow"></span>
+                            </span>
+                            <div class="col-filter-popover" id="collateral-popover">
+                                <div class="col-filter-inner">
+                                <div class="col-filter-label">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                    Collateral Range
+                                </div>
+                                <div class="col-filter-row">
+                                    <span>$</span>
+                                    <input type="number" class="debt-custom-input" id="collateral-custom-min" placeholder="Min">
+                                    <span>–</span>
+                                    <input type="number" class="debt-custom-input" id="collateral-custom-max" placeholder="Max">
+                                </div>
+                                <div class="col-preset-chips" id="collateral-presets">
+                                    <button class="col-preset" data-min="" data-max="100">< $100</button>
+                                    <button class="col-preset" data-min="100" data-max="1000">$100–$1K</button>
+                                    <button class="col-preset" data-min="1000" data-max="10000">$1K–$10K</button>
+                                    <button class="col-preset" data-min="10000" data-max="100000">$10K–$100K</button>
+                                    <button class="col-preset" data-min="100000" data-max="">$100K+</button>
+                                </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th data-sort="debt" style="position:relative; overflow:visible">
+                            <span class="col-header-group">
+                                Debt
+                                <button type="button" class="col-filter-btn" id="debt-filter-trigger" title="Filter by Debt range">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                </button>
+                                <span class="sort-arrow"></span>
+                            </span>
+                            <div class="col-filter-popover" id="debt-popover">
+                                <div class="col-filter-inner">
+                                <div class="col-filter-label">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                    Debt Range
+                                </div>
+                                <div class="col-filter-row">
+                                    <span>$</span>
+                                    <input type="number" class="debt-custom-input" id="debt-custom-min" placeholder="Min">
+                                    <span>–</span>
+                                    <input type="number" class="debt-custom-input" id="debt-custom-max" placeholder="Max">
+                                </div>
+                                <div class="col-preset-chips" id="debt-presets">
+                                    <button class="col-preset" data-min="" data-max="100">< $100</button>
+                                    <button class="col-preset" data-min="100" data-max="1000">$100–$1K</button>
+                                    <button class="col-preset" data-min="1000" data-max="10000">$1K–$10K</button>
+                                    <button class="col-preset" data-min="10000" data-max="100000">$10K–$100K</button>
+                                    <button class="col-preset" data-min="100000" data-max="">$100K+</button>
+                                </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th style="position:relative; overflow:visible">
+                            <span class="col-header-group">
+                                Collateral Tokens
+                                <button type="button" class="col-filter-btn" id="col-token-filter-trigger" title="Filter by Collateral Token">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                </button>
+                            </span>
+                            <div class="col-filter-popover" id="col-token-popover">
+                                <div class="col-filter-inner">
+                                <div class="col-filter-label">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                    Collateral Tokens
+                                </div>
+                                <input type="text" class="col-token-search" id="col-token-search" placeholder="Search token...">
+                                <div class="col-token-list" id="col-token-list"></div>
+                                </div>
+                            </div>
+                        </th>
+                        <th style="position:relative; overflow:visible">
+                            <span class="col-header-group">
+                                Debt Tokens
+                                <button type="button" class="col-filter-btn" id="debt-token-filter-trigger" title="Filter by Debt Token">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                </button>
+                            </span>
+                            <div class="col-filter-popover" id="debt-token-popover">
+                                <div class="col-filter-inner">
+                                <div class="col-filter-label">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                    Debt Tokens
+                                </div>
+                                <input type="text" class="col-token-search" id="debt-token-search" placeholder="Search token...">
+                                <div class="col-token-list" id="debt-token-list"></div>
+                                </div>
+                            </div>
+                        </th>
                     </tr>
                 </thead>
                 <tbody id="table-body"></tbody>
@@ -1990,7 +2333,16 @@
         let searchQuery = '';
         let hideDust = true;  // Hide $0 collateral positions by default
         let emodeOnly = false; // Show only E-Mode positions when active
-        let tokenFilter = new Set();  // Empty = all tokens (multi-select)
+        let tokenFilter = new Set();  // legacy compat
+        let collateralTokenFilter = new Set();
+        let debtTokenFilter = new Set();
+        let collateralRangeMin = null;
+        let collateralRangeMax = null;
+        let debtRangeMin = null;
+        let debtRangeMax = null;
+        let debtRangeKey = 'all';
+        let hfRangeMin = null;
+        let hfRangeMax = null;
 
         // ─── Init ────────────────────────────────────────────────────────────
         async function init() {
@@ -2209,9 +2561,7 @@
             e.stopPropagation();
             document.getElementById('chain-filter').classList.toggle('open');
             // Close other dropdowns
-            // (risk pills are inline, no dropdown to close)
-            document.getElementById('debt-dropdown').classList.remove('open');
-            document.getElementById('token-dropdown').classList.remove('open');
+            document.querySelectorAll('th.col-filter-open').forEach(th => th.classList.remove('col-filter-open'));
         });
 
         // Close on outside click
@@ -2242,9 +2592,10 @@
 
             // Close & filter
             document.getElementById('chain-filter').classList.remove('open');
-            // Reset token filter (tokens may differ per chain)
+            // Reset token filters
+            collateralTokenFilter.clear();
+            debtTokenFilter.clear();
             tokenFilter.clear();
-            updateTokenTriggerLabel();
             applyFilters();
         });
 
@@ -2263,17 +2614,22 @@
                 if (hideDust && p.collateralUSD < 1 && p.debtUSD < 1) return false;
                 // E-Mode filter
                 if (emodeOnly && !p.eMode) return false;
-                // Token filter (multi-select)
-                if (tokenFilter.size > 0) {
-                    const allTokenSymbols = [
-                        ...(p.collateralTokens || []).map(t => t.symbol),
-                        ...(p.debtTokens || []).map(t => t.symbol)
-                    ];
-                    if (!allTokenSymbols.some(s => tokenFilter.has(s))) return false;
+                // Collateral token filter
+                if (collateralTokenFilter.size > 0) {
+                    const colSymbols = (p.collateralTokens || []).map(t => t.symbol);
+                    if (!colSymbols.some(s => collateralTokenFilter.has(s))) return false;
+                }
+                // Debt token filter
+                if (debtTokenFilter.size > 0) {
+                    const debtSymbols = (p.debtTokens || []).map(t => t.symbol);
+                    if (!debtSymbols.some(s => debtTokenFilter.has(s))) return false;
                 }
                 // Debt range filter
                 if (debtRangeMin !== null && p.debtUSD < debtRangeMin) return false;
                 if (debtRangeMax !== null && p.debtUSD > debtRangeMax) return false;
+                // Collateral range filter
+                if (collateralRangeMin !== null && p.collateralUSD < collateralRangeMin) return false;
+                if (collateralRangeMax !== null && p.collateralUSD > collateralRangeMax) return false;
                 // HF range filter
                 if (hfRangeMin !== null || hfRangeMax !== null) {
                     const hf = p.healthFactor;
@@ -2315,9 +2671,12 @@
                 debtRangeKey !== 'all' ||
                 debtRangeMin !== null ||
                 debtRangeMax !== null ||
+                collateralRangeMin !== null ||
+                collateralRangeMax !== null ||
                 hfRangeMin !== null ||
                 hfRangeMax !== null ||
-                tokenFilter.size > 0 ||
+                collateralTokenFilter.size > 0 ||
+                debtTokenFilter.size > 0 ||
                 emodeOnly;
             btn.classList.toggle('visible', hasCustomFilters);
         }
@@ -2332,9 +2691,13 @@
             debtRangeMin = null;
             debtRangeMax = null;
             debtRangeKey = 'all';
+            collateralRangeMin = null;
+            collateralRangeMax = null;
             hfRangeMin = null;
             hfRangeMax = null;
             tokenFilter = new Set();
+            collateralTokenFilter = new Set();
+            debtTokenFilter = new Set();
 
             // Reset UI elements
             document.getElementById('search-input').value = '';
@@ -2345,13 +2708,27 @@
                 triggerIcon.outerHTML = `<svg class="trigger-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: rgba(255,255,255,0.6)"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
             }
             renderRiskMenu();
-            document.getElementById('debt-trigger-label').textContent = 'All Debt';
             const dustBtn = document.getElementById('hide-dust-btn');
             if (dustBtn) dustBtn.classList.add('active');
             const emodeBtn = document.getElementById('emode-filter-btn');
             if (emodeBtn) emodeBtn.classList.remove('active');
-            document.getElementById('token-trigger-label').textContent = 'All Tokens';
-            document.getElementById('token-search').value = '';
+
+            // Reset all column filter popovers
+            ['hf', 'collateral', 'debt'].forEach(col => {
+                const cMin = document.getElementById(`${col}-custom-min`);
+                const cMax = document.getElementById(`${col}-custom-max`);
+                if (cMin) cMin.value = '';
+                if (cMax) cMax.value = '';
+                const btn = document.getElementById(`${col}-filter-trigger`);
+                if (btn) btn.classList.remove('has-active');
+                btn?.closest('th')?.classList.remove('col-filter-open');
+                document.querySelectorAll(`#${col}-presets .col-preset`).forEach(p => p.classList.remove('active'));
+            });
+            ['col-token', 'debt-token'].forEach(prefix => {
+                const btn = document.getElementById(`${prefix}-filter-trigger`);
+                if (btn) btn.classList.remove('has-active');
+                btn?.closest('th')?.classList.remove('col-filter-open');
+            });
 
             // Reset dropdowns active classes
             document.querySelectorAll('.chain-option').forEach(o => o.classList.toggle('active', o.dataset.chain === 'all'));
@@ -2701,8 +3078,6 @@
         // Chain select handled above in custom dropdown click handler
 
         // Risk dropdown — same pattern as chain dropdown
-        let hfRangeMin = null;
-        let hfRangeMax = null;
 
         const RISK_OPTIONS = [
             { key: 'all', label: 'All', color: '#6366f1', tip: 'Show all positions' },
@@ -2730,16 +3105,7 @@
                 </button>`;
             }).join('');
 
-            // Custom HF range inputs
-            const customMin = riskFilter === 'custom' && hfRangeMin !== null ? hfRangeMin : '';
-            const customMax = riskFilter === 'custom' && hfRangeMax !== null ? hfRangeMax : '';
-            const customActive = riskFilter === 'custom' ? ' active' : '';
-            html += `<span class="risk-pill${customActive}" style="--pill-glow: #f59e0b; gap: 4px; padding: 3px 8px;">
-                <span style="font-size:10px;color:var(--text-muted)">HF</span>
-                <input type="number" step="0.01" class="debt-custom-input" id="hf-custom-min" placeholder="Min" value="${customMin}" style="width:48px;font-size:10px">
-                <span style="font-size:9px;color:var(--text-muted)">–</span>
-                <input type="number" step="0.01" class="debt-custom-input" id="hf-custom-max" placeholder="Max" value="${customMax}" style="width:48px;font-size:10px">
-            </span>`;
+
 
             container.innerHTML = html;
 
@@ -2755,24 +3121,6 @@
                 });
             });
 
-            // Custom HF inputs
-            let hfTimer;
-            const hMin = document.getElementById('hf-custom-min');
-            const hMax = document.getElementById('hf-custom-max');
-            function applyCustomHF() {
-                const min = parseFloat(hMin.value);
-                const max = parseFloat(hMax.value);
-                riskFilter = 'custom';
-                hfRangeMin = isNaN(min) ? null : min;
-                hfRangeMax = isNaN(max) ? null : max;
-                container.querySelectorAll('.risk-pill[data-risk]').forEach(p => p.classList.remove('active'));
-                hMin.closest('.risk-pill').classList.add('active');
-                applyFilters();
-            }
-            if (hMin) hMin.addEventListener('input', () => { clearTimeout(hfTimer); hfTimer = setTimeout(applyCustomHF, 400); });
-            if (hMax) hMax.addEventListener('input', () => { clearTimeout(hfTimer); hfTimer = setTimeout(applyCustomHF, 400); });
-            if (hMin) hMin.addEventListener('click', e => e.stopPropagation());
-            if (hMax) hMax.addEventListener('click', e => e.stopPropagation());
         }
 
         document.getElementById('search-input').addEventListener('input', e => {
@@ -2802,217 +3150,189 @@
             applyFilters();
         });
 
-        // ─── Debt Range Dropdown ────────────────────────────────────────
-        let debtRangeMin = null;
-        let debtRangeMax = null;
-        let debtRangeKey = 'all';
+        // ─── Column Filter Popovers (range: HF, Collateral, Debt) ────────
+        function initColFilterPopover(opts) {
+            const trigger = document.getElementById(opts.triggerId);
+            const minInput = document.getElementById(opts.minInputId);
+            const maxInput = document.getElementById(opts.maxInputId);
+            if (!trigger || !minInput || !maxInput) return;
+            const thParent = trigger.closest('th');
+            if (!thParent) return;
 
-        const DEBT_PRESETS = [
-            { key: 'all',    label: 'All Debt',  min: null,   max: null },
-            { key: 'u100',   label: '< $100',     min: null,   max: 100 },
-            { key: '100_1k', label: '$100 – $1K',  min: 100,    max: 1000 },
-            { key: '1k_10k', label: '$1K – $10K',  min: 1000,   max: 10000 },
-            { key: '10k_100k', label: '$10K – $100K', min: 10000, max: 100000 },
-            { key: 'o100k',  label: '$100K+',     min: 100000, max: null },
-        ];
-
-        function renderDebtMenu() {
-            const menu = document.getElementById('debt-menu');
-            let html = DEBT_PRESETS.map(p => {
-                const active = p.key === debtRangeKey ? ' active' : '';
-                const count = allPositions.filter(pos => {
-                    if (p.min !== null && pos.debtUSD < p.min) return false;
-                    if (p.max !== null && pos.debtUSD > p.max) return false;
-                    return true;
-                }).length;
-                return `<div class="debt-option${active}" data-key="${p.key}">
-                    <span>${p.label}</span>
-                    <span class="opt-count">${count.toLocaleString()}</span>
-                </div>`;
-            }).join('');
-
-            // Custom row
-            const customMin = debtRangeKey === 'custom' && debtRangeMin !== null ? debtRangeMin : '';
-            const customMax = debtRangeKey === 'custom' && debtRangeMax !== null ? debtRangeMax : '';
-            html += `<div class="debt-custom-row">
-                <span>$</span>
-                <input type="number" class="debt-custom-input" id="debt-custom-min" placeholder="Min" value="${customMin}">
-                <span>–</span>
-                <input type="number" class="debt-custom-input" id="debt-custom-max" placeholder="Max" value="${customMax}">
-            </div>`;
-
-            menu.innerHTML = html;
-
-            // Preset clicks
-            menu.querySelectorAll('.debt-option').forEach(opt => {
-                opt.addEventListener('click', () => {
-                    const key = opt.dataset.key;
-                    const preset = DEBT_PRESETS.find(p => p.key === key);
-                    debtRangeKey = key;
-                    debtRangeMin = preset.min;
-                    debtRangeMax = preset.max;
-                    document.getElementById('debt-trigger-label').textContent = preset.label;
-                    document.getElementById('debt-dropdown').classList.remove('open');
-                    renderDebtMenu();
-                    applyFilters();
+            trigger.addEventListener('click', e => {
+                e.stopPropagation(); e.preventDefault();
+                document.querySelectorAll('th.col-filter-open').forEach(th => {
+                    if (th !== thParent) th.classList.remove('col-filter-open');
                 });
+                thParent.classList.toggle('col-filter-open');
             });
 
-            // Custom inputs
-            let customTimer;
-            const cMin = document.getElementById('debt-custom-min');
-            const cMax = document.getElementById('debt-custom-max');
+            const presetsEl = document.getElementById(opts.presetsId);
+            if (presetsEl) {
+                presetsEl.querySelectorAll('.col-preset').forEach(chip => {
+                    chip.addEventListener('click', e => {
+                        e.stopPropagation(); e.preventDefault();
+                        const minVal = chip.dataset.min;
+                        const maxVal = chip.dataset.max;
+                        opts.setMin(minVal ? parseFloat(minVal) : null);
+                        opts.setMax(maxVal ? parseFloat(maxVal) : null);
+                        minInput.value = minVal || '';
+                        maxInput.value = maxVal || '';
+                        presetsEl.querySelectorAll('.col-preset').forEach(p => p.classList.remove('active'));
+                        chip.classList.add('active');
+                        trigger.classList.toggle('has-active', opts.getMin() !== null || opts.getMax() !== null);
+                        applyFilters();
+                    });
+                });
+            }
+
+            let timer;
             function applyCustom() {
-                const min = parseFloat(cMin.value);
-                const max = parseFloat(cMax.value);
-                debtRangeKey = 'custom';
-                debtRangeMin = isNaN(min) ? null : min;
-                debtRangeMax = isNaN(max) ? null : max;
-                const label = (debtRangeMin !== null && debtRangeMax !== null)
-                    ? `$${debtRangeMin.toLocaleString()} – $${debtRangeMax.toLocaleString()}`
-                    : debtRangeMin !== null ? `$${debtRangeMin.toLocaleString()}+`
-                    : debtRangeMax !== null ? `< $${debtRangeMax.toLocaleString()}`
-                    : 'All Debt';
-                document.getElementById('debt-trigger-label').textContent = label;
-                menu.querySelectorAll('.debt-option').forEach(o => o.classList.remove('active'));
+                const min = parseFloat(minInput.value);
+                const max = parseFloat(maxInput.value);
+                opts.setMin(isNaN(min) ? null : min);
+                opts.setMax(isNaN(max) ? null : max);
+                if (presetsEl) presetsEl.querySelectorAll('.col-preset').forEach(p => p.classList.remove('active'));
+                trigger.classList.toggle('has-active', opts.getMin() !== null || opts.getMax() !== null);
                 applyFilters();
             }
-            if (cMin) cMin.addEventListener('input', () => { clearTimeout(customTimer); customTimer = setTimeout(applyCustom, 400); });
-            if (cMax) cMax.addEventListener('input', () => { clearTimeout(customTimer); customTimer = setTimeout(applyCustom, 400); });
-            // Prevent dropdown close on input click
-            if (cMin) cMin.addEventListener('click', e => e.stopPropagation());
-            if (cMax) cMax.addEventListener('click', e => e.stopPropagation());
+            minInput.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(applyCustom, 400); });
+            maxInput.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(applyCustom, 400); });
+            minInput.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); });
+            maxInput.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); });
+
+            document.addEventListener('click', e => {
+                if (!thParent.contains(e.target)) thParent.classList.remove('col-filter-open');
+            });
         }
 
-        // Toggle debt dropdown
-        document.getElementById('debt-trigger').addEventListener('click', e => {
-            e.stopPropagation();
-            // Close other dropdowns
-            document.getElementById('chain-filter').classList.remove('open');
-            // (risk pills are inline, no dropdown to close)
-            document.getElementById('token-dropdown').classList.remove('open');
-            document.getElementById('debt-dropdown').classList.toggle('open');
-            renderDebtMenu();
+        initColFilterPopover({
+            triggerId: 'hf-filter-trigger',
+            minInputId: 'hf-custom-min',
+            maxInputId: 'hf-custom-max',
+            presetsId: 'hf-presets',
+            setMin: v => { hfRangeMin = v; },
+            setMax: v => { hfRangeMax = v; },
+            getMin: () => hfRangeMin,
+            getMax: () => hfRangeMax,
         });
 
-        // Close debt dropdown on outside click
-        document.addEventListener('click', e => {
-            const dd = document.getElementById('debt-dropdown');
-            if (!dd.contains(e.target)) dd.classList.remove('open');
+        initColFilterPopover({
+            triggerId: 'debt-filter-trigger',
+            minInputId: 'debt-custom-min',
+            maxInputId: 'debt-custom-max',
+            presetsId: 'debt-presets',
+            setMin: v => { debtRangeMin = v; },
+            setMax: v => { debtRangeMax = v; },
+            getMin: () => debtRangeMin,
+            getMax: () => debtRangeMax,
         });
 
-        // ─── Token Dropdown (multi-select, searchable) ────────────────────────
-        function renderTokenOptions() {
-            const list = document.getElementById('token-options-list');
-            const searchText = document.getElementById('token-search').value;
-            // Scope to currently selected chain
-            const scopedPositions = chainFilter === 'all'
-                ? allPositions
-                : allPositions.filter(p => p.chain === chainFilter);
-            // Collect token frequencies from scoped positions
-            const tokenCounts = {};
-            scopedPositions.forEach(p => {
-                const tokens = [...(p.collateralTokens || []), ...(p.debtTokens || [])];
-                const seen = new Set();
-                tokens.forEach(t => {
-                    if (!seen.has(t.symbol)) {
-                        seen.add(t.symbol);
-                        tokenCounts[t.symbol] = (tokenCounts[t.symbol] || 0) + 1;
-                    }
-                });
-            });
-            // Sort by frequency
-            let sortedTokens = Object.entries(tokenCounts)
-                .sort((a, b) => b[1] - a[1]);
-            // Apply search filter
-            if (searchText) {
-                const q = searchText.toLowerCase();
-                sortedTokens = sortedTokens.filter(([sym]) => sym.toLowerCase().includes(q));
-            }
+        initColFilterPopover({
+            triggerId: 'collateral-filter-trigger',
+            minInputId: 'collateral-custom-min',
+            maxInputId: 'collateral-custom-max',
+            presetsId: 'collateral-presets',
+            setMin: v => { collateralRangeMin = v; },
+            setMax: v => { collateralRangeMax = v; },
+            getMin: () => collateralRangeMin,
+            getMax: () => collateralRangeMax,
+        });
 
-            let html = '';
-            // "All Tokens" option (clear selection)
-            const allActive = tokenFilter.size === 0 ? ' active' : '';
-            html += `<div class="token-option${allActive}" data-token="__all__">
-                <span class="token-check">${tokenFilter.size === 0 ? '✓' : ''}</span>
-                <span>All Tokens</span>
-                <span class="opt-count">${scopedPositions.length.toLocaleString()}</span>
-            </div>`;
-            // Token options with checkboxes
-            sortedTokens.forEach(([sym, count]) => {
-                const active = tokenFilter.has(sym) ? ' active' : '';
-                const check = tokenFilter.has(sym) ? '✓' : '';
-                const icon = getTokenIcon(sym);
-                const iconHtml = icon
-                    ? `<img class="token-icon-img" src="${icon}" onerror="this.style.display='none'">`
-                    : '';
-                const short = truncateTokenName(sym);
-                const titleAttr = short !== sym ? ` title="${sym}"` : '';
-                html += `<div class="token-option${active}" data-token="${sym}"${titleAttr}>
-                    <span class="token-check">${check}</span>
-                    <span>${iconHtml}${short}</span>
-                    <span class="opt-count">${count.toLocaleString()}</span>
-                </div>`;
-            });
-            list.innerHTML = html;
+        // ─── Token Column Filters (searchable multi-select) ───────────────
+        function initTokenColFilter(opts) {
+            const trigger = document.getElementById(opts.triggerId);
+            const searchInput = document.getElementById(opts.searchId);
+            const listEl = document.getElementById(opts.listId);
+            if (!trigger || !searchInput || !listEl) return;
+            const thParent = trigger.closest('th');
+            if (!thParent) return;
 
-            // Option clicks (multi-select toggle)
-            list.querySelectorAll('.token-option').forEach(opt => {
-                opt.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const tok = opt.dataset.token;
-                    if (tok === '__all__') {
-                        tokenFilter.clear();
-                    } else {
-                        if (tokenFilter.has(tok)) {
-                            tokenFilter.delete(tok);
-                        } else {
-                            tokenFilter.add(tok);
+            function renderList() {
+                const searchText = searchInput.value.toLowerCase();
+                const scoped = chainFilter === 'all' ? allPositions : allPositions.filter(p => p.chain === chainFilter);
+                const tokenCounts = {};
+                scoped.forEach(p => {
+                    const tokens = opts.getTokens(p);
+                    const seen = new Set();
+                    tokens.forEach(t => {
+                        if (!seen.has(t.symbol)) {
+                            seen.add(t.symbol);
+                            tokenCounts[t.symbol] = (tokenCounts[t.symbol] || 0) + 1;
                         }
-                    }
-                    updateTokenTriggerLabel();
-                    renderTokenOptions();
-                    applyFilters();
+                    });
                 });
+                let sorted = Object.entries(tokenCounts).sort((a, b) => b[1] - a[1]);
+                if (searchText) sorted = sorted.filter(([sym]) => sym.toLowerCase().includes(searchText));
+
+                let html = '';
+                const filterSet = opts.getFilter();
+                html += `<div class="col-token-opt${filterSet.size === 0 ? ' selected' : ''}" data-token="__all__">
+                    <span class="tok-check">${filterSet.size === 0 ? '✓' : ''}</span>
+                    All Tokens
+                    <span class="opt-count">${scoped.length.toLocaleString()}</span>
+                </div>`;
+                sorted.forEach(([sym, count]) => {
+                    const sel = filterSet.has(sym) ? ' selected' : '';
+                    const icon = getTokenIcon(sym);
+                    const iconHtml = icon ? `<img class="tok-icon" src="${icon}" onerror="this.style.display='none'">` : '';
+                    html += `<div class="col-token-opt${sel}" data-token="${sym}">
+                        <span class="tok-check">${filterSet.has(sym) ? '✓' : ''}</span>
+                        ${iconHtml}${truncateTokenName(sym)}
+                        <span class="opt-count">${count.toLocaleString()}</span>
+                    </div>`;
+                });
+                listEl.innerHTML = html;
+
+                listEl.querySelectorAll('.col-token-opt').forEach(el => {
+                    el.addEventListener('click', e => {
+                        e.stopPropagation();
+                        const tok = el.dataset.token;
+                        if (tok === '__all__') filterSet.clear();
+                        else if (filterSet.has(tok)) filterSet.delete(tok);
+                        else filterSet.add(tok);
+                        trigger.classList.toggle('has-active', filterSet.size > 0);
+                        renderList();
+                        applyFilters();
+                    });
+                });
+            }
+
+            trigger.addEventListener('click', e => {
+                e.stopPropagation(); e.preventDefault();
+                document.querySelectorAll('th.col-filter-open').forEach(th => {
+                    if (th !== thParent) th.classList.remove('col-filter-open');
+                });
+                thParent.classList.toggle('col-filter-open');
+                if (thParent.classList.contains('col-filter-open')) {
+                    searchInput.value = '';
+                    renderList();
+                    requestAnimationFrame(() => searchInput.focus());
+                }
+            });
+
+            searchInput.addEventListener('input', renderList);
+            searchInput.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); });
+
+            document.addEventListener('click', e => {
+                if (!thParent.contains(e.target)) thParent.classList.remove('col-filter-open');
             });
         }
 
-        function updateTokenTriggerLabel() {
-            const label = document.getElementById('token-trigger-label');
-            if (tokenFilter.size === 0) {
-                label.textContent = 'All Tokens';
-            } else if (tokenFilter.size === 1) {
-                label.textContent = truncateTokenName([...tokenFilter][0]);
-            } else {
-                label.textContent = tokenFilter.size + ' Tokens';
-            }
-        }
-
-        // Search input handler (persistent, no re-creation)
-        document.getElementById('token-search').addEventListener('input', () => {
-            renderTokenOptions();
-        });
-        document.getElementById('token-search').addEventListener('click', e => e.stopPropagation());
-
-        // Toggle token dropdown
-        document.getElementById('token-trigger').addEventListener('click', e => {
-            e.stopPropagation();
-            document.getElementById('chain-filter').classList.remove('open');
-            // (risk pills are inline, no dropdown to close)
-            document.getElementById('debt-dropdown').classList.remove('open');
-            const dd = document.getElementById('token-dropdown');
-            dd.classList.toggle('open');
-            if (dd.classList.contains('open')) {
-                document.getElementById('token-search').value = '';
-                renderTokenOptions();
-                requestAnimationFrame(() => document.getElementById('token-search').focus());
-            }
+        initTokenColFilter({
+            triggerId: 'col-token-filter-trigger',
+            searchId: 'col-token-search',
+            listId: 'col-token-list',
+            getTokens: p => p.collateralTokens || [],
+            getFilter: () => collateralTokenFilter,
         });
 
-        // Close token dropdown on outside click
-        document.addEventListener('click', e => {
-            const td = document.getElementById('token-dropdown');
-            if (!td.contains(e.target)) td.classList.remove('open');
+        initTokenColFilter({
+            triggerId: 'debt-token-filter-trigger',
+            searchId: 'debt-token-search',
+            listId: 'debt-token-list',
+            getTokens: p => p.debtTokens || [],
+            getFilter: () => debtTokenFilter,
         });
 
         document.querySelectorAll('.positions-table thead th[data-sort]').forEach(th => {
