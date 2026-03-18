@@ -2207,7 +2207,7 @@
                     Set Alert
                 </a>
 
-                <button class="toggle-btn active" id="hide-dust-btn" data-tip="Hide dust positions — accounts with less than $1 in both collateral and debt. These are residual/abandoned positions with no real liquidation risk.">
+                <button class="toggle-btn active" id="hide-dust-btn" data-tip="Hide dust positions — accounts with less than $10 total (collateral + debt). These are residual/abandoned positions with no real liquidation risk.">
                     <span class="toggle-dot"></span><span class="icon">🧹</span>Hide Dust
                 </button>
             </div>
@@ -2353,8 +2353,8 @@
         let filteredPositions = [];
         let currentPage = 1;
         const PAGE_SIZE = 15;
-        let sortField = 'hf';
-        let sortDirection = 'asc';
+        let sortField = 'collateral';
+        let sortDirection = 'desc';
         let chainFilter = 'all';
         let riskFilter = 'all';
         let searchQuery = '';
@@ -2637,8 +2637,8 @@
                 if (riskFilter === 'healthy' && ['baddebt','full-liq','partial-liq','danger'].includes(rc)) return false;
                 if (riskFilter !== 'all' && riskFilter !== 'liquidation' && riskFilter !== 'danger' && riskFilter !== 'baddebt' && riskFilter !== 'healthy' && riskFilter !== 'custom') return false;
                 if (searchQuery && !p.address.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-                // Hide dust: positions with < $1 total value
-                if (hideDust && p.collateralUSD < 1 && p.debtUSD < 1) return false;
+                // Hide dust: positions with collateral + debt < $10
+                if (hideDust && (p.collateralUSD + p.debtUSD) < 10) return false;
                 // E-Mode filter
                 if (emodeOnly && !p.eMode) return false;
                 // E-Mode type filter
@@ -3126,7 +3126,7 @@
             const triggerLabel = document.getElementById('risk-trigger-label');
             const triggerCount = document.getElementById('risk-trigger-count');
             if (!menu) return;
-            const base = hideDust ? allPositions.filter(p => !(p.collateralUSD < 1 && p.debtUSD < 1)) : allPositions;
+            const base = hideDust ? allPositions.filter(p => !((p.collateralUSD + p.debtUSD) < 10)) : allPositions;
 
             // Update trigger with current selection
             const current = RISK_OPTIONS.find(o => o.key === riskFilter) || RISK_OPTIONS[0];
