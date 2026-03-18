@@ -653,6 +653,83 @@
             background: transparent;
             border-radius: 0;
             border: none;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* ===== Refresh Timer Bar ===== */
+        .refresh-bar {
+            display: flex; align-items: center; gap: 8px;
+            padding: 6px 14px;
+            background: rgba(99,102,241,0.06);
+            border: 1px solid rgba(99,102,241,0.10);
+            border-radius: 8px;
+            font-size: 11px; color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+        .refresh-bar .refresh-label { flex: 1; }
+        .refresh-bar .refresh-ago { color: rgba(255,255,255,0.5); font-weight: 500; }
+        .refresh-bar .refresh-btn {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            background: rgba(99,102,241,0.12);
+            border: 1px solid rgba(99,102,241,0.20);
+            color: #a5b4fc;
+            font-size: 11px; font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .refresh-bar .refresh-btn:hover { background: rgba(99,102,241,0.20); color: #c7d2fe; }
+        .refresh-bar .refresh-btn:disabled {
+            opacity: 0.4; cursor: not-allowed;
+        }
+        .refresh-bar .refresh-btn svg { width: 12px; height: 12px; }
+        .refresh-bar .refresh-cooldown { font-size: 10px; color: rgba(255,255,255,0.3); }
+
+        /* ===== Watchlist Star ===== */
+        .watchlist-star {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 16px; height: 16px;
+            cursor: pointer;
+            color: rgba(255,255,255,0.15);
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+        .watchlist-star:hover { color: #fbbf24; transform: scale(1.2); }
+        .watchlist-star.starred { color: #fbbf24; filter: drop-shadow(0 0 4px rgba(251,191,36,0.4)); }
+        .watchlist-star svg { width: 13px; height: 13px; }
+        .watchlist-filter-btn {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            background: transparent;
+            border: 1px solid rgba(251,191,36,0.15);
+            color: rgba(255,255,255,0.4);
+            font-size: 11px; font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .watchlist-filter-btn:hover { border-color: rgba(251,191,36,0.30); color: #fbbf24; }
+        .watchlist-filter-btn.active {
+            background: rgba(251,191,36,0.10);
+            border-color: rgba(251,191,36,0.30);
+            color: #fbbf24;
+        }
+        .watchlist-filter-btn svg { width: 12px; height: 12px; }
+
+        /* ===== Mobile Responsive ===== */
+        @media (max-width: 1200px) {
+            .positions-table { min-width: 900px; }
+        }
+        @media (max-width: 768px) {
+            .table-card-header { flex-direction: column; gap: 8px; }
+            .controls-row1 { flex-wrap: wrap; gap: 6px; }
+            .search-wrap { min-width: 100%; order: -1; }
+            .refresh-bar { flex-wrap: wrap; font-size: 10px; padding: 5px 10px; }
+            .positions-table { min-width: 800px; }
+            .lending-metrics-row { flex-wrap: wrap; }
+            .lending-metrics-row .lending-metric { min-width: 120px; flex: 1; }
         }
 
         .positions-table {
@@ -2168,6 +2245,16 @@
                     </h3>
                 </div>
 
+        <!-- Refresh Timer Bar -->
+        <div class="refresh-bar" id="refresh-bar">
+            <span class="refresh-label">📡 Data updated <span class="refresh-ago" id="refresh-ago">—</span></span>
+            <span class="refresh-cooldown" id="refresh-cooldown"></span>
+            <button class="refresh-btn" id="refresh-btn" title="Reload data">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                Refresh
+            </button>
+        </div>
+
         <!-- Row 1: Search + Dropdowns + Action Buttons -->
         <div class="controls-row1">
             <div class="search-wrap" id="search-wrap">
@@ -2209,6 +2296,10 @@
 
                 <button class="toggle-btn active" id="hide-dust-btn" data-tip="Hide dust positions — accounts with less than $10 total (collateral + debt). These are residual/abandoned positions with no real liquidation risk.">
                     <span class="toggle-dot"></span><span class="icon">🧹</span>Hide Dust
+                </button>
+                <button class="watchlist-filter-btn" id="watchlist-filter-btn" title="Show only starred addresses">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    <span id="watchlist-count">0</span>
                 </button>
             </div>
         </div>
@@ -2371,6 +2462,26 @@
         let hfRangeMin = null;
         let hfRangeMax = null;
 
+        // ─── Watchlist ───────────────────────────────────────────────────
+        const watchlist = new Set(JSON.parse(localStorage.getItem('liq_watchlist') || '[]'));
+        let watchlistOnly = false;
+        function saveWatchlist() {
+            localStorage.setItem('liq_watchlist', JSON.stringify([...watchlist]));
+            const cnt = document.getElementById('watchlist-count');
+            if (cnt) cnt.textContent = watchlist.size;
+        }
+        function toggleStar(addr, el) {
+            if (watchlist.has(addr)) { watchlist.delete(addr); el.classList.remove('starred'); }
+            else { watchlist.add(addr); el.classList.add('starred'); }
+            saveWatchlist();
+            if (watchlistOnly) applyFilters();
+        }
+        saveWatchlist(); // init count
+
+        // ─── Refresh Timer ───────────────────────────────────────────────
+        let lastFetchTime = null;
+        const REFRESH_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes
+
         // ─── Init ────────────────────────────────────────────────────────────
         async function init() {
             try {
@@ -2393,6 +2504,8 @@
                 document.getElementById('loading-state').style.display = 'none';
                 document.getElementById('positions-table').style.display = 'table';
                 document.getElementById('table-footer').style.display = 'flex';
+                lastFetchTime = Date.now();
+                updateRefreshBar();
             } catch (e) {
                 document.getElementById('loading-state').innerHTML = `
                     <div class="emoji" style="font-size:40px; margin-bottom:12px;">⚠️</div>
@@ -2639,6 +2752,8 @@
                 if (searchQuery && !p.address.toLowerCase().includes(searchQuery.toLowerCase())) return false;
                 // Hide dust: positions with collateral + debt < $10
                 if (hideDust && (p.collateralUSD + p.debtUSD) < 10) return false;
+                // Watchlist filter
+                if (watchlistOnly && !watchlist.has(p.address)) return false;
                 // E-Mode filter
                 if (emodeOnly && !p.eMode) return false;
                 // E-Mode type filter
@@ -2707,7 +2822,9 @@
                 collateralTokenFilter.size > 0 ||
                 debtTokenFilter.size > 0 ||
                 emodeOnly;
-            btn.classList.toggle('visible', hasCustomFilters);
+            const wBtn = document.getElementById('watchlist-filter-btn');
+            btn.classList.toggle('visible', hasCustomFilters || watchlistOnly);
+            if (wBtn) wBtn.classList.toggle('active', watchlistOnly);
         }
 
         function clearAllFilters() {
@@ -2717,6 +2834,7 @@
             searchQuery = '';
             hideDust = true;
             emodeOnly = false;
+            watchlistOnly = false;
 
             debtRangeMin = null;
             debtRangeMax = null;
@@ -2740,6 +2858,8 @@
             renderRiskMenu();
             const dustBtn = document.getElementById('hide-dust-btn');
             if (dustBtn) dustBtn.classList.add('active');
+            const wlBtn = document.getElementById('watchlist-filter-btn');
+            if (wlBtn) wlBtn.classList.remove('active');
 
 
 
@@ -2851,6 +2971,7 @@
                 return `<tr class="${rowClass}${emodeRowClass}">
                     <td><span class="chain-badge ${p.chain}" title="${chainFull}"><img class="chain-icon" src="${chainIcon}" alt="">${chainLabel}</span></td>
                     <td><div class="address-cell">
+                        <span class="watchlist-star${watchlist.has(p.address) ? ' starred' : ''}" data-addr="${p.address}" onclick="event.stopPropagation();toggleStar('${p.address}',this)" title="Add to watchlist"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>
                         <a href="${p.explorer}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${p.address}">${shortAddr}</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${p.address}',this)" title="Copy address">${COPY_SVG}</span><a href="${debankUrl}" target="_blank" onclick="event.stopPropagation()" class="debank-icon" data-tooltip="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a>
                     </div></td>
                     <td><div class="hf-gauge"><span class="hf-badge ${riskClass}" data-tooltip="${tooltip}"><span class="hf-dot ${riskClass}"></span>${hfText}</span></div></td>
@@ -3539,6 +3660,58 @@
         if (new URLSearchParams(window.location.search).has('embed')) {
             document.body.classList.add('embed-mode');
         }
+
+        // ─── Refresh Timer Logic ─────────────────────────────────────────
+        function updateRefreshBar() {
+            const agoEl = document.getElementById('refresh-ago');
+            const btnEl = document.getElementById('refresh-btn');
+            const coolEl = document.getElementById('refresh-cooldown');
+            if (!agoEl || !lastFetchTime) return;
+            const elapsed = Date.now() - lastFetchTime;
+            const secs = Math.floor(elapsed / 1000);
+            const mins = Math.floor(secs / 60);
+            const hrs = Math.floor(mins / 60);
+            if (hrs > 0) agoEl.textContent = hrs + 'h ' + (mins % 60) + 'm ago';
+            else if (mins > 0) agoEl.textContent = mins + 'm ago';
+            else agoEl.textContent = secs + 's ago';
+            const canRefresh = elapsed >= REFRESH_COOLDOWN_MS;
+            btnEl.disabled = !canRefresh;
+            if (!canRefresh) {
+                const remaining = Math.ceil((REFRESH_COOLDOWN_MS - elapsed) / 1000);
+                const rm = Math.floor(remaining / 60);
+                const rs = remaining % 60;
+                coolEl.textContent = '\u23f3 ' + rm + ':' + String(rs).padStart(2, '0');
+            } else {
+                coolEl.textContent = '';
+            }
+        }
+        setInterval(updateRefreshBar, 1000);
+
+        document.getElementById('refresh-btn').addEventListener('click', async function() {
+            if (!lastFetchTime || (Date.now() - lastFetchTime) < REFRESH_COOLDOWN_MS) return;
+            this.disabled = true;
+            this.textContent = 'Loading\u2026';
+            try {
+                const resp = await fetch('liquidation_risk.json?t=' + Date.now());
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                const data = await resp.json();
+                allPositions = data.positions || [];
+                renderSummary(data);
+                renderChainButtons(data);
+                renderRiskMenu();
+                applyFilters();
+                lastFetchTime = Date.now();
+            } catch(e) { console.error('Refresh failed:', e); }
+            this.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Refresh';
+            updateRefreshBar();
+        });
+
+        // ─── Watchlist Filter Button ─────────────────────────────────────
+        document.getElementById('watchlist-filter-btn').addEventListener('click', function() {
+            watchlistOnly = !watchlistOnly;
+            this.classList.toggle('active', watchlistOnly);
+            applyFilters();
+        });
 
         // ─── Launch ──────────────────────────────────────────────────────────
         init();
