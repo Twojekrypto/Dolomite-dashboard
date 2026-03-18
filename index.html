@@ -19997,6 +19997,12 @@
                 tip.style.opacity = '0';
                 arrow.style.opacity = '0';
             });
+
+            // Hide tooltip on scroll (prevents floating tooltip when scrolling without moving mouse)
+            window.addEventListener('scroll', function() {
+                tip.style.opacity = '0';
+                arrow.style.opacity = '0';
+            }, true);
         })();
 
         // ===== TREASURY NAMESPACE =====
