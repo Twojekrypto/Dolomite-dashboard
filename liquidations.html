@@ -1671,7 +1671,7 @@
             transform: scale(1.4);
             filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.8));
         }
-        /* E-Mode type badges */
+        /* E-Mode badge */
         .emode-badge {
             display: inline-flex; align-items: center; gap: 3px;
             padding: 2px 7px;
@@ -1681,25 +1681,11 @@
             cursor: help;
             transition: all 0.2s ease;
             letter-spacing: 0.3px;
+            background: rgba(56,189,248,0.12); color: #7dd3fc;
+            border: 1px solid rgba(56,189,248,0.20);
         }
-        .emode-badge:hover { transform: scale(1.08); }
+        .emode-badge:hover { transform: scale(1.08); filter: drop-shadow(0 0 6px rgba(56,189,248,0.4)); }
         .emode-badge .emode-icon { font-size: 10px; }
-        .emode-badge.emode-stables {
-            background: rgba(96,165,250,0.12); color: #93bbfd;
-            border: 1px solid rgba(96,165,250,0.20);
-        }
-        .emode-badge.emode-eth {
-            background: rgba(139,92,246,0.12); color: #c4b5fd;
-            border: 1px solid rgba(139,92,246,0.20);
-        }
-        .emode-badge.emode-btc {
-            background: rgba(251,146,60,0.12); color: #fdba74;
-            border: 1px solid rgba(251,146,60,0.20);
-        }
-        .emode-badge.emode-other {
-            background: rgba(52,211,153,0.12); color: #6ee7b7;
-            border: 1px solid rgba(52,211,153,0.20);
-        }
 
         /* E-Mode row highlight */
         .positions-table tbody tr.emode-row {
@@ -2262,24 +2248,7 @@
                                 </div>
                             </div>
                         </th>
-                        <th data-sort="emode" style="text-align:center; position:relative; overflow:visible">
-                            <span class="col-header-group">
-                                E-Mode
-                                <button type="button" class="col-filter-btn" id="emode-type-filter-trigger" title="Filter by E-Mode type">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-                                </button>
-                                <span class="sort-arrow"></span>
-                            </span>
-                            <div class="col-filter-popover" id="emode-type-popover">
-                                <div class="col-filter-inner">
-                                <div class="col-filter-label">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-                                    E-Mode Type
-                                </div>
-                                <div class="col-token-list" id="emode-type-list"></div>
-                                </div>
-                            </div>
-                        </th>
+                        <th data-sort="emode" style="text-align:center">E-Mode <span class="sort-arrow"></span></th>
                         <th data-sort="collateral" style="position:relative; overflow:visible">
                             <span class="col-header-group">
                                 Collateral
@@ -2389,29 +2358,6 @@
         let searchQuery = '';
         let hideDust = true;  // Hide $0 collateral positions by default
         let emodeOnly = false; // Show only E-Mode positions when active
-        let emodeTypeFilter = new Set(); // Filter by E-Mode type
-
-        // Detect E-Mode type from collateral+debt tokens
-        const STABLE_TOKENS = ['USDC','USDC.e','USDT','DAI','FRAX','MIM','LUSD','sUSDe','USDe','HONEY','aHONEY','sHONEY','aBERA','BYUSD'];
-        const ETH_TOKENS = ['WETH','ETH','wstETH','stETH','rETH','cbETH','weETH','ezETH','rsETH','pzETH','mETH','sfrxETH','frxETH','uniBTC','ETH+','STONE'];
-        const BTC_TOKENS = ['WBTC','BTC','tBTC','cbBTC','sBTC','LBTC','pumpBTC','solvBTC','solvBTC.BBN'];
-        function getEmodeType(p) {
-            if (!p.eMode) return null;
-            const allTokens = [...(p.collateralTokens || []), ...(p.debtTokens || [])].map(t => (t.symbol || t).toUpperCase());
-            const hasStable = allTokens.some(t => STABLE_TOKENS.some(s => t.includes(s.toUpperCase())));
-            const hasEth = allTokens.some(t => ETH_TOKENS.some(s => t.includes(s.toUpperCase())));
-            const hasBtc = allTokens.some(t => BTC_TOKENS.some(s => t.includes(s.toUpperCase())));
-            if (hasStable && !hasEth && !hasBtc) return 'stables';
-            if (hasEth && !hasBtc) return 'eth';
-            if (hasBtc && !hasEth) return 'btc';
-            return 'other';
-        }
-        const EMODE_TYPES = {
-            stables: { label: 'Stables', icon: '⚡', color: '#60a5fa', css: 'emode-stables' },
-            eth:     { label: 'ETH',     icon: '⚡', color: '#8b5cf6', css: 'emode-eth' },
-            btc:     { label: 'BTC',     icon: '⚡', color: '#fb923c', css: 'emode-btc' },
-            other:   { label: 'Other',   icon: '⚡', color: '#34d399', css: 'emode-other' },
-        };
         let tokenFilter = new Set();  // legacy compat
         let collateralTokenFilter = new Set();
         let debtTokenFilter = new Set();
@@ -2694,10 +2640,7 @@
                 // E-Mode filter
                 if (emodeOnly && !p.eMode) return false;
                 // E-Mode type filter
-                if (emodeTypeFilter.size > 0) {
-                    const et = getEmodeType(p);
-                    if (!et || !emodeTypeFilter.has(et)) return false;
-                }
+
                 // Collateral token filter
                 if (collateralTokenFilter.size > 0) {
                     const colSymbols = (p.collateralTokens || []).map(t => t.symbol);
@@ -2761,8 +2704,7 @@
                 hfRangeMax !== null ||
                 collateralTokenFilter.size > 0 ||
                 debtTokenFilter.size > 0 ||
-                emodeOnly ||
-                emodeTypeFilter.size > 0;
+                emodeOnly;
             btn.classList.toggle('visible', hasCustomFilters);
         }
 
@@ -2773,7 +2715,7 @@
             searchQuery = '';
             hideDust = true;
             emodeOnly = false;
-            emodeTypeFilter.clear();
+
             debtRangeMin = null;
             debtRangeMax = null;
             debtRangeKey = 'all';
@@ -2798,8 +2740,7 @@
             if (dustBtn) dustBtn.classList.add('active');
             const emodeBtn = document.getElementById('emode-filter-btn');
             if (emodeBtn) emodeBtn.classList.remove('active');
-            const emodeTypeTrigger = document.getElementById('emode-type-filter-trigger');
-            if (emodeTypeTrigger) emodeTypeTrigger.classList.remove('has-active');
+
 
             // Reset all column filter popovers
             ['hf', 'collateral', 'debt'].forEach(col => {
@@ -2899,11 +2840,9 @@
                     ? renderTokenPills(p.collateralTokens)
                     : `<span style="color:var(--text-muted);font-size:11px">—</span>`;
 
-                const emodeType = getEmodeType(p);
-                const emodeInfo = emodeType ? EMODE_TYPES[emodeType] : null;
-                const emodeCell = emodeInfo
-                    ? `<span class="emode-badge ${emodeInfo.css}" data-emode-type="${emodeType}" data-tooltip="E-Mode ${emodeInfo.label} — correlated assets use tighter liquidation ratios"><span class="emode-icon">${emodeInfo.icon}</span>${emodeInfo.label}</span>`
-                    : (p.eMode ? '<span class="emode-badge emode-other" data-tooltip="E-Mode"><span class="emode-icon">⚡</span>E-Mode</span>' : '<span style="color:var(--text-muted);font-size:11px">—</span>');
+                const emodeCell = p.eMode
+                    ? `<span class="emode-badge" data-tooltip="E-Mode — correlated assets use tighter liquidation ratios for better capital efficiency"><span class="emode-icon">⚡</span>E-Mode</span>`
+                    : '<span style="color:var(--text-muted);font-size:11px">—</span>';
 
                 const emodeRowClass = p.eMode ? ' emode-row' : '';
 
@@ -3274,64 +3213,6 @@
             applyFilters();
         });
 
-        // ─── E-Mode Type Filter Popover ──────────────────────────────────
-        function renderEmodeTypeList() {
-            const list = document.getElementById('emode-type-list');
-            if (!list) return;
-            // Count E-Mode types from current data
-            const typeCounts = { stables: 0, eth: 0, btc: 0, other: 0 };
-            const base = hideDust ? allPositions.filter(p => !(p.collateralUSD < 1 && p.debtUSD < 1)) : allPositions;
-            base.forEach(p => {
-                const et = getEmodeType(p);
-                if (et && typeCounts[et] !== undefined) typeCounts[et]++;
-            });
-            const types = Object.entries(EMODE_TYPES).filter(([key]) => typeCounts[key] > 0);
-            list.innerHTML = types.map(([key, info]) => {
-                const active = emodeTypeFilter.has(key);
-                return `<div class="col-token-opt${active ? ' selected' : ''}" data-emode-type="${key}">
-                    <span class="opt-dot" style="background:${info.color}"></span>
-                    <span style="flex:1">${info.icon} ${info.label}</span>
-                    <span class="opt-count" style="margin-left:auto;font-size:10px;color:var(--text-muted)">${typeCounts[key]}</span>
-                    <span class="tok-check">${active ? '✓' : ''}</span>
-                </div>`;
-            }).join('');
-
-            // Wire clicks
-            list.querySelectorAll('.col-token-opt').forEach(opt => {
-                opt.addEventListener('click', () => {
-                    const type = opt.dataset.emodeType;
-                    if (emodeTypeFilter.has(type)) {
-                        emodeTypeFilter.delete(type);
-                    } else {
-                        emodeTypeFilter.add(type);
-                    }
-                    // Update funnel icon
-                    const trigger = document.getElementById('emode-type-filter-trigger');
-                    if (trigger) trigger.classList.toggle('has-active', emodeTypeFilter.size > 0);
-                    renderEmodeTypeList();
-                    applyFilters();
-                });
-            });
-        }
-
-        // Wire E-Mode type popover toggle into existing system
-        (function() {
-            const trigger = document.getElementById('emode-type-filter-trigger');
-            if (!trigger) return;
-            const thParent = trigger.closest('th');
-            trigger.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const wasOpen = thParent.classList.contains('col-filter-open');
-                // Close all other popovers
-                document.querySelectorAll('th.col-filter-open').forEach(th => th.classList.remove('col-filter-open'));
-                document.getElementById('risk-dropdown')?.classList.remove('open');
-                document.getElementById('chain-filter')?.classList.remove('open');
-                if (!wasOpen) {
-                    thParent.classList.add('col-filter-open');
-                    renderEmodeTypeList();
-                }
-            });
-        })();
 
         // ─── Column Filter Popovers (range: HF, Collateral, Debt) ────────
         function initColFilterPopover(opts) {
