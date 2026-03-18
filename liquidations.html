@@ -657,35 +657,47 @@
             -webkit-overflow-scrolling: touch;
         }
 
-        /* ===== Refresh Timer Bar ===== */
-        .refresh-bar {
-            display: flex; align-items: center; gap: 8px;
-            padding: 6px 14px;
-            background: rgba(99,102,241,0.06);
-            border: 1px solid rgba(99,102,241,0.10);
-            border-radius: 8px;
-            font-size: 11px; color: var(--text-muted);
-            margin-bottom: 10px;
-        }
-        .refresh-bar .refresh-label { flex: 1; }
-        .refresh-bar .refresh-ago { color: rgba(255,255,255,0.5); font-weight: 500; }
-        .refresh-bar .refresh-btn {
-            display: inline-flex; align-items: center; gap: 4px;
-            padding: 4px 10px;
+        /* ===== Compact Refresh Button ===== */
+        .refresh-icon-btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 30px; height: 30px;
             border-radius: 6px;
-            background: rgba(99,102,241,0.12);
-            border: 1px solid rgba(99,102,241,0.20);
-            color: #a5b4fc;
-            font-size: 11px; font-weight: 600;
+            background: transparent;
+            border: 1px solid rgba(99,102,241,0.18);
+            color: rgba(255,255,255,0.35);
             cursor: pointer;
             transition: all 0.2s ease;
+            position: relative;
         }
-        .refresh-bar .refresh-btn:hover { background: rgba(99,102,241,0.20); color: #c7d2fe; }
-        .refresh-bar .refresh-btn:disabled {
-            opacity: 0.4; cursor: not-allowed;
+        .refresh-icon-btn:hover { border-color: rgba(99,102,241,0.40); color: #a5b4fc; background: rgba(99,102,241,0.08); }
+        .refresh-icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .refresh-icon-btn:disabled:hover { background: transparent; color: rgba(255,255,255,0.35); border-color: rgba(99,102,241,0.18); }
+        .refresh-icon-btn svg { width: 14px; height: 14px; }
+        .refresh-icon-btn .refresh-tip {
+            display: none;
+            position: absolute;
+            bottom: calc(100% + 8px); left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15,15,25,0.95);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 10px;
+            color: rgba(255,255,255,0.7);
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 100;
+            backdrop-filter: blur(10px);
         }
-        .refresh-bar .refresh-btn svg { width: 12px; height: 12px; }
-        .refresh-bar .refresh-cooldown { font-size: 10px; color: rgba(255,255,255,0.3); }
+        .refresh-icon-btn .refresh-tip::after {
+            content: '';
+            position: absolute;
+            top: 100%; left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: rgba(255,255,255,0.10);
+        }
+        .refresh-icon-btn:hover .refresh-tip { display: block; }
 
         /* ===== Watchlist Star ===== */
         .watchlist-star {
@@ -1173,9 +1185,10 @@
         .address-cell {
             font-family: 'JetBrains Mono', monospace;
             font-size: 11px;
-            display: inline-flex;
+            display: flex;
             align-items: center;
             gap: 4px;
+            overflow: hidden;
         }
 
         .address-cell a {
@@ -2245,15 +2258,7 @@
                     </h3>
                 </div>
 
-        <!-- Refresh Timer Bar -->
-        <div class="refresh-bar" id="refresh-bar">
-            <span class="refresh-label">📡 Data updated <span class="refresh-ago" id="refresh-ago">—</span></span>
-            <span class="refresh-cooldown" id="refresh-cooldown"></span>
-            <button class="refresh-btn" id="refresh-btn" title="Reload data">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                Refresh
-            </button>
-        </div>
+
 
         <!-- Row 1: Search + Dropdowns + Action Buttons -->
         <div class="controls-row1">
@@ -2300,6 +2305,10 @@
                 <button class="watchlist-filter-btn" id="watchlist-filter-btn" title="Show only starred addresses">
                     <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                     <span id="watchlist-count">0</span>
+                </button>
+                <button class="refresh-icon-btn" id="refresh-btn" title="Refresh data">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                    <span class="refresh-tip" id="refresh-tip">Loading…</span>
                 </button>
             </div>
         </div>
@@ -3663,26 +3672,26 @@
 
         // ─── Refresh Timer Logic ─────────────────────────────────────────
         function updateRefreshBar() {
-            const agoEl = document.getElementById('refresh-ago');
+            const tipEl = document.getElementById('refresh-tip');
             const btnEl = document.getElementById('refresh-btn');
-            const coolEl = document.getElementById('refresh-cooldown');
-            if (!agoEl || !lastFetchTime) return;
+            if (!tipEl || !lastFetchTime) return;
             const elapsed = Date.now() - lastFetchTime;
             const secs = Math.floor(elapsed / 1000);
             const mins = Math.floor(secs / 60);
             const hrs = Math.floor(mins / 60);
-            if (hrs > 0) agoEl.textContent = hrs + 'h ' + (mins % 60) + 'm ago';
-            else if (mins > 0) agoEl.textContent = mins + 'm ago';
-            else agoEl.textContent = secs + 's ago';
+            let agoText;
+            if (hrs > 0) agoText = hrs + 'h ' + (mins % 60) + 'm ago';
+            else if (mins > 0) agoText = mins + 'm ago';
+            else agoText = secs + 's ago';
             const canRefresh = elapsed >= REFRESH_COOLDOWN_MS;
             btnEl.disabled = !canRefresh;
-            if (!canRefresh) {
+            if (canRefresh) {
+                tipEl.textContent = 'Updated ' + agoText + ' \u2022 Click to refresh';
+            } else {
                 const remaining = Math.ceil((REFRESH_COOLDOWN_MS - elapsed) / 1000);
                 const rm = Math.floor(remaining / 60);
                 const rs = remaining % 60;
-                coolEl.textContent = '\u23f3 ' + rm + ':' + String(rs).padStart(2, '0');
-            } else {
-                coolEl.textContent = '';
+                tipEl.textContent = 'Updated ' + agoText + ' \u2022 Refresh in ' + rm + ':' + String(rs).padStart(2, '0');
             }
         }
         setInterval(updateRefreshBar, 1000);
@@ -3690,7 +3699,8 @@
         document.getElementById('refresh-btn').addEventListener('click', async function() {
             if (!lastFetchTime || (Date.now() - lastFetchTime) < REFRESH_COOLDOWN_MS) return;
             this.disabled = true;
-            this.textContent = 'Loading\u2026';
+            const tipEl = document.getElementById('refresh-tip');
+            tipEl.textContent = 'Refreshing\u2026';
             try {
                 const resp = await fetch('liquidation_risk.json?t=' + Date.now());
                 if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -3702,7 +3712,6 @@
                 applyFilters();
                 lastFetchTime = Date.now();
             } catch(e) { console.error('Refresh failed:', e); }
-            this.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Refresh';
             updateRefreshBar();
         });
 
