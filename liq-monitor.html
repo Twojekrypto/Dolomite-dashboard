@@ -1961,6 +1961,11 @@
                 inset 0 1px 0 rgba(255,255,255,0.05);
             overflow: hidden;
         }
+        /* Right-align popover for last column so it doesn't overflow */
+        #debt-token-popover {
+            left: auto; right: 0;
+            transform: none;
+        }
         th.col-filter-open .col-filter-popover {
             display: block; animation: colPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
@@ -2553,24 +2558,32 @@
                 requestAnimationFrame(step);
             }
 
+            // Exclude dust positions (collateral + debt < $10) from all summary stats
+            const noDust = allPositions.filter(p => (p.collateralUSD + p.debtUSD) >= 10);
+
             const totalEl = document.getElementById('stat-total');
             const atRiskEl = document.getElementById('stat-at-risk');
             const collateralEl = document.getElementById('stat-collateral');
             const debtEl = document.getElementById('stat-debt');
 
-            animateCount(totalEl, gs.totalPositions || 0, false, 1200);
+            animateCount(totalEl, noDust.length, false, 1200);
             document.getElementById('stat-total-sub').textContent = `Across ${Object.keys(data.chainStats || {}).length} chains`;
-            animateCount(atRiskEl, gs.atRisk || 0, false, 1000);
 
-            // Compute new tier counts from positions
-            const fullLiqCount = allPositions.filter(p => p.healthFactor !== null && p.healthFactor < 0.95 && !(p.collateralUSD < 0.01 && p.debtUSD > 0)).length;
-            const partialLiqCount = allPositions.filter(p => p.healthFactor !== null && p.healthFactor >= 0.95 && p.healthFactor < 1.0 && !(p.collateralUSD < 0.01 && p.debtUSD > 0)).length;
-            const dangerCount = allPositions.filter(p => p.healthFactor !== null && p.healthFactor >= 1.0 && p.healthFactor <= 1.003 && !(p.collateralUSD < 0.01 && p.debtUSD > 0)).length;
-            const badDebtCount = allPositions.filter(p => p.collateralUSD < 0.01 && p.debtUSD > 0).length;
+            // Compute tier counts from non-dust positions
+            const fullLiqCount = noDust.filter(p => p.healthFactor !== null && p.healthFactor < 0.95 && !(p.collateralUSD < 0.01 && p.debtUSD > 0)).length;
+            const partialLiqCount = noDust.filter(p => p.healthFactor !== null && p.healthFactor >= 0.95 && p.healthFactor < 1.0 && !(p.collateralUSD < 0.01 && p.debtUSD > 0)).length;
+            const dangerCount = noDust.filter(p => p.healthFactor !== null && p.healthFactor >= 1.0 && p.healthFactor <= 1.003 && !(p.collateralUSD < 0.01 && p.debtUSD > 0)).length;
+            const badDebtCount = noDust.filter(p => p.collateralUSD < 0.01 && p.debtUSD > 0).length;
+            const atRiskCount = fullLiqCount + badDebtCount + partialLiqCount + dangerCount;
 
+            animateCount(atRiskEl, atRiskCount, false, 1000);
             document.getElementById('stat-at-risk-sub').textContent = `${fullLiqCount + badDebtCount} full liq · ${partialLiqCount} partial · ${dangerCount} danger`;
-            animateCount(collateralEl, gs.totalCollateralUSD || 0, true, 1200);
-            animateCount(debtEl, gs.totalDebtUSD || 0, true, 1200);
+
+            // Recalculate totals from non-dust positions
+            const totalCollateral = Math.round(noDust.reduce((s, p) => s + (p.collateralUSD || 0), 0));
+            const totalDebt = Math.round(noDust.reduce((s, p) => s + (p.debtUSD || 0), 0));
+            animateCount(collateralEl, totalCollateral, true, 1200);
+            animateCount(debtEl, totalDebt, true, 1200);
 
             const fullLiqEl = document.getElementById('stat-full-liq');
             const partialLiqEl = document.getElementById('stat-partial-liq');
