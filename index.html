@@ -20449,7 +20449,7 @@
             exercisers.forEach(e => {
                 if (!e.txs) return;
                 e.txs.forEach(tx => {
-                    if (!tx.lock_days || tx.lock_days <= 0) return;
+                    if (!tx.lock_days || tx.lock_days <= 0 || tx.paid_token === 'DOLO') return;
                     totalExercises++;
                     for (const b of buckets) {
                         if (tx.lock_days >= b.min && tx.lock_days < b.max) {
@@ -20478,7 +20478,7 @@
             const topBucket = buckets.reduce((a, b) => b.count > a.count ? b : a, buckets[0]);
             const topPct = totalExercises > 0 ? (topBucket.count / totalExercises * 100).toFixed(1) : 0;
             const allDays = [];
-            exercisers.forEach(e => { if (e.txs) e.txs.forEach(tx => { if (tx.lock_days > 0) allDays.push(tx.lock_days); }); });
+            exercisers.forEach(e => { if (e.txs) e.txs.forEach(tx => { if (tx.lock_days > 0 && tx.paid_token !== 'DOLO') allDays.push(tx.lock_days); }); });
             allDays.sort((a, b) => a - b);
             const median = allDays.length > 0 ? allDays[Math.floor(allDays.length / 2)] : 0;
             const medianLabel = median >= 365 ? (median / 365).toFixed(1) + 'y' : Math.round(median) + 'd';
