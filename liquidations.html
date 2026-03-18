@@ -2303,14 +2303,7 @@
                 <button class="toggle-btn active" id="hide-dust-btn" data-tip="Hide dust positions — accounts with less than $10 total (collateral + debt). These are residual/abandoned positions with no real liquidation risk.">
                     <span class="toggle-dot"></span><span class="icon">🧹</span>Hide Dust
                 </button>
-                <button class="watchlist-filter-btn" id="watchlist-filter-btn" title="Show only starred addresses">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                    <span id="watchlist-count">0</span>
-                </button>
-                <button class="refresh-icon-btn" id="refresh-btn" title="Refresh data">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                    <span class="refresh-tip" id="refresh-tip">Loading…</span>
-                </button>
+
             </div>
         </div>
 
@@ -2832,9 +2825,7 @@
                 collateralTokenFilter.size > 0 ||
                 debtTokenFilter.size > 0 ||
                 emodeOnly;
-            const wBtn = document.getElementById('watchlist-filter-btn');
-            btn.classList.toggle('visible', hasCustomFilters || watchlistOnly);
-            if (wBtn) wBtn.classList.toggle('active', watchlistOnly);
+            btn.classList.toggle('visible', hasCustomFilters);
         }
 
         function clearAllFilters() {
@@ -2844,7 +2835,6 @@
             searchQuery = '';
             hideDust = true;
             emodeOnly = false;
-            watchlistOnly = false;
 
             debtRangeMin = null;
             debtRangeMax = null;
@@ -2868,8 +2858,7 @@
             renderRiskMenu();
             const dustBtn = document.getElementById('hide-dust-btn');
             if (dustBtn) dustBtn.classList.add('active');
-            const wlBtn = document.getElementById('watchlist-filter-btn');
-            if (wlBtn) wlBtn.classList.remove('active');
+
 
 
 
@@ -2906,7 +2895,12 @@
                 switch (sortField) {
                     case 'hf': va = a.healthFactor ?? 999; vb = b.healthFactor ?? 999; break;
                     case 'chain': va = a.chainLabel; vb = b.chainLabel; break;
-                    case 'address': va = a.address; vb = b.address; break;
+                    case 'address':
+                        const sa = watchlist.has(a.address) ? 1 : 0;
+                        const sb = watchlist.has(b.address) ? 1 : 0;
+                        if (sa !== sb) { va = sa; vb = sb; }
+                        else { va = a.address; vb = b.address; }
+                        break;
                     case 'collateral': va = a.collateralUSD; vb = b.collateralUSD; break;
                     case 'debt': va = a.debtUSD; vb = b.debtUSD; break;
                     case 'emode': va = a.eMode ? 1 : 0; vb = b.eMode ? 1 : 0; break;
@@ -3696,33 +3690,6 @@
                 tipEl.textContent = 'Updated ' + agoText + ' \u2022 Refresh in ' + rm + ':' + String(rs).padStart(2, '0');
             }
         }
-        setInterval(updateRefreshBar, 1000);
-
-        document.getElementById('refresh-btn').addEventListener('click', async function() {
-            if (!lastFetchTime || (Date.now() - lastFetchTime) < REFRESH_COOLDOWN_MS) return;
-            this.disabled = true;
-            const tipEl = document.getElementById('refresh-tip');
-            tipEl.textContent = 'Refreshing\u2026';
-            try {
-                const resp = await fetch('liquidation_risk.json?t=' + Date.now());
-                if (!resp.ok) throw new Error('HTTP ' + resp.status);
-                const data = await resp.json();
-                allPositions = data.positions || [];
-                renderSummary(data);
-                renderChainButtons(data);
-                renderRiskMenu();
-                applyFilters();
-                lastFetchTime = Date.now();
-            } catch(e) { console.error('Refresh failed:', e); }
-            updateRefreshBar();
-        });
-
-        // ─── Watchlist Filter Button ─────────────────────────────────────
-        document.getElementById('watchlist-filter-btn').addEventListener('click', function() {
-            watchlistOnly = !watchlistOnly;
-            this.classList.toggle('active', watchlistOnly);
-            applyFilters();
-        });
 
         // ─── Launch ──────────────────────────────────────────────────────────
         init();
