@@ -664,7 +664,7 @@
         .positions-table colgroup col:nth-child(1) { width: 80px; }   /* Chain */
         .positions-table colgroup col:nth-child(2) { width: 13%; }    /* Address */
         .positions-table colgroup col:nth-child(3) { width: 100px; }  /* HF */
-        .positions-table colgroup col:nth-child(4) { width: 50px; }   /* E-Mode */
+        .positions-table colgroup col:nth-child(4) { width: 62px; }   /* E-Mode */
         .positions-table colgroup col:nth-child(5) { width: 12%; }    /* Collateral */
         .positions-table colgroup col:nth-child(6) { width: 12%; }    /* Debt */
         .positions-table colgroup col:nth-child(7) { width: 18%; }    /* Collateral Tokens */
@@ -1673,19 +1673,23 @@
         }
         /* E-Mode badge */
         .emode-badge {
-            display: inline-flex; align-items: center; gap: 3px;
-            padding: 2px 7px;
-            border-radius: 6px;
-            font-size: 10px; font-weight: 600;
+            display: inline-flex; align-items: center; gap: 2px;
+            padding: 1px 5px 1px 3px;
+            border-radius: 4px;
+            font-size: 9px; font-weight: 600;
             white-space: nowrap;
             cursor: help;
             transition: all 0.2s ease;
-            letter-spacing: 0.3px;
-            background: rgba(56,189,248,0.12); color: #7dd3fc;
-            border: 1px solid rgba(56,189,248,0.20);
+            letter-spacing: 0.2px;
+            background: rgba(251,146,60,0.10); color: #fdba74;
+            border: 1px solid rgba(251,146,60,0.18);
+            line-height: 1.2;
         }
-        .emode-badge:hover { transform: scale(1.08); filter: drop-shadow(0 0 6px rgba(56,189,248,0.4)); }
-        .emode-badge .emode-icon { font-size: 10px; }
+        .emode-badge:hover { transform: scale(1.08); filter: drop-shadow(0 0 6px rgba(251,146,60,0.4)); }
+        .emode-badge .emode-flame {
+            width: 11px; height: 11px;
+            flex-shrink: 0;
+        }
 
         /* E-Mode row highlight */
         .positions-table tbody tr.emode-row {
@@ -2837,8 +2841,9 @@
                     ? renderTokenPills(p.collateralTokens)
                     : `<span style="color:var(--text-muted);font-size:11px">—</span>`;
 
+                const FLAME_SVG = '<svg class="emode-flame" viewBox="0 0 24 24" fill="none"><path d="M12 2c0 4-4 6-4 10a4 4 0 0 0 8 0c0-4-4-6-4-10z" fill="#fb923c" opacity="0.9"/><path d="M12 8c0 2.5-2 3.5-2 6a2 2 0 0 0 4 0c0-2.5-2-3.5-2-6z" fill="#fbbf24"/></svg>';
                 const emodeCell = p.eMode
-                    ? `<span class="emode-badge" data-tooltip="E-Mode — correlated assets use tighter liquidation ratios for better capital efficiency"><span class="emode-icon">⚡</span>E-Mode</span>`
+                    ? `<span class="emode-badge" data-tooltip="E-Mode — correlated assets use tighter liquidation ratios for better capital efficiency">${FLAME_SVG}E-Mode</span>`
                     : '<span style="color:var(--text-muted);font-size:11px">—</span>';
 
                 const emodeRowClass = p.eMode ? ' emode-row' : '';
