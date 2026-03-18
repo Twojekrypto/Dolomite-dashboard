@@ -750,18 +750,18 @@
             table-layout: fixed;
         }
 
-        .positions-table colgroup col:nth-child(1) { width: 65px; }   /* Chain — tight, close to Address */
+        .positions-table colgroup col:nth-child(1) { width: 80px; }   /* Chain */
         .positions-table colgroup col:nth-child(2) { width: 13%; }    /* Address */
-        .positions-table colgroup col:nth-child(3) { width: 90px; }   /* HF */
-        .positions-table colgroup col:nth-child(4) { width: 55px; }   /* E-Mode */
-        .positions-table colgroup col:nth-child(5) { width: 9%; }     /* Collateral $ */
-        .positions-table colgroup col:nth-child(6) { width: 9%; }     /* Debt $ */
-        .positions-table colgroup col:nth-child(7) { width: 22%; }    /* Collateral Tokens — pushed right */
-        .positions-table colgroup col:nth-child(8) { width: 22%; }    /* Debt Tokens — pushed right */
+        .positions-table colgroup col:nth-child(3) { width: 100px; }  /* HF */
+        .positions-table colgroup col:nth-child(4) { width: 62px; }   /* E-Mode */
+        .positions-table colgroup col:nth-child(5) { width: 12%; }    /* Collateral */
+        .positions-table colgroup col:nth-child(6) { width: 12%; }    /* Debt */
+        .positions-table colgroup col:nth-child(7) { width: 18%; }    /* Collateral Tokens */
+        .positions-table colgroup col:nth-child(8) { width: 18%; }    /* Debt Tokens */
 
         .positions-table thead th {
             background: var(--bg-card-alt);
-            padding: 10px 10px;
+            padding: 10px 12px;
             font-size: 10px;
             font-weight: 600;
             color: rgba(255, 255, 255, 0.35);
@@ -822,11 +822,6 @@
             border-bottom-color: rgba(52, 211, 153, 0.08);
         }
 
-        /* Tighten Chain → Address gap */
-        .positions-table thead th:nth-child(1),
-        .positions-table tbody td:nth-child(1) { padding-right: 4px; }
-        .positions-table thead th:nth-child(2),
-        .positions-table tbody td:nth-child(2) { padding-left: 2px; }
 
         /* Staggered row fade-in */
         @keyframes rowFadeIn {
@@ -3343,6 +3338,7 @@
             hideDust = !hideDust;
             e.currentTarget.classList.toggle('active', hideDust);
             applyFilters();
+            renderRiskMenu();
         });
 
 
