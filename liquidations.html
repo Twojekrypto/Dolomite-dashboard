@@ -712,23 +712,23 @@
         .watchlist-star.starred { color: #fbbf24; filter: drop-shadow(0 0 4px rgba(251,191,36,0.4)); }
         .watchlist-star svg { width: 13px; height: 13px; }
         .watchlist-filter-btn {
-            display: inline-flex; align-items: center; gap: 4px;
-            padding: 4px 10px;
-            border-radius: 6px;
-            background: transparent;
-            border: 1px solid rgba(251,191,36,0.15);
-            color: rgba(255,255,255,0.4);
-            font-size: 11px; font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .watchlist-filter-btn:hover { border-color: rgba(251,191,36,0.30); color: #fbbf24; }
-        .watchlist-filter-btn.active {
-            background: rgba(251,191,36,0.10);
-            border-color: rgba(251,191,36,0.30);
-            color: #fbbf24;
+            display: none;
         }
         .watchlist-filter-btn svg { width: 12px; height: 12px; }
+
+        /* Header star toggle */
+        .header-star {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 18px; height: 18px;
+            margin-left: 4px;
+            cursor: pointer;
+            color: rgba(255,255,255,0.2);
+            transition: all 0.2s ease;
+            vertical-align: middle;
+        }
+        .header-star:hover { color: rgba(251,191,36,0.6); }
+        .header-star.active { color: #fbbf24; filter: drop-shadow(0 0 4px rgba(251,191,36,0.4)); }
+        .header-star svg { width: 12px; height: 12px; }
 
         /* ===== Mobile Responsive ===== */
         @media (max-width: 1200px) {
@@ -2321,7 +2321,7 @@
                 <thead>
                     <tr>
                         <th data-sort="chain">Chain <span class="sort-arrow"></span></th>
-                        <th data-sort="address">Address <span class="sort-arrow"></span></th>
+                        <th data-sort="address">Address <span class="sort-arrow"></span><span class="header-star" id="watchlist-header-star" title="Show only starred addresses"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span></th>
                         <th data-sort="hf" style="position:relative; overflow:visible">
                             <span class="col-header-group">
                                 Health Factor
@@ -2825,7 +2825,7 @@
                 collateralTokenFilter.size > 0 ||
                 debtTokenFilter.size > 0 ||
                 emodeOnly;
-            btn.classList.toggle('visible', hasCustomFilters);
+            btn.classList.toggle('visible', hasCustomFilters || watchlistOnly);
         }
 
         function clearAllFilters() {
@@ -2835,6 +2835,7 @@
             searchQuery = '';
             hideDust = true;
             emodeOnly = false;
+            watchlistOnly = false;
 
             debtRangeMin = null;
             debtRangeMax = null;
@@ -3690,6 +3691,14 @@
                 tipEl.textContent = 'Updated ' + agoText + ' \u2022 Refresh in ' + rm + ':' + String(rs).padStart(2, '0');
             }
         }
+
+        // ─── Header Star (watchlist filter toggle) ─────────────────────────
+        document.getElementById('watchlist-header-star').addEventListener('click', function(e) {
+            e.stopPropagation();
+            watchlistOnly = !watchlistOnly;
+            this.classList.toggle('active', watchlistOnly);
+            applyFilters();
+        });
 
         // ─── Launch ──────────────────────────────────────────────────────────
         init();
