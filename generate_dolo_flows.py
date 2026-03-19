@@ -586,6 +586,25 @@ def main():
         balances[addr] = round(total_bal, 2)
         time.sleep(0.05)
 
+    # Fallback: cross-reference with dolo_holders.json for addresses where RPC returned 0
+    holders_file = os.path.join(DATA_DIR, "dolo_holders.json")
+    if os.path.exists(holders_file):
+        try:
+            with open(holders_file) as f:
+                holders_data = json.load(f)
+            holders_lookup = {h["address"].lower(): h for h in holders_data.get("holders", [])}
+            fixed = 0
+            for addr in all_addrs:
+                if balances.get(addr, 0) == 0:
+                    h = holders_lookup.get(addr.lower())
+                    if h and h.get("balance", 0) > 0:
+                        balances[addr] = round(h["balance"], 2)
+                        fixed += 1
+            if fixed:
+                print(f"  🛡️ Patched {fixed} zero-balance addresses from dolo_holders.json fallback")
+        except Exception as e:
+            print(f"  ⚠️ Could not load holders fallback: {e}")
+
     # Add balances to all entries
     for period_data in output_periods.values():
         for chain_data in period_data.values():
