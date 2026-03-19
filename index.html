@@ -10006,10 +10006,10 @@
                     <div class="dolo-flow-toolbar-divider"></div>
                     <div style="display:flex;flex-direction:column;gap:3px">
                         <label class="dolo-flow-toggle"
-                            title="Hide CEX exchanges, protocol contracts, LP pools, and smart contracts from the table">
+                            title="Hide CEX exchanges, protocol contracts, LP pools, bots, and smart contracts from the table">
                             <input type="checkbox" id="dolo-holder-hide-cex" onchange="dolo_applyHolderFilters()">
                             <span class="dolo-flow-toggle-track"></span>
-                            <span class="dolo-flow-toggle-label">Hide CEX & CA</span>
+                            <span class="dolo-flow-toggle-label">Hide CEX, CA & Bots</span>
                         </label>
                     </div>
                     <div style="display:flex;flex-direction:column;gap:3px;margin-left:auto">
@@ -10103,11 +10103,11 @@
                     </div>
                     <div class="dolo-flow-toolbar-divider"></div>
                     <div style="display:flex;flex-direction:column;gap:3px">
-                        <label class="dolo-flow-toggle" title="Hide CEX wallets and Contracts from flow tables">
+                        <label class="dolo-flow-toggle" title="Hide CEX wallets, Contracts, and Bots from flow tables">
                             <input type="checkbox" id="dolo-flow-hide-cex"
                                 onchange="dolo_flowAccPage=0;dolo_flowSellPage=0;dolo_renderFlows()">
                             <span class="dolo-flow-toggle-track"></span>
-                            <span class="dolo-flow-toggle-label">Hide CEX & CA</span>
+                            <span class="dolo-flow-toggle-label">Hide CEX, CA & Bots</span>
                         </label>
                     </div>
                     <div style="display:flex;flex-direction:column;gap:3px;margin-left:auto">
@@ -15850,7 +15850,7 @@
             const isHidden = (addr) => {
                 if (!hideCex) return false;
                 const info = DOLO_ADDR_LABELS[addr.toLowerCase()];
-                return info && info.label !== 'CA' && (info.type === 'cex' || info.type === 'protocol' || info.type === 'lp');
+                return info && (info.type === 'cex' || info.type === 'protocol' || info.type === 'lp' || info.type === 'bot');
             };
 
             const search = (document.getElementById('dolo-flow-search')?.value || '').toLowerCase().trim();
