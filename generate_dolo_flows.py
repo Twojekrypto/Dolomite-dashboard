@@ -322,6 +322,82 @@ def calculate_flows(transfers, excluded):
     return flows
 
 
+def neutralize_cross_chain_flows(flows_by_chain):
+    """Neutralize cross-chain bridge transfers.
+    When the same address has outflow on one chain and inflow on another,
+    it's a bridge transfer (same person moving tokens between networks).
+    Cancel the overlapping amount so it doesn't count as accumulation or selling.
+    
+    Args:
+        flows_by_chain: dict of {chain_key: {addr: net_flow, ...}}
+    Returns:
+        Adjusted flows_by_chain (mutated in place and returned).
+        Also returns count of neutralized addresses for logging.
+    """
+    chain_keys = list(flows_by_chain.keys())
+    if len(chain_keys) < 2:
+        return flows_by_chain, 0
+    
+    # Collect all addresses that appear on multiple chains
+    all_addrs = set()
+    for flows in flows_by_chain.values():
+        all_addrs.update(flows.keys())
+    
+    neutralized_count = 0
+    neutralized_volume = 0
+    
+    for addr in all_addrs:
+        # Get flows across all chains for this address
+        chain_flows = {}
+        for ck in chain_keys:
+            flow = flows_by_chain[ck].get(addr, 0)
+            if abs(flow) > 0.01:  # skip dust
+                chain_flows[ck] = flow
+        
+        if len(chain_flows) < 2:
+            continue
+        
+        # Check for opposing flows (outflow on one chain, inflow on another)
+        # This indicates a bridge transfer
+        positive_chains = {ck: v for ck, v in chain_flows.items() if v > 0}
+        negative_chains = {ck: v for ck, v in chain_flows.items() if v < 0}
+        
+        if not positive_chains or not negative_chains:
+            continue  # same direction on all chains — not a bridge
+        
+        # Cancel the overlapping amount
+        total_inflow = sum(positive_chains.values())
+        total_outflow = abs(sum(negative_chains.values()))
+        cancel_amount = min(total_inflow, total_outflow)
+        
+        if cancel_amount < 1:  # skip dust cancellations
+            continue
+        
+        # Distribute cancellation proportionally across chains
+        # Reduce inflows
+        remaining_cancel = cancel_amount
+        for ck in sorted(positive_chains, key=lambda k: positive_chains[k], reverse=True):
+            reduce = min(positive_chains[ck], remaining_cancel)
+            flows_by_chain[ck][addr] -= reduce
+            remaining_cancel -= reduce
+            if remaining_cancel <= 0:
+                break
+        
+        # Reduce outflows (add to negative values to bring closer to 0)
+        remaining_cancel = cancel_amount
+        for ck in sorted(negative_chains, key=lambda k: negative_chains[k]):
+            reduce = min(abs(negative_chains[ck]), remaining_cancel)
+            flows_by_chain[ck][addr] += reduce
+            remaining_cancel -= reduce
+            if remaining_cancel <= 0:
+                break
+        
+        neutralized_count += 1
+        neutralized_volume += cancel_amount
+    
+    return flows_by_chain, neutralized_count, neutralized_volume
+
+
 def count_txs(transfers, excluded):
     """Count number of transactions per address."""
     counts = {}
@@ -529,19 +605,35 @@ def main():
         print(f"  {CHAINS[chain_key]['name']}: excluded {len(contracts)} contract(s)")
 
     # Calculate flows for each period and chain
+    # Cross-chain neutralization: detect bridge transfers (same address, opposite
+    # flows on ETH vs Bera) and cancel them so they don't count as in/outflow.
     print("\n📊 Calculating flows...")
     output_periods = {}
+    neutralized_flows_cache = {}  # {period: {chain: flows_dict}} — reused for balance_changes
     for period, seconds in PERIODS.items():
         output_periods[period] = {}
-        for chain_key, cfg in CHAINS.items():
-            cutoff = cutoff_blocks[chain_key][period]
-            # Filter transfers to only those after cutoff
-            period_transfers = [
-                t for t in all_transfers[chain_key] if t[3] >= cutoff
-            ]
 
-            flows = calculate_flows(period_transfers, EXCLUDED_ADDRS)
-            tx_counts = count_txs(period_transfers, EXCLUDED_ADDRS)
+        # Step 1: Compute raw flows per chain for this period
+        raw_flows = {}
+        period_transfers_by_chain = {}
+        tx_counts_by_chain = {}
+        for chain_key in CHAINS:
+            cutoff = cutoff_blocks[chain_key][period]
+            period_transfers = [t for t in all_transfers[chain_key] if t[3] >= cutoff]
+            period_transfers_by_chain[chain_key] = period_transfers
+            raw_flows[chain_key] = calculate_flows(period_transfers, EXCLUDED_ADDRS)
+            tx_counts_by_chain[chain_key] = count_txs(period_transfers, EXCLUDED_ADDRS)
+
+        # Step 2: Neutralize cross-chain bridge transfers
+        neutralized, n_count, n_volume = neutralize_cross_chain_flows(raw_flows)
+        neutralized_flows_cache[period] = neutralized
+        if n_count > 0:
+            print(f"  🔀 {period}: neutralized {n_count} cross-chain bridge transfers ({n_volume:,.0f} DOLO)")
+
+        # Step 3: Build output using neutralized flows
+        for chain_key, cfg in CHAINS.items():
+            flows = neutralized[chain_key]
+            tx_counts = tx_counts_by_chain[chain_key]
 
             accumulators = get_top(flows, tx_counts, TOP_N, "accumulator", EXCLUDED_ADDRS)
             sellers = get_top(flows, tx_counts, TOP_N, "seller", EXCLUDED_ADDRS)
@@ -554,10 +646,10 @@ def main():
             output_periods[period][chain_key] = {
                 "accumulators": accumulators,
                 "sellers": sellers,
-                "total_transfers": len(period_transfers),
+                "total_transfers": len(period_transfers_by_chain[chain_key]),
             }
 
-            print(f"  {period} {cfg['name']}: {len(period_transfers):,} transfers, "
+            print(f"  {period} {cfg['name']}: {len(period_transfers_by_chain[chain_key]):,} transfers, "
                   f"top accumulator: {accumulators[0]['net_flow']:,.0f} DOLO" if accumulators else
                   f"  {period} {cfg['name']}: no data")
 
@@ -633,14 +725,12 @@ def main():
             for entry in chain_data["accumulators"] + chain_data["sellers"]:
                 entry["balance"] = balances.get(entry["address"], 0)
     # Build balance_changes: address -> net_flow for ALL addresses per period
-    # Merge both chains into a single map per period
+    # Uses already-neutralized flows from the cache (bridge transfers cancelled out)
     balance_changes = {}
     for period in PERIODS:
         merged = {}
         for chain_key in CHAINS:
-            cutoff = cutoff_blocks[chain_key][period]
-            period_transfers = [t for t in all_transfers[chain_key] if t[3] >= cutoff]
-            flows = calculate_flows(period_transfers, EXCLUDED_ADDRS)
+            flows = neutralized_flows_cache[period][chain_key]
             for addr, net in flows.items():
                 if addr in EXCLUDED_ADDRS:
                     continue
