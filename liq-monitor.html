@@ -3006,8 +3006,7 @@
                 };
                 const tooltip = tooltipMap[riskClass] || (p.healthFactor !== null ? 'Health Factor: ' + p.healthFactor.toFixed(4) : '');
 
-                const debankChain = CHAIN_DEBANK_IDS[p.chain] || 'bera';
-                const debankUrl = `https://debank.com/profile/${p.address}?chain=${debankChain}`;
+                const debankUrl = `https://debank.com/profile/${p.address}`;
 
                 const collateralClass = p.collateralUSD < 0.01 ? 'zero' : '';
                 const debtClass = p.debtUSD < 0.01 ? 'zero' : '';
