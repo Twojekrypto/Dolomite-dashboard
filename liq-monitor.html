@@ -2317,8 +2317,14 @@
                     <span class="toggle-dot"></span><span class="icon">🧹</span>Hide Dust
                 </button>
 
+                <button class="clear-filters-btn" id="clear-filters-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    Clear Filters
+                </button>
             </div>
         </div>
+
+        <div class="results-count" id="results-count"></div>
 
         <!-- Table -->
         <div class="table-container">
@@ -3003,7 +3009,7 @@
                     <td><span class="chain-badge ${p.chain}" title="${chainFull}"><img class="chain-icon" src="${chainIcon}" alt="">${chainLabel}</span></td>
                     <td><div class="address-cell">
                         <span class="watchlist-star${watchlist.has(p.address) ? ' starred' : ''}" data-addr="${p.address}" onclick="event.stopPropagation();toggleStar('${p.address}',this)" title="Add to watchlist"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>
-                        <a href="${p.explorer}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${p.address}">${shortAddr}</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${p.address}',this)" title="Copy address">${COPY_SVG}</span><a href="${debankUrl}" target="_blank" onclick="event.stopPropagation()" class="debank-icon" data-tooltip="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a>
+                        <a href="${p.explorer}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${p.address}">${shortAddr}</a>${acctLabel ? `<span class="acct-num">${acctLabel}</span>` : ''}<span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${p.address}',this)" title="Copy address">${COPY_SVG}</span><a href="${debankUrl}" target="_blank" onclick="event.stopPropagation()" class="debank-icon" data-tooltip="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a>
                     </div></td>
                     <td><div class="hf-gauge"><span class="hf-badge ${riskClass}" data-tooltip="${tooltip}"><span class="hf-dot ${riskClass}"></span>${hfText}</span></div></td>
                     <td style="text-align:center">${emodeCell}</td>
@@ -3579,6 +3585,11 @@
             if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
                 document.getElementById('search-input').focus();
+            }
+            // ← / → arrow keys for pagination (when not in an input)
+            if (!['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+                if (e.key === 'ArrowLeft') { e.preventDefault(); goToPage(currentPage - 1); }
+                if (e.key === 'ArrowRight') { e.preventDefault(); goToPage(currentPage + 1); }
             }
         });
 
