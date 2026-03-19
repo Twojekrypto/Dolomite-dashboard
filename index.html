@@ -15735,6 +15735,10 @@
             '0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07': { label: 'Investor 1', type: 'investor' },
             '0xbf3c4e55a444ed489736c3d856b0cd0533fc2edd': { label: 'Investor 2', type: 'investor' },
             '0x7efd088ae500598a19a242d6d48b9f7e0d061176': { label: 'Investor 3', type: 'investor' },
+            // Bots / Market Makers
+            '0x5a6f918fcda24e9b5143f3a1b77e63df6de30f74': { label: 'Bot / MM', type: 'bot' },
+            '0x6a2383cff0d46d2b7d29759f17c26fba726f3ea3': { label: 'Bot / MM', type: 'bot' },
+            '0x278d858f05b94576c1e6f73285886876ff6ef8d2': { label: 'Bot (CA)', type: 'bot' },
         };
 
         function dolo_labelBadge(addr) {
@@ -15745,11 +15749,15 @@
                 cex: 'background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.25)',
                 lp: 'background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.25)',
                 protocol: 'background:rgba(139,92,246,0.15);color:#a78bfa;border:1px solid rgba(139,92,246,0.25)',
+                bot: 'background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.25)',
+                investor: 'background:rgba(52,211,153,0.15);color:#34d399;border:1px solid rgba(52,211,153,0.25)',
             };
             const typeDescs = {
                 cex: 'Centralized Exchange — deposit/withdrawal wallet used by the exchange to manage user funds',
                 lp: 'Liquidity Pool — automated market maker contract that facilitates token swaps',
                 protocol: 'Protocol Contract — smart contract owned and operated by the protocol',
+                bot: 'Bot / Market Maker — automated trading wallet with high-frequency activity',
+                investor: 'Known Investor — early investor or fund allocation',
             };
             const desc = typeDescs[info.type] || 'Known Address';
             const style = colors[info.type] || colors.protocol;
