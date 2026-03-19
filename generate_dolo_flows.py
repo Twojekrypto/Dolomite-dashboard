@@ -57,6 +57,10 @@ EXCLUDED_ADDRS = {
     "0x4fe93ebc4ce6ae4f81601cc7ce7139023919e003",
     "0x08b14bb09ac4819c16f68d7c92f7dcc20750eaff",
     "0x74d09665900a5f29bac25befd30c73a5962d44e7",
+    # Bots / Market Makers (verified 2026-03-19)
+    "0x5a6f918fcda24e9b5143f3a1b77e63df6de30f74",  # EOA bot, 51k nonce
+    "0x6a2383cff0d46d2b7d29759f17c26fba726f3ea3",  # EOA bot, 35k nonce
+    "0x278d858f05b94576c1e6f73285886876ff6ef8d2",  # Contract bot, 53k DOLO txs
 }
 
 CHAINS = {
