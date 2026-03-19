@@ -322,6 +322,31 @@ def calculate_flows(transfers, excluded):
     return flows
 
 
+def calculate_bridge_flows(transfers):
+    """Calculate flows from mint/burn transfers only (from/to 0x0).
+    These are invisible to calculate_flows() but critical for cross-chain
+    bridge detection. Bridges use burn (to 0x0) on the source chain and
+    mint (from 0x0) on the destination chain.
+    
+    Returns: {addr: net_bridge_flow} where positive = received mints,
+    negative = sent burns."""
+    BRIDGE_ADDRS = {
+        ZERO,
+        DOLO_CONTRACT,
+        "0x0000000000000000000000000000000000000001",
+    }
+    bridge_flows = {}
+    for from_addr, to_addr, value_wei, _ in transfers:
+        value = value_wei / (10 ** 18)
+        if from_addr in BRIDGE_ADDRS and to_addr not in BRIDGE_ADDRS:
+            # Mint: receiver got tokens via bridge
+            bridge_flows[to_addr] = bridge_flows.get(to_addr, 0) + value
+        elif to_addr in BRIDGE_ADDRS and from_addr not in BRIDGE_ADDRS:
+            # Burn: sender sent tokens to bridge
+            bridge_flows[from_addr] = bridge_flows.get(from_addr, 0) - value
+    return bridge_flows
+
+
 def neutralize_cross_chain_flows(flows_by_chain):
     """Neutralize cross-chain bridge transfers.
     When the same address has outflow on one chain and inflow on another,
@@ -624,8 +649,38 @@ def main():
             raw_flows[chain_key] = calculate_flows(period_transfers, EXCLUDED_ADDRS)
             tx_counts_by_chain[chain_key] = count_txs(period_transfers, EXCLUDED_ADDRS)
 
-        # Step 2: Neutralize cross-chain bridge transfers
-        neutralized, n_count, n_volume = neutralize_cross_chain_flows(raw_flows)
+        # Step 2: Inject bridge mint/burn flows for cross-chain detection
+        # Bridge mints (from 0x0) and burns (to 0x0) are skipped by calculate_flows()
+        # but needed for neutralization to detect opposing cross-chain patterns.
+        # We add them as supplementary flows that only affect neutralization.
+        bridge_flows_by_chain = {}
+        for chain_key in CHAINS:
+            bridge_flows_by_chain[chain_key] = calculate_bridge_flows(
+                period_transfers_by_chain[chain_key]
+            )
+        
+        # Merge bridge flows into raw_flows for neutralization
+        augmented_flows = {}
+        for chain_key in CHAINS:
+            augmented_flows[chain_key] = dict(raw_flows[chain_key])  # copy
+            for addr, bflow in bridge_flows_by_chain[chain_key].items():
+                augmented_flows[chain_key][addr] = augmented_flows[chain_key].get(addr, 0) + bflow
+        
+        # Step 3: Neutralize cross-chain bridge transfers using augmented flows
+        neutralized_aug, n_count, n_volume = neutralize_cross_chain_flows(augmented_flows)
+        
+        # Apply the neutralization delta back to the ORIGINAL raw_flows
+        # (so mints/burns don't pollute the final output, only cancellations do)
+        neutralized = {}
+        for chain_key in CHAINS:
+            neutralized[chain_key] = dict(raw_flows[chain_key])  # start from original
+            for addr in raw_flows[chain_key]:
+                original_aug = raw_flows[chain_key].get(addr, 0) + bridge_flows_by_chain[chain_key].get(addr, 0)
+                neutralized_aug_val = neutralized_aug[chain_key].get(addr, 0)
+                delta = neutralized_aug_val - original_aug
+                if abs(delta) > 0.01:
+                    neutralized[chain_key][addr] = raw_flows[chain_key][addr] + delta
+        
         neutralized_flows_cache[period] = neutralized
         if n_count > 0:
             print(f"  🔀 {period}: neutralized {n_count} cross-chain bridge transfers ({n_volume:,.0f} DOLO)")
