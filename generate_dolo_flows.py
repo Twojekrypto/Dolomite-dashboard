@@ -566,25 +566,42 @@ def main():
     print(f"\n💰 Fetching DOLO balances for {len(all_addrs)} addresses...")
     balances = {}
     bal_selector = "0x70a08231"  # balanceOf(address)
-    for addr in all_addrs:
+    bal_failures = 0
+    for i, addr in enumerate(all_addrs):
         padded = addr.replace("0x", "").lower().zfill(64)
         total_bal = 0
         for chain_key, cfg in CHAINS.items():
-            for rpc in cfg["rpcs"]:
-                try:
-                    resp = requests.post(rpc, json={
-                        "jsonrpc": "2.0", "method": "eth_call",
-                        "params": [{"to": DOLO_CONTRACT, "data": bal_selector + padded}, "latest"],
-                        "id": 1
-                    }, timeout=5, headers={"Content-Type": "application/json"})
-                    result = resp.json().get("result", "0x0")
-                    bal = int(result, 16) / (10 ** 18) if result and result != "0x" else 0
-                    total_bal += bal
+            chain_bal = 0
+            got_balance = False
+            for attempt in range(3):  # 3 retry attempts
+                for rpc in cfg["rpcs"]:
+                    try:
+                        resp = requests.post(rpc, json={
+                            "jsonrpc": "2.0", "method": "eth_call",
+                            "params": [{"to": DOLO_CONTRACT, "data": bal_selector + padded}, "latest"],
+                            "id": 1
+                        }, timeout=10, headers={"Content-Type": "application/json"})
+                        r = resp.json()
+                        if "error" in r:
+                            continue
+                        result = r.get("result", "0x0")
+                        chain_bal = int(result, 16) / (10 ** 18) if result and result != "0x" else 0
+                        got_balance = True
+                        break
+                    except Exception:
+                        time.sleep(0.3)
+                if got_balance:
                     break
-                except Exception:
-                    time.sleep(0.3)
+                time.sleep(0.5)  # backoff between retry attempts
+            if not got_balance:
+                bal_failures += 1
+            total_bal += chain_bal
         balances[addr] = round(total_bal, 2)
         time.sleep(0.05)
+        if (i + 1) % 50 == 0:
+            print(f"  ... {i + 1}/{len(all_addrs)} balances fetched")
+    if bal_failures:
+        print(f"  ⚠️ {bal_failures} balance lookups failed across all retries")
 
     # Fallback: cross-reference with dolo_holders.json for addresses where RPC returned 0
     holders_file = os.path.join(DATA_DIR, "dolo_holders.json")
