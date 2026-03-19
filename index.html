@@ -15739,6 +15739,7 @@
             '0x5a6f918fcda24e9b5143f3a1b77e63df6de30f74': { label: 'Bot / MM', type: 'bot' },
             '0x6a2383cff0d46d2b7d29759f17c26fba726f3ea3': { label: 'Bot / MM', type: 'bot' },
             '0x278d858f05b94576c1e6f73285886876ff6ef8d2': { label: 'Bot (CA)', type: 'bot' },
+            '0x9e7728077f753dfdf53c2236097e27c743890992': { label: 'DEX Router', type: 'protocol' },
         };
 
         function dolo_labelBadge(addr) {
@@ -15859,30 +15860,38 @@
             let sellers = [];
 
             if (dolo_flowChain === 'all') {
-                const accMap = {};
-                const sellMap = {};
+                // Merge ALL flows into a single map — this correctly nets out bridge transfers
+                // (e.g., -1M on Bera + +1M on ETH = 0 net, not showing as both seller AND accumulator)
+                const flowMap = {};
                 for (const chain of ['eth', 'bera']) {
                     const cd = periodData[chain];
                     if (!cd) continue;
                     for (const a of cd.accumulators || []) {
                         const addr = a.address.toLowerCase();
-                        if (!accMap[addr]) accMap[addr] = { address: a.address, net_flow: 0, usd_value: 0, tx_count: 0, balance: 0 };
-                        accMap[addr].net_flow += a.net_flow;
-                        accMap[addr].usd_value += (a.usd_value || 0);
-                        accMap[addr].tx_count += (a.tx_count || 0);
-                        accMap[addr].balance += (a.balance || 0);
+                        if (!flowMap[addr]) flowMap[addr] = { address: a.address, net_flow: 0, usd_value: 0, tx_count: 0, balance: 0 };
+                        flowMap[addr].net_flow += a.net_flow;
+                        flowMap[addr].usd_value += (a.usd_value || 0);
+                        flowMap[addr].tx_count += (a.tx_count || 0);
+                        if ((a.balance || 0) > flowMap[addr].balance) flowMap[addr].balance = a.balance || 0;
                     }
                     for (const s of cd.sellers || []) {
                         const addr = s.address.toLowerCase();
-                        if (!sellMap[addr]) sellMap[addr] = { address: s.address, net_flow: 0, usd_value: 0, tx_count: 0, balance: 0 };
-                        sellMap[addr].net_flow += s.net_flow;
-                        sellMap[addr].usd_value += (s.usd_value || 0);
-                        sellMap[addr].tx_count += (s.tx_count || 0);
-                        sellMap[addr].balance += (s.balance || 0);
+                        if (!flowMap[addr]) flowMap[addr] = { address: s.address, net_flow: 0, usd_value: 0, tx_count: 0, balance: 0 };
+                        flowMap[addr].net_flow -= s.net_flow; // sellers have positive net_flow in data, subtract
+                        flowMap[addr].usd_value += (s.usd_value || 0);
+                        flowMap[addr].tx_count += (s.tx_count || 0);
+                        if ((s.balance || 0) > flowMap[addr].balance) flowMap[addr].balance = s.balance || 0;
                     }
                 }
-                accumulators = Object.values(accMap).filter(a => !isHidden(a.address)).sort((a, b) => b.net_flow - a.net_flow);
-                sellers = Object.values(sellMap).filter(s => !isHidden(s.address)).sort((a, b) => b.net_flow - a.net_flow);
+                // Split by true net direction
+                accumulators = Object.values(flowMap)
+                    .filter(a => a.net_flow > 0 && !isHidden(a.address))
+                    .map(a => ({ ...a, net_flow: a.net_flow }))
+                    .sort((a, b) => b.net_flow - a.net_flow);
+                sellers = Object.values(flowMap)
+                    .filter(s => s.net_flow < 0 && !isHidden(s.address))
+                    .map(s => ({ ...s, net_flow: Math.abs(s.net_flow) }))
+                    .sort((a, b) => b.net_flow - a.net_flow);
             } else {
                 const cd = periodData[dolo_flowChain];
                 if (cd) {
