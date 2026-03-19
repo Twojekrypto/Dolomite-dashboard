@@ -10043,26 +10043,26 @@
                                 <th style="padding:8px 5px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="dolo-address" onclick="dolo_sortHolders('address')">
                                     Address <span class="sort-arrow">⇅</span>
                                 </th>
-                                <th class="dolo-col-eth" style="padding:8px 5px;text-align:right;color:#627eea;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">
+                                <th class="dolo-col-eth" style="padding:8px 5px;text-align:right;color:#627eea;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="dolo-eth_balance" onclick="dolo_sortHolders('eth_balance')">
                                     <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
                                         <img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" width="16"
                                             height="16" style="border-radius:50%" alt="ETH">
-                                        <span style="font-size:10px;font-weight:600">ETH</span>
-                                        <label class="chain-toggle" title="Toggle ETH balance">
+                                        <span style="font-size:10px;font-weight:600">ETH</span> <span class="sort-arrow">⇅</span>
+                                        <label class="chain-toggle" title="Toggle ETH balance" onclick="event.stopPropagation()">
                                             <input type="checkbox" id="dolo-filter-eth" checked
-                                                onchange="dolo_toggleChainColumns()">
+                                                onchange="event.stopPropagation();dolo_toggleChainColumns()">
                                             <span class="chain-toggle-slider eth"></span>
                                         </label>
                                     </div>
                                 </th>
-                                <th class="dolo-col-bera" style="padding:8px 5px;text-align:right;color:#f59e0b;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">
+                                <th class="dolo-col-bera" style="padding:8px 5px;text-align:right;color:#f59e0b;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none" data-sort="dolo-bera_balance" onclick="dolo_sortHolders('bera_balance')">
                                     <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
                                         <img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" width="16"
                                             height="16" style="border-radius:50%" alt="BERA">
-                                        <span style="font-size:10px;font-weight:600">BERA</span>
-                                        <label class="chain-toggle" title="Toggle BERA balance">
+                                        <span style="font-size:10px;font-weight:600">BERA</span> <span class="sort-arrow">⇅</span>
+                                        <label class="chain-toggle" title="Toggle BERA balance" onclick="event.stopPropagation()">
                                             <input type="checkbox" id="dolo-filter-bera" checked
-                                                onchange="dolo_toggleChainColumns()">
+                                                onchange="event.stopPropagation();dolo_toggleChainColumns()">
                                             <span class="chain-toggle-slider bera"></span>
                                         </label>
                                     </div>
@@ -14594,7 +14594,9 @@
                 return dolo_balanceChanges[dolo_holderPeriod][h.address] || 0;
             };
             const balKey = (h) => dolo_getDisplayBalance(h);
-            const key = field === 'balance' ? balKey : field === 'flow' ? flowKey : (h => h[field]);
+            const ethBalKey = (h) => h.balance_eth || 0;
+            const beraBalKey = (h) => h.balance_bera || 0;
+            const key = field === 'balance' ? balKey : field === 'flow' ? flowKey : field === 'eth_balance' ? ethBalKey : field === 'bera_balance' ? beraBalKey : (h => h[field]);
             dolo_holderFiltered.sort((a, b) => {
                 let va = key(a), vb = key(b);
                 if (typeof va === 'string') { va = va.toLowerCase(); vb = vb.toLowerCase(); }
