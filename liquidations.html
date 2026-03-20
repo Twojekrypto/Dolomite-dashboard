@@ -666,22 +666,22 @@
             gap: 6px;
             padding: 3px 10px;
             border-radius: 12px;
-            background: rgba(239,68,68,0.12);
-            border: 1px solid rgba(239,68,68,0.25);
+            background: rgba(34,197,94,0.12);
+            border: 1px solid rgba(34,197,94,0.3);
             font-size: 9px;
             font-weight: 600;
-            color: #f87171;
+            color: #4ade80;
             animation: simPulse 2s ease-in-out infinite;
             margin-left: 6px;
         }
         .sim-active-banner.visible { display: inline-flex; }
         @keyframes simPulse {
-            0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(239,68,68,0.15); }
-            50% { opacity: 0.7; box-shadow: 0 0 16px rgba(239,68,68,0.3); }
+            0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(34,197,94,0.15); }
+            50% { opacity: 0.7; box-shadow: 0 0 16px rgba(34,197,94,0.3); }
         }
         .sim-active-dot {
             width: 6px; height: 6px; border-radius: 50%;
-            background: #ef4444;
+            background: #22c55e;
             animation: simDotPulse 1.5s ease-in-out infinite;
         }
         @keyframes simDotPulse {
@@ -2416,17 +2416,19 @@
                 </div>
                 <!-- Slider Row -->
                 <div style="margin-bottom:24px">
-                    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
                         <div style="display:flex;align-items:center;gap:10px">
                             <span id="sim-scenario-label" style="font-size:11px;color:var(--text-muted)">All assets drop by</span>
                             <button type="button" class="sim-reset-btn" id="sim-reset-btn" onclick="document.getElementById('sim-slider').value=0;document.getElementById('sim-slider').dispatchEvent(new Event('input'));" title="Reset to 0%"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>Reset</button>
                         </div>
-                        <span id="sim-pct-label" style="font-size:22px;font-weight:800;color:#34d399;font-variant-numeric:tabular-nums;letter-spacing:-0.5px;transition:color 0.3s">0%</span>
+                    </div>
+                    <div style="text-align:center;margin-bottom:8px">
+                        <span id="sim-pct-label" style="font-size:28px;font-weight:800;color:#34d399;font-variant-numeric:tabular-nums;letter-spacing:-0.5px;transition:color 0.3s">0%</span>
                     </div>
                     <div style="position:relative;height:24px;display:flex;align-items:center">
                         <input type="range" id="sim-slider" min="0" max="99" value="0" step="1" title="Drag to simulate price change" aria-label="Price change percentage">
                     </div>
-                    <div id="sim-slider-scale" style="display:flex;justify-content:space-between;margin-top:4px;font-size:9px;color:rgba(255,255,255,0.7);opacity:0.8">
+                    <div id="sim-slider-scale" style="display:flex;justify-content:space-between;margin-top:4px;font-size:9px;color:#fff">
                         <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>99%</span>
                     </div>
                 </div>
