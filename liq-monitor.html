@@ -2760,15 +2760,18 @@
                 return 'other_volatile';
             }
 
-            // Discover tokens from positions for immediate use
+            // Discover tokens from positions — sort by total supply (collateral USD)
             const allTokenSymbols = new Set();
             const tokenTVL = {};
             for (const p of noDust) {
-                for (const t of [...(p.collateralTokens || []), ...(p.debtTokens || [])]) {
+                for (const t of (p.collateralTokens || [])) {
                     if (t.symbol) {
                         allTokenSymbols.add(t.symbol);
                         tokenTVL[t.symbol] = (tokenTVL[t.symbol] || 0) + (t.valueUSD || 0);
                     }
+                }
+                for (const t of (p.debtTokens || [])) {
+                    if (t.symbol) allTokenSymbols.add(t.symbol);
                 }
             }
             // Build asset picker popover list
