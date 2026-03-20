@@ -181,6 +181,20 @@ QUERY_INTEREST_INDICES = """
 }
 """
 
+QUERY_TOTAL_PARS = """
+{
+  totalPars(first: 1000) {
+    id
+    supplyPar
+    token {
+      id
+      symbol
+      decimals
+    }
+  }
+}
+"""
+
 # Paginated query for margin accounts with borrow value
 QUERY_MARGIN_ACCOUNTS = """
 query($skip: Int!, $first: Int!) {
@@ -848,6 +862,26 @@ def fetch_chain_data(chain_key, chain_config):
         }
     print(f"     Found {len(interest_indices)} interest indices (subgraph)")
     
+    # 4c. Fetch totalPars for supply liquidity ranking
+    print(f"  📊 Fetching total supply pars...")
+    pars_data = graphql_request(url, QUERY_TOTAL_PARS)
+    market_supply = {}  # {symbol: supplyUSD}
+    for tp in pars_data.get("totalPars", []):
+        token_id = tp.get("id", "").lower()
+        sym = tp.get("token", {}).get("symbol", "")
+        supply_par = float(tp.get("supplyPar", "0"))
+        if not sym or supply_par <= 0:
+            continue
+        # Convert par → wei using supply index
+        sup_idx = float(interest_indices.get(token_id, {}).get("supplyIndex", "1"))
+        supply_wei = supply_par * sup_idx
+        # Convert to USD using oracle price
+        price = float(oracle_prices.get(token_id, "0"))
+        supply_usd = supply_wei * price
+        if supply_usd > 0:
+            market_supply[sym] = round(market_supply.get(sym, 0) + supply_usd, 2)
+    print(f"     Computed supply USD for {len(market_supply)} tokens")
+    
     # 4b. Upgrade to live on-chain interest indices for accurate HF
     rpc_url = chain_config.get("rpc")
     rpc_fallbacks = chain_config.get("rpc_fallbacks", [])
@@ -963,6 +997,7 @@ def fetch_chain_data(chain_key, chain_config):
             "liquidationReward": liquidation_reward,
             "numberOfMarkets": num_markets,
         },
+        "marketSupply": market_supply,
     }
 
 
@@ -1188,6 +1223,7 @@ def main():
     all_positions = []
     chain_stats = {}
     chain_params = {}
+    all_market_supply = {}
     
     for chain_key, chain_config in CHAINS.items():
         try:
@@ -1196,6 +1232,9 @@ def main():
                 all_positions.extend(result["positions"])
                 chain_stats[chain_key] = result["stats"]
                 chain_params[chain_key] = result["params"]
+                # Merge market supply data across chains
+                for sym, usd in result.get("marketSupply", {}).items():
+                    all_market_supply[sym] = round(all_market_supply.get(sym, 0) + usd, 2)
         except Exception as e:
             print(f"\n  ❌ Error fetching {chain_config['label']}: {e}")
             import traceback
@@ -1232,6 +1271,7 @@ def main():
         },
         "chainStats": chain_stats,
         "chainParams": chain_params,
+        "marketSupply": all_market_supply,
         "positions": all_positions,
     }
     
