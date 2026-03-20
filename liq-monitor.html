@@ -2772,7 +2772,6 @@
             // Build asset picker popover list
             const SIM_GROUPS = [
                 { value: 'all', icon: '🌐', label: 'All Volatile', sub: 'Stablecoins keep $1 peg' },
-                { value: 'stable', icon: '💵', label: 'Stablecoins', sub: 'USDC, USDT, USDe, HONEY…', iconUrl: 'https://app.dolomite.io/static/media/USDC.5f67b2404ca2e547fb00b70128d132cd.svg' },
             ];
             const sortedTokens = [...allTokenSymbols].sort();
             const simAssetList = document.getElementById('sim-asset-list');
@@ -2912,7 +2911,7 @@
                     else if (changeVal <= 30) pctLabel.style.color = '#fb7185';
                     else pctLabel.style.color = '#ef4444';
                     // Scenario label
-                    const assetNames = { all: 'All assets', stable: 'Stablecoins' };
+                    const assetNames = { all: 'All assets' };
                     const name = isToken ? tokenName : (assetNames[asset] || asset);
                     const dirWord = isDrop ? 'drops' : 'rises';
                     document.getElementById('sim-scenario-label').textContent = `${name} ${dirWord} by`;
