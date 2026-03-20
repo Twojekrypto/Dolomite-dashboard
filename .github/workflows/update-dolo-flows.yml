@@ -85,6 +85,10 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "📊 Auto-update DOLO flows + holders $(date -u '+%Y-%m-%d %H:%M UTC')"
-            git pull --rebase origin master || true
-            git push origin master
+            # Retry push with rebase up to 3 times to handle concurrent pushes
+            for i in 1 2 3; do
+              git pull --rebase -X theirs origin master && git push origin master && break
+              echo "⚠️ Push attempt $i failed, retrying..."
+              sleep 5
+            done
           fi
