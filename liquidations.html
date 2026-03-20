@@ -2760,20 +2760,21 @@
                 return 'other_volatile';
             }
 
-            // Discover all unique tokens from positions for dropdown
-            const allTokenSymbols = new Set();
+            // Discover all unique tokens from positions and compute TVL for sorting
+            const tokenTVL = {};
             for (const p of noDust) {
                 for (const t of [...(p.collateralTokens || []), ...(p.debtTokens || [])]) {
                     if (t.symbol) {
-                        allTokenSymbols.add(t.symbol);
+                        tokenTVL[t.symbol] = (tokenTVL[t.symbol] || 0) + (t.valueUSD || 0);
                     }
                 }
             }
+            const allTokenSymbols = new Set(Object.keys(tokenTVL));
             // Build asset picker popover list
             const SIM_GROUPS = [
                 { value: 'all', icon: '🌐', label: 'All Volatile', sub: 'Stablecoins keep $1 peg' },
             ];
-            const sortedTokens = [...allTokenSymbols].sort();
+            const sortedTokens = Object.keys(tokenTVL).sort((a, b) => tokenTVL[b] - tokenTVL[a]);
             const simAssetList = document.getElementById('sim-asset-list');
             const simAssetSearch = document.getElementById('sim-asset-search');
             const simAssetPopover = document.getElementById('sim-asset-popover');
