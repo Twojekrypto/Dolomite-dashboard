@@ -2334,7 +2334,7 @@
                     <div id="sim-asset-picker" style="position:relative">
                         <button type="button" id="sim-asset-trigger" title="Select asset" style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;border:1px solid rgba(99,102,241,0.25);background:rgba(99,102,241,0.08);color:#a5b4fc;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.2s">
                             <span id="sim-asset-icon" style="width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:13px">🌐</span>
-                            <span id="sim-asset-label">All Volatile (stable pegged)</span>
+                            <span id="sim-asset-label">All Volatile</span>
                             <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor" style="opacity:0.6"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
                         </button>
                         <!-- Asset Popover -->
@@ -2346,8 +2346,14 @@
                     <!-- Direction Toggle (Premium Segmented) -->
                     <div id="sim-dir-toggle" style="position:relative;display:flex;padding:2px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);overflow:hidden">
                         <div id="sim-dir-pill" style="position:absolute;top:2px;left:2px;width:calc(50% - 2px);height:calc(100% - 4px);border-radius:6px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.2);transition:all 0.3s cubic-bezier(0.4,0,0.2,1);pointer-events:none"></div>
-                        <button type="button" class="sim-dir-seg active" data-dir="drop" onclick="setSimDir('drop')" style="position:relative;z-index:1;padding:5px 14px;border:none;background:transparent;color:#f87171;font-size:11px;font-weight:600;cursor:pointer;transition:color 0.2s;font-family:inherit;white-space:nowrap">📉 Drop</button>
-                        <button type="button" class="sim-dir-seg" data-dir="rise" onclick="setSimDir('rise')" style="position:relative;z-index:1;padding:5px 14px;border:none;background:transparent;color:var(--text-muted);font-size:11px;font-weight:600;cursor:pointer;transition:color 0.2s;font-family:inherit;white-space:nowrap">📈 Rise</button>
+                        <button type="button" class="sim-dir-seg active" data-dir="drop" onclick="setSimDir('drop')" style="position:relative;z-index:1;display:flex;align-items:center;gap:5px;padding:5px 14px;border:none;background:transparent;color:#f87171;font-size:11px;font-weight:600;cursor:pointer;transition:color 0.2s;font-family:inherit;white-space:nowrap">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>
+                            Drop
+                        </button>
+                        <button type="button" class="sim-dir-seg" data-dir="rise" onclick="setSimDir('rise')" style="position:relative;z-index:1;display:flex;align-items:center;gap:5px;padding:5px 14px;border:none;background:transparent;color:var(--text-muted);font-size:11px;font-weight:600;cursor:pointer;transition:color 0.2s;font-family:inherit;white-space:nowrap">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+                            Rise
+                        </button>
                     </div>
                 </div>
                 <!-- Slider Row -->
@@ -2765,11 +2771,11 @@
             }
             // Build asset picker popover list
             const SIM_GROUPS = [
-                { value: 'all', icon: '🌐', label: 'All Volatile (stable pegged)' },
-                { value: 'stable', icon: '💵', label: 'Stablecoins', iconUrl: 'https://app.dolomite.io/static/media/USDC.5f67b2404ca2e547fb00b70128d132cd.svg' },
-                { value: 'eth', icon: 'Ξ', label: 'ETH & LSTs', iconUrl: 'https://app.dolomite.io/static/media/ETH.6a879eb637c89695e6c5f5dc65c8c927.svg' },
-                { value: 'btc', icon: '₿', label: 'BTC', iconUrl: 'https://app.dolomite.io/static/media/WBTC.f3c8718835179e7543b5.png' },
-                { value: 'bera', icon: '🐻', label: 'BERA & BGT', iconUrl: 'https://app.dolomite.io/static/media/BERA.a24a9b40b3447dde7ea1d2cab4dd59e9.svg' },
+                { value: 'all', icon: '🌐', label: 'All Volatile', sub: 'Stablecoins keep $1 peg' },
+                { value: 'stable', icon: '💵', label: 'Stablecoins', sub: 'USDC, USDT, USDe, HONEY…', iconUrl: 'https://app.dolomite.io/static/media/USDC.5f67b2404ca2e547fb00b70128d132cd.svg' },
+                { value: 'eth', icon: 'Ξ', label: 'ETH & LSTs', sub: 'WETH, stETH, mETH…', iconUrl: 'https://app.dolomite.io/static/media/ETH.6a879eb637c89695e6c5f5dc65c8c927.svg' },
+                { value: 'btc', icon: '₿', label: 'BTC', sub: 'WBTC, iBGT-WBTC…', iconUrl: 'https://app.dolomite.io/static/media/WBTC.f3c8718835179e7543b5.png' },
+                { value: 'bera', icon: '🐻', label: 'BERA & BGT', sub: 'BERA, iBGT, YEET…', iconUrl: 'https://app.dolomite.io/static/media/BERA.a24a9b40b3447dde7ea1d2cab4dd59e9.svg' },
             ];
             const sortedTokens = [...allTokenSymbols].sort();
             const simAssetList = document.getElementById('sim-asset-list');
@@ -2783,31 +2789,36 @@
                 // Groups
                 const filteredGroups = SIM_GROUPS.filter(g => !q || g.label.toLowerCase().includes(q));
                 if (filteredGroups.length) {
-                    html += '<div style="font-size:9px;text-transform:uppercase;color:var(--text-muted);padding:4px 8px;letter-spacing:0.5px;font-weight:600">Groups</div>';
+                    html += '<div style="font-size:9px;text-transform:uppercase;color:var(--text-muted);padding:6px 10px 4px;letter-spacing:0.8px;font-weight:700">Groups</div>';
                     for (const g of filteredGroups) {
                         const sel = window._simAsset === g.value ? ' selected' : '';
                         const gIcon = g.iconUrl
-                            ? `<img src="${g.iconUrl}" width="18" height="18" style="border-radius:50%;flex-shrink:0" alt="">`
-                            : `<span style="width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">${g.icon}</span>`;
-                        html += `<div class="col-token-opt sim-asset-opt${sel}" data-value="${g.value}" style="gap:8px">`
+                            ? `<img src="${g.iconUrl}" width="20" height="20" style="border-radius:50%;flex-shrink:0" alt="">`
+                            : `<span style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">${g.icon}</span>`;
+                        const subHtml = g.sub ? `<span style="font-size:9px;color:var(--text-muted);font-weight:400;opacity:0.7">${g.sub}</span>` : '';
+                        html += `<div class="col-token-opt sim-asset-opt${sel}" data-value="${g.value}" style="gap:8px;padding:7px 10px">`
                             + gIcon
-                            + `<span style="font-weight:500">${g.label}</span>`
+                            + `<div style="display:flex;flex-direction:column;gap:1px"><span style="font-weight:600;font-size:11px">${g.label}</span>${subHtml}</div>`
                             + '</div>';
                     }
                 }
                 // Individual tokens
                 const filteredTokens = sortedTokens.filter(s => !q || s.toLowerCase().includes(q));
                 if (filteredTokens.length) {
-                    html += '<div style="font-size:9px;text-transform:uppercase;color:var(--text-muted);padding:8px 8px 4px;letter-spacing:0.5px;font-weight:600;border-top:1px solid rgba(255,255,255,0.06);margin-top:4px">Individual Tokens</div>';
+                    html += '<div style="font-size:9px;text-transform:uppercase;color:var(--text-muted);padding:8px 10px 4px;letter-spacing:0.8px;font-weight:700;border-top:1px solid rgba(255,255,255,0.06);margin-top:4px">Individual Tokens</div>';
                     for (const s of filteredTokens) {
                         const sel = window._simAsset === 'token:' + s ? ' selected' : '';
                         const iconUrl = typeof getTokenIcon === 'function' ? getTokenIcon(s) : null;
                         const iconHtml = iconUrl
                             ? `<img src="${iconUrl}" width="18" height="18" style="border-radius:50%;flex-shrink:0" alt="">`
                             : `<span style="width:18px;height:18px;border-radius:50%;background:rgba(99,102,241,0.15);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#a5b4fc;flex-shrink:0">${s.charAt(0)}</span>`;
-                        html += `<div class="col-token-opt sim-asset-opt${sel}" data-value="token:${s}" style="gap:8px">`
+                        const grp = getTokenGroup(s);
+                        const grpLabel = grp === 'stable' ? 'Stable' : grp === 'eth' ? 'ETH' : grp === 'btc' ? 'BTC' : grp === 'bera' ? 'BERA' : '';
+                        const badge = grpLabel ? `<span style="margin-left:auto;font-size:8px;padding:1px 5px;border-radius:4px;background:rgba(255,255,255,0.04);color:var(--text-muted);font-weight:500;letter-spacing:0.3px">${grpLabel}</span>` : '';
+                        html += `<div class="col-token-opt sim-asset-opt${sel}" data-value="token:${s}" style="gap:8px;padding:5px 10px">`
                             + iconHtml
-                            + `<span style="font-weight:500">${s}</span>`
+                            + `<span style="font-weight:500;font-size:11px">${s}</span>`
+                            + badge
                             + '</div>';
                     }
                 }
