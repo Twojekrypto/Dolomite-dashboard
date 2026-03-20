@@ -663,16 +663,16 @@
         .sim-active-banner {
             display: none;
             align-items: center;
-            gap: 8px;
-            padding: 6px 14px;
-            border-radius: 20px;
+            gap: 6px;
+            padding: 3px 10px;
+            border-radius: 12px;
             background: rgba(239,68,68,0.12);
             border: 1px solid rgba(239,68,68,0.25);
-            font-size: 11px;
+            font-size: 9px;
             font-weight: 600;
             color: #f87171;
             animation: simPulse 2s ease-in-out infinite;
-            margin-left: 12px;
+            margin-left: 6px;
         }
         .sim-active-banner.visible { display: inline-flex; }
         @keyframes simPulse {
@@ -696,9 +696,9 @@
             gap: 4px;
             padding: 4px 12px;
             border-radius: 6px;
-            background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255,255,255,0.1);
-            color: rgba(255,255,255,0.5);
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.25);
+            color: #f87171;
             font-size: 10px;
             font-weight: 600;
             cursor: pointer;
@@ -708,9 +708,9 @@
             letter-spacing: 0.5px;
         }
         .sim-reset-btn:hover {
-            background: rgba(255,255,255,0.1);
-            color: rgba(255,255,255,0.8);
-            border-color: rgba(255,255,255,0.2);
+            background: rgba(239,68,68,0.2);
+            color: #fca5a5;
+            border-color: rgba(239,68,68,0.4);
         }
         .sim-reset-btn.visible { display: inline-flex; }
 
@@ -2297,7 +2297,6 @@
                 <div class="lending-hero-title">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                     <span>Lending Risk Monitor</span>
-                    <span class="sim-active-banner" id="sim-active-banner"><span class="sim-active-dot"></span>Simulation Active</span>
                 </div>
 
                 <!-- Main metric: Total Positions -->
@@ -2385,6 +2384,7 @@
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fb7185" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                     <span style="font-size:13px;font-weight:600;color:#fff">Risk Simulator</span>
+                    <span class="sim-active-banner" id="sim-active-banner"><span class="sim-active-dot"></span>Simulation Active</span>
                 </div>
                 <!-- Controls Row -->
                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap">
@@ -2426,7 +2426,7 @@
                     <div style="position:relative;height:24px;display:flex;align-items:center">
                         <input type="range" id="sim-slider" min="0" max="99" value="0" step="1" title="Drag to simulate price change" aria-label="Price change percentage">
                     </div>
-                    <div id="sim-slider-scale" style="display:flex;justify-content:space-between;margin-top:4px;font-size:9px;color:var(--text-muted);opacity:0.5">
+                    <div id="sim-slider-scale" style="display:flex;justify-content:space-between;margin-top:4px;font-size:9px;color:rgba(255,255,255,0.7);opacity:0.8">
                         <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>99%</span>
                     </div>
                 </div>
