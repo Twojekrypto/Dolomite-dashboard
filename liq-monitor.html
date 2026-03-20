@@ -2760,63 +2760,14 @@
                 return 'other_volatile';
             }
 
-            // Discover tokens from positions and fetch real TVL from subgraph for sorting
+            // Discover tokens from positions for immediate use
             const allTokenSymbols = new Set();
+            const tokenTVL = {};
             for (const p of noDust) {
                 for (const t of [...(p.collateralTokens || []), ...(p.debtTokens || [])]) {
-                    if (t.symbol) allTokenSymbols.add(t.symbol);
-                }
-            }
-            // Fetch real TVL from Berachain subgraph + DeFiLlama prices
-            let tokenTVL = {};
-            try {
-                const sgResp = await fetch('https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-berachain-mainnet/latest/gn', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query: `{ totalPars(first: 1000) { id supplyPar token { id symbol decimals } } interestIndexes(first: 1000) { id supplyIndex } }` })
-                });
-                const sgJson = await sgResp.json();
-                if (sgJson.data) {
-                    const idxMap = {};
-                    (sgJson.data.interestIndexes || []).forEach(r => { idxMap[r.id.toLowerCase()] = parseFloat(r.supplyIndex) || 1; });
-                    const tokenAddrs = [];
-                    const tokenMeta = {};
-                    (sgJson.data.totalPars || []).forEach(tp => {
-                        const addr = tp.token?.id?.toLowerCase();
-                        const sym = tp.token?.symbol;
-                        if (!addr || !sym) return;
-                        const idx = idxMap[addr] || 1;
-                        const supplied = (parseFloat(tp.supplyPar) || 0) * idx;
-                        tokenAddrs.push(addr);
-                        tokenMeta[addr] = { symbol: sym, supplied };
-                    });
-                    // Fetch prices from DeFiLlama
-                    const keys = tokenAddrs.map(a => `berachain:${a}`);
-                    for (let i = 0; i < keys.length; i += 100) {
-                        const batch = keys.slice(i, i + 100);
-                        const pResp = await fetch('https://coins.llama.fi/prices/current/' + batch.join(','));
-                        if (pResp.ok) {
-                            const pData = await pResp.json();
-                            const coins = pData.coins || {};
-                            batch.forEach((key, idx) => {
-                                const coin = coins[key];
-                                const addr = tokenAddrs[i + idx];
-                                const meta = tokenMeta[addr];
-                                if (coin && coin.price && meta) {
-                                    const tvl = meta.supplied * coin.price;
-                                    tokenTVL[meta.symbol] = (tokenTVL[meta.symbol] || 0) + tvl;
-                                }
-                            });
-                        }
-                    }
-                    console.log('📊 Sim TVL ranking:', Object.entries(tokenTVL).sort((a,b) => b[1]-a[1]).slice(0,10).map(([s,v]) => `${s}: $${(v/1e6).toFixed(2)}M`).join(', '));
-                }
-            } catch(e) { console.warn('Sim TVL fetch failed, using position data:', e.message); }
-            // Fallback: if subgraph failed, use position-based TVL
-            if (Object.keys(tokenTVL).length === 0) {
-                for (const p of noDust) {
-                    for (const t of [...(p.collateralTokens || []), ...(p.debtTokens || [])]) {
-                        if (t.symbol) tokenTVL[t.symbol] = (tokenTVL[t.symbol] || 0) + (t.valueUSD || 0);
+                    if (t.symbol) {
+                        allTokenSymbols.add(t.symbol);
+                        tokenTVL[t.symbol] = (tokenTVL[t.symbol] || 0) + (t.valueUSD || 0);
                     }
                 }
             }
@@ -2824,8 +2775,51 @@
             const SIM_GROUPS = [
                 { value: 'all', icon: '🌐', label: 'All Volatile', sub: 'Stablecoins keep $1 peg' },
             ];
-            const sortedTokens = Object.keys(tokenTVL).sort((a, b) => tokenTVL[b] - tokenTVL[a])
-                .filter(s => allTokenSymbols.has(s));
+            let sortedTokens = [...allTokenSymbols].sort((a, b) => (tokenTVL[b] || 0) - (tokenTVL[a] || 0));
+
+            // Background: fetch real TVL from subgraph + DeFiLlama and re-sort
+            (async function fetchRealTVL() {
+                try {
+                    const ctrl = new AbortController();
+                    setTimeout(() => ctrl.abort(), 8000);
+                    const sgResp = await fetch('https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-berachain-mainnet/latest/gn', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ query: `{ totalPars(first: 1000) { id supplyPar token { id symbol decimals } } interestIndexes(first: 1000) { id supplyIndex } }` }),
+                        signal: ctrl.signal
+                    });
+                    const sgJson = await sgResp.json();
+                    if (!sgJson.data) return;
+                    const idxMap = {};
+                    (sgJson.data.interestIndexes || []).forEach(r => { idxMap[r.id.toLowerCase()] = parseFloat(r.supplyIndex) || 1; });
+                    const tokenAddrs = [], tokenMeta = {};
+                    (sgJson.data.totalPars || []).forEach(tp => {
+                        const addr = tp.token?.id?.toLowerCase(), sym = tp.token?.symbol;
+                        if (!addr || !sym) return;
+                        const supplied = (parseFloat(tp.supplyPar) || 0) * (idxMap[addr] || 1);
+                        tokenAddrs.push(addr);
+                        tokenMeta[addr] = { symbol: sym, supplied };
+                    });
+                    const keys = tokenAddrs.map(a => `berachain:${a}`);
+                    const realTVL = {};
+                    for (let i = 0; i < keys.length; i += 100) {
+                        const batch = keys.slice(i, i + 100);
+                        const pResp = await fetch('https://coins.llama.fi/prices/current/' + batch.join(','));
+                        if (!pResp.ok) continue;
+                        const coins = (await pResp.json()).coins || {};
+                        batch.forEach((key, idx) => {
+                            const coin = coins[key], addr = tokenAddrs[i + idx], meta = tokenMeta[addr];
+                            if (coin?.price && meta) realTVL[meta.symbol] = (realTVL[meta.symbol] || 0) + meta.supplied * coin.price;
+                        });
+                    }
+                    if (Object.keys(realTVL).length > 0) {
+                        // Update sortedTokens and re-render popover
+                        Object.assign(tokenTVL, realTVL);
+                        sortedTokens = [...allTokenSymbols].sort((a, b) => (tokenTVL[b] || 0) - (tokenTVL[a] || 0));
+                        renderSimAssetList(simAssetSearch.value);
+                        console.log('📊 Sim TVL (live):', Object.entries(realTVL).sort((a,b) => b[1]-a[1]).slice(0,10).map(([s,v]) => `${s}: $${(v/1e6).toFixed(2)}M`).join(', '));
+                    }
+                } catch(e) { console.warn('Sim TVL background fetch skipped:', e.message); }
+            })();
             const simAssetList = document.getElementById('sim-asset-list');
             const simAssetSearch = document.getElementById('sim-asset-search');
             const simAssetPopover = document.getElementById('sim-asset-popover');
