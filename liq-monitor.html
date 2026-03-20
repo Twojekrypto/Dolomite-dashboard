@@ -2422,11 +2422,13 @@
                             <button type="button" class="sim-reset-btn" id="sim-reset-btn" onclick="document.getElementById('sim-slider').value=0;document.getElementById('sim-slider').dispatchEvent(new Event('input'));" title="Reset to 0%"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>Reset</button>
                         </div>
                     </div>
-                    <div style="text-align:center;margin-bottom:8px">
-                        <span id="sim-pct-label" style="font-size:28px;font-weight:800;color:#34d399;font-variant-numeric:tabular-nums;letter-spacing:-0.5px;transition:color 0.3s">0%</span>
-                    </div>
-                    <div style="position:relative;height:24px;display:flex;align-items:center">
-                        <input type="range" id="sim-slider" min="0" max="99" value="0" step="1" title="Drag to simulate price change" aria-label="Price change percentage">
+                    <div style="position:relative;margin-bottom:4px">
+                        <div id="sim-pct-float" style="position:relative;height:36px;pointer-events:none">
+                            <span id="sim-pct-label" style="position:absolute;left:0;top:0;transform:translateX(-50%);font-size:24px;font-weight:800;color:#34d399;font-variant-numeric:tabular-nums;letter-spacing:-0.5px;transition:color 0.3s,left 0.05s ease-out;white-space:nowrap">0%</span>
+                        </div>
+                        <div style="position:relative;height:24px;display:flex;align-items:center">
+                            <input type="range" id="sim-slider" min="0" max="99" value="0" step="1" title="Drag to simulate price change" aria-label="Price change percentage">
+                        </div>
                     </div>
                     <div id="sim-slider-scale" style="display:flex;justify-content:space-between;margin-top:4px;font-size:9px;color:#fff">
                         <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>99%</span>
@@ -2976,6 +2978,16 @@
                     const pctLabel = document.getElementById('sim-pct-label');
                     const prefix = isDrop ? '-' : '+';
                     pctLabel.textContent = changeVal === 0 ? '0%' : prefix + changeVal + '%';
+                    // Position label above thumb
+                    const slider = document.getElementById('sim-slider');
+                    const pctFloat = document.getElementById('sim-pct-float');
+                    if (slider && pctFloat) {
+                        const ratio = parseInt(slider.value) / parseInt(slider.max);
+                        const thumbW = 16; // approx thumb width px
+                        const trackW = pctFloat.offsetWidth;
+                        const leftPx = thumbW / 2 + ratio * (trackW - thumbW);
+                        pctLabel.style.left = leftPx + 'px';
+                    }
                     // Color
                     if (changeVal <= 5) pctLabel.style.color = '#34d399';
                     else if (changeVal <= 15) pctLabel.style.color = '#f59e0b';
