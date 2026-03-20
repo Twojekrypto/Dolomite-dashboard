@@ -2774,12 +2774,7 @@
             const SIM_GROUPS = [
                 { value: 'all', icon: '🌐', label: 'All Volatile', sub: 'Stablecoins keep $1 peg' },
             ];
-            const sortedTokens = Object.keys(tokenTVL).sort((a, b) => {
-                const aStable = getTokenGroup(a) === 'stable' ? 1 : 0;
-                const bStable = getTokenGroup(b) === 'stable' ? 1 : 0;
-                if (aStable !== bStable) return aStable - bStable; // volatile first
-                return tokenTVL[b] - tokenTVL[a]; // then by TVL desc
-            });
+            const sortedTokens = Object.keys(tokenTVL).sort((a, b) => tokenTVL[b] - tokenTVL[a]);
             const simAssetList = document.getElementById('sim-asset-list');
             const simAssetSearch = document.getElementById('sim-asset-search');
             const simAssetPopover = document.getElementById('sim-asset-popover');
