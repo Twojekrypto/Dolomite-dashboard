@@ -2766,7 +2766,6 @@
             // Build asset picker popover list
             const SIM_GROUPS = [
                 { value: 'all', icon: '🌐', label: 'All Assets' },
-                { value: 'volatile_only', icon: '📈', label: 'Volatile Only (no Stable)' },
                 { value: 'stable', icon: '💵', label: 'Stablecoins', iconUrl: 'https://app.dolomite.io/static/media/USDC.5f67b2404ca2e547fb00b70128d132cd.svg' },
                 { value: 'eth', icon: 'Ξ', label: 'ETH & LSTs', iconUrl: 'https://app.dolomite.io/static/media/ETH.6a879eb637c89695e6c5f5dc65c8c927.svg' },
                 { value: 'btc', icon: '₿', label: 'BTC', iconUrl: 'https://app.dolomite.io/static/media/WBTC.f3c8718835179e7543b5.png' },
@@ -2905,7 +2904,7 @@
                     else if (changeVal <= 30) pctLabel.style.color = '#fb7185';
                     else pctLabel.style.color = '#ef4444';
                     // Scenario label
-                    const assetNames = { all: 'All assets', volatile_only: 'Volatile assets', stable: 'Stablecoins', eth: 'ETH & LSTs', btc: 'BTC', bera: 'BERA & BGT' };
+                    const assetNames = { all: 'All assets', stable: 'Stablecoins', eth: 'ETH & LSTs', btc: 'BTC', bera: 'BERA & BGT' };
                     const name = isToken ? tokenName : (assetNames[asset] || asset);
                     const dirWord = isDrop ? 'drops' : 'rises';
                     document.getElementById('sim-scenario-label').textContent = `${name} ${dirWord} by`;
@@ -2924,10 +2923,10 @@
                             newDebt = p.debtUSD + debtToken * (priceMul - 1);
                         } else {
                             // Group simulation
-                            const affectsVolatile = (asset === 'all' || asset === 'volatile_only')
+                            const affectsVolatile = (asset === 'all')
                                 ? ['eth', 'btc', 'bera', 'other_volatile']
                                 : asset === 'stable' ? [] : [asset];
-                            const affectsStable = asset === 'stable' || asset === 'all';
+                            const affectsStable = asset === 'stable';
                             // Stable portion
                             const stableMul = affectsStable ? priceMul : 1;
                             newCol = p.colBreak.stable * stableMul;
