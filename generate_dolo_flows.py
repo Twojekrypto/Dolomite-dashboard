@@ -719,6 +719,7 @@ def main():
     balances = {}
     bal_selector = "0x70a08231"  # balanceOf(address)
     bal_failures = 0
+    bal_failed_addrs = set()  # Track which addresses had RPC failures (for fallback)
     for i, addr in enumerate(all_addrs):
         padded = addr.replace("0x", "").lower().zfill(64)
         total_bal = 0
@@ -747,6 +748,7 @@ def main():
                 time.sleep(0.5)  # backoff between retry attempts
             if not got_balance:
                 bal_failures += 1
+                bal_failed_addrs.add(addr)
             total_bal += chain_bal
         balances[addr] = round(total_bal, 2)
         time.sleep(0.05)
@@ -755,22 +757,23 @@ def main():
     if bal_failures:
         print(f"  ⚠️ {bal_failures} balance lookups failed across all retries")
 
-    # Fallback: cross-reference with dolo_holders.json for addresses where RPC returned 0
+    # Fallback: cross-reference with dolo_holders.json ONLY for addresses where RPC FAILED
+    # (not for addresses that legitimately have zero balance — those sold/transferred all tokens)
     holders_file = os.path.join(DATA_DIR, "dolo_holders.json")
-    if os.path.exists(holders_file):
+    if bal_failed_addrs and os.path.exists(holders_file):
         try:
             with open(holders_file) as f:
                 holders_data = json.load(f)
             holders_lookup = {h["address"].lower(): h for h in holders_data.get("holders", [])}
             fixed = 0
-            for addr in all_addrs:
+            for addr in bal_failed_addrs:
                 if balances.get(addr, 0) == 0:
                     h = holders_lookup.get(addr.lower())
                     if h and h.get("balance", 0) > 0:
                         balances[addr] = round(h["balance"], 2)
                         fixed += 1
             if fixed:
-                print(f"  🛡️ Patched {fixed} zero-balance addresses from dolo_holders.json fallback")
+                print(f"  🛡️ Patched {fixed} RPC-failed addresses from dolo_holders.json fallback")
         except Exception as e:
             print(f"  ⚠️ Could not load holders fallback: {e}")
 
