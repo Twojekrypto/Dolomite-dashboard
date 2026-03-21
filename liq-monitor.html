@@ -994,6 +994,80 @@
             background: rgba(52,211,153,0.12);
             box-shadow: 0 0 12px rgba(52,211,153,0.1);
         }
+        .sim-multi-token-trigger {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(99,102,241,0.25);
+            background: rgba(99,102,241,0.08);
+            color: #a5b4fc;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+            min-width: 100px;
+        }
+        .sim-multi-token-trigger:hover {
+            border-color: rgba(99,102,241,0.5);
+            background: rgba(99,102,241,0.15);
+        }
+        .sim-multi-token-popover {
+            display: none;
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            z-index: 200;
+            width: 200px;
+            background: var(--bg-card);
+            border: 1px solid rgba(99,102,241,0.2);
+            border-radius: 10px;
+            padding: 8px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+        }
+        .sim-multi-token-popover input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 6px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.04);
+            color: #fff;
+            font-size: 11px;
+            font-family: inherit;
+            margin-bottom: 6px;
+            outline: none;
+        }
+        .sim-multi-token-popover input:focus {
+            border-color: rgba(99,102,241,0.4);
+            box-shadow: 0 0 0 2px rgba(99,102,241,0.1);
+        }
+        .sim-multi-token-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .sim-multi-token-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11px;
+            color: var(--text-muted);
+            transition: background 0.15s;
+        }
+        .sim-multi-token-item:hover {
+            background: rgba(99,102,241,0.1);
+            color: #fff;
+        }
+        .sim-multi-token-item img {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+        }
         .sim-multi-run {
             background: linear-gradient(135deg, #34d399, #10b981);
             border: 1px solid rgba(52,211,153,0.4);
@@ -2665,7 +2739,7 @@
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                         Add Asset
                     </button>
-                    <div style="display:flex;align-items:center;justify-content:flex-end">
+                    <div style="display:flex;align-items:center;justify-content:flex-start">
                         <button type="button" class="sim-multi-run" onclick="runMultiAssetSim()">▶ Run Scenario</button>
                     </div>
                 </div>
@@ -3376,40 +3450,91 @@
         function addMultiAssetRow(defaultToken, defaultPct) {
             const container = document.getElementById('sim-multi-rows');
             const id = ++_multiAssetRowId;
-            const tokens = window._simSortedTokens || [];
+            const token = defaultToken || 'WETH';
             const row = document.createElement('div');
             row.className = 'sim-multi-row';
             row.id = 'sim-multi-row-' + id;
-            let selectHtml = '<select>';
-            for (const sym of tokens) {
-                const group = typeof getTokenGroup === 'function' ? getTokenGroup(sym) : 'other';
-                if (group === 'stable') continue; // skip stablecoins
-                selectHtml += `<option value="${sym}"${sym === (defaultToken || 'WETH') ? ' selected' : ''}>${sym}</option>`;
-            }
-            selectHtml += '</select>';
-            const iconUrl = typeof getTokenIcon === 'function' ? getTokenIcon(defaultToken || 'WETH') : null;
+            row.dataset.token = token;
+
+            const iconUrl = typeof getTokenIcon === 'function' ? getTokenIcon(token) : null;
             const iconHtml = iconUrl
                 ? `<img src="${iconUrl}" width="16" height="16" style="border-radius:50%" alt="">`
-                : `<span style="font-size:11px;font-weight:700;color:var(--text-muted)">${(defaultToken || 'WETH').charAt(0)}</span>`;
+                : `<span style="font-size:11px;font-weight:700;color:var(--text-muted)">${token.charAt(0)}</span>`;
+
             row.innerHTML = 
                 `<button type="button" class="sim-multi-remove" onclick="removeMultiAssetRow(${id})" title="Remove">` +
                 `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="12" x2="18" y2="12"/></svg></button>` +
-                `<span class="sim-multi-icon" style="width:18px;height:18px;display:flex;align-items:center;justify-content:center">${iconHtml}</span>` +
-                selectHtml +
+                `<div style="position:relative">` +
+                    `<button type="button" class="sim-multi-token-trigger" data-popover="sim-multi-pop-${id}">` +
+                        `<span class="sim-multi-trigger-icon">${iconHtml}</span>` +
+                        `<span class="sim-multi-trigger-label">${token}</span>` +
+                        `<svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor" style="opacity:0.5"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>` +
+                    `</button>` +
+                    `<div class="sim-multi-token-popover" id="sim-multi-pop-${id}">` +
+                        `<input type="text" placeholder="Search token..." class="sim-multi-search">` +
+                        `<div class="sim-multi-token-list"></div>` +
+                    `</div>` +
+                `</div>` +
                 `<span style="font-size:10px;color:var(--text-muted)">drops by</span>` +
                 `<input type="number" min="-100" max="500" value="${defaultPct || -25}" step="5">` +
                 `<span style="font-size:11px;color:var(--text-muted);font-weight:600">%</span>`;
-            // Update icon on select change
-            const select = row.querySelector('select');
-            const iconSpan = row.querySelector('.sim-multi-icon');
-            select.addEventListener('change', function() {
-                const url = typeof getTokenIcon === 'function' ? getTokenIcon(this.value) : null;
-                iconSpan.innerHTML = url
-                    ? `<img src="${url}" width="16" height="16" style="border-radius:50%" alt="">`
-                    : `<span style="font-size:11px;font-weight:700;color:var(--text-muted)">${this.value.charAt(0)}</span>`;
-            });
+
+            // Render token list for this row
+            function renderTokenList(query) {
+                const tokens = window._simSortedTokens || [];
+                const listEl = row.querySelector('.sim-multi-token-list');
+                const q = (query || '').toLowerCase();
+                let html = '';
+                for (const sym of tokens) {
+                    if (q && !sym.toLowerCase().includes(q)) continue;
+                    const url = typeof getTokenIcon === 'function' ? getTokenIcon(sym) : null;
+                    const icon = url
+                        ? `<img src="${url}" alt="">`
+                        : `<span style="width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;background:rgba(255,255,255,0.06);border-radius:50%;color:var(--text-muted)">${sym.charAt(0)}</span>`;
+                    html += `<div class="sim-multi-token-item" data-sym="${sym}">${icon}<span>${sym}</span></div>`;
+                }
+                listEl.innerHTML = html || '<div style="padding:8px;font-size:10px;color:var(--text-muted);text-align:center">No tokens found</div>';
+                // Click handlers
+                listEl.querySelectorAll('.sim-multi-token-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const sym = item.dataset.sym;
+                        row.dataset.token = sym;
+                        const trigIcon = row.querySelector('.sim-multi-trigger-icon');
+                        const trigLabel = row.querySelector('.sim-multi-trigger-label');
+                        const url2 = typeof getTokenIcon === 'function' ? getTokenIcon(sym) : null;
+                        trigIcon.innerHTML = url2
+                            ? `<img src="${url2}" width="16" height="16" style="border-radius:50%" alt="">`
+                            : `<span style="font-size:11px;font-weight:700;color:var(--text-muted)">${sym.charAt(0)}</span>`;
+                        trigLabel.textContent = sym;
+                        popover.style.display = 'none';
+                    });
+                });
+            }
+
             container.appendChild(row);
+
+            // Wire trigger + search
+            const trigger = row.querySelector('.sim-multi-token-trigger');
+            const popover = row.querySelector('.sim-multi-token-popover');
+            const searchInput = row.querySelector('.sim-multi-search');
+
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Close all other popovers first
+                document.querySelectorAll('.sim-multi-token-popover').forEach(p => { if (p !== popover) p.style.display = 'none'; });
+                const isOpen = popover.style.display !== 'none';
+                popover.style.display = isOpen ? 'none' : 'block';
+                if (!isOpen) { searchInput.value = ''; renderTokenList(''); searchInput.focus(); }
+            });
+
+            searchInput.addEventListener('input', () => renderTokenList(searchInput.value));
+            searchInput.addEventListener('click', (e) => e.stopPropagation());
         }
+
+        // Close multi-asset popovers on outside click
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.sim-multi-token-popover').forEach(p => p.style.display = 'none');
+        });
 
         function removeMultiAssetRow(id) {
             const row = document.getElementById('sim-multi-row-' + id);
@@ -3421,7 +3546,7 @@
             // Build per-token multipliers
             const tokenMuls = {};
             for (const row of rows) {
-                const token = row.querySelector('select').value;
+                const token = row.dataset.token;
                 const pctVal = parseFloat(row.querySelector('input[type="number"]').value) || 0;
                 tokenMuls[token] = 1 + pctVal / 100;
             }
@@ -3490,7 +3615,7 @@
             // Build scenario summary
             const scenarioParts = [];
             for (const row of rows) {
-                const label = row.querySelector('select option:checked').textContent;
+                const label = row.dataset.token;
                 const pct = parseFloat(row.querySelector('input[type="number"]').value) || 0;
                 scenarioParts.push(`${label} ${pct > 0 ? '+' : ''}${pct}%`);
             }
