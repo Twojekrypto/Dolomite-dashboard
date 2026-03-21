@@ -995,45 +995,46 @@
             box-shadow: 0 0 12px rgba(52,211,153,0.1);
         }
         .sim-multi-run {
-            background: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.2));
-            border: 1px solid rgba(99,102,241,0.3);
+            background: linear-gradient(135deg, #34d399, #10b981);
+            border: 1px solid rgba(52,211,153,0.4);
             border-radius: 8px;
-            color: #a5b4fc;
-            font-size: 11px;
+            color: #fff;
+            font-size: 12px;
             font-weight: 700;
-            padding: 8px 20px;
+            padding: 10px 28px;
             cursor: pointer;
             font-family: inherit;
             transition: all 0.2s;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            box-shadow: 0 0 15px rgba(52,211,153,0.2);
         }
         .sim-multi-run:hover {
-            background: linear-gradient(135deg, rgba(99,102,241,0.3), rgba(139,92,246,0.3));
-            box-shadow: 0 0 20px rgba(99,102,241,0.15);
+            background: linear-gradient(135deg, #4ade80, #34d399);
+            box-shadow: 0 4px 20px rgba(52,211,153,0.35);
             transform: translateY(-1px);
         }
         .sim-mode-toggle {
             display: flex;
             align-items: center;
             gap: 6px;
-            background: none;
-            border: 1px solid rgba(139,92,246,0.25);
-            border-radius: 6px;
-            color: #a78bfa;
-            font-size: 10px;
+            background: rgba(99,102,241,0.08);
+            border: 1px solid rgba(99,102,241,0.25);
+            border-radius: 8px;
+            color: #a5b4fc;
+            font-size: 11px;
             font-weight: 600;
-            padding: 4px 10px;
+            padding: 6px 12px;
             cursor: pointer;
             font-family: inherit;
             transition: all 0.2s;
         }
         .sim-mode-toggle:hover {
-            border-color: rgba(139,92,246,0.5);
-            background: rgba(139,92,246,0.08);
+            border-color: rgba(99,102,241,0.5);
+            background: rgba(99,102,241,0.15);
         }
         .sim-mode-toggle.active {
-            background: rgba(139,92,246,0.12);
+            background: rgba(139,92,246,0.15);
             border-color: rgba(139,92,246,0.4);
             color: #c4b5fd;
         }
@@ -2572,10 +2573,6 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fb7185" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                     <span style="font-size:13px;font-weight:600;color:#fff">Risk Simulator</span>
                     <span class="sim-active-banner" id="sim-active-banner"><span class="sim-active-dot"></span>Simulation Active</span>
-                    <button type="button" class="sim-mode-toggle" id="sim-multi-toggle" onclick="toggleMultiAssetMode()" title="Multi-asset simulation">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
-                        Advanced
-                    </button>
                 </div>
                 <!-- Controls Row -->
                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap">
@@ -2604,6 +2601,11 @@
                             Rise
                         </button>
                     </div>
+                    <!-- Advanced Toggle -->
+                    <button type="button" class="sim-mode-toggle" id="sim-multi-toggle" onclick="toggleMultiAssetMode()" title="Multi-asset simulation">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+                        Advanced
+                    </button>
                 </div>
                 <!-- Slider Row -->
                 <div style="margin-bottom:24px">
