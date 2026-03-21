@@ -851,6 +851,193 @@
             transform: translateY(-1px);
         }
 
+        /* ===== Impact Summary Bar ===== */
+        .sim-impact-bar {
+            position: relative;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255,255,255,0.04);
+            margin-top: 14px;
+            margin-bottom: 6px;
+            overflow: hidden;
+        }
+        .sim-impact-fill {
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            border-radius: 3px;
+            background: linear-gradient(90deg, #34d399, #fbbf24, #f97316, #ef4444);
+            width: 0%;
+            transition: width 0.35s cubic-bezier(0.4,0,0.2,1);
+        }
+        .sim-impact-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 9px;
+            color: var(--text-muted);
+            margin-bottom: 2px;
+        }
+        .sim-impact-label .impact-value {
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            transition: color 0.3s;
+        }
+
+        /* ===== Metric Card Progress Bars ===== */
+        .sim-metric-progress {
+            margin-top: 8px;
+            height: 3px;
+            border-radius: 1.5px;
+            background: rgba(255,255,255,0.04);
+            overflow: hidden;
+        }
+        .sim-metric-progress-fill {
+            height: 100%;
+            border-radius: 1.5px;
+            width: 0%;
+            transition: width 0.4s cubic-bezier(0.4,0,0.2,1), background 0.3s;
+        }
+
+        /* ===== Multi-Asset Panel ===== */
+        .sim-multi-panel {
+            margin-top: 16px;
+            padding: 16px;
+            background: rgba(99,102,241,0.04);
+            border: 1px solid rgba(99,102,241,0.12);
+            border-radius: 10px;
+            display: none;
+        }
+        .sim-multi-panel.visible { display: block; }
+        .sim-multi-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .sim-multi-header span {
+            font-size: 11px;
+            font-weight: 600;
+            color: #a5b4fc;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .sim-multi-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            padding: 8px 10px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 8px;
+            transition: border-color 0.2s;
+        }
+        .sim-multi-row:hover { border-color: rgba(99,102,241,0.2); }
+        .sim-multi-row select {
+            background: rgba(15,23,42,0.8);
+            border: 1px solid rgba(99,102,241,0.2);
+            border-radius: 6px;
+            color: #e2e8f0;
+            font-size: 11px;
+            padding: 4px 8px;
+            font-family: inherit;
+            cursor: pointer;
+            min-width: 120px;
+        }
+        .sim-multi-row input[type="number"] {
+            width: 70px;
+            background: rgba(15,23,42,0.8);
+            border: 1px solid rgba(99,102,241,0.2);
+            border-radius: 6px;
+            color: #e2e8f0;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 8px;
+            font-family: inherit;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+        }
+        .sim-multi-row input[type="number"]:focus {
+            outline: none;
+            border-color: rgba(99,102,241,0.5);
+            box-shadow: 0 0 0 2px rgba(99,102,241,0.1);
+        }
+        .sim-multi-remove {
+            background: rgba(239,68,68,0.08);
+            border: 1px solid rgba(239,68,68,0.15);
+            border-radius: 6px;
+            color: #f87171;
+            cursor: pointer;
+            padding: 4px 6px;
+            opacity: 0.7;
+            transition: opacity 0.2s, background 0.2s;
+            display: flex;
+            align-items: center;
+        }
+        .sim-multi-remove:hover { opacity: 1; background: rgba(239,68,68,0.15); }
+        .sim-multi-add {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(52,211,153,0.06);
+            border: 1px dashed rgba(52,211,153,0.35);
+            border-radius: 8px;
+            color: #34d399;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 8px 14px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        .sim-multi-add:hover {
+            border-color: rgba(52,211,153,0.6);
+            background: rgba(52,211,153,0.12);
+            box-shadow: 0 0 12px rgba(52,211,153,0.1);
+        }
+        .sim-multi-run {
+            background: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.2));
+            border: 1px solid rgba(99,102,241,0.3);
+            border-radius: 8px;
+            color: #a5b4fc;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 8px 20px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .sim-multi-run:hover {
+            background: linear-gradient(135deg, rgba(99,102,241,0.3), rgba(139,92,246,0.3));
+            box-shadow: 0 0 20px rgba(99,102,241,0.15);
+            transform: translateY(-1px);
+        }
+        .sim-mode-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: none;
+            border: 1px solid rgba(139,92,246,0.25);
+            border-radius: 6px;
+            color: #a78bfa;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 4px 10px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        .sim-mode-toggle:hover {
+            border-color: rgba(139,92,246,0.5);
+            background: rgba(139,92,246,0.08);
+        }
+        .sim-mode-toggle.active {
+            background: rgba(139,92,246,0.12);
+            border-color: rgba(139,92,246,0.4);
+            color: #c4b5fd;
+        }
+
         /* ===== Mobile Responsive ===== */
         @media (max-width: 1200px) {
             .positions-table { min-width: 900px; }
@@ -2385,6 +2572,10 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fb7185" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                     <span style="font-size:13px;font-weight:600;color:#fff">Risk Simulator</span>
                     <span class="sim-active-banner" id="sim-active-banner"><span class="sim-active-dot"></span>Simulation Active</span>
+                    <button type="button" class="sim-mode-toggle" id="sim-multi-toggle" onclick="toggleMultiAssetMode()" title="Multi-asset simulation">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+                        Advanced
+                    </button>
                 </div>
                 <!-- Controls Row -->
                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap">
@@ -2433,6 +2624,14 @@
                     <div id="sim-slider-scale" style="display:flex;justify-content:space-between;margin-top:4px;font-size:9px;color:#fff">
                         <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>99%</span>
                     </div>
+                    <!-- Impact Summary Bar -->
+                    <div class="sim-impact-label">
+                        <span class="impact-value" id="sim-impact-value">0 new liquidations</span>
+                        <span>Liquidation cascade</span>
+                    </div>
+                    <div class="sim-impact-bar">
+                        <div class="sim-impact-fill" id="sim-impact-fill"></div>
+                    </div>
                 </div>
                 <!-- Results Grid -->
                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
@@ -2445,11 +2644,27 @@
                         <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">💰 Debt at Risk</div>
                         <div id="sim-debt-risk" style="font-size:28px;font-weight:800;color:#f97316;font-variant-numeric:tabular-nums;line-height:1;text-shadow:0 0 15px rgba(249,115,22,0.3);transition:all 0.2s">$0</div>
                         <div id="sim-debt-pct" style="font-size:10px;color:var(--text-muted);margin-top:4px">0% of total</div>
+                        <div class="sim-metric-progress"><div class="sim-metric-progress-fill" id="sim-debt-progress" style="background:#f97316"></div></div>
                     </div>
                     <div style="background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.12);border-radius:10px;padding:16px;text-align:center;transition:all 0.3s">
                         <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">🛡️ Collateral at Risk</div>
                         <div id="sim-col-risk" style="font-size:28px;font-weight:800;color:#fbbf24;font-variant-numeric:tabular-nums;line-height:1;text-shadow:0 0 15px rgba(251,191,36,0.3);transition:all 0.2s">$0</div>
                         <div id="sim-col-pct" style="font-size:10px;color:var(--text-muted);margin-top:4px">0% of total</div>
+                        <div class="sim-metric-progress"><div class="sim-metric-progress-fill" id="sim-col-progress" style="background:#fbbf24"></div></div>
+                    </div>
+                </div>
+                <!-- Multi-Asset Simulation Panel -->
+                <div class="sim-multi-panel" id="sim-multi-panel">
+                    <div class="sim-multi-header">
+                        <span>⚙️ Multi-Asset Scenario</span>
+                    </div>
+                    <div id="sim-multi-rows"></div>
+                    <button type="button" class="sim-multi-add" id="sim-multi-add" onclick="addMultiAssetRow()" style="width:100%;justify-content:center;margin-top:4px;margin-bottom:12px">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Add Asset
+                    </button>
+                    <div style="display:flex;align-items:center;justify-content:flex-end">
+                        <button type="button" class="sim-multi-run" onclick="runMultiAssetSim()">▶ Run Scenario</button>
                     </div>
                 </div>
             </div>
@@ -2847,6 +3062,7 @@
                 { value: 'all', icon: '🌐', label: 'All Volatile', sub: 'Stablecoins keep $1 peg' },
             ];
             const sortedTokens = [...allTokenSymbols].sort((a, b) => (tokenTVL[b] || 0) - (tokenTVL[a] || 0));
+            window._simSortedTokens = sortedTokens;
             const simAssetList = document.getElementById('sim-asset-list');
             const simAssetSearch = document.getElementById('sim-asset-search');
             const simAssetPopover = document.getElementById('sim-asset-popover');
@@ -3044,6 +3260,21 @@
                     document.getElementById('sim-liq-pct').textContent = liqPct + '% of ' + window._simTotalPos.toLocaleString() + ' positions';
                     document.getElementById('sim-debt-pct').textContent = debtPctVal + '% of total debt';
                     document.getElementById('sim-col-pct').textContent = colPctVal + '% of total collateral';
+                    // Impact Summary Bar
+                    const impactFill = document.getElementById('sim-impact-fill');
+                    const impactVal = document.getElementById('sim-impact-value');
+                    if (impactFill && impactVal) {
+                        // Scale: 0 liq = 0%, ~50% of positions = full bar
+                        const impactPct = Math.min((liqCount / Math.max(window._simTotalPos * 0.5, 1)) * 100, 100);
+                        impactFill.style.width = impactPct + '%';
+                        impactVal.textContent = liqCount.toLocaleString() + ' new liquidation' + (liqCount !== 1 ? 's' : '');
+                        impactVal.style.color = liqCount === 0 ? 'var(--text-muted)' : liqCount < 50 ? '#fbbf24' : liqCount < 200 ? '#f97316' : '#ef4444';
+                    }
+                    // Progress bars in metric cards
+                    const debtProgress = document.getElementById('sim-debt-progress');
+                    const colProgress = document.getElementById('sim-col-progress');
+                    if (debtProgress) debtProgress.style.width = Math.min(parseFloat(debtPctVal) * 2, 100) + '%';
+                    if (colProgress) colProgress.style.width = Math.min(parseFloat(colPctVal) * 2, 100) + '%';
                     // Simulation banner + reset button visibility
                     const simBanner = document.getElementById('sim-active-banner');
                     const simResetBtn = document.getElementById('sim-reset-btn');
@@ -3122,6 +3353,148 @@
                 updateSim(0);
                 document.getElementById('risk-simulator-section').style.opacity = '1';
             }
+        }
+
+        // ─── Multi-Asset Simulation ──────────────────────────────────────
+        window._multiAssetMode = false;
+        let _multiAssetRowId = 0;
+
+        function toggleMultiAssetMode() {
+            window._multiAssetMode = !window._multiAssetMode;
+            const panel = document.getElementById('sim-multi-panel');
+            const toggle = document.getElementById('sim-multi-toggle');
+            panel.classList.toggle('visible', window._multiAssetMode);
+            toggle.classList.toggle('active', window._multiAssetMode);
+            if (window._multiAssetMode && document.getElementById('sim-multi-rows').children.length === 0) {
+                addMultiAssetRow('WBTC', -25);
+                addMultiAssetRow('WETH', -20);
+            }
+        }
+
+        function addMultiAssetRow(defaultToken, defaultPct) {
+            const container = document.getElementById('sim-multi-rows');
+            const id = ++_multiAssetRowId;
+            const tokens = window._simSortedTokens || [];
+            const row = document.createElement('div');
+            row.className = 'sim-multi-row';
+            row.id = 'sim-multi-row-' + id;
+            let selectHtml = '<select>';
+            for (const sym of tokens) {
+                const group = typeof getTokenGroup === 'function' ? getTokenGroup(sym) : 'other';
+                if (group === 'stable') continue; // skip stablecoins
+                selectHtml += `<option value="${sym}"${sym === (defaultToken || 'WETH') ? ' selected' : ''}>${sym}</option>`;
+            }
+            selectHtml += '</select>';
+            const iconUrl = typeof getTokenIcon === 'function' ? getTokenIcon(defaultToken || 'WETH') : null;
+            const iconHtml = iconUrl
+                ? `<img src="${iconUrl}" width="16" height="16" style="border-radius:50%" alt="">`
+                : `<span style="font-size:11px;font-weight:700;color:var(--text-muted)">${(defaultToken || 'WETH').charAt(0)}</span>`;
+            row.innerHTML = 
+                `<button type="button" class="sim-multi-remove" onclick="removeMultiAssetRow(${id})" title="Remove">` +
+                `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="12" x2="18" y2="12"/></svg></button>` +
+                `<span class="sim-multi-icon" style="width:18px;height:18px;display:flex;align-items:center;justify-content:center">${iconHtml}</span>` +
+                selectHtml +
+                `<span style="font-size:10px;color:var(--text-muted)">drops by</span>` +
+                `<input type="number" min="-100" max="500" value="${defaultPct || -25}" step="5">` +
+                `<span style="font-size:11px;color:var(--text-muted);font-weight:600">%</span>`;
+            // Update icon on select change
+            const select = row.querySelector('select');
+            const iconSpan = row.querySelector('.sim-multi-icon');
+            select.addEventListener('change', function() {
+                const url = typeof getTokenIcon === 'function' ? getTokenIcon(this.value) : null;
+                iconSpan.innerHTML = url
+                    ? `<img src="${url}" width="16" height="16" style="border-radius:50%" alt="">`
+                    : `<span style="font-size:11px;font-weight:700;color:var(--text-muted)">${this.value.charAt(0)}</span>`;
+            });
+            container.appendChild(row);
+        }
+
+        function removeMultiAssetRow(id) {
+            const row = document.getElementById('sim-multi-row-' + id);
+            if (row) row.remove();
+        }
+
+        function runMultiAssetSim() {
+            const rows = document.querySelectorAll('#sim-multi-rows .sim-multi-row');
+            // Build per-token multipliers
+            const tokenMuls = {};
+            for (const row of rows) {
+                const token = row.querySelector('select').value;
+                const pctVal = parseFloat(row.querySelector('input[type="number"]').value) || 0;
+                tokenMuls[token] = 1 + pctVal / 100;
+            }
+
+            let liqCount = 0, debtAtRisk = 0, colAtRisk = 0;
+            for (const p of window._simPositions) {
+                if (p.colUSD < 0.01 && p.debtUSD > 0) continue;
+                if (p.colUSD < 0.01 || p.debtUSD < 0.01) continue;
+
+                // Per-token: adjust each token's USD by its multiplier
+                let newCol = p.colUSD;
+                let newDebt = p.debtUSD;
+                for (const [token, mul] of Object.entries(tokenMuls)) {
+                    const colVal = p.colTokens[token] || 0;
+                    const debtVal = p.debtTokens[token] || 0;
+                    newCol += colVal * (mul - 1);
+                    newDebt += debtVal * (mul - 1);
+                }
+                if (newCol < 0) newCol = 0;
+                if (newDebt < 0) newDebt = 0;
+                if (p.debtUSD < 0.01) continue;
+                const newHF = p.hf * (newCol / p.colUSD) / (newDebt / p.debtUSD);
+                if (newHF < 1.0 && p.hf >= 1.0) {
+                    liqCount++;
+                    debtAtRisk += newDebt;
+                    colAtRisk += newCol;
+                }
+            }
+
+            // Update display
+            document.getElementById('sim-liq-count').textContent = liqCount.toLocaleString();
+            document.getElementById('sim-debt-risk').textContent = formatUSD(Math.round(debtAtRisk));
+            document.getElementById('sim-col-risk').textContent = formatUSD(Math.round(colAtRisk));
+            const liqPct = window._simTotalPos > 0 ? (liqCount / window._simTotalPos * 100).toFixed(1) : '0';
+            const debtPctVal = window._simTotalDebt > 0 ? (debtAtRisk / window._simTotalDebt * 100).toFixed(1) : '0';
+            const colPctVal = window._simTotalCol > 0 ? (colAtRisk / window._simTotalCol * 100).toFixed(1) : '0';
+            document.getElementById('sim-liq-pct').textContent = liqPct + '% of ' + window._simTotalPos.toLocaleString() + ' positions';
+            document.getElementById('sim-debt-pct').textContent = debtPctVal + '% of total debt';
+            document.getElementById('sim-col-pct').textContent = colPctVal + '% of total collateral';
+
+            // Impact bar
+            const impactFill = document.getElementById('sim-impact-fill');
+            const impactVal = document.getElementById('sim-impact-value');
+            if (impactFill && impactVal) {
+                const impactPct = Math.min((liqCount / Math.max(window._simTotalPos * 0.5, 1)) * 100, 100);
+                impactFill.style.width = impactPct + '%';
+                impactVal.textContent = liqCount.toLocaleString() + ' new liquidation' + (liqCount !== 1 ? 's' : '');
+                impactVal.style.color = liqCount === 0 ? 'var(--text-muted)' : liqCount < 50 ? '#fbbf24' : liqCount < 200 ? '#f97316' : '#ef4444';
+            }
+            // Progress bars
+            const debtProgress = document.getElementById('sim-debt-progress');
+            const colProgress = document.getElementById('sim-col-progress');
+            if (debtProgress) debtProgress.style.width = Math.min(parseFloat(debtPctVal) * 2, 100) + '%';
+            if (colProgress) colProgress.style.width = Math.min(parseFloat(colPctVal) * 2, 100) + '%';
+
+            // Banner + glow
+            const simBanner = document.getElementById('sim-active-banner');
+            const simResetBtn = document.getElementById('sim-reset-btn');
+            if (simBanner) simBanner.classList.toggle('visible', liqCount > 0);
+            if (simResetBtn) simResetBtn.classList.toggle('visible', true);
+            const card = document.getElementById('sim-card');
+            const intensity = Math.min(liqCount / 200, 1);
+            card.style.borderColor = `rgba(139,92,246,${0.15 + intensity * 0.2})`;
+            card.style.boxShadow = `0 0 ${10 + intensity * 30}px rgba(139,92,246,${0.04 + intensity * 0.08})`;
+
+            // Build scenario summary
+            const scenarioParts = [];
+            for (const row of rows) {
+                const label = row.querySelector('select option:checked').textContent;
+                const pct = parseFloat(row.querySelector('input[type="number"]').value) || 0;
+                scenarioParts.push(`${label} ${pct > 0 ? '+' : ''}${pct}%`);
+            }
+            document.getElementById('sim-scenario-label').textContent = scenarioParts.join(' · ');
+            const pctLabel = document.getElementById('sim-pct-label');
+            if (pctLabel) pctLabel.textContent = 'Multi';
         }
 
         function updateRelativeTime() {
