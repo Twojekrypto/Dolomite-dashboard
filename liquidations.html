@@ -2770,7 +2770,7 @@
             const atRiskCount = fullLiqCount + badDebtCount + partialLiqCount + dangerCount;
 
             animateCount(atRiskEl, atRiskCount, false, 1000);
-            document.getElementById('stat-at-risk-sub').textContent = `${fullLiqCount + badDebtCount} full liq · ${partialLiqCount} partial · ${dangerCount} danger`;
+            document.getElementById('stat-at-risk-sub').innerHTML = `<span style="color:#ef4444;font-weight:600">${fullLiqCount + badDebtCount}</span> <span style="color:#ef4444">full liq</span> · <span style="color:#f97316;font-weight:600">${partialLiqCount}</span> <span style="color:#f97316">partial</span> · <span style="color:#fb923c;font-weight:600">${dangerCount}</span> <span style="color:#fb923c">danger</span>`;
 
             // Recalculate totals from non-dust positions
             const totalCollateral = Math.round(noDust.reduce((s, p) => s + (p.collateralUSD || 0), 0));
@@ -4092,8 +4092,9 @@
 
         // ─── Keyboard Shortcuts ──────────────────────────────────────────────
         document.addEventListener('keydown', (e) => {
+            const inInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName);
             // `/` to focus search (when not already in an input)
-            if (e.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+            if (e.key === '/' && !inInput) {
                 e.preventDefault();
                 document.getElementById('search-input').focus();
             }
@@ -4101,6 +4102,24 @@
             if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
                 document.getElementById('search-input').focus();
+            }
+            // Escape — blur search or clear filters
+            if (e.key === 'Escape') {
+                if (inInput) {
+                    document.activeElement.blur();
+                } else if (typeof clearAllFilters === 'function') {
+                    clearAllFilters();
+                }
+            }
+            // Arrow keys — navigate pagination (when not in input)
+            if (!inInput && e.key === 'ArrowRight') {
+                e.preventDefault();
+                const t = Math.ceil(filteredPositions.length / PAGE_SIZE);
+                if (currentPage < t) goToPage(currentPage + 1);
+            }
+            if (!inInput && e.key === 'ArrowLeft') {
+                e.preventDefault();
+                if (currentPage > 1) goToPage(currentPage - 1);
             }
         });
 
