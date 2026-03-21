@@ -2646,26 +2646,30 @@
         <div id="risk-simulator-section" style="margin-bottom:20px;opacity:0;transition:opacity 0.6s ease 0.1s">
             <div id="sim-card" style="background:var(--bg-card);border:1px solid var(--border-default);border-radius:14px;padding:24px 28px;position:relative;overflow:visible;transition:border-color 0.4s ease,box-shadow 0.4s ease">
                 <!-- Title Row -->
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fb7185" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                     <span style="font-size:13px;font-weight:600;color:#fff">Risk Simulator</span>
-                    <span class="sim-active-banner" id="sim-active-banner"><span class="sim-active-dot"></span>Simulation Active</span>
                 </div>
-                <!-- Controls Row -->
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap">
-                    <!-- Asset Mode Segmented Control -->
-                    <div id="sim-asset-mode" style="position:relative;display:flex;padding:2px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);overflow:visible">
-                        <div id="sim-asset-pill" style="position:absolute;top:2px;left:2px;width:calc(60% - 2px);height:calc(100% - 4px);border-radius:6px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.2);transition:all 0.3s cubic-bezier(0.4,0,0.2,1);pointer-events:none"></div>
-                        <!-- Simple mode (asset picker trigger) -->
-                        <button type="button" id="sim-asset-trigger" class="sim-mode-seg active" data-mode="simple" style="position:relative;z-index:1;display:flex;align-items:center;gap:6px;padding:5px 14px;border:none;background:transparent;color:#a5b4fc;font-size:11px;font-weight:600;cursor:pointer;transition:color 0.2s;font-family:inherit;white-space:nowrap">
+                <!-- Mode Tabs -->
+                <div style="display:flex;align-items:center;gap:0;margin-bottom:18px;border-bottom:1px solid rgba(255,255,255,0.06)">
+                    <button type="button" class="sim-tab active" id="sim-tab-simple" onclick="setSimTab('simple')" style="position:relative;padding:8px 18px;border:none;background:transparent;color:#a5b4fc;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:0.3px;transition:color 0.2s">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:5px"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>Simple
+                        <span class="sim-tab-line" style="position:absolute;bottom:-1px;left:8px;right:8px;height:2px;background:#6366f1;border-radius:2px 2px 0 0;transition:opacity 0.2s"></span>
+                    </button>
+                    <button type="button" class="sim-tab" id="sim-tab-multi" onclick="setSimTab('multi')" style="position:relative;padding:8px 18px;border:none;background:transparent;color:var(--text-muted);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:0.3px;transition:color 0.2s">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:5px"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>Multi-Asset
+                        <span class="sim-tab-line" style="position:absolute;bottom:-1px;left:8px;right:8px;height:2px;background:#6366f1;border-radius:2px 2px 0 0;opacity:0;transition:opacity 0.2s"></span>
+                    </button>
+                    <span class="sim-active-banner" id="sim-active-banner" style="margin-left:auto"><span class="sim-active-dot"></span>Simulation Active</span>
+                </div>
+                <!-- Simple Mode Controls -->
+                <div id="sim-simple-controls" style="display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap">
+                    <!-- Asset Picker Trigger -->
+                    <div id="sim-asset-mode" style="position:relative">
+                        <button type="button" id="sim-asset-trigger" title="Select asset" style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;border:1px solid rgba(99,102,241,0.25);background:rgba(99,102,241,0.08);color:#a5b4fc;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.2s">
                             <span id="sim-asset-icon" style="width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:13px">🌐</span>
                             <span id="sim-asset-label">All Volatile</span>
                             <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor" style="opacity:0.6"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
-                        </button>
-                        <!-- Advanced mode -->
-                        <button type="button" id="sim-multi-toggle" class="sim-mode-seg" data-mode="advanced" onclick="toggleMultiAssetMode()" style="position:relative;z-index:1;display:flex;align-items:center;gap:5px;padding:5px 14px;border:none;background:transparent;color:var(--text-muted);font-size:11px;font-weight:600;cursor:pointer;transition:color 0.2s;font-family:inherit;white-space:nowrap">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
-                            Advanced
                         </button>
                         <!-- Asset Popover -->
                         <div id="sim-asset-popover" class="sim-asset-popover" style="display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:100;width:220px;background:var(--bg-card);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:10px;box-shadow:0 12px 40px rgba(0,0,0,0.5)">
@@ -2673,7 +2677,7 @@
                             <div id="sim-asset-list" class="col-token-list" style="max-height:260px;overflow-y:auto"></div>
                         </div>
                     </div>
-                    <!-- Direction Toggle (Premium Segmented, hidden in advanced mode) -->
+                    <!-- Direction Toggle -->
                     <div id="sim-dir-toggle" style="position:relative;display:flex;padding:2px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);overflow:hidden">
                         <div id="sim-dir-pill" style="position:absolute;top:2px;left:2px;width:calc(50% - 2px);height:calc(100% - 4px);border-radius:6px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.2);transition:all 0.3s cubic-bezier(0.4,0,0.2,1);pointer-events:none"></div>
                         <button type="button" class="sim-dir-seg active" data-dir="drop" onclick="setSimDir('drop')" style="position:relative;z-index:1;display:flex;align-items:center;gap:5px;padding:5px 14px;border:none;background:transparent;color:#f87171;font-size:11px;font-weight:600;cursor:pointer;transition:color 0.2s;font-family:inherit;white-space:nowrap">
@@ -3205,11 +3209,6 @@
             if (simAssetTrigger) {
                 simAssetTrigger.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    // If in advanced mode, switch back to simple
-                    if (window._multiAssetMode) {
-                        toggleMultiAssetMode();
-                        return;
-                    }
                     const isOpen = simAssetPopover.style.display !== 'none';
                     simAssetPopover.style.display = isOpen ? 'none' : 'block';
                     if (!isOpen) { simAssetSearch.value = ''; renderSimAssetList(''); simAssetSearch.focus(); }
@@ -3445,51 +3444,37 @@
         window._multiAssetMode = false;
         let _multiAssetRowId = 0;
 
-        function toggleMultiAssetMode() {
-            window._multiAssetMode = !window._multiAssetMode;
-            const panel = document.getElementById('sim-multi-panel');
-            const toggle = document.getElementById('sim-multi-toggle');
-            const simpleBtn = document.getElementById('sim-asset-trigger');
-            const pill = document.getElementById('sim-asset-pill');
-            const dirToggle = document.getElementById('sim-dir-toggle');
+        function setSimTab(tab) {
+            const isMulti = tab === 'multi';
+            window._multiAssetMode = isMulti;
+
+            const tabSimple = document.getElementById('sim-tab-simple');
+            const tabMulti = document.getElementById('sim-tab-multi');
+            const simpleControls = document.getElementById('sim-simple-controls');
             const sliderRow = document.getElementById('sim-slider-row');
+            const panel = document.getElementById('sim-multi-panel');
 
-            panel.classList.toggle('visible', window._multiAssetMode);
+            // Update tab styles
+            tabSimple.style.color = isMulti ? 'var(--text-muted)' : '#a5b4fc';
+            tabMulti.style.color = isMulti ? '#a5b4fc' : 'var(--text-muted)';
+            tabSimple.querySelector('.sim-tab-line').style.opacity = isMulti ? '0' : '1';
+            tabMulti.querySelector('.sim-tab-line').style.opacity = isMulti ? '1' : '0';
 
-            if (window._multiAssetMode) {
-                // Activate Advanced segment
-                toggle.classList.add('active');
-                toggle.style.color = '#c4b5fd';
-                simpleBtn.classList.remove('active');
-                simpleBtn.style.color = 'var(--text-muted)';
-                // Move pill to right
-                pill.style.left = 'calc(60%)';
-                pill.style.width = 'calc(40% - 2px)';
-                pill.style.background = 'rgba(139,92,246,0.15)';
-                pill.style.borderColor = 'rgba(139,92,246,0.2)';
-                // Hide direction toggle and slider
-                if (dirToggle) dirToggle.style.display = 'none';
-                if (sliderRow) sliderRow.style.display = 'none';
-            } else {
-                // Activate Simple segment
-                toggle.classList.remove('active');
-                toggle.style.color = 'var(--text-muted)';
-                simpleBtn.classList.add('active');
-                simpleBtn.style.color = '#a5b4fc';
-                // Move pill to left
-                pill.style.left = '2px';
-                pill.style.width = 'calc(60% - 2px)';
-                pill.style.background = 'rgba(99,102,241,0.15)';
-                pill.style.borderColor = 'rgba(99,102,241,0.2)';
-                // Show direction toggle and slider
-                if (dirToggle) dirToggle.style.display = 'flex';
-                if (sliderRow) sliderRow.style.display = '';
-            }
+            // Show/hide content
+            if (simpleControls) simpleControls.style.display = isMulti ? 'none' : 'flex';
+            if (sliderRow) sliderRow.style.display = isMulti ? 'none' : '';
+            if (panel) panel.classList.toggle('visible', isMulti);
 
-            if (window._multiAssetMode && document.getElementById('sim-multi-rows').children.length === 0) {
+            // Initialize default rows
+            if (isMulti && document.getElementById('sim-multi-rows').children.length === 0) {
                 addMultiAssetRow('WBTC', -25);
                 addMultiAssetRow('WETH', -20);
             }
+        }
+
+        // Backwards-compatible alias
+        function toggleMultiAssetMode() {
+            setSimTab(window._multiAssetMode ? 'simple' : 'multi');
         }
 
         function addMultiAssetRow(defaultToken, defaultPct) {
