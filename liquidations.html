@@ -2342,6 +2342,20 @@
                     </div>
                 </div>
 
+                <!-- Coverage Ratio Donut -->
+                <div id="coverage-donut-wrap" style="display:flex;align-items:center;justify-content:center;gap:20px;margin-top:18px;opacity:0;transition:opacity 0.6s ease">
+                    <svg id="coverage-donut" width="72" height="72" viewBox="0 0 72 72">
+                        <circle cx="36" cy="36" r="28" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="7"/>
+                        <circle id="donut-collateral" cx="36" cy="36" r="28" fill="none" stroke="#10b981" stroke-width="7" stroke-dasharray="0 176" stroke-dashoffset="44" stroke-linecap="round" style="transition:stroke-dasharray 1.2s cubic-bezier(0.4,0,0.2,1)"/>
+                        <circle id="donut-debt" cx="36" cy="36" r="28" fill="none" stroke="#f97316" stroke-width="7" stroke-dasharray="0 176" stroke-dashoffset="44" stroke-linecap="round" style="transition:stroke-dasharray 1.2s cubic-bezier(0.4,0,0.2,1)"/>
+                    </svg>
+                    <div>
+                        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px">Coverage Ratio</div>
+                        <div id="coverage-ratio-value" style="font-size:26px;font-weight:700;color:#10b981;text-shadow:0 0 20px rgba(16,185,129,0.3);font-variant-numeric:tabular-nums">—</div>
+                        <div id="coverage-ratio-sub" style="font-size:10px;color:var(--text-muted);margin-top:2px">Collateral / Debt</div>
+                    </div>
+                </div>
+
                 <!-- Second row: risk breakdown -->
                 <div class="lending-metrics-grid" style="grid-template-columns: repeat(3, 1fr); margin-top: 12px">
                     <!-- Full Liq -->
@@ -2770,13 +2784,42 @@
             const atRiskCount = fullLiqCount + badDebtCount + partialLiqCount + dangerCount;
 
             animateCount(atRiskEl, atRiskCount, false, 1000);
-            document.getElementById('stat-at-risk-sub').textContent = `${fullLiqCount + badDebtCount} full liq · ${partialLiqCount} partial · ${dangerCount} danger`;
+            document.getElementById('stat-at-risk-sub').innerHTML = `<span style="color:#ef4444;font-weight:600">${fullLiqCount + badDebtCount}</span> <span style="color:#ef4444">full liq</span> · <span style="color:#f97316;font-weight:600">${partialLiqCount}</span> <span style="color:#f97316">partial</span> · <span style="color:#fb923c;font-weight:600">${dangerCount}</span> <span style="color:#fb923c">danger</span>`;
 
             // Recalculate totals from non-dust positions
             const totalCollateral = Math.round(noDust.reduce((s, p) => s + (p.collateralUSD || 0), 0));
             const totalDebt = Math.round(noDust.reduce((s, p) => s + (p.debtUSD || 0), 0));
             animateCount(collateralEl, totalCollateral, true, 1200);
             animateCount(debtEl, totalDebt, true, 1200);
+
+            // ─── Coverage Ratio Donut Chart ───────────────────────
+            const circumference = 2 * Math.PI * 28; // ~175.93
+            const total = totalCollateral + totalDebt;
+            if (total > 0) {
+                const collateralPct = totalCollateral / total;
+                const debtPct = totalDebt / total;
+                const collateralArc = collateralPct * circumference;
+                const debtArc = debtPct * circumference;
+                const gap = 4; // gap between arcs
+                const donutC = document.getElementById('donut-collateral');
+                const donutD = document.getElementById('donut-debt');
+                // Collateral arc starts at top (offset = circumference/4)
+                donutC.setAttribute('stroke-dashoffset', circumference * 0.25);
+                // Debt arc starts after collateral arc
+                donutD.setAttribute('stroke-dashoffset', circumference * 0.25 - collateralArc - gap);
+                // Animate after brief delay
+                setTimeout(() => {
+                    donutC.setAttribute('stroke-dasharray', `${collateralArc - gap} ${circumference}`);
+                    donutD.setAttribute('stroke-dasharray', `${debtArc - gap} ${circumference}`);
+                }, 200);
+                // Coverage ratio value
+                const ratio = totalDebt > 0 ? (totalCollateral / totalDebt) : 0;
+                const ratioEl = document.getElementById('coverage-ratio-value');
+                ratioEl.textContent = ratio.toFixed(2) + 'x';
+                ratioEl.style.color = ratio >= 1.5 ? '#10b981' : ratio >= 1.2 ? '#fbbf24' : '#ef4444';
+                document.getElementById('coverage-ratio-sub').textContent = `$${(totalCollateral/1e6).toFixed(1)}M collateral / $${(totalDebt/1e6).toFixed(1)}M debt`;
+                document.getElementById('coverage-donut-wrap').style.opacity = '1';
+            }
 
             const fullLiqEl = document.getElementById('stat-full-liq');
             const partialLiqEl = document.getElementById('stat-partial-liq');
@@ -4092,8 +4135,9 @@
 
         // ─── Keyboard Shortcuts ──────────────────────────────────────────────
         document.addEventListener('keydown', (e) => {
+            const inInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName);
             // `/` to focus search (when not already in an input)
-            if (e.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+            if (e.key === '/' && !inInput) {
                 e.preventDefault();
                 document.getElementById('search-input').focus();
             }
@@ -4101,6 +4145,24 @@
             if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
                 document.getElementById('search-input').focus();
+            }
+            // Escape — blur search or clear filters
+            if (e.key === 'Escape') {
+                if (inInput) {
+                    document.activeElement.blur();
+                } else if (typeof clearAllFilters === 'function') {
+                    clearAllFilters();
+                }
+            }
+            // Arrow keys — navigate pagination (when not in input)
+            if (!inInput && e.key === 'ArrowRight') {
+                e.preventDefault();
+                const t = Math.ceil(filteredPositions.length / PAGE_SIZE);
+                if (currentPage < t) goToPage(currentPage + 1);
+            }
+            if (!inInput && e.key === 'ArrowLeft') {
+                e.preventDefault();
+                if (currentPage > 1) goToPage(currentPage - 1);
             }
         });
 
