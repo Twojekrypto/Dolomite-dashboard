@@ -62,6 +62,12 @@ EXCLUDED_ADDRS = {
     "0x6a2383cff0d46d2b7d29759f17c26fba726f3ea3",  # EOA bot, 35k nonce
     "0x278d858f05b94576c1e6f73285886876ff6ef8d2",  # Contract bot, 53k DOLO txs
     "0x9e7728077f753dfdf53c2236097e27c743890992",  # DEX/router contract, 327M throughput
+    # --- MM / CEX relay cluster (verified 2026-03-24) ---
+    "0x0002810d2b1d621f3ae6c8a7af9e2f09efa1f8bb",  # MM relay: receives DOLO from CEX → sends to bridge
+    "0x81879c14fe0efd4c8f6a99a34ce414190be8dbab",  # Bridge relay: CCIP bridges DOLO ETH→Bera
+    "0x67790d0eaea043330be5415c0b512d8e0a2ab5c2",  # CEX hot wallet (nonce 3400+), USDT/USDC distributor
+    # --- ETH DEX router ---
+    "0xbdb3ba9ffe392549e1f8658dd2630c141fdf47b6",  # DEX aggregator/router (nonce 1.3M+)
 }
 
 CHAINS = {
