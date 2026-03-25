@@ -10212,7 +10212,7 @@
                 .earn-hero-outer {
                     position:relative;border-radius:18px;padding:2px;
                     background:linear-gradient(135deg,rgba(52,211,153,.35),rgba(34,211,238,.25),rgba(99,102,241,.15));
-                    overflow:visible;margin-bottom:28px;z-index:10;
+                    overflow:hidden;margin-bottom:28px;z-index:10;
                 }
                 .earn-hero-outer::before {
                     content:'';position:absolute;inset:-2px;border-radius:20px;
@@ -17122,6 +17122,7 @@
         let earn_odoloClaimed = 0; // total oDOLO claimed by current address
         let earn_rpcId = 5000;
         const earn_tokenCache = {}; // "chain:address" => { symbol, decimals, icon }
+        let earn_borrowMarkets = new Set(); // market IDs with active borrows (yield formula is invalid for these)
 
         // ---- Custom chain selector logic ----
         function earnChainToggle() {
@@ -17149,6 +17150,7 @@
             earn_cachedAssets = [];
             earn_historicalData = null;
             earn_customSnapshotDate = null;
+            earn_borrowMarkets = new Set();
             // Reset UI to clean state
             earn_switchMode('active');
             earn_hideAll();
@@ -18053,7 +18055,9 @@
                     // Yield = current balance - net flow (what you deposited minus what you withdrew)
                     // For active positions: shows the earned interest
                     // For withdrawn positions: netFlow ≈ 0 (deposits cancel out withdrawals), so yield ≈ 0
-                    const yieldWei = currentWei - netFlow;
+                    // Skip yield for borrow-affected markets: swap deltas from borrows pollute netflow
+                    const isBorrowMarket = earn_borrowMarkets && earn_borrowMarkets.has(midStr);
+                    const yieldWei = isBorrowMarket ? 0n : currentWei - netFlow;
 
                     // Resolve token info — prioritize hardcoded map over RPC
                     let tokenAddr, symbol, decimals, icon, tokenName;
@@ -18140,8 +18144,9 @@
             let totalActive = 0;
             let totalWithdrawn = 0;
             items.forEach(item => {
-                // Exclude isolation mode tokens from total yield (internal protocol movements)
-                if (!item.isIsolation) totalYieldUsd += item.yieldUsd;
+                // Exclude isolation mode tokens and borrow-affected markets from total yield
+                const isBorrowMkt = earn_borrowMarkets && earn_borrowMarkets.has(String(item.marketId));
+                if (!item.isIsolation && !isBorrowMkt) totalYieldUsd += item.yieldUsd;
                 if (item.isActive) totalActive++; else totalWithdrawn++;
             });
 
@@ -18825,16 +18830,18 @@
                     addFlow(liq.borrowedToken.marketId, String(-parseFloat(liq.borrowedTokenAmountDeltaWei)), 'l');
                 }
                 let borrowCount = 0;
+                earn_borrowMarkets = new Set();
                 for (const bp of borrowPositions) {
                     for (const amt of (bp.amounts || [])) {
                         const borrowPar = parseFloat(amt.amountPar || '0');
                         if (borrowPar > 0) {
                             addFlow(amt.token.marketId, String(-borrowPar), 'b');
+                            earn_borrowMarkets.add(String(amt.token.marketId));
                             borrowCount++;
                         }
                     }
                 }
-                if (borrowCount > 0) console.log(`Subgraph: found ${borrowPositions.length} open borrow positions with ${borrowCount} amounts`);
+                if (borrowCount > 0) console.log(`Subgraph: found ${borrowPositions.length} open borrow positions with ${borrowCount} amounts, borrow markets: ${[...earn_borrowMarkets].join(',')}`);
 
                 // Now convert the float-based netflows to wei BigInt strings
                 // Query token decimals from subgraph
@@ -19470,13 +19477,18 @@
                 const mid = String(a.marketId);
                 let yieldCellHtml;
 
+                // Skip yield for borrow-affected markets (swap deltas pollute netflow)
+                const isBorrowMarket = earn_borrowMarkets && earn_borrowMarkets.has(mid);
+
                 // Method 1: NetFlow-based (exact: yield = currentWei - netFlow)
                 const hasNetflow = earn_netflowData && earn_netflowData[mid] !== undefined;
                 // Method 2: Snapshot-based (pairwise index-based)
                 const hist = earn_totalYieldData && earn_totalYieldData[mid];
                 const hasSnapshotData = hist && hist.cumulativeYield !== undefined;
 
-                if (hasNetflow) {
+                if (isBorrowMarket) {
+                    yieldCellHtml = `<span class="earn-amount" style="color:var(--text-muted)" title="Yield not shown — this market has active borrow positions">—</span>`;
+                } else if (hasNetflow) {
                     const flowData = earn_netflowData[mid];
                     const netFlow = typeof flowData === 'string' ? BigInt(flowData) : BigInt(flowData.t || '0');
                     const totalYield = a.wei - netFlow;
@@ -19724,8 +19736,10 @@
                         const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[a.symbol] || 0;
 
                         // Method 1: NetFlow-based yield (same logic as table rows)
+                        // Skip borrow-affected markets
+                        const isBorrowMkt = earn_borrowMarkets && earn_borrowMarkets.has(mid);
                         const nf = earn_netflowData && earn_netflowData[mid];
-                        if (nf !== undefined) {
+                        if (nf !== undefined && !isBorrowMkt) {
                             try {
                                 const netFlow = typeof nf === 'string' ? BigInt(nf) : BigInt(nf.t || '0');
                                 const weiBI = typeof a.wei === 'bigint' ? a.wei : BigInt(a.wei || '0');
