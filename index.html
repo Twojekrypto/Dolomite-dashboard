@@ -5999,6 +5999,42 @@
             pointer-events: none;
         }
 
+        /* ═══════ Borrow position styling ═══════ */
+        .earn-hist-badge.borrow {
+            background: rgba(248, 113, 113, 0.12);
+            color: #f87171;
+            border: 1px solid rgba(248, 113, 113, 0.25);
+        }
+        .earn-hist-badge.borrow .earn-status-dot {
+            background: #f87171;
+            box-shadow: 0 0 6px rgba(248, 113, 113, 0.5);
+        }
+        .earn-data-row.earn-row-borrow {
+            background: rgba(248, 113, 113, 0.025);
+        }
+        .earn-data-row.earn-row-borrow:hover {
+            background: rgba(248, 113, 113, 0.06);
+        }
+        .earn-borrow-amount {
+            color: #f87171;
+            font-weight: 600;
+        }
+        .earn-borrow-apr {
+            color: #f87171;
+            font-weight: 700;
+            font-size: 15px;
+        }
+        .earn-borrow-apr-label {
+            font-size: 11px;
+            color: rgba(248, 113, 113, 0.6);
+            margin-top: 2px;
+        }
+        .earn-borrow-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(248, 113, 113, 0.2), transparent);
+            margin: 4px 0;
+        }
+
         .earn-dust-count {
             display: inline-flex;
             align-items: center;
@@ -17123,6 +17159,7 @@
         let earn_rpcId = 5000;
         const earn_tokenCache = {}; // "chain:address" => { symbol, decimals, icon }
         let earn_borrowMarkets = new Set(); // market IDs with active borrows (yield formula is invalid for these)
+        let earn_borrowPositionData = []; // raw borrow position data from subgraph [{marketId, amountPar, tokenAddr, decimals, symbol}]
 
         // ---- Custom chain selector logic ----
         function earnChainToggle() {
@@ -17151,6 +17188,7 @@
             earn_historicalData = null;
             earn_customSnapshotDate = null;
             earn_borrowMarkets = new Set();
+            earn_borrowPositionData = [];
             // Reset UI to clean state
             earn_switchMode('active');
             earn_hideAll();
@@ -17344,13 +17382,15 @@
             for (let i = 0; i < count; i++) {
                 const parVal = pars[i] ? (pars[i].sign ? pars[i].value : -pars[i].value) : 0n;
                 const weiVal = weis[i] ? (weis[i].sign ? weis[i].value : -weis[i].value) : 0n;
-                // Only include assets with positive balance (deposits, not borrows)
+                // Only include supply positions (positive balances)
+                // Borrow positions are injected separately from subgraph data
                 if (weiVal > 0n) {
                     results.push({
                         marketId: marketIds[i],
                         tokenAddr: tokenAddrs[i],
-                        par: parVal,  // principal (original deposit)
-                        wei: weiVal,  // current value (with yield)
+                        par: parVal,
+                        wei: weiVal,
+                        isBorrow: false,
                     });
                 }
             }
@@ -18831,6 +18871,7 @@
                 }
                 let borrowCount = 0;
                 earn_borrowMarkets = new Set();
+                earn_borrowPositionData = [];
                 for (const bp of borrowPositions) {
                     for (const amt of (bp.amounts || [])) {
                         const borrowPar = parseFloat(amt.amountPar || '0');
@@ -18842,6 +18883,9 @@
                     }
                 }
                 if (borrowCount > 0) console.log(`Subgraph: found ${borrowPositions.length} open borrow positions with ${borrowCount} amounts, borrow markets: ${[...earn_borrowMarkets].join(',')}`);
+
+                // Build borrow position data after tokens are resolved (need decimals)
+                // We'll finalize earn_borrowPositionData after the token query below
 
                 // Now convert the float-based netflows to wei BigInt strings
                 // Query token decimals from subgraph
@@ -18874,6 +18918,46 @@
                             entry[key] = weiVal.toString();
                         }
                     }
+                }
+
+                // Finalize borrow position data using subgraph token cache
+                if (earn_borrowMarkets.size > 0) {
+                    // Aggregate borrow par by market (in case of multiple positions on same market)
+                    const borrowByMarket = {};
+                    for (const bp of borrowPositions) {
+                        for (const amt of (bp.amounts || [])) {
+                            const borrowPar = parseFloat(amt.amountPar || '0');
+                            if (borrowPar > 0) {
+                                const mid = String(amt.token.marketId);
+                                borrowByMarket[mid] = (borrowByMarket[mid] || 0) + borrowPar;
+                            }
+                        }
+                    }
+                    // Build entries with token info
+                    for (const [mid, totalPar] of Object.entries(borrowByMarket)) {
+                        const tokenInfo = earn_subgraphTokens[mid];
+                        if (!tokenInfo) continue;
+                        const dec = tokenInfo.decimals || 18;
+                        const weiVal = BigInt(Math.round(totalPar * (10 ** dec)));
+                        const symbol = tokenInfo.symbol || 'UNK';
+                        let icon = SYMBOL_ICONS[symbol] || SYMBOL_ICONS[symbol.toUpperCase()];
+                        if (!icon) {
+                            const ch = (symbol[0] || '?').toUpperCase();
+                            const hue = [...symbol].reduce((h, c) => (h + c.charCodeAt(0) * 37) % 360, 0);
+                            icon = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='16' fill='hsl(${hue},50%,35%)'/><text x='16' y='22' text-anchor='middle' font-size='16' font-weight='bold' fill='white'>${ch}</text></svg>`)}`;
+                        }
+                        earn_borrowPositionData.push({
+                            marketId: parseInt(mid),
+                            tokenAddr: tokenInfo.tokenAddr || '',
+                            symbol,
+                            decimals: dec,
+                            icon,
+                            wei: -weiVal, // negative = borrow
+                            par: -weiVal,
+                            isBorrow: true,
+                        });
+                    }
+                    console.log(`Borrow positions resolved: ${earn_borrowPositionData.length} markets with debt`);
                 }
 
                 if (Object.keys(netflows).length > 0) {
@@ -19239,12 +19323,14 @@
                                 });
                                 let extYieldApr = 0;
                                 yieldSources.forEach(ys => { extYieldApr += ys.rate; });
+                                const borrowRate = parseFloat(r.totalBorrowInterestRate || r.borrowInterestRate || '0');
                                 const entry = {
                                     apy: rate * 100,
                                     lendingApr: baseLending * 100,
                                     rewards: odoloRewards * 100,
                                     yieldSources: yieldSources,
-                                    extYieldApr: extYieldApr
+                                    extYieldApr: extYieldApr,
+                                    borrowApr: borrowRate * 100,
                                 };
                                 if (addr) earn_marketRates[chainId + ':' + addr] = entry;
                                 // Also key by symbol for fallback
@@ -19310,7 +19396,7 @@
                     const cgKey = chainId + ':' + b.tokenAddr.toLowerCase();
                     const priceUsd = earn_priceCache[cgKey] || TOKEN_USD_FALLBACK[info.symbol] || 0.01;
                     const humanAmt = Number(b.wei) / Math.pow(10, info.decimals);
-                    const usdValue = humanAmt * priceUsd;
+                    const usdValue = Math.abs(humanAmt * priceUsd);
                     return {
                         ...b,
                         symbol: info.symbol,
@@ -19332,12 +19418,36 @@
                     const realPrice = earn_priceCache[cgKey];
                     if (realPrice) {
                         const humanAmt = Number(a.wei) / Math.pow(10, a.decimals);
-                        a.usdValue = humanAmt * realPrice;
+                        a.usdValue = Math.abs(humanAmt * realPrice);
                     }
                 });
 
-                // Sort by USD value and render with real yield + prices
-                enriched.sort((a, b) => b.usdValue - a.usdValue);
+                // Inject borrow positions from subgraph data
+                if (earn_borrowPositionData.length > 0) {
+                    const existingMarkets = new Set(enriched.map(a => a.marketId));
+                    for (const bp of earn_borrowPositionData) {
+                        // Skip if this market already appears as a supply position in enriched
+                        // (shouldn't happen, but safety check)
+                        if (existingMarkets.has(bp.marketId) && enriched.find(a => a.marketId === bp.marketId && !a.isBorrow)) {
+                            // Market exists as supply — add borrow separately
+                        }
+                        const cgKey = chainId + ':' + bp.tokenAddr.toLowerCase();
+                        const price = earn_priceCache[cgKey] || TOKEN_USD_FALLBACK[bp.symbol] || 0;
+                        const humanAmt = Math.abs(Number(bp.wei) / Math.pow(10, bp.decimals));
+                        bp.usdValue = humanAmt * price;
+                        enriched.push(bp);
+                    }
+                    console.log(`Injected ${earn_borrowPositionData.length} borrow positions into enriched assets`);
+                }
+
+                // Update cached assets with borrows included
+                earn_cachedAssets = enriched;
+
+                // Sort: supply positions first by USD descending, then borrow positions by USD descending
+                enriched.sort((a, b) => {
+                    if (a.isBorrow !== b.isBorrow) return a.isBorrow ? 1 : -1;
+                    return b.usdValue - a.usdValue;
+                });
                 earn_renderResults(enriched);
 
                 // Background: re-render when APY data arrives from DeFiLlama
@@ -19467,12 +19577,13 @@
 
             // Build table rows
             const tbody = document.getElementById('earn-table-body');
-            // Filter out dust positions (< $0.01 USD)
-            assets = assets.filter(a => a.usdValue >= 0.01);
+            // Separate supply and borrow positions
+            const supplyAssets = assets.filter(a => !a.isBorrow && a.usdValue >= 0.01);
+            const borrowAssets = assets.filter(a => a.isBorrow && a.usdValue >= 0.01);
 
             let html = '';
 
-            assets.forEach((a, idx) => {
+            supplyAssets.forEach((a, idx) => {
                 // Total yield calculation — prefer netflow (exact) over snapshot-based
                 const mid = String(a.marketId);
                 let yieldCellHtml;
@@ -19618,6 +19729,65 @@
                 </tr>`;
             });
 
+            // ═══════ BORROW POSITIONS (below supply rows) ═══════
+            if (borrowAssets.length > 0) {
+                html += `<tr><td colspan="4"><div class="earn-borrow-divider"></div></td></tr>`;
+                borrowAssets.forEach((a, i) => {
+                    const bidx = supplyAssets.length + i;
+                    const delay = bidx * 0.08;
+                    const absWei = a.wei < 0n ? -a.wei : a.wei;
+                    const weiFmt = earn_formatAmount(absWei, a.decimals, a.symbol);
+
+                    let iconHtml;
+                    if (a.icon) {
+                        const _gsB = new Set(['CRV', 'USD0', 'USD0++', 'deUSD', 'sdeUSD', 'MATIC', 'POL', 'stcUSD', 'cUSD', 'USDT', 'cbBTC']).has(a.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
+                        iconHtml = `<div class="earn-token-icon"><img src="${a.icon}" alt="${a.symbol}"${_gsB} onerror="this.parentElement.textContent='${a.symbol.slice(0, 2)}'"></div>`;
+                    } else {
+                        iconHtml = `<div class="earn-token-icon">${a.symbol.slice(0, 2)}</div>`;
+                    }
+
+                    // Borrow APR
+                    let borrowAprHtml;
+                    const cid = document.getElementById('earn-chain').value;
+                    const rateByAddr = earn_marketRates[cid + ':' + (a.tokenAddr || '').toLowerCase()];
+                    const rateBySymbol = earn_marketRates['sym:' + (a.symbol || '').toUpperCase().replace(/[^A-Z0-9]/g, '')];
+                    const rateData = rateByAddr || rateBySymbol;
+                    if (rateData && rateData.borrowApr > 0) {
+                        const displayRate = earn_showApy ? aprToApy(rateData.borrowApr) : rateData.borrowApr;
+                        borrowAprHtml = `<span class="earn-borrow-apr">${displayRate.toFixed(2)}%</span><div class="earn-borrow-apr-label">Borrow ${earn_showApy ? 'APY' : 'APR'}</div>`;
+                    } else {
+                        borrowAprHtml = `<span style="color:var(--text-muted)">—</span>`;
+                    }
+
+                    html += `<tr class="earn-data-row earn-row-borrow" id="earn-row-${bidx}" style="animation-delay:${delay}s">
+                        <td>
+                            <div class="earn-token-cell">
+                                <div class="earn-token-left">
+                                    ${iconHtml}
+                                    <div class="earn-token-info">
+                                        <div class="earn-token-name">${a.symbol}</div>
+                                        <span class="earn-hist-badge borrow"><span class="earn-status-dot"></span>BORROW</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            ${borrowAprHtml}
+                        </td>
+                        <td>
+                            <span class="earn-amount earn-borrow-amount">-${weiFmt}<span class="earn-amount-sym">${a.symbol}</span></span>
+                            <div style="font-size:11px;color:rgba(248,113,113,0.5);margin-top:2px">≈ -$${a.usdValue >= 1000 ? (a.usdValue / 1000).toFixed(2) + 'K' : a.usdValue >= 1 ? a.usdValue.toFixed(2) : a.usdValue.toFixed(4)}</div>
+                        </td>
+                        <td>
+                            <span class="earn-amount" style="color:var(--text-muted)" title="Interest cost accrues on borrow positions">—</span>
+                        </td>
+                    </tr>`;
+                });
+            }
+
+            // Recombine for downstream logic
+            assets = [...supplyAssets, ...borrowAssets];
+
             // === INACTIVE ASSETS (from history data) — render into SEPARATE container ===
             let withdrawnHtml = '';
             let withdrawnCount = 0;
@@ -19723,17 +19893,25 @@
                 const summaryEl = document.getElementById('earn-summary-card');
                 if (summaryEl) {
                     let totalUsd = 0;
+                    let totalDebtUsd = 0;
                     let totalYieldUsd = 0;
                     let bestSymbol = '';
                     let bestYieldUsd = 0;
 
                     // Active assets
                     (earn_cachedAssets || []).forEach(a => {
-                        totalUsd += (a.usdValue || 0);
+                        if (a.isBorrow) {
+                            totalDebtUsd += (a.usdValue || 0);
+                        } else {
+                            totalUsd += (a.usdValue || 0);
+                        }
                         const mid = String(a.marketId);
                         const chainId = document.getElementById('earn-chain').value;
                         const priceKey = chainId + ':' + a.tokenAddr.toLowerCase();
                         const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[a.symbol] || 0;
+
+                        // Skip borrows for yield calculation
+                        if (a.isBorrow) return;
 
                         // Method 1: NetFlow-based yield (same logic as table rows)
                         // Skip borrow-affected markets
@@ -19789,15 +19967,33 @@
                     }
                     const bestIconHtml = bestIcon ? `<img class="best-icon" src="${bestIcon}" alt="">` : '';
 
-                    // Count active non-dust assets
-                    const activeCount = (earn_cachedAssets || []).filter(a => a.usdValue >= 0.01).length;
+                    // Count active non-dust supply assets
+                    const activeCount = (earn_cachedAssets || []).filter(a => !a.isBorrow && a.usdValue >= 0.01).length;
+                    const borrowCount = (earn_cachedAssets || []).filter(a => a.isBorrow && a.usdValue >= 0.01).length;
+                    const hasBorrows = totalDebtUsd > 0.01;
+
+                    // Portfolio sub label
+                    const portfolioSub = hasBorrows
+                        ? `<span class="sub-highlight">${activeCount}</span> supply · <span style="color:#f87171">${borrowCount}</span> borrow`
+                        : `<span class="sub-highlight">${activeCount}</span> active asset${activeCount !== 1 ? 's' : ''}`;
+
+                    // Grid columns: 4 or 5 depending on borrows
+                    if (hasBorrows) summaryEl.style.gridTemplateColumns = 'repeat(5, 1fr)';
+                    else summaryEl.style.gridTemplateColumns = 'repeat(4, 1fr)';
 
                     summaryEl.innerHTML = `
                         <div class="earn-summary-stat">
                             <div class="earn-summary-label">Portfolio Value</div>
                             <div class="earn-summary-value neutral">${fmtUsd(totalUsd)}</div>
-                            <div class="earn-summary-sub"><span class="sub-highlight">${activeCount}</span> active asset${activeCount !== 1 ? 's' : ''}</div>
+                            <div class="earn-summary-sub">${portfolioSub}</div>
                         </div>
+                        ${hasBorrows ? `
+                        <div class="earn-summary-stat">
+                            <div class="earn-summary-label" style="color:rgba(248,113,113,0.7)">Total Debt</div>
+                            <div class="earn-summary-value" style="color:#f87171">-${fmtUsd(totalDebtUsd)}</div>
+                            <div class="earn-summary-sub">Net: <span class="sub-highlight">${fmtUsd(Math.max(0, totalUsd - totalDebtUsd))}</span></div>
+                        </div>
+                        ` : ''}
                         <div class="earn-summary-stat">
                             <div class="earn-summary-label">Total Yield</div>
                             <div class="earn-summary-value ${yieldClass}">${yieldSign}${fmtUsd(Math.abs(totalYieldUsd))}</div>
