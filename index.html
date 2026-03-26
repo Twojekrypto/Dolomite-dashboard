@@ -19907,6 +19907,92 @@
                 countEl.textContent = positions.length;
                 section.style.display = '';
 
+                // ═══ ENRICH with subgraph data (par values + interest indexes) ═══
+                const chainId = document.getElementById('earn-chain').value;
+                const sgEndpoint = SUBGRAPH_ENDPOINTS[chainId];
+                if (sgEndpoint) {
+                    try {
+                        // Fetch borrowPositions with par data + interestIndexes in parallel
+                        const [bpData, ixData] = await Promise.all([
+                            earn_subgraphQuery(sgEndpoint,
+                                `{ borrowPositions(first: 100, where: { effectiveUser: "${addr}", status: "OPEN" }) { marginAccount { accountNumber } openTimestamp amounts { token { id marketId symbol decimals } amountPar } } }`
+                            ),
+                            earn_subgraphQuery(sgEndpoint,
+                                `{ interestIndexes(first: 1000) { id supplyIndex borrowIndex } }`
+                            ),
+                        ]);
+
+                        // Build interest index lookup (keyed by token address)
+                        const indexMap = {};
+                        (ixData.interestIndexes || []).forEach(r => {
+                            indexMap[r.id.toLowerCase()] = {
+                                supplyIdx: parseFloat(r.supplyIndex) || 1,
+                                borrowIdx: parseFloat(r.borrowIndex) || 1,
+                            };
+                        });
+
+                        // Match subgraph positions to liquidation_risk positions by accountNumber
+                        const bpByAccount = {};
+                        (bpData.borrowPositions || []).forEach(bp => {
+                            const accNum = bp.marginAccount?.accountNumber;
+                            if (accNum) bpByAccount[accNum] = bp;
+                        });
+
+                        // Enrich each position with accrued interest data
+                        for (const p of positions) {
+                            const bp = bpByAccount[p.accountNumber];
+                            if (!bp) continue;
+
+                            p.openTimestamp = parseInt(bp.openTimestamp) || 0;
+                            p.accruedCollateral = []; // { symbol, accruedTokens, accruedUSD }
+                            p.accruedDebt = [];       // { symbol, accruedTokens, accruedUSD }
+
+                            for (const amt of (bp.amounts || [])) {
+                                const par = parseFloat(amt.amountPar || '0');
+                                if (par === 0) continue;
+                                const tokenAddr = (amt.token.id || '').toLowerCase();
+                                const symbol = amt.token.symbol || '?';
+                                const decimals = parseInt(amt.token.decimals) || 18;
+                                const idx = indexMap[tokenAddr] || { supplyIdx: 1, borrowIdx: 1 };
+
+                                // Get USD price from earn_priceCache or TOKEN_USD_FALLBACK
+                                const priceKey = chainId + ':' + tokenAddr;
+                                const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[symbol] || 0;
+
+                                if (par > 0) {
+                                    // Collateral: actual = par * supplyIndex
+                                    const actualTokens = par * idx.supplyIdx;
+                                    const accruedTokens = actualTokens - par; // yield earned
+                                    const accruedUSD = accruedTokens * price;
+                                    p.accruedCollateral.push({
+                                        symbol, accruedTokens, accruedUSD,
+                                        parTokens: par, actualTokens, decimals, price, index: idx.supplyIdx
+                                    });
+                                } else {
+                                    // Borrow: actual = |par| * borrowIndex
+                                    const absPar = Math.abs(par);
+                                    const actualTokens = absPar * idx.borrowIdx;
+                                    const accruedTokens = actualTokens - absPar; // cost accrued
+                                    const accruedUSD = accruedTokens * price;
+                                    p.accruedDebt.push({
+                                        symbol, accruedTokens, accruedUSD,
+                                        parTokens: absPar, actualTokens, decimals, price, index: idx.borrowIdx
+                                    });
+                                }
+                            }
+
+                            // Compute totals
+                            p.totalAccruedYield = p.accruedCollateral.reduce((s, c) => s + c.accruedUSD, 0);
+                            p.totalAccruedCost = p.accruedDebt.reduce((s, c) => s + c.accruedUSD, 0);
+                            p.netAccrued = p.totalAccruedYield - p.totalAccruedCost;
+                        }
+
+                        console.log('Subgraph enrichment: matched', Object.keys(bpByAccount).length, 'positions with par data');
+                    } catch (e) {
+                        console.warn('Subgraph enrichment failed (falling back to estimates):', e);
+                    }
+                }
+
                 // Sort by health factor ascending (riskiest first)
                 positions.sort((a, b) => {
                     const ha = a.healthFactor ?? 999;
@@ -19989,16 +20075,41 @@
                                 <div class="earn-lend-section">
                                     <div class="earn-lend-section-title earn">🟢 Collateral Earnings</div>
                                     ${collateralRows || '<div style="color:var(--text-muted);font-size:11px">No collateral</div>'}
+                                    ${(p.accruedCollateral && p.accruedCollateral.length > 0) ? `<div style="border-top:1px solid rgba(52,211,153,0.1);margin-top:6px;padding-top:6px">
+                                        ${p.accruedCollateral.map(c => {
+                                            const icon = SYMBOL_ICONS[c.symbol] || SYMBOL_ICONS[(c.symbol || '').toUpperCase()];
+                                            const iconHtml = icon ? `<img src="${icon}" alt="${c.symbol}" onerror="this.style.display='none'">` : '';
+                                            return `<div class="earn-lend-token-row"><span class="earn-lend-token-left">${iconHtml}${c.symbol} <span style="color:rgba(52,211,153,0.5)">earned</span></span><span class="earn-lend-token-apr supply">+${earn_formatUSD(c.accruedUSD)}</span></div>`;
+                                        }).join('')}
+                                    </div>` : ''}
                                 </div>
                                 <div class="earn-lend-section">
                                     <div class="earn-lend-section-title cost">🔴 Borrow Costs</div>
                                     ${debtRows || '<div style="color:var(--text-muted);font-size:11px">No debt</div>'}
+                                    ${(p.accruedDebt && p.accruedDebt.length > 0) ? `<div style="border-top:1px solid rgba(248,113,113,0.1);margin-top:6px;padding-top:6px">
+                                        ${p.accruedDebt.map(c => {
+                                            const icon = SYMBOL_ICONS[c.symbol] || SYMBOL_ICONS[(c.symbol || '').toUpperCase()];
+                                            const iconHtml = icon ? `<img src="${icon}" alt="${c.symbol}" onerror="this.style.display='none'">` : '';
+                                            return `<div class="earn-lend-token-row"><span class="earn-lend-token-left">${iconHtml}${c.symbol} <span style="color:rgba(248,113,113,0.5)">accrued</span></span><span class="earn-lend-token-apr borrow">-${earn_formatUSD(c.accruedUSD)}</span></div>`;
+                                        }).join('')}
+                                    </div>` : ''}
                                 </div>
                                 <div class="earn-lend-section">
-                                    <div class="earn-lend-section-title net">📊 Net Position (Annual Est.)</div>
-                                    <div class="earn-lend-net-value ${netPositive ? 'positive' : 'negative'}">${netSign}${earn_formatUSD(Math.abs(netAnnual))}<span style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.4)"> / year</span></div>
-                                    <div class="earn-lend-net-apr ${netPositive ? 'positive' : 'negative'}">${netSign}${displayNetApr.toFixed(2)}% net ${rateLabel}</div>
-                                    <div class="earn-lend-net-sub">Yield ${earn_formatUSD(totalAnnualYield)} − Cost ${earn_formatUSD(totalAnnualCost)}</div>
+                                    ${(p.netAccrued !== undefined) ? `
+                                        <div class="earn-lend-section-title net">📊 Realized P&L</div>
+                                        <div class="earn-lend-net-value ${p.netAccrued >= 0 ? 'positive' : 'negative'}">${p.netAccrued >= 0 ? '+' : '-'}${earn_formatUSD(Math.abs(p.netAccrued))}<span style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.4)"> total</span></div>
+                                        <div class="earn-lend-net-sub">Yield ${earn_formatUSD(p.totalAccruedYield || 0)} − Cost ${earn_formatUSD(p.totalAccruedCost || 0)}</div>
+                                        ${p.openTimestamp ? `<div class="earn-lend-net-sub" style="margin-top:4px">Opened ${earn_formatAge(p.openTimestamp)}</div>` : ''}
+                                        <div style="border-top:1px solid rgba(255,255,255,0.05);margin-top:8px;padding-top:6px">
+                                            <div class="earn-lend-net-sub" style="margin-bottom:2px">Est. annual at current rates:</div>
+                                            <div class="earn-lend-net-apr ${netPositive ? 'positive' : 'negative'}">${netSign}${earn_formatUSD(Math.abs(netAnnual))}/yr <span style="font-weight:400">(${netSign}${displayNetApr.toFixed(2)}% net ${rateLabel})</span></div>
+                                        </div>
+                                    ` : `
+                                        <div class="earn-lend-section-title net">📊 Net Position (Annual Est.)</div>
+                                        <div class="earn-lend-net-value ${netPositive ? 'positive' : 'negative'}">${netSign}${earn_formatUSD(Math.abs(netAnnual))}<span style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.4)"> / year</span></div>
+                                        <div class="earn-lend-net-apr ${netPositive ? 'positive' : 'negative'}">${netSign}${displayNetApr.toFixed(2)}% net ${rateLabel}</div>
+                                        <div class="earn-lend-net-sub">Yield ${earn_formatUSD(totalAnnualYield)} − Cost ${earn_formatUSD(totalAnnualCost)}</div>
+                                    `}
                                 </div>
                             </div>
                         </td>
@@ -20053,6 +20164,17 @@
                 <div class="earn-summary-label" style="color:rgba(248,113,113,0.7)">Total Debt</div>
                 <div class="earn-summary-value" style="color:#f87171">-${earn_formatUSD(totalDebt)}</div>
                 <div class="earn-summary-sub">Collateral: <span class="sub-highlight">${earn_formatUSD(totalCollateral)}</span></div>`;
+        }
+
+        // Format a Unix timestamp as relative age (e.g. "42 days ago")
+        function earn_formatAge(timestamp) {
+            const now = Math.floor(Date.now() / 1000);
+            const diff = now - timestamp;
+            if (diff < 3600) return Math.floor(diff / 60) + ' min ago';
+            if (diff < 86400) return Math.floor(diff / 3600) + ' hours ago';
+            if (diff < 86400 * 30) return Math.floor(diff / 86400) + ' days ago';
+            if (diff < 86400 * 365) return Math.floor(diff / (86400 * 30)) + ' months ago';
+            return Math.floor(diff / (86400 * 365)) + ' years ago';
         }
 
         // Get supply or borrow APR for a token symbol from earn_marketRates
