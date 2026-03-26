@@ -6145,6 +6145,123 @@
             color: #f87171;
             font-size: 13px;
         }
+        /* Expandable borrow detail row */
+        .earn-lending-table tbody tr.earn-lend-row {
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .earn-lending-table tbody tr.earn-lend-row:hover td {
+            background: rgba(248,113,113,0.04);
+        }
+        .earn-lend-chevron {
+            display: inline-block;
+            width: 14px; height: 14px;
+            margin-left: 6px;
+            transition: transform 0.25s ease;
+            vertical-align: middle;
+            opacity: 0.5;
+            color: rgba(255,255,255,0.4);
+        }
+        .earn-lend-row.open .earn-lend-chevron {
+            transform: rotate(180deg);
+            opacity: 1;
+        }
+        .earn-lend-detail {
+            display: none;
+        }
+        .earn-lend-detail.open {
+            display: table-row;
+        }
+        .earn-lend-detail td {
+            padding: 0 !important;
+            border-bottom: 1px solid rgba(248,113,113,0.08);
+        }
+        .earn-lend-detail-inner {
+            padding: 14px 16px 18px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+            background: rgba(248,113,113,0.02);
+            border-top: 1px solid rgba(248,113,113,0.08);
+            animation: earnFadeIn 0.2s ease;
+        }
+        .earn-lend-section {
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.04);
+        }
+        .earn-lend-section-title {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .earn-lend-section-title.earn { color: #34d399; }
+        .earn-lend-section-title.cost { color: #f87171; }
+        .earn-lend-section-title.net { color: #a78bfa; }
+        .earn-lend-token-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            font-size: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+        }
+        .earn-lend-token-row:last-child { border-bottom: none; }
+        .earn-lend-token-left {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: rgba(255,255,255,0.7);
+        }
+        .earn-lend-token-left img {
+            width: 16px; height: 16px;
+            border-radius: 50%;
+        }
+        .earn-lend-token-apr {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .earn-lend-token-apr.supply {
+            color: #34d399;
+            background: rgba(52,211,153,0.08);
+        }
+        .earn-lend-token-apr.borrow {
+            color: #f87171;
+            background: rgba(248,113,113,0.08);
+        }
+        .earn-lend-token-annual {
+            font-size: 11px;
+            color: rgba(255,255,255,0.4);
+            margin-left: 4px;
+            font-variant-numeric: tabular-nums;
+        }
+        .earn-lend-net-value {
+            font-size: 18px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            margin: 4px 0;
+        }
+        .earn-lend-net-value.positive { color: #34d399; }
+        .earn-lend-net-value.negative { color: #f87171; }
+        .earn-lend-net-sub {
+            font-size: 11px;
+            color: rgba(255,255,255,0.4);
+        }
+        .earn-lend-net-apr {
+            font-size: 14px;
+            font-weight: 700;
+            margin-top: 2px;
+        }
+        .earn-lend-net-apr.positive { color: #34d399; }
+        .earn-lend-net-apr.negative { color: #f87171; }
 
         .earn-dust-count {
             display: inline-flex;
@@ -19799,6 +19916,8 @@
 
                 const FLAME_SVG = '<svg class="earn-emode-flame" viewBox="0 0 24 24" fill="none"><path d="M12 2c0 4-4 6-4 10a4 4 0 0 0 8 0c0-4-4-6-4-10z" fill="#fb923c" opacity="0.9"/><path d="M12 8c0 2.5-2 3.5-2 6a2 2 0 0 0 4 0c0-2.5-2-3.5-2-6z" fill="#fbbf24"/></svg>';
 
+                const chevronSvg = '<svg class="earn-lend-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+
                 tbody.innerHTML = positions.map((p, i) => {
                     const riskClass = earn_getRiskClass(p);
                     const hfDecimals = ['good','strong','balanced'].includes(riskClass) ? 2 : 4;
@@ -19814,14 +19933,78 @@
                     const collateralTokensHtml = earn_renderTokenPills(p.collateralTokens);
                     const debtTokensHtml = earn_renderTokenPills(p.debtTokens);
 
-                    return `<tr style="animation-delay:${i * 0.06}s">
-                        <td><span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span></td>
+                    // --- Build detail panel content ---
+                    const useApy = typeof earn_showApy !== 'undefined' && earn_showApy;
+                    const rateLabel = useApy ? 'APY' : 'APR';
+
+                    // Collateral earnings breakdown
+                    let totalAnnualYield = 0;
+                    const collateralRows = (p.collateralTokens || []).map(t => {
+                        const rate = earn_getTokenRate(t.symbol, 'supply');
+                        const displayRate = useApy && rate > 0 ? aprToApy(rate) : rate;
+                        const annualYield = (t.usd || 0) * (rate / 100);
+                        totalAnnualYield += annualYield;
+                        const icon = SYMBOL_ICONS[t.symbol] || SYMBOL_ICONS[(t.symbol || '').toUpperCase()];
+                        const iconHtml = icon ? `<img src="${icon}" alt="${t.symbol}" onerror="this.style.display='none'">` : '';
+                        return `<div class="earn-lend-token-row">
+                            <span class="earn-lend-token-left">${iconHtml}${t.symbol} <span style="color:rgba(255,255,255,0.3)">${earn_formatUSDCompact(t.usd)}</span></span>
+                            <span><span class="earn-lend-token-apr supply">${displayRate > 0 ? displayRate.toFixed(2) + '% ' + rateLabel : '—'}</span><span class="earn-lend-token-annual">${annualYield > 0.01 ? '+' + earn_formatUSD(annualYield) + '/yr' : ''}</span></span>
+                        </div>`;
+                    }).join('');
+
+                    // Debt cost breakdown
+                    let totalAnnualCost = 0;
+                    const debtRows = (p.debtTokens || []).map(t => {
+                        const rate = earn_getTokenRate(t.symbol, 'borrow');
+                        const displayRate = useApy && rate > 0 ? aprToApy(rate) : rate;
+                        const annualCost = (t.usd || 0) * (rate / 100);
+                        totalAnnualCost += annualCost;
+                        const icon = SYMBOL_ICONS[t.symbol] || SYMBOL_ICONS[(t.symbol || '').toUpperCase()];
+                        const iconHtml = icon ? `<img src="${icon}" alt="${t.symbol}" onerror="this.style.display='none'">` : '';
+                        return `<div class="earn-lend-token-row">
+                            <span class="earn-lend-token-left">${iconHtml}${t.symbol} <span style="color:rgba(255,255,255,0.3)">${earn_formatUSDCompact(t.usd)}</span></span>
+                            <span><span class="earn-lend-token-apr borrow">${displayRate > 0 ? displayRate.toFixed(2) + '% ' + rateLabel : '—'}</span><span class="earn-lend-token-annual">${annualCost > 0.01 ? '-' + earn_formatUSD(annualCost) + '/yr' : ''}</span></span>
+                        </div>`;
+                    }).join('');
+
+                    // Net P&L
+                    const netAnnual = totalAnnualYield - totalAnnualCost;
+                    const netPositive = netAnnual >= 0;
+                    const netSign = netPositive ? '+' : '-';
+                    const netApr = p.collateralUSD > 0 ? (netAnnual / p.collateralUSD) * 100 : 0;
+                    const displayNetApr = useApy && Math.abs(netApr) > 0.01 ? aprToApy(Math.abs(netApr)) : Math.abs(netApr);
+
+                    const dataRow = `<tr class="earn-lend-row" data-idx="${i}" onclick="earn_toggleLendDetail(${i})" style="animation-delay:${i * 0.06}s">
+                        <td><span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span>${chevronSvg}</td>
                         <td style="text-align:center">${emodeCell}</td>
                         <td><span class="earn-usd-collateral">${collateralDisplay}</span></td>
                         <td><span class="earn-usd-debt">${earn_formatUSD(p.debtUSD)}</span></td>
                         <td><div class="earn-token-pills">${collateralTokensHtml}</div></td>
                         <td><div class="earn-token-pills">${debtTokensHtml}</div></td>
                     </tr>`;
+
+                    const detailRow = `<tr class="earn-lend-detail" id="earn-lend-detail-${i}">
+                        <td colspan="6">
+                            <div class="earn-lend-detail-inner">
+                                <div class="earn-lend-section">
+                                    <div class="earn-lend-section-title earn">🟢 Collateral Earnings</div>
+                                    ${collateralRows || '<div style="color:var(--text-muted);font-size:11px">No collateral</div>'}
+                                </div>
+                                <div class="earn-lend-section">
+                                    <div class="earn-lend-section-title cost">🔴 Borrow Costs</div>
+                                    ${debtRows || '<div style="color:var(--text-muted);font-size:11px">No debt</div>'}
+                                </div>
+                                <div class="earn-lend-section">
+                                    <div class="earn-lend-section-title net">📊 Net Position (Annual Est.)</div>
+                                    <div class="earn-lend-net-value ${netPositive ? 'positive' : 'negative'}">${netSign}${earn_formatUSD(Math.abs(netAnnual))}<span style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.4)"> / year</span></div>
+                                    <div class="earn-lend-net-apr ${netPositive ? 'positive' : 'negative'}">${netSign}${displayNetApr.toFixed(2)}% net ${rateLabel}</div>
+                                    <div class="earn-lend-net-sub">Yield ${earn_formatUSD(totalAnnualYield)} − Cost ${earn_formatUSD(totalAnnualCost)}</div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>`;
+
+                    return dataRow + detailRow;
                 }).join('');
 
                 // Update summary card with accurate Total Debt from liquidation_risk.json
@@ -19870,6 +20053,35 @@
                 <div class="earn-summary-label" style="color:rgba(248,113,113,0.7)">Total Debt</div>
                 <div class="earn-summary-value" style="color:#f87171">-${earn_formatUSD(totalDebt)}</div>
                 <div class="earn-summary-sub">Collateral: <span class="sub-highlight">${earn_formatUSD(totalCollateral)}</span></div>`;
+        }
+
+        // Get supply or borrow APR for a token symbol from earn_marketRates
+        function earn_getTokenRate(symbol, type) {
+            if (!symbol) return 0;
+            const key = 'sym:' + symbol.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            const rate = earn_marketRates[key];
+            if (!rate) return 0;
+            if (type === 'borrow') return rate.borrowApr || 0;
+            return rate.apy || 0; // total supply APR
+        }
+
+        // Toggle expandable detail row for borrow positions
+        function earn_toggleLendDetail(idx) {
+            const detail = document.getElementById('earn-lend-detail-' + idx);
+            const row = document.querySelector('.earn-lend-row[data-idx="' + idx + '"]');
+            if (!detail || !row) return;
+
+            const isOpen = detail.classList.contains('open');
+
+            // Close all open panels first (accordion)
+            document.querySelectorAll('.earn-lend-detail.open').forEach(el => el.classList.remove('open'));
+            document.querySelectorAll('.earn-lend-row.open').forEach(el => el.classList.remove('open'));
+
+            // Toggle the clicked one
+            if (!isOpen) {
+                detail.classList.add('open');
+                row.classList.add('open');
+            }
         }
 
         function earn_renderResults(assets, opts) {
