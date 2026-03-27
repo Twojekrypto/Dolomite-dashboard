@@ -6257,6 +6257,18 @@
         .earn-lend-section-title.earn { color: #34d399; }
         .earn-lend-section-title.cost { color: #f87171; }
         .earn-lend-section-title.net { color: #a78bfa; }
+        .earn-lend-section-title.rewards { color: #fbbf24; }
+        .earn-lend-token-apr.rewards {
+            color: #fbbf24;
+            background: rgba(251,191,36,0.10);
+        }
+        .earn-reward-claim-link {
+            font-size: 10px;
+            color: rgba(251,191,36,0.6);
+            text-decoration: none;
+            margin-left: 6px;
+        }
+        .earn-reward-claim-link:hover { color: #fbbf24; text-decoration: underline; }
         .earn-lend-token-row {
             display: flex;
             justify-content: space-between;
@@ -19008,6 +19020,60 @@
             }
         }
 
+        // === External Rewards: MERKL WLFI + oDOLO per-position ===
+        let earn_merklRewards = {}; // { symbol: { accumulated, unclaimed, token } }
+        let earn_odoloMeta = null;  // { allChainWeights, currentEpochRewards, ... }
+
+        // Fetch MERKL rewards (exact WLFI earned) for a wallet on a specific chain
+        async function earn_fetchMerklRewards(userAddr, chainId) {
+            const CHAIN_IDS = { ethereum: 1, berachain: 80094, arbitrum: 42161, mantle: 5000 };
+            const numericId = CHAIN_IDS[chainId];
+            if (!numericId) return {};
+            try {
+                const url = `https://api.merkl.xyz/v3/rewards?chainIds=${numericId}&user=${userAddr.toLowerCase()}`;
+                const resp = await fetch(url);
+                if (!resp.ok) return {};
+                const data = await resp.json();
+                const chainData = data[String(numericId)];
+                if (!chainData) return {};
+                // Extract Dolomite-specific rewards from campaignData
+                const dolomiteRewards = {};
+                for (const [, reasons] of Object.entries(chainData.campaignData || {})) {
+                    for (const [reasonKey, reward] of Object.entries(reasons)) {
+                        if (!reasonKey.startsWith('Dolomite_')) continue;
+                        const sym = reward.symbol;
+                        const dec = reward.decimals || 18;
+                        const tokenAddr = (reasonKey.replace('Dolomite_', '') || '').toLowerCase();
+                        if (!dolomiteRewards[sym]) dolomiteRewards[sym] = { accumulated: 0, unclaimed: 0, decimals: dec, token: reward.token, perToken: {} };
+                        const amt = parseFloat(reward.accumulated || '0') / Math.pow(10, dec);
+                        const uncl = parseFloat(reward.unclaimed || '0') / Math.pow(10, dec);
+                        dolomiteRewards[sym].accumulated += amt;
+                        dolomiteRewards[sym].unclaimed += uncl;
+                        // Track per collateral token for per-position attribution
+                        if (!dolomiteRewards[sym].perToken[tokenAddr]) dolomiteRewards[sym].perToken[tokenAddr] = 0;
+                        dolomiteRewards[sym].perToken[tokenAddr] += amt;
+                    }
+                }
+                return dolomiteRewards;
+            } catch (e) {
+                console.warn('MERKL rewards fetch failed:', e);
+                return {};
+            }
+        }
+
+        // Fetch oDOLO metadata (per-token weekly allocation)
+        async function earn_fetchOdoloMetadata() {
+            try {
+                const resp = await fetch('https://api.dolomite.io/liquidity-mining/odolo/metadata');
+                if (!resp.ok) return null;
+                const data = await resp.json();
+                return data.metadata || null;
+            } catch (e) {
+                console.warn('oDOLO metadata fetch failed:', e);
+                return null;
+            }
+        }
+
         // === Dolomite Subgraph endpoints (free, via Goldsky) ===
         const SUBGRAPH_ENDPOINTS = {
             arbitrum: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-arbitrum/latest/gn',
@@ -19603,13 +19669,21 @@
                                 // Parse oDOLO rewards and yield sources (same as assets tab)
                                 let odoloRewards = 0;
                                 const yieldSources = [];
+                                const rewardParts = []; // Full reward parts for external rewards calc
                                 (r.outsideSupplyInterestRateParts || []).forEach(p => {
                                     if (p.label && p.label.includes('oDOLO') && p.interestRate) {
                                         odoloRewards += parseFloat(p.interestRate) || 0;
                                     } else if (p.category === 'rewards' && p.interestRate) {
                                         // Non-oDOLO rewards (e.g., WLFI) — treat as yield sources
                                         const yr = parseFloat(p.interestRate) || 0;
-                                        if (yr > 0) yieldSources.push({ label: p.label.replace(/ \(.*\)$/, ''), rate: yr * 100 });
+                                        if (yr > 0) {
+                                            yieldSources.push({ label: p.label.replace(/ \(.*\)$/, ''), rate: yr * 100 });
+                                            rewardParts.push({
+                                                label: p.label, apr: yr, symbol: p.rewardToken?.symbol || '',
+                                                tokenAddr: (p.rewardToken?.id || '').toLowerCase(),
+                                                claimUrl: p.rewardClaimUrl || ''
+                                            });
+                                        }
                                     } else if (p.category === 'nativeYield' && p.interestRate) {
                                         const yr = parseFloat(p.interestRate) || 0;
                                         if (yr > 0) yieldSources.push({ label: p.label, rate: yr * 100 });
@@ -19622,6 +19696,7 @@
                                     apy: rate * 100,
                                     lendingApr: baseLending * 100,
                                     rewards: odoloRewards * 100,
+                                    rewardParts: rewardParts,
                                     yieldSources: yieldSources,
                                     extYieldApr: extYieldApr,
                                     borrowApr: borrowRate * 100,
@@ -19936,14 +20011,20 @@
             const sgEndpoint = SUBGRAPH_ENDPOINTS[chainId];
 
             try {
-                // Fire all network calls in parallel: liqRisk JSON + subgraph queries
+                // Fire all network calls in parallel: liqRisk JSON + subgraph queries + external rewards
                 const liqRiskPromise = earn_prefetchLiqRisk();
+                const merklPromise = earn_fetchMerklRewards(addr, chainId);
+                const odoloMetaPromise = earn_fetchOdoloMetadata();
                 const sgPromise = sgEndpoint ? Promise.all([
                     earn_subgraphQuery(sgEndpoint,
                         `{ borrowPositions(first: 100, where: { effectiveUser: "${addr}", status: "OPEN" }) { marginAccount { accountNumber } openTimestamp amounts { token { id marketId symbol decimals } amountPar } } }`
                     ),
                     earn_subgraphQuery(sgEndpoint,
                         `{ interestIndexes(first: 1000) { id supplyIndex borrowIndex } }`
+                    ),
+                    // Also fetch total market supply for oDOLO proportional calc
+                    earn_subgraphQuery(sgEndpoint,
+                        `{ dolomiteMargins(first: 1) { id supplyLiquidityUSD } tokens(first: 100) { id marketId symbol decimals supplyLiquidity } }`
                     ),
                 ]) : Promise.resolve(null);
 
@@ -19965,8 +20046,12 @@
 
                 // ═══ ENRICH with subgraph data (par values + interest indexes) ═══
                 const sgResult = await sgPromise;
+                // Await external rewards data
+                earn_merklRewards = await merklPromise;
+                earn_odoloMeta = await odoloMetaPromise;
+
                 if (sgResult) {
-                    const [bpData, ixData] = sgResult;
+                    const [bpData, ixData, marketData] = sgResult;
                     try {
 
                         // Build interest index lookup (keyed by token address)
@@ -19978,12 +20063,31 @@
                             };
                         });
 
+                        // Build total supply per token for oDOLO proportional calc
+                        const totalSupplyByToken = {};
+                        if (marketData && marketData.tokens) {
+                            marketData.tokens.forEach(t => {
+                                const addr = (t.id || '').toLowerCase();
+                                const supply = parseFloat(t.supplyLiquidity || '0');
+                                if (addr && supply > 0) totalSupplyByToken[addr] = supply;
+                            });
+                        }
+
                         // Match subgraph positions to liquidation_risk positions by accountNumber
                         const bpByAccount = {};
                         (bpData.borrowPositions || []).forEach(bp => {
                             const accNum = bp.marginAccount?.accountNumber;
                             if (accNum) bpByAccount[accNum] = bp;
                         });
+
+                        // Prepare oDOLO per-token weekly allocation for this chain
+                        const DOLO_CHAIN_IDS_REV = { ethereum: '1', berachain: '80094', arbitrum: '42161', mantle: '5000' };
+                        const odoloChainKey = DOLO_CHAIN_IDS_REV[chainId] || '';
+                        const odoloWeights = (earn_odoloMeta && earn_odoloMeta.allChainWeights && earn_odoloMeta.allChainWeights[odoloChainKey]) || {};
+                        const odoloEpochStart = earn_odoloMeta ? (earn_odoloMeta.odoloStartTimestamp || 0) : 0;
+                        const odoloEpochDuration = 604800; // 7 days in seconds
+                        const DOLO_PRICE = earn_priceCache[chainId + ':0x0f81001ef0a83ecce5ccebf63eb302c70a39a654'] || TOKEN_USD_FALLBACK['DOLO'] || 0.03;
+                        const WLFI_PRICE = 0.097; // CoinGecko March 2026
 
                         // Enrich each position with accrued interest data
                         for (const p of positions) {
@@ -19993,6 +20097,7 @@
                             p.openTimestamp = parseInt(bp.openTimestamp) || 0;
                             p.accruedCollateral = []; // { symbol, accruedTokens, accruedUSD }
                             p.accruedDebt = [];       // { symbol, accruedTokens, accruedUSD }
+                            p.externalRewards = [];   // { symbol, amount, usd, apr, claimUrl, source }
 
                             for (const amt of (bp.amounts || [])) {
                                 const par = parseFloat(amt.amountPar || '0');
@@ -20013,8 +20118,53 @@
                                     const accruedUSD = accruedTokens * price;
                                     p.accruedCollateral.push({
                                         symbol, accruedTokens, accruedUSD,
-                                        parTokens: par, actualTokens, decimals, price, index: idx.supplyIdx
+                                        parTokens: par, actualTokens, decimals, price, index: idx.supplyIdx,
+                                        tokenAddr: tokenAddr,
                                     });
+
+                                    // === oDOLO reward calc for this collateral token ===
+                                    const weeklyOdolo = parseFloat(odoloWeights[tokenAddr] || '0');
+                                    if (weeklyOdolo > 0 && totalSupplyByToken[tokenAddr] && price > 0) {
+                                        const totalSupply = totalSupplyByToken[tokenAddr];
+                                        const userShare = actualTokens / totalSupply;
+                                        const openTs = p.openTimestamp || 0;
+                                        // Clamp to oDOLO program start
+                                        const effectiveStart = Math.max(openTs, odoloEpochStart);
+                                        const now = Math.floor(Date.now() / 1000);
+                                        const weeksActive = Math.max(0, (now - effectiveStart) / odoloEpochDuration);
+                                        const estOdolo = userShare * weeklyOdolo * weeksActive;
+                                        if (estOdolo > 0.01) {
+                                            const rateEntry = earn_marketRates[chainId + ':' + tokenAddr] || earn_marketRates['sym:' + symbol.toUpperCase()];
+                                            p.externalRewards.push({
+                                                symbol: 'oDOLO', amount: estOdolo,
+                                                usd: estOdolo * DOLO_PRICE,
+                                                apr: rateEntry ? rateEntry.rewards : 0,
+                                                claimUrl: 'https://app.dolomite.io/rewards',
+                                                source: 'dolomite',
+                                                icon: 'odolo-logo-official.svg',
+                                            });
+                                        }
+                                    }
+
+                                    // === MERKL WLFI reward — exact per-token from API ===
+                                    for (const [merklSym, merklData] of Object.entries(earn_merklRewards)) {
+                                        const perTokenAmt = merklData.perToken ? merklData.perToken[tokenAddr] : 0;
+                                        if (perTokenAmt > 0.01) {
+                                            const merklPrice = merklSym === 'WLFI' ? WLFI_PRICE : 0;
+                                            const rateEntry = earn_marketRates[chainId + ':' + tokenAddr] || earn_marketRates['sym:' + symbol.toUpperCase()];
+                                            const rewardApr = rateEntry && rateEntry.rewardParts
+                                                ? (rateEntry.rewardParts.find(rp => rp.symbol === merklSym) || {}).apr || 0
+                                                : 0;
+                                            p.externalRewards.push({
+                                                symbol: merklSym, amount: perTokenAmt,
+                                                usd: perTokenAmt * merklPrice,
+                                                apr: rewardApr * 100,
+                                                claimUrl: 'https://app.merkl.xyz/',
+                                                source: 'merkl',
+                                                icon: SYMBOL_ICONS[merklSym] || SYMBOL_ICONS[merklSym.toUpperCase()] || '',
+                                            });
+                                        }
+                                    }
                                 } else {
                                     // Borrow: actual = |par| * borrowIndex
                                     const absPar = Math.abs(par);
@@ -20028,13 +20178,15 @@
                                 }
                             }
 
-                            // Compute totals
+                            // Compute totals (including external rewards)
                             p.totalAccruedYield = p.accruedCollateral.reduce((s, c) => s + c.accruedUSD, 0);
                             p.totalAccruedCost = p.accruedDebt.reduce((s, c) => s + c.accruedUSD, 0);
-                            p.netAccrued = p.totalAccruedYield - p.totalAccruedCost;
+                            p.totalExternalRewardsUSD = p.externalRewards.reduce((s, r) => s + r.usd, 0);
+                            p.netAccrued = p.totalAccruedYield + p.totalExternalRewardsUSD - p.totalAccruedCost;
                         }
 
                         console.log('Subgraph enrichment: matched', Object.keys(bpByAccount).length, 'positions with par data');
+                        if (Object.keys(earn_merklRewards).length > 0) console.log('MERKL rewards:', earn_merklRewards);
                     } catch (e) {
                         console.warn('Subgraph enrichment failed (falling back to estimates):', e);
                     }
@@ -20130,6 +20282,18 @@
                                         }).join('')}
                                     </div>` : ''}
                                 </div>
+                                ${(p.externalRewards && p.externalRewards.length > 0) ? `<div class="earn-lend-section">
+                                    <div class="earn-lend-section-title rewards">🟡 External Rewards</div>
+                                    ${p.externalRewards.map(r => {
+                                        const iconHtml = r.icon ? `<img src="${r.icon}" alt="${r.symbol}" onerror="this.style.display='none'">` : '';
+                                        const claimHtml = r.claimUrl ? `<a href="${r.claimUrl}" target="_blank" class="earn-reward-claim-link" onclick="event.stopPropagation()">Claim ↗</a>` : '';
+                                        const aprHtml = r.apr > 0 ? `<span class="earn-lend-token-annual" style="color:rgba(251,191,36,0.6)">${r.apr.toFixed(2)}% APR</span>` : '';
+                                        return `<div class="earn-lend-token-row"><span class="earn-lend-token-left">${iconHtml}${r.symbol}${claimHtml}</span><span><span class="earn-lend-token-apr rewards">+${r.amount >= 1000 ? (r.amount/1000).toFixed(2) + 'K' : r.amount.toFixed(2)}</span><span class="earn-lend-token-annual" style="color:rgba(251,191,36,0.5)"> ~${earn_formatUSD(r.usd)}</span>${aprHtml}</span></div>`;
+                                    }).join('')}
+                                    <div style="border-top:1px solid rgba(251,191,36,0.08);margin-top:6px;padding-top:4px">
+                                        <div class="earn-lend-token-row"><span class="earn-lend-token-left" style="color:rgba(251,191,36,0.7);font-weight:600">Total Rewards</span><span class="earn-lend-token-apr rewards">+${earn_formatUSD(p.totalExternalRewardsUSD)}</span></div>
+                                    </div>
+                                </div>` : ''}
                                 <div class="earn-lend-section">
                                     <div class="earn-lend-section-title cost">🔴 Borrow Costs</div>
                                     ${debtRows || '<div style="color:var(--text-muted);font-size:11px">No debt</div>'}
@@ -20145,7 +20309,7 @@
                                     ${(p.netAccrued !== undefined) ? `
                                         <div class="earn-lend-section-title net">📊 Realized P&L</div>
                                         <div class="earn-lend-net-value ${p.netAccrued >= 0 ? 'positive' : 'negative'}">${p.netAccrued >= 0 ? '+' : '-'}${earn_formatUSD(Math.abs(p.netAccrued))}<span style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.4)"> total</span></div>
-                                        <div class="earn-lend-net-sub">Yield ${earn_formatUSD(p.totalAccruedYield || 0)} − Cost ${earn_formatUSD(p.totalAccruedCost || 0)}</div>
+                                        <div class="earn-lend-net-sub">Yield ${earn_formatUSD(p.totalAccruedYield || 0)}${p.totalExternalRewardsUSD > 0.01 ? ' + <span style="color:#fbbf24">Rewards ' + earn_formatUSD(p.totalExternalRewardsUSD) + '</span>' : ''} − Cost ${earn_formatUSD(p.totalAccruedCost || 0)}</div>
                                         ${p.openTimestamp ? `<div class="earn-lend-net-sub" style="margin-top:4px">Opened ${earn_formatAge(p.openTimestamp)}</div>` : ''}
                                         <div style="border-top:1px solid rgba(255,255,255,0.05);margin-top:8px;padding-top:6px">
                                             <div class="earn-lend-net-sub" style="margin-bottom:2px">Est. annual at current rates:</div>
