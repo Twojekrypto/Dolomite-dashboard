@@ -34,6 +34,7 @@
 
 ## UI Overflow & Dropdowns
 - **`overflow:hidden` clips dropdowns**: Parent containers with `overflow:hidden` will clip absolutely-positioned child elements (like dropdown menus). Use `overflow:visible` instead when the container has interactive dropdowns.
+- **⚠️ `.earn-hero-outer` MUST be `overflow:visible`**: This element contains the chain selector dropdown. Using `overflow:hidden` (for gradient border glow containment) will clip the dropdown menu. Instead, use `clip-path:inset(-2px round 20px)` on the `::before` pseudo-element to contain the glow effect without affecting child overflow. Also needs `z-index:200` so dropdown appears above sibling elements below.
 - **CSS `:empty` to hide unused containers**: Instead of `display:none` + JS toggle, use `:empty` pseudo-class to auto-hide containers that haven't been populated yet. Avoids timing issues with JS initialization.
 
 ## ⚠️ MANDATORY: JavaScript Verification of CSS/UI Changes

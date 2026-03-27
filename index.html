@@ -76,6 +76,7 @@
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             line-height: 1.5;
+            overflow-x: hidden;
         }
 
         /* ===== LAYOUT ===== */
@@ -3438,11 +3439,11 @@
             background: rgba(99, 102, 241, 0.06);
         }
 
-        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody):not(#odolo-flow-acc-tbody):not(#odolo-flow-sell-tbody):not(#dolo-flow-acc-tbody):not(#dolo-flow-sell-tbody):not(#dolo-holder-tbody):not(#table-body):not(#recent-claims-tbody):not(#recent-locks-tbody):not(#treasury-addr-tbody):not(#exit-revenue-tbody):not(#exit-addr-tbody) tr:hover td,
-        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody):not(#odolo-flow-acc-tbody):not(#odolo-flow-sell-tbody):not(#dolo-flow-acc-tbody):not(#dolo-flow-sell-tbody):not(#dolo-holder-tbody):not(#table-body):not(#recent-claims-tbody):not(#recent-locks-tbody):not(#treasury-addr-tbody):not(#exit-revenue-tbody):not(#exit-addr-tbody) tr:hover td span,
-        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody):not(#odolo-flow-acc-tbody):not(#odolo-flow-sell-tbody):not(#dolo-flow-acc-tbody):not(#dolo-flow-sell-tbody):not(#dolo-holder-tbody):not(#table-body):not(#recent-claims-tbody):not(#recent-locks-tbody):not(#treasury-addr-tbody):not(#exit-revenue-tbody):not(#exit-addr-tbody) tr:hover td .mini-bar span,
-        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody):not(#odolo-flow-acc-tbody):not(#odolo-flow-sell-tbody):not(#dolo-flow-acc-tbody):not(#dolo-flow-sell-tbody):not(#dolo-holder-tbody):not(#table-body):not(#recent-claims-tbody):not(#recent-locks-tbody):not(#treasury-addr-tbody):not(#exit-revenue-tbody):not(#exit-addr-tbody) tr:hover td .addr-link,
-        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody):not(#odolo-flow-acc-tbody):not(#odolo-flow-sell-tbody):not(#dolo-flow-acc-tbody):not(#dolo-flow-sell-tbody):not(#dolo-holder-tbody):not(#table-body):not(#recent-claims-tbody):not(#recent-locks-tbody):not(#treasury-addr-tbody):not(#exit-revenue-tbody):not(#exit-addr-tbody) tr:hover td a:not(.debank-icon) {
+        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#earn-lending-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody):not(#odolo-flow-acc-tbody):not(#odolo-flow-sell-tbody):not(#dolo-flow-acc-tbody):not(#dolo-flow-sell-tbody):not(#dolo-holder-tbody):not(#table-body):not(#recent-claims-tbody):not(#recent-locks-tbody):not(#treasury-addr-tbody):not(#exit-revenue-tbody):not(#exit-addr-tbody) tr:hover td,
+        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#earn-lending-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody):not(#odolo-flow-acc-tbody):not(#odolo-flow-sell-tbody):not(#dolo-flow-acc-tbody):not(#dolo-flow-sell-tbody):not(#dolo-holder-tbody):not(#table-body):not(#recent-claims-tbody):not(#recent-locks-tbody):not(#treasury-addr-tbody):not(#exit-revenue-tbody):not(#exit-addr-tbody) tr:hover td span,
+        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#earn-lending-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody):not(#odolo-flow-acc-tbody):not(#odolo-flow-sell-tbody):not(#dolo-flow-acc-tbody):not(#dolo-flow-sell-tbody):not(#dolo-holder-tbody):not(#table-body):not(#recent-claims-tbody):not(#recent-locks-tbody):not(#treasury-addr-tbody):not(#exit-revenue-tbody):not(#exit-addr-tbody) tr:hover td .mini-bar span,
+        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#earn-lending-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody):not(#odolo-flow-acc-tbody):not(#odolo-flow-sell-tbody):not(#dolo-flow-acc-tbody):not(#dolo-flow-sell-tbody):not(#dolo-holder-tbody):not(#table-body):not(#recent-claims-tbody):not(#recent-locks-tbody):not(#treasury-addr-tbody):not(#exit-revenue-tbody):not(#exit-addr-tbody) tr:hover td .addr-link,
+        tbody:not(#assets-tbody):not(#earn-table-body):not(#earn-withdrawn-tbody):not(#earn-lending-tbody):not(#recent-ex-tbody):not(#odolo-claimer-table-body):not(#exercisers-tbody):not(#odolo-flow-acc-tbody):not(#odolo-flow-sell-tbody):not(#dolo-flow-acc-tbody):not(#dolo-flow-sell-tbody):not(#dolo-holder-tbody):not(#table-body):not(#recent-claims-tbody):not(#recent-locks-tbody):not(#treasury-addr-tbody):not(#exit-revenue-tbody):not(#exit-addr-tbody) tr:hover td a:not(.debank-icon) {
             color: var(--accent-cyan) !important;
             font-size: 14px;
         }
@@ -6033,17 +6034,61 @@
             border-bottom: 1px solid rgba(248,113,113,0.1);
             white-space: nowrap;
         }
+        .earn-lending-table {
+            table-layout: fixed;
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .earn-lending-table thead th {
+            transition: color 0.2s;
+        }
+        .earn-lending-table thead th[data-sort]:hover {
+            color: rgba(255,255,255,0.7);
+        }
+        .earn-lending-table thead th.sort-active {
+            color: rgba(248,113,113,0.9);
+        }
         .earn-lending-table tbody td {
             padding: 10px 12px;
             border-bottom: 1px solid rgba(248,113,113,0.06);
             vertical-align: middle;
             font-size: 13px;
+            transition: background 0.25s ease, box-shadow 0.25s ease;
         }
-        .earn-lending-table tbody tr:hover td {
-            background: rgba(248,113,113,0.04);
+        /* Even/odd row striping (matching supply table) */
+        .earn-lending-table tbody tr.earn-lend-row:nth-child(4n+3) {
+            background: rgba(255, 255, 255, 0.015);
         }
-        .earn-lending-table tbody tr {
-            animation: earnFadeIn 0.3s ease both;
+        /* Hover: neutral bg (no color bleed on data) */
+        .earn-lending-table tbody tr.earn-lend-row:hover td {
+            background: rgba(255,255,255,0.03);
+        }
+        /* Risk-level accent bars (matching Liquidation Risk Monitor colors) */
+        .earn-lending-table tbody tr.earn-lend-row.risk-baddebt:hover td:first-child,
+        .earn-lending-table tbody tr.earn-lend-row.risk-baddebt.open td:first-child { box-shadow: inset 3px 0 0 #9ca3af; }
+        .earn-lending-table tbody tr.earn-lend-row.risk-full-liq:hover td:first-child,
+        .earn-lending-table tbody tr.earn-lend-row.risk-full-liq.open td:first-child { box-shadow: inset 3px 0 0 #ef4444; }
+        .earn-lending-table tbody tr.earn-lend-row.risk-partial-liq:hover td:first-child,
+        .earn-lending-table tbody tr.earn-lend-row.risk-partial-liq.open td:first-child { box-shadow: inset 3px 0 0 #f97316; }
+        .earn-lending-table tbody tr.earn-lend-row.risk-danger:hover td:first-child,
+        .earn-lending-table tbody tr.earn-lend-row.risk-danger.open td:first-child { box-shadow: inset 3px 0 0 #fb923c; }
+        .earn-lending-table tbody tr.earn-lend-row.risk-low-buffer:hover td:first-child,
+        .earn-lending-table tbody tr.earn-lend-row.risk-low-buffer.open td:first-child { box-shadow: inset 3px 0 0 #eab308; }
+        .earn-lending-table tbody tr.earn-lend-row.risk-moderate:hover td:first-child,
+        .earn-lending-table tbody tr.earn-lend-row.risk-moderate.open td:first-child { box-shadow: inset 3px 0 0 #f59e0b; }
+        .earn-lending-table tbody tr.earn-lend-row.risk-balanced:hover td:first-child,
+        .earn-lending-table tbody tr.earn-lend-row.risk-balanced.open td:first-child { box-shadow: inset 3px 0 0 #a3e635; }
+        .earn-lending-table tbody tr.earn-lend-row.risk-good:hover td:first-child,
+        .earn-lending-table tbody tr.earn-lend-row.risk-good.open td:first-child { box-shadow: inset 3px 0 0 #34d399; }
+        .earn-lending-table tbody tr.earn-lend-row.risk-strong:hover td:first-child,
+        .earn-lending-table tbody tr.earn-lend-row.risk-strong.open td:first-child { box-shadow: inset 3px 0 0 #22d3ee; }
+        /* Expanded row: neutral bg */
+        .earn-lending-table tbody tr.earn-lend-row.open td {
+            background: rgba(255,255,255,0.025);
+        }
+        /* Staggered slide-in animation (matching supply table timing) */
+        .earn-lending-table tbody tr.earn-lend-row {
+            animation: earnRowSlideIn 0.5s ease both;
         }
         /* HF Badge */
         .earn-hf-badge {
@@ -10476,13 +10521,14 @@
                 .earn-hero-outer {
                     position:relative;border-radius:18px;padding:2px;
                     background:linear-gradient(135deg,rgba(52,211,153,.35),rgba(34,211,238,.25),rgba(99,102,241,.15));
-                    overflow:hidden;margin-bottom:28px;z-index:10;
+                    overflow:visible;margin-bottom:28px;z-index:200;
                 }
                 .earn-hero-outer::before {
                     content:'';position:absolute;inset:-2px;border-radius:20px;
                     background:linear-gradient(135deg,rgba(52,211,153,.25),rgba(34,211,238,.2),rgba(99,102,241,.1));
                     animation:earn-border-glow 4s ease-in-out infinite;
                     z-index:0;pointer-events:none;
+                    clip-path:inset(-2px round 20px);
                 }
                 .earn-hero-inner {
                     position:relative;z-index:1;border-radius:16px;
@@ -10650,12 +10696,26 @@
                     </div>
                     <div class="earn-table-scroll" style="overflow-x:auto">
                         <table class="earn-data-table earn-lending-table">
+                            <colgroup>
+                                <col style="width:14%">
+                                <col style="width:9%">
+                                <col style="width:15%">
+                                <col style="width:15%">
+                                <col style="width:24%">
+                                <col style="width:23%">
+                            </colgroup>
                             <thead>
                                 <tr>
-                                    <th>Health Factor</th>
+                                    <th data-sort="lend-hf" onclick="earn_sortLendPositions('hf')" style="cursor:pointer;user-select:none">
+                                        Health Factor <span class="earn-sort-arrow">▲</span>
+                                    </th>
                                     <th style="text-align:center">E-Mode</th>
-                                    <th>Collateral</th>
-                                    <th>Debt</th>
+                                    <th data-sort="lend-collateral" onclick="earn_sortLendPositions('collateral')" style="cursor:pointer;user-select:none">
+                                        Collateral <span class="earn-sort-arrow">▼</span>
+                                    </th>
+                                    <th data-sort="lend-debt" onclick="earn_sortLendPositions('debt')" style="cursor:pointer;user-select:none">
+                                        Debt <span class="earn-sort-arrow">▼</span>
+                                    </th>
                                     <th>Collateral Tokens</th>
                                     <th>Debt Tokens</th>
                                 </tr>
@@ -20060,11 +20120,11 @@
                     const netApr = p.collateralUSD > 0 ? (netAnnual / p.collateralUSD) * 100 : 0;
                     const displayNetApr = useApy && Math.abs(netApr) > 0.01 ? aprToApy(Math.abs(netApr)) : Math.abs(netApr);
 
-                    const dataRow = `<tr class="earn-lend-row" data-idx="${i}" onclick="earn_toggleLendDetail(${i})" style="animation-delay:${i * 0.06}s">
+                    const dataRow = `<tr class="earn-lend-row risk-${riskClass}" data-idx="${i}" onclick="earn_toggleLendDetail(${i})" style="animation-delay:${i * 0.08}s">
                         <td><span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span>${chevronSvg}</td>
                         <td style="text-align:center">${emodeCell}</td>
-                        <td><span class="earn-usd-collateral">${collateralDisplay}</span></td>
-                        <td><span class="earn-usd-debt">${earn_formatUSD(p.debtUSD)}</span></td>
+                        <td><span class="earn-usd-collateral">${collateralDisplay}</span><div style="font-size:10px;color:rgba(52,211,153,0.4);margin-top:2px;font-variant-numeric:tabular-nums">${(p.collateralTokens || []).map(t => t.symbol).join(' + ') || '—'}</div></td>
+                        <td><span class="earn-usd-debt">${earn_formatUSD(p.debtUSD)}</span><div style="font-size:10px;color:rgba(248,113,113,0.4);margin-top:2px;font-variant-numeric:tabular-nums">${(p.debtTokens || []).map(t => t.symbol).join(' + ') || '—'}</div></td>
                         <td><div class="earn-token-pills">${collateralTokensHtml}</div></td>
                         <td><div class="earn-token-pills">${debtTokensHtml}</div></td>
                     </tr>`;
@@ -20204,6 +20264,170 @@
                 detail.classList.add('open');
                 row.classList.add('open');
             }
+        }
+
+        // ═══ Borrow Positions Sort (matches supply table sort pattern) ═══
+        let earn_lendSortKey = 'hf';
+        let earn_lendSortDesc = false; // HF: ascending (riskiest first) by default
+
+        function earn_sortLendPositions(key) {
+            if (!earn_lendingPositions || earn_lendingPositions.length === 0) return;
+            if (earn_lendSortKey === key) {
+                earn_lendSortDesc = !earn_lendSortDesc;
+            } else {
+                earn_lendSortKey = key;
+                earn_lendSortDesc = (key !== 'hf'); // HF defaults ascending, others descending
+            }
+
+            // Update header UI (mirrors earn_sortAssets)
+            document.querySelectorAll('.earn-lending-table thead th[data-sort]').forEach(th => {
+                const isActive = th.dataset.sort === 'lend-' + earn_lendSortKey;
+                th.classList.toggle('sort-active', isActive);
+                const arrow = th.querySelector('.earn-sort-arrow');
+                if (arrow) arrow.textContent = (isActive && !earn_lendSortDesc) ? '\u25b2' : '\u25bc';
+            });
+
+            // Sort cached positions
+            if (key === 'hf') {
+                earn_lendingPositions.sort((a, b) => {
+                    const ha = a.healthFactor ?? 999;
+                    const hb = b.healthFactor ?? 999;
+                    return earn_lendSortDesc ? (hb - ha) : (ha - hb);
+                });
+            } else if (key === 'collateral') {
+                earn_lendingPositions.sort((a, b) => {
+                    const diff = (a.collateralUSD || 0) - (b.collateralUSD || 0);
+                    return earn_lendSortDesc ? -diff : diff;
+                });
+            } else if (key === 'debt') {
+                earn_lendingPositions.sort((a, b) => {
+                    const diff = (a.debtUSD || 0) - (b.debtUSD || 0);
+                    return earn_lendSortDesc ? -diff : diff;
+                });
+            }
+
+            // Re-render sorted rows without re-fetching
+            earn_reRenderLendingRows();
+        }
+
+        function earn_reRenderLendingRows() {
+            const tbody = document.getElementById('earn-lending-tbody');
+            if (!tbody || !earn_lendingPositions || earn_lendingPositions.length === 0) return;
+
+            const positions = earn_lendingPositions;
+            const FLAME_SVG = '<svg class="earn-emode-flame" viewBox="0 0 24 24" fill="none"><path d="M12 2c0 4-4 6-4 10a4 4 0 0 0 8 0c0-4-4-6-4-10z" fill="#fb923c" opacity="0.9"/><path d="M12 8c0 2.5-2 3.5-2 6a2 2 0 0 0 4 0c0-2.5-2-3.5-2-6z" fill="#fbbf24"/></svg>';
+            const chevronSvg = '<svg class="earn-lend-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+
+            const useApy = typeof earn_showApy !== 'undefined' && earn_showApy;
+            const rateLabel = useApy ? 'APY' : 'APR';
+
+            tbody.innerHTML = positions.map((p, i) => {
+                const riskClass = earn_getRiskClass(p);
+                const hfDecimals = ['good','strong','balanced'].includes(riskClass) ? 2 : 4;
+                const hfText = p.healthFactor !== null
+                    ? (p.healthFactor > 10 ? '10<' : p.healthFactor.toFixed(hfDecimals))
+                    : '—';
+
+                const emodeCell = p.eMode
+                    ? `<span class="earn-emode-badge" title="E-Mode — correlated assets use tighter liquidation ratios">${FLAME_SVG}E-Mode</span>`
+                    : '<span style="color:var(--text-muted);font-size:11px">—</span>';
+
+                const collateralDisplay = p.collateralUSD < 0.01 ? '$0.00' : earn_formatUSD(p.collateralUSD);
+                const collateralTokensHtml = earn_renderTokenPills(p.collateralTokens);
+                const debtTokensHtml = earn_renderTokenPills(p.debtTokens);
+
+                // Detail panel content
+                let totalAnnualYield = 0;
+                const collateralRows = (p.collateralTokens || []).map(t => {
+                    const rate = earn_getTokenRate(t.symbol, 'supply');
+                    const displayRate = useApy && rate > 0 ? aprToApy(rate) : rate;
+                    const annualYield = (t.usd || 0) * (rate / 100);
+                    totalAnnualYield += annualYield;
+                    const icon = SYMBOL_ICONS[t.symbol] || SYMBOL_ICONS[(t.symbol || '').toUpperCase()];
+                    const iconHtml = icon ? `<img src="${icon}" alt="${t.symbol}" onerror="this.style.display='none'">` : '';
+                    return `<div class="earn-lend-token-row">
+                        <span class="earn-lend-token-left">${iconHtml}${t.symbol} <span style="color:rgba(255,255,255,0.3)">${earn_formatUSDCompact(t.usd)}</span></span>
+                        <span><span class="earn-lend-token-apr supply">${displayRate > 0 ? displayRate.toFixed(2) + '% ' + rateLabel : '—'}</span><span class="earn-lend-token-annual">${annualYield > 0.01 ? '+' + earn_formatUSD(annualYield) + '/yr' : ''}</span></span>
+                    </div>`;
+                }).join('');
+
+                let totalAnnualCost = 0;
+                const debtRows = (p.debtTokens || []).map(t => {
+                    const rate = earn_getTokenRate(t.symbol, 'borrow');
+                    const displayRate = useApy && rate > 0 ? aprToApy(rate) : rate;
+                    const annualCost = (t.usd || 0) * (rate / 100);
+                    totalAnnualCost += annualCost;
+                    const icon = SYMBOL_ICONS[t.symbol] || SYMBOL_ICONS[(t.symbol || '').toUpperCase()];
+                    const iconHtml = icon ? `<img src="${icon}" alt="${t.symbol}" onerror="this.style.display='none'">` : '';
+                    return `<div class="earn-lend-token-row">
+                        <span class="earn-lend-token-left">${iconHtml}${t.symbol} <span style="color:rgba(255,255,255,0.3)">${earn_formatUSDCompact(t.usd)}</span></span>
+                        <span><span class="earn-lend-token-apr borrow">${displayRate > 0 ? displayRate.toFixed(2) + '% ' + rateLabel : '—'}</span><span class="earn-lend-token-annual">${annualCost > 0.01 ? '-' + earn_formatUSD(annualCost) + '/yr' : ''}</span></span>
+                    </div>`;
+                }).join('');
+
+                const netAnnual = totalAnnualYield - totalAnnualCost;
+                const netPositive = netAnnual >= 0;
+                const netSign = netPositive ? '+' : '-';
+                const netApr = p.collateralUSD > 0 ? (netAnnual / p.collateralUSD) * 100 : 0;
+                const displayNetApr = useApy && Math.abs(netApr) > 0.01 ? aprToApy(Math.abs(netApr)) : Math.abs(netApr);
+
+                const dataRow = `<tr class="earn-lend-row risk-${riskClass}" data-idx="${i}" onclick="earn_toggleLendDetail(${i})" style="animation-delay:${i * 0.08}s">
+                    <td><span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span>${chevronSvg}</td>
+                    <td style="text-align:center">${emodeCell}</td>
+                    <td><span class="earn-usd-collateral">${collateralDisplay}</span><div style="font-size:10px;color:rgba(52,211,153,0.4);margin-top:2px;font-variant-numeric:tabular-nums">${(p.collateralTokens || []).map(t => t.symbol).join(' + ') || '—'}</div></td>
+                    <td><span class="earn-usd-debt">${earn_formatUSD(p.debtUSD)}</span><div style="font-size:10px;color:rgba(248,113,113,0.4);margin-top:2px;font-variant-numeric:tabular-nums">${(p.debtTokens || []).map(t => t.symbol).join(' + ') || '—'}</div></td>
+                    <td><div class="earn-token-pills">${collateralTokensHtml}</div></td>
+                    <td><div class="earn-token-pills">${debtTokensHtml}</div></td>
+                </tr>`;
+
+                const detailRow = `<tr class="earn-lend-detail" id="earn-lend-detail-${i}">
+                    <td colspan="6">
+                        <div class="earn-lend-detail-inner">
+                            <div class="earn-lend-section">
+                                <div class="earn-lend-section-title earn">🟢 Collateral Earnings</div>
+                                ${collateralRows || '<div style="color:var(--text-muted);font-size:11px">No collateral</div>'}
+                                ${(p.accruedCollateral && p.accruedCollateral.length > 0) ? `<div style="border-top:1px solid rgba(52,211,153,0.1);margin-top:6px;padding-top:6px">
+                                    ${p.accruedCollateral.map(c => {
+                                        const icon = SYMBOL_ICONS[c.symbol] || SYMBOL_ICONS[(c.symbol || '').toUpperCase()];
+                                        const iconHtml = icon ? `<img src="${icon}" alt="${c.symbol}" onerror="this.style.display='none'">` : '';
+                                        return `<div class="earn-lend-token-row"><span class="earn-lend-token-left">${iconHtml}${c.symbol} <span style="color:rgba(52,211,153,0.5)">earned</span></span><span class="earn-lend-token-apr supply">+${earn_formatUSD(c.accruedUSD)}</span></div>`;
+                                    }).join('')}
+                                </div>` : ''}
+                            </div>
+                            <div class="earn-lend-section">
+                                <div class="earn-lend-section-title cost">🔴 Borrow Costs</div>
+                                ${debtRows || '<div style="color:var(--text-muted);font-size:11px">No debt</div>'}
+                                ${(p.accruedDebt && p.accruedDebt.length > 0) ? `<div style="border-top:1px solid rgba(248,113,113,0.1);margin-top:6px;padding-top:6px">
+                                    ${p.accruedDebt.map(c => {
+                                        const icon = SYMBOL_ICONS[c.symbol] || SYMBOL_ICONS[(c.symbol || '').toUpperCase()];
+                                        const iconHtml = icon ? `<img src="${icon}" alt="${c.symbol}" onerror="this.style.display='none'">` : '';
+                                        return `<div class="earn-lend-token-row"><span class="earn-lend-token-left">${iconHtml}${c.symbol} <span style="color:rgba(248,113,113,0.5)">accrued</span></span><span class="earn-lend-token-apr borrow">-${earn_formatUSD(c.accruedUSD)}</span></div>`;
+                                    }).join('')}
+                                </div>` : ''}
+                            </div>
+                            <div class="earn-lend-section">
+                                ${(p.netAccrued !== undefined) ? `
+                                    <div class="earn-lend-section-title net">📊 Realized P&L</div>
+                                    <div class="earn-lend-net-value ${p.netAccrued >= 0 ? 'positive' : 'negative'}">${p.netAccrued >= 0 ? '+' : '-'}${earn_formatUSD(Math.abs(p.netAccrued))}<span style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.4)"> total</span></div>
+                                    <div class="earn-lend-net-sub">Yield ${earn_formatUSD(p.totalAccruedYield || 0)} − Cost ${earn_formatUSD(p.totalAccruedCost || 0)}</div>
+                                    ${p.openTimestamp ? `<div class="earn-lend-net-sub" style="margin-top:4px">Opened ${earn_formatAge(p.openTimestamp)}</div>` : ''}
+                                    <div style="border-top:1px solid rgba(255,255,255,0.05);margin-top:8px;padding-top:6px">
+                                        <div class="earn-lend-net-sub" style="margin-bottom:2px">Est. annual at current rates:</div>
+                                        <div class="earn-lend-net-apr ${netPositive ? 'positive' : 'negative'}">${netSign}${earn_formatUSD(Math.abs(netAnnual))}/yr <span style="font-weight:400">(${netSign}${displayNetApr.toFixed(2)}% net ${rateLabel})</span></div>
+                                    </div>
+                                ` : `
+                                    <div class="earn-lend-section-title net">📊 Net Position (Annual Est.)</div>
+                                    <div class="earn-lend-net-value ${netPositive ? 'positive' : 'negative'}">${netSign}${earn_formatUSD(Math.abs(netAnnual))}<span style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.4)"> / year</span></div>
+                                    <div class="earn-lend-net-apr ${netPositive ? 'positive' : 'negative'}">${netSign}${displayNetApr.toFixed(2)}% net ${rateLabel}</div>
+                                    <div class="earn-lend-net-sub">Yield ${earn_formatUSD(totalAnnualYield)} − Cost ${earn_formatUSD(totalAnnualCost)}</div>
+                                `}
+                            </div>
+                        </div>
+                    </td>
+                </tr>`;
+
+                return dataRow + detailRow;
+            }).join('');
         }
 
         function earn_renderResults(assets, opts) {
