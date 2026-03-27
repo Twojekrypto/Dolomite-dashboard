@@ -19489,6 +19489,10 @@
                     btn.disabled = false;
                     return;
                 }
+
+                // Prefetch liquidation_risk.json in parallel with RPC (don't await yet)
+                earn_prefetchLiqRisk();
+
                 const selector = '0x6a8194e7';
                 const calldata = selector + earn_padAddr(addr) + earn_padUint(accountNum);
 
@@ -19854,6 +19858,13 @@
         }
         // ═══════ Lending Positions (Borrow) — fetch from liquidation_risk.json ═══════
         let earn_lendingPositions = []; // cached positions from liquidation_risk.json
+        let _liqRiskPromise = null; // cached promise for liquidation_risk.json (fetched once per session)
+        function earn_prefetchLiqRisk() {
+            if (!_liqRiskPromise) {
+                _liqRiskPromise = fetch('liquidation_risk.json').then(r => r.ok ? r.json() : null).catch(() => null);
+            }
+            return _liqRiskPromise;
+        }
 
         function earn_getRiskClass(p) {
             if (p.collateralUSD < 0.01 && p.debtUSD > 0) return 'baddebt';
@@ -19915,11 +19926,23 @@
                 'x layer': 'xlayer',
             };
             const chainKey = chainKeyMap[chainName] || chainName;
+            const chainId = document.getElementById('earn-chain').value;
+            const sgEndpoint = SUBGRAPH_ENDPOINTS[chainId];
 
             try {
-                const resp = await fetch('liquidation_risk.json?t=' + Date.now());
-                if (!resp.ok) { section.style.display = 'none'; return; }
-                const data = await resp.json();
+                // Fire all network calls in parallel: liqRisk JSON + subgraph queries
+                const liqRiskPromise = earn_prefetchLiqRisk();
+                const sgPromise = sgEndpoint ? Promise.all([
+                    earn_subgraphQuery(sgEndpoint,
+                        `{ borrowPositions(first: 100, where: { effectiveUser: "${addr}", status: "OPEN" }) { marginAccount { accountNumber } openTimestamp amounts { token { id marketId symbol decimals } amountPar } } }`
+                    ),
+                    earn_subgraphQuery(sgEndpoint,
+                        `{ interestIndexes(first: 1000) { id supplyIndex borrowIndex } }`
+                    ),
+                ]) : Promise.resolve(null);
+
+                const data = await liqRiskPromise;
+                if (!data) { section.style.display = 'none'; return; }
                 const positions = (data.positions || []).filter(p =>
                     p.address.toLowerCase() === addr && p.chain.toLowerCase() === chainKey
                 );
@@ -19935,19 +19958,10 @@
                 section.style.display = '';
 
                 // ═══ ENRICH with subgraph data (par values + interest indexes) ═══
-                const chainId = document.getElementById('earn-chain').value;
-                const sgEndpoint = SUBGRAPH_ENDPOINTS[chainId];
-                if (sgEndpoint) {
+                const sgResult = await sgPromise;
+                if (sgResult) {
+                    const [bpData, ixData] = sgResult;
                     try {
-                        // Fetch borrowPositions with par data + interestIndexes in parallel
-                        const [bpData, ixData] = await Promise.all([
-                            earn_subgraphQuery(sgEndpoint,
-                                `{ borrowPositions(first: 100, where: { effectiveUser: "${addr}", status: "OPEN" }) { marginAccount { accountNumber } openTimestamp amounts { token { id marketId symbol decimals } amountPar } } }`
-                            ),
-                            earn_subgraphQuery(sgEndpoint,
-                                `{ interestIndexes(first: 1000) { id supplyIndex borrowIndex } }`
-                            ),
-                        ]);
 
                         // Build interest index lookup (keyed by token address)
                         const indexMap = {};
