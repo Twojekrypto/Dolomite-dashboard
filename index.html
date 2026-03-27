@@ -10724,40 +10724,7 @@
                         </table>
                     </div>
                 </div>
-                <div id="earn-withdrawn-section" style="display:none">
-                    <div class="earn-withdrawn-bar" id="earn-withdrawn-bar" onclick="earn_toggleWithdrawnSection()">
-                        <div
-                            style="flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(239,68,68,0.2),transparent)">
-                        </div>
-                        <span>
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M21 8v13H3V8" />
-                                <path d="M1 3h22v5H1z" />
-                                <path d="M10 12h4" />
-                            </svg>
-                            Withdrawn (<span id="earn-withdrawn-count">0</span>)
-                            <svg class="earn-withdrawn-chevron" id="earn-withdrawn-chevron-icon" width="12" height="12"
-                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                                stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(180deg)">
-                                <polyline points="6 9 12 15 18 9" />
-                            </svg>
-                        </span>
-                        <div
-                            style="flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(239,68,68,0.2),transparent)">
-                        </div>
-                    </div>
-                    <div class="earn-withdrawn-body" id="earn-withdrawn-body">
-                        <table class="earn-asset-table earn-withdrawn-table">
-                            <colgroup>
-                                <col style="width:30%">
-                                <col style="width:35%">
-                                <col style="width:35%">
-                            </colgroup>
-                            <tbody id="earn-withdrawn-tbody"></tbody>
-                        </table>
-                    </div>
-                </div>
+                <!-- withdrawn section removed -->
             </div>
 
             <!-- Protocol Info -->
@@ -20676,24 +20643,8 @@
                 });
             }
 
-            // Populate withdrawn section (outside the main table)
-            if (!opts.skipSummary) {
-                const withdrawnSection = document.getElementById('earn-withdrawn-section');
-                const withdrawnTbody = document.getElementById('earn-withdrawn-tbody');
-                const withdrawnCountEl = document.getElementById('earn-withdrawn-count');
-                if (withdrawnCount > 0) {
-                    withdrawnSection.style.display = '';
-                    withdrawnTbody.innerHTML = withdrawnHtml;
-                    withdrawnCountEl.textContent = withdrawnCount;
-                    // Keep collapsed state
-                    const body = document.getElementById('earn-withdrawn-body');
-                    body.style.display = earn_withdrawnCollapsed ? 'none' : '';
-                    const chevron = document.getElementById('earn-withdrawn-chevron-icon');
-                    if (chevron) chevron.style.transform = earn_withdrawnCollapsed ? '' : 'rotate(180deg)';
-                } else {
-                    withdrawnSection.style.display = 'none';
-                }
-            } // end skipSummary guard for withdrawn
+            // Withdrawn section removed — skip rendering
+            // (elements no longer in DOM)
 
             tbody.innerHTML = html;
 
