@@ -20959,6 +20959,32 @@
                             }
                         }
                     });
+
+                    // Fetch MERKL WLFI rewards and add card if wallet has any
+                    const earnChainId = document.getElementById('earn-chain').value;
+                    earn_fetchMerklRewards(earnAddr, earnChainId).then(merklData => {
+                        const wlfiData = merklData['WLFI'];
+                        if (!wlfiData || wlfiData.accumulated < 0.01) return;
+                        const WLFI_PRICE_CARD = 0.097;
+                        const wlfiAmt = wlfiData.accumulated;
+                        const wlfiUsd = wlfiAmt * WLFI_PRICE_CARD;
+                        const wlfiUnclaimed = wlfiData.unclaimed || 0;
+                        // Check if card already exists
+                        if (document.getElementById('earn-wlfi-claimed-val')) return;
+                        const wlfiStat = document.createElement('div');
+                        wlfiStat.className = 'earn-summary-stat';
+                        wlfiStat.innerHTML = `
+                            <div class="earn-summary-label" style="color:rgba(251,191,36,0.8)">🟡 WLFI Rewards</div>
+                            <div class="earn-summary-value positive" id="earn-wlfi-claimed-val" style="color:#fbbf24">${wlfiAmt >= 1000 ? (wlfiAmt / 1000).toFixed(2) + 'K' : wlfiAmt.toFixed(2)}</div>
+                            <div class="earn-summary-sub" id="earn-wlfi-claimed-sub">~$${wlfiUsd >= 1000 ? (wlfiUsd / 1000).toFixed(2) + 'K' : wlfiUsd.toFixed(2)}${wlfiUnclaimed > 0.01 ? ' · <span style="color:#fbbf24">' + (wlfiUnclaimed >= 1000 ? (wlfiUnclaimed / 1000).toFixed(2) + 'K' : wlfiUnclaimed.toFixed(2)) + ' unclaimed</span>' : ''}</div>`;
+                        const summaryCard = document.getElementById('earn-summary-card');
+                        if (summaryCard) {
+                            summaryCard.appendChild(wlfiStat);
+                            // Expand grid to fit new stat
+                            const statCount = summaryCard.querySelectorAll('.earn-summary-stat').length;
+                            summaryCard.style.gridTemplateColumns = 'repeat(' + statCount + ', 1fr)';
+                        }
+                    }).catch(e => console.warn('WLFI summary card fetch:', e));
                 }
             } // end skipSummary guard for summary card
 
