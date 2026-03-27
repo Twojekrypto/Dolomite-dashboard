@@ -19739,20 +19739,18 @@
                 // Fetch and render lending positions from liquidation_risk.json
                 earn_fetchAndRenderLendingPositions();
 
-                // Background: re-render when APY data arrives from DeFiLlama
-                apyPromise.then(() => {
-                    earn_renderResults(enriched);
-                }).catch(() => { });
+                // After first render, suppress slide-in animation on subsequent re-renders
+                const tblRef = document.querySelector('.earn-asset-table');
+                if (tblRef) tblRef.classList.add('no-animate');
 
-                // Background: auto-load history data for inactive assets
-                earn_lookupHistory().then(() => {
-                    if (earn_showInactive) earn_renderResults(enriched);
-                }).catch(e => console.warn('History auto-load:', e));
-
-                // Background: fetch snapshot-based total yield (slower fallback) → re-render
-                earn_fetchTotalYield().then(() => {
-                    earn_renderResults(enriched);
-                }).catch(e => console.warn('Total yield background load:', e));
+                // Batch background data (APY, history, total yield) → single re-render
+                Promise.allSettled([
+                    apyPromise,
+                    earn_lookupHistory(),
+                    earn_fetchTotalYield(),
+                ]).then(() => {
+                    earn_renderResults(enriched, { skipSummary: false });
+                });
             } catch (e) {
                 console.error('EARN lookup error:', e, e.stack);
                 earn_showError('Failed to fetch data from RPC. Please try again.');
