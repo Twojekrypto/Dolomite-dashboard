@@ -17454,7 +17454,29 @@
         // oDOLO token address (same CREATE2 on all Dolomite chains)
         const ODOLO_EARN_ADDR = '0x02E513b5B54eE216Bf836ceb471507488fC89543';
         let earn_odoloClaimed = 0; // total oDOLO claimed by current address
+        let earn_odoloUnclaimed = 0; // unclaimed oDOLO (API allocation - contract claimed)
+        let earn_ibgtRewards = null; // { staked, rewards: [{symbol, amount, address}] }
         let earn_rpcId = 5000;
+
+        // iBGT reward infrastructure addresses (Berachain)
+        const IBGT_CONTRACTS = {
+            DIBGT_FACTORY: '0x589b3b5e75d5475908c6c2ebd1f2f68eeca52ee4',
+            REWARDS_REGISTRY: '0x20c8323a22bbad344ae2aceed2022e60b933c61f',
+            STAKING_VAULT: '0x75f3be06b02e235f6d0e7ef2d462b29739168301',
+            DISTRIBUTOR: '0x79e6e932bf6686a4d357d7821e6e08835ba8a026',
+            // Function selectors (keccak256 first 4 bytes)
+            SEL_GET_META_VAULT: '0x1e3d1888', // getMetaVaultByAccount(address)
+            SEL_EARNED: '0x211dc32d',          // earned(address,address)
+            SEL_BALANCE_OF: '0x70a08231',      // balanceOf(address)
+            SEL_GET_ALL_REWARDS: '0x12edb24c', // getAllRewardTokens()
+            SEL_USER_CLAIM_AMOUNT: '0x4ef4b265', // userToClaimAmount(address)
+            SEL_CURRENT_EPOCH: '0x76671808',   // currentEpoch()
+            SEL_USER_CLAIM_EPOCH: '0x01d042eb', // userToClaimEpoch(address)
+            // Reward token addresses
+            HONEY: '0xfcbd14dc51f0a4d49d5e53c2e0950e0bc26d0dce',
+            WBERA: '0x6969696969696969696969696969696969696969',
+            WIBGT: '0x4f3c10d2bc480638048fa67a7d00237a33670c1b',
+        };
         const earn_tokenCache = {}; // "chain:address" => { symbol, decimals, icon }
         let earn_borrowMarkets = new Set(); // market IDs with active borrows (yield formula is invalid for these)
         let earn_borrowPositionData = []; // raw borrow position data from subgraph [{marketId, amountPar, tokenAddr, decimals, symbol}]
@@ -17533,32 +17555,133 @@
         };
         async function earn_fetchOdoloClaimed(userAddr) {
             earn_odoloClaimed = 0;
-            // Always fetch from Berachain (oDOLO only exists there)
-            const endpoint = ODOLO_SUBGRAPH_CHAINS['berachain'];
-            try {
-                const addr = userAddr.toLowerCase();
-                let allClaims = [];
-                let skip = 0;
-                const PAGE = 1000;
-                // Paginate through all claims
-                while (true) {
-                    const query = `{ liquidityMiningClaims(first: ${PAGE}, skip: ${skip}, where: { user: "${addr}" }) { amount } }`;
-                    const resp = await fetch(endpoint, {
+            earn_odoloUnclaimed = 0;
+            const addr = userAddr.toLowerCase();
+
+            // Parallel fetch: API allocation + on-chain claimed amount
+            const [apiResult, contractClaimed] = await Promise.allSettled([
+                // 1. Cumulative allocation from Dolomite API (includes merkle proof)
+                fetch(`https://api.dolomite.io/liquidity-mining/odolo/seasons/0/wallets/${addr}`)
+                    .then(r => r.json())
+                    .then(j => parseFloat(j?.user?.amount || '0')),
+                // 2. Already claimed from on-chain distributor contract
+                earn_beraRpcCall(IBGT_CONTRACTS.DISTRIBUTOR,
+                    IBGT_CONTRACTS.SEL_USER_CLAIM_AMOUNT + '000000000000000000000000' + addr.slice(2))
+                    .then(hex => parseInt(hex || '0x0', 16) / 1e18),
+            ]);
+
+            const cumulativeAllocation = apiResult.status === 'fulfilled' ? apiResult.value : 0;
+            const alreadyClaimed = contractClaimed.status === 'fulfilled' ? contractClaimed.value : 0;
+
+            earn_odoloClaimed = alreadyClaimed > 0 ? alreadyClaimed : 0;
+            earn_odoloUnclaimed = cumulativeAllocation > alreadyClaimed
+                ? cumulativeAllocation - alreadyClaimed : 0;
+
+            // Fallback: if contract call failed but API worked, use API amount as total
+            if (earn_odoloClaimed === 0 && cumulativeAllocation > 0) {
+                // Try subgraph fallback for claimed
+                try {
+                    const endpoint = ODOLO_SUBGRAPH_CHAINS['berachain'];
+                    let allClaims = [], skip = 0;
+                    const PAGE = 1000;
+                    while (true) {
+                        const query = `{ liquidityMiningClaims(first: ${PAGE}, skip: ${skip}, where: { user: "${addr}" }) { amount } }`;
+                        const resp = await fetch(endpoint, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ query }),
+                        });
+                        const json = await resp.json();
+                        const claims = (json.data && json.data.liquidityMiningClaims) || [];
+                        allClaims = allClaims.concat(claims);
+                        if (claims.length < PAGE) break;
+                        skip += PAGE;
+                    }
+                    earn_odoloClaimed = allClaims.reduce((sum, c) => sum + parseFloat(c.amount || '0'), 0);
+                    earn_odoloUnclaimed = cumulativeAllocation - earn_odoloClaimed;
+                    if (earn_odoloUnclaimed < 0) earn_odoloUnclaimed = 0;
+                } catch (e) {
+                    console.warn('oDOLO subgraph fallback error:', e);
+                }
+            }
+
+            console.log(`oDOLO: claimed=${earn_odoloClaimed.toFixed(2)}, unclaimed=${earn_odoloUnclaimed.toFixed(2)}, total=${cumulativeAllocation.toFixed(2)}`);
+            return earn_odoloClaimed;
+        }
+
+        // Berachain-specific RPC call (always uses Berachain RPC, not the selected chain)
+        async function earn_beraRpcCall(to, data) {
+            const BERA_RPCS = ['https://rpc.berachain.com/', 'https://berachain-rpc.publicnode.com'];
+            for (let i = 0; i < BERA_RPCS.length; i++) {
+                try {
+                    const resp = await fetch(BERA_RPCS[i], {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ query }),
+                        body: JSON.stringify({
+                            jsonrpc: '2.0', method: 'eth_call',
+                            params: [{ to, data }, 'latest'], id: earn_rpcId++
+                        })
                     });
                     const json = await resp.json();
-                    const claims = (json.data && json.data.liquidityMiningClaims) || [];
-                    allClaims = allClaims.concat(claims);
-                    if (claims.length < PAGE) break;
-                    skip += PAGE;
+                    if (json.error) throw new Error(json.error.message);
+                    return json.result;
+                } catch (e) {
+                    if (i === BERA_RPCS.length - 1) throw e;
                 }
-                earn_odoloClaimed = allClaims.reduce((sum, c) => sum + parseFloat(c.amount || '0'), 0);
-            } catch (e) {
-                console.warn('oDOLO claimed fetch error:', e);
             }
-            return earn_odoloClaimed;
+        }
+
+        // Fetch iBGT staking rewards (HONEY, WBERA, wiBGT) for a given user
+        // Call chain: diBGT Factory → Registry → MetaVault → Staking Vault
+        async function earn_fetchIBGTRewards(userAddr) {
+            earn_ibgtRewards = null;
+            try {
+                const addr = userAddr.toLowerCase();
+                const pad = '000000000000000000000000';
+
+                // Step 1: Get user's MetaVault from BerachainRewardsRegistry
+                const mvHex = await earn_beraRpcCall(
+                    IBGT_CONTRACTS.REWARDS_REGISTRY,
+                    IBGT_CONTRACTS.SEL_GET_META_VAULT + pad + addr.slice(2)
+                );
+                const metaVault = '0x' + (mvHex || '').slice(26, 66);
+                if (!metaVault || metaVault === '0x' + '0'.repeat(40)) {
+                    console.log('iBGT: No MetaVault for this user');
+                    return null;
+                }
+
+                // Step 2: Query staked balance + earned rewards from iBGT Staking Vault
+                const stVault = IBGT_CONTRACTS.STAKING_VAULT;
+                const mvAddr = metaVault.slice(2).toLowerCase();
+
+                const rewardTokens = [
+                    { symbol: 'HONEY', address: IBGT_CONTRACTS.HONEY },
+                    { symbol: 'WBERA', address: IBGT_CONTRACTS.WBERA },
+                    { symbol: 'wiBGT', address: IBGT_CONTRACTS.WIBGT },
+                ];
+
+                // Batch all calls in parallel
+                const [balHex, ...earnedHexes] = await Promise.all([
+                    earn_beraRpcCall(stVault, IBGT_CONTRACTS.SEL_BALANCE_OF + pad + mvAddr),
+                    ...rewardTokens.map(t =>
+                        earn_beraRpcCall(stVault, IBGT_CONTRACTS.SEL_EARNED + pad + mvAddr + pad + t.address.slice(2))
+                    ),
+                ]);
+
+                const staked = parseInt(balHex || '0x0', 16) / 1e18;
+                const rewards = rewardTokens.map((t, i) => ({
+                    symbol: t.symbol,
+                    address: t.address,
+                    amount: parseInt(earnedHexes[i] || '0x0', 16) / 1e18,
+                })).filter(r => r.amount > 0.000001);
+
+                earn_ibgtRewards = { staked, rewards, metaVault };
+                console.log(`iBGT Rewards: staked=${staked.toFixed(2)}, rewards=`, rewards);
+                return earn_ibgtRewards;
+            } catch (e) {
+                console.warn('iBGT rewards fetch error:', e);
+                return null;
+            }
         }
 
         async function earn_rpcCall(to, data, retries = 3) {
@@ -20931,7 +21054,7 @@
                             <div class="earn-summary-sub">${bestYieldUsd > 0 ? '<span class="sub-highlight">' + yieldSign + fmtUsd(bestYieldUsd) + '</span> earned' : 'No yield data'}</div>
                         </div>
                         <div class="earn-summary-stat">
-                            <div class="earn-summary-label"><img src="odolo-logo-official.svg" alt="oDOLO" style="width:18px;height:18px;vertical-align:middle;margin-right:4px"> oDOLO Claimed</div>
+                            <div class="earn-summary-label"><img src="odolo-logo-official.svg" alt="oDOLO" style="width:18px;height:18px;vertical-align:middle;margin-right:4px"> oDOLO Rewards</div>
                             <div class="earn-summary-value positive" id="earn-odolo-claimed-val">...</div>
                             <div class="earn-summary-sub" id="earn-odolo-claimed-sub">Loading...</div>
                         </div>`;
@@ -20948,14 +21071,19 @@
                         const valEl = document.getElementById('earn-odolo-claimed-val');
                         const subEl = document.getElementById('earn-odolo-claimed-sub');
                         if (valEl) {
-                            if (claimed > 0) {
-                                valEl.textContent = claimed >= 1000 ? (claimed / 1000).toFixed(2) + 'K' : claimed.toFixed(2);
+                            const fmtAmt = v => v >= 1000 ? (v / 1000).toFixed(2) + 'K' : v.toFixed(2);
+                            if (claimed > 0 || earn_odoloUnclaimed > 0) {
+                                valEl.textContent = fmtAmt(claimed);
                                 valEl.className = 'earn-summary-value positive';
-                                subEl.textContent = 'All-time rewards';
+                                if (earn_odoloUnclaimed > 0.01) {
+                                    subEl.innerHTML = 'Claimed · <span style="color:#22d3ee">' + fmtAmt(earn_odoloUnclaimed) + ' unclaimed</span>';
+                                } else {
+                                    subEl.textContent = 'All claimed ✓';
+                                }
                             } else {
                                 valEl.textContent = '0';
                                 valEl.className = 'earn-summary-value neutral';
-                                subEl.textContent = 'No claims yet';
+                                subEl.textContent = 'No rewards yet';
                             }
                         }
                     });
@@ -20985,6 +21113,31 @@
                             summaryCard.style.gridTemplateColumns = 'repeat(' + statCount + ', 1fr)';
                         }
                     }).catch(e => console.warn('WLFI summary card fetch:', e));
+
+                    // Fetch iBGT staking rewards and add card if wallet has any
+                    earn_fetchIBGTRewards(earnAddr).then(ibgtData => {
+                        if (!ibgtData || (ibgtData.rewards.length === 0 && ibgtData.staked < 0.01)) return;
+                        if (document.getElementById('earn-ibgt-card')) return;
+                        const fmtIbgt = v => v >= 1000 ? (v / 1000).toFixed(2) + 'K' : v >= 1 ? v.toFixed(2) : v.toFixed(4);
+                        const rewardLines = ibgtData.rewards.map(r => r.symbol + ': ' + fmtIbgt(r.amount)).join(' · ');
+                        const ibgtStat = document.createElement('div');
+                        ibgtStat.className = 'earn-summary-stat';
+                        ibgtStat.id = 'earn-ibgt-card';
+                        const stakedLabel = ibgtData.staked > 0 ? fmtIbgt(ibgtData.staked) + ' staked' : '';
+                        const subParts = [];
+                        if (stakedLabel) subParts.push(stakedLabel);
+                        if (rewardLines) subParts.push('<span style="color:#f97316">' + rewardLines + '</span>');
+                        ibgtStat.innerHTML = `
+                            <div class="earn-summary-label" style="color:rgba(249,115,22,0.85)">🔶 iBGT Rewards</div>
+                            <div class="earn-summary-value positive" style="color:#f97316">${ibgtData.rewards.length > 0 ? fmtIbgt(ibgtData.rewards.reduce((s,r) => s + r.amount, 0)) : '0'}</div>
+                            <div class="earn-summary-sub">${subParts.join(' · ') || 'No pending rewards'}</div>`;
+                        const summaryCard = document.getElementById('earn-summary-card');
+                        if (summaryCard) {
+                            summaryCard.appendChild(ibgtStat);
+                            const statCount = summaryCard.querySelectorAll('.earn-summary-stat').length;
+                            summaryCard.style.gridTemplateColumns = 'repeat(' + statCount + ', 1fr)';
+                        }
+                    }).catch(e => console.warn('iBGT rewards card fetch:', e));
                 }
             } // end skipSummary guard for summary card
 
