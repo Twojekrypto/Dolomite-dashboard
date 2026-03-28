@@ -71,3 +71,15 @@
 - **⚠️ WLFI blacklist**: Some wallets (e.g., `0x5be9...`) are blacklisted in MERKL campaigns. They appear in the `params.blacklist` array of campaign data and receive 0 WLFI despite supplying the eligible token.
 - **⚠️ Per-position attribution**: MERKL rewards are wallet-wide, NOT per-position. Use `perToken` matching (reason key → collateral token address) to correctly attribute rewards to specific borrow positions. This prevents double-counting when a wallet has multiple positions.
 - **⚠️ Summary card pattern**: Dynamic summary stats should only appear when data exists. Use `if (data > threshold) return;` early exit + `getElementById()` dedup check to prevent duplicate cards on re-render.
+
+## Grid Layout & Inline Style Overrides
+- **Inline `style.gridTemplateColumns` ALWAYS wins over CSS classes**: When JS sets `el.style.gridTemplateColumns = 'repeat(5,1fr)'`, it overrides any CSS class like `.cols-6 { repeat(3,1fr) }`. Solution: never use inline grid overrides — manage grid layout ONLY through CSS classes toggled via JS.
+- **Symmetric card layouts**: For 6 cards use `repeat(3,1fr)` → 3+3 rows. For 7 use `repeat(4,1fr)` → 4+3. Centralize layout management in a single function (`earn_updateSummaryCardLayout`) that reads child count and applies the right class.
+
+## Fixed-Position Dropdowns in Overflow Containers
+- **`position:absolute` + `overflow:auto` = CLIPPED dropdowns**: When a parent container has `overflow:auto` (e.g., `.table-container`), any `position:absolute` child extending beyond the container bounds will be clipped. This is especially visible when the table has few rows (e.g., after filtering).
+- **Solution: `position:fixed` + JS positioning**: Switch dropdowns from `position:absolute` to `position:fixed` and calculate `top`/`left` from `getBoundingClientRect()` of the trigger button. Use a helper like `positionPopoverFixed(triggerEl, popoverEl)`.
+- **Clamp to viewport**: Always clamp fixed-position dropdowns to viewport bounds: `if (left + width > window.innerWidth - 8) left = window.innerWidth - width - 8`.
+
+## Portfolio Value Calculation
+- **Include borrow equity in Portfolio Value**: The EARN tab previously only summed supply-only assets. For users with borrow positions (margin trading), the true portfolio value = supply assets + (collateral − debt). Update the Portfolio Value card in `earn_updateSummaryDebt()` when lending positions arrive.
