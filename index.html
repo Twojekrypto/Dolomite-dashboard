@@ -19103,7 +19103,7 @@
         let earn_odoloClaimed = 0; // total oDOLO claimed by current address
         let earn_odoloUnclaimed = 0; // unclaimed oDOLO (API allocation - contract claimed)
         let earn_ibgtRewards = null; // { staked, rewards: [{symbol, amount, address}] }
-        let earn_sgmxRewards = null; // { staked, rewards: [{symbol, amount}] }
+
         let earn_rpcId = 5000;
 
         // iBGT reward infrastructure addresses (Berachain)
@@ -19332,15 +19332,19 @@
             }
         }
 
-        // sGMX Staking Rewards (Arbitrum) — WETH fees + esGMX
-        // Call chain: sGMX Factory → getVaultByAccount(user) → vault
-        //             feeGmxTracker.claimable(vault) → WETH
-        //             stakedGmxTracker.claimable(vault) → esGMX
-        const SGMX_CONTRACTS = {
-            FACTORY: '0x790ff506ac24b03a21f3d0019227447ae2b55ca5',
-            GMX_REGISTRY: '0x07f1142c3025d39241051d1dcb19b9fff4f377a1',
-            FEE_GMX_TRACKER: '0xd2d1162512f927a7e282ef43a362659e4f2a728f',  // sbfGMX — WETH fees
+        // dGMX Staking Rewards (Arbitrum) — GMX protocol staking rewards
+        // GMX staking goes through the dfsGLP Factory vault (not dGMX factory!)
+        // Call chain: dfsGLP Factory → getVaultByAccount(user) → vault
+        //             sbeGmxTracker.claimable(vault)    → GMX rewards (from esGMX vesting)
+        //             feeGmxTracker.claimable(vault)    → ETH fees (legacy, usually 0)
+        //             stakedGmxTracker.claimable(vault)  → esGMX pending
+        //             feeGmxTracker.balanceOf(vault)     → total staked (sbfGMX)
+        const DGMX_CONTRACTS = {
+            DFSGLP_FACTORY: '0x34df4e8062a8c8ae97e3382b452bd7bf60542698', // dfsGLP Factory — vault with handleRewards
+            SBE_GMX_TRACKER: '0x0755D33e45eD2b874C9EBF5b279023C8BD1E5E93',  // sbeGMX — GMX rewards
+            FEE_GMX_TRACKER: '0xd2d1162512f927a7e282ef43a362659e4f2a728f',  // sbfGMX — ETH fees
             STAKED_GMX_TRACKER: '0x908c4d94d34924765f1edc22a1dd098397c59dd4', // sGMX — esGMX
+            BONUS_GMX_TRACKER: '0x4d268a7d4C16ceB5a606c173Bd974984343fea13', // sbGMX — bnGMX
             WETH_ARB: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
             ESGMX: '0xf42ae1d54fd613c9bb14810b0588faaa09a426ca',
             GMX_TOKEN: '0xfc5a1a6eb076a2c7ad06ed22c90d7e710e35ad0a',
@@ -19368,8 +19372,10 @@
             }
         }
 
-        async function earn_fetchSGMXRewards(userAddr) {
-            earn_sgmxRewards = null;
+        let earn_dgmxRewards = null; // { staked, rewards: [{symbol, amount, address}], vault }
+
+        async function earn_fetchDGMXRewards(userAddr) {
+            earn_dgmxRewards = null;
             try {
                 const addr = userAddr.toLowerCase();
                 const pad = '000000000000000000000000';
@@ -19377,37 +19383,55 @@
                 const SEL_CLAIMABLE = '0x402914f5'; // claimable(address)
                 const SEL_BALANCE = '0x70a08231';   // balanceOf(address)
 
-                // Step 1: Get user's sGMX vault
+                // Step 1: Get user's dfsGLP vault (handles GMX staking)
                 const vaultHex = await earn_arbRpcCall(
-                    SGMX_CONTRACTS.FACTORY,
+                    DGMX_CONTRACTS.DFSGLP_FACTORY,
                     SEL_GET_VAULT + pad + addr.slice(2)
                 );
                 const vault = '0x' + (vaultHex || '').slice(26, 66);
                 if (!vault || vault === '0x' + '0'.repeat(40)) {
-                    console.log('sGMX: No vault for this user');
+                    console.log('dGMX: No dfsGLP vault for this user');
                     return null;
                 }
 
-                // Step 2: Query staked GMX balance + pending rewards
-                const [balHex, wethHex, esgmxHex] = await Promise.all([
-                    earn_arbRpcCall(SGMX_CONTRACTS.STAKED_GMX_TRACKER, SEL_BALANCE + pad + vault.slice(2)),
-                    earn_arbRpcCall(SGMX_CONTRACTS.FEE_GMX_TRACKER, SEL_CLAIMABLE + pad + vault.slice(2)),
-                    earn_arbRpcCall(SGMX_CONTRACTS.STAKED_GMX_TRACKER, SEL_CLAIMABLE + pad + vault.slice(2)),
+                // Step 2: Query staked GMX + all reward sources
+                const [balHex, gmxRewardHex, ethHex, esgmxHex, bnGmxHex] = await Promise.all([
+                    earn_arbRpcCall(DGMX_CONTRACTS.FEE_GMX_TRACKER, SEL_BALANCE + pad + vault.slice(2)),
+                    earn_arbRpcCall(DGMX_CONTRACTS.SBE_GMX_TRACKER, SEL_CLAIMABLE + pad + vault.slice(2)),  // GMX rewards!
+                    earn_arbRpcCall(DGMX_CONTRACTS.FEE_GMX_TRACKER, SEL_CLAIMABLE + pad + vault.slice(2)),  // ETH fees
+                    earn_arbRpcCall(DGMX_CONTRACTS.STAKED_GMX_TRACKER, SEL_CLAIMABLE + pad + vault.slice(2)), // esGMX
+                    earn_arbRpcCall(DGMX_CONTRACTS.BONUS_GMX_TRACKER, SEL_CLAIMABLE + pad + vault.slice(2)), // bnGMX
                 ]);
 
                 const staked = parseInt(balHex || '0x0', 16) / 1e18;
-                const wethPending = parseInt(wethHex || '0x0', 16) / 1e18;
+                const gmxPending = parseInt(gmxRewardHex || '0x0', 16) / 1e18;
+                const ethPending = parseInt(ethHex || '0x0', 16) / 1e18;
                 const esgmxPending = parseInt(esgmxHex || '0x0', 16) / 1e18;
+                const bnGmxPending = parseInt(bnGmxHex || '0x0', 16) / 1e18;
+
+                if (staked < 0.01) {
+                    console.log('dGMX: No GMX staked in trackers');
+                    return null;
+                }
 
                 const rewards = [];
-                if (wethPending > 0.000001) rewards.push({ symbol: 'WETH', amount: wethPending, address: SGMX_CONTRACTS.WETH_ARB });
-                if (esgmxPending > 0.000001) rewards.push({ symbol: 'esGMX', amount: esgmxPending, address: SGMX_CONTRACTS.ESGMX });
+                if (gmxPending > 0.0001) rewards.push({ symbol: 'GMX', amount: gmxPending, address: DGMX_CONTRACTS.GMX_TOKEN });
+                if (ethPending > 0.000001) rewards.push({ symbol: 'WETH', amount: ethPending, address: DGMX_CONTRACTS.WETH_ARB });
+                if (esgmxPending > 0.0001) rewards.push({ symbol: 'esGMX', amount: esgmxPending, address: DGMX_CONTRACTS.ESGMX });
 
-                earn_sgmxRewards = { staked, rewards, vault };
-                console.log(`sGMX Rewards: staked=${staked.toFixed(2)}, WETH=${wethPending.toFixed(6)}, esGMX=${esgmxPending.toFixed(4)}`);
-                return earn_sgmxRewards;
+                const totalUsd = rewards.reduce((s, r) => {
+                    const price = r.symbol === 'GMX' ? (earn_priceCache['arbitrum:' + DGMX_CONTRACTS.GMX_TOKEN.toLowerCase()] || 6.2)
+                        : r.symbol === 'WETH' ? (earn_priceCache['arbitrum:' + DGMX_CONTRACTS.WETH_ARB.toLowerCase()] || 2000)
+                        : r.symbol === 'esGMX' ? (earn_priceCache['arbitrum:' + DGMX_CONTRACTS.GMX_TOKEN.toLowerCase()] || 6.2)
+                        : 0;
+                    return s + r.amount * price;
+                }, 0);
+
+                earn_dgmxRewards = { staked, rewards, totalUsd, vault };
+                console.log(`dGMX Rewards: staked=${staked.toFixed(2)} sbfGMX, GMX=${gmxPending.toFixed(4)}, ETH=${ethPending.toFixed(6)}, esGMX=${esgmxPending.toFixed(4)}, bnGMX=${bnGmxPending.toFixed(4)}, total=$${totalUsd.toFixed(2)}`);
+                return earn_dgmxRewards;
             } catch (e) {
-                console.warn('sGMX rewards fetch error:', e);
+                console.warn('dGMX rewards fetch error:', e);
                 return null;
             }
         }
@@ -19675,7 +19699,7 @@
         _regToken(['arbitrum'], '0x6491c05a82219b8d1479057361ff1654749b876b', 'USDS', 18, DOLO_CDN + 'sUSDs.788070a4e1bbf5ab8c6130d47bdf8108.svg');
         _regToken(['arbitrum'], '0xa322e23a357cb7c596a7a834102b9d6d5b15da3e', 'savUSD', 18, DOLO_CDN + 'savUSD.a2df97177abb3f75f4313a7241aa5fb0.svg');
         _regToken(['arbitrum'], '0x2416092f143378750bb29b79ed961ab195cceea5', 'ezETH', 18, DOLO_CDN + 'ezETH.23c954d818f85c10660e5c0a476ff398.svg');
-        _regToken(['arbitrum'], '0x790ff506ac24b03a21f3d0019227447ae2b55ca5', 'sGMX', 18, DOLO_CDN + 'GMX.b836adc14ee095fd9b7671e718878333.svg');
+        _regToken(['arbitrum'], '0x790ff506ac24b03a21f3d0019227447ae2b55ca5', 'dGMX', 18, DOLO_CDN + 'GMX.b836adc14ee095fd9b7671e718878333.svg');
         // ---- GM tokens (Arbitrum) — correct SVGs from app.dolomite.io/static/media ----
         _regToken(['arbitrum'], '0x2c799166c9f0dbf9efc5004cbce4c5a37fa39329', 'gmARB-USD', 18, DOLO_CDN + 'ARB-GM.50df3ed4a1a52b938992cb5e08efbc36.svg');
         _regToken(['arbitrum'], '0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef', 'gmBTC-USD', 18, DOLO_CDN + 'WBTC-GM.6e7f69538bb02b42b881b86aea5c6d6e.svg');
@@ -21871,7 +21895,7 @@
                 // Chain-specific reward fetches (run in parallel, results stored in globals)
                 const rewardFetches = [];
                 if (chainId === 'berachain') rewardFetches.push(earn_fetchIBGTRewards(addr).catch(() => null));
-                if (chainId === 'arbitrum') rewardFetches.push(earn_fetchSGMXRewards(addr).catch(() => null));
+                if (chainId === 'arbitrum') rewardFetches.push(earn_fetchDGMXRewards(addr).catch(() => null));
                 const sgPromise = sgEndpoint ? Promise.all([
                     earn_subgraphQuery(sgEndpoint,
                         `{ borrowPositions(first: 100, where: { effectiveUser: "${addr}", status: "OPEN" }) { marginAccount { accountNumber } openTimestamp amounts { token { id marketId symbol decimals } amountPar } } }`
@@ -21906,7 +21930,7 @@
                 // Await external rewards data
                 earn_merklRewards = await merklPromise;
                 earn_odoloMeta = await odoloMetaPromise;
-                await Promise.allSettled(rewardFetches); // ensure iBGT/sGMX data is populated
+                await Promise.allSettled(rewardFetches); // ensure iBGT/dGMX data is populated
 
                 if (sgResult) {
                     const [bpData, ixData, marketData] = sgResult;
@@ -22046,20 +22070,23 @@
                                         }
                                     }
 
-                                    // === sGMX/dGMX staking rewards (WETH + esGMX) ===
-                                    if (earn_sgmxRewards && earn_sgmxRewards.rewards.length > 0 && (symbol === 'sGMX' || symbol === 'dGMX')) {
-                                        for (const reward of earn_sgmxRewards.rewards) {
-                                            const rPrice = earn_priceCache[chainId + ':' + reward.address.toLowerCase()]
-                                                || TOKEN_USD_FALLBACK[reward.symbol] || 0;
-                                            p.externalRewards.push({
-                                                symbol: reward.symbol,
-                                                amount: reward.amount,
-                                                usd: reward.amount * rPrice,
-                                                apr: 0,
-                                                claimUrl: 'https://app.dolomite.io/earn',
-                                                source: 'gmx-staking',
-                                                icon: SYMBOL_ICONS[reward.symbol] || SYMBOL_ICONS['GMX'] || '',
-                                            });
+                                    // === dGMX staking rewards (WETH + esGMX via dfsGLP vault) ===
+                                    if (earn_dgmxRewards && earn_dgmxRewards.staked > 0 && symbol === 'dGMX') {
+                                        // Always show staked amount as info even if no pending rewards
+                                        if (earn_dgmxRewards.rewards.length > 0) {
+                                            for (const reward of earn_dgmxRewards.rewards) {
+                                                const rPrice = earn_priceCache[chainId + ':' + reward.address.toLowerCase()]
+                                                    || TOKEN_USD_FALLBACK[reward.symbol] || 0;
+                                                p.externalRewards.push({
+                                                    symbol: reward.symbol,
+                                                    amount: reward.amount,
+                                                    usd: reward.amount * rPrice,
+                                                    apr: 0,
+                                                    claimUrl: 'https://app.dolomite.io/balances',
+                                                    source: 'gmx-staking',
+                                                    icon: SYMBOL_ICONS[reward.symbol] || SYMBOL_ICONS['GMX'] || '',
+                                                });
+                                            }
                                         }
                                     }
                                 } else {
@@ -22927,31 +22954,36 @@
                         }).catch(e => console.warn('iBGT rewards card fetch:', e));
                     }
 
-                    // Fetch sGMX staking rewards (Arbitrum only)
+                    // Fetch dGMX staking rewards (Arbitrum only)
                     if (earnChainId === 'arbitrum') {
-                        earn_fetchSGMXRewards(earnAddr).then(sgmxData => {
-                            if (!sgmxData || (sgmxData.rewards.length === 0 && sgmxData.staked < 0.01)) return;
-                            if (document.getElementById('earn-sgmx-card')) return;
+                        earn_fetchDGMXRewards(earnAddr).then(dgmxData => {
+                            if (!dgmxData || dgmxData.staked < 0.01) return;
+                            if (document.getElementById('earn-dgmx-card')) return;
                             const fmtGmx = v => v >= 1000 ? (v / 1000).toFixed(2) + 'K' : v >= 1 ? v.toFixed(2) : v.toFixed(4);
-                            const rewardLines = sgmxData.rewards.map(r => r.symbol + ': ' + fmtGmx(r.amount)).join(' · ');
-                            const sgmxStat = document.createElement('div');
-                            sgmxStat.className = 'earn-summary-stat';
-                            sgmxStat.id = 'earn-sgmx-card';
-                            const stakedLabel = sgmxData.staked > 0 ? fmtGmx(sgmxData.staked) + ' GMX staked' : '';
-                            const subParts = [];
-                            if (stakedLabel) subParts.push(stakedLabel);
-                            if (rewardLines) subParts.push('<span style="color:#6366f1">' + rewardLines + '</span>');
-                            sgmxStat.innerHTML = `
-                            <div class="earn-summary-label" style="color:rgba(99,102,241,0.85)">💎 sGMX Rewards</div>
-                            <div class="earn-summary-value positive" style="color:#6366f1">${sgmxData.rewards.length > 0 ? fmtGmx(sgmxData.rewards.reduce((s, r) => s + r.amount, 0)) : '0'}</div>
-                            <div class="earn-summary-sub">${subParts.join(' · ') || 'No pending rewards'}</div>`;
+                            const fmtUsd = v => v >= 1000 ? '$' + (v / 1000).toFixed(2) + 'K' : '$' + v.toFixed(2);
+                            const dgmxStat = document.createElement('div');
+                            dgmxStat.className = 'earn-summary-stat';
+                            dgmxStat.id = 'earn-dgmx-card';
+                            const stakedLabel = fmtGmx(dgmxData.staked) + ' GMX staked';
+                            const subParts = [stakedLabel];
+                            if (dgmxData.rewards.length > 0) {
+                                const rewardLines = dgmxData.rewards.map(r => r.symbol + ': ' + fmtGmx(r.amount)).join(' · ');
+                                subParts.push('<span style="color:#6366f1">' + rewardLines + '</span>');
+                            }
+                            const mainValue = dgmxData.totalUsd > 0.01
+                                ? fmtUsd(dgmxData.totalUsd)
+                                : (dgmxData.rewards.length > 0 ? fmtGmx(dgmxData.rewards[0].amount) + ' ' + dgmxData.rewards[0].symbol : 'Compounded');
+                            dgmxStat.innerHTML = `
+                            <div class="earn-summary-label" style="color:rgba(99,102,241,0.85)">💎 dGMX Staking</div>
+                            <div class="earn-summary-value positive" style="color:#6366f1">${mainValue}</div>
+                            <div class="earn-summary-sub">${subParts.join(' · ')}</div>`;
                             const summaryCard = document.getElementById('earn-summary-card');
                             if (summaryCard) {
-                                summaryCard.appendChild(sgmxStat);
+                                summaryCard.appendChild(dgmxStat);
                                 const statCount = summaryCard.querySelectorAll('.earn-summary-stat').length;
                                 summaryCard.style.gridTemplateColumns = 'repeat(' + statCount + ', 1fr)';
                             }
-                        }).catch(e => console.warn('sGMX rewards card fetch:', e));
+                        }).catch(e => console.warn('dGMX rewards card fetch:', e));
                     }
                 }
             } // end skipSummary guard for summary card
