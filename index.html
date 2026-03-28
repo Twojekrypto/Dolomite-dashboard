@@ -22271,10 +22271,17 @@
             // CSS already handles column layout via .earn-summary-card / .cols-N classes
             earn_updateSummaryCardLayout(summaryEl);
 
-            // Find and update the portfolio sub label
+            // Find and update the portfolio card with true value (supply + collateral - debt)
             const statEls = summaryEl.querySelectorAll('.earn-summary-stat');
             if (statEls.length > 0) {
-                // Update first stat (Portfolio Value) sub line
+                // Recalculate Portfolio Value = supply assets + (collateral - debt) from borrow positions
+                const portfolioVal = totalSupplyUsd + totalCollateral - totalDebt;
+                const fmtUsd = v => v >= 1000 ? '$' + (v / 1000).toFixed(2) + 'K' : '$' + v.toFixed(2);
+                const valEl = statEls[0].querySelector('.earn-summary-value');
+                if (valEl) {
+                    valEl.textContent = fmtUsd(portfolioVal);
+                    valEl.className = 'earn-summary-value ' + (portfolioVal > 0 ? 'neutral' : 'negative');
+                }
                 const sub = statEls[0].querySelector('.earn-summary-sub');
                 if (sub) sub.innerHTML = `<span class="sub-highlight">${activeCount}</span> supply · <span style="color:#f87171">${positions.length}</span> borrow`;
             }
