@@ -6813,13 +6813,24 @@
         /* ═══════ UX OVERHAUL: Summary Card ═══════ */
         .earn-summary-card {
             display: none;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 0;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1px;
             margin-bottom: 24px;
             border-radius: 18px;
             overflow: hidden;
             position: relative;
+            background: linear-gradient(135deg, rgba(52, 211, 153, 0.25), rgba(99, 102, 241, 0.2), rgba(52, 211, 153, 0.1));
             animation: earnSummaryIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        /* 6 cards = 3+3 symmetric layout */
+        .earn-summary-card.cols-6 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        /* 7+ cards = 4+3 layout */
+        .earn-summary-card.cols-7 {
+            grid-template-columns: repeat(4, 1fr);
         }
 
         .earn-summary-card.visible {
@@ -6857,30 +6868,23 @@
         }
 
         .earn-summary-stat {
-            background: rgba(8, 12, 24, 0.9);
+            background: rgba(8, 12, 24, 0.92);
             backdrop-filter: blur(24px);
             padding: 20px 16px;
             text-align: center;
             position: relative;
             transition: background 0.3s ease, box-shadow 0.3s ease;
             animation: statFadeIn 0.5s ease both;
+            min-width: 0; /* prevent overflow */
         }
 
-        .earn-summary-stat:nth-child(1) {
-            animation-delay: 0.1s;
-        }
-
-        .earn-summary-stat:nth-child(2) {
-            animation-delay: 0.2s;
-        }
-
-        .earn-summary-stat:nth-child(3) {
-            animation-delay: 0.3s;
-        }
-
-        .earn-summary-stat:nth-child(4) {
-            animation-delay: 0.4s;
-        }
+        .earn-summary-stat:nth-child(1) { animation-delay: 0.1s; }
+        .earn-summary-stat:nth-child(2) { animation-delay: 0.15s; }
+        .earn-summary-stat:nth-child(3) { animation-delay: 0.2s; }
+        .earn-summary-stat:nth-child(4) { animation-delay: 0.25s; }
+        .earn-summary-stat:nth-child(5) { animation-delay: 0.3s; }
+        .earn-summary-stat:nth-child(6) { animation-delay: 0.35s; }
+        .earn-summary-stat:nth-child(7) { animation-delay: 0.4s; }
 
         @keyframes statFadeIn {
             from {
@@ -6911,25 +6915,6 @@
         #view-earn .metric-cell:hover .metric-value.accent-amber {
             transform: none !important;
             text-shadow: none !important;
-        }
-
-        /* Divider line between stats */
-        .earn-summary-stat+.earn-summary-stat::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 15%;
-            bottom: 15%;
-            width: 1px;
-            background: linear-gradient(180deg, transparent, rgba(52, 211, 153, 0.3), transparent);
-        }
-
-        .earn-summary-stat:first-child {
-            border-radius: 18px 0 0 18px;
-        }
-
-        .earn-summary-stat:last-child {
-            border-radius: 0 18px 18px 0;
         }
 
         .earn-summary-label {
@@ -22263,6 +22248,17 @@
             }
         }
 
+
+        // Central layout manager for summary cards — adapts grid to card count
+        function earn_updateSummaryCardLayout(el) {
+            if (!el) el = document.getElementById('earn-summary-card');
+            if (!el) return;
+            const n = el.querySelectorAll('.earn-summary-stat').length;
+            el.classList.remove('cols-6', 'cols-7');
+            if (n >= 7) el.classList.add('cols-7');
+            else if (n >= 6) el.classList.add('cols-6');
+        }
+
         function earn_updateSummaryDebt(positions) {
             const summaryEl = document.getElementById('earn-summary-card');
             if (!summaryEl || positions.length === 0) return;
@@ -22272,8 +22268,8 @@
             const activeCount = (earn_cachedAssets || []).filter(a => !a.isBorrow && a.usdValue >= 0.01).length;
             const totalSupplyUsd = (earn_cachedAssets || []).filter(a => !a.isBorrow).reduce((s, a) => s + (a.usdValue || 0), 0);
 
-            // Update the grid to 5 columns for debt display
-            summaryEl.style.gridTemplateColumns = 'repeat(5, 1fr)';
+            // CSS already handles column layout via .earn-summary-card / .cols-N classes
+            earn_updateSummaryCardLayout(summaryEl);
 
             // Find and update the portfolio sub label
             const statEls = summaryEl.querySelectorAll('.earn-summary-stat');
@@ -22847,8 +22843,7 @@
                     // Portfolio sub label (will be updated when lending positions arrive)
                     const portfolioSub = `<span class="sub-highlight">${activeCount}</span> active asset${activeCount !== 1 ? 's' : ''}`;
 
-                    // Grid columns: starts at 4, grow to 5 when lending positions arrive
-                    summaryEl.style.gridTemplateColumns = 'repeat(4, 1fr)';
+                    // CSS handles column layout — starts at 5 (or 4 without debt card)
 
                     summaryEl.innerHTML = `
                         <div class="earn-summary-stat">
@@ -22921,9 +22916,8 @@
                         const summaryCard = document.getElementById('earn-summary-card');
                         if (summaryCard) {
                             summaryCard.appendChild(wlfiStat);
-                            // Expand grid to fit new stat
-                            const statCount = summaryCard.querySelectorAll('.earn-summary-stat').length;
-                            summaryCard.style.gridTemplateColumns = 'repeat(' + statCount + ', 1fr)';
+                            // Toggle responsive layout for extra cards
+                            earn_updateSummaryCardLayout(summaryCard);
                         }
                     }).catch(e => console.warn('WLFI summary card fetch:', e));
 
@@ -22948,8 +22942,7 @@
                             const summaryCard = document.getElementById('earn-summary-card');
                             if (summaryCard) {
                                 summaryCard.appendChild(ibgtStat);
-                                const statCount = summaryCard.querySelectorAll('.earn-summary-stat').length;
-                                summaryCard.style.gridTemplateColumns = 'repeat(' + statCount + ', 1fr)';
+                                earn_updateSummaryCardLayout(summaryCard);
                             }
                         }).catch(e => console.warn('iBGT rewards card fetch:', e));
                     }
@@ -22974,14 +22967,13 @@
                                 ? fmtUsd(dgmxData.totalUsd)
                                 : (dgmxData.rewards.length > 0 ? fmtGmx(dgmxData.rewards[0].amount) + ' ' + dgmxData.rewards[0].symbol : 'Compounded');
                             dgmxStat.innerHTML = `
-                            <div class="earn-summary-label" style="color:rgba(99,102,241,0.85)">💎 dGMX Staking</div>
+                            <div class="earn-summary-label" style="color:rgba(99,102,241,0.85)">💎 GMX Rewards</div>
                             <div class="earn-summary-value positive" style="color:#6366f1">${mainValue}</div>
                             <div class="earn-summary-sub">${subParts.join(' · ')}</div>`;
                             const summaryCard = document.getElementById('earn-summary-card');
                             if (summaryCard) {
                                 summaryCard.appendChild(dgmxStat);
-                                const statCount = summaryCard.querySelectorAll('.earn-summary-stat').length;
-                                summaryCard.style.gridTemplateColumns = 'repeat(' + statCount + ', 1fr)';
+                                earn_updateSummaryCardLayout(summaryCard);
                             }
                         }).catch(e => console.warn('dGMX rewards card fetch:', e));
                     }
