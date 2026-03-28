@@ -2323,8 +2323,7 @@
 
         /* ===== Column Filter Popover ===== */
         .col-filter-popover {
-            position: absolute; top: calc(100% + 6px); left: 50%;
-            transform: translateX(-50%);
+            position: fixed;
             min-width: 260px; max-width: 290px;
             background: rgba(12,20,38,0.98);
             -webkit-backdrop-filter: blur(24px) saturate(1.6);
@@ -2339,17 +2338,12 @@
                 inset 0 1px 0 rgba(255,255,255,0.05);
             overflow: hidden;
         }
-        /* Right-align popover for last column so it doesn't overflow */
-        #debt-token-popover {
-            left: auto; right: 0;
-            transform: none;
-        }
         th.col-filter-open .col-filter-popover {
             display: block; animation: colPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
         @keyframes colPopIn {
-            from { opacity: 0; transform: translateX(-50%) translateY(-8px) scale(0.96); }
-            to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+            from { opacity: 0; transform: translateY(-8px) scale(0.96); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
         }
         /* Top accent gradient bar */
         .col-filter-popover::before {
@@ -4418,6 +4412,19 @@
 
 
         // ─── Column Filter Popovers (range: HF, Collateral, Debt) ────────
+        // Position a popover using position:fixed relative to a trigger element
+        function positionPopoverFixed(triggerEl, popoverEl) {
+            const rect = triggerEl.getBoundingClientRect();
+            popoverEl.style.display = 'block';
+            const pw = popoverEl.offsetWidth || 260;
+            let left = rect.left + rect.width / 2 - pw / 2;
+            // Clamp to viewport bounds
+            if (left < 8) left = 8;
+            if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+            popoverEl.style.left = left + 'px';
+            popoverEl.style.top = (rect.bottom + 6) + 'px';
+        }
+
         function initColFilterPopover(opts) {
             const trigger = document.getElementById(opts.triggerId);
             const minInput = document.getElementById(opts.minInputId);
@@ -4432,6 +4439,11 @@
                     if (th !== thParent) th.classList.remove('col-filter-open');
                 });
                 thParent.classList.toggle('col-filter-open');
+                // Position popover fixed relative to trigger button
+                if (thParent.classList.contains('col-filter-open')) {
+                    const popover = thParent.querySelector('.col-filter-popover');
+                    if (popover) positionPopoverFixed(trigger, popover);
+                }
             });
 
             const presetsEl = document.getElementById(opts.presetsId);
@@ -4572,6 +4584,8 @@
                 });
                 thParent.classList.toggle('col-filter-open');
                 if (thParent.classList.contains('col-filter-open')) {
+                    const popover = thParent.querySelector('.col-filter-popover');
+                    if (popover) positionPopoverFixed(trigger, popover);
                     searchInput.value = '';
                     renderList();
                     requestAnimationFrame(() => searchInput.focus());
