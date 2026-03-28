@@ -18403,6 +18403,7 @@
             'USDC': 1, 'USDT': 1, 'DAI': 1, 'USDC.e': 1, 'USDe': 1, 'BYUSD': 1, 'NECT': 1, 'HONEY': 1, 'sUSDe': 1.05,
             'ARB': 0.5, 'GMX': 25, 'PENDLE': 4, 'LINK': 15, 'UNI': 8,
             'DOLO': 0.01, 'HENLO': 0.00001, 'YEET': 0.001,
+            'iBGT': 4, 'wiBGT': 4, 'diBGT': 4,
         };
 
         // ===== EARN UNIFIED VIEW =====
@@ -20288,6 +20289,28 @@
                                             });
                                         }
                                     }
+
+                                    // === iBGT staking rewards for diBGT collateral positions ===
+                                    if (earn_ibgtRewards && earn_ibgtRewards.rewards.length > 0 && symbol === 'diBGT') {
+                                        const ibgtPrice = earn_priceCache[chainId + ':' + IBGT_CONTRACTS.DIBGT_FACTORY.toLowerCase()]
+                                            || earn_priceCache[chainId + ':0xac03caba51e17c86c921e1f6cbfbdc91f8bb2e6b']
+                                            || TOKEN_USD_FALLBACK['iBGT'] || 4;
+                                        for (const reward of earn_ibgtRewards.rewards) {
+                                            // Use iBGT price for wiBGT (1:1 wrapper)
+                                            const rPrice = reward.symbol === 'wiBGT' ? ibgtPrice
+                                                : (earn_priceCache[chainId + ':' + reward.address.toLowerCase()]
+                                                    || TOKEN_USD_FALLBACK[reward.symbol] || 0);
+                                            p.externalRewards.push({
+                                                symbol: reward.symbol,
+                                                amount: reward.amount,
+                                                usd: reward.amount * rPrice,
+                                                apr: 0,
+                                                claimUrl: 'https://app.dolomite.io/rewards',
+                                                source: 'infrared-ibgt',
+                                                icon: SYMBOL_ICONS[reward.symbol] || SYMBOL_ICONS['iBGT'] || '',
+                                            });
+                                        }
+                                    }
                                 } else {
                                     // Borrow: actual = |par| * borrowIndex
                                     const absPar = Math.abs(par);
@@ -20668,6 +20691,18 @@
                                     }).join('')}
                                 </div>` : ''}
                             </div>
+                            ${(p.externalRewards && p.externalRewards.length > 0) ? `<div class="earn-lend-section">
+                                <div class="earn-lend-section-title rewards">🟡 External Rewards</div>
+                                ${p.externalRewards.map(r => {
+                                    const iconHtml = r.icon ? `<img src="${r.icon}" alt="${r.symbol}" onerror="this.style.display='none'">` : '';
+                                    const claimHtml = r.claimUrl ? `<a href="${r.claimUrl}" target="_blank" class="earn-reward-claim-link" onclick="event.stopPropagation()">Claim ↗</a>` : '';
+                                    const aprHtml = r.apr > 0 ? `<span class="earn-lend-token-annual" style="color:rgba(251,191,36,0.6)">${r.apr.toFixed(2)}% APR</span>` : '';
+                                    return `<div class="earn-lend-token-row"><span class="earn-lend-token-left">${iconHtml}${r.symbol}${claimHtml}</span><span><span class="earn-lend-token-apr rewards">+${r.amount >= 1000 ? (r.amount/1000).toFixed(2) + 'K' : r.amount.toFixed(2)}</span><span class="earn-lend-token-annual" style="color:rgba(251,191,36,0.5)"> ~${earn_formatUSD(r.usd)}</span>${aprHtml}</span></div>`;
+                                }).join('')}
+                                <div style="border-top:1px solid rgba(251,191,36,0.08);margin-top:6px;padding-top:4px">
+                                    <div class="earn-lend-token-row"><span class="earn-lend-token-left" style="color:rgba(251,191,36,0.7);font-weight:600">Total Rewards</span><span class="earn-lend-token-apr rewards">+${earn_formatUSD(p.totalExternalRewardsUSD)}</span></div>
+                                </div>
+                            </div>` : ''}
                             <div class="earn-lend-section">
                                 <div class="earn-lend-section-title cost">🔴 Borrow Costs</div>
                                 ${debtRows || '<div style="color:var(--text-muted);font-size:11px">No debt</div>'}
@@ -20683,7 +20718,7 @@
                                 ${(p.netAccrued !== undefined) ? `
                                     <div class="earn-lend-section-title net">📊 Realized P&L</div>
                                     <div class="earn-lend-net-value ${p.netAccrued >= 0 ? 'positive' : 'negative'}">${p.netAccrued >= 0 ? '+' : '-'}${earn_formatUSD(Math.abs(p.netAccrued))}<span style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.4)"> total</span></div>
-                                    <div class="earn-lend-net-sub">Yield ${earn_formatUSD(p.totalAccruedYield || 0)} − Cost ${earn_formatUSD(p.totalAccruedCost || 0)}</div>
+                                    <div class="earn-lend-net-sub">Yield ${earn_formatUSD(p.totalAccruedYield || 0)}${p.totalExternalRewardsUSD > 0.01 ? ' + <span style="color:#fbbf24">Rewards ' + earn_formatUSD(p.totalExternalRewardsUSD) + '</span>' : ''} − Cost ${earn_formatUSD(p.totalAccruedCost || 0)}</div>
                                     ${p.openTimestamp ? `<div class="earn-lend-net-sub" style="margin-top:4px">Opened ${earn_formatAge(p.openTimestamp)}</div>` : ''}
                                     <div style="border-top:1px solid rgba(255,255,255,0.05);margin-top:8px;padding-top:6px">
                                         <div class="earn-lend-net-sub" style="margin-bottom:2px">Est. annual at current rates:</div>
