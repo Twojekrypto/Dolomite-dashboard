@@ -4570,6 +4570,13 @@
                     }
                 });
                 thParent.addEventListener('mouseenter', cancelClose);
+
+                // Reposition popover on scroll so it stays attached to trigger
+                window.addEventListener('scroll', function() {
+                    if (thParent.classList.contains('col-filter-open')) {
+                        positionPopoverFixed(trigger, popoverEl);
+                    }
+                }, true);
             }
         }
 
@@ -4683,8 +4690,8 @@
                         else filterSet.add(tok);
                         trigger.classList.toggle('has-active', filterSet.size > 0);
                         applyFilters();
-                        // Close popover after selecting with short delay for visual feedback
-                        setTimeout(() => closePopover(), 180);
+                        // Re-render list to update checkmarks and sort selected to top
+                        renderList();
                     });
                 });
             }
@@ -4753,6 +4760,15 @@
                     }
                 });
                 thParent.addEventListener('mouseenter', cancelCloseTimer);
+
+                // Reposition popover on scroll so it stays attached to trigger
+                const scrollContainer = document.querySelector('.positions-table-wrap') || window;
+                function repositionOnScroll() {
+                    if (thParent.classList.contains('col-filter-open')) {
+                        positionPopoverFixed(trigger, popoverEl);
+                    }
+                }
+                window.addEventListener('scroll', repositionOnScroll, true);
             }
 
             // Clear X button handler
