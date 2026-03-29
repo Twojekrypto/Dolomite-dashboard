@@ -6896,6 +6896,135 @@
             opacity: 0.5;
         }
 
+        /* ═══════ Past (Closed) Positions collapsible section ═══════ */
+        .earn-past-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 18px;
+            margin-top: 16px;
+            cursor: pointer;
+            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(167,139,250,0.04) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            transition: all 0.25s ease;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .earn-past-header:hover {
+            background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(167,139,250,0.06) 100%);
+            border-color: rgba(167, 139, 250, 0.12);
+        }
+        .earn-past-header svg {
+            color: rgba(167, 139, 250, 0.6);
+            flex-shrink: 0;
+        }
+        .earn-past-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(167, 139, 250, 0.7);
+            letter-spacing: 0.3px;
+        }
+        .earn-past-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            border-radius: 9px;
+            font-size: 10px;
+            font-weight: 700;
+            background: rgba(167, 139, 250, 0.12);
+            color: rgba(167, 139, 250, 0.7);
+        }
+        .earn-past-chevron {
+            margin-left: auto;
+            width: 16px;
+            height: 16px;
+            color: rgba(255, 255, 255, 0.25);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .earn-past-header.open .earn-past-chevron {
+            transform: rotate(180deg);
+        }
+        .earn-past-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .earn-past-body.open {
+            max-height: 2000px;
+        }
+        .earn-past-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+        }
+        .earn-past-table th {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            color: rgba(255, 255, 255, 0.3);
+            font-weight: 600;
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+        .earn-past-table td {
+            font-size: 12px;
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+            font-variant-numeric: tabular-nums;
+        }
+        .earn-past-table tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        .earn-past-token {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .earn-past-token img {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+        }
+        .earn-past-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .earn-past-status.closed {
+            background: rgba(167, 139, 250, 0.08);
+            color: rgba(167, 139, 250, 0.7);
+        }
+        .earn-past-status.liquidated {
+            background: rgba(248, 113, 113, 0.08);
+            color: rgba(248, 113, 113, 0.7);
+        }
+        .earn-past-pnl {
+            font-weight: 700;
+        }
+        .earn-past-pnl.positive { color: #34d399; }
+        .earn-past-pnl.negative { color: #f87171; }
+        .earn-past-duration {
+            color: rgba(255, 255, 255, 0.35);
+            font-size: 11px;
+        }
+        .earn-past-empty {
+            text-align: center;
+            padding: 20px;
+            color: rgba(255, 255, 255, 0.25);
+            font-size: 12px;
+            font-style: italic;
+        }
+
         .earn-data-row.earn-row-inactive .earn-token-icon {
             filter: grayscale(0.7);
             opacity: 0.6;
@@ -12162,7 +12291,34 @@
                         </table>
                     </div>
                 </div>
-                <!-- withdrawn section removed -->
+                <!-- Past (Closed) Positions — collapsible section -->
+                <div id="earn-past-section" style="display:none;margin-top:8px">
+                    <div class="earn-past-header" id="earn-past-toggle" onclick="earn_togglePastPositions()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                        <span class="earn-past-title">Past Positions</span>
+                        <span class="earn-past-count" id="earn-past-count">0</span>
+                        <svg class="earn-past-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    </div>
+                    <div class="earn-past-body" id="earn-past-body">
+                        <table class="earn-past-table">
+                            <thead>
+                                <tr>
+                                    <th>Collateral</th>
+                                    <th>Debt</th>
+                                    <th>Duration</th>
+                                    <th>Net Deposits / Withdrawals</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="earn-past-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
             <!-- Protocol Info -->
@@ -21821,6 +21977,9 @@
                 // Fetch and render lending positions from liquidation_risk.json
                 earn_fetchAndRenderLendingPositions();
 
+                // Fetch and render past (closed) positions from subgraph
+                earn_fetchAndRenderPastPositions();
+
                 // After first render, suppress slide-in animation on subsequent re-renders
                 const tblRef = document.querySelector('.earn-asset-table');
                 if (tblRef) tblRef.classList.add('no-animate');
@@ -22466,6 +22625,134 @@
         }
 
         // Format a Unix timestamp as relative age (e.g. "42 days ago")
+        // ═══════ Past (Closed) Positions ═══════
+        async function earn_fetchAndRenderPastPositions() {
+            const section = document.getElementById('earn-past-section');
+            const tbody = document.getElementById('earn-past-tbody');
+            const countEl = document.getElementById('earn-past-count');
+            if (!section || !tbody) return;
+
+            const addr = document.getElementById('earn-address').value.trim().toLowerCase();
+            const chainId = document.getElementById('earn-chain').value;
+            const sgEndpoint = SUBGRAPH_ENDPOINTS[chainId];
+            if (!addr || !sgEndpoint) { section.style.display = 'none'; return; }
+
+            try {
+                // Query closed borrow positions from subgraph
+                const bpData = await earn_subgraphQuery(sgEndpoint,
+                    `{ borrowPositions(first: 100, where: { effectiveUser: "${addr}", status: "CLOSED" }, orderBy: closeTimestamp, orderDirection: desc) { id openTimestamp closeTimestamp status supplyTokens { symbol } borrowTokens { symbol } amounts { token { symbol decimals } amountWei amountPar } } }`
+                );
+
+                // Also query deposit/withdrawal aggregates per token
+                const [depData, wdData] = await Promise.all([
+                    earn_subgraphQuery(sgEndpoint,
+                        `{ deposits(first: 1000, where: { effectiveUser: "${addr}" }, orderBy: serialId, orderDirection: desc) { token { symbol } amountDeltaWei amountUSDDeltaWei } }`
+                    ),
+                    earn_subgraphQuery(sgEndpoint,
+                        `{ withdrawals(first: 1000, where: { effectiveUser: "${addr}" }, orderBy: serialId, orderDirection: desc) { token { symbol } amountDeltaWei amountUSDDeltaWei } }`
+                    ),
+                ]);
+
+                const closedPositions = bpData.borrowPositions || [];
+
+                // Aggregate deposits/withdrawals per token
+                const depositsByToken = {};
+                (depData.deposits || []).forEach(d => {
+                    const sym = d.token?.symbol || '?';
+                    const usd = parseFloat(d.amountUSDDeltaWei || '0');
+                    if (!depositsByToken[sym]) depositsByToken[sym] = 0;
+                    depositsByToken[sym] += usd;
+                });
+                const withdrawalsByToken = {};
+                (wdData.withdrawals || []).forEach(w => {
+                    const sym = w.token?.symbol || '?';
+                    const usd = parseFloat(w.amountUSDDeltaWei || '0');
+                    if (!withdrawalsByToken[sym]) withdrawalsByToken[sym] = 0;
+                    withdrawalsByToken[sym] += usd;
+                });
+
+                if (closedPositions.length === 0) {
+                    section.style.display = 'none';
+                    return;
+                }
+
+                countEl.textContent = closedPositions.length;
+                section.style.display = '';
+
+                // Render rows
+                tbody.innerHTML = closedPositions.map(bp => {
+                    const supplySymbols = (bp.supplyTokens || []).map(t => t.symbol);
+                    const borrowSymbols = (bp.borrowTokens || []).map(t => t.symbol);
+                    const openTs = parseInt(bp.openTimestamp || '0');
+                    const closeTs = parseInt(bp.closeTimestamp || '0');
+
+                    // Duration
+                    const durationSecs = closeTs - openTs;
+                    let durationText = '';
+                    if (durationSecs < 3600) durationText = Math.floor(durationSecs / 60) + ' min';
+                    else if (durationSecs < 86400) durationText = Math.floor(durationSecs / 3600) + ' hours';
+                    else if (durationSecs < 86400 * 30) durationText = Math.floor(durationSecs / 86400) + ' days';
+                    else if (durationSecs < 86400 * 365) durationText = Math.floor(durationSecs / (86400 * 30)) + ' months';
+                    else durationText = Math.floor(durationSecs / (86400 * 365)) + ' years';
+
+                    // Collateral token pills
+                    const collateralHtml = supplySymbols.length > 0
+                        ? supplySymbols.map(s => {
+                            const icon = SYMBOL_ICONS[s] || SYMBOL_ICONS[(s || '').toUpperCase()];
+                            const iconHtml = icon ? `<img src="${icon}" alt="${s}" onerror="this.style.display='none'">` : '';
+                            return `<span class="earn-past-token">${iconHtml}${s}</span>`;
+                        }).join(', ')
+                        : '<span style="color:rgba(255,255,255,0.2)">—</span>';
+
+                    const debtHtml = borrowSymbols.length > 0
+                        ? borrowSymbols.map(s => {
+                            const icon = SYMBOL_ICONS[s] || SYMBOL_ICONS[(s || '').toUpperCase()];
+                            const iconHtml = icon ? `<img src="${icon}" alt="${s}" onerror="this.style.display='none'">` : '';
+                            return `<span class="earn-past-token">${iconHtml}${s}</span>`;
+                        }).join(', ')
+                        : '<span style="color:rgba(255,255,255,0.2)">—</span>';
+
+                    // Net position: show aggregate deposits/withdrawals for involved tokens
+                    const allSymbols = [...new Set([...supplySymbols, ...borrowSymbols])];
+                    let netHtml = '';
+                    if (allSymbols.length > 0) {
+                        netHtml = allSymbols.map(sym => {
+                            const dep = depositsByToken[sym] || 0;
+                            const wd = withdrawalsByToken[sym] || 0;
+                            const net = wd - dep;
+                            const cls = net >= 0 ? 'positive' : 'negative';
+                            const sign = net >= 0 ? '+' : '-';
+                            return `<div style="font-size:11px"><span style="color:rgba(255,255,255,0.4)">${sym}:</span> <span class="earn-past-pnl ${cls}">${sign}${earn_formatUSD(Math.abs(net))}</span></div>`;
+                        }).join('');
+                    } else {
+                        netHtml = '<span style="color:rgba(255,255,255,0.2)">—</span>';
+                    }
+
+                    // Close date
+                    const closeDate = closeTs > 0 ? new Date(closeTs * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }) : '';
+
+                    return `<tr>
+                        <td>${collateralHtml}</td>
+                        <td>${debtHtml}</td>
+                        <td><span class="earn-past-duration">${durationText}</span><div style="font-size:9px;color:rgba(255,255,255,0.2);margin-top:2px">Closed ${closeDate}</div></td>
+                        <td>${netHtml}</td>
+                        <td><span class="earn-past-status closed">CLOSED</span></td>
+                    </tr>`;
+                }).join('');
+            } catch (e) {
+                console.warn('Past positions fetch error:', e);
+                section.style.display = 'none';
+            }
+        }
+
+        function earn_togglePastPositions() {
+            const header = document.getElementById('earn-past-toggle');
+            const body = document.getElementById('earn-past-body');
+            if (!header || !body) return;
+            header.classList.toggle('open');
+            body.classList.toggle('open');
+        }
+
         function earn_formatAge(timestamp) {
             const now = Math.floor(Date.now() / 1000);
             const diff = now - timestamp;
