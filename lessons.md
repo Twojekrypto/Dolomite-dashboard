@@ -83,3 +83,10 @@
 
 ## Portfolio Value Calculation
 - **Include borrow equity in Portfolio Value**: The EARN tab previously only summed supply-only assets. For users with borrow positions (margin trading), the true portfolio value = supply assets + (collateral − debt). Update the Portfolio Value card in `earn_updateSummaryDebt()` when lending positions arrive.
+
+## Liq Monitor — Filter Popovers (March 2026)
+- **Mouseleave auto-close**: Token/range filter popovers auto-close with 400-500ms delay when mouse leaves the popover. Use `mouseleave`/`mouseenter` on both the popover element AND the trigger button to cancel the timer when the mouse returns.
+- **Selected tokens at top**: In `renderList()`, split the `sorted` array into `selectedItems` and `unselectedItems`, then concatenate `[...selectedItems, ...unselectedItems]`. Add a visual separator (thin cyan line) between sections.
+- **Clear X buttons**: Add `.col-filter-clear` button next to each `.col-filter-btn`. Use CSS sibling selector `.col-filter-btn.has-active ~ .col-filter-clear { display: inline-flex; }` to show only when filter is active.
+- **Protocol Info card**: Can be reused across pages by putting the rendering logic in an IIFE and using standalone class names (`.liq-proto-links`, `.liq-proto-contracts`) instead of sharing the same class as index.html.
+- **Table container clipping**: When table has few rows (e.g., after dpglv filter), popovers can appear clipped. Add `min-height: 350px` to `.table-container` as a safety net. The `position: fixed` + `positionPopoverFixed()` pattern already handles viewport clamping.

@@ -656,6 +656,7 @@
             overflow-x: auto;
             overflow-y: auto;
             max-height: 80vh;
+            min-height: 350px;
             -webkit-overflow-scrolling: touch;
         }
 
@@ -2312,6 +2313,29 @@
             0%, 100% { box-shadow: 0 0 4px rgba(34,211,238,0.5); transform: scale(1); }
             50% { box-shadow: 0 0 8px rgba(34,211,238,1); transform: scale(1.2); }
         }
+        /* Clear X button next to active filter icon */
+        .col-filter-clear {
+            display: none;
+            align-items: center; justify-content: center;
+            width: 16px; height: 16px;
+            background: rgba(239,68,68,0.12);
+            border: 1px solid rgba(239,68,68,0.25);
+            border-radius: 50%;
+            color: #f87171;
+            cursor: pointer;
+            font-size: 9px; font-weight: 700;
+            line-height: 1;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+            padding: 0;
+        }
+        .col-filter-clear:hover {
+            background: rgba(239,68,68,0.25);
+            border-color: rgba(239,68,68,0.5);
+            color: #fca5a5;
+            transform: scale(1.15);
+        }
+        .col-filter-btn.has-active ~ .col-filter-clear { display: inline-flex; }
         /* Highlight th when popover is open */
         th.col-filter-open { z-index: 100 !important; }
         th.col-filter-open .col-filter-btn {
@@ -2828,6 +2852,7 @@
                                 <button type="button" class="col-filter-btn" id="hf-filter-trigger" title="Filter by HF range">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
                                 </button>
+                                <button type="button" class="col-filter-clear" id="hf-filter-clear" title="Clear HF filter">✕</button>
                                 <span class="sort-arrow">▲</span>
                             </span>
                             <div class="col-filter-popover" id="hf-popover">
@@ -2851,6 +2876,7 @@
                                 <button type="button" class="col-filter-btn" id="collateral-filter-trigger" title="Filter by Collateral range">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
                                 </button>
+                                <button type="button" class="col-filter-clear" id="collateral-filter-clear" title="Clear collateral filter">✕</button>
                                 <span class="sort-arrow"></span>
                             </span>
                             <div class="col-filter-popover" id="collateral-popover">
@@ -2873,6 +2899,7 @@
                                 <button type="button" class="col-filter-btn" id="debt-filter-trigger" title="Filter by Debt range">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
                                 </button>
+                                <button type="button" class="col-filter-clear" id="debt-filter-clear" title="Clear debt filter">✕</button>
                                 <span class="sort-arrow"></span>
                             </span>
                             <div class="col-filter-popover" id="debt-popover">
@@ -2895,6 +2922,7 @@
                                 <button type="button" class="col-filter-btn" id="col-token-filter-trigger" title="Filter by Collateral Token">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
                                 </button>
+                                <button type="button" class="col-filter-clear" id="col-token-filter-clear" title="Clear collateral token filter">✕</button>
                             </span>
                             <div class="col-filter-popover" id="col-token-popover">
                                 <div class="col-filter-inner">
@@ -2913,6 +2941,7 @@
                                 <button type="button" class="col-filter-btn" id="debt-token-filter-trigger" title="Filter by Debt Token">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
                                 </button>
+                                <button type="button" class="col-filter-clear" id="debt-token-filter-clear" title="Clear debt token filter">✕</button>
                             </span>
                             <div class="col-filter-popover" id="debt-token-popover">
                                 <div class="col-filter-inner">
@@ -2939,6 +2968,21 @@
         </div>
             </div>
         </div>
+
+        <!-- Protocol Info Card -->
+        <div class="protocol-info-card" style="margin-top:24px; padding:0; background:linear-gradient(145deg,rgba(10,15,28,.97) 0%,var(--bg-card) 40%,rgba(10,18,32,.98) 100%); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); position:relative; overflow:hidden;">
+            <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,rgba(99,102,241,.4),rgba(245,158,11,.3),rgba(34,211,238,.4));pointer-events:none;"></div>
+            <div style="position:absolute;top:-50px;right:-50px;width:240px;height:240px;background:url('https://icons.llama.fi/dolomite.jpg') no-repeat center center;background-size:contain;opacity:0.05;border-radius:50%;pointer-events:none;filter:grayscale(20%) blur(1px);"></div>
+            <div style="padding:28px 28px 20px;display:flex;align-items:center;gap:14px;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <img src="dolomite-logo.svg" alt="Dolomite" style="height:32px;flex-shrink:0;opacity:0.95;filter:drop-shadow(0 0 6px rgba(99,102,241,0.15))">
+                    <span style="font-size:22px;font-weight:700;background:linear-gradient(135deg,#f0f4f8 0%,#94a3b8 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:0.5px;">Dolomite</span>
+                </div>
+            </div>
+            <div class="liq-proto-links" style="display:flex;flex-wrap:wrap;gap:10px;padding:0 28px 22px;border-bottom:1px solid rgba(255,255,255,0.05);position:relative;z-index:1;"></div>
+            <div class="liq-proto-contracts" style="padding:20px 28px 24px;display:grid;grid-template-columns:repeat(2,1fr);gap:12px;"></div>
+        </div>
+
     </div>
 
     <script>
@@ -3771,7 +3815,7 @@
             e.stopPropagation();
             document.getElementById('chain-filter').classList.toggle('open');
             // Close other dropdowns
-            document.querySelectorAll('th.col-filter-open').forEach(th => th.classList.remove('col-filter-open'));
+            document.querySelectorAll('th.col-filter-open').forEach(th => { th.classList.remove('col-filter-open'); const p = th.querySelector('.col-filter-popover'); if (p) p.style.display = ''; });
         });
 
         // Close on outside click
@@ -3939,12 +3983,14 @@
                 const btn = document.getElementById(`${col}-filter-trigger`);
                 if (btn) btn.classList.remove('has-active');
                 btn?.closest('th')?.classList.remove('col-filter-open');
+                { const p = btn?.closest('th')?.querySelector('.col-filter-popover'); if (p) p.style.display = ''; }
                 document.querySelectorAll(`#${col}-presets .col-preset`).forEach(p => p.classList.remove('active'));
             });
             ['col-token', 'debt-token'].forEach(prefix => {
                 const btn = document.getElementById(`${prefix}-filter-trigger`);
                 if (btn) btn.classList.remove('has-active');
                 btn?.closest('th')?.classList.remove('col-filter-open');
+                { const p = btn?.closest('th')?.querySelector('.col-filter-popover'); if (p) p.style.display = ''; }
             });
 
             // Reset dropdowns active classes
@@ -4374,7 +4420,7 @@
             // Close chain dropdown if open
             document.getElementById('chain-filter').classList.remove('open');
             // Close column filter popovers
-            document.querySelectorAll('th.col-filter-open').forEach(th => th.classList.remove('col-filter-open'));
+            document.querySelectorAll('th.col-filter-open').forEach(th => { th.classList.remove('col-filter-open'); const p = th.querySelector('.col-filter-popover'); if (p) p.style.display = ''; });
             dd.classList.toggle('open', !wasOpen);
         });
 
@@ -4415,8 +4461,11 @@
         // Position a popover using position:fixed relative to a trigger element
         function positionPopoverFixed(triggerEl, popoverEl) {
             const rect = triggerEl.getBoundingClientRect();
+            // Temporarily show to measure width, then remove inline display
+            // (CSS class .col-filter-open controls visibility)
             popoverEl.style.display = 'block';
             const pw = popoverEl.offsetWidth || 260;
+            popoverEl.style.display = '';  // Remove inline style, let CSS class rule
             let left = rect.left + rect.width / 2 - pw / 2;
             // Clamp to viewport bounds
             if (left < 8) left = 8;
@@ -4436,13 +4485,21 @@
             trigger.addEventListener('click', e => {
                 e.stopPropagation(); e.preventDefault();
                 document.querySelectorAll('th.col-filter-open').forEach(th => {
-                    if (th !== thParent) th.classList.remove('col-filter-open');
+                    if (th !== thParent) {
+                        th.classList.remove('col-filter-open');
+                        const p = th.querySelector('.col-filter-popover');
+                        if (p) p.style.display = '';
+                    }
                 });
                 thParent.classList.toggle('col-filter-open');
                 // Position popover fixed relative to trigger button
                 if (thParent.classList.contains('col-filter-open')) {
                     const popover = thParent.querySelector('.col-filter-popover');
                     if (popover) positionPopoverFixed(trigger, popover);
+                } else {
+                    // Toggled off — clear inline display
+                    const popover = thParent.querySelector('.col-filter-popover');
+                    if (popover) popover.style.display = '';
                 }
             });
 
@@ -4480,9 +4537,40 @@
             minInput.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); });
             maxInput.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); });
 
+            // Close on click outside — check both thParent AND the fixed popover
+            const popoverEl = thParent.querySelector('.col-filter-popover');
+            function closeRangePopover() {
+                thParent.classList.remove('col-filter-open');
+                if (popoverEl) popoverEl.style.display = '';
+            }
             document.addEventListener('click', e => {
-                if (!thParent.contains(e.target)) thParent.classList.remove('col-filter-open');
+                if (!thParent.contains(e.target) && (!popoverEl || !popoverEl.contains(e.target))) {
+                    closeRangePopover();
+                }
             });
+
+            // Auto-close on mouse leave with delay — track both trigger and fixed popover
+            let closeTimer = null;
+            if (popoverEl) {
+                function startClose() {
+                    if (closeTimer) clearTimeout(closeTimer);
+                    closeTimer = setTimeout(() => closeRangePopover(), 400);
+                }
+                function cancelClose() {
+                    if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+                }
+                popoverEl.addEventListener('mouseleave', startClose);
+                popoverEl.addEventListener('mouseenter', cancelClose);
+                trigger.addEventListener('mouseenter', cancelClose);
+                thParent.addEventListener('mouseleave', e => {
+                    const rect = popoverEl.getBoundingClientRect();
+                    if (e.clientX < rect.left || e.clientX > rect.right ||
+                        e.clientY < rect.top || e.clientY > rect.bottom) {
+                        startClose();
+                    }
+                });
+                thParent.addEventListener('mouseenter', cancelClose);
+            }
         }
 
         initColFilterPopover({
@@ -4523,9 +4611,11 @@
             const trigger = document.getElementById(opts.triggerId);
             const searchInput = document.getElementById(opts.searchId);
             const listEl = document.getElementById(opts.listId);
+            const clearBtn = document.getElementById(opts.clearBtnId);
             if (!trigger || !searchInput || !listEl) return;
             const thParent = trigger.closest('th');
             if (!thParent) return;
+            let closeTimer = null;
 
             function renderList() {
                 const searchText = searchInput.value.toLowerCase();
@@ -4544,19 +4634,40 @@
                 let sorted = Object.entries(tokenCounts).sort((a, b) => b[1] - a[1]);
                 if (searchText) sorted = sorted.filter(([sym]) => sym.toLowerCase().includes(searchText));
 
-                let html = '';
                 const filterSet = opts.getFilter();
+
+                // Separate selected tokens to show at top
+                const selectedItems = sorted.filter(([sym]) => filterSet.has(sym));
+                const unselectedItems = sorted.filter(([sym]) => !filterSet.has(sym));
+
+                let html = '';
                 html += `<div class="col-token-opt${filterSet.size === 0 ? ' selected' : ''}" data-token="__all__">
                     <span class="tok-check">${filterSet.size === 0 ? '✓' : ''}</span>
                     All Tokens
                     <span class="opt-count">${scoped.length.toLocaleString()}</span>
                 </div>`;
-                sorted.forEach(([sym, count]) => {
-                    const sel = filterSet.has(sym) ? ' selected' : '';
+
+                // Show selected tokens at top with separator
+                if (selectedItems.length > 0 && !searchText) {
+                    html += `<div style="height:1px;background:rgba(34,211,238,0.15);margin:4px 0;"></div>`;
+                    html += `<div style="font-size:9px;color:rgba(34,211,238,0.5);text-transform:uppercase;letter-spacing:1px;padding:2px 8px 4px;font-weight:600;">Active Filters</div>`;
+                    selectedItems.forEach(([sym, count]) => {
+                        const icon = getTokenIcon(sym);
+                        const iconHtml = icon ? `<img class="tok-icon" src="${icon}" onerror="this.style.display='none'">` : '';
+                        html += `<div class="col-token-opt selected" data-token="${sym}">
+                            <span class="tok-check">✓</span>
+                            ${iconHtml}${truncateTokenName(sym)}
+                            <span class="opt-count">${count.toLocaleString()}</span>
+                        </div>`;
+                    });
+                    html += `<div style="height:1px;background:rgba(255,255,255,0.04);margin:4px 0;"></div>`;
+                }
+
+                unselectedItems.forEach(([sym, count]) => {
                     const icon = getTokenIcon(sym);
                     const iconHtml = icon ? `<img class="tok-icon" src="${icon}" onerror="this.style.display='none'">` : '';
-                    html += `<div class="col-token-opt${sel}" data-token="${sym}">
-                        <span class="tok-check">${filterSet.has(sym) ? '✓' : ''}</span>
+                    html += `<div class="col-token-opt" data-token="${sym}">
+                        <span class="tok-check"></span>
                         ${iconHtml}${truncateTokenName(sym)}
                         <span class="opt-count">${count.toLocaleString()}</span>
                     </div>`;
@@ -4571,16 +4682,29 @@
                         else if (filterSet.has(tok)) filterSet.delete(tok);
                         else filterSet.add(tok);
                         trigger.classList.toggle('has-active', filterSet.size > 0);
-                        renderList();
                         applyFilters();
+                        // Close popover after selecting with short delay for visual feedback
+                        setTimeout(() => closePopover(), 180);
                     });
                 });
+            }
+
+            function closePopover() {
+                thParent.classList.remove('col-filter-open');
+                // Clear any inline display:block set by positionPopoverFixed
+                const pop = thParent.querySelector('.col-filter-popover');
+                if (pop) pop.style.display = '';
+                if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
             }
 
             trigger.addEventListener('click', e => {
                 e.stopPropagation(); e.preventDefault();
                 document.querySelectorAll('th.col-filter-open').forEach(th => {
-                    if (th !== thParent) th.classList.remove('col-filter-open');
+                    if (th !== thParent) {
+                        th.classList.remove('col-filter-open');
+                        const p = th.querySelector('.col-filter-popover');
+                        if (p) p.style.display = '';
+                    }
                 });
                 thParent.classList.toggle('col-filter-open');
                 if (thParent.classList.contains('col-filter-open')) {
@@ -4589,21 +4713,66 @@
                     searchInput.value = '';
                     renderList();
                     requestAnimationFrame(() => searchInput.focus());
+                } else {
+                    closePopover();
                 }
             });
 
             searchInput.addEventListener('input', renderList);
             searchInput.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); });
 
+            // Close on click outside — check both thParent AND the fixed popover
+            const popoverEl = thParent.querySelector('.col-filter-popover');
             document.addEventListener('click', e => {
-                if (!thParent.contains(e.target)) thParent.classList.remove('col-filter-open');
+                if (!thParent.contains(e.target) && (!popoverEl || !popoverEl.contains(e.target))) {
+                    closePopover();
+                }
             });
+
+            // Auto-close on mouse leave — track both trigger and fixed popover
+            if (popoverEl) {
+                function startCloseTimer() {
+                    if (closeTimer) clearTimeout(closeTimer);
+                    closeTimer = setTimeout(() => {
+                        closePopover();
+                    }, 350);
+                }
+                function cancelCloseTimer() {
+                    if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+                }
+                popoverEl.addEventListener('mouseleave', startCloseTimer);
+                popoverEl.addEventListener('mouseenter', cancelCloseTimer);
+                trigger.addEventListener('mouseenter', cancelCloseTimer);
+                // Also track the th header area
+                thParent.addEventListener('mouseleave', e => {
+                    // Only start timer if mouse isn't moving to the popover
+                    const rect = popoverEl.getBoundingClientRect();
+                    if (e.clientX < rect.left || e.clientX > rect.right ||
+                        e.clientY < rect.top || e.clientY > rect.bottom) {
+                        startCloseTimer();
+                    }
+                });
+                thParent.addEventListener('mouseenter', cancelCloseTimer);
+            }
+
+            // Clear X button handler
+            if (clearBtn) {
+                clearBtn.addEventListener('click', e => {
+                    e.stopPropagation(); e.preventDefault();
+                    const filterSet = opts.getFilter();
+                    filterSet.clear();
+                    trigger.classList.remove('has-active');
+                    closePopover();
+                    applyFilters();
+                });
+            }
         }
 
         initTokenColFilter({
             triggerId: 'col-token-filter-trigger',
             searchId: 'col-token-search',
             listId: 'col-token-list',
+            clearBtnId: 'col-token-filter-clear',
             getTokens: p => p.collateralTokens || [],
             getFilter: () => collateralTokenFilter,
         });
@@ -4612,6 +4781,7 @@
             triggerId: 'debt-token-filter-trigger',
             searchId: 'debt-token-search',
             listId: 'debt-token-list',
+            clearBtnId: 'debt-token-filter-clear',
             getTokens: p => p.debtTokens || [],
             getFilter: () => debtTokenFilter,
         });
@@ -4816,6 +4986,100 @@
             this.classList.toggle('active', watchlistOnly);
             applyFilters();
         });
+
+        // ─── Range Filter Clear Buttons ──────────────────────────────────────
+        function wireRangeClear(clearId, triggerId, minId, maxId, setMin, setMax, presetsId) {
+            const clearBtn = document.getElementById(clearId);
+            const trigger = document.getElementById(triggerId);
+            if (!clearBtn || !trigger) return;
+            clearBtn.addEventListener('click', e => {
+                e.stopPropagation(); e.preventDefault();
+                setMin(null); setMax(null);
+                const minEl = document.getElementById(minId);
+                const maxEl = document.getElementById(maxId);
+                if (minEl) minEl.value = '';
+                if (maxEl) maxEl.value = '';
+                trigger.classList.remove('has-active');
+                trigger.closest('th')?.classList.remove('col-filter-open');
+                { const p = trigger.closest('th')?.querySelector('.col-filter-popover'); if (p) p.style.display = ''; }
+                const presetsEl = document.getElementById(presetsId);
+                if (presetsEl) presetsEl.querySelectorAll('.col-preset').forEach(p => p.classList.remove('active'));
+                applyFilters();
+            });
+        }
+        wireRangeClear('hf-filter-clear', 'hf-filter-trigger', 'hf-custom-min', 'hf-custom-max', v => { hfRangeMin = v; }, v => { hfRangeMax = v; }, 'hf-presets');
+        wireRangeClear('collateral-filter-clear', 'collateral-filter-trigger', 'collateral-custom-min', 'collateral-custom-max', v => { collateralRangeMin = v; }, v => { collateralRangeMax = v; }, 'collateral-presets');
+        wireRangeClear('debt-filter-clear', 'debt-filter-trigger', 'debt-custom-min', 'debt-custom-max', v => { debtRangeMin = v; }, v => { debtRangeMax = v; }, 'debt-presets');
+
+        // ─── Protocol Info Rendering ─────────────────────────────────────────
+        function liq_copyAddr(addr, btn) {
+            navigator.clipboard.writeText(addr);
+            const origHTML = btn.innerHTML;
+            btn.innerHTML = '✓';
+            btn.style.color = 'var(--accent-green)';
+            setTimeout(() => { btn.innerHTML = origHTML; btn.style.color = 'var(--text-muted)'; }, 1500);
+        }
+
+        (function renderLiqProtocolInfo() {
+            const X_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>';
+            const GLOBE_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>';
+            const GITHUB_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>';
+            const AUDIT_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>';
+            const TELEGRAM_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>';
+            const DOCS_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>';
+            const COPY_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+
+            const pillStyle = `display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;padding:0;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:50%;color:var(--text-secondary);text-decoration:none;transition:all 0.3s cubic-bezier(.4,0,.2,1);position:relative`;
+
+            const linkData = [
+                { icon: GLOBE_SVG, label: 'Website', url: 'https://dolomite.io', platform: 'website' },
+                { icon: X_SVG, label: 'Twitter', url: 'https://twitter.com/daboradolomite', platform: 'twitter' },
+                { icon: TELEGRAM_SVG, label: 'Telegram', url: 'https://t.me/dolomite_official', platform: 'telegram' },
+                { icon: DOCS_SVG, label: 'Docs', url: 'https://docs.dolomite.io/', platform: 'docs' },
+                { icon: GITHUB_SVG, label: 'GitHub', url: 'https://github.com/dolomite-exchange', platform: 'github' },
+                { icon: AUDIT_SVG, label: 'Audits', url: 'https://docs.dolomite.io/security', platform: 'audits' },
+            ];
+
+            const linksEl = document.querySelector('.liq-proto-links');
+            const contractsEl = document.querySelector('.liq-proto-contracts');
+            if (!linksEl || !contractsEl) return;
+
+            linksEl.innerHTML = linkData.map(l =>
+                `<a href="${l.url}" target="_blank" style="${pillStyle}" title="${l.label}">${l.icon}</a>`
+            ).join('');
+
+            const DOLO_ADDR = '0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654';
+            const ODOLO_ADDR = '0x02E513b5B54eE216Bf836ceb471507488fC89543';
+            const VEDOLO_ADDR = '0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4';
+            const ETH_ICON = `<img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" alt="ETH" style="width:14px;height:14px;border-radius:50%">`;
+            const BERA_ICON = `<img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" alt="BERA" style="width:14px;height:14px;border-radius:50%">`;
+
+            function addrRow(tokenIcon, tokenName, chainIcon, chainName, addr, explorer) {
+                const slug = tokenName.toLowerCase().replace(/\s/g, '');
+                const url = `${explorer}/token/${addr}`;
+                const borderColors = { dolo: 'rgba(99,102,241,0.5)', odolo: 'rgba(245,158,11,0.5)', vedolo: 'rgba(34,211,238,0.5)' };
+                const bgColors = { dolo: 'rgba(99,102,241,0.04)', odolo: 'rgba(245,158,11,0.04)', vedolo: 'rgba(34,211,238,0.04)' };
+                return `<div style="display:flex;flex-direction:column;gap:10px;padding:16px 18px;border:1px solid rgba(255,255,255,0.05);border-radius:12px;background:linear-gradient(90deg,${bgColors[slug] || 'transparent'} 0%,transparent 40%);border-left:3px solid ${borderColors[slug] || 'transparent'};cursor:pointer;transition:all 0.3s" onclick="window.open('${url}','_blank')">
+                    <div style="display:flex;align-items:center;justify-content:space-between">
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <img src="${tokenIcon}" alt="${tokenName}" style="width:22px;height:22px">
+                            <span style="font-size:14px;font-weight:700;color:var(--text-primary)">${tokenName}</span>
+                        </div>
+                        <div style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;background:rgba(255,255,255,0.04);border-radius:100px;font-size:11px;color:var(--text-muted)">${chainIcon} ${chainName}</div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <a href="${url}" target="_blank" onclick="event.stopPropagation()" style="font-size:11px;font-family:'JetBrains Mono',monospace;color:rgba(148,163,184,0.5);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${addr}</a>
+                        <button style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;background:none;border:1px solid transparent;border-radius:6px;cursor:pointer;color:var(--text-muted);padding:0;flex-shrink:0" onclick="event.stopPropagation();liq_copyAddr('${addr}',this)" title="Copy">${COPY_SVG}</button>
+                    </div>
+                </div>`;
+            }
+
+            contractsEl.innerHTML =
+                addrRow('dolo-logo.svg', 'DOLO', ETH_ICON, 'Ethereum', DOLO_ADDR, 'https://etherscan.io') +
+                addrRow('dolo-logo.svg', 'DOLO', BERA_ICON, 'Berachain', DOLO_ADDR, 'https://berascan.com') +
+                addrRow('odolo-logo-official.svg', 'oDOLO', BERA_ICON, 'Berachain', ODOLO_ADDR, 'https://berascan.com') +
+                addrRow('vedolo-logo.svg', 'veDOLO', BERA_ICON, 'Berachain', VEDOLO_ADDR, 'https://berascan.com');
+        })();
 
         // ─── Launch ──────────────────────────────────────────────────────────
         init();
