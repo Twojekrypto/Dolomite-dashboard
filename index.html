@@ -6734,6 +6734,91 @@
             color: #f87171;
         }
 
+        /* Accrued section subtitle */
+        .earn-accrued-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.25);
+            margin-bottom: 4px;
+            padding-left: 2px;
+        }
+
+        /* Position age badge */
+        .earn-age-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            font-size: 10px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.35);
+            padding: 1px 6px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.04);
+            margin-left: 6px;
+            vertical-align: middle;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* P&L preview in collapsed row */
+        .earn-pnl-preview {
+            font-size: 11px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            padding: 2px 7px;
+            border-radius: 5px;
+            display: inline-block;
+            margin-top: 3px;
+        }
+        .earn-pnl-preview.positive {
+            color: #34d399;
+            background: rgba(52, 211, 153, 0.08);
+        }
+        .earn-pnl-preview.negative {
+            color: #f87171;
+            background: rgba(248, 113, 113, 0.08);
+        }
+
+        /* Net summary footer bar */
+        .earn-net-summary-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px;
+            margin-top: 14px;
+            border-radius: 8px;
+            background: linear-gradient(90deg, rgba(52,211,153,0.04) 0%, rgba(167,139,250,0.06) 50%, rgba(248,113,113,0.04) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            font-size: 11px;
+            font-variant-numeric: tabular-nums;
+            grid-column: 1 / -1;
+        }
+        .earn-net-summary-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .earn-net-summary-label {
+            color: rgba(255, 255, 255, 0.35);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 9px;
+        }
+        .earn-net-summary-value {
+            font-weight: 700;
+            font-size: 12px;
+        }
+        .earn-net-summary-value.positive { color: #34d399; }
+        .earn-net-summary-value.negative { color: #f87171; }
+        .earn-net-summary-value.neutral { color: rgba(255, 255, 255, 0.5); }
+        .earn-net-summary-divider {
+            width: 1px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.06);
+        }
+
         .earn-dust-count {
             display: inline-flex;
             align-items: center;
@@ -22226,11 +22311,20 @@
                     const netApr = p.collateralUSD > 0 ? (netAnnual / p.collateralUSD) * 100 : 0;
                     const displayNetApr = useApy && Math.abs(netApr) > 0.01 ? aprToApy(Math.abs(netApr)) : Math.abs(netApr);
 
+                    // Age badge for collapsed row
+                    const ageBadge = p.openTimestamp ? `<span class="earn-age-badge">${earn_formatAge(p.openTimestamp).replace('Opened ', '')}</span>` : '';
+
+                    // Quick P&L preview for collapsed row
+                    const pnlValue = p.netAccrued !== undefined ? p.netAccrued : null;
+                    const pnlPreview = pnlValue !== null && Math.abs(pnlValue) > 0.01
+                        ? `<div class="earn-pnl-preview ${pnlValue >= 0 ? 'positive' : 'negative'}">${pnlValue >= 0 ? '+' : '-'}${earn_formatUSD(Math.abs(pnlValue))}</div>`
+                        : '';
+
                     const dataRow = `<tr class="earn-lend-row risk-${riskClass}" data-idx="${i}" onclick="earn_toggleLendDetail(${i})" style="animation-delay:${i * 0.08}s">
-                        <td><span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span>${chevronSvg}</td>
+                        <td><span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span>${ageBadge}${chevronSvg}</td>
                         <td style="text-align:center">${emodeCell}</td>
                         <td><span class="earn-usd-collateral">${collateralDisplay}</span><div style="font-size:10px;color:rgba(52,211,153,0.4);margin-top:2px;font-variant-numeric:tabular-nums">${(p.collateralTokens || []).map(t => t.symbol).join(' + ') || '—'}</div></td>
-                        <td><span class="earn-usd-debt">${earn_formatUSD(p.debtUSD)}</span><div style="font-size:10px;color:rgba(248,113,113,0.4);margin-top:2px;font-variant-numeric:tabular-nums">${(p.debtTokens || []).map(t => t.symbol).join(' + ') || '—'}</div></td>
+                        <td><span class="earn-usd-debt">${earn_formatUSD(p.debtUSD)}</span><div style="font-size:10px;color:rgba(248,113,113,0.4);margin-top:2px;font-variant-numeric:tabular-nums">${(p.debtTokens || []).map(t => t.symbol).join(' + ') || '—'}</div>${pnlPreview}</td>
                         <td><div class="earn-token-pills">${collateralTokensHtml}</div></td>
                         <td><div class="earn-token-pills">${debtTokensHtml}</div></td>
                     </tr>`;
@@ -22241,7 +22335,8 @@
                                 <div class="earn-lend-section">
                                     <div class="earn-lend-section-title earn">Collateral Earnings</div>
                                     ${collateralRows || '<div style="color:var(--text-muted);font-size:11px">No collateral</div>'}
-                                    ${(p.accruedCollateral && p.accruedCollateral.length > 0) ? `<div style="border-top:1px solid rgba(52,211,153,0.1);margin-top:6px;padding-top:6px">
+                                    ${(p.accruedCollateral && p.accruedCollateral.length > 0) ? `<div style="border-top:1px solid rgba(52,211,153,0.1);margin-top:8px;padding-top:8px">
+                                        <div class="earn-accrued-label">Accrued Interest</div>
                                         ${p.accruedCollateral.map(c => {
                         const icon = SYMBOL_ICONS[c.symbol] || SYMBOL_ICONS[(c.symbol || '').toUpperCase()];
                         const iconHtml = icon ? `<img src="${icon}" alt="${c.symbol}" onerror="this.style.display='none'">` : '';
@@ -22264,7 +22359,8 @@
                                 <div class="earn-lend-section">
                                     <div class="earn-lend-section-title cost">Borrow Costs</div>
                                     ${debtRows || '<div style="color:var(--text-muted);font-size:11px">No debt</div>'}
-                                    ${(p.accruedDebt && p.accruedDebt.length > 0) ? `<div style="border-top:1px solid rgba(248,113,113,0.1);margin-top:6px;padding-top:6px">
+                                    ${(p.accruedDebt && p.accruedDebt.length > 0) ? `<div style="border-top:1px solid rgba(248,113,113,0.1);margin-top:8px;padding-top:8px">
+                                        <div class="earn-accrued-label">Accrued Interest</div>
                                         ${p.accruedDebt.map(c => {
                         const icon = SYMBOL_ICONS[c.symbol] || SYMBOL_ICONS[(c.symbol || '').toUpperCase()];
                         const iconHtml = icon ? `<img src="${icon}" alt="${c.symbol}" onerror="this.style.display='none'">` : '';
@@ -22288,6 +22384,13 @@
                                         <div class="earn-lend-net-apr ${netPositive ? 'positive' : 'negative'}">${netSign}${displayNetApr.toFixed(2)}% net ${rateLabel}</div>
                                         <div class="earn-lend-net-sub">Yield ${earn_formatUSD(totalAnnualYield)} − Cost ${earn_formatUSD(totalAnnualCost)}</div>
                                     `}
+                                </div>
+                                <div class="earn-net-summary-bar">
+                                    <div class="earn-net-summary-item"><span class="earn-net-summary-label">Earn</span><span class="earn-net-summary-value ${totalAnnualYield > 0.01 ? 'positive' : 'neutral'}">${totalAnnualYield > 0.01 ? '+' : ''}${earn_formatUSD(totalAnnualYield)}/yr</span></div>
+                                    <div class="earn-net-summary-divider"></div>
+                                    <div class="earn-net-summary-item"><span class="earn-net-summary-label">Cost</span><span class="earn-net-summary-value ${totalAnnualCost > 0.01 ? 'negative' : 'neutral'}">${totalAnnualCost > 0.01 ? '-' : ''}${earn_formatUSD(totalAnnualCost)}/yr</span></div>
+                                    <div class="earn-net-summary-divider"></div>
+                                    <div class="earn-net-summary-item"><span class="earn-net-summary-label">Net</span><span class="earn-net-summary-value ${netPositive ? 'positive' : 'negative'}">${netSign}${earn_formatUSD(Math.abs(netAnnual))}/yr</span></div>
                                 </div>
                             </div>
                         </td>
@@ -22507,11 +22610,20 @@
                 const netApr = p.collateralUSD > 0 ? (netAnnual / p.collateralUSD) * 100 : 0;
                 const displayNetApr = useApy && Math.abs(netApr) > 0.01 ? aprToApy(Math.abs(netApr)) : Math.abs(netApr);
 
+                // Age badge for collapsed row
+                const ageBadge = p.openTimestamp ? `<span class="earn-age-badge">${earn_formatAge(p.openTimestamp).replace('Opened ', '')}</span>` : '';
+
+                // Quick P&L preview for collapsed row
+                const pnlValue = p.netAccrued !== undefined ? p.netAccrued : null;
+                const pnlPreview = pnlValue !== null && Math.abs(pnlValue) > 0.01
+                    ? `<div class="earn-pnl-preview ${pnlValue >= 0 ? 'positive' : 'negative'}">${pnlValue >= 0 ? '+' : '-'}${earn_formatUSD(Math.abs(pnlValue))}</div>`
+                    : '';
+
                 const dataRow = `<tr class="earn-lend-row risk-${riskClass}" data-idx="${i}" onclick="earn_toggleLendDetail(${i})" style="animation-delay:${i * 0.08}s">
-                    <td><span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span>${chevronSvg}</td>
+                    <td><span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span>${ageBadge}${chevronSvg}</td>
                     <td style="text-align:center">${emodeCell}</td>
                     <td><span class="earn-usd-collateral">${collateralDisplay}</span><div style="font-size:10px;color:rgba(52,211,153,0.4);margin-top:2px;font-variant-numeric:tabular-nums">${(p.collateralTokens || []).map(t => t.symbol).join(' + ') || '—'}</div></td>
-                    <td><span class="earn-usd-debt">${earn_formatUSD(p.debtUSD)}</span><div style="font-size:10px;color:rgba(248,113,113,0.4);margin-top:2px;font-variant-numeric:tabular-nums">${(p.debtTokens || []).map(t => t.symbol).join(' + ') || '—'}</div></td>
+                    <td><span class="earn-usd-debt">${earn_formatUSD(p.debtUSD)}</span><div style="font-size:10px;color:rgba(248,113,113,0.4);margin-top:2px;font-variant-numeric:tabular-nums">${(p.debtTokens || []).map(t => t.symbol).join(' + ') || '—'}</div>${pnlPreview}</td>
                     <td><div class="earn-token-pills">${collateralTokensHtml}</div></td>
                     <td><div class="earn-token-pills">${debtTokensHtml}</div></td>
                 </tr>`;
@@ -22522,7 +22634,8 @@
                             <div class="earn-lend-section">
                                 <div class="earn-lend-section-title earn">Collateral Earnings</div>
                                 ${collateralRows || '<div style="color:var(--text-muted);font-size:11px">No collateral</div>'}
-                                ${(p.accruedCollateral && p.accruedCollateral.length > 0) ? `<div style="border-top:1px solid rgba(52,211,153,0.1);margin-top:6px;padding-top:6px">
+                                ${(p.accruedCollateral && p.accruedCollateral.length > 0) ? `<div style="border-top:1px solid rgba(52,211,153,0.1);margin-top:8px;padding-top:8px">
+                                    <div class="earn-accrued-label">Accrued Interest</div>
                                     ${p.accruedCollateral.map(c => {
                     const icon = SYMBOL_ICONS[c.symbol] || SYMBOL_ICONS[(c.symbol || '').toUpperCase()];
                     const iconHtml = icon ? `<img src="${icon}" alt="${c.symbol}" onerror="this.style.display='none'">` : '';
@@ -22545,7 +22658,8 @@
                             <div class="earn-lend-section">
                                 <div class="earn-lend-section-title cost">Borrow Costs</div>
                                 ${debtRows || '<div style="color:var(--text-muted);font-size:11px">No debt</div>'}
-                                ${(p.accruedDebt && p.accruedDebt.length > 0) ? `<div style="border-top:1px solid rgba(248,113,113,0.1);margin-top:6px;padding-top:6px">
+                                ${(p.accruedDebt && p.accruedDebt.length > 0) ? `<div style="border-top:1px solid rgba(248,113,113,0.1);margin-top:8px;padding-top:8px">
+                                    <div class="earn-accrued-label">Accrued Interest</div>
                                     ${p.accruedDebt.map(c => {
                     const icon = SYMBOL_ICONS[c.symbol] || SYMBOL_ICONS[(c.symbol || '').toUpperCase()];
                     const iconHtml = icon ? `<img src="${icon}" alt="${c.symbol}" onerror="this.style.display='none'">` : '';
@@ -22569,6 +22683,13 @@
                                     <div class="earn-lend-net-apr ${netPositive ? 'positive' : 'negative'}">${netSign}${displayNetApr.toFixed(2)}% net ${rateLabel}</div>
                                     <div class="earn-lend-net-sub">Yield ${earn_formatUSD(totalAnnualYield)} − Cost ${earn_formatUSD(totalAnnualCost)}</div>
                                 `}
+                            </div>
+                            <div class="earn-net-summary-bar">
+                                <div class="earn-net-summary-item"><span class="earn-net-summary-label">Earn</span><span class="earn-net-summary-value ${totalAnnualYield > 0.01 ? 'positive' : 'neutral'}">${totalAnnualYield > 0.01 ? '+' : ''}${earn_formatUSD(totalAnnualYield)}/yr</span></div>
+                                <div class="earn-net-summary-divider"></div>
+                                <div class="earn-net-summary-item"><span class="earn-net-summary-label">Cost</span><span class="earn-net-summary-value ${totalAnnualCost > 0.01 ? 'negative' : 'neutral'}">${totalAnnualCost > 0.01 ? '-' : ''}${earn_formatUSD(totalAnnualCost)}/yr</span></div>
+                                <div class="earn-net-summary-divider"></div>
+                                <div class="earn-net-summary-item"><span class="earn-net-summary-label">Net</span><span class="earn-net-summary-value ${netPositive ? 'positive' : 'negative'}">${netSign}${earn_formatUSD(Math.abs(netAnnual))}/yr</span></div>
                             </div>
                         </div>
                     </td>
