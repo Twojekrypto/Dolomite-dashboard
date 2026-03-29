@@ -1426,29 +1426,35 @@
         .apr-pill {
             display: inline-flex;
             align-items: center;
-            background: rgba(255, 255, 255, 0.06);
+            background: rgba(255, 255, 255, 0.03);
             border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.08);
             padding: 2px;
             cursor: pointer;
             user-select: none;
+            transition: all 0.25s ease;
+        }
+
+        .apr-pill:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.05);
         }
 
         .apr-pill-opt {
             font-size: 10px;
             font-weight: 700;
             letter-spacing: 0.5px;
-            padding: 4px 10px;
+            padding: 5px 12px;
             border-radius: 16px;
-            transition: all 0.25s ease;
-            color: rgba(255, 255, 255, 0.35);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            color: rgba(255, 255, 255, 0.3);
             line-height: 1;
         }
 
         .apr-pill-opt.active {
-            background: rgba(226, 232, 240, 0.18);
-            color: #e2e8f0;
-            box-shadow: 0 0 8px rgba(226, 232, 240, 0.15);
+            background: rgba(99, 102, 241, 0.18);
+            color: #a5b4fc;
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.15);
         }
 
         .assets-table tbody tr {
@@ -6179,23 +6185,53 @@
             border-color: rgba(99, 102, 241, 0.5);
         }
 
-        /* Dust button amber override */
+        /* Dust button — toggle-dot indicator style (matching Liq Monitor) */
+        .earn-toggle-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: rgba(148, 163, 184, 0.35);
+            transition: all 0.25s ease;
+            flex-shrink: 0;
+        }
+
+        .earn-filter-pill.active .earn-toggle-dot {
+            background: #34d399;
+            box-shadow: 0 0 6px rgba(52, 211, 153, 0.5);
+        }
+
+        #earn-dust-toggle.active .earn-toggle-dot {
+            background: #fbbf24;
+            box-shadow: 0 0 6px rgba(251, 191, 36, 0.5);
+        }
+
         #earn-dust-toggle.active {
-            background: rgba(251, 191, 36, 0.12);
-            border-color: rgba(251, 191, 36, 0.35);
+            background: rgba(251, 191, 36, 0.10);
+            border-color: rgba(251, 191, 36, 0.3);
             color: #fbbf24;
-            box-shadow: 0 0 12px rgba(251, 191, 36, 0.1);
+            box-shadow: 0 0 10px rgba(251, 191, 36, 0.08);
         }
 
         #earn-dust-toggle.active:hover {
-            background: rgba(251, 191, 36, 0.2);
-            border-color: rgba(251, 191, 36, 0.5);
+            background: rgba(251, 191, 36, 0.18);
+            border-color: rgba(251, 191, 36, 0.45);
         }
 
         .earn-withdrawn-btn:disabled {
             opacity: 0.35;
             cursor: default;
             pointer-events: none;
+        }
+
+        /* ═══════ Section separators ═══════ */
+        #earn-lending-section {
+            border-top: 1px solid rgba(255, 255, 255, 0.04);
+            padding-top: 8px;
+        }
+
+        #earn-past-section {
+            border-top: 1px solid rgba(255, 255, 255, 0.04);
+            padding-top: 4px;
         }
 
         /* ═══════ Lending-style Borrow Positions section ═══════ */
@@ -7282,13 +7318,13 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            padding: 7px 16px;
+            padding: 6px 14px 6px 10px;
             border-radius: 20px;
-            border: 1px solid rgba(148, 163, 184, 0.12);
-            background: rgba(148, 163, 184, 0.04);
+            border: 1px solid rgba(148, 163, 184, 0.10);
+            background: rgba(255, 255, 255, 0.02);
             color: rgba(148, 163, 184, 0.5);
-            font-size: 12px;
-            font-weight: 500;
+            font-size: 11px;
+            font-weight: 600;
             cursor: pointer;
             transition: all 0.25s ease;
             font-family: inherit;
@@ -12184,21 +12220,17 @@
                 <!-- Summary card -->
                 <div class="earn-summary-card" id="earn-summary-card"></div>
 
-                <!-- Filter bar between summary card and table -->
+                <!-- Controls bar between summary card and table -->
                 <div class="earn-filter-bar" id="earn-filter-bar" style="display:none">
-                    <div class="earn-filter-left">
-                        <button type="button" class="earn-filter-pill active" id="earn-dust-toggle"
-                            onclick="earn_toggleDust()" title="Show or hide dust positions">
-                            <svg class="earn-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-                            </svg>
-                            <span class="earn-filter-label">Dust</span>
-                            <span class="earn-dust-count">0</span>
-                        </button>
-                    </div>
+                    <div class="earn-filter-left"></div>
                     <div class="earn-filter-right">
-                        <div class="assets-toggles-right" style="display:flex;align-items:center;gap:10px">
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <button type="button" class="earn-filter-pill active" id="earn-dust-toggle"
+                                onclick="earn_toggleDust()" title="Hide dust positions (< $0.01 balance & yield)">
+                                <span class="earn-toggle-dot"></span>
+                                <span class="earn-filter-label">Hide Dust</span>
+                                <span class="earn-dust-count">0</span>
+                            </button>
 
                             <div class="apr-pill" id="earn-apr-pill" onclick="earn_toggleAprApy()">
                                 <span class="apr-pill-opt active" id="earn-apr-opt">APR</span>
@@ -22682,8 +22714,9 @@
                 const yieldSign = yieldPositive && item.yieldWei > 0n ? '+' : '';
                 const yieldColor = yieldPositive ? 'earn-yield-positive' : 'earn-yield-negative';
                 const yieldFmt = earn_formatAmount(item.yieldWei, item.decimals, item.symbol);
+                const yieldUsdSign = item.yieldUsd > 0 ? '+' : (item.yieldUsd < 0 ? '-' : '');
                 const yieldUsdStr = Math.abs(item.yieldUsd) >= 0.01
-                    ? `<div class="earn-usd-sub" style="color:${yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">${yieldPositive && item.yieldUsd > 0 ? '+' : ''}$${Math.abs(item.yieldUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>`
+                    ? `<div class="earn-usd-sub" style="color:${yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">${yieldUsdSign}$${Math.abs(item.yieldUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>`
                     : '';
 
                 let yieldCellHtml;
