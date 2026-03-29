@@ -12291,14 +12291,14 @@
                         </table>
                     </div>
                 </div>
-                <!-- Past (Closed) Positions — collapsible section -->
+                <!-- Withdrawn Assets — per-token historical P&L -->
                 <div id="earn-past-section" style="display:none;margin-top:8px">
                     <div class="earn-past-header" id="earn-past-toggle" onclick="earn_togglePastPositions()">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="10"/>
                             <polyline points="12 6 12 12 16 14"/>
                         </svg>
-                        <span class="earn-past-title">Past Positions</span>
+                        <span class="earn-past-title">Withdrawn Assets</span>
                         <span class="earn-past-count" id="earn-past-count">0</span>
                         <svg class="earn-past-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="6 9 12 15 18 9"/>
@@ -12308,11 +12308,10 @@
                         <table class="earn-past-table">
                             <thead>
                                 <tr>
-                                    <th>Collateral</th>
-                                    <th>Debt</th>
-                                    <th>Duration</th>
-                                    <th>Net Deposits / Withdrawals</th>
-                                    <th>Status</th>
+                                    <th>Token</th>
+                                    <th style="text-align:right">Total Deposited</th>
+                                    <th style="text-align:right">Total Withdrawn</th>
+                                    <th style="text-align:right">Net P&L</th>
                                 </tr>
                             </thead>
                             <tbody id="earn-past-tbody"></tbody>
@@ -22625,7 +22624,7 @@
         }
 
         // Format a Unix timestamp as relative age (e.g. "42 days ago")
-        // ═══════ Past (Closed) Positions ═══════
+        // ═══════ Withdrawn Assets — per-token historical P&L ═══════
         async function earn_fetchAndRenderPastPositions() {
             const section = document.getElementById('earn-past-section');
             const tbody = document.getElementById('earn-past-tbody');
@@ -22638,12 +22637,7 @@
             if (!addr || !sgEndpoint) { section.style.display = 'none'; return; }
 
             try {
-                // Query closed borrow positions from subgraph
-                const bpData = await earn_subgraphQuery(sgEndpoint,
-                    `{ borrowPositions(first: 100, where: { effectiveUser: "${addr}", status: "CLOSED" }, orderBy: closeTimestamp, orderDirection: desc) { id openTimestamp closeTimestamp status supplyTokens { symbol } borrowTokens { symbol } amounts { token { symbol decimals } amountWei amountPar } } }`
-                );
-
-                // Also query deposit/withdrawal aggregates per token
+                // Query ALL deposit and withdrawal events for this wallet
                 const [depData, wdData] = await Promise.all([
                     earn_subgraphQuery(sgEndpoint,
                         `{ deposits(first: 1000, where: { effectiveUser: "${addr}" }, orderBy: serialId, orderDirection: desc) { token { symbol } amountDeltaWei amountUSDDeltaWei } }`
@@ -22653,94 +22647,51 @@
                     ),
                 ]);
 
-                const closedPositions = bpData.borrowPositions || [];
-
-                // Aggregate deposits/withdrawals per token
-                const depositsByToken = {};
+                // Aggregate per token
+                const tokenData = {}; // { symbol: { deposited, withdrawn } }
                 (depData.deposits || []).forEach(d => {
                     const sym = d.token?.symbol || '?';
                     const usd = parseFloat(d.amountUSDDeltaWei || '0');
-                    if (!depositsByToken[sym]) depositsByToken[sym] = 0;
-                    depositsByToken[sym] += usd;
+                    if (!tokenData[sym]) tokenData[sym] = { deposited: 0, withdrawn: 0 };
+                    tokenData[sym].deposited += usd;
                 });
-                const withdrawalsByToken = {};
                 (wdData.withdrawals || []).forEach(w => {
                     const sym = w.token?.symbol || '?';
                     const usd = parseFloat(w.amountUSDDeltaWei || '0');
-                    if (!withdrawalsByToken[sym]) withdrawalsByToken[sym] = 0;
-                    withdrawalsByToken[sym] += usd;
+                    if (!tokenData[sym]) tokenData[sym] = { deposited: 0, withdrawn: 0 };
+                    tokenData[sym].withdrawn += usd;
                 });
 
-                if (closedPositions.length === 0) {
+                // Only show tokens that have withdrawals (meaning user took money out)
+                const withdrawnTokens = Object.entries(tokenData)
+                    .filter(([, data]) => data.withdrawn > 0.01)
+                    .sort((a, b) => b[1].withdrawn - a[1].withdrawn); // sort by most withdrawn
+
+                if (withdrawnTokens.length === 0) {
                     section.style.display = 'none';
                     return;
                 }
 
-                countEl.textContent = closedPositions.length;
+                countEl.textContent = withdrawnTokens.length;
                 section.style.display = '';
 
-                // Render rows
-                tbody.innerHTML = closedPositions.map(bp => {
-                    const supplySymbols = (bp.supplyTokens || []).map(t => t.symbol);
-                    const borrowSymbols = (bp.borrowTokens || []).map(t => t.symbol);
-                    const openTs = parseInt(bp.openTimestamp || '0');
-                    const closeTs = parseInt(bp.closeTimestamp || '0');
-
-                    // Duration
-                    const durationSecs = closeTs - openTs;
-                    let durationText = '';
-                    if (durationSecs < 3600) durationText = Math.floor(durationSecs / 60) + ' min';
-                    else if (durationSecs < 86400) durationText = Math.floor(durationSecs / 3600) + ' hours';
-                    else if (durationSecs < 86400 * 30) durationText = Math.floor(durationSecs / 86400) + ' days';
-                    else if (durationSecs < 86400 * 365) durationText = Math.floor(durationSecs / (86400 * 30)) + ' months';
-                    else durationText = Math.floor(durationSecs / (86400 * 365)) + ' years';
-
-                    // Collateral token pills
-                    const collateralHtml = supplySymbols.length > 0
-                        ? supplySymbols.map(s => {
-                            const icon = SYMBOL_ICONS[s] || SYMBOL_ICONS[(s || '').toUpperCase()];
-                            const iconHtml = icon ? `<img src="${icon}" alt="${s}" onerror="this.style.display='none'">` : '';
-                            return `<span class="earn-past-token">${iconHtml}${s}</span>`;
-                        }).join(', ')
-                        : '<span style="color:rgba(255,255,255,0.2)">—</span>';
-
-                    const debtHtml = borrowSymbols.length > 0
-                        ? borrowSymbols.map(s => {
-                            const icon = SYMBOL_ICONS[s] || SYMBOL_ICONS[(s || '').toUpperCase()];
-                            const iconHtml = icon ? `<img src="${icon}" alt="${s}" onerror="this.style.display='none'">` : '';
-                            return `<span class="earn-past-token">${iconHtml}${s}</span>`;
-                        }).join(', ')
-                        : '<span style="color:rgba(255,255,255,0.2)">—</span>';
-
-                    // Net position: show aggregate deposits/withdrawals for involved tokens
-                    const allSymbols = [...new Set([...supplySymbols, ...borrowSymbols])];
-                    let netHtml = '';
-                    if (allSymbols.length > 0) {
-                        netHtml = allSymbols.map(sym => {
-                            const dep = depositsByToken[sym] || 0;
-                            const wd = withdrawalsByToken[sym] || 0;
-                            const net = wd - dep;
-                            const cls = net >= 0 ? 'positive' : 'negative';
-                            const sign = net >= 0 ? '+' : '-';
-                            return `<div style="font-size:11px"><span style="color:rgba(255,255,255,0.4)">${sym}:</span> <span class="earn-past-pnl ${cls}">${sign}${earn_formatUSD(Math.abs(net))}</span></div>`;
-                        }).join('');
-                    } else {
-                        netHtml = '<span style="color:rgba(255,255,255,0.2)">—</span>';
-                    }
-
-                    // Close date
-                    const closeDate = closeTs > 0 ? new Date(closeTs * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }) : '';
+                // Render per-token rows
+                tbody.innerHTML = withdrawnTokens.map(([sym, data]) => {
+                    const net = data.withdrawn - data.deposited;
+                    const pnlClass = net >= 0 ? 'positive' : 'negative';
+                    const pnlSign = net >= 0 ? '+' : '-';
+                    const icon = SYMBOL_ICONS[sym] || SYMBOL_ICONS[(sym || '').toUpperCase()];
+                    const iconHtml = icon ? `<img src="${icon}" alt="${sym}" onerror="this.style.display='none'">` : '';
 
                     return `<tr>
-                        <td>${collateralHtml}</td>
-                        <td>${debtHtml}</td>
-                        <td><span class="earn-past-duration">${durationText}</span><div style="font-size:9px;color:rgba(255,255,255,0.2);margin-top:2px">Closed ${closeDate}</div></td>
-                        <td>${netHtml}</td>
-                        <td><span class="earn-past-status closed">CLOSED</span></td>
+                        <td><span class="earn-past-token">${iconHtml}${sym}</span></td>
+                        <td style="text-align:right;color:rgba(52,211,153,0.6)">${earn_formatUSD(data.deposited)}</td>
+                        <td style="text-align:right;color:rgba(248,113,113,0.6)">${earn_formatUSD(data.withdrawn)}</td>
+                        <td style="text-align:right"><span class="earn-past-pnl ${pnlClass}">${pnlSign}${earn_formatUSD(Math.abs(net))}</span></td>
                     </tr>`;
                 }).join('');
             } catch (e) {
-                console.warn('Past positions fetch error:', e);
+                console.warn('Withdrawn assets fetch error:', e);
                 section.style.display = 'none';
             }
         }
