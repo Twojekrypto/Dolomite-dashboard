@@ -12291,7 +12291,7 @@
                         </table>
                     </div>
                 </div>
-                <!-- Withdrawn Assets — per-token historical P&L -->
+                <!-- Withdrawn Assets — same UX as Earn supply rows -->
                 <div id="earn-past-section" style="display:none;margin-top:8px">
                     <div class="earn-past-header" id="earn-past-toggle" onclick="earn_togglePastPositions()">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -12305,13 +12305,16 @@
                         </svg>
                     </div>
                     <div class="earn-past-body" id="earn-past-body">
-                        <table class="earn-past-table">
+                        <table class="earn-asset-table earn-past-table">
                             <thead>
                                 <tr>
-                                    <th>Token</th>
-                                    <th style="text-align:right">Total Deposited</th>
-                                    <th style="text-align:right">Total Withdrawn</th>
-                                    <th style="text-align:right">Net P&L</th>
+                                    <th>
+                                        <div style="display:flex;align-items:center;gap:12px">
+                                            <div style="width:34px;flex-shrink:0"></div>
+                                            <span>Token</span>
+                                        </div>
+                                    </th>
+                                    <th style="text-align:right">Total Yield Earned</th>
                                 </tr>
                             </thead>
                             <tbody id="earn-past-tbody"></tbody>
@@ -20614,6 +20617,7 @@
                 historyItems.sort((a, b) => b.yieldUsd - a.yieldUsd);
                 earn_historyData = historyItems;
                 earn_renderHistory(historyItems);
+                earn_renderWithdrawnAssets(); // Populate withdrawn assets collapsible section
             } catch (e) {
                 console.error('History lookup failed:', e);
                 if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--accent-rose)">Error loading history: ${e.message}</td></tr>`;
@@ -21976,9 +21980,6 @@
                 // Fetch and render lending positions from liquidation_risk.json
                 earn_fetchAndRenderLendingPositions();
 
-                // Fetch and render past (closed) positions from subgraph
-                earn_fetchAndRenderPastPositions();
-
                 // After first render, suppress slide-in animation on subsequent re-renders
                 const tblRef = document.querySelector('.earn-asset-table');
                 if (tblRef) tblRef.classList.add('no-animate');
@@ -22624,76 +22625,93 @@
         }
 
         // Format a Unix timestamp as relative age (e.g. "42 days ago")
-        // ═══════ Withdrawn Assets — per-token historical P&L ═══════
-        async function earn_fetchAndRenderPastPositions() {
+        // ═══════ Withdrawn Assets — renders earn_historyData inactive items in Earn-row UX ═══════
+        function earn_renderWithdrawnAssets() {
             const section = document.getElementById('earn-past-section');
             const tbody = document.getElementById('earn-past-tbody');
             const countEl = document.getElementById('earn-past-count');
             if (!section || !tbody) return;
 
-            const addr = document.getElementById('earn-address').value.trim().toLowerCase();
+            if (!earn_historyData || earn_historyData.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            // Get active token addresses to exclude
+            const activeAddrs = new Set(earn_cachedAssets.map(a => a.tokenAddr?.toLowerCase()));
             const chainId = document.getElementById('earn-chain').value;
-            const sgEndpoint = SUBGRAPH_ENDPOINTS[chainId];
-            if (!addr || !sgEndpoint) { section.style.display = 'none'; return; }
 
-            try {
-                // Query ALL deposit and withdrawal events for this wallet
-                const [depData, wdData] = await Promise.all([
-                    earn_subgraphQuery(sgEndpoint,
-                        `{ deposits(first: 1000, where: { effectiveUser: "${addr}" }, orderBy: serialId, orderDirection: desc) { token { symbol } amountDeltaWei amountUSDDeltaWei } }`
-                    ),
-                    earn_subgraphQuery(sgEndpoint,
-                        `{ withdrawals(first: 1000, where: { effectiveUser: "${addr}" }, orderBy: serialId, orderDirection: desc) { token { symbol } amountDeltaWei amountUSDDeltaWei } }`
-                    ),
-                ]);
+            // Filter to inactive (withdrawn) items only
+            const inactiveItems = earn_historyData.filter(item => {
+                if (item.isActive) return false;
+                if (item.isIsolation && !item.isActive) return false;
+                if (activeAddrs.has(item.tokenAddr?.toLowerCase())) return false;
+                // Filter dust unless dust filter is off
+                const priceKey = chainId + ':' + (item.tokenAddr || '').toLowerCase();
+                const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[item.symbol] || 0;
+                const balNum = Number(item.currentWei) / (10 ** item.decimals);
+                const balUsd = Math.abs(balNum * price);
+                if (!earn_showDust && balUsd < 0.01 && Math.abs(item.yieldUsd) < 0.01) return false;
+                return true;
+            });
 
-                // Aggregate per token
-                const tokenData = {}; // { symbol: { deposited, withdrawn } }
-                (depData.deposits || []).forEach(d => {
-                    const sym = d.token?.symbol || '?';
-                    const usd = parseFloat(d.amountUSDDeltaWei || '0');
-                    if (!tokenData[sym]) tokenData[sym] = { deposited: 0, withdrawn: 0 };
-                    tokenData[sym].deposited += usd;
-                });
-                (wdData.withdrawals || []).forEach(w => {
-                    const sym = w.token?.symbol || '?';
-                    const usd = parseFloat(w.amountUSDDeltaWei || '0');
-                    if (!tokenData[sym]) tokenData[sym] = { deposited: 0, withdrawn: 0 };
-                    tokenData[sym].withdrawn += usd;
-                });
+            if (inactiveItems.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
 
-                // Only show tokens that have withdrawals (meaning user took money out)
-                const withdrawnTokens = Object.entries(tokenData)
-                    .filter(([, data]) => data.withdrawn > 0.01)
-                    .sort((a, b) => b[1].withdrawn - a[1].withdrawn); // sort by most withdrawn
+            // Sort by yield USD descending (most earned first)
+            inactiveItems.sort((a, b) => Math.abs(b.yieldUsd) - Math.abs(a.yieldUsd));
 
-                if (withdrawnTokens.length === 0) {
-                    section.style.display = 'none';
-                    return;
+            countEl.textContent = inactiveItems.length;
+            section.style.display = '';
+
+            // Render rows in exact Earn-row UX
+            tbody.innerHTML = inactiveItems.map((item, i) => {
+                // Icon
+                let iconHtml;
+                if (item.icon) {
+                    const _gsF = new Set(['CRV', 'USD0', 'USD0++', 'deUSD', 'sdeUSD', 'MATIC', 'POL', 'stcUSD', 'cUSD', 'USDT', 'cbBTC']).has(item.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
+                    iconHtml = `<div class="earn-token-icon"><img src="${item.icon}" alt="${item.symbol}"${_gsF} onerror="this.parentElement.textContent='${item.symbol.slice(0, 2)}'"></div>`;
+                } else {
+                    iconHtml = `<div class="earn-token-icon">${item.symbol.slice(0, 2)}</div>`;
                 }
 
-                countEl.textContent = withdrawnTokens.length;
-                section.style.display = '';
+                // Yield formatting (same as active rows)
+                const yieldPositive = item.yieldWei >= 0n;
+                const yieldSign = yieldPositive && item.yieldWei > 0n ? '+' : '';
+                const yieldColor = yieldPositive ? 'earn-yield-positive' : 'earn-yield-negative';
+                const yieldFmt = earn_formatAmount(item.yieldWei, item.decimals, item.symbol);
+                const yieldUsdStr = Math.abs(item.yieldUsd) >= 0.01
+                    ? `<div class="earn-usd-sub" style="color:${yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">${yieldPositive && item.yieldUsd > 0 ? '+' : ''}$${Math.abs(item.yieldUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>`
+                    : '';
 
-                // Render per-token rows
-                tbody.innerHTML = withdrawnTokens.map(([sym, data]) => {
-                    const net = data.withdrawn - data.deposited;
-                    const pnlClass = net >= 0 ? 'positive' : 'negative';
-                    const pnlSign = net >= 0 ? '+' : '-';
-                    const icon = SYMBOL_ICONS[sym] || SYMBOL_ICONS[(sym || '').toUpperCase()];
-                    const iconHtml = icon ? `<img src="${icon}" alt="${sym}" onerror="this.style.display='none'">` : '';
+                let yieldCellHtml;
+                if (item.yieldWei !== 0n) {
+                    yieldCellHtml = `<span class="earn-amount ${yieldColor}">${yieldSign}${yieldFmt}<span class="earn-amount-sym">${item.symbol}</span></span>${yieldUsdStr}`;
+                } else {
+                    yieldCellHtml = `<span class="earn-amount" style="color:var(--text-muted)">—</span>`;
+                }
 
-                    return `<tr>
-                        <td><span class="earn-past-token">${iconHtml}${sym}</span></td>
-                        <td style="text-align:right;color:rgba(52,211,153,0.6)">${earn_formatUSD(data.deposited)}</td>
-                        <td style="text-align:right;color:rgba(248,113,113,0.6)">${earn_formatUSD(data.withdrawn)}</td>
-                        <td style="text-align:right"><span class="earn-past-pnl ${pnlClass}">${pnlSign}${earn_formatUSD(Math.abs(net))}</span></td>
-                    </tr>`;
-                }).join('');
-            } catch (e) {
-                console.warn('Withdrawn assets fetch error:', e);
-                section.style.display = 'none';
-            }
+                const delay = i * 0.05;
+
+                return `<tr class="earn-data-row earn-row-inactive" style="animation-delay:${delay}s">
+                    <td>
+                        <div class="earn-token-cell">
+                            <div class="earn-token-left">
+                                ${iconHtml}
+                                <div class="earn-token-info">
+                                    <div class="earn-token-name">${item.symbol}</div>
+                                    <span class="earn-hist-badge withdrawn"><span class="earn-status-dot"></span>WITHDRAWN</span>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td style="text-align:right">
+                        ${yieldCellHtml}
+                    </td>
+                </tr>`;
+            }).join('');
         }
 
         function earn_togglePastPositions() {
