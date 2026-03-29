@@ -21956,6 +21956,12 @@
                         const DOLO_PRICE = earn_priceCache[chainId + ':0x0f81001ef0a83ecce5ccebf63eb302c70a39a654'] || TOKEN_USD_FALLBACK['DOLO'] || 0.03;
                         const WLFI_PRICE = 0.097; // CoinGecko March 2026
 
+                        // Addresses blacklisted from oDOLO rewards (e.g. WLFI — confirmed by Dolomite team)
+                        const ODOLO_BLACKLIST = new Set([
+                            '0x5be9a4959308a0d0c7bc0870e319314d8d957dbb', // World Liberty Financial
+                        ]);
+                        const isOdoloBlacklisted = ODOLO_BLACKLIST.has(addr.toLowerCase());
+
                         // Enrich each position with accrued interest data
                         for (const p of positions) {
                             const bp = bpByAccount[p.accountNumber];
@@ -21991,7 +21997,7 @@
 
                                     // === oDOLO reward calc for this collateral token ===
                                     const weeklyOdolo = parseFloat(odoloWeights[tokenAddr] || '0');
-                                    if (weeklyOdolo > 0 && totalSupplyByToken[tokenAddr] && price > 0) {
+                                    if (weeklyOdolo > 0 && totalSupplyByToken[tokenAddr] && price > 0 && !isOdoloBlacklisted) {
                                         const totalSupply = totalSupplyByToken[tokenAddr];
                                         const userShare = actualTokens / totalSupply;
                                         const openTs = p.openTimestamp || 0;
@@ -22829,7 +22835,7 @@
 
                     const fmtUsd = v => v >= 1000 ? '$' + (v / 1000).toFixed(2) + 'K' : '$' + v.toFixed(2);
                     const yieldClass = totalYieldUsd >= 0 ? 'positive' : 'negative';
-                    const yieldSign = totalYieldUsd >= 0 ? '+' : '';
+                    const yieldSign = totalYieldUsd >= 0 ? '+' : '-';
 
                     // Find best performer icon
                     let bestIcon = '';
@@ -22917,7 +22923,7 @@
                         const wlfiStat = document.createElement('div');
                         wlfiStat.className = 'earn-summary-stat';
                         wlfiStat.innerHTML = `
-                            <div class="earn-summary-label" style="color:rgba(251,191,36,0.8)">🟡 WLFI Rewards</div>
+                            <div class="earn-summary-label" style="color:rgba(251,191,36,0.8)"><img src="${SYMBOL_ICONS['WLFI'] || ''}" alt="WLFI" style="width:18px;height:18px;vertical-align:middle;margin-right:4px" onerror="this.style.display='none'"> WLFI Rewards</div>
                             <div class="earn-summary-value positive" id="earn-wlfi-claimed-val" style="color:#fbbf24">${wlfiAmt >= 1000 ? (wlfiAmt / 1000).toFixed(2) + 'K' : wlfiAmt.toFixed(2)}</div>
                             <div class="earn-summary-sub" id="earn-wlfi-claimed-sub">~$${wlfiUsd >= 1000 ? (wlfiUsd / 1000).toFixed(2) + 'K' : wlfiUsd.toFixed(2)}${wlfiUnclaimed > 0.01 ? ' · <span style="color:#fbbf24">' + (wlfiUnclaimed >= 1000 ? (wlfiUnclaimed / 1000).toFixed(2) + 'K' : wlfiUnclaimed.toFixed(2)) + ' unclaimed</span>' : ''}</div>`;
                         const summaryCard = document.getElementById('earn-summary-card');
