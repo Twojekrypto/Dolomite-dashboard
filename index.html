@@ -6498,88 +6498,133 @@
             font-size: 13px;
         }
 
-        /* Expandable borrow detail row */
+        /* ============================================================
+           BORROW POSITION — PREMIUM EXPANDABLE DETAIL PANEL
+           ============================================================ */
+
+        /* Row — clickable with hover glow */
         .earn-lending-table tbody tr.earn-lend-row {
             cursor: pointer;
-            transition: background 0.15s;
+            transition: background 0.2s ease, box-shadow 0.2s ease;
         }
-
         .earn-lending-table tbody tr.earn-lend-row:hover td {
+            background: rgba(248, 113, 113, 0.035);
+        }
+        .earn-lending-table tbody tr.earn-lend-row.open td {
             background: rgba(248, 113, 113, 0.04);
         }
 
+        /* Chevron */
         .earn-lend-chevron {
             display: inline-block;
             width: 14px;
             height: 14px;
             margin-left: 6px;
-            transition: transform 0.25s ease;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             vertical-align: middle;
-            opacity: 0.5;
+            opacity: 0.35;
             color: rgba(255, 255, 255, 0.4);
         }
-
+        .earn-lend-row:hover .earn-lend-chevron { opacity: 0.7; }
         .earn-lend-row.open .earn-lend-chevron {
             transform: rotate(180deg);
             opacity: 1;
-        }
-
-        .earn-lend-detail {
-            display: none;
-        }
-
-        .earn-lend-detail.open {
-            display: table-row;
-        }
-
-        .earn-lend-detail td {
-            padding: 0 !important;
-            border-bottom: 1px solid rgba(248, 113, 113, 0.08);
-        }
-
-        .earn-lend-detail-inner {
-            padding: 14px 16px 18px;
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 16px;
-            background: rgba(248, 113, 113, 0.02);
-            border-top: 1px solid rgba(248, 113, 113, 0.08);
-            animation: earnFadeIn 0.2s ease;
-        }
-
-        .earn-lend-section {
-            padding: 8px 12px;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255, 255, 255, 0.04);
-        }
-
-        .earn-lend-section-title {
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.6px;
-            font-weight: 600;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .earn-lend-section-title.earn {
-            color: #34d399;
-        }
-
-        .earn-lend-section-title.cost {
             color: #f87171;
         }
 
-        .earn-lend-section-title.net {
-            color: #a78bfa;
+        /* Detail wrapper — animated slide open */
+        .earn-lend-detail {
+            display: none;
+        }
+        .earn-lend-detail.open {
+            display: table-row;
+        }
+        .earn-lend-detail td {
+            padding: 0 !important;
+            border-bottom: 1px solid rgba(248, 113, 113, 0.06);
         }
 
-        .earn-lend-section-title.rewards {
-            color: #fbbf24;
+        /* Inner container — glass panel with slide-in */
+        .earn-lend-detail-inner {
+            padding: 20px 20px 24px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 14px;
+            background: linear-gradient(135deg, rgba(248, 113, 113, 0.025) 0%, rgba(167, 139, 250, 0.02) 100%);
+            border-top: 1px solid rgba(248, 113, 113, 0.08);
+            animation: earnDetailSlideIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
         }
+        .earn-lend-detail-inner::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, rgba(248,113,113,0.3) 0%, rgba(167,139,250,0.2) 50%, rgba(52,211,153,0.3) 100%);
+        }
+
+        @keyframes earnDetailSlideIn {
+            0% { opacity: 0; transform: translateY(-8px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Section card — glassmorphism with left accent */
+        .earn-lend-section {
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-left: 3px solid transparent;
+            transition: background 0.2s ease, border-color 0.2s ease;
+            -webkit-backdrop-filter: blur(4px);
+            backdrop-filter: blur(4px);
+            position: relative;
+            overflow: hidden;
+        }
+        .earn-lend-section:hover {
+            background: rgba(255, 255, 255, 0.035);
+        }
+
+        /* Accent borders per type */
+        .earn-lend-section:has(> .earn-lend-section-title.earn) {
+            border-left-color: rgba(52, 211, 153, 0.5);
+        }
+        .earn-lend-section:has(> .earn-lend-section-title.cost) {
+            border-left-color: rgba(248, 113, 113, 0.5);
+        }
+        .earn-lend-section:has(> .earn-lend-section-title.net) {
+            border-left-color: rgba(167, 139, 250, 0.5);
+        }
+        .earn-lend-section:has(> .earn-lend-section-title.rewards) {
+            border-left-color: rgba(251, 191, 36, 0.5);
+        }
+
+        /* Section title — subtle dot + label */
+        .earn-lend-section-title {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .earn-lend-section-title::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .earn-lend-section-title.earn { color: #34d399; }
+        .earn-lend-section-title.earn::before { background: #34d399; box-shadow: 0 0 6px rgba(52,211,153,0.5); }
+        .earn-lend-section-title.cost { color: #f87171; }
+        .earn-lend-section-title.cost::before { background: #f87171; box-shadow: 0 0 6px rgba(248,113,113,0.5); }
+        .earn-lend-section-title.net { color: #a78bfa; }
+        .earn-lend-section-title.net::before { background: #a78bfa; box-shadow: 0 0 6px rgba(167,139,250,0.5); }
+        .earn-lend-section-title.rewards { color: #fbbf24; }
+        .earn-lend-section-title.rewards::before { background: #fbbf24; box-shadow: 0 0 6px rgba(251,191,36,0.5); }
 
         .earn-lend-token-apr.rewards {
             color: #fbbf24;
@@ -6591,93 +6636,100 @@
             color: rgba(251, 191, 36, 0.6);
             text-decoration: none;
             margin-left: 6px;
+            transition: color 0.15s;
         }
-
         .earn-reward-claim-link:hover {
             color: #fbbf24;
             text-decoration: underline;
         }
 
+        /* Token rows — refined spacing */
         .earn-lend-token-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 4px 0;
+            padding: 5px 2px;
             font-size: 12px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.025);
+            transition: background 0.15s;
+            border-radius: 4px;
         }
-
         .earn-lend-token-row:last-child {
             border-bottom: none;
+        }
+        .earn-lend-token-row:hover {
+            background: rgba(255, 255, 255, 0.02);
         }
 
         .earn-lend-token-left {
             display: flex;
             align-items: center;
-            gap: 6px;
-            color: rgba(255, 255, 255, 0.7);
+            gap: 8px;
+            color: rgba(255, 255, 255, 0.75);
         }
-
         .earn-lend-token-left img {
-            width: 16px;
-            height: 16px;
+            width: 18px;
+            height: 18px;
             border-radius: 50%;
+            box-shadow: 0 0 4px rgba(0,0,0,0.3);
         }
 
+        /* APR badges */
         .earn-lend-token-apr {
             font-size: 11px;
             font-weight: 600;
-            padding: 2px 6px;
-            border-radius: 4px;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-variant-numeric: tabular-nums;
         }
-
         .earn-lend-token-apr.supply {
             color: #34d399;
-            background: rgba(52, 211, 153, 0.08);
+            background: rgba(52, 211, 153, 0.10);
         }
-
         .earn-lend-token-apr.borrow {
             color: #f87171;
-            background: rgba(248, 113, 113, 0.08);
+            background: rgba(248, 113, 113, 0.10);
         }
 
         .earn-lend-token-annual {
             font-size: 11px;
-            color: rgba(255, 255, 255, 0.4);
-            margin-left: 4px;
+            color: rgba(255, 255, 255, 0.35);
+            margin-left: 6px;
             font-variant-numeric: tabular-nums;
         }
 
+        /* P&L Hero value */
         .earn-lend-net-value {
-            font-size: 18px;
-            font-weight: 700;
+            font-size: 22px;
+            font-weight: 800;
             font-variant-numeric: tabular-nums;
-            margin: 4px 0;
+            margin: 6px 0;
+            letter-spacing: -0.5px;
         }
-
         .earn-lend-net-value.positive {
             color: #34d399;
+            text-shadow: 0 0 20px rgba(52, 211, 153, 0.15);
         }
-
         .earn-lend-net-value.negative {
             color: #f87171;
+            text-shadow: 0 0 20px rgba(248, 113, 113, 0.15);
         }
 
         .earn-lend-net-sub {
             font-size: 11px;
             color: rgba(255, 255, 255, 0.4);
+            line-height: 1.5;
         }
 
         .earn-lend-net-apr {
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 700;
-            margin-top: 2px;
+            margin-top: 4px;
+            letter-spacing: -0.3px;
         }
-
         .earn-lend-net-apr.positive {
             color: #34d399;
         }
-
         .earn-lend-net-apr.negative {
             color: #f87171;
         }
@@ -22187,7 +22239,7 @@
                         <td colspan="6">
                             <div class="earn-lend-detail-inner">
                                 <div class="earn-lend-section">
-                                    <div class="earn-lend-section-title earn">🟢 Collateral Earnings</div>
+                                    <div class="earn-lend-section-title earn">Collateral Earnings</div>
                                     ${collateralRows || '<div style="color:var(--text-muted);font-size:11px">No collateral</div>'}
                                     ${(p.accruedCollateral && p.accruedCollateral.length > 0) ? `<div style="border-top:1px solid rgba(52,211,153,0.1);margin-top:6px;padding-top:6px">
                                         ${p.accruedCollateral.map(c => {
@@ -22198,7 +22250,7 @@
                                     </div>` : ''}
                                 </div>
                                 ${(p.externalRewards && p.externalRewards.length > 0) ? `<div class="earn-lend-section">
-                                    <div class="earn-lend-section-title rewards">🟡 External Rewards</div>
+                                    <div class="earn-lend-section-title rewards">External Rewards</div>
                                     ${p.externalRewards.map(r => {
                         const iconHtml = r.icon ? `<img src="${r.icon}" alt="${r.symbol}" onerror="this.style.display='none'">` : '';
                         const claimHtml = r.claimUrl ? `<a href="${r.claimUrl}" target="_blank" class="earn-reward-claim-link" onclick="event.stopPropagation()">Claim ↗</a>` : '';
@@ -22210,7 +22262,7 @@
                                     </div>
                                 </div>` : ''}
                                 <div class="earn-lend-section">
-                                    <div class="earn-lend-section-title cost">🔴 Borrow Costs</div>
+                                    <div class="earn-lend-section-title cost">Borrow Costs</div>
                                     ${debtRows || '<div style="color:var(--text-muted);font-size:11px">No debt</div>'}
                                     ${(p.accruedDebt && p.accruedDebt.length > 0) ? `<div style="border-top:1px solid rgba(248,113,113,0.1);margin-top:6px;padding-top:6px">
                                         ${p.accruedDebt.map(c => {
@@ -22222,7 +22274,7 @@
                                 </div>
                                 <div class="earn-lend-section">
                                     ${(p.netAccrued !== undefined) ? `
-                                        <div class="earn-lend-section-title net">📊 Realized P&L</div>
+                                        <div class="earn-lend-section-title net">Realized P&L</div>
                                         <div class="earn-lend-net-value ${p.netAccrued >= 0 ? 'positive' : 'negative'}">${p.netAccrued >= 0 ? '+' : '-'}${earn_formatUSD(Math.abs(p.netAccrued))}<span style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.4)"> total</span></div>
                                         <div class="earn-lend-net-sub">Yield ${earn_formatUSD(p.totalAccruedYield || 0)}${p.totalExternalRewardsUSD > 0.01 ? ' + <span style="color:#fbbf24">Rewards ' + earn_formatUSD(p.totalExternalRewardsUSD) + '</span>' : ''} − Cost ${earn_formatUSD(p.totalAccruedCost || 0)}</div>
                                         ${p.openTimestamp ? `<div class="earn-lend-net-sub" style="margin-top:4px">Opened ${earn_formatAge(p.openTimestamp)}</div>` : ''}
@@ -22231,7 +22283,7 @@
                                             <div class="earn-lend-net-apr ${netPositive ? 'positive' : 'negative'}">${netSign}${earn_formatUSD(Math.abs(netAnnual))}/yr <span style="font-weight:400">(${netSign}${displayNetApr.toFixed(2)}% net ${rateLabel})</span></div>
                                         </div>
                                     ` : `
-                                        <div class="earn-lend-section-title net">📊 Net Position (Annual Est.)</div>
+                                        <div class="earn-lend-section-title net">Net Position (Annual Est.)</div>
                                         <div class="earn-lend-net-value ${netPositive ? 'positive' : 'negative'}">${netSign}${earn_formatUSD(Math.abs(netAnnual))}<span style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.4)"> / year</span></div>
                                         <div class="earn-lend-net-apr ${netPositive ? 'positive' : 'negative'}">${netSign}${displayNetApr.toFixed(2)}% net ${rateLabel}</div>
                                         <div class="earn-lend-net-sub">Yield ${earn_formatUSD(totalAnnualYield)} − Cost ${earn_formatUSD(totalAnnualCost)}</div>
@@ -22468,7 +22520,7 @@
                     <td colspan="6">
                         <div class="earn-lend-detail-inner">
                             <div class="earn-lend-section">
-                                <div class="earn-lend-section-title earn">🟢 Collateral Earnings</div>
+                                <div class="earn-lend-section-title earn">Collateral Earnings</div>
                                 ${collateralRows || '<div style="color:var(--text-muted);font-size:11px">No collateral</div>'}
                                 ${(p.accruedCollateral && p.accruedCollateral.length > 0) ? `<div style="border-top:1px solid rgba(52,211,153,0.1);margin-top:6px;padding-top:6px">
                                     ${p.accruedCollateral.map(c => {
@@ -22479,7 +22531,7 @@
                                 </div>` : ''}
                             </div>
                             ${(p.externalRewards && p.externalRewards.length > 0) ? `<div class="earn-lend-section">
-                                <div class="earn-lend-section-title rewards">🟡 External Rewards</div>
+                                <div class="earn-lend-section-title rewards">External Rewards</div>
                                 ${p.externalRewards.map(r => {
                     const iconHtml = r.icon ? `<img src="${r.icon}" alt="${r.symbol}" onerror="this.style.display='none'">` : '';
                     const claimHtml = r.claimUrl ? `<a href="${r.claimUrl}" target="_blank" class="earn-reward-claim-link" onclick="event.stopPropagation()">Claim ↗</a>` : '';
@@ -22491,7 +22543,7 @@
                                 </div>
                             </div>` : ''}
                             <div class="earn-lend-section">
-                                <div class="earn-lend-section-title cost">🔴 Borrow Costs</div>
+                                <div class="earn-lend-section-title cost">Borrow Costs</div>
                                 ${debtRows || '<div style="color:var(--text-muted);font-size:11px">No debt</div>'}
                                 ${(p.accruedDebt && p.accruedDebt.length > 0) ? `<div style="border-top:1px solid rgba(248,113,113,0.1);margin-top:6px;padding-top:6px">
                                     ${p.accruedDebt.map(c => {
@@ -22503,7 +22555,7 @@
                             </div>
                             <div class="earn-lend-section">
                                 ${(p.netAccrued !== undefined) ? `
-                                    <div class="earn-lend-section-title net">📊 Realized P&L</div>
+                                    <div class="earn-lend-section-title net">Realized P&L</div>
                                     <div class="earn-lend-net-value ${p.netAccrued >= 0 ? 'positive' : 'negative'}">${p.netAccrued >= 0 ? '+' : '-'}${earn_formatUSD(Math.abs(p.netAccrued))}<span style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.4)"> total</span></div>
                                     <div class="earn-lend-net-sub">Yield ${earn_formatUSD(p.totalAccruedYield || 0)}${p.totalExternalRewardsUSD > 0.01 ? ' + <span style="color:#fbbf24">Rewards ' + earn_formatUSD(p.totalExternalRewardsUSD) + '</span>' : ''} − Cost ${earn_formatUSD(p.totalAccruedCost || 0)}</div>
                                     ${p.openTimestamp ? `<div class="earn-lend-net-sub" style="margin-top:4px">Opened ${earn_formatAge(p.openTimestamp)}</div>` : ''}
@@ -22512,7 +22564,7 @@
                                         <div class="earn-lend-net-apr ${netPositive ? 'positive' : 'negative'}">${netSign}${earn_formatUSD(Math.abs(netAnnual))}/yr <span style="font-weight:400">(${netSign}${displayNetApr.toFixed(2)}% net ${rateLabel})</span></div>
                                     </div>
                                 ` : `
-                                    <div class="earn-lend-section-title net">📊 Net Position (Annual Est.)</div>
+                                    <div class="earn-lend-section-title net">Net Position (Annual Est.)</div>
                                     <div class="earn-lend-net-value ${netPositive ? 'positive' : 'negative'}">${netSign}${earn_formatUSD(Math.abs(netAnnual))}<span style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.4)"> / year</span></div>
                                     <div class="earn-lend-net-apr ${netPositive ? 'positive' : 'negative'}">${netSign}${displayNetApr.toFixed(2)}% net ${rateLabel}</div>
                                     <div class="earn-lend-net-sub">Yield ${earn_formatUSD(totalAnnualYield)} − Cost ${earn_formatUSD(totalAnnualCost)}</div>
