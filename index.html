@@ -23024,7 +23024,9 @@
                 } else if (hasNetflow) {
                     const flowData = earn_netflowData[mid];
                     const netFlow = typeof flowData === 'string' ? BigInt(flowData) : BigInt(flowData.t || '0');
-                    const totalYield = a.wei - netFlow;
+                    const totalYieldRaw = a.wei - netFlow;
+                    // Supply yield can never be truly negative — clamp rounding artifacts to 0
+                    const totalYield = totalYieldRaw < 0n ? 0n : totalYieldRaw;
                     const yieldPositive = totalYield >= 0n;
                     const yieldSign = yieldPositive && totalYield > 0n ? '+' : '';
                     const yieldColor = yieldPositive ? 'earn-yield-positive' : 'earn-yield-negative';
@@ -23043,6 +23045,8 @@
                         const liveYield = (lastPar * a.wei - lastWei * a.par) / a.par;
                         totalYield += liveYield;
                     }
+                    // Supply yield can never be truly negative — clamp rounding artifacts to 0
+                    if (totalYield < 0n) totalYield = 0n;
 
                     const yieldPositive = totalYield >= 0n;
                     const yieldSign = yieldPositive && totalYield > 0n ? '+' : '';
