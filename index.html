@@ -20589,9 +20589,7 @@
                     // Yield = current balance - net flow (what you deposited minus what you withdrew)
                     // For active positions: shows the earned interest
                     // For withdrawn positions: netFlow ≈ 0 (deposits cancel out withdrawals), so yield ≈ 0
-                    // Skip yield for borrow-affected markets: swap deltas from borrows pollute netflow
-                    const isBorrowMarket = earn_borrowMarkets && earn_borrowMarkets.has(midStr);
-                    const yieldWeiRaw = isBorrowMarket ? 0n : currentWei - netFlow;
+                    const yieldWeiRaw = currentWei - netFlow;
                     // Supply yield can never be truly negative — clamp rounding artifacts to 0
                     const yieldWei = yieldWeiRaw < 0n ? 0n : yieldWeiRaw;
 
@@ -20681,9 +20679,8 @@
             let totalActive = 0;
             let totalWithdrawn = 0;
             items.forEach(item => {
-                // Exclude isolation mode tokens and borrow-affected markets from total yield
-                const isBorrowMkt = earn_borrowMarkets && earn_borrowMarkets.has(String(item.marketId));
-                if (!item.isIsolation && !isBorrowMkt) totalYieldUsd += item.yieldUsd;
+                // Exclude isolation mode tokens from total yield
+                if (!item.isIsolation) totalYieldUsd += item.yieldUsd;
                 if (item.isActive) totalActive++; else totalWithdrawn++;
             });
 
@@ -23009,22 +23006,20 @@
             let html = '';
 
             supplyAssets.forEach((a, idx) => {
-                // Total yield calculation — prefer netflow (exact) over snapshot-based
+                // Total yield calculation — prefer snapshot (reliable) > netflow (exact but polluted by borrows)
                 const mid = String(a.marketId);
                 let yieldCellHtml;
 
-                // Skip yield for borrow-affected markets (swap deltas pollute netflow)
+                // Borrow markets have swap deltas that pollute netflow — use snapshot instead
                 const isBorrowMarket = earn_borrowMarkets && earn_borrowMarkets.has(mid);
 
-                // Method 1: NetFlow-based (exact: yield = currentWei - netFlow)
-                const hasNetflow = earn_netflowData && earn_netflowData[mid] !== undefined;
-                // Method 2: Snapshot-based (pairwise index-based)
+                // Method 1: NetFlow-based (exact: yield = currentWei - netFlow) — skip for borrow markets
+                const hasNetflow = !isBorrowMarket && earn_netflowData && earn_netflowData[mid] !== undefined;
+                // Method 2: Snapshot-based (pairwise index-based) — always reliable
                 const hist = earn_totalYieldData && earn_totalYieldData[mid];
                 const hasSnapshotData = hist && hist.cumulativeYield !== undefined;
 
-                if (isBorrowMarket) {
-                    yieldCellHtml = `<span class="earn-amount" style="color:var(--text-muted)" title="Yield not shown — this market has active borrow positions">—</span>`;
-                } else if (hasNetflow) {
+                if (hasNetflow) {
                     const flowData = earn_netflowData[mid];
                     const netFlow = typeof flowData === 'string' ? BigInt(flowData) : BigInt(flowData.t || '0');
                     const totalYieldRaw = a.wei - netFlow;
@@ -23268,9 +23263,9 @@
                         const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[a.symbol] || 0;
 
                         // Method 1: NetFlow-based yield (same logic as table rows)
-                        // Skip borrow-affected markets
+                        // Skip borrow-affected markets for netflow (swap deltas pollute it)
                         const isBorrowMkt = earn_borrowMarkets && earn_borrowMarkets.has(mid);
-                        const nf = earn_netflowData && earn_netflowData[mid];
+                        const nf = !isBorrowMkt && earn_netflowData && earn_netflowData[mid];
                         if (nf !== undefined && !isBorrowMkt) {
                             try {
                                 const netFlow = typeof nf === 'string' ? BigInt(nf) : BigInt(nf.t || '0');
