@@ -20588,7 +20588,9 @@
                     // For withdrawn positions: netFlow ≈ 0 (deposits cancel out withdrawals), so yield ≈ 0
                     // Skip yield for borrow-affected markets: swap deltas from borrows pollute netflow
                     const isBorrowMarket = earn_borrowMarkets && earn_borrowMarkets.has(midStr);
-                    const yieldWei = isBorrowMarket ? 0n : currentWei - netFlow;
+                    const yieldWeiRaw = isBorrowMarket ? 0n : currentWei - netFlow;
+                    // Supply yield can never be truly negative — clamp rounding artifacts to 0
+                    const yieldWei = yieldWeiRaw < 0n ? 0n : yieldWeiRaw;
 
                     // Resolve token info — prioritize hardcoded map over RPC
                     let tokenAddr, symbol, decimals, icon, tokenName;
@@ -23266,7 +23268,9 @@
                             try {
                                 const netFlow = typeof nf === 'string' ? BigInt(nf) : BigInt(nf.t || '0');
                                 const weiBI = typeof a.wei === 'bigint' ? a.wei : BigInt(a.wei || '0');
-                                const yieldWei = weiBI - netFlow;
+                                const yieldWeiRaw = weiBI - netFlow;
+                                // Supply yield can never be truly negative — clamp rounding artifacts to 0
+                                const yieldWei = yieldWeiRaw < 0n ? 0n : yieldWeiRaw;
                                 const yieldNum = Number(yieldWei) / (10 ** a.decimals);
                                 const yUsd = yieldNum * price;
                                 totalYieldUsd += yUsd;
