@@ -847,15 +847,15 @@
             width: 20px;
             height: 20px;
             border-radius: 50%;
-            background: #fb7185;
+            background: var(--sim-thumb-color, #34d399);
             cursor: grab;
-            border: 2px solid rgba(255,255,255,0.2);
-            box-shadow: 0 0 10px rgba(251,113,133,0.4), 0 2px 6px rgba(0,0,0,0.3);
+            border: 2px solid rgba(255,255,255,0.25);
+            box-shadow: 0 0 10px var(--sim-thumb-glow, rgba(52,211,153,0.4)), 0 2px 6px rgba(0,0,0,0.3);
             transition: transform 0.15s, box-shadow 0.15s;
         }
         #sim-slider::-webkit-slider-thumb:hover {
             transform: scale(1.15);
-            box-shadow: 0 0 16px rgba(251,113,133,0.6), 0 2px 8px rgba(0,0,0,0.4);
+            box-shadow: 0 0 16px var(--sim-thumb-glow, rgba(52,211,153,0.6)), 0 2px 8px rgba(0,0,0,0.4);
         }
         #sim-slider::-webkit-slider-thumb:active {
             cursor: grabbing;
@@ -865,10 +865,10 @@
             width: 20px;
             height: 20px;
             border-radius: 50%;
-            background: #fb7185;
+            background: var(--sim-thumb-color, #34d399);
             cursor: grab;
-            border: 2px solid rgba(255,255,255,0.2);
-            box-shadow: 0 0 10px rgba(251,113,133,0.4), 0 2px 6px rgba(0,0,0,0.3);
+            border: 2px solid rgba(255,255,255,0.25);
+            box-shadow: 0 0 10px var(--sim-thumb-glow, rgba(52,211,153,0.4)), 0 2px 6px rgba(0,0,0,0.3);
         }
         #sim-slider::-moz-range-track {
             height: 8px;
@@ -3357,11 +3357,19 @@
                         const leftPx = thumbW / 2 + ratio * (trackW - thumbW);
                         pctLabel.style.left = leftPx + 'px';
                     }
-                    // Color
-                    if (changeVal <= 5) pctLabel.style.color = '#34d399';
-                    else if (changeVal <= 15) pctLabel.style.color = '#f59e0b';
-                    else if (changeVal <= 30) pctLabel.style.color = '#fb7185';
-                    else pctLabel.style.color = '#ef4444';
+                    // Color — label + thumb sync with track gradient
+                    let thumbColor, thumbGlow;
+                    if (changeVal <= 5) { thumbColor = '#34d399'; thumbGlow = 'rgba(52,211,153,0.5)'; }
+                    else if (changeVal <= 15) { thumbColor = '#f59e0b'; thumbGlow = 'rgba(245,158,11,0.5)'; }
+                    else if (changeVal <= 30) { thumbColor = '#fb7185'; thumbGlow = 'rgba(251,113,133,0.5)'; }
+                    else { thumbColor = '#ef4444'; thumbGlow = 'rgba(239,68,68,0.5)'; }
+                    pctLabel.style.color = thumbColor;
+                    // Update thumb color to match position on gradient
+                    const sliderEl = document.getElementById('sim-slider');
+                    if (sliderEl) {
+                        sliderEl.style.setProperty('--sim-thumb-color', thumbColor);
+                        sliderEl.style.setProperty('--sim-thumb-glow', thumbGlow);
+                    }
                     // Scenario label
                     const assetNames = { all: 'All assets' };
                     const name = isToken ? tokenName : (assetNames[asset] || asset);
