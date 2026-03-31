@@ -12252,7 +12252,7 @@
                     </div>
                 </div>
 
-                <div class="table-section">
+                <div class="table-section" id="earn-supply-section">
                     <div class="table-scroll">
                         <table class="earn-asset-table">
                             <colgroup>
@@ -23081,6 +23081,17 @@
             });
             const table = document.querySelector('.earn-asset-table:not(.earn-past-table)');
             if (table) table.classList.toggle('no-yield', !hasAnyYield);
+
+            // Hide entire supply table section + filter bar when address has no active supply positions
+            const supplySection = document.getElementById('earn-supply-section');
+            const filterBarEl = document.getElementById('earn-filter-bar');
+            if (supplyAssets.length === 0) {
+                if (supplySection) supplySection.style.display = 'none';
+                if (filterBarEl) filterBarEl.style.display = 'none';
+            } else {
+                if (supplySection) supplySection.style.display = '';
+                if (filterBarEl) filterBarEl.style.display = '';
+            }
 
             supplyAssets.forEach((a, idx) => {
                 // Total yield calculation — prefer snapshot (reliable) > netflow (exact but polluted by borrows)
