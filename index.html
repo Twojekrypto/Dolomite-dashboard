@@ -12228,8 +12228,8 @@
                     <div class="earn-filter-left"></div>
                     <div class="earn-filter-right">
                         <div style="display:flex;align-items:center;gap:8px">
-                            <button type="button" class="earn-filter-pill active" id="earn-dust-toggle"
-                                onclick="earn_toggleDust()" title="Hide dust positions (< $0.01 balance & yield)">
+                            <button type="button" class="earn-filter-pill" id="earn-dust-toggle"
+                                onclick="earn_toggleDust()" title="Hide dust positions (< $1 balance & yield)">
                                 <span class="earn-toggle-dot"></span>
                                 <span class="earn-filter-label">Hide Dust</span>
                                 <span class="earn-dust-count">0</span>
@@ -20500,25 +20500,33 @@
                 const label = btn.querySelector('.earn-filter-label');
                 if (label) label.textContent = earn_showInactive ? 'Withdrawn' : 'Withdrawn';
             }
-            // Re-render with the new filter setting
+            // Suppress row animations on toggle re-render
+            const tbl = document.querySelector('.earn-asset-table');
+            if (tbl) tbl.classList.add('no-animate');
+            // Preserve scroll position across re-render
+            const scrollY = window.scrollY;
             if (earn_cachedAssets.length > 0 || earn_historyData) {
-                earn_renderResults(earn_cachedAssets);
+                earn_renderResults(earn_cachedAssets, { skipSummary: true });
             }
+            requestAnimationFrame(() => window.scrollTo(0, scrollY));
         }
 
         function earn_toggleDust() {
             earn_showDust = !earn_showDust;
             const btn = document.getElementById('earn-dust-toggle');
             if (btn) {
-                btn.classList.toggle('active', earn_showDust);
+                // active = filter ON = dust HIDDEN (inverted from before)
+                btn.classList.toggle('active', !earn_showDust);
             }
             // Suppress row animations on toggle re-render
             const tbl = document.querySelector('.earn-asset-table');
             if (tbl) tbl.classList.add('no-animate');
-            // Re-render (skip summary card rebuild)
+            // Preserve scroll position across re-render
+            const scrollY = window.scrollY;
             if (earn_cachedAssets.length > 0 || earn_historyData) {
                 earn_renderResults(earn_cachedAssets, { skipSummary: true });
             }
+            requestAnimationFrame(() => window.scrollTo(0, scrollY));
         }
 
         async function earn_lookupHistory() {
@@ -20660,17 +20668,17 @@
         }
 
         function earn_renderHistory(items) {
-            // Filter out closed isolation positions and sub-$0.01 dust
+            // Filter out closed isolation positions and sub-$1 dust
             items = items.filter(item => {
                 // Remove closed isolation mode positions entirely
                 if (item.isIsolation && !item.isActive) return false;
-                // Remove dust positions (balance value < $0.01)
+                // Remove dust positions (balance value < $1)
                 const chainId = document.getElementById('earn-chain').value;
                 const priceKey = chainId + ':' + (item.tokenAddr || '').toLowerCase();
                 const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[item.symbol] || 0;
                 const balanceNum = Number(item.currentWei) / (10 ** item.decimals);
                 const balanceUsd = Math.abs(balanceNum * price);
-                if (!earn_showDust && balanceUsd < 0.01 && Math.abs(item.yieldUsd) < 0.01) return false;
+                if (!earn_showDust && balanceUsd < 1 && Math.abs(item.yieldUsd) < 1) return false;
                 return true;
             });
 
@@ -21720,7 +21728,7 @@
             const inactiveToggle = document.getElementById('earn-inactive-toggle');
             if (inactiveToggle) inactiveToggle.classList.add('active');
             const dustToggle = document.getElementById('earn-dust-toggle');
-            if (dustToggle) dustToggle.classList.add('active');
+            if (dustToggle) dustToggle.classList.remove('active'); // earn_showDust=true → filter off → no active
             earn_showInactive = true;
             earn_showDust = true;
             // Reset history state
@@ -21774,9 +21782,54 @@
                 }
 
                 if (balances.length === 0) {
+                    // Before giving up, check for borrow positions via subgraph
+                    // (address may have borrows but no supply on this account)
+                    const chainId = document.getElementById('earn-chain').value;
+                    const netflowPromise = earn_fetchNetflow();
+                    await netflowPromise;
+
+                    if (earn_borrowPositionData.length > 0) {
+                        // Has borrow positions — proceed with borrow-only render
+                        console.log(`No supply balances but found ${earn_borrowPositionData.length} borrow positions — rendering borrow-only view`);
+
+                        // Fetch prices for borrow tokens
+                        const borrowTokenAddrs = earn_borrowPositionData.map(bp => bp.tokenAddr).filter(Boolean);
+                        await earn_fetchCoinGeckoPrices(borrowTokenAddrs);
+
+                        // Build enriched array with only borrow positions
+                        const enriched = [];
+                        for (const bp of earn_borrowPositionData) {
+                            const cgKey = chainId + ':' + bp.tokenAddr.toLowerCase();
+                            const price = earn_priceCache[cgKey] || TOKEN_USD_FALLBACK[bp.symbol] || 0;
+                            const humanAmt = Math.abs(Number(bp.wei) / Math.pow(10, bp.decimals));
+                            bp.usdValue = humanAmt * price;
+                            enriched.push(bp);
+                        }
+                        console.log(`Injected ${earn_borrowPositionData.length} borrow positions (no supply)`);
+
+                        earn_cachedAssets = enriched;
+                        enriched.sort((a, b) => b.usdValue - a.usdValue);
+                        earn_renderResults(enriched);
+
+                        // Also fetch lending positions
+                        earn_fetchAndRenderLendingPositions();
+
+                        // After first render, suppress slide-in on re-renders
+                        const tblNoSupply = document.querySelector('.earn-asset-table');
+                        if (tblNoSupply) {
+                            setTimeout(() => tblNoSupply.classList.add('no-animate'), 500);
+                        }
+
+                        // Also auto-load history for withdrawn assets
+                        earn_lookupHistory().then(() => {
+                            if (earn_cachedAssets) earn_renderResults(earn_cachedAssets, { skipSummary: false });
+                        }).catch(e => console.warn('History load:', e));
+
+                        return;
+                    }
+
                     // Check if there's netflow history for this address
                     try {
-                        const chainId = document.getElementById('earn-chain').value;
                         const nfResp = await fetch(`${NETFLOW_BASE}/${chainId}.json`);
                         if (nfResp.ok) {
                             const nfData = await nfResp.json();
@@ -22685,7 +22738,7 @@
                 const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[item.symbol] || 0;
                 const balNum = Number(item.currentWei) / (10 ** item.decimals);
                 const balUsd = Math.abs(balNum * price);
-                if (!earn_showDust && balUsd < 0.01 && Math.abs(item.yieldUsd) < 0.01) return false;
+                if (!earn_showDust && balUsd < 1 && Math.abs(item.yieldUsd) < 1) return false;
                 return true;
             });
 
@@ -22999,9 +23052,10 @@
 
             // Build table rows
             const tbody = document.getElementById('earn-table-body');
-            // Separate supply and borrow positions
-            const supplyAssets = assets.filter(a => !a.isBorrow && a.usdValue >= 0.01);
-            const borrowAssets = assets.filter(a => a.isBorrow && a.usdValue >= 0.01);
+            // Separate supply and borrow positions (respect dust toggle)
+            const dustThreshold = earn_showDust ? 0 : 1;
+            const supplyAssets = assets.filter(a => !a.isBorrow && a.usdValue >= dustThreshold);
+            const borrowAssets = assets.filter(a => a.isBorrow && a.usdValue >= dustThreshold);
 
             let html = '';
 
@@ -23176,7 +23230,7 @@
                     const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[item.symbol] || 0;
                     const balanceNum = Number(item.currentWei) / (10 ** item.decimals);
                     const balanceUsd = Math.abs(balanceNum * price);
-                    if (!earn_showDust && balanceUsd < 0.01 && Math.abs(item.yieldUsd) < 0.01) return false;
+                    if (!earn_showDust && balanceUsd < 1 && Math.abs(item.yieldUsd) < 1) return false;
                     return true;
                 });
 
@@ -23488,14 +23542,18 @@
                     });
                 });
             }
-            // Update dust count
+            // Update dust count — only count dust from VISIBLE items
             const dustToggle = document.getElementById('earn-dust-toggle');
             if (dustToggle) {
                 let dustCount = 0;
+                // Count dust in active supply assets (always visible)
                 (earn_cachedAssets || []).forEach(a => {
-                    if (a.usdValue < 0.01 && Math.abs(a.yieldUsd || 0) < 0.01) dustCount++;
+                    if (a.usdValue < 1 && Math.abs(a.yieldUsd || 0) < 1) dustCount++;
                 });
-                if (earn_historyData && earn_historyData.length > 0) {
+                // Count dust in withdrawn items ONLY if withdrawn section is visible
+                const withdrawnSection = document.getElementById('earn-withdrawn-section');
+                const isWithdrawnVisible = withdrawnSection && withdrawnSection.style.display !== 'none';
+                if (isWithdrawnVisible && earn_historyData && earn_historyData.length > 0) {
                     const activeAddrs = new Set(assets.map(a => a.tokenAddr?.toLowerCase()));
                     earn_historyData.forEach(item => {
                         if (item.isActive) return;
@@ -23506,18 +23564,19 @@
                         const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[item.symbol] || 0;
                         const balanceNum = Number(item.currentWei) / (10 ** item.decimals);
                         const balanceUsd = Math.abs(balanceNum * price);
-                        if (balanceUsd < 0.01 && Math.abs(item.yieldUsd) < 0.01) dustCount++;
+                        if (balanceUsd < 1 && Math.abs(item.yieldUsd) < 1) dustCount++;
                     });
                 }
                 const countBadge = dustToggle.querySelector('.earn-dust-count');
                 if (dustCount > 0) {
+                    dustToggle.style.display = '';
                     dustToggle.disabled = false;
-                    dustToggle.classList.toggle('active', earn_showDust);
+                    // active = filter ON = dust HIDDEN
+                    dustToggle.classList.toggle('active', !earn_showDust);
                     if (countBadge) countBadge.textContent = dustCount;
                 } else {
-                    dustToggle.disabled = true;
-                    dustToggle.classList.remove('active');
-                    if (countBadge) countBadge.textContent = '0';
+                    // No visible dust → hide the button entirely
+                    dustToggle.style.display = 'none';
                 }
             }
 
