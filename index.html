@@ -20526,6 +20526,8 @@
             if (earn_cachedAssets.length > 0 || earn_historyData) {
                 earn_renderResults(earn_cachedAssets, { skipSummary: true });
             }
+            // Also re-render the standalone withdrawn section
+            earn_renderWithdrawnAssets();
             requestAnimationFrame(() => window.scrollTo(0, scrollY));
         }
 
