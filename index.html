@@ -7961,6 +7961,15 @@
             animation: none !important;
         }
 
+        /* Hide yield column when address has no yield data */
+        .earn-asset-table.no-yield colgroup col:nth-child(4) { width: 0; }
+        .earn-asset-table.no-yield thead th:nth-child(4),
+        .earn-asset-table.no-yield tbody td:nth-child(4),
+        .earn-asset-table.no-yield tfoot td:nth-child(4) { display: none; }
+        .earn-asset-table.no-yield colgroup col:nth-child(1) { width: 35%; }
+        .earn-asset-table.no-yield colgroup col:nth-child(2) { width: 30%; }
+        .earn-asset-table.no-yield colgroup col:nth-child(3) { width: 35%; }
+
         @keyframes earnRowSlideIn {
             from {
                 opacity: 0;
@@ -23060,6 +23069,18 @@
             const borrowAssets = assets.filter(a => a.isBorrow && a.usdValue >= dustThreshold);
 
             let html = '';
+
+            // Check if ANY supply asset has yield data — if not, hide yield column
+            const hasAnyYield = supplyAssets.some(a => {
+                const mid = String(a.marketId);
+                const isBM = earn_borrowMarkets && earn_borrowMarkets.has(mid);
+                const hasNF = !isBM && earn_netflowData && earn_netflowData[mid] !== undefined;
+                const h = earn_totalYieldData && earn_totalYieldData[mid];
+                const hasSS = h && h.cumulativeYield !== undefined;
+                return hasNF || hasSS;
+            });
+            const table = document.querySelector('.earn-asset-table:not(.earn-past-table)');
+            if (table) table.classList.toggle('no-yield', !hasAnyYield);
 
             supplyAssets.forEach((a, idx) => {
                 // Total yield calculation — prefer snapshot (reliable) > netflow (exact but polluted by borrows)
