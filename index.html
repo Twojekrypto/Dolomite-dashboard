@@ -6388,12 +6388,27 @@
             font-variant-numeric: tabular-nums;
             cursor: default;
         }
+        .earn-hf-badge:has(.earn-hf-status-tag) {
+            flex-wrap: nowrap;
+        }
 
         .earn-hf-dot {
             width: 6px;
             height: 6px;
             border-radius: 50%;
             flex-shrink: 0;
+        }
+
+        /* Risk status tag — inline label after HF number */
+        .earn-hf-status-tag {
+            display: inline;
+            font-size: 8px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-left: 4px;
+            opacity: 0.7;
+            line-height: 1;
+            text-transform: uppercase;
         }
 
         .earn-hf-badge.strong {
@@ -6817,6 +6832,101 @@
         .earn-pnl-preview.negative {
             color: #f87171;
             background: rgba(248, 113, 113, 0.08);
+        }
+
+        /* ═══════ BORROW POSITIONS — MOBILE RESPONSIVE CARDS ═══════ */
+        @media (max-width: 768px) {
+            .earn-lending-table colgroup { display: none; }
+            .earn-lending-table { display: block; }
+            .earn-lending-table thead { display: none; }
+            .earn-lending-table tbody {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                padding: 0 8px;
+            }
+            .earn-lending-table tbody tr.earn-lend-row {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+                padding: 14px;
+                border-radius: 12px;
+                background: rgba(255, 255, 255, 0.02);
+                border: 1px solid rgba(248, 113, 113, 0.08);
+                border-bottom: none;
+            }
+            /* HF + E-Mode: first row spans full width */
+            .earn-lending-table tbody tr.earn-lend-row td:nth-child(1) {
+                grid-column: 1 / -1;
+                padding: 0 0 6px 0;
+                border-bottom: 1px solid rgba(255,255,255,0.04);
+            }
+            .earn-lending-table tbody tr.earn-lend-row td:nth-child(2) {
+                display: none; /* E-Mode shown inline with HF on mobile */
+            }
+            /* Collateral / Debt side by side */
+            .earn-lending-table tbody tr.earn-lend-row td:nth-child(3),
+            .earn-lending-table tbody tr.earn-lend-row td:nth-child(4) {
+                padding: 4px 0;
+            }
+            .earn-lending-table tbody tr.earn-lend-row td:nth-child(3)::before {
+                content: 'Collateral';
+                display: block;
+                font-size: 9px;
+                text-transform: uppercase;
+                letter-spacing: 0.6px;
+                color: rgba(52, 211, 153, 0.5);
+                font-weight: 600;
+                margin-bottom: 3px;
+            }
+            .earn-lending-table tbody tr.earn-lend-row td:nth-child(4)::before {
+                content: 'Debt';
+                display: block;
+                font-size: 9px;
+                text-transform: uppercase;
+                letter-spacing: 0.6px;
+                color: rgba(248, 113, 113, 0.5);
+                font-weight: 600;
+                margin-bottom: 3px;
+            }
+            /* Token pills — full width */
+            .earn-lending-table tbody tr.earn-lend-row td:nth-child(5),
+            .earn-lending-table tbody tr.earn-lend-row td:nth-child(6) {
+                grid-column: 1 / -1;
+                padding: 4px 0 0;
+            }
+            .earn-lending-table tbody tr.earn-lend-row td:nth-child(5)::before {
+                content: 'Collateral Tokens';
+                display: block;
+                font-size: 9px;
+                text-transform: uppercase;
+                letter-spacing: 0.6px;
+                color: rgba(255,255,255,0.25);
+                font-weight: 600;
+                margin-bottom: 4px;
+            }
+            .earn-lending-table tbody tr.earn-lend-row td:nth-child(6)::before {
+                content: 'Debt Tokens';
+                display: block;
+                font-size: 9px;
+                text-transform: uppercase;
+                letter-spacing: 0.6px;
+                color: rgba(255,255,255,0.25);
+                font-weight: 600;
+                margin-bottom: 4px;
+            }
+            /* Detail panel — single column */
+            .earn-lend-detail-inner {
+                grid-template-columns: 1fr !important;
+                padding: 14px !important;
+                gap: 10px !important;
+            }
+            .earn-net-summary-bar {
+                flex-direction: column !important;
+                gap: 6px !important;
+            }
+            .earn-net-summary-divider { display: none !important; }
+            .earn-lend-net-value { font-size: 18px !important; }
         }
 
         /* Net summary footer bar */
@@ -22528,12 +22638,27 @@
 
                 const chevronSvg = '<svg class="earn-lend-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
 
+                // Risk status labels (matching liq-monitor filter design)
+                const RISK_STATUS_LABELS = {
+                    'baddebt':     'BAD DEBT',
+                    'full-liq':    'LIQ',
+                    'partial-liq': 'PARTIAL',
+                    'danger':      'DANGER',
+                    'low-buffer':  'LOW',
+                    'moderate':    'MODERATE',
+                    'balanced':    'BALANCED',
+                    'good':        'GOOD',
+                    'strong':      'STRONG',
+                };
+
                 tbody.innerHTML = positions.map((p, i) => {
                     const riskClass = earn_getRiskClass(p);
                     const hfDecimals = ['good', 'strong', 'balanced'].includes(riskClass) ? 2 : 4;
                     const hfText = p.healthFactor !== null
                         ? (p.healthFactor > 10 ? '10<' : p.healthFactor.toFixed(hfDecimals))
                         : '—';
+                    const statusLabel = RISK_STATUS_LABELS[riskClass] || '';
+                    const statusTag = statusLabel ? `<span class="earn-hf-status-tag">${statusLabel}</span>` : '';
 
                     const emodeCell = p.eMode
                         ? `<span class="earn-emode-badge" title="E-Mode — correlated assets use tighter liquidation ratios">${FLAME_SVG}E-Mode</span>`
@@ -22594,7 +22719,7 @@
                         : '';
 
                     const dataRow = `<tr class="earn-lend-row risk-${riskClass}" data-idx="${i}" onclick="earn_toggleLendDetail(${i})" style="animation-delay:${i * 0.08}s">
-                        <td><span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span>${ageBadge}${chevronSvg}</td>
+                        <td><span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}${statusTag}</span>${ageBadge}${chevronSvg}</td>
                         <td style="text-align:center">${emodeCell}</td>
                         <td><span class="earn-usd-collateral">${collateralDisplay}</span></td>
                         <td><span class="earn-usd-debt">${earn_formatUSD(p.debtUSD)}</span></td>
