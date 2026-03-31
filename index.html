@@ -20601,14 +20601,30 @@
                     const hasBreakdown = typeof flowData !== 'string' && (flowData.d || flowData.w);
                     const totalDeposited = hasBreakdown ? BigInt(flowData.d || '0') : 0n;
                     const totalWithdrawn = hasBreakdown ? BigInt(flowData.w || '0') : 0n;
+                    const totalBorrowed = hasBreakdown ? BigInt(flowData.b || '0') : 0n;
+
+                    // Skip markets where user has NO supply deposits — these are borrow-only or
+                    // swap-only positions where the netflow formula produces false "yield".
+                    if (hasBreakdown && totalDeposited === 0n && totalBorrowed > 0n) continue;
 
                     const isActive = !!activeBalances[midStr];
                     const currentWei = isActive ? activeBalances[midStr].wei : 0n;
 
                     // Yield = current balance - net flow (what you deposited minus what you withdrew)
-                    // For active positions: shows the earned interest
-                    // For withdrawn positions: netFlow ≈ 0 (deposits cancel out withdrawals), so yield ≈ 0
-                    const yieldWeiRaw = currentWei - netFlow;
+                    let yieldWeiRaw = currentWei - netFlow;
+
+                    // Guard: If withdrawals exceed deposits, the excess was funded by borrowing.
+                    // The netflow formula sees borrows as negative flow → produces false positive yield.
+                    // For inactive positions (withdrawn), cap yield: it can never exceed a small
+                    // fraction of deposits (real lending yield is typically <20% annually).
+                    if (hasBreakdown && totalWithdrawn > totalDeposited) {
+                        // Withdrawals exceed deposits → borrow-funded. Zero out unreliable yield.
+                        yieldWeiRaw = 0n;
+                    }
+                    // Also clamp if borrow flows are present and yield seems unreasonably large
+                    if (totalBorrowed > 0n && yieldWeiRaw > totalDeposited / 10n) {
+                        yieldWeiRaw = 0n;
+                    }
                     // Supply yield can never be truly negative — clamp rounding artifacts to 0
                     const yieldWei = yieldWeiRaw < 0n ? 0n : yieldWeiRaw;
 
