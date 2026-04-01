@@ -6543,10 +6543,13 @@
         /* Row — clickable with hover glow */
         .earn-lending-table tbody tr.earn-lend-row {
             cursor: pointer;
-            transition: background 0.2s ease, box-shadow 0.2s ease;
+            transition: background 0.25s ease, box-shadow 0.25s ease;
         }
         .earn-lending-table tbody tr.earn-lend-row:hover td {
-            background: rgba(248, 113, 113, 0.035);
+            background: linear-gradient(90deg, rgba(248, 113, 113, 0.06) 0%, rgba(167, 139, 250, 0.03) 50%, transparent 100%);
+        }
+        .earn-lending-table tbody tr.earn-lend-row:hover td:first-child {
+            box-shadow: inset 3px 0 0 rgba(248, 113, 113, 0.5);
         }
         .earn-lending-table tbody tr.earn-lend-row.open td {
             background: rgba(248, 113, 113, 0.04);
@@ -6818,6 +6821,94 @@
             background: rgba(248, 113, 113, 0.08);
         }
 
+        /* ═══════ HF UTILIZATION RATIO BAR ═══════ */
+        .earn-hf-ratio-bar {
+            width: 100%;
+            max-width: 120px;
+            height: 3px;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, 0.06);
+            margin-top: 6px;
+            overflow: hidden;
+        }
+        .earn-hf-ratio-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .earn-hf-ratio-fill.risk-strong { background: linear-gradient(90deg, #22d3ee, #34d399); }
+        .earn-hf-ratio-fill.risk-good { background: linear-gradient(90deg, #34d399, #a3e635); }
+        .earn-hf-ratio-fill.risk-balanced { background: linear-gradient(90deg, #a3e635, #fbbf24); }
+        .earn-hf-ratio-fill.risk-moderate { background: linear-gradient(90deg, #fbbf24, #fb923c); }
+        .earn-hf-ratio-fill.risk-low-buffer,
+        .earn-hf-ratio-fill.risk-danger { background: linear-gradient(90deg, #fb923c, #f87171); }
+        .earn-hf-ratio-fill.risk-partial-liq,
+        .earn-hf-ratio-fill.risk-full-liq,
+        .earn-hf-ratio-fill.risk-baddebt { background: linear-gradient(90deg, #f87171, #ef4444); }
+
+        /* ═══════ MERGED COLUMN — USD + TOKENS ═══════ */
+        .earn-merged-col {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .earn-merged-tokens {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2px 6px;
+        }
+        .earn-merged-token {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.45);
+            white-space: nowrap;
+        }
+        .earn-merged-token img {
+            width: 13px;
+            height: 13px;
+            border-radius: 50%;
+            vertical-align: middle;
+        }
+
+        /* ═══════ INLINE NET P&L COLUMN ═══════ */
+        .earn-net-inline {
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            font-size: 13px;
+            line-height: 1.3;
+        }
+        .earn-net-inline.positive { color: #34d399; }
+        .earn-net-inline.negative { color: #f87171; }
+        .earn-net-inline.neutral { color: rgba(255, 255, 255, 0.25); }
+        .earn-net-sub-inline {
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.3);
+            font-variant-numeric: tabular-nums;
+            margin-top: 2px;
+        }
+
+        /* ═══════ E-Mode inline with HF ═══════ */
+        .earn-hf-emode-inline {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 2px 6px;
+            border-radius: 5px;
+            background: rgba(251, 146, 60, 0.08);
+            border: 1px solid rgba(251, 146, 60, 0.12);
+            color: #fb923c;
+            font-size: 9px;
+            font-weight: 600;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+        .earn-hf-emode-inline svg {
+            width: 10px;
+            height: 10px;
+        }
+
         /* ═══════ BORROW POSITIONS — MOBILE RESPONSIVE CARDS ═══════ */
         @media (max-width: 768px) {
             .earn-lending-table colgroup { display: none; }
@@ -6837,23 +6928,19 @@
                 border-radius: 12px;
                 background: rgba(255, 255, 255, 0.02);
                 border: 1px solid rgba(248, 113, 113, 0.08);
-                border-bottom: none;
             }
-            /* HF + E-Mode: first row spans full width */
+            /* HF cell: full width */
             .earn-lending-table tbody tr.earn-lend-row td:nth-child(1) {
                 grid-column: 1 / -1;
                 padding: 0 0 6px 0;
                 border-bottom: 1px solid rgba(255,255,255,0.04);
             }
-            .earn-lending-table tbody tr.earn-lend-row td:nth-child(2) {
-                display: none; /* E-Mode shown inline with HF on mobile */
-            }
             /* Collateral / Debt side by side */
-            .earn-lending-table tbody tr.earn-lend-row td:nth-child(3),
-            .earn-lending-table tbody tr.earn-lend-row td:nth-child(4) {
+            .earn-lending-table tbody tr.earn-lend-row td:nth-child(2),
+            .earn-lending-table tbody tr.earn-lend-row td:nth-child(3) {
                 padding: 4px 0;
             }
-            .earn-lending-table tbody tr.earn-lend-row td:nth-child(3)::before {
+            .earn-lending-table tbody tr.earn-lend-row td:nth-child(2)::before {
                 content: 'Collateral';
                 display: block;
                 font-size: 9px;
@@ -6863,7 +6950,7 @@
                 font-weight: 600;
                 margin-bottom: 3px;
             }
-            .earn-lending-table tbody tr.earn-lend-row td:nth-child(4)::before {
+            .earn-lending-table tbody tr.earn-lend-row td:nth-child(3)::before {
                 content: 'Debt';
                 display: block;
                 font-size: 9px;
@@ -6873,31 +6960,21 @@
                 font-weight: 600;
                 margin-bottom: 3px;
             }
-            /* Token pills — full width */
-            .earn-lending-table tbody tr.earn-lend-row td:nth-child(5),
-            .earn-lending-table tbody tr.earn-lend-row td:nth-child(6) {
+            /* Net P&L: full width */
+            .earn-lending-table tbody tr.earn-lend-row td:nth-child(4) {
                 grid-column: 1 / -1;
-                padding: 4px 0 0;
+                padding: 6px 0 0;
+                border-top: 1px solid rgba(255,255,255,0.04);
             }
-            .earn-lending-table tbody tr.earn-lend-row td:nth-child(5)::before {
-                content: 'Collateral Tokens';
+            .earn-lending-table tbody tr.earn-lend-row td:nth-child(4)::before {
+                content: 'Net P&L';
                 display: block;
                 font-size: 9px;
                 text-transform: uppercase;
                 letter-spacing: 0.6px;
-                color: rgba(255,255,255,0.25);
+                color: rgba(167, 139, 250, 0.5);
                 font-weight: 600;
-                margin-bottom: 4px;
-            }
-            .earn-lending-table tbody tr.earn-lend-row td:nth-child(6)::before {
-                content: 'Debt Tokens';
-                display: block;
-                font-size: 9px;
-                text-transform: uppercase;
-                letter-spacing: 0.6px;
-                color: rgba(255,255,255,0.25);
-                font-weight: 600;
-                margin-bottom: 4px;
+                margin-bottom: 3px;
             }
             /* Detail panel — single column */
             .earn-lend-detail-inner {
@@ -12399,12 +12476,10 @@
                     <div class="earn-table-scroll" style="overflow-x:auto">
                         <table class="earn-data-table earn-lending-table">
                             <colgroup>
-                                <col style="width:13%">
-                                <col style="width:18%">
-                                <col style="width:19%">
-                                <col style="width:18%">
-                                <col style="width:19%">
-                                <col style="width:13%">
+                                <col style="width:24%">
+                                <col style="width:28%">
+                                <col style="width:28%">
+                                <col style="width:20%">
                             </colgroup>
                             <thead>
                                 <tr>
@@ -12412,7 +12487,6 @@
                                         style="cursor:pointer;user-select:none">
                                         Health Factor <span class="earn-sort-arrow">▲</span>
                                     </th>
-                                    <th style="text-align:center">E-Mode</th>
                                     <th data-sort="lend-collateral" onclick="earn_sortLendPositions('collateral')"
                                         style="cursor:pointer;user-select:none">
                                         Collateral <span class="earn-sort-arrow">▼</span>
@@ -12421,8 +12495,7 @@
                                         style="cursor:pointer;user-select:none">
                                         Debt <span class="earn-sort-arrow">▼</span>
                                     </th>
-                                    <th>Collateral Tokens</th>
-                                    <th>Debt Tokens</th>
+                                    <th>Net P&amp;L</th>
                                 </tr>
                             </thead>
                             <tbody id="earn-lending-tbody"></tbody>
@@ -22629,13 +22702,26 @@
                         ? (p.healthFactor > 10 ? '10<' : p.healthFactor.toFixed(hfDecimals))
                         : '—';
 
-                    const emodeCell = p.eMode
-                        ? `<span class="earn-emode-badge" title="E-Mode — correlated assets use tighter liquidation ratios">${FLAME_SVG}E-Mode</span>`
-                        : '<span style="color:var(--text-muted);font-size:11px">—</span>';
+                    // E-Mode inline with HF
+                    const emodeBadge = p.eMode
+                        ? `<span class="earn-hf-emode-inline" title="E-Mode — correlated assets use tighter liquidation ratios">${FLAME_SVG}E</span>`
+                        : '';
 
                     const collateralDisplay = p.collateralUSD < 0.01 ? '$0.00' : earn_formatUSD(p.collateralUSD);
-                    const collateralTokensHtml = earn_renderTokenPills(p.collateralTokens);
-                    const debtTokensHtml = earn_renderTokenPills(p.debtTokens);
+
+                    // Compact token list for merged columns
+                    const renderMergedTokens = (tokens) => {
+                        if (!tokens || tokens.length === 0) return '';
+                        return '<div class="earn-merged-tokens">' + tokens.map(t => {
+                            const icon = SYMBOL_ICONS[t.symbol] || SYMBOL_ICONS[(t.symbol || '').toUpperCase()];
+                            const iconHtml = icon ? `<img src="${icon}" alt="${t.symbol}" onerror="this.style.display='none'">` : '';
+                            return `<span class="earn-merged-token">${iconHtml}${t.symbol} ${earn_formatUSDCompact(t.usd)}</span>`;
+                        }).join('') + '</div>';
+                    };
+
+                    // Utilization ratio bar
+                    const utilization = p.collateralUSD > 0 ? Math.min(100, (p.debtUSD / p.collateralUSD) * 100) : 0;
+                    const ratioBar = `<div class="earn-hf-ratio-bar"><div class="earn-hf-ratio-fill risk-${riskClass}" style="width:${utilization.toFixed(1)}%"></div></div>`;
 
                     // --- Build detail panel content ---
                     const useApy = typeof earn_showApy !== 'undefined' && earn_showApy;
@@ -22681,23 +22767,28 @@
                     // Age badge for collapsed row
                     const ageBadge = p.openTimestamp ? `<span class="earn-age-badge">${earn_formatAge(p.openTimestamp).replace('Opened ', '')}</span>` : '';
 
-                    // Quick P&L preview for collapsed row
+                    // Inline Net P&L for 4th column
                     const pnlValue = p.netAccrued !== undefined ? p.netAccrued : null;
-                    const pnlPreview = pnlValue !== null && Math.abs(pnlValue) > 0.01
-                        ? `<div class="earn-pnl-preview ${pnlValue >= 0 ? 'positive' : 'negative'}">${pnlValue >= 0 ? '+' : '-'}${earn_formatUSD(Math.abs(pnlValue))}</div>`
+                    const pnlClass = pnlValue !== null ? (pnlValue >= 0 ? 'positive' : 'negative') : 'neutral';
+                    const pnlDisplay = pnlValue !== null && Math.abs(pnlValue) > 0.01
+                        ? `${pnlValue >= 0 ? '+' : '-'}${earn_formatUSD(Math.abs(pnlValue))}`
+                        : '—';
+                    const annualDisplay = Math.abs(netAnnual) > 0.01
+                        ? `<div class="earn-net-sub-inline">${netSign}${earn_formatUSD(Math.abs(netAnnual))}/yr</div>`
                         : '';
 
                     const dataRow = `<tr class="earn-lend-row risk-${riskClass}" data-idx="${i}" onclick="earn_toggleLendDetail(${i})" style="animation-delay:${i * 0.08}s">
-                        <td><span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span>${ageBadge}${chevronSvg}</td>
-                        <td style="text-align:center">${emodeCell}</td>
-                        <td><span class="earn-usd-collateral">${collateralDisplay}</span></td>
-                        <td><span class="earn-usd-debt">${earn_formatUSD(p.debtUSD)}</span></td>
-                        <td><div class="earn-token-pills">${collateralTokensHtml}</div></td>
-                        <td><div class="earn-token-pills">${debtTokensHtml}</div></td>
+                        <td>
+                            <span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span>${emodeBadge}${ageBadge}${chevronSvg}
+                            ${ratioBar}
+                        </td>
+                        <td><div class="earn-merged-col"><span class="earn-usd-collateral">${collateralDisplay}</span>${renderMergedTokens(p.collateralTokens)}</div></td>
+                        <td><div class="earn-merged-col"><span class="earn-usd-debt">${earn_formatUSD(p.debtUSD)}</span>${renderMergedTokens(p.debtTokens)}</div></td>
+                        <td><div class="earn-net-inline ${pnlClass}">${pnlDisplay}</div>${annualDisplay}</td>
                     </tr>`;
 
                     const detailRow = `<tr class="earn-lend-detail" id="earn-lend-detail-${i}">
-                        <td colspan="6">
+                        <td colspan="4">
                             <div class="earn-lend-detail-inner">
                                 <div class="earn-lend-section">
                                     <div class="earn-lend-section-title earn">Collateral Earnings</div>
