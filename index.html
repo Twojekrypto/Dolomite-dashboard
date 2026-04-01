@@ -6388,27 +6388,11 @@
             font-variant-numeric: tabular-nums;
             cursor: default;
         }
-        .earn-hf-badge:has(.earn-hf-status-tag) {
-            flex-wrap: nowrap;
-        }
-
         .earn-hf-dot {
             width: 6px;
             height: 6px;
             border-radius: 50%;
             flex-shrink: 0;
-        }
-
-        /* Risk status tag — inline label after HF number */
-        .earn-hf-status-tag {
-            display: inline;
-            font-size: 8px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            margin-left: 4px;
-            opacity: 0.7;
-            line-height: 1;
-            text-transform: uppercase;
         }
 
         .earn-hf-badge.strong {
@@ -22638,27 +22622,12 @@
 
                 const chevronSvg = '<svg class="earn-lend-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
 
-                // Risk status labels (matching liq-monitor filter design)
-                const RISK_STATUS_LABELS = {
-                    'baddebt':     'BAD DEBT',
-                    'full-liq':    'LIQ',
-                    'partial-liq': 'PARTIAL',
-                    'danger':      'DANGER',
-                    'low-buffer':  'LOW',
-                    'moderate':    'MODERATE',
-                    'balanced':    'BALANCED',
-                    'good':        'GOOD',
-                    'strong':      'STRONG',
-                };
-
                 tbody.innerHTML = positions.map((p, i) => {
                     const riskClass = earn_getRiskClass(p);
                     const hfDecimals = ['good', 'strong', 'balanced'].includes(riskClass) ? 2 : 4;
                     const hfText = p.healthFactor !== null
                         ? (p.healthFactor > 10 ? '10<' : p.healthFactor.toFixed(hfDecimals))
                         : '—';
-                    const statusLabel = RISK_STATUS_LABELS[riskClass] || '';
-                    const statusTag = statusLabel ? `<span class="earn-hf-status-tag">${statusLabel}</span>` : '';
 
                     const emodeCell = p.eMode
                         ? `<span class="earn-emode-badge" title="E-Mode — correlated assets use tighter liquidation ratios">${FLAME_SVG}E-Mode</span>`
@@ -22719,7 +22688,7 @@
                         : '';
 
                     const dataRow = `<tr class="earn-lend-row risk-${riskClass}" data-idx="${i}" onclick="earn_toggleLendDetail(${i})" style="animation-delay:${i * 0.08}s">
-                        <td><span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}${statusTag}</span>${ageBadge}${chevronSvg}</td>
+                        <td><span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span>${ageBadge}${chevronSvg}</td>
                         <td style="text-align:center">${emodeCell}</td>
                         <td><span class="earn-usd-collateral">${collateralDisplay}</span></td>
                         <td><span class="earn-usd-debt">${earn_formatUSD(p.debtUSD)}</span></td>
