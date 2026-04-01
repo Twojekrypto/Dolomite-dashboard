@@ -7949,6 +7949,51 @@
             display: block;
             animation: earnFadeIn 0.4s ease;
         }
+        /* ═══════ Supply Assets — Section Header & Card ═══════ */
+        .earn-supply-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #34d399;
+            padding: 14px 20px 10px;
+            letter-spacing: 0.3px;
+            background: linear-gradient(90deg, rgba(52, 211, 153, 0.06) 0%, rgba(52, 211, 153, 0.02) 40%, transparent 100%);
+            border-radius: 12px 12px 0 0;
+            position: relative;
+        }
+        .earn-supply-header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 20px;
+            right: 20px;
+            height: 1px;
+            background: linear-gradient(90deg, rgba(52, 211, 153, 0.2), rgba(52, 211, 153, 0.05), transparent);
+        }
+        .earn-supply-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            border-radius: 9px;
+            background: rgba(52, 211, 153, 0.12);
+            color: #34d399;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        #earn-supply-section {
+            border-radius: 14px;
+            background: rgba(52, 211, 153, 0.015);
+            border: 1px solid rgba(52, 211, 153, 0.06);
+            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+            overflow: hidden;
+        }
 
         .earn-asset-table {
             width: 100%;
@@ -7959,19 +8004,29 @@
 
         .earn-asset-table thead th {
             background: rgba(10, 16, 30, 0.95);
-            padding: 14px 18px;
+            padding: 10px 18px;
             font-size: 10px;
-            font-weight: 700;
-            color: rgba(148, 163, 184, 0.7);
+            font-weight: 600;
+            color: rgba(148, 163, 184, 0.6);
             text-transform: uppercase;
-            letter-spacing: 1.6px;
+            letter-spacing: 1px;
             text-align: left;
-            border-bottom: 2px solid rgba(52, 211, 153, 0.15);
+            border-bottom: none;
             white-space: nowrap;
             position: sticky;
             top: 0;
             z-index: 2;
+            -webkit-backdrop-filter: blur(12px);
             backdrop-filter: blur(12px);
+        }
+
+        .earn-asset-table thead tr {
+            border-bottom: 1px solid transparent;
+            background-image: linear-gradient(rgba(52,211,153,0.04), rgba(52,211,153,0.04)),
+                              linear-gradient(90deg, rgba(52, 211, 153, 0.15), rgba(52, 211, 153, 0.04), transparent);
+            background-size: 100% 100%, calc(100% - 40px) 1px;
+            background-position: 0 0, 20px 100%;
+            background-repeat: no-repeat;
         }
 
         .earn-asset-table thead th:first-child {
@@ -8039,10 +8094,11 @@
 
 
         .earn-asset-table tbody td {
-            padding: 6px 18px;
+            padding: 10px 18px;
             font-size: 13px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            border-bottom: 1px solid rgba(52, 211, 153, 0.04);
             vertical-align: middle;
+            transition: background 0.25s ease, box-shadow 0.25s ease;
         }
 
         .earn-asset-table tbody td:first-child {
@@ -8065,12 +8121,12 @@
             cursor: pointer;
         }
 
-        .earn-asset-table tbody tr.earn-data-row:nth-child(even) {
-            background: rgba(255, 255, 255, 0.015);
+        .earn-asset-table tbody tr.earn-data-row:nth-child(even) td {
+            background: rgba(255, 255, 255, 0.012);
         }
 
-        .earn-asset-table tbody tr.earn-data-row:hover {
-            background: rgba(52, 211, 153, 0.04);
+        .earn-asset-table tbody tr.earn-data-row:hover td {
+            background: rgba(52, 211, 153, 0.045);
         }
 
         .earn-asset-table tbody tr.earn-data-row:hover td:first-child {
@@ -8160,7 +8216,7 @@
 
         /* Staggered row entrance */
         .earn-asset-table tbody tr.earn-data-row {
-            animation: earnRowSlideIn 0.5s ease both;
+            animation: earnLendFadeIn 0.45s ease both;
         }
 
         .earn-asset-table.no-animate tbody tr.earn-data-row {
@@ -12459,6 +12515,15 @@
                 </div>
 
                 <div class="table-section" id="earn-supply-section">
+                    <div class="earn-supply-header">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                            <polyline points="17 6 23 6 23 12" />
+                        </svg>
+                        <span>Supply Assets</span>
+                        <span class="earn-supply-count" id="earn-supply-count"></span>
+                    </div>
                     <div class="table-scroll">
                         <table class="earn-asset-table">
                             <colgroup>
@@ -23327,6 +23392,8 @@
             } else {
                 if (supplySection) supplySection.style.display = '';
                 if (filterBarEl) filterBarEl.style.display = '';
+                const supplyCountEl = document.getElementById('earn-supply-count');
+                if (supplyCountEl) supplyCountEl.textContent = supplyAssets.length;
             }
 
             supplyAssets.forEach((a, idx) => {
