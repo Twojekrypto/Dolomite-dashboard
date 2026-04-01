@@ -6228,7 +6228,7 @@
 
         /* ═══════ Section separators ═══════ */
         #earn-lending-section {
-            border-top: 1px solid rgba(255, 255, 255, 0.04);
+            border-top: none;
             padding-top: 8px;
         }
 
@@ -6245,8 +6245,20 @@
             font-size: 13px;
             font-weight: 600;
             color: #f87171;
-            padding: 12px 16px 8px;
+            padding: 14px 20px 10px;
             letter-spacing: 0.3px;
+            background: linear-gradient(90deg, rgba(248, 113, 113, 0.06) 0%, rgba(248, 113, 113, 0.02) 40%, transparent 100%);
+            border-radius: 12px 12px 0 0;
+            position: relative;
+        }
+        .earn-lending-header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 20px;
+            right: 20px;
+            height: 1px;
+            background: linear-gradient(90deg, rgba(248, 113, 113, 0.2), rgba(248, 113, 113, 0.05), transparent);
         }
 
         .earn-lending-count {
@@ -6263,15 +6275,39 @@
             font-weight: 700;
         }
 
+        /* Glassmorphism card wrapper */
+        .earn-table-scroll {
+            border-radius: 0 0 12px 12px;
+        }
+
+        #earn-lending-section {
+            border-radius: 14px;
+            background: rgba(248, 113, 113, 0.015);
+            border: 1px solid rgba(248, 113, 113, 0.06);
+            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+            overflow: hidden;
+        }
+
         .earn-lending-table thead th {
-            padding: 8px 12px;
+            padding: 10px 12px 10px;
             font-size: 10px;
             text-transform: uppercase;
-            letter-spacing: 0.8px;
-            color: rgba(255, 255, 255, 0.4);
+            letter-spacing: 1px;
+            color: rgba(255, 255, 255, 0.35);
             font-weight: 600;
-            border-bottom: 1px solid rgba(248, 113, 113, 0.1);
+            border-bottom: none;
             white-space: nowrap;
+            position: relative;
+        }
+
+        .earn-lending-table thead tr {
+            border-bottom: 1px solid transparent;
+            background-image: linear-gradient(rgba(248,113,113,0.04), rgba(248,113,113,0.04)),
+                              linear-gradient(90deg, rgba(248, 113, 113, 0.15), rgba(248, 113, 113, 0.04), transparent);
+            background-size: 100% 100%, calc(100% - 40px) 1px;
+            background-position: 0 0, 20px 100%;
+            background-repeat: no-repeat;
         }
 
         .earn-lending-table {
@@ -6293,8 +6329,8 @@
         }
 
         .earn-lending-table tbody td {
-            padding: 10px 12px;
-            border-bottom: 1px solid rgba(248, 113, 113, 0.06);
+            padding: 12px 12px;
+            border-bottom: 1px solid rgba(248, 113, 113, 0.04);
             vertical-align: middle;
             font-size: 13px;
             transition: background 0.25s ease, box-shadow 0.25s ease;
@@ -6302,7 +6338,7 @@
 
         .earn-lending-table thead th:first-child,
         .earn-lending-table tbody td:first-child {
-            padding-left: 4px;
+            padding-left: 16px;
         }
 
         .earn-lending-table thead th:last-child,
@@ -6310,14 +6346,9 @@
             padding-right: 24px;
         }
 
-        /* Even/odd row striping (matching supply table) */
-        .earn-lending-table tbody tr.earn-lend-row:nth-child(4n+3) {
-            background: rgba(255, 255, 255, 0.015);
-        }
-
-        /* Hover: neutral bg (no color bleed on data) */
-        .earn-lending-table tbody tr.earn-lend-row:hover td {
-            background: rgba(255, 255, 255, 0.03);
+        /* Alternating row tint */
+        .earn-lending-table tbody tr.earn-lend-row:nth-child(4n+1) td {
+            background: rgba(255, 255, 255, 0.012);
         }
 
         /* Risk-level accent bars (matching Liquidation Risk Monitor colors) */
@@ -6371,9 +6402,13 @@
             background: rgba(255, 255, 255, 0.025);
         }
 
-        /* Staggered slide-in animation (matching supply table timing) */
+        /* Staggered fadeInUp animation */
         .earn-lending-table tbody tr.earn-lend-row {
-            animation: earnRowSlideIn 0.5s ease both;
+            animation: earnLendFadeIn 0.45s ease both;
+        }
+        @keyframes earnLendFadeIn {
+            0% { opacity: 0; transform: translateY(8px); }
+            100% { opacity: 1; transform: translateY(0); }
         }
 
         /* HF Badge */
