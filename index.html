@@ -23386,10 +23386,12 @@
             let html = '';
 
             // Check if ANY supply asset has yield data — if not, hide yield column
+            // Note: don't exclude borrow markets here — borrow market filter only matters
+            // for which yield CALCULATION method to use (netflow vs snapshot), not for
+            // whether yield data EXISTS. Column visibility should be independent.
             const hasAnyYield = supplyAssets.some(a => {
                 const mid = String(a.marketId);
-                const isBM = earn_borrowMarkets && earn_borrowMarkets.has(mid);
-                const hasNF = !isBM && earn_netflowData && earn_netflowData[mid] !== undefined;
+                const hasNF = earn_netflowData && earn_netflowData[mid] !== undefined;
                 const h = earn_totalYieldData && earn_totalYieldData[mid];
                 const hasSS = h && h.cumulativeYield !== undefined;
                 return hasNF || hasSS;
@@ -23408,20 +23410,27 @@
             }
 
             supplyAssets.forEach((a, idx) => {
-                // Total yield calculation — prefer snapshot (reliable) > netflow (exact but polluted by borrows)
+                // Total yield calculation
+                // Priority: Non-borrow → netflow (exact) > snapshot > dash
+                //           Borrow     → snapshot (accurate) > netflow (approximate) > dash
                 const mid = String(a.marketId);
                 let yieldCellHtml;
 
-                // Borrow markets have swap deltas that pollute netflow — use snapshot instead
+                // Borrow markets have swap deltas that can pollute netflow — prefer snapshot
                 const isBorrowMarket = earn_borrowMarkets && earn_borrowMarkets.has(mid);
 
-                // Method 1: NetFlow-based (exact: yield = currentWei - netFlow) — skip for borrow markets
-                const hasNetflow = !isBorrowMarket && earn_netflowData && earn_netflowData[mid] !== undefined;
+                // Method 1: NetFlow-based (exact: yield = currentWei - netFlow)
+                const hasNetflowData = earn_netflowData && earn_netflowData[mid] !== undefined;
                 // Method 2: Snapshot-based (pairwise index-based) — always reliable
                 const hist = earn_totalYieldData && earn_totalYieldData[mid];
                 const hasSnapshotData = hist && hist.cumulativeYield !== undefined;
 
-                if (hasNetflow) {
+                // For non-borrow markets: netflow first (most accurate)
+                // For borrow markets: snapshot first, netflow as fallback (better than dash)
+                const useNetflow = hasNetflowData && (!isBorrowMarket || !hasSnapshotData);
+                const useSnapshot = hasSnapshotData && !useNetflow;
+
+                if (useNetflow) {
                     const flowData = earn_netflowData[mid];
                     const netFlow = typeof flowData === 'string' ? BigInt(flowData) : BigInt(flowData.t || '0');
                     const totalYieldRaw = a.wei - netFlow;
@@ -23435,7 +23444,7 @@
                     const yieldUsd = yieldNum * (earn_priceCache[document.getElementById('earn-chain').value + ':' + a.tokenAddr.toLowerCase()] || TOKEN_USD_FALLBACK[a.symbol] || 0);
                     const yieldUsdStr = Math.abs(yieldUsd) >= 0.01 ? `<div class="earn-usd-sub" style="color:${yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">${yieldSign}$${Math.abs(yieldUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>` : '';
                     yieldCellHtml = `<span class="earn-amount ${yieldColor}">${yieldSign + yieldFmt}<span class="earn-amount-sym">${a.symbol}</span></span>${yieldUsdStr}`;
-                } else if (hasSnapshotData) {
+                } else if (useSnapshot) {
                     let totalYield = BigInt(hist.cumulativeYield);
 
                     // Add live yield from last snapshot → current RPC data
@@ -23664,12 +23673,19 @@
                         const priceKey = chainId + ':' + a.tokenAddr.toLowerCase();
                         const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[a.symbol] || 0;
 
-                        // Method 1: NetFlow-based yield (same logic as table rows)
-                        // Skip borrow-affected markets for netflow (swap deltas pollute it)
+                        // Yield calculation — same priority as table rows:
+                        // Non-borrow: netflow (exact) > snapshot > skip
+                        // Borrow: snapshot (accurate) > netflow (approximate) > skip
                         const isBorrowMkt = earn_borrowMarkets && earn_borrowMarkets.has(mid);
-                        const nf = !isBorrowMkt && earn_netflowData && earn_netflowData[mid];
-                        if (nf !== undefined && !isBorrowMkt) {
+                        const hasNF = earn_netflowData && earn_netflowData[mid] !== undefined;
+                        const histS = earn_totalYieldData && earn_totalYieldData[mid];
+                        const hasSS = histS && histS.cumulativeYield !== undefined;
+                        const useNF = hasNF && (!isBorrowMkt || !hasSS);
+                        const useSS = hasSS && !useNF;
+
+                        if (useNF) {
                             try {
+                                const nf = earn_netflowData[mid];
                                 const netFlow = typeof nf === 'string' ? BigInt(nf) : BigInt(nf.t || '0');
                                 const weiBI = typeof a.wei === 'bigint' ? a.wei : BigInt(a.wei || '0');
                                 const yieldWeiRaw = weiBI - netFlow;
@@ -23680,17 +23696,13 @@
                                 totalYieldUsd += yUsd;
                                 if (yUsd > bestYieldUsd) { bestYieldUsd = yUsd; bestSymbol = a.symbol; }
                             } catch (e) { /* skip */ }
-                        } else {
-                            // Method 2: Snapshot-based yield fallback
-                            const hist = earn_totalYieldData && earn_totalYieldData[mid];
-                            if (hist && hist.cumulativeYield !== undefined) {
-                                try {
-                                    const yieldNum = Number(BigInt(hist.cumulativeYield)) / (10 ** a.decimals);
-                                    const yUsd = yieldNum * price;
-                                    totalYieldUsd += yUsd;
-                                    if (yUsd > bestYieldUsd) { bestYieldUsd = yUsd; bestSymbol = a.symbol; }
-                                } catch (e) { /* skip */ }
-                            }
+                        } else if (useSS) {
+                            try {
+                                const yieldNum = Number(BigInt(histS.cumulativeYield)) / (10 ** a.decimals);
+                                const yUsd = yieldNum * price;
+                                totalYieldUsd += yUsd;
+                                if (yUsd > bestYieldUsd) { bestYieldUsd = yUsd; bestSymbol = a.symbol; }
+                            } catch (e) { /* skip */ }
                         }
                     });
 
