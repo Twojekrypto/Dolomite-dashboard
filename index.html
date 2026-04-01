@@ -6584,10 +6584,23 @@
             background: rgba(248, 113, 113, 0.045);
         }
         .earn-lending-table tbody tr.earn-lend-row:hover td:first-child {
-            box-shadow: inset 3px 0 0 rgba(248, 113, 113, 0.5);
+            box-shadow: inset 3px 0 0 #f87171;
         }
         .earn-lending-table tbody tr.earn-lend-row.open td {
             background: rgba(248, 113, 113, 0.04);
+        }
+        .earn-lending-table tbody tr.earn-lend-row:last-of-type td {
+            border-bottom: none;
+        }
+        .earn-lending-table tbody tr.earn-lend-row:last-of-type td:first-child {
+            border-radius: 0 0 0 14px;
+        }
+        .earn-lending-table tbody tr.earn-lend-row:last-of-type td:last-child {
+            border-radius: 0 0 14px 0;
+        }
+        .earn-lending-table tbody tr.earn-lend-row:last-of-type:hover td:first-child {
+            box-shadow: inset 3px 0 0 #f87171;
+            border-radius: 0 0 0 14px;
         }
 
         /* Chevron */
@@ -7505,11 +7518,7 @@
 
         /* ═══════ Filter Bar ═══════ */
         .earn-filter-bar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 8px 4px;
-            margin-bottom: 8px;
+            display: none;
         }
 
         .earn-filter-left {
@@ -7985,6 +7994,12 @@
             font-size: 10px;
             font-weight: 700;
         }
+        .earn-supply-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+        }
 
         #earn-supply-section {
             border-radius: 14px;
@@ -8003,7 +8018,7 @@
         }
 
         .earn-asset-table thead th {
-            background: rgba(10, 16, 30, 0.95);
+            background: rgba(52, 211, 153, 0.03);
             padding: 10px 18px;
             font-size: 10px;
             font-weight: 600;
@@ -12495,24 +12510,7 @@
                 <div class="earn-summary-card" id="earn-summary-card"></div>
 
                 <!-- Controls bar between summary card and table -->
-                <div class="earn-filter-bar" id="earn-filter-bar" style="display:none">
-                    <div class="earn-filter-left"></div>
-                    <div class="earn-filter-right">
-                        <div style="display:flex;align-items:center;gap:8px">
-                            <button type="button" class="earn-filter-pill" id="earn-dust-toggle"
-                                onclick="earn_toggleDust()" title="Hide dust positions (< $1 balance & yield)">
-                                <span class="earn-toggle-dot"></span>
-                                <span class="earn-filter-label">Hide Dust</span>
-                                <span class="earn-dust-count">0</span>
-                            </button>
-
-                            <div class="apr-pill" id="earn-apr-pill" onclick="earn_toggleAprApy()">
-                                <span class="apr-pill-opt active" id="earn-apr-opt">APR</span>
-                                <span class="apr-pill-opt" id="earn-apy-opt">APY</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <!-- Controls now inline in Supply Assets header -->
 
                 <div class="table-section" id="earn-supply-section">
                     <div class="earn-supply-header">
@@ -12523,6 +12521,18 @@
                         </svg>
                         <span>Supply Assets</span>
                         <span class="earn-supply-count" id="earn-supply-count"></span>
+                        <div class="earn-supply-controls">
+                            <button type="button" class="earn-filter-pill" id="earn-dust-toggle"
+                                onclick="earn_toggleDust()" title="Hide dust positions (< $1 balance & yield)">
+                                <span class="earn-toggle-dot"></span>
+                                <span class="earn-filter-label">Hide Dust</span>
+                                <span class="earn-dust-count">0</span>
+                            </button>
+                            <div class="apr-pill" id="earn-apr-pill" onclick="earn_toggleAprApy()">
+                                <span class="apr-pill-opt active" id="earn-apr-opt">APR</span>
+                                <span class="apr-pill-opt" id="earn-apy-opt">APY</span>
+                            </div>
+                        </div>
                     </div>
                     <div class="table-scroll">
                         <table class="earn-asset-table">
@@ -23383,15 +23393,12 @@
             const table = document.querySelector('.earn-asset-table:not(.earn-past-table)');
             if (table) table.classList.toggle('no-yield', !hasAnyYield);
 
-            // Hide entire supply table section + filter bar when address has no active supply positions
+            // Hide entire supply table section when address has no active supply positions
             const supplySection = document.getElementById('earn-supply-section');
-            const filterBarEl = document.getElementById('earn-filter-bar');
             if (supplyAssets.length === 0) {
                 if (supplySection) supplySection.style.display = 'none';
-                if (filterBarEl) filterBarEl.style.display = 'none';
             } else {
                 if (supplySection) supplySection.style.display = '';
-                if (filterBarEl) filterBarEl.style.display = '';
                 const supplyCountEl = document.getElementById('earn-supply-count');
                 if (supplyCountEl) supplyCountEl.textContent = supplyAssets.length;
             }
