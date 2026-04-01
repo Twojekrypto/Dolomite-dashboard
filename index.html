@@ -20896,18 +20896,11 @@
 
                     // Guard: If withdrawals exceed deposits, the excess was funded by borrowing.
                     // The netflow formula sees borrows as negative flow → produces false positive yield.
-                    // For inactive positions (withdrawn), cap yield: it can never exceed a small
-                    // fraction of deposits (real lending yield is typically <20% annually).
                     if (hasBreakdown && totalWithdrawn > totalDeposited) {
                         // Withdrawals exceed deposits → borrow-funded. Zero out unreliable yield.
                         yieldWeiRaw = 0n;
                     }
-                    // Also clamp if borrow flows are present and yield seems unreasonably large
-                    if (totalBorrowed > 0n && yieldWeiRaw > totalDeposited / 10n) {
-                        yieldWeiRaw = 0n;
-                    }
-                    // Negative yield after the borrow-guard checks above is a genuine loss
-                    // (e.g., liquidation penalty, unfavorable swap on account 0)
+                    // Negative yield is a genuine loss (liquidation penalty, unfavorable swap)
                     const yieldWei = yieldWeiRaw;
 
                     // Resolve token info — prioritize hardcoded map over RPC
@@ -21641,33 +21634,58 @@
             try {
                 console.log(`Subgraph: fetching yield data for ${addr} on ${chainId}...`);
 
-                // Helper to accumulate flow into netflow object
-                const netflows = {};
+                // Parse decimal string (e.g. "3452.742715") to BigInt wei
+                // given token decimals. Preserves full precision — no parseFloat.
+                function decStrToBigInt(str, dec) {
+                    if (!str || str === '0') return 0n;
+                    const neg = str.startsWith('-');
+                    let s = neg ? str.slice(1) : str;
+                    const dotIdx = s.indexOf('.');
+                    let whole, frac;
+                    if (dotIdx === -1) {
+                        whole = s; frac = '';
+                    } else {
+                        whole = s.slice(0, dotIdx);
+                        frac = s.slice(dotIdx + 1);
+                    }
+                    // Pad or truncate frac to exactly `dec` digits
+                    if (frac.length < dec) frac = frac.padEnd(dec, '0');
+                    else frac = frac.slice(0, dec);
+                    const raw = BigInt(whole + frac);
+                    return neg ? -raw : raw;
+                }
+
+                // Helper to accumulate flow into netflow object — all BigInt, zero precision loss
+                const netflows = {};  // { mid: { t: 0n, d: 0n, w: 0n, s: 0n, x: 0n, l: 0n, b: 0n, v: 0n } }
                 // Account-0-only netflow for accurate borrow-market supply yield
-                // (all-account netflow is polluted by borrow/swap flows on sub-accounts)
-                const acct0Netflows = {};
-                function addFlow(marketId, deltaWeiStr, flowType) {
+                const acct0Netflows = {};  // { mid: 0n }
+                // Map to store decimals per market (populated during flow processing)
+                const marketDecimals = {};
+                function addFlow(marketId, deltaStr, flowType, dec) {
                     const mid = String(marketId);
-                    if (!netflows[mid]) netflows[mid] = { t: '0', d: '0', w: '0', s: '0', x: '0', l: '0', b: '0' };
-                    const deltaFloat = parseFloat(deltaWeiStr || '0');
-                    if (deltaFloat === 0) return;
-                    const old_t = parseFloat(netflows[mid].t);
-                    const old_ft = parseFloat(netflows[mid][flowType]);
-                    netflows[mid].t = String(old_t + deltaFloat);
-                    netflows[mid][flowType] = String(old_ft + Math.abs(deltaFloat));
+                    if (dec !== undefined) marketDecimals[mid] = dec;
+                    const d = marketDecimals[mid] || 18;
+                    if (!netflows[mid]) netflows[mid] = { t: 0n, d: 0n, w: 0n, s: 0n, x: 0n, l: 0n, b: 0n, v: 0n };
+                    const delta = decStrToBigInt(deltaStr || '0', d);
+                    if (delta === 0n) return;
+                    netflows[mid].t += delta;
+                    const absDelta = delta < 0n ? -delta : delta;
+                    netflows[mid][flowType] += absDelta;
                 }
                 // Separate tracker for account-0 flows only
-                function addAcct0Flow(marketId, deltaWeiStr) {
+                function addAcct0Flow(marketId, deltaStr, dec) {
                     const mid = String(marketId);
-                    if (!acct0Netflows[mid]) acct0Netflows[mid] = '0';
-                    const deltaFloat = parseFloat(deltaWeiStr || '0');
-                    if (deltaFloat === 0) return;
-                    acct0Netflows[mid] = String(parseFloat(acct0Netflows[mid]) + deltaFloat);
+                    if (dec !== undefined) marketDecimals[mid] = dec;
+                    const d = marketDecimals[mid] || 18;
+                    if (!acct0Netflows[mid]) acct0Netflows[mid] = 0n;
+                    const delta = decStrToBigInt(deltaStr || '0', d);
+                    if (delta === 0n) return;
+                    acct0Netflows[mid] += delta;
                 }
 
                 // ═══ PARALLEL SUBGRAPH FETCHES ═══
                 // Fire ALL queries simultaneously instead of sequentially (~20s → ~3-5s)
-                const [deposits, withdrawals, takerTrades, makerTrades, transfersFrom, transfersTo, liqsSolid, liqsLiquid, borrowPositions, allTransfers] = await Promise.all([
+                const results = await Promise.all([
                     // 1. Deposits (with account number for acct0 tracking)
                     earn_subgraphPaginateAll(endpoint, 'deposits',
                         `{ effectiveUser: "${addr}" }`,
@@ -21718,42 +21736,56 @@
                         `{ fromEffectiveUser: "${addr}" }`,
                         'token { marketId } amountDeltaWei fromMarginAccount { accountNumber } toMarginAccount { accountNumber }'
                     ),
+                    // 11. Vaporizations (solid — user absorbs debt, receives collateral)
+                    earn_subgraphPaginateAll(endpoint, 'vaporizations',
+                        `{ solidEffectiveUser: "${addr}" }`,
+                        'heldToken { marketId } borrowedToken { marketId } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei solidMarginAccount { accountNumber }'
+                    ),
+                    // 12. Vaporizations (vapor — user's debt gets vaporized)
+                    earn_subgraphPaginateAll(endpoint, 'vaporizations',
+                        `{ vaporEffectiveUser: "${addr}" }`,
+                        'heldToken { marketId } borrowedToken { marketId } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei vaporMarginAccount { accountNumber }'
+                    ),
                 ]);
 
-                // ═══ PROCESS RESULTS (same logic, just uses the parallel results) ═══
+                const [deposits, withdrawals, takerTrades, makerTrades, transfersFrom, transfersTo, liqsSolid, liqsLiquid, borrowPositions, allTransfers, vapSolid, vapVapor] = results;
+
+                // ═══ PROCESS RESULTS — all BigInt, zero precision loss ═══
+                // Helper: negate a decimal string ("3.5" → "-3.5")
+                function negStr(s) { return (!s || s === '0') ? '0' : s.startsWith('-') ? s.slice(1) : '-' + s; }
+
                 for (const dep of deposits) {
-                    addFlow(dep.token.marketId, dep.amountDeltaWei, 'd');
-                    // Track account-0-only flows for borrow-market yield
+                    const dec = parseInt(dep.token.decimals) || 18;
+                    addFlow(dep.token.marketId, dep.amountDeltaWei, 'd', dec);
                     if (dep.marginAccount && dep.marginAccount.accountNumber === '0') {
-                        addAcct0Flow(dep.token.marketId, dep.amountDeltaWei);
+                        addAcct0Flow(dep.token.marketId, dep.amountDeltaWei, dec);
                     }
                 }
                 for (const w of withdrawals) {
-                    addFlow(w.token.marketId, String(-Math.abs(parseFloat(w.amountDeltaWei))), 'w');
+                    const dec = parseInt(w.token.decimals) || 18;
+                    addFlow(w.token.marketId, negStr(w.amountDeltaWei), 'w', dec);
                     if (w.marginAccount && w.marginAccount.accountNumber === '0') {
-                        addAcct0Flow(w.token.marketId, String(-Math.abs(parseFloat(w.amountDeltaWei))));
+                        addAcct0Flow(w.token.marketId, negStr(w.amountDeltaWei), dec);
                     }
                 }
                 for (const t of takerTrades) {
-                    addFlow(t.takerToken.marketId, String(-Math.abs(parseFloat(t.takerTokenDeltaWei))), 's');
+                    addFlow(t.takerToken.marketId, negStr(t.takerTokenDeltaWei), 's');
                     addFlow(t.makerToken.marketId, t.makerTokenDeltaWei, 's');
-                    // Track trades on account 0 for borrow-market yield
                     if (t.takerMarginAccount && t.takerMarginAccount.accountNumber === '0') {
-                        addAcct0Flow(t.takerToken.marketId, String(-Math.abs(parseFloat(t.takerTokenDeltaWei))));
+                        addAcct0Flow(t.takerToken.marketId, negStr(t.takerTokenDeltaWei));
                         addAcct0Flow(t.makerToken.marketId, t.makerTokenDeltaWei);
                     }
                 }
                 for (const t of makerTrades) {
-                    addFlow(t.makerToken.marketId, String(-Math.abs(parseFloat(t.makerTokenDeltaWei))), 's');
+                    addFlow(t.makerToken.marketId, negStr(t.makerTokenDeltaWei), 's');
                     addFlow(t.takerToken.marketId, t.takerTokenDeltaWei, 's');
-                    // Track trades on account 0 for borrow-market yield
                     if (t.makerMarginAccount && t.makerMarginAccount.accountNumber === '0') {
-                        addAcct0Flow(t.makerToken.marketId, String(-Math.abs(parseFloat(t.makerTokenDeltaWei))));
+                        addAcct0Flow(t.makerToken.marketId, negStr(t.makerTokenDeltaWei));
                         addAcct0Flow(t.takerToken.marketId, t.takerTokenDeltaWei);
                     }
                 }
                 for (const xf of transfersFrom) {
-                    addFlow(xf.token.marketId, String(-Math.abs(parseFloat(xf.amountDeltaWei))), 'x');
+                    addFlow(xf.token.marketId, negStr(xf.amountDeltaWei), 'x');
                 }
                 for (const xf of transfersTo) {
                     addFlow(xf.token.marketId, xf.amountDeltaWei, 'x');
@@ -21762,30 +21794,40 @@
                 for (const xf of (allTransfers || [])) {
                     const fromAcct = xf.fromMarginAccount && xf.fromMarginAccount.accountNumber;
                     const toAcct = xf.toMarginAccount && xf.toMarginAccount.accountNumber;
-                    const amt = Math.abs(parseFloat(xf.amountDeltaWei || '0'));
-                    if (fromAcct === '0') {
-                        addAcct0Flow(xf.token.marketId, String(-amt)); // leaving acct 0
-                    }
-                    if (toAcct === '0') {
-                        addAcct0Flow(xf.token.marketId, String(amt));  // arriving at acct 0
-                    }
+                    if (fromAcct === '0') addAcct0Flow(xf.token.marketId, negStr(xf.amountDeltaWei));
+                    if (toAcct === '0')   addAcct0Flow(xf.token.marketId, xf.amountDeltaWei);
                 }
                 for (const liq of liqsSolid) {
                     addFlow(liq.heldToken.marketId, liq.heldTokenAmountDeltaWei, 'l');
                     addFlow(liq.borrowedToken.marketId, liq.borrowedTokenAmountDeltaWei, 'l');
-                    // Track liquidations on account 0
                     if (liq.solidMarginAccount && liq.solidMarginAccount.accountNumber === '0') {
                         addAcct0Flow(liq.heldToken.marketId, liq.heldTokenAmountDeltaWei);
                         addAcct0Flow(liq.borrowedToken.marketId, liq.borrowedTokenAmountDeltaWei);
                     }
                 }
                 for (const liq of liqsLiquid) {
-                    addFlow(liq.heldToken.marketId, String(-parseFloat(liq.heldTokenAmountDeltaWei)), 'l');
-                    addFlow(liq.borrowedToken.marketId, String(-parseFloat(liq.borrowedTokenAmountDeltaWei)), 'l');
-                    // Track liquidations on account 0
+                    addFlow(liq.heldToken.marketId, negStr(liq.heldTokenAmountDeltaWei), 'l');
+                    addFlow(liq.borrowedToken.marketId, negStr(liq.borrowedTokenAmountDeltaWei), 'l');
                     if (liq.liquidMarginAccount && liq.liquidMarginAccount.accountNumber === '0') {
-                        addAcct0Flow(liq.heldToken.marketId, String(-parseFloat(liq.heldTokenAmountDeltaWei)));
-                        addAcct0Flow(liq.borrowedToken.marketId, String(-parseFloat(liq.borrowedTokenAmountDeltaWei)));
+                        addAcct0Flow(liq.heldToken.marketId, negStr(liq.heldTokenAmountDeltaWei));
+                        addAcct0Flow(liq.borrowedToken.marketId, negStr(liq.borrowedTokenAmountDeltaWei));
+                    }
+                }
+                // 11+12. Vaporizations — same structure as liquidations
+                for (const vap of (vapSolid || [])) {
+                    addFlow(vap.heldToken.marketId, vap.heldTokenAmountDeltaWei, 'v');
+                    addFlow(vap.borrowedToken.marketId, vap.borrowedTokenAmountDeltaWei, 'v');
+                    if (vap.solidMarginAccount && vap.solidMarginAccount.accountNumber === '0') {
+                        addAcct0Flow(vap.heldToken.marketId, vap.heldTokenAmountDeltaWei);
+                        addAcct0Flow(vap.borrowedToken.marketId, vap.borrowedTokenAmountDeltaWei);
+                    }
+                }
+                for (const vap of (vapVapor || [])) {
+                    addFlow(vap.heldToken.marketId, negStr(vap.heldTokenAmountDeltaWei), 'v');
+                    addFlow(vap.borrowedToken.marketId, negStr(vap.borrowedTokenAmountDeltaWei), 'v');
+                    if (vap.vaporMarginAccount && vap.vaporMarginAccount.accountNumber === '0') {
+                        addAcct0Flow(vap.heldToken.marketId, negStr(vap.heldTokenAmountDeltaWei));
+                        addAcct0Flow(vap.borrowedToken.marketId, negStr(vap.borrowedTokenAmountDeltaWei));
                     }
                 }
                 let borrowCount = 0;
@@ -21795,7 +21837,7 @@
                     for (const amt of (bp.amounts || [])) {
                         const borrowPar = parseFloat(amt.amountPar || '0');
                         if (borrowPar > 0) {
-                            addFlow(amt.token.marketId, String(-borrowPar), 'b');
+                            addFlow(amt.token.marketId, negStr(amt.amountPar), 'b');
                             earn_borrowMarkets.add(String(amt.token.marketId));
                             borrowCount++;
                         }
@@ -21806,16 +21848,14 @@
                 // Build borrow position data after tokens are resolved (need decimals)
                 // We'll finalize earn_borrowPositionData after the token query below
 
-                // Now convert the float-based netflows to wei BigInt strings
-                // Query token decimals from subgraph
+                // Netflows are already in BigInt (wei) — now query token metadata and serialize
                 const allMarketIds = Object.keys(netflows);
                 if (allMarketIds.length > 0) {
                     const tokensData = await earn_subgraphQuery(endpoint,
                         `{ tokens(first: 100, where: { marketId_in: [${allMarketIds.map(m => `"${m}"`).join(',')}] }) { id marketId symbol name decimals } }`
                     );
-                    const decimalsMap = {};
                     for (const t of (tokensData.tokens || [])) {
-                        decimalsMap[t.marketId] = parseInt(t.decimals);
+                        marketDecimals[t.marketId] = parseInt(t.decimals);
                         // Cache full token metadata for History tab
                         earn_subgraphTokens[t.marketId] = {
                             symbol: t.symbol,
@@ -21825,19 +21865,14 @@
                         };
                     }
 
-                    // Convert float amounts to wei strings
+                    // Serialize BigInt netflows to strings for storage
                     for (const mid of allMarketIds) {
-                        const dec = decimalsMap[mid] || 18;
                         const entry = netflows[mid];
-                        for (const key of ['t', 'd', 'w', 's', 'x', 'l', 'b']) {
-                            const floatVal = parseFloat(entry[key]);
-                            const weiVal = BigInt(Math.round(floatVal * (10 ** dec)));
-                            entry[key] = weiVal.toString();
+                        for (const key of ['t', 'd', 'w', 's', 'x', 'l', 'b', 'v']) {
+                            entry[key] = entry[key].toString();
                         }
-                        // Also convert acct0 netflows
                         if (acct0Netflows[mid] !== undefined) {
-                            const floatVal = parseFloat(acct0Netflows[mid]);
-                            acct0Netflows[mid] = BigInt(Math.round(floatVal * (10 ** dec))).toString();
+                            acct0Netflows[mid] = acct0Netflows[mid].toString();
                         }
                     }
                 }
