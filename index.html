@@ -21342,6 +21342,7 @@
         const SNAPSHOT_BASE = 'https://twojekrypto.github.io/vedolo-dashboard/data/earn-snapshots';
         const NETFLOW_BASE = 'https://twojekrypto.github.io/vedolo-dashboard/data/earn-netflow';
         let earn_netflowData = null; // { marketId: netFlowWei (string) } for current address+chain
+        let earn_acct0NetflowData = null; // { marketId: weiString } account-0-only supply netflow (for borrow markets)
         let earn_subgraphTokens = {}; // { marketId: { symbol, decimals, name } } — token metadata from subgraph
 
         // Snapshot manifest: { dates: [...], chains: { date: [chains] } }
@@ -21625,6 +21626,7 @@
         // yield = currentWei - netFlow → 100% accurate from first deposit
         async function earn_fetchNetflow() {
             earn_netflowData = null;
+            earn_acct0NetflowData = null;
             const chainId = document.getElementById('earn-chain').value;
             const addr = document.getElementById('earn-address').value.trim().toLowerCase();
             if (!chainId || !addr) return;
@@ -21640,32 +21642,40 @@
 
                 // Helper to accumulate flow into netflow object
                 const netflows = {};
+                // Account-0-only netflow for accurate borrow-market supply yield
+                // (all-account netflow is polluted by borrow/swap flows on sub-accounts)
+                const acct0Netflows = {};
                 function addFlow(marketId, deltaWeiStr, flowType) {
                     const mid = String(marketId);
                     if (!netflows[mid]) netflows[mid] = { t: '0', d: '0', w: '0', s: '0', x: '0', l: '0', b: '0' };
-                    // Parse as float then back to BigInt-safe string (subgraph returns decimal strings)
-                    // We need raw wei, subgraph returns human-readable amounts, so parse carefully
                     const deltaFloat = parseFloat(deltaWeiStr || '0');
                     if (deltaFloat === 0) return;
-                    // Store as BigInt-compatible by looking up decimals later; for now track floats
                     const old_t = parseFloat(netflows[mid].t);
                     const old_ft = parseFloat(netflows[mid][flowType]);
                     netflows[mid].t = String(old_t + deltaFloat);
                     netflows[mid][flowType] = String(old_ft + Math.abs(deltaFloat));
                 }
+                // Separate tracker for account-0 flows only
+                function addAcct0Flow(marketId, deltaWeiStr) {
+                    const mid = String(marketId);
+                    if (!acct0Netflows[mid]) acct0Netflows[mid] = '0';
+                    const deltaFloat = parseFloat(deltaWeiStr || '0');
+                    if (deltaFloat === 0) return;
+                    acct0Netflows[mid] = String(parseFloat(acct0Netflows[mid]) + deltaFloat);
+                }
 
                 // ═══ PARALLEL SUBGRAPH FETCHES ═══
                 // Fire ALL queries simultaneously instead of sequentially (~20s → ~3-5s)
-                const [deposits, withdrawals, takerTrades, makerTrades, transfersFrom, transfersTo, liqsSolid, liqsLiquid, borrowPositions] = await Promise.all([
-                    // 1. Deposits
+                const [deposits, withdrawals, takerTrades, makerTrades, transfersFrom, transfersTo, liqsSolid, liqsLiquid, borrowPositions, allTransfers] = await Promise.all([
+                    // 1. Deposits (with account number for acct0 tracking)
                     earn_subgraphPaginateAll(endpoint, 'deposits',
                         `{ effectiveUser: "${addr}" }`,
-                        'token { marketId decimals } amountDeltaWei'
+                        'token { marketId decimals } amountDeltaWei marginAccount { accountNumber }'
                     ),
-                    // 2. Withdrawals
+                    // 2. Withdrawals (with account number)
                     earn_subgraphPaginateAll(endpoint, 'withdrawals',
                         `{ effectiveUser: "${addr}" }`,
-                        'token { marketId decimals } amountDeltaWei'
+                        'token { marketId decimals } amountDeltaWei marginAccount { accountNumber }'
                     ),
                     // 3. Trades (taker)
                     earn_subgraphPaginateAll(endpoint, 'trades',
@@ -21677,12 +21687,12 @@
                         `{ makerEffectiveUser: "${addr}", takerEffectiveUser_not: "${addr}" }`,
                         'takerToken { marketId } makerToken { marketId } takerTokenDeltaWei makerTokenDeltaWei'
                     ),
-                    // 5. Transfers OUT
+                    // 5. Transfers OUT (external only — for all-account netflow)
                     earn_subgraphPaginateAll(endpoint, 'transfers',
                         `{ fromEffectiveUser: "${addr}", toEffectiveUser_not: "${addr}" }`,
                         'token { marketId } amountDeltaWei'
                     ),
-                    // 6. Transfers IN
+                    // 6. Transfers IN (external only — for all-account netflow)
                     earn_subgraphPaginateAll(endpoint, 'transfers',
                         `{ toEffectiveUser: "${addr}", fromEffectiveUser_not: "${addr}" }`,
                         'token { marketId } amountDeltaWei'
@@ -21702,14 +21712,26 @@
                         `{ effectiveUser: "${addr}", status: "OPEN" }`,
                         'amounts { token { marketId } amountPar expirationTimestamp }'
                     ),
+                    // 10. ALL transfers by this user (including internal same-user for acct0 tracking)
+                    earn_subgraphPaginateAll(endpoint, 'transfers',
+                        `{ fromEffectiveUser: "${addr}" }`,
+                        'token { marketId } amountDeltaWei fromMarginAccount { accountNumber } toMarginAccount { accountNumber }'
+                    ),
                 ]);
 
                 // ═══ PROCESS RESULTS (same logic, just uses the parallel results) ═══
                 for (const dep of deposits) {
                     addFlow(dep.token.marketId, dep.amountDeltaWei, 'd');
+                    // Track account-0-only flows for borrow-market yield
+                    if (dep.marginAccount && dep.marginAccount.accountNumber === '0') {
+                        addAcct0Flow(dep.token.marketId, dep.amountDeltaWei);
+                    }
                 }
                 for (const w of withdrawals) {
                     addFlow(w.token.marketId, String(-Math.abs(parseFloat(w.amountDeltaWei))), 'w');
+                    if (w.marginAccount && w.marginAccount.accountNumber === '0') {
+                        addAcct0Flow(w.token.marketId, String(-Math.abs(parseFloat(w.amountDeltaWei))));
+                    }
                 }
                 for (const t of takerTrades) {
                     addFlow(t.takerToken.marketId, String(-Math.abs(parseFloat(t.takerTokenDeltaWei))), 's');
@@ -21724,6 +21746,18 @@
                 }
                 for (const xf of transfersTo) {
                     addFlow(xf.token.marketId, xf.amountDeltaWei, 'x');
+                }
+                // Process ALL transfers (including internal same-user) for account-0 tracking
+                for (const xf of (allTransfers || [])) {
+                    const fromAcct = xf.fromMarginAccount && xf.fromMarginAccount.accountNumber;
+                    const toAcct = xf.toMarginAccount && xf.toMarginAccount.accountNumber;
+                    const amt = Math.abs(parseFloat(xf.amountDeltaWei || '0'));
+                    if (fromAcct === '0') {
+                        addAcct0Flow(xf.token.marketId, String(-amt)); // leaving acct 0
+                    }
+                    if (toAcct === '0') {
+                        addAcct0Flow(xf.token.marketId, String(amt));  // arriving at acct 0
+                    }
                 }
                 for (const liq of liqsSolid) {
                     addFlow(liq.heldToken.marketId, liq.heldTokenAmountDeltaWei, 'l');
@@ -21776,10 +21810,13 @@
                         const entry = netflows[mid];
                         for (const key of ['t', 'd', 'w', 's', 'x', 'l', 'b']) {
                             const floatVal = parseFloat(entry[key]);
-                            // Convert to wei BigInt string
-                            // Handle precision: multiply by 10^decimals then round
                             const weiVal = BigInt(Math.round(floatVal * (10 ** dec)));
                             entry[key] = weiVal.toString();
+                        }
+                        // Also convert acct0 netflows
+                        if (acct0Netflows[mid] !== undefined) {
+                            const floatVal = parseFloat(acct0Netflows[mid]);
+                            acct0Netflows[mid] = BigInt(Math.round(floatVal * (10 ** dec))).toString();
                         }
                     }
                 }
@@ -21826,8 +21863,10 @@
 
                 if (Object.keys(netflows).length > 0) {
                     earn_netflowData = netflows;
+                    earn_acct0NetflowData = Object.keys(acct0Netflows).length > 0 ? acct0Netflows : null;
                     const totalEvents = deposits.length + withdrawals.length + takerTrades.length + makerTrades.length + transfersFrom.length + transfersTo.length + liqsSolid.length + liqsLiquid.length + borrowCount;
                     console.log(`Subgraph: loaded ${Object.keys(netflows).length} markets, ${totalEvents} events for ${addr} on ${chainId}`);
+                    if (earn_acct0NetflowData) console.log(`  Acct0 supply netflow for ${Object.keys(acct0Netflows).length} markets:`, acct0Netflows);
                 } else {
                     console.log('Subgraph: no data found for', addr, 'on', chainId);
                 }
@@ -23392,9 +23431,10 @@
             const hasAnyYield = supplyAssets.some(a => {
                 const mid = String(a.marketId);
                 const hasNF = earn_netflowData && earn_netflowData[mid] !== undefined;
+                const hasA0 = earn_acct0NetflowData && earn_acct0NetflowData[mid] !== undefined;
                 const h = earn_totalYieldData && earn_totalYieldData[mid];
                 const hasSS = h && h.cumulativeYield !== undefined;
-                return hasNF || hasSS;
+                return hasNF || hasA0 || hasSS;
             });
             const table = document.querySelector('.earn-asset-table:not(.earn-past-table)');
             if (table) table.classList.toggle('no-yield', !hasAnyYield);
@@ -23411,28 +23451,33 @@
 
             supplyAssets.forEach((a, idx) => {
                 // Total yield calculation
-                // Priority: Non-borrow → netflow (exact) > snapshot > dash
-                //           Borrow     → snapshot (accurate) > netflow (approximate) > dash
+                // Priority: Non-borrow → all-account netflow (exact) > snapshot > dash
+                //           Borrow     → snapshot (accurate) > acct0 netflow (accurate for supply) > dash
                 const mid = String(a.marketId);
                 let yieldCellHtml;
 
-                // Borrow markets have swap deltas that can pollute netflow — prefer snapshot
+                // Borrow markets have swap/borrow deltas from sub-accounts that pollute all-account netflow
                 const isBorrowMarket = earn_borrowMarkets && earn_borrowMarkets.has(mid);
 
-                // Method 1: NetFlow-based (exact: yield = currentWei - netFlow)
-                const hasNetflowData = earn_netflowData && earn_netflowData[mid] !== undefined;
+                // Method 1: All-account NetFlow (exact for non-borrow markets)
+                const hasAllNetflow = earn_netflowData && earn_netflowData[mid] !== undefined;
+                // Method 1b: Account-0-only NetFlow (accurate for borrow-market supply positions)
+                const hasAcct0Netflow = earn_acct0NetflowData && earn_acct0NetflowData[mid] !== undefined;
                 // Method 2: Snapshot-based (pairwise index-based) — always reliable
                 const hist = earn_totalYieldData && earn_totalYieldData[mid];
                 const hasSnapshotData = hist && hist.cumulativeYield !== undefined;
 
-                // For non-borrow markets: netflow first (most accurate)
-                // For borrow markets: snapshot first, netflow as fallback (better than dash)
-                const useNetflow = hasNetflowData && (!isBorrowMarket || !hasSnapshotData);
-                const useSnapshot = hasSnapshotData && !useNetflow;
+                // For non-borrow markets: all-account netflow first (most accurate)
+                // For borrow markets: snapshot first > acct0 netflow > dash
+                const useAllNetflow = hasAllNetflow && !isBorrowMarket;
+                const useAcct0Netflow = hasAcct0Netflow && isBorrowMarket && !hasSnapshotData;
+                const useSnapshot = hasSnapshotData && !useAllNetflow && (!isBorrowMarket || !useAcct0Netflow);
 
-                if (useNetflow) {
-                    const flowData = earn_netflowData[mid];
-                    const netFlow = typeof flowData === 'string' ? BigInt(flowData) : BigInt(flowData.t || '0');
+                if (useAllNetflow || useAcct0Netflow) {
+                    // Pick the right netflow source
+                    const netFlow = useAcct0Netflow
+                        ? BigInt(earn_acct0NetflowData[mid])
+                        : (() => { const fd = earn_netflowData[mid]; return typeof fd === 'string' ? BigInt(fd) : BigInt(fd.t || '0'); })();
                     const totalYieldRaw = a.wei - netFlow;
                     // Supply yield can never be truly negative — clamp rounding artifacts to 0
                     const totalYield = totalYieldRaw < 0n ? 0n : totalYieldRaw;
@@ -23674,19 +23719,22 @@
                         const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[a.symbol] || 0;
 
                         // Yield calculation — same priority as table rows:
-                        // Non-borrow: netflow (exact) > snapshot > skip
-                        // Borrow: snapshot (accurate) > netflow (approximate) > skip
+                        // Non-borrow: all-account netflow (exact) > snapshot > skip
+                        // Borrow: snapshot (accurate) > acct0 netflow (supply-only) > skip
                         const isBorrowMkt = earn_borrowMarkets && earn_borrowMarkets.has(mid);
                         const hasNF = earn_netflowData && earn_netflowData[mid] !== undefined;
+                        const hasA0 = earn_acct0NetflowData && earn_acct0NetflowData[mid] !== undefined;
                         const histS = earn_totalYieldData && earn_totalYieldData[mid];
                         const hasSS = histS && histS.cumulativeYield !== undefined;
-                        const useNF = hasNF && (!isBorrowMkt || !hasSS);
-                        const useSS = hasSS && !useNF;
+                        const useAllNF = hasNF && !isBorrowMkt;
+                        const useA0NF = hasA0 && isBorrowMkt && !hasSS;
+                        const useSS = hasSS && !useAllNF && (!isBorrowMkt || !useA0NF);
 
-                        if (useNF) {
+                        if (useAllNF || useA0NF) {
                             try {
-                                const nf = earn_netflowData[mid];
-                                const netFlow = typeof nf === 'string' ? BigInt(nf) : BigInt(nf.t || '0');
+                                const netFlow = useA0NF
+                                    ? BigInt(earn_acct0NetflowData[mid])
+                                    : (() => { const nf = earn_netflowData[mid]; return typeof nf === 'string' ? BigInt(nf) : BigInt(nf.t || '0'); })();
                                 const weiBI = typeof a.wei === 'bigint' ? a.wei : BigInt(a.wei || '0');
                                 const yieldWeiRaw = weiBI - netFlow;
                                 // Supply yield can never be truly negative — clamp rounding artifacts to 0
