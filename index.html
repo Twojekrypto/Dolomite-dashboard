@@ -21677,15 +21677,15 @@
                         `{ effectiveUser: "${addr}" }`,
                         'token { marketId decimals } amountDeltaWei marginAccount { accountNumber }'
                     ),
-                    // 3. Trades (taker)
+                    // 3. Trades (taker — with account number for acct0 tracking)
                     earn_subgraphPaginateAll(endpoint, 'trades',
                         `{ takerEffectiveUser: "${addr}" }`,
-                        'takerToken { marketId } makerToken { marketId } takerTokenDeltaWei makerTokenDeltaWei'
+                        'takerToken { marketId } makerToken { marketId } takerTokenDeltaWei makerTokenDeltaWei takerMarginAccount { accountNumber }'
                     ),
-                    // 4. Trades (maker, excluding self)
+                    // 4. Trades (maker, excluding self — with account number)
                     earn_subgraphPaginateAll(endpoint, 'trades',
                         `{ makerEffectiveUser: "${addr}", takerEffectiveUser_not: "${addr}" }`,
-                        'takerToken { marketId } makerToken { marketId } takerTokenDeltaWei makerTokenDeltaWei'
+                        'takerToken { marketId } makerToken { marketId } takerTokenDeltaWei makerTokenDeltaWei makerMarginAccount { accountNumber }'
                     ),
                     // 5. Transfers OUT (external only — for all-account netflow)
                     earn_subgraphPaginateAll(endpoint, 'transfers',
@@ -21697,15 +21697,15 @@
                         `{ toEffectiveUser: "${addr}", fromEffectiveUser_not: "${addr}" }`,
                         'token { marketId } amountDeltaWei'
                     ),
-                    // 7. Liquidations (solid/liquidator)
+                    // 7. Liquidations (solid/liquidator — with account number)
                     earn_subgraphPaginateAll(endpoint, 'liquidations',
                         `{ solidEffectiveUser: "${addr}" }`,
-                        'heldToken { marketId } borrowedToken { marketId } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei'
+                        'heldToken { marketId } borrowedToken { marketId } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei solidMarginAccount { accountNumber }'
                     ),
-                    // 8. Liquidations (liquid/being liquidated)
+                    // 8. Liquidations (liquid/being liquidated — with account number)
                     earn_subgraphPaginateAll(endpoint, 'liquidations',
                         `{ liquidEffectiveUser: "${addr}" }`,
-                        'heldToken { marketId } borrowedToken { marketId } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei'
+                        'heldToken { marketId } borrowedToken { marketId } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei liquidMarginAccount { accountNumber }'
                     ),
                     // 9. Borrow positions
                     earn_subgraphPaginateAll(endpoint, 'borrowPositions',
@@ -21736,10 +21736,20 @@
                 for (const t of takerTrades) {
                     addFlow(t.takerToken.marketId, String(-Math.abs(parseFloat(t.takerTokenDeltaWei))), 's');
                     addFlow(t.makerToken.marketId, t.makerTokenDeltaWei, 's');
+                    // Track trades on account 0 for borrow-market yield
+                    if (t.takerMarginAccount && t.takerMarginAccount.accountNumber === '0') {
+                        addAcct0Flow(t.takerToken.marketId, String(-Math.abs(parseFloat(t.takerTokenDeltaWei))));
+                        addAcct0Flow(t.makerToken.marketId, t.makerTokenDeltaWei);
+                    }
                 }
                 for (const t of makerTrades) {
                     addFlow(t.makerToken.marketId, String(-Math.abs(parseFloat(t.makerTokenDeltaWei))), 's');
                     addFlow(t.takerToken.marketId, t.takerTokenDeltaWei, 's');
+                    // Track trades on account 0 for borrow-market yield
+                    if (t.makerMarginAccount && t.makerMarginAccount.accountNumber === '0') {
+                        addAcct0Flow(t.makerToken.marketId, String(-Math.abs(parseFloat(t.makerTokenDeltaWei))));
+                        addAcct0Flow(t.takerToken.marketId, t.takerTokenDeltaWei);
+                    }
                 }
                 for (const xf of transfersFrom) {
                     addFlow(xf.token.marketId, String(-Math.abs(parseFloat(xf.amountDeltaWei))), 'x');
@@ -21762,10 +21772,20 @@
                 for (const liq of liqsSolid) {
                     addFlow(liq.heldToken.marketId, liq.heldTokenAmountDeltaWei, 'l');
                     addFlow(liq.borrowedToken.marketId, liq.borrowedTokenAmountDeltaWei, 'l');
+                    // Track liquidations on account 0
+                    if (liq.solidMarginAccount && liq.solidMarginAccount.accountNumber === '0') {
+                        addAcct0Flow(liq.heldToken.marketId, liq.heldTokenAmountDeltaWei);
+                        addAcct0Flow(liq.borrowedToken.marketId, liq.borrowedTokenAmountDeltaWei);
+                    }
                 }
                 for (const liq of liqsLiquid) {
                     addFlow(liq.heldToken.marketId, String(-parseFloat(liq.heldTokenAmountDeltaWei)), 'l');
                     addFlow(liq.borrowedToken.marketId, String(-parseFloat(liq.borrowedTokenAmountDeltaWei)), 'l');
+                    // Track liquidations on account 0
+                    if (liq.liquidMarginAccount && liq.liquidMarginAccount.accountNumber === '0') {
+                        addAcct0Flow(liq.heldToken.marketId, String(-parseFloat(liq.heldTokenAmountDeltaWei)));
+                        addAcct0Flow(liq.borrowedToken.marketId, String(-parseFloat(liq.borrowedTokenAmountDeltaWei)));
+                    }
                 }
                 let borrowCount = 0;
                 earn_borrowMarkets = new Set();
