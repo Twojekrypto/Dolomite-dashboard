@@ -8016,6 +8016,10 @@
             border-spacing: 0;
             table-layout: fixed;
         }
+        .earn-asset-table colgroup col:nth-child(1) { width: 28%; }
+        .earn-asset-table colgroup col:nth-child(2) { width: 22%; }
+        .earn-asset-table colgroup col:nth-child(3) { width: 25%; }
+        .earn-asset-table colgroup col:nth-child(4) { width: 25%; }
 
         .earn-asset-table thead th {
             background: rgba(52, 211, 153, 0.03);
@@ -8239,13 +8243,13 @@
         }
 
         /* Hide yield column when address has no yield data */
-        .earn-asset-table.no-yield colgroup col:nth-child(4) { width: 0; }
+        .earn-asset-table.no-yield colgroup col:nth-child(4) { width: 0 !important; }
         .earn-asset-table.no-yield thead th:nth-child(4),
         .earn-asset-table.no-yield tbody td:nth-child(4),
         .earn-asset-table.no-yield tfoot td:nth-child(4) { display: none; }
-        .earn-asset-table.no-yield colgroup col:nth-child(1) { width: 35%; }
-        .earn-asset-table.no-yield colgroup col:nth-child(2) { width: 30%; }
-        .earn-asset-table.no-yield colgroup col:nth-child(3) { width: 35%; }
+        .earn-asset-table.no-yield colgroup col:nth-child(1) { width: 35% !important; }
+        .earn-asset-table.no-yield colgroup col:nth-child(2) { width: 30% !important; }
+        .earn-asset-table.no-yield colgroup col:nth-child(3) { width: 35% !important; }
 
         @keyframes earnRowSlideIn {
             from {
@@ -12537,10 +12541,10 @@
                     <div class="table-scroll">
                         <table class="earn-asset-table">
                             <colgroup>
-                                <col style="width:28%">
-                                <col style="width:22%">
-                                <col style="width:25%">
-                                <col style="width:25%">
+                                <col>
+                                <col>
+                                <col>
+                                <col>
                             </colgroup>
                             <thead>
                                 <tr>
