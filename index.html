@@ -20906,8 +20906,9 @@
                     if (totalBorrowed > 0n && yieldWeiRaw > totalDeposited / 10n) {
                         yieldWeiRaw = 0n;
                     }
-                    // Supply yield can never be truly negative — clamp rounding artifacts to 0
-                    const yieldWei = yieldWeiRaw < 0n ? 0n : yieldWeiRaw;
+                    // Negative yield after the borrow-guard checks above is a genuine loss
+                    // (e.g., liquidation penalty, unfavorable swap on account 0)
+                    const yieldWei = yieldWeiRaw;
 
                     // Resolve token info — prioritize hardcoded map over RPC
                     let tokenAddr, symbol, decimals, icon, tokenName;
@@ -21092,7 +21093,7 @@
                     yieldHtml = `<span class="earn-amount" style="color:var(--text-muted);font-size:13px" title="This was an isolation mode wrapper token used as collateral. The position has been fully closed.">Position Closed</span>`;
                 } else {
                     const yieldUsdFmt = item.yieldUsd !== 0
-                        ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${item.yieldUsd >= 0 ? '+' : ''}$${Math.abs(item.yieldUsd).toFixed(2)}</div>`
+                        ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${item.yieldUsd > 0 ? '+' : item.yieldUsd < 0 ? '-' : ''}$${Math.abs(item.yieldUsd).toFixed(2)}</div>`
                         : '';
                     yieldHtml = `<span class="earn-amount ${yieldColor}">${yieldSign}${yieldFmt}<span class="earn-amount-sym">${item.symbol}</span></span>${yieldUsdFmt}`;
                 }
@@ -23498,13 +23499,12 @@
                     const netFlow = useAcct0Netflow
                         ? BigInt(earn_acct0NetflowData[mid])
                         : (() => { const fd = earn_netflowData[mid]; return typeof fd === 'string' ? BigInt(fd) : BigInt(fd.t || '0'); })();
-                    const totalYieldRaw = a.wei - netFlow;
-                    // Supply yield can never be truly negative — clamp rounding artifacts to 0
-                    const totalYield = totalYieldRaw < 0n ? 0n : totalYieldRaw;
+                    const totalYield = a.wei - netFlow;
                     const yieldPositive = totalYield >= 0n;
-                    const yieldSign = yieldPositive && totalYield > 0n ? '+' : '';
+                    const yieldSign = totalYield > 0n ? '+' : totalYield < 0n ? '-' : '';
                     const yieldColor = yieldPositive ? 'earn-yield-positive' : 'earn-yield-negative';
-                    const yieldFmt = earn_formatAmount(totalYield, a.decimals, a.symbol);
+                    const absYield = totalYield < 0n ? -totalYield : totalYield;
+                    const yieldFmt = earn_formatAmount(absYield, a.decimals, a.symbol);
                     const yieldNum = Number(totalYield) / (10 ** a.decimals);
                     const yieldUsd = yieldNum * (earn_priceCache[document.getElementById('earn-chain').value + ':' + a.tokenAddr.toLowerCase()] || TOKEN_USD_FALLBACK[a.symbol] || 0);
                     const yieldUsdStr = Math.abs(yieldUsd) >= 0.01 ? `<div class="earn-usd-sub" style="color:${yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">${yieldSign}$${Math.abs(yieldUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>` : '';
@@ -23519,13 +23519,14 @@
                         const liveYield = (lastPar * a.wei - lastWei * a.par) / a.par;
                         totalYield += liveYield;
                     }
-                    // Supply yield can never be truly negative — clamp rounding artifacts to 0
-                    if (totalYield < 0n) totalYield = 0n;
+                    // Negative yield from snapshot is possible (liquidation losses, rounding)
+                    // — do NOT clamp to 0.
 
                     const yieldPositive = totalYield >= 0n;
-                    const yieldSign = yieldPositive && totalYield > 0n ? '+' : '';
+                    const yieldSign = totalYield > 0n ? '+' : totalYield < 0n ? '-' : '';
                     const yieldColor = yieldPositive ? 'earn-yield-positive' : 'earn-yield-negative';
-                    const yieldFmt = earn_formatAmount(totalYield, a.decimals, a.symbol);
+                    const absYield = totalYield < 0n ? -totalYield : totalYield;
+                    const yieldFmt = earn_formatAmount(absYield, a.decimals, a.symbol);
                     const yieldNum = Number(totalYield) / (10 ** a.decimals);
                     const yieldUsd = yieldNum * (earn_priceCache[document.getElementById('earn-chain').value + ':' + a.tokenAddr.toLowerCase()] || TOKEN_USD_FALLBACK[a.symbol] || 0);
                     const yieldUsdStr = Math.abs(yieldUsd) >= 0.01 ? `<div class="earn-usd-sub" style="color:${yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">${yieldSign}$${Math.abs(yieldUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>` : '';
@@ -23675,7 +23676,7 @@
                     const yieldColor = yieldPositive ? 'earn-yield-positive' : 'earn-yield-negative';
                     const yieldFmt = earn_formatAmount(item.yieldWei, item.decimals, item.symbol);
                     const yieldUsdFmt = item.yieldUsd !== 0
-                        ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${item.yieldUsd >= 0 ? '+' : ''}$${Math.abs(item.yieldUsd).toFixed(2)}</div>`
+                        ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${item.yieldUsd > 0 ? '+' : item.yieldUsd < 0 ? '-' : ''}$${Math.abs(item.yieldUsd).toFixed(2)}</div>`
                         : '';
 
                     const balFmt = earn_formatAmount(item.currentWei, item.decimals, item.symbol);
@@ -23756,9 +23757,7 @@
                                     ? BigInt(earn_acct0NetflowData[mid])
                                     : (() => { const nf = earn_netflowData[mid]; return typeof nf === 'string' ? BigInt(nf) : BigInt(nf.t || '0'); })();
                                 const weiBI = typeof a.wei === 'bigint' ? a.wei : BigInt(a.wei || '0');
-                                const yieldWeiRaw = weiBI - netFlow;
-                                // Supply yield can never be truly negative — clamp rounding artifacts to 0
-                                const yieldWei = yieldWeiRaw < 0n ? 0n : yieldWeiRaw;
+                                const yieldWei = weiBI - netFlow;
                                 const yieldNum = Number(yieldWei) / (10 ** a.decimals);
                                 const yUsd = yieldNum * price;
                                 totalYieldUsd += yUsd;
