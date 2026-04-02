@@ -19753,6 +19753,7 @@
 
             // Clear all chain-specific caches so next lookup fetches fresh data
             earn_netflowData = null;
+            earn_interestYieldData = null;
             earn_priceCache = {};
             earn_historyData = null;
             earn_totalYieldData = null;
@@ -20901,7 +20902,10 @@
                 }
 
                 // Step 2: Get all market IDs from netflow
-                const marketIds = Object.keys(addrFlows).map(Number).sort((a, b) => a - b);
+                const marketIds = Array.from(new Set([
+                    ...Object.keys(addrFlows || {}),
+                    ...Object.keys(earn_interestYieldData || {}),
+                ])).map(Number).sort((a, b) => a - b);
 
                 // Step 3: Get active balances (current wei for each market)
                 const activeBalances = {};
@@ -20934,19 +20938,23 @@
                 for (const mid of marketIds) {
                     const midStr = String(mid);
                     const flowData = addrFlows[midStr];
-                    if (!flowData) continue;
-
-                    const netFlow = typeof flowData === 'string' ? BigInt(flowData) : BigInt(flowData.t || '0');
-                    const hasBreakdown = typeof flowData !== 'string' && (flowData.d || flowData.w);
-                    const totalDeposited = hasBreakdown ? BigInt(flowData.d || '0') : 0n;
-                    const totalWithdrawn = hasBreakdown ? BigInt(flowData.w || '0') : 0n;
-                    const totalBorrowed = hasBreakdown ? BigInt(flowData.b || '0') : 0n;
+                    const flowMeta = earn_parseNetflowEntry(flowData);
+                    const netFlow = flowMeta ? flowMeta.netFlow : 0n;
+                    const hasBreakdown = !!(flowMeta && flowMeta.hasBreakdown);
+                    const totalDeposited = flowMeta ? flowMeta.totalDeposited : 0n;
+                    const totalWithdrawn = flowMeta ? flowMeta.totalWithdrawn : 0n;
+                    const totalBorrowed = flowMeta ? flowMeta.totalBorrowed : 0n;
+                    const interestMeta = earn_interestYieldData && earn_interestYieldData[midStr];
+                    const currentBorrowPar = interestMeta ? BigInt(interestMeta.currentBorrowPar || '0') : 0n;
+                    const hasSettledYield = interestMeta ? BigInt(interestMeta.earnYield || '0') !== 0n : false;
+                    if (!flowMeta && !interestMeta) continue;
 
                     // Skip markets where user has NO supply deposits — these are borrow-only or
                     // swap-only positions where the netflow formula produces false "yield".
-                    if (hasBreakdown && totalDeposited === 0n && totalBorrowed > 0n) continue;
+                    if (hasBreakdown && totalDeposited === 0n && totalBorrowed > 0n && !hasSettledYield) continue;
 
                     const isActive = !!activeBalances[midStr];
+                    if (!isActive && currentBorrowPar > 0n && !hasSettledYield) continue; // open borrow cost stays in Lending until closure
                     const currentWei = isActive ? activeBalances[midStr].wei : 0n;
 
                     // Resolve token info — prioritize hardcoded map over RPC
@@ -20998,6 +21006,7 @@
                         withdrawNum,
                         netFlow,
                         hasBreakdown,
+                        hasOpenBorrow: currentBorrowPar > 0n,
                     });
                 }
 
@@ -21280,6 +21289,8 @@
 
             const flowMeta = earn_parseNetflowEntry(earn_netflowData && earn_netflowData[mid]);
             const hasAllNetflow = !!flowMeta;
+            const interestMeta = earn_interestYieldData && earn_interestYieldData[mid];
+            const hasInterestYield = !!(interestMeta && interestMeta.earnYield !== undefined);
 
             const hist = earn_totalYieldData && earn_totalYieldData[mid];
             const hasSnapshotData = hist && hist.cumulativeYield !== undefined;
@@ -21323,16 +21334,20 @@
             const recentCycleCandidate = (isActivePosition && hasAllNetflow && flowMeta.recentCycleNetFlow !== null)
                 ? (wei - flowMeta.recentCycleNetFlow)
                 : null;
+            const interestYieldCandidate = hasInterestYield ? BigInt(interestMeta.earnYield || '0') : null;
 
-            if (allowAcct0Netflow && hasAcct0Netflow) {
+            if (interestYieldCandidate !== null) {
+                totalYield = interestYieldCandidate;
+                method = 'interest-ledger';
+            } else if (hasSnapshotData && snapshotCandidate !== null && isReasonableActiveYield(snapshotCandidate)) {
+                totalYield = snapshotCandidate;
+                method = snapshotMethod;
+            } else if (allowAcct0Netflow && hasAcct0Netflow) {
                 totalYield = wei - BigInt(acct0Raw);
                 method = 'acct0-netflow';
             } else if (allNetflowCandidate !== null && isReasonableActiveYield(allNetflowCandidate)) {
                 totalYield = allNetflowCandidate;
                 method = 'all-netflow';
-            } else if (snapshotCandidate !== null && isReasonableActiveYield(snapshotCandidate)) {
-                totalYield = snapshotCandidate;
-                method = snapshotMethod;
             } else if (recentCycleCandidate !== null && isReasonableActiveYield(recentCycleCandidate)) {
                 totalYield = recentCycleCandidate;
                 method = 'recent-cycle';
@@ -21529,6 +21544,7 @@
         let earn_historicalData = null; // current period's historical data for the looked-up address
         let earn_totalYieldData = null; // oldest snapshot data for total yield (never changes after initial load)
         let earn_totalYieldDays = 0; // number of days the total yield spans
+        let earn_interestYieldData = null; // { marketId: { earnYield, settledYield, openBorrowYield, openSupplyYield, currentBorrowPar, currentSupplyPar } }
 
         const SNAPSHOT_BASE = 'https://twojekrypto.github.io/vedolo-dashboard/data/earn-snapshots';
         const NETFLOW_BASE = 'https://twojekrypto.github.io/vedolo-dashboard/data/earn-netflow';
@@ -21822,6 +21838,7 @@
         async function earn_fetchNetflow() {
             earn_netflowData = null;
             earn_acct0NetflowData = null;
+            earn_interestYieldData = null;
             const chainId = document.getElementById('earn-chain').value;
             const addr = document.getElementById('earn-address').value.trim().toLowerCase();
             if (!chainId || !addr) return;
@@ -21861,8 +21878,10 @@
                 // Account-0-only netflow for accurate borrow-market supply yield
                 const acct0Netflows = {};  // { mid: 0n }
                 const marketEvents = {};   // { mid: [{ serial, parDelta, weiDelta }] }
+                const interestEvents = []; // [{ serial, account, marketId, parDelta, index }]
                 // Map to store decimals per market (populated during flow processing)
                 const marketDecimals = {};
+                const INDEX_SCALE = 10n ** 18n;
                 function addFlow(marketId, deltaStr, flowType, dec) {
                     const mid = String(marketId);
                     if (dec !== undefined) marketDecimals[mid] = dec;
@@ -21897,6 +21916,33 @@
                         serial: Number(serialId),
                         parDelta,
                         weiDelta,
+                    });
+                }
+                function addInterestEvent(accountNumber, marketId, serialId, parDeltaStr, weiDeltaStr, indexStr, dec) {
+                    if (!accountNumber || serialId === undefined || serialId === null) return;
+                    const mid = String(marketId);
+                    if (dec !== undefined) marketDecimals[mid] = dec;
+                    const d = marketDecimals[mid] || 18;
+                    const parDelta = decStrToBigInt(parDeltaStr || '0', d);
+                    if (parDelta === 0n) return;
+                    const parAbs = parDelta < 0n ? -parDelta : parDelta;
+                    let indexVal = null;
+                    if (indexStr) {
+                        indexVal = decStrToBigInt(indexStr, 18);
+                    } else if (weiDeltaStr !== undefined && weiDeltaStr !== null) {
+                        const weiDelta = decStrToBigInt(String(weiDeltaStr), d);
+                        const weiAbs = weiDelta < 0n ? -weiDelta : weiDelta;
+                        if (weiAbs > 0n && parAbs > 0n) {
+                            indexVal = (weiAbs * INDEX_SCALE) / parAbs;
+                        }
+                    }
+                    if (!indexVal || indexVal <= 0n) return;
+                    interestEvents.push({
+                        serial: Number(serialId),
+                        account: String(accountNumber),
+                        marketId: mid,
+                        parDelta,
+                        index: indexVal,
                     });
                 }
                 function computeRecentCycleSummary(events) {
@@ -21940,6 +21986,105 @@
                         lastResetSerial: String(balances[resetIdx].serial),
                     };
                 }
+                function buildInterestYieldSummary(currentIndexMap) {
+                    const states = {};
+                    const ensureState = (account, marketId) => {
+                        const key = account + '|' + marketId;
+                        if (!states[key]) {
+                            states[key] = {
+                                account,
+                                marketId,
+                                par: 0n,
+                                lastIndex: null,
+                                settledYield: 0n,
+                                liveYield: 0n,
+                                hadSupply: false,
+                                hadBorrow: false,
+                            };
+                        }
+                        return states[key];
+                    };
+                    const accrueTo = (state, nextIndex) => {
+                        if (state.lastIndex === null || nextIndex === null || nextIndex <= state.lastIndex || state.par === 0n) {
+                            if (state.lastIndex === null && nextIndex !== null && state.par !== 0n) state.lastIndex = nextIndex;
+                            return;
+                        }
+                        const deltaIdx = nextIndex - state.lastIndex;
+                        const deltaWei = ((state.par < 0n ? -state.par : state.par) * deltaIdx) / INDEX_SCALE;
+                        state.liveYield += state.par >= 0n ? deltaWei : -deltaWei;
+                        state.lastIndex = nextIndex;
+                    };
+
+                    [...interestEvents].sort((a, b) => a.serial - b.serial).forEach(ev => {
+                        const state = ensureState(ev.account, ev.marketId);
+                        if (state.lastIndex === null && state.par !== 0n) state.lastIndex = ev.index;
+                        accrueTo(state, ev.index);
+                        const prevPar = state.par;
+                        const nextPar = prevPar + ev.parDelta;
+                        const flipsSign = prevPar !== 0n && nextPar !== 0n &&
+                            ((prevPar > 0n && nextPar < 0n) || (prevPar < 0n && nextPar > 0n));
+                        state.par = nextPar;
+                        if (state.par > 0n) state.hadSupply = true;
+                        if (state.par < 0n) state.hadBorrow = true;
+                        if (state.par === 0n || flipsSign) {
+                            state.settledYield += state.liveYield;
+                            state.liveYield = 0n;
+                        }
+                        if (state.par === 0n) {
+                            state.lastIndex = null;
+                        } else {
+                            state.lastIndex = ev.index;
+                        }
+                    });
+
+                    Object.values(states).forEach(state => {
+                        if (state.par === 0n) return;
+                        const idxMeta = currentIndexMap[state.marketId];
+                        const nextIndex = state.par > 0n ? idxMeta?.supplyIndex : idxMeta?.borrowIndex;
+                        if (nextIndex) accrueTo(state, nextIndex);
+                    });
+
+                    const byMarket = {};
+                    Object.values(states).forEach(state => {
+                        if (!byMarket[state.marketId]) {
+                            byMarket[state.marketId] = {
+                                earnYield: 0n,
+                                settledYield: 0n,
+                                openBorrowYield: 0n,
+                                openSupplyYield: 0n,
+                                currentBorrowPar: 0n,
+                                currentSupplyPar: 0n,
+                                hadSupply: false,
+                                hadBorrow: false,
+                            };
+                        }
+                        const entry = byMarket[state.marketId];
+                        entry.hadSupply = entry.hadSupply || state.hadSupply;
+                        entry.hadBorrow = entry.hadBorrow || state.hadBorrow;
+                        entry.settledYield += state.settledYield;
+                        if (state.par > 0n) {
+                            entry.currentSupplyPar += state.par;
+                            entry.openSupplyYield += state.liveYield;
+                            entry.earnYield += state.settledYield + state.liveYield;
+                        } else if (state.par < 0n) {
+                            entry.currentBorrowPar += (-state.par);
+                            entry.openBorrowYield += state.liveYield;
+                            entry.earnYield += state.settledYield;
+                        } else {
+                            entry.earnYield += state.settledYield;
+                        }
+                    });
+
+                    Object.values(byMarket).forEach(entry => {
+                        entry.earnYield = entry.earnYield.toString();
+                        entry.settledYield = entry.settledYield.toString();
+                        entry.openBorrowYield = entry.openBorrowYield.toString();
+                        entry.openSupplyYield = entry.openSupplyYield.toString();
+                        entry.currentBorrowPar = entry.currentBorrowPar.toString();
+                        entry.currentSupplyPar = entry.currentSupplyPar.toString();
+                    });
+                    return byMarket;
+                }
 
                 // ═══ PARALLEL SUBGRAPH FETCHES ═══
                 // Fire ALL queries simultaneously instead of sequentially (~20s → ~3-5s)
@@ -21947,42 +22092,42 @@
                     // 1. Deposits (with account number for acct0 tracking)
                     earn_subgraphPaginateAll(endpoint, 'deposits',
                         `{ effectiveUser: "${addr}" }`,
-                        'serialId token { marketId decimals } amountDeltaWei amountDeltaPar marginAccount { accountNumber }'
+                        'serialId token { marketId decimals } amountDeltaWei amountDeltaPar interestIndex marginAccount { accountNumber }'
                     ),
                     // 2. Withdrawals (with account number)
                     earn_subgraphPaginateAll(endpoint, 'withdrawals',
                         `{ effectiveUser: "${addr}" }`,
-                        'serialId token { marketId decimals } amountDeltaWei amountDeltaPar marginAccount { accountNumber }'
+                        'serialId token { marketId decimals } amountDeltaWei amountDeltaPar interestIndex marginAccount { accountNumber }'
                     ),
                     // 3. Trades (taker — with account number for acct0 tracking)
                     earn_subgraphPaginateAll(endpoint, 'trades',
                         `{ takerEffectiveUser: "${addr}" }`,
-                        'serialId takerToken { marketId decimals } makerToken { marketId decimals } takerTokenDeltaWei makerTokenDeltaWei takerInputTokenDeltaPar takerOutputTokenDeltaPar takerMarginAccount { accountNumber }'
+                        'serialId takerToken { marketId decimals } makerToken { marketId decimals } takerTokenDeltaWei makerTokenDeltaWei takerInputTokenDeltaPar takerOutputTokenDeltaPar takerInterestIndex makerInterestIndex takerMarginAccount { accountNumber }'
                     ),
                     // 4. Trades (maker, excluding self — with account number)
                     earn_subgraphPaginateAll(endpoint, 'trades',
                         `{ makerEffectiveUser: "${addr}", takerEffectiveUser_not: "${addr}" }`,
-                        'serialId takerToken { marketId decimals } makerToken { marketId decimals } takerTokenDeltaWei makerTokenDeltaWei makerInputTokenDeltaPar makerOutputTokenDeltaPar makerMarginAccount { accountNumber }'
+                        'serialId takerToken { marketId decimals } makerToken { marketId decimals } takerTokenDeltaWei makerTokenDeltaWei makerInputTokenDeltaPar makerOutputTokenDeltaPar takerInterestIndex makerInterestIndex makerMarginAccount { accountNumber }'
                     ),
                     // 5. Transfers OUT (external only — for all-account netflow)
                     earn_subgraphPaginateAll(endpoint, 'transfers',
                         `{ fromEffectiveUser: "${addr}", toEffectiveUser_not: "${addr}" }`,
-                        'serialId token { marketId decimals } amountDeltaWei fromAmountDeltaPar'
+                        'serialId token { marketId decimals } amountDeltaWei fromAmountDeltaPar interestIndex fromMarginAccount { accountNumber }'
                     ),
                     // 6. Transfers IN (external only — for all-account netflow)
                     earn_subgraphPaginateAll(endpoint, 'transfers',
                         `{ toEffectiveUser: "${addr}", fromEffectiveUser_not: "${addr}" }`,
-                        'serialId token { marketId decimals } amountDeltaWei toAmountDeltaPar'
+                        'serialId token { marketId decimals } amountDeltaWei toAmountDeltaPar interestIndex toMarginAccount { accountNumber }'
                     ),
                     // 7. Liquidations (solid/liquidator — with account number)
                     earn_subgraphPaginateAll(endpoint, 'liquidations',
                         `{ solidEffectiveUser: "${addr}" }`,
-                        'serialId heldToken { marketId decimals } borrowedToken { marketId decimals } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei solidHeldTokenAmountDeltaPar solidBorrowedTokenAmountDeltaPar solidMarginAccount { accountNumber }'
+                        'serialId heldToken { marketId decimals } borrowedToken { marketId decimals } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei solidHeldTokenAmountDeltaPar solidBorrowedTokenAmountDeltaPar heldInterestIndex borrowedInterestIndex solidMarginAccount { accountNumber }'
                     ),
                     // 8. Liquidations (liquid/being liquidated — with account number)
                     earn_subgraphPaginateAll(endpoint, 'liquidations',
                         `{ liquidEffectiveUser: "${addr}" }`,
-                        'serialId heldToken { marketId decimals } borrowedToken { marketId decimals } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei liquidHeldTokenAmountDeltaPar liquidBorrowedTokenAmountDeltaPar liquidMarginAccount { accountNumber }'
+                        'serialId heldToken { marketId decimals } borrowedToken { marketId decimals } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei liquidHeldTokenAmountDeltaPar liquidBorrowedTokenAmountDeltaPar heldInterestIndex borrowedInterestIndex liquidMarginAccount { accountNumber }'
                     ),
                     // 9. Borrow positions
                     earn_subgraphPaginateAll(endpoint, 'borrowPositions',
@@ -21992,22 +22137,22 @@
                     // 10a. ALL transfers by this user as sender (including internal same-user for acct0 tracking)
                     earn_subgraphPaginateAll(endpoint, 'transfers',
                         `{ fromEffectiveUser: "${addr}" }`,
-                        'token { marketId decimals } amountDeltaWei fromMarginAccount { accountNumber } toMarginAccount { accountNumber }'
+                        'serialId token { marketId decimals } amountDeltaWei fromAmountDeltaPar toAmountDeltaPar interestIndex fromEffectiveUser { id } toEffectiveUser { id } fromMarginAccount { accountNumber } toMarginAccount { accountNumber }'
                     ),
                     // 10b. External transfers IN — need toMarginAccount for acct0 tracking
                     earn_subgraphPaginateAll(endpoint, 'transfers',
                         `{ toEffectiveUser: "${addr}", fromEffectiveUser_not: "${addr}" }`,
-                        'token { marketId decimals } amountDeltaWei toMarginAccount { accountNumber }'
+                        'serialId token { marketId decimals } amountDeltaWei toAmountDeltaPar interestIndex toMarginAccount { accountNumber }'
                     ),
                     // 11. Vaporizations (solid — user absorbs debt, receives collateral)
                     earn_subgraphPaginateAll(endpoint, 'vaporizations',
                         `{ solidEffectiveUser: "${addr}" }`,
-                        'serialId heldToken { marketId decimals } borrowedToken { marketId decimals } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei solidHeldTokenAmountDeltaPar solidBorrowedTokenAmountDeltaPar solidMarginAccount { accountNumber }'
+                        'serialId heldToken { marketId decimals } borrowedToken { marketId decimals } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei solidHeldTokenAmountDeltaPar solidBorrowedTokenAmountDeltaPar heldInterestIndex borrowedInterestIndex solidMarginAccount { accountNumber }'
                     ),
                     // 12. Vaporizations (vapor — user's debt gets vaporized)
                     earn_subgraphPaginateAll(endpoint, 'vaporizations',
                         `{ vaporEffectiveUser: "${addr}" }`,
-                        'serialId heldToken { marketId decimals } borrowedToken { marketId decimals } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei vaporBorrowedTokenAmountDeltaPar vaporMarginAccount { accountNumber }'
+                        'serialId heldToken { marketId decimals } borrowedToken { marketId decimals } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei vaporBorrowedTokenAmountDeltaPar heldInterestIndex borrowedInterestIndex vaporMarginAccount { accountNumber }'
                     ),
                 ]);
 
@@ -22021,6 +22166,7 @@
                     const dec = parseInt(dep.token.decimals) || 18;
                     addFlow(dep.token.marketId, dep.amountDeltaWei, 'd', dec);
                     addMarketEvent(dep.token.marketId, dep.serialId, dep.amountDeltaPar, dep.amountDeltaWei, dec);
+                    addInterestEvent(dep.marginAccount && dep.marginAccount.accountNumber, dep.token.marketId, dep.serialId, dep.amountDeltaPar, dep.amountDeltaWei, dep.interestIndex, dec);
                     if (dep.marginAccount && dep.marginAccount.accountNumber === '0') {
                         addAcct0Flow(dep.token.marketId, dep.amountDeltaWei, dec);
                     }
@@ -22029,6 +22175,7 @@
                     const dec = parseInt(w.token.decimals) || 18;
                     addFlow(w.token.marketId, negStr(w.amountDeltaWei), 'w', dec);
                     addMarketEvent(w.token.marketId, w.serialId, w.amountDeltaPar, negStr(w.amountDeltaWei), dec);
+                    addInterestEvent(w.marginAccount && w.marginAccount.accountNumber, w.token.marketId, w.serialId, w.amountDeltaPar, w.amountDeltaWei, w.interestIndex, dec);
                     if (w.marginAccount && w.marginAccount.accountNumber === '0') {
                         addAcct0Flow(w.token.marketId, negStr(w.amountDeltaWei), dec);
                     }
@@ -22040,6 +22187,8 @@
                     addFlow(t.makerToken.marketId, t.makerTokenDeltaWei, 's', mdec);
                     addMarketEvent(t.takerToken.marketId, t.serialId, t.takerInputTokenDeltaPar, negStr(t.takerTokenDeltaWei), tdec);
                     addMarketEvent(t.makerToken.marketId, t.serialId, t.takerOutputTokenDeltaPar, t.makerTokenDeltaWei, mdec);
+                    addInterestEvent(t.takerMarginAccount && t.takerMarginAccount.accountNumber, t.takerToken.marketId, t.serialId, t.takerInputTokenDeltaPar, t.takerTokenDeltaWei, t.takerInterestIndex, tdec);
+                    addInterestEvent(t.takerMarginAccount && t.takerMarginAccount.accountNumber, t.makerToken.marketId, t.serialId, t.takerOutputTokenDeltaPar, t.makerTokenDeltaWei, t.makerInterestIndex, mdec);
                     if (t.takerMarginAccount && t.takerMarginAccount.accountNumber === '0') {
                         addAcct0Flow(t.takerToken.marketId, negStr(t.takerTokenDeltaWei), tdec);
                         addAcct0Flow(t.makerToken.marketId, t.makerTokenDeltaWei, mdec);
@@ -22052,6 +22201,8 @@
                     addFlow(t.takerToken.marketId, t.takerTokenDeltaWei, 's', tdec);
                     addMarketEvent(t.makerToken.marketId, t.serialId, t.makerInputTokenDeltaPar, negStr(t.makerTokenDeltaWei), mdec);
                     addMarketEvent(t.takerToken.marketId, t.serialId, t.makerOutputTokenDeltaPar, t.takerTokenDeltaWei, tdec);
+                    addInterestEvent(t.makerMarginAccount && t.makerMarginAccount.accountNumber, t.makerToken.marketId, t.serialId, t.makerInputTokenDeltaPar, t.makerTokenDeltaWei, t.makerInterestIndex, mdec);
+                    addInterestEvent(t.makerMarginAccount && t.makerMarginAccount.accountNumber, t.takerToken.marketId, t.serialId, t.makerOutputTokenDeltaPar, t.takerTokenDeltaWei, t.takerInterestIndex, tdec);
                     if (t.makerMarginAccount && t.makerMarginAccount.accountNumber === '0') {
                         addAcct0Flow(t.makerToken.marketId, negStr(t.makerTokenDeltaWei), mdec);
                         addAcct0Flow(t.takerToken.marketId, t.takerTokenDeltaWei, tdec);
@@ -22072,6 +22223,10 @@
                     const xdec = parseInt(xf.token.decimals) || 18;
                     const fromAcct = xf.fromMarginAccount && xf.fromMarginAccount.accountNumber;
                     const toAcct = xf.toMarginAccount && xf.toMarginAccount.accountNumber;
+                    addInterestEvent(fromAcct, xf.token.marketId, xf.serialId, xf.fromAmountDeltaPar, xf.amountDeltaWei, xf.interestIndex, xdec);
+                    if (xf.toEffectiveUser && xf.toEffectiveUser.id === addr) {
+                        addInterestEvent(toAcct, xf.token.marketId, xf.serialId, xf.toAmountDeltaPar, xf.amountDeltaWei, xf.interestIndex, xdec);
+                    }
                     if (fromAcct === '0') addAcct0Flow(xf.token.marketId, negStr(xf.amountDeltaWei), xdec);
                     if (toAcct === '0')   addAcct0Flow(xf.token.marketId, xf.amountDeltaWei, xdec);
                 }
@@ -22079,6 +22234,7 @@
                 for (const xf of (allTransfersTo || [])) {
                     const xdec = parseInt(xf.token.decimals) || 18;
                     const toAcct = xf.toMarginAccount && xf.toMarginAccount.accountNumber;
+                    addInterestEvent(toAcct, xf.token.marketId, xf.serialId, xf.toAmountDeltaPar, xf.amountDeltaWei, xf.interestIndex, xdec);
                     if (toAcct === '0') addAcct0Flow(xf.token.marketId, xf.amountDeltaWei, xdec);
                 }
                 for (const liq of liqsSolid) {
@@ -22089,6 +22245,8 @@
                     addFlow(liq.borrowedToken.marketId, negStr(liq.borrowedTokenAmountDeltaWei), 'l', bdec);
                     addMarketEvent(liq.heldToken.marketId, liq.serialId, liq.solidHeldTokenAmountDeltaPar, liq.heldTokenAmountDeltaWei, hdec);
                     addMarketEvent(liq.borrowedToken.marketId, liq.serialId, liq.solidBorrowedTokenAmountDeltaPar, negStr(liq.borrowedTokenAmountDeltaWei), bdec);
+                    addInterestEvent(liq.solidMarginAccount && liq.solidMarginAccount.accountNumber, liq.heldToken.marketId, liq.serialId, liq.solidHeldTokenAmountDeltaPar, liq.heldTokenAmountDeltaWei, liq.heldInterestIndex, hdec);
+                    addInterestEvent(liq.solidMarginAccount && liq.solidMarginAccount.accountNumber, liq.borrowedToken.marketId, liq.serialId, liq.solidBorrowedTokenAmountDeltaPar, liq.borrowedTokenAmountDeltaWei, liq.borrowedInterestIndex, bdec);
                     if (liq.solidMarginAccount && liq.solidMarginAccount.accountNumber === '0') {
                         addAcct0Flow(liq.heldToken.marketId, liq.heldTokenAmountDeltaWei, hdec);
                         addAcct0Flow(liq.borrowedToken.marketId, negStr(liq.borrowedTokenAmountDeltaWei), bdec);
@@ -22102,6 +22260,8 @@
                     addFlow(liq.borrowedToken.marketId, liq.borrowedTokenAmountDeltaWei, 'l', bdec);
                     addMarketEvent(liq.heldToken.marketId, liq.serialId, liq.liquidHeldTokenAmountDeltaPar, negStr(liq.heldTokenAmountDeltaWei), hdec);
                     addMarketEvent(liq.borrowedToken.marketId, liq.serialId, liq.liquidBorrowedTokenAmountDeltaPar, liq.borrowedTokenAmountDeltaWei, bdec);
+                    addInterestEvent(liq.liquidMarginAccount && liq.liquidMarginAccount.accountNumber, liq.heldToken.marketId, liq.serialId, liq.liquidHeldTokenAmountDeltaPar, liq.heldTokenAmountDeltaWei, liq.heldInterestIndex, hdec);
+                    addInterestEvent(liq.liquidMarginAccount && liq.liquidMarginAccount.accountNumber, liq.borrowedToken.marketId, liq.serialId, liq.liquidBorrowedTokenAmountDeltaPar, liq.borrowedTokenAmountDeltaWei, liq.borrowedInterestIndex, bdec);
                     if (liq.liquidMarginAccount && liq.liquidMarginAccount.accountNumber === '0') {
                         addAcct0Flow(liq.heldToken.marketId, negStr(liq.heldTokenAmountDeltaWei), hdec);
                         addAcct0Flow(liq.borrowedToken.marketId, liq.borrowedTokenAmountDeltaWei, bdec);
@@ -22116,6 +22276,8 @@
                     addFlow(vap.borrowedToken.marketId, negStr(vap.borrowedTokenAmountDeltaWei), 'v', bdec);
                     addMarketEvent(vap.heldToken.marketId, vap.serialId, vap.solidHeldTokenAmountDeltaPar, vap.heldTokenAmountDeltaWei, hdec);
                     addMarketEvent(vap.borrowedToken.marketId, vap.serialId, vap.solidBorrowedTokenAmountDeltaPar, negStr(vap.borrowedTokenAmountDeltaWei), bdec);
+                    addInterestEvent(vap.solidMarginAccount && vap.solidMarginAccount.accountNumber, vap.heldToken.marketId, vap.serialId, vap.solidHeldTokenAmountDeltaPar, vap.heldTokenAmountDeltaWei, vap.heldInterestIndex, hdec);
+                    addInterestEvent(vap.solidMarginAccount && vap.solidMarginAccount.accountNumber, vap.borrowedToken.marketId, vap.serialId, vap.solidBorrowedTokenAmountDeltaPar, vap.borrowedTokenAmountDeltaWei, vap.borrowedInterestIndex, bdec);
                     if (vap.solidMarginAccount && vap.solidMarginAccount.accountNumber === '0') {
                         addAcct0Flow(vap.heldToken.marketId, vap.heldTokenAmountDeltaWei, hdec);
                         addAcct0Flow(vap.borrowedToken.marketId, negStr(vap.borrowedTokenAmountDeltaWei), bdec);
@@ -22128,6 +22290,7 @@
                     addFlow(vap.heldToken.marketId, negStr(vap.heldTokenAmountDeltaWei), 'v', hdec);
                     addFlow(vap.borrowedToken.marketId, vap.borrowedTokenAmountDeltaWei, 'v', bdec);
                     addMarketEvent(vap.borrowedToken.marketId, vap.serialId, vap.vaporBorrowedTokenAmountDeltaPar, vap.borrowedTokenAmountDeltaWei, bdec);
+                    addInterestEvent(vap.vaporMarginAccount && vap.vaporMarginAccount.accountNumber, vap.borrowedToken.marketId, vap.serialId, vap.vaporBorrowedTokenAmountDeltaPar, vap.borrowedTokenAmountDeltaWei, vap.borrowedInterestIndex, bdec);
                     if (vap.vaporMarginAccount && vap.vaporMarginAccount.accountNumber === '0') {
                         addAcct0Flow(vap.heldToken.marketId, negStr(vap.heldTokenAmountDeltaWei), hdec);
                         addAcct0Flow(vap.borrowedToken.marketId, vap.borrowedTokenAmountDeltaWei, bdec);
@@ -22158,8 +22321,10 @@
                     const tokensData = await earn_subgraphQuery(endpoint,
                         `{ tokens(first: 100, where: { marketId_in: [${allMarketIds.map(m => `"${m}"`).join(',')}] }) { id marketId symbol name decimals } }`
                     );
+                    const tokenIds = [];
                     for (const t of (tokensData.tokens || [])) {
                         marketDecimals[t.marketId] = parseInt(t.decimals);
+                        tokenIds.push(`"${t.id.toLowerCase()}"`);
                         // Cache full token metadata for History tab
                         earn_subgraphTokens[t.marketId] = {
                             symbol: t.symbol,
@@ -22167,6 +22332,23 @@
                             name: t.name,
                             tokenAddr: t.id, // token contract address
                         };
+                    }
+
+                    if (tokenIds.length > 0) {
+                        const interestData = await earn_subgraphQuery(endpoint,
+                            `{ interestIndexes(first: 200, where: { id_in: [${tokenIds.join(',')}] }) { id supplyIndex borrowIndex } }`
+                        );
+                        const currentIndexMap = {};
+                        (tokensData.tokens || []).forEach(t => {
+                            const ix = (interestData.interestIndexes || []).find(entry => entry.id.toLowerCase() === t.id.toLowerCase());
+                            currentIndexMap[String(t.marketId)] = {
+                                supplyIndex: ix ? decStrToBigInt(ix.supplyIndex || '0', 18) : null,
+                                borrowIndex: ix ? decStrToBigInt(ix.borrowIndex || '0', 18) : null,
+                            };
+                        });
+                        earn_interestYieldData = buildInterestYieldSummary(currentIndexMap);
+                    } else {
+                        earn_interestYieldData = {};
                     }
 
                     // Serialize BigInt netflows to strings for storage
@@ -23338,9 +23520,9 @@
                                 </div>
                                 <div class="earn-lend-section">
                                     ${(p.netAccrued !== undefined) ? `
-                                        <div class="earn-lend-section-title net">Realized P&L</div>
+                                        <div class="earn-lend-section-title net">Accrued P&L</div>
                                         <div class="earn-lend-net-value ${p.netAccrued >= 0 ? 'positive' : 'negative'}">${p.netAccrued >= 0 ? '+' : '-'}${earn_formatUSD(Math.abs(p.netAccrued))}<span style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.4)"> total</span></div>
-                                        <div class="earn-lend-net-sub">Yield ${earn_formatUSD(p.totalAccruedYield || 0)}${p.totalExternalRewardsUSD > 0.01 ? ' + <span style="color:#fbbf24">Rewards ' + earn_formatUSD(p.totalExternalRewardsUSD) + '</span>' : ''} − Cost ${earn_formatUSD(p.totalAccruedCost || 0)}</div>
+                                        <div class="earn-lend-net-sub">Collateral ${earn_formatUSD(p.totalAccruedYield || 0)}${p.totalExternalRewardsUSD > 0.01 ? ' + <span style="color:#fbbf24">Rewards ' + earn_formatUSD(p.totalExternalRewardsUSD) + '</span>' : ''} − Borrow ${earn_formatUSD(p.totalAccruedCost || 0)}</div>
                                         ${p.openTimestamp ? `<div class="earn-lend-net-sub" style="margin-top:4px">Opened ${earn_formatAge(p.openTimestamp)}</div>` : ''}
                                         <div style="border-top:1px solid rgba(255,255,255,0.05);margin-top:8px;padding-top:6px">
                                             <div class="earn-lend-net-sub" style="margin-bottom:2px">Est. annual at current rates:</div>
@@ -23735,9 +23917,9 @@
                             </div>
                             <div class="earn-lend-section">
                                 ${(p.netAccrued !== undefined) ? `
-                                    <div class="earn-lend-section-title net">Realized P&L</div>
+                                    <div class="earn-lend-section-title net">Accrued P&L</div>
                                     <div class="earn-lend-net-value ${p.netAccrued >= 0 ? 'positive' : 'negative'}">${p.netAccrued >= 0 ? '+' : '-'}${earn_formatUSD(Math.abs(p.netAccrued))}<span style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.4)"> total</span></div>
-                                    <div class="earn-lend-net-sub">Yield ${earn_formatUSD(p.totalAccruedYield || 0)}${p.totalExternalRewardsUSD > 0.01 ? ' + <span style="color:#fbbf24">Rewards ' + earn_formatUSD(p.totalExternalRewardsUSD) + '</span>' : ''} − Cost ${earn_formatUSD(p.totalAccruedCost || 0)}</div>
+                                    <div class="earn-lend-net-sub">Collateral ${earn_formatUSD(p.totalAccruedYield || 0)}${p.totalExternalRewardsUSD > 0.01 ? ' + <span style="color:#fbbf24">Rewards ' + earn_formatUSD(p.totalExternalRewardsUSD) + '</span>' : ''} − Borrow ${earn_formatUSD(p.totalAccruedCost || 0)}</div>
                                     ${p.openTimestamp ? `<div class="earn-lend-net-sub" style="margin-top:4px">Opened ${earn_formatAge(p.openTimestamp)}</div>` : ''}
                                     <div style="border-top:1px solid rgba(255,255,255,0.05);margin-top:8px;padding-top:6px">
                                         <div class="earn-lend-net-sub" style="margin-bottom:2px">Est. annual at current rates:</div>
@@ -23789,9 +23971,10 @@
                 const mid = String(a.marketId);
                 const hasNF = earn_netflowData && earn_netflowData[mid] !== undefined;
                 const hasA0 = earn_acct0NetflowData && earn_acct0NetflowData[mid] !== undefined;
+                const hasIL = earn_interestYieldData && earn_interestYieldData[mid] && earn_interestYieldData[mid].earnYield !== undefined;
                 const h = earn_totalYieldData && earn_totalYieldData[mid];
                 const hasSS = h && h.cumulativeYield !== undefined;
-                return hasNF || hasA0 || hasSS;
+                return hasNF || hasA0 || hasIL || hasSS;
             });
             const table = document.querySelector('.earn-asset-table:not(.earn-past-table)');
             if (table) table.classList.toggle('no-yield', !hasAnyYield);
@@ -24061,7 +24244,7 @@
                     const bestIconHtml = bestIcon ? `<img class="best-icon" src="${bestIcon}" alt="">` : '';
 
                     // Count active non-dust supply assets
-                    const activeCount = (earn_cachedAssets || []).filter(a => !a.isBorrow && a.usdValue >= 0.01).length;
+                    const activeCount = (earn_cachedAssets || []).filter(a => !a.isBorrow && a.usdValue >= dustThreshold).length;
 
                     // Portfolio sub label (will be updated when lending positions arrive)
                     const portfolioSub = `<span class="sub-highlight">${activeCount}</span> active asset${activeCount !== 1 ? 's' : ''}`;
