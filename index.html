@@ -19640,6 +19640,7 @@
                 margin: '0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D',
                 rpcs: ['https://eth.llamarpc.com/', 'https://ethereum-rpc.publicnode.com/', 'https://eth.drpc.org/'],
                 rpcIdx: 0,
+                logStartBlock: 22790000,
             },
             berachain: {
                 name: 'Berachain',
@@ -19651,6 +19652,7 @@
                 margin: '0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D',
                 rpcs: ['https://rpc.berachain.com/', 'https://berachain-rpc.publicnode.com/', 'https://berachain.drpc.org/'],
                 rpcIdx: 0,
+                logStartBlock: 7000000,
             },
             arbitrum: {
                 name: 'Arbitrum',
@@ -19662,6 +19664,7 @@
                 margin: '0x6bd780e7fDf01D77e4d475c821f1e7AE05409072',
                 rpcs: ['https://arb1.arbitrum.io/rpc', 'https://arbitrum.drpc.org/', 'https://arbitrum-one-rpc.publicnode.com/'],
                 rpcIdx: 0,
+                logStartBlock: 29750000,
             },
             botanix: {
                 name: 'Botanix',
@@ -19691,6 +19694,7 @@
                 rpcs: ['https://rpc.mantle.xyz/', 'https://mantle-rpc.publicnode.com/', 'https://mantle.drpc.org/'],
                 rpcIdx: 0,
                 llamaPlatform: 'mantle',
+                logStartBlock: 64046000,
             },
             xlayer: {
                 name: 'X Layer',
@@ -19733,6 +19737,7 @@
         const earn_tokenCache = {}; // "chain:address" => { symbol, decimals, icon }
         let earn_borrowMarkets = new Set(); // market IDs with active borrows (yield formula is invalid for these)
         let earn_borrowPositionData = []; // raw borrow position data from subgraph [{marketId, amountPar, tokenAddr, decimals, symbol}]
+        let earn_replayAccountNumbers = []; // discovered account numbers from onchain logs
 
         // ---- Custom chain selector logic ----
         function earnChainToggle() {
@@ -19763,6 +19768,7 @@
             earn_customSnapshotDate = null;
             earn_borrowMarkets = new Set();
             earn_borrowPositionData = [];
+            earn_replayAccountNumbers = [];
             earn_lendingPositions = [];
             // Hide lending positions section
             const lendingSection = document.getElementById('earn-lending-section');
@@ -20042,7 +20048,7 @@
             }
         }
 
-        async function earn_rpcCall(to, data, retries = 3) {
+        async function earn_rpcRequest(method, params, retries = 3) {
             for (let attempt = 0; attempt < retries; attempt++) {
                 try {
                     const resp = await fetch(earn_nextRpc(), {
@@ -20050,8 +20056,8 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             jsonrpc: '2.0',
-                            method: 'eth_call',
-                            params: [{ to, data }, 'latest'],
+                            method,
+                            params,
                             id: earn_rpcId++
                         })
                     });
@@ -20062,6 +20068,58 @@
                     if (attempt === retries - 1) throw e;
                 }
             }
+        }
+
+        function earn_isRpcRangeError(message) {
+            const msg = String(message || '').toLowerCase();
+            return msg.includes('block range') ||
+                msg.includes('query returned more than') ||
+                msg.includes('too many results') ||
+                msg.includes('response size exceeded') ||
+                msg.includes('please limit') ||
+                msg.includes('exceed') ||
+                msg.includes('range');
+        }
+
+        async function earn_rpcCall(to, data, retries = 3) {
+            return earn_rpcRequest('eth_call', [{ to, data }, 'latest'], retries);
+        }
+
+        async function earn_rpcGetLogs(filter, opts) {
+            opts = opts || {};
+            const retries = opts.retries || 3;
+            const fromBlock = Number(BigInt(filter.fromBlock));
+            const toBlock = Number(BigInt(filter.toBlock));
+
+            try {
+                return await earn_rpcRequest('eth_getLogs', [filter], retries);
+            } catch (e) {
+                if (!earn_isRpcRangeError(e.message) || fromBlock >= toBlock) throw e;
+            }
+
+            const results = [];
+            let chunkSize = opts.initialChunk || 250000;
+            let current = fromBlock;
+            while (current <= toBlock) {
+                const end = Math.min(current + chunkSize - 1, toBlock);
+                const chunkFilter = {
+                    ...filter,
+                    fromBlock: '0x' + current.toString(16),
+                    toBlock: '0x' + end.toString(16),
+                };
+                try {
+                    const chunkLogs = await earn_rpcRequest('eth_getLogs', [chunkFilter], retries);
+                    if (Array.isArray(chunkLogs) && chunkLogs.length > 0) results.push(...chunkLogs);
+                    current = end + 1;
+                    if (chunkLogs.length < 8 && chunkSize < 2000000) {
+                        chunkSize = Math.min(2000000, chunkSize * 2);
+                    }
+                } catch (e) {
+                    if (!earn_isRpcRangeError(e.message) || chunkSize <= 1) throw e;
+                    chunkSize = Math.max(1, Math.floor(chunkSize / 2));
+                }
+            }
+            return results;
         }
 
         // Batch JSON-RPC: send multiple eth_call in a single HTTP request
@@ -20105,6 +20163,239 @@
 
         function earn_padUint(n) {
             return BigInt(n).toString(16).padStart(64, '0');
+        }
+
+        const EARN_ACTION_LOG_TOPICS = {
+            deposit: '0x2bad8bc95088af2c247b30fa2b2e6a0886f88625e0945cd3051008e0e270198f',
+            withdraw: '0xbc83c08f0b269b1726990c8348ffdf1ae1696244a14868d766e542a2f18cd7d4',
+            transfer: '0x21281f8d59117d0399dc467dbdd321538ceffe3225e80e2bd4de6f1b3355cbc7',
+            buy: '0x2e346762bf4ae4568971c30b51fcebd2138275aafcfe12d872956e9f3e120893',
+            sell: '0xcc3330184b6d88cad87f9e9543b4d4110a6a3eaf20164ca5252d598d0acba3f1',
+            trade: '0x54d4cc60cf7d570631cc1a58942812cb0fc461713613400f56932040c3497d19',
+            liquidate: '0x1b9e65b359b871d74b1af1fc8b13b11635bfb097c4631b091eb762fda7e67dc7',
+            vaporize: '0xefdcfda4e0be180f29bfeebc4bcb6de1e950d70b41e9ee813bff9882ee16ca91',
+        };
+        const EARN_ACTION_LOG_TOPICS_ALL = Object.values(EARN_ACTION_LOG_TOPICS);
+        const EARN_ACTION_LOG_TOPICS_SECOND_OWNER = [
+            EARN_ACTION_LOG_TOPICS.transfer,
+            EARN_ACTION_LOG_TOPICS.trade,
+            EARN_ACTION_LOG_TOPICS.liquidate,
+            EARN_ACTION_LOG_TOPICS.vaporize,
+        ];
+        const EARN_INDEX_UPDATE_TOPICS = {
+            default: '0x247e2f5b851dd23ef755d9ad527e801ee202c4097acd70c21e82dc5602cdd879',
+            arbitrum: '0xf4626fd1187f91e6761ffb8a6ac3e8d9235a4a92da54e43feb0c57c4a4a322ab',
+        };
+        const EARN_SEL_GET_MARKET_CURRENT_INDEX = '0x56ea84b2';
+        const EARN_SEL_GET_MARKET_TOKEN_ADDRESS = '0x062bd3e9';
+
+        function earn_hexToBigInt(hex) {
+            if (hex === undefined || hex === null) return 0n;
+            const raw = String(hex);
+            if (!raw || raw === '0x') return 0n;
+            return BigInt(raw);
+        }
+
+        function earn_addrTopic(addr) {
+            return '0x' + addr.toLowerCase().replace('0x', '').padStart(64, '0');
+        }
+
+        function earn_uintTopic(value) {
+            return '0x' + BigInt(value).toString(16).padStart(64, '0');
+        }
+
+        function earn_splitHexWords(hex) {
+            const raw = (hex || '0x').replace(/^0x/, '');
+            const words = [];
+            for (let i = 0; i < raw.length; i += 64) {
+                words.push(raw.slice(i, i + 64).padStart(64, '0'));
+            }
+            return words;
+        }
+
+        function earn_decodeAddressWord(word) {
+            return '0x' + String(word || '').slice(-40).toLowerCase();
+        }
+
+        function earn_decodeSignedBoolUint(signWord, valueWord) {
+            const value = BigInt('0x' + (valueWord || '0'));
+            if (value === 0n) return 0n;
+            return BigInt('0x' + (signWord || '0')) !== 0n ? value : -value;
+        }
+
+        function earn_decodeBalanceUpdateWords(words, offset) {
+            return {
+                deltaWei: earn_decodeSignedBoolUint(words[offset], words[offset + 1]),
+                newPar: earn_decodeSignedBoolUint(words[offset + 2], words[offset + 3]),
+            };
+        }
+
+        function earn_logSortValue(log, field) {
+            return Number(earn_hexToBigInt(log && log[field] ? log[field] : '0x0'));
+        }
+
+        function earn_compareLogs(a, b) {
+            const blockDiff = earn_logSortValue(a, 'blockNumber') - earn_logSortValue(b, 'blockNumber');
+            if (blockDiff !== 0) return blockDiff;
+            const txDiff = earn_logSortValue(a, 'transactionIndex') - earn_logSortValue(b, 'transactionIndex');
+            if (txDiff !== 0) return txDiff;
+            return earn_logSortValue(a, 'logIndex') - earn_logSortValue(b, 'logIndex');
+        }
+
+        function earn_logKey(log) {
+            return `${(log.transactionHash || '').toLowerCase()}:${earn_logSortValue(log, 'logIndex')}`;
+        }
+
+        async function earn_fetchUserActionLogs(addr) {
+            const chain = earn_getChain();
+            const ownerTopic = earn_addrTopic(addr);
+            const latestHex = await earn_rpcRequest('eth_blockNumber', [], 3);
+            const fromBlock = '0x' + BigInt(chain.logStartBlock || 0).toString(16);
+            const baseFilter = {
+                address: chain.margin,
+                fromBlock,
+                toBlock: latestHex,
+            };
+
+            const [topicOneLogs, topicTwoLogs] = await Promise.all([
+                earn_rpcGetLogs({
+                    ...baseFilter,
+                    topics: [EARN_ACTION_LOG_TOPICS_ALL, ownerTopic],
+                }, { initialChunk: 500000 }),
+                earn_rpcGetLogs({
+                    ...baseFilter,
+                    topics: [EARN_ACTION_LOG_TOPICS_SECOND_OWNER, null, ownerTopic],
+                }, { initialChunk: 500000 }),
+            ]);
+
+            const merged = [];
+            const seen = new Set();
+            [...(topicOneLogs || []), ...(topicTwoLogs || [])].forEach(log => {
+                const key = earn_logKey(log);
+                if (seen.has(key)) return;
+                seen.add(key);
+                merged.push(log);
+            });
+            merged.sort(earn_compareLogs);
+            return merged;
+        }
+
+        async function earn_fetchIndexLogsForBlocks(blockMarketMap) {
+            const chainId = document.getElementById('earn-chain').value;
+            const chain = earn_getChain();
+            const indexTopic = EARN_INDEX_UPDATE_TOPICS[chainId] || EARN_INDEX_UPDATE_TOPICS.default;
+            const blocks = Array.from(blockMarketMap.keys()).sort((a, b) => a - b);
+            const byBlock = {};
+
+            for (let i = 0; i < blocks.length; i += 8) {
+                const slice = blocks.slice(i, i + 8);
+                const results = await Promise.all(slice.map(async blockNumber => {
+                    const marketTopics = Array.from(blockMarketMap.get(blockNumber) || []).map(earn_uintTopic);
+                    if (marketTopics.length === 0) return { blockNumber, logs: [] };
+                    const blockHex = '0x' + blockNumber.toString(16);
+                    const logs = await earn_rpcGetLogs({
+                        address: chain.margin,
+                        fromBlock: blockHex,
+                        toBlock: blockHex,
+                        topics: [indexTopic, marketTopics],
+                    }, { initialChunk: 1 });
+                    return { blockNumber, logs: logs || [] };
+                }));
+
+                results.forEach(({ blockNumber, logs }) => {
+                    const perMarket = {};
+                    (logs || []).sort(earn_compareLogs).forEach(log => {
+                        const mid = earn_hexToBigInt(log.topics && log.topics[1] ? log.topics[1] : '0x0').toString();
+                        const words = earn_splitHexWords(log.data);
+                        if (words.length < 2) return;
+                        if (!perMarket[mid]) perMarket[mid] = [];
+                        perMarket[mid].push({
+                            transactionIndex: earn_logSortValue(log, 'transactionIndex'),
+                            logIndex: earn_logSortValue(log, 'logIndex'),
+                            borrowIndex: BigInt('0x' + words[0]),
+                            supplyIndex: BigInt('0x' + words[1]),
+                        });
+                    });
+                    byBlock[blockNumber] = perMarket;
+                });
+            }
+
+            return byBlock;
+        }
+
+        async function earn_fetchReplayMarketMeta(marketIds) {
+            const chain = earn_getChain();
+            const calls = [];
+            const map = [];
+            marketIds.forEach(mid => {
+                calls.push({ to: chain.margin, data: EARN_SEL_GET_MARKET_TOKEN_ADDRESS + earn_padUint(mid) });
+                map.push({ marketId: String(mid), type: 'token' });
+                calls.push({ to: chain.margin, data: EARN_SEL_GET_MARKET_CURRENT_INDEX + earn_padUint(mid) });
+                map.push({ marketId: String(mid), type: 'index' });
+            });
+            const results = calls.length ? await earn_rpcBatch(calls) : [];
+            const currentIndexMap = {};
+            const tokenAddrByMarket = {};
+
+            map.forEach((entry, idx) => {
+                const result = results[idx];
+                if (!result || result === '0x') return;
+                if (entry.type === 'token') {
+                    tokenAddrByMarket[entry.marketId] = '0x' + result.slice(-40).toLowerCase();
+                } else {
+                    const words = earn_splitHexWords(result);
+                    currentIndexMap[entry.marketId] = {
+                        borrowIndex: words[0] ? BigInt('0x' + words[0]) : null,
+                        supplyIndex: words[1] ? BigInt('0x' + words[1]) : null,
+                    };
+                }
+            });
+
+            const uniqueAddrs = Array.from(new Set(Object.values(tokenAddrByMarket)));
+            await Promise.all(uniqueAddrs.map(addr => earn_getTokenInfo(addr)));
+
+            const marketMeta = {};
+            Object.entries(tokenAddrByMarket).forEach(([mid, tokenAddr]) => {
+                const key = document.getElementById('earn-chain').value + ':' + tokenAddr.toLowerCase();
+                const info = earn_tokenCache[key] || KNOWN_TOKENS[key] || { symbol: 'UNK', decimals: 18, icon: null };
+                marketMeta[mid] = {
+                    tokenAddr,
+                    symbol: info.symbol || 'UNK',
+                    decimals: info.decimals || 18,
+                    name: info.name || info.symbol || 'UNK',
+                    icon: info.icon || null,
+                };
+            });
+
+            return { currentIndexMap, marketMeta };
+        }
+
+        function earn_findEventIndexes(indexLogsByBlock, update, deltaPar) {
+            const blockLogs = indexLogsByBlock[update.blockNumber];
+            const marketLogs = blockLogs ? blockLogs[update.marketId] : null;
+            let best = null;
+            if (marketLogs && marketLogs.length > 0) {
+                for (const entry of marketLogs) {
+                    const beforeTx = entry.transactionIndex < update.transactionIndex;
+                    const sameTxBeforeLog = entry.transactionIndex === update.transactionIndex && entry.logIndex < update.logIndex;
+                    if (!beforeTx && !sameTxBeforeLog) break;
+                    best = entry;
+                }
+            }
+
+            let derivedIndex = null;
+            if ((!best || (!best.supplyIndex && !best.borrowIndex)) && deltaPar !== 0n && update.deltaWei !== 0n) {
+                const absPar = deltaPar < 0n ? -deltaPar : deltaPar;
+                const absWei = update.deltaWei < 0n ? -update.deltaWei : update.deltaWei;
+                if (absPar > 0n && absWei > 0n) {
+                    derivedIndex = (absWei * (10n ** 18n)) / absPar;
+                }
+            }
+
+            return {
+                supplyIndex: best && best.supplyIndex ? best.supplyIndex : derivedIndex,
+                borrowIndex: best && best.borrowIndex ? best.borrowIndex : derivedIndex,
+            };
         }
 
         // Decode getAccountBalances result:
@@ -20182,60 +20473,106 @@
 
         async function earn_fetchActiveSupplyBalances(addr) {
             const chain = earn_getChain();
-            const chainId = document.getElementById('earn-chain').value;
             const selector = '0x6a8194e7';
             const fallbackAccountNum = String(document.getElementById('earn-account-num')?.value || '0');
-            let accountNumbers = [fallbackAccountNum];
-
-            const endpoint = SUBGRAPH_ENDPOINTS[chainId];
-            if (endpoint) {
-                try {
-                    const marginAccounts = await earn_subgraphPaginateAll(
-                        endpoint,
-                        'marginAccounts',
-                        `{ effectiveUser: "${addr.toLowerCase()}", hasSupplyValue: true }`,
-                        'accountNumber'
-                    );
-                    const uniq = new Set(accountNumbers);
-                    (marginAccounts || []).forEach(ma => {
-                        const accNum = String(ma.accountNumber || '').trim();
-                        if (accNum) uniq.add(accNum);
-                    });
-                    accountNumbers = Array.from(uniq);
-                } catch (e) {
-                    console.warn('Active margin account lookup failed:', e.message);
-                }
-            }
+            let accountNumbers = earn_replayAccountNumbers && earn_replayAccountNumbers.length > 0
+                ? Array.from(new Set(earn_replayAccountNumbers.map(v => String(v).trim()).filter(Boolean)))
+                : [fallbackAccountNum];
+            if (!accountNumbers.includes(fallbackAccountNum)) accountNumbers.unshift(fallbackAccountNum);
 
             const calls = accountNumbers.map(accountNum => ({
                 to: chain.margin,
                 data: selector + earn_padAddr(addr) + earn_padUint(accountNum),
             }));
             const results = calls.length ? await earn_rpcBatch(calls) : [];
-            const aggregated = {};
+            const aggregatedSupply = {};
+            const aggregatedBorrow = {};
 
             results.forEach((result, idx) => {
                 if (!result || result === '0x') return;
+                const accountNumber = accountNumbers[idx];
                 let decoded = [];
                 try {
-                    decoded = earn_decodeBalances(result);
+                    decoded = (function decodeAllBalances(hex) {
+                        if (!hex || hex === '0x') return [];
+                        const data = hex.replace('0x', '');
+                        const word = (i) => data.slice(i * 64, (i + 1) * 64);
+                        const toNum = (w) => BigInt('0x' + w);
+                        const off0 = Number(toNum(word(0)));
+                        const off1 = Number(toNum(word(1)));
+                        const off2 = Number(toNum(word(2)));
+                        const off3 = Number(toNum(word(3)));
+                        const readArrayAt = (byteOffset) => {
+                            const wordIdx = byteOffset / 32;
+                            const len = Number(toNum(word(wordIdx)));
+                            const items = [];
+                            for (let i = 0; i < len; i++) items.push(word(wordIdx + 1 + i));
+                            return items;
+                        };
+                        const marketIds = readArrayAt(off0).map(w => Number(toNum(w)));
+                        const tokenAddrs = readArrayAt(off1).map(w => '0x' + w.slice(24).toLowerCase());
+                        const parsWordIdx = off2 / 32;
+                        const parsLen = Number(toNum(word(parsWordIdx)));
+                        const pars = [];
+                        for (let i = 0; i < parsLen; i++) {
+                            const sign = toNum(word(parsWordIdx + 1 + i * 2)) !== 0n;
+                            const value = toNum(word(parsWordIdx + 2 + i * 2));
+                            pars.push({ sign, value });
+                        }
+                        const weisWordIdx = off3 / 32;
+                        const weisLen = Number(toNum(word(weisWordIdx)));
+                        const weis = [];
+                        for (let i = 0; i < weisLen; i++) {
+                            const sign = toNum(word(weisWordIdx + 1 + i * 2)) !== 0n;
+                            const value = toNum(word(weisWordIdx + 2 + i * 2));
+                            weis.push({ sign, value });
+                        }
+                        const positions = [];
+                        for (let i = 0; i < marketIds.length; i++) {
+                            const parVal = pars[i] ? (pars[i].sign ? pars[i].value : -pars[i].value) : 0n;
+                            const weiVal = weis[i] ? (weis[i].sign ? weis[i].value : -weis[i].value) : 0n;
+                            if (weiVal === 0n && parVal === 0n) continue;
+                            positions.push({
+                                marketId: marketIds[i],
+                                tokenAddr: tokenAddrs[i],
+                                par: parVal,
+                                wei: weiVal,
+                                accountNumber,
+                            });
+                        }
+                        return positions;
+                    })(result);
                 } catch (e) {
                     console.warn('Active balance decode failed for account', accountNumbers[idx], e.message);
                     return;
                 }
                 decoded.forEach(pos => {
                     const mid = String(pos.marketId);
-                    if (!aggregated[mid]) {
-                        aggregated[mid] = { ...pos };
+                    const target = pos.wei > 0n ? aggregatedSupply : pos.wei < 0n ? aggregatedBorrow : null;
+                    if (!target) return;
+                    if (!target[mid]) {
+                        target[mid] = { ...pos };
                     } else {
-                        aggregated[mid].wei += pos.wei;
-                        aggregated[mid].par += pos.par;
+                        target[mid].wei += pos.wei;
+                        target[mid].par += pos.par;
                     }
                 });
             });
 
-            console.log(`Active supply lookup: aggregated ${Object.keys(aggregated).length} markets across ${accountNumbers.length} account(s)`);
-            return Object.values(aggregated);
+            earn_borrowMarkets = new Set(Object.keys(aggregatedBorrow));
+            earn_borrowPositionData = Object.values(aggregatedBorrow).map(pos => {
+                const meta = earn_subgraphTokens[String(pos.marketId)] || {};
+                return {
+                    ...pos,
+                    isBorrow: true,
+                    symbol: meta.symbol || 'UNK',
+                    decimals: meta.decimals || 18,
+                    icon: meta.icon || null,
+                };
+            });
+
+            console.log(`Active supply lookup: aggregated ${Object.keys(aggregatedSupply).length} supply markets and ${Object.keys(aggregatedBorrow).length} borrow markets across ${accountNumbers.length} account(s)`);
+            return Object.values(aggregatedSupply);
         }
 
         // Known tokens with CoinGecko icon URLs — keyed by "chain:address" (lowercase)
@@ -20893,7 +21230,7 @@
             // Step 1: Use subgraph netflow data (already loaded or load now)
             try {
                 if (!earn_netflowData) {
-                    await earn_fetchNetflow(); // Will query the subgraph
+                    await earn_fetchNetflow(); // Will rebuild the onchain replay
                 }
                 const addrFlows = earn_netflowData;
                 if (!addrFlows || Object.keys(addrFlows).length === 0) {
@@ -21832,611 +22169,267 @@
             return allResults;
         }
 
-        // Fetch netflow data from Dolomite subgraph (replaces old static JSON approach)
-        // Active positions prefer the most reliable source available:
-        // all-account netflow, snapshot+live accrual, then a recent-cycle fallback.
+        function earn_decodeUserActionLog(log, userAddr) {
+            const topic0 = (log.topics && log.topics[0] ? log.topics[0] : '').toLowerCase();
+            const owner1 = log.topics && log.topics[1] ? earn_decodeAddressWord(log.topics[1]) : null;
+            const owner2 = log.topics && log.topics[2] ? earn_decodeAddressWord(log.topics[2]) : null;
+            const words = earn_splitHexWords(log.data);
+            const updates = [];
+            const pushUpdate = (owner, accountWord, marketWord, update, flowType) => {
+                if (!owner || owner !== userAddr) return;
+                updates.push({
+                    marketId: earn_hexToBigInt('0x' + (marketWord || '0')).toString(),
+                    accountNumber: earn_hexToBigInt('0x' + (accountWord || '0')).toString(),
+                    deltaWei: update.deltaWei,
+                    newPar: update.newPar,
+                    flowType,
+                    blockNumber: earn_logSortValue(log, 'blockNumber'),
+                    transactionIndex: earn_logSortValue(log, 'transactionIndex'),
+                    logIndex: earn_logSortValue(log, 'logIndex'),
+                });
+            };
+
+            if (topic0 === EARN_ACTION_LOG_TOPICS.deposit) {
+                if (words.length >= 6) pushUpdate(owner1, words[0], words[1], earn_decodeBalanceUpdateWords(words, 2), 'd');
+            } else if (topic0 === EARN_ACTION_LOG_TOPICS.withdraw) {
+                if (words.length >= 6) pushUpdate(owner1, words[0], words[1], earn_decodeBalanceUpdateWords(words, 2), 'w');
+            } else if (topic0 === EARN_ACTION_LOG_TOPICS.transfer) {
+                if (words.length >= 11) {
+                    pushUpdate(owner1, words[0], words[2], earn_decodeBalanceUpdateWords(words, 3), 'x');
+                    pushUpdate(owner2, words[1], words[2], earn_decodeBalanceUpdateWords(words, 7), 'x');
+                }
+            } else if (topic0 === EARN_ACTION_LOG_TOPICS.buy || topic0 === EARN_ACTION_LOG_TOPICS.sell) {
+                if (words.length >= 11) {
+                    pushUpdate(owner1, words[0], words[1], earn_decodeBalanceUpdateWords(words, 3), 's');
+                    pushUpdate(owner1, words[0], words[2], earn_decodeBalanceUpdateWords(words, 7), 's');
+                }
+            } else if (topic0 === EARN_ACTION_LOG_TOPICS.trade) {
+                if (words.length >= 20) {
+                    pushUpdate(owner1, words[0], words[2], earn_decodeBalanceUpdateWords(words, 4), 's');
+                    pushUpdate(owner1, words[0], words[3], earn_decodeBalanceUpdateWords(words, 8), 's');
+                    pushUpdate(owner2, words[1], words[2], earn_decodeBalanceUpdateWords(words, 12), 's');
+                    pushUpdate(owner2, words[1], words[3], earn_decodeBalanceUpdateWords(words, 16), 's');
+                }
+            } else if (topic0 === EARN_ACTION_LOG_TOPICS.liquidate) {
+                if (words.length >= 20) {
+                    pushUpdate(owner1, words[0], words[2], earn_decodeBalanceUpdateWords(words, 4), 'l');
+                    pushUpdate(owner1, words[0], words[3], earn_decodeBalanceUpdateWords(words, 8), 'l');
+                    pushUpdate(owner2, words[1], words[2], earn_decodeBalanceUpdateWords(words, 12), 'l');
+                    pushUpdate(owner2, words[1], words[3], earn_decodeBalanceUpdateWords(words, 16), 'l');
+                }
+            } else if (topic0 === EARN_ACTION_LOG_TOPICS.vaporize) {
+                if (words.length >= 16) {
+                    pushUpdate(owner1, words[0], words[2], earn_decodeBalanceUpdateWords(words, 4), 'v');
+                    pushUpdate(owner1, words[0], words[3], earn_decodeBalanceUpdateWords(words, 8), 'v');
+                    pushUpdate(owner2, words[1], words[3], earn_decodeBalanceUpdateWords(words, 12), 'v');
+                }
+            }
+
+            return updates;
+        }
+
+        async function earn_buildOnchainReplay(addr) {
+            const userAddr = addr.toLowerCase();
+            const rawLogs = await earn_fetchUserActionLogs(userAddr);
+            const updates = [];
+            const accountNumbers = new Set();
+            const marketIds = new Set();
+            const blockMarketMap = new Map();
+            const netflows = {};
+            const INDEX_SCALE = 10n ** 18n;
+
+            function ensureFlowEntry(mid) {
+                if (!netflows[mid]) netflows[mid] = { t: 0n, d: 0n, w: 0n, s: 0n, x: 0n, l: 0n, b: 0n, v: 0n };
+                return netflows[mid];
+            }
+
+            function addFlow(mid, deltaWei, flowType) {
+                const entry = ensureFlowEntry(mid);
+                if (deltaWei === 0n) return;
+                entry.t += deltaWei;
+                const absDelta = deltaWei < 0n ? -deltaWei : deltaWei;
+                entry[flowType] += absDelta;
+            }
+
+            rawLogs.forEach(log => {
+                const decoded = earn_decodeUserActionLog(log, userAddr);
+                decoded.forEach(update => {
+                    updates.push(update);
+                    accountNumbers.add(update.accountNumber);
+                    marketIds.add(update.marketId);
+                    addFlow(update.marketId, update.deltaWei, update.flowType);
+                    if (!blockMarketMap.has(update.blockNumber)) blockMarketMap.set(update.blockNumber, new Set());
+                    blockMarketMap.get(update.blockNumber).add(update.marketId);
+                });
+            });
+
+            if (updates.length === 0) {
+                return {
+                    accountNumbers: [],
+                    netflows: {},
+                    interestYieldData: {},
+                    marketMeta: {},
+                };
+            }
+
+            const { currentIndexMap, marketMeta } = await earn_fetchReplayMarketMeta(Array.from(marketIds));
+            Object.entries(marketMeta).forEach(([mid, meta]) => {
+                earn_subgraphTokens[mid] = {
+                    symbol: meta.symbol,
+                    decimals: meta.decimals,
+                    name: meta.name || meta.symbol,
+                    tokenAddr: meta.tokenAddr,
+                    icon: meta.icon || null,
+                };
+            });
+
+            const indexLogsByBlock = await earn_fetchIndexLogsForBlocks(blockMarketMap);
+            const states = {};
+
+            const ensureState = (account, marketId) => {
+                const key = account + '|' + marketId;
+                if (!states[key]) {
+                    states[key] = {
+                        account,
+                        marketId,
+                        par: 0n,
+                        lastIndex: null,
+                        settledYield: 0n,
+                        liveYield: 0n,
+                        hadSupply: false,
+                        hadBorrow: false,
+                    };
+                }
+                return states[key];
+            };
+
+            const accrueTo = (state, nextIndex) => {
+                if (state.lastIndex === null || nextIndex === null || nextIndex <= state.lastIndex || state.par === 0n) {
+                    if (state.lastIndex === null && nextIndex !== null && state.par !== 0n) state.lastIndex = nextIndex;
+                    return;
+                }
+                const deltaIdx = nextIndex - state.lastIndex;
+                const parAbs = state.par < 0n ? -state.par : state.par;
+                const deltaWei = (parAbs * deltaIdx) / INDEX_SCALE;
+                state.liveYield += state.par >= 0n ? deltaWei : -deltaWei;
+                state.lastIndex = nextIndex;
+            };
+
+            updates.sort((a, b) => {
+                if (a.blockNumber !== b.blockNumber) return a.blockNumber - b.blockNumber;
+                if (a.transactionIndex !== b.transactionIndex) return a.transactionIndex - b.transactionIndex;
+                return a.logIndex - b.logIndex;
+            });
+
+            updates.forEach(update => {
+                const state = ensureState(update.accountNumber, update.marketId);
+                const prevPar = state.par;
+                const deltaPar = update.newPar - prevPar;
+                const idxMeta = earn_findEventIndexes(indexLogsByBlock, update, deltaPar);
+                const eventIndex = prevPar > 0n
+                    ? idxMeta.supplyIndex
+                    : prevPar < 0n
+                        ? idxMeta.borrowIndex
+                        : update.newPar < 0n
+                            ? idxMeta.borrowIndex
+                            : idxMeta.supplyIndex;
+
+                accrueTo(state, eventIndex);
+
+                const prevDebt = prevPar < 0n ? -prevPar : 0n;
+                const nextDebt = update.newPar < 0n ? -update.newPar : 0n;
+                if (nextDebt > prevDebt) {
+                    ensureFlowEntry(update.marketId).b += (update.deltaWei < 0n ? -update.deltaWei : update.deltaWei);
+                }
+
+                const flipsSign = prevPar !== 0n && update.newPar !== 0n &&
+                    ((prevPar > 0n && update.newPar < 0n) || (prevPar < 0n && update.newPar > 0n));
+                state.par = update.newPar;
+                if (prevPar > 0n || state.par > 0n) state.hadSupply = true;
+                if (prevPar < 0n || state.par < 0n) state.hadBorrow = true;
+                if (state.par === 0n || flipsSign) {
+                    state.settledYield += state.liveYield;
+                    state.liveYield = 0n;
+                }
+                state.lastIndex = state.par > 0n ? idxMeta.supplyIndex : state.par < 0n ? idxMeta.borrowIndex : null;
+            });
+
+            Object.values(states).forEach(state => {
+                if (state.par === 0n) return;
+                const idxMeta = currentIndexMap[state.marketId];
+                const nextIndex = state.par > 0n ? idxMeta?.supplyIndex : idxMeta?.borrowIndex;
+                accrueTo(state, nextIndex || null);
+            });
+
+            const interestYieldData = {};
+            Object.values(states).forEach(state => {
+                if (!interestYieldData[state.marketId]) {
+                    interestYieldData[state.marketId] = {
+                        earnYield: 0n,
+                        settledYield: 0n,
+                        openBorrowYield: 0n,
+                        openSupplyYield: 0n,
+                        currentBorrowPar: 0n,
+                        currentSupplyPar: 0n,
+                        hadSupply: false,
+                        hadBorrow: false,
+                    };
+                }
+                const entry = interestYieldData[state.marketId];
+                entry.hadSupply = entry.hadSupply || state.hadSupply;
+                entry.hadBorrow = entry.hadBorrow || state.hadBorrow;
+                entry.settledYield += state.settledYield;
+                if (state.par > 0n) {
+                    entry.currentSupplyPar += state.par;
+                    entry.openSupplyYield += state.liveYield;
+                    entry.earnYield += state.settledYield + state.liveYield;
+                } else if (state.par < 0n) {
+                    entry.currentBorrowPar += (-state.par);
+                    entry.openBorrowYield += state.liveYield;
+                    entry.earnYield += state.settledYield;
+                } else {
+                    entry.earnYield += state.settledYield;
+                }
+            });
+
+            Object.entries(netflows).forEach(([mid, entry]) => {
+                for (const key of ['t', 'd', 'w', 's', 'x', 'l', 'b', 'v']) {
+                    entry[key] = entry[key].toString();
+                }
+            });
+            Object.values(interestYieldData).forEach(entry => {
+                entry.earnYield = entry.earnYield.toString();
+                entry.settledYield = entry.settledYield.toString();
+                entry.openBorrowYield = entry.openBorrowYield.toString();
+                entry.openSupplyYield = entry.openSupplyYield.toString();
+                entry.currentBorrowPar = entry.currentBorrowPar.toString();
+                entry.currentSupplyPar = entry.currentSupplyPar.toString();
+            });
+
+            return {
+                accountNumbers: Array.from(accountNumbers),
+                netflows,
+                interestYieldData,
+                marketMeta,
+            };
+        }
+
+        // Fetch yield data directly from onchain logs and market getters.
         async function earn_fetchNetflow() {
             earn_netflowData = null;
             earn_acct0NetflowData = null;
             earn_interestYieldData = null;
-            const chainId = document.getElementById('earn-chain').value;
+            earn_replayAccountNumbers = [];
+            earn_subgraphTokens = {};
+
             const addr = document.getElementById('earn-address').value.trim().toLowerCase();
-            if (!chainId || !addr) return;
+            if (!addr) return;
 
-            const endpoint = SUBGRAPH_ENDPOINTS[chainId];
-            if (!endpoint) {
-                console.log('No subgraph endpoint for chain:', chainId);
-                return;
-            }
-
-            try {
-                console.log(`Subgraph: fetching yield data for ${addr} on ${chainId}...`);
-
-                // Parse decimal string (e.g. "3452.742715") to BigInt wei
-                // given token decimals. Preserves full precision — no parseFloat.
-                function decStrToBigInt(str, dec) {
-                    if (!str || str === '0') return 0n;
-                    const neg = str.startsWith('-');
-                    let s = neg ? str.slice(1) : str;
-                    const dotIdx = s.indexOf('.');
-                    let whole, frac;
-                    if (dotIdx === -1) {
-                        whole = s; frac = '';
-                    } else {
-                        whole = s.slice(0, dotIdx);
-                        frac = s.slice(dotIdx + 1);
-                    }
-                    // Pad or truncate frac to exactly `dec` digits
-                    if (frac.length < dec) frac = frac.padEnd(dec, '0');
-                    else frac = frac.slice(0, dec);
-                    const raw = BigInt(whole + frac);
-                    return neg ? -raw : raw;
-                }
-
-                // Helper to accumulate flow into netflow object — all BigInt, zero precision loss
-                const netflows = {};  // { mid: { t: 0n, d: 0n, w: 0n, s: 0n, x: 0n, l: 0n, b: 0n, v: 0n } }
-                // Account-0-only netflow for accurate borrow-market supply yield
-                const acct0Netflows = {};  // { mid: 0n }
-                const marketEvents = {};   // { mid: [{ serial, parDelta, weiDelta }] }
-                const interestEvents = []; // [{ serial, account, marketId, parDelta, index }]
-                // Map to store decimals per market (populated during flow processing)
-                const marketDecimals = {};
-                const INDEX_SCALE = 10n ** 18n;
-                function addFlow(marketId, deltaStr, flowType, dec) {
-                    const mid = String(marketId);
-                    if (dec !== undefined) marketDecimals[mid] = dec;
-                    const d = marketDecimals[mid] || 18;
-                    if (!netflows[mid]) netflows[mid] = { t: 0n, d: 0n, w: 0n, s: 0n, x: 0n, l: 0n, b: 0n, v: 0n };
-                    const delta = decStrToBigInt(deltaStr || '0', d);
-                    if (delta === 0n) return;
-                    netflows[mid].t += delta;
-                    const absDelta = delta < 0n ? -delta : delta;
-                    netflows[mid][flowType] += absDelta;
-                }
-                // Separate tracker for account-0 flows only
-                function addAcct0Flow(marketId, deltaStr, dec) {
-                    const mid = String(marketId);
-                    if (dec !== undefined) marketDecimals[mid] = dec;
-                    const d = marketDecimals[mid] || 18;
-                    if (!acct0Netflows[mid]) acct0Netflows[mid] = 0n;
-                    const delta = decStrToBigInt(deltaStr || '0', d);
-                    if (delta === 0n) return;
-                    acct0Netflows[mid] += delta;
-                }
-                function addMarketEvent(marketId, serialId, parDeltaStr, weiDeltaStr, dec) {
-                    if (serialId === undefined || serialId === null) return;
-                    const mid = String(marketId);
-                    if (dec !== undefined) marketDecimals[mid] = dec;
-                    const d = marketDecimals[mid] || 18;
-                    const parDelta = decStrToBigInt(parDeltaStr || '0', d);
-                    const weiDelta = decStrToBigInt(weiDeltaStr || '0', d);
-                    if (parDelta === 0n && weiDelta === 0n) return;
-                    if (!marketEvents[mid]) marketEvents[mid] = [];
-                    marketEvents[mid].push({
-                        serial: Number(serialId),
-                        parDelta,
-                        weiDelta,
-                    });
-                }
-                function addInterestEvent(accountNumber, marketId, serialId, parDeltaStr, weiDeltaStr, indexStr, dec) {
-                    if (!accountNumber || serialId === undefined || serialId === null) return;
-                    const mid = String(marketId);
-                    if (dec !== undefined) marketDecimals[mid] = dec;
-                    const d = marketDecimals[mid] || 18;
-                    const parDelta = decStrToBigInt(parDeltaStr || '0', d);
-                    if (parDelta === 0n) return;
-                    const parAbs = parDelta < 0n ? -parDelta : parDelta;
-                    let indexVal = null;
-                    if (indexStr) {
-                        indexVal = decStrToBigInt(indexStr, 18);
-                    } else if (weiDeltaStr !== undefined && weiDeltaStr !== null) {
-                        const weiDelta = decStrToBigInt(String(weiDeltaStr), d);
-                        const weiAbs = weiDelta < 0n ? -weiDelta : weiDelta;
-                        if (weiAbs > 0n && parAbs > 0n) {
-                            indexVal = (weiAbs * INDEX_SCALE) / parAbs;
-                        }
-                    }
-                    if (!indexVal || indexVal <= 0n) return;
-                    interestEvents.push({
-                        serial: Number(serialId),
-                        account: String(accountNumber),
-                        marketId: mid,
-                        parDelta,
-                        index: indexVal,
-                    });
-                }
-                function computeRecentCycleSummary(events) {
-                    if (!events || events.length === 0) return null;
-                    const ordered = [...events].sort((a, b) => a.serial - b.serial);
-                    let runningPar = 0n;
-                    let peakPar = 0n;
-                    const balances = [];
-                    for (const ev of ordered) {
-                        runningPar += ev.parDelta;
-                        if (runningPar > peakPar) peakPar = runningPar;
-                        balances.push({ serial: ev.serial, balance: runningPar });
-                    }
-                    if (runningPar <= 0n || peakPar <= 0n) {
-                        return { endingPar: runningPar.toString() };
-                    }
-
-                    const resetThreshold = runningPar / 5n; // 20% of current size
-                    let suffixMin = runningPar;
-                    let resetIdx = -1;
-                    for (let i = balances.length - 1; i >= 0; i--) {
-                        const bal = balances[i].balance;
-                        if (bal < suffixMin) suffixMin = bal;
-                        if (bal === suffixMin && bal > 0n && bal <= resetThreshold) {
-                            resetIdx = i;
-                            break;
-                        }
-                    }
-                    if (resetIdx === -1 || resetIdx >= ordered.length - 1) {
-                        return { endingPar: runningPar.toString() };
-                    }
-
-                    let recentNetFlow = 0n;
-                    for (let i = resetIdx + 1; i < ordered.length; i++) {
-                        recentNetFlow += ordered[i].weiDelta;
-                    }
-                    return {
-                        endingPar: runningPar.toString(),
-                        resetPar: balances[resetIdx].balance.toString(),
-                        recentNetFlow: recentNetFlow.toString(),
-                        lastResetSerial: String(balances[resetIdx].serial),
-                    };
-                }
-                function buildInterestYieldSummary(currentIndexMap) {
-                    const states = {};
-                    const ensureState = (account, marketId) => {
-                        const key = account + '|' + marketId;
-                        if (!states[key]) {
-                            states[key] = {
-                                account,
-                                marketId,
-                                par: 0n,
-                                lastIndex: null,
-                                settledYield: 0n,
-                                liveYield: 0n,
-                                hadSupply: false,
-                                hadBorrow: false,
-                            };
-                        }
-                        return states[key];
-                    };
-                    const accrueTo = (state, nextIndex) => {
-                        if (state.lastIndex === null || nextIndex === null || nextIndex <= state.lastIndex || state.par === 0n) {
-                            if (state.lastIndex === null && nextIndex !== null && state.par !== 0n) state.lastIndex = nextIndex;
-                            return;
-                        }
-                        const deltaIdx = nextIndex - state.lastIndex;
-                        const deltaWei = ((state.par < 0n ? -state.par : state.par) * deltaIdx) / INDEX_SCALE;
-                        state.liveYield += state.par >= 0n ? deltaWei : -deltaWei;
-                        state.lastIndex = nextIndex;
-                    };
-
-                    [...interestEvents].sort((a, b) => a.serial - b.serial).forEach(ev => {
-                        const state = ensureState(ev.account, ev.marketId);
-                        if (state.lastIndex === null && state.par !== 0n) state.lastIndex = ev.index;
-                        accrueTo(state, ev.index);
-                        const prevPar = state.par;
-                        const nextPar = prevPar + ev.parDelta;
-                        const flipsSign = prevPar !== 0n && nextPar !== 0n &&
-                            ((prevPar > 0n && nextPar < 0n) || (prevPar < 0n && nextPar > 0n));
-                        state.par = nextPar;
-                        if (state.par > 0n) state.hadSupply = true;
-                        if (state.par < 0n) state.hadBorrow = true;
-                        if (state.par === 0n || flipsSign) {
-                            state.settledYield += state.liveYield;
-                            state.liveYield = 0n;
-                        }
-                        if (state.par === 0n) {
-                            state.lastIndex = null;
-                        } else {
-                            state.lastIndex = ev.index;
-                        }
-                    });
-
-                    Object.values(states).forEach(state => {
-                        if (state.par === 0n) return;
-                        const idxMeta = currentIndexMap[state.marketId];
-                        const nextIndex = state.par > 0n ? idxMeta?.supplyIndex : idxMeta?.borrowIndex;
-                        if (nextIndex) accrueTo(state, nextIndex);
-                    });
-
-                    const byMarket = {};
-                    Object.values(states).forEach(state => {
-                        if (!byMarket[state.marketId]) {
-                            byMarket[state.marketId] = {
-                                earnYield: 0n,
-                                settledYield: 0n,
-                                openBorrowYield: 0n,
-                                openSupplyYield: 0n,
-                                currentBorrowPar: 0n,
-                                currentSupplyPar: 0n,
-                                hadSupply: false,
-                                hadBorrow: false,
-                            };
-                        }
-                        const entry = byMarket[state.marketId];
-                        entry.hadSupply = entry.hadSupply || state.hadSupply;
-                        entry.hadBorrow = entry.hadBorrow || state.hadBorrow;
-                        entry.settledYield += state.settledYield;
-                        if (state.par > 0n) {
-                            entry.currentSupplyPar += state.par;
-                            entry.openSupplyYield += state.liveYield;
-                            entry.earnYield += state.settledYield + state.liveYield;
-                        } else if (state.par < 0n) {
-                            entry.currentBorrowPar += (-state.par);
-                            entry.openBorrowYield += state.liveYield;
-                            entry.earnYield += state.settledYield;
-                        } else {
-                            entry.earnYield += state.settledYield;
-                        }
-                    });
-
-                    Object.values(byMarket).forEach(entry => {
-                        entry.earnYield = entry.earnYield.toString();
-                        entry.settledYield = entry.settledYield.toString();
-                        entry.openBorrowYield = entry.openBorrowYield.toString();
-                        entry.openSupplyYield = entry.openSupplyYield.toString();
-                        entry.currentBorrowPar = entry.currentBorrowPar.toString();
-                        entry.currentSupplyPar = entry.currentSupplyPar.toString();
-                    });
-                    return byMarket;
-                }
-
-                // ═══ PARALLEL SUBGRAPH FETCHES ═══
-                // Fire ALL queries simultaneously instead of sequentially (~20s → ~3-5s)
-                const results = await Promise.all([
-                    // 1. Deposits (with account number for acct0 tracking)
-                    earn_subgraphPaginateAll(endpoint, 'deposits',
-                        `{ effectiveUser: "${addr}" }`,
-                        'serialId token { marketId decimals } amountDeltaWei amountDeltaPar interestIndex marginAccount { accountNumber }'
-                    ),
-                    // 2. Withdrawals (with account number)
-                    earn_subgraphPaginateAll(endpoint, 'withdrawals',
-                        `{ effectiveUser: "${addr}" }`,
-                        'serialId token { marketId decimals } amountDeltaWei amountDeltaPar interestIndex marginAccount { accountNumber }'
-                    ),
-                    // 3. Trades (taker — with account number for acct0 tracking)
-                    earn_subgraphPaginateAll(endpoint, 'trades',
-                        `{ takerEffectiveUser: "${addr}" }`,
-                        'serialId takerToken { marketId decimals } makerToken { marketId decimals } takerTokenDeltaWei makerTokenDeltaWei takerInputTokenDeltaPar takerOutputTokenDeltaPar takerInterestIndex makerInterestIndex takerMarginAccount { accountNumber }'
-                    ),
-                    // 4. Trades (maker, excluding self — with account number)
-                    earn_subgraphPaginateAll(endpoint, 'trades',
-                        `{ makerEffectiveUser: "${addr}", takerEffectiveUser_not: "${addr}" }`,
-                        'serialId takerToken { marketId decimals } makerToken { marketId decimals } takerTokenDeltaWei makerTokenDeltaWei makerInputTokenDeltaPar makerOutputTokenDeltaPar takerInterestIndex makerInterestIndex makerMarginAccount { accountNumber }'
-                    ),
-                    // 5. Transfers OUT (external only — for all-account netflow)
-                    earn_subgraphPaginateAll(endpoint, 'transfers',
-                        `{ fromEffectiveUser: "${addr}", toEffectiveUser_not: "${addr}" }`,
-                        'serialId token { marketId decimals } amountDeltaWei fromAmountDeltaPar interestIndex fromMarginAccount { accountNumber }'
-                    ),
-                    // 6. Transfers IN (external only — for all-account netflow)
-                    earn_subgraphPaginateAll(endpoint, 'transfers',
-                        `{ toEffectiveUser: "${addr}", fromEffectiveUser_not: "${addr}" }`,
-                        'serialId token { marketId decimals } amountDeltaWei toAmountDeltaPar interestIndex toMarginAccount { accountNumber }'
-                    ),
-                    // 7. Liquidations (solid/liquidator — with account number)
-                    earn_subgraphPaginateAll(endpoint, 'liquidations',
-                        `{ solidEffectiveUser: "${addr}" }`,
-                        'serialId heldToken { marketId decimals } borrowedToken { marketId decimals } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei solidHeldTokenAmountDeltaPar solidBorrowedTokenAmountDeltaPar heldInterestIndex borrowedInterestIndex solidMarginAccount { accountNumber }'
-                    ),
-                    // 8. Liquidations (liquid/being liquidated — with account number)
-                    earn_subgraphPaginateAll(endpoint, 'liquidations',
-                        `{ liquidEffectiveUser: "${addr}" }`,
-                        'serialId heldToken { marketId decimals } borrowedToken { marketId decimals } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei liquidHeldTokenAmountDeltaPar liquidBorrowedTokenAmountDeltaPar heldInterestIndex borrowedInterestIndex liquidMarginAccount { accountNumber }'
-                    ),
-                    // 9. Borrow positions
-                    earn_subgraphPaginateAll(endpoint, 'borrowPositions',
-                        `{ effectiveUser: "${addr}", status: "OPEN" }`,
-                        'amounts { token { marketId } amountPar expirationTimestamp }'
-                    ),
-                    // 10a. ALL transfers by this user as sender (including internal same-user for acct0 tracking)
-                    earn_subgraphPaginateAll(endpoint, 'transfers',
-                        `{ fromEffectiveUser: "${addr}" }`,
-                        'serialId token { marketId decimals } amountDeltaWei fromAmountDeltaPar toAmountDeltaPar interestIndex fromEffectiveUser { id } toEffectiveUser { id } fromMarginAccount { accountNumber } toMarginAccount { accountNumber }'
-                    ),
-                    // 10b. External transfers IN — need toMarginAccount for acct0 tracking
-                    earn_subgraphPaginateAll(endpoint, 'transfers',
-                        `{ toEffectiveUser: "${addr}", fromEffectiveUser_not: "${addr}" }`,
-                        'serialId token { marketId decimals } amountDeltaWei toAmountDeltaPar interestIndex toMarginAccount { accountNumber }'
-                    ),
-                    // 11. Vaporizations (solid — user absorbs debt, receives collateral)
-                    earn_subgraphPaginateAll(endpoint, 'vaporizations',
-                        `{ solidEffectiveUser: "${addr}" }`,
-                        'serialId heldToken { marketId decimals } borrowedToken { marketId decimals } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei solidHeldTokenAmountDeltaPar solidBorrowedTokenAmountDeltaPar heldInterestIndex borrowedInterestIndex solidMarginAccount { accountNumber }'
-                    ),
-                    // 12. Vaporizations (vapor — user's debt gets vaporized)
-                    earn_subgraphPaginateAll(endpoint, 'vaporizations',
-                        `{ vaporEffectiveUser: "${addr}" }`,
-                        'serialId heldToken { marketId decimals } borrowedToken { marketId decimals } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei vaporBorrowedTokenAmountDeltaPar heldInterestIndex borrowedInterestIndex vaporMarginAccount { accountNumber }'
-                    ),
-                ]);
-
-                const [deposits, withdrawals, takerTrades, makerTrades, transfersFrom, transfersTo, liqsSolid, liqsLiquid, borrowPositions, allTransfersFrom, allTransfersTo, vapSolid, vapVapor] = results;
-
-                // ═══ PROCESS RESULTS — all BigInt, zero precision loss ═══
-                // Helper: negate a decimal string ("3.5" → "-3.5")
-                function negStr(s) { return (!s || s === '0') ? '0' : s.startsWith('-') ? s.slice(1) : '-' + s; }
-
-                for (const dep of deposits) {
-                    const dec = parseInt(dep.token.decimals) || 18;
-                    addFlow(dep.token.marketId, dep.amountDeltaWei, 'd', dec);
-                    addMarketEvent(dep.token.marketId, dep.serialId, dep.amountDeltaPar, dep.amountDeltaWei, dec);
-                    addInterestEvent(dep.marginAccount && dep.marginAccount.accountNumber, dep.token.marketId, dep.serialId, dep.amountDeltaPar, dep.amountDeltaWei, dep.interestIndex, dec);
-                    if (dep.marginAccount && dep.marginAccount.accountNumber === '0') {
-                        addAcct0Flow(dep.token.marketId, dep.amountDeltaWei, dec);
-                    }
-                }
-                for (const w of withdrawals) {
-                    const dec = parseInt(w.token.decimals) || 18;
-                    addFlow(w.token.marketId, negStr(w.amountDeltaWei), 'w', dec);
-                    addMarketEvent(w.token.marketId, w.serialId, w.amountDeltaPar, negStr(w.amountDeltaWei), dec);
-                    addInterestEvent(w.marginAccount && w.marginAccount.accountNumber, w.token.marketId, w.serialId, w.amountDeltaPar, w.amountDeltaWei, w.interestIndex, dec);
-                    if (w.marginAccount && w.marginAccount.accountNumber === '0') {
-                        addAcct0Flow(w.token.marketId, negStr(w.amountDeltaWei), dec);
-                    }
-                }
-                for (const t of takerTrades) {
-                    const tdec = parseInt(t.takerToken.decimals) || 18;
-                    const mdec = parseInt(t.makerToken.decimals) || 18;
-                    addFlow(t.takerToken.marketId, negStr(t.takerTokenDeltaWei), 's', tdec);
-                    addFlow(t.makerToken.marketId, t.makerTokenDeltaWei, 's', mdec);
-                    addMarketEvent(t.takerToken.marketId, t.serialId, t.takerInputTokenDeltaPar, negStr(t.takerTokenDeltaWei), tdec);
-                    addMarketEvent(t.makerToken.marketId, t.serialId, t.takerOutputTokenDeltaPar, t.makerTokenDeltaWei, mdec);
-                    addInterestEvent(t.takerMarginAccount && t.takerMarginAccount.accountNumber, t.takerToken.marketId, t.serialId, t.takerInputTokenDeltaPar, t.takerTokenDeltaWei, t.takerInterestIndex, tdec);
-                    addInterestEvent(t.takerMarginAccount && t.takerMarginAccount.accountNumber, t.makerToken.marketId, t.serialId, t.takerOutputTokenDeltaPar, t.makerTokenDeltaWei, t.makerInterestIndex, mdec);
-                    if (t.takerMarginAccount && t.takerMarginAccount.accountNumber === '0') {
-                        addAcct0Flow(t.takerToken.marketId, negStr(t.takerTokenDeltaWei), tdec);
-                        addAcct0Flow(t.makerToken.marketId, t.makerTokenDeltaWei, mdec);
-                    }
-                }
-                for (const t of makerTrades) {
-                    const mdec = parseInt(t.makerToken.decimals) || 18;
-                    const tdec = parseInt(t.takerToken.decimals) || 18;
-                    addFlow(t.makerToken.marketId, negStr(t.makerTokenDeltaWei), 's', mdec);
-                    addFlow(t.takerToken.marketId, t.takerTokenDeltaWei, 's', tdec);
-                    addMarketEvent(t.makerToken.marketId, t.serialId, t.makerInputTokenDeltaPar, negStr(t.makerTokenDeltaWei), mdec);
-                    addMarketEvent(t.takerToken.marketId, t.serialId, t.makerOutputTokenDeltaPar, t.takerTokenDeltaWei, tdec);
-                    addInterestEvent(t.makerMarginAccount && t.makerMarginAccount.accountNumber, t.makerToken.marketId, t.serialId, t.makerInputTokenDeltaPar, t.makerTokenDeltaWei, t.makerInterestIndex, mdec);
-                    addInterestEvent(t.makerMarginAccount && t.makerMarginAccount.accountNumber, t.takerToken.marketId, t.serialId, t.makerOutputTokenDeltaPar, t.takerTokenDeltaWei, t.takerInterestIndex, tdec);
-                    if (t.makerMarginAccount && t.makerMarginAccount.accountNumber === '0') {
-                        addAcct0Flow(t.makerToken.marketId, negStr(t.makerTokenDeltaWei), mdec);
-                        addAcct0Flow(t.takerToken.marketId, t.takerTokenDeltaWei, tdec);
-                    }
-                }
-                for (const xf of transfersFrom) {
-                    const xdec = parseInt(xf.token.decimals) || 18;
-                    addFlow(xf.token.marketId, negStr(xf.amountDeltaWei), 'x', xdec);
-                    addMarketEvent(xf.token.marketId, xf.serialId, xf.fromAmountDeltaPar, negStr(xf.amountDeltaWei), xdec);
-                }
-                for (const xf of transfersTo) {
-                    const xdec = parseInt(xf.token.decimals) || 18;
-                    addFlow(xf.token.marketId, xf.amountDeltaWei, 'x', xdec);
-                    addMarketEvent(xf.token.marketId, xf.serialId, xf.toAmountDeltaPar, xf.amountDeltaWei, xdec);
-                }
-                // Process ALL transfers as sender (including internal same-user) for account-0 tracking
-                for (const xf of (allTransfersFrom || [])) {
-                    const xdec = parseInt(xf.token.decimals) || 18;
-                    const fromAcct = xf.fromMarginAccount && xf.fromMarginAccount.accountNumber;
-                    const toAcct = xf.toMarginAccount && xf.toMarginAccount.accountNumber;
-                    addInterestEvent(fromAcct, xf.token.marketId, xf.serialId, xf.fromAmountDeltaPar, xf.amountDeltaWei, xf.interestIndex, xdec);
-                    if (xf.toEffectiveUser && xf.toEffectiveUser.id === addr) {
-                        addInterestEvent(toAcct, xf.token.marketId, xf.serialId, xf.toAmountDeltaPar, xf.amountDeltaWei, xf.interestIndex, xdec);
-                    }
-                    if (fromAcct === '0') addAcct0Flow(xf.token.marketId, negStr(xf.amountDeltaWei), xdec);
-                    if (toAcct === '0')   addAcct0Flow(xf.token.marketId, xf.amountDeltaWei, xdec);
-                }
-                // Process external transfers IN — track arrivals at account 0
-                for (const xf of (allTransfersTo || [])) {
-                    const xdec = parseInt(xf.token.decimals) || 18;
-                    const toAcct = xf.toMarginAccount && xf.toMarginAccount.accountNumber;
-                    addInterestEvent(toAcct, xf.token.marketId, xf.serialId, xf.toAmountDeltaPar, xf.amountDeltaWei, xf.interestIndex, xdec);
-                    if (toAcct === '0') addAcct0Flow(xf.token.marketId, xf.amountDeltaWei, xdec);
-                }
-                for (const liq of liqsSolid) {
-                    const hdec = parseInt(liq.heldToken.decimals) || 18;
-                    const bdec = parseInt(liq.borrowedToken.decimals) || 18;
-                    // Solid (liquidator): RECEIVES heldToken (+), PAYS borrowedToken (-)
-                    addFlow(liq.heldToken.marketId, liq.heldTokenAmountDeltaWei, 'l', hdec);
-                    addFlow(liq.borrowedToken.marketId, negStr(liq.borrowedTokenAmountDeltaWei), 'l', bdec);
-                    addMarketEvent(liq.heldToken.marketId, liq.serialId, liq.solidHeldTokenAmountDeltaPar, liq.heldTokenAmountDeltaWei, hdec);
-                    addMarketEvent(liq.borrowedToken.marketId, liq.serialId, liq.solidBorrowedTokenAmountDeltaPar, negStr(liq.borrowedTokenAmountDeltaWei), bdec);
-                    addInterestEvent(liq.solidMarginAccount && liq.solidMarginAccount.accountNumber, liq.heldToken.marketId, liq.serialId, liq.solidHeldTokenAmountDeltaPar, liq.heldTokenAmountDeltaWei, liq.heldInterestIndex, hdec);
-                    addInterestEvent(liq.solidMarginAccount && liq.solidMarginAccount.accountNumber, liq.borrowedToken.marketId, liq.serialId, liq.solidBorrowedTokenAmountDeltaPar, liq.borrowedTokenAmountDeltaWei, liq.borrowedInterestIndex, bdec);
-                    if (liq.solidMarginAccount && liq.solidMarginAccount.accountNumber === '0') {
-                        addAcct0Flow(liq.heldToken.marketId, liq.heldTokenAmountDeltaWei, hdec);
-                        addAcct0Flow(liq.borrowedToken.marketId, negStr(liq.borrowedTokenAmountDeltaWei), bdec);
-                    }
-                }
-                for (const liq of liqsLiquid) {
-                    const hdec = parseInt(liq.heldToken.decimals) || 18;
-                    const bdec = parseInt(liq.borrowedToken.decimals) || 18;
-                    // Liquid (being liquidated): LOSES heldToken (-), debt REDUCED (+)
-                    addFlow(liq.heldToken.marketId, negStr(liq.heldTokenAmountDeltaWei), 'l', hdec);
-                    addFlow(liq.borrowedToken.marketId, liq.borrowedTokenAmountDeltaWei, 'l', bdec);
-                    addMarketEvent(liq.heldToken.marketId, liq.serialId, liq.liquidHeldTokenAmountDeltaPar, negStr(liq.heldTokenAmountDeltaWei), hdec);
-                    addMarketEvent(liq.borrowedToken.marketId, liq.serialId, liq.liquidBorrowedTokenAmountDeltaPar, liq.borrowedTokenAmountDeltaWei, bdec);
-                    addInterestEvent(liq.liquidMarginAccount && liq.liquidMarginAccount.accountNumber, liq.heldToken.marketId, liq.serialId, liq.liquidHeldTokenAmountDeltaPar, liq.heldTokenAmountDeltaWei, liq.heldInterestIndex, hdec);
-                    addInterestEvent(liq.liquidMarginAccount && liq.liquidMarginAccount.accountNumber, liq.borrowedToken.marketId, liq.serialId, liq.liquidBorrowedTokenAmountDeltaPar, liq.borrowedTokenAmountDeltaWei, liq.borrowedInterestIndex, bdec);
-                    if (liq.liquidMarginAccount && liq.liquidMarginAccount.accountNumber === '0') {
-                        addAcct0Flow(liq.heldToken.marketId, negStr(liq.heldTokenAmountDeltaWei), hdec);
-                        addAcct0Flow(liq.borrowedToken.marketId, liq.borrowedTokenAmountDeltaWei, bdec);
-                    }
-                }
-                // 11+12. Vaporizations — same sign semantics as liquidations
-                for (const vap of (vapSolid || [])) {
-                    const hdec = parseInt(vap.heldToken.decimals) || 18;
-                    const bdec = parseInt(vap.borrowedToken.decimals) || 18;
-                    // Solid: RECEIVES heldToken (+), PAYS borrowedToken (-)
-                    addFlow(vap.heldToken.marketId, vap.heldTokenAmountDeltaWei, 'v', hdec);
-                    addFlow(vap.borrowedToken.marketId, negStr(vap.borrowedTokenAmountDeltaWei), 'v', bdec);
-                    addMarketEvent(vap.heldToken.marketId, vap.serialId, vap.solidHeldTokenAmountDeltaPar, vap.heldTokenAmountDeltaWei, hdec);
-                    addMarketEvent(vap.borrowedToken.marketId, vap.serialId, vap.solidBorrowedTokenAmountDeltaPar, negStr(vap.borrowedTokenAmountDeltaWei), bdec);
-                    addInterestEvent(vap.solidMarginAccount && vap.solidMarginAccount.accountNumber, vap.heldToken.marketId, vap.serialId, vap.solidHeldTokenAmountDeltaPar, vap.heldTokenAmountDeltaWei, vap.heldInterestIndex, hdec);
-                    addInterestEvent(vap.solidMarginAccount && vap.solidMarginAccount.accountNumber, vap.borrowedToken.marketId, vap.serialId, vap.solidBorrowedTokenAmountDeltaPar, vap.borrowedTokenAmountDeltaWei, vap.borrowedInterestIndex, bdec);
-                    if (vap.solidMarginAccount && vap.solidMarginAccount.accountNumber === '0') {
-                        addAcct0Flow(vap.heldToken.marketId, vap.heldTokenAmountDeltaWei, hdec);
-                        addAcct0Flow(vap.borrowedToken.marketId, negStr(vap.borrowedTokenAmountDeltaWei), bdec);
-                    }
-                }
-                for (const vap of (vapVapor || [])) {
-                    const hdec = parseInt(vap.heldToken.decimals) || 18;
-                    const bdec = parseInt(vap.borrowedToken.decimals) || 18;
-                    // Vapor (debt absorbed): LOSES heldToken (-), debt REDUCED (+)
-                    addFlow(vap.heldToken.marketId, negStr(vap.heldTokenAmountDeltaWei), 'v', hdec);
-                    addFlow(vap.borrowedToken.marketId, vap.borrowedTokenAmountDeltaWei, 'v', bdec);
-                    addMarketEvent(vap.borrowedToken.marketId, vap.serialId, vap.vaporBorrowedTokenAmountDeltaPar, vap.borrowedTokenAmountDeltaWei, bdec);
-                    addInterestEvent(vap.vaporMarginAccount && vap.vaporMarginAccount.accountNumber, vap.borrowedToken.marketId, vap.serialId, vap.vaporBorrowedTokenAmountDeltaPar, vap.borrowedTokenAmountDeltaWei, vap.borrowedInterestIndex, bdec);
-                    if (vap.vaporMarginAccount && vap.vaporMarginAccount.accountNumber === '0') {
-                        addAcct0Flow(vap.heldToken.marketId, negStr(vap.heldTokenAmountDeltaWei), hdec);
-                        addAcct0Flow(vap.borrowedToken.marketId, vap.borrowedTokenAmountDeltaWei, bdec);
-                    }
-                }
-                let borrowCount = 0;
-                earn_borrowMarkets = new Set();
-                earn_borrowPositionData = [];
-                for (const bp of borrowPositions) {
-                    for (const amt of (bp.amounts || [])) {
-                        const borrowPar = parseFloat(amt.amountPar || '0');
-                        // In borrowPositions, negative par is debt and positive par is collateral.
-                        if (borrowPar < 0) {
-                            addFlow(amt.token.marketId, amt.amountPar, 'b', parseInt(amt.token.decimals) || 18);
-                            earn_borrowMarkets.add(String(amt.token.marketId));
-                            borrowCount++;
-                        }
-                    }
-                }
-                if (borrowCount > 0) console.log(`Subgraph: found ${borrowPositions.length} open borrow positions with ${borrowCount} amounts, borrow markets: ${[...earn_borrowMarkets].join(',')}`);
-
-                // Build borrow position data after tokens are resolved (need decimals)
-                // We'll finalize earn_borrowPositionData after the token query below
-
-                // Netflows are already in BigInt (wei) — now query token metadata and serialize
-                const allMarketIds = Object.keys(netflows);
-                if (allMarketIds.length > 0) {
-                    const tokensData = await earn_subgraphQuery(endpoint,
-                        `{ tokens(first: 100, where: { marketId_in: [${allMarketIds.map(m => `"${m}"`).join(',')}] }) { id marketId symbol name decimals } }`
-                    );
-                    const tokenIds = [];
-                    for (const t of (tokensData.tokens || [])) {
-                        marketDecimals[t.marketId] = parseInt(t.decimals);
-                        tokenIds.push(`"${t.id.toLowerCase()}"`);
-                        // Cache full token metadata for History tab
-                        earn_subgraphTokens[t.marketId] = {
-                            symbol: t.symbol,
-                            decimals: parseInt(t.decimals),
-                            name: t.name,
-                            tokenAddr: t.id, // token contract address
-                        };
-                    }
-
-                    if (tokenIds.length > 0) {
-                        const interestData = await earn_subgraphQuery(endpoint,
-                            `{ interestIndexes(first: 200, where: { id_in: [${tokenIds.join(',')}] }) { id supplyIndex borrowIndex } }`
-                        );
-                        const currentIndexMap = {};
-                        (tokensData.tokens || []).forEach(t => {
-                            const ix = (interestData.interestIndexes || []).find(entry => entry.id.toLowerCase() === t.id.toLowerCase());
-                            currentIndexMap[String(t.marketId)] = {
-                                supplyIndex: ix ? decStrToBigInt(ix.supplyIndex || '0', 18) : null,
-                                borrowIndex: ix ? decStrToBigInt(ix.borrowIndex || '0', 18) : null,
-                            };
-                        });
-                        earn_interestYieldData = buildInterestYieldSummary(currentIndexMap);
-                    } else {
-                        earn_interestYieldData = {};
-                    }
-
-                    // Serialize BigInt netflows to strings for storage
-                    for (const mid of allMarketIds) {
-                        const entry = netflows[mid];
-                        const cycleSummary = computeRecentCycleSummary(marketEvents[mid]);
-                        if (cycleSummary && cycleSummary.recentNetFlow !== undefined) {
-                            entry.recentNetFlow = cycleSummary.recentNetFlow;
-                            entry.resetPar = cycleSummary.resetPar;
-                        }
-                        if (cycleSummary && cycleSummary.endingPar !== undefined) {
-                            entry.endingPar = cycleSummary.endingPar;
-                        }
-                        for (const key of ['t', 'd', 'w', 's', 'x', 'l', 'b', 'v']) {
-                            entry[key] = entry[key].toString();
-                        }
-                        if (acct0Netflows[mid] !== undefined) {
-                            acct0Netflows[mid] = acct0Netflows[mid].toString();
-                        }
-                    }
-                }
-
-                // Finalize borrow position data using subgraph token cache
-                if (earn_borrowMarkets.size > 0) {
-                    // Aggregate borrow par by market (in case of multiple positions on same market)
-                    const borrowByMarket = {};
-                    for (const bp of borrowPositions) {
-                        for (const amt of (bp.amounts || [])) {
-                            const borrowPar = parseFloat(amt.amountPar || '0');
-                            if (borrowPar < 0) {
-                                const mid = String(amt.token.marketId);
-                                borrowByMarket[mid] = (borrowByMarket[mid] || 0) + Math.abs(borrowPar);
-                            }
-                        }
-                    }
-                    // Build entries with token info
-                    for (const [mid, totalPar] of Object.entries(borrowByMarket)) {
-                        const tokenInfo = earn_subgraphTokens[mid];
-                        if (!tokenInfo) continue;
-                        const dec = tokenInfo.decimals || 18;
-                        const weiVal = BigInt(Math.round(totalPar * (10 ** dec)));
-                        const symbol = tokenInfo.symbol || 'UNK';
-                        let icon = SYMBOL_ICONS[symbol] || SYMBOL_ICONS[symbol.toUpperCase()];
-                        if (!icon) {
-                            const ch = (symbol[0] || '?').toUpperCase();
-                            const hue = [...symbol].reduce((h, c) => (h + c.charCodeAt(0) * 37) % 360, 0);
-                            icon = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='16' fill='hsl(${hue},50%,35%)'/><text x='16' y='22' text-anchor='middle' font-size='16' font-weight='bold' fill='white'>${ch}</text></svg>`)}`;
-                        }
-                        earn_borrowPositionData.push({
-                            marketId: parseInt(mid),
-                            tokenAddr: tokenInfo.tokenAddr || '',
-                            symbol,
-                            decimals: dec,
-                            icon,
-                            wei: -weiVal, // negative = borrow
-                            par: -weiVal,
-                            isBorrow: true,
-                        });
-                    }
-                    console.log(`Borrow positions resolved: ${earn_borrowPositionData.length} markets with debt`);
-                }
-
-                if (Object.keys(netflows).length > 0) {
-                    earn_netflowData = netflows;
-                    earn_acct0NetflowData = Object.keys(acct0Netflows).length > 0 ? acct0Netflows : null;
-                    const totalEvents = deposits.length + withdrawals.length + takerTrades.length + makerTrades.length + transfersFrom.length + transfersTo.length + liqsSolid.length + liqsLiquid.length + borrowCount;
-                    console.log(`Subgraph: loaded ${Object.keys(netflows).length} markets, ${totalEvents} events for ${addr} on ${chainId}`);
-                    if (earn_acct0NetflowData) console.log(`  Acct0 supply netflow for ${Object.keys(acct0Netflows).length} markets:`, acct0Netflows);
-                } else {
-                    console.log('Subgraph: no data found for', addr, 'on', chainId);
-                }
-            } catch (e) {
-                console.warn('Subgraph fetch failed:', e.message);
-                // Fallback: try old netflow JSON (may work for Berachain/Ethereum)
-                try {
-                    const resp = await fetch(`${NETFLOW_BASE}/${chainId}.json`);
-                    if (resp.ok) {
-                        const data = await resp.json();
-                        const addrFlows = data.netflows && data.netflows[addr];
-                        if (addrFlows) {
-                            earn_netflowData = addrFlows;
-                            console.log('Fallback: NetFlow JSON loaded for', addr);
-                        }
-                    }
-                } catch (e2) {
-                    console.warn('Fallback NetFlow also failed:', e2.message);
-                }
-            }
+            const replay = await earn_buildOnchainReplay(addr);
+            earn_replayAccountNumbers = replay.accountNumbers || [];
+            earn_netflowData = replay.netflows || {};
+            earn_interestYieldData = replay.interestYieldData || {};
+            console.log(`Onchain replay: ${Object.keys(earn_netflowData).length} markets, ${earn_replayAccountNumbers.length} account(s) for ${addr}`);
         }
 
 
@@ -22663,6 +22656,13 @@
                 // Prefetch liquidation_risk.json in parallel with balance lookup (don't await yet)
                 earn_prefetchLiqRisk();
 
+                try {
+                    await earn_fetchNetflow();
+                } catch (netflowErr) {
+                    earn_showError('Onchain replay failed: ' + netflowErr.message);
+                    return;
+                }
+
                 let balances;
                 try {
                     balances = await earn_fetchActiveSupplyBalances(addr);
@@ -22672,11 +22672,8 @@
                 }
 
                 if (balances.length === 0) {
-                    // Before giving up, check for borrow positions via subgraph
-                    // (address may have borrows but no supply on this account)
+                    // Before giving up, check whether the replay discovered borrow-only accounts
                     const chainId = document.getElementById('earn-chain').value;
-                    const netflowPromise = earn_fetchNetflow();
-                    await netflowPromise;
 
                     if (earn_borrowPositionData.length > 0) {
                         // Has borrow positions — proceed with borrow-only render
@@ -22755,8 +22752,10 @@
 
 
                 // Start parallel fetches: netflow, CoinGecko prices, total yield
-                const netflowPromise = earn_fetchNetflow();
-                const pricesPromise = earn_fetchCoinGeckoPrices(balances.map(b => b.tokenAddr));
+                const pricesPromise = earn_fetchCoinGeckoPrices([
+                    ...balances.map(b => b.tokenAddr),
+                    ...earn_borrowPositionData.map(b => b.tokenAddr).filter(Boolean),
+                ]);
                 const chainId = document.getElementById('earn-chain').value;
                 const batchCalls = [];
                 const batchMap = []; // tracks what each call is for
@@ -22909,8 +22908,8 @@
                 earn_cachedAssets = enriched;
 
 
-                // Await netflow + prices so yield data is visible on first render
-                await Promise.all([pricesPromise, netflowPromise]);
+                // Await prices so yield data is visible on first render
+                await pricesPromise;
 
                 // Re-compute USD values with CoinGecko real prices
                 enriched.forEach(a => {
@@ -22922,7 +22921,7 @@
                     }
                 });
 
-                // Inject borrow positions from subgraph data
+                // Inject borrow positions from onchain account balances
                 if (earn_borrowPositionData.length > 0) {
                     const existingMarkets = new Set(enriched.map(a => a.marketId));
                     for (const bp of earn_borrowPositionData) {
