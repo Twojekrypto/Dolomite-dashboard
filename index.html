@@ -19788,6 +19788,7 @@
         const earn_tokenCache = {}; // "chain:address" => { symbol, decimals, icon }
         let earn_borrowMarkets = new Set(); // market IDs with active borrows (yield formula is invalid for these)
         let earn_borrowPositionData = []; // raw borrow position data from subgraph [{marketId, amountPar, tokenAddr, decimals, symbol}]
+        let earn_collateralPositionData = []; // positive supply balances parked inside borrow accounts
         let earn_replayAccountNumbers = []; // discovered account numbers from onchain logs
         let earn_subgraphAccountSnapshot = null; // { chainId, address, accountNumbers, positions }
         let earn_lastReplayError = null;
@@ -19824,6 +19825,7 @@
             earn_customSnapshotDate = null;
             earn_borrowMarkets = new Set();
             earn_borrowPositionData = [];
+            earn_collateralPositionData = [];
             earn_replayAccountNumbers = [];
             earn_subgraphAccountSnapshot = null;
             earn_lastReplayError = null;
@@ -20583,22 +20585,35 @@
 
             const aggregatePositions = (positions) => {
                 const aggregatedSupply = {};
+                const aggregatedCollateral = {};
                 const aggregatedBorrow = {};
+                const accountHasBorrow = {};
+                (positions || []).forEach(pos => {
+                    if (pos.wei < 0n) accountHasBorrow[String(pos.accountNumber)] = true;
+                });
                 (positions || []).forEach(pos => {
                     const mid = String(pos.marketId);
-                    const target = pos.wei > 0n ? aggregatedSupply : pos.wei < 0n ? aggregatedBorrow : null;
+                    const isCollateral = pos.wei > 0n && !!accountHasBorrow[String(pos.accountNumber)];
+                    const target = pos.wei < 0n
+                        ? aggregatedBorrow
+                        : isCollateral
+                            ? aggregatedCollateral
+                            : pos.wei > 0n
+                                ? aggregatedSupply
+                                : null;
                     if (!target) return;
                     if (!target[mid]) {
-                        target[mid] = { ...pos };
+                        target[mid] = { ...pos, isCollateral };
                     } else {
                         target[mid].wei += pos.wei;
                         target[mid].par += pos.par;
                     }
                 });
-                return { aggregatedSupply, aggregatedBorrow };
+                return { aggregatedSupply, aggregatedCollateral, aggregatedBorrow };
             };
 
             let aggregatedSupply = {};
+            let aggregatedCollateral = {};
             let aggregatedBorrow = {};
             let usedSubgraphFallback = false;
             try {
@@ -20607,7 +20622,7 @@
                     data: selector + earn_padAddr(addr) + earn_padUint(accountNum),
                 }));
                 const results = calls.length ? await earn_rpcBatch(calls) : [];
-                const aggregated = { aggregatedSupply: {}, aggregatedBorrow: {} };
+                const aggregated = { aggregatedSupply: {}, aggregatedCollateral: {}, aggregatedBorrow: {} };
 
                 results.forEach((result, idx) => {
                     if (!result || result === '0x') return;
@@ -20675,6 +20690,13 @@
                             aggregated.aggregatedSupply[mid].par += pos.par;
                         }
                     });
+                    Object.entries(partial.aggregatedCollateral).forEach(([mid, pos]) => {
+                        if (!aggregated.aggregatedCollateral[mid]) aggregated.aggregatedCollateral[mid] = { ...pos };
+                        else {
+                            aggregated.aggregatedCollateral[mid].wei += pos.wei;
+                            aggregated.aggregatedCollateral[mid].par += pos.par;
+                        }
+                    });
                     Object.entries(partial.aggregatedBorrow).forEach(([mid, pos]) => {
                         if (!aggregated.aggregatedBorrow[mid]) aggregated.aggregatedBorrow[mid] = { ...pos };
                         else {
@@ -20685,12 +20707,14 @@
                 });
 
                 aggregatedSupply = aggregated.aggregatedSupply;
+                aggregatedCollateral = aggregated.aggregatedCollateral;
                 aggregatedBorrow = aggregated.aggregatedBorrow;
             } catch (rpcErr) {
                 console.warn('RPC balance lookup failed, using subgraph fallback:', rpcErr.message);
                 const snapshot = await ensureSubgraphSnapshot();
                 const aggregated = aggregatePositions(snapshot.positions || []);
                 aggregatedSupply = aggregated.aggregatedSupply;
+                aggregatedCollateral = aggregated.aggregatedCollateral;
                 aggregatedBorrow = aggregated.aggregatedBorrow;
                 usedSubgraphFallback = true;
             }
@@ -20708,8 +20732,19 @@
                     icon: meta.icon || null,
                 };
             });
+            earn_collateralPositionData = Object.values(aggregatedCollateral).map(pos => {
+                const meta = earn_subgraphTokens[String(pos.marketId)] || {};
+                return {
+                    ...pos,
+                    isBorrow: false,
+                    isCollateral: true,
+                    symbol: meta.symbol || 'UNK',
+                    decimals: meta.decimals || 18,
+                    icon: meta.icon || null,
+                };
+            });
 
-            console.log(`Active supply lookup: aggregated ${Object.keys(aggregatedSupply).length} supply markets and ${Object.keys(aggregatedBorrow).length} borrow markets across ${accountNumbers.length} account(s)${usedSubgraphFallback ? ' via subgraph fallback' : ''}`);
+            console.log(`Active supply lookup: aggregated ${Object.keys(aggregatedSupply).length} visible supply markets, ${Object.keys(aggregatedCollateral).length} collateral supply markets and ${Object.keys(aggregatedBorrow).length} borrow markets across ${accountNumbers.length} account(s)${usedSubgraphFallback ? ' via subgraph fallback' : ''}`);
             return Object.values(aggregatedSupply);
         }
 
@@ -21384,9 +21419,11 @@
 
                 // Step 3: Get active balances (current wei for each market)
                 const activeBalances = {};
+                const collateralBalances = {};
                 if (earn_cachedAssets) {
                     for (const a of earn_cachedAssets) {
-                        activeBalances[String(a.marketId)] = { wei: a.wei, par: a.par, tokenAddr: a.tokenAddr, decimals: a.decimals, symbol: a.symbol, icon: a.icon };
+                        const target = a.isCollateral ? collateralBalances : activeBalances;
+                        target[String(a.marketId)] = { wei: a.wei, par: a.par, tokenAddr: a.tokenAddr, decimals: a.decimals, symbol: a.symbol, icon: a.icon };
                     }
                 }
 
@@ -21404,7 +21441,7 @@
                 // Step 6: Fetch CoinGecko prices
                 const allAddrs = marketIds.map(mid => {
                     const midStr = String(mid);
-                    return activeBalances[midStr] ? activeBalances[midStr].tokenAddr : marketTokens[midStr];
+                    return activeBalances[midStr]?.tokenAddr || collateralBalances[midStr]?.tokenAddr || marketTokens[midStr];
                 }).filter(Boolean);
                 await earn_fetchCoinGeckoPrices(allAddrs);
 
@@ -21421,6 +21458,7 @@
                     const totalBorrowed = flowMeta ? flowMeta.totalBorrowed : 0n;
                     const interestMeta = earn_interestYieldData && earn_interestYieldData[midStr];
                     const currentBorrowPar = interestMeta ? BigInt(interestMeta.currentBorrowPar || '0') : 0n;
+                    const currentCollateralPar = interestMeta ? BigInt(interestMeta.currentCollateralSupplyPar || '0') : 0n;
                     const hasSettledYield = interestMeta ? BigInt(interestMeta.earnYield || '0') !== 0n : false;
                     if (!flowMeta && !interestMeta) continue;
 
@@ -21429,16 +21467,18 @@
                     if (hasBreakdown && totalDeposited === 0n && totalBorrowed > 0n && !hasSettledYield) continue;
 
                     const isActive = !!activeBalances[midStr];
+                    const isCollateralized = !isActive && !!collateralBalances[midStr];
                     if (!isActive && currentBorrowPar > 0n && !hasSettledYield) continue; // open borrow cost stays in Lending until closure
-                    const currentWei = isActive ? activeBalances[midStr].wei : 0n;
+                    const currentPosition = activeBalances[midStr] || collateralBalances[midStr] || null;
+                    const currentWei = currentPosition ? currentPosition.wei : 0n;
 
                     // Resolve token info — prioritize hardcoded map over RPC
                     let tokenAddr, symbol, decimals, icon, tokenName;
-                    if (isActive) {
-                        tokenAddr = activeBalances[midStr].tokenAddr;
-                        symbol = activeBalances[midStr].symbol;
-                        decimals = activeBalances[midStr].decimals;
-                        icon = activeBalances[midStr].icon;
+                    if (currentPosition) {
+                        tokenAddr = currentPosition.tokenAddr;
+                        symbol = currentPosition.symbol;
+                        decimals = currentPosition.decimals;
+                        icon = currentPosition.icon;
                         tokenName = earn_subgraphTokens[midStr]?.name || symbol;
                     } else {
                         // Use subgraph token cache (populated by earn_fetchNetflow)
@@ -21467,10 +21507,11 @@
                         decimals,
                         icon,
                         isActive,
+                        isCollateralized,
                         isIsolation,
                         tokenName,
                         currentWei,
-                        currentPar: isActive ? activeBalances[midStr].par : 0n,
+                        currentPar: currentPosition ? currentPosition.par : 0n,
                         yieldWei: 0n,
                         yieldUsd: 0,
                         hasYieldData: false,
@@ -21481,7 +21522,7 @@
                         withdrawNum,
                         netFlow,
                         hasBreakdown,
-                        hasOpenBorrow: currentBorrowPar > 0n,
+                        hasOpenBorrow: currentBorrowPar > 0n || currentCollateralPar > 0n,
                     });
                 }
 
@@ -21568,6 +21609,8 @@
                 let badge;
                 if (item.isIsolation && !item.isActive) {
                     badge = '<span class="earn-hist-badge isolation" title="Dolomite Isolation Mode — internal wrapper token used as collateral in borrow positions">🔒 ISOLATION</span>';
+                } else if (item.isCollateralized) {
+                    badge = '<span class="earn-hist-badge withdrawn" title="Supply balance is currently parked as collateral inside an open borrow account"><span class="earn-status-dot"></span>BORROW</span>';
                 } else if (item.isActive) {
                     badge = '<span class="earn-hist-badge active">📍 ACTIVE</span>';
                 } else {
@@ -21909,7 +21952,7 @@
                         par: pos.par,
                         wei: pos.wei,
                     };
-                } else {
+                } else if (!pos.isCollateral) {
                     actualSupplyMap[mid] = {
                         ...pos,
                         par: pos.par,
@@ -21996,6 +22039,7 @@
             const hist = earn_totalYieldData && earn_totalYieldData[mid];
             const hasSnapshotData = hist && hist.cumulativeYield !== undefined;
             const snapshotStatus = hasSnapshotData ? String(hist.verificationStatus || '') : '';
+            const snapshotMismatch = snapshotStatus === 'mismatch';
             const snapshotIsLatest = hasSnapshotData ? (hist.isLatestSnapshot !== false) : true;
             const snapshotTrusted = !!(hasSnapshotData && snapshotIsLatest && (
                 !snapshotStatus ||
@@ -22043,6 +22087,7 @@
                 : null;
             const interestYieldCandidate = hasInterestYield ? BigInt(interestMeta.earnYield || '0') : null;
             const canUseVerifiedInterest = interestYieldCandidate !== null && interestTrust.trusted;
+            const canOverrideMismatchedSnapshot = interestYieldCandidate !== null && snapshotMismatch;
             const canUseUnverifiedInterest = interestYieldCandidate !== null && !interestTrust.trusted && !requireVerifiedInterest;
             const hasComplexNetflow = !!(flowMeta && flowMeta.hasBreakdown && (
                 flowMeta.totalBorrowed !== 0n ||
@@ -22053,9 +22098,9 @@
             ));
             const allowHistoricalNetflowFallback = !(opts.applyHistoryGuards && !isActivePosition && hasComplexNetflow);
 
-            if (canUseVerifiedInterest) {
+            if (canUseVerifiedInterest || canOverrideMismatchedSnapshot) {
                 totalYield = interestYieldCandidate;
-                method = 'interest-ledger';
+                method = canUseVerifiedInterest ? 'interest-ledger' : 'interest-ledger-override';
             } else if (hasSnapshotData && snapshotCandidate !== null && isReasonableActiveYield(snapshotCandidate)) {
                 totalYield = snapshotCandidate;
                 method = snapshotMethod;
@@ -22117,8 +22162,10 @@
                 symbol,
                 decimals,
                 tokenAddr,
-                verificationStatus: method === 'interest-ledger' ? interestTrust.status : (snapshotStatus || interestTrust.status),
-                trustedForTotal: method === 'interest-ledger' || (
+                verificationStatus: (method === 'interest-ledger' || method === 'interest-ledger-override')
+                    ? interestTrust.status
+                    : (snapshotStatus || interestTrust.status),
+                trustedForTotal: method === 'interest-ledger' || method === 'interest-ledger-override' || (
                     (method === 'snapshot' || method === 'snapshot-partial') && snapshotTrusted
                 ),
             };
@@ -22902,6 +22949,12 @@
                 accrueTo(state, nextIndex || null);
             });
 
+            const accountHasOpenBorrow = {};
+            Object.values(states).forEach(state => {
+                if (state.par < 0n) accountHasOpenBorrow[state.account] = true;
+                else if (!Object.prototype.hasOwnProperty.call(accountHasOpenBorrow, state.account)) accountHasOpenBorrow[state.account] = false;
+            });
+
             const interestYieldData = {};
             const replayStateData = {};
             Object.values(states).forEach(state => {
@@ -22913,6 +22966,7 @@
                         openSupplyYield: 0n,
                         currentBorrowPar: 0n,
                         currentSupplyPar: 0n,
+                        currentCollateralSupplyPar: 0n,
                         hadSupply: false,
                         hadBorrow: false,
                     };
@@ -22925,6 +22979,8 @@
                     replayStateData[state.marketId] = {
                         expectedSupplyPar: 0n,
                         expectedSupplyWei: 0n,
+                        expectedCollateralSupplyPar: 0n,
+                        expectedCollateralSupplyWei: 0n,
                         expectedBorrowPar: 0n,
                         expectedBorrowWei: 0n,
                         hadSupply: false,
@@ -22936,15 +22992,23 @@
                 stateEntry.hadSupply = stateEntry.hadSupply || state.hadSupply;
                 stateEntry.hadBorrow = stateEntry.hadBorrow || state.hadBorrow;
                 if (state.par > 0n) {
-                    entry.currentSupplyPar += state.par;
                     entry.openSupplyYield += state.liveYield;
                     entry.earnYield += state.settledYield + state.liveYield;
-                    stateEntry.expectedSupplyPar += state.par;
+                    const isCollateralSupply = !!accountHasOpenBorrow[state.account];
+                    if (isCollateralSupply) {
+                        entry.currentCollateralSupplyPar += state.par;
+                        stateEntry.expectedCollateralSupplyPar += state.par;
+                    } else {
+                        entry.currentSupplyPar += state.par;
+                        stateEntry.expectedSupplyPar += state.par;
+                    }
                     const supplyIndex = currentIndexMap[state.marketId]?.supplyIndex || null;
                     if (supplyIndex === null) {
                         stateEntry.canVerify = false;
                     } else {
-                        stateEntry.expectedSupplyWei += (state.par * supplyIndex) / INDEX_SCALE;
+                        const expectedWei = (state.par * supplyIndex) / INDEX_SCALE;
+                        if (isCollateralSupply) stateEntry.expectedCollateralSupplyWei += expectedWei;
+                        else stateEntry.expectedSupplyWei += expectedWei;
                     }
                 } else if (state.par < 0n) {
                     entry.currentBorrowPar += (-state.par);
@@ -22975,10 +23039,13 @@
                 entry.openSupplyYield = entry.openSupplyYield.toString();
                 entry.currentBorrowPar = entry.currentBorrowPar.toString();
                 entry.currentSupplyPar = entry.currentSupplyPar.toString();
+                entry.currentCollateralSupplyPar = entry.currentCollateralSupplyPar.toString();
             });
             Object.values(replayStateData).forEach(entry => {
                 entry.expectedSupplyPar = entry.expectedSupplyPar.toString();
                 entry.expectedSupplyWei = entry.expectedSupplyWei.toString();
+                entry.expectedCollateralSupplyPar = entry.expectedCollateralSupplyPar.toString();
+                entry.expectedCollateralSupplyWei = entry.expectedCollateralSupplyWei.toString();
                 entry.expectedBorrowPar = entry.expectedBorrowPar.toString();
                 entry.expectedBorrowWei = entry.expectedBorrowWei.toString();
             });
@@ -22997,6 +23064,7 @@
             earn_netflowData = null;
             earn_acct0NetflowData = null;
             earn_interestYieldData = null;
+            earn_collateralPositionData = [];
             earn_replayAccountNumbers = [];
             earn_replayStateData = {};
             earn_replayVerificationData = {};
@@ -23270,10 +23338,18 @@
 
                         // Fetch prices for borrow tokens
                         const borrowTokenAddrs = earn_borrowPositionData.map(bp => bp.tokenAddr).filter(Boolean);
-                        await earn_fetchCoinGeckoPrices(borrowTokenAddrs);
+                        const collateralTokenAddrs = earn_collateralPositionData.map(cp => cp.tokenAddr).filter(Boolean);
+                        await earn_fetchCoinGeckoPrices([...borrowTokenAddrs, ...collateralTokenAddrs]);
 
                         // Build enriched array with only borrow positions
                         const enriched = [];
+                        for (const cp of earn_collateralPositionData) {
+                            const cgKey = chainId + ':' + cp.tokenAddr.toLowerCase();
+                            const price = earn_priceCache[cgKey] || TOKEN_USD_FALLBACK[cp.symbol] || 0;
+                            const humanAmt = Math.abs(Number(cp.wei) / Math.pow(10, cp.decimals));
+                            cp.usdValue = humanAmt * price;
+                            enriched.push(cp);
+                        }
                         for (const bp of earn_borrowPositionData) {
                             const cgKey = chainId + ':' + bp.tokenAddr.toLowerCase();
                             const price = earn_priceCache[cgKey] || TOKEN_USD_FALLBACK[bp.symbol] || 0;
@@ -23281,7 +23357,7 @@
                             bp.usdValue = humanAmt * price;
                             enriched.push(bp);
                         }
-                        console.log(`Injected ${earn_borrowPositionData.length} borrow positions (no supply)`);
+                        console.log(`Injected ${earn_collateralPositionData.length} collateral and ${earn_borrowPositionData.length} borrow positions (no visible supply)`);
 
                         earn_cachedAssets = enriched;
                         enriched.sort((a, b) => b.usdValue - a.usdValue);
@@ -23343,6 +23419,7 @@
                 // Start parallel fetches: netflow, CoinGecko prices, total yield
                 const pricesPromise = earn_fetchCoinGeckoPrices([
                     ...balances.map(b => b.tokenAddr),
+                    ...earn_collateralPositionData.map(b => b.tokenAddr).filter(Boolean),
                     ...earn_borrowPositionData.map(b => b.tokenAddr).filter(Boolean),
                 ]);
                 const chainId = document.getElementById('earn-chain').value;
@@ -23510,6 +23587,17 @@
                     }
                 });
 
+                if (earn_collateralPositionData.length > 0) {
+                    for (const cp of earn_collateralPositionData) {
+                        const cgKey = chainId + ':' + cp.tokenAddr.toLowerCase();
+                        const price = earn_priceCache[cgKey] || TOKEN_USD_FALLBACK[cp.symbol] || 0;
+                        const humanAmt = Math.abs(Number(cp.wei) / Math.pow(10, cp.decimals));
+                        cp.usdValue = humanAmt * price;
+                        enriched.push(cp);
+                    }
+                    console.log(`Injected ${earn_collateralPositionData.length} collateral supply positions into enriched assets`);
+                }
+
                 // Inject borrow positions from onchain account balances
                 if (earn_borrowPositionData.length > 0) {
                     const existingMarkets = new Set(enriched.map(a => a.marketId));
@@ -23533,7 +23621,9 @@
 
                 // Sort: supply positions first by USD descending, then borrow positions by USD descending
                 enriched.sort((a, b) => {
-                    if (a.isBorrow !== b.isBorrow) return a.isBorrow ? 1 : -1;
+                    const rankA = a.isBorrow ? 2 : a.isCollateral ? 1 : 0;
+                    const rankB = b.isBorrow ? 2 : b.isCollateral ? 1 : 0;
+                    if (rankA !== rankB) return rankA - rankB;
                     return b.usdValue - a.usdValue;
                 });
                 earn_renderResults(enriched);
@@ -24171,8 +24261,8 @@
 
             const totalDebt = positions.reduce((s, p) => s + (p.debtUSD || 0), 0);
             const totalCollateral = positions.reduce((s, p) => s + (p.collateralUSD || 0), 0);
-            const activeCount = (earn_cachedAssets || []).filter(a => !a.isBorrow && a.usdValue >= 0.01).length;
-            const totalSupplyUsd = (earn_cachedAssets || []).filter(a => !a.isBorrow).reduce((s, a) => s + (a.usdValue || 0), 0);
+            const activeCount = (earn_cachedAssets || []).filter(a => !a.isBorrow && !a.isCollateral && a.usdValue >= 0.01).length;
+            const totalSupplyUsd = (earn_cachedAssets || []).filter(a => !a.isBorrow && !a.isCollateral).reduce((s, a) => s + (a.usdValue || 0), 0);
 
             // CSS already handles column layout via .earn-summary-card / .cols-N classes
             earn_updateSummaryCardLayout(summaryEl);
@@ -24224,7 +24314,7 @@
             }
 
             // Get active token addresses to exclude
-            const activeAddrs = new Set(earn_cachedAssets.map(a => a.tokenAddr?.toLowerCase()));
+            const activeAddrs = new Set((earn_cachedAssets || []).filter(a => !a.isCollateral).map(a => a.tokenAddr?.toLowerCase()));
             const chainId = document.getElementById('earn-chain').value;
 
             // Filter to inactive (withdrawn) items only
@@ -24288,10 +24378,10 @@
                         <div class="earn-token-cell">
                             <div class="earn-token-left">
                                 ${iconHtml}
-                                <div class="earn-token-info">
-                                    <div class="earn-token-name">${item.symbol}</div>
-                                    <div style="display:flex;gap:6px;flex-wrap:wrap">
-                                        <span class="earn-hist-badge withdrawn"><span class="earn-status-dot"></span>WITHDRAWN</span>
+                                    <div class="earn-token-info">
+                                        <div class="earn-token-name">${item.symbol}</div>
+                                        <div style="display:flex;gap:6px;flex-wrap:wrap">
+                                        <span class="earn-hist-badge withdrawn"><span class="earn-status-dot"></span>${item.isCollateralized ? 'BORROW' : 'WITHDRAWN'}</span>
                                         ${verifyBadge}
                                     </div>
                                 </div>
@@ -24557,7 +24647,7 @@
             const tbody = document.getElementById('earn-table-body');
             // Separate supply and borrow positions (respect dust toggle)
             const dustThreshold = earn_showDust ? 0 : 1;
-            const supplyAssets = assets.filter(a => !a.isBorrow && a.usdValue >= dustThreshold);
+            const supplyAssets = assets.filter(a => !a.isBorrow && !a.isCollateral && a.usdValue >= dustThreshold);
             const borrowAssets = assets.filter(a => a.isBorrow && a.usdValue >= dustThreshold);
 
             let html = '';
@@ -24711,7 +24801,7 @@
             let withdrawnCount = 0;
             if (earn_historyData && earn_historyData.length > 0) {
                 // Get IDs of active assets to avoid duplicates
-                const activeTokenAddrs = new Set(assets.map(a => a.tokenAddr?.toLowerCase()));
+                const activeTokenAddrs = new Set(assets.filter(a => !a.isCollateral).map(a => a.tokenAddr?.toLowerCase()));
 
                 // Filter to only inactive (withdrawn) assets not already in active list
                 const inactiveItems = earn_historyData.filter(item => {
@@ -24760,7 +24850,7 @@
                                     ${iconHtml}
                                     <div class="earn-token-info">
                                         <div class="earn-token-name">${item.symbol}</div>
-                                        <span class="earn-hist-badge withdrawn"><span class="earn-status-dot"></span>WITHDRAWN</span>
+                                        <span class="earn-hist-badge withdrawn"><span class="earn-status-dot"></span>${item.isCollateralized ? 'BORROW' : 'WITHDRAWN'}</span>
                                     </div>
                                 </div>
                             </div>
@@ -24805,7 +24895,7 @@
 
                     // Active assets (supply only — borrows come from lending positions)
                     (earn_cachedAssets || []).forEach(a => {
-                        if (a.isBorrow) return; // skip borrow entries
+                        if (a.isBorrow || a.isCollateral) return; // skip borrow entries and collateral parked in borrow accounts
                         if (a.usdValue < dustThreshold) return;
                         totalUsd += (a.usdValue || 0);
                         const verifiedYieldCalc = earn_calculateYield(a, { requireVerifiedInterest: true });
@@ -24828,7 +24918,7 @@
 
                     // Historical/withdrawn assets
                     if (earn_historyData) {
-                        const trustedHistoryMethods = new Set(['interest-ledger', 'snapshot', 'snapshot-partial']);
+                        const trustedHistoryMethods = new Set(['interest-ledger', 'interest-ledger-override', 'snapshot', 'snapshot-partial']);
                         earn_historyData.forEach(item => {
                             if (item.isActive || item.isIsolation) return;
                             const chainId = document.getElementById('earn-chain').value;
@@ -24840,7 +24930,8 @@
                             const histMeta = earn_totalYieldData && earn_totalYieldData[String(item.marketId)];
                             const histStatus = histMeta ? String(histMeta.verificationStatus || '') : '';
                             const histIsLatest = histMeta ? (histMeta.isLatestSnapshot !== false) : true;
-                            const histStatusTrusted = !histStatus || histStatus === 'verified' || histStatus === 'no_netflow';
+                            const histUsesReplay = String(item.yieldMethod || '').startsWith('interest-ledger');
+                            const histStatusTrusted = histUsesReplay || !histStatus || histStatus === 'verified' || histStatus === 'no_netflow';
                             if (!trustedHistoryMethods.has(String(item.yieldMethod || '')) || !histStatusTrusted || !histIsLatest) {
                                 if (Math.abs(item.yieldUsd || 0) > 0) pendingYieldAssetCount++;
                                 return;
@@ -24888,7 +24979,7 @@
                     const bestIconHtml = bestIcon ? `<img class="best-icon" src="${bestIcon}" alt="">` : '';
 
                     // Count active non-dust supply assets
-                    const activeCount = (earn_cachedAssets || []).filter(a => !a.isBorrow && a.usdValue >= dustThreshold).length;
+                    const activeCount = (earn_cachedAssets || []).filter(a => !a.isBorrow && !a.isCollateral && a.usdValue >= dustThreshold).length;
 
                     // Portfolio sub label (will be updated when lending positions arrive)
                     const portfolioSub = `<span class="sub-highlight">${activeCount}</span> active asset${activeCount !== 1 ? 's' : ''}`;
@@ -25068,13 +25159,14 @@
                 let dustCount = 0;
                 // Count dust in active supply assets (always visible)
                 (earn_cachedAssets || []).forEach(a => {
+                    if (a.isBorrow || a.isCollateral) return;
                     if (a.usdValue < 1 && Math.abs(a.yieldUsd || 0) < 1) dustCount++;
                 });
                 // Count dust in withdrawn items ONLY if withdrawn section is visible
                 const withdrawnSection = document.getElementById('earn-withdrawn-section');
                 const isWithdrawnVisible = withdrawnSection && withdrawnSection.style.display !== 'none';
                 if (isWithdrawnVisible && earn_historyData && earn_historyData.length > 0) {
-                    const activeAddrs = new Set(assets.map(a => a.tokenAddr?.toLowerCase()));
+                    const activeAddrs = new Set(assets.filter(a => !a.isCollateral).map(a => a.tokenAddr?.toLowerCase()));
                     earn_historyData.forEach(item => {
                         if (item.isActive) return;
                         if (item.isIsolation && !item.isActive) return;
