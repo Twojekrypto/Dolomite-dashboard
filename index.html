@@ -7149,6 +7149,57 @@
             background: rgba(239, 68, 68, 0.4);
         }
 
+        .earn-verify-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 7px;
+            border-radius: 10px;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.6px;
+            flex-shrink: 0;
+            border: 1px solid transparent;
+        }
+
+        .earn-verify-badge .earn-status-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+        }
+
+        .earn-verify-badge.verified {
+            background: rgba(16, 185, 129, 0.12);
+            color: #6ee7b7;
+            border-color: rgba(16, 185, 129, 0.2);
+        }
+
+        .earn-verify-badge.verified .earn-status-dot {
+            background: #6ee7b7;
+            box-shadow: 0 0 6px rgba(110, 231, 183, 0.45);
+        }
+
+        .earn-verify-badge.mismatch {
+            background: rgba(239, 68, 68, 0.12);
+            color: #fca5a5;
+            border-color: rgba(239, 68, 68, 0.2);
+        }
+
+        .earn-verify-badge.mismatch .earn-status-dot {
+            background: #f87171;
+            box-shadow: 0 0 6px rgba(248, 113, 113, 0.35);
+        }
+
+        .earn-verify-badge.unverified {
+            background: rgba(148, 163, 184, 0.12);
+            color: #cbd5e1;
+            border-color: rgba(148, 163, 184, 0.18);
+        }
+
+        .earn-verify-badge.unverified .earn-status-dot {
+            background: rgba(203, 213, 225, 0.75);
+        }
+
         /* Inactive row styling */
         .earn-data-row.earn-row-inactive {
             opacity: 0.5;
@@ -19738,6 +19789,9 @@
         let earn_borrowMarkets = new Set(); // market IDs with active borrows (yield formula is invalid for these)
         let earn_borrowPositionData = []; // raw borrow position data from subgraph [{marketId, amountPar, tokenAddr, decimals, symbol}]
         let earn_replayAccountNumbers = []; // discovered account numbers from onchain logs
+        let earn_replayStateData = {}; // { marketId: { expectedSupplyPar, expectedSupplyWei, expectedBorrowPar, expectedBorrowWei, ... } }
+        let earn_replayVerificationData = {}; // { marketId: { status, diffs..., counted } }
+        let earn_replayVerificationSummary = { total: 0, verified: 0, mismatch: 0, unverified: 0 };
 
         // ---- Custom chain selector logic ----
         function earnChainToggle() {
@@ -19769,6 +19823,9 @@
             earn_borrowMarkets = new Set();
             earn_borrowPositionData = [];
             earn_replayAccountNumbers = [];
+            earn_replayStateData = {};
+            earn_replayVerificationData = {};
+            earn_replayVerificationSummary = { total: 0, verified: 0, mismatch: 0, unverified: 0 };
             earn_lendingPositions = [];
             // Hide lending positions section
             const lendingSection = document.getElementById('earn-lending-section');
@@ -20558,6 +20615,8 @@
                     }
                 });
             });
+
+            earn_buildReplayVerification(aggregatedSupply, aggregatedBorrow);
 
             earn_borrowMarkets = new Set(Object.keys(aggregatedBorrow));
             earn_borrowPositionData = Object.values(aggregatedBorrow).map(pos => {
@@ -21435,6 +21494,7 @@
                 } else {
                     badge = '<span class="earn-hist-badge withdrawn">WITHDRAWN</span>';
                 }
+                const verifyBadge = earn_renderVerificationBadge(item.marketId, item.symbol, item.decimals);
 
                 // Chevron SVG
                 const chevron = `<svg class="earn-row-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
@@ -21498,7 +21558,7 @@
                                 <div class="earn-token-info">
                                     <div class="earn-token-name">${item.symbol} ${chevron}</div>
                                     ${subtitle}
-                                    <div style="margin-top:3px">${badge}</div>
+                                    <div style="margin-top:3px;display:flex;gap:6px;flex-wrap:wrap">${badge}${verifyBadge}</div>
                                 </div>
                             </div>
                         </div>
@@ -21577,6 +21637,139 @@
             return earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[symbol] || 0;
         }
 
+        function earn_absBigInt(value) {
+            return value < 0n ? -value : value;
+        }
+
+        function earn_getVerification(mid) {
+            return earn_replayVerificationData ? (earn_replayVerificationData[String(mid)] || null) : null;
+        }
+
+        function earn_getVerificationTolerance(decimals) {
+            const safeDecimals = Math.max(0, Number(decimals || 18));
+            return safeDecimals > 12 ? (10n ** BigInt(safeDecimals - 12)) : 1n;
+        }
+
+        function earn_buildVerificationTitle(entry, symbol, decimals) {
+            if (!entry) return '';
+            if (entry.status === 'verified') {
+                return 'Replay reconciles with onchain current balances.';
+            }
+            if (entry.status === 'unverified') {
+                return 'Replay could not be fully reconciled for this market.';
+            }
+            const parts = [];
+            const addPart = (label, diff) => {
+                if (diff === 0n) return;
+                const sign = diff > 0n ? '+' : '-';
+                parts.push(`${label} ${sign}${earn_formatAmount(earn_absBigInt(diff), decimals, symbol)}`);
+            };
+            addPart('Supply par Δ', entry.supplyParDiff);
+            addPart('Supply wei Δ', entry.supplyWeiDiff);
+            addPart('Borrow par Δ', entry.borrowParDiff);
+            addPart('Borrow wei Δ', entry.borrowWeiDiff);
+            return parts.length > 0
+                ? `Replay mismatch vs onchain balances. ${parts.join(' · ')}`
+                : 'Replay mismatch vs onchain balances.';
+        }
+
+        function earn_renderVerificationBadge(marketId, symbol, decimals) {
+            const entry = earn_getVerification(marketId);
+            if (!entry || !entry.counted) return '';
+            const label = entry.status === 'verified'
+                ? 'VERIFIED'
+                : entry.status === 'mismatch'
+                    ? 'MISMATCH'
+                    : 'UNVERIFIED';
+            const title = earn_buildVerificationTitle(entry, symbol || 'UNK', decimals ?? 18);
+            return `<span class="earn-verify-badge ${entry.status}" title="${title}"><span class="earn-status-dot"></span>${label}</span>`;
+        }
+
+        function earn_buildReplayVerification(actualSupplyMap, actualBorrowMap) {
+            actualSupplyMap = actualSupplyMap || {};
+            actualBorrowMap = actualBorrowMap || {};
+
+            const verificationData = {};
+            const summary = { total: 0, verified: 0, mismatch: 0, unverified: 0 };
+            const marketIds = new Set([
+                ...Object.keys(earn_replayStateData || {}),
+                ...Object.keys(earn_interestYieldData || {}),
+                ...Object.keys(actualSupplyMap || {}),
+                ...Object.keys(actualBorrowMap || {}),
+            ]);
+
+            marketIds.forEach(mid => {
+                const replay = (earn_replayStateData && earn_replayStateData[mid]) || {};
+                const interest = (earn_interestYieldData && earn_interestYieldData[mid]) || {};
+                const actualSupply = actualSupplyMap[mid] || null;
+                const actualBorrow = actualBorrowMap[mid] || null;
+                const meta = earn_subgraphTokens[mid] || {};
+                const decimals = meta.decimals || 18;
+
+                const expectedSupplyPar = BigInt(replay.expectedSupplyPar || '0');
+                const expectedSupplyWei = BigInt(replay.expectedSupplyWei || '0');
+                const expectedBorrowPar = BigInt(replay.expectedBorrowPar || '0');
+                const expectedBorrowWei = BigInt(replay.expectedBorrowWei || '0');
+                const actualSupplyPar = actualSupply ? BigInt(actualSupply.par || '0') : 0n;
+                const actualSupplyWei = actualSupply ? BigInt(actualSupply.wei || '0') : 0n;
+                const actualBorrowPar = actualBorrow ? earn_absBigInt(BigInt(actualBorrow.par || '0')) : 0n;
+                const actualBorrowWei = actualBorrow ? earn_absBigInt(BigInt(actualBorrow.wei || '0')) : 0n;
+                const settledYield = BigInt(interest.settledYield || '0');
+                const hasEarnExposure = !!(
+                    replay.hadSupply ||
+                    expectedSupplyPar > 0n ||
+                    actualSupplyPar > 0n ||
+                    actualSupplyWei > 0n ||
+                    settledYield !== 0n
+                );
+
+                const supplyParDiff = actualSupplyPar - expectedSupplyPar;
+                const supplyWeiDiff = actualSupplyWei - expectedSupplyWei;
+                const borrowParDiff = actualBorrowPar - expectedBorrowPar;
+                const borrowWeiDiff = actualBorrowWei - expectedBorrowWei;
+                const tolerance = earn_getVerificationTolerance(decimals);
+                const canVerify = replay.canVerify !== false;
+                const verified = canVerify &&
+                    supplyParDiff === 0n &&
+                    borrowParDiff === 0n &&
+                    earn_absBigInt(supplyWeiDiff) <= tolerance &&
+                    earn_absBigInt(borrowWeiDiff) <= tolerance;
+                const status = !hasEarnExposure
+                    ? 'unverified'
+                    : !canVerify
+                        ? 'unverified'
+                        : verified
+                            ? 'verified'
+                            : 'mismatch';
+
+                verificationData[mid] = {
+                    status,
+                    counted: hasEarnExposure,
+                    canVerify,
+                    decimals,
+                    expectedSupplyPar,
+                    expectedSupplyWei,
+                    expectedBorrowPar,
+                    expectedBorrowWei,
+                    actualSupplyPar,
+                    actualSupplyWei,
+                    actualBorrowPar,
+                    actualBorrowWei,
+                    supplyParDiff,
+                    supplyWeiDiff,
+                    borrowParDiff,
+                    borrowWeiDiff,
+                };
+
+                if (!hasEarnExposure) return;
+                summary.total++;
+                summary[status] = (summary[status] || 0) + 1;
+            });
+
+            earn_replayVerificationData = verificationData;
+            earn_replayVerificationSummary = summary;
+        }
+
         function earn_parseNetflowEntry(flowData) {
             if (flowData === undefined || flowData === null) return null;
             if (typeof flowData === 'string') {
@@ -21611,11 +21804,6 @@
             const decimals = position.decimals ?? earn_subgraphTokens[mid]?.decimals ?? 18;
             const tokenAddr = position.tokenAddr || earn_subgraphTokens[mid]?.tokenAddr || '';
             const chainId = opts.chainId || document.getElementById('earn-chain')?.value || 'ethereum';
-
-            const weiSource = position.currentWei !== undefined ? position.currentWei : position.wei;
-            const wei = typeof weiSource === 'bigint' ? weiSource : BigInt(weiSource || '0');
-
-            const parSource = position.currentPar !== undefined ? position.currentPar : position.par;
             const interestMeta = earn_interestYieldData && earn_interestYieldData[mid];
             if (!interestMeta || interestMeta.earnYield === undefined) {
                 return {
@@ -22292,6 +22480,7 @@
             });
 
             const interestYieldData = {};
+            const replayStateData = {};
             Object.values(states).forEach(state => {
                 if (!interestYieldData[state.marketId]) {
                     interestYieldData[state.marketId] = {
@@ -22309,14 +22498,43 @@
                 entry.hadSupply = entry.hadSupply || state.hadSupply;
                 entry.hadBorrow = entry.hadBorrow || state.hadBorrow;
                 entry.settledYield += state.settledYield;
+                if (!replayStateData[state.marketId]) {
+                    replayStateData[state.marketId] = {
+                        expectedSupplyPar: 0n,
+                        expectedSupplyWei: 0n,
+                        expectedBorrowPar: 0n,
+                        expectedBorrowWei: 0n,
+                        hadSupply: false,
+                        hadBorrow: false,
+                        canVerify: true,
+                    };
+                }
+                const stateEntry = replayStateData[state.marketId];
+                stateEntry.hadSupply = stateEntry.hadSupply || state.hadSupply;
+                stateEntry.hadBorrow = stateEntry.hadBorrow || state.hadBorrow;
                 if (state.par > 0n) {
                     entry.currentSupplyPar += state.par;
                     entry.openSupplyYield += state.liveYield;
                     entry.earnYield += state.settledYield + state.liveYield;
+                    stateEntry.expectedSupplyPar += state.par;
+                    const supplyIndex = currentIndexMap[state.marketId]?.supplyIndex || null;
+                    if (supplyIndex === null) {
+                        stateEntry.canVerify = false;
+                    } else {
+                        stateEntry.expectedSupplyWei += (state.par * supplyIndex) / INDEX_SCALE;
+                    }
                 } else if (state.par < 0n) {
                     entry.currentBorrowPar += (-state.par);
                     entry.openBorrowYield += state.liveYield;
                     entry.earnYield += state.settledYield;
+                    const borrowPar = -state.par;
+                    stateEntry.expectedBorrowPar += borrowPar;
+                    const borrowIndex = currentIndexMap[state.marketId]?.borrowIndex || null;
+                    if (borrowIndex === null) {
+                        stateEntry.canVerify = false;
+                    } else {
+                        stateEntry.expectedBorrowWei += (borrowPar * borrowIndex) / INDEX_SCALE;
+                    }
                 } else {
                     entry.earnYield += state.settledYield;
                 }
@@ -22335,11 +22553,18 @@
                 entry.currentBorrowPar = entry.currentBorrowPar.toString();
                 entry.currentSupplyPar = entry.currentSupplyPar.toString();
             });
+            Object.values(replayStateData).forEach(entry => {
+                entry.expectedSupplyPar = entry.expectedSupplyPar.toString();
+                entry.expectedSupplyWei = entry.expectedSupplyWei.toString();
+                entry.expectedBorrowPar = entry.expectedBorrowPar.toString();
+                entry.expectedBorrowWei = entry.expectedBorrowWei.toString();
+            });
 
             return {
                 accountNumbers: Array.from(accountNumbers),
                 netflows,
                 interestYieldData,
+                replayStateData,
                 marketMeta,
             };
         }
@@ -22350,6 +22575,9 @@
             earn_acct0NetflowData = null;
             earn_interestYieldData = null;
             earn_replayAccountNumbers = [];
+            earn_replayStateData = {};
+            earn_replayVerificationData = {};
+            earn_replayVerificationSummary = { total: 0, verified: 0, mismatch: 0, unverified: 0 };
             earn_subgraphTokens = {};
 
             const addr = document.getElementById('earn-address').value.trim().toLowerCase();
@@ -22359,6 +22587,7 @@
             earn_replayAccountNumbers = replay.accountNumbers || [];
             earn_netflowData = replay.netflows || {};
             earn_interestYieldData = replay.interestYieldData || {};
+            earn_replayStateData = replay.replayStateData || {};
             console.log(`Onchain replay: ${Object.keys(earn_netflowData).length} markets, ${earn_replayAccountNumbers.length} account(s) for ${addr}`);
         }
 
@@ -22886,11 +23115,10 @@
                 const tblRef = document.querySelector('.earn-asset-table');
                 if (tblRef) tblRef.classList.add('no-animate');
 
-                // Batch background data (APY, history, total yield) → single re-render
+                // Batch background data (APY + history) → single re-render
                 Promise.allSettled([
                     apyPromise,
                     earn_lookupHistory(),
-                    earn_fetchTotalYield(),
                 ]).then(() => {
                     earn_renderResults(enriched, { skipSummary: false });
                 });
@@ -23606,6 +23834,7 @@
                 const yieldUsdStr = Math.abs(item.yieldUsd) >= 0.01
                     ? `<div class="earn-usd-sub" style="color:${yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">${yieldUsdSign}$${Math.abs(item.yieldUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>`
                     : '';
+                const verifyBadge = earn_renderVerificationBadge(item.marketId, item.symbol, item.decimals);
 
                 let yieldCellHtml;
                 if (item.yieldWei !== 0n) {
@@ -23623,7 +23852,10 @@
                                 ${iconHtml}
                                 <div class="earn-token-info">
                                     <div class="earn-token-name">${item.symbol}</div>
-                                    <span class="earn-hist-badge withdrawn"><span class="earn-status-dot"></span>WITHDRAWN</span>
+                                    <div style="display:flex;gap:6px;flex-wrap:wrap">
+                                        <span class="earn-hist-badge withdrawn"><span class="earn-status-dot"></span>WITHDRAWN</span>
+                                        ${verifyBadge}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -23917,6 +24149,7 @@
             supplyAssets.forEach((a, idx) => {
                 let yieldCellHtml;
                 const yieldCalc = earn_calculateYield(a);
+                const verifyBadge = earn_renderVerificationBadge(a.marketId, a.symbol, a.decimals);
 
                 if (yieldCalc.hasData) {
                     const yieldUsdStr = Math.abs(yieldCalc.yieldUsd) >= 0.01
@@ -24004,7 +24237,10 @@
                                 ${iconHtml}
                                 <div class="earn-token-info">
                                     <div class="earn-token-name">${a.symbol}</div>
-                                    <span class="earn-hist-badge active"><span class="earn-status-dot"></span>ACTIVE</span>
+                                    <div style="display:flex;gap:6px;flex-wrap:wrap">
+                                        <span class="earn-hist-badge active"><span class="earn-status-dot"></span>ACTIVE</span>
+                                        ${verifyBadge}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -24154,6 +24390,22 @@
                     const yieldClass = totalYieldUsd >= 0 ? 'positive' : 'negative';
                     const yieldSign = totalYieldUsd >= 0 ? '+' : '-';
                     const bestYieldSign = bestYieldUsd > 0 ? '+' : bestYieldUsd < 0 ? '-' : '';
+                    const verifySummary = earn_replayVerificationSummary || { total: 0, verified: 0, mismatch: 0, unverified: 0 };
+                    const verifyValue = verifySummary.total > 0 ? `${verifySummary.verified}/${verifySummary.total}` : '—';
+                    const verifyClass = verifySummary.mismatch > 0
+                        ? 'negative'
+                        : verifySummary.unverified > 0
+                            ? 'neutral'
+                        : verifySummary.total > 0
+                            ? 'positive'
+                            : 'neutral';
+                    const verifySub = verifySummary.total === 0
+                        ? 'No ledger checks yet'
+                        : verifySummary.mismatch > 0
+                            ? `<span style="color:#f87171">${verifySummary.mismatch} mismatch${verifySummary.mismatch !== 1 ? 'es' : ''}</span>${verifySummary.unverified > 0 ? ' · ' + verifySummary.unverified + ' pending' : ''}`
+                            : verifySummary.unverified > 0
+                                ? `${verifySummary.verified} verified · ${verifySummary.unverified} pending`
+                                : 'All visible yield markets reconciled';
 
                     // Find best performer icon
                     let bestIcon = '';
@@ -24186,6 +24438,11 @@
                             <div class="earn-summary-label">Total Yield</div>
                             <div class="earn-summary-value ${yieldClass}">${yieldSign}${fmtUsd(Math.abs(totalYieldUsd))}</div>
                             <div class="earn-summary-sub">All-time lending yield</div>
+                        </div>
+                        <div class="earn-summary-stat">
+                            <div class="earn-summary-label">Ledger Check</div>
+                            <div class="earn-summary-value ${verifyClass}">${verifyValue}</div>
+                            <div class="earn-summary-sub">${verifySub}</div>
                         </div>
                         <div class="earn-summary-stat">
                             <div class="earn-summary-label">Best Performer</div>
