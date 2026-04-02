@@ -21212,12 +21212,10 @@
         // Compute yield BigInt for a single asset (used for sort comparison)
         function earn_getYieldForAsset(a) {
             const mid = String(a.marketId);
-            // Method 1: NetFlow-based (exact)
-            const hasNetflow = earn_netflowData && earn_netflowData[mid] !== undefined;
-            if (hasNetflow) {
-                const flowData = earn_netflowData[mid];
-                const netFlow = typeof flowData === 'string' ? BigInt(flowData) : BigInt(flowData.t || '0');
-                return a.wei - netFlow;
+            // Priority: acct0 netflow > snapshot > all-account netflow
+            const hasAcct0 = earn_acct0NetflowData && earn_acct0NetflowData[mid] !== undefined;
+            if (hasAcct0) {
+                return a.wei - BigInt(earn_acct0NetflowData[mid]);
             }
             // Method 2: Snapshot-based
             const hist = earn_totalYieldData && earn_totalYieldData[mid];
@@ -21229,6 +21227,13 @@
                     totalYield += (lastPar * a.wei - lastWei * a.par) / a.par;
                 }
                 return totalYield;
+            }
+            // Method 3: All-account netflow (fallback)
+            const hasNetflow = earn_netflowData && earn_netflowData[mid] !== undefined;
+            if (hasNetflow) {
+                const flowData = earn_netflowData[mid];
+                const netFlow = typeof flowData === 'string' ? BigInt(flowData) : BigInt(flowData.t || '0');
+                return a.wei - netFlow;
             }
             return 0n;
         }
@@ -21699,56 +21704,61 @@
                     // 3. Trades (taker — with account number for acct0 tracking)
                     earn_subgraphPaginateAll(endpoint, 'trades',
                         `{ takerEffectiveUser: "${addr}" }`,
-                        'takerToken { marketId } makerToken { marketId } takerTokenDeltaWei makerTokenDeltaWei takerMarginAccount { accountNumber }'
+                        'takerToken { marketId decimals } makerToken { marketId decimals } takerTokenDeltaWei makerTokenDeltaWei takerMarginAccount { accountNumber }'
                     ),
                     // 4. Trades (maker, excluding self — with account number)
                     earn_subgraphPaginateAll(endpoint, 'trades',
                         `{ makerEffectiveUser: "${addr}", takerEffectiveUser_not: "${addr}" }`,
-                        'takerToken { marketId } makerToken { marketId } takerTokenDeltaWei makerTokenDeltaWei makerMarginAccount { accountNumber }'
+                        'takerToken { marketId decimals } makerToken { marketId decimals } takerTokenDeltaWei makerTokenDeltaWei makerMarginAccount { accountNumber }'
                     ),
                     // 5. Transfers OUT (external only — for all-account netflow)
                     earn_subgraphPaginateAll(endpoint, 'transfers',
                         `{ fromEffectiveUser: "${addr}", toEffectiveUser_not: "${addr}" }`,
-                        'token { marketId } amountDeltaWei'
+                        'token { marketId decimals } amountDeltaWei'
                     ),
                     // 6. Transfers IN (external only — for all-account netflow)
                     earn_subgraphPaginateAll(endpoint, 'transfers',
                         `{ toEffectiveUser: "${addr}", fromEffectiveUser_not: "${addr}" }`,
-                        'token { marketId } amountDeltaWei'
+                        'token { marketId decimals } amountDeltaWei'
                     ),
                     // 7. Liquidations (solid/liquidator — with account number)
                     earn_subgraphPaginateAll(endpoint, 'liquidations',
                         `{ solidEffectiveUser: "${addr}" }`,
-                        'heldToken { marketId } borrowedToken { marketId } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei solidMarginAccount { accountNumber }'
+                        'heldToken { marketId decimals } borrowedToken { marketId decimals } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei solidMarginAccount { accountNumber }'
                     ),
                     // 8. Liquidations (liquid/being liquidated — with account number)
                     earn_subgraphPaginateAll(endpoint, 'liquidations',
                         `{ liquidEffectiveUser: "${addr}" }`,
-                        'heldToken { marketId } borrowedToken { marketId } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei liquidMarginAccount { accountNumber }'
+                        'heldToken { marketId decimals } borrowedToken { marketId decimals } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei liquidMarginAccount { accountNumber }'
                     ),
                     // 9. Borrow positions
                     earn_subgraphPaginateAll(endpoint, 'borrowPositions',
                         `{ effectiveUser: "${addr}", status: "OPEN" }`,
                         'amounts { token { marketId } amountPar expirationTimestamp }'
                     ),
-                    // 10. ALL transfers by this user (including internal same-user for acct0 tracking)
+                    // 10a. ALL transfers by this user as sender (including internal same-user for acct0 tracking)
                     earn_subgraphPaginateAll(endpoint, 'transfers',
                         `{ fromEffectiveUser: "${addr}" }`,
-                        'token { marketId } amountDeltaWei fromMarginAccount { accountNumber } toMarginAccount { accountNumber }'
+                        'token { marketId decimals } amountDeltaWei fromMarginAccount { accountNumber } toMarginAccount { accountNumber }'
+                    ),
+                    // 10b. External transfers IN — need toMarginAccount for acct0 tracking
+                    earn_subgraphPaginateAll(endpoint, 'transfers',
+                        `{ toEffectiveUser: "${addr}", fromEffectiveUser_not: "${addr}" }`,
+                        'token { marketId decimals } amountDeltaWei toMarginAccount { accountNumber }'
                     ),
                     // 11. Vaporizations (solid — user absorbs debt, receives collateral)
                     earn_subgraphPaginateAll(endpoint, 'vaporizations',
                         `{ solidEffectiveUser: "${addr}" }`,
-                        'heldToken { marketId } borrowedToken { marketId } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei solidMarginAccount { accountNumber }'
+                        'heldToken { marketId decimals } borrowedToken { marketId decimals } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei solidMarginAccount { accountNumber }'
                     ),
                     // 12. Vaporizations (vapor — user's debt gets vaporized)
                     earn_subgraphPaginateAll(endpoint, 'vaporizations',
                         `{ vaporEffectiveUser: "${addr}" }`,
-                        'heldToken { marketId } borrowedToken { marketId } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei vaporMarginAccount { accountNumber }'
+                        'heldToken { marketId decimals } borrowedToken { marketId decimals } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei vaporMarginAccount { accountNumber }'
                     ),
                 ]);
 
-                const [deposits, withdrawals, takerTrades, makerTrades, transfersFrom, transfersTo, liqsSolid, liqsLiquid, borrowPositions, allTransfers, vapSolid, vapVapor] = results;
+                const [deposits, withdrawals, takerTrades, makerTrades, transfersFrom, transfersTo, liqsSolid, liqsLiquid, borrowPositions, allTransfersFrom, allTransfersTo, vapSolid, vapVapor] = results;
 
                 // ═══ PROCESS RESULTS — all BigInt, zero precision loss ═══
                 // Helper: negate a decimal string ("3.5" → "-3.5")
@@ -21769,65 +21779,90 @@
                     }
                 }
                 for (const t of takerTrades) {
-                    addFlow(t.takerToken.marketId, negStr(t.takerTokenDeltaWei), 's');
-                    addFlow(t.makerToken.marketId, t.makerTokenDeltaWei, 's');
+                    const tdec = parseInt(t.takerToken.decimals) || 18;
+                    const mdec = parseInt(t.makerToken.decimals) || 18;
+                    addFlow(t.takerToken.marketId, negStr(t.takerTokenDeltaWei), 's', tdec);
+                    addFlow(t.makerToken.marketId, t.makerTokenDeltaWei, 's', mdec);
                     if (t.takerMarginAccount && t.takerMarginAccount.accountNumber === '0') {
-                        addAcct0Flow(t.takerToken.marketId, negStr(t.takerTokenDeltaWei));
-                        addAcct0Flow(t.makerToken.marketId, t.makerTokenDeltaWei);
+                        addAcct0Flow(t.takerToken.marketId, negStr(t.takerTokenDeltaWei), tdec);
+                        addAcct0Flow(t.makerToken.marketId, t.makerTokenDeltaWei, mdec);
                     }
                 }
                 for (const t of makerTrades) {
-                    addFlow(t.makerToken.marketId, negStr(t.makerTokenDeltaWei), 's');
-                    addFlow(t.takerToken.marketId, t.takerTokenDeltaWei, 's');
+                    const mdec = parseInt(t.makerToken.decimals) || 18;
+                    const tdec = parseInt(t.takerToken.decimals) || 18;
+                    addFlow(t.makerToken.marketId, negStr(t.makerTokenDeltaWei), 's', mdec);
+                    addFlow(t.takerToken.marketId, t.takerTokenDeltaWei, 's', tdec);
                     if (t.makerMarginAccount && t.makerMarginAccount.accountNumber === '0') {
-                        addAcct0Flow(t.makerToken.marketId, negStr(t.makerTokenDeltaWei));
-                        addAcct0Flow(t.takerToken.marketId, t.takerTokenDeltaWei);
+                        addAcct0Flow(t.makerToken.marketId, negStr(t.makerTokenDeltaWei), mdec);
+                        addAcct0Flow(t.takerToken.marketId, t.takerTokenDeltaWei, tdec);
                     }
                 }
                 for (const xf of transfersFrom) {
-                    addFlow(xf.token.marketId, negStr(xf.amountDeltaWei), 'x');
+                    const xdec = parseInt(xf.token.decimals) || 18;
+                    addFlow(xf.token.marketId, negStr(xf.amountDeltaWei), 'x', xdec);
                 }
                 for (const xf of transfersTo) {
-                    addFlow(xf.token.marketId, xf.amountDeltaWei, 'x');
+                    const xdec = parseInt(xf.token.decimals) || 18;
+                    addFlow(xf.token.marketId, xf.amountDeltaWei, 'x', xdec);
                 }
-                // Process ALL transfers (including internal same-user) for account-0 tracking
-                for (const xf of (allTransfers || [])) {
+                // Process ALL transfers as sender (including internal same-user) for account-0 tracking
+                for (const xf of (allTransfersFrom || [])) {
+                    const xdec = parseInt(xf.token.decimals) || 18;
                     const fromAcct = xf.fromMarginAccount && xf.fromMarginAccount.accountNumber;
                     const toAcct = xf.toMarginAccount && xf.toMarginAccount.accountNumber;
-                    if (fromAcct === '0') addAcct0Flow(xf.token.marketId, negStr(xf.amountDeltaWei));
-                    if (toAcct === '0')   addAcct0Flow(xf.token.marketId, xf.amountDeltaWei);
+                    if (fromAcct === '0') addAcct0Flow(xf.token.marketId, negStr(xf.amountDeltaWei), xdec);
+                    if (toAcct === '0')   addAcct0Flow(xf.token.marketId, xf.amountDeltaWei, xdec);
+                }
+                // Process external transfers IN — track arrivals at account 0
+                for (const xf of (allTransfersTo || [])) {
+                    const xdec = parseInt(xf.token.decimals) || 18;
+                    const toAcct = xf.toMarginAccount && xf.toMarginAccount.accountNumber;
+                    if (toAcct === '0') addAcct0Flow(xf.token.marketId, xf.amountDeltaWei, xdec);
                 }
                 for (const liq of liqsSolid) {
-                    addFlow(liq.heldToken.marketId, liq.heldTokenAmountDeltaWei, 'l');
-                    addFlow(liq.borrowedToken.marketId, liq.borrowedTokenAmountDeltaWei, 'l');
+                    const hdec = parseInt(liq.heldToken.decimals) || 18;
+                    const bdec = parseInt(liq.borrowedToken.decimals) || 18;
+                    // Solid (liquidator): RECEIVES heldToken (+), PAYS borrowedToken (-)
+                    addFlow(liq.heldToken.marketId, liq.heldTokenAmountDeltaWei, 'l', hdec);
+                    addFlow(liq.borrowedToken.marketId, negStr(liq.borrowedTokenAmountDeltaWei), 'l', bdec);
                     if (liq.solidMarginAccount && liq.solidMarginAccount.accountNumber === '0') {
-                        addAcct0Flow(liq.heldToken.marketId, liq.heldTokenAmountDeltaWei);
-                        addAcct0Flow(liq.borrowedToken.marketId, liq.borrowedTokenAmountDeltaWei);
+                        addAcct0Flow(liq.heldToken.marketId, liq.heldTokenAmountDeltaWei, hdec);
+                        addAcct0Flow(liq.borrowedToken.marketId, negStr(liq.borrowedTokenAmountDeltaWei), bdec);
                     }
                 }
                 for (const liq of liqsLiquid) {
-                    addFlow(liq.heldToken.marketId, negStr(liq.heldTokenAmountDeltaWei), 'l');
-                    addFlow(liq.borrowedToken.marketId, negStr(liq.borrowedTokenAmountDeltaWei), 'l');
+                    const hdec = parseInt(liq.heldToken.decimals) || 18;
+                    const bdec = parseInt(liq.borrowedToken.decimals) || 18;
+                    // Liquid (being liquidated): LOSES heldToken (-), debt REDUCED (+)
+                    addFlow(liq.heldToken.marketId, negStr(liq.heldTokenAmountDeltaWei), 'l', hdec);
+                    addFlow(liq.borrowedToken.marketId, liq.borrowedTokenAmountDeltaWei, 'l', bdec);
                     if (liq.liquidMarginAccount && liq.liquidMarginAccount.accountNumber === '0') {
-                        addAcct0Flow(liq.heldToken.marketId, negStr(liq.heldTokenAmountDeltaWei));
-                        addAcct0Flow(liq.borrowedToken.marketId, negStr(liq.borrowedTokenAmountDeltaWei));
+                        addAcct0Flow(liq.heldToken.marketId, negStr(liq.heldTokenAmountDeltaWei), hdec);
+                        addAcct0Flow(liq.borrowedToken.marketId, liq.borrowedTokenAmountDeltaWei, bdec);
                     }
                 }
-                // 11+12. Vaporizations — same structure as liquidations
+                // 11+12. Vaporizations — same sign semantics as liquidations
                 for (const vap of (vapSolid || [])) {
-                    addFlow(vap.heldToken.marketId, vap.heldTokenAmountDeltaWei, 'v');
-                    addFlow(vap.borrowedToken.marketId, vap.borrowedTokenAmountDeltaWei, 'v');
+                    const hdec = parseInt(vap.heldToken.decimals) || 18;
+                    const bdec = parseInt(vap.borrowedToken.decimals) || 18;
+                    // Solid: RECEIVES heldToken (+), PAYS borrowedToken (-)
+                    addFlow(vap.heldToken.marketId, vap.heldTokenAmountDeltaWei, 'v', hdec);
+                    addFlow(vap.borrowedToken.marketId, negStr(vap.borrowedTokenAmountDeltaWei), 'v', bdec);
                     if (vap.solidMarginAccount && vap.solidMarginAccount.accountNumber === '0') {
-                        addAcct0Flow(vap.heldToken.marketId, vap.heldTokenAmountDeltaWei);
-                        addAcct0Flow(vap.borrowedToken.marketId, vap.borrowedTokenAmountDeltaWei);
+                        addAcct0Flow(vap.heldToken.marketId, vap.heldTokenAmountDeltaWei, hdec);
+                        addAcct0Flow(vap.borrowedToken.marketId, negStr(vap.borrowedTokenAmountDeltaWei), bdec);
                     }
                 }
                 for (const vap of (vapVapor || [])) {
-                    addFlow(vap.heldToken.marketId, negStr(vap.heldTokenAmountDeltaWei), 'v');
-                    addFlow(vap.borrowedToken.marketId, negStr(vap.borrowedTokenAmountDeltaWei), 'v');
+                    const hdec = parseInt(vap.heldToken.decimals) || 18;
+                    const bdec = parseInt(vap.borrowedToken.decimals) || 18;
+                    // Vapor (debt absorbed): LOSES heldToken (-), debt REDUCED (+)
+                    addFlow(vap.heldToken.marketId, negStr(vap.heldTokenAmountDeltaWei), 'v', hdec);
+                    addFlow(vap.borrowedToken.marketId, vap.borrowedTokenAmountDeltaWei, 'v', bdec);
                     if (vap.vaporMarginAccount && vap.vaporMarginAccount.accountNumber === '0') {
-                        addAcct0Flow(vap.heldToken.marketId, negStr(vap.heldTokenAmountDeltaWei));
-                        addAcct0Flow(vap.borrowedToken.marketId, negStr(vap.borrowedTokenAmountDeltaWei));
+                        addAcct0Flow(vap.heldToken.marketId, negStr(vap.heldTokenAmountDeltaWei), hdec);
+                        addAcct0Flow(vap.borrowedToken.marketId, vap.borrowedTokenAmountDeltaWei, bdec);
                     }
                 }
                 let borrowCount = 0;
@@ -23523,14 +23558,16 @@
                 const hist = earn_totalYieldData && earn_totalYieldData[mid];
                 const hasSnapshotData = hist && hist.cumulativeYield !== undefined;
 
-                // For non-borrow markets: all-account netflow first (most accurate)
-                // For borrow markets: snapshot first > acct0 netflow > dash
-                const useAllNetflow = hasAllNetflow && !isBorrowMarket;
-                const useAcct0Netflow = hasAcct0Netflow && isBorrowMarket && !hasSnapshotData;
-                const useSnapshot = hasSnapshotData && !useAllNetflow && (!isBorrowMarket || !useAcct0Netflow);
+                // Priority: acct0 netflow (most accurate — matches RPC account-0 balance)
+                //         > snapshot (index-based, always reliable)
+                //         > all-account netflow (only safe if no sub-account activity)
+                //         > dash (last resort)
+                const useAcct0Netflow = hasAcct0Netflow;
+                const useSnapshot = hasSnapshotData && !useAcct0Netflow;
+                const useAllNetflow = hasAllNetflow && !useAcct0Netflow && !useSnapshot;
 
-                if (useAllNetflow || useAcct0Netflow) {
-                    // Pick the right netflow source
+                if (useAcct0Netflow || useAllNetflow) {
+                    // Pick the right netflow source — prefer acct0
                     const netFlow = useAcct0Netflow
                         ? BigInt(earn_acct0NetflowData[mid])
                         : (() => { const fd = earn_netflowData[mid]; return typeof fd === 'string' ? BigInt(fd) : BigInt(fd.t || '0'); })();
@@ -23765,9 +23802,12 @@
                     let bestSymbol = '';
                     let bestYieldUsd = 0;
 
+                    const dustThreshold = earn_showDust ? 0 : 1;
+
                     // Active assets (supply only — borrows come from lending positions)
                     (earn_cachedAssets || []).forEach(a => {
                         if (a.isBorrow) return; // skip borrow entries
+                        if (a.usdValue < dustThreshold) return;
                         totalUsd += (a.usdValue || 0);
                         const mid = String(a.marketId);
                         const chainId = document.getElementById('earn-chain').value;
@@ -23775,18 +23815,16 @@
                         const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[a.symbol] || 0;
 
                         // Yield calculation — same priority as table rows:
-                        // Non-borrow: all-account netflow (exact) > snapshot > skip
-                        // Borrow: snapshot (accurate) > acct0 netflow (supply-only) > skip
-                        const isBorrowMkt = earn_borrowMarkets && earn_borrowMarkets.has(mid);
+                        // acct0 netflow (most accurate) > snapshot > all-account netflow (fallback)
                         const hasNF = earn_netflowData && earn_netflowData[mid] !== undefined;
                         const hasA0 = earn_acct0NetflowData && earn_acct0NetflowData[mid] !== undefined;
                         const histS = earn_totalYieldData && earn_totalYieldData[mid];
                         const hasSS = histS && histS.cumulativeYield !== undefined;
-                        const useAllNF = hasNF && !isBorrowMkt;
-                        const useA0NF = hasA0 && isBorrowMkt && !hasSS;
-                        const useSS = hasSS && !useAllNF && (!isBorrowMkt || !useA0NF);
+                        const useA0NF = hasA0;
+                        const useSS = hasSS && !useA0NF;
+                        const useAllNF = hasNF && !useA0NF && !useSS;
 
-                        if (useAllNF || useA0NF) {
+                        if (useA0NF || useAllNF) {
                             try {
                                 const netFlow = useA0NF
                                     ? BigInt(earn_acct0NetflowData[mid])
@@ -23800,7 +23838,14 @@
                             } catch (e) { /* skip */ }
                         } else if (useSS) {
                             try {
-                                const yieldNum = Number(BigInt(histS.cumulativeYield)) / (10 ** a.decimals);
+                                let totalYield = BigInt(histS.cumulativeYield);
+                                const lastPar = BigInt(histS.lastPar || '0');
+                                const lastWei = BigInt(histS.lastWei || '0');
+                                if (a.par !== 0n && lastPar !== 0n) {
+                                    const liveYield = (lastPar * a.wei - lastWei * a.par) / a.par;
+                                    totalYield += liveYield;
+                                }
+                                const yieldNum = Number(totalYield) / (10 ** a.decimals);
                                 const yUsd = yieldNum * price;
                                 totalYieldUsd += yUsd;
                                 if (yUsd > bestYieldUsd) { bestYieldUsd = yUsd; bestSymbol = a.symbol; }
@@ -23812,6 +23857,12 @@
                     if (earn_historyData) {
                         earn_historyData.forEach(item => {
                             if (item.isActive || item.isIsolation) return;
+                            const chainId = document.getElementById('earn-chain').value;
+                            const priceKey = chainId + ':' + (item.tokenAddr || '').toLowerCase();
+                            const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[item.symbol] || 0;
+                            const balanceNum = Number(item.currentWei) / (10 ** item.decimals);
+                            const balanceUsd = Math.abs(balanceNum * price);
+                            if (!earn_showDust && balanceUsd < 1 && Math.abs(item.yieldUsd || 0) < 1) return;
                             totalYieldUsd += (item.yieldUsd || 0);
                             if ((item.yieldUsd || 0) > bestYieldUsd) { bestYieldUsd = item.yieldUsd; bestSymbol = item.symbol; }
                         });
@@ -23820,6 +23871,7 @@
                     const fmtUsd = v => v >= 1000 ? '$' + (v / 1000).toFixed(2) + 'K' : '$' + v.toFixed(2);
                     const yieldClass = totalYieldUsd >= 0 ? 'positive' : 'negative';
                     const yieldSign = totalYieldUsd >= 0 ? '+' : '-';
+                    const bestYieldSign = bestYieldUsd > 0 ? '+' : bestYieldUsd < 0 ? '-' : '';
 
                     // Find best performer icon
                     let bestIcon = '';
@@ -23856,7 +23908,7 @@
                         <div class="earn-summary-stat">
                             <div class="earn-summary-label">Best Performer</div>
                             <div class="earn-summary-value positive">${bestIconHtml}${bestSymbol || '—'}</div>
-                            <div class="earn-summary-sub">${bestYieldUsd > 0 ? '<span class="sub-highlight">' + yieldSign + fmtUsd(bestYieldUsd) + '</span> earned' : 'No yield data'}</div>
+                            <div class="earn-summary-sub">${bestYieldUsd > 0 ? '<span class="sub-highlight">' + bestYieldSign + fmtUsd(Math.abs(bestYieldUsd)) + '</span> earned' : 'No yield data'}</div>
                         </div>
                         <div class="earn-summary-stat">
                             <div class="earn-summary-label"><img src="odolo-logo-official.svg" alt="oDOLO" style="width:18px;height:18px;vertical-align:middle;margin-right:4px"> oDOLO Rewards</div>
