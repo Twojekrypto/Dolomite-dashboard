@@ -21616,81 +21616,8 @@
             const wei = typeof weiSource === 'bigint' ? weiSource : BigInt(weiSource || '0');
 
             const parSource = position.currentPar !== undefined ? position.currentPar : position.par;
-            const hasPar = parSource !== undefined && parSource !== null;
-            const par = hasPar ? (typeof parSource === 'bigint' ? parSource : BigInt(parSource || '0')) : null;
-
-            const acct0Raw = earn_acct0NetflowData && earn_acct0NetflowData[mid] !== undefined
-                ? earn_acct0NetflowData[mid]
-                : null;
-            const hasAcct0Netflow = acct0Raw !== null;
-
-            const flowMeta = earn_parseNetflowEntry(earn_netflowData && earn_netflowData[mid]);
-            const hasAllNetflow = !!flowMeta;
             const interestMeta = earn_interestYieldData && earn_interestYieldData[mid];
-            const hasInterestYield = !!(interestMeta && interestMeta.earnYield !== undefined);
-
-            const hist = earn_totalYieldData && earn_totalYieldData[mid];
-            const hasSnapshotData = hist && hist.cumulativeYield !== undefined;
-
-            let totalYield = null;
-            let method = null;
-            const isActivePosition = wei > 0n;
-            const allowAcct0Netflow = !!opts.allowAcct0Netflow;
-
-            const isReasonableActiveYield = (candidate) => {
-                if (!isActivePosition) return true;
-                const absCandidate = candidate < 0n ? -candidate : candidate;
-                const rawUnit = 10n ** BigInt(Math.min(decimals, 6));
-                const maxReasonable = wei * 10n + rawUnit * 100n;
-                return absCandidate <= maxReasonable;
-            };
-
-            let snapshotCandidate = null;
-            let snapshotMethod = null;
-            if (hasSnapshotData) {
-                const baseSnapshotYield = BigInt(hist.cumulativeYield);
-
-                const lastPar = BigInt(hist.lastPar || '0');
-                const lastWei = BigInt(hist.lastWei || '0');
-                if (par !== null && par !== 0n && lastPar !== 0n) {
-                    const parDiff = lastPar > par ? lastPar - par : par - lastPar;
-                    const canApplyLive = parDiff * 20n <= lastPar; // within 5%
-                    if (canApplyLive) {
-                        snapshotCandidate = baseSnapshotYield;
-                        const liveYield = (lastPar * wei - lastWei * par) / par;
-                        snapshotCandidate += liveYield;
-                        snapshotMethod = 'snapshot';
-                    }
-                } else {
-                    snapshotCandidate = baseSnapshotYield;
-                    snapshotMethod = 'snapshot-partial';
-                }
-            }
-
-            const allNetflowCandidate = hasAllNetflow ? (wei - flowMeta.netFlow) : null;
-            const recentCycleCandidate = (isActivePosition && hasAllNetflow && flowMeta.recentCycleNetFlow !== null)
-                ? (wei - flowMeta.recentCycleNetFlow)
-                : null;
-            const interestYieldCandidate = hasInterestYield ? BigInt(interestMeta.earnYield || '0') : null;
-
-            if (interestYieldCandidate !== null) {
-                totalYield = interestYieldCandidate;
-                method = 'interest-ledger';
-            } else if (hasSnapshotData && snapshotCandidate !== null && isReasonableActiveYield(snapshotCandidate)) {
-                totalYield = snapshotCandidate;
-                method = snapshotMethod;
-            } else if (allowAcct0Netflow && hasAcct0Netflow) {
-                totalYield = wei - BigInt(acct0Raw);
-                method = 'acct0-netflow';
-            } else if (allNetflowCandidate !== null && isReasonableActiveYield(allNetflowCandidate)) {
-                totalYield = allNetflowCandidate;
-                method = 'all-netflow';
-            } else if (recentCycleCandidate !== null && isReasonableActiveYield(recentCycleCandidate)) {
-                totalYield = recentCycleCandidate;
-                method = 'recent-cycle';
-            }
-
-            if (totalYield === null) {
+            if (!interestMeta || interestMeta.earnYield === undefined) {
                 return {
                     hasData: false,
                     method: null,
@@ -21701,11 +21628,11 @@
                     tokenAddr,
                 };
             }
-
-            if (opts.applyHistoryGuards && method === 'all-netflow' && flowMeta && flowMeta.hasBreakdown && flowMeta.totalWithdrawn > flowMeta.totalDeposited) {
-                totalYield = 0n;
-                method = 'all-netflow-guarded';
-            }
+            const totalYield = BigInt(interestMeta.earnYield || '0');
+            const settledYield = BigInt(interestMeta.settledYield || '0');
+            const openSupplyYield = BigInt(interestMeta.openSupplyYield || '0');
+            const openBorrowYield = BigInt(interestMeta.openBorrowYield || '0');
+            const method = 'interest-ledger';
 
             const price = earn_getUsdPrice(symbol, tokenAddr, chainId);
             const yieldNum = Number(totalYield) / (10 ** decimals);
@@ -21718,6 +21645,9 @@
                 totalYield,
                 absYield,
                 yieldUsd,
+                settledYield,
+                openSupplyYield,
+                openBorrowYield,
                 yieldPositive: totalYield >= 0n,
                 yieldSign: totalYield > 0n ? '+' : totalYield < 0n ? '-' : '',
                 yieldColor: totalYield >= 0n ? 'earn-yield-positive' : 'earn-yield-negative',
@@ -23968,12 +23898,8 @@
             // whether yield data EXISTS. Column visibility should be independent.
             const hasAnyYield = supplyAssets.some(a => {
                 const mid = String(a.marketId);
-                const hasNF = earn_netflowData && earn_netflowData[mid] !== undefined;
-                const hasA0 = earn_acct0NetflowData && earn_acct0NetflowData[mid] !== undefined;
                 const hasIL = earn_interestYieldData && earn_interestYieldData[mid] && earn_interestYieldData[mid].earnYield !== undefined;
-                const h = earn_totalYieldData && earn_totalYieldData[mid];
-                const hasSS = h && h.cumulativeYield !== undefined;
-                return hasNF || hasA0 || hasIL || hasSS;
+                return !!hasIL;
             });
             const table = document.querySelector('.earn-asset-table:not(.earn-past-table)');
             if (table) table.classList.toggle('no-yield', !hasAnyYield);
