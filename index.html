@@ -21941,8 +21941,84 @@
             const decimals = position.decimals ?? earn_subgraphTokens[mid]?.decimals ?? 18;
             const tokenAddr = position.tokenAddr || earn_subgraphTokens[mid]?.tokenAddr || '';
             const chainId = opts.chainId || document.getElementById('earn-chain')?.value || 'ethereum';
+            const weiSource = position.currentWei !== undefined ? position.currentWei : position.wei;
+            const wei = typeof weiSource === 'bigint' ? weiSource : BigInt(weiSource || '0');
+
+            const parSource = position.currentPar !== undefined ? position.currentPar : position.par;
+            const hasPar = parSource !== undefined && parSource !== null;
+            const par = hasPar ? (typeof parSource === 'bigint' ? parSource : BigInt(parSource || '0')) : null;
+
+            const acct0Raw = earn_acct0NetflowData && earn_acct0NetflowData[mid] !== undefined
+                ? earn_acct0NetflowData[mid]
+                : null;
+            const hasAcct0Netflow = acct0Raw !== null;
+
+            const flowMeta = earn_parseNetflowEntry(earn_netflowData && earn_netflowData[mid]);
+            const hasAllNetflow = !!flowMeta;
             const interestMeta = earn_interestYieldData && earn_interestYieldData[mid];
-            if (!interestMeta || interestMeta.earnYield === undefined) {
+            const hasInterestYield = !!(interestMeta && interestMeta.earnYield !== undefined);
+
+            const hist = earn_totalYieldData && earn_totalYieldData[mid];
+            const hasSnapshotData = hist && hist.cumulativeYield !== undefined;
+
+            let totalYield = null;
+            let method = null;
+            const isActivePosition = wei > 0n;
+            const allowAcct0Netflow = !!opts.allowAcct0Netflow;
+
+            const isReasonableActiveYield = (candidate) => {
+                if (!isActivePosition) return true;
+                const absCandidate = candidate < 0n ? -candidate : candidate;
+                const rawUnit = 10n ** BigInt(Math.min(decimals, 6));
+                const maxReasonable = wei * 10n + rawUnit * 100n;
+                return absCandidate <= maxReasonable;
+            };
+
+            let snapshotCandidate = null;
+            let snapshotMethod = null;
+            if (hasSnapshotData) {
+                const baseSnapshotYield = BigInt(hist.cumulativeYield);
+                const lastPar = BigInt(hist.lastPar || '0');
+                const lastWei = BigInt(hist.lastWei || '0');
+                if (par !== null && par !== 0n && lastPar !== 0n) {
+                    const parDiff = lastPar > par ? lastPar - par : par - lastPar;
+                    const canApplyLive = parDiff * 20n <= lastPar;
+                    if (canApplyLive) {
+                        snapshotCandidate = baseSnapshotYield;
+                        const liveYield = (lastPar * wei - lastWei * par) / par;
+                        snapshotCandidate += liveYield;
+                        snapshotMethod = 'snapshot';
+                    }
+                } else {
+                    snapshotCandidate = baseSnapshotYield;
+                    snapshotMethod = 'snapshot-partial';
+                }
+            }
+
+            const allNetflowCandidate = hasAllNetflow ? (wei - flowMeta.netFlow) : null;
+            const recentCycleCandidate = (isActivePosition && hasAllNetflow && flowMeta.recentCycleNetFlow !== null)
+                ? (wei - flowMeta.recentCycleNetFlow)
+                : null;
+            const interestYieldCandidate = hasInterestYield ? BigInt(interestMeta.earnYield || '0') : null;
+
+            if (interestYieldCandidate !== null) {
+                totalYield = interestYieldCandidate;
+                method = 'interest-ledger';
+            } else if (hasSnapshotData && snapshotCandidate !== null && isReasonableActiveYield(snapshotCandidate)) {
+                totalYield = snapshotCandidate;
+                method = snapshotMethod;
+            } else if (allowAcct0Netflow && hasAcct0Netflow) {
+                totalYield = wei - BigInt(acct0Raw);
+                method = 'acct0-netflow';
+            } else if (allNetflowCandidate !== null && isReasonableActiveYield(allNetflowCandidate)) {
+                totalYield = allNetflowCandidate;
+                method = 'all-netflow';
+            } else if (recentCycleCandidate !== null && isReasonableActiveYield(recentCycleCandidate)) {
+                totalYield = recentCycleCandidate;
+                method = 'recent-cycle';
+            }
+
+            if (totalYield === null) {
                 return {
                     hasData: false,
                     method: null,
@@ -21953,11 +22029,15 @@
                     tokenAddr,
                 };
             }
-            const totalYield = BigInt(interestMeta.earnYield || '0');
-            const settledYield = BigInt(interestMeta.settledYield || '0');
-            const openSupplyYield = BigInt(interestMeta.openSupplyYield || '0');
-            const openBorrowYield = BigInt(interestMeta.openBorrowYield || '0');
-            const method = 'interest-ledger';
+
+            if (opts.applyHistoryGuards && method === 'all-netflow' && flowMeta && flowMeta.hasBreakdown && flowMeta.totalWithdrawn > flowMeta.totalDeposited) {
+                totalYield = 0n;
+                method = 'all-netflow-guarded';
+            }
+
+            const settledYield = interestMeta ? BigInt(interestMeta.settledYield || '0') : 0n;
+            const openSupplyYield = interestMeta ? BigInt(interestMeta.openSupplyYield || '0') : 0n;
+            const openBorrowYield = interestMeta ? BigInt(interestMeta.openBorrowYield || '0') : 0n;
 
             const price = earn_getUsdPrice(symbol, tokenAddr, chainId);
             const yieldNum = Number(totalYield) / (10 ** decimals);
@@ -22245,6 +22325,7 @@
         async function earn_fetchTotalYield() {
             earn_totalYieldData = {};
             earn_totalYieldDays = 0;
+            if (!earn_snapshotManifest) await earn_loadManifest();
             if (!earn_snapshotManifest) return;
 
             const chainId = document.getElementById('earn-chain').value;
@@ -22329,6 +22410,7 @@
             earn_refreshHistoryYieldData();
             earn_renderHistory(earn_historyData || []);
             earn_renderWithdrawnAssets();
+            if (earn_cachedAssets) earn_renderResults(earn_cachedAssets, { skipSummary: true });
         }
 
         // === External Rewards: MERKL WLFI + oDOLO per-position ===
@@ -23344,9 +23426,13 @@
                 const tblRef = document.querySelector('.earn-asset-table');
                 if (tblRef) tblRef.classList.add('no-animate');
 
-                // Batch background data (APY + history) → single re-render
+                const totalYieldPromise = earn_fetchTotalYield()
+                    .catch(e => console.warn('Total yield load:', e));
+
+                // Batch background data (APY + history + total yield) → single re-render
                 Promise.allSettled([
                     apyPromise,
+                    totalYieldPromise,
                     replayPromise.then(ok => {
                         if (!ok) return null;
                         earn_refreshReplayVerificationFromCachedPositions();
@@ -24363,8 +24449,12 @@
             // whether yield data EXISTS. Column visibility should be independent.
             const hasAnyYield = supplyAssets.some(a => {
                 const mid = String(a.marketId);
+                const hasNF = earn_netflowData && earn_netflowData[mid] !== undefined;
+                const hasA0 = earn_acct0NetflowData && earn_acct0NetflowData[mid] !== undefined;
                 const hasIL = earn_interestYieldData && earn_interestYieldData[mid] && earn_interestYieldData[mid].earnYield !== undefined;
-                return !!hasIL;
+                const h = earn_totalYieldData && earn_totalYieldData[mid];
+                const hasSS = h && h.cumulativeYield !== undefined;
+                return hasNF || hasA0 || hasIL || hasSS;
             });
             const table = document.querySelector('.earn-asset-table:not(.earn-past-table)');
             if (table) table.classList.toggle('no-yield', !hasAnyYield);
