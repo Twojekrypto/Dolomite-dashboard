@@ -21995,6 +21995,13 @@
 
             const hist = earn_totalYieldData && earn_totalYieldData[mid];
             const hasSnapshotData = hist && hist.cumulativeYield !== undefined;
+            const snapshotStatus = hasSnapshotData ? String(hist.verificationStatus || '') : '';
+            const snapshotIsLatest = hasSnapshotData ? (hist.isLatestSnapshot !== false) : true;
+            const snapshotTrusted = !!(hasSnapshotData && snapshotIsLatest && (
+                !snapshotStatus ||
+                snapshotStatus === 'verified' ||
+                snapshotStatus === 'no_netflow'
+            ));
 
             let totalYield = null;
             let method = null;
@@ -22110,8 +22117,10 @@
                 symbol,
                 decimals,
                 tokenAddr,
-                verificationStatus: interestTrust.status,
-                trustedForTotal: method === 'interest-ledger' || method === 'snapshot' || method === 'snapshot-partial',
+                verificationStatus: method === 'interest-ledger' ? interestTrust.status : (snapshotStatus || interestTrust.status),
+                trustedForTotal: method === 'interest-ledger' || (
+                    (method === 'snapshot' || method === 'snapshot-partial') && snapshotTrusted
+                ),
             };
         }
 
@@ -22272,9 +22281,11 @@
 
         const SNAPSHOT_BASE = 'https://twojekrypto.github.io/vedolo-dashboard/data/earn-snapshots';
         const NETFLOW_BASE = 'https://twojekrypto.github.io/vedolo-dashboard/data/earn-netflow';
+        const VERIFIED_LEDGER_BASE = 'https://twojekrypto.github.io/vedolo-dashboard/data/earn-verified-ledger';
         let earn_netflowData = null; // { marketId: netFlowWei (string) } for current address+chain
         let earn_acct0NetflowData = null; // { marketId: weiString } account-0-only supply netflow (for borrow markets)
         let earn_subgraphTokens = {}; // { marketId: { symbol, decimals, name } } — token metadata from subgraph
+        let earn_verifiedLedgerCache = {}; // { "chain:address" : payload|null }
 
         // Snapshot manifest: { dates: [...], chains: { date: [chains] } }
         let earn_snapshotManifest = null;
@@ -22361,6 +22372,33 @@
             }
         }
 
+        async function earn_fetchVerifiedLedgerForAddress(chainId, address) {
+            const addr = String(address || '').trim().toLowerCase();
+            if (!addr || !/^0x[a-f0-9]{40}$/.test(addr)) return null;
+            const cacheKey = `${chainId}:${addr}`;
+            if (Object.prototype.hasOwnProperty.call(earn_verifiedLedgerCache, cacheKey)) {
+                return earn_verifiedLedgerCache[cacheKey];
+            }
+            try {
+                const resp = await fetch(`${VERIFIED_LEDGER_BASE}/${chainId}/${addr}.json`);
+                if (!resp.ok) {
+                    earn_verifiedLedgerCache[cacheKey] = null;
+                    return null;
+                }
+                const data = await resp.json();
+                if (!data || typeof data !== 'object' || !data.markets || typeof data.markets !== 'object') {
+                    earn_verifiedLedgerCache[cacheKey] = null;
+                    return null;
+                }
+                earn_verifiedLedgerCache[cacheKey] = data;
+                return data;
+            } catch (e) {
+                console.warn('Verified ledger fetch failed:', e.message || e);
+                earn_verifiedLedgerCache[cacheKey] = null;
+                return null;
+            }
+        }
+
         // Get historical market data for a specific address from a snapshot
         function earn_getHistoricalMarkets(snapshot, chainId, address) {
             if (!snapshot || !snapshot.snapshots) return null;
@@ -22390,6 +22428,35 @@
 
             const yieldHeader = document.getElementById('earn-total-yield-header');
             if (yieldHeader) yieldHeader.textContent = 'Loading...';
+
+            // Preferred source: precomputed verified ledger for this exact address+chain.
+            const verifiedLedger = await earn_fetchVerifiedLedgerForAddress(chainId, addr);
+            if (verifiedLedger && verifiedLedger.markets && Object.keys(verifiedLedger.markets).length > 0) {
+                Object.entries(verifiedLedger.markets).forEach(([mid, m]) => {
+                    earn_totalYieldData[String(mid)] = {
+                        cumulativeYield: String(m.cumulativeYield || '0'),
+                        days: Number(m.days || 0),
+                        firstDate: m.firstDate || '',
+                        lastPar: String(m.lastPar || '0'),
+                        lastWei: String(m.lastWei || '0'),
+                        verificationStatus: String(m.status || ''),
+                        isLatestSnapshot: m.isLatestSnapshot !== false,
+                        source: 'verified-ledger',
+                        method: String(m.method || ''),
+                    };
+                });
+                if (yieldHeader) yieldHeader.textContent = 'Total Yield ✓ Verified';
+                console.log(
+                    'Total yield: loaded precomputed verified ledger for',
+                    Object.keys(verifiedLedger.markets).length,
+                    'markets'
+                );
+                earn_refreshHistoryYieldData();
+                earn_renderHistory(earn_historyData || []);
+                earn_renderWithdrawnAssets();
+                if (earn_cachedAssets) earn_renderResults(earn_cachedAssets, { skipSummary: true });
+                return;
+            }
 
             const today = new Date();
             today.setUTCHours(0, 0, 0, 0);
@@ -24770,7 +24837,11 @@
                             const balanceNum = Number(item.currentWei) / (10 ** item.decimals);
                             const balanceUsd = Math.abs(balanceNum * price);
                             if (!earn_showDust && balanceUsd < 1 && Math.abs(item.yieldUsd || 0) < 1) return;
-                            if (!trustedHistoryMethods.has(String(item.yieldMethod || ''))) {
+                            const histMeta = earn_totalYieldData && earn_totalYieldData[String(item.marketId)];
+                            const histStatus = histMeta ? String(histMeta.verificationStatus || '') : '';
+                            const histIsLatest = histMeta ? (histMeta.isLatestSnapshot !== false) : true;
+                            const histStatusTrusted = !histStatus || histStatus === 'verified' || histStatus === 'no_netflow';
+                            if (!trustedHistoryMethods.has(String(item.yieldMethod || '')) || !histStatusTrusted || !histIsLatest) {
                                 if (Math.abs(item.yieldUsd || 0) > 0) pendingYieldAssetCount++;
                                 return;
                             }
