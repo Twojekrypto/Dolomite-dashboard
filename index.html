@@ -20179,6 +20179,64 @@
             return results;
         }
 
+        async function earn_fetchActiveSupplyBalances(addr) {
+            const chain = earn_getChain();
+            const chainId = document.getElementById('earn-chain').value;
+            const selector = '0x6a8194e7';
+            const fallbackAccountNum = String(document.getElementById('earn-account-num')?.value || '0');
+            let accountNumbers = [fallbackAccountNum];
+
+            const endpoint = SUBGRAPH_ENDPOINTS[chainId];
+            if (endpoint) {
+                try {
+                    const marginAccounts = await earn_subgraphPaginateAll(
+                        endpoint,
+                        'marginAccounts',
+                        `{ effectiveUser: "${addr.toLowerCase()}", hasSupplyValue: true }`,
+                        'accountNumber'
+                    );
+                    const uniq = new Set(accountNumbers);
+                    (marginAccounts || []).forEach(ma => {
+                        const accNum = String(ma.accountNumber || '').trim();
+                        if (accNum) uniq.add(accNum);
+                    });
+                    accountNumbers = Array.from(uniq);
+                } catch (e) {
+                    console.warn('Active margin account lookup failed:', e.message);
+                }
+            }
+
+            const calls = accountNumbers.map(accountNum => ({
+                to: chain.margin,
+                data: selector + earn_padAddr(addr) + earn_padUint(accountNum),
+            }));
+            const results = calls.length ? await earn_rpcBatch(calls) : [];
+            const aggregated = {};
+
+            results.forEach((result, idx) => {
+                if (!result || result === '0x') return;
+                let decoded = [];
+                try {
+                    decoded = earn_decodeBalances(result);
+                } catch (e) {
+                    console.warn('Active balance decode failed for account', accountNumbers[idx], e.message);
+                    return;
+                }
+                decoded.forEach(pos => {
+                    const mid = String(pos.marketId);
+                    if (!aggregated[mid]) {
+                        aggregated[mid] = { ...pos };
+                    } else {
+                        aggregated[mid].wei += pos.wei;
+                        aggregated[mid].par += pos.par;
+                    }
+                });
+            });
+
+            console.log(`Active supply lookup: aggregated ${Object.keys(aggregated).length} markets across ${accountNumbers.length} account(s)`);
+            return Object.values(aggregated);
+        }
+
         // Known tokens with CoinGecko icon URLs — keyed by "chain:address" (lowercase)
         const KNOWN_TOKENS = {};
         // Helper to register tokens per chain
@@ -21222,23 +21280,50 @@
 
             let totalYield = null;
             let method = null;
+            const isActivePosition = wei > 0n;
+            const allowAcct0Netflow = !!opts.allowAcct0Netflow;
 
-            if (hasAcct0Netflow) {
-                totalYield = wei - BigInt(acct0Raw);
-                method = 'acct0-netflow';
-            } else if (hasSnapshotData) {
-                totalYield = BigInt(hist.cumulativeYield);
-                method = 'snapshot';
+            const isReasonableActiveYield = (candidate) => {
+                if (!isActivePosition) return true;
+                const absCandidate = candidate < 0n ? -candidate : candidate;
+                const rawUnit = 10n ** BigInt(Math.min(decimals, 6));
+                const maxReasonable = wei * 10n + rawUnit * 100n;
+                return absCandidate <= maxReasonable;
+            };
+
+            let snapshotCandidate = null;
+            let snapshotMethod = null;
+            if (hasSnapshotData) {
+                const baseSnapshotYield = BigInt(hist.cumulativeYield);
 
                 const lastPar = BigInt(hist.lastPar || '0');
                 const lastWei = BigInt(hist.lastWei || '0');
                 if (par !== null && par !== 0n && lastPar !== 0n) {
-                    const liveYield = (lastPar * wei - lastWei * par) / par;
-                    totalYield += liveYield;
+                    const parDiff = lastPar > par ? lastPar - par : par - lastPar;
+                    const canApplyLive = parDiff * 20n <= lastPar; // within 5%
+                    if (canApplyLive) {
+                        snapshotCandidate = baseSnapshotYield;
+                        const liveYield = (lastPar * wei - lastWei * par) / par;
+                        snapshotCandidate += liveYield;
+                        snapshotMethod = 'snapshot';
+                    }
+                } else {
+                    snapshotCandidate = baseSnapshotYield;
+                    snapshotMethod = 'snapshot-partial';
                 }
-            } else if (hasAllNetflow) {
-                totalYield = wei - flowMeta.netFlow;
+            }
+
+            const allNetflowCandidate = hasAllNetflow ? (wei - flowMeta.netFlow) : null;
+
+            if (allowAcct0Netflow && hasAcct0Netflow) {
+                totalYield = wei - BigInt(acct0Raw);
+                method = 'acct0-netflow';
+            } else if (allNetflowCandidate !== null && isReasonableActiveYield(allNetflowCandidate)) {
+                totalYield = allNetflowCandidate;
                 method = 'all-netflow';
+            } else if (snapshotCandidate !== null && isReasonableActiveYield(snapshotCandidate)) {
+                totalYield = snapshotCandidate;
+                method = snapshotMethod;
             }
 
             if (totalYield === null) {
@@ -21969,8 +22054,9 @@
                 for (const bp of borrowPositions) {
                     for (const amt of (bp.amounts || [])) {
                         const borrowPar = parseFloat(amt.amountPar || '0');
-                        if (borrowPar > 0) {
-                            addFlow(amt.token.marketId, negStr(amt.amountPar), 'b');
+                        // In borrowPositions, negative par is debt and positive par is collateral.
+                        if (borrowPar < 0) {
+                            addFlow(amt.token.marketId, amt.amountPar, 'b', parseInt(amt.token.decimals) || 18);
                             earn_borrowMarkets.add(String(amt.token.marketId));
                             borrowCount++;
                         }
@@ -22017,9 +22103,9 @@
                     for (const bp of borrowPositions) {
                         for (const amt of (bp.amounts || [])) {
                             const borrowPar = parseFloat(amt.amountPar || '0');
-                            if (borrowPar > 0) {
+                            if (borrowPar < 0) {
                                 const mid = String(amt.token.marketId);
-                                borrowByMarket[mid] = (borrowByMarket[mid] || 0) + borrowPar;
+                                borrowByMarket[mid] = (borrowByMarket[mid] || 0) + Math.abs(borrowPar);
                             }
                         }
                     }
@@ -22277,7 +22363,6 @@
             if (tbl) tbl.classList.remove('no-animate');
 
             const addr = document.getElementById('earn-address').value.trim();
-            const accountNum = document.getElementById('earn-account-num').value;
             const btn = document.getElementById('earn-search-btn');
 
             // Validate address
@@ -22300,20 +22385,14 @@
                     return;
                 }
 
-                // Prefetch liquidation_risk.json in parallel with RPC (don't await yet)
+                // Prefetch liquidation_risk.json in parallel with balance lookup (don't await yet)
                 earn_prefetchLiqRisk();
-
-                const selector = '0x6a8194e7';
-                const calldata = selector + earn_padAddr(addr) + earn_padUint(accountNum);
-
-                const result = await earn_rpcCall(chain.margin, calldata);
-                const resultLen = result ? result.length : 0;
 
                 let balances;
                 try {
-                    balances = earn_decodeBalances(result);
-                } catch (decodeErr) {
-                    earn_showError('Decode error: ' + decodeErr.message + ' | RPC returned ' + resultLen + ' chars');
+                    balances = await earn_fetchActiveSupplyBalances(addr);
+                } catch (balanceErr) {
+                    earn_showError('Balance lookup failed: ' + balanceErr.message);
                     return;
                 }
 
@@ -22394,11 +22473,7 @@
                     } catch (e) { /* ignore netflow check failure */ }
 
                     const emptyMsg = document.getElementById('earn-empty-msg');
-                    if (resultLen <= 2) {
-                        emptyMsg.textContent = 'RPC returned empty — this address has no deposits on Dolomite';
-                    } else {
-                        emptyMsg.textContent = 'This address has no active deposits on Dolomite';
-                    }
+                    emptyMsg.textContent = 'This address has no active deposits on Dolomite';
                     document.getElementById('earn-empty').classList.add('visible');
                     return;
                 }
