@@ -21744,6 +21744,31 @@
             return earn_replayVerificationData ? (earn_replayVerificationData[String(mid)] || null) : null;
         }
 
+        function earn_getInterestLedgerTrust(mid, opts) {
+            opts = opts || {};
+            const requireVerifiedInterest = opts.requireVerifiedInterest !== false;
+            const entry = earn_getVerification(mid);
+            if (!requireVerifiedInterest) {
+                return {
+                    trusted: true,
+                    status: entry ? entry.status : 'unchecked',
+                    entry,
+                };
+            }
+            if (!entry || !entry.counted) {
+                return {
+                    trusted: false,
+                    status: 'unverified',
+                    entry,
+                };
+            }
+            return {
+                trusted: entry.status === 'verified',
+                status: entry.status || 'unverified',
+                entry,
+            };
+        }
+
         function earn_getVerificationTolerance(decimals) {
             const safeDecimals = Math.max(0, Number(decimals || 18));
             return safeDecimals > 12 ? (10n ** BigInt(safeDecimals - 12)) : 1n;
@@ -21916,6 +21941,10 @@
                     totalDeposited: 0n,
                     totalWithdrawn: 0n,
                     totalBorrowed: 0n,
+                    totalSwapped: 0n,
+                    totalTransferred: 0n,
+                    totalLiquidated: 0n,
+                    totalVaporized: 0n,
                     recentCycleNetFlow: null,
                     resetPar: null,
                     endingPar: null,
@@ -21927,6 +21956,10 @@
                 totalDeposited: BigInt(flowData.d || '0'),
                 totalWithdrawn: BigInt(flowData.w || '0'),
                 totalBorrowed: BigInt(flowData.b || '0'),
+                totalSwapped: BigInt(flowData.s || '0'),
+                totalTransferred: BigInt(flowData.x || '0'),
+                totalLiquidated: BigInt(flowData.l || '0'),
+                totalVaporized: BigInt(flowData.v || '0'),
                 recentCycleNetFlow: flowData.recentNetFlow !== undefined ? BigInt(flowData.recentNetFlow || '0') : null,
                 resetPar: flowData.resetPar !== undefined ? BigInt(flowData.resetPar || '0') : null,
                 endingPar: flowData.endingPar !== undefined ? BigInt(flowData.endingPar || '0') : null,
@@ -21957,6 +21990,8 @@
             const hasAllNetflow = !!flowMeta;
             const interestMeta = earn_interestYieldData && earn_interestYieldData[mid];
             const hasInterestYield = !!(interestMeta && interestMeta.earnYield !== undefined);
+            const requireVerifiedInterest = opts.requireVerifiedInterest !== false;
+            const interestTrust = earn_getInterestLedgerTrust(mid, { requireVerifiedInterest });
 
             const hist = earn_totalYieldData && earn_totalYieldData[mid];
             const hasSnapshotData = hist && hist.cumulativeYield !== undefined;
@@ -22000,8 +22035,18 @@
                 ? (wei - flowMeta.recentCycleNetFlow)
                 : null;
             const interestYieldCandidate = hasInterestYield ? BigInt(interestMeta.earnYield || '0') : null;
+            const canUseVerifiedInterest = interestYieldCandidate !== null && interestTrust.trusted;
+            const canUseUnverifiedInterest = interestYieldCandidate !== null && !interestTrust.trusted && !requireVerifiedInterest;
+            const hasComplexNetflow = !!(flowMeta && flowMeta.hasBreakdown && (
+                flowMeta.totalBorrowed !== 0n ||
+                flowMeta.totalSwapped !== 0n ||
+                flowMeta.totalTransferred !== 0n ||
+                flowMeta.totalLiquidated !== 0n ||
+                flowMeta.totalVaporized !== 0n
+            ));
+            const allowHistoricalNetflowFallback = !(opts.applyHistoryGuards && !isActivePosition && hasComplexNetflow);
 
-            if (interestYieldCandidate !== null) {
+            if (canUseVerifiedInterest) {
                 totalYield = interestYieldCandidate;
                 method = 'interest-ledger';
             } else if (hasSnapshotData && snapshotCandidate !== null && isReasonableActiveYield(snapshotCandidate)) {
@@ -22010,12 +22055,16 @@
             } else if (allowAcct0Netflow && hasAcct0Netflow) {
                 totalYield = wei - BigInt(acct0Raw);
                 method = 'acct0-netflow';
-            } else if (allNetflowCandidate !== null && isReasonableActiveYield(allNetflowCandidate)) {
+            } else if (allowHistoricalNetflowFallback && allNetflowCandidate !== null && isReasonableActiveYield(allNetflowCandidate)) {
                 totalYield = allNetflowCandidate;
                 method = 'all-netflow';
-            } else if (recentCycleCandidate !== null && isReasonableActiveYield(recentCycleCandidate)) {
+            } else if (allowHistoricalNetflowFallback && recentCycleCandidate !== null && isReasonableActiveYield(recentCycleCandidate)) {
                 totalYield = recentCycleCandidate;
                 method = 'recent-cycle';
+            } else if (canUseUnverifiedInterest) {
+                // Last resort for diagnostics-only paths where caller explicitly allows it.
+                totalYield = interestYieldCandidate;
+                method = 'interest-ledger-unverified';
             }
 
             if (totalYield === null) {
@@ -22027,6 +22076,7 @@
                     symbol,
                     decimals,
                     tokenAddr,
+                    verificationStatus: interestTrust.status,
                 };
             }
 
@@ -22060,6 +22110,8 @@
                 symbol,
                 decimals,
                 tokenAddr,
+                verificationStatus: interestTrust.status,
+                trustedForTotal: method === 'interest-ledger' || method === 'snapshot' || method === 'snapshot-partial',
             };
         }
 
@@ -24678,6 +24730,7 @@
                     let totalUsd = 0;
                     let totalDebtUsd = 0;
                     let totalYieldUsd = 0;
+                    let pendingYieldAssetCount = 0;
                     let bestSymbol = '';
                     let bestYieldUsd = 0;
 
@@ -24688,14 +24741,27 @@
                         if (a.isBorrow) return; // skip borrow entries
                         if (a.usdValue < dustThreshold) return;
                         totalUsd += (a.usdValue || 0);
-                        const yieldCalc = earn_calculateYield(a);
-                        if (!yieldCalc.hasData) return;
-                        totalYieldUsd += yieldCalc.yieldUsd;
-                        if (yieldCalc.yieldUsd > bestYieldUsd) { bestYieldUsd = yieldCalc.yieldUsd; bestSymbol = a.symbol; }
+                        const verifiedYieldCalc = earn_calculateYield(a, { requireVerifiedInterest: true });
+                        if (verifiedYieldCalc.hasData && verifiedYieldCalc.trustedForTotal) {
+                            totalYieldUsd += verifiedYieldCalc.yieldUsd;
+                            if (verifiedYieldCalc.yieldUsd > bestYieldUsd) {
+                                bestYieldUsd = verifiedYieldCalc.yieldUsd;
+                                bestSymbol = a.symbol;
+                            }
+                            return;
+                        }
+                        // Track markets that currently rely on unverified/guarded fallback methods.
+                        const pendingYieldCalc = verifiedYieldCalc.hasData
+                            ? verifiedYieldCalc
+                            : earn_calculateYield(a, { requireVerifiedInterest: false });
+                        if (pendingYieldCalc.hasData) {
+                            pendingYieldAssetCount++;
+                        }
                     });
 
                     // Historical/withdrawn assets
                     if (earn_historyData) {
+                        const trustedHistoryMethods = new Set(['interest-ledger', 'snapshot', 'snapshot-partial']);
                         earn_historyData.forEach(item => {
                             if (item.isActive || item.isIsolation) return;
                             const chainId = document.getElementById('earn-chain').value;
@@ -24704,6 +24770,10 @@
                             const balanceNum = Number(item.currentWei) / (10 ** item.decimals);
                             const balanceUsd = Math.abs(balanceNum * price);
                             if (!earn_showDust && balanceUsd < 1 && Math.abs(item.yieldUsd || 0) < 1) return;
+                            if (!trustedHistoryMethods.has(String(item.yieldMethod || ''))) {
+                                if (Math.abs(item.yieldUsd || 0) > 0) pendingYieldAssetCount++;
+                                return;
+                            }
                             totalYieldUsd += (item.yieldUsd || 0);
                             if ((item.yieldUsd || 0) > bestYieldUsd) { bestYieldUsd = item.yieldUsd; bestSymbol = item.symbol; }
                         });
@@ -24713,6 +24783,9 @@
                     const yieldClass = totalYieldUsd >= 0 ? 'positive' : 'negative';
                     const yieldSign = totalYieldUsd >= 0 ? '+' : '-';
                     const bestYieldSign = bestYieldUsd > 0 ? '+' : bestYieldUsd < 0 ? '-' : '';
+                    const totalYieldSub = pendingYieldAssetCount > 0
+                        ? `Verified only · ${pendingYieldAssetCount} asset${pendingYieldAssetCount !== 1 ? 's' : ''} pending verification`
+                        : 'All-time lending yield';
                     const verifySummary = earn_replayVerificationSummary || { total: 0, verified: 0, mismatch: 0, unverified: 0 };
                     const verifyValue = verifySummary.total > 0 ? `${verifySummary.verified}/${verifySummary.total}` : '—';
                     const verifyClass = verifySummary.mismatch > 0
@@ -24760,7 +24833,7 @@
                         <div class="earn-summary-stat">
                             <div class="earn-summary-label">Total Yield</div>
                             <div class="earn-summary-value ${yieldClass}">${yieldSign}${fmtUsd(Math.abs(totalYieldUsd))}</div>
-                            <div class="earn-summary-sub">All-time lending yield</div>
+                            <div class="earn-summary-sub">${totalYieldSub}</div>
                         </div>
                         <div class="earn-summary-stat">
                             <div class="earn-summary-label">Ledger Check</div>
