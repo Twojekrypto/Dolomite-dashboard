@@ -22943,19 +22943,8 @@
             const symbol = position.symbol || 'UNK';
             const marketId = String(position.marketId);
             const tokenAddr = String(position.tokenAddr || '');
-            const verification = earn_getVerification(marketId);
-            const verificationPresentation = earn_getVerificationPresentation(marketId, yieldCalc, symbol, decimals);
             const methodMeta = earn_getYieldMethodMeta(yieldCalc && yieldCalc.method);
-            const verificationLabel = !verificationPresentation || !verificationPresentation.counted
-                ? 'Unchecked'
-                : verificationPresentation.label === 'VERIFIED'
-                    ? 'Verified'
-                    : verificationPresentation.label === 'MISMATCH'
-                        ? 'Mismatch'
-                        : 'Unverified';
-            const verificationTitle = verificationPresentation
-                ? verificationPresentation.title
-                : 'Ledger check unavailable.';
+            
             const yieldClass = !yieldCalc || !yieldCalc.hasData
                 ? ''
                 : yieldCalc.yieldPositive
@@ -22970,9 +22959,9 @@
             const parkedBorrowClass = (yieldCalc && yieldCalc.hasData)
                 ? (yieldCalc.openCollateralYield >= 0n ? 'positive' : 'negative')
                 : '';
+            
             const metaChips = [];
             metaChips.push(`<span class="earn-detail-chip ${methodMeta.cls}" title="${earn_escapeHtml(methodMeta.title)}">${earn_escapeHtml(methodMeta.label)}</span>`);
-            metaChips.push(`<span class="earn-detail-chip ${verificationPresentation && verificationPresentation.counted ? verificationPresentation.status : 'unverified'}" title="${earn_escapeHtml(verificationTitle)}">${earn_escapeHtml(verificationLabel)}</span>`);
 
             const copySvg = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>';
             const detailAddress = tokenAddr
@@ -22985,112 +22974,71 @@
                     </div>`
                 : '<span style="color:var(--text-muted)">Unavailable</span>';
 
-            const verificationRows = verification && verification.counted
-                ? `
-                    <div class="earn-detail-rowline">
-                        <span class="earn-detail-rowline-label">Par tolerance</span>
-                        <span class="earn-detail-rowline-value">±${verification.parTolerance.toString()} raw</span>
-                    </div>
-                    <div class="earn-detail-rowline">
-                        <span class="earn-detail-rowline-label">Supply delta</span>
-                        <span class="earn-detail-rowline-value ${verification.supplyWeiDiff === 0n && verification.supplyParDiff === 0n ? '' : verification.supplyWeiDiff >= 0n ? 'positive' : 'negative'}">${earn_escapeHtml(earn_formatDebugDelta(verification.supplyWeiDiff, decimals, symbol))}</span>
-                    </div>
-                    <div class="earn-detail-rowline">
-                        <span class="earn-detail-rowline-label">Collateral delta</span>
-                        <span class="earn-detail-rowline-value ${verification.collateralWeiDiff === 0n && verification.collateralParDiff === 0n ? '' : verification.collateralWeiDiff >= 0n ? 'positive' : 'negative'}">${earn_escapeHtml(earn_formatDebugDelta(verification.collateralWeiDiff, decimals, symbol))}</span>
-                    </div>
-                    <div class="earn-detail-rowline">
-                        <span class="earn-detail-rowline-label">Borrow delta</span>
-                        <span class="earn-detail-rowline-value ${verification.borrowWeiDiff === 0n && verification.borrowParDiff === 0n ? '' : verification.borrowWeiDiff >= 0n ? 'positive' : 'negative'}">${earn_escapeHtml(earn_formatDebugDelta(verification.borrowWeiDiff, decimals, symbol))}</span>
-                    </div>
-                    <div class="earn-detail-rowline">
-                        <span class="earn-detail-rowline-label">Wei tolerance</span>
-                        <span class="earn-detail-rowline-value">Supply ±${verification.supplyWeiTolerance.toString()} · Collateral ±${verification.collateralWeiTolerance.toString()} · Borrow ±${verification.borrowWeiTolerance.toString()}</span>
-                    </div>
-                    <div class="earn-detail-rowline">
-                        <span class="earn-detail-rowline-label">Largest drift</span>
-                        <span class="earn-detail-rowline-value">${earn_escapeHtml(earn_formatUsdDrift(verification.maxUsdDrift))}</span>
-                    </div>
-                    <div class="earn-detail-rowline">
-                        <span class="earn-detail-rowline-label">Verification rule</span>
-                        <span class="earn-detail-rowline-value">${verification.usdDriftVerified
-                            ? `Below ${earn_escapeHtml(earn_formatUsdDrift(verification.usdVerificationThreshold))} threshold — treated as Verified`
-                            : verification.rawVerified
-                                ? 'Within raw replay tolerance'
-                                : verification.hasUsdDrift
-                                    ? `Above ${earn_escapeHtml(earn_formatUsdDrift(verification.usdVerificationThreshold))} threshold — flagged for review`
-                                    : 'Price unavailable — raw replay tolerances only'}</span>
-                    </div>
-                    ${verificationPresentation && verificationPresentation.overridden
-                        ? `
-                    <div class="earn-detail-rowline">
-                        <span class="earn-detail-rowline-label">Displayed status</span>
-                        <span class="earn-detail-rowline-value">Verified — total yield is trusted from replay</span>
-                    </div>
-                    <div class="earn-detail-rowline">
-                        <span class="earn-detail-rowline-label">Raw ledger check</span>
-                        <span class="earn-detail-rowline-value">${earn_escapeHtml(verificationPresentation.rawLabel)}</span>
-                    </div>
-                    `
-                        : ''}
-                `
-                : `
-                    <div class="earn-detail-rowline">
-                        <span class="earn-detail-rowline-label">Ledger status</span>
-                        <span class="earn-detail-rowline-value">${earn_escapeHtml(verificationLabel)}</span>
-                    </div>
-                    <div class="earn-detail-rowline">
-                        <span class="earn-detail-rowline-label">Reason</span>
-                        <span class="earn-detail-rowline-value">${earn_escapeHtml(verificationTitle)}</span>
-                    </div>
-                `;
-
             const breakdownHtml = earn_buildBreakdown(marketId, decimals, symbol);
+            
             return `<tr class="earn-detail-row" id="earn-detail-${idx}">
                 <td colspan="4">
-                    <div class="earn-detail-stack">
-                        <div class="earn-detail-grid">
-                            <div class="earn-detail-card">
-                                <div class="earn-detail-card-title">Yield Debug</div>
-                                <div class="earn-detail-meta">${metaChips.join('')}</div>
-                                <div class="earn-detail-rowline" style="margin-top:10px">
-                                    <span class="earn-detail-rowline-label">Total earned</span>
-                                    <span class="earn-detail-rowline-value ${yieldClass}">${yieldCalc && yieldCalc.hasData ? `${yieldCalc.yieldSign}${yieldCalc.yieldFmt} ${symbol}` : '—'}</span>
+                    <div class="earn-detail-stack" style="padding: 16px 24px;">
+                        <div style="display: flex; gap: 24px; flex-wrap: wrap;">
+                            <!-- Asset Metrics Card -->
+                            <div style="flex: 1; min-width: 250px; background: rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 20px;">
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 20px;">
+                                    <div style="width: 28px; height: 28px; background: rgba(255,255,255,0.05); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+                                    </div>
+                                    <div style="font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Asset Metrics</div>
                                 </div>
-                                <div class="earn-detail-rowline">
-                                    <span class="earn-detail-rowline-label">Settled before moves</span>
-                                    <span class="earn-detail-rowline-value ${settledClass}">${yieldCalc && yieldCalc.hasData ? `${yieldCalc.settledYield > 0n ? '+' : yieldCalc.settledYield < 0n ? '-' : ''}${earn_formatAmount(earn_absBigInt(yieldCalc.settledYield), decimals, symbol)} ${symbol}` : '—'}</span>
-                                </div>
-                                <div class="earn-detail-rowline">
-                                    <span class="earn-detail-rowline-label">Live in active earn</span>
-                                    <span class="earn-detail-rowline-value ${liveEarnClass}">${yieldCalc && yieldCalc.hasData ? `${yieldCalc.openSupplyYield > 0n ? '+' : yieldCalc.openSupplyYield < 0n ? '-' : ''}${earn_formatAmount(earn_absBigInt(yieldCalc.openSupplyYield), decimals, symbol)} ${symbol}` : '—'}</span>
-                                </div>
-                                <div class="earn-detail-rowline">
-                                    <span class="earn-detail-rowline-label">Live while parked in borrow</span>
-                                    <span class="earn-detail-rowline-value ${parkedBorrowClass}">${yieldCalc && yieldCalc.hasData ? `${yieldCalc.openCollateralYield > 0n ? '+' : yieldCalc.openCollateralYield < 0n ? '-' : ''}${earn_formatAmount(earn_absBigInt(yieldCalc.openCollateralYield), decimals, symbol)} ${symbol}` : '—'}</span>
-                                </div>
-                            </div>
-                            <div class="earn-detail-card">
-                                <div class="earn-detail-card-title">Ledger Check</div>
-                                ${verificationRows}
-                            </div>
-                            <div class="earn-detail-card">
-                                <div class="earn-detail-card-title">Position</div>
+                                
                                 <div class="earn-detail-rowline">
                                     <span class="earn-detail-rowline-label">Token address</span>
                                     <span class="earn-detail-rowline-value" style="font-family:inherit">${detailAddress}</span>
                                 </div>
                                 <div class="earn-detail-rowline">
                                     <span class="earn-detail-rowline-label">Market id</span>
-                                    <span class="earn-detail-rowline-value">${earn_escapeHtml(marketId)}</span>
+                                    <span class="earn-detail-rowline-value" style="font-family:var(--font-mono); color:var(--text-muted)">#${earn_escapeHtml(marketId)}</span>
                                 </div>
                                 <div class="earn-detail-rowline">
                                     <span class="earn-detail-rowline-label">Visible balance</span>
-                                    <span class="earn-detail-rowline-value">${earn_escapeHtml(earn_formatAmount(position.wei, decimals, symbol))} ${earn_escapeHtml(symbol)}</span>
+                                    <span class="earn-detail-rowline-value" style="color: #fff; font-weight: 500;">${earn_escapeHtml(earn_formatAmount(position.wei, decimals, symbol))} <span style="font-size:11px; color:var(--text-muted)">${earn_escapeHtml(symbol)}</span></span>
                                 </div>
-                                <div class="earn-detail-rowline">
-                                    <span class="earn-detail-rowline-label">Current USD value</span>
-                                    <span class="earn-detail-rowline-value">$${Number(position.usdValue || 0).toLocaleString('en-US', { minimumFractionDigits: Number(position.usdValue || 0) >= 1 ? 2 : 4, maximumFractionDigits: Number(position.usdValue || 0) >= 1 ? 2 : 4 })}</span>
+                                <div class="earn-detail-rowline" style="border-bottom:none;">
+                                    <span class="earn-detail-rowline-label">Current Usd value</span>
+                                    <span class="earn-detail-rowline-value" style="color: rgba(255,255,255,0.7); font-weight: 500;">≈ $${Number(position.usdValue || 0).toLocaleString('en-US', { minimumFractionDigits: Number(position.usdValue || 0) >= 1 ? 2 : 4, maximumFractionDigits: Number(position.usdValue || 0) >= 1 ? 2 : 4 })}</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Yield Performance Card -->
+                            <div style="flex: 1.5; min-width: 320px; background: rgba(0,0,0,0.15); border: 1px solid rgba(52, 211, 153, 0.15); border-radius: 12px; padding: 20px; position: relative; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+                                <div style="position: absolute; top: -60px; right: -60px; width: 160px; height: 160px; background: rgba(52, 211, 153, 0.08); filter: blur(40px); border-radius: 50%; pointer-events: none;"></div>
+                                
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; position: relative; z-index: 1;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <div style="width: 28px; height: 28px; background: rgba(52, 211, 153, 0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 1px rgba(52,211,153,0.1) inset;">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+                                        </div>
+                                        <div style="font-size: 13px; font-weight: 600; color: #34d399; text-transform: uppercase; letter-spacing: 0.5px;">Yield Performance</div>
+                                    </div>
+                                    <div class="earn-detail-meta" style="margin: 0; align-items: flex-start;">${metaChips.join('')}</div>
+                                </div>
+
+                                <div style="position: relative; z-index: 1;">
+                                    <div class="earn-detail-rowline" style="margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 16px;">
+                                        <span class="earn-detail-rowline-label" style="font-size: 14px; font-weight: 500; color: #fff;">Total Net Yield</span>
+                                        <span class="earn-detail-rowline-value ${yieldClass}" style="font-size: 18px; font-weight: 700; display:flex; align-items:center; gap:4px;">${yieldCalc && yieldCalc.hasData ? `${yieldCalc.yieldSign}${yieldCalc.yieldFmt} <span style="font-size:12px;color:currentColor;opacity:0.7;font-weight:600">${symbol}</span>` : '—'}</span>
+                                    </div>
+                                    
+                                    <div class="earn-detail-rowline">
+                                        <span class="earn-detail-rowline-label" style="color:rgba(255,255,255,0.5)">Settled before moves</span>
+                                        <span class="earn-detail-rowline-value ${settledClass}">${yieldCalc && yieldCalc.hasData ? `${yieldCalc.settledYield > 0n ? '+' : yieldCalc.settledYield < 0n ? '-' : ''}${earn_formatAmount(earn_absBigInt(yieldCalc.settledYield), decimals, symbol)} ${symbol}` : '—'}</span>
+                                    </div>
+                                    <div class="earn-detail-rowline">
+                                        <span class="earn-detail-rowline-label" style="color:rgba(255,255,255,0.5)">Live in active earn</span>
+                                        <span class="earn-detail-rowline-value ${liveEarnClass}">${yieldCalc && yieldCalc.hasData ? `${yieldCalc.openSupplyYield > 0n ? '+' : yieldCalc.openSupplyYield < 0n ? '-' : ''}${earn_formatAmount(earn_absBigInt(yieldCalc.openSupplyYield), decimals, symbol)} ${symbol}` : '—'}</span>
+                                    </div>
+                                    <div class="earn-detail-rowline" style="border-bottom:none;">
+                                        <span class="earn-detail-rowline-label" style="color:rgba(255,255,255,0.5)">Live parked in borrow</span>
+                                        <span class="earn-detail-rowline-value ${parkedBorrowClass}">${yieldCalc && yieldCalc.hasData ? `${yieldCalc.openCollateralYield > 0n ? '+' : yieldCalc.openCollateralYield < 0n ? '-' : ''}${earn_formatAmount(earn_absBigInt(yieldCalc.openCollateralYield), decimals, symbol)} ${symbol}` : '—'}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
