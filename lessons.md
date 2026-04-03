@@ -112,3 +112,7 @@
 - **E-Mode inline**: When reducing columns, move secondary badges (E-Mode) inline with HF instead of giving them a whole column — saves horizontal space.
 - **Data flow tracing**: When mapping protocol logic (like oDOLO Vester 7-day delays), ensure data pipelines match real user-flow outcomes (ERC721 Transfers vs initial Deposits) rather than stopping at the intermediate contract locking step.
 - **Contract Mint Tracking**: When an NFT is minted inside a smart contract (e.g., via `create_lock_for`), it emits a `Transfer` from `0x0...0` directly to the user. It is NOT transferred from the proxy contract itself. Missing this pattern causes false dropping of minted items during data filtering.
+
+## UI/UX & Detail Views
+- **Premium UX over Debug Data**: When users click to expand an asset detail view (e.g. `earn_buildSupplyDetailRow`), do not flood them with raw debugging data (like "Ledger check"). Consolidate key metrics into clean, aesthetic "Asset Metrics" and "Yield Performance" panels. High-quality UI focuses on visual hierarchy and relevant data.
+- **Glassmorphism Detail Cards**: Apply subtle glassmorphism styles (`background: rgba(0,0,0,0.15)`, `border: 1px solid rgba(255,255,255,0.05)`) with animated gradient blur glows behind them to create an "institutional-grade" look without writing heavy CSS frameworks.
