@@ -3,6 +3,7 @@
 ## Editing & Version Control
 - **Always verify edits applied**: After a cancelled or interrupted edit, re-check the file — the edit may have been reverted.
 - **Check for duplicate markup**: When modifying HTML in a large file, old markup can persist alongside new markup if edits don't target the exact right lines.
+- **Unbalanced Flex Containers**: Be extremely careful when adding blocks to existing `display:flex` layout toolbars. A single stray opening/closing `</div>` tag will detach siblings from the flex flow, destroying alignment ("rozjechany interfejs"). Always cross-check the target edit chunk perfectly matches tag depth.
 
 ## Deployment & Verification
 - **GH Pages cache**: Always add a unique timestamp/version parameter to URLs when verifying deployed changes (e.g., `?v=abc123&t=<timestamp>`).
@@ -19,6 +20,7 @@
 ## Browser Subagent Tips
 - **Give explicit wait times**: Subagents need clear wait durations for data-loading pages. "Wait 8 seconds" works better than "wait for data".
 - **Specific click targets**: "Click the ASSETS tab" can fail if the subagent clicks the wrong element. Include position hints or element descriptions.
+- **Layout Alignment Checks**: After making layout/flexbox changes to the UI, always spawn a browser subagent instructed to navigate to the specific component and visually verify alignment (left vs right, vertical centering) vs the design requirement *before* committing. Do not blindly assume your HTML injected correctly.
 
 ## GitHub Pages Deployment
 - **Always push to `master`**: This repo's GitHub Pages serves from `master` branch, not `main`. Always push to both: `git push origin main && git push origin main:master`.
@@ -108,3 +110,5 @@
 - **Inline Net P&L**: Showing realized P&L directly in the collapsed row (4th column) is better UX than hiding it in the expandable detail panel — users see the most important info without clicking.
 - **Ratio bar under HF**: 3px thin gradient bar showing debt/collateral utilization ratio provides visual context without being alarming. Color follows the existing risk class system.
 - **E-Mode inline**: When reducing columns, move secondary badges (E-Mode) inline with HF instead of giving them a whole column — saves horizontal space.
+- **Data flow tracing**: When mapping protocol logic (like oDOLO Vester 7-day delays), ensure data pipelines match real user-flow outcomes (ERC721 Transfers vs initial Deposits) rather than stopping at the intermediate contract locking step.
+- **Contract Mint Tracking**: When an NFT is minted inside a smart contract (e.g., via `create_lock_for`), it emits a `Transfer` from `0x0...0` directly to the user. It is NOT transferred from the proxy contract itself. Missing this pattern causes false dropping of minted items during data filtering.
