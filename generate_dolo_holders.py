@@ -44,7 +44,7 @@ CHAINS = {
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_JSON = os.path.join(DATA_DIR, "dolo_holders.json")
 STATE_FILE = os.path.join(DATA_DIR, "dolo_holders_state.json")
-MIN_BALANCE = 1.0  # 1 DOLO
+MIN_BALANCE = 100.0  # 100 DOLO
 
 
 def load_state():
