@@ -116,3 +116,15 @@
 ## UI/UX & Detail Views
 - **Premium UX over Debug Data**: When users click to expand an asset detail view (e.g. `earn_buildSupplyDetailRow`), do not flood them with raw debugging data (like "Ledger check"). Consolidate key metrics into clean, aesthetic "Asset Metrics" and "Yield Performance" panels. High-quality UI focuses on visual hierarchy and relevant data.
 - **Glassmorphism Detail Cards**: Apply subtle glassmorphism styles (`background: rgba(0,0,0,0.15)`, `border: 1px solid rgba(255,255,255,0.05)`) with animated gradient blur glows behind them to create an "institutional-grade" look without writing heavy CSS frameworks.
+
+### GitHub Actions State Files
+**Wzorzec błędu:** Zapomnienie o dopisaniu nowo wygenerowanego pliku JSON z backendu (np. `vesting_investors.json`) do linijki `git add` w `.github/workflows/update-dolo-flows.yml`. Plik był poprawnie generowany, ale pipeline go odrzucał, co na produkcji dawało ciche errory i brak danych do oznaczania inwestorów.
+**Reguła na przyszłość:** Gdy skrypt pythona w GitHub Actions pisze do nowego pliku JSON, ZAWSZE zmodyfikuj definicję Workflow i jawnie go wypepchnij (git add plik.json).
+
+### Branching i Deployment na Pages
+**Wzorzec błędu:** Oczekiwanie pojawienia się zmian na GitHub Pages po pushu na gałąź `main`.
+**Reguła na przyszłość:** Strona tego projektu jest podpięta domyślnie do gałęzi `master`. Jeśli naprawiasz błędy na `main`, pamiętaj żeby po zakończeniu operacji przenieść je, zmergować na `master` i przepushować ręcznie na zdalne IDE, jeśli user ma na żywo ocenić poprawki.
+
+### Filtrowanie po Typach a nie Etykietach
+**Wzorzec błędu:** Wyszukiwarka łapała zapytanie na polu "Etykieta" ('Core Team', 'Binance'), natomiast użytkownik chciał używać filtrów logicznych odpowiadających kategorii ('team', 'cex').
+**Reguła na przyszłość:** Podczas budowania UI/Search Bar dla oflagowanych tokenów, filtruj ZARÓWNO po nazwie domeny / instytucji (`info.label`), jak i przypisanym do niej typie/metadanej (`info.type`).
