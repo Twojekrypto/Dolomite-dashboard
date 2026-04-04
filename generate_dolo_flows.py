@@ -854,14 +854,7 @@ def main():
                     early_set.add(t[1].lower())
                 elif t[0].lower() == investor_ca:
                     inv_set.add(t[1].lower())
-                elif t[0].lower() == team_ca:
                     team_set.add(t[1].lower())
-                    
-    # Exclude proxy contracts that intermediate the vesting
-    proxy_ca = "0xbf3c4e55a444ed489736c3d856b0cd0533fc2edd"
-    early_set.discard(proxy_ca)
-    inv_set.discard(proxy_ca)
-    team_set.discard(proxy_ca)
                     
     out_investors["early_investors"] = list(early_set)
     out_investors["investors"] = list(inv_set)
