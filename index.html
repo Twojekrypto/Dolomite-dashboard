@@ -17636,7 +17636,7 @@
                 let matchedQuery = false;
                 if (q) {
                     const info = DOLO_ADDR_LABELS[lowerAddr];
-                    const labelMatch = info && info.label.toLowerCase().includes(q);
+                    const labelMatch = info && (info.label.toLowerCase().includes(q) || (info.type && info.type.toLowerCase().includes(q)));
                     if (!lowerAddr.includes(q) && !labelMatch) return false;
                     matchedQuery = true;
                 }
