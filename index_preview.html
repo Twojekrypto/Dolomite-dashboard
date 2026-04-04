@@ -9892,7 +9892,7 @@
                                 <circle cx="11" cy="11" r="8" />
                                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
                             </svg>
-                            <input type="text" id="dolo-holder-search" placeholder="0x…"
+                            <input type="text" id="dolo-holder-search" placeholder="0x… or label"
                                 style="font-size:12px;padding:7px 12px 7px 32px">
                         </div>
                     </div>
@@ -14180,9 +14180,16 @@
             const hideCex = document.getElementById('dolo-holder-hide-cex')?.checked;
 
             dolo_holderFiltered = dolo_holderData.filter(h => {
-                if (q && !h.address.toLowerCase().includes(q)) return false;
-                if (hideCex) {
-                    const info = DOLO_ADDR_LABELS[h.address.toLowerCase()];
+                const lowerAddr = h.address.toLowerCase();
+                let matchedQuery = false;
+                if (q) {
+                    const info = DOLO_ADDR_LABELS[lowerAddr];
+                    const labelMatch = info && info.label.toLowerCase().includes(q);
+                    if (!lowerAddr.includes(q) && !labelMatch) return false;
+                    matchedQuery = true;
+                }
+                if (hideCex && !matchedQuery) {
+                    const info = DOLO_ADDR_LABELS[lowerAddr];
                     if (info) return false; // filter all labeled addresses (CEX, LP, Protocol, CA)
                     if (h.is_contract) return false; // filter unlabeled contracts too
                 }
@@ -15301,7 +15308,32 @@
             '0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07': { label: 'Investor 1', type: 'investor' },
             '0xbf3c4e55a444ed489736c3d856b0cd0533fc2edd': { label: 'Investor 2', type: 'investor' },
             '0x7efd088ae500598a19a242d6d48b9f7e0d061176': { label: 'Investor 3', type: 'investor' },
+            // Bots / Market Makers
+            '0xb7131fc8cdc43060a6210257f537dba5fcae6aed': { label: 'MEV / Liquidator Bot', type: 'liquidator' },
         };
+
+        // --- DYNAMIC LABELS (Fetched from Backend Pipeline) ---
+        fetch('vesting_investors.json').then(r => r.json()).then(data => {
+            if (Array.isArray(data)) return; // skip if old format cached
+            if (data.early_investors) {
+                data.early_investors.forEach(addr => {
+                    const lower = addr.toLowerCase();
+                    if (!DOLO_ADDR_LABELS[lower]) DOLO_ADDR_LABELS[lower] = { label: 'Early Investor', type: 'investor' };
+                });
+            }
+            if (data.investors) {
+                data.investors.forEach(addr => {
+                    const lower = addr.toLowerCase();
+                    if (!DOLO_ADDR_LABELS[lower]) DOLO_ADDR_LABELS[lower] = { label: 'Investor', type: 'investor' };
+                });
+            }
+            if (data.team) {
+                data.team.forEach(addr => {
+                    const lower = addr.toLowerCase();
+                    if (!DOLO_ADDR_LABELS[lower]) DOLO_ADDR_LABELS[lower] = { label: 'Core Team', type: 'protocol', treasury: true };
+                });
+            }
+        }).catch(e => console.log('vesting_investors.json load skipped or missing'));
 
         function dolo_labelBadge(addr) {
             const info = DOLO_ADDR_LABELS[addr.toLowerCase()];
