@@ -63,6 +63,17 @@ def save_state(state):
     with open(STATE_FILE, "w") as f:
         json.dump(state, f, indent=2)
 
+def load_investors():
+    """Load addresses that claimed vesting (early investors and regular investors)."""
+    try:
+        with open(os.path.join(DATA_DIR, "vesting_investors.json")) as f:
+            data = json.load(f)
+            addrs = set(data.get("early_investors", [])) | set(data.get("investors", []))
+            return {a.lower() for a in addrs}
+    except Exception as e:
+        print(f"  ⚠️ Could not load vesting_investors.json: {e}")
+        return set()
+
 
 def get_current_block(rpc_url):
     """Get current block number from RPC."""
@@ -185,7 +196,7 @@ def apply_transfers(balances, transfers):
     return balances, max_block
 
 
-def merge_holders(eth_balances, bera_balances):
+def merge_holders(eth_balances, bera_balances, forced_addrs):
     """Merge holders from both chains into a single list."""
     all_addrs = set(eth_balances.keys()) | set(bera_balances.keys())
 
@@ -199,7 +210,7 @@ def merge_holders(eth_balances, bera_balances):
         if bal_bera < MIN_BALANCE:
             bal_bera = 0
         total = round(bal_eth + bal_bera, 4)
-        if total < MIN_BALANCE:
+        if total < MIN_BALANCE and addr not in forced_addrs:
             continue
 
         chains = []
@@ -223,7 +234,7 @@ def merge_holders(eth_balances, bera_balances):
     return holders
 
 
-def verify_top_balances(holders, eth_balances, bera_balances, max_check=200):
+def verify_top_balances(holders, eth_balances, bera_balances, forced_addrs, max_check=200):
     """Verify top holders' balances against on-chain balanceOf().
     Fixes any residual discrepancies."""
     print(f"\n🔎 Verifying top {max_check} holders with on-chain balanceOf()...")
@@ -282,7 +293,7 @@ def verify_top_balances(holders, eth_balances, bera_balances, max_check=200):
         if h.get("balance_bera", 0) >= MIN_BALANCE:
             h["chains"].append("bera")
 
-    holders = [h for h in holders if h["balance"] >= MIN_BALANCE]
+    holders = [h for h in holders if h["balance"] >= MIN_BALANCE or h["address"].lower() in forced_addrs]
     holders.sort(key=lambda h: h["balance"], reverse=True)
     for i, h in enumerate(holders, 1):
         h["rank"] = i
@@ -373,13 +384,17 @@ def main():
     bera_clean = {a: round(b, 4) for a, b in bera_balances.items() if b >= MIN_BALANCE}
     print(f"  ETH holders: {len(eth_clean):,} | BERA holders: {len(bera_clean):,}")
 
+    forced_addrs = load_investors()
+    if forced_addrs:
+        print(f"  📌 Forcing inclusion of {len(forced_addrs)} investor addresses even if balance is 0")
+
     # Merge
     print("\n🔀 Merging holders across chains...")
-    holders = merge_holders(eth_balances, bera_balances)
+    holders = merge_holders(eth_balances, bera_balances, forced_addrs)
 
     # Verify top holders on-chain
     holders, eth_balances, bera_balances = verify_top_balances(
-        holders, eth_balances, bera_balances, max_check=200
+        holders, eth_balances, bera_balances, forced_addrs, max_check=200
     )
 
     # Detect contracts
