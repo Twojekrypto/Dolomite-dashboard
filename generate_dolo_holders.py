@@ -68,7 +68,7 @@ def load_investors():
     try:
         with open(os.path.join(DATA_DIR, "vesting_investors.json")) as f:
             data = json.load(f)
-            addrs = set(data.get("early_investors", [])) | set(data.get("investors", []))
+            addrs = set(data.get("early_investors", [])) | set(data.get("investors", [])) | set(data.get("team", []))
             return {a.lower() for a in addrs}
     except Exception as e:
         print(f"  ⚠️ Could not load vesting_investors.json: {e}")
