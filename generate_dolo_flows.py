@@ -317,6 +317,7 @@ def calculate_flows(transfers, excluded):
         ZERO,
         DOLO_CONTRACT,
         "0x0000000000000000000000000000000000000001",
+        "0x3e9b9a16743551da49b5e136c716bba7932d2cec",  # oDOLO Vester
     }
     flows = {}
     for from_addr, to_addr, value_wei, _ in transfers:
