@@ -12175,10 +12175,10 @@
                     <div style="display:flex;flex-direction:column;gap:3px;margin-left:auto">
                         <div id="dolo-tvl-range-btns" class="dolo-chain-pills" style="width:fit-content">
                             <div class="dolo-chain-slider"></div>
-                            <button data-days="7">7D</button>
-                            <button data-days="30">30D</button>
-                            <button data-days="90" class="active">90D</button>
-                            <button data-days="180">180D</button>
+                            <button data-days="7">1W</button>
+                            <button data-days="30">1M</button>
+                            <button data-days="90" class="active">3M</button>
+                            <button data-days="180">6M</button>
                             <button data-days="99999">ALL</button>
                         </div>
                     </div>
@@ -17940,15 +17940,24 @@
                         ctx.font = '600 10px Inter, system-ui';
                         const tw = ctx.measureText(text).width;
                         const pw = tw + 12, ph = 18;
-                        const labelY = above ? p.y - 22 : p.y + 8;
-                        const px = p.x - pw / 2;
+                        let labelY = above ? p.y - 22 : p.y + 8;
+                        let px = p.x - pw / 2;
+                        let textX = p.x;
+
+                        // Zapobiega overlapowi na Live Value pill po prawej stronie
+                        if (idx >= dolo_tvlPoints.length - 3) {
+                            px = p.x - pw - 12; // Wyrzucamy pigułkę całkowicie na lewą stronę punktu Min/Max
+                            labelY = p.y - ph / 2; // Wyśrodkowujemy ją w pionie względem punktu
+                            textX = px + pw / 2; // Wyśrodkowanie tekstu wewnątrz nowej pigułki
+                        }
+
                         ctx.fillStyle = 'rgba(15,23,42,0.7)';
                         ctx.beginPath();
                         ctx.roundRect(px, labelY, pw, ph, 4);
                         ctx.fill();
                         ctx.fillStyle = textColor;
                         ctx.textAlign = 'center';
-                        ctx.fillText(text, p.x, labelY + 13);
+                        ctx.fillText(text, textX, labelY + 13);
                     };
                     drawMarker(maxIdx, '▲', 'rgba(52,211,153,0.85)', '#34d399', true);
                     drawMarker(minIdx, '▼', 'rgba(251,113,133,0.75)', '#fb7185', false);
