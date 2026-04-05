@@ -14502,7 +14502,7 @@
                         // Search filter
                         if (window._exitAddrSearch) {
                             const q = window._exitAddrSearch;
-                            filtered = filtered.filter(ex => (ex.address || '').toLowerCase().includes(q) || (ex.tx_hash || '').toLowerCase().includes(q));
+                            filtered = filtered.filter(ex => dolo_matchAddressSearch(ex.address, q) || (ex.tx_hash || '').toLowerCase().includes(q));
                         }
                         let sorted = [...filtered];
                         const sk = window._exitAddrSortKey;
@@ -16029,7 +16029,7 @@
             const searchVal = (document.getElementById('ct-search')?.value || '').trim().toLowerCase();
             let filtered = claimers;
             if (searchVal.length > 0) {
-                filtered = claimers.filter(c => c.address.toLowerCase().includes(searchVal));
+                filtered = claimers.filter(c => dolo_matchAddressSearch(c.address, searchVal));
                 odolo_claimerPage = 1;
             }
 
@@ -16473,7 +16473,7 @@
 
             // Search filter
             if (recentExSearchTerm) {
-                data = data.filter(tx => tx.address.toLowerCase().includes(recentExSearchTerm) || tx.hash.toLowerCase().includes(recentExSearchTerm));
+                data = data.filter(tx => dolo_matchAddressSearch(tx.address, recentExSearchTerm) || tx.hash.toLowerCase().includes(recentExSearchTerm));
             }
 
             // Sort
@@ -16685,7 +16685,7 @@
 
             // Search filter
             if (recentClaimsSearchTerm) {
-                data = data.filter(c => c.address.toLowerCase().includes(recentClaimsSearchTerm) || c.txHash.toLowerCase().includes(recentClaimsSearchTerm));
+                data = data.filter(c => dolo_matchAddressSearch(c.address, recentClaimsSearchTerm) || c.txHash.toLowerCase().includes(recentClaimsSearchTerm));
             }
 
             // Sort
@@ -16781,7 +16781,7 @@
 
             // Search filter
             if (recentLocksSearchTerm) {
-                data = data.filter(l => l.address.toLowerCase().includes(recentLocksSearchTerm) || l.txHash.toLowerCase().includes(recentLocksSearchTerm));
+                data = data.filter(l => dolo_matchAddressSearch(l.address, recentLocksSearchTerm) || l.txHash.toLowerCase().includes(recentLocksSearchTerm));
             }
 
             // Lock type filter
@@ -16852,7 +16852,7 @@
             const tbody = document.getElementById('exercisers-tbody');
             if (!tbody) return;
             let data = [...EXERCISER_DATA];
-            if (exerciserSearchTerm) data = data.filter(e => e.address.toLowerCase().includes(exerciserSearchTerm));
+            if (exerciserSearchTerm) data = data.filter(e => dolo_matchAddressSearch(e.address, exerciserSearchTerm));
 
             data.sort((a, b) => {
                 let va, vb;
@@ -17236,6 +17236,17 @@
             if (n >= 1e6) return '$' + (n / 1e6).toFixed(2) + 'M';
             if (n >= 1e3) return '$' + (n / 1e3).toFixed(1) + 'K';
             return '$' + n.toFixed(2);
+        }
+
+        function dolo_matchAddressSearch(address, query) {
+            if (!query) return true;
+            const lowerAddr = (address || '').toLowerCase();
+            if (lowerAddr.includes(query)) return true;
+            if (typeof DOLO_ADDR_LABELS !== 'undefined') {
+                const info = DOLO_ADDR_LABELS[lowerAddr];
+                if (info && ((info.label && info.label.toLowerCase().includes(query)) || (info.type && info.type.toLowerCase().includes(query)))) return true;
+            }
+            return false;
         }
 
         async function dolo_init() {
@@ -17635,9 +17646,7 @@
                 const lowerAddr = h.address.toLowerCase();
                 let matchedQuery = false;
                 if (q) {
-                    const info = DOLO_ADDR_LABELS[lowerAddr];
-                    const labelMatch = info && (info.label.toLowerCase().includes(q) || (info.type && info.type.toLowerCase().includes(q)));
-                    if (!lowerAddr.includes(q) && !labelMatch) return false;
+                    if (!dolo_matchAddressSearch(h.address, q)) return false;
                     matchedQuery = true;
                 }
                 if (hideCex && !matchedQuery) {
@@ -18993,8 +19002,8 @@
 
             // Apply search filter
             if (search) {
-                accumulators = accumulators.filter(a => a.address.toLowerCase().includes(search));
-                sellers = sellers.filter(s => s.address.toLowerCase().includes(search));
+                accumulators = accumulators.filter(a => dolo_matchAddressSearch(a.address, search));
+                sellers = sellers.filter(s => dolo_matchAddressSearch(s.address, search));
             }
 
             // Apply Sort
@@ -19251,7 +19260,7 @@
 
             const searchEl = document.getElementById('odolo-flow-search');
             const q = searchEl ? searchEl.value.trim().toLowerCase() : '';
-            const filterBySearch = arr => q ? arr.filter(item => item.address.toLowerCase().includes(q)) : arr;
+            const filterBySearch = arr => q ? arr.filter(item => dolo_matchAddressSearch(item.address, q)) : arr;
 
             const accumulators = filterBySearch(periodData.accumulators || []);
             const sellers = filterBySearch(periodData.sellers || []);
