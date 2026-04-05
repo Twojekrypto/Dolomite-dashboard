@@ -33,6 +33,7 @@
 - **Always cache API receipts**: Scripts that fetch on-chain tx receipts grow linearly slower over time. Always use a cache file + GH Actions `actions/cache@v4` for incremental syncing.
 - **git pull --rebase -X theirs**: For automated JSON data commits, use `-X theirs` to auto-resolve merge conflicts (our freshly generated data is always newer/correct).
 - **Timeout headroom**: Set `timeout-minutes` to at least 2× expected runtime to account for RPC slowness and data growth.
+- **⚠️ GitHub Actions 15-minute timeout destroys cache**: If a data sync job (like `update-odolo-flows.yml`) relies on `actions/cache@v4` to save state at the end, a harsh timeout (e.g. `timeout-minutes: 15`) will CAUSE the cache to NEVER SAVE if the initial full-sync takes longer than 15m! The job enters a death-loop: runs 15m → cancels → drops state → next run starts from scratch. Always set a very generous `timeout-minutes` (e.g., `120`) for pipelines doing bulk historical block fetching via RPC, so they can finish the full sync once and save their structural cache.
 
 ## UI Overflow & Dropdowns
 - **`overflow:hidden` clips dropdowns**: Parent containers with `overflow:hidden` will clip absolutely-positioned child elements (like dropdown menus). Use `overflow:visible` instead when the container has interactive dropdowns.
