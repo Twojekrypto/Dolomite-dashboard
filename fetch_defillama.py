@@ -28,7 +28,20 @@ def main():
         # --- Build SLIM output (only what the dashboard needs) ---
 
         # 1. TVL history (small — ~0.1MB, used for chart)
-        tvl_history = data.get("tvl", [])
+        # Combine base TVL with Borrowed TVL for Total Supply history
+        base_tvl_history = data.get("tvl", [])
+        borrowed_history = data.get("chainTvls", {}).get("borrowed", {}).get("tvl", [])
+        
+        combined_history = {}
+        for p in base_tvl_history:
+            combined_history[p["date"]] = p["totalLiquidityUSD"]
+            
+        for p in borrowed_history:
+            d = p["date"]
+            combined_history[d] = combined_history.get(d, 0) + p["totalLiquidityUSD"]
+            
+        # Sort chronologically by date
+        tvl_history = [{"date": k, "totalLiquidityUSD": v} for k, v in sorted(combined_history.items())]
 
         # 2. Current chain TVLs (tiny — used for chain bars + donut fallback)
         current_chain_tvls = data.get("currentChainTvls", {})
