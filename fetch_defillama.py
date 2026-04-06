@@ -34,11 +34,21 @@ def main():
         current_chain_tvls = data.get("currentChainTvls", {})
 
         # 3. Token composition — only keep the LAST entry (used by donut chart)
+        global_tokens = {}
         tokens_in_usd = data.get("tokensInUsd", [])
-        last_token_entry = tokens_in_usd[-1] if tokens_in_usd else None
+        if tokens_in_usd and len(tokens_in_usd) > 0 and "tokens" in tokens_in_usd[-1]:
+            for tk, val in tokens_in_usd[-1]["tokens"].items():
+                if val > 0: global_tokens[tk] = global_tokens.get(tk, 0) + val
+                
+        chain_tvls_raw = data.get("chainTvls", {})
+        borrowed_data = chain_tvls_raw.get("borrowed", {}).get("tokensInUsd", [])
+        if borrowed_data and len(borrowed_data) > 0 and "tokens" in borrowed_data[-1]:
+            for tk, val in borrowed_data[-1]["tokens"].items():
+                if val > 0: global_tokens[tk] = global_tokens.get(tk, 0) + val
+        
+        last_token_entry = {"tokens": global_tokens}
 
         # 3b. Per-chain token composition (for chain filter on donut chart)
-        chain_tvls_raw = data.get("chainTvls", {})
         NON_CHAINS = {'borrowed', 'staking', 'pool2', 'vesting',
                       'offers', 'treasury', 'cex', 'governance'}
         chain_tokens_in_usd = {}
@@ -47,11 +57,23 @@ def main():
                 continue
             if not isinstance(chain_data, dict):
                 continue
+            
+            chain_local_tokens = {}
+            # Base TVL tokens
             ct = chain_data.get("tokensInUsd", [])
-            if ct:
-                last_ct = ct[-1]
-                if isinstance(last_ct, dict) and "tokens" in last_ct:
-                    chain_tokens_in_usd[chain_name] = last_ct["tokens"]
+            if ct and len(ct) > 0 and isinstance(ct[-1], dict) and "tokens" in ct[-1]:
+                for tk, val in ct[-1]["tokens"].items():
+                    if val > 0: chain_local_tokens[tk] = chain_local_tokens.get(tk, 0) + val
+            
+            # Borrowed TVL tokens for this chain
+            borrowed_key = chain_name + "-borrowed"
+            b_data = chain_tvls_raw.get(borrowed_key, {}).get("tokensInUsd", [])
+            if b_data and len(b_data) > 0 and isinstance(b_data[-1], dict) and "tokens" in b_data[-1]:
+                for tk, val in b_data[-1]["tokens"].items():
+                    if val > 0: chain_local_tokens[tk] = chain_local_tokens.get(tk, 0) + val
+                    
+            if chain_local_tokens:
+                chain_tokens_in_usd[chain_name] = chain_local_tokens
 
         # 4. Metadata (used by Protocol Info section)
         output = {

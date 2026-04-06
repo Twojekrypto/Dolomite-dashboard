@@ -14989,77 +14989,38 @@
             const wrap = document.getElementById('dolo-donut-wrap');
             if (!wrap || !data.ll) return;
 
-            let tokenMap = {};
-            const tokenChainMap = {};
+            const chainTokens = data.ll.chainTokensInUsd || {};
+            let tokens = [];
 
-            if (data.ll.chainTvls) {
-                if (dolo_selectedChain === 'all') {
-                    const tvlTokens = data.ll.tokensInUsd || [];
-                    if (tvlTokens.length > 0) {
-                        const latest = tvlTokens[tvlTokens.length - 1].tokens || {};
-                        for (const [tk, val] of Object.entries(latest)) {
-                            if (typeof val === 'number' && val > 0) tokenMap[tk] = (tokenMap[tk] || 0) + val;
-                        }
-                    }
-                    const borrowedTokens = (data.ll.chainTvls['borrowed'] && data.ll.chainTvls['borrowed'].tokensInUsd) || [];
-                    if (borrowedTokens.length > 0) {
-                        const latest = borrowedTokens[borrowedTokens.length - 1].tokens || {};
-                        for (const [tk, val] of Object.entries(latest)) {
-                            if (typeof val === 'number' && val > 0) tokenMap[tk] = (tokenMap[tk] || 0) + val;
-                        }
-                    }
-
-                    for (const [ch, chData] of Object.entries(data.ll.chainTvls || {})) {
-                        if (ch.includes('-') && !ch.endsWith('-borrowed')) continue;
-                        const baseChain = ch.replace('-borrowed', '');
-                        const chTokens = chData.tokensInUsd || [];
-                        if (chTokens.length > 0) {
-                            const latest = chTokens[chTokens.length - 1].tokens || {};
-                            for (const [tk, val] of Object.entries(latest)) {
-                                if (typeof val !== 'number' || val <= 0) continue;
-                                if (!tokenChainMap[tk]) tokenChainMap[tk] = {};
-                                tokenChainMap[tk][baseChain] = (tokenChainMap[tk][baseChain] || 0) + val;
+            if (dolo_selectedChain !== 'all') {
+                const tokenMap = chainTokens[dolo_selectedChain] || {};
+                for (const [name, val] of Object.entries(tokenMap)) {
+                    if (typeof val === 'number' && val > 0) tokens.push({ name, value: val, chain: dolo_selectedChain });
+                }
+            } else {
+                const tokensInUsd = data.ll.tokensInUsd || [];
+                if (tokensInUsd.length > 0) {
+                    const latest = tokensInUsd[tokensInUsd.length - 1];
+                    const tokenMap = latest.tokens || {};
+                    const tokenChainMap = {};
+                    for (const [ch, chTokens] of Object.entries(chainTokens)) {
+                        for (const [tk, val] of Object.entries(chTokens || {})) {
+                            if (typeof val !== 'number') continue;
+                            if (!tokenChainMap[tk] || val > tokenChainMap[tk].val) {
+                                tokenChainMap[tk] = { chain: ch, val };
                             }
                         }
                     }
-                } else {
-                    const c1 = data.ll.chainTvls[dolo_selectedChain] || {};
-                    const t1 = c1.tokensInUsd || [];
-                    if (t1.length > 0) {
-                        const latest = t1[t1.length - 1].tokens || {};
-                        for (const [tk, val] of Object.entries(latest)) {
-                            if (typeof val === 'number' && val > 0) tokenMap[tk] = (tokenMap[tk] || 0) + val;
-                        }
-                    }
-                    const c2 = data.ll.chainTvls[dolo_selectedChain + '-borrowed'] || {};
-                    const t2 = c2.tokensInUsd || [];
-                    if (t2.length > 0) {
-                        const latest = t2[t2.length - 1].tokens || {};
-                        for (const [tk, val] of Object.entries(latest)) {
-                            if (typeof val === 'number' && val > 0) tokenMap[tk] = (tokenMap[tk] || 0) + val;
+                    for (const [name, val] of Object.entries(tokenMap)) {
+                        if (typeof val === 'number' && val > 0) {
+                            tokens.push({ name, value: val, chain: tokenChainMap[name]?.chain || '' });
                         }
                     }
                 }
-            }
-
-            let tokens = [];
-            for (const [name, val] of Object.entries(tokenMap)) {
-                let dominantChain = dolo_selectedChain !== 'all' ? dolo_selectedChain : '';
-                if (dolo_selectedChain === 'all' && tokenChainMap[name]) {
-                    let maxVal = 0;
-                    for (const [ch, chVal] of Object.entries(tokenChainMap[name])) {
-                        if (chVal > maxVal) { maxVal = chVal; dominantChain = ch; }
-                    }
-                }
-                tokens.push({ name, value: val, chain: dominantChain });
-            }
-
-            if (!tokens.length) {
-                const tvl = data.ll.currentChainTvls || {};
-                for (const [c, v] of Object.entries(tvl)) {
-                    if (!c.includes('-') && typeof v === 'number' && v > 0) {
-                        const bVal = tvl[c + '-borrowed'] || 0;
-                        tokens.push({ name: c, value: v + bVal, chain: '' });
+                if (!tokens.length) {
+                    const tvl = data.ll.currentChainTvls || {};
+                    for (const [c, v] of Object.entries(tvl)) {
+                        if (!c.includes('-') && typeof v === 'number' && v > 0) tokens.push({ name: c, value: v, chain: '' });
                     }
                 }
             }
