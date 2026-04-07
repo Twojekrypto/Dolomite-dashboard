@@ -10227,10 +10227,10 @@
                     <div class="table-scroll">
                         <table class="earn-asset-table">
                             <colgroup>
-                                <col style="width:28%">
-                                <col style="width:22%">
-                                <col style="width:25%">
-                                <col style="width:25%">
+                                <col style="width:47.6%">
+                                <col style="width:23.3%">
+                                <col style="width:15.7%">
+                                <col style="width:13.4%">
                             </colgroup>
                             <thead>
                                 <tr>
@@ -10876,10 +10876,10 @@
                     <div class="table-scroll">
                         <table class="assets-table" id="assets-table">
                             <colgroup>
-                                <col style="width:50%">
-                                <col style="width:16.67%">
-                                <col style="width:16.67%">
-                                <col style="width:16.67%">
+                                <col style="width:47.6%">
+                                <col style="width:23.3%">
+                                <col style="width:15.7%">
+                                <col style="width:13.4%">
                             </colgroup>
                             <thead>
                                 <tr>
@@ -16425,11 +16425,12 @@
                 if (breakdownLines.length > 0) {
                     breakdownHtml = '<div class="assets-apy-breakdown">' +
                         breakdownLines.map(l => {
-                            const tooltipHtml = l.tooltip
-                                ? ` <span class="breakdown-help-icon">?<span class="tooltip-bubble">${l.tooltip}</span></span>`
-                                : '';
                             const displayRate = assets_showApy ? aprToApy(l.rate) : l.rate;
-                            return `<span class="${l.cls}">+ ${displayRate.toFixed(2)}% ${l.label}${tooltipHtml}</span>`;
+                            if (l.tooltip) {
+                                return `<span class="${l.cls} breakdown-item" style="cursor:help">+ ${displayRate.toFixed(2)}% ${l.label}<span class="tooltip-bubble" style="display:none">${l.tooltip}</span></span>`;
+                            } else {
+                                return `<span class="${l.cls}">+ ${displayRate.toFixed(2)}% ${l.label}</span>`;
+                            }
                         }).join('') +
                         '</div>';
                 }
@@ -19145,9 +19146,12 @@
                     if (bLines.length > 0) {
                         bHtml = '<div class="assets-apy-breakdown">' +
                             bLines.map(l => {
-                                const tt = l.tooltip ? ` <span class="breakdown-help-icon">?<span class="tooltip-bubble">${l.tooltip}</span></span>` : '';
                                 const displayRate = earn_showApy ? aprToApy(l.rate) : l.rate;
-                                return `<span class="${l.cls}">+ ${displayRate.toFixed(2)}% ${l.label}${tt}</span>`;
+                                if (l.tooltip) {
+                                    return `<span class="${l.cls} breakdown-item" style="cursor:help">+ ${displayRate.toFixed(2)}% ${l.label}<span class="tooltip-bubble" style="display:none">${l.tooltip}</span></span>`;
+                                } else {
+                                    return `<span class="${l.cls}">+ ${displayRate.toFixed(2)}% ${l.label}</span>`;
+                                }
                             }).join('') +
                             '</div>';
                     }
@@ -19505,7 +19509,7 @@
             }
 
             document.addEventListener('mouseenter', function (e) {
-                const icon = e.target.closest('.breakdown-help-icon');
+                const icon = e.target.closest('.breakdown-help-icon, .breakdown-item');
                 if (!icon) return;
                 const bubble = icon.querySelector('.tooltip-bubble');
                 if (!bubble) return;
@@ -19529,7 +19533,7 @@
             });
 
             document.addEventListener('mouseleave', function (e) {
-                const icon = e.target.closest('.breakdown-help-icon');
+                const icon = e.target.closest('.breakdown-help-icon, .breakdown-item');
                 if (icon && icon === activeIcon) {
                     floatTip.style.display = 'none';
                     activeIcon = null;
@@ -19960,6 +19964,112 @@
     })();
     </script>
     <div class="expiry-tooltip" id="expiry-tooltip"></div>
+    <script>
+        // --- Temporary Column Resizer (Excel Style) ---
+        (function initTableResizer() {
+            setTimeout(() => {
+                const tables = document.querySelectorAll('.earn-asset-table, .assets-table, #dolo-holders-table, #odolo-claimer-table');
+                tables.forEach(table => {
+                    const cols = table.querySelectorAll('colgroup col');
+                    const ths = table.querySelectorAll('thead th');
+                    if(cols.length === 0 || ths.length === 0 || cols.length !== ths.length) return;
+                    
+                    // Convert to reliable percentages matching current rendering
+                    const currentTableW = table.getBoundingClientRect().width;
+                    Array.from(cols).forEach((c, idx) => {
+                        const w = ths[idx].getBoundingClientRect().width;
+                        c.style.width = ((w / currentTableW) * 100) + '%';
+                    });
+
+                    ths.forEach((th, i) => {
+                        // Don't add a resizer to the very last column
+                        if (i === ths.length - 1) return;
+
+                        th.style.position = 'relative';
+                        const resizer = document.createElement('div');
+                        resizer.innerHTML = '⋮';
+                        resizer.style.position = 'absolute';
+                        resizer.style.right = '-7px'; // position exactly on the border
+                        resizer.style.top = '0';
+                        resizer.style.bottom = '0';
+                        resizer.style.width = '14px';
+                        resizer.style.cursor = 'col-resize';
+                        resizer.style.display = 'flex';
+                        resizer.style.alignItems = 'center';
+                        resizer.style.justifyContent = 'center';
+                        resizer.style.background = 'rgba(52, 211, 153, 0.4)'; // Greenish line
+                        resizer.style.color = '#fff';
+                        resizer.style.zIndex = '100';
+                        resizer.style.opacity = '0';
+                        resizer.style.transition = 'opacity 0.2s';
+                        resizer.onmouseover = () => resizer.style.opacity = '1';
+                        resizer.onmouseleave = () => resizer.style.opacity = '0';
+
+                        let startX, startLeftPct, startRightPct;
+                        resizer.addEventListener('mousedown', function(e) {
+                            startX = e.pageX;
+                            
+                            // Re-check width in case widow resized
+                            const curTableW = table.getBoundingClientRect().width;
+                            
+                            startLeftPct = parseFloat(cols[i].style.width) || 0;
+                            startRightPct = parseFloat(cols[i+1].style.width) || 0;
+                            resizer.style.opacity = '1';
+                            
+                            const onMouseMove = (e) => {
+                                let deltaPx = e.pageX - startX;
+                                let deltaPct = (deltaPx / curTableW) * 100;
+                                
+                                // Prevent squishing columns too much (min 3%)
+                                if (startLeftPct + deltaPct < 3) deltaPct = 3 - startLeftPct;
+                                if (startRightPct - deltaPct < 3) deltaPct = startRightPct - 3;
+
+                                cols[i].style.width = (startLeftPct + deltaPct) + '%';
+                                cols[i+1].style.width = (startRightPct - deltaPct) + '%';
+                            };
+                            
+                            const onMouseUp = () => {
+                                document.removeEventListener('mousemove', onMouseMove);
+                                document.removeEventListener('mouseup', onMouseUp);
+                                resizer.style.opacity = '0';
+                                
+                                let res = [];
+                                Array.from(cols).forEach((c) => {
+                                    res.push(parseFloat(c.style.width).toFixed(1) + '%');
+                                });
+                                
+                                let debug = document.getElementById('debug-col-widths');
+                                if(!debug) {
+                                    debug = document.createElement('div');
+                                    debug.id = 'debug-col-widths';
+                                    debug.style.position = 'fixed';
+                                    debug.style.bottom = '20px';
+                                    debug.style.left = '50%';
+                                    debug.style.transform = 'translateX(-50%)';
+                                    debug.style.background = '#222';
+                                    debug.style.color = '#0f0';
+                                    debug.style.padding = '10px 20px';
+                                    debug.style.zIndex = '9999';
+                                    debug.style.borderRadius = '8px';
+                                    debug.style.border = '1px solid #444';
+                                    debug.style.fontFamily = 'monospace';
+                                    debug.style.boxShadow = '0 10px 25px rgba(0,0,0,0.5)';
+                                    document.body.appendChild(debug);
+                                }
+                                debug.innerHTML = 'Widths: ' + res.join(' | ') + '<br><small style="color:#aaa">Kopiuj wynik!</small>';
+                            };
+                            
+                            document.addEventListener('mousemove', onMouseMove);
+                            document.addEventListener('mouseup', onMouseUp);
+                            e.preventDefault();
+                            e.stopPropagation();
+                        });
+                        th.appendChild(resizer);
+                    });
+                });
+            }, 1000);
+        })();
+    </script>
 </body>
 
 </html>

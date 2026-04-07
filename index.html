@@ -8205,10 +8205,10 @@
             border-spacing: 0;
             table-layout: fixed;
         }
-        .earn-asset-table colgroup col:nth-child(1) { width: 28%; }
-        .earn-asset-table colgroup col:nth-child(2) { width: 22%; }
-        .earn-asset-table colgroup col:nth-child(3) { width: 25%; }
-        .earn-asset-table colgroup col:nth-child(4) { width: 25%; }
+        .earn-asset-table colgroup col:nth-child(1) { width: 47.6%; }
+        .earn-asset-table colgroup col:nth-child(2) { width: 23.3%; }
+        .earn-asset-table colgroup col:nth-child(3) { width: 15.7%; }
+        .earn-asset-table colgroup col:nth-child(4) { width: 13.4%; }
 
         .earn-asset-table thead th {
             background: rgba(52, 211, 153, 0.03);
@@ -20022,11 +20022,12 @@
                 if (breakdownLines.length > 0) {
                     breakdownHtml = '<div class="assets-apy-breakdown">' +
                         breakdownLines.map(l => {
-                            const tooltipHtml = l.tooltip
-                                ? ` <span class="breakdown-help-icon">?<span class="tooltip-bubble">${l.tooltip}</span></span>`
-                                : '';
                             const displayRate = assets_showApy ? aprToApy(l.rate) : l.rate;
-                            return `<span class="${l.cls}">+ ${displayRate.toFixed(2)}% ${l.label}${tooltipHtml}</span>`;
+                            if (l.tooltip) {
+                                return `<span class="${l.cls} breakdown-item" style="cursor:help">+ ${displayRate.toFixed(2)}% ${l.label}<span class="tooltip-bubble" style="display:none">${l.tooltip}</span></span>`;
+                            } else {
+                                return `<span class="${l.cls}">+ ${displayRate.toFixed(2)}% ${l.label}</span>`;
+                            }
                         }).join('') +
                         '</div>';
                 }
@@ -27297,9 +27298,12 @@
                     if (bLines.length > 0) {
                         bHtml = '<div class="assets-apy-breakdown">' +
                             bLines.map(l => {
-                                const tt = l.tooltip ? ` <span class="breakdown-help-icon">?<span class="tooltip-bubble">${l.tooltip}</span></span>` : '';
                                 const displayRate = earn_showApy ? aprToApy(l.rate) : l.rate;
-                                return `<span class="${l.cls}">+ ${displayRate.toFixed(2)}% ${l.label}${tt}</span>`;
+                                if (l.tooltip) {
+                                    return `<span class="${l.cls} breakdown-item" style="cursor:help">+ ${displayRate.toFixed(2)}% ${l.label}<span class="tooltip-bubble" style="display:none">${l.tooltip}</span></span>`;
+                                } else {
+                                    return `<span class="${l.cls}">+ ${displayRate.toFixed(2)}% ${l.label}</span>`;
+                                }
                             }).join('') +
                             '</div>';
                     }
@@ -27812,7 +27816,7 @@
             }
 
             document.addEventListener('mouseenter', function (e) {
-                const icon = e.target.closest('.breakdown-help-icon');
+                const icon = e.target.closest('.breakdown-help-icon, .breakdown-item');
                 if (!icon) return;
                 const bubble = icon.querySelector('.tooltip-bubble');
                 if (!bubble) return;
@@ -27836,7 +27840,7 @@
             });
 
             document.addEventListener('mouseleave', function (e) {
-                const icon = e.target.closest('.breakdown-help-icon');
+                const icon = e.target.closest('.breakdown-help-icon, .breakdown-item');
                 if (icon && icon === activeIcon) {
                     floatTip.style.display = 'none';
                     activeIcon = null;
