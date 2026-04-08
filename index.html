@@ -19567,13 +19567,42 @@
 
         async function assets_init() {
             assets_loaded = true;
-            const results = [];
+            const t0 = performance.now();
             const LLAMA_CHAIN_MAP = { arbitrum: 'arbitrum', berachain: 'berachain', ethereum: 'ethereum', mantle: 'mantle', polygonzkevm: 'polygon_zkevm', xlayer: 'xlayer' };
-            // Start subgraph fetch immediately (runs in parallel with API fetch)
+
+            // ── Phase 0: Instant restore from sessionStorage cache ──
+            const CACHE_KEY = 'assets_cache_v1';
+            const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+            let usedCache = false;
+            try {
+                const cached = sessionStorage.getItem(CACHE_KEY);
+                if (cached) {
+                    const { ts, data } = JSON.parse(cached);
+                    if (Date.now() - ts < CACHE_TTL && data && data.length > 0) {
+                        assets_allData = data;
+                        assets_buildChainPills();
+                        assets_bindCatPills();
+                        assets_bindSortHeaders();
+                        assets_bindSearch();
+                        assets_render();
+                        document.getElementById('assets-spinner').style.display = 'none';
+                        document.getElementById('assets-table-wrap').style.display = '';
+                        usedCache = true;
+                        console.log(`⚡ Assets: restored ${data.length} markets from cache in ${((performance.now() - t0)).toFixed(0)}ms`);
+                    }
+                }
+            } catch (e) { /* cache miss is fine */ }
+
+            // ── Phase 1: Parallel fetch — API + Subgraph + Prices ──
             const subgraphPromise = assets_fetchMarketData();
+            const results = [];
+
             const fetches = Object.entries(ASSETS_CHAINS).map(async ([key, chain]) => {
                 try {
-                    const resp = await fetch(`https://api.dolomite.io/tokens/${chain.id}/interest-rates?exclude-odolo=false`);
+                    const ctrl = new AbortController();
+                    const timer = setTimeout(() => ctrl.abort(), 12000);
+                    const resp = await fetch(`https://api.dolomite.io/tokens/${chain.id}/interest-rates?exclude-odolo=false`, { signal: ctrl.signal });
+                    clearTimeout(timer);
                     if (!resp.ok) return;
                     const json = await resp.json();
                     if (!json || !json.interestRates) return;
@@ -19633,50 +19662,63 @@
                 }
             });
             await Promise.all(fetches);
+            console.log(`📊 Assets API: ${results.length} markets in ${((performance.now() - t0) / 1000).toFixed(1)}s`);
 
-            // Fetch prices from DeFi Llama
-            try {
-                const priceKeys = results.map(r => {
-                    const llamaChain = LLAMA_CHAIN_MAP[r.chainKey] || r.chainKey;
-                    return `${llamaChain}:${r.addr}`;
-                });
-                // Batch in groups of 100
-                for (let i = 0; i < priceKeys.length; i += 100) {
-                    const batch = priceKeys.slice(i, i + 100);
-                    const pResp = await fetch('https://coins.llama.fi/prices/current/' + batch.join(','));
-                    if (pResp.ok) {
-                        const pData = await pResp.json();
-                        const coins = pData.coins || {};
-                        batch.forEach((key, idx) => {
-                            const coin = coins[key];
-                            if (coin && coin.price) {
-                                results[i + idx].price = coin.price;
-                            }
-                        });
-                    }
-                }
-            } catch (e) {
-                console.warn('Price fetch failed', e);
-            }
-
+            // ── Phase 2: Render table immediately (before prices) ──
             assets_allData = results;
-
-            // Build chain pills
-            assets_buildChainPills();
-            // Bind category buttons
-            assets_bindCatPills();
-            // Bind table header sorting
-            assets_bindSortHeaders();
-            // Bind search + checkbox
-            assets_bindSearch();
-            
-            // Render table immediately with fast API data
+            if (!usedCache) {
+                assets_buildChainPills();
+                assets_bindCatPills();
+                assets_bindSortHeaders();
+                assets_bindSearch();
+            }
             assets_render();
-
             document.getElementById('assets-spinner').style.display = 'none';
             document.getElementById('assets-table-wrap').style.display = '';
 
-            // Handle slow subgraph data in background
+            // ── Phase 3: Fetch prices in parallel (non-blocking) ──
+            const pricePromise = (async () => {
+                try {
+                    const priceKeys = results.map(r => {
+                        const llamaChain = LLAMA_CHAIN_MAP[r.chainKey] || r.chainKey;
+                        return `${llamaChain}:${r.addr}`;
+                    });
+                    // Fetch ALL price batches in parallel instead of sequentially
+                    const batchSize = 100;
+                    const batchPromises = [];
+                    for (let i = 0; i < priceKeys.length; i += batchSize) {
+                        const batch = priceKeys.slice(i, i + batchSize);
+                        const batchIdx = i;
+                        batchPromises.push(
+                            fetch('https://coins.llama.fi/prices/current/' + batch.join(','))
+                                .then(r => r.ok ? r.json() : null)
+                                .then(pData => {
+                                    if (!pData) return;
+                                    const coins = pData.coins || {};
+                                    batch.forEach((key, idx) => {
+                                        const coin = coins[key];
+                                        if (coin && coin.price) {
+                                            results[batchIdx + idx].price = coin.price;
+                                        }
+                                    });
+                                })
+                                .catch(() => {})
+                        );
+                    }
+                    await Promise.all(batchPromises);
+                    // Re-render with prices filled in
+                    assets_render();
+                    console.log(`💰 Assets prices: filled in ${((performance.now() - t0) / 1000).toFixed(1)}s`);
+                    // Cache the complete data
+                    try {
+                        sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: results }));
+                    } catch (e) { /* quota exceeded is OK */ }
+                } catch (e) {
+                    console.warn('Price fetch failed', e);
+                }
+            })();
+
+            // ── Phase 4: Subgraph data in background ──
             subgraphPromise.then(() => {
                 assets_updateHero();
                 // re-render to apply dust filters
