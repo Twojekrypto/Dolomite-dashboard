@@ -45,6 +45,9 @@ jobs:
       - name: Fetch DeFi Llama data
         run: python3 fetch_defillama.py
 
+      - name: Fetch Official Dolomite TVL
+        run: python3 fetch_dolomite_tvl.py
+
       - name: Fetch oDOLO contract data
         run: python3 fetch_odolo_contract.py
 
@@ -52,7 +55,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add vedolo_holders.json vedolo_holders.csv vedolo_stats.json vedolo_expiry.json dolo_price.json defillama_data.json odolo_contract_data.json metrics_snapshot.json
+          git add vedolo_holders.json vedolo_holders.csv vedolo_stats.json vedolo_expiry.json dolo_price.json defillama_data.json dolomite_tvl.json odolo_contract_data.json metrics_snapshot.json
           git diff --staged --quiet && echo "No changes to commit" && exit 0
           git commit -m "📊 Auto-update: $(date -u '+%Y-%m-%d %H:%M UTC')"
           # Retry push with rebase up to 3 times to handle concurrent pushes
