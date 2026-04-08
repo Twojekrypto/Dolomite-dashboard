@@ -50,6 +50,7 @@ def main():
     chain_tvls = {}
     chain_borrows = {}
     tokens_in_usd = {}
+    chain_tokens_in_usd = {}
     
     for chain_name, url in ASSETS_CHAINS.items():
         try:
@@ -68,6 +69,7 @@ def main():
 
             chain_supplied = 0.0
             chain_borrowed = 0.0
+            per_chain_tokens = {}
 
             for tp in data.get("totalPars", []):
                 t_id = tp.get("token", {}).get("id", "").lower()
@@ -90,6 +92,7 @@ def main():
                     chain_borrowed += borrow_usd
                     
                     tokens_in_usd[symbol] = tokens_in_usd.get(symbol, 0) + supply_usd
+                    per_chain_tokens[symbol] = per_chain_tokens.get(symbol, 0) + supply_usd
 
             # Net TVL = Supply - Borrows
             chain_net_tvl = chain_supplied - chain_borrowed
@@ -99,6 +102,8 @@ def main():
 
             global_tvl += chain_net_tvl
             global_borrows += chain_borrowed
+            if per_chain_tokens:
+                chain_tokens_in_usd[chain_name] = per_chain_tokens
 
             print(f"✅ {chain_name}: TVL ${chain_net_tvl:,.0f} | Borrowed ${chain_borrowed:,.0f} | Supply ${chain_supplied:,.0f}")
 
@@ -115,6 +120,7 @@ def main():
     output = {
         "currentChainTvls": output_currentTvls,
         "tokensInUsd": [{"tokens": tokens_in_usd}],
+        "chainTokensInUsd": chain_tokens_in_usd,
         "supplyLiquidity": global_tvl + global_borrows,
         "totalTvl": global_tvl,
         "totalBorrowed": global_borrows,
