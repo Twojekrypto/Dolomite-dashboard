@@ -17366,6 +17366,18 @@
                     return { date: new Date(p.date * 1000), tvl: tvlVal + bVal };
                 });
 
+                // Normalize historical chart to perfectly meet the current Official Supply
+                if (dolo_allTvlPoints.length > 0 && typeof supplyLiquidity === 'number') {
+                    const lastHistVal = dolo_allTvlPoints[dolo_allTvlPoints.length - 1].tvl;
+                    if (lastHistVal > 0 && supplyLiquidity > 0) {
+                        const ratio = supplyLiquidity / lastHistVal;
+                        // Avoid extreme spiking if ratio is buggy, cap adjustment between 0.5x and 2.0x
+                        if (ratio > 0.5 && ratio < 2.0) {
+                            dolo_allTvlPoints.forEach(p => { p.tvl *= ratio; });
+                        }
+                    }
+                }
+
                 // Draw 30-day sparkline in hero
                 if (dolo_allTvlPoints.length > 1) {
                     const recent = dolo_allTvlPoints.slice(-30);
