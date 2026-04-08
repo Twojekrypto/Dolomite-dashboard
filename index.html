@@ -1150,7 +1150,7 @@
 
         /* GM breakdown tooltip */
         .gm-part[title] {
-            cursor: help;
+            cursor: default;
         }
 
         .yield-help-icon {
@@ -1587,6 +1587,10 @@
             align-items: flex-start;
         }
 
+        .assets-apy-breakdown span {
+            cursor: default;
+        }
+
         .assets-apy-breakdown .lending-part {
             color: rgba(255, 255, 255, 0.85);
         }
@@ -1597,7 +1601,6 @@
 
         .assets-apy-breakdown .gm-part {
             color: #60a5fa;
-            cursor: help;
         }
 
         .assets-apy-breakdown .odolo-part {
@@ -14012,7 +14015,7 @@
                                     <div class="knob"></div>
                                 </div>
                             </div>
-                            <div class="odolo-toggle-wrap dust-toggle-wrap" id="assets-dust-toggle"
+                            <div class="odolo-toggle-wrap dust-toggle-wrap active" id="assets-dust-toggle"
                                 data-tip="Hide dust markets — assets with very low liquidity where APR is misleading. A market is 'dust' when depositing $1,000 would change total supply by more than 10%.">
                                 <span class="odolo-toggle-label">Hide Dust</span>
                                 <div class="odolo-switch">
@@ -19437,7 +19440,7 @@
         let assets_excludeOdolo = false;
         let assets_excludeYield = false;
         let assets_excludeLending = false;
-        let assets_hideDust = false;
+        let assets_hideDust = true;
         let assets_showApy = false; // false=APR, true=APY
 
         // Convert APR% to APY% (daily compounding)
@@ -19900,30 +19903,50 @@
                     }, 200);
                 });
             }
-            const cbEl = document.getElementById('assets-exclude-odolo');
-            const toggleEl = document.getElementById('assets-odolo-toggle');
-            if (cbEl && toggleEl) {
-                toggleEl.addEventListener('click', () => {
-                    cbEl.checked = !cbEl.checked;
-                    assets_excludeOdolo = cbEl.checked;
-                    toggleEl.classList.toggle('active', cbEl.checked);
+            function assets_updateSettingsStatusDots() {
+                const dotO = document.getElementById('settings-dot-odolo');
+                const dotY = document.getElementById('settings-dot-yield');
+                const dotL = document.getElementById('settings-dot-lending');
+                if (dotO) { dotO.className = 'settings-status-dot ' + (assets_excludeOdolo ? 'inactive' : 'active odolo'); }
+                if (dotY) { dotY.className = 'settings-status-dot ' + (assets_excludeYield ? 'inactive' : 'active yield'); }
+                if (dotL) { dotL.className = 'settings-status-dot ' + (assets_excludeLending ? 'inactive' : 'active lending'); }
+            }
+
+            // oDOLO reward row
+            const rowOdolo = document.getElementById('settings-row-odolo');
+            if (rowOdolo) {
+                rowOdolo.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    assets_excludeOdolo = !assets_excludeOdolo;
+                    rowOdolo.classList.toggle('checked', !assets_excludeOdolo);
+                    // Sync hidden checkbox
+                    const cbEl = document.getElementById('assets-exclude-odolo');
+                    if (cbEl) cbEl.checked = assets_excludeOdolo;
+                    assets_updateSettingsStatusDots();
                     assets_render();
                 });
             }
-            // Yield toggle
-            const yieldToggle = document.getElementById('assets-yield-toggle');
-            if (yieldToggle) {
-                yieldToggle.addEventListener('click', () => {
+
+            // Yield reward row
+            const rowYield = document.getElementById('settings-row-yield');
+            if (rowYield) {
+                rowYield.addEventListener('click', (e) => {
+                    e.stopPropagation();
                     assets_excludeYield = !assets_excludeYield;
-                    yieldToggle.classList.toggle('active', assets_excludeYield);
+                    rowYield.classList.toggle('checked', !assets_excludeYield);
+                    assets_updateSettingsStatusDots();
                     assets_render();
                 });
+            }
 
-                // Lending toggle
-                const lendingToggle = document.getElementById('assets-lending-toggle');
-                lendingToggle.addEventListener('click', () => {
+            // Lending reward row
+            const rowLending = document.getElementById('settings-row-lending');
+            if (rowLending) {
+                rowLending.addEventListener('click', (e) => {
+                    e.stopPropagation();
                     assets_excludeLending = !assets_excludeLending;
-                    lendingToggle.classList.toggle('active', assets_excludeLending);
+                    rowLending.classList.toggle('checked', !assets_excludeLending);
+                    assets_updateSettingsStatusDots();
                     assets_render();
                 });
             }
