@@ -24,6 +24,7 @@
 
 ## GitHub Pages Deployment
 - **Always push to `master`**: This repo's GitHub Pages serves from `master` branch, not `main`. Always push to both: `git push origin main && git push origin main:master`.
+- **macOS Keychain blocks background `git push`**: When deploying from a headless AI agent background process, macOS security (`securityd`) blocks the Keychain prompt and causes a hanging password loop. Never run `git push` via `run_command` if it triggers a credential prompt; always instruct the user to run it explicitly in their physical Terminal.
 
 ## Table Column Restructuring
 - **Check CSS `nth-child` rules**: When removing/adding table columns, CSS `nth-child` selectors silently override inline styles. Always audit ALL `nth-child` references after changing column count.
