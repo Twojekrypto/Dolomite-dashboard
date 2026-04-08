@@ -1,0 +1,30 @@
+# MemPalace: AAAK Compressed Dolomite Context
+# DO NOT DELETE - Context Injection Layer for AI/Agents
+
+domain: dolomite_dashboard
+version: "1.0"
+critical_entities:
+  contracts:
+    odolo_vester: "0x53805A76E1f0EaA966F6A0F499692DDE9ddB4049" 
+    # ^ RULE: Treat as NEUTRAL entity in Token Composition. Ignores standard flow calculation.
+  cex_wallets:
+    okx: "0x91d40e4818f4d4c57b4578d9eca6afc92ac8debe"
+    robinhood: "0x841ed663f2636863d40be4ee76243377dff13a34"
+    # ^ RULE: Must be mapped as OKX/Robinhood respectively in pie charts and address labels
+
+business_logic:
+  investor_tracking:
+    rule_1: "Show ALL Institutional Investors, even if balance is 0 DOLO (track exit activity)"
+    rule_2: "Hide non-investors if balance < 100 DOLO (Noise reduction filter)"
+  data_integrity:
+    chain_ratio: [40, 20, 20, 20] # Multi-chain ETH/Bera balance ratio standard
+
+ui_design_standards:
+  march_2026_audit_spec: true
+  layout:
+    symmetry_ux: "⚪ Neutral / 🟢 Inflow / 🔴 Outflow header indicators required for all flow views"
+    pagination: "Fixed-height UI patterns. If empty rows exist, inject padding to prevent layout jumping"
+  components:
+    tooltips: "Hover-based, integrated into yield labels via `data-title` attribute (no redundant help icons)"
+    sorting: "Use `.sort-arrow` class exclusively (migrated away from generic .arrow)"
+    address_hierarchy: "Two-Line Layout: Name/Type primary on line 1, Hex/Icons secondary on line 2"
