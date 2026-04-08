@@ -64,6 +64,46 @@
             padding: 32px 24px 64px;
         }
 
+        /* ===== TABS ===== */
+        .monitor-tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border-default);
+            padding-bottom: 12px;
+        }
+        .monitor-tab {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            transition: all var(--transition);
+        }
+        .monitor-tab:hover {
+            color: var(--text-primary);
+            background: rgba(255,255,255,0.05);
+        }
+        .monitor-tab.active {
+            color: var(--text-primary);
+            background: rgba(99,102,241,0.15);
+            box-shadow: inset 0 0 0 1px rgba(99,102,241,0.3);
+        }
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         /* ===== HEADER ===== */
         .dashboard-header {
             display: flex;
@@ -1226,7 +1266,6 @@
 
         .positions-table tbody tr:hover {
             background: rgba(255, 255, 255, 0.03);
-            transform: scale(1.01);
             position: relative;
             z-index: 20;
         }
@@ -2599,6 +2638,21 @@
             </a>
         </div>
 
+        <!-- TABS SWITCHER -->
+        <div class="monitor-tabs">
+            <button class="monitor-tab active" data-tab="liquidations" onclick="switchMonitorTab('liquidations')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:text-bottom"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                Liquidation Risk
+            </button>
+            <button class="monitor-tab" data-tab="supply" onclick="switchMonitorTab('supply')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:text-bottom"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                Supply Leaderboard
+            </button>
+        </div>
+
+        <!-- TAB CONTENT: Liquidation Risk -->
+        <div id="tab-liquidations" class="tab-content active">
+
         <!-- Hero Card — matches DOLO/veDOLO pattern -->
         <div class="lending-hero-outer">
             <div class="lending-hero-inner">
@@ -2996,6 +3050,172 @@
 
             <div class="table-footer" id="table-footer" style="display: none;"></div>
         </div>
+            </div>
+        </div>
+        </div> <!-- End of tab-liquidations -->
+
+        <!-- TAB CONTENT: Supply Leaderboard -->
+        <div id="tab-supply" class="tab-content">
+            <style>
+                .premium-supply-frame {
+                    margin-bottom: 24px; 
+                    position: relative;
+                    z-index: 10;
+                    background: linear-gradient(150deg, rgba(20,25,35,0.85) 0%, rgba(13,17,25,0.95) 100%);
+                    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+                    border-radius: 16px; 
+                    padding: 20px; 
+                    display:flex; 
+                    align-items:flex-end; 
+                    gap:20px; 
+                    flex-wrap:wrap; 
+                    border: 1px solid rgba(255, 255, 255, 0.08); 
+                    box-shadow: 0 16px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.12);
+                }
+                .premium-supply-label {
+                    display:block; font-size:11px; color:rgba(255,255,255,0.5); margin-bottom:8px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;
+                }
+                .premium-supply-search-wrap, .premium-supply-dropdown {
+                    height: 42px;
+                    border-radius: 10px;
+                    background: rgba(0,0,0,0.25);
+                    border: 1px solid rgba(255,255,255,0.06);
+                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    box-shadow: inset 0 2px 6px rgba(0,0,0,0.2);
+                }
+                .premium-supply-search-wrap:hover, .premium-supply-dropdown:hover {
+                    background: rgba(0,0,0,0.35);
+                    border-color: rgba(255,255,255,0.15);
+                }
+                .premium-supply-search-wrap:focus-within {
+                    border-color: #34d399;
+                    background: rgba(0,0,0,0.5);
+                    box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.15), inset 0 2px 6px rgba(0,0,0,0.2) !important;
+                }
+                .premium-supply-search-input {
+                    height: 42px !important;
+                    font-size: 13.5px !important;
+                    background: transparent !important;
+                    border: none !important;
+                    color: #fff !important;
+                    box-shadow: none !important;
+                    padding-left: 42px !important;
+                }
+                .premium-supply-search-input::placeholder {
+                    color: rgba(255, 255, 255, 0.3) !important;
+                }
+                .premium-supply-search-icon {
+                    width: 16px !important; height: 16px !important; left: 14px !important; color: rgba(255,255,255,0.3) !important;
+                }
+                .premium-supply-search-wrap:focus-within .premium-supply-search-icon {
+                    color: #34d399 !important;
+                }
+                .premium-supply-dropdown {
+                    display:flex; align-items:center; gap:10px; padding:0 14px; font-size:13.5px; cursor:pointer; color:#fff;
+                }
+                .premium-supply-dropdown-menu {
+                    background: rgba(18,22,30,0.95) !important;
+                    backdrop-filter: blur(16px) !important;
+                    -webkit-backdrop-filter: blur(16px) !important;
+                    border: 1px solid rgba(255,255,255,0.1) !important;
+                    border-radius: 12px !important;
+                    box-shadow: 0 12px 40px rgba(0,0,0,0.4) !important;
+                    padding: 8px 0 !important;
+                }
+                .premium-supply-dropdown-item {
+                    padding: 10px 14px !important;
+                    font-size: 13.5px !important;
+                    display:flex; align-items:center; gap:10px; cursor:pointer; color:#e2e8f0; transition:background 0.2s;
+                }
+                .premium-supply-dropdown-item:hover {
+                    background: rgba(255,255,255,0.06) !important;
+                }
+            </style>
+            <div class="controls-row1 premium-supply-frame">
+                <div style="flex: 0 0 380px; width: 380px; position:relative;" id="supply-search-container">
+                    <label class="premium-supply-label">Search Suppliers</label>
+                    <div class="search-wrap premium-supply-search-wrap" id="supply-search-wrap" style="margin: 0; min-width: unset; width: 100%;">
+                        <svg class="search-icon premium-supply-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input type="text" class="search-input premium-supply-search-input" id="supply-search-input" placeholder="Search by address (0x...)">
+                        <button type="button" class="search-clear" id="supply-search-clear" title="Clear search" style="right:14px; top:50%; transform:translateY(-50%);">✕</button>
+                    </div>
+                </div>
+
+                <div style="flex: 0 1 180px; min-width: 170px; position:relative;" id="supply-chain-container">
+                    <label class="premium-supply-label">Network</label>
+                    <div id="custom-chain-selector" class="premium-supply-dropdown" onclick="toggleSupplyChainDropdown()" style="width:100%;">
+                        <img id="selected-chain-icon" style="width:18px; height:18px; border-radius:50%; object-fit:contain;" src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg">
+                        <span id="selected-chain-text" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis; font-weight:500;">Ethereum</span>
+                        <svg style="margin-left:auto; opacity:0.6; flex-shrink:0;" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </div>
+                    <div id="custom-chain-dropdown" class="premium-supply-dropdown-menu" style="display:none; position:absolute; top:calc(100% + 8px); left:0; right:0; z-index:100; max-height:280px; overflow-y:auto;">
+                        <div id="chain-options-container">
+                            <div class="premium-supply-dropdown-item" onclick="selectSupplyChain('ethereum', 'Ethereum')"><img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" style="width:18px; height:18px; border-radius:50%; object-fit:contain;"> <span>Ethereum</span></div>
+                            <div class="premium-supply-dropdown-item" onclick="selectSupplyChain('arbitrum', 'Arbitrum')"><img src="https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg" style="width:18px; height:18px; border-radius:50%; object-fit:contain;"> <span>Arbitrum</span></div>
+                            <div class="premium-supply-dropdown-item" onclick="selectSupplyChain('berachain', 'Berachain')"><img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" style="width:18px; height:18px; border-radius:50%; object-fit:contain;"> <span>Berachain</span></div>
+                            <div class="premium-supply-dropdown-item" onclick="selectSupplyChain('base', 'Base')"><img src="https://icons.llamao.fi/icons/chains/rsz_base.jpg" style="width:18px; height:18px; border-radius:50%; object-fit:contain;"> <span>Base</span></div>
+                            <div class="premium-supply-dropdown-item" onclick="selectSupplyChain('mantle', 'Mantle')"><img src="https://icons.llamao.fi/icons/chains/rsz_mantle.jpg" style="width:18px; height:18px; border-radius:50%; object-fit:contain;"> <span>Mantle</span></div>
+                            <div class="premium-supply-dropdown-item" onclick="selectSupplyChain('xlayer', 'X Layer')"><img src="https://icons.llamao.fi/icons/chains/rsz_x%20layer.jpg" style="width:18px; height:18px; border-radius:50%; object-fit:contain;"> <span>X Layer</span></div>
+                            <div class="premium-supply-dropdown-item" onclick="selectSupplyChain('polygon_zkevm', 'Polygon zkEVM')"><img src="https://icons.llamao.fi/icons/chains/rsz_polygon%20zkevm.jpg" style="width:18px; height:18px; border-radius:50%; object-fit:contain;"> <span>Polygon zkEVM</span></div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="supply-chain-select" value="ethereum">
+                </div>
+                
+                <div style="flex: 0 1 180px; min-width: 170px; position:relative;" id="supply-asset-container">
+                    <label class="premium-supply-label">Asset</label>
+                    <div id="custom-asset-selector" class="premium-supply-dropdown" onclick="toggleSupplyAssetDropdown()" style="width:100%;">
+                        <img id="selected-asset-icon" src="" style="width:18px; height:18px; border-radius:50%; display:none; object-fit:contain;">
+                        <span id="selected-asset-text" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis; font-weight:500;">Loading markets...</span>
+                        <svg style="margin-left:auto; opacity:0.6; flex-shrink:0;" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </div>
+                    <div id="custom-asset-dropdown" class="premium-supply-dropdown-menu" style="display:none; position:absolute; top:calc(100% + 8px); left:0; right:0; z-index:100; max-height:280px; overflow-y:auto; padding:0 !important; overflow-x:hidden;">
+                        <div style="padding:10px; position:sticky; top:0; background:rgba(20,25,35,0.98); border-bottom:1px solid rgba(255,255,255,0.1); z-index:2; margin-bottom:4px; backdrop-filter:blur(20px);">
+                            <input type="text" id="asset-search-input" placeholder="Search symbol or 0x address..." oninput="filterSupplyAssets()" autocomplete="off" style="width:100%; box-sizing:border-box; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); color:#fff; padding:8px 12px; border-radius:8px; font-size:13px; outline:none; font-family:inherit; transition:border-color 0.2s;" onfocus="this.style.borderColor='#34d399'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'">
+                        </div>
+                        <div id="asset-options-container" style="padding-bottom:8px;"></div>
+                    </div>
+                    <!-- Hidden input to maintain existing JS logic relying on .value -->
+                    <input type="hidden" id="supply-asset-select" value="">
+                </div>
+
+            </div>
+
+            <div class="table-card-outer">
+                <div class="table-card-inner">
+                    <div class="table-card-header">
+                        <h3 style="display:flex; align-items:center; gap:8px;">
+                            <img id="supply-header-icon" src="dolomite-logo.svg" style="width:20px; height:20px; border-radius:50%; object-fit:contain; border:1px solid rgba(255,255,255,0.1);" alt="">
+                            Top 100 Suppliers <span class="header-count" id="supply-count-header"></span>
+                        </h3>
+                    </div>
+                    
+                    <div class="table-scroll">
+                        <div id="supply-loading-state" class="loading-state" style="display:none; padding:40px;">
+                            <div class="loading-spinner"></div>
+                            <div style="margin-top:12px; color:var(--text-muted); font-size:13px;">Fetching data from subgraph...</div>
+                        </div>
+
+                        <table class="positions-table" id="supply-table" style="display: none;">
+                            <colgroup>
+                                <col style="width: 32px !important;">
+                                <col style="width: 42% !important;">
+                                <col style="width: calc((100% - 32px - 42%) / 2) !important;">
+                                <col style="width: calc((100% - 32px - 42%) / 2) !important;">
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th style="cursor:pointer; user-select:none;" data-sort="rank" onclick="supplySort('rank')"># <span class="sort-arrow"></span></th>
+                                    <th style="cursor:pointer; user-select:none;" data-sort="address" onclick="supplySort('address')">Address <span class="sort-arrow"></span></th>
+                                    <th style="text-align: right; cursor:pointer; user-select:none;" data-sort="amount" class="sorted" onclick="supplySort('amount')">Supply Amount (Token) <span class="sort-arrow">▼</span></th>
+                                    <th style="text-align: right; cursor:pointer; user-select:none;" data-sort="usd" onclick="supplySort('usd')">Value (USD) <span class="sort-arrow"></span></th>
+                                </tr>
+                            </thead>
+                            <tbody id="supply-table-body"></tbody>
+                        </table>
+                    </div>
+                    <div class="table-footer" id="supply-pagination"></div>
+                </div>
             </div>
         </div>
 
@@ -3938,6 +4158,12 @@
             sortPositions();
             currentPage = 1;
             renderTable();
+            
+            // Re-render Supply Table if active
+            if (typeof renderSupplyTable === 'function' && document.querySelector('.monitor-tab[data-tab="supply"]').classList.contains('active')) {
+                renderSupplyTable();
+            }
+            
             // Update results count
             const rc = document.getElementById('results-count');
             if (rc) {
@@ -4152,6 +4378,16 @@
                     row.style.animationDelay = (i * 25) + 'ms';
                 });
             });
+
+            // Empty row padding
+            if (pageItems.length > 0 && pageItems.length < PAGE_SIZE) {
+                const cols = document.querySelectorAll('#positions-table thead th').length;
+                let emptyRowsHTML = '';
+                for (let i = 0; i < (PAGE_SIZE - pageItems.length); i++) {
+                     emptyRowsHTML += `<tr><td colspan="${cols}" style="padding:16.5px; opacity:0; pointer-events:none;">&nbsp;</td></tr>`;
+                }
+                tbody.innerHTML += emptyRowsHTML;
+            }
 
             // Pagination — flow-pager pattern
             const totalPages = Math.ceil(filteredPositions.length / PAGE_SIZE);
@@ -4484,6 +4720,25 @@
             input.focus();
             applyFilters();
         });
+
+        const supplySearchInput = document.getElementById('supply-search-input');
+        if (supplySearchInput) {
+            supplySearchInput.addEventListener('input', e => {
+                searchQuery = e.target.value.trim();
+                document.getElementById('supply-search-wrap').classList.toggle('has-value', searchQuery.length > 0);
+                supplyPage = 1; // Reset to page 1 on search
+                applyFilters();
+            });
+
+            document.getElementById('supply-search-clear').addEventListener('click', () => {
+                supplySearchInput.value = '';
+                searchQuery = '';
+                document.getElementById('supply-search-wrap').classList.remove('has-value');
+                supplyPage = 1; // Reset to page 1 on search clear
+                supplySearchInput.focus();
+                applyFilters();
+            });
+        }
 
         document.getElementById('hide-dust-btn').addEventListener('click', e => {
             hideDust = !hideDust;
@@ -5134,6 +5389,437 @@
                 addrRow('odolo-logo-official.svg', 'oDOLO', BERA_ICON, 'Berachain', ODOLO_ADDR, 'https://berascan.com') +
                 addrRow('vedolo-logo.svg', 'veDOLO', BERA_ICON, 'Berachain', VEDOLO_ADDR, 'https://berascan.com');
         })();
+
+        // ─── Supply Tab Logic ────────────────────────────────────────────────────────
+        function switchMonitorTab(tab) {
+            document.querySelectorAll('.monitor-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector(`.monitor-tab[data-tab="${tab}"]`).classList.add('active');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+
+            // Clear search context when switching tabs
+            searchQuery = '';
+            const mainSearch = document.getElementById('search-input');
+            if(mainSearch) {
+                mainSearch.value = '';
+                document.getElementById('search-wrap').classList.remove('has-value');
+            }
+            const supSearch = document.getElementById('supply-search-input');
+            if(supSearch) {
+                supSearch.value = '';
+                document.getElementById('supply-search-wrap').classList.remove('has-value');
+            }
+
+            if (tab === 'supply') {
+                if (currentSupplyTokensList.length === 0) {
+                    onSupplyChainChange();
+                } else {
+                    applyFilters();
+                }
+            }
+        }
+        
+        let currentSupplyData = [];
+        const SUPPLY_PER_PAGE = 15;
+        let supplyPage = 1;
+        let supplySortField = 'amount';
+        let supplySortAsc = false;
+
+        function supplySort(field) {
+            if (supplySortField === field) {
+                supplySortAsc = !supplySortAsc;
+            } else {
+                supplySortField = field;
+                supplySortAsc = false;
+            }
+            
+            const ths = document.querySelectorAll('#supply-table thead th');
+            ths.forEach(th => th.classList.remove('sorted'));
+            const th = document.querySelector(`#supply-table thead th[data-sort="${field}"]`);
+            if (th) {
+                th.classList.add('sorted');
+                document.querySelectorAll('#supply-table thead th .sort-arrow').forEach(s => s.textContent = '');
+                const arrowSpan = th.querySelector('.sort-arrow');
+                if (arrowSpan) arrowSpan.textContent = supplySortAsc ? '▲' : '▼';
+            }
+            
+            supplyPage = 1;
+            renderSupplyTable();
+        }
+
+        function supply_goPage(p) {
+            let filtered = currentSupplyData;
+            if (searchQuery) {
+                filtered = filtered.filter(s => s.address.toLowerCase().includes(searchQuery.toLowerCase()));
+            }
+            const t = Math.ceil(filtered.length / SUPPLY_PER_PAGE);
+            supplyPage = Math.max(1, Math.min(p, t));
+            renderSupplyTable();
+        }
+
+        function renderSupplyPagination(totalLen) {
+            const total = Math.ceil(totalLen / SUPPLY_PER_PAGE);
+            const el = document.getElementById('supply-pagination');
+            if (total <= 1) { el.innerHTML = ''; return; }
+
+            el.innerHTML = `<button class="flow-pager-btn" onclick="supply_goPage(1)" ${supplyPage === 1 ? 'disabled' : ''}>«</button>` +
+                `<button class="flow-pager-btn" onclick="supply_goPage(${supplyPage - 1})" ${supplyPage === 1 ? 'disabled' : ''}>‹</button>` +
+                `<span class="flow-pager-info">${supplyPage} / ${total}</span>` +
+                `<button class="flow-pager-btn" onclick="supply_goPage(${supplyPage + 1})" ${supplyPage === total ? 'disabled' : ''}>›</button>` +
+                `<button class="flow-pager-btn" onclick="supply_goPage(${total})" ${supplyPage === total ? 'disabled' : ''}>»</button>`;
+        }
+        
+        function renderSupplyTable() {
+            const tbody = document.getElementById('supply-table-body');
+            const table = document.getElementById('supply-table');
+            if (!tbody) return;
+            
+            tbody.innerHTML = '';
+            table.style.display = 'table';
+            document.getElementById('supply-loading-state').style.display = 'none';
+            
+            let filtered = [...currentSupplyData];
+            if (searchQuery) {
+                filtered = filtered.filter(s => s.address.toLowerCase().includes(searchQuery.toLowerCase()));
+            }
+            
+            filtered.sort((a,b) => {
+                let va, vb;
+                if (supplySortField === 'amount') { va = a.amount; vb = b.amount; }
+                else if (supplySortField === 'usd') { va = a.usd; vb = b.usd; }
+                else if (supplySortField === 'address') { va = a.address.toLowerCase(); vb = b.address.toLowerCase(); }
+                else if (supplySortField === 'rank') { va = currentSupplyData.findIndex(x => x.address === a.address); vb = currentSupplyData.findIndex(x => x.address === b.address); }
+                
+                if (typeof va === 'string') {
+                    return supplySortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+                } else {
+                    return supplySortAsc ? va - vb : vb - va;
+                }
+            });
+
+            document.getElementById('supply-count-header').textContent = `(${filtered.length})`;
+            
+            const chain = document.getElementById('supply-chain-select').value;
+            const tokenId = document.getElementById('supply-asset-select').value;
+            const tokenObj = currentSupplyTokensMap[tokenId] || { decimals: 18, symbol: 'TOKEN' };
+            const symHeader = tokenObj.symbol;
+            const iconUrlHeader = SYMBOL_ICONS[symHeader] || `https://icons.llamao.fi/icons/tokens/${symHeader.toLowerCase()}`;
+            const headerIcon = document.getElementById('supply-header-icon');
+            if (headerIcon) {
+                headerIcon.src = iconUrlHeader;
+                headerIcon.onerror = () => { headerIcon.src = 'dolomite-logo.svg'; };
+            }
+            
+            const explorers = {
+                berachain: 'https://berascan.com/address/',
+                arbitrum: 'https://arbiscan.io/address/',
+                base: 'https://basescan.org/address/',
+                mantle: 'https://mantlescan.xyz/address/',
+                ethereum: 'https://etherscan.io/address/',
+                polygon_zkevm: 'https://zkevm.polygonscan.com/address/',
+                xlayer: 'https://www.okx.com/explorer/xlayer/address/'
+            };
+            const blockExplorer = explorers[chain] || 'https://etherscan.io/address/';
+
+            const start = (supplyPage - 1) * SUPPLY_PER_PAGE;
+            const paginated = filtered.slice(start, start + SUPPLY_PER_PAGE);
+
+            paginated.forEach((s, idx) => {
+                const tr = document.createElement('tr');
+                const rank = currentSupplyData.findIndex(x => x.address === s.address) + 1;
+                
+                const debankUrl = `https://debank.com/profile/${s.address}`;
+                const shortAddr = s.address.substring(0, 6) + '...' + s.address.substring(s.address.length - 4);
+                
+                tr.style.cursor = 'pointer';
+                tr.style.transition = 'transform 0.15s, background 0.15s';
+                tr.onmouseenter = function() {
+                    this.style.background = 'rgba(255,255,255,0.03)';
+                };
+                tr.onmouseleave = function() {
+                    this.style.background = '';
+                };
+                
+                tr.onclick = function(e) {
+                    if (!e.target.closest('a') && !e.target.closest('.copy-addr-icon')) {
+                        window.open(debankUrl, '_blank');
+                    }
+                };
+
+                const fmtS = (n) => {
+                    if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+                    if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+                    if (n >= 1e3) return (n / 1e3).toFixed(2) + 'K';
+                    return parseFloat(n.toFixed(2)).toLocaleString('en-US');
+                };
+
+                const sym = tokenObj.symbol;
+                const iconUrl = SYMBOL_ICONS[sym] || `https://icons.llamao.fi/icons/tokens/${sym.toLowerCase()}`;
+                const exactAmt = s.amount.toLocaleString('en-US', {maximumFractionDigits: 4});
+                const exactUsd = s.usd.toLocaleString('en-US', {style:'currency', currency:'USD'});
+
+                tr.innerHTML = `
+                    <td style="color:rgba(255,255,255,0.3); font-size:12px;">${rank}</td>
+                    <td class="font-mono">
+                        <div class="address-cell" style="display:inline-flex;align-items:center;gap:6px">
+                            <a href="${blockExplorer}${s.address}" target="_blank" style="color:var(--text-primary); text-decoration:none; font-size:12px;" class="addr-tooltip-wrap" data-full-addr="${s.address}">${shortAddr}</a>
+                            <span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${s.address}',this)" title="Copy address">${COPY_SVG}</span>
+                            <a href="${debankUrl}" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a>
+                        </div>
+                    </td>
+                    <td style="text-align: right; font-weight:600; font-family:'JetBrains Mono',monospace;" title="${exactAmt} ${sym}">
+                        <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
+                            <span style="color:#fff; font-size:12px;">${fmtS(s.amount)}</span>
+                            <img src="${iconUrl}" width="16" height="16" style="border-radius:50%" alt="${sym}" onerror="this.src='dolomite-logo.svg'">
+                        </div>
+                    </td>
+                    <td style="text-align: right; color:#34d399; font-weight:600; font-family:'JetBrains Mono',monospace; font-size:12px;" title="${exactUsd}">
+                        $${fmtS(s.usd)}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:30px; color:var(--text-muted);">No suppliers found for this search.</td></tr>`;
+            } else if (paginated.length < SUPPLY_PER_PAGE) {
+                for (let i = 0; i < (SUPPLY_PER_PAGE - paginated.length); i++) {
+                    const emptyTr = document.createElement('tr');
+                    emptyTr.innerHTML = `<td colspan="4" style="padding:16.5px; opacity:0; pointer-events:none;">&nbsp;</td>`;
+                    tbody.appendChild(emptyTr);
+                }
+            }
+            
+            renderSupplyPagination(filtered.length);
+        }
+
+        const DOLOMITE_SUPPLY_BASE = "https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs";
+        const DOLOMITE_MINI_GRAPHS = {
+            berachain: `${DOLOMITE_SUPPLY_BASE}/dolomite-berachain-mainnet/latest/gn`,
+            arbitrum: `${DOLOMITE_SUPPLY_BASE}/dolomite-arbitrum/latest/gn`,
+            mantle: `${DOLOMITE_SUPPLY_BASE}/dolomite-mantle/latest/gn`,
+            ethereum: `${DOLOMITE_SUPPLY_BASE}/dolomite-ethereum/latest/gn`,
+            base: `${DOLOMITE_SUPPLY_BASE}/dolomite-base/latest/gn`,
+            xlayer: `${DOLOMITE_SUPPLY_BASE}/dolomite-x-layer/latest/gn`,
+            polygon_zkevm: `${DOLOMITE_SUPPLY_BASE}/dolomite-polygon-zkevm/latest/gn`
+        };
+
+        let currentSupplyTokensMap = {};
+
+        async function doGraphQuery(url, query) {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query })
+            });
+            const raw = await res.json();
+            return raw.data;
+        }
+
+        let currentSupplyTokensList = [];
+
+        function toggleSupplyAssetDropdown() {
+            const dropdown = document.getElementById('custom-asset-dropdown');
+            const selector = document.getElementById('custom-asset-selector');
+            if(selector.classList.contains('disabled')) return;
+            
+            if(dropdown.style.display === 'none') {
+                dropdown.style.display = 'block';
+                document.getElementById('asset-search-input').value = '';
+                renderSupplyAssetOptions(currentSupplyTokensList);
+                setTimeout(() => document.getElementById('asset-search-input').focus(), 50);
+            } else {
+                dropdown.style.display = 'none';
+            }
+        }
+
+        function filterSupplyAssets() {
+            const query = document.getElementById('asset-search-input').value.toLowerCase();
+            const filtered = currentSupplyTokensList.filter(t => 
+                t.symbol.toLowerCase().includes(query) || t.id.toLowerCase().includes(query)
+            );
+            renderSupplyAssetOptions(filtered);
+        }
+
+        function renderSupplyAssetOptions(tokens) {
+            const container = document.getElementById('asset-options-container');
+            container.innerHTML = '';
+            if(tokens.length === 0) {
+                container.innerHTML = '<div style="padding:8px 12px; font-size:12px; color:var(--text-muted);">No assets found</div>';
+                return;
+            }
+            tokens.forEach(t => {
+                const iconPath = getTokenIcon(truncateTokenName(t.symbol));
+                const opt = document.createElement('div');
+                opt.className = 'premium-supply-dropdown-item';
+                opt.onclick = () => selectSupplyAsset(t.id);
+                
+                let imgHtml = iconPath ? `<img src="${iconPath}" style="width:18px; height:18px; border-radius:50%; object-fit:contain;">` : `<div style="width:18px; height:18px; border-radius:50%; background:var(--border-default); display:flex; align-items:center; justify-content:center; font-size:9px; color:var(--text-muted);">${t.symbol.substring(0,1)}</div>`;
+                
+                opt.innerHTML = `
+                    ${imgHtml}
+                    <div style="display:flex; flex-direction:column; gap:2px;">
+                        <span style="font-weight:600; color:var(--text-primary);">${t.symbol}</span>
+                        <span style="font-size:10px; color:var(--text-muted); font-family:'JetBrains Mono', monospace;">${t.id.substring(0,6)}...${t.id.substring(t.id.length-4)}</span>
+                    </div>
+                `;
+                container.appendChild(opt);
+            });
+        }
+
+        function selectSupplyAsset(id) {
+            const t = currentSupplyTokensMap[id];
+            if (!t) return;
+            document.getElementById('supply-asset-select').value = id;
+            
+            const iconPath = getTokenIcon(truncateTokenName(t.symbol));
+            const iconEl = document.getElementById('selected-asset-icon');
+            if (iconPath) {
+                iconEl.src = iconPath;
+                iconEl.style.display = 'block';
+            } else {
+                iconEl.style.display = 'none';
+            }
+            document.getElementById('selected-asset-text').textContent = t.symbol;
+            document.getElementById('custom-asset-dropdown').style.display = 'none';
+            onSupplyAssetChange();
+        }
+        
+        // close dropdown on outside click
+        document.addEventListener('click', function(e) {
+            const assetContainer = document.getElementById('supply-asset-container');
+            if (assetContainer && !assetContainer.contains(e.target)) {
+                const dropdown = document.getElementById('custom-asset-dropdown');
+                if (dropdown) dropdown.style.display = 'none';
+            }
+            
+            const chainContainer = document.getElementById('supply-chain-container');
+            if (chainContainer && !chainContainer.contains(e.target)) {
+                const dropdown = document.getElementById('custom-chain-dropdown');
+                if (dropdown) dropdown.style.display = 'none';
+            }
+        });
+        
+        function toggleSupplyChainDropdown() {
+            const dropdown = document.getElementById('custom-chain-dropdown');
+            if(dropdown.style.display === 'none') {
+                dropdown.style.display = 'block';
+            } else {
+                dropdown.style.display = 'none';
+            }
+        }
+
+        function selectSupplyChain(id, name) {
+            document.getElementById('supply-chain-select').value = id;
+            document.getElementById('selected-chain-icon').src = CHAIN_ICONS[id] || '';
+            document.getElementById('selected-chain-text').textContent = name;
+            document.getElementById('custom-chain-dropdown').style.display = 'none';
+            onSupplyChainChange();
+        }
+
+        async function onSupplyChainChange() {
+            const chain = document.getElementById('supply-chain-select').value;
+            const selector = document.getElementById('custom-asset-selector');
+            const assetText = document.getElementById('selected-asset-text');
+            const assetIcon = document.getElementById('selected-asset-icon');
+            
+            assetText.textContent = 'Fetching markets...';
+            assetIcon.style.display = 'none';
+            selector.classList.add('disabled');
+            selector.style.opacity = '0.5';
+            document.getElementById('supply-asset-select').value = '';
+            document.getElementById('supply-table').style.display = 'none';
+            
+            const q = `{
+                tokens(first: 100, where:{marketId_not: null}, orderBy: marketId) {
+                    id
+                    symbol
+                    decimals
+                    marketId
+                }
+            }`;
+            
+            try {
+                const data = await doGraphQuery(DOLOMITE_MINI_GRAPHS[chain], q);
+                if (!data || !data.tokens) throw new Error("No tokens returned");
+                
+                currentSupplyTokensMap = {};
+                currentSupplyTokensList = data.tokens.sort((a,b) => parseInt(a.marketId) - parseInt(b.marketId));
+                
+                currentSupplyTokensList.forEach(t => {
+                    currentSupplyTokensMap[t.id] = t;
+                });
+                
+                // Try to select prominent asset
+                let defaultOpt = currentSupplyTokensList.find(t=>t.symbol==='USD1') || currentSupplyTokensList.find(t=>t.symbol==='USDC') || currentSupplyTokensList.find(t=>t.symbol==='WETH') || currentSupplyTokensList.find(t=>t.symbol==='oriBGT') || currentSupplyTokensList.find(t=>t.symbol==='WBERA') || currentSupplyTokensList[0];
+                
+                selector.classList.remove('disabled');
+                selector.style.opacity = '1';
+                
+                if (defaultOpt) selectSupplyAsset(defaultOpt.id);
+                
+            } catch (e) {
+                assetText.textContent = 'Error loading markets';
+            }
+        }
+
+        async function onSupplyAssetChange() {
+            const chain = document.getElementById('supply-chain-select').value;
+            const tokenId = document.getElementById('supply-asset-select').value;
+            if (!tokenId) return;
+            
+            const loader = document.getElementById('supply-loading-state');
+            const table = document.getElementById('supply-table');
+            const tbody = document.getElementById('supply-table-body');
+            
+            loader.style.display = 'block';
+            table.style.display = 'none';
+            tbody.innerHTML = '';
+            
+            const q = `{
+                marginAccountTokenValues(where: { token: "${tokenId}", valuePar_gt: "0" }, orderBy: valuePar, orderDirection: desc, first: 100) {
+                    marginAccount {
+                        user { id }
+                    }
+                    valuePar
+                }
+                oraclePrices(where: { token: "${tokenId}" }) { price }
+                interestIndexes(where: { token: "${tokenId}" }) { supplyIndex }
+            }`;
+            
+            try {
+                const data = await doGraphQuery(DOLOMITE_MINI_GRAPHS[chain], q);
+                
+                const tokenObj = currentSupplyTokensMap[tokenId] || { decimals: 18, symbol: 'TOKEN' };
+                const decimals = parseInt(tokenObj.decimals);
+                const priceUsd = data.oraclePrices && data.oraclePrices[0] ? parseFloat(data.oraclePrices[0].price) : 0;
+                const supplyIndex = data.interestIndexes && data.interestIndexes[0] ? parseFloat(data.interestIndexes[0].supplyIndex) : 1;
+                
+                const suppliersMap = {};
+                // Summarize by user since one user might have multiple margin accounts supplying the same asset
+                data.marginAccountTokenValues.forEach(tv => {
+                    const amount = parseFloat(tv.valuePar) * supplyIndex;
+                    const usd = amount * priceUsd;
+                    const uid = tv.marginAccount.user.id;
+                    if (!suppliersMap[uid]) suppliersMap[uid] = { amount: 0, usd: 0 };
+                    suppliersMap[uid].amount += amount;
+                    suppliersMap[uid].usd += usd;
+                });
+
+                currentSupplyData = Object.keys(suppliersMap).map(k => ({
+                    address: k,
+                    amount: suppliersMap[k].amount,
+                    usd: suppliersMap[k].usd
+                })).filter(s => s.amount > 0).sort((a, b) => b.amount - a.amount).slice(0, 100);
+
+                renderSupplyTable();
+
+            } catch (e) {
+                console.error("Supply fetch err", e);
+                const loader = document.getElementById('supply-loading-state');
+                if(loader) loader.innerHTML = `<div style="color:#ef4444; font-weight:600;">Failed to fetch from graph api.</div>`;
+            }
+        }
 
         // ─── Launch ──────────────────────────────────────────────────────────
         init();

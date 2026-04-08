@@ -129,3 +129,11 @@
 ### Filtrowanie po Typach a nie Etykietach
 **Wzorzec błędu:** Wyszukiwarka łapała zapytanie na polu "Etykieta" ('Core Team', 'Binance'), natomiast użytkownik chciał używać filtrów logicznych odpowiadających kategorii ('team', 'cex').
 **Reguła na przyszłość:** Podczas budowania UI/Search Bar dla oflagowanych tokenów, filtruj ZARÓWNO po nazwie domeny / instytucji (`info.label`), jak i przypisanym do niej typie/metadanej (`info.type`).
+
+### CSS Clipping w Tabelach i Hover Popovers
+**Wzorzec błędu:** Kiedy element informacyjny (tooltip) zostaje wyświetlony na ekranie poprzez domyślną regułę CSS (`:hover .tooltip-bubble`) wewnątrz wierszy tabeli (np. `.assets-table`) używającej `overflow: hidden`, jego brzegi zostają ucięte.
+**Reguła na przyszłość:** Zrezygnuj ze zwykłych chmurek CSS na rzecz centralnego elementu popovera (`#breakdown-float-tooltip`) dołączonego prosto do `<body>`. Zamiast dodawać z-index lub zmieniać tabele, dopisz wyzwalacz tekstowy do ogólnego skryptu JS podsłuchującego myszkę na elementach z odpowiednią klasą (np. z `.breakdown-help-icon` zmienione na globalne `.breakdown-item`), aby zintegrować bezpośredni, czysty hover elementu ze starym silnikiem zapobiegającym zaciemnianiu / ucinaniu ekranu.
+
+### The Graph API - precision mismatch in valuePar
+**Wzorzec błędu:** Kwerenda do `marginAccountTokenValues` na subgrafach Dolomite zwraca `valuePar` w formie sformatowanego ułamka dziesiętnego string (`BigDecimal`), a nie bazowej wartości całkowitej z Wei (która wymagałaby dzielenia przez `10^decimals`). Dzielenie tej wartości wtórnie w JS powodowało wyświetlanie `$0.00` ("dust") z powodu zniksztłconego rzędu wielkości. Ponadto root field `tokenValues` nie występuje bezpośrednio, lecz jako `marginAccountTokenValues`.
+**Reguła na przyszłość:** Zawsze weryfikuj faktyczny format (`BigDecimal` vs `BigInt`) zapytań GraphQL w Subgrafach. Przy pisaniu zapytań we front-endzie dla Dolomite Subgraph używaj po prostu `parseFloat(valuePar) * supplyIndex`, ponieważ backend The Graph już aplikuje decymale. Typu "TokenValue" szukaj odpytując wprost `marginAccountTokenValues`.
