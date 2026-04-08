@@ -17282,6 +17282,18 @@
                     llRes = await fetch('defillama_data.json').then(r => r.json());
                     if (llRes.error) throw new Error('Static file has error: ' + llRes.error);
                     console.log('✅ DOLO: Loaded DeFi Llama from static JSON');
+                    
+                    // Override current precise metrics with official Dolomite Subgraph TVL file
+                    try {
+                        const doloTvls = await fetch('dolomite_tvl.json?' + Date.now()).then(r => r.json());
+                        if (doloTvls && doloTvls.currentChainTvls) {
+                            llRes.currentChainTvls = doloTvls.currentChainTvls;
+                            if (doloTvls.tokensInUsd) llRes.tokensInUsd = doloTvls.tokensInUsd;
+                            console.log('✅ DOLO: Override applied with Official Dolomite TVL');
+                        }
+                    } catch (e) {
+                        console.warn('⚠️ DOLO: dolomite_tvl.json not found, using pure DeFi Llama fallback.');
+                    }
                 } catch (staticErr) {
                     console.warn('⚠️ DOLO: Static defillama_data.json failed, trying live API...', staticErr.message);
                     llRes = await fetch('https://api.llama.fi/protocol/dolomite').then(r => r.json());
