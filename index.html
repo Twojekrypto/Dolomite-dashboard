@@ -19636,9 +19636,6 @@
 
             assets_allData = results;
 
-            // Wait for subgraph data so everything renders together (table + hero + badges)
-            await subgraphPromise;
-
             // Build chain pills
             assets_buildChainPills();
             // Bind category buttons
@@ -19647,12 +19644,21 @@
             assets_bindSortHeaders();
             // Bind search + checkbox
             assets_bindSearch();
-            // Render everything at once (table with badges + hero with dust filtering)
+            
+            // Render table immediately with fast API data
             assets_render();
-            assets_updateHero();
 
             document.getElementById('assets-spinner').style.display = 'none';
             document.getElementById('assets-table-wrap').style.display = '';
+
+            // Handle slow subgraph data in background
+            subgraphPromise.then(() => {
+                assets_updateHero();
+                // re-render to apply dust filters
+                assets_render();
+            }).catch(e => {
+                console.warn('Background subgraph fetch failed', e);
+            });
         }
 
         function assets_updateHero() {
