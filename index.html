@@ -748,8 +748,16 @@
             align-items: center;
             justify-content: space-between;
             gap: 10px;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
             width: 100%;
+        }
+
+        .assets-controls-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 1;
+            min-width: 0;
         }
 
         .assets-search-wrap {
@@ -863,52 +871,23 @@
             border: 1px solid rgba(251, 191, 36, 0.2);
         }
 
-        /* Dust toggle: gray default, red when active ("Hide Dust") */
-        .dust-toggle-wrap {
-            border-color: rgba(148, 163, 184, 0.25) !important;
-        }
-
-        .dust-toggle-wrap:hover {
-            border-color: rgba(148, 163, 184, 0.45) !important;
-        }
-
-        .dust-toggle-wrap .odolo-toggle-label {
-            color: #94a3b8 !important;
-        }
-
-        .dust-toggle-wrap .odolo-switch {
-            background: rgba(148, 163, 184, 0.15) !important;
-            border-color: rgba(148, 163, 184, 0.25) !important;
-        }
-
-        .dust-toggle-wrap .odolo-switch .knob {
-            background: #94a3b8 !important;
-            box-shadow: 0 0 6px rgba(148, 163, 184, 0.4) !important;
-        }
-
-        .dust-toggle-wrap.active {
-            border-color: rgba(239, 68, 68, 0.4) !important;
-        }
-
-        .dust-toggle-wrap.active .odolo-toggle-label {
-            color: #f87171 !important;
-        }
-
-        .dust-toggle-wrap.active .odolo-switch {
-            background: rgba(239, 68, 68, 0.25) !important;
-            border-color: rgba(239, 68, 68, 0.4) !important;
-        }
-
-        .dust-toggle-wrap.active .odolo-switch .knob {
-            left: 16px !important;
-            background: #f87171 !important;
-            box-shadow: 0 0 6px rgba(248, 113, 113, 0.5) !important;
-        }
+        /* Dust toggle: DEPRECATED — replaced by .dust-pill premium button */
+        /* Legacy overrides kept for backward compat */
+        .dust-toggle-wrap { display: none !important; }
 
         .assets-toggles-right {
             display: flex;
             align-items: center;
             gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .assets-modifier-sep {
+            width: 3px;
+            height: 3px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.15);
+            flex-shrink: 0;
         }
 
         /* oDOLO toggle switch */
@@ -1259,35 +1238,170 @@
             color: #34d399;
         }
 
-        /* Token column inline search */
+        /* ===== PREMIUM SEARCH BAR ===== */
         .assets-th-search-wrap {
             display: flex;
             align-items: center;
-            gap: 6px;
-            background: rgba(255, 255, 255, 0.04);
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 20px;
-            padding: 4px 12px;
-            transition: all 0.25s ease;
-            max-width: 280px;
+            padding: 6px 14px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            width: 400px;
+            max-width: 400px;
+            backdrop-filter: blur(8px);
+        }
+
+        .assets-th-search-wrap:hover {
+            border-color: rgba(52, 211, 153, 0.2);
+            background: rgba(255, 255, 255, 0.04);
         }
 
         .assets-th-search-wrap:focus-within {
-            border-color: rgba(99, 102, 241, 0.5);
-            background: rgba(99, 102, 241, 0.06);
-            box-shadow: 0 0 12px rgba(99, 102, 241, 0.15);
+            border-color: rgba(52, 211, 153, 0.5);
+            background: rgba(52, 211, 153, 0.04);
+            box-shadow: 0 0 16px rgba(52, 211, 153, 0.12), 0 0 4px rgba(52, 211, 153, 0.08), inset 0 0 12px rgba(52, 211, 153, 0.03);
         }
 
         .assets-th-search-icon {
-            width: 13px;
-            height: 13px;
-            color: rgba(255, 255, 255, 0.3);
+            width: 14px;
+            height: 14px;
+            color: rgba(255, 255, 255, 0.25);
             flex-shrink: 0;
-            transition: color 0.25s ease;
+            transition: color 0.3s ease;
         }
 
         .assets-th-search-wrap:focus-within .assets-th-search-icon {
-            color: rgba(99, 102, 241, 0.7);
+            color: rgba(52, 211, 153, 0.7);
+        }
+
+        /* ===== CHAIN SEGMENTED CONTROL (ICON PILLS) ===== */
+        .chain-seg {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 20px;
+            padding: 3px;
+            flex-shrink: 0;
+        }
+
+        .chain-seg-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            background: transparent;
+            border: 1.5px solid transparent;
+            border-radius: 16px;
+            padding: 4px 10px;
+            cursor: pointer;
+            color: rgba(255, 255, 255, 0.35);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .chain-seg-btn img {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            opacity: 0.5;
+            transition: opacity 0.25s ease;
+        }
+
+        .chain-seg-btn:hover {
+            background: rgba(255, 255, 255, 0.04);
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .chain-seg-btn:hover img {
+            opacity: 0.75;
+        }
+
+        .chain-seg-btn.active {
+            background: rgba(52, 211, 153, 0.08);
+            border-color: rgba(52, 211, 153, 0.35);
+            color: #34d399;
+            box-shadow: 0 0 10px rgba(52, 211, 153, 0.08);
+        }
+
+        .chain-seg-btn.active img {
+            opacity: 1;
+        }
+
+        /* ===== PREMIUM DUST PILL ===== */
+        .dust-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 5px 14px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.03);
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dust-pill::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at 30% 50%, rgba(52, 211, 153, 0.06), transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .dust-pill:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .dust-pill.active {
+            border-color: rgba(52, 211, 153, 0.35);
+            background: rgba(52, 211, 153, 0.06);
+        }
+
+        .dust-pill.active::before {
+            opacity: 1;
+        }
+
+        .dust-pill-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.15);
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+            position: relative;
+            z-index: 1;
+        }
+
+        .dust-pill.active .dust-pill-dot {
+            background: #34d399;
+            box-shadow: 0 0 8px rgba(52, 211, 153, 0.5), 0 0 3px rgba(52, 211, 153, 0.3);
+        }
+
+        .dust-pill-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.3);
+            transition: color 0.3s ease;
+            position: relative;
+            z-index: 1;
+            letter-spacing: 0.02em;
+        }
+
+        .dust-pill.active .dust-pill-label {
+            color: #34d399;
         }
 
         .assets-th-search {
@@ -2152,64 +2266,143 @@
         }
 
         /* ===== CHAIN FILTER — SEGMENTED CONTROL ===== */
-        .dolo-chain-pills {
+        .assets-chain-dropdown-btn {
             display: flex;
-            flex-wrap: wrap;
-            gap: 2px;
+            align-items: center;
+            gap: 6px;
             background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(52, 211, 153, 0.25);
-            border-radius: 8px;
-            padding: 2px;
-            position: relative;
-            width: fit-content;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 5px 12px 5px 10px;
+            cursor: pointer;
+            color: rgba(255,255,255,0.8);
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.25s ease;
+            user-select: none;
+        }
+        .assets-chain-dropdown-btn:hover { background: rgba(255, 255, 255, 0.05); }
+        .assets-chain-dropdown-btn svg { opacity: 0.5; transition: transform 0.2s ease; }
+        .assets-chain-dd-wrap.open .assets-chain-dropdown-btn svg { transform: rotate(180deg); }
+        .assets-chain-dd-wrap.open .assets-chain-dropdown-btn {
+            border-color: rgba(52, 211, 153, 0.4);
+            background: rgba(52, 211, 153, 0.08);
+            color: #34d399;
         }
 
-        .dolo-chain-pills:empty {
+        .assets-chain-dropdown-menu {
             display: none;
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            background: rgba(15, 23, 42, 0.97);
+            border: 1px solid rgba(52, 211, 153, 0.2);
+            border-radius: 14px;
+            padding: 6px;
+            z-index: 200;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55), 0 0 20px rgba(52, 211, 153, 0.06);
+            min-width: 180px;
+            max-height: 320px;
+            overflow-y: auto;
         }
-
-        .dolo-chain-pills button img {
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            vertical-align: middle;
-            margin-right: 3px;
-            margin-top: -1px;
-        }
-
-        .dolo-chain-pills button {
+        .assets-chain-dropdown-menu.show { display: flex; flex-direction: column; }
+        .assets-chain-dd-opt {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: 8px 10px;
             background: transparent;
             border: none;
-            color: var(--text-muted);
-            font-size: 11px;
-            font-weight: 500;
-            padding: 6px 11px;
-            border-radius: 6px;
+            color: rgba(255,255,255,0.7);
+            font-size: 13px;
             cursor: pointer;
-            transition: color 0.2s ease;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            white-space: nowrap;
-            position: relative;
-            z-index: 1;
+            border-radius: 8px;
+            text-align: left;
+            transition: all 0.2s;
+        }
+        .assets-chain-dd-opt:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
         }
 
-        .dolo-chain-pills button:hover {
-            color: var(--text-secondary);
-        }
-
-        .dolo-chain-pills button.active {
-            color: #e0e7ff;
+        .assets-settings-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 20px;
+            padding: 5px 12px 5px 10px;
+            cursor: pointer;
+            color: rgba(255,255,255,0.5);
+            font-size: 11px;
             font-weight: 600;
+            transition: all 0.25s ease;
+            user-select: none;
         }
+        .assets-settings-btn:hover { background: rgba(255,255,255,0.05); }
+        .assets-settings-btn.open {
+            border-color: rgba(99,102,241,0.4);
+            background: rgba(99,102,241,0.08);
+            color: #c7d2fe;
+        }
+        .settings-gear-icon { width: 14px; height: 14px; transition: transform 0.3s ease; opacity: 0.7; }
+        .assets-settings-btn.open .settings-gear-icon { transform: rotate(45deg); opacity: 1; }
+        .settings-status-dots { display: flex; gap: 2px; margin-right: -2px; }
+        .settings-status-dot { width: 5px; height: 5px; border-radius: 50%; transition: all 0.25s ease; }
+        .settings-status-dot.active.odolo { background: #f59e0b; box-shadow: 0 0 4px rgba(245,158,11,0.5); }
+        .settings-status-dot.active.yield { background: #60a5fa; box-shadow: 0 0 4px rgba(96,165,250,0.5); }
+        .settings-status-dot.active.lending { background: rgba(255,255,255,0.8); box-shadow: 0 0 4px rgba(255,255,255,0.3); }
+        .settings-status-dot.inactive { background: rgba(255,255,255,0.15); box-shadow: none; }
 
-        .dolo-chain-slider {
+        .assets-settings-dropdown {
+            display: none;
             position: absolute;
-            top: 2px;
-            left: 2px;
-            height: calc(100% - 4px);
-            width: 0;
-            opacity: 0;
+            top: calc(100% + 8px);
+            right: 0;
+            min-width: 230px;
+            background: rgba(15, 23, 42, 0.97);
+            border: 1px solid rgba(99,102,241,0.2);
+            border-radius: 14px;
+            padding: 6px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03);
+            z-index: 1500;
+        }
+        .assets-settings-dropdown.show { display: block; }
+        .assets-settings-dropdown-header { padding: 6px 16px 8px; font-size: 9px; font-weight: 700; text-transform: uppercase; color: rgba(255,255,255,0.3); }
+        .assets-settings-dropdown-divider { height: 1px; background: rgba(255,255,255,0.06); margin: 4px 12px; }
+        .assets-reward-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; cursor: pointer; border-radius: 8px; transition: background 0.15s ease; }
+        .assets-reward-row:hover { background: rgba(255,255,255,0.05); }
+        .assets-reward-check { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; }
+        .assets-reward-check svg { width: 10px; height: 10px; stroke: #fff; transform: scale(0); transition: transform 0.2s; }
+        .assets-reward-row.checked .assets-reward-check { background: rgba(52, 211, 153, 0.15); border-color: rgba(52, 211, 153, 0.4); }
+        .assets-reward-row.checked .assets-reward-check svg { transform: scale(1); stroke: #34d399; }
+        .assets-reward-dot { width: 8px; height: 8px; border-radius: 50%; }
+        #settings-row-odolo .assets-reward-dot { background: #f59e0b; box-shadow: 0 0 6px rgba(245,158,11,0.5); }
+        #settings-row-yield .assets-reward-dot { background: #60a5fa; box-shadow: 0 0 6px rgba(96,165,250,0.5); }
+        #settings-row-lending .assets-reward-dot { background: #e2e8f0; box-shadow: 0 0 6px rgba(255,255,255,0.3); }
+        .assets-reward-row:not(.checked) .assets-reward-label { color: rgba(255,255,255,0.25); }
+        .assets-reward-row:not(.checked) .assets-reward-dot { opacity: 0.25; }
+        .assets-reward-text { display: flex; flex-direction: column; }
+        .assets-reward-desc { font-size: 10px; color: rgba(255,255,255,0.25); }
+        .assets-reward-row:not(.checked) .assets-reward-desc { opacity: 0.5; }
+        .assets-settings-btn .settings-status-dots { margin-right: 4px; }
+        .settings-chevron { opacity: 0.4; transition: transform 0.25s; }
+        .assets-settings-btn.open .settings-chevron { transform: rotate(180deg); opacity: 0.8; }
+        .assets-th-filter-dropdown { background: rgba(15, 23, 42, 0.97); border: 1px solid rgba(52, 211, 153, 0.2); border-radius: 14px; backdrop-filter: blur(20px); }
+        .assets-th-filter-opt:hover { background: rgba(255, 255, 255, 0.05); }
+        .assets-th-filter-btn { border-radius: 20px; padding: 5px 10px 5px 8px; }
+        .assets-th-search { border-radius: 20px; padding: 5px 14px; }
+        .apr-pill { background: rgba(99, 102, 241, 0.03); border-radius: 20px; border: 1px solid rgba(99, 102, 241, 0.15); }
+
+        .apr-pill-slider {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            height: calc(100% - 6px);
             background: rgba(99, 102, 241, 0.2);
             border: 1px solid rgba(99, 102, 241, 0.3);
             border-radius: 6px;
@@ -13990,15 +14183,108 @@
                 </div>
                 <div class="assets-controls">
                     <div class="assets-controls-row">
-                        <div id="assets-chain-filter" class="dolo-chain-pills"></div>
+                        <div class="assets-controls-left">
+                            <div class="assets-th-search-wrap">
+                                <svg class="assets-th-search-icon" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <circle cx="11" cy="11" r="7" />
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                </svg>
+                                <input type="text" class="assets-th-search" id="assets-search"
+                                    placeholder="Search token or paste address…" spellcheck="false"
+                                    autocomplete="off">
+                                <div class="assets-th-filter-btn" id="assets-th-filter-btn"
+                                    onclick="assets_toggleFilterDropdown(event)">
+                                    <svg class="assets-th-filter-icon" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                                        stroke-linejoin="round">
+                                        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                                    </svg>
+                                    <span id="assets-th-filter-label">All</span>
+                                    <div class="assets-th-filter-dropdown" id="assets-th-filter-dropdown">
+                                        <button class="assets-th-filter-opt active" data-cat="all"
+                                            onclick="assets_selectFilter(event, this)">All</button>
+                                        <button class="assets-th-filter-opt" data-cat="stable"
+                                            onclick="assets_selectFilter(event, this)">Stables</button>
+                                        <button class="assets-th-filter-opt" data-cat="btc"
+                                            onclick="assets_selectFilter(event, this)">BTC</button>
+                                        <button class="assets-th-filter-opt" data-cat="eth"
+                                            onclick="assets_selectFilter(event, this)">ETH</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="chain-seg" id="assets-chain-seg">
+                                <button class="chain-seg-btn active" data-chain="all" onclick="assets_filterChainSeg(this)">
+                                    ALL
+                                </button>
+                                <button class="chain-seg-btn" data-chain="berachain" onclick="assets_filterChainSeg(this)">
+                                    <img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" alt="Bera">
+                                </button>
+                                <button class="chain-seg-btn" data-chain="arbitrum" onclick="assets_filterChainSeg(this)">
+                                    <img src="https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg" alt="Arb">
+                                </button>
+                                <button class="chain-seg-btn" data-chain="ethereum" onclick="assets_filterChainSeg(this)">
+                                    <img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" alt="ETH">
+                                </button>
+                                <button class="chain-seg-btn" data-chain="mantle" onclick="assets_filterChainSeg(this)">
+                                    <img src="https://icons.llamao.fi/icons/chains/rsz_mantle.jpg" alt="Mnt">
+                                </button>
+                                <button class="chain-seg-btn" data-chain="polygonzkevm" onclick="assets_filterChainSeg(this)">
+                                    <img src="https://icons.llamao.fi/icons/chains/rsz_polygon%20zkevm.jpg" alt="zkEVM">
+                                </button>
+                                <button class="chain-seg-btn" data-chain="xlayer" onclick="assets_filterChainSeg(this)">
+                                    <img src="https://icons.llamao.fi/icons/chains/rsz_x%20layer.jpg" alt="XLayer">
+                                </button>
+                            </div>
+                        </div>
                         <div class="assets-toggles-right">
                             <input type="checkbox" id="assets-exclude-odolo" style="display:none">
-                            <div class="odolo-toggle-wrap" id="assets-odolo-toggle"
-                                data-tip="Toggle oDOLO rewards in Supply APR. When ON, oDOLO incentive rewards are included. When OFF, only lending and external yield are shown.">
-                                <img class="odolo-toggle-icon" src="odolo-logo-official.svg" alt="oDOLO">
-                                <span class="odolo-toggle-label">oDOLO</span>
-                                <div class="odolo-switch">
-                                    <div class="knob"></div>
+                            <div style="position: relative;">
+                                <button class="assets-settings-btn" id="assets-settings-btn" onclick="assets_toggleSettings(event)">
+                                    <svg class="settings-gear-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                                    Rewards
+                                    <div class="settings-status-dots">
+                                        <div class="settings-status-dot active odolo" id="settings-dot-odolo"></div>
+                                        <div class="settings-status-dot active yield" id="settings-dot-yield"></div>
+                                        <div class="settings-status-dot active lending" id="settings-dot-lending"></div>
+                                    </div>
+                                    <svg class="settings-chevron" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+                                </button>
+                                <div class="assets-settings-dropdown" id="assets-settings-dropdown">
+                                    <div class="assets-settings-dropdown-header">Supply APR Sources</div>
+                                    <div class="assets-reward-row checked" data-reward="odolo" id="settings-row-odolo">
+                                        <div class="assets-reward-check">
+                                            <svg viewBox="0 0 12 12" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg>
+                                        </div>
+                                        <div class="assets-reward-dot"></div>
+                                        <div class="assets-reward-text">
+                                            <span class="assets-reward-label">oDOLO Rewards</span>
+                                            <span class="assets-reward-desc">Incentive emissions from protocol</span>
+                                        </div>
+                                    </div>
+                                    <div class="assets-settings-dropdown-divider"></div>
+                                    <div class="assets-reward-row checked" data-reward="yield" id="settings-row-yield">
+                                        <div class="assets-reward-check">
+                                            <svg viewBox="0 0 12 12" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg>
+                                        </div>
+                                        <div class="assets-reward-dot"></div>
+                                        <div class="assets-reward-text">
+                                            <span class="assets-reward-label">External Yield</span>
+                                            <span class="assets-reward-desc">Staking, GM Performance, native APR</span>
+                                        </div>
+                                    </div>
+                                    <div class="assets-settings-dropdown-divider"></div>
+                                    <div class="assets-reward-row checked" data-reward="lending" id="settings-row-lending">
+                                        <div class="assets-reward-check">
+                                            <svg viewBox="0 0 12 12" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg>
+                                        </div>
+                                        <div class="assets-reward-dot"></div>
+                                        <div class="assets-reward-text">
+                                            <span class="assets-reward-label">Lending Interest</span>
+                                            <span class="assets-reward-desc">Interest earned from borrowers</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <div class="odolo-toggle-wrap gm-toggle-wrap" id="assets-yield-toggle"
@@ -14022,6 +14308,7 @@
                                     <div class="knob"></div>
                                 </div>
                             </div>
+                            <div class="assets-modifier-sep"></div>
                             <div class="apr-pill" id="assets-apr-pill" onclick="assets_toggleAprApy()">
                                 <span class="apr-pill-opt active" id="assets-apr-opt">APR</span>
                                 <span class="apr-pill-opt" id="assets-apy-opt">APY</span>
@@ -14045,38 +14332,7 @@
                             </colgroup>
                             <thead>
                                 <tr>
-                                    <th>
-                                        <div class="assets-th-search-wrap">
-                                            <svg class="assets-th-search-icon" viewBox="0 0 24 24" fill="none"
-                                                stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
-                                                stroke-linejoin="round">
-                                                <circle cx="11" cy="11" r="7" />
-                                                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                                            </svg>
-                                            <input type="text" class="assets-th-search" id="assets-search"
-                                                placeholder="Search token or paste address…" spellcheck="false"
-                                                autocomplete="off">
-                                            <div class="assets-th-filter-btn" id="assets-th-filter-btn"
-                                                onclick="assets_toggleFilterDropdown(event)">
-                                                <svg class="assets-th-filter-icon" viewBox="0 0 24 24" fill="none"
-                                                    stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
-                                                    stroke-linejoin="round">
-                                                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-                                                </svg>
-                                                <span id="assets-th-filter-label">All</span>
-                                                <div class="assets-th-filter-dropdown" id="assets-th-filter-dropdown">
-                                                    <button class="assets-th-filter-opt active" data-cat="all"
-                                                        onclick="assets_selectFilter(event, this)">All</button>
-                                                    <button class="assets-th-filter-opt" data-cat="stable"
-                                                        onclick="assets_selectFilter(event, this)">Stables</button>
-                                                    <button class="assets-th-filter-opt" data-cat="btc"
-                                                        onclick="assets_selectFilter(event, this)">BTC</button>
-                                                    <button class="assets-th-filter-opt" data-cat="eth"
-                                                        onclick="assets_selectFilter(event, this)">ETH</button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </th>
+                                    <th style="text-align:left;padding-left:16px">ASSET</th>
                                     <th data-col="price" style="text-align:center;color:#fff">⚪ Price <span
                                             class="sort-arrow">⇅</span>
                                     </th>
@@ -19805,38 +20061,55 @@
             document.getElementById('assets-hero-section').style.display = '';
         }
 
-        function assets_buildChainPills() {
-            const el = document.getElementById('assets-chain-filter');
-            if (!el) return;
-            const GLOBE = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="vertical-align:middle;margin-right:3px;margin-top:-1px"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>`;
-            let html = `<div class="dolo-chain-slider"></div><button class="active" data-chain="all">${GLOBE}All</button>`;
-            Object.entries(ASSETS_CHAINS).forEach(([key, c]) => {
-                html += `<button data-chain="${key}"><img src="${c.icon}" alt="">${c.short}</button>`;
-            });
-            el.innerHTML = html;
+        function assets_buildChainPills() {} // Disabled since we use dropdowns now
 
-            const slider = el.querySelector('.dolo-chain-slider');
-            function posSlider(btn) {
-                const px = el.getBoundingClientRect();
-                const bx = btn.getBoundingClientRect();
-                slider.style.width = bx.width + 'px';
-                slider.style.transform = `translateX(${bx.left - px.left - 2}px)`;
-            }
-            requestAnimationFrame(() => {
-                const ab = el.querySelector('button.active');
-                if (ab) { posSlider(ab); slider.style.opacity = '1'; }
-            });
-
-            el.querySelectorAll('button').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    el.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    posSlider(btn);
-                    assets_selectedChain = btn.dataset.chain;
-                    assets_render();
-                });
-            });
+        function assets_toggleChainDropdown(e) {
+            e.stopPropagation(); assets_closeSettings();
+            const menu = document.getElementById('assets-chain-dropdown-menu');
+            if (menu) menu.classList.toggle('show');
         }
+        window.assets_toggleChainDropdown = assets_toggleChainDropdown;
+
+        function assets_closeSettings() {
+            const dd = document.getElementById('assets-settings-dropdown');
+            if(dd) dd.classList.remove('show');
+            document.getElementById('assets-chain-dropdown-menu')?.classList.remove('show');
+        }
+        window.assets_closeSettings = assets_closeSettings;
+
+        function assets_toggleSettings(e) {
+            e.stopPropagation();
+            assets_closeSettings();
+            const dd = document.getElementById('assets-settings-dropdown');
+            if(dd) dd.classList.toggle('show');
+        }
+        window.assets_toggleSettings = assets_toggleSettings;
+
+        document.addEventListener('click', assets_closeSettings);
+
+        function assets_filterChain(ch) {
+            assets_selectedChain = ch;
+            const btn = document.querySelector('.assets-chain-dropdown-btn');
+            if (btn) btn.innerHTML = ch === 'all'
+                ? '<img src="dolomite-logo.svg" alt="All Chains" style="width:14px;height:14px"> All Chains <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"></polyline></svg>'
+                : `<img src="icons/${ch}.png" alt="${ch}" style="width:14px;height:14px;border-radius:50%"> ${ch.charAt(0).toUpperCase() + ch.slice(1)} <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+            window._assetsPage = 1; window._assetsEarnPage = 1;
+            assets_render();
+            assets_closeSettings();
+        }
+        window.assets_filterChain = assets_filterChain;
+
+        // Premium segmented chain control handler
+        function assets_filterChainSeg(btn) {
+            const ch = btn.dataset.chain;
+            assets_selectedChain = ch;
+            // Update active state on all chain-seg buttons
+            document.querySelectorAll('.chain-seg-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            window._assetsPage = 1; window._assetsEarnPage = 1;
+            assets_render();
+        }
+        window.assets_filterChainSeg = assets_filterChainSeg;
 
         function assets_bindCatPills() {
             const wrap = document.getElementById('assets-cat-pills');
@@ -20443,6 +20716,10 @@
         const EARN_LOOKUP_CACHE_VERSION = 2;
         const EARN_LOOKUP_CACHE_TTL_MS = 10 * 60 * 1000;
         const earn_lookupResultCache = {};
+        const earn_snapshotPromiseCache = {};
+        const earn_verifiedLedgerPromiseCache = {};
+        const earn_transientFetchCache = {};
+        const EARN_TRANSIENT_FETCH_TTL_MS = 60 * 1000;
         const EARN_PROFILE_LOGS = true;
 
         function earn_isLookupRunCurrent(runId) {
@@ -20515,6 +20792,55 @@
             });
             lines.forEach(line => console.log(line));
             console.groupEnd();
+        }
+
+        function earn_getTransientFetchEntry(key, ttlMs) {
+            if (!key) return null;
+            const entry = earn_transientFetchCache[key];
+            if (!entry) return null;
+            if (entry.value !== undefined && entry.savedAt && (Date.now() - entry.savedAt) <= (ttlMs || EARN_TRANSIENT_FETCH_TTL_MS)) {
+                return entry;
+            }
+            if (entry.promise) return entry;
+            delete earn_transientFetchCache[key];
+            return null;
+        }
+
+        function earn_runTransientFetch(key, fetcher, ttlMs) {
+            const cached = earn_getTransientFetchEntry(key, ttlMs);
+            if (cached) {
+                if (cached.promise) return cached.promise;
+                return Promise.resolve(cached.value);
+            }
+            const promise = Promise.resolve()
+                .then(fetcher)
+                .then(value => {
+                    earn_transientFetchCache[key] = {
+                        value,
+                        savedAt: Date.now(),
+                    };
+                    return value;
+                })
+                .catch(err => {
+                    delete earn_transientFetchCache[key];
+                    throw err;
+                });
+            earn_transientFetchCache[key] = { promise };
+            return promise;
+        }
+
+        function earn_beginLookupRun() {
+            earn_activeLookupRunId += 1;
+            return earn_activeLookupRunId;
+        }
+
+        function earn_isLookupContextCurrent(runId, address, chainId) {
+            if (!earn_isLookupRunCurrent(runId)) return false;
+            const currentAddress = String(document.getElementById('earn-address')?.value || '').trim().toLowerCase();
+            const currentChainId = String(document.getElementById('earn-chain')?.value || '').trim().toLowerCase();
+            if (address && currentAddress !== String(address).trim().toLowerCase()) return false;
+            if (chainId && currentChainId !== String(chainId).trim().toLowerCase()) return false;
+            return true;
         }
 
         // ---- Custom chain selector logic ----
@@ -20603,64 +20929,64 @@
             return chain.rpcs[chain.rpcIdx++ % chain.rpcs.length];
         }
 
-        // Fetch total oDOLO claimed by a given address using Dolomite subgraph
-        // oDOLO rewards only exist on Berachain
+        // Fetch global oDOLO rewards for a wallet.
+        // Rewards can accrue from multiple chains, but claims settle through the Berachain distributor.
         const ODOLO_SUBGRAPH_CHAINS = {
             berachain: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-berachain-mainnet/latest/gn',
         };
         async function earn_fetchOdoloClaimed(userAddr) {
-            earn_odoloClaimed = 0;
-            earn_odoloUnclaimed = 0;
             const addr = userAddr.toLowerCase();
+            const cacheKey = `earn:odolo-claimed:${addr}`;
+            const result = await earn_runTransientFetch(cacheKey, async () => {
+                // Parallel fetch: API allocation + on-chain claimed amount
+                const [apiResult, contractClaimed] = await Promise.allSettled([
+                    // 1. Cumulative allocation from Dolomite API (includes merkle proof)
+                    fetch(`https://api.dolomite.io/liquidity-mining/odolo/seasons/0/wallets/${addr}`)
+                        .then(r => r.json())
+                        .then(j => parseFloat(j?.user?.amount || '0')),
+                    // 2. Already claimed from on-chain distributor contract
+                    earn_beraRpcCall(IBGT_CONTRACTS.DISTRIBUTOR,
+                        IBGT_CONTRACTS.SEL_USER_CLAIM_AMOUNT + '000000000000000000000000' + addr.slice(2))
+                        .then(hex => parseInt(hex || '0x0', 16) / 1e18),
+                ]);
 
-            // Parallel fetch: API allocation + on-chain claimed amount
-            const [apiResult, contractClaimed] = await Promise.allSettled([
-                // 1. Cumulative allocation from Dolomite API (includes merkle proof)
-                fetch(`https://api.dolomite.io/liquidity-mining/odolo/seasons/0/wallets/${addr}`)
-                    .then(r => r.json())
-                    .then(j => parseFloat(j?.user?.amount || '0')),
-                // 2. Already claimed from on-chain distributor contract
-                earn_beraRpcCall(IBGT_CONTRACTS.DISTRIBUTOR,
-                    IBGT_CONTRACTS.SEL_USER_CLAIM_AMOUNT + '000000000000000000000000' + addr.slice(2))
-                    .then(hex => parseInt(hex || '0x0', 16) / 1e18),
-            ]);
+                const cumulativeAllocation = apiResult.status === 'fulfilled' ? apiResult.value : 0;
+                let claimed = contractClaimed.status === 'fulfilled' ? contractClaimed.value : 0;
+                let unclaimed = cumulativeAllocation > claimed ? (cumulativeAllocation - claimed) : 0;
 
-            const cumulativeAllocation = apiResult.status === 'fulfilled' ? apiResult.value : 0;
-            const alreadyClaimed = contractClaimed.status === 'fulfilled' ? contractClaimed.value : 0;
-
-            earn_odoloClaimed = alreadyClaimed > 0 ? alreadyClaimed : 0;
-            earn_odoloUnclaimed = cumulativeAllocation > alreadyClaimed
-                ? cumulativeAllocation - alreadyClaimed : 0;
-
-            // Fallback: if contract call failed but API worked, use API amount as total
-            if (earn_odoloClaimed === 0 && cumulativeAllocation > 0) {
-                // Try subgraph fallback for claimed
-                try {
-                    const endpoint = ODOLO_SUBGRAPH_CHAINS['berachain'];
-                    let allClaims = [], skip = 0;
-                    const PAGE = 1000;
-                    while (true) {
-                        const query = `{ liquidityMiningClaims(first: ${PAGE}, skip: ${skip}, where: { user: "${addr}" }) { amount } }`;
-                        const resp = await fetch(endpoint, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ query }),
-                        });
-                        const json = await resp.json();
-                        const claims = (json.data && json.data.liquidityMiningClaims) || [];
-                        allClaims = allClaims.concat(claims);
-                        if (claims.length < PAGE) break;
-                        skip += PAGE;
+                // Fallback: if contract call failed but API worked, use API amount as total
+                if (claimed === 0 && cumulativeAllocation > 0) {
+                    try {
+                        const endpoint = ODOLO_SUBGRAPH_CHAINS['berachain'];
+                        let allClaims = [], skip = 0;
+                        const PAGE = 1000;
+                        while (true) {
+                            const query = `{ liquidityMiningClaims(first: ${PAGE}, skip: ${skip}, where: { user: "${addr}" }) { amount } }`;
+                            const resp = await fetch(endpoint, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ query }),
+                            });
+                            const json = await resp.json();
+                            const claims = (json.data && json.data.liquidityMiningClaims) || [];
+                            allClaims = allClaims.concat(claims);
+                            if (claims.length < PAGE) break;
+                            skip += PAGE;
+                        }
+                        claimed = allClaims.reduce((sum, c) => sum + parseFloat(c.amount || '0'), 0);
+                        unclaimed = cumulativeAllocation - claimed;
+                        if (unclaimed < 0) unclaimed = 0;
+                    } catch (e) {
+                        console.warn('oDOLO subgraph fallback error:', e);
                     }
-                    earn_odoloClaimed = allClaims.reduce((sum, c) => sum + parseFloat(c.amount || '0'), 0);
-                    earn_odoloUnclaimed = cumulativeAllocation - earn_odoloClaimed;
-                    if (earn_odoloUnclaimed < 0) earn_odoloUnclaimed = 0;
-                } catch (e) {
-                    console.warn('oDOLO subgraph fallback error:', e);
                 }
-            }
 
-            console.log(`oDOLO: claimed=${earn_odoloClaimed.toFixed(2)}, unclaimed=${earn_odoloUnclaimed.toFixed(2)}, total=${cumulativeAllocation.toFixed(2)}`);
+                console.log(`oDOLO: claimed=${claimed.toFixed(2)}, unclaimed=${unclaimed.toFixed(2)}, total=${cumulativeAllocation.toFixed(2)}`);
+                return { claimed, unclaimed };
+            }, 30 * 1000);
+
+            earn_odoloClaimed = result && result.claimed ? result.claimed : 0;
+            earn_odoloUnclaimed = result && result.unclaimed ? result.unclaimed : 0;
             return earn_odoloClaimed;
         }
 
@@ -20689,54 +21015,58 @@
         // Fetch iBGT staking rewards (HONEY, WBERA, wiBGT) for a given user
         // Call chain: diBGT Factory → Registry → MetaVault → Staking Vault
         async function earn_fetchIBGTRewards(userAddr) {
-            earn_ibgtRewards = null;
-            try {
-                const addr = userAddr.toLowerCase();
-                const pad = '000000000000000000000000';
+            const addr = userAddr.toLowerCase();
+            const cacheKey = `earn:ibgt:${addr}`;
+            const result = await earn_runTransientFetch(cacheKey, async () => {
+                try {
+                    const pad = '000000000000000000000000';
 
-                // Step 1: Get user's MetaVault from BerachainRewardsRegistry
-                const mvHex = await earn_beraRpcCall(
-                    IBGT_CONTRACTS.REWARDS_REGISTRY,
-                    IBGT_CONTRACTS.SEL_GET_META_VAULT + pad + addr.slice(2)
-                );
-                const metaVault = '0x' + (mvHex || '').slice(26, 66);
-                if (!metaVault || metaVault === '0x' + '0'.repeat(40)) {
-                    console.log('iBGT: No MetaVault for this user');
+                    // Step 1: Get user's MetaVault from BerachainRewardsRegistry
+                    const mvHex = await earn_beraRpcCall(
+                        IBGT_CONTRACTS.REWARDS_REGISTRY,
+                        IBGT_CONTRACTS.SEL_GET_META_VAULT + pad + addr.slice(2)
+                    );
+                    const metaVault = '0x' + (mvHex || '').slice(26, 66);
+                    if (!metaVault || metaVault === '0x' + '0'.repeat(40)) {
+                        console.log('iBGT: No MetaVault for this user');
+                        return null;
+                    }
+
+                    // Step 2: Query staked balance + earned rewards from iBGT Staking Vault
+                    const stVault = IBGT_CONTRACTS.STAKING_VAULT;
+                    const mvAddr = metaVault.slice(2).toLowerCase();
+
+                    const rewardTokens = [
+                        { symbol: 'HONEY', address: IBGT_CONTRACTS.HONEY },
+                        { symbol: 'WBERA', address: IBGT_CONTRACTS.WBERA },
+                        { symbol: 'wiBGT', address: IBGT_CONTRACTS.WIBGT },
+                    ];
+
+                    // Batch all calls in parallel
+                    const [balHex, ...earnedHexes] = await Promise.all([
+                        earn_beraRpcCall(stVault, IBGT_CONTRACTS.SEL_BALANCE_OF + pad + mvAddr),
+                        ...rewardTokens.map(t =>
+                            earn_beraRpcCall(stVault, IBGT_CONTRACTS.SEL_EARNED + pad + mvAddr + pad + t.address.slice(2))
+                        ),
+                    ]);
+
+                    const staked = parseInt(balHex || '0x0', 16) / 1e18;
+                    const rewards = rewardTokens.map((t, i) => ({
+                        symbol: t.symbol,
+                        address: t.address,
+                        amount: parseInt(earnedHexes[i] || '0x0', 16) / 1e18,
+                    })).filter(r => r.amount > 0.000001);
+
+                    const rewardData = { staked, rewards, metaVault };
+                    console.log(`iBGT Rewards: staked=${staked.toFixed(2)}, rewards=`, rewards);
+                    return rewardData;
+                } catch (e) {
+                    console.warn('iBGT rewards fetch error:', e);
                     return null;
                 }
-
-                // Step 2: Query staked balance + earned rewards from iBGT Staking Vault
-                const stVault = IBGT_CONTRACTS.STAKING_VAULT;
-                const mvAddr = metaVault.slice(2).toLowerCase();
-
-                const rewardTokens = [
-                    { symbol: 'HONEY', address: IBGT_CONTRACTS.HONEY },
-                    { symbol: 'WBERA', address: IBGT_CONTRACTS.WBERA },
-                    { symbol: 'wiBGT', address: IBGT_CONTRACTS.WIBGT },
-                ];
-
-                // Batch all calls in parallel
-                const [balHex, ...earnedHexes] = await Promise.all([
-                    earn_beraRpcCall(stVault, IBGT_CONTRACTS.SEL_BALANCE_OF + pad + mvAddr),
-                    ...rewardTokens.map(t =>
-                        earn_beraRpcCall(stVault, IBGT_CONTRACTS.SEL_EARNED + pad + mvAddr + pad + t.address.slice(2))
-                    ),
-                ]);
-
-                const staked = parseInt(balHex || '0x0', 16) / 1e18;
-                const rewards = rewardTokens.map((t, i) => ({
-                    symbol: t.symbol,
-                    address: t.address,
-                    amount: parseInt(earnedHexes[i] || '0x0', 16) / 1e18,
-                })).filter(r => r.amount > 0.000001);
-
-                earn_ibgtRewards = { staked, rewards, metaVault };
-                console.log(`iBGT Rewards: staked=${staked.toFixed(2)}, rewards=`, rewards);
-                return earn_ibgtRewards;
-            } catch (e) {
-                console.warn('iBGT rewards fetch error:', e);
-                return null;
-            }
+            }, 30 * 1000);
+            earn_ibgtRewards = result || null;
+            return earn_ibgtRewards;
         }
 
         // dGMX Staking Rewards (Arbitrum) — GMX protocol staking rewards
@@ -20782,65 +21112,69 @@
         let earn_dgmxRewards = null; // { staked, rewards: [{symbol, amount, address}], vault }
 
         async function earn_fetchDGMXRewards(userAddr) {
-            earn_dgmxRewards = null;
-            try {
-                const addr = userAddr.toLowerCase();
-                const pad = '000000000000000000000000';
-                const SEL_GET_VAULT = '0xb01f61e1'; // getVaultByAccount(address)
-                const SEL_CLAIMABLE = '0x402914f5'; // claimable(address)
-                const SEL_BALANCE = '0x70a08231';   // balanceOf(address)
+            const addr = userAddr.toLowerCase();
+            const cacheKey = `earn:dgmx:${addr}`;
+            const result = await earn_runTransientFetch(cacheKey, async () => {
+                try {
+                    const pad = '000000000000000000000000';
+                    const SEL_GET_VAULT = '0xb01f61e1'; // getVaultByAccount(address)
+                    const SEL_CLAIMABLE = '0x402914f5'; // claimable(address)
+                    const SEL_BALANCE = '0x70a08231';   // balanceOf(address)
 
-                // Step 1: Get user's dfsGLP vault (handles GMX staking)
-                const vaultHex = await earn_arbRpcCall(
-                    DGMX_CONTRACTS.DFSGLP_FACTORY,
-                    SEL_GET_VAULT + pad + addr.slice(2)
-                );
-                const vault = '0x' + (vaultHex || '').slice(26, 66);
-                if (!vault || vault === '0x' + '0'.repeat(40)) {
-                    console.log('dGMX: No dfsGLP vault for this user');
+                    // Step 1: Get user's dfsGLP vault (handles GMX staking)
+                    const vaultHex = await earn_arbRpcCall(
+                        DGMX_CONTRACTS.DFSGLP_FACTORY,
+                        SEL_GET_VAULT + pad + addr.slice(2)
+                    );
+                    const vault = '0x' + (vaultHex || '').slice(26, 66);
+                    if (!vault || vault === '0x' + '0'.repeat(40)) {
+                        console.log('dGMX: No dfsGLP vault for this user');
+                        return null;
+                    }
+
+                    // Step 2: Query staked GMX + all reward sources
+                    const [balHex, gmxRewardHex, ethHex, esgmxHex, bnGmxHex] = await Promise.all([
+                        earn_arbRpcCall(DGMX_CONTRACTS.FEE_GMX_TRACKER, SEL_BALANCE + pad + vault.slice(2)),
+                        earn_arbRpcCall(DGMX_CONTRACTS.SBE_GMX_TRACKER, SEL_CLAIMABLE + pad + vault.slice(2)),  // GMX rewards!
+                        earn_arbRpcCall(DGMX_CONTRACTS.FEE_GMX_TRACKER, SEL_CLAIMABLE + pad + vault.slice(2)),  // ETH fees
+                        earn_arbRpcCall(DGMX_CONTRACTS.STAKED_GMX_TRACKER, SEL_CLAIMABLE + pad + vault.slice(2)), // esGMX
+                        earn_arbRpcCall(DGMX_CONTRACTS.BONUS_GMX_TRACKER, SEL_CLAIMABLE + pad + vault.slice(2)), // bnGMX
+                    ]);
+
+                    const staked = parseInt(balHex || '0x0', 16) / 1e18;
+                    const gmxPending = parseInt(gmxRewardHex || '0x0', 16) / 1e18;
+                    const ethPending = parseInt(ethHex || '0x0', 16) / 1e18;
+                    const esgmxPending = parseInt(esgmxHex || '0x0', 16) / 1e18;
+                    const bnGmxPending = parseInt(bnGmxHex || '0x0', 16) / 1e18;
+
+                    if (staked < 0.01) {
+                        console.log('dGMX: No GMX staked in trackers');
+                        return null;
+                    }
+
+                    const rewards = [];
+                    if (gmxPending > 0.0001) rewards.push({ symbol: 'GMX', amount: gmxPending, address: DGMX_CONTRACTS.GMX_TOKEN });
+                    if (ethPending > 0.000001) rewards.push({ symbol: 'WETH', amount: ethPending, address: DGMX_CONTRACTS.WETH_ARB });
+                    if (esgmxPending > 0.0001) rewards.push({ symbol: 'esGMX', amount: esgmxPending, address: DGMX_CONTRACTS.ESGMX });
+
+                    const totalUsd = rewards.reduce((s, r) => {
+                        const price = r.symbol === 'GMX' ? (earn_priceCache['arbitrum:' + DGMX_CONTRACTS.GMX_TOKEN.toLowerCase()] || 6.2)
+                            : r.symbol === 'WETH' ? (earn_priceCache['arbitrum:' + DGMX_CONTRACTS.WETH_ARB.toLowerCase()] || 2000)
+                            : r.symbol === 'esGMX' ? (earn_priceCache['arbitrum:' + DGMX_CONTRACTS.GMX_TOKEN.toLowerCase()] || 6.2)
+                            : 0;
+                        return s + r.amount * price;
+                    }, 0);
+
+                    const rewardData = { staked, rewards, totalUsd, vault };
+                    console.log(`dGMX Rewards: staked=${staked.toFixed(2)} sbfGMX, GMX=${gmxPending.toFixed(4)}, ETH=${ethPending.toFixed(6)}, esGMX=${esgmxPending.toFixed(4)}, bnGMX=${bnGmxPending.toFixed(4)}, total=$${totalUsd.toFixed(2)}`);
+                    return rewardData;
+                } catch (e) {
+                    console.warn('dGMX rewards fetch error:', e);
                     return null;
                 }
-
-                // Step 2: Query staked GMX + all reward sources
-                const [balHex, gmxRewardHex, ethHex, esgmxHex, bnGmxHex] = await Promise.all([
-                    earn_arbRpcCall(DGMX_CONTRACTS.FEE_GMX_TRACKER, SEL_BALANCE + pad + vault.slice(2)),
-                    earn_arbRpcCall(DGMX_CONTRACTS.SBE_GMX_TRACKER, SEL_CLAIMABLE + pad + vault.slice(2)),  // GMX rewards!
-                    earn_arbRpcCall(DGMX_CONTRACTS.FEE_GMX_TRACKER, SEL_CLAIMABLE + pad + vault.slice(2)),  // ETH fees
-                    earn_arbRpcCall(DGMX_CONTRACTS.STAKED_GMX_TRACKER, SEL_CLAIMABLE + pad + vault.slice(2)), // esGMX
-                    earn_arbRpcCall(DGMX_CONTRACTS.BONUS_GMX_TRACKER, SEL_CLAIMABLE + pad + vault.slice(2)), // bnGMX
-                ]);
-
-                const staked = parseInt(balHex || '0x0', 16) / 1e18;
-                const gmxPending = parseInt(gmxRewardHex || '0x0', 16) / 1e18;
-                const ethPending = parseInt(ethHex || '0x0', 16) / 1e18;
-                const esgmxPending = parseInt(esgmxHex || '0x0', 16) / 1e18;
-                const bnGmxPending = parseInt(bnGmxHex || '0x0', 16) / 1e18;
-
-                if (staked < 0.01) {
-                    console.log('dGMX: No GMX staked in trackers');
-                    return null;
-                }
-
-                const rewards = [];
-                if (gmxPending > 0.0001) rewards.push({ symbol: 'GMX', amount: gmxPending, address: DGMX_CONTRACTS.GMX_TOKEN });
-                if (ethPending > 0.000001) rewards.push({ symbol: 'WETH', amount: ethPending, address: DGMX_CONTRACTS.WETH_ARB });
-                if (esgmxPending > 0.0001) rewards.push({ symbol: 'esGMX', amount: esgmxPending, address: DGMX_CONTRACTS.ESGMX });
-
-                const totalUsd = rewards.reduce((s, r) => {
-                    const price = r.symbol === 'GMX' ? (earn_priceCache['arbitrum:' + DGMX_CONTRACTS.GMX_TOKEN.toLowerCase()] || 6.2)
-                        : r.symbol === 'WETH' ? (earn_priceCache['arbitrum:' + DGMX_CONTRACTS.WETH_ARB.toLowerCase()] || 2000)
-                        : r.symbol === 'esGMX' ? (earn_priceCache['arbitrum:' + DGMX_CONTRACTS.GMX_TOKEN.toLowerCase()] || 6.2)
-                        : 0;
-                    return s + r.amount * price;
-                }, 0);
-
-                earn_dgmxRewards = { staked, rewards, totalUsd, vault };
-                console.log(`dGMX Rewards: staked=${staked.toFixed(2)} sbfGMX, GMX=${gmxPending.toFixed(4)}, ETH=${ethPending.toFixed(6)}, esGMX=${esgmxPending.toFixed(4)}, bnGMX=${bnGmxPending.toFixed(4)}, total=$${totalUsd.toFixed(2)}`);
-                return earn_dgmxRewards;
-            } catch (e) {
-                console.warn('dGMX rewards fetch error:', e);
-                return null;
-            }
+            }, 30 * 1000);
+            earn_dgmxRewards = result || null;
+            return earn_dgmxRewards;
         }
 
         async function earn_rpcRequest(method, params, retries = 3) {
@@ -23677,6 +24011,7 @@
                                 symbol: p.rewardToken?.symbol || '',
                                 tokenAddr: (p.rewardToken?.id || '').toLowerCase(),
                                 claimUrl: p.rewardClaimUrl || '',
+                                merklCampaignId: (p.merklData?.campaignIdentifier || '').toLowerCase(),
                             });
                         }
                     } else if (p.category === 'nativeYield' && p.interestRate) {
@@ -23701,6 +24036,20 @@
                 if (sym) rates['sym:' + sym] = entry;
             });
             return rates;
+        }
+
+        function earn_getMerklCampaignTokenMap(chainId) {
+            const map = {};
+            Object.entries(earn_marketRates || {}).forEach(([key, entry]) => {
+                if (!key.startsWith(chainId + ':') || !entry || !Array.isArray(entry.rewardParts)) return;
+                const marketTokenAddr = (key.slice(chainId.length + 1) || '').toLowerCase();
+                if (!marketTokenAddr) return;
+                entry.rewardParts.forEach(part => {
+                    const campaignId = (part && part.merklCampaignId ? part.merklCampaignId : '').toLowerCase();
+                    if (campaignId) map[campaignId] = marketTokenAddr;
+                });
+            });
+            return map;
         }
 
         async function earn_fetchMarketRates(chainId) {
@@ -23933,16 +24282,23 @@
 
         async function earn_fetchSnapshot(dateStr) {
             if (earn_snapshotCache[dateStr]) return earn_snapshotCache[dateStr];
-            try {
-                const resp = await fetch(`${SNAPSHOT_BASE}/${dateStr}.json`);
-                if (!resp.ok) return null;
-                const data = await resp.json();
-                earn_snapshotCache[dateStr] = data;
-                return data;
-            } catch (e) {
-                console.warn('Snapshot fetch failed for', dateStr, e);
-                return null;
-            }
+            if (earn_snapshotPromiseCache[dateStr]) return earn_snapshotPromiseCache[dateStr];
+            const promise = (async () => {
+                try {
+                    const resp = await fetch(`${SNAPSHOT_BASE}/${dateStr}.json`);
+                    if (!resp.ok) return null;
+                    const data = await resp.json();
+                    earn_snapshotCache[dateStr] = data;
+                    return data;
+                } catch (e) {
+                    console.warn('Snapshot fetch failed for', dateStr, e);
+                    return null;
+                } finally {
+                    delete earn_snapshotPromiseCache[dateStr];
+                }
+            })();
+            earn_snapshotPromiseCache[dateStr] = promise;
+            return promise;
         }
 
         async function earn_fetchVerifiedLedgerForAddress(chainId, address) {
@@ -23952,24 +24308,31 @@
             if (Object.prototype.hasOwnProperty.call(earn_verifiedLedgerCache, cacheKey)) {
                 return earn_verifiedLedgerCache[cacheKey];
             }
-            try {
-                const resp = await fetch(`${VERIFIED_LEDGER_BASE}/${chainId}/${addr}.json`);
-                if (!resp.ok) {
+            if (earn_verifiedLedgerPromiseCache[cacheKey]) return earn_verifiedLedgerPromiseCache[cacheKey];
+            const promise = (async () => {
+                try {
+                    const resp = await fetch(`${VERIFIED_LEDGER_BASE}/${chainId}/${addr}.json`);
+                    if (!resp.ok) {
+                        earn_verifiedLedgerCache[cacheKey] = null;
+                        return null;
+                    }
+                    const data = await resp.json();
+                    if (!data || typeof data !== 'object' || !data.markets || typeof data.markets !== 'object') {
+                        earn_verifiedLedgerCache[cacheKey] = null;
+                        return null;
+                    }
+                    earn_verifiedLedgerCache[cacheKey] = data;
+                    return data;
+                } catch (e) {
+                    console.warn('Verified ledger fetch failed:', e.message || e);
                     earn_verifiedLedgerCache[cacheKey] = null;
                     return null;
+                } finally {
+                    delete earn_verifiedLedgerPromiseCache[cacheKey];
                 }
-                const data = await resp.json();
-                if (!data || typeof data !== 'object' || !data.markets || typeof data.markets !== 'object') {
-                    earn_verifiedLedgerCache[cacheKey] = null;
-                    return null;
-                }
-                earn_verifiedLedgerCache[cacheKey] = data;
-                return data;
-            } catch (e) {
-                console.warn('Verified ledger fetch failed:', e.message || e);
-                earn_verifiedLedgerCache[cacheKey] = null;
-                return null;
-            }
+            })();
+            earn_verifiedLedgerPromiseCache[cacheKey] = promise;
+            return promise;
         }
 
         // Get historical market data for a specific address from a snapshot
@@ -24112,7 +24475,7 @@
         }
 
         // === External Rewards: MERKL WLFI + oDOLO per-position ===
-        let earn_merklRewards = {}; // { symbol: { accumulated, unclaimed, token } }
+        let earn_merklRewards = {}; // { symbol: { accumulated, unclaimed, token, perToken, perAccountToken, assignedPerToken } }
         let earn_odoloMeta = null;  // { allChainWeights, currentEpochRewards, ... }
 
         // Fetch MERKL rewards (exact WLFI earned) for a wallet on a specific chain
@@ -24120,49 +24483,87 @@
             const CHAIN_IDS = { ethereum: 1, berachain: 80094, arbitrum: 42161, mantle: 5000 };
             const numericId = CHAIN_IDS[chainId];
             if (!numericId) return {};
-            try {
-                const url = `https://api.merkl.xyz/v3/rewards?chainIds=${numericId}&user=${userAddr.toLowerCase()}`;
-                const resp = await fetch(url);
-                if (!resp.ok) return {};
-                const data = await resp.json();
-                const chainData = data[String(numericId)];
-                if (!chainData) return {};
-                // Extract Dolomite-specific rewards from campaignData
-                const dolomiteRewards = {};
-                for (const [, reasons] of Object.entries(chainData.campaignData || {})) {
-                    for (const [reasonKey, reward] of Object.entries(reasons)) {
-                        if (!reasonKey.startsWith('Dolomite_')) continue;
-                        const sym = reward.symbol;
-                        const dec = reward.decimals || 18;
-                        const tokenAddr = (reasonKey.replace('Dolomite_', '') || '').toLowerCase();
-                        if (!dolomiteRewards[sym]) dolomiteRewards[sym] = { accumulated: 0, unclaimed: 0, decimals: dec, token: reward.token, perToken: {} };
-                        const amt = parseFloat(reward.accumulated || '0') / Math.pow(10, dec);
-                        const uncl = parseFloat(reward.unclaimed || '0') / Math.pow(10, dec);
-                        dolomiteRewards[sym].accumulated += amt;
-                        dolomiteRewards[sym].unclaimed += uncl;
-                        // Track per collateral token for per-position attribution
-                        if (!dolomiteRewards[sym].perToken[tokenAddr]) dolomiteRewards[sym].perToken[tokenAddr] = 0;
-                        dolomiteRewards[sym].perToken[tokenAddr] += amt;
+            const campaignTokenMap = earn_getMerklCampaignTokenMap(chainId);
+            const hasCampaignMap = Object.keys(campaignTokenMap).length > 0;
+            return earn_runTransientFetch(`earn:merkl:${chainId}:${userAddr.toLowerCase()}:${hasCampaignMap ? 'mapped' : 'unmapped'}`, async () => {
+                try {
+                    const url = `https://api.merkl.xyz/v3/rewards?chainIds=${numericId}&user=${userAddr.toLowerCase()}`;
+                    const resp = await fetch(url);
+                    if (!resp.ok) return {};
+                    const data = await resp.json();
+                    const chainData = data[String(numericId)];
+                    if (!chainData) return {};
+                    // Extract Dolomite-specific rewards from campaignData
+                    const dolomiteRewards = {};
+                    const unresolvedSymbols = new Set();
+                    for (const [, reasons] of Object.entries(chainData.campaignData || {})) {
+                        for (const [reasonKey, reward] of Object.entries(reasons)) {
+                            let tokenAddr = '';
+                            let accountNumber = '';
+                            if (reasonKey.startsWith('Dolomite_')) {
+                                tokenAddr = (reasonKey.replace('Dolomite_', '') || '').toLowerCase();
+                            } else if (reasonKey.startsWith('MultiLogPerAdditionalParam_')) {
+                                const campaignId = (reward && reward.mainParameter ? String(reward.mainParameter) : '').toLowerCase().replace(/^0x/, '');
+                                tokenAddr = campaignId ? (campaignTokenMap[campaignId] || '') : '';
+                                const accountMatch = reasonKey.match(/^MultiLogPerAdditionalParam_accountNumber_([^_]+)_/);
+                                accountNumber = accountMatch ? String(accountMatch[1]) : '';
+                            } else {
+                                continue;
+                            }
+                            const sym = reward.symbol;
+                            const dec = reward.decimals || 18;
+                            if (!tokenAddr) {
+                                if (sym) unresolvedSymbols.add(sym);
+                                continue;
+                            }
+                            if (!dolomiteRewards[sym]) dolomiteRewards[sym] = { accumulated: 0, unclaimed: 0, decimals: dec, token: reward.token, perToken: {}, perAccountToken: {}, assignedPerToken: {} };
+                            const amt = parseFloat(reward.accumulated || '0') / Math.pow(10, dec);
+                            const uncl = parseFloat(reward.unclaimed || '0') / Math.pow(10, dec);
+                            dolomiteRewards[sym].accumulated += amt;
+                            dolomiteRewards[sym].unclaimed += uncl;
+                            // Track per collateral token for per-position attribution
+                            if (!dolomiteRewards[sym].perToken[tokenAddr]) dolomiteRewards[sym].perToken[tokenAddr] = 0;
+                            dolomiteRewards[sym].perToken[tokenAddr] += amt;
+                            if (accountNumber) {
+                                if (!dolomiteRewards[sym].perAccountToken[accountNumber]) dolomiteRewards[sym].perAccountToken[accountNumber] = {};
+                                if (!dolomiteRewards[sym].perAccountToken[accountNumber][tokenAddr]) dolomiteRewards[sym].perAccountToken[accountNumber][tokenAddr] = 0;
+                                dolomiteRewards[sym].perAccountToken[accountNumber][tokenAddr] += amt;
+                                if (!dolomiteRewards[sym].assignedPerToken[tokenAddr]) dolomiteRewards[sym].assignedPerToken[tokenAddr] = 0;
+                                dolomiteRewards[sym].assignedPerToken[tokenAddr] += amt;
+                            }
+                        }
                     }
+                    for (const [, tokenData] of Object.entries(chainData.tokenData || {})) {
+                        const sym = tokenData && tokenData.symbol ? tokenData.symbol : '';
+                        if (!sym || !unresolvedSymbols.has(sym)) continue;
+                        const dec = tokenData.decimals || 18;
+                        const totalAmt = parseFloat(tokenData.accumulated || '0') / Math.pow(10, dec);
+                        const totalUncl = parseFloat(tokenData.unclaimed || '0') / Math.pow(10, dec);
+                        if (!dolomiteRewards[sym]) dolomiteRewards[sym] = { accumulated: 0, unclaimed: 0, decimals: dec, token: tokenData.token, perToken: {}, perAccountToken: {}, assignedPerToken: {} };
+                        dolomiteRewards[sym].accumulated = Math.max(dolomiteRewards[sym].accumulated || 0, totalAmt);
+                        dolomiteRewards[sym].unclaimed = Math.max(dolomiteRewards[sym].unclaimed || 0, totalUncl);
+                    }
+                    return dolomiteRewards;
+                } catch (e) {
+                    console.warn('MERKL rewards fetch failed:', e);
+                    return {};
                 }
-                return dolomiteRewards;
-            } catch (e) {
-                console.warn('MERKL rewards fetch failed:', e);
-                return {};
-            }
+            }, 30 * 1000);
         }
 
         // Fetch oDOLO metadata (per-token weekly allocation)
         async function earn_fetchOdoloMetadata() {
-            try {
-                const resp = await fetch('https://api.dolomite.io/liquidity-mining/odolo/metadata');
-                if (!resp.ok) return null;
-                const data = await resp.json();
-                return data.metadata || null;
-            } catch (e) {
-                console.warn('oDOLO metadata fetch failed:', e);
-                return null;
-            }
+            return earn_runTransientFetch('earn:odolo-metadata', async () => {
+                try {
+                    const resp = await fetch('https://api.dolomite.io/liquidity-mining/odolo/metadata');
+                    if (!resp.ok) return null;
+                    const data = await resp.json();
+                    return data.metadata || null;
+                } catch (e) {
+                    console.warn('oDOLO metadata fetch failed:', e);
+                    return null;
+                }
+            }, 5 * 60 * 1000);
         }
 
         // === Dolomite Subgraph endpoints (free, via Goldsky) ===
@@ -25608,7 +26009,7 @@
                             <div class="spinner" style="display:inline-block;width:24px;height:24px;border:2px solid rgba(255,255,255,0.1);border-top-color:#34d399;border-radius:50%;animation:earnSpin 0.8s linear infinite"></div>
                             <span>${earn_escapeHtml(message || 'Loading verified Earn data...')}</span>
                         </div>
-                        <div class="earn-loading-copy">Fetching balances, replay history, total yield, and pricing before the first render.</div>
+                        <div class="earn-loading-copy">Fetching balances first; replay history, total yield, and pricing continue filling in the view.</div>
                         <div class="earn-loading-rows">${earn_buildLookupSkeletonRows(6)}</div>
                     </div>
                 </td></tr>`;
@@ -25778,6 +26179,8 @@
                 return;
             }
 
+            const lookupRunId = earn_beginLookupRun();
+
             const cachedLookup = earn_loadLookupCache(chainId, addr);
             const lookupProfile = earn_createLookupProfiler(chainId, addr, !!cachedLookup);
             earn_hideAll();
@@ -25799,6 +26202,14 @@
             earn_replayVerificationData = {};
             earn_replayVerificationSummary = { total: 0, verified: 0, mismatch: 0, unverified: 0 };
             earn_replayVerificationReady = false;
+            earn_odoloClaimed = 0;
+            earn_odoloUnclaimed = 0;
+            earn_merklRewards = {};
+            earn_ibgtRewards = null;
+            earn_dgmxRewards = null;
+            earn_lendingPositions = [];
+            const lendingSection = document.getElementById('earn-lending-section');
+            if (lendingSection) lendingSection.style.display = 'none';
             earn_lookupLoading = false;
             earn_lookupUsingCachedSnapshot = false;
             if (cachedLookup) {
@@ -25905,7 +26316,7 @@
                         earn_logLookupProfile(lookupProfile, 'firstRenderReady');
 
                         // Also fetch lending positions
-                        const lendingPromise = earn_fetchAndRenderLendingPositions()
+                        const lendingPromise = earn_fetchAndRenderLendingPositions({ runId: lookupRunId, address: addr, chainId })
                             .then(result => {
                                 earn_markLookupProfile(lookupProfile, 'lending');
                                 return result;
@@ -25920,16 +26331,20 @@
 
                         // Also auto-load history for withdrawn assets
                         earn_lookupHistory().then(() => {
+                            if (!earn_isLookupContextCurrent(lookupRunId, addr, chainId)) return;
                             earn_markLookupProfile(lookupProfile, 'history');
                             if (earn_cachedAssets) earn_renderResults(earn_cachedAssets, { skipSummary: false });
                             return Promise.allSettled([lendingPromise]).then(() => {
+                                if (!earn_isLookupContextCurrent(lookupRunId, addr, chainId)) return;
                                 earn_markLookupProfile(lookupProfile, 'complete');
                                 earn_logLookupProfile(lookupProfile, 'complete');
                                 earn_saveLookupCache(chainId, addr);
                             });
                         }).catch(e => {
+                            if (!earn_isLookupContextCurrent(lookupRunId, addr, chainId)) return;
                             console.warn('History load:', e);
                             return Promise.allSettled([lendingPromise]).then(() => {
+                                if (!earn_isLookupContextCurrent(lookupRunId, addr, chainId)) return;
                                 earn_markLookupProfile(lookupProfile, 'complete');
                                 earn_logLookupProfile(lookupProfile, 'complete');
                                 earn_saveLookupCache(chainId, addr);
@@ -26051,7 +26466,8 @@
                                             rewardParts.push({
                                                 label: p.label, apr: yr, symbol: p.rewardToken?.symbol || '',
                                                 tokenAddr: (p.rewardToken?.id || '').toLowerCase(),
-                                                claimUrl: p.rewardClaimUrl || ''
+                                                claimUrl: p.rewardClaimUrl || '',
+                                                merklCampaignId: (p.merklData?.campaignIdentifier || '').toLowerCase()
                                             });
                                         }
                                     } else if (p.category === 'nativeYield' && p.interestRate) {
@@ -26151,31 +26567,6 @@
                     };
                 });
 
-                earn_cachedAssets = enriched;
-                const totalYieldPromise = earn_fetchTotalYield({ suppressRender: true })
-                    .then(result => {
-                        earn_markLookupProfile(lookupProfile, 'totalYield');
-                        return result;
-                    })
-                    .catch(e => {
-                        earn_markLookupProfile(lookupProfile, 'totalYield');
-                        console.warn('Total yield load:', e);
-                    });
-
-
-                // Await prices so yield data is visible on first render
-                await pricesPromise;
-
-                // Re-compute USD values with CoinGecko real prices
-                enriched.forEach(a => {
-                    const cgKey = chainId + ':' + a.tokenAddr.toLowerCase();
-                    const realPrice = earn_priceCache[cgKey];
-                    if (realPrice) {
-                        const humanAmt = Number(a.wei) / Math.pow(10, a.decimals);
-                        a.usdValue = Math.abs(humanAmt * realPrice);
-                    }
-                });
-
                 if (earn_collateralPositionData.length > 0) {
                     for (const cp of earn_collateralPositionData) {
                         const cgKey = chainId + ':' + cp.tokenAddr.toLowerCase();
@@ -26205,16 +26596,35 @@
                     console.log(`Injected ${earn_borrowPositionData.length} borrow positions into enriched assets`);
                 }
 
-                // Update cached assets with borrows included
-                earn_cachedAssets = enriched;
+                const sortEnrichedAssets = () => {
+                    enriched.sort((a, b) => {
+                        const rankA = a.isBorrow ? 2 : a.isCollateral ? 1 : 0;
+                        const rankB = b.isBorrow ? 2 : b.isCollateral ? 1 : 0;
+                        if (rankA !== rankB) return rankA - rankB;
+                        return b.usdValue - a.usdValue;
+                    });
+                };
 
-                // Sort: supply positions first by USD descending, then borrow positions by USD descending
-                enriched.sort((a, b) => {
-                    const rankA = a.isBorrow ? 2 : a.isCollateral ? 1 : 0;
-                    const rankB = b.isBorrow ? 2 : b.isCollateral ? 1 : 0;
-                    if (rankA !== rankB) return rankA - rankB;
-                    return b.usdValue - a.usdValue;
-                });
+                earn_cachedAssets = enriched;
+                sortEnrichedAssets();
+                const totalYieldPromise = earn_fetchTotalYield({ suppressRender: true })
+                    .then(result => {
+                        earn_markLookupProfile(lookupProfile, 'totalYield');
+                        return result;
+                    })
+                    .catch(e => {
+                        earn_markLookupProfile(lookupProfile, 'totalYield');
+                        console.warn('Total yield load:', e);
+                    });
+
+                if (!cachedLookup) {
+                    earn_lookupLoading = false;
+                    earn_lookupUsingCachedSnapshot = false;
+                    earn_setResultsRefreshing(false);
+                    earn_markLookupProfile(lookupProfile, 'firstRenderReady');
+                    earn_renderResults(enriched, { skipSummary: false });
+                    earn_logLookupProfile(lookupProfile, 'firstRenderReady');
+                }
 
                 // Batch background data (APY + history + total yield) → single re-render
                 Promise.allSettled([
@@ -26227,12 +26637,29 @@
                         return true;
                     }),
                 ]).then(() => {
+                    if (!earn_isLookupContextCurrent(lookupRunId, addr, chainId)) return;
+                    // Re-compute USD values with CoinGecko real prices once pricing settles
+                    enriched.forEach(a => {
+                        const cgKey = chainId + ':' + a.tokenAddr.toLowerCase();
+                        const realPrice = earn_priceCache[cgKey];
+                        if (realPrice) {
+                            const humanAmt = Number(a.wei) / Math.pow(10, a.decimals);
+                            a.usdValue = Math.abs(humanAmt * realPrice);
+                        }
+                    });
+                    sortEnrichedAssets();
+                    earn_cachedAssets = enriched;
                     earn_lookupLoading = false;
                     earn_lookupUsingCachedSnapshot = false;
-                    earn_markLookupProfile(lookupProfile, 'firstRenderReady');
+                    earn_setResultsRefreshing(false);
+                    if (cachedLookup) {
+                        earn_markLookupProfile(lookupProfile, 'firstRenderReady');
+                    }
                     earn_renderResults(enriched, { skipSummary: false });
-                    earn_logLookupProfile(lookupProfile, 'firstRenderReady');
-                    const lendingPromise = earn_fetchAndRenderLendingPositions()
+                    if (cachedLookup) {
+                        earn_logLookupProfile(lookupProfile, 'firstRenderReady');
+                    }
+                    const lendingPromise = earn_fetchAndRenderLendingPositions({ runId: lookupRunId, address: addr, chainId })
                         .then(result => {
                             earn_markLookupProfile(lookupProfile, 'lending');
                             return result;
@@ -26243,19 +26670,23 @@
 
                     earn_lookupHistory()
                         .then(() => {
+                            if (!earn_isLookupContextCurrent(lookupRunId, addr, chainId)) return;
                             earn_markLookupProfile(lookupProfile, 'history');
                             if (earn_cachedAssets) {
                                 earn_renderResults(earn_cachedAssets, { skipSummary: false });
                             }
                             return Promise.allSettled([lendingPromise]).then(() => {
+                                if (!earn_isLookupContextCurrent(lookupRunId, addr, chainId)) return;
                                 earn_markLookupProfile(lookupProfile, 'complete');
                                 earn_logLookupProfile(lookupProfile, 'complete');
                                 earn_saveLookupCache(chainId, addr);
                             });
                         })
                         .catch(e => {
+                            if (!earn_isLookupContextCurrent(lookupRunId, addr, chainId)) return;
                             console.warn('History load:', e);
                             return Promise.allSettled([lendingPromise]).then(() => {
+                                if (!earn_isLookupContextCurrent(lookupRunId, addr, chainId)) return;
                                 earn_markLookupProfile(lookupProfile, 'complete');
                                 earn_logLookupProfile(lookupProfile, 'complete');
                                 earn_saveLookupCache(chainId, addr);
@@ -26264,11 +26695,14 @@
                 });
             } catch (e) {
                 console.error('EARN lookup error:', e, e.stack);
-                earn_showError('Failed to fetch data from RPC. Please try again.');
-                earn_logLookupProfile(lookupProfile, 'failed');
-            } finally {
-                btn.classList.remove('loading');
-                btn.disabled = false;
+                    if (!earn_isLookupContextCurrent(lookupRunId, addr, chainId)) return;
+                    earn_showError('Failed to fetch data from RPC. Please try again.');
+                    earn_logLookupProfile(lookupProfile, 'failed');
+                } finally {
+                if (earn_isLookupContextCurrent(lookupRunId, addr, chainId)) {
+                    btn.classList.remove('loading');
+                    btn.disabled = false;
+                }
             }
         }
 
@@ -26447,14 +26881,19 @@
             }).join('');
         }
 
-        async function earn_fetchAndRenderLendingPositions() {
+        async function earn_fetchAndRenderLendingPositions(opts) {
+            opts = opts || {};
             const section = document.getElementById('earn-lending-section');
             const tbody = document.getElementById('earn-lending-tbody');
             const countEl = document.getElementById('earn-lending-count');
             if (!section || !tbody) return;
 
-            const addr = document.getElementById('earn-address').value.trim().toLowerCase();
-            const chainName = earn_getChain().name.toLowerCase();
+            const runId = opts.runId || earn_activeLookupRunId;
+            const chainId = String(opts.chainId || document.getElementById('earn-chain').value || '').trim().toLowerCase();
+            const addr = String(opts.address || document.getElementById('earn-address').value || '').trim().toLowerCase();
+            if (!addr || !earn_isLookupContextCurrent(runId, addr, chainId)) return;
+            const chainMeta = EARN_CHAINS[chainId] || earn_getChain();
+            const chainName = String(chainMeta.name || '').toLowerCase();
 
             // Map chain name to chain key used in liquidation_risk.json
             const chainKeyMap = {
@@ -26466,7 +26905,6 @@
                 'x layer': 'xlayer',
             };
             const chainKey = chainKeyMap[chainName] || chainName;
-            const chainId = document.getElementById('earn-chain').value;
             const sgEndpoint = SUBGRAPH_ENDPOINTS[chainId];
 
             try {
@@ -26492,6 +26930,7 @@
                 ]) : Promise.resolve(null);
 
                 const data = await liqRiskPromise;
+                if (!earn_isLookupContextCurrent(runId, addr, chainId)) return;
                 if (!data) { section.style.display = 'none'; return; }
                 const positions = (data.positions || []).filter(p =>
                     p.address.toLowerCase() === addr && p.chain.toLowerCase() === chainKey
@@ -26509,10 +26948,12 @@
 
                 // ═══ ENRICH with subgraph data (par values + interest indexes) ═══
                 const sgResult = await sgPromise;
+                if (!earn_isLookupContextCurrent(runId, addr, chainId)) return;
                 // Await external rewards data
                 earn_merklRewards = await merklPromise;
                 earn_odoloMeta = await odoloMetaPromise;
                 await Promise.allSettled(rewardFetches); // ensure iBGT/dGMX data is populated
+                if (!earn_isLookupContextCurrent(runId, addr, chainId)) return;
 
                 if (sgResult) {
                     const [bpData, ixData, marketData] = sgResult;
@@ -26544,6 +26985,9 @@
                             if (accNum) bpByAccount[accNum] = bp;
                         });
 
+                        const collateralActualByAccount = {};
+                        const collateralActualByToken = {};
+
                         // Prepare oDOLO per-token weekly allocation for this chain
                         const DOLO_CHAIN_IDS_REV = { ethereum: '1', berachain: '80094', arbitrum: '42161', mantle: '5000' };
                         const odoloChainKey = DOLO_CHAIN_IDS_REV[chainId] || '';
@@ -26559,6 +27003,29 @@
                         ]);
                         const isOdoloBlacklisted = ODOLO_BLACKLIST.has(addr.toLowerCase());
 
+                        Object.entries(bpByAccount).forEach(([accountNumber, bp]) => {
+                            (bp.amounts || []).forEach(amt => {
+                                const par = parseFloat(amt.amountPar || '0');
+                                if (!(par > 0)) return;
+                                const tokenAddr = (amt.token.id || '').toLowerCase();
+                                if (!tokenAddr) return;
+                                const idx = indexMap[tokenAddr] || { supplyIdx: 1, borrowIdx: 1 };
+                                const actualTokens = par * idx.supplyIdx;
+                                if (!(actualTokens > 0)) return;
+                                if (!collateralActualByAccount[accountNumber]) collateralActualByAccount[accountNumber] = {};
+                                collateralActualByAccount[accountNumber][tokenAddr] = (collateralActualByAccount[accountNumber][tokenAddr] || 0) + actualTokens;
+                                collateralActualByToken[tokenAddr] = (collateralActualByToken[tokenAddr] || 0) + actualTokens;
+                            });
+                        });
+
+                        const allocateTokenRewardToPosition = (accountNumber, tokenAddr, totalRewardAmount) => {
+                            const accountExposure = collateralActualByAccount[String(accountNumber)] || {};
+                            const accountActual = accountExposure[tokenAddr] || 0;
+                            const totalActual = collateralActualByToken[tokenAddr] || 0;
+                            if (!(accountActual > 0) || !(totalActual > 0) || !(totalRewardAmount > 0)) return 0;
+                            return totalRewardAmount * (accountActual / totalActual);
+                        };
+
                         // Enrich each position with accrued interest data
                         for (const p of positions) {
                             const bp = bpByAccount[p.accountNumber];
@@ -26568,6 +27035,7 @@
                             p.accruedCollateral = []; // { symbol, accruedTokens, accruedUSD }
                             p.accruedDebt = [];       // { symbol, accruedTokens, accruedUSD }
                             p.externalRewards = [];   // { symbol, amount, usd, apr, claimUrl, source }
+                            const seenRewardTokens = new Set();
 
                             for (const amt of (bp.amounts || [])) {
                                 const par = parseFloat(amt.amountPar || '0');
@@ -26592,11 +27060,15 @@
                                         tokenAddr: tokenAddr,
                                     });
 
+                                    const shouldAllocateTokenRewards = !seenRewardTokens.has(tokenAddr);
+                                    if (shouldAllocateTokenRewards) seenRewardTokens.add(tokenAddr);
+
                                     // === oDOLO reward calc for this collateral token ===
-                                    const weeklyOdolo = parseFloat(odoloWeights[tokenAddr] || '0');
+                                    const weeklyOdolo = shouldAllocateTokenRewards ? parseFloat(odoloWeights[tokenAddr] || '0') : 0;
                                     if (weeklyOdolo > 0 && totalSupplyByToken[tokenAddr] && price > 0 && !isOdoloBlacklisted) {
+                                        const positionActualTokens = ((collateralActualByAccount[String(p.accountNumber)] || {})[tokenAddr]) || actualTokens;
                                         const totalSupply = totalSupplyByToken[tokenAddr];
-                                        const userShare = actualTokens / totalSupply;
+                                        const userShare = positionActualTokens / totalSupply;
                                         const openTs = p.openTimestamp || 0;
                                         // Clamp to oDOLO program start
                                         const effectiveStart = Math.max(openTs, odoloEpochStart);
@@ -26611,14 +27083,22 @@
                                                 apr: rateEntry ? rateEntry.rewards : 0,
                                                 claimUrl: 'https://app.dolomite.io/rewards',
                                                 source: 'dolomite',
+                                                estimated: true,
                                                 icon: 'odolo-logo-official.svg',
                                             });
                                         }
                                     }
 
                                     // === MERKL WLFI reward — exact per-token from API ===
-                                    for (const [merklSym, merklData] of Object.entries(earn_merklRewards)) {
-                                        const perTokenAmt = merklData.perToken ? merklData.perToken[tokenAddr] : 0;
+                                    for (const [merklSym, merklData] of (shouldAllocateTokenRewards ? Object.entries(earn_merklRewards) : [])) {
+                                        const totalPerTokenAmt = merklData.perToken ? merklData.perToken[tokenAddr] : 0;
+                                        const exactPerAccountAmt = merklData.perAccountToken
+                                            && merklData.perAccountToken[String(p.accountNumber)]
+                                            ? (merklData.perAccountToken[String(p.accountNumber)][tokenAddr] || 0)
+                                            : 0;
+                                        const assignedPerTokenAmt = merklData.assignedPerToken ? (merklData.assignedPerToken[tokenAddr] || 0) : 0;
+                                        const unattributedPerTokenAmt = Math.max(0, totalPerTokenAmt - assignedPerTokenAmt);
+                                        const perTokenAmt = exactPerAccountAmt + allocateTokenRewardToPosition(p.accountNumber, tokenAddr, unattributedPerTokenAmt);
                                         if (perTokenAmt > 0.01) {
                                             const merklPrice = merklSym === 'WLFI' ? WLFI_PRICE : 0;
                                             const rateEntry = earn_marketRates[chainId + ':' + tokenAddr] || earn_marketRates['sym:' + symbol.toUpperCase()];
@@ -26693,7 +27173,8 @@
                             // Compute totals (including external rewards)
                             p.totalAccruedYield = p.accruedCollateral.reduce((s, c) => s + c.accruedUSD, 0);
                             p.totalAccruedCost = p.accruedDebt.reduce((s, c) => s + c.accruedUSD, 0);
-                            p.totalExternalRewardsUSD = p.externalRewards.reduce((s, r) => s + r.usd, 0);
+                            p.totalExternalRewardsUSD = p.externalRewards.filter(r => !r.estimated).reduce((s, r) => s + r.usd, 0);
+                            p.totalEstimatedRewardsUSD = p.externalRewards.filter(r => r.estimated).reduce((s, r) => s + r.usd, 0);
                             p.netAccrued = p.totalAccruedYield + p.totalExternalRewardsUSD - p.totalAccruedCost;
                         }
 
@@ -26828,10 +27309,13 @@
                         const iconHtml = r.icon ? `<img src="${r.icon}" alt="${r.symbol}" onerror="this.style.display='none'">` : '';
                         const claimHtml = r.claimUrl ? `<a href="${r.claimUrl}" target="_blank" class="earn-reward-claim-link" onclick="event.stopPropagation()">Claim ↗</a>` : '';
                         const aprHtml = r.apr > 0 ? `<span class="earn-lend-token-annual" style="color:rgba(251,191,36,0.6)">${r.apr.toFixed(2)}% APR</span>` : '';
-                        return `<div class="earn-lend-token-row"><span class="earn-lend-token-left">${iconHtml}${r.symbol}${claimHtml}</span><span><span class="earn-lend-token-apr rewards">+${r.amount >= 1000 ? (r.amount / 1000).toFixed(2) + 'K' : r.amount.toFixed(2)}</span><span class="earn-lend-token-annual" style="color:rgba(251,191,36,0.5)"> ~${earn_formatUSD(r.usd)}</span>${aprHtml}</span></div>`;
+                        const amountPrefix = r.estimated ? '~' : '+';
+                        const usdPrefix = r.estimated ? ' est. ' : ' ~';
+                        return `<div class="earn-lend-token-row"><span class="earn-lend-token-left">${iconHtml}${r.symbol}${claimHtml}</span><span><span class="earn-lend-token-apr rewards">${amountPrefix}${r.amount >= 1000 ? (r.amount / 1000).toFixed(2) + 'K' : r.amount.toFixed(2)}</span><span class="earn-lend-token-annual" style="color:rgba(251,191,36,0.5)">${usdPrefix}${earn_formatUSD(r.usd)}</span>${aprHtml}</span></div>`;
                     }).join('')}
                                     <div style="border-top:1px solid rgba(251,191,36,0.08);margin-top:6px;padding-top:4px">
-                                        <div class="earn-lend-token-row"><span class="earn-lend-token-left" style="color:rgba(251,191,36,0.7);font-weight:600">Total Rewards</span><span class="earn-lend-token-apr rewards">+${earn_formatUSD(p.totalExternalRewardsUSD)}</span></div>
+                                        ${(p.totalExternalRewardsUSD > 0.01 || p.totalEstimatedRewardsUSD <= 0.01) ? `<div class="earn-lend-token-row"><span class="earn-lend-token-left" style="color:rgba(251,191,36,0.7);font-weight:600">${p.totalEstimatedRewardsUSD > 0.01 ? 'Exact Rewards' : 'Total Rewards'}</span><span class="earn-lend-token-apr rewards">+${earn_formatUSD(p.totalExternalRewardsUSD)}</span></div>` : ''}
+                                        ${p.totalEstimatedRewardsUSD > 0.01 ? `<div class="earn-lend-token-row"><span class="earn-lend-token-left" style="color:rgba(251,191,36,0.45);font-weight:600">Est. Rewards</span><span class="earn-lend-token-apr rewards">~${earn_formatUSD(p.totalEstimatedRewardsUSD)}</span></div>` : ''}
                                     </div>
                                 </div>` : ''}
                                 <div class="earn-lend-section">
@@ -26850,7 +27334,7 @@
                                     ${(p.netAccrued !== undefined) ? `
                                         <div class="earn-lend-section-title net">Accrued P&L</div>
                                         <div class="earn-lend-net-value ${p.netAccrued >= 0 ? 'positive' : 'negative'}">${p.netAccrued >= 0 ? '+' : '-'}${earn_formatUSD(Math.abs(p.netAccrued))}<span style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.4)"> total</span></div>
-                                        <div class="earn-lend-net-sub">Collateral ${earn_formatUSD(p.totalAccruedYield || 0)}${p.totalExternalRewardsUSD > 0.01 ? ' + <span style="color:#fbbf24">Rewards ' + earn_formatUSD(p.totalExternalRewardsUSD) + '</span>' : ''} − Borrow ${earn_formatUSD(p.totalAccruedCost || 0)}</div>
+                                        <div class="earn-lend-net-sub">Collateral ${earn_formatUSD(p.totalAccruedYield || 0)}${p.totalExternalRewardsUSD > 0.01 ? ' + <span style="color:#fbbf24">Rewards ' + earn_formatUSD(p.totalExternalRewardsUSD) + '</span>' : ''} − Borrow ${earn_formatUSD(p.totalAccruedCost || 0)}${p.totalEstimatedRewardsUSD > 0.01 ? ' · <span style="color:rgba(251,191,36,0.55)">Est. oDOLO ' + earn_formatUSD(p.totalEstimatedRewardsUSD) + ' not included</span>' : ''}</div>
                                         ${p.openTimestamp ? `<div class="earn-lend-net-sub" style="margin-top:4px">Opened ${earn_formatAge(p.openTimestamp)}</div>` : ''}
                                         <div style="border-top:1px solid rgba(255,255,255,0.05);margin-top:8px;padding-top:6px">
                                             <div class="earn-lend-net-sub" style="margin-bottom:2px">Est. annual at current rates:</div>
@@ -27229,10 +27713,13 @@
                     const iconHtml = r.icon ? `<img src="${r.icon}" alt="${r.symbol}" onerror="this.style.display='none'">` : '';
                     const claimHtml = r.claimUrl ? `<a href="${r.claimUrl}" target="_blank" class="earn-reward-claim-link" onclick="event.stopPropagation()">Claim ↗</a>` : '';
                     const aprHtml = r.apr > 0 ? `<span class="earn-lend-token-annual" style="color:rgba(251,191,36,0.6)">${r.apr.toFixed(2)}% APR</span>` : '';
-                    return `<div class="earn-lend-token-row"><span class="earn-lend-token-left">${iconHtml}${r.symbol}${claimHtml}</span><span><span class="earn-lend-token-apr rewards">+${r.amount >= 1000 ? (r.amount / 1000).toFixed(2) + 'K' : r.amount.toFixed(2)}</span><span class="earn-lend-token-annual" style="color:rgba(251,191,36,0.5)"> ~${earn_formatUSD(r.usd)}</span>${aprHtml}</span></div>`;
+                    const amountPrefix = r.estimated ? '~' : '+';
+                    const usdPrefix = r.estimated ? ' est. ' : ' ~';
+                    return `<div class="earn-lend-token-row"><span class="earn-lend-token-left">${iconHtml}${r.symbol}${claimHtml}</span><span><span class="earn-lend-token-apr rewards">${amountPrefix}${r.amount >= 1000 ? (r.amount / 1000).toFixed(2) + 'K' : r.amount.toFixed(2)}</span><span class="earn-lend-token-annual" style="color:rgba(251,191,36,0.5)">${usdPrefix}${earn_formatUSD(r.usd)}</span>${aprHtml}</span></div>`;
                 }).join('')}
                                 <div style="border-top:1px solid rgba(251,191,36,0.08);margin-top:6px;padding-top:4px">
-                                    <div class="earn-lend-token-row"><span class="earn-lend-token-left" style="color:rgba(251,191,36,0.7);font-weight:600">Total Rewards</span><span class="earn-lend-token-apr rewards">+${earn_formatUSD(p.totalExternalRewardsUSD)}</span></div>
+                                    ${(p.totalExternalRewardsUSD > 0.01 || p.totalEstimatedRewardsUSD <= 0.01) ? `<div class="earn-lend-token-row"><span class="earn-lend-token-left" style="color:rgba(251,191,36,0.7);font-weight:600">${p.totalEstimatedRewardsUSD > 0.01 ? 'Exact Rewards' : 'Total Rewards'}</span><span class="earn-lend-token-apr rewards">+${earn_formatUSD(p.totalExternalRewardsUSD)}</span></div>` : ''}
+                                    ${p.totalEstimatedRewardsUSD > 0.01 ? `<div class="earn-lend-token-row"><span class="earn-lend-token-left" style="color:rgba(251,191,36,0.45);font-weight:600">Est. Rewards</span><span class="earn-lend-token-apr rewards">~${earn_formatUSD(p.totalEstimatedRewardsUSD)}</span></div>` : ''}
                                 </div>
                             </div>` : ''}
                             <div class="earn-lend-section">
@@ -27251,7 +27738,7 @@
                                 ${(p.netAccrued !== undefined) ? `
                                     <div class="earn-lend-section-title net">Accrued P&L</div>
                                     <div class="earn-lend-net-value ${p.netAccrued >= 0 ? 'positive' : 'negative'}">${p.netAccrued >= 0 ? '+' : '-'}${earn_formatUSD(Math.abs(p.netAccrued))}<span style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.4)"> total</span></div>
-                                    <div class="earn-lend-net-sub">Collateral ${earn_formatUSD(p.totalAccruedYield || 0)}${p.totalExternalRewardsUSD > 0.01 ? ' + <span style="color:#fbbf24">Rewards ' + earn_formatUSD(p.totalExternalRewardsUSD) + '</span>' : ''} − Borrow ${earn_formatUSD(p.totalAccruedCost || 0)}</div>
+                                    <div class="earn-lend-net-sub">Collateral ${earn_formatUSD(p.totalAccruedYield || 0)}${p.totalExternalRewardsUSD > 0.01 ? ' + <span style="color:#fbbf24">Rewards ' + earn_formatUSD(p.totalExternalRewardsUSD) + '</span>' : ''} − Borrow ${earn_formatUSD(p.totalAccruedCost || 0)}${p.totalEstimatedRewardsUSD > 0.01 ? ' · <span style="color:rgba(251,191,36,0.55)">Est. oDOLO ' + earn_formatUSD(p.totalEstimatedRewardsUSD) + ' not included</span>' : ''}</div>
                                     ${p.openTimestamp ? `<div class="earn-lend-net-sub" style="margin-top:4px">Opened ${earn_formatAge(p.openTimestamp)}</div>` : ''}
                                     <div style="border-top:1px solid rgba(255,255,255,0.05);margin-top:8px;padding-top:6px">
                                         <div class="earn-lend-net-sub" style="margin-bottom:2px">Est. annual at current rates:</div>
@@ -27654,6 +28141,9 @@
 
                     // Check if the current address has a known identity
                     const searchAddr = document.getElementById('earn-address').value.trim();
+                    const summaryChainId = document.getElementById('earn-chain').value;
+                    const rewardRenderRunId = earn_activeLookupRunId;
+                    const rewardRenderAddr = searchAddr.toLowerCase();
                     const addrBadgeHtml = (typeof dolo_labelBadge === 'function') ? dolo_labelBadge(searchAddr) : '';
 
                     summaryEl.innerHTML = `
@@ -27683,38 +28173,42 @@
                             <div class="earn-summary-sub" id="earn-odolo-claimed-sub">Loading...</div>
                         </div>`;
                     summaryEl.classList.add('visible');
+                    earn_updateSummaryCardLayout(summaryEl);
 
                     // Re-apply lending positions debt if already loaded (survives re-render)
                     if (earn_lendingPositions && earn_lendingPositions.length > 0) {
                         earn_updateSummaryDebt(earn_lendingPositions);
                     }
 
-                    // Fetch oDOLO claimed asynchronously
+                    // Fetch global oDOLO rewards asynchronously; claim path remains Berachain
                     const earnAddr = document.getElementById('earn-address').value.trim();
                     earn_fetchOdoloClaimed(earnAddr).then(claimed => {
+                        if (!earn_isLookupContextCurrent(rewardRenderRunId, rewardRenderAddr, summaryChainId)) return;
                         const valEl = document.getElementById('earn-odolo-claimed-val');
                         const subEl = document.getElementById('earn-odolo-claimed-sub');
                         if (valEl) {
                             const fmtAmt = v => v >= 1000 ? (v / 1000).toFixed(2) + 'K' : v.toFixed(2);
-                            if (claimed > 0 || earn_odoloUnclaimed > 0) {
-                                valEl.textContent = fmtAmt(claimed);
+                            const totalEarned = (claimed || 0) + (earn_odoloUnclaimed || 0);
+                            if (totalEarned > 0.01) {
+                                valEl.textContent = fmtAmt(totalEarned);
                                 valEl.className = 'earn-summary-value positive';
                                 if (earn_odoloUnclaimed > 0.01) {
-                                    subEl.innerHTML = 'Claimed · <span style="color:#22d3ee">' + fmtAmt(earn_odoloUnclaimed) + ' unclaimed</span>';
+                                    subEl.innerHTML = 'Claimed ' + fmtAmt(claimed) + ' · <span style="color:#22d3ee">' + fmtAmt(earn_odoloUnclaimed) + ' unclaimed</span>';
                                 } else {
-                                    subEl.textContent = 'All claimed ✓';
+                                    subEl.textContent = 'Claimed ' + fmtAmt(claimed) + ' · 0 unclaimed';
                                 }
                             } else {
                                 valEl.textContent = '0';
                                 valEl.className = 'earn-summary-value neutral';
-                                subEl.textContent = 'No rewards yet';
+                                subEl.textContent = 'Claimed 0 · 0 unclaimed';
                             }
                         }
-                    });
+                    }).catch(e => console.warn('oDOLO summary card fetch:', e));
 
                     // Fetch MERKL WLFI rewards and add card if wallet has any
-                    const earnChainId = document.getElementById('earn-chain').value;
+                    const earnChainId = summaryChainId;
                     earn_fetchMerklRewards(earnAddr, earnChainId).then(merklData => {
+                        if (!earn_isLookupContextCurrent(rewardRenderRunId, rewardRenderAddr, earnChainId)) return;
                         const wlfiData = merklData['WLFI'];
                         if (!wlfiData || wlfiData.accumulated < 0.01) return;
                         const WLFI_PRICE_CARD = 0.097;
@@ -27740,6 +28234,7 @@
                     // Fetch iBGT staking rewards (Berachain only)
                     if (earnChainId === 'berachain') {
                         earn_fetchIBGTRewards(earnAddr).then(ibgtData => {
+                            if (!earn_isLookupContextCurrent(rewardRenderRunId, rewardRenderAddr, earnChainId)) return;
                             if (!ibgtData || (ibgtData.rewards.length === 0 && ibgtData.staked < 0.01)) return;
                             if (document.getElementById('earn-ibgt-card')) return;
                             const fmtIbgt = v => v >= 1000 ? (v / 1000).toFixed(2) + 'K' : v >= 1 ? v.toFixed(2) : v.toFixed(4);
@@ -27766,6 +28261,7 @@
                     // Fetch dGMX staking rewards (Arbitrum only)
                     if (earnChainId === 'arbitrum') {
                         earn_fetchDGMXRewards(earnAddr).then(dgmxData => {
+                            if (!earn_isLookupContextCurrent(rewardRenderRunId, rewardRenderAddr, earnChainId)) return;
                             if (!dgmxData || dgmxData.staked < 0.01) return;
                             if (document.getElementById('earn-dgmx-card')) return;
                             const fmtGmx = v => v >= 1000 ? (v / 1000).toFixed(2) + 'K' : v >= 1 ? v.toFixed(2) : v.toFixed(4);
