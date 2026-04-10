@@ -3387,12 +3387,64 @@
                 }
                 .supply-activity-controls {
                     display: flex;
-                    align-items: center;
+                    flex-direction: column;
+                    align-items: flex-end;
                     justify-content: flex-end;
-                    gap: 12px;
+                    gap: 10px;
                     flex-wrap: wrap;
                     margin-left: auto;
                     flex: 0 1 auto;
+                }
+                .supply-activity-periods {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 2px;
+                    background: rgba(255, 255, 255, 0.03);
+                    border: 1px solid rgba(52, 211, 153, 0.25);
+                    border-radius: 8px;
+                    padding: 2px;
+                    position: relative;
+                    width: fit-content;
+                }
+                .supply-activity-periods button {
+                    background: transparent;
+                    border: none;
+                    color: var(--text-muted);
+                    font-size: 11px;
+                    font-weight: 500;
+                    padding: 6px 11px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    transition: color 0.2s ease;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    white-space: nowrap;
+                    position: relative;
+                    z-index: 1;
+                    font-family: inherit;
+                }
+                .supply-activity-periods button:hover {
+                    color: var(--text-secondary);
+                }
+                .supply-activity-periods button.active {
+                    color: #e0e7ff;
+                    font-weight: 600;
+                }
+                .supply-activity-period-slider {
+                    position: absolute;
+                    top: 2px;
+                    left: 2px;
+                    height: calc(100% - 4px);
+                    width: 0;
+                    opacity: 0;
+                    background: rgba(99, 102, 241, 0.2);
+                    border: 1px solid rgba(99, 102, 241, 0.3);
+                    border-radius: 6px;
+                    transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+                        width 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+                        opacity 0.2s ease;
+                    box-shadow: 0 0 12px rgba(99, 102, 241, 0.15);
+                    z-index: 0;
                 }
                 .supply-activity-search-wrap {
                     margin: 12px 0 0;
@@ -3568,6 +3620,7 @@
                         min-width: 100%;
                         margin-left: 0;
                         justify-content: flex-start;
+                        align-items: flex-start;
                     }
                     .supply-table-search-wrap,
                     .supply-activity-search-wrap {
@@ -3707,6 +3760,14 @@
                             </div>
                         </div>
                         <div class="supply-activity-controls">
+                            <div id="supply-activity-periods" class="supply-activity-periods">
+                                <div class="supply-activity-period-slider"></div>
+                                <button data-period="1d" onclick="selectSupplyActivityPeriod('1d')">1D</button>
+                                <button data-period="7d" onclick="selectSupplyActivityPeriod('7d')">7D</button>
+                                <button data-period="30d" onclick="selectSupplyActivityPeriod('30d')">30D</button>
+                                <button class="active" data-period="90d" onclick="selectSupplyActivityPeriod('90d')">90D</button>
+                                <button data-period="all" onclick="selectSupplyActivityPeriod('all')">ALL</button>
+                            </div>
                             <div class="supply-activity-filter-row">
                                 <button class="supply-filter-pill active" data-type="deposit" onclick="toggleSupplyActivityType('deposit')">Deposits</button>
                                 <button class="supply-filter-pill active" data-type="withdraw" onclick="toggleSupplyActivityType('withdraw')">Withdrawals</button>
@@ -5971,16 +6032,22 @@
         let supplySortAsc = false;
         let currentSupplyOverview = null;
         let currentSupplyActivity = [];
+        let currentSupplyActivityAll = null;
         let supplyActivityPage = 1;
         let supplyActivitySearchQuery = '';
         let supplyActivitySortField = 'time';
         let supplyActivitySortAsc = false;
+        let supplyActivityPeriod = '90d';
         let supplyTabRequestId = 0;
         const SUPPLY_ACTIVITY_PAGE_SIZE = 12;
         const SUPPLY_HISTORY_DAYS = 30;
         const SUPPLY_ACTIVITY_LOOKBACK_DAYS = 90;
-        const SUPPLY_CHART_EVENT_LIMIT = 800;
-        const SUPPLY_ACTIVITY_EVENT_LIMIT = 140;
+        const SUPPLY_ACTIVITY_PERIOD_DAYS = {
+            '1d': 1,
+            '7d': 7,
+            '30d': 30,
+            '90d': 90,
+        };
         let supplyActivityFilters = new Set(['deposit', 'withdraw', 'transfer', 'liquidation']);
 
         const SUPPLY_ACTIVITY_META = {
@@ -6035,6 +6102,47 @@
             supplyActivityPage = 1;
             updateSupplyActivitySortUi();
             renderSupplyActivityTable();
+        }
+
+        function positionSupplyActivityPeriodSlider(btn) {
+            const wrap = document.getElementById('supply-activity-periods');
+            const slider = wrap ? wrap.querySelector('.supply-activity-period-slider') : null;
+            if (!wrap || !slider || !btn) return;
+            const wrapBox = wrap.getBoundingClientRect();
+            const btnBox = btn.getBoundingClientRect();
+            if (btnBox.width <= 0) return;
+            slider.style.width = btnBox.width + 'px';
+            slider.style.transform = 'translateX(' + (btnBox.left - wrapBox.left - 2) + 'px)';
+            slider.style.opacity = '1';
+        }
+
+        function updateSupplyActivityPeriodUi() {
+            const wrap = document.getElementById('supply-activity-periods');
+            if (!wrap) return;
+            const btns = wrap.querySelectorAll('button[data-period]');
+            btns.forEach(btn => btn.classList.toggle('active', btn.dataset.period === supplyActivityPeriod));
+            const activeBtn = wrap.querySelector(`button[data-period="${supplyActivityPeriod}"]`);
+            if (activeBtn) {
+                requestAnimationFrame(() => positionSupplyActivityPeriodSlider(activeBtn));
+            }
+        }
+
+        function getSupplyActivityPeriodLabel(period) {
+            return {
+                '1d': 'the last 24 hours',
+                '7d': 'the last 7 days',
+                '30d': 'the last 30 days',
+                '90d': 'the last 90 days',
+                'all': 'all available history',
+            }[period] || 'recent history';
+        }
+
+        function updateSupplyActivitySubtitle() {
+            const subtitle = document.getElementById('supply-activity-subtitle');
+            const token = currentSupplyOverview?.token?.symbol || (currentSupplyTokensMap[document.getElementById('supply-asset-select')?.value]?.symbol || 'the selected market');
+            const chainName = CHAIN_DISPLAY_NAMES[document.getElementById('supply-chain-select')?.value] || document.getElementById('supply-chain-select')?.value || '';
+            if (!subtitle) return;
+            subtitle.textContent = `Deposits, withdrawals, transfers, and liquidations for ${token} on ${chainName} across ${getSupplyActivityPeriodLabel(supplyActivityPeriod)}.`;
         }
 
         function supplyEscapeHtml(value) {
@@ -6126,10 +6234,12 @@
         function resetSupplyIntelState() {
             currentSupplyOverview = null;
             currentSupplyActivity = [];
+            currentSupplyActivityAll = null;
             supplyActivityPage = 1;
             supplyActivitySearchQuery = '';
             supplyActivitySortField = 'time';
             supplyActivitySortAsc = false;
+            supplyActivityPeriod = '90d';
             supplyActivityFilters = new Set(['deposit', 'withdraw', 'transfer', 'liquidation']);
             const shell = document.getElementById('supply-intel-shell');
             const card = document.getElementById('supply-activity-card');
@@ -6153,6 +6263,8 @@
             if (activitySearchWrap) activitySearchWrap.classList.remove('has-value');
             document.querySelectorAll('.supply-filter-pill').forEach(btn => btn.classList.add('active'));
             updateSupplyActivitySortUi();
+            updateSupplyActivityPeriodUi();
+            updateSupplyActivitySubtitle();
         }
 
         function setSupplyIntelLoading(tokenObj, chain) {
@@ -6187,13 +6299,19 @@
             if (shell) shell.style.display = 'block';
         }
 
-        function setSupplyActivityLoading() {
+        function setSupplyActivityLoading(message) {
             const card = document.getElementById('supply-activity-card');
             const table = document.getElementById('supply-activity-table');
             const loading = document.getElementById('supply-activity-loading');
             if (card) card.style.display = 'block';
             if (table) table.style.display = 'none';
             if (loading) loading.style.display = 'block';
+            if (loading) {
+                loading.innerHTML = `
+                    <div class="loading-spinner"></div>
+                    <div style="margin-top:12px; color:var(--text-muted); font-size:13px;">${supplyEscapeHtml(message || 'Building recent market activity...')}</div>
+                `;
+            }
             document.getElementById('supply-activity-pagination').innerHTML = '';
         }
 
@@ -6451,23 +6569,118 @@
             };
         }
 
-        function renderSupplyActivityTable() {
-            const card = document.getElementById('supply-activity-card');
-            const loading = document.getElementById('supply-activity-loading');
-            const table = document.getElementById('supply-activity-table');
-            const tbody = document.getElementById('supply-activity-body');
-            const countEl = document.getElementById('supply-activity-count');
-            const pager = document.getElementById('supply-activity-pagination');
-            if (!card || !loading || !table || !tbody || !countEl || !pager) return;
+        async function supplySubgraphPaginateAll(url, entityName, whereClause, fields, pageSize = 1000) {
+            let skip = 0;
+            const rows = [];
 
-            card.style.display = 'block';
-            loading.style.display = 'none';
+            while (true) {
+                const query = `{
+                    ${entityName}(first: ${pageSize}, skip: ${skip}, orderBy: serialId, orderDirection: desc, where: { ${whereClause} }) {
+                        ${fields}
+                    }
+                }`;
+                const data = await doGraphQuery(url, query);
+                const chunk = data && data[entityName] ? data[entityName] : [];
+                rows.push(...chunk);
+                if (chunk.length < pageSize) break;
+                skip += pageSize;
+            }
 
-            const chain = document.getElementById('supply-chain-select').value;
-            const txBase = getSupplyTxExplorer(chain);
-            const addrBase = getSupplyAddressExplorer(chain);
+            return rows;
+        }
+
+        async function fetchSupplyActivityHistory(url, tokenId, sinceTs) {
+            const timeFilter = sinceTs ? `, transaction_: { timestamp_gte: "${sinceTs}" }` : '';
+            const tokenFilter = `token: "${tokenId}"${timeFilter}`;
+            const liquidationBorrowedFilter = `borrowedToken: "${tokenId}"${timeFilter}`;
+            const liquidationHeldFilter = `heldToken: "${tokenId}"${timeFilter}`;
+            const commonFields = `
+                serialId
+                transaction { id timestamp blockNumber }
+            `;
+
+            const [deposits, withdrawals, transfers, liquidationsBorrowed, liquidationsHeld] = await Promise.all([
+                supplySubgraphPaginateAll(url, 'deposits', tokenFilter, `
+                    ${commonFields}
+                    effectiveUser { id }
+                    token { symbol id }
+                    amountDeltaWei
+                    amountUSDDeltaWei
+                `),
+                supplySubgraphPaginateAll(url, 'withdrawals', tokenFilter, `
+                    ${commonFields}
+                    effectiveUser { id }
+                    token { symbol id }
+                    amountDeltaWei
+                    amountUSDDeltaWei
+                `),
+                supplySubgraphPaginateAll(url, 'transfers', tokenFilter, `
+                    ${commonFields}
+                    fromEffectiveUser { id }
+                    toEffectiveUser { id }
+                    token { symbol id }
+                    amountDeltaWei
+                    amountUSDDeltaWei
+                    isSelfTransfer
+                    isTransferForMarginPosition
+                `),
+                supplySubgraphPaginateAll(url, 'liquidations', liquidationBorrowedFilter, `
+                    ${commonFields}
+                    liquidEffectiveUser { id }
+                    solidEffectiveUser { id }
+                    borrowedToken { symbol id }
+                    heldToken { symbol id }
+                    borrowedTokenAmountDeltaWei
+                    borrowedTokenAmountUSD
+                    heldTokenAmountDeltaWei
+                    heldTokenAmountUSD
+                `),
+                supplySubgraphPaginateAll(url, 'liquidations', liquidationHeldFilter, `
+                    ${commonFields}
+                    liquidEffectiveUser { id }
+                    solidEffectiveUser { id }
+                    borrowedToken { symbol id }
+                    heldToken { symbol id }
+                    borrowedTokenAmountDeltaWei
+                    borrowedTokenAmountUSD
+                    heldTokenAmountDeltaWei
+                    heldTokenAmountUSD
+                `),
+            ]);
+
+            const liquidationRows = [
+                ...liquidationsBorrowed.map(item => buildSupplyActivityRow('liquidation', item, tokenId)),
+                ...liquidationsHeld.map(item => buildSupplyActivityRow('liquidation', item, tokenId)),
+            ];
+            const dedupedLiquidations = Array.from(new Map(liquidationRows.map(item => [item.id, item])).values());
+
+            return {
+                deposits,
+                withdrawals,
+                rows: [
+                    ...deposits.map(item => buildSupplyActivityRow('deposit', item, tokenId)),
+                    ...withdrawals.map(item => buildSupplyActivityRow('withdraw', item, tokenId)),
+                    ...transfers.map(item => buildSupplyActivityRow('transfer', item, tokenId)),
+                    ...dedupedLiquidations,
+                ].sort((a, b) => b.timestamp - a.timestamp),
+            };
+        }
+
+        function getCurrentSupplyActivityRows() {
+            const baseRows = supplyActivityPeriod === 'all'
+                ? (currentSupplyActivityAll || [])
+                : (currentSupplyActivity || []);
+
+            if (supplyActivityPeriod === 'all') return baseRows;
+
+            const days = SUPPLY_ACTIVITY_PERIOD_DAYS[supplyActivityPeriod] || SUPPLY_ACTIVITY_LOOKBACK_DAYS;
+            const thresholdTs = Math.floor(Date.now() / 1000) - (days * 24 * 60 * 60);
+            return baseRows.filter(row => Number(row.timestamp || 0) >= thresholdTs);
+        }
+
+        function getFilteredSupplyActivityRows() {
             const activitySearchNeedle = (supplyActivitySearchQuery || '').toLowerCase();
-            const filtered = (currentSupplyActivity || [])
+            return getCurrentSupplyActivityRows()
                 .filter(row => supplyActivityFilters.has(row.type))
                 .filter(row => {
                     if (!activitySearchNeedle) return true;
@@ -6490,9 +6703,61 @@
                     }
                     return supplyActivitySortAsc ? cmp : -cmp;
                 });
+        }
+
+        async function selectSupplyActivityPeriod(period) {
+            if (!period) return;
+            const periodChanged = supplyActivityPeriod !== period;
+            supplyActivityPeriod = period;
+            if (periodChanged) {
+                supplyActivityPage = 1;
+            }
+            updateSupplyActivityPeriodUi();
+            updateSupplyActivitySubtitle();
+
+            if (period === 'all' && !currentSupplyActivityAll) {
+                const chain = document.getElementById('supply-chain-select').value;
+                const tokenId = document.getElementById('supply-asset-select').value;
+                if (!tokenId || !chain) return;
+                const requestId = supplyTabRequestId;
+                try {
+                    setSupplyActivityLoading('Loading full asset history...');
+                    const history = await fetchSupplyActivityHistory(DOLOMITE_MINI_GRAPHS[chain], tokenId, null);
+                    if (requestId !== supplyTabRequestId) return;
+                    currentSupplyActivityAll = history.rows;
+                } catch (e) {
+                    console.error('Supply activity full-history fetch err', e);
+                    if (requestId !== supplyTabRequestId) return;
+                    supplyActivityPeriod = '90d';
+                    updateSupplyActivityPeriodUi();
+                    updateSupplyActivitySubtitle();
+                }
+            }
+
+            renderSupplyActivityTable();
+        }
+
+        function renderSupplyActivityTable() {
+            const card = document.getElementById('supply-activity-card');
+            const loading = document.getElementById('supply-activity-loading');
+            const table = document.getElementById('supply-activity-table');
+            const tbody = document.getElementById('supply-activity-body');
+            const countEl = document.getElementById('supply-activity-count');
+            const pager = document.getElementById('supply-activity-pagination');
+            if (!card || !loading || !table || !tbody || !countEl || !pager) return;
+
+            card.style.display = 'block';
+            loading.style.display = 'none';
+
+            const chain = document.getElementById('supply-chain-select').value;
+            const txBase = getSupplyTxExplorer(chain);
+            const addrBase = getSupplyAddressExplorer(chain);
+            const filtered = getFilteredSupplyActivityRows();
 
             countEl.textContent = `(${filtered.length})`;
             updateSupplyActivitySortUi();
+            updateSupplyActivityPeriodUi();
+            updateSupplyActivitySubtitle();
 
             if (filtered.length === 0) {
                 table.style.display = 'table';
@@ -6557,15 +6822,7 @@
         }
 
         function supplyGoActivityPage(page) {
-            const activitySearchNeedle = (supplyActivitySearchQuery || '').toLowerCase();
-            const filteredLen = (currentSupplyActivity || [])
-                .filter(row => supplyActivityFilters.has(row.type))
-                .filter(row => {
-                    if (!activitySearchNeedle) return true;
-                    const primary = String(row.primaryAddress || '').toLowerCase();
-                    const secondary = String(row.secondaryAddress || '').toLowerCase();
-                    return primary.includes(activitySearchNeedle) || secondary.includes(activitySearchNeedle);
-                }).length;
+            const filteredLen = getFilteredSupplyActivityRows().length;
             const total = Math.max(1, Math.ceil(filteredLen / SUPPLY_ACTIVITY_PAGE_SIZE));
             supplyActivityPage = Math.max(1, Math.min(page, total));
             renderSupplyActivityTable();
@@ -6976,21 +7233,24 @@
                 activityLoading.innerHTML = `<div class="loading-spinner"></div><div style="margin-top:12px; color:var(--text-muted); font-size:13px;">Building recent market activity...</div>`;
             }
             setSupplyIntelLoading(tokenObj, chain);
-            setSupplyActivityLoading();
-            if (activitySubtitle) {
-                activitySubtitle.textContent = `Recent deposits, withdrawals, transfers, and liquidations for ${tokenObj.symbol} on ${CHAIN_DISPLAY_NAMES[chain] || chain}.`;
-            }
+            setSupplyActivityLoading('Building recent market activity...');
             if (supplyTitle) supplyTitle.textContent = `${tokenObj.symbol} Supplier Leaderboard`;
             supplyPage = 1;
             supplyActivityPage = 1;
             supplyActivitySearchQuery = '';
             supplyActivitySortField = 'time';
             supplyActivitySortAsc = false;
+            supplyActivityPeriod = '90d';
+            currentSupplyActivityAll = null;
             const activitySearchInput = document.getElementById('supply-activity-search-input');
             const activitySearchWrap = document.getElementById('supply-activity-search-wrap');
             if (activitySearchInput) activitySearchInput.value = '';
             if (activitySearchWrap) activitySearchWrap.classList.remove('has-value');
             updateSupplyActivitySortUi();
+            updateSupplyActivityPeriodUi();
+            if (activitySubtitle) {
+                activitySubtitle.textContent = `Deposits, withdrawals, transfers, and liquidations for ${tokenObj.symbol} on ${CHAIN_DISPLAY_NAMES[chain] || chain} across ${getSupplyActivityPeriodLabel(supplyActivityPeriod)}.`;
+            }
             
             const lookbackTs = Math.floor(Date.now() / 1000) - (SUPPLY_ACTIVITY_LOOKBACK_DAYS * 24 * 60 * 60);
             const q = `{
@@ -7012,64 +7272,14 @@
                 }
                 oraclePrices(where: { token: "${tokenId}" }) { price }
                 interestIndexes(where: { token: "${tokenId}" }) { supplyIndex borrowIndex }
-                deposits(first: ${SUPPLY_CHART_EVENT_LIMIT}, orderBy: serialId, orderDirection: desc, where: { token: "${tokenId}", transaction_: { timestamp_gte: "${lookbackTs}" } }) {
-                    serialId
-                    transaction { id timestamp blockNumber }
-                    effectiveUser { id }
-                    token { symbol id }
-                    amountDeltaWei
-                    amountUSDDeltaWei
-                }
-                withdrawals(first: ${SUPPLY_CHART_EVENT_LIMIT}, orderBy: serialId, orderDirection: desc, where: { token: "${tokenId}", transaction_: { timestamp_gte: "${lookbackTs}" } }) {
-                    serialId
-                    transaction { id timestamp blockNumber }
-                    effectiveUser { id }
-                    token { symbol id }
-                    amountDeltaWei
-                    amountUSDDeltaWei
-                }
-                transfers(first: ${SUPPLY_ACTIVITY_EVENT_LIMIT}, orderBy: serialId, orderDirection: desc, where: { token: "${tokenId}", transaction_: { timestamp_gte: "${lookbackTs}" } }) {
-                    serialId
-                    transaction { id timestamp blockNumber }
-                    fromEffectiveUser { id }
-                    toEffectiveUser { id }
-                    token { symbol id }
-                    amountDeltaWei
-                    amountUSDDeltaWei
-                    isSelfTransfer
-                    isTransferForMarginPosition
-                }
-                liquidationsBorrowed: liquidations(first: ${Math.floor(SUPPLY_ACTIVITY_EVENT_LIMIT / 2)}, orderBy: serialId, orderDirection: desc, where: { borrowedToken: "${tokenId}", transaction_: { timestamp_gte: "${lookbackTs}" } }) {
-                    serialId
-                    transaction { id timestamp blockNumber }
-                    liquidEffectiveUser { id }
-                    solidEffectiveUser { id }
-                    borrowedToken { symbol id }
-                    heldToken { symbol id }
-                    borrowedTokenAmountDeltaWei
-                    borrowedTokenAmountUSD
-                    heldTokenAmountDeltaWei
-                    heldTokenAmountUSD
-                }
-                liquidationsHeld: liquidations(first: ${Math.floor(SUPPLY_ACTIVITY_EVENT_LIMIT / 2)}, orderBy: serialId, orderDirection: desc, where: { heldToken: "${tokenId}", transaction_: { timestamp_gte: "${lookbackTs}" } }) {
-                    serialId
-                    transaction { id timestamp blockNumber }
-                    liquidEffectiveUser { id }
-                    solidEffectiveUser { id }
-                    borrowedToken { symbol id }
-                    heldToken { symbol id }
-                    borrowedTokenAmountDeltaWei
-                    borrowedTokenAmountUSD
-                    heldTokenAmountDeltaWei
-                    heldTokenAmountUSD
-                }
             }`;
             
             try {
                 const endpoint = DOLOMITE_MINI_GRAPHS[chain];
-                const [data, supplierPars] = await Promise.all([
+                const [data, supplierPars, recentActivity] = await Promise.all([
                     doGraphQuery(endpoint, q),
-                    fetchAllSupplySuppliers(endpoint, tokenId)
+                    fetchAllSupplySuppliers(endpoint, tokenId),
+                    fetchSupplyActivityHistory(endpoint, tokenId, lookbackTs)
                 ]);
 
                 if (requestId !== supplyTabRequestId) return;
@@ -7098,21 +7308,10 @@
                     .sort((a, b) => b.amount - a.amount)
                     .map((item, index) => ({ ...item, rank: index + 1 }));
 
-                const deposits = data.deposits || [];
-                const withdrawals = data.withdrawals || [];
-                const transfers = data.transfers || [];
-                const liquidationRows = [
-                    ...(data.liquidationsBorrowed || []).map(item => buildSupplyActivityRow('liquidation', item, tokenId)),
-                    ...(data.liquidationsHeld || []).map(item => buildSupplyActivityRow('liquidation', item, tokenId)),
-                ];
-                const dedupedLiquidations = Array.from(new Map(liquidationRows.map(item => [item.id, item])).values());
-
-                currentSupplyActivity = [
-                    ...deposits.map(item => buildSupplyActivityRow('deposit', item, tokenId)),
-                    ...withdrawals.map(item => buildSupplyActivityRow('withdraw', item, tokenId)),
-                    ...transfers.map(item => buildSupplyActivityRow('transfer', item, tokenId)),
-                    ...dedupedLiquidations,
-                ].sort((a, b) => b.timestamp - a.timestamp);
+                const deposits = recentActivity.deposits || [];
+                const withdrawals = recentActivity.withdrawals || [];
+                currentSupplyActivity = recentActivity.rows || [];
+                currentSupplyActivityAll = null;
 
                 currentSupplyOverview = {
                     chain,
