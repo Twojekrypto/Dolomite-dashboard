@@ -6245,7 +6245,7 @@
             const token = currentSupplyOverview?.token?.symbol || (currentSupplyTokensMap[document.getElementById('supply-asset-select')?.value]?.symbol || 'the selected market');
             const chainName = CHAIN_DISPLAY_NAMES[document.getElementById('supply-chain-select')?.value] || document.getElementById('supply-chain-select')?.value || '';
             if (!subtitle) return;
-            subtitle.textContent = `Deposits, withdrawals, transfers, and liquidations for ${token} on ${chainName} across full available history.`;
+            subtitle.textContent = `Deposits, withdrawals, transfers, and liquidations for ${token} on ${chainName} · last ${SUPPLY_ACTIVITY_DEFAULT_DAYS} days.`;
         }
 
         function supplyEscapeHtml(value) {
@@ -7243,7 +7243,7 @@
             };
         }
 
-        async function supplySubgraphPaginateAll(url, entityName, whereClause, fields, pageSize = 1000) {
+        async function supplySubgraphPaginateAll(url, entityName, whereClause, fields, pageSize = 1000, onProgress) {
             let skip = 0;
             const rows = [];
 
@@ -7256,6 +7256,7 @@
                 const data = await doGraphQuery(url, query);
                 const chunk = data && data[entityName] ? data[entityName] : [];
                 rows.push(...chunk);
+                if (onProgress) onProgress(entityName, rows.length, chunk.length < pageSize);
                 if (chunk.length < pageSize) break;
                 skip += pageSize;
             }
@@ -7263,7 +7264,7 @@
             return rows;
         }
 
-        async function fetchSupplyActivityHistory(url, tokenId, sinceTs) {
+        async function fetchSupplyActivityHistory(url, tokenId, sinceTs, onProgress) {
             const timeFilter = sinceTs ? `, transaction_: { timestamp_gte: "${sinceTs}" }` : '';
             const tokenFilter = `token: "${tokenId}"${timeFilter}`;
             const liquidationBorrowedFilter = `borrowedToken: "${tokenId}"${timeFilter}`;
@@ -7273,6 +7274,22 @@
                 transaction { id timestamp blockNumber }
             `;
 
+            // Track progress per entity
+            const progressState = { deposits: 0, withdrawals: 0, transfers: 0, liquidations_b: 0, liquidations_h: 0 };
+            const entityNames = { deposits: 'deposits', withdrawals: 'withdrawals', transfers: 'transfers', liquidations_b: 'liquidations (borrowed)', liquidations_h: 'liquidations (held)' };
+            const makeProgressCb = (key) => (entity, count, done) => {
+                progressState[key] = count;
+                if (onProgress) {
+                    const total = Object.values(progressState).reduce((s, v) => s + v, 0);
+                    const doneEntities = [];
+                    if (progressState.deposits > 0) doneEntities.push('deposits');
+                    if (progressState.withdrawals > 0) doneEntities.push('withdrawals');
+                    if (progressState.transfers > 0) doneEntities.push('transfers');
+                    if (progressState.liquidations_b > 0 || progressState.liquidations_h > 0) doneEntities.push('liquidations');
+                    onProgress(total, doneEntities, done);
+                }
+            };
+
             const [deposits, withdrawals, transfers, liquidationsBorrowed, liquidationsHeld] = await Promise.all([
                 supplySubgraphPaginateAll(url, 'deposits', tokenFilter, `
                     ${commonFields}
@@ -7280,14 +7297,14 @@
                     token { symbol id }
                     amountDeltaWei
                     amountUSDDeltaWei
-                `),
+                `, 1000, makeProgressCb('deposits')),
                 supplySubgraphPaginateAll(url, 'withdrawals', tokenFilter, `
                     ${commonFields}
                     effectiveUser { id }
                     token { symbol id }
                     amountDeltaWei
                     amountUSDDeltaWei
-                `),
+                `, 1000, makeProgressCb('withdrawals')),
                 supplySubgraphPaginateAll(url, 'transfers', tokenFilter, `
                     ${commonFields}
                     fromEffectiveUser { id }
@@ -7297,7 +7314,7 @@
                     amountUSDDeltaWei
                     isSelfTransfer
                     isTransferForMarginPosition
-                `),
+                `, 1000, makeProgressCb('transfers')),
                 supplySubgraphPaginateAll(url, 'liquidations', liquidationBorrowedFilter, `
                     ${commonFields}
                     liquidEffectiveUser { id }
@@ -7308,7 +7325,7 @@
                     borrowedTokenAmountUSD
                     heldTokenAmountDeltaWei
                     heldTokenAmountUSD
-                `),
+                `, 1000, makeProgressCb('liquidations_b')),
                 supplySubgraphPaginateAll(url, 'liquidations', liquidationHeldFilter, `
                     ${commonFields}
                     liquidEffectiveUser { id }
@@ -7319,7 +7336,7 @@
                     borrowedTokenAmountUSD
                     heldTokenAmountDeltaWei
                     heldTokenAmountUSD
-                `),
+                `, 1000, makeProgressCb('liquidations_h')),
             ]);
 
             const liquidationRows = [
@@ -7847,6 +7864,9 @@
             }
         }
 
+        // Default activity history window: 30 days
+        const SUPPLY_ACTIVITY_DEFAULT_DAYS = 30;
+
         async function onSupplyAssetChange() {
             const chain = document.getElementById('supply-chain-select').value;
             const tokenId = document.getElementById('supply-asset-select').value;
@@ -7865,11 +7885,8 @@
             loader.innerHTML = `<div class="loading-spinner"></div><div style="margin-top:12px; color:var(--text-muted); font-size:13px;">Fetching data from subgraph...</div>`;
             table.style.display = 'none';
             tbody.innerHTML = '';
-            if (activityLoading) {
-                activityLoading.innerHTML = `<div class="loading-spinner"></div><div style="margin-top:12px; color:var(--text-muted); font-size:13px;">Building full market activity...</div>`;
-            }
             setSupplyIntelLoading(tokenObj, chain);
-            setSupplyActivityLoading('Building full market activity...');
+            setSupplyActivityLoading('Waiting for leaderboard to load first...');
             if (supplyTitle) supplyTitle.textContent = `${tokenObj.symbol} Supplier Leaderboard`;
             supplyPage = 1;
             supplyActivityPage = 1;
@@ -7894,7 +7911,7 @@
             syncSupplyActivityColumnFilterUi();
             syncSupplyHistoryControls([]);
             if (activitySubtitle) {
-                activitySubtitle.textContent = `Deposits, withdrawals, transfers, and liquidations for ${tokenObj.symbol} on ${CHAIN_DISPLAY_NAMES[chain] || chain} across full available history.`;
+                activitySubtitle.textContent = `Deposits, withdrawals, transfers, and liquidations for ${tokenObj.symbol} on ${CHAIN_DISPLAY_NAMES[chain] || chain} · last ${SUPPLY_ACTIVITY_DEFAULT_DAYS} days.`;
             }
             const q = `{
                 tokens(first: 1, where: { id: "${tokenId}" }) {
@@ -7918,11 +7935,11 @@
             }`;
             
             try {
+                // ═══ PHASE 1: Fast — Leaderboard + Token Intel (1-2s) ═══
                 const endpoint = DOLOMITE_MINI_GRAPHS[chain];
-                const [data, supplierPars, activityHistory] = await Promise.all([
+                const [data, supplierPars] = await Promise.all([
                     doGraphQuery(endpoint, q),
                     fetchAllSupplySuppliers(endpoint, tokenId),
-                    fetchSupplyActivityHistory(endpoint, tokenId, null)
                 ]);
 
                 if (requestId !== supplyTabRequestId) return;
@@ -7951,10 +7968,7 @@
                     .sort((a, b) => b.amount - a.amount)
                     .map((item, index) => ({ ...item, rank: index + 1 }));
 
-                const deposits = activityHistory.deposits || [];
-                const withdrawals = activityHistory.withdrawals || [];
-                currentSupplyActivity = activityHistory.rows || [];
-
+                // Render intel overview WITHOUT chart (chart needs deposits/withdrawals)
                 currentSupplyOverview = {
                     chain,
                     token,
@@ -7968,15 +7982,61 @@
                     borrowCap,
                     borrowingDisabled: !!token.riskInfo?.isBorrowingDisabled,
                     utilizationPct,
-                    historyPoints: buildSupplyHistorySeries(supply, deposits, withdrawals),
+                    historyPoints: [],  // will be filled in Phase 2
                 };
 
                 renderSupplyIntelOverview();
-                renderSupplyTable();
-                renderSupplyActivityTable();
+                renderSupplyTable();  // ← LEADERBOARD VISIBLE NOW
+
+                // ═══ PHASE 2: Background — Activity History (lazy, 30-day default) ═══
+                const sinceTs = Math.floor(Date.now() / 1000) - (SUPPLY_ACTIVITY_DEFAULT_DAYS * 24 * 60 * 60);
+                setSupplyActivityLoading('Fetching market activity (last ' + SUPPLY_ACTIVITY_DEFAULT_DAYS + ' days)...');
+
+                // Progress callback for live UI updates
+                const activityLoadingEl = document.getElementById('supply-activity-loading');
+                const onActivityProgress = (totalEvents, doneEntities, isDone) => {
+                    if (requestId !== supplyTabRequestId) return;
+                    if (activityLoadingEl && !isDone) {
+                        const entitiesText = doneEntities.length > 0 ? doneEntities.join(', ') : 'starting';
+                        activityLoadingEl.innerHTML = `
+                            <div class="loading-spinner"></div>
+                            <div style="margin-top:12px; color:var(--text-muted); font-size:13px;">
+                                📊 Loading activity... <strong style="color:#a5b4fc;">${totalEvents.toLocaleString()}</strong> events fetched
+                                <div style="margin-top:4px; font-size:11px; color:rgba(255,255,255,0.35);">${entitiesText}</div>
+                            </div>
+                        `;
+                    }
+                };
+
+                fetchSupplyActivityHistory(endpoint, tokenId, sinceTs, onActivityProgress)
+                    .then(activityHistory => {
+                        if (requestId !== supplyTabRequestId) return;
+
+                        const deposits = activityHistory.deposits || [];
+                        const withdrawals = activityHistory.withdrawals || [];
+                        currentSupplyActivity = activityHistory.rows || [];
+
+                        // Update overview with history points (for chart)
+                        currentSupplyOverview.historyPoints = buildSupplyHistorySeries(supply, deposits, withdrawals);
+                        renderSupplyHistoryChart(currentSupplyOverview.historyPoints);
+                        renderSupplyActivityTable();
+                    })
+                    .catch(err => {
+                        if (requestId !== supplyTabRequestId) return;
+                        console.error('Activity fetch err (Phase 2)', err);
+                        const actLoadEl = document.getElementById('supply-activity-loading');
+                        const actTableEl = document.getElementById('supply-activity-table');
+                        const chartEl = document.getElementById('supply-history-chart');
+                        if (actLoadEl) {
+                            actLoadEl.innerHTML = `<div style="color:#fbbf24; font-weight:500; font-size:13px; padding:16px;">⚠️ Activity history failed to load. The leaderboard above is still accurate.</div>`;
+                            actLoadEl.style.display = 'block';
+                        }
+                        if (actTableEl) actTableEl.style.display = 'none';
+                        if (chartEl) chartEl.innerHTML = `<div class="supply-history-empty" style="color:#fca5a5;">Could not reconstruct supply history chart.</div>`;
+                    });
 
             } catch (e) {
-                console.error("Supply fetch err", e);
+                console.error("Supply fetch err (Phase 1)", e);
                 if (requestId !== supplyTabRequestId) return;
                 const loader = document.getElementById('supply-loading-state');
                 const chart = document.getElementById('supply-history-chart');
