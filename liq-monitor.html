@@ -3272,9 +3272,11 @@
                 .supply-history-card {
                     border-radius: 16px;
                     padding: 18px 18px 16px;
-                    background: rgba(255,255,255,0.03);
+                    background:
+                        radial-gradient(circle at top left, rgba(34,211,238,0.10), transparent 34%),
+                        linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.02));
                     border: 1px solid rgba(255,255,255,0.06);
-                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 20px 44px rgba(0,0,0,0.22);
                     position: relative;
                     z-index: 1;
                 }
@@ -3299,23 +3301,32 @@
                     text-align: right;
                     font-size: 12px;
                     color: rgba(226,232,240,0.56);
+                    min-width: 170px;
                 }
                 .supply-history-delta strong {
                     display: block;
-                    font-size: 16px;
+                    font-size: 18px;
                     font-weight: 700;
                     color: #34d399;
                     margin-bottom: 3px;
                 }
+                .supply-history-delta-note {
+                    display: block;
+                    margin-top: 4px;
+                    font-size: 11px;
+                    color: rgba(226,232,240,0.64);
+                }
                 .supply-history-chart {
                     position: relative;
-                    height: 260px;
+                    height: 304px;
                     border-radius: 14px;
                     background:
-                        linear-gradient(180deg, rgba(52,211,153,0.08), rgba(52,211,153,0.01) 45%, rgba(255,255,255,0.015)),
+                        radial-gradient(circle at top, rgba(52,211,153,0.14), transparent 42%),
+                        linear-gradient(180deg, rgba(52,211,153,0.08), rgba(52,211,153,0.015) 40%, rgba(255,255,255,0.015)),
                         rgba(5,10,17,0.72);
                     border: 1px solid rgba(255,255,255,0.05);
                     overflow: hidden;
+                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
                 }
                 .supply-history-gridline {
                     position: absolute;
@@ -3328,6 +3339,102 @@
                     width: 100%;
                     height: 100%;
                     display: block;
+                }
+                .supply-history-tooltip {
+                    position: absolute;
+                    min-width: 144px;
+                    padding: 10px 12px;
+                    border-radius: 12px;
+                    background: rgba(10,16,28,0.92);
+                    border: 1px solid rgba(52,211,153,0.22);
+                    box-shadow: 0 18px 36px rgba(0,0,0,0.38);
+                    color: #f8fafc;
+                    pointer-events: none;
+                    opacity: 0;
+                    transform: translateY(8px);
+                    transition: opacity 0.16s ease, transform 0.16s ease;
+                    z-index: 3;
+                    backdrop-filter: blur(16px);
+                    -webkit-backdrop-filter: blur(16px);
+                }
+                .supply-history-tooltip.visible {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+                .supply-history-tooltip-date {
+                    font-size: 11px;
+                    color: rgba(226,232,240,0.7);
+                }
+                .supply-history-tooltip-value {
+                    margin-top: 5px;
+                    font-size: 16px;
+                    font-weight: 700;
+                    color: #d1fae5;
+                    font-family: 'JetBrains Mono', monospace;
+                }
+                .supply-history-controls {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    gap: 14px;
+                    flex-wrap: wrap;
+                    margin-top: 12px;
+                }
+                .supply-history-ranges {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    flex-wrap: wrap;
+                }
+                .supply-history-range-chip {
+                    appearance: none;
+                    border: 1px solid rgba(255,255,255,0.08);
+                    background: rgba(255,255,255,0.035);
+                    color: rgba(226,232,240,0.66);
+                    height: 32px;
+                    padding: 0 12px;
+                    border-radius: 999px;
+                    font-size: 11px;
+                    font-weight: 700;
+                    letter-spacing: 0.04em;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                }
+                .supply-history-range-chip:hover {
+                    border-color: rgba(255,255,255,0.16);
+                    color: #fff;
+                }
+                .supply-history-range-chip.active {
+                    background: rgba(34,211,238,0.12);
+                    border-color: rgba(34,211,238,0.34);
+                    color: #cffafe;
+                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 0 16px rgba(34,211,238,0.12);
+                }
+                .supply-history-custom {
+                    display: flex;
+                    align-items: center;
+                    justify-content: flex-end;
+                    gap: 8px;
+                    flex-wrap: wrap;
+                    color: rgba(226,232,240,0.64);
+                    font-size: 11px;
+                }
+                .supply-history-date-input {
+                    min-width: 134px;
+                    padding: 8px 10px;
+                    border-radius: 10px;
+                    border: 1px solid rgba(255,255,255,0.07);
+                    background: rgba(255,255,255,0.035);
+                    color: #e2e8f0;
+                    font-size: 11px;
+                    font-family: inherit;
+                    outline: none;
+                    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+                }
+                .supply-history-date-input:focus {
+                    border-color: rgba(34,211,238,0.34);
+                    background: rgba(34,211,238,0.05);
+                    box-shadow: 0 0 0 3px rgba(34,211,238,0.08);
                 }
                 .supply-history-axis {
                     display: flex;
@@ -3561,6 +3668,17 @@
                     .supply-intel-stats {
                         grid-template-columns: 1fr;
                     }
+                    .supply-history-delta {
+                        text-align: left;
+                        min-width: 0;
+                    }
+                    .supply-history-controls,
+                    .supply-history-custom {
+                        justify-content: flex-start;
+                    }
+                    .supply-history-date-input {
+                        min-width: 120px;
+                    }
                     .supply-table-controls,
                     .supply-activity-controls {
                         min-width: 100%;
@@ -3636,7 +3754,7 @@
                             <img id="supply-intel-asset-icon" class="supply-intel-title-icon" src="dolomite-logo.svg" alt="">
                             <div>
                                 <div class="supply-intel-title" id="supply-intel-title">Choose an asset</div>
-                                <div class="supply-intel-subtitle" id="supply-intel-subtitle">Live liquidity, caps, supplier breadth, and recent flow.</div>
+                                <div class="supply-intel-subtitle" id="supply-intel-subtitle">Live liquidity, caps, supplier breadth, and full activity.</div>
                             </div>
                         </div>
                     </div>
@@ -3647,12 +3765,27 @@
                     <div class="supply-history-head">
                         <div>
                             <div class="supply-history-title">Supply In Time</div>
-                            <div class="supply-history-meta" id="supply-history-meta">30 day netflow reconstruction from deposits and withdrawals.</div>
+                            <div class="supply-history-meta" id="supply-history-meta">Full-history netflow reconstruction from first recorded deposits and withdrawals.</div>
                         </div>
                         <div class="supply-history-delta" id="supply-history-delta"></div>
                     </div>
                     <div id="supply-history-chart" class="supply-history-chart"></div>
                     <div id="supply-history-axis" class="supply-history-axis"></div>
+                    <div class="supply-history-controls">
+                        <div class="supply-history-ranges" id="supply-history-ranges">
+                            <button class="supply-history-range-chip" data-range="30d" onclick="setSupplyHistoryRange('30d')">30D</button>
+                            <button class="supply-history-range-chip" data-range="90d" onclick="setSupplyHistoryRange('90d')">90D</button>
+                            <button class="supply-history-range-chip" data-range="180d" onclick="setSupplyHistoryRange('180d')">180D</button>
+                            <button class="supply-history-range-chip" data-range="1y" onclick="setSupplyHistoryRange('1y')">1Y</button>
+                            <button class="supply-history-range-chip active" data-range="all" onclick="setSupplyHistoryRange('all')">ALL</button>
+                        </div>
+                        <div class="supply-history-custom">
+                            <span>From</span>
+                            <input type="date" id="supply-history-from" class="supply-history-date-input">
+                            <span>To</span>
+                            <input type="date" id="supply-history-to" class="supply-history-date-input">
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -6055,9 +6188,18 @@
         let supplyActivityAmountMax = null;
         let supplyActivityUsdMin = null;
         let supplyActivityUsdMax = null;
+        let supplyHistoryRange = 'all';
+        let supplyHistoryCustomFrom = null;
+        let supplyHistoryCustomTo = null;
         let supplyTabRequestId = 0;
         const SUPPLY_ACTIVITY_PAGE_SIZE = 12;
-        const SUPPLY_HISTORY_DAYS = 30;
+        const SUPPLY_HISTORY_RANGE_PRESETS = {
+            '30d': { label: '30D', days: 30 },
+            '90d': { label: '90D', days: 90 },
+            '180d': { label: '180D', days: 180 },
+            '1y': { label: '1Y', days: 365 },
+            'all': { label: 'ALL', days: null },
+        };
         let supplyActivityFilters = new Set(['deposit', 'withdraw', 'transfer', 'liquidation']);
 
         const SUPPLY_ACTIVITY_META = {
@@ -6147,6 +6289,14 @@
             return n.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 6 });
         }
 
+        function supplyFormatTokenPrecise(value) {
+            const n = Number(value || 0);
+            if (!Number.isFinite(n)) return '—';
+            if (Math.abs(n) >= 1) return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+            if (Math.abs(n) >= 0.01) return n.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 6 });
+            return n.toLocaleString('en-US', { minimumFractionDigits: 6, maximumFractionDigits: 8 });
+        }
+
         function supplyFormatPercent(value) {
             const n = Number(value || 0);
             if (!Number.isFinite(n)) return '—';
@@ -6182,6 +6332,34 @@
                 hour: '2-digit',
                 minute: '2-digit',
             }).format(new Date(ts * 1000));
+        }
+
+        function supplyFormatFullDate(timestamp) {
+            const ts = Number(timestamp || 0);
+            if (!Number.isFinite(ts) || ts <= 0) return '—';
+            return new Intl.DateTimeFormat('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+            }).format(new Date(ts * 1000));
+        }
+
+        function supplyHistoryDateInputValue(timestamp) {
+            const ts = Number(timestamp || 0);
+            if (!Number.isFinite(ts) || ts <= 0) return '';
+            const d = new Date(ts * 1000);
+            const pad = value => String(value).padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        }
+
+        function supplyHistoryParseDateInput(value, edge) {
+            if (!value) return null;
+            const d = new Date(value + 'T00:00:00');
+            if (!Number.isFinite(d.getTime())) return null;
+            if (edge === 'max') {
+                d.setHours(23, 59, 59, 999);
+            }
+            return Math.floor(d.getTime() / 1000);
         }
 
         function supplyActivityDateInputValue(timestamp) {
@@ -6255,6 +6433,117 @@
                 const popover = th.querySelector('.col-filter-popover');
                 if (popover) popover.style.display = '';
             });
+        }
+
+        function getSupplyHistoryWindow(points) {
+            const safePoints = Array.isArray(points) ? points.filter(point => Number.isFinite(Number(point?.timestamp || 0))) : [];
+            if (safePoints.length === 0) {
+                return {
+                    startTs: null,
+                    endTs: null,
+                    label: 'full history',
+                };
+            }
+
+            const firstTs = Number(safePoints[0].timestamp || 0);
+            const lastTs = Number(safePoints[safePoints.length - 1].timestamp || 0);
+            if (supplyHistoryRange === 'custom') {
+                let customStart = supplyHistoryCustomFrom != null ? supplyHistoryCustomFrom : firstTs;
+                let customEnd = supplyHistoryCustomTo != null ? supplyHistoryCustomTo : lastTs;
+                if (customStart > customEnd) {
+                    const swap = customStart;
+                    customStart = customEnd;
+                    customEnd = swap;
+                }
+                return {
+                    startTs: Math.max(firstTs, customStart),
+                    endTs: Math.min(lastTs, customEnd),
+                    label: 'custom range',
+                };
+            }
+
+            const preset = SUPPLY_HISTORY_RANGE_PRESETS[supplyHistoryRange] || SUPPLY_HISTORY_RANGE_PRESETS.all;
+            if (!preset.days) {
+                return {
+                    startTs: firstTs,
+                    endTs: lastTs,
+                    label: 'full history',
+                };
+            }
+
+            return {
+                startTs: Math.max(firstTs, lastTs - (preset.days * 24 * 60 * 60)),
+                endTs: lastTs,
+                label: `last ${preset.label}`,
+            };
+        }
+
+        function getVisibleSupplyHistoryPoints(points) {
+            const safePoints = Array.isArray(points) ? points : [];
+            if (safePoints.length === 0) return [];
+            const window = getSupplyHistoryWindow(safePoints);
+            const visible = safePoints.filter(point => {
+                const ts = Number(point?.timestamp || 0);
+                return (window.startTs == null || ts >= window.startTs) && (window.endTs == null || ts <= window.endTs);
+            });
+
+            if (visible.length === 0) return [];
+            if (window.startTs != null) {
+                for (let i = safePoints.length - 1; i >= 0; i--) {
+                    const candidate = safePoints[i];
+                    const ts = Number(candidate?.timestamp || 0);
+                    if (ts < window.startTs) {
+                        if (visible[0] !== candidate) {
+                            visible.unshift(candidate);
+                        }
+                        break;
+                    }
+                }
+            }
+            return visible;
+        }
+
+        function syncSupplyHistoryControls(points) {
+            const buttons = document.querySelectorAll('#supply-history-ranges .supply-history-range-chip');
+            buttons.forEach(button => button.classList.toggle('active', button.dataset.range === supplyHistoryRange));
+
+            const fromInput = document.getElementById('supply-history-from');
+            const toInput = document.getElementById('supply-history-to');
+            if (!fromInput || !toInput) return;
+
+            const safePoints = Array.isArray(points) ? points : [];
+            if (safePoints.length === 0) {
+                fromInput.value = '';
+                toInput.value = '';
+                return;
+            }
+
+            const window = getSupplyHistoryWindow(safePoints);
+            fromInput.value = supplyHistoryDateInputValue(window.startTs);
+            toInput.value = supplyHistoryDateInputValue(window.endTs);
+        }
+
+        function setSupplyHistoryRange(range) {
+            if (!SUPPLY_HISTORY_RANGE_PRESETS[range]) return;
+            supplyHistoryRange = range;
+            renderSupplyIntelOverview();
+        }
+
+        function applySupplyHistoryCustomRange() {
+            const fromInput = document.getElementById('supply-history-from');
+            const toInput = document.getElementById('supply-history-to');
+            if (!fromInput || !toInput) return;
+            let fromTs = supplyHistoryParseDateInput(fromInput.value, 'min');
+            let toTs = supplyHistoryParseDateInput(toInput.value, 'max');
+            if (fromTs != null && toTs != null && fromTs > toTs) {
+                const swap = fromTs;
+                fromTs = toTs;
+                toTs = swap;
+            }
+            supplyHistoryCustomFrom = fromTs;
+            supplyHistoryCustomTo = toTs;
+            supplyHistoryRange = (fromTs == null && toTs == null) ? 'all' : 'custom';
+            renderSupplyIntelOverview();
         }
 
         function initSupplyActivityRangePopover(opts) {
@@ -6410,6 +6699,9 @@
             supplyActivityAmountMax = null;
             supplyActivityUsdMin = null;
             supplyActivityUsdMax = null;
+            supplyHistoryRange = 'all';
+            supplyHistoryCustomFrom = null;
+            supplyHistoryCustomTo = null;
             supplyActivityFilters = new Set(['deposit', 'withdraw', 'transfer', 'liquidation']);
             const shell = document.getElementById('supply-intel-shell');
             const card = document.getElementById('supply-activity-card');
@@ -6435,6 +6727,7 @@
             closeSupplyActivityFilterPopovers();
             updateSupplyActivitySortUi();
             syncSupplyActivityColumnFilterUi();
+            syncSupplyHistoryControls([]);
             updateSupplyActivitySubtitle();
         }
 
@@ -6465,7 +6758,7 @@
                     </div>
                 `).join('');
             }
-            if (chart) chart.innerHTML = '<div class="supply-intel-empty">Reconstructing recent supply path...</div>';
+            if (chart) chart.innerHTML = '<div class="supply-intel-empty">Reconstructing full supply path...</div>';
             if (axis) axis.innerHTML = '';
             if (shell) shell.style.display = 'block';
         }
@@ -6531,12 +6824,20 @@
             format: value => value == null ? '' : String(value),
         });
 
-        function buildSupplyHistorySeries(currentSupply, deposits, withdrawals, days) {
-            const dayCount = Math.max(2, Number(days || SUPPLY_HISTORY_DAYS));
+        const supplyHistoryFromInput = document.getElementById('supply-history-from');
+        const supplyHistoryToInput = document.getElementById('supply-history-to');
+        if (supplyHistoryFromInput && supplyHistoryToInput) {
+            supplyHistoryFromInput.addEventListener('input', applySupplyHistoryCustomRange);
+            supplyHistoryToInput.addEventListener('input', applySupplyHistoryCustomRange);
+        }
+
+        function buildSupplyHistorySeries(currentSupply, deposits, withdrawals) {
             const now = new Date();
             const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
             const dayMs = 24 * 60 * 60 * 1000;
             const dayNet = Object.create(null);
+            let earliestBucketUtc = todayUtc;
+            let hasAnyEvent = false;
 
             const applyEvent = (event, direction) => {
                 const ts = Number(event?.transaction?.timestamp || 0);
@@ -6545,26 +6846,30 @@
                 const bucketUtc = Date.UTC(bucketDate.getUTCFullYear(), bucketDate.getUTCMonth(), bucketDate.getUTCDate());
                 const key = String(bucketUtc);
                 dayNet[key] = (dayNet[key] || 0) + direction * (parseFloat(event?.amountDeltaWei || '0') || 0);
+                earliestBucketUtc = Math.min(earliestBucketUtc, bucketUtc);
+                hasAnyEvent = true;
             };
 
             (deposits || []).forEach(dep => applyEvent(dep, 1));
             (withdrawals || []).forEach(wd => applyEvent(wd, -1));
 
+            if (!hasAnyEvent) {
+                return [];
+            }
+
             const points = [];
-            const lastIndex = dayCount - 1;
             let rollingSupply = Number(currentSupply || 0);
 
-            for (let i = lastIndex; i >= 0; i--) {
-                const dayUtc = todayUtc - (lastIndex - i) * dayMs;
-                points[i] = {
+            for (let dayUtc = todayUtc; dayUtc >= earliestBucketUtc; dayUtc -= dayMs) {
+                points.push({
                     timestamp: Math.floor(dayUtc / 1000),
                     value: Math.max(0, rollingSupply),
-                };
+                });
                 const key = String(dayUtc);
                 rollingSupply = Math.max(0, rollingSupply - (dayNet[key] || 0));
             }
 
-            return points;
+            return points.reverse();
         }
 
         function renderSupplyHistoryChart(points) {
@@ -6574,45 +6879,68 @@
             const meta = document.getElementById('supply-history-meta');
             if (!chart || !axis || !delta || !meta) return;
 
-            if (!points || points.length < 2) {
-                chart.innerHTML = '<div class="supply-history-empty">Not enough flow data yet to draw a history line.</div>';
+            const visiblePoints = getVisibleSupplyHistoryPoints(points || []);
+            syncSupplyHistoryControls(points || []);
+
+            if (!points || points.length < 2 || visiblePoints.length < 2) {
+                const emptyMessage = (points && points.length >= 2)
+                    ? 'The selected range is too narrow to draw a chart.'
+                    : 'Not enough flow data yet to draw a history line.';
+                chart.innerHTML = `<div class="supply-history-empty">${emptyMessage}</div>`;
                 axis.innerHTML = '';
                 delta.innerHTML = '';
-                meta.textContent = 'Waiting for enough deposit and withdrawal activity on this market.';
+                meta.textContent = (points && points.length >= 2)
+                    ? 'Try widening the selected range below the chart.'
+                    : 'Waiting for enough deposit and withdrawal activity on this market.';
                 return;
             }
 
             const width = 1000;
-            const height = 260;
-            const padX = 22;
-            const padY = 20;
-            const values = points.map(p => Number(p.value || 0));
+            const height = 304;
+            const padLeft = 90;
+            const padRight = 24;
+            const padTop = 18;
+            const padBottom = 18;
+            const values = visiblePoints.map(p => Number(p.value || 0));
             const min = Math.min(...values);
             const max = Math.max(...values);
             const spread = max - min;
             const safeSpread = spread > 0 ? spread : Math.max(max * 0.02, 1);
-            const innerW = width - padX * 2;
-            const innerH = height - padY * 2;
+            const innerW = width - padLeft - padRight;
+            const innerH = height - padTop - padBottom;
 
-            const pathPoints = points.map((point, idx) => {
-                const x = padX + (innerW * idx) / Math.max(1, points.length - 1);
+            const pathPoints = visiblePoints.map((point, idx) => {
+                const x = padLeft + (innerW * idx) / Math.max(1, visiblePoints.length - 1);
                 const normalized = (Number(point.value || 0) - min) / safeSpread;
-                const y = height - padY - normalized * innerH;
+                const y = height - padBottom - normalized * innerH;
                 return { x, y };
             });
 
             const linePath = pathPoints.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ');
-            const areaPath = `${linePath} L ${pathPoints[pathPoints.length - 1].x.toFixed(2)} ${(height - padY).toFixed(2)} L ${pathPoints[0].x.toFixed(2)} ${(height - padY).toFixed(2)} Z`;
-            const gridLines = [0.2, 0.4, 0.6, 0.8].map(ratio => {
-                const y = (padY + innerH * ratio).toFixed(2);
-                return `<line x1="${padX}" y1="${y}" x2="${width - padX}" y2="${y}" stroke="rgba(255,255,255,0.06)" stroke-width="1" />`;
+            const areaPath = `${linePath} L ${pathPoints[pathPoints.length - 1].x.toFixed(2)} ${(height - padBottom).toFixed(2)} L ${pathPoints[0].x.toFixed(2)} ${(height - padBottom).toFixed(2)} Z`;
+            const yTicks = Array.from({ length: 5 }).map((_, idx) => {
+                const ratio = idx / 4;
+                return {
+                    value: max - (safeSpread * ratio),
+                    y: padTop + (innerH * ratio),
+                };
+            });
+            const gridLines = yTicks.map(tick => {
+                return `<line x1="${padLeft}" y1="${tick.y.toFixed(2)}" x2="${width - padRight}" y2="${tick.y.toFixed(2)}" stroke="rgba(255,255,255,0.06)" stroke-width="1" />`;
+            }).join('');
+            const yLabels = yTicks.map(tick => {
+                return `<text x="10" y="${(tick.y + 4).toFixed(2)}" fill="rgba(148,163,184,0.84)" font-size="11" font-family="Inter, sans-serif">${supplyEscapeHtml(supplyFormatTokenCompact(tick.value))}</text>`;
             }).join('');
 
             chart.innerHTML = `
+                <div class="supply-history-tooltip" id="supply-history-tooltip">
+                    <div class="supply-history-tooltip-date"></div>
+                    <div class="supply-history-tooltip-value"></div>
+                </div>
                 <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
                     <defs>
                         <linearGradient id="supplyAreaGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stop-color="rgba(52,211,153,0.42)" />
+                            <stop offset="0%" stop-color="rgba(52,211,153,0.48)" />
                             <stop offset="100%" stop-color="rgba(52,211,153,0.02)" />
                         </linearGradient>
                         <filter id="supplyGlow">
@@ -6624,27 +6952,91 @@
                         </filter>
                     </defs>
                     ${gridLines}
+                    ${yLabels}
                     <path d="${areaPath}" fill="url(#supplyAreaGradient)"></path>
                     <path d="${linePath}" fill="none" stroke="#34d399" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" filter="url(#supplyGlow)"></path>
+                    <line id="supply-history-hover-line" x1="0" y1="${padTop}" x2="0" y2="${height - padBottom}" stroke="rgba(255,255,255,0.22)" stroke-width="1.5" stroke-dasharray="4 5" opacity="0"></line>
+                    <circle id="supply-history-hover-halo" cx="0" cy="0" r="10" fill="rgba(52,211,153,0.16)" opacity="0"></circle>
+                    <circle id="supply-history-hover-dot" cx="0" cy="0" r="4.5" fill="#34d399" stroke="#ecfeff" stroke-width="2" opacity="0"></circle>
                 </svg>
             `;
 
-            const first = points[0];
-            const mid = points[Math.floor(points.length / 2)];
-            const last = points[points.length - 1];
+            const axisIndexes = [0, 0.33, 0.66, 1].map(ratio => Math.round((visiblePoints.length - 1) * ratio));
+            const axisPoints = axisIndexes.map(index => visiblePoints[Math.max(0, Math.min(visiblePoints.length - 1, index))]);
             axis.innerHTML = `
-                <span>${supplyFormatDateLabel(first.timestamp)}</span>
-                <span>${supplyFormatDateLabel(mid.timestamp)}</span>
-                <span>${supplyFormatDateLabel(last.timestamp)}</span>
+                ${axisPoints.map(point => `<span>${supplyEscapeHtml(supplyFormatDateLabel(point.timestamp))}</span>`).join('')}
             `;
 
+            const first = visiblePoints[0];
+            const last = visiblePoints[visiblePoints.length - 1];
             const absoluteDelta = Number(last.value || 0) - Number(first.value || 0);
             const deltaLabel = absoluteDelta >= 0 ? '+' : '−';
+            const windowLabel = getSupplyHistoryWindow(points || []).label;
+            const fullLast = points[points.length - 1];
+            const isCurrentTail = Math.abs(Number(last.timestamp || 0) - Number(fullLast?.timestamp || 0)) <= (24 * 60 * 60);
             delta.innerHTML = `
-                <strong style="color:${absoluteDelta >= 0 ? '#34d399' : '#f87171'}">${deltaLabel}${supplyFormatTokenCompact(Math.abs(absoluteDelta))}</strong>
-                <span>${SUPPLY_HISTORY_DAYS} day net move</span>
+                <strong style="color:#f8fafc">${supplyFormatTokenCompact(Number(last.value || 0))}</strong>
+                <span>${isCurrentTail ? 'Current supply' : `Supply on ${supplyFormatDateLabel(last.timestamp)}`}</span>
+                <span class="supply-history-delta-note" style="color:${absoluteDelta >= 0 ? '#86efac' : '#fca5a5'}">${deltaLabel}${supplyFormatTokenCompact(Math.abs(absoluteDelta))} over ${windowLabel}</span>
             `;
-            meta.textContent = `${SUPPLY_HISTORY_DAYS} day netflow reconstruction from deposits and withdrawals.`;
+            meta.textContent = `Netflow reconstruction from ${supplyFormatFullDate(points[0].timestamp)} to ${supplyFormatFullDate(points[points.length - 1].timestamp)}. Hover the line for exact readings.`;
+
+            const tooltip = document.getElementById('supply-history-tooltip');
+            const tooltipDate = tooltip ? tooltip.querySelector('.supply-history-tooltip-date') : null;
+            const tooltipValue = tooltip ? tooltip.querySelector('.supply-history-tooltip-value') : null;
+            const hoverLine = document.getElementById('supply-history-hover-line');
+            const hoverHalo = document.getElementById('supply-history-hover-halo');
+            const hoverDot = document.getElementById('supply-history-hover-dot');
+
+            function hideHover() {
+                if (hoverLine) hoverLine.setAttribute('opacity', '0');
+                if (hoverHalo) hoverHalo.setAttribute('opacity', '0');
+                if (hoverDot) hoverDot.setAttribute('opacity', '0');
+                if (tooltip) tooltip.classList.remove('visible');
+            }
+
+            function showHover(index) {
+                const point = pathPoints[index];
+                const dataPoint = visiblePoints[index];
+                if (!point || !dataPoint || !tooltip || !tooltipDate || !tooltipValue || !hoverLine || !hoverHalo || !hoverDot) return;
+
+                hoverLine.setAttribute('x1', point.x.toFixed(2));
+                hoverLine.setAttribute('x2', point.x.toFixed(2));
+                hoverLine.setAttribute('opacity', '1');
+                hoverHalo.setAttribute('cx', point.x.toFixed(2));
+                hoverHalo.setAttribute('cy', point.y.toFixed(2));
+                hoverHalo.setAttribute('opacity', '1');
+                hoverDot.setAttribute('cx', point.x.toFixed(2));
+                hoverDot.setAttribute('cy', point.y.toFixed(2));
+                hoverDot.setAttribute('opacity', '1');
+
+                tooltipDate.textContent = supplyFormatFullDate(dataPoint.timestamp);
+                tooltipValue.textContent = `${supplyFormatTokenPrecise(dataPoint.value)} ${currentSupplyOverview?.token?.symbol || ''}`.trim();
+
+                const rect = chart.getBoundingClientRect();
+                const xPx = (point.x / width) * rect.width;
+                const yPx = (point.y / height) * rect.height;
+                let left = xPx + 14;
+                let top = yPx - 62;
+                if (left > rect.width - 168) left = xPx - 154;
+                if (top < 10) top = yPx + 12;
+                tooltip.style.left = `${Math.max(8, left)}px`;
+                tooltip.style.top = `${Math.max(8, top)}px`;
+                tooltip.classList.add('visible');
+            }
+
+            chart.onmousemove = event => {
+                const rect = chart.getBoundingClientRect();
+                const relativeX = ((event.clientX - rect.left) / rect.width) * width;
+                if (relativeX < padLeft || relativeX > (width - padRight)) {
+                    hideHover();
+                    return;
+                }
+                const ratio = (relativeX - padLeft) / innerW;
+                const index = Math.max(0, Math.min(visiblePoints.length - 1, Math.round(ratio * (visiblePoints.length - 1))));
+                showHover(index);
+            };
+            chart.onmouseleave = hideHover;
         }
 
         function renderSupplyIntelOverview() {
@@ -7424,6 +7816,9 @@
             supplyActivityAmountMax = null;
             supplyActivityUsdMin = null;
             supplyActivityUsdMax = null;
+            supplyHistoryRange = 'all';
+            supplyHistoryCustomFrom = null;
+            supplyHistoryCustomTo = null;
             const activitySearchInput = document.getElementById('supply-activity-search-input');
             const activitySearchWrap = document.getElementById('supply-activity-search-wrap');
             if (activitySearchInput) activitySearchInput.value = '';
@@ -7431,6 +7826,7 @@
             closeSupplyActivityFilterPopovers();
             updateSupplyActivitySortUi();
             syncSupplyActivityColumnFilterUi();
+            syncSupplyHistoryControls([]);
             if (activitySubtitle) {
                 activitySubtitle.textContent = `Deposits, withdrawals, transfers, and liquidations for ${tokenObj.symbol} on ${CHAIN_DISPLAY_NAMES[chain] || chain} across full available history.`;
             }
@@ -7506,7 +7902,7 @@
                     borrowCap,
                     borrowingDisabled: !!token.riskInfo?.isBorrowingDisabled,
                     utilizationPct,
-                    historyPoints: buildSupplyHistorySeries(supply, deposits, withdrawals, SUPPLY_HISTORY_DAYS),
+                    historyPoints: buildSupplyHistorySeries(supply, deposits, withdrawals),
                 };
 
                 renderSupplyIntelOverview();
@@ -7521,7 +7917,7 @@
                 const activityLoading = document.getElementById('supply-activity-loading');
                 const activityTable = document.getElementById('supply-activity-table');
                 if(loader) loader.innerHTML = `<div style="color:#ef4444; font-weight:600;">Failed to fetch from graph api.</div>`;
-                if(chart) chart.innerHTML = `<div class="supply-history-empty" style="color:#fca5a5;">Failed to reconstruct supply history.</div>`;
+                if(chart) chart.innerHTML = `<div class="supply-history-empty" style="color:#fca5a5;">Failed to reconstruct full supply history.</div>`;
                 if(activityLoading) activityLoading.style.display = 'none';
                 if(activityTable) activityTable.style.display = 'none';
             }
