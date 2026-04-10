@@ -3369,6 +3369,7 @@
                 .supply-table-heading,
                 .supply-activity-heading {
                     min-width: 0;
+                    flex: 1 1 340px;
                 }
                 .supply-table-controls {
                     display: flex;
@@ -3377,9 +3378,10 @@
                     gap: 12px;
                     flex-wrap: wrap;
                     margin-left: auto;
+                    flex: 0 1 auto;
                 }
                 .supply-table-search-wrap {
-                    margin: 0;
+                    margin: 12px 0 0;
                     min-width: min(100%, 320px);
                     width: min(100%, 320px);
                 }
@@ -3390,9 +3392,10 @@
                     gap: 12px;
                     flex-wrap: wrap;
                     margin-left: auto;
+                    flex: 0 1 auto;
                 }
                 .supply-activity-search-wrap {
-                    margin: 0;
+                    margin: 12px 0 0;
                     min-width: min(100%, 320px);
                     width: min(100%, 320px);
                 }
@@ -3653,8 +3656,6 @@
                                 <img id="supply-header-icon" src="dolomite-logo.svg" style="width:20px; height:20px; border-radius:50%; object-fit:contain; border:1px solid rgba(255,255,255,0.1);" alt="">
                                 <span id="supply-table-title">Supplier Leaderboard</span> <span class="header-count" id="supply-count-header"></span>
                             </h3>
-                        </div>
-                        <div class="supply-table-controls">
                             <div class="search-wrap premium-supply-search-wrap supply-table-search-wrap" id="supply-search-wrap">
                                 <svg class="search-icon premium-supply-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                                 <input type="text" class="search-input premium-supply-search-input" id="supply-search-input" placeholder="Search supplier address (0x...)">
@@ -3699,13 +3700,13 @@
                                 <span>Asset Activity</span> <span class="header-count" id="supply-activity-count"></span>
                             </h3>
                             <div class="supply-activity-subtitle" id="supply-activity-subtitle">Recent deposits, withdrawals, transfers, and liquidations for the selected market.</div>
-                        </div>
-                        <div class="supply-activity-controls">
                             <div class="search-wrap premium-supply-search-wrap supply-activity-search-wrap" id="supply-activity-search-wrap">
                                 <svg class="search-icon premium-supply-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                                 <input type="text" class="search-input premium-supply-search-input" id="supply-activity-search-input" placeholder="Search wallet address (0x...)">
                                 <button type="button" class="search-clear" id="supply-activity-search-clear" title="Clear search" style="right:14px; top:50%; transform:translateY(-50%);">✕</button>
                             </div>
+                        </div>
+                        <div class="supply-activity-controls">
                             <div class="supply-activity-filter-row">
                                 <button class="supply-filter-pill active" data-type="deposit" onclick="toggleSupplyActivityType('deposit')">Deposits</button>
                                 <button class="supply-filter-pill active" data-type="withdraw" onclick="toggleSupplyActivityType('withdraw')">Withdrawals</button>
