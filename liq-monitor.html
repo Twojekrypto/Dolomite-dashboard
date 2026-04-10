@@ -3145,7 +3145,7 @@
                     border: 1px solid rgba(255,255,255,0.08);
                     box-shadow: 0 18px 44px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.06);
                     position: relative;
-                    overflow: hidden;
+                    overflow: visible;
                 }
                 .supply-intel-shell::after {
                     content: "";
@@ -3324,15 +3324,14 @@
                 }
                 .supply-history-chart {
                     position: relative;
-                    height: 304px;
+                    height: 320px;
                     border-radius: 14px;
                     background:
-                        radial-gradient(circle at top, rgba(52,211,153,0.14), transparent 42%),
-                        linear-gradient(180deg, rgba(52,211,153,0.08), rgba(52,211,153,0.015) 40%, rgba(255,255,255,0.015)),
-                        rgba(5,10,17,0.72);
-                    border: 1px solid rgba(255,255,255,0.05);
+                        radial-gradient(ellipse 80% 50% at 50% 0%, rgba(52,211,153,0.10), transparent),
+                        linear-gradient(180deg, rgba(8,14,24,0.92), rgba(5,10,17,0.96));
+                    border: 1px solid rgba(255,255,255,0.06);
                     overflow: hidden;
-                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
                     cursor: crosshair;
                     touch-action: none;
                 }
@@ -3353,38 +3352,53 @@
                     user-select: none;
                     -webkit-user-select: none;
                 }
+                @keyframes supplyLivePulse {
+                    0%   { r: 4; opacity: 1; }
+                    50%  { r: 8; opacity: 0.3; }
+                    100% { r: 4; opacity: 1; }
+                }
                 .supply-history-tooltip {
                     position: absolute;
-                    min-width: 144px;
-                    padding: 10px 12px;
+                    min-width: 170px;
+                    padding: 12px 14px;
                     border-radius: 12px;
-                    background: rgba(10,16,28,0.92);
-                    border: 1px solid rgba(52,211,153,0.22);
-                    box-shadow: 0 18px 36px rgba(0,0,0,0.38);
+                    background: rgba(6,11,22,0.94);
+                    border: 1px solid rgba(52,211,153,0.18);
+                    box-shadow: 0 16px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(52,211,153,0.06);
                     color: #f8fafc;
                     pointer-events: none;
                     opacity: 0;
-                    transform: translateY(8px);
-                    transition: opacity 0.16s ease, transform 0.16s ease;
+                    transform: translateY(6px);
+                    transition: opacity 0.12s ease, transform 0.12s ease;
                     z-index: 3;
-                    backdrop-filter: blur(16px);
-                    -webkit-backdrop-filter: blur(16px);
+                    backdrop-filter: blur(20px);
+                    -webkit-backdrop-filter: blur(20px);
                 }
                 .supply-history-tooltip.visible {
                     opacity: 1;
                     transform: translateY(0);
                 }
                 .supply-history-tooltip-date {
-                    font-size: 11px;
-                    color: rgba(226,232,240,0.7);
+                    font-size: 10px;
+                    color: rgba(148,163,184,0.75);
+                    letter-spacing: 0.02em;
                 }
                 .supply-history-tooltip-value {
-                    margin-top: 5px;
-                    font-size: 16px;
+                    margin-top: 4px;
+                    font-size: 17px;
                     font-weight: 700;
                     color: #d1fae5;
                     font-family: 'JetBrains Mono', monospace;
+                    letter-spacing: -0.02em;
                 }
+                .supply-history-tooltip-delta {
+                    margin-top: 4px;
+                    font-size: 11px;
+                    font-weight: 600;
+                    letter-spacing: 0.01em;
+                }
+                .supply-history-tooltip-delta.up { color: #86efac; }
+                .supply-history-tooltip-delta.down { color: #fca5a5; }
                 .supply-history-controls {
                     display: flex;
                     justify-content: space-between;
@@ -3504,21 +3518,19 @@
                 }
                 .supply-history-date-popover {
                     position: fixed;
-                    z-index: 140;
-                    width: min(320px, calc(100vw - 20px));
-                    padding: 14px;
-                    border-radius: 18px;
-                    border: 1px solid rgba(255,255,255,0.08);
-                    background:
-                        radial-gradient(circle at top right, rgba(34,211,238,0.16), transparent 34%),
-                        linear-gradient(180deg, rgba(10,16,28,0.98), rgba(6,11,22,0.96));
-                    box-shadow: 0 28px 60px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.05);
-                    backdrop-filter: blur(22px);
-                    -webkit-backdrop-filter: blur(22px);
+                    z-index: 9999;
+                    width: min(260px, calc(100vw - 20px));
+                    padding: 10px;
+                    border-radius: 14px;
+                    border: 1px solid rgba(255,255,255,0.10);
+                    background: rgba(8,13,24,0.96);
+                    box-shadow: 0 12px 36px rgba(0,0,0,0.50), 0 0 0 1px rgba(99,102,241,0.06);
+                    backdrop-filter: blur(20px);
+                    -webkit-backdrop-filter: blur(20px);
                     opacity: 0;
                     pointer-events: none;
-                    transform: translateY(6px);
-                    transition: opacity 0.18s ease, transform 0.18s ease;
+                    transform: translateY(4px);
+                    transition: opacity 0.15s ease, transform 0.15s ease;
                 }
                 .supply-history-date-popover.visible {
                     opacity: 1;
@@ -3529,49 +3541,43 @@
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
-                    gap: 12px;
-                    margin-bottom: 12px;
+                    gap: 8px;
+                    margin-bottom: 8px;
                 }
                 .supply-history-picker-context {
                     min-width: 0;
                 }
                 .supply-history-picker-target {
-                    font-size: 10px;
+                    font-size: 9px;
                     font-weight: 700;
-                    letter-spacing: 0.14em;
+                    letter-spacing: 0.12em;
                     text-transform: uppercase;
-                    color: rgba(125,211,252,0.9);
+                    color: rgba(125,211,252,0.8);
                 }
                 .supply-history-picker-title {
-                    margin-top: 4px;
-                    font-size: 16px;
+                    margin-top: 2px;
+                    font-size: 13px;
                     font-weight: 700;
                     color: #f8fafc;
-                    letter-spacing: -0.03em;
+                    letter-spacing: -0.02em;
                 }
                 .supply-history-picker-availability {
-                    margin-bottom: 12px;
-                    padding: 10px 12px;
-                    border-radius: 12px;
-                    border: 1px solid rgba(255,255,255,0.06);
-                    background: rgba(255,255,255,0.03);
-                    font-size: 11px;
-                    line-height: 1.45;
-                    color: rgba(226,232,240,0.72);
+                    margin-bottom: 8px;
+                    padding: 0;
+                    border-radius: 0;
+                    border: none;
+                    background: none;
+                    font-size: 10px;
+                    line-height: 1.3;
+                    color: rgba(148,163,184,0.55);
                 }
                 .supply-history-picker-availability strong {
-                    display: block;
-                    margin-bottom: 4px;
-                    font-size: 10px;
-                    font-weight: 700;
-                    letter-spacing: 0.14em;
-                    text-transform: uppercase;
-                    color: rgba(125,211,252,0.9);
+                    display: none;
                 }
                 .supply-history-picker-nav {
                     display: inline-flex;
                     align-items: center;
-                    gap: 8px;
+                    gap: 4px;
                 }
                 .supply-history-picker-nav button,
                 .supply-history-picker-action {
@@ -3582,117 +3588,182 @@
                     background: rgba(255,255,255,0.04);
                     color: #e2e8f0;
                     cursor: pointer;
-                    transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+                    transition: border-color 0.15s ease, background 0.15s ease;
                 }
                 .supply-history-picker-nav button {
-                    width: 32px;
-                    height: 32px;
-                    border-radius: 10px;
-                    font-size: 15px;
+                    width: 26px;
+                    height: 26px;
+                    border-radius: 7px;
+                    font-size: 13px;
                 }
                 .supply-history-picker-nav button:hover,
                 .supply-history-picker-action:hover {
-                    border-color: rgba(34,211,238,0.24);
+                    border-color: rgba(34,211,238,0.22);
                     background: rgba(34,211,238,0.08);
-                    transform: translateY(-1px);
                 }
                 .supply-history-picker-nav button:disabled {
-                    opacity: 0.32;
+                    opacity: 0.28;
                     cursor: not-allowed;
                     background: rgba(255,255,255,0.02);
-                    border-color: rgba(255,255,255,0.05);
-                    transform: none;
+                    border-color: rgba(255,255,255,0.04);
                 }
                 .supply-history-picker-weekdays,
                 .supply-history-picker-grid {
                     display: grid;
                     grid-template-columns: repeat(7, minmax(0, 1fr));
-                    gap: 6px;
+                    gap: 3px;
                 }
                 .supply-history-picker-weekdays {
-                    margin-bottom: 8px;
+                    margin-bottom: 4px;
                 }
                 .supply-history-picker-weekday {
                     text-align: center;
-                    font-size: 10px;
+                    font-size: 9px;
                     font-weight: 700;
-                    letter-spacing: 0.08em;
+                    letter-spacing: 0.06em;
                     text-transform: uppercase;
-                    color: rgba(148,163,184,0.6);
+                    color: rgba(148,163,184,0.5);
                 }
                 .supply-history-picker-day {
-                    height: 38px;
-                    border-radius: 12px;
+                    height: 30px;
+                    border-radius: 8px;
                     border: 1px solid transparent;
                     background: rgba(255,255,255,0.025);
-                    color: #e2e8f0;
-                    font-size: 12px;
+                    color: #d1d5db;
+                    font-size: 11px;
                     font-weight: 600;
                     cursor: pointer;
-                    transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease, color 0.16s ease;
+                    transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
                 }
                 .supply-history-picker-day:hover {
-                    border-color: rgba(34,211,238,0.22);
+                    border-color: rgba(34,211,238,0.20);
                     background: rgba(34,211,238,0.08);
-                    transform: translateY(-1px);
+                    color: #f0f0f6;
                 }
                 .supply-history-picker-day.unavailable,
                 .supply-history-picker-day:disabled {
                     cursor: not-allowed;
-                    color: rgba(148,163,184,0.2);
-                    background:
-                        repeating-linear-gradient(135deg, rgba(255,255,255,0.012), rgba(255,255,255,0.012) 6px, rgba(255,255,255,0.028) 6px, rgba(255,255,255,0.028) 12px);
-                    border-color: rgba(255,255,255,0.04);
+                    color: rgba(148,163,184,0.18);
+                    background: rgba(255,255,255,0.015);
+                    border-color: transparent;
                     box-shadow: none;
-                    opacity: 0.52;
+                    opacity: 0.45;
                 }
                 .supply-history-picker-day.unavailable:hover,
                 .supply-history-picker-day:disabled:hover {
-                    transform: none;
-                    border-color: rgba(255,255,255,0.04);
-                    background:
-                        repeating-linear-gradient(135deg, rgba(255,255,255,0.012), rgba(255,255,255,0.012) 6px, rgba(255,255,255,0.028) 6px, rgba(255,255,255,0.028) 12px);
-                }
-                .supply-history-picker-day.muted {
-                    color: rgba(148,163,184,0.46);
+                    border-color: transparent;
                     background: rgba(255,255,255,0.015);
+                    color: rgba(148,163,184,0.18);
                 }
                 .supply-history-picker-day.today {
-                    border-color: rgba(52,211,153,0.24);
-                    box-shadow: inset 0 0 0 1px rgba(52,211,153,0.16);
+                    border-color: rgba(52,211,153,0.28);
+                    color: #34d399;
                 }
                 .supply-history-picker-day.in-range {
                     background: rgba(34,211,238,0.10);
-                    color: #dbeafe;
+                    color: #e0f2fe;
                 }
                 .supply-history-picker-day.selected {
-                    border-color: rgba(34,211,238,0.28);
-                    background: linear-gradient(135deg, rgba(34,211,238,0.26), rgba(52,211,153,0.22));
+                    border-color: rgba(34,211,238,0.32);
+                    background: linear-gradient(135deg, rgba(34,211,238,0.22), rgba(52,211,153,0.18));
                     color: #f8fafc;
-                    box-shadow: 0 10px 18px rgba(34,211,238,0.14);
+                    box-shadow: 0 4px 12px rgba(34,211,238,0.12);
                 }
                 .supply-history-picker-actions {
                     display: flex;
                     justify-content: space-between;
-                    gap: 10px;
-                    margin-top: 12px;
+                    gap: 6px;
+                    margin-top: 8px;
                 }
                 .supply-history-picker-action {
-                    min-height: 34px;
-                    padding: 0 12px;
-                    border-radius: 10px;
-                    font-size: 11px;
+                    min-height: 28px;
+                    padding: 0 10px;
+                    border-radius: 7px;
+                    font-size: 10px;
                     font-weight: 700;
-                    letter-spacing: 0.08em;
+                    letter-spacing: 0.06em;
                     text-transform: uppercase;
                 }
                 .supply-history-axis {
                     display: flex;
                     justify-content: space-between;
                     gap: 12px;
-                    margin-top: 10px;
+                    padding: 6px 72px 0 72px;
                     font-size: 11px;
-                    color: rgba(148,163,184,0.7);
+                    color: rgba(148,163,184,0.55);
+                    font-family: 'JetBrains Mono', monospace;
+                }
+                .supply-history-brush {
+                    position: relative;
+                    height: 48px;
+                    margin-top: 8px;
+                    border-radius: 6px;
+                    overflow: hidden;
+                    background: rgba(8,14,24,0.60);
+                    border: 1px solid rgba(255,255,255,0.04);
+                    cursor: default;
+                    user-select: none;
+                    -webkit-user-select: none;
+                }
+                .supply-history-brush-svg {
+                    position: absolute;
+                    inset: 0;
+                    width: 100%;
+                    height: 100%;
+                    z-index: 0;
+                    pointer-events: none;
+                }
+                .supply-history-brush-overlay {
+                    position: absolute;
+                    top: 0;
+                    bottom: 0;
+                    background: rgba(3,7,18,0.65);
+                    z-index: 1;
+                }
+                .supply-history-brush-overlay-left { left: 0; }
+                .supply-history-brush-overlay-right { right: 0; }
+                .supply-history-brush-handle {
+                    position: absolute;
+                    top: 0;
+                    bottom: 0;
+                    width: 10px;
+                    background: rgba(52,211,153,0.20);
+                    border: 1px solid rgba(52,211,153,0.35);
+                    z-index: 3;
+                    cursor: ew-resize;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: background 0.15s;
+                }
+                .supply-history-brush-handle:hover,
+                .supply-history-brush-handle:active {
+                    background: rgba(52,211,153,0.35);
+                }
+                .supply-history-brush-handle span {
+                    width: 2px;
+                    height: 14px;
+                    border-radius: 1px;
+                    background: rgba(52,211,153,0.7);
+                }
+                .supply-history-brush-handle-left {
+                    border-radius: 4px 0 0 4px;
+                }
+                .supply-history-brush-handle-right {
+                    border-radius: 0 4px 4px 0;
+                }
+                .supply-history-brush-window {
+                    position: absolute;
+                    top: 0;
+                    bottom: 0;
+                    z-index: 2;
+                    border-top: 2px solid rgba(52,211,153,0.25);
+                    border-bottom: 2px solid rgba(52,211,153,0.25);
+                    cursor: grab;
+                    background: transparent;
+                }
+                .supply-history-brush-window:active {
+                    cursor: grabbing;
                 }
                 .supply-history-empty,
                 .supply-intel-empty {
@@ -4023,54 +4094,16 @@
                         </div>
                         <div class="supply-history-delta" id="supply-history-delta"></div>
                     </div>
-                    <div class="supply-history-controls">
-                        <div class="supply-history-custom">
-                            <div class="supply-history-hint-group">
-                                <span class="supply-history-hint">Drag on chart to zoom. Double-click to reset.</span>
-                                <span id="supply-history-zoom-badge" class="supply-history-zoom-badge"></span>
-                            </div>
-                            <div class="supply-history-date-group">
-                                <button type="button" id="supply-history-from-trigger" class="supply-history-date-trigger" onclick="toggleSupplyHistoryPicker('from', event)">
-                                    <span class="supply-history-date-trigger-label">From</span>
-                                    <span id="supply-history-from-display" class="supply-history-date-trigger-value">Start</span>
-                                </button>
-                                <button type="button" id="supply-history-to-trigger" class="supply-history-date-trigger" onclick="toggleSupplyHistoryPicker('to', event)">
-                                    <span class="supply-history-date-trigger-label">To</span>
-                                    <span id="supply-history-to-display" class="supply-history-date-trigger-value">End</span>
-                                </button>
-                                <button type="button" id="supply-history-reset" class="supply-history-reset-btn" onclick="resetSupplyHistoryZoom()" title="Reset zoom to full history">×</button>
-                                <div id="supply-history-picker" class="supply-history-date-popover">
-                                    <div class="supply-history-picker-head">
-                                        <div class="supply-history-picker-context">
-                                            <div id="supply-history-picker-target" class="supply-history-picker-target">Editing range</div>
-                                            <div id="supply-history-picker-title" class="supply-history-picker-title">April 2026</div>
-                                        </div>
-                                        <div class="supply-history-picker-nav">
-                                            <button type="button" onclick="shiftSupplyHistoryPickerMonth(-1)" aria-label="Previous month">‹</button>
-                                            <button type="button" onclick="shiftSupplyHistoryPickerMonth(1)" aria-label="Next month">›</button>
-                                        </div>
-                                    </div>
-                                    <div id="supply-history-picker-availability" class="supply-history-picker-availability"></div>
-                                    <div class="supply-history-picker-weekdays">
-                                        <span class="supply-history-picker-weekday">Mon</span>
-                                        <span class="supply-history-picker-weekday">Tue</span>
-                                        <span class="supply-history-picker-weekday">Wed</span>
-                                        <span class="supply-history-picker-weekday">Thu</span>
-                                        <span class="supply-history-picker-weekday">Fri</span>
-                                        <span class="supply-history-picker-weekday">Sat</span>
-                                        <span class="supply-history-picker-weekday">Sun</span>
-                                    </div>
-                                    <div id="supply-history-picker-grid" class="supply-history-picker-grid"></div>
-                                    <div class="supply-history-picker-actions">
-                                        <button type="button" class="supply-history-picker-action" onclick="setSupplyHistoryPickerToday()">Today</button>
-                                        <button type="button" class="supply-history-picker-action" onclick="closeSupplyHistoryPicker()">Close</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                     <div id="supply-history-chart" class="supply-history-chart"></div>
                     <div id="supply-history-axis" class="supply-history-axis"></div>
+                    <div id="supply-history-brush" class="supply-history-brush">
+                        <div class="supply-history-brush-overlay supply-history-brush-overlay-left" id="supply-brush-overlay-left"></div>
+                        <div class="supply-history-brush-handle supply-history-brush-handle-left" id="supply-brush-handle-left"><span></span></div>
+                        <div class="supply-history-brush-window" id="supply-brush-window"></div>
+                        <div class="supply-history-brush-handle supply-history-brush-handle-right" id="supply-brush-handle-right"><span></span></div>
+                        <div class="supply-history-brush-overlay supply-history-brush-overlay-right" id="supply-brush-overlay-right"></div>
+                        <svg id="supply-brush-svg" class="supply-history-brush-svg" preserveAspectRatio="none"></svg>
+                    </div>
                 </div>
             </div>
 
@@ -5800,19 +5833,26 @@
 
         // ─── Column Filter Popovers (range: HF, Collateral, Debt) ────────
         // Position a popover using position:fixed relative to a trigger element
-        function positionPopoverFixed(triggerEl, popoverEl) {
+        function positionPopoverFixed(triggerEl, popoverEl, preferAbove) {
             const rect = triggerEl.getBoundingClientRect();
-            // Temporarily show to measure width, then remove inline display
-            // (CSS class .col-filter-open controls visibility)
+            // Temporarily show to measure dimensions
             popoverEl.style.display = 'block';
             const pw = popoverEl.offsetWidth || 260;
+            const ph = popoverEl.offsetHeight || 400;
             popoverEl.style.display = '';  // Remove inline style, let CSS class rule
             let left = rect.left + rect.width / 2 - pw / 2;
             // Clamp to viewport bounds
             if (left < 8) left = 8;
             if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
             popoverEl.style.left = left + 'px';
-            popoverEl.style.top = (rect.bottom + 6) + 'px';
+            // Decide above vs below: prefer above if requested or if not enough space below
+            const spaceBelow = window.innerHeight - rect.bottom - 8;
+            const spaceAbove = rect.top - 8;
+            if (preferAbove || (spaceBelow < ph && spaceAbove >= ph)) {
+                popoverEl.style.top = (rect.top - ph - 8) + 'px';
+            } else {
+                popoverEl.style.top = (rect.bottom + 6) + 'px';
+            }
         }
 
         function initColFilterPopover(opts) {
@@ -6626,10 +6666,10 @@
         function supplyFormatDateLabel(timestamp) {
             const ts = Number(timestamp || 0);
             if (!Number.isFinite(ts) || ts <= 0) return '—';
-            return new Intl.DateTimeFormat('en-US', {
-                month: 'short',
-                day: 'numeric',
-            }).format(new Date(ts * 1000));
+            const d = new Date(ts * 1000);
+            const mon = d.toLocaleString('en-US', { month: 'short' });
+            const yr = d.getFullYear();
+            return `${mon} ${yr}`;
         }
 
         function supplyFormatDateTime(timestamp) {
@@ -6884,14 +6924,26 @@
             if (prevBtn) prevBtn.disabled = minMonthTs != null && monthStartTs <= minMonthTs;
             if (nextBtn) nextBtn.disabled = maxMonthTs != null && monthStartTs >= maxMonthTs;
 
+            // Calculate how many days in the month
+            const daysInMonth = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate();
+            // Rows needed: ceiling of (firstWeekday offset + daysInMonth) / 7
+            const totalCells = firstWeekday + daysInMonth;
+            const rowsNeeded = Math.ceil(totalCells / 7);
+            const gridCells = rowsNeeded * 7;
+
             const items = [];
-            for (let i = 0; i < 42; i++) {
-                const cellDate = new Date(gridStart);
-                cellDate.setDate(gridStart.getDate() + i);
+            for (let i = 0; i < gridCells; i++) {
+                const dayIndex = i - firstWeekday; // 0-based day of month
+                if (dayIndex < 0 || dayIndex >= daysInMonth) {
+                    // Empty spacer for leading/trailing cells outside current month
+                    items.push('<div></div>');
+                    continue;
+                }
+                const cellDate = new Date(monthStart);
+                cellDate.setDate(1 + dayIndex);
                 cellDate.setHours(0, 0, 0, 0);
                 const cellTsMin = Math.floor(cellDate.getTime() / 1000);
                 const cellTsMax = cellTsMin + 86399;
-                const inCurrentMonth = cellDate.getMonth() === monthStart.getMonth();
                 const isToday = cellTsMin === todayTs;
                 const isUnavailable = (availableMinTs != null && cellTsMin < availableMinTs) || (availableMaxTs != null && cellTsMin > availableMaxTs);
                 const isSelected = (supplyHistoryPickerTarget === 'from' && selectedStart != null && cellTsMin === selectedStart)
@@ -6901,7 +6953,7 @@
                 items.push(`
                     <button
                         type="button"
-                        class="supply-history-picker-day${inCurrentMonth ? '' : ' muted'}${isToday ? ' today' : ''}${inRange ? ' in-range' : ''}${isSelected ? ' selected' : ''}${isUnavailable ? ' unavailable' : ''}"
+                        class="supply-history-picker-day${isToday ? ' today' : ''}${inRange ? ' in-range' : ''}${isSelected ? ' selected' : ''}${isUnavailable ? ' unavailable' : ''}"
                         ${isUnavailable ? 'disabled aria-disabled="true"' : `onclick="selectSupplyHistoryPickerDay(${cellTsMin})"`}
                     >${cellDate.getDate()}</button>
                 `);
@@ -7113,40 +7165,13 @@
         }
 
         function syncSupplyHistoryControls(points) {
-            const fromDisplay = document.getElementById('supply-history-from-display');
-            const toDisplay = document.getElementById('supply-history-to-display');
-            const resetBtn = document.getElementById('supply-history-reset');
-            if (!fromDisplay || !toDisplay) return;
-
-            const safePoints = Array.isArray(points) ? points : [];
-            if (safePoints.length === 0) {
-                fromDisplay.textContent = 'Start';
-                toDisplay.textContent = 'End';
-                if (resetBtn) resetBtn.classList.remove('visible');
-                updateSupplyHistoryZoomBadge([]);
-                return;
-            }
-
-            if (supplyHistoryRange === 'custom') {
-                fromDisplay.textContent = supplyHistoryDisplayValue(supplyHistoryCustomFrom);
-                toDisplay.textContent = supplyHistoryDisplayValue(supplyHistoryCustomTo);
-                if (resetBtn) resetBtn.classList.add('visible');
-                updateSupplyHistoryZoomBadge(safePoints);
-                return;
-            }
-
-            const window = getSupplyHistoryWindow(safePoints);
-            fromDisplay.textContent = supplyHistoryDisplayValue(window.startTs);
-            toDisplay.textContent = supplyHistoryDisplayValue(window.endTs);
-            if (resetBtn) resetBtn.classList.remove('visible');
-            updateSupplyHistoryZoomBadge(safePoints);
+            // No-op: old calendar controls removed in DefiLlama-style refactor
         }
 
         function resetSupplyHistoryZoom() {
             supplyHistoryRange = 'all';
             supplyHistoryCustomFrom = null;
             supplyHistoryCustomTo = null;
-            closeSupplyHistoryPicker();
             renderSupplyIntelOverview();
         }
 
@@ -7494,61 +7519,33 @@
 
             const historyStage = currentSupplyOverview?.historyStage || (Array.isArray(points) && points.length >= 2 ? 'full' : 'loading');
             const visiblePoints = getVisibleSupplyHistoryPoints(points || []);
-            syncSupplyHistoryControls(points || []);
 
             if ((!points || points.length < 2 || visiblePoints.length < 2) && historyStage === 'loading') {
                 chart.innerHTML = '<div class="supply-intel-empty">Loading full history from the first recorded deposits and withdrawals...</div>';
                 axis.innerHTML = '';
-                delta.innerHTML = `
-                    <strong style="color:#e2e8f0">—</strong>
-                    <span>Loading full history</span>
-                    <span class="supply-history-delta-note">Recent activity appears first while the long-range chart builds in the background.</span>
-                `;
-                meta.textContent = 'Full-history netflow reconstruction is still building. Hover values and zoom controls appear as soon as enough history is ready.';
+                delta.innerHTML = '<strong style="color:#e2e8f0">—</strong><span>Loading full history</span><span class="supply-history-delta-note">Recent activity appears first while the long-range chart builds in the background.</span>';
+                meta.textContent = 'Full-history netflow reconstruction is still building.';
                 return;
             }
-
             if ((!points || points.length < 2 || visiblePoints.length < 2) && historyStage === 'error') {
                 chart.innerHTML = '<div class="supply-history-empty" style="color:#fca5a5;">Could not reconstruct the full history for this market.</div>';
-                axis.innerHTML = '';
-                delta.innerHTML = `
-                    <strong style="color:#fca5a5">—</strong>
-                    <span>History unavailable</span>
-                    <span class="supply-history-delta-note" style="color:#fca5a5">The leaderboard is still live, but the chart request failed.</span>
-                `;
-                meta.textContent = 'Try switching the market again in a moment. Cached supplier data is still available.';
-                return;
+                axis.innerHTML = ''; delta.innerHTML = '<strong style="color:#fca5a5">—</strong><span>History unavailable</span>';
+                meta.textContent = 'Try switching the market again in a moment.'; return;
             }
-
             if (!points || points.length < 2 || visiblePoints.length < 2) {
-                const emptyMessage = (points && points.length >= 2)
-                    ? 'The selected range is too narrow to draw a chart.'
-                    : 'Not enough flow data yet to draw a history line.';
-                chart.innerHTML = `<div class="supply-history-empty">${emptyMessage}</div>`;
-                axis.innerHTML = '';
-                delta.innerHTML = '';
-                meta.textContent = (points && points.length >= 2)
-                    ? 'Try widening the selected range below the chart.'
-                    : 'Waiting for enough deposit and withdrawal activity on this market.';
-                return;
+                const msg = (points && points.length >= 2) ? 'The selected range is too narrow to draw a chart.' : 'Not enough flow data yet to draw a history line.';
+                chart.innerHTML = `<div class="supply-history-empty">${msg}</div>`; axis.innerHTML = ''; delta.innerHTML = '';
+                meta.textContent = (points && points.length >= 2) ? 'Widen the range using the brush below.' : 'Waiting for enough deposit and withdrawal activity.'; return;
             }
 
-            const width = 1000;
-            const height = 304;
-            const padLeft = 90;
-            const currentLabelWidth = 154;
-            const currentLabelGap = 18;
-            const padRight = currentLabelWidth + currentLabelGap + 20;
-            const padTop = 18;
-            const padBottom = 18;
+            const width = 1000, height = 320;
+            const padLeft = 72, padRight = 20, padTop = 20, padBottom = 20;
             const values = visiblePoints.map(p => Number(p.value || 0));
-            const min = Math.min(...values);
-            const max = Math.max(...values);
-            const spread = max - min;
-            const safeSpread = spread > 0 ? spread : Math.max(max * 0.02, 1);
-            const innerW = width - padLeft - padRight;
-            const innerH = height - padTop - padBottom;
-            const currentReferenceValue = Number(points[points.length - 1]?.value || 0);
+            const rawMin = Math.min(...values), rawMax = Math.max(...values);
+            const rawSpread = rawMax - rawMin;
+            const vertPad = rawSpread > 0 ? rawSpread * 0.08 : Math.max(rawMax * 0.02, 1);
+            const min = rawMin - vertPad, max = rawMax + vertPad, safeSpread = max - min;
+            const innerW = width - padLeft - padRight, innerH = height - padTop - padBottom;
             const plotRight = width - padRight;
 
             const pathPoints = visiblePoints.map((point, idx) => {
@@ -7558,252 +7555,167 @@
                 return { x, y };
             });
 
-            const linePath = pathPoints.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ');
-            const areaPath = `${linePath} L ${pathPoints[pathPoints.length - 1].x.toFixed(2)} ${(height - padBottom).toFixed(2)} L ${pathPoints[0].x.toFixed(2)} ${(height - padBottom).toFixed(2)} Z`;
-            const yTicks = Array.from({ length: 5 }).map((_, idx) => {
-                const ratio = idx / 4;
-                return {
-                    value: max - (safeSpread * ratio),
-                    y: padTop + (innerH * ratio),
-                };
-            });
-            const gridLines = yTicks.map(tick => {
-                return `<line x1="${padLeft}" y1="${tick.y.toFixed(2)}" x2="${plotRight}" y2="${tick.y.toFixed(2)}" stroke="rgba(255,255,255,0.06)" stroke-width="1" />`;
-            }).join('');
-            const yLabels = yTicks.map(tick => {
-                return `<text x="10" y="${(tick.y + 4).toFixed(2)}" fill="rgba(148,163,184,0.84)" font-size="11" font-family="Inter, sans-serif">${supplyEscapeHtml(supplyFormatTokenCompact(tick.value))}</text>`;
-            }).join('');
-            const currentReferenceYRaw = height - padBottom - ((currentReferenceValue - min) / safeSpread) * innerH;
-            const currentReferenceY = Math.max(padTop + 10, Math.min(height - padBottom - 10, currentReferenceYRaw));
-            const currentLabelHeight = 36;
-            const currentLabelX = plotRight + 16;
-            const currentLabelY = Math.max(padTop + 4, Math.min(height - padBottom - currentLabelHeight - 2, currentReferenceY - (currentLabelHeight / 2)));
+            function catmullRomPath(pts) {
+                if (pts.length < 2) return '';
+                if (pts.length === 2) return `M ${pts[0].x.toFixed(2)} ${pts[0].y.toFixed(2)} L ${pts[1].x.toFixed(2)} ${pts[1].y.toFixed(2)}`;
+                const tension = 0.25;
+                let d = `M ${pts[0].x.toFixed(2)} ${pts[0].y.toFixed(2)}`;
+                for (let i = 0; i < pts.length - 1; i++) {
+                    const p0 = pts[Math.max(0, i - 1)], p1 = pts[i];
+                    const p2 = pts[Math.min(pts.length - 1, i + 1)], p3 = pts[Math.min(pts.length - 1, i + 2)];
+                    d += ` C ${(p1.x + (p2.x - p0.x) * tension).toFixed(2)} ${(p1.y + (p2.y - p0.y) * tension).toFixed(2)}, ${(p2.x - (p3.x - p1.x) * tension).toFixed(2)} ${(p2.y - (p3.y - p1.y) * tension).toFixed(2)}, ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`;
+                }
+                return d;
+            }
+
+            const linePath = catmullRomPath(pathPoints);
+            const lastPt = pathPoints[pathPoints.length - 1], firstPt = pathPoints[0];
+            const areaPath = `${linePath} L ${lastPt.x.toFixed(2)} ${(height - padBottom).toFixed(2)} L ${firstPt.x.toFixed(2)} ${(height - padBottom).toFixed(2)} Z`;
+
+            const yTicks = Array.from({ length: 5 }).map((_, i) => ({ value: max - (safeSpread * i / 4), y: padTop + (innerH * i / 4) }));
+            const gridLines = yTicks.map(t => `<line x1="${padLeft}" y1="${t.y.toFixed(1)}" x2="${plotRight}" y2="${t.y.toFixed(1)}" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>`).join('');
+            const yLabels = yTicks.map(t => `<text x="${padLeft - 10}" y="${(t.y + 4).toFixed(1)}" fill="rgba(148,163,184,0.50)" font-size="10" font-weight="500" font-family="'JetBrains Mono',monospace" text-anchor="end">${supplyEscapeHtml(supplyFormatTokenCompact(t.value))}</text>`).join('');
 
             chart.innerHTML = `
                 <div class="supply-history-tooltip" id="supply-history-tooltip">
                     <div class="supply-history-tooltip-date"></div>
                     <div class="supply-history-tooltip-value"></div>
+                    <div class="supply-history-tooltip-delta"></div>
                 </div>
                 <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
                     <defs>
+                        <clipPath id="supplyPlotClip"><rect x="${padLeft}" y="${padTop}" width="${innerW}" height="${innerH}"/></clipPath>
                         <linearGradient id="supplyAreaGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stop-color="rgba(52,211,153,0.48)" />
-                            <stop offset="100%" stop-color="rgba(52,211,153,0.02)" />
+                            <stop offset="0%" stop-color="rgba(52,211,153,0.28)"/>
+                            <stop offset="50%" stop-color="rgba(52,211,153,0.08)"/>
+                            <stop offset="100%" stop-color="rgba(52,211,153,0.01)"/>
                         </linearGradient>
-                        <filter id="supplyGlow">
-                            <feGaussianBlur stdDeviation="5" result="coloredBlur" />
-                            <feMerge>
-                                <feMergeNode in="coloredBlur" />
-                                <feMergeNode in="SourceGraphic" />
-                            </feMerge>
-                        </filter>
+                        <linearGradient id="supplyLineGrad" x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="0%" stop-color="rgba(52,211,153,0.4)"/>
+                            <stop offset="25%" stop-color="#34d399"/>
+                            <stop offset="100%" stop-color="#22d3ee"/>
+                        </linearGradient>
                     </defs>
-                    ${gridLines}
-                    ${yLabels}
-                    <path d="${areaPath}" fill="url(#supplyAreaGradient)"></path>
-                    <path d="${linePath}" fill="none" stroke="#34d399" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" filter="url(#supplyGlow)"></path>
-                    <line x1="${padLeft}" y1="${currentReferenceY.toFixed(2)}" x2="${(plotRight + 10).toFixed(2)}" y2="${currentReferenceY.toFixed(2)}" stroke="rgba(226,232,240,0.16)" stroke-width="1.5" stroke-dasharray="6 6"></line>
-                    <circle cx="${(plotRight + 10).toFixed(2)}" cy="${currentReferenceY.toFixed(2)}" r="3.5" fill="#34d399" stroke="rgba(236,254,255,0.9)" stroke-width="1.8"></circle>
-                    <rect x="${currentLabelX}" y="${currentLabelY.toFixed(2)}" width="${currentLabelWidth}" height="${currentLabelHeight}" rx="15" fill="rgba(8,15,30,0.86)" stroke="rgba(255,255,255,0.10)"></rect>
-                    <text x="${(currentLabelX + 12).toFixed(2)}" y="${(currentLabelY + 13).toFixed(2)}" fill="rgba(148,163,184,0.82)" font-size="10" font-family="Inter, sans-serif" letter-spacing="1.4">LIVE</text>
-                    <text x="${(currentLabelX + 12).toFixed(2)}" y="${(currentLabelY + 28).toFixed(2)}" fill="#f8fafc" font-size="13" font-weight="700" font-family="Inter, sans-serif">${supplyEscapeHtml(supplyFormatTokenCompact(currentReferenceValue))}</text>
-                    <rect id="supply-history-zoom-mask-left" x="${padLeft}" y="${padTop}" width="0" height="${innerH}" fill="rgba(3,7,18,0.46)" opacity="0"></rect>
-                    <rect id="supply-history-zoom-mask-right" x="${padLeft}" y="${padTop}" width="0" height="${innerH}" fill="rgba(3,7,18,0.46)" opacity="0"></rect>
-                    <rect id="supply-history-zoom-rect" x="0" y="${padTop}" width="0" height="${innerH}" fill="rgba(34,211,238,0.12)" stroke="rgba(34,211,238,0.45)" stroke-width="1.5" opacity="0"></rect>
-                    <line id="supply-history-hover-line" x1="0" y1="${padTop}" x2="0" y2="${height - padBottom}" stroke="rgba(255,255,255,0.22)" stroke-width="1.5" stroke-dasharray="4 5" opacity="0"></line>
-                    <circle id="supply-history-hover-halo" cx="0" cy="0" r="10" fill="rgba(52,211,153,0.16)" opacity="0"></circle>
-                    <circle id="supply-history-hover-dot" cx="0" cy="0" r="4.5" fill="#34d399" stroke="#ecfeff" stroke-width="2" opacity="0"></circle>
-                </svg>
-            `;
+                    ${gridLines}${yLabels}
+                    <g clip-path="url(#supplyPlotClip)">
+                        <path d="${areaPath}" fill="url(#supplyAreaGradient)"/>
+                        <path d="${linePath}" fill="none" stroke="url(#supplyLineGrad)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </g>
+                    <line id="supply-history-hover-line" x1="0" y1="${padTop}" x2="0" y2="${height - padBottom}" stroke="rgba(255,255,255,0.20)" stroke-width="1" opacity="0"/>
+                    <circle id="supply-history-hover-dot" cx="0" cy="0" r="4" fill="#34d399" stroke="#0d1117" stroke-width="2" opacity="0"/>
+                </svg>`;
 
-            const axisIndexes = [0, 0.33, 0.66, 1].map(ratio => Math.round((visiblePoints.length - 1) * ratio));
-            const axisPoints = axisIndexes.map(index => visiblePoints[Math.max(0, Math.min(visiblePoints.length - 1, index))]);
-            axis.innerHTML = `
-                ${axisPoints.map(point => `<span>${supplyEscapeHtml(supplyFormatDateLabel(point.timestamp))}</span>`).join('')}
-            `;
+            // X-axis
+            const axisIdxs = [0, 0.25, 0.5, 0.75, 1].map(r => Math.round((visiblePoints.length - 1) * r));
+            axis.innerHTML = axisIdxs.map(i => `<span>${supplyEscapeHtml(supplyFormatDateLabel(visiblePoints[Math.min(i, visiblePoints.length - 1)].timestamp))}</span>`).join('');
 
-            const first = visiblePoints[0];
-            const last = visiblePoints[visiblePoints.length - 1];
-            const absoluteDelta = Number(last.value || 0) - Number(first.value || 0);
-            const deltaLabel = absoluteDelta >= 0 ? '+' : '−';
-            const windowLabel = getSupplyHistoryWindow(points || []).label;
-            const fullLast = points[points.length - 1];
-            const isCurrentTail = Math.abs(Number(last.timestamp || 0) - Number(fullLast?.timestamp || 0)) <= (24 * 60 * 60);
-            delta.innerHTML = `
-                <strong style="color:#f8fafc">${supplyFormatTokenCompact(Number(last.value || 0))}</strong>
-                <span>${isCurrentTail ? 'Current supply' : `Supply on ${supplyFormatDateLabel(last.timestamp)}`}</span>
-                <span class="supply-history-delta-note" style="color:${absoluteDelta >= 0 ? '#86efac' : '#fca5a5'}">${deltaLabel}${supplyFormatTokenCompact(Math.abs(absoluteDelta))} over ${windowLabel}</span>
-            `;
-            if (historyStage === 'recent') {
-                meta.textContent = `Recent ${SUPPLY_ACTIVITY_DEFAULT_DAYS}-day netflow preview. The full-history reconstruction is still loading in the background.`;
-            } else {
-                meta.textContent = `Netflow reconstruction from ${supplyFormatFullDate(points[0].timestamp)} to ${supplyFormatFullDate(points[points.length - 1].timestamp)}. Hover for exact values and drag to zoom into a custom window.`;
-            }
+            // Delta header
+            const firstPtData = visiblePoints[0], lastPtData = visiblePoints[visiblePoints.length - 1];
+            const absDelta = Number(lastPtData.value || 0) - Number(firstPtData.value || 0);
+            const pctChg = Number(firstPtData.value || 0) > 0 ? ((absDelta / Number(firstPtData.value)) * 100) : 0;
+            const sign = absDelta >= 0 ? '+' : '−';
+            const fullLastPt = points[points.length - 1];
+            const isTail = Math.abs(Number(lastPtData.timestamp || 0) - Number(fullLastPt?.timestamp || 0)) <= 86400;
+            delta.innerHTML = `<strong style="color:#f8fafc">${supplyFormatTokenCompact(Number(lastPtData.value || 0))}</strong><span>${isTail ? 'Current supply' : `Supply on ${supplyFormatDateLabel(lastPtData.timestamp)}`}</span><span class="supply-history-delta-note" style="color:${absDelta >= 0 ? '#86efac' : '#fca5a5'}">${sign}${supplyFormatTokenCompact(Math.abs(absDelta))} (${sign}${Math.abs(pctChg).toFixed(2)}%) over ${supplyHistoryRange === 'custom' ? 'custom range' : 'full history'}</span>`;
+            meta.textContent = `Netflow reconstruction from ${supplyFormatFullDate(points[0].timestamp)} to ${supplyFormatFullDate(points[points.length - 1].timestamp)}. Hover for exact values. Use the range brush below to zoom.`;
 
+            // Hover
             const tooltip = document.getElementById('supply-history-tooltip');
-            const tooltipDate = tooltip ? tooltip.querySelector('.supply-history-tooltip-date') : null;
-            const tooltipValue = tooltip ? tooltip.querySelector('.supply-history-tooltip-value') : null;
-            const zoomRect = document.getElementById('supply-history-zoom-rect');
-            const zoomMaskLeft = document.getElementById('supply-history-zoom-mask-left');
-            const zoomMaskRight = document.getElementById('supply-history-zoom-mask-right');
-            const hoverLine = document.getElementById('supply-history-hover-line');
-            const hoverHalo = document.getElementById('supply-history-hover-halo');
-            const hoverDot = document.getElementById('supply-history-hover-dot');
-            let zoomStartIndex = null;
-            let zoomCurrentIndex = null;
-            let zoomPointerId = null;
+            const tDate = tooltip?.querySelector('.supply-history-tooltip-date');
+            const tVal = tooltip?.querySelector('.supply-history-tooltip-value');
+            const tDelta = tooltip?.querySelector('.supply-history-tooltip-delta');
+            const hLine = document.getElementById('supply-history-hover-line');
+            const hDot = document.getElementById('supply-history-hover-dot');
 
-            function hideHover() {
-                if (hoverLine) hoverLine.setAttribute('opacity', '0');
-                if (hoverHalo) hoverHalo.setAttribute('opacity', '0');
-                if (hoverDot) hoverDot.setAttribute('opacity', '0');
-                if (tooltip) tooltip.classList.remove('visible');
+            function hideHover() { if (hLine) hLine.setAttribute('opacity','0'); if (hDot) hDot.setAttribute('opacity','0'); if (tooltip) tooltip.classList.remove('visible'); }
+            function getNearIdx(cx) { const r=chart.getBoundingClientRect(); const rx=((cx-r.left)/r.width)*width; if(!Number.isFinite(rx))return null; return Math.max(0,Math.min(visiblePoints.length-1,Math.round(((Math.max(padLeft,Math.min(plotRight,rx))-padLeft)/innerW)*(visiblePoints.length-1)))); }
+
+            function showHover(idx) {
+                const pt = pathPoints[idx], dp = visiblePoints[idx];
+                if (!pt||!dp||!tooltip||!tDate||!tVal||!hLine||!hDot) return;
+                hLine.setAttribute('x1',pt.x.toFixed(2)); hLine.setAttribute('x2',pt.x.toFixed(2)); hLine.setAttribute('opacity','1');
+                hDot.setAttribute('cx',pt.x.toFixed(2)); hDot.setAttribute('cy',pt.y.toFixed(2)); hDot.setAttribute('opacity','1');
+                tDate.textContent = supplyFormatFullDate(dp.timestamp);
+                const sym = currentSupplyOverview?.token?.symbol||'';
+                tVal.textContent = `${supplyFormatTokenPrecise(dp.value)} ${sym}`.trim();
+                if (tDelta) { const fv=Number(visiblePoints[0]?.value||0),cv=Number(dp.value||0),d=cv-fv,p=fv>0?((d/fv)*100):0,s=d>=0?'+':'−'; tDelta.textContent=`${s}${supplyFormatTokenCompact(Math.abs(d))} (${s}${Math.abs(p).toFixed(2)}%)`; tDelta.className='supply-history-tooltip-delta '+(d>=0?'up':'down'); }
+                const r=chart.getBoundingClientRect(), xPx=(pt.x/width)*r.width, yPx=(pt.y/height)*r.height;
+                let l=xPx+14, t=yPx-80; if(l>r.width*0.72)l=xPx-190; if(t<10)t=yPx+12;
+                tooltip.style.left=`${Math.max(8,l)}px`; tooltip.style.top=`${Math.max(8,t)}px`; tooltip.classList.add('visible');
             }
 
-            function hideZoomSelection() {
-                if (zoomRect) zoomRect.setAttribute('opacity', '0');
-                if (zoomMaskLeft) zoomMaskLeft.setAttribute('opacity', '0');
-                if (zoomMaskRight) zoomMaskRight.setAttribute('opacity', '0');
-            }
+            chart.onpointermove = e => { const i=getNearIdx(e.clientX); if(i==null){hideHover();return;} showHover(i); };
+            chart.onpointerleave = () => hideHover();
+            chart.ondblclick = () => { resetSupplyHistoryZoom(); };
 
-            function getNearestIndex(clientX) {
-                const rect = chart.getBoundingClientRect();
-                const relativeX = ((clientX - rect.left) / rect.width) * width;
-                if (!Number.isFinite(relativeX)) return null;
-                const clampedX = Math.max(padLeft, Math.min(width - padRight, relativeX));
-                const ratio = (clampedX - padLeft) / innerW;
-                return Math.max(0, Math.min(visiblePoints.length - 1, Math.round(ratio * (visiblePoints.length - 1))));
-            }
-
-            function updateZoomSelection() {
-                if (zoomStartIndex == null || zoomCurrentIndex == null || !zoomRect) return;
-                const leftIndex = Math.min(zoomStartIndex, zoomCurrentIndex);
-                const rightIndex = Math.max(zoomStartIndex, zoomCurrentIndex);
-                const leftPoint = pathPoints[leftIndex];
-                const rightPoint = pathPoints[rightIndex];
-                if (!leftPoint || !rightPoint) return;
-                const selectionX = leftPoint.x;
-                const selectionWidth = Math.max(1, rightPoint.x - leftPoint.x);
-                zoomRect.setAttribute('x', selectionX.toFixed(2));
-                zoomRect.setAttribute('width', selectionWidth.toFixed(2));
-                zoomRect.setAttribute('opacity', '1');
-                if (zoomMaskLeft) {
-                    zoomMaskLeft.setAttribute('x', padLeft.toFixed(2));
-                    zoomMaskLeft.setAttribute('width', Math.max(0, selectionX - padLeft).toFixed(2));
-                    zoomMaskLeft.setAttribute('opacity', '1');
-                }
-                if (zoomMaskRight) {
-                    zoomMaskRight.setAttribute('x', (selectionX + selectionWidth).toFixed(2));
-                    zoomMaskRight.setAttribute('width', Math.max(0, (width - padRight) - (selectionX + selectionWidth)).toFixed(2));
-                    zoomMaskRight.setAttribute('opacity', '1');
-                }
-            }
-
-            function showHover(index) {
-                const point = pathPoints[index];
-                const dataPoint = visiblePoints[index];
-                if (!point || !dataPoint || !tooltip || !tooltipDate || !tooltipValue || !hoverLine || !hoverHalo || !hoverDot) return;
-
-                hoverLine.setAttribute('x1', point.x.toFixed(2));
-                hoverLine.setAttribute('x2', point.x.toFixed(2));
-                hoverLine.setAttribute('opacity', '1');
-                hoverHalo.setAttribute('cx', point.x.toFixed(2));
-                hoverHalo.setAttribute('cy', point.y.toFixed(2));
-                hoverHalo.setAttribute('opacity', '1');
-                hoverDot.setAttribute('cx', point.x.toFixed(2));
-                hoverDot.setAttribute('cy', point.y.toFixed(2));
-                hoverDot.setAttribute('opacity', '1');
-
-                tooltipDate.textContent = supplyFormatFullDate(dataPoint.timestamp);
-                tooltipValue.textContent = `${supplyFormatTokenPrecise(dataPoint.value)} ${currentSupplyOverview?.token?.symbol || ''}`.trim();
-
-                const rect = chart.getBoundingClientRect();
-                const xPx = (point.x / width) * rect.width;
-                const yPx = (point.y / height) * rect.height;
-                let left = xPx + 14;
-                let top = yPx - 62;
-                if (left > rect.width - 168) left = xPx - 154;
-                if (top < 10) top = yPx + 12;
-                tooltip.style.left = `${Math.max(8, left)}px`;
-                tooltip.style.top = `${Math.max(8, top)}px`;
-                tooltip.classList.add('visible');
-            }
-
-            chart.onpointerdown = event => {
-                if (event.button !== 0) return;
-                const index = getNearestIndex(event.clientX);
-                if (index == null) return;
-                zoomStartIndex = index;
-                zoomCurrentIndex = index;
-                zoomPointerId = event.pointerId;
-                chart.classList.add('is-dragging');
-                hideHover();
-                updateZoomSelection();
-                if (typeof chart.setPointerCapture === 'function') {
-                    chart.setPointerCapture(event.pointerId);
-                }
-            };
-
-            chart.onpointermove = event => {
-                const index = getNearestIndex(event.clientX);
-                if (index == null) {
-                    hideHover();
-                    return;
-                }
-                if (zoomStartIndex != null) {
-                    zoomCurrentIndex = index;
-                    updateZoomSelection();
-                    return;
-                }
-                showHover(index);
-            };
-
-            chart.onpointerup = event => {
-                if (zoomStartIndex == null) {
-                    hideHover();
-                    return;
-                }
-                const startIndex = zoomStartIndex;
-                const endIndex = zoomCurrentIndex != null ? zoomCurrentIndex : startIndex;
-                zoomStartIndex = null;
-                zoomCurrentIndex = null;
-                chart.classList.remove('is-dragging');
-                hideZoomSelection();
-                hideHover();
-                if (zoomPointerId != null && typeof chart.releasePointerCapture === 'function') {
-                    try { chart.releasePointerCapture(zoomPointerId); } catch (_) {}
-                }
-                zoomPointerId = null;
-
-                const leftIndex = Math.min(startIndex, endIndex);
-                const rightIndex = Math.max(startIndex, endIndex);
-                if ((rightIndex - leftIndex) < 2) return;
-
-                supplyHistoryCustomFrom = Number(visiblePoints[leftIndex]?.timestamp || 0) || null;
-                supplyHistoryCustomTo = Number(visiblePoints[rightIndex]?.timestamp || 0) || null;
-                supplyHistoryRange = 'custom';
-                renderSupplyIntelOverview();
-            };
-
-            chart.onpointerleave = () => {
-                if (zoomStartIndex == null) {
-                    hideHover();
-                }
-            };
-
-            chart.onpointercancel = () => {
-                zoomStartIndex = null;
-                zoomCurrentIndex = null;
-                zoomPointerId = null;
-                chart.classList.remove('is-dragging');
-                hideZoomSelection();
-                hideHover();
-            };
-
-            chart.ondblclick = () => {
-                resetSupplyHistoryZoom();
-            };
+            // Render brush
+            renderSupplyHistoryBrush(points);
         }
+
+        function renderSupplyHistoryBrush(allPoints) {
+            const brush = document.getElementById('supply-history-brush');
+            const svg = document.getElementById('supply-brush-svg');
+            const hL = document.getElementById('supply-brush-handle-left');
+            const hR = document.getElementById('supply-brush-handle-right');
+            const oL = document.getElementById('supply-brush-overlay-left');
+            const oR = document.getElementById('supply-brush-overlay-right');
+            const win = document.getElementById('supply-brush-window');
+            if (!brush||!svg||!hL||!hR||!oL||!oR||!win) return;
+            if (!allPoints||allPoints.length<2) return;
+
+            const bW = brush.offsetWidth||800, bH = brush.offsetHeight||48;
+            const vals = allPoints.map(p=>Number(p.value||0));
+            const bMin = Math.min(...vals), bMax = Math.max(...vals), bSp = (bMax-bMin)||1;
+            const bPad = 4, bIH = bH-bPad*2;
+
+            let miniLine = '';
+            for (let i=0;i<allPoints.length;i++) {
+                const x=(bW*i)/Math.max(1,allPoints.length-1);
+                const y=bH-bPad-((Number(allPoints[i].value||0)-bMin)/bSp)*bIH;
+                miniLine += (i===0?'M ':'L ')+x.toFixed(1)+' '+y.toFixed(1)+' ';
+            }
+            const lastX=(bW*(allPoints.length-1))/Math.max(1,allPoints.length-1);
+            const miniArea = `${miniLine} L ${lastX.toFixed(1)} ${bH} L 0 ${bH} Z`;
+
+            svg.setAttribute('viewBox',`0 0 ${bW} ${bH}`);
+            svg.innerHTML = `<defs><linearGradient id="brushGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(52,211,153,0.18)"/><stop offset="100%" stop-color="rgba(52,211,153,0.02)"/></linearGradient></defs><path d="${miniArea}" fill="url(#brushGrad)"/><path d="${miniLine}" fill="none" stroke="rgba(52,211,153,0.30)" stroke-width="1"/>`;
+
+            function getVisRatio() {
+                const w=getSupplyHistoryWindow(allPoints);
+                const fs=Number(allPoints[0]?.timestamp||0), fe=Number(allPoints[allPoints.length-1]?.timestamp||0), span=fe-fs;
+                if(span<=0)return{left:0,right:1};
+                return{left:Math.max(0,(w.startTs-fs)/span),right:Math.min(1,(w.endTs-fs)/span)};
+            }
+
+            function updateUI() {
+                const{left,right}=getVisRatio();
+                const hw=10, lPx=left*bW, rPx=right*bW;
+                oL.style.width=`${lPx}px`; oR.style.width=`${bW-rPx}px`;
+                hL.style.left=`${lPx}px`; hR.style.left=`${rPx-hw}px`;
+                win.style.left=`${lPx+hw}px`; win.style.width=`${Math.max(0,rPx-lPx-hw*2)}px`;
+            }
+            updateUI();
+
+            let dragType=null, dragSx=0, dsL=0, dsR=0;
+            function onStart(type,e){e.preventDefault();dragType=type;dragSx=e.clientX;const r=getVisRatio();dsL=r.left;dsR=r.right;document.addEventListener('pointermove',onMove);document.addEventListener('pointerup',onEnd);}
+            function onMove(e){
+                if(!dragType)return;
+                const dx=e.clientX-dragSx, dr=dx/bW;
+                const fs=Number(allPoints[0]?.timestamp||0),fe=Number(allPoints[allPoints.length-1]?.timestamp||0),span=fe-fs;
+                if(span<=0)return;
+                let nL=dsL,nR=dsR; const ms=0.02;
+                if(dragType==='left')nL=Math.max(0,Math.min(dsR-ms,dsL+dr));
+                else if(dragType==='right')nR=Math.min(1,Math.max(dsL+ms,dsR+dr));
+                else{const s=dsR-dsL;let sh=dr;if(dsL+sh<0)sh=-dsL;if(dsR+sh>1)sh=1-dsR;nL=dsL+sh;nR=dsR+sh;}
+                if(nL<=0.005&&nR>=0.995){supplyHistoryRange='all';supplyHistoryCustomFrom=null;supplyHistoryCustomTo=null;}
+                else{supplyHistoryRange='custom';supplyHistoryCustomFrom=Math.floor(fs+nL*span);supplyHistoryCustomTo=Math.floor(fs+nR*span);}
+                renderSupplyIntelOverview();
+            }
+            function onEnd(){dragType=null;document.removeEventListener('pointermove',onMove);document.removeEventListener('pointerup',onEnd);}
+            hL.onpointerdown=e=>onStart('left',e); hR.onpointerdown=e=>onStart('right',e); win.onpointerdown=e=>onStart('window',e);
+            brush.ondblclick = () => { resetSupplyHistoryZoom(); };
+        }
+
 
         function renderSupplyIntelOverview() {
             const shell = document.getElementById('supply-intel-shell');
