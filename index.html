@@ -12941,20 +12941,6 @@
                         <span id="dolo-tvl-change-badge" class="tvl-change-badge" style="display:none"></span>
                     </div>
                 </div>
-                <div class="dolo-flow-toolbar">
-                    <div style="display:flex;flex-direction:column;gap:3px;margin-left:auto">
-                        <div id="dolo-tvl-range-btns" class="dolo-chain-pills" style="width:fit-content">
-                            <div class="dolo-chain-slider"></div>
-                            <button data-days="7">1W</button>
-                            <button data-days="30">1M</button>
-                            <button data-days="90" class="active">3M</button>
-                            <button data-days="180">6M</button>
-                            <button data-days="99999">ALL</button>
-                        </div>
-                    </div>
-                    <button onclick="dolo_resetZoom()" class="dolo-range-btn" id="dolo-reset-zoom-btn"
-                        style="display:none;background:rgba(239,68,68,0.15);color:#ef4444;border-color:rgba(239,68,68,0.3);align-self:flex-end;margin-bottom:3px">Reset</button>
-                </div>
                 <div id="dolo-tvl-chart-wrap" style="padding:16px;position:relative;height:320px;border-radius:14px;background:radial-gradient(ellipse 80% 50% at 50% 0%,rgba(99,102,241,0.08),transparent),linear-gradient(180deg,rgba(15,23,42,0.6),rgba(15,23,42,0.3));border:1px solid rgba(255,255,255,0.04);overflow:hidden;cursor:crosshair">
                     <div id="dolo-tvl-tooltip" class="tvl-tooltip-enhanced"></div>
                     <svg id="dolo-tvl-svg" width="100%" height="100%" preserveAspectRatio="none" aria-hidden="true"></svg>
@@ -18026,7 +18012,7 @@
         }
         let dolo_tvlPoints = [];
         let dolo_allTvlPoints = [];
-        let dolo_currentRange = 90;
+        let dolo_currentRange = 99999;
         let dolo_refreshTimer = null;
 
         function dolo_applyRange(days) {
@@ -18277,8 +18263,8 @@
 
 
 
-                dolo_currentRange = 90;
-                dolo_applyRange(90);
+                dolo_currentRange = 99999;
+                dolo_applyRange(99999);
                 dolo_renderTvlChart(dolo_cachedData);
 
                 dolo_buildChainPills(dolo_cachedData);
