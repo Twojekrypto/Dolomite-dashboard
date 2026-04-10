@@ -3410,6 +3410,34 @@
                     flex-wrap: wrap;
                     margin-left: auto;
                 }
+                .supply-history-reset-btn {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 999px;
+                    border: 1px solid rgba(239,68,68,0.18);
+                    background: rgba(239,68,68,0.08);
+                    color: #fca5a5;
+                    font-size: 14px;
+                    font-weight: 700;
+                    cursor: pointer;
+                    transition: all 0.18s ease;
+                    opacity: 0;
+                    pointer-events: none;
+                    transform: scale(0.92);
+                }
+                .supply-history-reset-btn.visible {
+                    opacity: 1;
+                    pointer-events: auto;
+                    transform: scale(1);
+                }
+                .supply-history-reset-btn:hover {
+                    background: rgba(239,68,68,0.16);
+                    border-color: rgba(239,68,68,0.34);
+                    color: #fecaca;
+                }
                 .supply-history-date-input {
                     min-width: 134px;
                     padding: 8px 10px;
@@ -3772,6 +3800,7 @@
                                 <input type="date" id="supply-history-from" class="supply-history-date-input">
                                 <span>To</span>
                                 <input type="date" id="supply-history-to" class="supply-history-date-input">
+                                <button type="button" id="supply-history-reset" class="supply-history-reset-btn" onclick="resetSupplyHistoryZoom()" title="Reset zoom to full history">×</button>
                             </div>
                         </div>
                     </div>
@@ -6480,24 +6509,35 @@
         function syncSupplyHistoryControls(points) {
             const fromInput = document.getElementById('supply-history-from');
             const toInput = document.getElementById('supply-history-to');
+            const resetBtn = document.getElementById('supply-history-reset');
             if (!fromInput || !toInput) return;
 
             const safePoints = Array.isArray(points) ? points : [];
             if (safePoints.length === 0) {
                 fromInput.value = '';
                 toInput.value = '';
+                if (resetBtn) resetBtn.classList.remove('visible');
                 return;
             }
 
             if (supplyHistoryRange === 'custom') {
                 fromInput.value = supplyHistoryDateInputValue(supplyHistoryCustomFrom);
                 toInput.value = supplyHistoryDateInputValue(supplyHistoryCustomTo);
+                if (resetBtn) resetBtn.classList.add('visible');
                 return;
             }
 
             const window = getSupplyHistoryWindow(safePoints);
             fromInput.value = supplyHistoryDateInputValue(window.startTs);
             toInput.value = supplyHistoryDateInputValue(window.endTs);
+            if (resetBtn) resetBtn.classList.remove('visible');
+        }
+
+        function resetSupplyHistoryZoom() {
+            supplyHistoryRange = 'all';
+            supplyHistoryCustomFrom = null;
+            supplyHistoryCustomTo = null;
+            renderSupplyIntelOverview();
         }
 
         function applySupplyHistoryCustomRange() {
@@ -7098,10 +7138,7 @@
             };
 
             chart.ondblclick = () => {
-                supplyHistoryRange = 'all';
-                supplyHistoryCustomFrom = null;
-                supplyHistoryCustomTo = null;
-                renderSupplyIntelOverview();
+                resetSupplyHistoryZoom();
             };
         }
 
