@@ -7671,22 +7671,9 @@
 
         async function fetchAllSupplySuppliers(url, tokenId) {
             const PAGE = 1000;
-            let skip = 0;
             const suppliersMap = new Map();
 
-            while (true) {
-                const query = `{
-                    marginAccountTokenValues(first: ${PAGE}, skip: ${skip}, where: { token: "${tokenId}", valuePar_gt: "0" }, orderBy: valuePar, orderDirection: desc) {
-                        valuePar
-                        marginAccount {
-                            effectiveUser { id }
-                            user { id }
-                        }
-                    }
-                }`;
-
-                const data = await doGraphQuery(url, query);
-                const rows = data && data.marginAccountTokenValues ? data.marginAccountTokenValues : [];
+            const processRows = (rows) => {
                 rows.forEach(row => {
                     const account = row.marginAccount || {};
                     const address = (account.effectiveUser && account.effectiveUser.id) || (account.user && account.user.id) || '';
@@ -7697,9 +7684,39 @@
                     prev.par += valuePar;
                     suppliersMap.set(address, prev);
                 });
+            };
 
-                if (rows.length < PAGE) break;
-                skip += PAGE;
+            const buildQuery = (skip) => `{
+                marginAccountTokenValues(first: ${PAGE}, skip: ${skip}, where: { token: "${tokenId}", valuePar_gt: "0" }, orderBy: valuePar, orderDirection: desc) {
+                    valuePar
+                    marginAccount {
+                        effectiveUser { id }
+                        user { id }
+                    }
+                }
+            }`;
+
+            // First page — determines if we need more
+            const data0 = await doGraphQuery(url, buildQuery(0));
+            const rows0 = data0 && data0.marginAccountTokenValues ? data0.marginAccountTokenValues : [];
+            processRows(rows0);
+
+            if (rows0.length >= PAGE) {
+                // Fire pages 1-9 in parallel (covers up to 10K suppliers)
+                const MAX_PARALLEL_PAGES = 9;
+                const pagePromises = [];
+                for (let i = 1; i <= MAX_PARALLEL_PAGES; i++) {
+                    pagePromises.push(
+                        doGraphQuery(url, buildQuery(i * PAGE))
+                            .then(d => d && d.marginAccountTokenValues ? d.marginAccountTokenValues : [])
+                            .catch(() => [])
+                    );
+                }
+                const pageResults = await Promise.all(pagePromises);
+                for (const rows of pageResults) {
+                    if (rows.length === 0) break;
+                    processRows(rows);
+                }
             }
 
             return Array.from(suppliersMap.entries())
@@ -7809,6 +7826,10 @@
             onSupplyChainChange();
         }
 
+        // Cache for enriched token data per chain (oracle prices, indexes)
+        let currentSupplyOraclePrices = {};
+        let currentSupplyInterestIndexes = {};
+
         async function onSupplyChainChange() {
             const chain = document.getElementById('supply-chain-select').value;
             const selector = document.getElementById('custom-asset-selector');
@@ -7817,6 +7838,8 @@
             const loader = document.getElementById('supply-loading-state');
             resetSupplyIntelState();
             currentSupplyData = [];
+            currentSupplyOraclePrices = {};
+            currentSupplyInterestIndexes = {};
             document.getElementById('supply-count-header').textContent = '';
             const supplyTitle = document.getElementById('supply-table-title');
             if (supplyTitle) supplyTitle.textContent = 'Supplier Leaderboard';
@@ -7831,13 +7854,26 @@
             document.getElementById('supply-asset-select').value = '';
             document.getElementById('supply-table').style.display = 'none';
             
+            // Enriched query: fetch token details + oracle prices + interest indexes in ONE call
             const q = `{
                 tokens(first: 100, where:{marketId_not: null}, orderBy: marketId) {
                     id
                     symbol
+                    name
                     decimals
                     marketId
+                    supplyLiquidity
+                    supplyLiquidityUSD
+                    borrowLiquidity
+                    borrowLiquidityUSD
+                    riskInfo {
+                        supplyMaxWei
+                        borrowMaxWei
+                        isBorrowingDisabled
+                    }
                 }
+                oraclePrices(first: 100) { token { id } price }
+                interestIndexes(first: 100) { token { id } supplyIndex borrowIndex }
             }`;
             
             try {
@@ -7849,6 +7885,17 @@
                 
                 currentSupplyTokensList.forEach(t => {
                     currentSupplyTokensMap[t.id] = t;
+                });
+
+                // Cache oracle prices and interest indexes by token id
+                (data.oraclePrices || []).forEach(op => {
+                    if (op.token && op.token.id) currentSupplyOraclePrices[op.token.id] = parseFloat(op.price) || 0;
+                });
+                (data.interestIndexes || []).forEach(ix => {
+                    if (ix.token && ix.token.id) currentSupplyInterestIndexes[ix.token.id] = {
+                        supplyIndex: parseFloat(ix.supplyIndex) || 1,
+                        borrowIndex: parseFloat(ix.borrowIndex) || 1,
+                    };
                 });
                 
                 // Try to select prominent asset
@@ -7882,7 +7929,7 @@
             const tokenObj = currentSupplyTokensMap[tokenId] || { decimals: 18, symbol: 'TOKEN', marketId: '—' };
             
             loader.style.display = 'block';
-            loader.innerHTML = `<div class="loading-spinner"></div><div style="margin-top:12px; color:var(--text-muted); font-size:13px;">Fetching data from subgraph...</div>`;
+            loader.innerHTML = `<div class="loading-spinner"></div><div style="margin-top:12px; color:var(--text-muted); font-size:13px;">Fetching suppliers...</div>`;
             table.style.display = 'none';
             tbody.innerHTML = '';
             setSupplyIntelLoading(tokenObj, chain);
@@ -7913,40 +7960,18 @@
             if (activitySubtitle) {
                 activitySubtitle.textContent = `Deposits, withdrawals, transfers, and liquidations for ${tokenObj.symbol} on ${CHAIN_DISPLAY_NAMES[chain] || chain} · last ${SUPPLY_ACTIVITY_DEFAULT_DAYS} days.`;
             }
-            const q = `{
-                tokens(first: 1, where: { id: "${tokenId}" }) {
-                    id
-                    symbol
-                    name
-                    decimals
-                    marketId
-                    supplyLiquidity
-                    supplyLiquidityUSD
-                    borrowLiquidity
-                    borrowLiquidityUSD
-                    riskInfo {
-                        supplyMaxWei
-                        borrowMaxWei
-                        isBorrowingDisabled
-                    }
-                }
-                oraclePrices(where: { token: "${tokenId}" }) { price }
-                interestIndexes(where: { token: "${tokenId}" }) { supplyIndex borrowIndex }
-            }`;
             
             try {
-                // ═══ PHASE 1: Fast — Leaderboard + Token Intel (1-2s) ═══
+                // ═══ PHASE 1: Fast — Use cached token data + fetch suppliers only ═══
                 const endpoint = DOLOMITE_MINI_GRAPHS[chain];
-                const [data, supplierPars] = await Promise.all([
-                    doGraphQuery(endpoint, q),
-                    fetchAllSupplySuppliers(endpoint, tokenId),
-                ]);
+                const supplierPars = await fetchAllSupplySuppliers(endpoint, tokenId);
 
                 if (requestId !== supplyTabRequestId) return;
 
-                const token = data.tokens && data.tokens[0] ? data.tokens[0] : tokenObj;
-                const priceUsd = data.oraclePrices && data.oraclePrices[0] ? parseFloat(data.oraclePrices[0].price) : 0;
-                const supplyIndex = data.interestIndexes && data.interestIndexes[0] ? parseFloat(data.interestIndexes[0].supplyIndex) : 1;
+                // Use enriched token data from onSupplyChainChange cache (no extra query needed)
+                const token = tokenObj;
+                const priceUsd = currentSupplyOraclePrices[tokenId] || 0;
+                const supplyIndex = (currentSupplyInterestIndexes[tokenId] || {}).supplyIndex || 1;
                 const supply = parseFloat(token.supplyLiquidity || '0') || 0;
                 const supplyUsd = parseFloat(token.supplyLiquidityUSD || '0') || (supply * priceUsd);
                 const borrow = parseFloat(token.borrowLiquidity || '0') || 0;
