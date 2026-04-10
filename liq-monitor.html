@@ -3359,6 +3359,19 @@
                     font-size: 12px;
                     color: rgba(226,232,240,0.56);
                 }
+                .supply-activity-controls {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: stretch;
+                    gap: 10px;
+                    min-width: min(100%, 320px);
+                    margin-left: auto;
+                }
+                .supply-activity-search-wrap {
+                    margin: 0;
+                    min-width: unset;
+                    width: 100%;
+                }
                 .supply-activity-filter-row {
                     display: flex;
                     align-items: center;
@@ -3430,6 +3443,11 @@
                     font-size: 11px;
                     color: rgba(226,232,240,0.62);
                 }
+                .supply-activity-time-top {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
                 .supply-activity-time strong {
                     font-size: 12px;
                     color: #f8fafc;
@@ -3483,6 +3501,12 @@
                     color: #fff;
                     transform: translateY(-1px);
                 }
+                .supply-activity-time-link {
+                    width: 24px;
+                    height: 24px;
+                    border-radius: 8px;
+                    flex-shrink: 0;
+                }
                 @media (max-width: 980px) {
                     .supply-intel-stats {
                         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3510,6 +3534,10 @@
                     }
                     .supply-activity-filter-row {
                         justify-content: flex-start;
+                    }
+                    .supply-activity-controls {
+                        min-width: 100%;
+                        margin-left: 0;
                     }
                     #supply-activity-card {
                         margin-top: 24px;
@@ -3640,11 +3668,18 @@
                             </h3>
                             <div class="supply-activity-subtitle" id="supply-activity-subtitle">Recent deposits, withdrawals, transfers, and liquidations for the selected market.</div>
                         </div>
-                        <div class="supply-activity-filter-row">
-                            <button class="supply-filter-pill active" data-type="deposit" onclick="toggleSupplyActivityType('deposit')">Deposits</button>
-                            <button class="supply-filter-pill active" data-type="withdraw" onclick="toggleSupplyActivityType('withdraw')">Withdrawals</button>
-                            <button class="supply-filter-pill active" data-type="transfer" onclick="toggleSupplyActivityType('transfer')">Transfers</button>
-                            <button class="supply-filter-pill active" data-type="liquidation" onclick="toggleSupplyActivityType('liquidation')">Liquidations</button>
+                        <div class="supply-activity-controls">
+                            <div class="search-wrap premium-supply-search-wrap supply-activity-search-wrap" id="supply-activity-search-wrap">
+                                <svg class="search-icon premium-supply-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                <input type="text" class="search-input premium-supply-search-input" id="supply-activity-search-input" placeholder="Search tx address (0x...)">
+                                <button type="button" class="search-clear" id="supply-activity-search-clear" title="Clear search" style="right:14px; top:50%; transform:translateY(-50%);">✕</button>
+                            </div>
+                            <div class="supply-activity-filter-row">
+                                <button class="supply-filter-pill active" data-type="deposit" onclick="toggleSupplyActivityType('deposit')">Deposits</button>
+                                <button class="supply-filter-pill active" data-type="withdraw" onclick="toggleSupplyActivityType('withdraw')">Withdrawals</button>
+                                <button class="supply-filter-pill active" data-type="transfer" onclick="toggleSupplyActivityType('transfer')">Transfers</button>
+                                <button class="supply-filter-pill active" data-type="liquidation" onclick="toggleSupplyActivityType('liquidation')">Liquidations</button>
+                            </div>
                         </div>
                     </div>
                     <div class="table-scroll">
@@ -3654,12 +3689,11 @@
                         </div>
                         <table class="positions-table" id="supply-activity-table" style="display:none;">
                             <colgroup>
-                                <col style="width: 17%;">
+                                <col style="width: 19%;">
                                 <col style="width: 14%;">
-                                <col style="width: 33%;">
-                                <col style="width: 18%;">
-                                <col style="width: 12%;">
-                                <col style="width: 6%;">
+                                <col style="width: 37%;">
+                                <col style="width: 16%;">
+                                <col style="width: 14%;">
                             </colgroup>
                             <thead>
                                 <tr>
@@ -3668,7 +3702,6 @@
                                     <th>Wallets</th>
                                     <th style="text-align:right;">Amount</th>
                                     <th style="text-align:right;">USD</th>
-                                    <th style="text-align:right;">Tx</th>
                                 </tr>
                             </thead>
                             <tbody id="supply-activity-body"></tbody>
@@ -5200,6 +5233,25 @@
             });
         }
 
+        const supplyActivitySearchInput = document.getElementById('supply-activity-search-input');
+        if (supplyActivitySearchInput) {
+            supplyActivitySearchInput.addEventListener('input', e => {
+                supplyActivitySearchQuery = e.target.value.trim().toLowerCase();
+                document.getElementById('supply-activity-search-wrap').classList.toggle('has-value', supplyActivitySearchQuery.length > 0);
+                supplyActivityPage = 1;
+                renderSupplyActivityTable();
+            });
+
+            document.getElementById('supply-activity-search-clear').addEventListener('click', () => {
+                supplyActivitySearchInput.value = '';
+                supplyActivitySearchQuery = '';
+                document.getElementById('supply-activity-search-wrap').classList.remove('has-value');
+                supplyActivityPage = 1;
+                supplyActivitySearchInput.focus();
+                renderSupplyActivityTable();
+            });
+        }
+
         document.getElementById('hide-dust-btn').addEventListener('click', e => {
             hideDust = !hideDust;
             e.currentTarget.classList.toggle('active', hideDust);
@@ -5887,6 +5939,7 @@
         let currentSupplyOverview = null;
         let currentSupplyActivity = [];
         let supplyActivityPage = 1;
+        let supplyActivitySearchQuery = '';
         let supplyTabRequestId = 0;
         const SUPPLY_ACTIVITY_PAGE_SIZE = 12;
         const SUPPLY_HISTORY_DAYS = 30;
@@ -6014,6 +6067,7 @@
             currentSupplyOverview = null;
             currentSupplyActivity = [];
             supplyActivityPage = 1;
+            supplyActivitySearchQuery = '';
             supplyActivityFilters = new Set(['deposit', 'withdraw', 'transfer', 'liquidation']);
             const shell = document.getElementById('supply-intel-shell');
             const card = document.getElementById('supply-activity-card');
@@ -6031,6 +6085,10 @@
             if (stats) stats.innerHTML = '';
             document.getElementById('supply-activity-pagination').innerHTML = '';
             document.getElementById('supply-activity-count').textContent = '';
+            const activitySearchInput = document.getElementById('supply-activity-search-input');
+            const activitySearchWrap = document.getElementById('supply-activity-search-wrap');
+            if (activitySearchInput) activitySearchInput.value = '';
+            if (activitySearchWrap) activitySearchWrap.classList.remove('has-value');
             document.querySelectorAll('.supply-filter-pill').forEach(btn => btn.classList.add('active'));
         }
 
@@ -6345,15 +6403,22 @@
             const chain = document.getElementById('supply-chain-select').value;
             const txBase = getSupplyTxExplorer(chain);
             const addrBase = getSupplyAddressExplorer(chain);
+            const activitySearchNeedle = (supplyActivitySearchQuery || '').toLowerCase();
             const filtered = (currentSupplyActivity || [])
                 .filter(row => supplyActivityFilters.has(row.type))
+                .filter(row => {
+                    if (!activitySearchNeedle) return true;
+                    const primary = String(row.primaryAddress || '').toLowerCase();
+                    const secondary = String(row.secondaryAddress || '').toLowerCase();
+                    return primary.includes(activitySearchNeedle) || secondary.includes(activitySearchNeedle);
+                })
                 .sort((a, b) => b.timestamp - a.timestamp);
 
             countEl.textContent = `(${filtered.length})`;
 
             if (filtered.length === 0) {
                 table.style.display = 'table';
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:34px; color:var(--text-muted);">No recent activity for the selected filters.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:34px; color:var(--text-muted);">No recent activity for the selected filters.</td></tr>`;
                 pager.innerHTML = '';
                 return;
             }
@@ -6372,7 +6437,12 @@
                     <tr>
                         <td>
                             <div class="supply-activity-time">
-                                <strong>${supplyEscapeHtml(supplyFormatRelativeTime(row.timestamp))}</strong>
+                                <div class="supply-activity-time-top">
+                                    <strong>${supplyEscapeHtml(supplyFormatRelativeTime(row.timestamp))}</strong>
+                                    ${row.txHash ? `<a class="supply-activity-link supply-activity-time-link" href="${txBase}${row.txHash}" target="_blank" rel="noopener" title="Open transaction">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                                    </a>` : ''}
+                                </div>
                                 <span>${supplyEscapeHtml(supplyFormatDateTime(row.timestamp))}</span>
                             </div>
                         </td>
@@ -6388,18 +6458,13 @@
                             <div class="supply-activity-amount-sub">${supplyEscapeHtml(currentSupplyOverview?.token?.symbol || '')}</div>
                         </td>
                         <td class="supply-activity-amount">${formatUSDCompact(row.usd)}</td>
-                        <td style="text-align:right;">
-                            <a class="supply-activity-link" href="${txBase}${row.txHash}" target="_blank" rel="noopener" title="Open transaction">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                            </a>
-                        </td>
                     </tr>
                 `;
             }).join('');
 
             if (pageRows.length < SUPPLY_ACTIVITY_PAGE_SIZE) {
                 for (let i = 0; i < (SUPPLY_ACTIVITY_PAGE_SIZE - pageRows.length); i++) {
-                    tbody.innerHTML += '<tr><td colspan="6" style="padding:15px; opacity:0; pointer-events:none;">&nbsp;</td></tr>';
+                    tbody.innerHTML += '<tr><td colspan="5" style="padding:15px; opacity:0; pointer-events:none;">&nbsp;</td></tr>';
                 }
             }
 
@@ -6414,7 +6479,15 @@
         }
 
         function supplyGoActivityPage(page) {
-            const filteredLen = (currentSupplyActivity || []).filter(row => supplyActivityFilters.has(row.type)).length;
+            const activitySearchNeedle = (supplyActivitySearchQuery || '').toLowerCase();
+            const filteredLen = (currentSupplyActivity || [])
+                .filter(row => supplyActivityFilters.has(row.type))
+                .filter(row => {
+                    if (!activitySearchNeedle) return true;
+                    const primary = String(row.primaryAddress || '').toLowerCase();
+                    const secondary = String(row.secondaryAddress || '').toLowerCase();
+                    return primary.includes(activitySearchNeedle) || secondary.includes(activitySearchNeedle);
+                }).length;
             const total = Math.max(1, Math.ceil(filteredLen / SUPPLY_ACTIVITY_PAGE_SIZE));
             supplyActivityPage = Math.max(1, Math.min(page, total));
             renderSupplyActivityTable();
@@ -6832,6 +6905,11 @@
             if (supplyTitle) supplyTitle.textContent = `${tokenObj.symbol} Supplier Leaderboard`;
             supplyPage = 1;
             supplyActivityPage = 1;
+            supplyActivitySearchQuery = '';
+            const activitySearchInput = document.getElementById('supply-activity-search-input');
+            const activitySearchWrap = document.getElementById('supply-activity-search-wrap');
+            if (activitySearchInput) activitySearchInput.value = '';
+            if (activitySearchWrap) activitySearchWrap.classList.remove('has-value');
             
             const lookbackTs = Math.floor(Date.now() / 1000) - (SUPPLY_ACTIVITY_LOOKBACK_DAYS * 24 * 60 * 60);
             const q = `{
