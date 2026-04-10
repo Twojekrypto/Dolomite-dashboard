@@ -3385,78 +3385,22 @@
                     min-width: min(100%, 320px);
                     width: min(100%, 320px);
                 }
-                .supply-activity-controls {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: flex-end;
-                    justify-content: flex-end;
-                    gap: 10px;
-                    flex-wrap: wrap;
-                    margin-left: auto;
-                    flex: 0 1 auto;
-                }
-                .supply-activity-periods {
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 2px;
-                    background: rgba(255, 255, 255, 0.03);
-                    border: 1px solid rgba(52, 211, 153, 0.25);
-                    border-radius: 8px;
-                    padding: 2px;
-                    position: relative;
-                    width: fit-content;
-                }
-                .supply-activity-periods button {
-                    background: transparent;
-                    border: none;
-                    color: var(--text-muted);
-                    font-size: 11px;
-                    font-weight: 500;
-                    padding: 6px 11px;
-                    border-radius: 6px;
-                    cursor: pointer;
-                    transition: color 0.2s ease;
-                    text-transform: uppercase;
-                    letter-spacing: 0.5px;
-                    white-space: nowrap;
-                    position: relative;
-                    z-index: 1;
-                    font-family: inherit;
-                }
-                .supply-activity-periods button:hover {
-                    color: var(--text-secondary);
-                }
-                .supply-activity-periods button.active {
-                    color: #e0e7ff;
-                    font-weight: 600;
-                }
-                .supply-activity-period-slider {
-                    position: absolute;
-                    top: 2px;
-                    left: 2px;
-                    height: calc(100% - 4px);
-                    width: 0;
-                    opacity: 0;
-                    background: rgba(99, 102, 241, 0.2);
-                    border: 1px solid rgba(99, 102, 241, 0.3);
-                    border-radius: 6px;
-                    transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
-                        width 0.25s cubic-bezier(0.22, 1, 0.36, 1),
-                        opacity 0.2s ease;
-                    box-shadow: 0 0 12px rgba(99, 102, 241, 0.15);
-                    z-index: 0;
-                }
                 .supply-activity-search-wrap {
                     margin: 12px 0 0;
                     min-width: min(100%, 320px);
                     width: min(100%, 320px);
+                }
+                .supply-activity-toolbar {
+                    display: flex;
+                    justify-content: center;
+                    margin: 4px 0 18px;
                 }
                 .supply-activity-filter-row {
                     display: flex;
                     align-items: center;
                     gap: 8px;
                     flex-wrap: wrap;
-                    justify-content: flex-end;
+                    justify-content: center;
                 }
                 .supply-filter-pill {
                     appearance: none;
@@ -3613,7 +3557,7 @@
                         grid-template-columns: 1fr;
                     }
                     .supply-activity-filter-row {
-                        justify-content: flex-start;
+                        justify-content: center;
                     }
                     .supply-table-controls,
                     .supply-activity-controls {
@@ -3752,34 +3696,26 @@
                             <h3 style="display:flex; align-items:center; gap:8px;">
                                 <span>Asset Activity</span> <span class="header-count" id="supply-activity-count"></span>
                             </h3>
-                            <div class="supply-activity-subtitle" id="supply-activity-subtitle">Recent deposits, withdrawals, transfers, and liquidations for the selected market.</div>
+                            <div class="supply-activity-subtitle" id="supply-activity-subtitle">Deposits, withdrawals, transfers, and liquidations for the selected market across full available history.</div>
                             <div class="search-wrap premium-supply-search-wrap supply-activity-search-wrap" id="supply-activity-search-wrap">
                                 <svg class="search-icon premium-supply-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                                 <input type="text" class="search-input premium-supply-search-input" id="supply-activity-search-input" placeholder="Search wallet address (0x...)">
                                 <button type="button" class="search-clear" id="supply-activity-search-clear" title="Clear search" style="right:14px; top:50%; transform:translateY(-50%);">✕</button>
                             </div>
                         </div>
-                        <div class="supply-activity-controls">
-                            <div id="supply-activity-periods" class="supply-activity-periods">
-                                <div class="supply-activity-period-slider"></div>
-                                <button data-period="1d" onclick="selectSupplyActivityPeriod('1d')">1D</button>
-                                <button data-period="7d" onclick="selectSupplyActivityPeriod('7d')">7D</button>
-                                <button data-period="30d" onclick="selectSupplyActivityPeriod('30d')">30D</button>
-                                <button class="active" data-period="90d" onclick="selectSupplyActivityPeriod('90d')">90D</button>
-                                <button data-period="all" onclick="selectSupplyActivityPeriod('all')">ALL</button>
-                            </div>
-                            <div class="supply-activity-filter-row">
-                                <button class="supply-filter-pill active" data-type="deposit" onclick="toggleSupplyActivityType('deposit')">Deposits</button>
-                                <button class="supply-filter-pill active" data-type="withdraw" onclick="toggleSupplyActivityType('withdraw')">Withdrawals</button>
-                                <button class="supply-filter-pill active" data-type="transfer" onclick="toggleSupplyActivityType('transfer')">Transfers</button>
-                                <button class="supply-filter-pill active" data-type="liquidation" onclick="toggleSupplyActivityType('liquidation')">Liquidations</button>
-                            </div>
+                    </div>
+                    <div class="supply-activity-toolbar">
+                        <div class="supply-activity-filter-row">
+                            <button class="supply-filter-pill active" data-type="deposit" onclick="toggleSupplyActivityType('deposit')">Deposits</button>
+                            <button class="supply-filter-pill active" data-type="withdraw" onclick="toggleSupplyActivityType('withdraw')">Withdrawals</button>
+                            <button class="supply-filter-pill active" data-type="transfer" onclick="toggleSupplyActivityType('transfer')">Transfers</button>
+                            <button class="supply-filter-pill active" data-type="liquidation" onclick="toggleSupplyActivityType('liquidation')">Liquidations</button>
                         </div>
                     </div>
                     <div class="table-scroll">
                         <div id="supply-activity-loading" class="loading-state" style="display:none; padding:40px;">
                             <div class="loading-spinner"></div>
-                            <div style="margin-top:12px; color:var(--text-muted); font-size:13px;">Building recent market activity...</div>
+                            <div style="margin-top:12px; color:var(--text-muted); font-size:13px;">Building full market activity...</div>
                         </div>
                         <table class="positions-table" id="supply-activity-table" style="display:none;">
                             <colgroup>
@@ -3791,11 +3727,77 @@
                             </colgroup>
                             <thead>
                                 <tr>
-                                    <th style="cursor:pointer; user-select:none;" data-sort="time" class="sorted" onclick="supplyActivitySort('time')">Time <span class="sort-arrow">▼</span></th>
+                                    <th style="cursor:pointer; user-select:none; position:relative; overflow:visible;" data-sort="time" class="sorted" onclick="supplyActivitySort('time')">
+                                        <span class="col-header-group">
+                                            Time
+                                            <button type="button" class="col-filter-btn" id="supply-activity-time-filter-trigger" title="Filter by time range">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                            </button>
+                                            <button type="button" class="col-filter-clear" id="supply-activity-time-filter-clear" title="Clear time filter">✕</button>
+                                            <span class="sort-arrow">▼</span>
+                                        </span>
+                                        <div class="col-filter-popover">
+                                            <div class="col-filter-inner">
+                                                <div class="col-filter-label">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                                    Time Range
+                                                </div>
+                                                <div class="col-filter-row">
+                                                    <input type="datetime-local" class="col-range-input" id="supply-activity-time-min" placeholder="From">
+                                                    <span>–</span>
+                                                    <input type="datetime-local" class="col-range-input" id="supply-activity-time-max" placeholder="To">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </th>
                                     <th>Type</th>
                                     <th>Wallets</th>
-                                    <th style="text-align:right; cursor:pointer; user-select:none;" data-sort="amount" onclick="supplyActivitySort('amount')">Amount <span class="sort-arrow"></span></th>
-                                    <th style="text-align:right; cursor:pointer; user-select:none;" data-sort="usd" onclick="supplyActivitySort('usd')">USD <span class="sort-arrow"></span></th>
+                                    <th style="text-align:right; cursor:pointer; user-select:none; position:relative; overflow:visible;" data-sort="amount" onclick="supplyActivitySort('amount')">
+                                        <span class="col-header-group">
+                                            Amount
+                                            <button type="button" class="col-filter-btn" id="supply-activity-amount-filter-trigger" title="Filter by amount range">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                            </button>
+                                            <button type="button" class="col-filter-clear" id="supply-activity-amount-filter-clear" title="Clear amount filter">✕</button>
+                                            <span class="sort-arrow"></span>
+                                        </span>
+                                        <div class="col-filter-popover">
+                                            <div class="col-filter-inner">
+                                                <div class="col-filter-label">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                                    Amount Range
+                                                </div>
+                                                <div class="col-filter-row">
+                                                    <input type="number" step="any" class="col-range-input" id="supply-activity-amount-min" placeholder="Min">
+                                                    <span>–</span>
+                                                    <input type="number" step="any" class="col-range-input" id="supply-activity-amount-max" placeholder="Max">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </th>
+                                    <th style="text-align:right; cursor:pointer; user-select:none; position:relative; overflow:visible;" data-sort="usd" onclick="supplyActivitySort('usd')">
+                                        <span class="col-header-group">
+                                            USD
+                                            <button type="button" class="col-filter-btn" id="supply-activity-usd-filter-trigger" title="Filter by USD range">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                            </button>
+                                            <button type="button" class="col-filter-clear" id="supply-activity-usd-filter-clear" title="Clear USD filter">✕</button>
+                                            <span class="sort-arrow"></span>
+                                        </span>
+                                        <div class="col-filter-popover">
+                                            <div class="col-filter-inner">
+                                                <div class="col-filter-label">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                                    USD Range
+                                                </div>
+                                                <div class="col-filter-row">
+                                                    <input type="number" step="any" class="col-range-input" id="supply-activity-usd-min" placeholder="Min">
+                                                    <span>–</span>
+                                                    <input type="number" step="any" class="col-range-input" id="supply-activity-usd-max" placeholder="Max">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody id="supply-activity-body"></tbody>
@@ -6032,22 +6034,19 @@
         let supplySortAsc = false;
         let currentSupplyOverview = null;
         let currentSupplyActivity = [];
-        let currentSupplyActivityAll = null;
         let supplyActivityPage = 1;
         let supplyActivitySearchQuery = '';
         let supplyActivitySortField = 'time';
         let supplyActivitySortAsc = false;
-        let supplyActivityPeriod = '90d';
+        let supplyActivityTimeMin = null;
+        let supplyActivityTimeMax = null;
+        let supplyActivityAmountMin = null;
+        let supplyActivityAmountMax = null;
+        let supplyActivityUsdMin = null;
+        let supplyActivityUsdMax = null;
         let supplyTabRequestId = 0;
         const SUPPLY_ACTIVITY_PAGE_SIZE = 12;
         const SUPPLY_HISTORY_DAYS = 30;
-        const SUPPLY_ACTIVITY_LOOKBACK_DAYS = 90;
-        const SUPPLY_ACTIVITY_PERIOD_DAYS = {
-            '1d': 1,
-            '7d': 7,
-            '30d': 30,
-            '90d': 90,
-        };
         let supplyActivityFilters = new Set(['deposit', 'withdraw', 'transfer', 'liquidation']);
 
         const SUPPLY_ACTIVITY_META = {
@@ -6104,45 +6103,12 @@
             renderSupplyActivityTable();
         }
 
-        function positionSupplyActivityPeriodSlider(btn) {
-            const wrap = document.getElementById('supply-activity-periods');
-            const slider = wrap ? wrap.querySelector('.supply-activity-period-slider') : null;
-            if (!wrap || !slider || !btn) return;
-            const wrapBox = wrap.getBoundingClientRect();
-            const btnBox = btn.getBoundingClientRect();
-            if (btnBox.width <= 0) return;
-            slider.style.width = btnBox.width + 'px';
-            slider.style.transform = 'translateX(' + (btnBox.left - wrapBox.left - 2) + 'px)';
-            slider.style.opacity = '1';
-        }
-
-        function updateSupplyActivityPeriodUi() {
-            const wrap = document.getElementById('supply-activity-periods');
-            if (!wrap) return;
-            const btns = wrap.querySelectorAll('button[data-period]');
-            btns.forEach(btn => btn.classList.toggle('active', btn.dataset.period === supplyActivityPeriod));
-            const activeBtn = wrap.querySelector(`button[data-period="${supplyActivityPeriod}"]`);
-            if (activeBtn) {
-                requestAnimationFrame(() => positionSupplyActivityPeriodSlider(activeBtn));
-            }
-        }
-
-        function getSupplyActivityPeriodLabel(period) {
-            return {
-                '1d': 'the last 24 hours',
-                '7d': 'the last 7 days',
-                '30d': 'the last 30 days',
-                '90d': 'the last 90 days',
-                'all': 'all available history',
-            }[period] || 'recent history';
-        }
-
         function updateSupplyActivitySubtitle() {
             const subtitle = document.getElementById('supply-activity-subtitle');
             const token = currentSupplyOverview?.token?.symbol || (currentSupplyTokensMap[document.getElementById('supply-asset-select')?.value]?.symbol || 'the selected market');
             const chainName = CHAIN_DISPLAY_NAMES[document.getElementById('supply-chain-select')?.value] || document.getElementById('supply-chain-select')?.value || '';
             if (!subtitle) return;
-            subtitle.textContent = `Deposits, withdrawals, transfers, and liquidations for ${token} on ${chainName} across ${getSupplyActivityPeriodLabel(supplyActivityPeriod)}.`;
+            subtitle.textContent = `Deposits, withdrawals, transfers, and liquidations for ${token} on ${chainName} across full available history.`;
         }
 
         function supplyEscapeHtml(value) {
@@ -6207,6 +6173,195 @@
             }).format(new Date(ts * 1000));
         }
 
+        function supplyActivityDateInputValue(timestamp) {
+            const ts = Number(timestamp || 0);
+            if (!Number.isFinite(ts) || ts <= 0) return '';
+            const d = new Date(ts * 1000);
+            const pad = v => String(v).padStart(2, '0');
+            return [
+                d.getFullYear(),
+                '-',
+                pad(d.getMonth() + 1),
+                '-',
+                pad(d.getDate()),
+                'T',
+                pad(d.getHours()),
+                ':',
+                pad(d.getMinutes()),
+            ].join('');
+        }
+
+        function supplyActivityParseDateInput(value, edge) {
+            if (!value) return null;
+            const ms = new Date(value).getTime();
+            if (!Number.isFinite(ms)) return null;
+            const base = Math.floor(ms / 1000);
+            return edge === 'max' ? (base + 59) : base;
+        }
+
+        function syncSupplyActivityColumnFilterUi() {
+            const configs = [
+                {
+                    triggerId: 'supply-activity-time-filter-trigger',
+                    minId: 'supply-activity-time-min',
+                    maxId: 'supply-activity-time-max',
+                    minValue: supplyActivityTimeMin,
+                    maxValue: supplyActivityTimeMax,
+                    format: supplyActivityDateInputValue,
+                },
+                {
+                    triggerId: 'supply-activity-amount-filter-trigger',
+                    minId: 'supply-activity-amount-min',
+                    maxId: 'supply-activity-amount-max',
+                    minValue: supplyActivityAmountMin,
+                    maxValue: supplyActivityAmountMax,
+                    format: value => value == null ? '' : String(value),
+                },
+                {
+                    triggerId: 'supply-activity-usd-filter-trigger',
+                    minId: 'supply-activity-usd-min',
+                    maxId: 'supply-activity-usd-max',
+                    minValue: supplyActivityUsdMin,
+                    maxValue: supplyActivityUsdMax,
+                    format: value => value == null ? '' : String(value),
+                },
+            ];
+
+            configs.forEach(config => {
+                const trigger = document.getElementById(config.triggerId);
+                const minInput = document.getElementById(config.minId);
+                const maxInput = document.getElementById(config.maxId);
+                const hasActive = config.minValue != null || config.maxValue != null;
+                if (trigger) trigger.classList.toggle('has-active', hasActive);
+                if (minInput) minInput.value = config.format(config.minValue);
+                if (maxInput) maxInput.value = config.format(config.maxValue);
+            });
+        }
+
+        function closeSupplyActivityFilterPopovers() {
+            document.querySelectorAll('#supply-activity-table thead th.col-filter-open').forEach(th => {
+                th.classList.remove('col-filter-open');
+                const popover = th.querySelector('.col-filter-popover');
+                if (popover) popover.style.display = '';
+            });
+        }
+
+        function initSupplyActivityRangePopover(opts) {
+            const trigger = document.getElementById(opts.triggerId);
+            const clearBtn = document.getElementById(opts.clearId);
+            const minInput = document.getElementById(opts.minInputId);
+            const maxInput = document.getElementById(opts.maxInputId);
+            if (!trigger || !clearBtn || !minInput || !maxInput) return;
+
+            const thParent = trigger.closest('th');
+            const popoverEl = thParent ? thParent.querySelector('.col-filter-popover') : null;
+            if (!thParent || !popoverEl) return;
+
+            let closeTimer = null;
+            let inputTimer = null;
+
+            function closePopover() {
+                thParent.classList.remove('col-filter-open');
+                popoverEl.style.display = '';
+            }
+
+            function syncInputsFromState() {
+                minInput.value = opts.format(opts.getMin());
+                maxInput.value = opts.format(opts.getMax());
+                trigger.classList.toggle('has-active', opts.getMin() != null || opts.getMax() != null);
+            }
+
+            function applyFromInputs() {
+                opts.setMin(opts.parse(minInput.value, 'min'));
+                opts.setMax(opts.parse(maxInput.value, 'max'));
+                trigger.classList.toggle('has-active', opts.getMin() != null || opts.getMax() != null);
+                supplyActivityPage = 1;
+                renderSupplyActivityTable();
+            }
+
+            trigger.addEventListener('click', e => {
+                e.preventDefault();
+                e.stopPropagation();
+                document.querySelectorAll('#supply-activity-table thead th.col-filter-open').forEach(th => {
+                    if (th !== thParent) {
+                        th.classList.remove('col-filter-open');
+                        const p = th.querySelector('.col-filter-popover');
+                        if (p) p.style.display = '';
+                    }
+                });
+                thParent.classList.toggle('col-filter-open');
+                if (thParent.classList.contains('col-filter-open')) {
+                    syncInputsFromState();
+                    positionPopoverFixed(trigger, popoverEl);
+                } else {
+                    closePopover();
+                }
+            });
+
+            clearBtn.addEventListener('click', e => {
+                e.preventDefault();
+                e.stopPropagation();
+                opts.setMin(null);
+                opts.setMax(null);
+                minInput.value = '';
+                maxInput.value = '';
+                trigger.classList.remove('has-active');
+                closePopover();
+                supplyActivityPage = 1;
+                renderSupplyActivityTable();
+            });
+
+            const scheduleApply = () => {
+                clearTimeout(inputTimer);
+                inputTimer = setTimeout(applyFromInputs, 250);
+            };
+
+            [minInput, maxInput].forEach(input => {
+                input.addEventListener('input', scheduleApply);
+                input.addEventListener('click', e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+            });
+
+            popoverEl.addEventListener('click', e => e.stopPropagation());
+
+            document.addEventListener('click', e => {
+                if (!thParent.contains(e.target) && !popoverEl.contains(e.target)) {
+                    closePopover();
+                }
+            });
+
+            function startClose() {
+                if (closeTimer) clearTimeout(closeTimer);
+                closeTimer = setTimeout(closePopover, 350);
+            }
+
+            function cancelClose() {
+                if (closeTimer) {
+                    clearTimeout(closeTimer);
+                    closeTimer = null;
+                }
+            }
+
+            popoverEl.addEventListener('mouseleave', startClose);
+            popoverEl.addEventListener('mouseenter', cancelClose);
+            trigger.addEventListener('mouseenter', cancelClose);
+            thParent.addEventListener('mouseleave', e => {
+                const rect = popoverEl.getBoundingClientRect();
+                if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+                    startClose();
+                }
+            });
+            thParent.addEventListener('mouseenter', cancelClose);
+
+            window.addEventListener('scroll', () => {
+                if (thParent.classList.contains('col-filter-open')) {
+                    positionPopoverFixed(trigger, popoverEl);
+                }
+            }, true);
+        }
+
         function getSupplyAddressExplorer(chain) {
             return {
                 berachain: 'https://berascan.com/address/',
@@ -6234,12 +6389,16 @@
         function resetSupplyIntelState() {
             currentSupplyOverview = null;
             currentSupplyActivity = [];
-            currentSupplyActivityAll = null;
             supplyActivityPage = 1;
             supplyActivitySearchQuery = '';
             supplyActivitySortField = 'time';
             supplyActivitySortAsc = false;
-            supplyActivityPeriod = '90d';
+            supplyActivityTimeMin = null;
+            supplyActivityTimeMax = null;
+            supplyActivityAmountMin = null;
+            supplyActivityAmountMax = null;
+            supplyActivityUsdMin = null;
+            supplyActivityUsdMax = null;
             supplyActivityFilters = new Set(['deposit', 'withdraw', 'transfer', 'liquidation']);
             const shell = document.getElementById('supply-intel-shell');
             const card = document.getElementById('supply-activity-card');
@@ -6262,8 +6421,9 @@
             if (activitySearchInput) activitySearchInput.value = '';
             if (activitySearchWrap) activitySearchWrap.classList.remove('has-value');
             document.querySelectorAll('.supply-filter-pill').forEach(btn => btn.classList.add('active'));
+            closeSupplyActivityFilterPopovers();
             updateSupplyActivitySortUi();
-            updateSupplyActivityPeriodUi();
+            syncSupplyActivityColumnFilterUi();
             updateSupplyActivitySubtitle();
         }
 
@@ -6283,7 +6443,7 @@
                 icon.onerror = () => { icon.src = 'dolomite-logo.svg'; };
             }
             if (title) title.textContent = symbol + ' · ' + (CHAIN_DISPLAY_NAMES[chain] || chain);
-            if (subtitle) subtitle.textContent = 'Fetching live liquidity, supplier breadth, and recent market activity...';
+            if (subtitle) subtitle.textContent = 'Fetching live liquidity, supplier breadth, and full market activity...';
             if (asof) asof.textContent = 'Refreshing selected market';
             if (stats) {
                 stats.innerHTML = Array.from({ length: 4 }).map(() => `
@@ -6309,11 +6469,56 @@
             if (loading) {
                 loading.innerHTML = `
                     <div class="loading-spinner"></div>
-                    <div style="margin-top:12px; color:var(--text-muted); font-size:13px;">${supplyEscapeHtml(message || 'Building recent market activity...')}</div>
+                    <div style="margin-top:12px; color:var(--text-muted); font-size:13px;">${supplyEscapeHtml(message || 'Building full market activity...')}</div>
                 `;
             }
             document.getElementById('supply-activity-pagination').innerHTML = '';
         }
+
+        initSupplyActivityRangePopover({
+            triggerId: 'supply-activity-time-filter-trigger',
+            clearId: 'supply-activity-time-filter-clear',
+            minInputId: 'supply-activity-time-min',
+            maxInputId: 'supply-activity-time-max',
+            getMin: () => supplyActivityTimeMin,
+            getMax: () => supplyActivityTimeMax,
+            setMin: value => { supplyActivityTimeMin = value; },
+            setMax: value => { supplyActivityTimeMax = value; },
+            parse: supplyActivityParseDateInput,
+            format: supplyActivityDateInputValue,
+        });
+
+        initSupplyActivityRangePopover({
+            triggerId: 'supply-activity-amount-filter-trigger',
+            clearId: 'supply-activity-amount-filter-clear',
+            minInputId: 'supply-activity-amount-min',
+            maxInputId: 'supply-activity-amount-max',
+            getMin: () => supplyActivityAmountMin,
+            getMax: () => supplyActivityAmountMax,
+            setMin: value => { supplyActivityAmountMin = value; },
+            setMax: value => { supplyActivityAmountMax = value; },
+            parse: value => {
+                const parsed = parseFloat(value);
+                return Number.isFinite(parsed) ? parsed : null;
+            },
+            format: value => value == null ? '' : String(value),
+        });
+
+        initSupplyActivityRangePopover({
+            triggerId: 'supply-activity-usd-filter-trigger',
+            clearId: 'supply-activity-usd-filter-clear',
+            minInputId: 'supply-activity-usd-min',
+            maxInputId: 'supply-activity-usd-max',
+            getMin: () => supplyActivityUsdMin,
+            getMax: () => supplyActivityUsdMax,
+            setMin: value => { supplyActivityUsdMin = value; },
+            setMax: value => { supplyActivityUsdMax = value; },
+            parse: value => {
+                const parsed = parseFloat(value);
+                return Number.isFinite(parsed) ? parsed : null;
+            },
+            format: value => value == null ? '' : String(value),
+        });
 
         function buildSupplyHistorySeries(currentSupply, deposits, withdrawals, days) {
             const dayCount = Math.max(2, Number(days || SUPPLY_HISTORY_DAYS));
@@ -6666,21 +6871,9 @@
             };
         }
 
-        function getCurrentSupplyActivityRows() {
-            const baseRows = supplyActivityPeriod === 'all'
-                ? (currentSupplyActivityAll || [])
-                : (currentSupplyActivity || []);
-
-            if (supplyActivityPeriod === 'all') return baseRows;
-
-            const days = SUPPLY_ACTIVITY_PERIOD_DAYS[supplyActivityPeriod] || SUPPLY_ACTIVITY_LOOKBACK_DAYS;
-            const thresholdTs = Math.floor(Date.now() / 1000) - (days * 24 * 60 * 60);
-            return baseRows.filter(row => Number(row.timestamp || 0) >= thresholdTs);
-        }
-
         function getFilteredSupplyActivityRows() {
             const activitySearchNeedle = (supplyActivitySearchQuery || '').toLowerCase();
-            return getCurrentSupplyActivityRows()
+            return (currentSupplyActivity || [])
                 .filter(row => supplyActivityFilters.has(row.type))
                 .filter(row => {
                     if (!activitySearchNeedle) return true;
@@ -6688,6 +6881,12 @@
                     const secondary = String(row.secondaryAddress || '').toLowerCase();
                     return primary.includes(activitySearchNeedle) || secondary.includes(activitySearchNeedle);
                 })
+                .filter(row => supplyActivityTimeMin == null || Number(row.timestamp || 0) >= supplyActivityTimeMin)
+                .filter(row => supplyActivityTimeMax == null || Number(row.timestamp || 0) <= supplyActivityTimeMax)
+                .filter(row => supplyActivityAmountMin == null || Number(row.amount || 0) >= supplyActivityAmountMin)
+                .filter(row => supplyActivityAmountMax == null || Number(row.amount || 0) <= supplyActivityAmountMax)
+                .filter(row => supplyActivityUsdMin == null || Number(row.usd || 0) >= supplyActivityUsdMin)
+                .filter(row => supplyActivityUsdMax == null || Number(row.usd || 0) <= supplyActivityUsdMax)
                 .sort((a, b) => {
                     let cmp = 0;
                     if (supplyActivitySortField === 'amount') {
@@ -6703,38 +6902,6 @@
                     }
                     return supplyActivitySortAsc ? cmp : -cmp;
                 });
-        }
-
-        async function selectSupplyActivityPeriod(period) {
-            if (!period) return;
-            const periodChanged = supplyActivityPeriod !== period;
-            supplyActivityPeriod = period;
-            if (periodChanged) {
-                supplyActivityPage = 1;
-            }
-            updateSupplyActivityPeriodUi();
-            updateSupplyActivitySubtitle();
-
-            if (period === 'all' && !currentSupplyActivityAll) {
-                const chain = document.getElementById('supply-chain-select').value;
-                const tokenId = document.getElementById('supply-asset-select').value;
-                if (!tokenId || !chain) return;
-                const requestId = supplyTabRequestId;
-                try {
-                    setSupplyActivityLoading('Loading full asset history...');
-                    const history = await fetchSupplyActivityHistory(DOLOMITE_MINI_GRAPHS[chain], tokenId, null);
-                    if (requestId !== supplyTabRequestId) return;
-                    currentSupplyActivityAll = history.rows;
-                } catch (e) {
-                    console.error('Supply activity full-history fetch err', e);
-                    if (requestId !== supplyTabRequestId) return;
-                    supplyActivityPeriod = '90d';
-                    updateSupplyActivityPeriodUi();
-                    updateSupplyActivitySubtitle();
-                }
-            }
-
-            renderSupplyActivityTable();
         }
 
         function renderSupplyActivityTable() {
@@ -6756,12 +6923,12 @@
 
             countEl.textContent = `(${filtered.length})`;
             updateSupplyActivitySortUi();
-            updateSupplyActivityPeriodUi();
+            syncSupplyActivityColumnFilterUi();
             updateSupplyActivitySubtitle();
 
             if (filtered.length === 0) {
                 table.style.display = 'table';
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:34px; color:var(--text-muted);">No recent activity for the selected filters.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:34px; color:var(--text-muted);">No activity matches the selected filters.</td></tr>`;
                 pager.innerHTML = '';
                 return;
             }
@@ -7230,29 +7397,32 @@
             table.style.display = 'none';
             tbody.innerHTML = '';
             if (activityLoading) {
-                activityLoading.innerHTML = `<div class="loading-spinner"></div><div style="margin-top:12px; color:var(--text-muted); font-size:13px;">Building recent market activity...</div>`;
+                activityLoading.innerHTML = `<div class="loading-spinner"></div><div style="margin-top:12px; color:var(--text-muted); font-size:13px;">Building full market activity...</div>`;
             }
             setSupplyIntelLoading(tokenObj, chain);
-            setSupplyActivityLoading('Building recent market activity...');
+            setSupplyActivityLoading('Building full market activity...');
             if (supplyTitle) supplyTitle.textContent = `${tokenObj.symbol} Supplier Leaderboard`;
             supplyPage = 1;
             supplyActivityPage = 1;
             supplyActivitySearchQuery = '';
             supplyActivitySortField = 'time';
             supplyActivitySortAsc = false;
-            supplyActivityPeriod = '90d';
-            currentSupplyActivityAll = null;
+            supplyActivityTimeMin = null;
+            supplyActivityTimeMax = null;
+            supplyActivityAmountMin = null;
+            supplyActivityAmountMax = null;
+            supplyActivityUsdMin = null;
+            supplyActivityUsdMax = null;
             const activitySearchInput = document.getElementById('supply-activity-search-input');
             const activitySearchWrap = document.getElementById('supply-activity-search-wrap');
             if (activitySearchInput) activitySearchInput.value = '';
             if (activitySearchWrap) activitySearchWrap.classList.remove('has-value');
+            closeSupplyActivityFilterPopovers();
             updateSupplyActivitySortUi();
-            updateSupplyActivityPeriodUi();
+            syncSupplyActivityColumnFilterUi();
             if (activitySubtitle) {
-                activitySubtitle.textContent = `Deposits, withdrawals, transfers, and liquidations for ${tokenObj.symbol} on ${CHAIN_DISPLAY_NAMES[chain] || chain} across ${getSupplyActivityPeriodLabel(supplyActivityPeriod)}.`;
+                activitySubtitle.textContent = `Deposits, withdrawals, transfers, and liquidations for ${tokenObj.symbol} on ${CHAIN_DISPLAY_NAMES[chain] || chain} across full available history.`;
             }
-            
-            const lookbackTs = Math.floor(Date.now() / 1000) - (SUPPLY_ACTIVITY_LOOKBACK_DAYS * 24 * 60 * 60);
             const q = `{
                 tokens(first: 1, where: { id: "${tokenId}" }) {
                     id
@@ -7276,10 +7446,10 @@
             
             try {
                 const endpoint = DOLOMITE_MINI_GRAPHS[chain];
-                const [data, supplierPars, recentActivity] = await Promise.all([
+                const [data, supplierPars, activityHistory] = await Promise.all([
                     doGraphQuery(endpoint, q),
                     fetchAllSupplySuppliers(endpoint, tokenId),
-                    fetchSupplyActivityHistory(endpoint, tokenId, lookbackTs)
+                    fetchSupplyActivityHistory(endpoint, tokenId, null)
                 ]);
 
                 if (requestId !== supplyTabRequestId) return;
@@ -7308,10 +7478,9 @@
                     .sort((a, b) => b.amount - a.amount)
                     .map((item, index) => ({ ...item, rank: index + 1 }));
 
-                const deposits = recentActivity.deposits || [];
-                const withdrawals = recentActivity.withdrawals || [];
-                currentSupplyActivity = recentActivity.rows || [];
-                currentSupplyActivityAll = null;
+                const deposits = activityHistory.deposits || [];
+                const withdrawals = activityHistory.withdrawals || [];
+                currentSupplyActivity = activityHistory.rows || [];
 
                 currentSupplyOverview = {
                     chain,
