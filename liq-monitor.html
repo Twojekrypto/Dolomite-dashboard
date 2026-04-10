@@ -3385,22 +3385,27 @@
                     min-width: min(100%, 320px);
                     width: min(100%, 320px);
                 }
-                .supply-activity-search-wrap {
-                    margin: 12px 0 0;
-                    min-width: min(100%, 320px);
-                    width: min(100%, 320px);
-                }
                 .supply-activity-toolbar {
                     display: flex;
-                    justify-content: center;
-                    margin: 4px 0 18px;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 16px;
+                    flex-wrap: wrap;
+                    margin: 16px 0 18px;
+                }
+                .supply-activity-search-wrap {
+                    margin: 0;
+                    min-width: min(100%, 320px);
+                    width: min(100%, 320px);
+                    flex: 0 1 320px;
                 }
                 .supply-activity-filter-row {
                     display: flex;
                     align-items: center;
                     gap: 8px;
                     flex-wrap: wrap;
-                    justify-content: center;
+                    justify-content: flex-end;
+                    margin-left: auto;
                 }
                 .supply-filter-pill {
                     appearance: none;
@@ -3556,9 +3561,6 @@
                     .supply-intel-stats {
                         grid-template-columns: 1fr;
                     }
-                    .supply-activity-filter-row {
-                        justify-content: center;
-                    }
                     .supply-table-controls,
                     .supply-activity-controls {
                         min-width: 100%;
@@ -3566,10 +3568,19 @@
                         justify-content: flex-start;
                         align-items: flex-start;
                     }
+                    .supply-activity-toolbar {
+                        align-items: stretch;
+                        justify-content: flex-start;
+                    }
+                    .supply-activity-filter-row {
+                        justify-content: flex-start;
+                        margin-left: 0;
+                    }
                     .supply-table-search-wrap,
                     .supply-activity-search-wrap {
                         width: 100%;
                         min-width: 100%;
+                        flex-basis: 100%;
                     }
                     #supply-activity-card {
                         margin-top: 24px;
@@ -3697,14 +3708,14 @@
                                 <span>Asset Activity</span> <span class="header-count" id="supply-activity-count"></span>
                             </h3>
                             <div class="supply-activity-subtitle" id="supply-activity-subtitle">Deposits, withdrawals, transfers, and liquidations for the selected market across full available history.</div>
-                            <div class="search-wrap premium-supply-search-wrap supply-activity-search-wrap" id="supply-activity-search-wrap">
-                                <svg class="search-icon premium-supply-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                                <input type="text" class="search-input premium-supply-search-input" id="supply-activity-search-input" placeholder="Search wallet address (0x...)">
-                                <button type="button" class="search-clear" id="supply-activity-search-clear" title="Clear search" style="right:14px; top:50%; transform:translateY(-50%);">✕</button>
-                            </div>
                         </div>
                     </div>
                     <div class="supply-activity-toolbar">
+                        <div class="search-wrap premium-supply-search-wrap supply-activity-search-wrap" id="supply-activity-search-wrap">
+                            <svg class="search-icon premium-supply-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input type="text" class="search-input premium-supply-search-input" id="supply-activity-search-input" placeholder="Search wallet address (0x...)">
+                            <button type="button" class="search-clear" id="supply-activity-search-clear" title="Clear search" style="right:14px; top:50%; transform:translateY(-50%);">✕</button>
+                        </div>
                         <div class="supply-activity-filter-row">
                             <button class="supply-filter-pill active" data-type="deposit" onclick="toggleSupplyActivityType('deposit')">Deposits</button>
                             <button class="supply-filter-pill active" data-type="withdraw" onclick="toggleSupplyActivityType('withdraw')">Withdrawals</button>
