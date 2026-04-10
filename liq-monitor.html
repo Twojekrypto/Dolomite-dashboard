@@ -3359,18 +3359,42 @@
                     font-size: 12px;
                     color: rgba(226,232,240,0.56);
                 }
+                .supply-table-header,
+                .supply-activity-header {
+                    align-items: flex-start;
+                    justify-content: space-between;
+                    gap: 18px;
+                    flex-wrap: wrap;
+                }
+                .supply-table-heading,
+                .supply-activity-heading {
+                    min-width: 0;
+                }
+                .supply-table-controls {
+                    display: flex;
+                    align-items: center;
+                    justify-content: flex-end;
+                    gap: 12px;
+                    flex-wrap: wrap;
+                    margin-left: auto;
+                }
+                .supply-table-search-wrap {
+                    margin: 0;
+                    min-width: min(100%, 320px);
+                    width: min(100%, 320px);
+                }
                 .supply-activity-controls {
                     display: flex;
-                    flex-direction: column;
-                    align-items: stretch;
-                    gap: 10px;
-                    min-width: min(100%, 320px);
+                    align-items: center;
+                    justify-content: flex-end;
+                    gap: 12px;
+                    flex-wrap: wrap;
                     margin-left: auto;
                 }
                 .supply-activity-search-wrap {
                     margin: 0;
-                    min-width: unset;
-                    width: 100%;
+                    min-width: min(100%, 320px);
+                    width: min(100%, 320px);
                 }
                 .supply-activity-filter-row {
                     display: flex;
@@ -3522,6 +3546,7 @@
                     }
                     .supply-intel-header,
                     .supply-history-head,
+                    .supply-table-header,
                     .supply-activity-header {
                         flex-direction: column;
                         align-items: stretch;
@@ -3535,9 +3560,16 @@
                     .supply-activity-filter-row {
                         justify-content: flex-start;
                     }
+                    .supply-table-controls,
                     .supply-activity-controls {
                         min-width: 100%;
                         margin-left: 0;
+                        justify-content: flex-start;
+                    }
+                    .supply-table-search-wrap,
+                    .supply-activity-search-wrap {
+                        width: 100%;
+                        min-width: 100%;
                     }
                     #supply-activity-card {
                         margin-top: 24px;
@@ -3545,15 +3577,6 @@
                 }
             </style>
             <div class="controls-row1 premium-supply-frame">
-                <div style="flex: 0 0 380px; width: 380px; position:relative;" id="supply-search-container">
-                    <label class="premium-supply-label">Search Suppliers</label>
-                    <div class="search-wrap premium-supply-search-wrap" id="supply-search-wrap" style="margin: 0; min-width: unset; width: 100%;">
-                        <svg class="search-icon premium-supply-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                        <input type="text" class="search-input premium-supply-search-input" id="supply-search-input" placeholder="Search by address (0x...)">
-                        <button type="button" class="search-clear" id="supply-search-clear" title="Clear search" style="right:14px; top:50%; transform:translateY(-50%);">✕</button>
-                    </div>
-                </div>
-
                 <div style="flex: 0 0 210px; width: 210px; position:relative;" id="supply-chain-container">
                     <label class="premium-supply-label">Network</label>
                     <div id="custom-chain-selector" class="premium-supply-dropdown" onclick="toggleSupplyChainDropdown()" style="width:100%;">
@@ -3624,11 +3647,20 @@
 
             <div class="table-card-outer">
                 <div class="table-card-inner">
-                    <div class="table-card-header">
-                        <h3 style="display:flex; align-items:center; gap:8px;">
-                            <img id="supply-header-icon" src="dolomite-logo.svg" style="width:20px; height:20px; border-radius:50%; object-fit:contain; border:1px solid rgba(255,255,255,0.1);" alt="">
-                            <span id="supply-table-title">Supplier Leaderboard</span> <span class="header-count" id="supply-count-header"></span>
-                        </h3>
+                    <div class="table-card-header supply-table-header">
+                        <div class="supply-table-heading">
+                            <h3 style="display:flex; align-items:center; gap:8px;">
+                                <img id="supply-header-icon" src="dolomite-logo.svg" style="width:20px; height:20px; border-radius:50%; object-fit:contain; border:1px solid rgba(255,255,255,0.1);" alt="">
+                                <span id="supply-table-title">Supplier Leaderboard</span> <span class="header-count" id="supply-count-header"></span>
+                            </h3>
+                        </div>
+                        <div class="supply-table-controls">
+                            <div class="search-wrap premium-supply-search-wrap supply-table-search-wrap" id="supply-search-wrap">
+                                <svg class="search-icon premium-supply-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                <input type="text" class="search-input premium-supply-search-input" id="supply-search-input" placeholder="Search supplier address (0x...)">
+                                <button type="button" class="search-clear" id="supply-search-clear" title="Clear search" style="right:14px; top:50%; transform:translateY(-50%);">✕</button>
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="table-scroll">
@@ -3662,7 +3694,7 @@
             <div class="table-card-outer" id="supply-activity-card" style="display:none;">
                 <div class="table-card-inner">
                     <div class="table-card-header supply-activity-header">
-                        <div>
+                        <div class="supply-activity-heading">
                             <h3 style="display:flex; align-items:center; gap:8px;">
                                 <span>Asset Activity</span> <span class="header-count" id="supply-activity-count"></span>
                             </h3>
@@ -3671,7 +3703,7 @@
                         <div class="supply-activity-controls">
                             <div class="search-wrap premium-supply-search-wrap supply-activity-search-wrap" id="supply-activity-search-wrap">
                                 <svg class="search-icon premium-supply-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                                <input type="text" class="search-input premium-supply-search-input" id="supply-activity-search-input" placeholder="Search tx address (0x...)">
+                                <input type="text" class="search-input premium-supply-search-input" id="supply-activity-search-input" placeholder="Search wallet address (0x...)">
                                 <button type="button" class="search-clear" id="supply-activity-search-clear" title="Clear search" style="right:14px; top:50%; transform:translateY(-50%);">✕</button>
                             </div>
                             <div class="supply-activity-filter-row">
