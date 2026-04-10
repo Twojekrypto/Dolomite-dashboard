@@ -3133,6 +3133,382 @@
                 .premium-supply-frame img, .premium-supply-dropdown-menu img {
                     filter: grayscale(100%) !important;
                 }
+                .supply-intel-shell {
+                    display: none;
+                    margin-bottom: 24px;
+                    padding: 22px 24px 24px;
+                    border-radius: 18px;
+                    background:
+                        radial-gradient(circle at top right, rgba(52,211,153,0.12), transparent 34%),
+                        radial-gradient(circle at bottom left, rgba(99,102,241,0.12), transparent 30%),
+                        linear-gradient(155deg, rgba(14,19,28,0.96) 0%, rgba(8,12,20,0.98) 100%);
+                    border: 1px solid rgba(255,255,255,0.08);
+                    box-shadow: 0 18px 44px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.06);
+                    position: relative;
+                    overflow: hidden;
+                }
+                .supply-intel-shell::after {
+                    content: "";
+                    position: absolute;
+                    inset: 0;
+                    pointer-events: none;
+                    background: linear-gradient(90deg, rgba(255,255,255,0.04), transparent 20%, transparent 80%, rgba(255,255,255,0.03));
+                    mask: linear-gradient(#000, transparent 88%);
+                }
+                .supply-intel-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    gap: 20px;
+                    margin-bottom: 18px;
+                    position: relative;
+                    z-index: 1;
+                }
+                .supply-intel-eyebrow {
+                    font-size: 11px;
+                    font-weight: 700;
+                    letter-spacing: 0.14em;
+                    text-transform: uppercase;
+                    color: rgba(148,163,184,0.72);
+                    margin-bottom: 10px;
+                }
+                .supply-intel-title-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                }
+                .supply-intel-title-icon {
+                    width: 42px;
+                    height: 42px;
+                    border-radius: 14px;
+                    border: 1px solid rgba(255,255,255,0.09);
+                    background: rgba(255,255,255,0.04);
+                    object-fit: contain;
+                    padding: 8px;
+                    flex-shrink: 0;
+                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+                }
+                .supply-intel-title {
+                    font-size: 22px;
+                    font-weight: 700;
+                    letter-spacing: -0.02em;
+                    color: #f8fafc;
+                }
+                .supply-intel-subtitle {
+                    margin-top: 4px;
+                    font-size: 12px;
+                    color: rgba(226,232,240,0.58);
+                }
+                .supply-intel-asof {
+                    padding: 10px 12px;
+                    border-radius: 999px;
+                    border: 1px solid rgba(255,255,255,0.08);
+                    background: rgba(255,255,255,0.04);
+                    color: rgba(226,232,240,0.68);
+                    font-size: 11px;
+                    line-height: 1.4;
+                    white-space: nowrap;
+                }
+                .supply-intel-stats {
+                    display: grid;
+                    grid-template-columns: repeat(4, minmax(0, 1fr));
+                    gap: 14px;
+                    margin-bottom: 18px;
+                    position: relative;
+                    z-index: 1;
+                }
+                .supply-intel-stat {
+                    min-height: 116px;
+                    padding: 16px;
+                    border-radius: 14px;
+                    background: rgba(255,255,255,0.035);
+                    border: 1px solid rgba(255,255,255,0.06);
+                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: space-between;
+                    gap: 12px;
+                }
+                .supply-intel-stat-label {
+                    font-size: 11px;
+                    font-weight: 700;
+                    letter-spacing: 0.12em;
+                    text-transform: uppercase;
+                    color: rgba(148,163,184,0.72);
+                }
+                .supply-intel-stat-value {
+                    font-size: 24px;
+                    font-weight: 700;
+                    letter-spacing: -0.03em;
+                    color: #f8fafc;
+                    line-height: 1;
+                }
+                .supply-intel-stat-value.util {
+                    color: #34d399;
+                }
+                .supply-intel-stat-sub {
+                    font-size: 12px;
+                    color: rgba(226,232,240,0.62);
+                    line-height: 1.45;
+                }
+                .supply-intel-progress {
+                    height: 7px;
+                    border-radius: 999px;
+                    background: rgba(255,255,255,0.05);
+                    overflow: hidden;
+                    position: relative;
+                }
+                .supply-intel-progress-fill {
+                    position: absolute;
+                    inset: 0 auto 0 0;
+                    border-radius: inherit;
+                    background: linear-gradient(90deg, rgba(52,211,153,0.92), rgba(34,211,238,0.85));
+                    box-shadow: 0 0 18px rgba(52,211,153,0.28);
+                }
+                .supply-intel-progress-fill.warn {
+                    background: linear-gradient(90deg, rgba(251,191,36,0.92), rgba(249,115,22,0.85));
+                    box-shadow: 0 0 18px rgba(251,191,36,0.2);
+                }
+                .supply-history-card {
+                    border-radius: 16px;
+                    padding: 18px 18px 16px;
+                    background: rgba(255,255,255,0.03);
+                    border: 1px solid rgba(255,255,255,0.06);
+                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+                    position: relative;
+                    z-index: 1;
+                }
+                .supply-history-head {
+                    display: flex;
+                    align-items: flex-start;
+                    justify-content: space-between;
+                    gap: 16px;
+                    margin-bottom: 16px;
+                }
+                .supply-history-title {
+                    font-size: 15px;
+                    font-weight: 700;
+                    color: #f8fafc;
+                }
+                .supply-history-meta {
+                    margin-top: 4px;
+                    font-size: 12px;
+                    color: rgba(226,232,240,0.56);
+                }
+                .supply-history-delta {
+                    text-align: right;
+                    font-size: 12px;
+                    color: rgba(226,232,240,0.56);
+                }
+                .supply-history-delta strong {
+                    display: block;
+                    font-size: 16px;
+                    font-weight: 700;
+                    color: #34d399;
+                    margin-bottom: 3px;
+                }
+                .supply-history-chart {
+                    position: relative;
+                    height: 260px;
+                    border-radius: 14px;
+                    background:
+                        linear-gradient(180deg, rgba(52,211,153,0.08), rgba(52,211,153,0.01) 45%, rgba(255,255,255,0.015)),
+                        rgba(5,10,17,0.72);
+                    border: 1px solid rgba(255,255,255,0.05);
+                    overflow: hidden;
+                }
+                .supply-history-gridline {
+                    position: absolute;
+                    left: 0;
+                    right: 0;
+                    height: 1px;
+                    background: rgba(255,255,255,0.06);
+                }
+                .supply-history-chart svg {
+                    width: 100%;
+                    height: 100%;
+                    display: block;
+                }
+                .supply-history-axis {
+                    display: flex;
+                    justify-content: space-between;
+                    gap: 12px;
+                    margin-top: 10px;
+                    font-size: 11px;
+                    color: rgba(148,163,184,0.7);
+                }
+                .supply-history-empty,
+                .supply-intel-empty {
+                    padding: 28px 18px;
+                    text-align: center;
+                    color: rgba(226,232,240,0.56);
+                    font-size: 13px;
+                }
+                .supply-activity-header {
+                    display: flex;
+                    align-items: flex-start;
+                    justify-content: space-between;
+                    gap: 18px;
+                    flex-wrap: wrap;
+                }
+                .supply-activity-subtitle {
+                    margin-top: 6px;
+                    font-size: 12px;
+                    color: rgba(226,232,240,0.56);
+                }
+                .supply-activity-filter-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    flex-wrap: wrap;
+                    justify-content: flex-end;
+                }
+                .supply-filter-pill {
+                    appearance: none;
+                    border: 1px solid rgba(255,255,255,0.08);
+                    background: rgba(255,255,255,0.04);
+                    color: rgba(226,232,240,0.68);
+                    height: 34px;
+                    padding: 0 12px;
+                    border-radius: 999px;
+                    font-size: 12px;
+                    font-weight: 600;
+                    font-family: inherit;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                }
+                .supply-filter-pill:hover {
+                    border-color: rgba(255,255,255,0.16);
+                    color: #fff;
+                }
+                .supply-filter-pill.active {
+                    background: rgba(52,211,153,0.12);
+                    border-color: rgba(52,211,153,0.3);
+                    color: #d1fae5;
+                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+                }
+                .supply-activity-type {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    min-width: 92px;
+                    height: 26px;
+                    padding: 0 10px;
+                    border-radius: 999px;
+                    font-size: 11px;
+                    font-weight: 700;
+                    letter-spacing: 0.08em;
+                    text-transform: uppercase;
+                }
+                .supply-activity-type.deposit {
+                    color: #86efac;
+                    background: rgba(34,197,94,0.12);
+                    border: 1px solid rgba(34,197,94,0.24);
+                }
+                .supply-activity-type.withdraw {
+                    color: #fca5a5;
+                    background: rgba(239,68,68,0.12);
+                    border: 1px solid rgba(239,68,68,0.24);
+                }
+                .supply-activity-type.transfer {
+                    color: #93c5fd;
+                    background: rgba(59,130,246,0.12);
+                    border: 1px solid rgba(59,130,246,0.24);
+                }
+                .supply-activity-type.liquidation {
+                    color: #fdba74;
+                    background: rgba(249,115,22,0.14);
+                    border: 1px solid rgba(249,115,22,0.24);
+                }
+                .supply-activity-time {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 2px;
+                    font-size: 11px;
+                    color: rgba(226,232,240,0.62);
+                }
+                .supply-activity-time strong {
+                    font-size: 12px;
+                    color: #f8fafc;
+                    font-weight: 600;
+                }
+                .supply-activity-wallet {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 5px;
+                }
+                .supply-activity-wallet-line {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    font-size: 11px;
+                    color: rgba(226,232,240,0.7);
+                }
+                .supply-activity-wallet-line .addr-tooltip-wrap {
+                    color: #fff;
+                    text-decoration: none;
+                }
+                .supply-activity-amount {
+                    text-align: right;
+                    font-size: 12px;
+                    font-weight: 700;
+                    color: #f8fafc;
+                    font-family: 'JetBrains Mono', monospace;
+                }
+                .supply-activity-amount-sub {
+                    margin-top: 3px;
+                    font-size: 11px;
+                    color: rgba(148,163,184,0.72);
+                    font-weight: 500;
+                    font-family: inherit;
+                }
+                .supply-activity-link {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 30px;
+                    height: 30px;
+                    border-radius: 10px;
+                    border: 1px solid rgba(255,255,255,0.08);
+                    background: rgba(255,255,255,0.04);
+                    color: rgba(255,255,255,0.78);
+                    text-decoration: none;
+                    transition: all 0.2s ease;
+                }
+                .supply-activity-link:hover {
+                    border-color: rgba(255,255,255,0.16);
+                    color: #fff;
+                    transform: translateY(-1px);
+                }
+                @media (max-width: 980px) {
+                    .supply-intel-stats {
+                        grid-template-columns: repeat(2, minmax(0, 1fr));
+                    }
+                }
+                @media (max-width: 720px) {
+                    .premium-supply-frame {
+                        padding: 16px;
+                        gap: 16px;
+                    }
+                    .supply-intel-shell {
+                        padding: 18px;
+                    }
+                    .supply-intel-header,
+                    .supply-history-head,
+                    .supply-activity-header {
+                        flex-direction: column;
+                        align-items: stretch;
+                    }
+                    .supply-intel-asof {
+                        white-space: normal;
+                    }
+                    .supply-intel-stats {
+                        grid-template-columns: 1fr;
+                    }
+                    .supply-activity-filter-row {
+                        justify-content: flex-start;
+                    }
+                }
             </style>
             <div class="controls-row1 premium-supply-frame">
                 <div style="flex: 0 0 380px; width: 380px; position:relative;" id="supply-search-container">
@@ -3184,12 +3560,40 @@
 
             </div>
 
+            <div id="supply-intel-shell" class="supply-intel-shell">
+                <div class="supply-intel-header">
+                    <div>
+                        <div class="supply-intel-eyebrow">Selected Market</div>
+                        <div class="supply-intel-title-row">
+                            <img id="supply-intel-asset-icon" class="supply-intel-title-icon" src="dolomite-logo.svg" alt="">
+                            <div>
+                                <div class="supply-intel-title" id="supply-intel-title">Choose an asset</div>
+                                <div class="supply-intel-subtitle" id="supply-intel-subtitle">Live liquidity, caps, supplier breadth, and recent flow.</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="supply-intel-asof" id="supply-intel-asof">Live from Dolomite subgraph</div>
+                </div>
+                <div id="supply-intel-stats" class="supply-intel-stats"></div>
+                <div class="supply-history-card">
+                    <div class="supply-history-head">
+                        <div>
+                            <div class="supply-history-title">Supply In Time</div>
+                            <div class="supply-history-meta" id="supply-history-meta">30 day netflow reconstruction from deposits and withdrawals.</div>
+                        </div>
+                        <div class="supply-history-delta" id="supply-history-delta"></div>
+                    </div>
+                    <div id="supply-history-chart" class="supply-history-chart"></div>
+                    <div id="supply-history-axis" class="supply-history-axis"></div>
+                </div>
+            </div>
+
             <div class="table-card-outer">
                 <div class="table-card-inner">
                     <div class="table-card-header">
                         <h3 style="display:flex; align-items:center; gap:8px;">
                             <img id="supply-header-icon" src="dolomite-logo.svg" style="width:20px; height:20px; border-radius:50%; object-fit:contain; border:1px solid rgba(255,255,255,0.1);" alt="">
-                            Top 100 Suppliers <span class="header-count" id="supply-count-header"></span>
+                            <span id="supply-table-title">Supplier Leaderboard</span> <span class="header-count" id="supply-count-header"></span>
                         </h3>
                     </div>
                     
@@ -3218,6 +3622,53 @@
                         </table>
                     </div>
                     <div class="table-footer" id="supply-pagination"></div>
+                </div>
+            </div>
+
+            <div class="table-card-outer" id="supply-activity-card" style="display:none;">
+                <div class="table-card-inner">
+                    <div class="table-card-header supply-activity-header">
+                        <div>
+                            <h3 style="display:flex; align-items:center; gap:8px;">
+                                <span>Asset Activity</span> <span class="header-count" id="supply-activity-count"></span>
+                            </h3>
+                            <div class="supply-activity-subtitle" id="supply-activity-subtitle">Recent deposits, withdrawals, transfers, and liquidations for the selected market.</div>
+                        </div>
+                        <div class="supply-activity-filter-row">
+                            <button class="supply-filter-pill active" data-type="deposit" onclick="toggleSupplyActivityType('deposit')">Deposits</button>
+                            <button class="supply-filter-pill active" data-type="withdraw" onclick="toggleSupplyActivityType('withdraw')">Withdrawals</button>
+                            <button class="supply-filter-pill active" data-type="transfer" onclick="toggleSupplyActivityType('transfer')">Transfers</button>
+                            <button class="supply-filter-pill active" data-type="liquidation" onclick="toggleSupplyActivityType('liquidation')">Liquidations</button>
+                        </div>
+                    </div>
+                    <div class="table-scroll">
+                        <div id="supply-activity-loading" class="loading-state" style="display:none; padding:40px;">
+                            <div class="loading-spinner"></div>
+                            <div style="margin-top:12px; color:var(--text-muted); font-size:13px;">Building recent market activity...</div>
+                        </div>
+                        <table class="positions-table" id="supply-activity-table" style="display:none;">
+                            <colgroup>
+                                <col style="width: 17%;">
+                                <col style="width: 14%;">
+                                <col style="width: 33%;">
+                                <col style="width: 18%;">
+                                <col style="width: 12%;">
+                                <col style="width: 6%;">
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Type</th>
+                                    <th>Wallets</th>
+                                    <th style="text-align:right;">Amount</th>
+                                    <th style="text-align:right;">USD</th>
+                                    <th style="text-align:right;">Tx</th>
+                                </tr>
+                            </thead>
+                            <tbody id="supply-activity-body"></tbody>
+                        </table>
+                    </div>
+                    <div class="table-footer" id="supply-activity-pagination"></div>
                 </div>
             </div>
         </div>
@@ -5427,6 +5878,23 @@
         let supplyPage = 1;
         let supplySortField = 'amount';
         let supplySortAsc = false;
+        let currentSupplyOverview = null;
+        let currentSupplyActivity = [];
+        let supplyActivityPage = 1;
+        let supplyTabRequestId = 0;
+        const SUPPLY_ACTIVITY_PAGE_SIZE = 12;
+        const SUPPLY_HISTORY_DAYS = 30;
+        const SUPPLY_ACTIVITY_LOOKBACK_DAYS = 90;
+        const SUPPLY_CHART_EVENT_LIMIT = 800;
+        const SUPPLY_ACTIVITY_EVENT_LIMIT = 140;
+        let supplyActivityFilters = new Set(['deposit', 'withdraw', 'transfer', 'liquidation']);
+
+        const SUPPLY_ACTIVITY_META = {
+            deposit: { label: 'Deposit', cls: 'deposit' },
+            withdraw: { label: 'Withdrawal', cls: 'withdraw' },
+            transfer: { label: 'Transfer', cls: 'transfer' },
+            liquidation: { label: 'Liquidation', cls: 'liquidation' },
+        };
 
         function supplySort(field) {
             if (supplySortField === field) {
@@ -5448,6 +5916,516 @@
             
             supplyPage = 1;
             renderSupplyTable();
+        }
+
+        function supplyEscapeHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function supplyShortAddr(addr) {
+            if (!addr) return '—';
+            return addr.slice(0, 6) + '...' + addr.slice(-4);
+        }
+
+        function supplyFormatTokenCompact(value) {
+            const n = Number(value || 0);
+            if (!Number.isFinite(n)) return '—';
+            if (Math.abs(n) >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+            if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+            if (Math.abs(n) >= 1e3) return (n / 1e3).toFixed(2) + 'K';
+            if (Math.abs(n) >= 1) return n.toLocaleString('en-US', { maximumFractionDigits: 2 });
+            if (Math.abs(n) >= 0.01) return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+            return n.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 6 });
+        }
+
+        function supplyFormatPercent(value) {
+            const n = Number(value || 0);
+            if (!Number.isFinite(n)) return '—';
+            return n.toFixed(n >= 10 ? 1 : 2) + '%';
+        }
+
+        function supplyFormatRelativeTime(timestamp) {
+            const ts = Number(timestamp || 0);
+            if (!Number.isFinite(ts) || ts <= 0) return '—';
+            const diff = Math.max(0, Math.floor(Date.now() / 1000) - ts);
+            if (diff < 60) return 'just now';
+            if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+            if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+            if (diff < 86400 * 7) return Math.floor(diff / 86400) + 'd ago';
+            return Math.floor(diff / 604800) + 'w ago';
+        }
+
+        function supplyFormatDateLabel(timestamp) {
+            const ts = Number(timestamp || 0);
+            if (!Number.isFinite(ts) || ts <= 0) return '—';
+            return new Intl.DateTimeFormat('en-US', {
+                month: 'short',
+                day: 'numeric',
+            }).format(new Date(ts * 1000));
+        }
+
+        function supplyFormatDateTime(timestamp) {
+            const ts = Number(timestamp || 0);
+            if (!Number.isFinite(ts) || ts <= 0) return '—';
+            return new Intl.DateTimeFormat('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+            }).format(new Date(ts * 1000));
+        }
+
+        function getSupplyAddressExplorer(chain) {
+            return {
+                berachain: 'https://berascan.com/address/',
+                arbitrum: 'https://arbiscan.io/address/',
+                base: 'https://basescan.org/address/',
+                mantle: 'https://mantlescan.xyz/address/',
+                ethereum: 'https://etherscan.io/address/',
+                polygon_zkevm: 'https://zkevm.polygonscan.com/address/',
+                xlayer: 'https://www.okx.com/explorer/xlayer/address/',
+            }[chain] || 'https://etherscan.io/address/';
+        }
+
+        function getSupplyTxExplorer(chain) {
+            return {
+                berachain: 'https://berascan.com/tx/',
+                arbitrum: 'https://arbiscan.io/tx/',
+                base: 'https://basescan.org/tx/',
+                mantle: 'https://mantlescan.xyz/tx/',
+                ethereum: 'https://etherscan.io/tx/',
+                polygon_zkevm: 'https://zkevm.polygonscan.com/tx/',
+                xlayer: 'https://www.okx.com/explorer/xlayer/tx/',
+            }[chain] || 'https://etherscan.io/tx/';
+        }
+
+        function resetSupplyIntelState() {
+            currentSupplyOverview = null;
+            currentSupplyActivity = [];
+            supplyActivityPage = 1;
+            supplyActivityFilters = new Set(['deposit', 'withdraw', 'transfer', 'liquidation']);
+            const shell = document.getElementById('supply-intel-shell');
+            const card = document.getElementById('supply-activity-card');
+            const activityTable = document.getElementById('supply-activity-table');
+            const activityLoading = document.getElementById('supply-activity-loading');
+            const chart = document.getElementById('supply-history-chart');
+            const axis = document.getElementById('supply-history-axis');
+            const stats = document.getElementById('supply-intel-stats');
+            if (shell) shell.style.display = 'none';
+            if (card) card.style.display = 'none';
+            if (activityTable) activityTable.style.display = 'none';
+            if (activityLoading) activityLoading.style.display = 'none';
+            if (chart) chart.innerHTML = '';
+            if (axis) axis.innerHTML = '';
+            if (stats) stats.innerHTML = '';
+            document.getElementById('supply-activity-pagination').innerHTML = '';
+            document.getElementById('supply-activity-count').textContent = '';
+            document.querySelectorAll('.supply-filter-pill').forEach(btn => btn.classList.add('active'));
+        }
+
+        function setSupplyIntelLoading(tokenObj, chain) {
+            const shell = document.getElementById('supply-intel-shell');
+            const stats = document.getElementById('supply-intel-stats');
+            const chart = document.getElementById('supply-history-chart');
+            const axis = document.getElementById('supply-history-axis');
+            const title = document.getElementById('supply-intel-title');
+            const subtitle = document.getElementById('supply-intel-subtitle');
+            const asof = document.getElementById('supply-intel-asof');
+            const icon = document.getElementById('supply-intel-asset-icon');
+            const symbol = tokenObj && tokenObj.symbol ? tokenObj.symbol : 'Selected Market';
+            const iconPath = tokenObj ? (getTokenIcon(truncateTokenName(symbol)) || SYMBOL_ICONS[symbol] || 'dolomite-logo.svg') : 'dolomite-logo.svg';
+            if (icon) {
+                icon.src = iconPath;
+                icon.onerror = () => { icon.src = 'dolomite-logo.svg'; };
+            }
+            if (title) title.textContent = symbol + ' · ' + (CHAIN_DISPLAY_NAMES[chain] || chain);
+            if (subtitle) subtitle.textContent = 'Fetching live liquidity, supplier breadth, and recent market activity...';
+            if (asof) asof.textContent = 'Refreshing selected market';
+            if (stats) {
+                stats.innerHTML = Array.from({ length: 4 }).map(() => `
+                    <div class="supply-intel-stat">
+                        <div class="supply-intel-stat-label">Loading</div>
+                        <div class="supply-intel-stat-value">—</div>
+                        <div class="supply-intel-progress"><div class="supply-intel-progress-fill" style="width:28%"></div></div>
+                    </div>
+                `).join('');
+            }
+            if (chart) chart.innerHTML = '<div class="supply-intel-empty">Reconstructing recent supply path...</div>';
+            if (axis) axis.innerHTML = '';
+            if (shell) shell.style.display = 'block';
+        }
+
+        function setSupplyActivityLoading() {
+            const card = document.getElementById('supply-activity-card');
+            const table = document.getElementById('supply-activity-table');
+            const loading = document.getElementById('supply-activity-loading');
+            if (card) card.style.display = 'block';
+            if (table) table.style.display = 'none';
+            if (loading) loading.style.display = 'block';
+            document.getElementById('supply-activity-pagination').innerHTML = '';
+        }
+
+        function buildSupplyHistorySeries(currentSupply, deposits, withdrawals, days) {
+            const dayCount = Math.max(2, Number(days || SUPPLY_HISTORY_DAYS));
+            const now = new Date();
+            const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+            const dayMs = 24 * 60 * 60 * 1000;
+            const dayNet = Object.create(null);
+
+            const applyEvent = (event, direction) => {
+                const ts = Number(event?.transaction?.timestamp || 0);
+                if (!Number.isFinite(ts) || ts <= 0) return;
+                const bucketDate = new Date(ts * 1000);
+                const bucketUtc = Date.UTC(bucketDate.getUTCFullYear(), bucketDate.getUTCMonth(), bucketDate.getUTCDate());
+                const key = String(bucketUtc);
+                dayNet[key] = (dayNet[key] || 0) + direction * (parseFloat(event?.amountDeltaWei || '0') || 0);
+            };
+
+            (deposits || []).forEach(dep => applyEvent(dep, 1));
+            (withdrawals || []).forEach(wd => applyEvent(wd, -1));
+
+            const points = [];
+            const lastIndex = dayCount - 1;
+            let rollingSupply = Number(currentSupply || 0);
+
+            for (let i = lastIndex; i >= 0; i--) {
+                const dayUtc = todayUtc - (lastIndex - i) * dayMs;
+                points[i] = {
+                    timestamp: Math.floor(dayUtc / 1000),
+                    value: Math.max(0, rollingSupply),
+                };
+                const key = String(dayUtc);
+                rollingSupply = Math.max(0, rollingSupply - (dayNet[key] || 0));
+            }
+
+            return points;
+        }
+
+        function renderSupplyHistoryChart(points) {
+            const chart = document.getElementById('supply-history-chart');
+            const axis = document.getElementById('supply-history-axis');
+            const delta = document.getElementById('supply-history-delta');
+            const meta = document.getElementById('supply-history-meta');
+            if (!chart || !axis || !delta || !meta) return;
+
+            if (!points || points.length < 2) {
+                chart.innerHTML = '<div class="supply-history-empty">Not enough flow data yet to draw a history line.</div>';
+                axis.innerHTML = '';
+                delta.innerHTML = '';
+                meta.textContent = 'Waiting for enough deposit and withdrawal activity on this market.';
+                return;
+            }
+
+            const width = 1000;
+            const height = 260;
+            const padX = 22;
+            const padY = 20;
+            const values = points.map(p => Number(p.value || 0));
+            const min = Math.min(...values);
+            const max = Math.max(...values);
+            const spread = max - min;
+            const safeSpread = spread > 0 ? spread : Math.max(max * 0.02, 1);
+            const innerW = width - padX * 2;
+            const innerH = height - padY * 2;
+
+            const pathPoints = points.map((point, idx) => {
+                const x = padX + (innerW * idx) / Math.max(1, points.length - 1);
+                const normalized = (Number(point.value || 0) - min) / safeSpread;
+                const y = height - padY - normalized * innerH;
+                return { x, y };
+            });
+
+            const linePath = pathPoints.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ');
+            const areaPath = `${linePath} L ${pathPoints[pathPoints.length - 1].x.toFixed(2)} ${(height - padY).toFixed(2)} L ${pathPoints[0].x.toFixed(2)} ${(height - padY).toFixed(2)} Z`;
+            const gridLines = [0.2, 0.4, 0.6, 0.8].map(ratio => {
+                const y = (padY + innerH * ratio).toFixed(2);
+                return `<line x1="${padX}" y1="${y}" x2="${width - padX}" y2="${y}" stroke="rgba(255,255,255,0.06)" stroke-width="1" />`;
+            }).join('');
+
+            chart.innerHTML = `
+                <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
+                    <defs>
+                        <linearGradient id="supplyAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="rgba(52,211,153,0.42)" />
+                            <stop offset="100%" stop-color="rgba(52,211,153,0.02)" />
+                        </linearGradient>
+                        <filter id="supplyGlow">
+                            <feGaussianBlur stdDeviation="5" result="coloredBlur" />
+                            <feMerge>
+                                <feMergeNode in="coloredBlur" />
+                                <feMergeNode in="SourceGraphic" />
+                            </feMerge>
+                        </filter>
+                    </defs>
+                    ${gridLines}
+                    <path d="${areaPath}" fill="url(#supplyAreaGradient)"></path>
+                    <path d="${linePath}" fill="none" stroke="#34d399" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" filter="url(#supplyGlow)"></path>
+                </svg>
+            `;
+
+            const first = points[0];
+            const mid = points[Math.floor(points.length / 2)];
+            const last = points[points.length - 1];
+            axis.innerHTML = `
+                <span>${supplyFormatDateLabel(first.timestamp)}</span>
+                <span>${supplyFormatDateLabel(mid.timestamp)}</span>
+                <span>${supplyFormatDateLabel(last.timestamp)}</span>
+            `;
+
+            const absoluteDelta = Number(last.value || 0) - Number(first.value || 0);
+            const deltaLabel = absoluteDelta >= 0 ? '+' : '−';
+            delta.innerHTML = `
+                <strong style="color:${absoluteDelta >= 0 ? '#34d399' : '#f87171'}">${deltaLabel}${supplyFormatTokenCompact(Math.abs(absoluteDelta))}</strong>
+                <span>${SUPPLY_HISTORY_DAYS} day net move</span>
+            `;
+            meta.textContent = `${SUPPLY_HISTORY_DAYS} day netflow reconstruction from deposits and withdrawals.`;
+        }
+
+        function renderSupplyIntelOverview() {
+            const shell = document.getElementById('supply-intel-shell');
+            const stats = document.getElementById('supply-intel-stats');
+            const title = document.getElementById('supply-intel-title');
+            const subtitle = document.getElementById('supply-intel-subtitle');
+            const asof = document.getElementById('supply-intel-asof');
+            const icon = document.getElementById('supply-intel-asset-icon');
+            if (!shell || !stats || !currentSupplyOverview) return;
+
+            const info = currentSupplyOverview;
+            const symbol = info.token.symbol;
+            const chainName = CHAIN_DISPLAY_NAMES[info.chain] || info.chain;
+            const iconPath = getTokenIcon(truncateTokenName(symbol)) || SYMBOL_ICONS[symbol] || 'dolomite-logo.svg';
+            if (icon) {
+                icon.src = iconPath;
+                icon.onerror = () => { icon.src = 'dolomite-logo.svg'; };
+            }
+            if (title) title.textContent = `${symbol} · ${chainName}`;
+            if (subtitle) subtitle.textContent = `Market #${info.token.marketId} · ${info.supplierCount.toLocaleString()} active supplier${info.supplierCount === 1 ? '' : 's'} · ${info.borrowingDisabled ? 'borrowing disabled' : 'borrowing enabled'}`;
+            if (asof) asof.textContent = `Live from Dolomite subgraph · ${supplyFormatRelativeTime(Math.floor(Date.now() / 1000))}`;
+
+            const supplyCapPct = info.supplyCap > 0 ? Math.min(100, (info.supply / info.supplyCap) * 100) : 0;
+            const borrowCapPct = info.borrowCap > 0 ? Math.min(100, (info.borrow / info.borrowCap) * 100) : 0;
+            const topSupplier = currentSupplyData && currentSupplyData.length > 0 ? currentSupplyData[0] : null;
+            const concentrationPct = topSupplier && info.supply > 0 ? (topSupplier.amount / info.supply) * 100 : 0;
+
+            stats.innerHTML = `
+                <div class="supply-intel-stat">
+                    <div>
+                        <div class="supply-intel-stat-label">Supplier Addresses</div>
+                        <div class="supply-intel-stat-value">${info.supplierCount.toLocaleString()}</div>
+                    </div>
+                    <div class="supply-intel-stat-sub">${topSupplier ? `Largest wallet holds ${supplyFormatPercent(concentrationPct)} of current supply.` : 'Unique effective users currently supplying this market.'}</div>
+                </div>
+                <div class="supply-intel-stat">
+                    <div>
+                        <div class="supply-intel-stat-label">Supply / Cap</div>
+                        <div class="supply-intel-stat-value">${supplyFormatTokenCompact(info.supply)}</div>
+                    </div>
+                    <div class="supply-intel-stat-sub">${info.supplyCap > 0 ? `${supplyFormatTokenCompact(info.supplyCap)} cap · ${formatUSDCompact(info.supplyUsd)} live` : `${formatUSDCompact(info.supplyUsd)} live · no supply cap`}</div>
+                    <div class="supply-intel-progress"><div class="supply-intel-progress-fill${supplyCapPct > 80 ? ' warn' : ''}" style="width:${info.supplyCap > 0 ? supplyCapPct.toFixed(2) : 18}%"></div></div>
+                </div>
+                <div class="supply-intel-stat">
+                    <div>
+                        <div class="supply-intel-stat-label">Borrow / Cap</div>
+                        <div class="supply-intel-stat-value">${supplyFormatTokenCompact(info.borrow)}</div>
+                    </div>
+                    <div class="supply-intel-stat-sub">${info.borrowCap > 0 ? `${supplyFormatTokenCompact(info.borrowCap)} cap · ${formatUSDCompact(info.borrowUsd)} borrowed` : `${formatUSDCompact(info.borrowUsd)} borrowed · no borrow cap`}</div>
+                    <div class="supply-intel-progress"><div class="supply-intel-progress-fill${borrowCapPct > 80 ? ' warn' : ''}" style="width:${info.borrowCap > 0 ? borrowCapPct.toFixed(2) : 18}%"></div></div>
+                </div>
+                <div class="supply-intel-stat">
+                    <div>
+                        <div class="supply-intel-stat-label">Utilization</div>
+                        <div class="supply-intel-stat-value util">${supplyFormatPercent(info.utilizationPct)}</div>
+                    </div>
+                    <div class="supply-intel-stat-sub">${supplyFormatTokenCompact(info.borrow)} borrowed of ${supplyFormatTokenCompact(info.supply)} supplied on Dolomite.</div>
+                    <div class="supply-intel-progress"><div class="supply-intel-progress-fill${info.utilizationPct > 80 ? ' warn' : ''}" style="width:${Math.min(100, Math.max(4, info.utilizationPct)).toFixed(2)}%"></div></div>
+                </div>
+            `;
+
+            renderSupplyHistoryChart(info.historyPoints || []);
+            shell.style.display = 'block';
+        }
+
+        function buildSupplyActivityRow(type, payload, tokenId) {
+            const transaction = payload.transaction || {};
+            const txHash = transaction.id || '';
+            const timestamp = Number(transaction.timestamp || 0);
+
+            if (type === 'deposit') {
+                return {
+                    id: `deposit-${payload.serialId}`,
+                    type,
+                    timestamp,
+                    txHash,
+                    amount: parseFloat(payload.amountDeltaWei || '0') || 0,
+                    usd: parseFloat(payload.amountUSDDeltaWei || '0') || 0,
+                    primaryAddress: payload.effectiveUser?.id || '',
+                    primaryLabel: 'Supplier',
+                    secondaryAddress: '',
+                    secondaryLabel: '',
+                    note: 'Deposited into Dolomite',
+                };
+            }
+
+            if (type === 'withdraw') {
+                return {
+                    id: `withdraw-${payload.serialId}`,
+                    type,
+                    timestamp,
+                    txHash,
+                    amount: parseFloat(payload.amountDeltaWei || '0') || 0,
+                    usd: parseFloat(payload.amountUSDDeltaWei || '0') || 0,
+                    primaryAddress: payload.effectiveUser?.id || '',
+                    primaryLabel: 'Supplier',
+                    secondaryAddress: '',
+                    secondaryLabel: '',
+                    note: 'Withdrew from Dolomite',
+                };
+            }
+
+            if (type === 'transfer') {
+                const fromAddr = payload.fromEffectiveUser?.id || '';
+                const toAddr = payload.toEffectiveUser?.id || '';
+                let note = 'Protocol transfer';
+                if (payload.isTransferForMarginPosition) note = 'Margin position transfer';
+                else if (payload.isSelfTransfer || (fromAddr && toAddr && fromAddr.toLowerCase() === toAddr.toLowerCase())) note = 'Internal wallet move';
+                return {
+                    id: `transfer-${payload.serialId}`,
+                    type,
+                    timestamp,
+                    txHash,
+                    amount: parseFloat(payload.amountDeltaWei || '0') || 0,
+                    usd: parseFloat(payload.amountUSDDeltaWei || '0') || 0,
+                    primaryAddress: fromAddr,
+                    primaryLabel: 'From',
+                    secondaryAddress: toAddr,
+                    secondaryLabel: 'To',
+                    note,
+                };
+            }
+
+            const isBorrowedSide = String(payload.borrowedToken?.id || '').toLowerCase() === String(tokenId || '').toLowerCase();
+            return {
+                id: `liquidation-${payload.serialId}-${isBorrowedSide ? 'borrowed' : 'held'}`,
+                type,
+                timestamp,
+                txHash,
+                amount: parseFloat(isBorrowedSide ? (payload.borrowedTokenAmountDeltaWei || '0') : (payload.heldTokenAmountDeltaWei || '0')) || 0,
+                usd: parseFloat(isBorrowedSide ? (payload.borrowedTokenAmountUSD || '0') : (payload.heldTokenAmountUSD || '0')) || 0,
+                primaryAddress: payload.liquidEffectiveUser?.id || '',
+                primaryLabel: isBorrowedSide ? 'Liquidated' : 'Collateral Owner',
+                secondaryAddress: payload.solidEffectiveUser?.id || '',
+                secondaryLabel: 'Liquidator',
+                note: isBorrowedSide ? `Debt repaid · held ${payload.heldToken?.symbol || 'asset'} seized` : `Collateral seized · borrow ${payload.borrowedToken?.symbol || 'asset'} repaid`,
+            };
+        }
+
+        function renderSupplyActivityTable() {
+            const card = document.getElementById('supply-activity-card');
+            const loading = document.getElementById('supply-activity-loading');
+            const table = document.getElementById('supply-activity-table');
+            const tbody = document.getElementById('supply-activity-body');
+            const countEl = document.getElementById('supply-activity-count');
+            const pager = document.getElementById('supply-activity-pagination');
+            if (!card || !loading || !table || !tbody || !countEl || !pager) return;
+
+            card.style.display = 'block';
+            loading.style.display = 'none';
+
+            const chain = document.getElementById('supply-chain-select').value;
+            const txBase = getSupplyTxExplorer(chain);
+            const addrBase = getSupplyAddressExplorer(chain);
+            const filtered = (currentSupplyActivity || [])
+                .filter(row => supplyActivityFilters.has(row.type))
+                .sort((a, b) => b.timestamp - a.timestamp);
+
+            countEl.textContent = `(${filtered.length})`;
+
+            if (filtered.length === 0) {
+                table.style.display = 'table';
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:34px; color:var(--text-muted);">No recent activity for the selected filters.</td></tr>`;
+                pager.innerHTML = '';
+                return;
+            }
+
+            table.style.display = 'table';
+            const totalPages = Math.ceil(filtered.length / SUPPLY_ACTIVITY_PAGE_SIZE);
+            supplyActivityPage = Math.max(1, Math.min(supplyActivityPage, totalPages));
+            const start = (supplyActivityPage - 1) * SUPPLY_ACTIVITY_PAGE_SIZE;
+            const pageRows = filtered.slice(start, start + SUPPLY_ACTIVITY_PAGE_SIZE);
+
+            tbody.innerHTML = pageRows.map(row => {
+                const meta = SUPPLY_ACTIVITY_META[row.type];
+                const primaryLink = row.primaryAddress ? `<a href="${addrBase}${row.primaryAddress}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${supplyEscapeHtml(row.primaryAddress)}">${supplyEscapeHtml(supplyShortAddr(row.primaryAddress))}</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${supplyEscapeHtml(row.primaryAddress)}',this)" title="Copy address">${COPY_SVG}</span>` : '—';
+                const secondaryLink = row.secondaryAddress ? `<a href="${addrBase}${row.secondaryAddress}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${supplyEscapeHtml(row.secondaryAddress)}">${supplyEscapeHtml(supplyShortAddr(row.secondaryAddress))}</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${supplyEscapeHtml(row.secondaryAddress)}',this)" title="Copy address">${COPY_SVG}</span>` : '';
+                return `
+                    <tr>
+                        <td>
+                            <div class="supply-activity-time">
+                                <strong>${supplyEscapeHtml(supplyFormatRelativeTime(row.timestamp))}</strong>
+                                <span>${supplyEscapeHtml(supplyFormatDateTime(row.timestamp))}</span>
+                            </div>
+                        </td>
+                        <td><span class="supply-activity-type ${meta.cls}">${meta.label}</span></td>
+                        <td>
+                            <div class="supply-activity-wallet">
+                                <div class="supply-activity-wallet-line"><span style="color:rgba(148,163,184,0.72); min-width:62px;">${supplyEscapeHtml(row.primaryLabel)}</span>${primaryLink}</div>
+                                ${secondaryLink ? `<div class="supply-activity-wallet-line"><span style="color:rgba(148,163,184,0.72); min-width:62px;">${supplyEscapeHtml(row.secondaryLabel)}</span>${secondaryLink}</div>` : ''}
+                                <div class="supply-activity-wallet-line" style="color:rgba(226,232,240,0.48)">${supplyEscapeHtml(row.note)}</div>
+                            </div>
+                        </td>
+                        <td class="supply-activity-amount">${supplyEscapeHtml(supplyFormatTokenCompact(row.amount))}
+                            <div class="supply-activity-amount-sub">${supplyEscapeHtml(currentSupplyOverview?.token?.symbol || '')}</div>
+                        </td>
+                        <td class="supply-activity-amount">${formatUSDCompact(row.usd)}</td>
+                        <td style="text-align:right;">
+                            <a class="supply-activity-link" href="${txBase}${row.txHash}" target="_blank" rel="noopener" title="Open transaction">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                            </a>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            if (pageRows.length < SUPPLY_ACTIVITY_PAGE_SIZE) {
+                for (let i = 0; i < (SUPPLY_ACTIVITY_PAGE_SIZE - pageRows.length); i++) {
+                    tbody.innerHTML += '<tr><td colspan="6" style="padding:15px; opacity:0; pointer-events:none;">&nbsp;</td></tr>';
+                }
+            }
+
+            pager.innerHTML = totalPages <= 1
+                ? `<span class="flow-pager-info">1 / 1</span><span class="flow-pager-total">${filtered.length.toLocaleString()} events</span>`
+                : `<button class="flow-pager-btn" onclick="supplyGoActivityPage(1)" ${supplyActivityPage === 1 ? 'disabled' : ''}>«</button>` +
+                  `<button class="flow-pager-btn" onclick="supplyGoActivityPage(${supplyActivityPage - 1})" ${supplyActivityPage === 1 ? 'disabled' : ''}>‹</button>` +
+                  `<span class="flow-pager-info">${supplyActivityPage} / ${totalPages}</span>` +
+                  `<button class="flow-pager-btn" onclick="supplyGoActivityPage(${supplyActivityPage + 1})" ${supplyActivityPage === totalPages ? 'disabled' : ''}>›</button>` +
+                  `<button class="flow-pager-btn" onclick="supplyGoActivityPage(${totalPages})" ${supplyActivityPage === totalPages ? 'disabled' : ''}>»</button>` +
+                  `<span class="flow-pager-total">${filtered.length.toLocaleString()} events</span>`;
+        }
+
+        function supplyGoActivityPage(page) {
+            const filteredLen = (currentSupplyActivity || []).filter(row => supplyActivityFilters.has(row.type)).length;
+            const total = Math.max(1, Math.ceil(filteredLen / SUPPLY_ACTIVITY_PAGE_SIZE));
+            supplyActivityPage = Math.max(1, Math.min(page, total));
+            renderSupplyActivityTable();
+        }
+
+        function toggleSupplyActivityType(type) {
+            if (supplyActivityFilters.has(type)) {
+                if (supplyActivityFilters.size === 1) return;
+                supplyActivityFilters.delete(type);
+            } else {
+                supplyActivityFilters.add(type);
+            }
+            document.querySelectorAll('.supply-filter-pill').forEach(btn => {
+                btn.classList.toggle('active', supplyActivityFilters.has(btn.dataset.type));
+            });
+            supplyActivityPage = 1;
+            renderSupplyActivityTable();
         }
 
         function supply_goPage(p) {
@@ -5491,7 +6469,7 @@
                 if (supplySortField === 'amount') { va = a.amount; vb = b.amount; }
                 else if (supplySortField === 'usd') { va = a.usd; vb = b.usd; }
                 else if (supplySortField === 'address') { va = a.address.toLowerCase(); vb = b.address.toLowerCase(); }
-                else if (supplySortField === 'rank') { va = currentSupplyData.findIndex(x => x.address === a.address); vb = currentSupplyData.findIndex(x => x.address === b.address); }
+                else if (supplySortField === 'rank') { va = a.rank || 0; vb = b.rank || 0; }
                 
                 if (typeof va === 'string') {
                     return supplySortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
@@ -5529,7 +6507,7 @@
 
             paginated.forEach((s, idx) => {
                 const tr = document.createElement('tr');
-                const rank = currentSupplyData.findIndex(x => x.address === s.address) + 1;
+                const rank = s.rank || (start + idx + 1);
                 
                 const debankUrl = `https://debank.com/profile/${s.address}`;
                 const shortAddr = s.address.substring(0, 6) + '...' + s.address.substring(s.address.length - 4);
@@ -5616,10 +6594,54 @@
                 body: JSON.stringify({ query })
             });
             const raw = await res.json();
+            if (raw.errors && raw.errors.length) {
+                throw new Error(raw.errors[0].message || 'Graph query failed');
+            }
             return raw.data;
         }
 
         let currentSupplyTokensList = [];
+
+        async function fetchAllSupplySuppliers(url, tokenId) {
+            const PAGE = 1000;
+            let skip = 0;
+            const suppliersMap = new Map();
+
+            while (true) {
+                const query = `{
+                    marginAccountTokenValues(first: ${PAGE}, skip: ${skip}, where: { token: "${tokenId}", valuePar_gt: "0" }, orderBy: valuePar, orderDirection: desc) {
+                        valuePar
+                        marginAccount {
+                            effectiveUser { id }
+                            user { id }
+                        }
+                    }
+                }`;
+
+                const data = await doGraphQuery(url, query);
+                const rows = data && data.marginAccountTokenValues ? data.marginAccountTokenValues : [];
+                rows.forEach(row => {
+                    const account = row.marginAccount || {};
+                    const address = (account.effectiveUser && account.effectiveUser.id) || (account.user && account.user.id) || '';
+                    if (!address) return;
+                    const valuePar = parseFloat(row.valuePar || '0') || 0;
+                    if (!(valuePar > 0)) return;
+                    const prev = suppliersMap.get(address) || { par: 0 };
+                    prev.par += valuePar;
+                    suppliersMap.set(address, prev);
+                });
+
+                if (rows.length < PAGE) break;
+                skip += PAGE;
+            }
+
+            return Array.from(suppliersMap.entries())
+                .map(([address, values]) => ({
+                    address,
+                    par: values.par,
+                }))
+                .sort((a, b) => b.par - a.par);
+        }
 
         function toggleSupplyAssetDropdown() {
             const dropdown = document.getElementById('custom-asset-dropdown');
@@ -5725,6 +6747,15 @@
             const selector = document.getElementById('custom-asset-selector');
             const assetText = document.getElementById('selected-asset-text');
             const assetIcon = document.getElementById('selected-asset-icon');
+            const loader = document.getElementById('supply-loading-state');
+            resetSupplyIntelState();
+            currentSupplyData = [];
+            document.getElementById('supply-count-header').textContent = '';
+            const supplyTitle = document.getElementById('supply-table-title');
+            if (supplyTitle) supplyTitle.textContent = 'Supplier Leaderboard';
+            if (loader) {
+                loader.innerHTML = `<div class="loading-spinner"></div><div style="margin-top:12px; color:var(--text-muted); font-size:13px;">Fetching data from subgraph...</div>`;
+            }
             
             assetText.textContent = 'Fetching markets...';
             assetIcon.style.display = 'none';
@@ -5770,57 +6801,185 @@
             const chain = document.getElementById('supply-chain-select').value;
             const tokenId = document.getElementById('supply-asset-select').value;
             if (!tokenId) return;
+            const requestId = ++supplyTabRequestId;
             
             const loader = document.getElementById('supply-loading-state');
             const table = document.getElementById('supply-table');
             const tbody = document.getElementById('supply-table-body');
+            const activitySubtitle = document.getElementById('supply-activity-subtitle');
+            const supplyTitle = document.getElementById('supply-table-title');
+            const activityLoading = document.getElementById('supply-activity-loading');
+            const tokenObj = currentSupplyTokensMap[tokenId] || { decimals: 18, symbol: 'TOKEN', marketId: '—' };
             
             loader.style.display = 'block';
+            loader.innerHTML = `<div class="loading-spinner"></div><div style="margin-top:12px; color:var(--text-muted); font-size:13px;">Fetching data from subgraph...</div>`;
             table.style.display = 'none';
             tbody.innerHTML = '';
+            if (activityLoading) {
+                activityLoading.innerHTML = `<div class="loading-spinner"></div><div style="margin-top:12px; color:var(--text-muted); font-size:13px;">Building recent market activity...</div>`;
+            }
+            setSupplyIntelLoading(tokenObj, chain);
+            setSupplyActivityLoading();
+            if (activitySubtitle) {
+                activitySubtitle.textContent = `Recent deposits, withdrawals, transfers, and liquidations for ${tokenObj.symbol} on ${CHAIN_DISPLAY_NAMES[chain] || chain}.`;
+            }
+            if (supplyTitle) supplyTitle.textContent = `${tokenObj.symbol} Supplier Leaderboard`;
+            supplyPage = 1;
+            supplyActivityPage = 1;
             
+            const lookbackTs = Math.floor(Date.now() / 1000) - (SUPPLY_ACTIVITY_LOOKBACK_DAYS * 24 * 60 * 60);
             const q = `{
-                marginAccountTokenValues(where: { token: "${tokenId}", valuePar_gt: "0" }, orderBy: valuePar, orderDirection: desc, first: 100) {
-                    marginAccount {
-                        user { id }
+                tokens(first: 1, where: { id: "${tokenId}" }) {
+                    id
+                    symbol
+                    name
+                    decimals
+                    marketId
+                    supplyLiquidity
+                    supplyLiquidityUSD
+                    borrowLiquidity
+                    borrowLiquidityUSD
+                    riskInfo {
+                        supplyMaxWei
+                        borrowMaxWei
+                        isBorrowingDisabled
                     }
-                    valuePar
                 }
                 oraclePrices(where: { token: "${tokenId}" }) { price }
-                interestIndexes(where: { token: "${tokenId}" }) { supplyIndex }
+                interestIndexes(where: { token: "${tokenId}" }) { supplyIndex borrowIndex }
+                deposits(first: ${SUPPLY_CHART_EVENT_LIMIT}, orderBy: serialId, orderDirection: desc, where: { token: "${tokenId}", transaction_: { timestamp_gte: "${lookbackTs}" } }) {
+                    serialId
+                    transaction { id timestamp blockNumber }
+                    effectiveUser { id }
+                    token { symbol id }
+                    amountDeltaWei
+                    amountUSDDeltaWei
+                }
+                withdrawals(first: ${SUPPLY_CHART_EVENT_LIMIT}, orderBy: serialId, orderDirection: desc, where: { token: "${tokenId}", transaction_: { timestamp_gte: "${lookbackTs}" } }) {
+                    serialId
+                    transaction { id timestamp blockNumber }
+                    effectiveUser { id }
+                    token { symbol id }
+                    amountDeltaWei
+                    amountUSDDeltaWei
+                }
+                transfers(first: ${SUPPLY_ACTIVITY_EVENT_LIMIT}, orderBy: serialId, orderDirection: desc, where: { token: "${tokenId}", transaction_: { timestamp_gte: "${lookbackTs}" } }) {
+                    serialId
+                    transaction { id timestamp blockNumber }
+                    fromEffectiveUser { id }
+                    toEffectiveUser { id }
+                    token { symbol id }
+                    amountDeltaWei
+                    amountUSDDeltaWei
+                    isSelfTransfer
+                    isTransferForMarginPosition
+                }
+                liquidationsBorrowed: liquidations(first: ${Math.floor(SUPPLY_ACTIVITY_EVENT_LIMIT / 2)}, orderBy: serialId, orderDirection: desc, where: { borrowedToken: "${tokenId}", transaction_: { timestamp_gte: "${lookbackTs}" } }) {
+                    serialId
+                    transaction { id timestamp blockNumber }
+                    liquidEffectiveUser { id }
+                    solidEffectiveUser { id }
+                    borrowedToken { symbol id }
+                    heldToken { symbol id }
+                    borrowedTokenAmountDeltaWei
+                    borrowedTokenAmountUSD
+                    heldTokenAmountDeltaWei
+                    heldTokenAmountUSD
+                }
+                liquidationsHeld: liquidations(first: ${Math.floor(SUPPLY_ACTIVITY_EVENT_LIMIT / 2)}, orderBy: serialId, orderDirection: desc, where: { heldToken: "${tokenId}", transaction_: { timestamp_gte: "${lookbackTs}" } }) {
+                    serialId
+                    transaction { id timestamp blockNumber }
+                    liquidEffectiveUser { id }
+                    solidEffectiveUser { id }
+                    borrowedToken { symbol id }
+                    heldToken { symbol id }
+                    borrowedTokenAmountDeltaWei
+                    borrowedTokenAmountUSD
+                    heldTokenAmountDeltaWei
+                    heldTokenAmountUSD
+                }
             }`;
             
             try {
-                const data = await doGraphQuery(DOLOMITE_MINI_GRAPHS[chain], q);
-                
-                const tokenObj = currentSupplyTokensMap[tokenId] || { decimals: 18, symbol: 'TOKEN' };
-                const decimals = parseInt(tokenObj.decimals);
+                const endpoint = DOLOMITE_MINI_GRAPHS[chain];
+                const [data, supplierPars] = await Promise.all([
+                    doGraphQuery(endpoint, q),
+                    fetchAllSupplySuppliers(endpoint, tokenId)
+                ]);
+
+                if (requestId !== supplyTabRequestId) return;
+
+                const token = data.tokens && data.tokens[0] ? data.tokens[0] : tokenObj;
                 const priceUsd = data.oraclePrices && data.oraclePrices[0] ? parseFloat(data.oraclePrices[0].price) : 0;
                 const supplyIndex = data.interestIndexes && data.interestIndexes[0] ? parseFloat(data.interestIndexes[0].supplyIndex) : 1;
-                
-                const suppliersMap = {};
-                // Summarize by user since one user might have multiple margin accounts supplying the same asset
-                data.marginAccountTokenValues.forEach(tv => {
-                    const amount = parseFloat(tv.valuePar) * supplyIndex;
-                    const usd = amount * priceUsd;
-                    const uid = tv.marginAccount.user.id;
-                    if (!suppliersMap[uid]) suppliersMap[uid] = { amount: 0, usd: 0 };
-                    suppliersMap[uid].amount += amount;
-                    suppliersMap[uid].usd += usd;
-                });
+                const supply = parseFloat(token.supplyLiquidity || '0') || 0;
+                const supplyUsd = parseFloat(token.supplyLiquidityUSD || '0') || (supply * priceUsd);
+                const borrow = parseFloat(token.borrowLiquidity || '0') || 0;
+                const borrowUsd = parseFloat(token.borrowLiquidityUSD || '0') || (borrow * priceUsd);
+                const supplyCap = parseFloat(token.riskInfo?.supplyMaxWei || '0') || 0;
+                const borrowCap = parseFloat(token.riskInfo?.borrowMaxWei || '0') || 0;
+                const utilizationPct = supply > 0 ? (borrow / supply) * 100 : 0;
 
-                currentSupplyData = Object.keys(suppliersMap).map(k => ({
-                    address: k,
-                    amount: suppliersMap[k].amount,
-                    usd: suppliersMap[k].usd
-                })).filter(s => s.amount > 0).sort((a, b) => b.amount - a.amount).slice(0, 100);
+                currentSupplyData = supplierPars
+                    .map(item => {
+                        const amount = item.par * supplyIndex;
+                        return {
+                            address: item.address,
+                            amount,
+                            usd: amount * priceUsd,
+                        };
+                    })
+                    .filter(item => item.amount > 0)
+                    .sort((a, b) => b.amount - a.amount)
+                    .map((item, index) => ({ ...item, rank: index + 1 }));
 
+                const deposits = data.deposits || [];
+                const withdrawals = data.withdrawals || [];
+                const transfers = data.transfers || [];
+                const liquidationRows = [
+                    ...(data.liquidationsBorrowed || []).map(item => buildSupplyActivityRow('liquidation', item, tokenId)),
+                    ...(data.liquidationsHeld || []).map(item => buildSupplyActivityRow('liquidation', item, tokenId)),
+                ];
+                const dedupedLiquidations = Array.from(new Map(liquidationRows.map(item => [item.id, item])).values());
+
+                currentSupplyActivity = [
+                    ...deposits.map(item => buildSupplyActivityRow('deposit', item, tokenId)),
+                    ...withdrawals.map(item => buildSupplyActivityRow('withdraw', item, tokenId)),
+                    ...transfers.map(item => buildSupplyActivityRow('transfer', item, tokenId)),
+                    ...dedupedLiquidations,
+                ].sort((a, b) => b.timestamp - a.timestamp);
+
+                currentSupplyOverview = {
+                    chain,
+                    token,
+                    priceUsd,
+                    supplierCount: currentSupplyData.length,
+                    supply,
+                    supplyUsd,
+                    supplyCap,
+                    borrow,
+                    borrowUsd,
+                    borrowCap,
+                    borrowingDisabled: !!token.riskInfo?.isBorrowingDisabled,
+                    utilizationPct,
+                    historyPoints: buildSupplyHistorySeries(supply, deposits, withdrawals, SUPPLY_HISTORY_DAYS),
+                };
+
+                renderSupplyIntelOverview();
                 renderSupplyTable();
+                renderSupplyActivityTable();
 
             } catch (e) {
                 console.error("Supply fetch err", e);
+                if (requestId !== supplyTabRequestId) return;
                 const loader = document.getElementById('supply-loading-state');
+                const chart = document.getElementById('supply-history-chart');
+                const activityLoading = document.getElementById('supply-activity-loading');
+                const activityTable = document.getElementById('supply-activity-table');
                 if(loader) loader.innerHTML = `<div style="color:#ef4444; font-weight:600;">Failed to fetch from graph api.</div>`;
+                if(chart) chart.innerHTML = `<div class="supply-history-empty" style="color:#fca5a5;">Failed to reconstruct supply history.</div>`;
+                if(activityLoading) activityLoading.style.display = 'none';
+                if(activityTable) activityTable.style.display = 'none';
             }
         }
 
