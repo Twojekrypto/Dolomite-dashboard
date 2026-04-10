@@ -3549,6 +3549,25 @@
                     color: #f8fafc;
                     letter-spacing: -0.03em;
                 }
+                .supply-history-picker-availability {
+                    margin-bottom: 12px;
+                    padding: 10px 12px;
+                    border-radius: 12px;
+                    border: 1px solid rgba(255,255,255,0.06);
+                    background: rgba(255,255,255,0.03);
+                    font-size: 11px;
+                    line-height: 1.45;
+                    color: rgba(226,232,240,0.72);
+                }
+                .supply-history-picker-availability strong {
+                    display: block;
+                    margin-bottom: 4px;
+                    font-size: 10px;
+                    font-weight: 700;
+                    letter-spacing: 0.14em;
+                    text-transform: uppercase;
+                    color: rgba(125,211,252,0.9);
+                }
                 .supply-history-picker-nav {
                     display: inline-flex;
                     align-items: center;
@@ -3576,6 +3595,13 @@
                     border-color: rgba(34,211,238,0.24);
                     background: rgba(34,211,238,0.08);
                     transform: translateY(-1px);
+                }
+                .supply-history-picker-nav button:disabled {
+                    opacity: 0.32;
+                    cursor: not-allowed;
+                    background: rgba(255,255,255,0.02);
+                    border-color: rgba(255,255,255,0.05);
+                    transform: none;
                 }
                 .supply-history-picker-weekdays,
                 .supply-history-picker-grid {
@@ -3609,6 +3635,23 @@
                     border-color: rgba(34,211,238,0.22);
                     background: rgba(34,211,238,0.08);
                     transform: translateY(-1px);
+                }
+                .supply-history-picker-day.unavailable,
+                .supply-history-picker-day:disabled {
+                    cursor: not-allowed;
+                    color: rgba(148,163,184,0.2);
+                    background:
+                        repeating-linear-gradient(135deg, rgba(255,255,255,0.012), rgba(255,255,255,0.012) 6px, rgba(255,255,255,0.028) 6px, rgba(255,255,255,0.028) 12px);
+                    border-color: rgba(255,255,255,0.04);
+                    box-shadow: none;
+                    opacity: 0.52;
+                }
+                .supply-history-picker-day.unavailable:hover,
+                .supply-history-picker-day:disabled:hover {
+                    transform: none;
+                    border-color: rgba(255,255,255,0.04);
+                    background:
+                        repeating-linear-gradient(135deg, rgba(255,255,255,0.012), rgba(255,255,255,0.012) 6px, rgba(255,255,255,0.028) 6px, rgba(255,255,255,0.028) 12px);
                 }
                 .supply-history-picker-day.muted {
                     color: rgba(148,163,184,0.46);
@@ -4007,6 +4050,7 @@
                                             <button type="button" onclick="shiftSupplyHistoryPickerMonth(1)" aria-label="Next month">›</button>
                                         </div>
                                     </div>
+                                    <div id="supply-history-picker-availability" class="supply-history-picker-availability"></div>
                                     <div class="supply-history-picker-weekdays">
                                         <span class="supply-history-picker-weekday">Mon</span>
                                         <span class="supply-history-picker-weekday">Tue</span>
@@ -6775,6 +6819,14 @@
             return document.getElementById(target === 'to' ? 'supply-history-to-trigger' : 'supply-history-from-trigger');
         }
 
+        function getSupplyHistoryAvailableBounds() {
+            const points = Array.isArray(currentSupplyOverview?.historyPoints) ? currentSupplyOverview.historyPoints : [];
+            if (!points.length) return { minTs: null, maxTs: null };
+            const minTs = Number(points[0]?.timestamp || 0) || null;
+            const maxTs = Number(points[points.length - 1]?.timestamp || 0) || null;
+            return { minTs, maxTs };
+        }
+
         function positionSupplyHistoryPicker() {
             const picker = getSupplyHistoryPickerElement();
             const trigger = getSupplyHistoryPickerTrigger(supplyHistoryPickerTarget);
@@ -6797,11 +6849,15 @@
             const grid = document.getElementById('supply-history-picker-grid');
             const title = document.getElementById('supply-history-picker-title');
             const target = document.getElementById('supply-history-picker-target');
-            if (!picker || !grid || !title || !target || !supplyHistoryPickerTarget) return;
+            const availability = document.getElementById('supply-history-picker-availability');
+            const prevBtn = picker ? picker.querySelector('.supply-history-picker-nav button:first-child') : null;
+            const nextBtn = picker ? picker.querySelector('.supply-history-picker-nav button:last-child') : null;
+            if (!picker || !grid || !title || !target || !availability || !supplyHistoryPickerTarget) return;
 
             const monthStart = new Date((supplyHistoryPickerMonthTs || supplyHistoryPickerMonthStart()) * 1000);
             monthStart.setDate(1);
             monthStart.setHours(0, 0, 0, 0);
+            const monthStartTs = Math.floor(monthStart.getTime() / 1000);
             title.textContent = new Intl.DateTimeFormat('en-US', {
                 month: 'long',
                 year: 'numeric',
@@ -6817,6 +6873,16 @@
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const todayTs = Math.floor(today.getTime() / 1000);
+            const { minTs: availableMinTs, maxTs: availableMaxTs } = getSupplyHistoryAvailableBounds();
+            const availableLabel = availableMinTs != null && availableMaxTs != null
+                ? `${supplyFormatFullDate(availableMinTs)} - ${supplyFormatFullDate(availableMaxTs)}`
+                : 'Waiting for history points';
+            const historyStage = currentSupplyOverview?.historyStage === 'recent' ? 'Preview range only' : 'Selectable range';
+            availability.innerHTML = `<strong>${historyStage}</strong>${availableLabel}`;
+            const minMonthTs = availableMinTs != null ? supplyHistoryPickerMonthStart(availableMinTs) : null;
+            const maxMonthTs = availableMaxTs != null ? supplyHistoryPickerMonthStart(availableMaxTs) : null;
+            if (prevBtn) prevBtn.disabled = minMonthTs != null && monthStartTs <= minMonthTs;
+            if (nextBtn) nextBtn.disabled = maxMonthTs != null && monthStartTs >= maxMonthTs;
 
             const items = [];
             for (let i = 0; i < 42; i++) {
@@ -6827,6 +6893,7 @@
                 const cellTsMax = cellTsMin + 86399;
                 const inCurrentMonth = cellDate.getMonth() === monthStart.getMonth();
                 const isToday = cellTsMin === todayTs;
+                const isUnavailable = (availableMinTs != null && cellTsMin < availableMinTs) || (availableMaxTs != null && cellTsMin > availableMaxTs);
                 const isSelected = (supplyHistoryPickerTarget === 'from' && selectedStart != null && cellTsMin === selectedStart)
                     || (supplyHistoryPickerTarget === 'to' && selectedEnd != null && cellTsMax === selectedEnd)
                     || (selectedStart != null && selectedEnd != null && cellTsMin === selectedStart && cellTsMax === selectedEnd);
@@ -6834,8 +6901,8 @@
                 items.push(`
                     <button
                         type="button"
-                        class="supply-history-picker-day${inCurrentMonth ? '' : ' muted'}${isToday ? ' today' : ''}${inRange ? ' in-range' : ''}${isSelected ? ' selected' : ''}"
-                        onclick="selectSupplyHistoryPickerDay(${cellTsMin})"
+                        class="supply-history-picker-day${inCurrentMonth ? '' : ' muted'}${isToday ? ' today' : ''}${inRange ? ' in-range' : ''}${isSelected ? ' selected' : ''}${isUnavailable ? ' unavailable' : ''}"
+                        ${isUnavailable ? 'disabled aria-disabled="true"' : `onclick="selectSupplyHistoryPickerDay(${cellTsMin})"`}
                     >${cellDate.getDate()}</button>
                 `);
             }
@@ -6850,9 +6917,11 @@
 
         function openSupplyHistoryPicker(target) {
             supplyHistoryPickerTarget = target === 'to' ? 'to' : 'from';
+            const { minTs: availableMinTs, maxTs: availableMaxTs } = getSupplyHistoryAvailableBounds();
+            const fallbackAnchorTs = availableMaxTs || availableMinTs || Math.floor(Date.now() / 1000);
             const anchorTs = supplyHistoryPickerTarget === 'to'
-                ? (supplyHistoryCustomTo || supplyHistoryCustomFrom || Math.floor(Date.now() / 1000))
-                : (supplyHistoryCustomFrom || supplyHistoryCustomTo || Math.floor(Date.now() / 1000));
+                ? (supplyHistoryCustomTo || supplyHistoryCustomFrom || fallbackAnchorTs)
+                : (supplyHistoryCustomFrom || supplyHistoryCustomTo || availableMinTs || fallbackAnchorTs);
             supplyHistoryPickerMonthTs = supplyHistoryPickerMonthStart(anchorTs);
             renderSupplyHistoryPicker();
         }
@@ -6879,6 +6948,13 @@
         }
 
         function applySupplyHistoryRangeState() {
+            const { minTs: availableMinTs, maxTs: availableMaxTs } = getSupplyHistoryAvailableBounds();
+            if (availableMinTs != null && supplyHistoryCustomFrom != null && supplyHistoryCustomFrom < availableMinTs) {
+                supplyHistoryCustomFrom = availableMinTs;
+            }
+            if (availableMaxTs != null && supplyHistoryCustomTo != null && supplyHistoryCustomTo > (availableMaxTs + 86399)) {
+                supplyHistoryCustomTo = availableMaxTs + 86399;
+            }
             if (supplyHistoryCustomFrom != null && supplyHistoryCustomTo != null && supplyHistoryCustomFrom > supplyHistoryCustomTo) {
                 const swap = supplyHistoryCustomFrom;
                 supplyHistoryCustomFrom = supplyHistoryCustomTo;
