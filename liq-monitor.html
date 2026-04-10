@@ -7720,9 +7720,24 @@
                     <circle id="supply-history-hover-dot" cx="0" cy="0" r="4" fill="#34d399" stroke="#0d1117" stroke-width="2" opacity="0"/>
                 </svg>`;
 
-            // X-axis
-            const axisIdxs = [0, 0.25, 0.5, 0.75, 1].map(r => Math.round((visiblePoints.length - 1) * r));
-            axis.innerHTML = axisIdxs.map(i => `<span>${supplyEscapeHtml(supplyFormatDateLabel(visiblePoints[Math.min(i, visiblePoints.length - 1)].timestamp))}</span>`).join('');
+            // X-axis — adaptive date formatting based on visible range
+            const xFirstTs = Number(visiblePoints[0].timestamp || 0);
+            const xLastTs = Number(visiblePoints[visiblePoints.length - 1].timestamp || 0);
+            const xSpanDays = (xLastTs - xFirstTs) / 86400;
+
+            let xTickCount = 5;
+            let xFmtFn;
+            if (xSpanDays <= 14) {
+                xFmtFn = ts => { const d = new Date(ts * 1000); return d.toLocaleString('en-US', { month: 'short', day: 'numeric' }); };
+                xTickCount = Math.min(7, visiblePoints.length);
+            } else if (xSpanDays <= 90) {
+                xFmtFn = ts => { const d = new Date(ts * 1000); return d.toLocaleString('en-US', { month: 'short', day: 'numeric' }); };
+            } else {
+                xFmtFn = ts => supplyFormatDateLabel(ts);
+            }
+
+            const axisIdxs = Array.from({ length: xTickCount }, (_, i) => Math.round((visiblePoints.length - 1) * i / (xTickCount - 1)));
+            axis.innerHTML = axisIdxs.map(i => `<span>${supplyEscapeHtml(xFmtFn(visiblePoints[Math.min(i, visiblePoints.length - 1)].timestamp))}</span>`).join('');
 
             // Delta header
             const firstPtData = visiblePoints[0], lastPtData = visiblePoints[visiblePoints.length - 1];

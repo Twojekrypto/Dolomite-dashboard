@@ -12955,7 +12955,7 @@
                     <div id="dolo-brush-overlay" style="position:absolute;top:0;left:16px;right:16px;height:56px">
                         <!-- Dim left -->
                         <div id="dolo-brush-dim-left"
-                            style="position:absolute;top:0;bottom:0;left:0;background:rgba(10,10,25,0.35);pointer-events:none;border-radius:8px 0 0 8px">
+                            style="position:absolute;top:0;bottom:0;left:0;background:rgba(10,10,25,0.5);pointer-events:none;border-radius:8px 0 0 8px">
                         </div>
                         <!-- Selected window -->
                         <div id="dolo-brush-window"
@@ -12985,7 +12985,7 @@
                         </div>
                         <!-- Dim right -->
                         <div id="dolo-brush-dim-right"
-                            style="position:absolute;top:0;bottom:0;right:0;background:rgba(10,10,25,0.35);pointer-events:none;border-radius:0 8px 8px 0">
+                            style="position:absolute;top:0;bottom:0;right:0;background:rgba(10,10,25,0.5);pointer-events:none;border-radius:0 8px 8px 0">
                         </div>
                     </div>
                 </div>
@@ -18706,11 +18706,32 @@
                 <circle id="tvl-hover-dot" cx="0" cy="0" r="4" fill="#818cf8" stroke="#0d1117" stroke-width="2" opacity="0"/>
             `;
 
-            // X-axis
-            const axisIdxs = [0, 0.25, 0.5, 0.75, 1].map(r => Math.round((dolo_tvlPoints.length - 1) * r));
+            // X-axis — adaptive date formatting based on visible range
+            const xAxisFirst = dolo_tvlPoints[0].date;
+            const xAxisLast = dolo_tvlPoints[dolo_tvlPoints.length - 1].date;
+            const xSpanDays = (xAxisLast - xAxisFirst) / (1000 * 60 * 60 * 24);
+
+            let xTickCount = 5;
+            let xFmtFn;
+            if (xSpanDays <= 14) {
+                // ≤2 weeks: show "Apr 5" with day
+                xFmtFn = d => d.toLocaleString('en-US', { month: 'short', day: 'numeric' });
+                xTickCount = Math.min(7, dolo_tvlPoints.length);
+            } else if (xSpanDays <= 90) {
+                // ≤3 months: show "Apr 5" 
+                xFmtFn = d => d.toLocaleString('en-US', { month: 'short', day: 'numeric' });
+            } else if (xSpanDays <= 365) {
+                // ≤1 year: show "Apr 2026"
+                xFmtFn = d => d.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+            } else {
+                // >1 year: show "Apr 2025"
+                xFmtFn = d => d.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+            }
+
+            const axisIdxs = Array.from({ length: xTickCount }, (_, i) => Math.round((dolo_tvlPoints.length - 1) * i / (xTickCount - 1)));
             axisEl.innerHTML = axisIdxs.map(i => {
                 const d = dolo_tvlPoints[Math.min(i, dolo_tvlPoints.length - 1)].date;
-                return `<span>${d.toLocaleString('en-US', { month: 'short' })} ${d.getFullYear()}</span>`;
+                return `<span>${xFmtFn(d)}</span>`;
             }).join('');
 
             // Change badge
@@ -18782,46 +18803,57 @@
             const ctx = brushCanvas.getContext('2d');
             ctx.scale(dpr, dpr);
             const W = rect.width, H = BRUSH_H;
-            // Use same padding as main chart
             const padL = 0, padR = 0;
             const plotW = W - padL - padR;
             ctx.clearRect(0, 0, W, H);
 
-            // Background — subtle gradient base for brush area
+            // Background — subtle gradient base
             const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
-            bgGrad.addColorStop(0, 'rgba(99,102,241,0.04)');
-            bgGrad.addColorStop(1, 'rgba(99,102,241,0.01)');
+            bgGrad.addColorStop(0, 'rgba(99,102,241,0.08)');
+            bgGrad.addColorStop(1, 'rgba(99,102,241,0.02)');
             ctx.fillStyle = bgGrad;
             ctx.fillRect(0, 0, W, H);
 
-            // Draw mini line within padded area
+            // Use sqrt scale for better visual distribution across extreme ranges
             const vals = allPts.map(p => p.tvl);
-            const minV = Math.min(...vals) * 0.95;
-            const maxV = Math.max(...vals) * 1.02;
-            const range = maxV - minV || 1;
+            const minV = Math.max(0, Math.min(...vals));
+            const maxV = Math.max(...vals);
+            const sqrtMin = Math.sqrt(minV);
+            const sqrtMax = Math.sqrt(maxV);
+            const sqrtRange = sqrtMax - sqrtMin || 1;
             const vPad = 4;
 
-            // Gradient fill
-            const grad = ctx.createLinearGradient(0, vPad, 0, H - vPad);
-            grad.addColorStop(0, 'rgba(99,102,241,0.35)');
-            grad.addColorStop(1, 'rgba(99,102,241,0.02)');
-            ctx.beginPath();
-            allPts.forEach((p, i) => {
-                const x = padL + (plotW * i / (allPts.length - 1));
-                const y = vPad + (H - 2 * vPad) - ((H - 2 * vPad) * (p.tvl - minV) / range);
-                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-            });
-            ctx.lineTo(padL + plotW, H); ctx.lineTo(padL, H); ctx.closePath();
-            ctx.fillStyle = grad; ctx.fill();
+            const valToY = (v) => {
+                const norm = (Math.sqrt(Math.max(0, v)) - sqrtMin) / sqrtRange;
+                return vPad + (H - 2 * vPad) * (1 - norm);
+            };
 
-            // Line
+            // Build path points
+            const pathPts = allPts.map((p, i) => ({
+                x: padL + (plotW * i / (allPts.length - 1)),
+                y: valToY(p.tvl)
+            }));
+
+            // Area fill — solid semi-transparent indigo fill
             ctx.beginPath();
-            allPts.forEach((p, i) => {
-                const x = padL + (plotW * i / (allPts.length - 1));
-                const y = vPad + (H - 2 * vPad) - ((H - 2 * vPad) * (p.tvl - minV) / range);
-                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-            });
-            ctx.strokeStyle = 'rgba(99,102,241,0.7)';
+            pathPts.forEach((pt, i) => i === 0 ? ctx.moveTo(pt.x, pt.y) : ctx.lineTo(pt.x, pt.y));
+            ctx.lineTo(padL + plotW, H);
+            ctx.lineTo(padL, H);
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(99,102,241,0.18)';
+            ctx.fill();
+
+            // Glow under the line
+            ctx.beginPath();
+            pathPts.forEach((pt, i) => i === 0 ? ctx.moveTo(pt.x, pt.y) : ctx.lineTo(pt.x, pt.y));
+            ctx.strokeStyle = 'rgba(129,140,248,0.3)';
+            ctx.lineWidth = 6;
+            ctx.stroke();
+
+            // Stroke — clear contour line
+            ctx.beginPath();
+            pathPts.forEach((pt, i) => i === 0 ? ctx.moveTo(pt.x, pt.y) : ctx.lineTo(pt.x, pt.y));
+            ctx.strokeStyle = 'rgba(129,140,248,0.9)';
             ctx.lineWidth = 1.5;
             ctx.stroke();
 
