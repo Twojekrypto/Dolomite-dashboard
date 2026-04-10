@@ -3437,9 +3437,7 @@
                     gap: 8px;
                     flex-wrap: wrap;
                     margin-left: auto;
-                }
-                .supply-history-chart.is-dragging {
-                    cursor: crosshair;
+                    position: relative;
                 }
                 .supply-history-reset-btn {
                     display: inline-flex;
@@ -3469,22 +3467,181 @@
                     border-color: rgba(239,68,68,0.34);
                     color: #fecaca;
                 }
-                .supply-history-date-input {
-                    min-width: 134px;
-                    padding: 8px 10px;
-                    border-radius: 10px;
-                    border: 1px solid rgba(255,255,255,0.07);
-                    background: rgba(255,255,255,0.035);
+                .supply-history-date-trigger {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 10px;
+                    min-width: 152px;
+                    padding: 8px 12px;
+                    border-radius: 12px;
+                    border: 1px solid rgba(255,255,255,0.08);
+                    background: rgba(255,255,255,0.038);
                     color: #e2e8f0;
                     font-size: 11px;
                     font-family: inherit;
-                    outline: none;
-                    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+                    cursor: pointer;
+                    transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, transform 0.18s ease;
                 }
-                .supply-history-date-input:focus {
-                    border-color: rgba(34,211,238,0.34);
-                    background: rgba(34,211,238,0.05);
+                .supply-history-date-trigger:hover,
+                .supply-history-date-trigger.active {
+                    border-color: rgba(34,211,238,0.32);
+                    background: rgba(34,211,238,0.07);
                     box-shadow: 0 0 0 3px rgba(34,211,238,0.08);
+                    transform: translateY(-1px);
+                }
+                .supply-history-date-trigger-label {
+                    font-size: 10px;
+                    font-weight: 700;
+                    letter-spacing: 0.12em;
+                    text-transform: uppercase;
+                    color: rgba(148,163,184,0.82);
+                }
+                .supply-history-date-trigger-value {
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: #f8fafc;
+                    white-space: nowrap;
+                }
+                .supply-history-date-popover {
+                    position: fixed;
+                    z-index: 140;
+                    width: min(320px, calc(100vw - 20px));
+                    padding: 14px;
+                    border-radius: 18px;
+                    border: 1px solid rgba(255,255,255,0.08);
+                    background:
+                        radial-gradient(circle at top right, rgba(34,211,238,0.16), transparent 34%),
+                        linear-gradient(180deg, rgba(10,16,28,0.98), rgba(6,11,22,0.96));
+                    box-shadow: 0 28px 60px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.05);
+                    backdrop-filter: blur(22px);
+                    -webkit-backdrop-filter: blur(22px);
+                    opacity: 0;
+                    pointer-events: none;
+                    transform: translateY(6px);
+                    transition: opacity 0.18s ease, transform 0.18s ease;
+                }
+                .supply-history-date-popover.visible {
+                    opacity: 1;
+                    pointer-events: auto;
+                    transform: translateY(0);
+                }
+                .supply-history-picker-head {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 12px;
+                    margin-bottom: 12px;
+                }
+                .supply-history-picker-context {
+                    min-width: 0;
+                }
+                .supply-history-picker-target {
+                    font-size: 10px;
+                    font-weight: 700;
+                    letter-spacing: 0.14em;
+                    text-transform: uppercase;
+                    color: rgba(125,211,252,0.9);
+                }
+                .supply-history-picker-title {
+                    margin-top: 4px;
+                    font-size: 16px;
+                    font-weight: 700;
+                    color: #f8fafc;
+                    letter-spacing: -0.03em;
+                }
+                .supply-history-picker-nav {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+                .supply-history-picker-nav button,
+                .supply-history-picker-action {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    border: 1px solid rgba(255,255,255,0.08);
+                    background: rgba(255,255,255,0.04);
+                    color: #e2e8f0;
+                    cursor: pointer;
+                    transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+                }
+                .supply-history-picker-nav button {
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 10px;
+                    font-size: 15px;
+                }
+                .supply-history-picker-nav button:hover,
+                .supply-history-picker-action:hover {
+                    border-color: rgba(34,211,238,0.24);
+                    background: rgba(34,211,238,0.08);
+                    transform: translateY(-1px);
+                }
+                .supply-history-picker-weekdays,
+                .supply-history-picker-grid {
+                    display: grid;
+                    grid-template-columns: repeat(7, minmax(0, 1fr));
+                    gap: 6px;
+                }
+                .supply-history-picker-weekdays {
+                    margin-bottom: 8px;
+                }
+                .supply-history-picker-weekday {
+                    text-align: center;
+                    font-size: 10px;
+                    font-weight: 700;
+                    letter-spacing: 0.08em;
+                    text-transform: uppercase;
+                    color: rgba(148,163,184,0.6);
+                }
+                .supply-history-picker-day {
+                    height: 38px;
+                    border-radius: 12px;
+                    border: 1px solid transparent;
+                    background: rgba(255,255,255,0.025);
+                    color: #e2e8f0;
+                    font-size: 12px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease, color 0.16s ease;
+                }
+                .supply-history-picker-day:hover {
+                    border-color: rgba(34,211,238,0.22);
+                    background: rgba(34,211,238,0.08);
+                    transform: translateY(-1px);
+                }
+                .supply-history-picker-day.muted {
+                    color: rgba(148,163,184,0.46);
+                    background: rgba(255,255,255,0.015);
+                }
+                .supply-history-picker-day.today {
+                    border-color: rgba(52,211,153,0.24);
+                    box-shadow: inset 0 0 0 1px rgba(52,211,153,0.16);
+                }
+                .supply-history-picker-day.in-range {
+                    background: rgba(34,211,238,0.10);
+                    color: #dbeafe;
+                }
+                .supply-history-picker-day.selected {
+                    border-color: rgba(34,211,238,0.28);
+                    background: linear-gradient(135deg, rgba(34,211,238,0.26), rgba(52,211,153,0.22));
+                    color: #f8fafc;
+                    box-shadow: 0 10px 18px rgba(34,211,238,0.14);
+                }
+                .supply-history-picker-actions {
+                    display: flex;
+                    justify-content: space-between;
+                    gap: 10px;
+                    margin-top: 12px;
+                }
+                .supply-history-picker-action {
+                    min-height: 34px;
+                    padding: 0 12px;
+                    border-radius: 10px;
+                    font-size: 11px;
+                    font-weight: 700;
+                    letter-spacing: 0.08em;
+                    text-transform: uppercase;
                 }
                 .supply-history-axis {
                     display: flex;
@@ -3730,8 +3887,8 @@
                         justify-content: flex-start;
                         margin-left: 0;
                     }
-                    .supply-history-date-input {
-                        min-width: 120px;
+                    .supply-history-date-trigger {
+                        min-width: 132px;
                     }
                     .supply-table-controls,
                     .supply-activity-controls {
@@ -3830,11 +3987,41 @@
                                 <span id="supply-history-zoom-badge" class="supply-history-zoom-badge"></span>
                             </div>
                             <div class="supply-history-date-group">
-                                <span>From</span>
-                                <input type="date" id="supply-history-from" class="supply-history-date-input">
-                                <span>To</span>
-                                <input type="date" id="supply-history-to" class="supply-history-date-input">
+                                <button type="button" id="supply-history-from-trigger" class="supply-history-date-trigger" onclick="toggleSupplyHistoryPicker('from', event)">
+                                    <span class="supply-history-date-trigger-label">From</span>
+                                    <span id="supply-history-from-display" class="supply-history-date-trigger-value">Start</span>
+                                </button>
+                                <button type="button" id="supply-history-to-trigger" class="supply-history-date-trigger" onclick="toggleSupplyHistoryPicker('to', event)">
+                                    <span class="supply-history-date-trigger-label">To</span>
+                                    <span id="supply-history-to-display" class="supply-history-date-trigger-value">End</span>
+                                </button>
                                 <button type="button" id="supply-history-reset" class="supply-history-reset-btn" onclick="resetSupplyHistoryZoom()" title="Reset zoom to full history">×</button>
+                                <div id="supply-history-picker" class="supply-history-date-popover">
+                                    <div class="supply-history-picker-head">
+                                        <div class="supply-history-picker-context">
+                                            <div id="supply-history-picker-target" class="supply-history-picker-target">Editing range</div>
+                                            <div id="supply-history-picker-title" class="supply-history-picker-title">April 2026</div>
+                                        </div>
+                                        <div class="supply-history-picker-nav">
+                                            <button type="button" onclick="shiftSupplyHistoryPickerMonth(-1)" aria-label="Previous month">‹</button>
+                                            <button type="button" onclick="shiftSupplyHistoryPickerMonth(1)" aria-label="Next month">›</button>
+                                        </div>
+                                    </div>
+                                    <div class="supply-history-picker-weekdays">
+                                        <span class="supply-history-picker-weekday">Mon</span>
+                                        <span class="supply-history-picker-weekday">Tue</span>
+                                        <span class="supply-history-picker-weekday">Wed</span>
+                                        <span class="supply-history-picker-weekday">Thu</span>
+                                        <span class="supply-history-picker-weekday">Fri</span>
+                                        <span class="supply-history-picker-weekday">Sat</span>
+                                        <span class="supply-history-picker-weekday">Sun</span>
+                                    </div>
+                                    <div id="supply-history-picker-grid" class="supply-history-picker-grid"></div>
+                                    <div class="supply-history-picker-actions">
+                                        <button type="button" class="supply-history-picker-action" onclick="setSupplyHistoryPickerToday()">Today</button>
+                                        <button type="button" class="supply-history-picker-action" onclick="closeSupplyHistoryPicker()">Close</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -6234,6 +6421,7 @@
         let currentSupplyActivity = [];
         const SUPPLY_CACHE_TTL_MS = 5 * 60 * 1000;
         const SUPPLY_CACHE_STORAGE_PREFIX = 'dolomite_supply_cache_v1:';
+        const supplyChainBundleCache = new Map();
         const supplySuppliersCache = new Map();
         const supplyRecentActivityCache = new Map();
         const supplyFullActivityCache = new Map();
@@ -6251,7 +6439,10 @@
         let supplyHistoryRange = 'all';
         let supplyHistoryCustomFrom = null;
         let supplyHistoryCustomTo = null;
+        let supplyHistoryPickerTarget = null;
+        let supplyHistoryPickerMonthTs = null;
         let supplyTabRequestId = 0;
+        let supplyChainRequestId = 0;
         const SUPPLY_ACTIVITY_PAGE_SIZE = 12;
         let supplyActivityFilters = new Set(['deposit', 'withdraw', 'transfer', 'liquidation']);
 
@@ -6553,6 +6744,155 @@
             return Math.floor(d.getTime() / 1000);
         }
 
+        function supplyHistoryDisplayValue(timestamp) {
+            return timestamp ? supplyFormatFullDate(timestamp) : 'Select date';
+        }
+
+        function supplyHistoryPickerMonthStart(timestamp) {
+            const base = timestamp ? new Date(timestamp * 1000) : new Date();
+            base.setDate(1);
+            base.setHours(0, 0, 0, 0);
+            return Math.floor(base.getTime() / 1000);
+        }
+
+        function getSupplyHistoryPickerElement() {
+            return document.getElementById('supply-history-picker');
+        }
+
+        function getSupplyHistoryPickerTrigger(target) {
+            return document.getElementById(target === 'to' ? 'supply-history-to-trigger' : 'supply-history-from-trigger');
+        }
+
+        function positionSupplyHistoryPicker() {
+            const picker = getSupplyHistoryPickerElement();
+            const trigger = getSupplyHistoryPickerTrigger(supplyHistoryPickerTarget);
+            if (!picker || !trigger || !picker.classList.contains('visible')) return;
+            positionPopoverFixed(trigger, picker);
+        }
+
+        function closeSupplyHistoryPicker() {
+            const picker = getSupplyHistoryPickerElement();
+            const fromTrigger = document.getElementById('supply-history-from-trigger');
+            const toTrigger = document.getElementById('supply-history-to-trigger');
+            if (picker) picker.classList.remove('visible');
+            if (fromTrigger) fromTrigger.classList.remove('active');
+            if (toTrigger) toTrigger.classList.remove('active');
+            supplyHistoryPickerTarget = null;
+        }
+
+        function renderSupplyHistoryPicker() {
+            const picker = getSupplyHistoryPickerElement();
+            const grid = document.getElementById('supply-history-picker-grid');
+            const title = document.getElementById('supply-history-picker-title');
+            const target = document.getElementById('supply-history-picker-target');
+            if (!picker || !grid || !title || !target || !supplyHistoryPickerTarget) return;
+
+            const monthStart = new Date((supplyHistoryPickerMonthTs || supplyHistoryPickerMonthStart()) * 1000);
+            monthStart.setDate(1);
+            monthStart.setHours(0, 0, 0, 0);
+            title.textContent = new Intl.DateTimeFormat('en-US', {
+                month: 'long',
+                year: 'numeric',
+            }).format(monthStart);
+            target.textContent = supplyHistoryPickerTarget === 'to' ? 'Editing end date' : 'Editing start date';
+
+            const firstWeekday = (monthStart.getDay() + 6) % 7;
+            const gridStart = new Date(monthStart);
+            gridStart.setDate(monthStart.getDate() - firstWeekday);
+
+            const selectedStart = supplyHistoryCustomFrom != null ? supplyHistoryCustomFrom : null;
+            const selectedEnd = supplyHistoryCustomTo != null ? supplyHistoryCustomTo : null;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayTs = Math.floor(today.getTime() / 1000);
+
+            const items = [];
+            for (let i = 0; i < 42; i++) {
+                const cellDate = new Date(gridStart);
+                cellDate.setDate(gridStart.getDate() + i);
+                cellDate.setHours(0, 0, 0, 0);
+                const cellTsMin = Math.floor(cellDate.getTime() / 1000);
+                const cellTsMax = cellTsMin + 86399;
+                const inCurrentMonth = cellDate.getMonth() === monthStart.getMonth();
+                const isToday = cellTsMin === todayTs;
+                const isSelected = (supplyHistoryPickerTarget === 'from' && selectedStart != null && cellTsMin === selectedStart)
+                    || (supplyHistoryPickerTarget === 'to' && selectedEnd != null && cellTsMax === selectedEnd)
+                    || (selectedStart != null && selectedEnd != null && cellTsMin === selectedStart && cellTsMax === selectedEnd);
+                const inRange = selectedStart != null && selectedEnd != null && cellTsMin >= selectedStart && cellTsMax <= selectedEnd;
+                items.push(`
+                    <button
+                        type="button"
+                        class="supply-history-picker-day${inCurrentMonth ? '' : ' muted'}${isToday ? ' today' : ''}${inRange ? ' in-range' : ''}${isSelected ? ' selected' : ''}"
+                        onclick="selectSupplyHistoryPickerDay(${cellTsMin})"
+                    >${cellDate.getDate()}</button>
+                `);
+            }
+            grid.innerHTML = items.join('');
+            const activeTrigger = getSupplyHistoryPickerTrigger(supplyHistoryPickerTarget);
+            const inactiveTrigger = getSupplyHistoryPickerTrigger(supplyHistoryPickerTarget === 'from' ? 'to' : 'from');
+            if (activeTrigger) activeTrigger.classList.add('active');
+            if (inactiveTrigger) inactiveTrigger.classList.remove('active');
+            picker.classList.add('visible');
+            positionSupplyHistoryPicker();
+        }
+
+        function openSupplyHistoryPicker(target) {
+            supplyHistoryPickerTarget = target === 'to' ? 'to' : 'from';
+            const anchorTs = supplyHistoryPickerTarget === 'to'
+                ? (supplyHistoryCustomTo || supplyHistoryCustomFrom || Math.floor(Date.now() / 1000))
+                : (supplyHistoryCustomFrom || supplyHistoryCustomTo || Math.floor(Date.now() / 1000));
+            supplyHistoryPickerMonthTs = supplyHistoryPickerMonthStart(anchorTs);
+            renderSupplyHistoryPicker();
+        }
+
+        function toggleSupplyHistoryPicker(target, event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            if (supplyHistoryPickerTarget === target) {
+                closeSupplyHistoryPicker();
+                return;
+            }
+            openSupplyHistoryPicker(target);
+        }
+
+        function shiftSupplyHistoryPickerMonth(delta) {
+            const base = new Date((supplyHistoryPickerMonthTs || supplyHistoryPickerMonthStart()) * 1000);
+            base.setMonth(base.getMonth() + delta);
+            base.setDate(1);
+            base.setHours(0, 0, 0, 0);
+            supplyHistoryPickerMonthTs = Math.floor(base.getTime() / 1000);
+            renderSupplyHistoryPicker();
+        }
+
+        function applySupplyHistoryRangeState() {
+            if (supplyHistoryCustomFrom != null && supplyHistoryCustomTo != null && supplyHistoryCustomFrom > supplyHistoryCustomTo) {
+                const swap = supplyHistoryCustomFrom;
+                supplyHistoryCustomFrom = supplyHistoryCustomTo;
+                supplyHistoryCustomTo = swap;
+            }
+            supplyHistoryRange = (supplyHistoryCustomFrom == null && supplyHistoryCustomTo == null) ? 'all' : 'custom';
+            renderSupplyIntelOverview();
+        }
+
+        function selectSupplyHistoryPickerDay(dayTsMin) {
+            if (!supplyHistoryPickerTarget) return;
+            if (supplyHistoryPickerTarget === 'to') {
+                supplyHistoryCustomTo = Number(dayTsMin || 0) + 86399;
+            } else {
+                supplyHistoryCustomFrom = Number(dayTsMin || 0);
+            }
+            applySupplyHistoryRangeState();
+            closeSupplyHistoryPicker();
+        }
+
+        function setSupplyHistoryPickerToday() {
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            selectSupplyHistoryPickerDay(Math.floor(now.getTime() / 1000));
+        }
+
         function supplyActivityDateInputValue(timestamp) {
             const ts = Number(timestamp || 0);
             if (!Number.isFinite(ts) || ts <= 0) return '';
@@ -6685,31 +7025,31 @@
         }
 
         function syncSupplyHistoryControls(points) {
-            const fromInput = document.getElementById('supply-history-from');
-            const toInput = document.getElementById('supply-history-to');
+            const fromDisplay = document.getElementById('supply-history-from-display');
+            const toDisplay = document.getElementById('supply-history-to-display');
             const resetBtn = document.getElementById('supply-history-reset');
-            if (!fromInput || !toInput) return;
+            if (!fromDisplay || !toDisplay) return;
 
             const safePoints = Array.isArray(points) ? points : [];
             if (safePoints.length === 0) {
-                fromInput.value = '';
-                toInput.value = '';
+                fromDisplay.textContent = 'Start';
+                toDisplay.textContent = 'End';
                 if (resetBtn) resetBtn.classList.remove('visible');
                 updateSupplyHistoryZoomBadge([]);
                 return;
             }
 
             if (supplyHistoryRange === 'custom') {
-                fromInput.value = supplyHistoryDateInputValue(supplyHistoryCustomFrom);
-                toInput.value = supplyHistoryDateInputValue(supplyHistoryCustomTo);
+                fromDisplay.textContent = supplyHistoryDisplayValue(supplyHistoryCustomFrom);
+                toDisplay.textContent = supplyHistoryDisplayValue(supplyHistoryCustomTo);
                 if (resetBtn) resetBtn.classList.add('visible');
                 updateSupplyHistoryZoomBadge(safePoints);
                 return;
             }
 
             const window = getSupplyHistoryWindow(safePoints);
-            fromInput.value = supplyHistoryDateInputValue(window.startTs);
-            toInput.value = supplyHistoryDateInputValue(window.endTs);
+            fromDisplay.textContent = supplyHistoryDisplayValue(window.startTs);
+            toDisplay.textContent = supplyHistoryDisplayValue(window.endTs);
             if (resetBtn) resetBtn.classList.remove('visible');
             updateSupplyHistoryZoomBadge(safePoints);
         }
@@ -6718,23 +7058,7 @@
             supplyHistoryRange = 'all';
             supplyHistoryCustomFrom = null;
             supplyHistoryCustomTo = null;
-            renderSupplyIntelOverview();
-        }
-
-        function applySupplyHistoryCustomRange() {
-            const fromInput = document.getElementById('supply-history-from');
-            const toInput = document.getElementById('supply-history-to');
-            if (!fromInput || !toInput) return;
-            let fromTs = supplyHistoryParseDateInput(fromInput.value, 'min');
-            let toTs = supplyHistoryParseDateInput(toInput.value, 'max');
-            if (fromTs != null && toTs != null && fromTs > toTs) {
-                const swap = fromTs;
-                fromTs = toTs;
-                toTs = swap;
-            }
-            supplyHistoryCustomFrom = fromTs;
-            supplyHistoryCustomTo = toTs;
-            supplyHistoryRange = (fromTs == null && toTs == null) ? 'all' : 'custom';
+            closeSupplyHistoryPicker();
             renderSupplyIntelOverview();
         }
 
@@ -6917,6 +7241,7 @@
             if (activitySearchWrap) activitySearchWrap.classList.remove('has-value');
             document.querySelectorAll('.supply-filter-pill').forEach(btn => btn.classList.add('active'));
             closeSupplyActivityFilterPopovers();
+            closeSupplyHistoryPicker();
             updateSupplyActivitySortUi();
             syncSupplyActivityColumnFilterUi();
             syncSupplyHistoryControls([]);
@@ -7016,12 +7341,20 @@
             format: value => value == null ? '' : String(value),
         });
 
-        const supplyHistoryFromInput = document.getElementById('supply-history-from');
-        const supplyHistoryToInput = document.getElementById('supply-history-to');
-        if (supplyHistoryFromInput && supplyHistoryToInput) {
-            supplyHistoryFromInput.addEventListener('input', applySupplyHistoryCustomRange);
-            supplyHistoryToInput.addEventListener('input', applySupplyHistoryCustomRange);
-        }
+        document.addEventListener('click', event => {
+            const picker = getSupplyHistoryPickerElement();
+            const fromTrigger = document.getElementById('supply-history-from-trigger');
+            const toTrigger = document.getElementById('supply-history-to-trigger');
+            if (!picker || !picker.classList.contains('visible')) return;
+            const target = event.target;
+            if (picker.contains(target) || (fromTrigger && fromTrigger.contains(target)) || (toTrigger && toTrigger.contains(target))) {
+                return;
+            }
+            closeSupplyHistoryPicker();
+        });
+
+        window.addEventListener('resize', positionSupplyHistoryPicker);
+        window.addEventListener('scroll', positionSupplyHistoryPicker, true);
 
         function buildSupplyHistorySeries(currentSupply, deposits, withdrawals) {
             const now = new Date();
@@ -7115,7 +7448,9 @@
             const width = 1000;
             const height = 304;
             const padLeft = 90;
-            const padRight = 24;
+            const currentLabelWidth = 154;
+            const currentLabelGap = 18;
+            const padRight = currentLabelWidth + currentLabelGap + 20;
             const padTop = 18;
             const padBottom = 18;
             const values = visiblePoints.map(p => Number(p.value || 0));
@@ -7126,6 +7461,7 @@
             const innerW = width - padLeft - padRight;
             const innerH = height - padTop - padBottom;
             const currentReferenceValue = Number(points[points.length - 1]?.value || 0);
+            const plotRight = width - padRight;
 
             const pathPoints = visiblePoints.map((point, idx) => {
                 const x = padLeft + (innerW * idx) / Math.max(1, visiblePoints.length - 1);
@@ -7144,16 +7480,16 @@
                 };
             });
             const gridLines = yTicks.map(tick => {
-                return `<line x1="${padLeft}" y1="${tick.y.toFixed(2)}" x2="${width - padRight}" y2="${tick.y.toFixed(2)}" stroke="rgba(255,255,255,0.06)" stroke-width="1" />`;
+                return `<line x1="${padLeft}" y1="${tick.y.toFixed(2)}" x2="${plotRight}" y2="${tick.y.toFixed(2)}" stroke="rgba(255,255,255,0.06)" stroke-width="1" />`;
             }).join('');
             const yLabels = yTicks.map(tick => {
                 return `<text x="10" y="${(tick.y + 4).toFixed(2)}" fill="rgba(148,163,184,0.84)" font-size="11" font-family="Inter, sans-serif">${supplyEscapeHtml(supplyFormatTokenCompact(tick.value))}</text>`;
             }).join('');
             const currentReferenceYRaw = height - padBottom - ((currentReferenceValue - min) / safeSpread) * innerH;
             const currentReferenceY = Math.max(padTop + 10, Math.min(height - padBottom - 10, currentReferenceYRaw));
-            const currentLabelWidth = 132;
-            const currentLabelX = width - padRight - currentLabelWidth;
-            const currentLabelY = Math.max(padTop + 4, Math.min(height - padBottom - 24, currentReferenceY - 14));
+            const currentLabelHeight = 36;
+            const currentLabelX = plotRight + 16;
+            const currentLabelY = Math.max(padTop + 4, Math.min(height - padBottom - currentLabelHeight - 2, currentReferenceY - (currentLabelHeight / 2)));
 
             chart.innerHTML = `
                 <div class="supply-history-tooltip" id="supply-history-tooltip">
@@ -7178,9 +7514,11 @@
                     ${yLabels}
                     <path d="${areaPath}" fill="url(#supplyAreaGradient)"></path>
                     <path d="${linePath}" fill="none" stroke="#34d399" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" filter="url(#supplyGlow)"></path>
-                    <line x1="${padLeft}" y1="${currentReferenceY.toFixed(2)}" x2="${width - padRight}" y2="${currentReferenceY.toFixed(2)}" stroke="rgba(226,232,240,0.16)" stroke-width="1.5" stroke-dasharray="6 6"></line>
-                    <rect x="${currentLabelX}" y="${currentLabelY.toFixed(2)}" width="${currentLabelWidth}" height="22" rx="11" fill="rgba(8,15,30,0.78)" stroke="rgba(255,255,255,0.10)"></rect>
-                    <text x="${(currentLabelX + 11).toFixed(2)}" y="${(currentLabelY + 14.5).toFixed(2)}" fill="#e2e8f0" font-size="11" font-family="Inter, sans-serif">Current ${supplyEscapeHtml(supplyFormatTokenCompact(currentReferenceValue))}</text>
+                    <line x1="${padLeft}" y1="${currentReferenceY.toFixed(2)}" x2="${(plotRight + 10).toFixed(2)}" y2="${currentReferenceY.toFixed(2)}" stroke="rgba(226,232,240,0.16)" stroke-width="1.5" stroke-dasharray="6 6"></line>
+                    <circle cx="${(plotRight + 10).toFixed(2)}" cy="${currentReferenceY.toFixed(2)}" r="3.5" fill="#34d399" stroke="rgba(236,254,255,0.9)" stroke-width="1.8"></circle>
+                    <rect x="${currentLabelX}" y="${currentLabelY.toFixed(2)}" width="${currentLabelWidth}" height="${currentLabelHeight}" rx="15" fill="rgba(8,15,30,0.86)" stroke="rgba(255,255,255,0.10)"></rect>
+                    <text x="${(currentLabelX + 12).toFixed(2)}" y="${(currentLabelY + 13).toFixed(2)}" fill="rgba(148,163,184,0.82)" font-size="10" font-family="Inter, sans-serif" letter-spacing="1.4">LIVE</text>
+                    <text x="${(currentLabelX + 12).toFixed(2)}" y="${(currentLabelY + 28).toFixed(2)}" fill="#f8fafc" font-size="13" font-weight="700" font-family="Inter, sans-serif">${supplyEscapeHtml(supplyFormatTokenCompact(currentReferenceValue))}</text>
                     <rect id="supply-history-zoom-mask-left" x="${padLeft}" y="${padTop}" width="0" height="${innerH}" fill="rgba(3,7,18,0.46)" opacity="0"></rect>
                     <rect id="supply-history-zoom-mask-right" x="${padLeft}" y="${padTop}" width="0" height="${innerH}" fill="rgba(3,7,18,0.46)" opacity="0"></rect>
                     <rect id="supply-history-zoom-rect" x="0" y="${padTop}" width="0" height="${innerH}" fill="rgba(34,211,238,0.12)" stroke="rgba(34,211,238,0.45)" stroke-width="1.5" opacity="0"></rect>
@@ -8134,12 +8472,123 @@
         let currentSupplyOraclePrices = {};
         let currentSupplyInterestIndexes = {};
 
+        function getSupplyDefaultAsset(tokens) {
+            const safeTokens = Array.isArray(tokens) ? tokens : [];
+            return safeTokens.find(t => t.symbol === 'USD1')
+                || safeTokens.find(t => t.symbol === 'USDC')
+                || safeTokens.find(t => t.symbol === 'WETH')
+                || safeTokens.find(t => t.symbol === 'oriBGT')
+                || safeTokens.find(t => t.symbol === 'WBERA')
+                || safeTokens.slice().sort((a, b) => (parseFloat(b.supplyLiquidityUSD || '0') || 0) - (parseFloat(a.supplyLiquidityUSD || '0') || 0))[0]
+                || safeTokens[0];
+        }
+
+        function applySupplyChainBundle(bundle) {
+            currentSupplyTokensMap = {};
+            currentSupplyTokensList = (bundle?.tokens || []).slice().sort((a, b) => parseInt(a.marketId) - parseInt(b.marketId));
+            currentSupplyOraclePrices = {};
+            currentSupplyInterestIndexes = {};
+
+            currentSupplyTokensList.forEach(token => {
+                currentSupplyTokensMap[token.id] = token;
+            });
+            (bundle?.oraclePrices || []).forEach(op => {
+                if (op.token && op.token.id) currentSupplyOraclePrices[op.token.id] = parseFloat(op.price) || 0;
+            });
+            (bundle?.interestIndexes || []).forEach(ix => {
+                if (ix.token && ix.token.id) {
+                    currentSupplyInterestIndexes[ix.token.id] = {
+                        supplyIndex: parseFloat(ix.supplyIndex) || 1,
+                        borrowIndex: parseFloat(ix.borrowIndex) || 1,
+                    };
+                }
+            });
+        }
+
+        function updateSelectedSupplyAssetUi(token) {
+            const assetText = document.getElementById('selected-asset-text');
+            const assetIcon = document.getElementById('selected-asset-icon');
+            if (!token) return;
+            if (assetText) assetText.textContent = token.symbol;
+            if (assetIcon) {
+                const iconPath = getTokenIcon(truncateTokenName(token.symbol));
+                if (iconPath) {
+                    assetIcon.src = iconPath;
+                    assetIcon.style.display = 'block';
+                } else {
+                    assetIcon.style.display = 'none';
+                }
+            }
+        }
+
+        function prefetchSupplyAssetData(chain, tokenId) {
+            if (!chain || !tokenId || !DOLOMITE_MINI_GRAPHS[chain]) return;
+            const endpoint = DOLOMITE_MINI_GRAPHS[chain];
+            const sinceTs = Math.floor(Date.now() / 1000) - (SUPPLY_ACTIVITY_DEFAULT_DAYS * 24 * 60 * 60);
+            const supplierCacheKey = `${chain}:${tokenId}:suppliers`;
+            const recentActivityKey = `${chain}:${tokenId}:activity:${SUPPLY_ACTIVITY_DEFAULT_DAYS}d`;
+            const flowHistoryKey = `${chain}:${tokenId}:flow:all`;
+
+            getSupplyCachedResource(
+                supplySuppliersCache,
+                supplierCacheKey,
+                () => fetchAllSupplySuppliers(endpoint, tokenId),
+                { persist: true }
+            ).catch(() => {});
+            getSupplyCachedResource(
+                supplyRecentActivityCache,
+                recentActivityKey,
+                () => fetchSupplyActivityHistory(endpoint, tokenId, sinceTs),
+                { persist: true }
+            ).catch(() => {});
+            getSupplyCachedResource(
+                supplyFlowHistoryCache,
+                flowHistoryKey,
+                () => fetchSupplyFlowHistory(endpoint, tokenId, null),
+                { persist: true }
+            ).catch(() => {});
+        }
+
+        function scheduleSupplyChainPrefetch(chain, tokens, selectedTokenId) {
+            const safeTokens = Array.isArray(tokens) ? tokens : [];
+            if (!safeTokens.length) return;
+            const preferredSymbols = ['USD1', 'USDC', 'WETH', 'oriBGT', 'WBERA'];
+            const sorted = safeTokens.slice().sort((a, b) => (parseFloat(b.supplyLiquidityUSD || '0') || 0) - (parseFloat(a.supplyLiquidityUSD || '0') || 0));
+            const seen = new Set();
+            const queue = [];
+            const pushToken = token => {
+                if (!token || !token.id || seen.has(token.id)) return;
+                seen.add(token.id);
+                queue.push(token);
+            };
+            if (selectedTokenId && currentSupplyTokensMap[selectedTokenId]) pushToken(currentSupplyTokensMap[selectedTokenId]);
+            preferredSymbols.forEach(symbol => pushToken(safeTokens.find(token => token.symbol === symbol)));
+            sorted.slice(0, 4).forEach(pushToken);
+
+            const runPrefetch = () => {
+                queue.slice(0, 4).forEach((token, index) => {
+                    setTimeout(() => {
+                        if (document.getElementById('supply-chain-select')?.value !== chain) return;
+                        prefetchSupplyAssetData(chain, token.id);
+                    }, index * 180);
+                });
+            };
+
+            if (typeof window.requestIdleCallback === 'function') {
+                window.requestIdleCallback(runPrefetch, { timeout: 700 });
+            } else {
+                setTimeout(runPrefetch, 140);
+            }
+        }
+
         async function onSupplyChainChange() {
             const chain = document.getElementById('supply-chain-select').value;
+            const requestId = ++supplyChainRequestId;
             const selector = document.getElementById('custom-asset-selector');
             const assetText = document.getElementById('selected-asset-text');
             const assetIcon = document.getElementById('selected-asset-icon');
             const loader = document.getElementById('supply-loading-state');
+            const bundleCacheKey = `${chain}:bundle`;
             resetSupplyIntelState();
             currentSupplyData = [];
             currentSupplyOraclePrices = {};
@@ -8179,38 +8628,46 @@
                 oraclePrices(first: 100) { token { id } price }
                 interestIndexes(first: 100) { token { id } supplyIndex borrowIndex }
             }`;
-            
-            try {
-                const data = await doGraphQuery(DOLOMITE_MINI_GRAPHS[chain], q);
-                if (!data || !data.tokens) throw new Error("No tokens returned");
-                
-                currentSupplyTokensMap = {};
-                currentSupplyTokensList = data.tokens.sort((a,b) => parseInt(a.marketId) - parseInt(b.marketId));
-                
-                currentSupplyTokensList.forEach(t => {
-                    currentSupplyTokensMap[t.id] = t;
-                });
 
-                // Cache oracle prices and interest indexes by token id
-                (data.oraclePrices || []).forEach(op => {
-                    if (op.token && op.token.id) currentSupplyOraclePrices[op.token.id] = parseFloat(op.price) || 0;
-                });
-                (data.interestIndexes || []).forEach(ix => {
-                    if (ix.token && ix.token.id) currentSupplyInterestIndexes[ix.token.id] = {
-                        supplyIndex: parseFloat(ix.supplyIndex) || 1,
-                        borrowIndex: parseFloat(ix.borrowIndex) || 1,
-                    };
-                });
-                
-                // Try to select prominent asset
-                let defaultOpt = currentSupplyTokensList.find(t=>t.symbol==='USD1') || currentSupplyTokensList.find(t=>t.symbol==='USDC') || currentSupplyTokensList.find(t=>t.symbol==='WETH') || currentSupplyTokensList.find(t=>t.symbol==='oriBGT') || currentSupplyTokensList.find(t=>t.symbol==='WBERA') || currentSupplyTokensList[0];
-                
+            const applyBundleToUi = (bundle, options = {}) => {
+                const { allowAutoSelect = true } = options;
+                if (requestId !== supplyChainRequestId) return;
+                if (!bundle || !bundle.tokens || !bundle.tokens.length) throw new Error('No tokens returned');
+                applySupplyChainBundle(bundle);
                 selector.classList.remove('disabled');
                 selector.style.opacity = '1';
-                
-                if (defaultOpt) selectSupplyAsset(defaultOpt.id);
-                
+
+                const selectedValue = document.getElementById('supply-asset-select').value;
+                if (selectedValue && currentSupplyTokensMap[selectedValue]) {
+                    updateSelectedSupplyAssetUi(currentSupplyTokensMap[selectedValue]);
+                } else if (allowAutoSelect) {
+                    const defaultOpt = getSupplyDefaultAsset(currentSupplyTokensList);
+                    if (defaultOpt) selectSupplyAsset(defaultOpt.id);
+                }
+
+                scheduleSupplyChainPrefetch(chain, currentSupplyTokensList, document.getElementById('supply-asset-select').value);
+            };
+
+            const cachedBundle = getFreshSupplyCacheData(supplyChainBundleCache, bundleCacheKey, { persist: true });
+            if (cachedBundle) {
+                try {
+                    applyBundleToUi(cachedBundle, { allowAutoSelect: true });
+                    if (loader) {
+                        loader.innerHTML = `<div class="loading-spinner"></div><div style="margin-top:12px; color:var(--text-muted); font-size:13px;">Using cached market map for an instant load...</div>`;
+                    }
+                } catch (_) {}
+            }
+            
+            try {
+                const data = await getSupplyCachedResource(
+                    supplyChainBundleCache,
+                    bundleCacheKey,
+                    () => doGraphQuery(DOLOMITE_MINI_GRAPHS[chain], q),
+                    { persist: true }
+                );
+                applyBundleToUi(data, { allowAutoSelect: !cachedBundle });
             } catch (e) {
+                if (requestId !== supplyChainRequestId) return;
                 assetText.textContent = 'Error loading markets';
             }
         }
