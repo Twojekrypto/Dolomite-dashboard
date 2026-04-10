@@ -6233,6 +6233,7 @@
         let currentSupplyOverview = null;
         let currentSupplyActivity = [];
         const SUPPLY_CACHE_TTL_MS = 5 * 60 * 1000;
+        const SUPPLY_CACHE_STORAGE_PREFIX = 'dolomite_supply_cache_v1:';
         const supplySuppliersCache = new Map();
         const supplyRecentActivityCache = new Map();
         const supplyFullActivityCache = new Map();
@@ -6445,17 +6446,64 @@
             badge.classList.add('visible');
         }
 
-        function getFreshSupplyCacheData(cache, key) {
-            const entry = cache.get(key);
-            if (!entry || !entry.data) return null;
-            return (Date.now() - Number(entry.ts || 0)) <= SUPPLY_CACHE_TTL_MS ? entry.data : null;
+        function getSupplyStorageKey(key) {
+            return `${SUPPLY_CACHE_STORAGE_PREFIX}${key}`;
         }
 
-        function getSupplyCachedResource(cache, key, loader) {
+        function readSupplyCacheStorage(key) {
+            try {
+                const raw = sessionStorage.getItem(getSupplyStorageKey(key));
+                if (!raw) return null;
+                return JSON.parse(raw);
+            } catch (_) {
+                return null;
+            }
+        }
+
+        function writeSupplyCacheStorage(key, data, ts) {
+            try {
+                sessionStorage.setItem(getSupplyStorageKey(key), JSON.stringify({ data, ts }));
+            } catch (_) {
+                // Ignore storage quota or privacy mode failures.
+            }
+        }
+
+        function deleteSupplyCacheStorage(key) {
+            try {
+                sessionStorage.removeItem(getSupplyStorageKey(key));
+            } catch (_) {}
+        }
+
+        function getFreshSupplyCacheData(cache, key, options = {}) {
+            const { persist = true } = options;
+            let entry = cache.get(key);
+            if ((!entry || !entry.data) && persist) {
+                const stored = readSupplyCacheStorage(key);
+                if (stored && stored.data) {
+                    cache.set(key, { data: stored.data, ts: stored.ts || 0, promise: null });
+                    entry = cache.get(key);
+                }
+            }
+            if (!entry || !entry.data) return null;
+            const isFresh = (Date.now() - Number(entry.ts || 0)) <= SUPPLY_CACHE_TTL_MS;
+            if (!isFresh && persist) {
+                deleteSupplyCacheStorage(key);
+            }
+            return isFresh ? entry.data : null;
+        }
+
+        function getSupplyCachedResource(cache, key, loader, options = {}) {
+            const { persist = true } = options;
             const entry = cache.get(key);
             const fresh = entry && entry.data && (Date.now() - Number(entry.ts || 0)) <= SUPPLY_CACHE_TTL_MS;
             if (fresh) {
                 return Promise.resolve(entry.data);
+            }
+            if ((!entry || !entry.data) && persist) {
+                const stored = getFreshSupplyCacheData(cache, key, { persist });
+                if (stored) {
+                    return Promise.resolve(stored);
+                }
             }
             if (entry && entry.promise) {
                 return entry.promise;
@@ -6464,13 +6512,22 @@
                 .then(loader)
                 .then(data => {
                     cache.set(key, { data, ts: Date.now(), promise: null });
+                    if (persist) {
+                        writeSupplyCacheStorage(key, data, Date.now());
+                    }
                     return data;
                 })
                 .catch(error => {
                     if (entry && entry.data) {
                         cache.set(key, { data: entry.data, ts: entry.ts, promise: null });
+                        if (persist) {
+                            writeSupplyCacheStorage(key, entry.data, entry.ts);
+                        }
                     } else {
                         cache.delete(key);
+                        if (persist) {
+                            deleteSupplyCacheStorage(key);
+                        }
                     }
                     throw error;
                 });
@@ -7151,7 +7208,11 @@
                 <span>${isCurrentTail ? 'Current supply' : `Supply on ${supplyFormatDateLabel(last.timestamp)}`}</span>
                 <span class="supply-history-delta-note" style="color:${absoluteDelta >= 0 ? '#86efac' : '#fca5a5'}">${deltaLabel}${supplyFormatTokenCompact(Math.abs(absoluteDelta))} over ${windowLabel}</span>
             `;
-            meta.textContent = `Netflow reconstruction from ${supplyFormatFullDate(points[0].timestamp)} to ${supplyFormatFullDate(points[points.length - 1].timestamp)}. Hover for exact values and drag to zoom into a custom window.`;
+            if (historyStage === 'recent') {
+                meta.textContent = `Recent ${SUPPLY_ACTIVITY_DEFAULT_DAYS}-day netflow preview. The full-history reconstruction is still loading in the background.`;
+            } else {
+                meta.textContent = `Netflow reconstruction from ${supplyFormatFullDate(points[0].timestamp)} to ${supplyFormatFullDate(points[points.length - 1].timestamp)}. Hover for exact values and drag to zoom into a custom window.`;
+            }
 
             const tooltip = document.getElementById('supply-history-tooltip');
             const tooltipDate = tooltip ? tooltip.querySelector('.supply-history-tooltip-date') : null;
@@ -8177,7 +8238,7 @@
             const flowHistoryKey = `${chain}:${tokenId}:flow:all`;
             const cachedSuppliers = getFreshSupplyCacheData(supplySuppliersCache, supplierCacheKey);
             const cachedRecentActivity = getFreshSupplyCacheData(supplyRecentActivityCache, recentActivityKey);
-            const cachedFullActivity = getFreshSupplyCacheData(supplyFullActivityCache, fullActivityKey);
+            const cachedFullActivity = getFreshSupplyCacheData(supplyFullActivityCache, fullActivityKey, { persist: false });
             const cachedFullFlow = getFreshSupplyCacheData(supplyFlowHistoryCache, flowHistoryKey);
             const activityLoadingEl = document.getElementById('supply-activity-loading');
             const priceUsd = currentSupplyOraclePrices[tokenId] || 0;
@@ -8185,6 +8246,7 @@
             let overviewReady = false;
             const pendingOverviewFns = [];
             let fullActivityHydrationStarted = false;
+            let fullFlowHydrationStarted = false;
 
             loader.style.display = 'block';
             loader.innerHTML = `<div class="loading-spinner"></div><div style="margin-top:12px; color:var(--text-muted); font-size:13px;">Fetching suppliers...</div>`;
@@ -8292,7 +8354,17 @@
                     if (currentSupplyOverview.activityStage === 'full') return;
                     currentSupplyActivity = activityHistory?.rows || [];
                     currentSupplyOverview.activityStage = 'recent';
+                    if (currentSupplyOverview.historyStage !== 'full') {
+                        currentSupplyOverview.historyPoints = buildSupplyHistorySeries(
+                            currentSupplyOverview.supply,
+                            activityHistory?.deposits || [],
+                            activityHistory?.withdrawals || []
+                        );
+                        currentSupplyOverview.historyStage = currentSupplyOverview.historyPoints.length >= 2 ? 'recent' : 'loading';
+                        renderSupplyIntelOverview();
+                    }
                     renderSupplyActivityTable();
+                    startFullFlowHydration();
                     startFullActivityHydration();
                 });
             };
@@ -8319,6 +8391,41 @@
                 });
             };
 
+            const startFullFlowHydration = () => {
+                if (fullFlowHydrationStarted) return;
+                fullFlowHydrationStarted = true;
+                if (cachedFullFlow) {
+                    applyFullFlow(cachedFullFlow);
+                    return;
+                }
+                const beginHydration = () => {
+                    getSupplyCachedResource(
+                        supplyFlowHistoryCache,
+                        flowHistoryKey,
+                        () => fetchSupplyFlowHistory(endpoint, tokenId, null),
+                        { persist: true }
+                    )
+                        .then(flowHistory => {
+                            if (requestId !== supplyTabRequestId) return;
+                            applyFullFlow(flowHistory);
+                        })
+                        .catch(err => {
+                            if (requestId !== supplyTabRequestId) return;
+                            console.error('Full flow history err', err);
+                            onOverviewReady(() => {
+                                if (requestId !== supplyTabRequestId || !currentSupplyOverview) return;
+                                currentSupplyOverview.historyStage = currentSupplyOverview.historyPoints.length >= 2 ? currentSupplyOverview.historyStage : 'error';
+                                renderSupplyIntelOverview();
+                            });
+                        });
+                };
+                if (typeof window.requestIdleCallback === 'function') {
+                    window.requestIdleCallback(beginHydration, { timeout: 900 });
+                } else {
+                    setTimeout(beginHydration, 220);
+                }
+            };
+
             const recentActivityPromise = cachedFullActivity
                 ? Promise.resolve(cachedFullActivity)
                 : getSupplyCachedResource(supplyRecentActivityCache, recentActivityKey, () => fetchSupplyActivityHistory(endpoint, tokenId, sinceTs, (totalEvents, doneEntities, isDone) => {
@@ -8331,18 +8438,13 @@
                             <div style="margin-top:4px; font-size:11px; color:rgba(255,255,255,0.35);">${entitiesText}</div>
                         </div>
                     `;
-                }));
-
-            const fullFlowPromise = getSupplyCachedResource(
-                supplyFlowHistoryCache,
-                flowHistoryKey,
-                () => fetchSupplyFlowHistory(endpoint, tokenId, null)
-            );
+                }), { persist: true });
 
             const supplierPromise = getSupplyCachedResource(
                 supplySuppliersCache,
                 supplierCacheKey,
-                () => fetchAllSupplySuppliers(endpoint, tokenId)
+                () => fetchAllSupplySuppliers(endpoint, tokenId),
+                { persist: true }
             );
 
             const startFullActivityHydration = () => {
@@ -8356,7 +8458,8 @@
                     getSupplyCachedResource(
                         supplyFullActivityCache,
                         fullActivityKey,
-                        () => fetchSupplyActivityHistory(endpoint, tokenId, null)
+                        () => fetchSupplyActivityHistory(endpoint, tokenId, null),
+                        { persist: false }
                     )
                         .then(history => {
                             if (requestId !== supplyTabRequestId) return;
@@ -8395,6 +8498,7 @@
                 .then(supplierPars => {
                     if (requestId !== supplyTabRequestId) return;
                     buildOverviewFromSuppliers(supplierPars);
+                    startFullFlowHydration();
                 })
                 .catch(e => {
                     console.error('Supply fetch err (suppliers)', e);
@@ -8426,21 +8530,6 @@
                         activityLoadingEl.innerHTML = `<div style="color:#fbbf24; font-weight:500; font-size:13px; padding:16px;">Recent activity could not be loaded. Try this market again in a moment.</div>`;
                         activityLoadingEl.style.display = 'block';
                     }
-                });
-
-            fullFlowPromise
-                .then(flowHistory => {
-                    if (requestId !== supplyTabRequestId) return;
-                    applyFullFlow(flowHistory);
-                })
-                .catch(err => {
-                    if (requestId !== supplyTabRequestId) return;
-                    console.error('Full flow history err', err);
-                    onOverviewReady(() => {
-                        if (requestId !== supplyTabRequestId || !currentSupplyOverview) return;
-                        currentSupplyOverview.historyStage = 'error';
-                        renderSupplyIntelOverview();
-                    });
                 });
         }
 
