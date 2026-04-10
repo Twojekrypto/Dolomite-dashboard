@@ -3327,6 +3327,11 @@
                     border: 1px solid rgba(255,255,255,0.05);
                     overflow: hidden;
                     box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+                    cursor: crosshair;
+                    touch-action: none;
+                }
+                .supply-history-chart.is-dragging {
+                    cursor: ew-resize;
                 }
                 .supply-history-gridline {
                     position: absolute;
@@ -3339,6 +3344,8 @@
                     width: 100%;
                     height: 100%;
                     display: block;
+                    user-select: none;
+                    -webkit-user-select: none;
                 }
                 .supply-history-tooltip {
                     position: absolute;
@@ -3378,46 +3385,30 @@
                     align-items: center;
                     gap: 14px;
                     flex-wrap: wrap;
-                    margin-top: 12px;
-                }
-                .supply-history-ranges {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    flex-wrap: wrap;
-                }
-                .supply-history-range-chip {
-                    appearance: none;
-                    border: 1px solid rgba(255,255,255,0.08);
-                    background: rgba(255,255,255,0.035);
-                    color: rgba(226,232,240,0.66);
-                    height: 32px;
-                    padding: 0 12px;
-                    border-radius: 999px;
-                    font-size: 11px;
-                    font-weight: 700;
-                    letter-spacing: 0.04em;
-                    cursor: pointer;
-                    transition: all 0.2s ease;
-                }
-                .supply-history-range-chip:hover {
-                    border-color: rgba(255,255,255,0.16);
-                    color: #fff;
-                }
-                .supply-history-range-chip.active {
-                    background: rgba(34,211,238,0.12);
-                    border-color: rgba(34,211,238,0.34);
-                    color: #cffafe;
-                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 0 16px rgba(34,211,238,0.12);
+                    margin: 0 0 12px;
                 }
                 .supply-history-custom {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 8px;
+                    flex-wrap: wrap;
+                    width: 100%;
+                    color: rgba(226,232,240,0.64);
+                    font-size: 11px;
+                }
+                .supply-history-hint {
+                    color: rgba(148,163,184,0.76);
+                    font-size: 11px;
+                    letter-spacing: 0.02em;
+                }
+                .supply-history-date-group {
                     display: flex;
                     align-items: center;
                     justify-content: flex-end;
                     gap: 8px;
                     flex-wrap: wrap;
-                    color: rgba(226,232,240,0.64);
-                    font-size: 11px;
+                    margin-left: auto;
                 }
                 .supply-history-date-input {
                     min-width: 134px;
@@ -3676,6 +3667,10 @@
                     .supply-history-custom {
                         justify-content: flex-start;
                     }
+                    .supply-history-date-group {
+                        justify-content: flex-start;
+                        margin-left: 0;
+                    }
                     .supply-history-date-input {
                         min-width: 120px;
                     }
@@ -3769,23 +3764,19 @@
                         </div>
                         <div class="supply-history-delta" id="supply-history-delta"></div>
                     </div>
-                    <div id="supply-history-chart" class="supply-history-chart"></div>
-                    <div id="supply-history-axis" class="supply-history-axis"></div>
                     <div class="supply-history-controls">
-                        <div class="supply-history-ranges" id="supply-history-ranges">
-                            <button class="supply-history-range-chip" data-range="30d" onclick="setSupplyHistoryRange('30d')">30D</button>
-                            <button class="supply-history-range-chip" data-range="90d" onclick="setSupplyHistoryRange('90d')">90D</button>
-                            <button class="supply-history-range-chip" data-range="180d" onclick="setSupplyHistoryRange('180d')">180D</button>
-                            <button class="supply-history-range-chip" data-range="1y" onclick="setSupplyHistoryRange('1y')">1Y</button>
-                            <button class="supply-history-range-chip active" data-range="all" onclick="setSupplyHistoryRange('all')">ALL</button>
-                        </div>
                         <div class="supply-history-custom">
-                            <span>From</span>
-                            <input type="date" id="supply-history-from" class="supply-history-date-input">
-                            <span>To</span>
-                            <input type="date" id="supply-history-to" class="supply-history-date-input">
+                            <span class="supply-history-hint">Drag on chart to zoom. Double-click to reset.</span>
+                            <div class="supply-history-date-group">
+                                <span>From</span>
+                                <input type="date" id="supply-history-from" class="supply-history-date-input">
+                                <span>To</span>
+                                <input type="date" id="supply-history-to" class="supply-history-date-input">
+                            </div>
                         </div>
                     </div>
+                    <div id="supply-history-chart" class="supply-history-chart"></div>
+                    <div id="supply-history-axis" class="supply-history-axis"></div>
                 </div>
             </div>
 
@@ -6193,13 +6184,6 @@
         let supplyHistoryCustomTo = null;
         let supplyTabRequestId = 0;
         const SUPPLY_ACTIVITY_PAGE_SIZE = 12;
-        const SUPPLY_HISTORY_RANGE_PRESETS = {
-            '30d': { label: '30D', days: 30 },
-            '90d': { label: '90D', days: 90 },
-            '180d': { label: '180D', days: 180 },
-            '1y': { label: '1Y', days: 365 },
-            'all': { label: 'ALL', days: null },
-        };
         let supplyActivityFilters = new Set(['deposit', 'withdraw', 'transfer', 'liquidation']);
 
         const SUPPLY_ACTIVITY_META = {
@@ -6461,20 +6445,10 @@
                     label: 'custom range',
                 };
             }
-
-            const preset = SUPPLY_HISTORY_RANGE_PRESETS[supplyHistoryRange] || SUPPLY_HISTORY_RANGE_PRESETS.all;
-            if (!preset.days) {
-                return {
-                    startTs: firstTs,
-                    endTs: lastTs,
-                    label: 'full history',
-                };
-            }
-
             return {
-                startTs: Math.max(firstTs, lastTs - (preset.days * 24 * 60 * 60)),
+                startTs: firstTs,
                 endTs: lastTs,
-                label: `last ${preset.label}`,
+                label: 'full history',
             };
         }
 
@@ -6504,9 +6478,6 @@
         }
 
         function syncSupplyHistoryControls(points) {
-            const buttons = document.querySelectorAll('#supply-history-ranges .supply-history-range-chip');
-            buttons.forEach(button => button.classList.toggle('active', button.dataset.range === supplyHistoryRange));
-
             const fromInput = document.getElementById('supply-history-from');
             const toInput = document.getElementById('supply-history-to');
             if (!fromInput || !toInput) return;
@@ -6518,15 +6489,15 @@
                 return;
             }
 
+            if (supplyHistoryRange === 'custom') {
+                fromInput.value = supplyHistoryDateInputValue(supplyHistoryCustomFrom);
+                toInput.value = supplyHistoryDateInputValue(supplyHistoryCustomTo);
+                return;
+            }
+
             const window = getSupplyHistoryWindow(safePoints);
             fromInput.value = supplyHistoryDateInputValue(window.startTs);
             toInput.value = supplyHistoryDateInputValue(window.endTs);
-        }
-
-        function setSupplyHistoryRange(range) {
-            if (!SUPPLY_HISTORY_RANGE_PRESETS[range]) return;
-            supplyHistoryRange = range;
-            renderSupplyIntelOverview();
         }
 
         function applySupplyHistoryCustomRange() {
@@ -6955,6 +6926,7 @@
                     ${yLabels}
                     <path d="${areaPath}" fill="url(#supplyAreaGradient)"></path>
                     <path d="${linePath}" fill="none" stroke="#34d399" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" filter="url(#supplyGlow)"></path>
+                    <rect id="supply-history-zoom-rect" x="0" y="${padTop}" width="0" height="${innerH}" fill="rgba(34,211,238,0.12)" stroke="rgba(34,211,238,0.45)" stroke-width="1.5" opacity="0"></rect>
                     <line id="supply-history-hover-line" x1="0" y1="${padTop}" x2="0" y2="${height - padBottom}" stroke="rgba(255,255,255,0.22)" stroke-width="1.5" stroke-dasharray="4 5" opacity="0"></line>
                     <circle id="supply-history-hover-halo" cx="0" cy="0" r="10" fill="rgba(52,211,153,0.16)" opacity="0"></circle>
                     <circle id="supply-history-hover-dot" cx="0" cy="0" r="4.5" fill="#34d399" stroke="#ecfeff" stroke-width="2" opacity="0"></circle>
@@ -6979,20 +6951,49 @@
                 <span>${isCurrentTail ? 'Current supply' : `Supply on ${supplyFormatDateLabel(last.timestamp)}`}</span>
                 <span class="supply-history-delta-note" style="color:${absoluteDelta >= 0 ? '#86efac' : '#fca5a5'}">${deltaLabel}${supplyFormatTokenCompact(Math.abs(absoluteDelta))} over ${windowLabel}</span>
             `;
-            meta.textContent = `Netflow reconstruction from ${supplyFormatFullDate(points[0].timestamp)} to ${supplyFormatFullDate(points[points.length - 1].timestamp)}. Hover the line for exact readings.`;
+            meta.textContent = `Netflow reconstruction from ${supplyFormatFullDate(points[0].timestamp)} to ${supplyFormatFullDate(points[points.length - 1].timestamp)}. Drag to zoom or adjust the dates above the chart.`;
 
             const tooltip = document.getElementById('supply-history-tooltip');
             const tooltipDate = tooltip ? tooltip.querySelector('.supply-history-tooltip-date') : null;
             const tooltipValue = tooltip ? tooltip.querySelector('.supply-history-tooltip-value') : null;
+            const zoomRect = document.getElementById('supply-history-zoom-rect');
             const hoverLine = document.getElementById('supply-history-hover-line');
             const hoverHalo = document.getElementById('supply-history-hover-halo');
             const hoverDot = document.getElementById('supply-history-hover-dot');
+            let zoomStartIndex = null;
+            let zoomCurrentIndex = null;
+            let zoomPointerId = null;
 
             function hideHover() {
                 if (hoverLine) hoverLine.setAttribute('opacity', '0');
                 if (hoverHalo) hoverHalo.setAttribute('opacity', '0');
                 if (hoverDot) hoverDot.setAttribute('opacity', '0');
                 if (tooltip) tooltip.classList.remove('visible');
+            }
+
+            function hideZoomSelection() {
+                if (zoomRect) zoomRect.setAttribute('opacity', '0');
+            }
+
+            function getNearestIndex(clientX) {
+                const rect = chart.getBoundingClientRect();
+                const relativeX = ((clientX - rect.left) / rect.width) * width;
+                if (!Number.isFinite(relativeX)) return null;
+                const clampedX = Math.max(padLeft, Math.min(width - padRight, relativeX));
+                const ratio = (clampedX - padLeft) / innerW;
+                return Math.max(0, Math.min(visiblePoints.length - 1, Math.round(ratio * (visiblePoints.length - 1))));
+            }
+
+            function updateZoomSelection() {
+                if (zoomStartIndex == null || zoomCurrentIndex == null || !zoomRect) return;
+                const leftIndex = Math.min(zoomStartIndex, zoomCurrentIndex);
+                const rightIndex = Math.max(zoomStartIndex, zoomCurrentIndex);
+                const leftPoint = pathPoints[leftIndex];
+                const rightPoint = pathPoints[rightIndex];
+                if (!leftPoint || !rightPoint) return;
+                zoomRect.setAttribute('x', leftPoint.x.toFixed(2));
+                zoomRect.setAttribute('width', Math.max(1, rightPoint.x - leftPoint.x).toFixed(2));
+                zoomRect.setAttribute('opacity', '1');
             }
 
             function showHover(index) {
@@ -7025,18 +7026,83 @@
                 tooltip.classList.add('visible');
             }
 
-            chart.onmousemove = event => {
-                const rect = chart.getBoundingClientRect();
-                const relativeX = ((event.clientX - rect.left) / rect.width) * width;
-                if (relativeX < padLeft || relativeX > (width - padRight)) {
+            chart.onpointerdown = event => {
+                if (event.button !== 0) return;
+                const index = getNearestIndex(event.clientX);
+                if (index == null) return;
+                zoomStartIndex = index;
+                zoomCurrentIndex = index;
+                zoomPointerId = event.pointerId;
+                chart.classList.add('is-dragging');
+                hideHover();
+                updateZoomSelection();
+                if (typeof chart.setPointerCapture === 'function') {
+                    chart.setPointerCapture(event.pointerId);
+                }
+            };
+
+            chart.onpointermove = event => {
+                const index = getNearestIndex(event.clientX);
+                if (index == null) {
                     hideHover();
                     return;
                 }
-                const ratio = (relativeX - padLeft) / innerW;
-                const index = Math.max(0, Math.min(visiblePoints.length - 1, Math.round(ratio * (visiblePoints.length - 1))));
+                if (zoomStartIndex != null) {
+                    zoomCurrentIndex = index;
+                    updateZoomSelection();
+                    return;
+                }
                 showHover(index);
             };
-            chart.onmouseleave = hideHover;
+
+            chart.onpointerup = event => {
+                if (zoomStartIndex == null) {
+                    hideHover();
+                    return;
+                }
+                const startIndex = zoomStartIndex;
+                const endIndex = zoomCurrentIndex != null ? zoomCurrentIndex : startIndex;
+                zoomStartIndex = null;
+                zoomCurrentIndex = null;
+                chart.classList.remove('is-dragging');
+                hideZoomSelection();
+                hideHover();
+                if (zoomPointerId != null && typeof chart.releasePointerCapture === 'function') {
+                    try { chart.releasePointerCapture(zoomPointerId); } catch (_) {}
+                }
+                zoomPointerId = null;
+
+                const leftIndex = Math.min(startIndex, endIndex);
+                const rightIndex = Math.max(startIndex, endIndex);
+                if ((rightIndex - leftIndex) < 2) return;
+
+                supplyHistoryCustomFrom = Number(visiblePoints[leftIndex]?.timestamp || 0) || null;
+                supplyHistoryCustomTo = Number(visiblePoints[rightIndex]?.timestamp || 0) || null;
+                supplyHistoryRange = 'custom';
+                renderSupplyIntelOverview();
+            };
+
+            chart.onpointerleave = () => {
+                if (zoomStartIndex == null) {
+                    hideHover();
+                }
+            };
+
+            chart.onpointercancel = () => {
+                zoomStartIndex = null;
+                zoomCurrentIndex = null;
+                zoomPointerId = null;
+                chart.classList.remove('is-dragging');
+                hideZoomSelection();
+                hideHover();
+            };
+
+            chart.ondblclick = () => {
+                supplyHistoryRange = 'all';
+                supplyHistoryCustomFrom = null;
+                supplyHistoryCustomTo = null;
+                renderSupplyIntelOverview();
+            };
         }
 
         function renderSupplyIntelOverview() {
