@@ -4277,6 +4277,17 @@
                 document.getElementById('table-footer').style.display = 'flex';
                 lastFetchTime = Date.now();
                 updateRefreshBar();
+                const initialSupplyChain = document.getElementById('supply-chain-select')?.value || 'ethereum';
+                const warmSupply = () => {
+                    prefetchSupplyChainBundle(initialSupplyChain).then(() => {
+                        warmOtherSupplyChains(initialSupplyChain);
+                    });
+                };
+                if (typeof window.requestIdleCallback === 'function') {
+                    window.requestIdleCallback(warmSupply, { timeout: 1600 });
+                } else {
+                    setTimeout(warmSupply, 260);
+                }
             } catch (e) {
                 document.getElementById('loading-state').innerHTML = `
                     <div class="emoji" style="font-size:40px; margin-bottom:12px;">⚠️</div>
@@ -6426,6 +6437,7 @@
         const supplyRecentActivityCache = new Map();
         const supplyFullActivityCache = new Map();
         const supplyFlowHistoryCache = new Map();
+        let supplyBackgroundWarmStarted = false;
         let supplyActivityPage = 1;
         let supplyActivitySearchQuery = '';
         let supplyActivitySortField = 'time';
@@ -8293,6 +8305,26 @@
             xlayer: `${DOLOMITE_SUPPLY_BASE}/dolomite-x-layer/latest/gn`,
             polygon_zkevm: `${DOLOMITE_SUPPLY_BASE}/dolomite-polygon-zkevm/latest/gn`
         };
+        const SUPPLY_CHAIN_BUNDLE_QUERY = `{
+            tokens(first: 100, where:{marketId_not: null}, orderBy: marketId) {
+                id
+                symbol
+                name
+                decimals
+                marketId
+                supplyLiquidity
+                supplyLiquidityUSD
+                borrowLiquidity
+                borrowLiquidityUSD
+                riskInfo {
+                    supplyMaxWei
+                    borrowMaxWei
+                    isBorrowingDisabled
+                }
+            }
+            oraclePrices(first: 100) { token { id } price }
+            interestIndexes(first: 100) { token { id } supplyIndex borrowIndex }
+        }`;
 
         let currentSupplyTokensMap = {};
 
@@ -8581,6 +8613,40 @@
             }
         }
 
+        function prefetchSupplyChainBundle(chain) {
+            if (!chain || !DOLOMITE_MINI_GRAPHS[chain]) return Promise.resolve(null);
+            const bundleCacheKey = `${chain}:bundle`;
+            return getSupplyCachedResource(
+                supplyChainBundleCache,
+                bundleCacheKey,
+                () => doGraphQuery(DOLOMITE_MINI_GRAPHS[chain], SUPPLY_CHAIN_BUNDLE_QUERY),
+                { persist: true }
+            ).then(bundle => {
+                const defaultAsset = getSupplyDefaultAsset(bundle?.tokens || []);
+                if (defaultAsset && defaultAsset.id) {
+                    prefetchSupplyAssetData(chain, defaultAsset.id);
+                }
+                return bundle;
+            }).catch(() => null);
+        }
+
+        function warmOtherSupplyChains(activeChain) {
+            if (supplyBackgroundWarmStarted) return;
+            supplyBackgroundWarmStarted = true;
+            const chains = Object.keys(DOLOMITE_MINI_GRAPHS).filter(chain => chain !== activeChain);
+            const runWarm = async () => {
+                for (const chain of chains) {
+                    await prefetchSupplyChainBundle(chain);
+                    await new Promise(resolve => setTimeout(resolve, 220));
+                }
+            };
+            if (typeof window.requestIdleCallback === 'function') {
+                window.requestIdleCallback(() => { runWarm(); }, { timeout: 1200 });
+            } else {
+                setTimeout(runWarm, 220);
+            }
+        }
+
         async function onSupplyChainChange() {
             const chain = document.getElementById('supply-chain-select').value;
             const requestId = ++supplyChainRequestId;
@@ -8606,28 +8672,6 @@
             selector.style.opacity = '0.5';
             document.getElementById('supply-asset-select').value = '';
             document.getElementById('supply-table').style.display = 'none';
-            
-            // Enriched query: fetch token details + oracle prices + interest indexes in ONE call
-            const q = `{
-                tokens(first: 100, where:{marketId_not: null}, orderBy: marketId) {
-                    id
-                    symbol
-                    name
-                    decimals
-                    marketId
-                    supplyLiquidity
-                    supplyLiquidityUSD
-                    borrowLiquidity
-                    borrowLiquidityUSD
-                    riskInfo {
-                        supplyMaxWei
-                        borrowMaxWei
-                        isBorrowingDisabled
-                    }
-                }
-                oraclePrices(first: 100) { token { id } price }
-                interestIndexes(first: 100) { token { id } supplyIndex borrowIndex }
-            }`;
 
             const applyBundleToUi = (bundle, options = {}) => {
                 const { allowAutoSelect = true } = options;
@@ -8662,10 +8706,11 @@
                 const data = await getSupplyCachedResource(
                     supplyChainBundleCache,
                     bundleCacheKey,
-                    () => doGraphQuery(DOLOMITE_MINI_GRAPHS[chain], q),
+                    () => doGraphQuery(DOLOMITE_MINI_GRAPHS[chain], SUPPLY_CHAIN_BUNDLE_QUERY),
                     { persist: true }
                 );
                 applyBundleToUi(data, { allowAutoSelect: !cachedBundle });
+                warmOtherSupplyChains(chain);
             } catch (e) {
                 if (requestId !== supplyChainRequestId) return;
                 assetText.textContent = 'Error loading markets';
