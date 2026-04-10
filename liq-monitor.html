@@ -3316,6 +3316,12 @@
                     font-size: 11px;
                     color: rgba(226,232,240,0.64);
                 }
+                .supply-history-hint-group {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    flex-wrap: wrap;
+                }
                 .supply-history-chart {
                     position: relative;
                     height: 304px;
@@ -3402,6 +3408,28 @@
                     font-size: 11px;
                     letter-spacing: 0.02em;
                 }
+                .supply-history-zoom-badge {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    padding: 6px 10px;
+                    border-radius: 999px;
+                    border: 1px solid rgba(34,211,238,0.18);
+                    background: rgba(34,211,238,0.10);
+                    color: rgba(186,230,253,0.92);
+                    font-size: 10px;
+                    font-weight: 700;
+                    letter-spacing: 0.08em;
+                    text-transform: uppercase;
+                    opacity: 0;
+                    transform: translateY(4px);
+                    pointer-events: none;
+                    transition: opacity 0.18s ease, transform 0.18s ease;
+                }
+                .supply-history-zoom-badge.visible {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
                 .supply-history-date-group {
                     display: flex;
                     align-items: center;
@@ -3409,6 +3437,9 @@
                     gap: 8px;
                     flex-wrap: wrap;
                     margin-left: auto;
+                }
+                .supply-history-chart.is-dragging {
+                    cursor: crosshair;
                 }
                 .supply-history-reset-btn {
                     display: inline-flex;
@@ -3794,7 +3825,10 @@
                     </div>
                     <div class="supply-history-controls">
                         <div class="supply-history-custom">
-                            <span class="supply-history-hint">Drag on chart to zoom. Double-click to reset.</span>
+                            <div class="supply-history-hint-group">
+                                <span class="supply-history-hint">Drag on chart to zoom. Double-click to reset.</span>
+                                <span id="supply-history-zoom-badge" class="supply-history-zoom-badge"></span>
+                            </div>
                             <div class="supply-history-date-group">
                                 <span>From</span>
                                 <input type="date" id="supply-history-from" class="supply-history-date-input">
@@ -6198,6 +6232,11 @@
         let supplySortAsc = false;
         let currentSupplyOverview = null;
         let currentSupplyActivity = [];
+        const SUPPLY_CACHE_TTL_MS = 5 * 60 * 1000;
+        const supplySuppliersCache = new Map();
+        const supplyRecentActivityCache = new Map();
+        const supplyFullActivityCache = new Map();
+        const supplyFlowHistoryCache = new Map();
         let supplyActivityPage = 1;
         let supplyActivitySearchQuery = '';
         let supplyActivitySortField = 'time';
@@ -6274,7 +6313,16 @@
             const token = currentSupplyOverview?.token?.symbol || (currentSupplyTokensMap[document.getElementById('supply-asset-select')?.value]?.symbol || 'the selected market');
             const chainName = CHAIN_DISPLAY_NAMES[document.getElementById('supply-chain-select')?.value] || document.getElementById('supply-chain-select')?.value || '';
             if (!subtitle) return;
-            subtitle.textContent = `Deposits, withdrawals, transfers, and liquidations for ${token} on ${chainName} · last ${SUPPLY_ACTIVITY_DEFAULT_DAYS} days.`;
+            const activityStage = currentSupplyOverview?.activityStage || 'loading';
+            if (activityStage === 'full') {
+                subtitle.textContent = `Full deposit, withdrawal, transfer, and liquidation history for ${token} on ${chainName}.`;
+                return;
+            }
+            if (activityStage === 'recent') {
+                subtitle.textContent = `Recent activity for ${token} on ${chainName} is ready now · deeper history is still filling in the background.`;
+                return;
+            }
+            subtitle.textContent = `Recent activity for ${token} on ${chainName} is warming up first so the table appears faster.`;
         }
 
         function supplyEscapeHtml(value) {
@@ -6355,6 +6403,79 @@
                 day: 'numeric',
                 year: 'numeric',
             }).format(new Date(ts * 1000));
+        }
+
+        function supplyFormatShortRange(startTs, endTs) {
+            const start = Number(startTs || 0);
+            const end = Number(endTs || 0);
+            if (!Number.isFinite(start) || !Number.isFinite(end) || start <= 0 || end <= 0) return 'Full history';
+            const startDate = new Date(start * 1000);
+            const endDate = new Date(end * 1000);
+            const sameYear = startDate.getFullYear() === endDate.getFullYear();
+            const sameMonth = sameYear && startDate.getMonth() === endDate.getMonth();
+            const startFmt = new Intl.DateTimeFormat('en-US', {
+                month: 'short',
+                day: 'numeric',
+                ...(sameYear ? {} : { year: 'numeric' }),
+            }).format(startDate);
+            const endFmt = new Intl.DateTimeFormat('en-US', sameMonth
+                ? {
+                    day: 'numeric',
+                    year: 'numeric',
+                }
+                : {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                }).format(endDate);
+            return `${startFmt} - ${endFmt}`;
+        }
+
+        function updateSupplyHistoryZoomBadge(points) {
+            const badge = document.getElementById('supply-history-zoom-badge');
+            if (!badge) return;
+            const safePoints = Array.isArray(points) ? points : [];
+            if (supplyHistoryRange !== 'custom' || safePoints.length === 0) {
+                badge.textContent = '';
+                badge.classList.remove('visible');
+                return;
+            }
+            const window = getSupplyHistoryWindow(safePoints);
+            badge.textContent = `Zoomed: ${supplyFormatShortRange(window.startTs, window.endTs)}`;
+            badge.classList.add('visible');
+        }
+
+        function getFreshSupplyCacheData(cache, key) {
+            const entry = cache.get(key);
+            if (!entry || !entry.data) return null;
+            return (Date.now() - Number(entry.ts || 0)) <= SUPPLY_CACHE_TTL_MS ? entry.data : null;
+        }
+
+        function getSupplyCachedResource(cache, key, loader) {
+            const entry = cache.get(key);
+            const fresh = entry && entry.data && (Date.now() - Number(entry.ts || 0)) <= SUPPLY_CACHE_TTL_MS;
+            if (fresh) {
+                return Promise.resolve(entry.data);
+            }
+            if (entry && entry.promise) {
+                return entry.promise;
+            }
+            const promise = Promise.resolve()
+                .then(loader)
+                .then(data => {
+                    cache.set(key, { data, ts: Date.now(), promise: null });
+                    return data;
+                })
+                .catch(error => {
+                    if (entry && entry.data) {
+                        cache.set(key, { data: entry.data, ts: entry.ts, promise: null });
+                    } else {
+                        cache.delete(key);
+                    }
+                    throw error;
+                });
+            cache.set(key, { data: entry?.data || null, ts: entry?.ts || 0, promise });
+            return promise;
         }
 
         function supplyHistoryDateInputValue(timestamp) {
@@ -6517,6 +6638,7 @@
                 fromInput.value = '';
                 toInput.value = '';
                 if (resetBtn) resetBtn.classList.remove('visible');
+                updateSupplyHistoryZoomBadge([]);
                 return;
             }
 
@@ -6524,6 +6646,7 @@
                 fromInput.value = supplyHistoryDateInputValue(supplyHistoryCustomFrom);
                 toInput.value = supplyHistoryDateInputValue(supplyHistoryCustomTo);
                 if (resetBtn) resetBtn.classList.add('visible');
+                updateSupplyHistoryZoomBadge(safePoints);
                 return;
             }
 
@@ -6531,6 +6654,7 @@
             fromInput.value = supplyHistoryDateInputValue(window.startTs);
             toInput.value = supplyHistoryDateInputValue(window.endTs);
             if (resetBtn) resetBtn.classList.remove('visible');
+            updateSupplyHistoryZoomBadge(safePoints);
         }
 
         function resetSupplyHistoryZoom() {
@@ -6758,7 +6882,7 @@
                 icon.onerror = () => { icon.src = 'dolomite-logo.svg'; };
             }
             if (title) title.textContent = symbol + ' · ' + (CHAIN_DISPLAY_NAMES[chain] || chain);
-            if (subtitle) subtitle.textContent = 'Fetching live liquidity, supplier breadth, and full market activity...';
+            if (subtitle) subtitle.textContent = 'Fetching supplier breadth now and warming the long-range market history in the background...';
             if (asof) asof.textContent = 'Refreshing selected market';
             if (stats) {
                 stats.innerHTML = Array.from({ length: 4 }).map(() => `
@@ -6769,7 +6893,7 @@
                     </div>
                 `).join('');
             }
-            if (chart) chart.innerHTML = '<div class="supply-intel-empty">Reconstructing full supply path...</div>';
+            if (chart) chart.innerHTML = '<div class="supply-intel-empty">Reconstructing the full supply path from first recorded flows...</div>';
             if (axis) axis.innerHTML = '';
             if (shell) shell.style.display = 'block';
         }
@@ -6890,8 +7014,33 @@
             const meta = document.getElementById('supply-history-meta');
             if (!chart || !axis || !delta || !meta) return;
 
+            const historyStage = currentSupplyOverview?.historyStage || (Array.isArray(points) && points.length >= 2 ? 'full' : 'loading');
             const visiblePoints = getVisibleSupplyHistoryPoints(points || []);
             syncSupplyHistoryControls(points || []);
+
+            if ((!points || points.length < 2 || visiblePoints.length < 2) && historyStage === 'loading') {
+                chart.innerHTML = '<div class="supply-intel-empty">Loading full history from the first recorded deposits and withdrawals...</div>';
+                axis.innerHTML = '';
+                delta.innerHTML = `
+                    <strong style="color:#e2e8f0">—</strong>
+                    <span>Loading full history</span>
+                    <span class="supply-history-delta-note">Recent activity appears first while the long-range chart builds in the background.</span>
+                `;
+                meta.textContent = 'Full-history netflow reconstruction is still building. Hover values and zoom controls appear as soon as enough history is ready.';
+                return;
+            }
+
+            if ((!points || points.length < 2 || visiblePoints.length < 2) && historyStage === 'error') {
+                chart.innerHTML = '<div class="supply-history-empty" style="color:#fca5a5;">Could not reconstruct the full history for this market.</div>';
+                axis.innerHTML = '';
+                delta.innerHTML = `
+                    <strong style="color:#fca5a5">—</strong>
+                    <span>History unavailable</span>
+                    <span class="supply-history-delta-note" style="color:#fca5a5">The leaderboard is still live, but the chart request failed.</span>
+                `;
+                meta.textContent = 'Try switching the market again in a moment. Cached supplier data is still available.';
+                return;
+            }
 
             if (!points || points.length < 2 || visiblePoints.length < 2) {
                 const emptyMessage = (points && points.length >= 2)
@@ -6919,6 +7068,7 @@
             const safeSpread = spread > 0 ? spread : Math.max(max * 0.02, 1);
             const innerW = width - padLeft - padRight;
             const innerH = height - padTop - padBottom;
+            const currentReferenceValue = Number(points[points.length - 1]?.value || 0);
 
             const pathPoints = visiblePoints.map((point, idx) => {
                 const x = padLeft + (innerW * idx) / Math.max(1, visiblePoints.length - 1);
@@ -6942,6 +7092,11 @@
             const yLabels = yTicks.map(tick => {
                 return `<text x="10" y="${(tick.y + 4).toFixed(2)}" fill="rgba(148,163,184,0.84)" font-size="11" font-family="Inter, sans-serif">${supplyEscapeHtml(supplyFormatTokenCompact(tick.value))}</text>`;
             }).join('');
+            const currentReferenceYRaw = height - padBottom - ((currentReferenceValue - min) / safeSpread) * innerH;
+            const currentReferenceY = Math.max(padTop + 10, Math.min(height - padBottom - 10, currentReferenceYRaw));
+            const currentLabelWidth = 132;
+            const currentLabelX = width - padRight - currentLabelWidth;
+            const currentLabelY = Math.max(padTop + 4, Math.min(height - padBottom - 24, currentReferenceY - 14));
 
             chart.innerHTML = `
                 <div class="supply-history-tooltip" id="supply-history-tooltip">
@@ -6966,6 +7121,11 @@
                     ${yLabels}
                     <path d="${areaPath}" fill="url(#supplyAreaGradient)"></path>
                     <path d="${linePath}" fill="none" stroke="#34d399" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" filter="url(#supplyGlow)"></path>
+                    <line x1="${padLeft}" y1="${currentReferenceY.toFixed(2)}" x2="${width - padRight}" y2="${currentReferenceY.toFixed(2)}" stroke="rgba(226,232,240,0.16)" stroke-width="1.5" stroke-dasharray="6 6"></line>
+                    <rect x="${currentLabelX}" y="${currentLabelY.toFixed(2)}" width="${currentLabelWidth}" height="22" rx="11" fill="rgba(8,15,30,0.78)" stroke="rgba(255,255,255,0.10)"></rect>
+                    <text x="${(currentLabelX + 11).toFixed(2)}" y="${(currentLabelY + 14.5).toFixed(2)}" fill="#e2e8f0" font-size="11" font-family="Inter, sans-serif">Current ${supplyEscapeHtml(supplyFormatTokenCompact(currentReferenceValue))}</text>
+                    <rect id="supply-history-zoom-mask-left" x="${padLeft}" y="${padTop}" width="0" height="${innerH}" fill="rgba(3,7,18,0.46)" opacity="0"></rect>
+                    <rect id="supply-history-zoom-mask-right" x="${padLeft}" y="${padTop}" width="0" height="${innerH}" fill="rgba(3,7,18,0.46)" opacity="0"></rect>
                     <rect id="supply-history-zoom-rect" x="0" y="${padTop}" width="0" height="${innerH}" fill="rgba(34,211,238,0.12)" stroke="rgba(34,211,238,0.45)" stroke-width="1.5" opacity="0"></rect>
                     <line id="supply-history-hover-line" x1="0" y1="${padTop}" x2="0" y2="${height - padBottom}" stroke="rgba(255,255,255,0.22)" stroke-width="1.5" stroke-dasharray="4 5" opacity="0"></line>
                     <circle id="supply-history-hover-halo" cx="0" cy="0" r="10" fill="rgba(52,211,153,0.16)" opacity="0"></circle>
@@ -6991,12 +7151,14 @@
                 <span>${isCurrentTail ? 'Current supply' : `Supply on ${supplyFormatDateLabel(last.timestamp)}`}</span>
                 <span class="supply-history-delta-note" style="color:${absoluteDelta >= 0 ? '#86efac' : '#fca5a5'}">${deltaLabel}${supplyFormatTokenCompact(Math.abs(absoluteDelta))} over ${windowLabel}</span>
             `;
-            meta.textContent = `Netflow reconstruction from ${supplyFormatFullDate(points[0].timestamp)} to ${supplyFormatFullDate(points[points.length - 1].timestamp)}. Drag to zoom or adjust the dates above the chart.`;
+            meta.textContent = `Netflow reconstruction from ${supplyFormatFullDate(points[0].timestamp)} to ${supplyFormatFullDate(points[points.length - 1].timestamp)}. Hover for exact values and drag to zoom into a custom window.`;
 
             const tooltip = document.getElementById('supply-history-tooltip');
             const tooltipDate = tooltip ? tooltip.querySelector('.supply-history-tooltip-date') : null;
             const tooltipValue = tooltip ? tooltip.querySelector('.supply-history-tooltip-value') : null;
             const zoomRect = document.getElementById('supply-history-zoom-rect');
+            const zoomMaskLeft = document.getElementById('supply-history-zoom-mask-left');
+            const zoomMaskRight = document.getElementById('supply-history-zoom-mask-right');
             const hoverLine = document.getElementById('supply-history-hover-line');
             const hoverHalo = document.getElementById('supply-history-hover-halo');
             const hoverDot = document.getElementById('supply-history-hover-dot');
@@ -7013,6 +7175,8 @@
 
             function hideZoomSelection() {
                 if (zoomRect) zoomRect.setAttribute('opacity', '0');
+                if (zoomMaskLeft) zoomMaskLeft.setAttribute('opacity', '0');
+                if (zoomMaskRight) zoomMaskRight.setAttribute('opacity', '0');
             }
 
             function getNearestIndex(clientX) {
@@ -7031,9 +7195,21 @@
                 const leftPoint = pathPoints[leftIndex];
                 const rightPoint = pathPoints[rightIndex];
                 if (!leftPoint || !rightPoint) return;
-                zoomRect.setAttribute('x', leftPoint.x.toFixed(2));
-                zoomRect.setAttribute('width', Math.max(1, rightPoint.x - leftPoint.x).toFixed(2));
+                const selectionX = leftPoint.x;
+                const selectionWidth = Math.max(1, rightPoint.x - leftPoint.x);
+                zoomRect.setAttribute('x', selectionX.toFixed(2));
+                zoomRect.setAttribute('width', selectionWidth.toFixed(2));
                 zoomRect.setAttribute('opacity', '1');
+                if (zoomMaskLeft) {
+                    zoomMaskLeft.setAttribute('x', padLeft.toFixed(2));
+                    zoomMaskLeft.setAttribute('width', Math.max(0, selectionX - padLeft).toFixed(2));
+                    zoomMaskLeft.setAttribute('opacity', '1');
+                }
+                if (zoomMaskRight) {
+                    zoomMaskRight.setAttribute('x', (selectionX + selectionWidth).toFixed(2));
+                    zoomMaskRight.setAttribute('width', Math.max(0, (width - padRight) - (selectionX + selectionWidth)).toFixed(2));
+                    zoomMaskRight.setAttribute('opacity', '1');
+                }
             }
 
             function showHover(index) {
@@ -7392,6 +7568,36 @@
                     ...dedupedLiquidations,
                 ].sort((a, b) => b.timestamp - a.timestamp),
             };
+        }
+
+        async function fetchSupplyFlowHistory(url, tokenId, sinceTs, onProgress) {
+            const timeFilter = sinceTs ? `, transaction_: { timestamp_gte: "${sinceTs}" }` : '';
+            const tokenFilter = `token: "${tokenId}"${timeFilter}`;
+            const commonFields = `
+                serialId
+                transaction { id timestamp blockNumber }
+                amountDeltaWei
+            `;
+
+            const progressState = { deposits: 0, withdrawals: 0 };
+            const makeProgressCb = (key) => (_entity, count, done) => {
+                progressState[key] = count;
+                if (onProgress) {
+                    onProgress({
+                        total: progressState.deposits + progressState.withdrawals,
+                        deposits: progressState.deposits,
+                        withdrawals: progressState.withdrawals,
+                        done,
+                    });
+                }
+            };
+
+            const [deposits, withdrawals] = await Promise.all([
+                supplySubgraphPaginateAll(url, 'deposits', tokenFilter, commonFields, 1000, makeProgressCb('deposits')),
+                supplySubgraphPaginateAll(url, 'withdrawals', tokenFilter, commonFields, 1000, makeProgressCb('withdrawals')),
+            ]);
+
+            return { deposits, withdrawals };
         }
 
         function getFilteredSupplyActivityRows() {
@@ -7948,7 +8154,7 @@
             }
         }
 
-        // Default activity history window: 30 days
+        // Warm recent activity first, then hydrate deeper history in the background.
         const SUPPLY_ACTIVITY_DEFAULT_DAYS = 30;
 
         async function onSupplyAssetChange() {
@@ -7962,16 +8168,34 @@
             const tbody = document.getElementById('supply-table-body');
             const activitySubtitle = document.getElementById('supply-activity-subtitle');
             const supplyTitle = document.getElementById('supply-table-title');
-            const activityLoading = document.getElementById('supply-activity-loading');
             const tokenObj = currentSupplyTokensMap[tokenId] || { decimals: 18, symbol: 'TOKEN', marketId: '—' };
-            
+            const endpoint = DOLOMITE_MINI_GRAPHS[chain];
+            const sinceTs = Math.floor(Date.now() / 1000) - (SUPPLY_ACTIVITY_DEFAULT_DAYS * 24 * 60 * 60);
+            const supplierCacheKey = `${chain}:${tokenId}:suppliers`;
+            const recentActivityKey = `${chain}:${tokenId}:activity:${SUPPLY_ACTIVITY_DEFAULT_DAYS}d`;
+            const fullActivityKey = `${chain}:${tokenId}:activity:all`;
+            const flowHistoryKey = `${chain}:${tokenId}:flow:all`;
+            const cachedSuppliers = getFreshSupplyCacheData(supplySuppliersCache, supplierCacheKey);
+            const cachedRecentActivity = getFreshSupplyCacheData(supplyRecentActivityCache, recentActivityKey);
+            const cachedFullActivity = getFreshSupplyCacheData(supplyFullActivityCache, fullActivityKey);
+            const cachedFullFlow = getFreshSupplyCacheData(supplyFlowHistoryCache, flowHistoryKey);
+            const activityLoadingEl = document.getElementById('supply-activity-loading');
+            const priceUsd = currentSupplyOraclePrices[tokenId] || 0;
+            const supplyIndex = (currentSupplyInterestIndexes[tokenId] || {}).supplyIndex || 1;
+            let overviewReady = false;
+            const pendingOverviewFns = [];
+            let fullActivityHydrationStarted = false;
+
             loader.style.display = 'block';
             loader.innerHTML = `<div class="loading-spinner"></div><div style="margin-top:12px; color:var(--text-muted); font-size:13px;">Fetching suppliers...</div>`;
             table.style.display = 'none';
             tbody.innerHTML = '';
             setSupplyIntelLoading(tokenObj, chain);
-            setSupplyActivityLoading('Waiting for leaderboard to load first...');
+            setSupplyActivityLoading('Loading recent activity first...');
             if (supplyTitle) supplyTitle.textContent = `${tokenObj.symbol} Supplier Leaderboard`;
+            currentSupplyOverview = null;
+            currentSupplyActivity = [];
+            currentSupplyData = [];
             supplyPage = 1;
             supplyActivityPage = 1;
             supplyActivitySearchQuery = '';
@@ -7995,20 +8219,28 @@
             syncSupplyActivityColumnFilterUi();
             syncSupplyHistoryControls([]);
             if (activitySubtitle) {
-                activitySubtitle.textContent = `Deposits, withdrawals, transfers, and liquidations for ${tokenObj.symbol} on ${CHAIN_DISPLAY_NAMES[chain] || chain} · last ${SUPPLY_ACTIVITY_DEFAULT_DAYS} days.`;
+                activitySubtitle.textContent = `Recent activity for ${tokenObj.symbol} on ${CHAIN_DISPLAY_NAMES[chain] || chain} is warming up first so the table appears faster.`;
             }
-            
-            try {
-                // ═══ PHASE 1: Fast — Use cached token data + fetch suppliers only ═══
-                const endpoint = DOLOMITE_MINI_GRAPHS[chain];
-                const supplierPars = await fetchAllSupplySuppliers(endpoint, tokenId);
 
-                if (requestId !== supplyTabRequestId) return;
+            const onOverviewReady = fn => {
+                if (overviewReady) {
+                    fn();
+                } else {
+                    pendingOverviewFns.push(fn);
+                }
+            };
 
-                // Use enriched token data from onSupplyChainChange cache (no extra query needed)
+            const flushOverviewReady = () => {
+                if (overviewReady) return;
+                overviewReady = true;
+                while (pendingOverviewFns.length) {
+                    const fn = pendingOverviewFns.shift();
+                    try { fn(); } catch (err) { console.error('Deferred supply render err', err); }
+                }
+            };
+
+            const buildOverviewFromSuppliers = supplierPars => {
                 const token = tokenObj;
-                const priceUsd = currentSupplyOraclePrices[tokenId] || 0;
-                const supplyIndex = (currentSupplyInterestIndexes[tokenId] || {}).supplyIndex || 1;
                 const supply = parseFloat(token.supplyLiquidity || '0') || 0;
                 const supplyUsd = parseFloat(token.supplyLiquidityUSD || '0') || (supply * priceUsd);
                 const borrow = parseFloat(token.borrowLiquidity || '0') || 0;
@@ -8017,7 +8249,7 @@
                 const borrowCap = parseFloat(token.riskInfo?.borrowMaxWei || '0') || 0;
                 const utilizationPct = supply > 0 ? (borrow / supply) * 100 : 0;
 
-                currentSupplyData = supplierPars
+                currentSupplyData = (supplierPars || [])
                     .map(item => {
                         const amount = item.par * supplyIndex;
                         return {
@@ -8030,7 +8262,7 @@
                     .sort((a, b) => b.amount - a.amount)
                     .map((item, index) => ({ ...item, rank: index + 1 }));
 
-                // Render intel overview WITHOUT chart (chart needs deposits/withdrawals)
+                const previousOverview = currentSupplyOverview || {};
                 currentSupplyOverview = {
                     chain,
                     token,
@@ -8044,71 +8276,172 @@
                     borrowCap,
                     borrowingDisabled: !!token.riskInfo?.isBorrowingDisabled,
                     utilizationPct,
-                    historyPoints: [],  // will be filled in Phase 2
+                    historyPoints: Array.isArray(previousOverview.historyPoints) ? previousOverview.historyPoints : [],
+                    historyStage: previousOverview.historyStage || 'loading',
+                    activityStage: previousOverview.activityStage || 'loading',
                 };
 
                 renderSupplyIntelOverview();
-                renderSupplyTable();  // ← LEADERBOARD VISIBLE NOW
+                renderSupplyTable();
+                flushOverviewReady();
+            };
 
-                // ═══ PHASE 2: Background — Activity History (lazy, 30-day default) ═══
-                const sinceTs = Math.floor(Date.now() / 1000) - (SUPPLY_ACTIVITY_DEFAULT_DAYS * 24 * 60 * 60);
-                setSupplyActivityLoading('Fetching market activity (last ' + SUPPLY_ACTIVITY_DEFAULT_DAYS + ' days)...');
+            const applyRecentActivity = activityHistory => {
+                onOverviewReady(() => {
+                    if (requestId !== supplyTabRequestId || !currentSupplyOverview) return;
+                    if (currentSupplyOverview.activityStage === 'full') return;
+                    currentSupplyActivity = activityHistory?.rows || [];
+                    currentSupplyOverview.activityStage = 'recent';
+                    renderSupplyActivityTable();
+                    startFullActivityHydration();
+                });
+            };
 
-                // Progress callback for live UI updates
-                const activityLoadingEl = document.getElementById('supply-activity-loading');
-                const onActivityProgress = (totalEvents, doneEntities, isDone) => {
-                    if (requestId !== supplyTabRequestId) return;
-                    if (activityLoadingEl && !isDone) {
-                        const entitiesText = doneEntities.length > 0 ? doneEntities.join(', ') : 'starting';
-                        activityLoadingEl.innerHTML = `
-                            <div class="loading-spinner"></div>
-                            <div style="margin-top:12px; color:var(--text-muted); font-size:13px;">
-                                📊 Loading activity... <strong style="color:#a5b4fc;">${totalEvents.toLocaleString()}</strong> events fetched
-                                <div style="margin-top:4px; font-size:11px; color:rgba(255,255,255,0.35);">${entitiesText}</div>
-                            </div>
-                        `;
-                    }
+            const applyFullActivity = activityHistory => {
+                onOverviewReady(() => {
+                    if (requestId !== supplyTabRequestId || !currentSupplyOverview) return;
+                    currentSupplyActivity = activityHistory?.rows || [];
+                    currentSupplyOverview.activityStage = 'full';
+                    renderSupplyActivityTable();
+                });
+            };
+
+            const applyFullFlow = flowHistory => {
+                onOverviewReady(() => {
+                    if (requestId !== supplyTabRequestId || !currentSupplyOverview) return;
+                    currentSupplyOverview.historyPoints = buildSupplyHistorySeries(
+                        currentSupplyOverview.supply,
+                        flowHistory?.deposits || [],
+                        flowHistory?.withdrawals || []
+                    );
+                    currentSupplyOverview.historyStage = 'full';
+                    renderSupplyIntelOverview();
+                });
+            };
+
+            const recentActivityPromise = cachedFullActivity
+                ? Promise.resolve(cachedFullActivity)
+                : getSupplyCachedResource(supplyRecentActivityCache, recentActivityKey, () => fetchSupplyActivityHistory(endpoint, tokenId, sinceTs, (totalEvents, doneEntities, isDone) => {
+                    if (requestId !== supplyTabRequestId || !activityLoadingEl || isDone) return;
+                    const entitiesText = doneEntities.length > 0 ? doneEntities.join(', ') : 'starting';
+                    activityLoadingEl.innerHTML = `
+                        <div class="loading-spinner"></div>
+                        <div style="margin-top:12px; color:var(--text-muted); font-size:13px;">
+                            Loading recent activity... <strong style="color:#a5b4fc;">${totalEvents.toLocaleString()}</strong> events fetched
+                            <div style="margin-top:4px; font-size:11px; color:rgba(255,255,255,0.35);">${entitiesText}</div>
+                        </div>
+                    `;
+                }));
+
+            const fullFlowPromise = getSupplyCachedResource(
+                supplyFlowHistoryCache,
+                flowHistoryKey,
+                () => fetchSupplyFlowHistory(endpoint, tokenId, null)
+            );
+
+            const supplierPromise = getSupplyCachedResource(
+                supplySuppliersCache,
+                supplierCacheKey,
+                () => fetchAllSupplySuppliers(endpoint, tokenId)
+            );
+
+            const startFullActivityHydration = () => {
+                if (fullActivityHydrationStarted) return;
+                fullActivityHydrationStarted = true;
+                if (cachedFullActivity) {
+                    applyFullActivity(cachedFullActivity);
+                    return;
+                }
+                const beginHydration = () => {
+                    getSupplyCachedResource(
+                        supplyFullActivityCache,
+                        fullActivityKey,
+                        () => fetchSupplyActivityHistory(endpoint, tokenId, null)
+                    )
+                        .then(history => {
+                            if (requestId !== supplyTabRequestId) return;
+                            applyFullActivity(history);
+                        })
+                        .catch(err => {
+                            if (requestId !== supplyTabRequestId) return;
+                            console.error('Full activity hydration err', err);
+                            if (!currentSupplyActivity.length) {
+                                setSupplyActivityLoading('Could not load market activity right now.');
+                            }
+                        });
                 };
+                if (typeof window.requestIdleCallback === 'function') {
+                    window.requestIdleCallback(beginHydration, { timeout: 1200 });
+                } else {
+                    setTimeout(beginHydration, 160);
+                }
+            };
 
-                fetchSupplyActivityHistory(endpoint, tokenId, sinceTs, onActivityProgress)
-                    .then(activityHistory => {
-                        if (requestId !== supplyTabRequestId) return;
-
-                        const deposits = activityHistory.deposits || [];
-                        const withdrawals = activityHistory.withdrawals || [];
-                        currentSupplyActivity = activityHistory.rows || [];
-
-                        // Update overview with history points (for chart)
-                        currentSupplyOverview.historyPoints = buildSupplyHistorySeries(supply, deposits, withdrawals);
-                        renderSupplyHistoryChart(currentSupplyOverview.historyPoints);
-                        renderSupplyActivityTable();
-                    })
-                    .catch(err => {
-                        if (requestId !== supplyTabRequestId) return;
-                        console.error('Activity fetch err (Phase 2)', err);
-                        const actLoadEl = document.getElementById('supply-activity-loading');
-                        const actTableEl = document.getElementById('supply-activity-table');
-                        const chartEl = document.getElementById('supply-history-chart');
-                        if (actLoadEl) {
-                            actLoadEl.innerHTML = `<div style="color:#fbbf24; font-weight:500; font-size:13px; padding:16px;">⚠️ Activity history failed to load. The leaderboard above is still accurate.</div>`;
-                            actLoadEl.style.display = 'block';
-                        }
-                        if (actTableEl) actTableEl.style.display = 'none';
-                        if (chartEl) chartEl.innerHTML = `<div class="supply-history-empty" style="color:#fca5a5;">Could not reconstruct supply history chart.</div>`;
-                    });
-
-            } catch (e) {
-                console.error("Supply fetch err (Phase 1)", e);
-                if (requestId !== supplyTabRequestId) return;
-                const loader = document.getElementById('supply-loading-state');
-                const chart = document.getElementById('supply-history-chart');
-                const activityLoading = document.getElementById('supply-activity-loading');
-                const activityTable = document.getElementById('supply-activity-table');
-                if(loader) loader.innerHTML = `<div style="color:#ef4444; font-weight:600;">Failed to fetch from graph api.</div>`;
-                if(chart) chart.innerHTML = `<div class="supply-history-empty" style="color:#fca5a5;">Failed to reconstruct full supply history.</div>`;
-                if(activityLoading) activityLoading.style.display = 'none';
-                if(activityTable) activityTable.style.display = 'none';
+            if (cachedSuppliers) {
+                buildOverviewFromSuppliers(cachedSuppliers);
             }
+
+            if (cachedFullFlow) {
+                applyFullFlow(cachedFullFlow);
+            }
+
+            if (cachedFullActivity) {
+                applyFullActivity(cachedFullActivity);
+            } else if (cachedRecentActivity) {
+                applyRecentActivity(cachedRecentActivity);
+            }
+
+            supplierPromise
+                .then(supplierPars => {
+                    if (requestId !== supplyTabRequestId) return;
+                    buildOverviewFromSuppliers(supplierPars);
+                })
+                .catch(e => {
+                    console.error('Supply fetch err (suppliers)', e);
+                    if (requestId !== supplyTabRequestId) return;
+                    if (cachedSuppliers) return;
+                    const chart = document.getElementById('supply-history-chart');
+                    const activityLoading = document.getElementById('supply-activity-loading');
+                    const activityTable = document.getElementById('supply-activity-table');
+                    if (loader) loader.innerHTML = `<div style="color:#ef4444; font-weight:600;">Failed to fetch from graph api.</div>`;
+                    if (chart) chart.innerHTML = `<div class="supply-history-empty" style="color:#fca5a5;">Failed to reconstruct full supply history.</div>`;
+                    if (activityLoading) activityLoading.style.display = 'none';
+                    if (activityTable) activityTable.style.display = 'none';
+                });
+
+            recentActivityPromise
+                .then(activityHistory => {
+                    if (requestId !== supplyTabRequestId) return;
+                    if (cachedFullActivity) {
+                        applyFullActivity(activityHistory);
+                    } else {
+                        applyRecentActivity(activityHistory);
+                    }
+                })
+                .catch(err => {
+                    if (requestId !== supplyTabRequestId) return;
+                    console.error('Recent activity fetch err', err);
+                    if (cachedRecentActivity || cachedFullActivity) return;
+                    if (activityLoadingEl) {
+                        activityLoadingEl.innerHTML = `<div style="color:#fbbf24; font-weight:500; font-size:13px; padding:16px;">Recent activity could not be loaded. Try this market again in a moment.</div>`;
+                        activityLoadingEl.style.display = 'block';
+                    }
+                });
+
+            fullFlowPromise
+                .then(flowHistory => {
+                    if (requestId !== supplyTabRequestId) return;
+                    applyFullFlow(flowHistory);
+                })
+                .catch(err => {
+                    if (requestId !== supplyTabRequestId) return;
+                    console.error('Full flow history err', err);
+                    onOverviewReady(() => {
+                        if (requestId !== supplyTabRequestId || !currentSupplyOverview) return;
+                        currentSupplyOverview.historyStage = 'error';
+                        renderSupplyIntelOverview();
+                    });
+                });
         }
 
         // ─── Launch ──────────────────────────────────────────────────────────
