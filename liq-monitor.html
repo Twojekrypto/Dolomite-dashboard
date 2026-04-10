@@ -3729,11 +3729,11 @@
                             </colgroup>
                             <thead>
                                 <tr>
-                                    <th>Time</th>
+                                    <th style="cursor:pointer; user-select:none;" data-sort="time" class="sorted" onclick="supplyActivitySort('time')">Time <span class="sort-arrow">▼</span></th>
                                     <th>Type</th>
                                     <th>Wallets</th>
-                                    <th style="text-align:right;">Amount</th>
-                                    <th style="text-align:right;">USD</th>
+                                    <th style="text-align:right; cursor:pointer; user-select:none;" data-sort="amount" onclick="supplyActivitySort('amount')">Amount <span class="sort-arrow"></span></th>
+                                    <th style="text-align:right; cursor:pointer; user-select:none;" data-sort="usd" onclick="supplyActivitySort('usd')">USD <span class="sort-arrow"></span></th>
                                 </tr>
                             </thead>
                             <tbody id="supply-activity-body"></tbody>
@@ -5972,6 +5972,8 @@
         let currentSupplyActivity = [];
         let supplyActivityPage = 1;
         let supplyActivitySearchQuery = '';
+        let supplyActivitySortField = 'time';
+        let supplyActivitySortAsc = false;
         let supplyTabRequestId = 0;
         const SUPPLY_ACTIVITY_PAGE_SIZE = 12;
         const SUPPLY_HISTORY_DAYS = 30;
@@ -6007,6 +6009,31 @@
             
             supplyPage = 1;
             renderSupplyTable();
+        }
+
+        function updateSupplyActivitySortUi() {
+            const headers = document.querySelectorAll('#supply-activity-table thead th');
+            headers.forEach(th => th.classList.remove('sorted'));
+            document.querySelectorAll('#supply-activity-table thead th .sort-arrow').forEach(s => s.textContent = '');
+
+            const th = document.querySelector(`#supply-activity-table thead th[data-sort="${supplyActivitySortField}"]`);
+            if (!th) return;
+            th.classList.add('sorted');
+            const arrowSpan = th.querySelector('.sort-arrow');
+            if (arrowSpan) arrowSpan.textContent = supplyActivitySortAsc ? '▲' : '▼';
+        }
+
+        function supplyActivitySort(field) {
+            if (supplyActivitySortField === field) {
+                supplyActivitySortAsc = !supplyActivitySortAsc;
+            } else {
+                supplyActivitySortField = field;
+                supplyActivitySortAsc = false;
+            }
+
+            supplyActivityPage = 1;
+            updateSupplyActivitySortUi();
+            renderSupplyActivityTable();
         }
 
         function supplyEscapeHtml(value) {
@@ -6100,6 +6127,8 @@
             currentSupplyActivity = [];
             supplyActivityPage = 1;
             supplyActivitySearchQuery = '';
+            supplyActivitySortField = 'time';
+            supplyActivitySortAsc = false;
             supplyActivityFilters = new Set(['deposit', 'withdraw', 'transfer', 'liquidation']);
             const shell = document.getElementById('supply-intel-shell');
             const card = document.getElementById('supply-activity-card');
@@ -6122,6 +6151,7 @@
             if (activitySearchInput) activitySearchInput.value = '';
             if (activitySearchWrap) activitySearchWrap.classList.remove('has-value');
             document.querySelectorAll('.supply-filter-pill').forEach(btn => btn.classList.add('active'));
+            updateSupplyActivitySortUi();
         }
 
         function setSupplyIntelLoading(tokenObj, chain) {
@@ -6444,9 +6474,24 @@
                     const secondary = String(row.secondaryAddress || '').toLowerCase();
                     return primary.includes(activitySearchNeedle) || secondary.includes(activitySearchNeedle);
                 })
-                .sort((a, b) => b.timestamp - a.timestamp);
+                .sort((a, b) => {
+                    let cmp = 0;
+                    if (supplyActivitySortField === 'amount') {
+                        cmp = (Number(a.amount || 0) - Number(b.amount || 0));
+                    } else if (supplyActivitySortField === 'usd') {
+                        cmp = (Number(a.usd || 0) - Number(b.usd || 0));
+                    } else {
+                        cmp = (Number(a.timestamp || 0) - Number(b.timestamp || 0));
+                    }
+
+                    if (cmp === 0) {
+                        cmp = (Number(a.timestamp || 0) - Number(b.timestamp || 0));
+                    }
+                    return supplyActivitySortAsc ? cmp : -cmp;
+                });
 
             countEl.textContent = `(${filtered.length})`;
+            updateSupplyActivitySortUi();
 
             if (filtered.length === 0) {
                 table.style.display = 'table';
@@ -6938,10 +6983,13 @@
             supplyPage = 1;
             supplyActivityPage = 1;
             supplyActivitySearchQuery = '';
+            supplyActivitySortField = 'time';
+            supplyActivitySortAsc = false;
             const activitySearchInput = document.getElementById('supply-activity-search-input');
             const activitySearchWrap = document.getElementById('supply-activity-search-wrap');
             if (activitySearchInput) activitySearchInput.value = '';
             if (activitySearchWrap) activitySearchWrap.classList.remove('has-value');
+            updateSupplyActivitySortUi();
             
             const lookbackTs = Math.floor(Date.now() / 1000) - (SUPPLY_ACTIVITY_LOOKBACK_DAYS * 24 * 60 * 60);
             const q = `{
