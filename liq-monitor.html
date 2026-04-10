@@ -4090,7 +4090,7 @@
                     <div class="supply-history-head">
                         <div>
                             <div class="supply-history-title">Supply In Time</div>
-                            <div class="supply-history-meta" id="supply-history-meta">Full-history netflow reconstruction from first recorded deposits and withdrawals.</div>
+                            <div class="supply-history-meta" id="supply-history-meta">Historical supply liquidity from official Dolomite supply-par and interest-index snapshots.</div>
                         </div>
                         <div class="supply-history-delta" id="supply-history-delta"></div>
                     </div>
@@ -7377,7 +7377,7 @@
                 icon.onerror = () => { icon.src = 'dolomite-logo.svg'; };
             }
             if (title) title.textContent = symbol + ' · ' + (CHAIN_DISPLAY_NAMES[chain] || chain);
-            if (subtitle) subtitle.textContent = 'Fetching supplier breadth now and warming the long-range market history in the background...';
+            if (subtitle) subtitle.textContent = 'Fetching supplier breadth now and syncing the exact historical supply-liquidity curve in the background...';
             if (asof) asof.textContent = 'Refreshing selected market';
             if (stats) {
                 stats.innerHTML = Array.from({ length: 4 }).map(() => `
@@ -7388,7 +7388,7 @@
                     </div>
                 `).join('');
             }
-            if (chart) chart.innerHTML = '<div class="supply-intel-empty">Reconstructing the full supply path from first recorded flows...</div>';
+            if (chart) chart.innerHTML = '<div class="supply-intel-empty">Loading the exact supply-liquidity curve from official Dolomite snapshots...</div>';
             if (axis) axis.innerHTML = '';
             if (shell) shell.style.display = 'block';
         }
@@ -7469,45 +7469,160 @@
         window.addEventListener('resize', positionSupplyHistoryPicker);
         window.addEventListener('scroll', positionSupplyHistoryPicker, true);
 
-        function buildSupplyHistorySeries(currentSupply, deposits, withdrawals) {
-            const now = new Date();
-            const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-            const dayMs = 24 * 60 * 60 * 1000;
-            const dayNet = Object.create(null);
-            let earliestBucketUtc = todayUtc;
-            let hasAnyEvent = false;
+        function compressSupplyHistoryPoints(points) {
+            const safePoints = Array.isArray(points)
+                ? points
+                    .map(point => ({
+                        timestamp: Number(point?.timestamp || 0),
+                        value: Number(point?.value || 0),
+                    }))
+                    .filter(point => Number.isFinite(point.timestamp) && point.timestamp > 0 && Number.isFinite(point.value))
+                    .sort((a, b) => a.timestamp - b.timestamp)
+                : [];
+            if (safePoints.length <= 1) return safePoints;
 
-            const applyEvent = (event, direction) => {
-                const ts = Number(event?.transaction?.timestamp || 0);
-                if (!Number.isFinite(ts) || ts <= 0) return;
-                const bucketDate = new Date(ts * 1000);
-                const bucketUtc = Date.UTC(bucketDate.getUTCFullYear(), bucketDate.getUTCMonth(), bucketDate.getUTCDate());
-                const key = String(bucketUtc);
-                dayNet[key] = (dayNet[key] || 0) + direction * (parseFloat(event?.amountDeltaWei || '0') || 0);
-                earliestBucketUtc = Math.min(earliestBucketUtc, bucketUtc);
-                hasAnyEvent = true;
-            };
+            const deduped = [];
+            safePoints.forEach(point => {
+                const last = deduped[deduped.length - 1];
+                if (last && last.timestamp === point.timestamp) {
+                    last.value = point.value;
+                } else {
+                    deduped.push({ ...point });
+                }
+            });
 
-            (deposits || []).forEach(dep => applyEvent(dep, 1));
-            (withdrawals || []).forEach(wd => applyEvent(wd, -1));
+            if (deduped.length <= 2400) {
+                return deduped;
+            }
 
-            if (!hasAnyEvent) {
+            const daily = [];
+            let lastDayKey = null;
+            let lastPointForDay = null;
+            deduped.forEach(point => {
+                const dayKey = Math.floor(point.timestamp / 86400);
+                if (lastDayKey == null) {
+                    lastDayKey = dayKey;
+                    lastPointForDay = point;
+                    return;
+                }
+                if (dayKey !== lastDayKey && lastPointForDay) {
+                    daily.push(lastPointForDay);
+                    lastDayKey = dayKey;
+                }
+                lastPointForDay = point;
+            });
+            if (lastPointForDay) {
+                daily.push(lastPointForDay);
+            }
+
+            return daily.length >= 2 ? daily : deduped;
+        }
+
+        function buildSupplyHistorySeries(options) {
+            const settings = options && typeof options === 'object' ? options : {};
+            const currentSupply = Number(settings.currentSupply || 0);
+            const currentSupplyPar = Number(settings.currentSupplyPar || 0);
+            const currentSupplyIndex = Number(settings.currentSupplyIndex || 0);
+            const currentTimestamp = Number(settings.currentTimestamp || Math.floor(Date.now() / 1000));
+            const sinceTs = Number(settings.sinceTs || 0);
+            const deposits = Array.isArray(settings.deposits) ? settings.deposits : [];
+            const withdrawals = Array.isArray(settings.withdrawals) ? settings.withdrawals : [];
+            const snapshots = Array.isArray(settings.snapshots) ? settings.snapshots : [];
+
+            if (!Number.isFinite(currentSupply) || !Number.isFinite(currentSupplyPar) || !(currentSupplyIndex > 0)) {
                 return [];
             }
 
-            const points = [];
-            let rollingSupply = Number(currentSupply || 0);
+            const groups = new Map();
+            const ensureGroup = (timestamp) => {
+                const ts = Number(timestamp || 0);
+                if (!Number.isFinite(ts) || ts <= 0) return null;
+                if (!groups.has(ts)) {
+                    groups.set(ts, {
+                        timestamp: ts,
+                        deltaPar: 0,
+                        snapshotIndex: 0,
+                        eventIndex: 0,
+                    });
+                }
+                return groups.get(ts);
+            };
 
-            for (let dayUtc = todayUtc; dayUtc >= earliestBucketUtc; dayUtc -= dayMs) {
-                points.push({
-                    timestamp: Math.floor(dayUtc / 1000),
-                    value: Math.max(0, rollingSupply),
-                });
-                const key = String(dayUtc);
-                rollingSupply = Math.max(0, rollingSupply - (dayNet[key] || 0));
+            const registerEvent = (event) => {
+                const group = ensureGroup(event?.transaction?.timestamp);
+                if (!group) return;
+                const deltaPar = parseFloat(event?.amountDeltaPar || '0');
+                if (Number.isFinite(deltaPar)) {
+                    group.deltaPar += deltaPar;
+                }
+                const eventIndex = parseFloat(event?.interestIndex || '0');
+                if (Number.isFinite(eventIndex) && eventIndex > 0) {
+                    group.eventIndex = Math.max(group.eventIndex, eventIndex);
+                }
+            };
+
+            deposits.forEach(registerEvent);
+            withdrawals.forEach(registerEvent);
+            snapshots.forEach(snapshot => {
+                const group = ensureGroup(snapshot?.updateTimestamp);
+                if (!group) return;
+                const snapshotIndex = parseFloat(snapshot?.supplyIndex || '0');
+                if (Number.isFinite(snapshotIndex) && snapshotIndex > 0) {
+                    group.snapshotIndex = Math.max(group.snapshotIndex, snapshotIndex);
+                }
+            });
+
+            const groupsDesc = Array.from(groups.values())
+                .filter(group => Number.isFinite(group.timestamp) && group.timestamp > 0)
+                .sort((a, b) => b.timestamp - a.timestamp);
+
+            if (!groupsDesc.length) {
+                if (sinceTs > 0 && sinceTs < currentTimestamp) {
+                    return compressSupplyHistoryPoints([
+                        { timestamp: sinceTs, value: currentSupply },
+                        { timestamp: currentTimestamp, value: currentSupply },
+                    ]);
+                }
+                return [];
             }
 
-            return points.reverse();
+            let rollingPar = currentSupplyPar;
+            let rollingIndex = currentSupplyIndex;
+            const pointsDesc = [{
+                timestamp: currentTimestamp,
+                value: Math.max(0, currentSupply),
+            }];
+
+            groupsDesc.forEach(group => {
+                const pointIndex = group.snapshotIndex > 0
+                    ? group.snapshotIndex
+                    : (group.eventIndex > 0 ? group.eventIndex : rollingIndex);
+                if (!(pointIndex > 0)) {
+                    return;
+                }
+
+                pointsDesc.push({
+                    timestamp: group.timestamp,
+                    value: Math.max(0, rollingPar * pointIndex),
+                });
+
+                if (Number.isFinite(group.deltaPar) && group.deltaPar !== 0) {
+                    rollingPar = Math.max(0, rollingPar - group.deltaPar);
+                }
+                rollingIndex = pointIndex;
+            });
+
+            if (sinceTs > 0 && sinceTs < currentTimestamp) {
+                const earliestPointTs = Number(pointsDesc[pointsDesc.length - 1]?.timestamp || 0);
+                if (earliestPointTs > sinceTs && rollingIndex > 0) {
+                    pointsDesc.push({
+                        timestamp: sinceTs,
+                        value: Math.max(0, rollingPar * rollingIndex),
+                    });
+                }
+            }
+
+            return compressSupplyHistoryPoints(pointsDesc.reverse());
         }
 
         function renderSupplyHistoryChart(points) {
@@ -7521,21 +7636,21 @@
             const visiblePoints = getVisibleSupplyHistoryPoints(points || []);
 
             if ((!points || points.length < 2 || visiblePoints.length < 2) && historyStage === 'loading') {
-                chart.innerHTML = '<div class="supply-intel-empty">Loading full history from the first recorded deposits and withdrawals...</div>';
+                chart.innerHTML = '<div class="supply-intel-empty">Loading exact supply liquidity history from official Dolomite snapshots...</div>';
                 axis.innerHTML = '';
-                delta.innerHTML = '<strong style="color:#e2e8f0">—</strong><span>Loading full history</span><span class="supply-history-delta-note">Recent activity appears first while the long-range chart builds in the background.</span>';
-                meta.textContent = 'Full-history netflow reconstruction is still building.';
+                delta.innerHTML = '<strong style="color:#e2e8f0">—</strong><span>Loading exact history</span><span class="supply-history-delta-note">The chart is waiting for official supply-par and index history, so it only appears once the underlying data is exact.</span>';
+                meta.textContent = 'Historical supply liquidity is syncing from official Dolomite supply-par and interest-index snapshots.';
                 return;
             }
             if ((!points || points.length < 2 || visiblePoints.length < 2) && historyStage === 'error') {
-                chart.innerHTML = '<div class="supply-history-empty" style="color:#fca5a5;">Could not reconstruct the full history for this market.</div>';
+                chart.innerHTML = '<div class="supply-history-empty" style="color:#fca5a5;">Could not load the exact historical supply liquidity for this market.</div>';
                 axis.innerHTML = ''; delta.innerHTML = '<strong style="color:#fca5a5">—</strong><span>History unavailable</span>';
                 meta.textContent = 'Try switching the market again in a moment.'; return;
             }
             if (!points || points.length < 2 || visiblePoints.length < 2) {
-                const msg = (points && points.length >= 2) ? 'The selected range is too narrow to draw a chart.' : 'Not enough flow data yet to draw a history line.';
+                const msg = (points && points.length >= 2) ? 'The selected range is too narrow to draw a chart.' : 'Not enough official history points yet to draw this chart.';
                 chart.innerHTML = `<div class="supply-history-empty">${msg}</div>`; axis.innerHTML = ''; delta.innerHTML = '';
-                meta.textContent = (points && points.length >= 2) ? 'Widen the range using the brush below.' : 'Waiting for enough deposit and withdrawal activity.'; return;
+                meta.textContent = (points && points.length >= 2) ? 'Widen the range using the brush below.' : 'Waiting for enough official supply history to accumulate.'; return;
             }
 
             const width = 1000, height = 320;
@@ -7616,8 +7731,8 @@
             const sign = absDelta >= 0 ? '+' : '−';
             const fullLastPt = points[points.length - 1];
             const isTail = Math.abs(Number(lastPtData.timestamp || 0) - Number(fullLastPt?.timestamp || 0)) <= 86400;
-            delta.innerHTML = `<strong style="color:#f8fafc">${supplyFormatTokenCompact(Number(lastPtData.value || 0))}</strong><span>${isTail ? 'Current supply' : `Supply on ${supplyFormatDateLabel(lastPtData.timestamp)}`}</span><span class="supply-history-delta-note" style="color:${absDelta >= 0 ? '#86efac' : '#fca5a5'}">${sign}${supplyFormatTokenCompact(Math.abs(absDelta))} (${sign}${Math.abs(pctChg).toFixed(2)}%) over ${supplyHistoryRange === 'custom' ? 'custom range' : 'full history'}</span>`;
-            meta.textContent = `Netflow reconstruction from ${supplyFormatFullDate(points[0].timestamp)} to ${supplyFormatFullDate(points[points.length - 1].timestamp)}. Hover for exact values. Use the range brush below to zoom.`;
+            delta.innerHTML = `<strong style="color:#f8fafc">${supplyFormatTokenCompact(Number(lastPtData.value || 0))}</strong><span>${isTail ? 'Current supply liquidity' : `Supply on ${supplyFormatDateLabel(lastPtData.timestamp)}`}</span><span class="supply-history-delta-note" style="color:${absDelta >= 0 ? '#86efac' : '#fca5a5'}">${sign}${supplyFormatTokenCompact(Math.abs(absDelta))} (${sign}${Math.abs(pctChg).toFixed(2)}%) over ${supplyHistoryRange === 'custom' ? 'custom range' : 'full history'}</span>`;
+            meta.textContent = `Exact supply liquidity from ${supplyFormatFullDate(points[0].timestamp)} to ${supplyFormatFullDate(points[points.length - 1].timestamp)} using official Dolomite supply-par and interest-index history. Hover for exact values and drag to zoom.`;
 
             // Hover
             const tooltip = document.getElementById('supply-history-tooltip');
@@ -7855,13 +7970,15 @@
             };
         }
 
-        async function supplySubgraphPaginateAll(url, entityName, whereClause, fields, pageSize = 1000, onProgress) {
+        async function supplySubgraphPaginateAll(url, entityName, whereClause, fields, pageSize = 1000, onProgress, options = {}) {
+            const orderBy = options.orderBy || 'serialId';
+            const orderDirection = options.orderDirection || 'desc';
             let skip = 0;
             const rows = [];
 
             while (true) {
                 const query = `{
-                    ${entityName}(first: ${pageSize}, skip: ${skip}, orderBy: serialId, orderDirection: desc, where: { ${whereClause} }) {
+                    ${entityName}(first: ${pageSize}, skip: ${skip}, orderBy: ${orderBy}, orderDirection: ${orderDirection}, where: { ${whereClause} }) {
                         ${fields}
                     }
                 }`;
@@ -7971,32 +8088,41 @@
 
         async function fetchSupplyFlowHistory(url, tokenId, sinceTs, onProgress) {
             const timeFilter = sinceTs ? `, transaction_: { timestamp_gte: "${sinceTs}" }` : '';
+            const snapshotTimeFilter = sinceTs ? `, updateTimestamp_gte: "${sinceTs}"` : '';
             const tokenFilter = `token: "${tokenId}"${timeFilter}`;
+            const snapshotFilter = `token: "${tokenId}"${snapshotTimeFilter}`;
             const commonFields = `
                 serialId
                 transaction { id timestamp blockNumber }
                 amountDeltaWei
+                amountDeltaPar
+                interestIndex
             `;
 
-            const progressState = { deposits: 0, withdrawals: 0 };
+            const progressState = { deposits: 0, withdrawals: 0, snapshots: 0 };
             const makeProgressCb = (key) => (_entity, count, done) => {
                 progressState[key] = count;
                 if (onProgress) {
                     onProgress({
-                        total: progressState.deposits + progressState.withdrawals,
+                        total: progressState.deposits + progressState.withdrawals + progressState.snapshots,
                         deposits: progressState.deposits,
                         withdrawals: progressState.withdrawals,
+                        snapshots: progressState.snapshots,
                         done,
                     });
                 }
             };
 
-            const [deposits, withdrawals] = await Promise.all([
+            const [deposits, withdrawals, snapshots] = await Promise.all([
                 supplySubgraphPaginateAll(url, 'deposits', tokenFilter, commonFields, 1000, makeProgressCb('deposits')),
                 supplySubgraphPaginateAll(url, 'withdrawals', tokenFilter, commonFields, 1000, makeProgressCb('withdrawals')),
+                supplySubgraphPaginateAll(url, 'interestIndexSnapshots', snapshotFilter, `
+                    updateTimestamp
+                    supplyIndex
+                `, 1000, makeProgressCb('snapshots'), { orderBy: 'updateTimestamp', orderDirection: 'desc' }),
             ]);
 
-            return { deposits, withdrawals };
+            return { deposits, withdrawals, snapshots };
         }
 
         function getFilteredSupplyActivityRows() {
@@ -8309,6 +8435,10 @@
                     borrowMaxWei
                     isBorrowingDisabled
                 }
+                totalPar {
+                    supplyPar
+                    borrowPar
+                }
             }
             oraclePrices(first: 100) { token { id } price }
             interestIndexes(first: 100) { token { id } supplyIndex borrowIndex }
@@ -8547,7 +8677,7 @@
             const sinceTs = Math.floor(Date.now() / 1000) - (SUPPLY_ACTIVITY_DEFAULT_DAYS * 24 * 60 * 60);
             const supplierCacheKey = `${chain}:${tokenId}:suppliers`;
             const recentActivityKey = `${chain}:${tokenId}:activity:${SUPPLY_ACTIVITY_DEFAULT_DAYS}d`;
-            const flowHistoryKey = `${chain}:${tokenId}:flow:all`;
+            const recentHistoryKey = `${chain}:${tokenId}:history:v2:${SUPPLY_ACTIVITY_DEFAULT_DAYS}d`;
 
             getSupplyCachedResource(
                 supplySuppliersCache,
@@ -8563,8 +8693,8 @@
             ).catch(() => {});
             getSupplyCachedResource(
                 supplyFlowHistoryCache,
-                flowHistoryKey,
-                () => fetchSupplyFlowHistory(endpoint, tokenId, null),
+                recentHistoryKey,
+                () => fetchSupplyFlowHistory(endpoint, tokenId, sinceTs),
                 { persist: true }
             ).catch(() => {});
         }
@@ -8721,15 +8851,18 @@
             const supplyTitle = document.getElementById('supply-table-title');
             const tokenObj = currentSupplyTokensMap[tokenId] || { decimals: 18, symbol: 'TOKEN', marketId: '—' };
             const endpoint = DOLOMITE_MINI_GRAPHS[chain];
-            const sinceTs = Math.floor(Date.now() / 1000) - (SUPPLY_ACTIVITY_DEFAULT_DAYS * 24 * 60 * 60);
+            const nowTs = Math.floor(Date.now() / 1000);
+            const sinceTs = nowTs - (SUPPLY_ACTIVITY_DEFAULT_DAYS * 24 * 60 * 60);
             const supplierCacheKey = `${chain}:${tokenId}:suppliers`;
             const recentActivityKey = `${chain}:${tokenId}:activity:${SUPPLY_ACTIVITY_DEFAULT_DAYS}d`;
             const fullActivityKey = `${chain}:${tokenId}:activity:all`;
-            const flowHistoryKey = `${chain}:${tokenId}:flow:all`;
+            const recentHistoryKey = `${chain}:${tokenId}:history:v2:${SUPPLY_ACTIVITY_DEFAULT_DAYS}d`;
+            const fullHistoryKey = `${chain}:${tokenId}:history:v2:all`;
             const cachedSuppliers = getFreshSupplyCacheData(supplySuppliersCache, supplierCacheKey);
             const cachedRecentActivity = getFreshSupplyCacheData(supplyRecentActivityCache, recentActivityKey);
             const cachedFullActivity = getFreshSupplyCacheData(supplyFullActivityCache, fullActivityKey, { persist: false });
-            const cachedFullFlow = getFreshSupplyCacheData(supplyFlowHistoryCache, flowHistoryKey);
+            const cachedRecentHistory = getFreshSupplyCacheData(supplyFlowHistoryCache, recentHistoryKey);
+            const cachedFullHistory = getFreshSupplyCacheData(supplyFlowHistoryCache, fullHistoryKey);
             const activityLoadingEl = document.getElementById('supply-activity-loading');
             const priceUsd = currentSupplyOraclePrices[tokenId] || 0;
             const supplyIndex = (currentSupplyInterestIndexes[tokenId] || {}).supplyIndex || 1;
@@ -8794,6 +8927,7 @@
             const buildOverviewFromSuppliers = supplierPars => {
                 const token = tokenObj;
                 const supply = parseFloat(token.supplyLiquidity || '0') || 0;
+                const supplyPar = parseFloat(token.totalPar?.supplyPar || '0') || 0;
                 const supplyUsd = parseFloat(token.supplyLiquidityUSD || '0') || (supply * priceUsd);
                 const borrow = parseFloat(token.borrowLiquidity || '0') || 0;
                 const borrowUsd = parseFloat(token.borrowLiquidityUSD || '0') || (borrow * priceUsd);
@@ -8821,6 +8955,8 @@
                     priceUsd,
                     supplierCount: currentSupplyData.length,
                     supply,
+                    supplyPar,
+                    supplyIndex,
                     supplyUsd,
                     supplyCap,
                     borrow,
@@ -8844,18 +8980,28 @@
                     if (currentSupplyOverview.activityStage === 'full') return;
                     currentSupplyActivity = activityHistory?.rows || [];
                     currentSupplyOverview.activityStage = 'recent';
-                    if (currentSupplyOverview.historyStage !== 'full') {
-                        currentSupplyOverview.historyPoints = buildSupplyHistorySeries(
-                            currentSupplyOverview.supply,
-                            activityHistory?.deposits || [],
-                            activityHistory?.withdrawals || []
-                        );
-                        currentSupplyOverview.historyStage = currentSupplyOverview.historyPoints.length >= 2 ? 'recent' : 'loading';
-                        renderSupplyIntelOverview();
-                    }
                     renderSupplyActivityTable();
-                    startFullFlowHydration();
                     startFullActivityHydration();
+                });
+            };
+
+            const applyRecentHistory = history => {
+                onOverviewReady(() => {
+                    if (requestId !== supplyTabRequestId || !currentSupplyOverview) return;
+                    if (currentSupplyOverview.historyStage === 'full') return;
+                    currentSupplyOverview.historyPoints = buildSupplyHistorySeries({
+                        currentSupply: currentSupplyOverview.supply,
+                        currentSupplyPar: currentSupplyOverview.supplyPar,
+                        currentSupplyIndex: currentSupplyOverview.supplyIndex,
+                        currentTimestamp: nowTs,
+                        sinceTs,
+                        deposits: history?.deposits || [],
+                        withdrawals: history?.withdrawals || [],
+                        snapshots: history?.snapshots || [],
+                    });
+                    currentSupplyOverview.historyStage = currentSupplyOverview.historyPoints.length >= 2 ? 'recent' : 'loading';
+                    renderSupplyIntelOverview();
+                    startFullFlowHydration();
                 });
             };
 
@@ -8871,11 +9017,15 @@
             const applyFullFlow = flowHistory => {
                 onOverviewReady(() => {
                     if (requestId !== supplyTabRequestId || !currentSupplyOverview) return;
-                    currentSupplyOverview.historyPoints = buildSupplyHistorySeries(
-                        currentSupplyOverview.supply,
-                        flowHistory?.deposits || [],
-                        flowHistory?.withdrawals || []
-                    );
+                    currentSupplyOverview.historyPoints = buildSupplyHistorySeries({
+                        currentSupply: currentSupplyOverview.supply,
+                        currentSupplyPar: currentSupplyOverview.supplyPar,
+                        currentSupplyIndex: currentSupplyOverview.supplyIndex,
+                        currentTimestamp: nowTs,
+                        deposits: flowHistory?.deposits || [],
+                        withdrawals: flowHistory?.withdrawals || [],
+                        snapshots: flowHistory?.snapshots || [],
+                    });
                     currentSupplyOverview.historyStage = 'full';
                     renderSupplyIntelOverview();
                 });
@@ -8884,14 +9034,14 @@
             const startFullFlowHydration = () => {
                 if (fullFlowHydrationStarted) return;
                 fullFlowHydrationStarted = true;
-                if (cachedFullFlow) {
-                    applyFullFlow(cachedFullFlow);
+                if (cachedFullHistory) {
+                    applyFullFlow(cachedFullHistory);
                     return;
                 }
                 const beginHydration = () => {
                     getSupplyCachedResource(
                         supplyFlowHistoryCache,
-                        flowHistoryKey,
+                        fullHistoryKey,
                         () => fetchSupplyFlowHistory(endpoint, tokenId, null),
                         { persist: true }
                     )
@@ -8929,6 +9079,15 @@
                         </div>
                     `;
                 }), { persist: true });
+
+            const recentHistoryPromise = cachedFullHistory
+                ? Promise.resolve(cachedFullHistory)
+                : getSupplyCachedResource(
+                    supplyFlowHistoryCache,
+                    recentHistoryKey,
+                    () => fetchSupplyFlowHistory(endpoint, tokenId, sinceTs),
+                    { persist: true }
+                );
 
             const supplierPromise = getSupplyCachedResource(
                 supplySuppliersCache,
@@ -8974,8 +9133,10 @@
                 buildOverviewFromSuppliers(cachedSuppliers);
             }
 
-            if (cachedFullFlow) {
-                applyFullFlow(cachedFullFlow);
+            if (cachedFullHistory) {
+                applyFullFlow(cachedFullHistory);
+            } else if (cachedRecentHistory) {
+                applyRecentHistory(cachedRecentHistory);
             }
 
             if (cachedFullActivity) {
@@ -8998,7 +9159,7 @@
                     const activityLoading = document.getElementById('supply-activity-loading');
                     const activityTable = document.getElementById('supply-activity-table');
                     if (loader) loader.innerHTML = `<div style="color:#ef4444; font-weight:600;">Failed to fetch from graph api.</div>`;
-                    if (chart) chart.innerHTML = `<div class="supply-history-empty" style="color:#fca5a5;">Failed to reconstruct full supply history.</div>`;
+                    if (chart) chart.innerHTML = `<div class="supply-history-empty" style="color:#fca5a5;">Failed to load exact historical supply liquidity.</div>`;
                     if (activityLoading) activityLoading.style.display = 'none';
                     if (activityTable) activityTable.style.display = 'none';
                 });
@@ -9020,6 +9181,28 @@
                         activityLoadingEl.innerHTML = `<div style="color:#fbbf24; font-weight:500; font-size:13px; padding:16px;">Recent activity could not be loaded. Try this market again in a moment.</div>`;
                         activityLoadingEl.style.display = 'block';
                     }
+                });
+
+            recentHistoryPromise
+                .then(history => {
+                    if (requestId !== supplyTabRequestId) return;
+                    if (cachedFullHistory) {
+                        applyFullFlow(history);
+                    } else {
+                        applyRecentHistory(history);
+                    }
+                })
+                .catch(err => {
+                    if (requestId !== supplyTabRequestId) return;
+                    console.error('Recent history fetch err', err);
+                    if (cachedRecentHistory || cachedFullHistory) return;
+                    onOverviewReady(() => {
+                        if (requestId !== supplyTabRequestId || !currentSupplyOverview) return;
+                        if (!currentSupplyOverview.historyPoints.length) {
+                            currentSupplyOverview.historyStage = 'error';
+                            renderSupplyIntelOverview();
+                        }
+                    });
                 });
         }
 
