@@ -3359,12 +3359,15 @@
                 }
                 .supply-history-tooltip {
                     position: absolute;
-                    min-width: 170px;
-                    padding: 12px 14px;
-                    border-radius: 12px;
-                    background: rgba(6,11,22,0.94);
-                    border: 1px solid rgba(52,211,153,0.18);
-                    box-shadow: 0 16px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(52,211,153,0.06);
+                    min-width: 240px;
+                    max-width: 280px;
+                    padding: 14px 15px 13px;
+                    border-radius: 16px;
+                    background:
+                        radial-gradient(circle at top right, rgba(34,211,238,0.14), transparent 42%),
+                        linear-gradient(145deg, rgba(7,12,24,0.97), rgba(10,15,28,0.95));
+                    border: 1px solid rgba(148,163,184,0.14);
+                    box-shadow: 0 20px 44px rgba(0,0,0,0.48), 0 0 0 1px rgba(255,255,255,0.03);
                     color: #f8fafc;
                     pointer-events: none;
                     opacity: 0;
@@ -3378,27 +3381,86 @@
                     opacity: 1;
                     transform: translateY(0);
                 }
-                .supply-history-tooltip-date {
-                    font-size: 10px;
-                    color: rgba(148,163,184,0.75);
-                    letter-spacing: 0.02em;
+                .supply-history-tooltip-head {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 10px;
                 }
-                .supply-history-tooltip-value {
-                    margin-top: 4px;
-                    font-size: 17px;
+                .supply-history-tooltip-kicker {
+                    font-size: 10px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.12em;
+                    color: rgba(148,163,184,0.6);
+                    white-space: nowrap;
+                }
+                .supply-history-tooltip-date {
+                    font-size: 11px;
+                    color: rgba(226,232,240,0.76);
+                    letter-spacing: 0.01em;
+                    font-weight: 600;
+                    text-align: right;
+                }
+                .supply-history-tooltip-primary {
+                    margin-top: 10px;
+                    font-size: 21px;
                     font-weight: 700;
-                    color: #d1fae5;
+                    line-height: 1.05;
+                    color: #f8fafc;
                     font-family: 'JetBrains Mono', monospace;
                     letter-spacing: -0.02em;
                 }
-                .supply-history-tooltip-delta {
-                    margin-top: 4px;
+                .supply-history-tooltip-secondary {
+                    margin-top: 7px;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    flex-wrap: wrap;
                     font-size: 11px;
+                    color: rgba(226,232,240,0.7);
+                }
+                .supply-history-tooltip-secondary-label {
+                    color: rgba(148,163,184,0.62);
+                    text-transform: uppercase;
+                    letter-spacing: 0.1em;
+                    font-size: 9px;
+                    font-weight: 700;
+                }
+                .supply-history-tooltip-foot {
+                    margin-top: 11px;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    flex-wrap: wrap;
+                }
+                .supply-history-tooltip-pill {
+                    display: inline-flex;
+                    align-items: center;
+                    min-height: 24px;
+                    padding: 0 9px;
+                    border-radius: 999px;
+                    font-size: 10px;
                     font-weight: 600;
+                    letter-spacing: 0.03em;
+                    border: 1px solid rgba(255,255,255,0.08);
+                    background: rgba(255,255,255,0.05);
+                    color: rgba(226,232,240,0.82);
+                    white-space: nowrap;
+                }
+                .supply-history-tooltip-pill.delta {
+                    font-family: 'JetBrains Mono', monospace;
                     letter-spacing: 0.01em;
                 }
-                .supply-history-tooltip-delta.up { color: #86efac; }
-                .supply-history-tooltip-delta.down { color: #fca5a5; }
+                .supply-history-tooltip-pill.delta.up {
+                    color: #86efac;
+                    border-color: rgba(134,239,172,0.2);
+                    background: rgba(34,197,94,0.1);
+                }
+                .supply-history-tooltip-pill.delta.down {
+                    color: #fca5a5;
+                    border-color: rgba(252,165,165,0.2);
+                    background: rgba(239,68,68,0.1);
+                }
                 .supply-history-controls {
                     display: flex;
                     justify-content: space-between;
@@ -7935,9 +7997,16 @@
 
             chart.innerHTML = `
                 <div class="supply-history-tooltip" id="supply-history-tooltip">
-                    <div class="supply-history-tooltip-date"></div>
-                    <div class="supply-history-tooltip-value"></div>
-                    <div class="supply-history-tooltip-delta"></div>
+                    <div class="supply-history-tooltip-head">
+                        <div class="supply-history-tooltip-kicker"></div>
+                        <div class="supply-history-tooltip-date"></div>
+                    </div>
+                    <div class="supply-history-tooltip-primary"></div>
+                    <div class="supply-history-tooltip-secondary"></div>
+                    <div class="supply-history-tooltip-foot">
+                        <div class="supply-history-tooltip-pill" id="supply-history-tooltip-metric"></div>
+                        <div class="supply-history-tooltip-pill delta" id="supply-history-tooltip-delta"></div>
+                    </div>
                 </div>
                 <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
                     <defs>
@@ -7998,32 +8067,46 @@
 
             // Hover
             const tooltip = document.getElementById('supply-history-tooltip');
+            const tKicker = tooltip?.querySelector('.supply-history-tooltip-kicker');
             const tDate = tooltip?.querySelector('.supply-history-tooltip-date');
-            const tVal = tooltip?.querySelector('.supply-history-tooltip-value');
-            const tDelta = tooltip?.querySelector('.supply-history-tooltip-delta');
+            const tPrimary = tooltip?.querySelector('.supply-history-tooltip-primary');
+            const tSecondary = tooltip?.querySelector('.supply-history-tooltip-secondary');
+            const tMetric = document.getElementById('supply-history-tooltip-metric');
+            const tDelta = document.getElementById('supply-history-tooltip-delta');
             const hLine = document.getElementById('supply-history-hover-line');
             const hDot = document.getElementById('supply-history-hover-dot');
 
-            function hideHover() { if (hLine) hLine.setAttribute('opacity','0'); if (hDot) hDot.setAttribute('opacity','0'); if (tooltip) tooltip.classList.remove('visible'); }
+            function hideHover() {
+                if (hLine) hLine.setAttribute('opacity','0');
+                if (hDot) hDot.setAttribute('opacity','0');
+                if (tooltip) tooltip.classList.remove('visible');
+            }
             function getNearIdx(cx) { const r=chart.getBoundingClientRect(); const rx=((cx-r.left)/r.width)*width; if(!Number.isFinite(rx))return null; return Math.max(0,Math.min(visiblePoints.length-1,Math.round(((Math.max(padLeft,Math.min(plotRight,rx))-padLeft)/innerW)*(visiblePoints.length-1)))); }
 
             function showHover(idx) {
                 const pt = pathPoints[idx], dp = visiblePoints[idx];
-                if (!pt||!dp||!tooltip||!tDate||!tVal||!hLine||!hDot) return;
+                if (!pt||!dp||!tooltip||!tKicker||!tDate||!tPrimary||!tSecondary||!tMetric||!tDelta||!hLine||!hDot) return;
                 hLine.setAttribute('x1',pt.x.toFixed(2)); hLine.setAttribute('x2',pt.x.toFixed(2)); hLine.setAttribute('opacity','1');
                 hDot.setAttribute('cx',pt.x.toFixed(2)); hDot.setAttribute('cy',pt.y.toFixed(2)); hDot.setAttribute('opacity','1');
+                tKicker.textContent = historySource === 'official-api' ? 'Official Daily Close' : 'Replay Estimate';
                 tDate.textContent = supplyFormatFullDate(dp.timestamp);
                 const sym = currentSupplyOverview?.token?.symbol||'';
-                tVal.textContent = historyMetric === 'usd'
-                    ? `${supplyFormatUsdPrecise(dp.usdValue ?? dp.value)}${Number.isFinite(dp.tokenValue) ? ` · ${supplyFormatTokenPrecise(dp.tokenValue)} ${sym}` : ''}`.trim()
+                tPrimary.textContent = historyMetric === 'usd'
+                    ? supplyFormatUsdPrecise(dp.usdValue ?? dp.value)
                     : `${supplyFormatTokenPrecise(dp.value)} ${sym}`.trim();
-                if (tDelta) {
-                    const fv=Number(visiblePoints[0]?.value||0),cv=Number(dp.value||0),d=cv-fv,p=fv>0?((d/fv)*100):0,s=d>=0?'+':'−';
-                    tDelta.textContent=`${s}${valueCompact(Math.abs(d))} (${s}${Math.abs(p).toFixed(2)}%)`;
-                    tDelta.className='supply-history-tooltip-delta '+(d>=0?'up':'down');
+                if (historyMetric === 'usd' && Number.isFinite(dp.tokenValue)) {
+                    tSecondary.innerHTML = `<span class="supply-history-tooltip-secondary-label">Token units</span><span>${supplyEscapeHtml(`${supplyFormatTokenPrecise(dp.tokenValue)} ${sym}`.trim())}</span>`;
+                } else {
+                    tSecondary.innerHTML = `<span class="supply-history-tooltip-secondary-label">Metric</span><span>${historyMetric === 'usd' ? 'USD supply liquidity' : `${supplyEscapeHtml(sym)} supply liquidity`.trim()}</span>`;
                 }
+                tMetric.textContent = historyMetric === 'usd' ? 'USD Supply Liquidity' : 'Token Supply Liquidity';
+                const fv=Number(visiblePoints[0]?.value||0),cv=Number(dp.value||0),d=cv-fv,p=fv>0?((d/fv)*100):0,s=d>=0?'+':'−';
+                tDelta.textContent=`${s}${valueCompact(Math.abs(d))} · ${s}${Math.abs(p).toFixed(2)}%`;
+                tDelta.className='supply-history-tooltip-pill delta '+(d>=0?'up':'down');
                 const r=chart.getBoundingClientRect(), xPx=(pt.x/width)*r.width, yPx=(pt.y/height)*r.height;
-                let l=xPx+14, t=yPx-80; if(l>r.width*0.72)l=xPx-190; if(t<10)t=yPx+12;
+                let l=xPx+16, t=yPx-104;
+                if(l>r.width*0.68)l=xPx-252;
+                if(t<10)t=yPx+16;
                 tooltip.style.left=`${Math.max(8,l)}px`; tooltip.style.top=`${Math.max(8,t)}px`; tooltip.classList.add('visible');
             }
 
