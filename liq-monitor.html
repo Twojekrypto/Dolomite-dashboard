@@ -3965,7 +3965,8 @@
                     margin-left: auto;
                     flex: 0 1 auto;
                 }
-                .supply-table-search-wrap {
+                .supply-table-search-wrap,
+                .supply-activity-search-wrap {
                     margin: 12px 0 0;
                     min-width: min(100%, 320px);
                     width: min(100%, 320px);
@@ -3973,16 +3974,10 @@
                 .supply-activity-toolbar {
                     display: flex;
                     align-items: center;
-                    justify-content: space-between;
+                    justify-content: flex-end;
                     gap: 16px;
                     flex-wrap: wrap;
-                    margin: 16px 0 18px;
-                }
-                .supply-activity-search-wrap {
-                    margin: 0;
-                    min-width: min(100%, 320px);
-                    width: min(100%, 320px);
-                    flex: 0 1 320px;
+                    margin: 14px 0 18px;
                 }
                 .supply-activity-filter-row {
                     display: flex;
@@ -4332,23 +4327,23 @@
                                     <span class="supply-activity-history-kicker">Activity Scope</span>
                                     <div class="supply-activity-history-state">
                                         <span class="supply-activity-history-dot" id="supply-activity-history-dot"></span>
-                                        <span id="supply-activity-history-state">Fast 30D view</span>
+                                        <span id="supply-activity-history-state">Waiting for asset</span>
                                     </div>
                                 </div>
                                 <button type="button" class="supply-activity-history-btn" id="supply-activity-load-all-btn" onclick="supplyLoadFullActivityHistory()">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3.2-6.9"></path><polyline points="21 3 21 9 15 9"></polyline></svg>
-                                    <span id="supply-activity-load-all-label">Show older tx</span>
+                                    <span id="supply-activity-load-all-label">Load older tx</span>
                                 </button>
-                                <span class="supply-activity-history-hint" id="supply-activity-history-hint">Showing a fast recent view first.</span>
+                                <span class="supply-activity-history-hint" id="supply-activity-history-hint">The latest flow opens first, with older history available only when you need it.</span>
+                            </div>
+                            <div class="search-wrap premium-supply-search-wrap supply-activity-search-wrap" id="supply-activity-search-wrap">
+                                <svg class="search-icon premium-supply-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                <input type="text" class="search-input premium-supply-search-input" id="supply-activity-search-input" placeholder="Search wallet address (0x...)">
+                                <button type="button" class="search-clear" id="supply-activity-search-clear" title="Clear search" style="right:14px; top:50%; transform:translateY(-50%);">✕</button>
                             </div>
                         </div>
                     </div>
                     <div class="supply-activity-toolbar">
-                        <div class="search-wrap premium-supply-search-wrap supply-activity-search-wrap" id="supply-activity-search-wrap">
-                            <svg class="search-icon premium-supply-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                            <input type="text" class="search-input premium-supply-search-input" id="supply-activity-search-input" placeholder="Search wallet address (0x...)">
-                            <button type="button" class="search-clear" id="supply-activity-search-clear" title="Clear search" style="right:14px; top:50%; transform:translateY(-50%);">✕</button>
-                        </div>
                         <div class="supply-activity-filter-row">
                             <button class="supply-filter-pill active" data-type="deposit" onclick="toggleSupplyActivityType('deposit')">Deposits</button>
                             <button class="supply-filter-pill active" data-type="withdraw" onclick="toggleSupplyActivityType('withdraw')">Withdrawals</button>
@@ -4359,7 +4354,7 @@
                     <div class="table-scroll">
                         <div id="supply-activity-loading" class="loading-state" style="display:none; padding:40px;">
                             <div class="loading-spinner"></div>
-                            <div style="margin-top:12px; color:var(--text-muted); font-size:13px;">Building full market activity...</div>
+                            <div style="margin-top:12px; color:var(--text-muted); font-size:13px;">Syncing the latest market flow...</div>
                         </div>
                         <table class="positions-table" id="supply-activity-table" style="display:none;">
                             <colgroup>
@@ -6798,11 +6793,11 @@
             }
             if (activityStage === 'recent') {
                 subtitle.textContent = isFullLoading
-                    ? `Recent 30-day activity for ${token} on ${chainName} is ready now · loading older history on demand.`
-                    : `Recent 30-day activity for ${token} on ${chainName} is ready now · load full history only when you need older tx.`;
+                    ? `Latest 30-day activity for ${token} on ${chainName} is ready now while older history keeps syncing.`
+                    : `Latest 30-day activity for ${token} on ${chainName} is ready now · load older history only when you need it.`;
                 return;
             }
-            subtitle.textContent = `Recent 30-day activity for ${token} on ${chainName} is warming up first so the table appears faster.`;
+            subtitle.textContent = `Loading the latest 30-day activity for ${token} on ${chainName} first so the table becomes usable faster.`;
         }
 
         function updateSupplyActivityHistoryAction() {
@@ -6818,30 +6813,30 @@
             if (activityStage === 'full') {
                 button.style.display = 'none';
                 button.disabled = false;
-                buttonLabel.textContent = 'Show older tx';
-                state.textContent = 'Full history loaded';
+                buttonLabel.textContent = 'Load older tx';
+                state.textContent = 'Full history ready';
                 dot.classList.add('full');
-                hint.textContent = 'Recent and older transactions are all loaded for this asset.';
+                hint.textContent = 'Every available transaction for this market is already loaded.';
                 return;
             }
             button.style.display = 'inline-flex';
             if (activityStage === 'recent') {
                 button.disabled = isFullLoading;
-                buttonLabel.textContent = isFullLoading ? 'Loading older tx...' : 'Show older tx';
-                state.textContent = isFullLoading ? 'Extending beyond 30D' : 'Fast 30D view';
+                buttonLabel.textContent = isFullLoading ? 'Loading older tx...' : 'Load older tx';
+                state.textContent = isFullLoading ? 'Extending beyond 30D' : 'Recent 30D ready';
                 if (isFullLoading) {
                     dot.classList.add('loading');
                 }
                 hint.textContent = isFullLoading
-                    ? 'Fetching older transactions for this asset now.'
-                    : 'Recent transactions are live. Older history stays optional so this market opens faster.';
+                    ? 'Latest flow is already visible while older transactions keep loading in the background.'
+                    : 'Latest transactions are live. Older history stays optional so this market opens faster.';
                 return;
             }
             button.disabled = true;
             buttonLabel.textContent = 'Preparing recent tx...';
-            state.textContent = 'Syncing recent activity';
+            state.textContent = 'Syncing latest 30D';
             dot.classList.add('loading');
-            hint.textContent = 'Recent activity is still loading first.';
+            hint.textContent = 'Latest market flow is loading first for the fastest first paint.';
         }
 
         function supplyLoadFullActivityHistory() {
@@ -7637,13 +7632,13 @@
                 activityHistoryButton.disabled = true;
             }
             if (activityHistoryButtonLabel) {
-                activityHistoryButtonLabel.textContent = 'Show older tx';
+                activityHistoryButtonLabel.textContent = 'Load older tx';
             }
             if (activityHistoryHint) {
-                activityHistoryHint.textContent = 'Choose an asset to unlock recent activity first.';
+                activityHistoryHint.textContent = 'Choose an asset to unlock the latest activity first.';
             }
             if (activityHistoryState) {
-                activityHistoryState.textContent = 'Fast 30D view';
+                activityHistoryState.textContent = 'Waiting for asset';
             }
             if (activityHistoryDot) {
                 activityHistoryDot.classList.remove('loading', 'full');
@@ -7703,7 +7698,7 @@
             if (loading) {
                 loading.innerHTML = `
                     <div class="loading-spinner"></div>
-                    <div style="margin-top:12px; color:var(--text-muted); font-size:13px;">${supplyEscapeHtml(message || 'Building full market activity...')}</div>
+                    <div style="margin-top:12px; color:var(--text-muted); font-size:13px;">${supplyEscapeHtml(message || 'Syncing the latest market flow...')}</div>
                 `;
             }
             document.getElementById('supply-activity-pagination').innerHTML = '';
@@ -9332,7 +9327,7 @@
             table.style.display = 'none';
             tbody.innerHTML = '';
             setSupplyIntelLoading(tokenObj, chain);
-            setSupplyActivityLoading('Loading recent activity first...');
+            setSupplyActivityLoading('Syncing the latest 30D flow...');
             if (supplyTitle) supplyTitle.textContent = `${tokenObj.symbol} Supplier Leaderboard`;
             currentSupplyOverview = null;
             currentSupplyActivity = [];
@@ -9360,7 +9355,7 @@
             syncSupplyActivityColumnFilterUi();
             syncSupplyHistoryControls([]);
             if (activitySubtitle) {
-                activitySubtitle.textContent = `Recent activity for ${tokenObj.symbol} on ${CHAIN_DISPLAY_NAMES[chain] || chain} is warming up first so the table appears faster.`;
+                activitySubtitle.textContent = `Loading the latest 30-day activity for ${tokenObj.symbol} on ${CHAIN_DISPLAY_NAMES[chain] || chain} first so the table becomes usable faster.`;
             }
 
             const onOverviewReady = fn => {
