@@ -9045,7 +9045,7 @@
             const endpoint = DOLOMITE_MINI_GRAPHS[chain];
             const sinceTs = Math.floor(Date.now() / 1000) - (SUPPLY_ACTIVITY_DEFAULT_DAYS * 24 * 60 * 60);
             const supplierCacheKey = `${chain}:${tokenId}:suppliers`;
-            const historyCacheKey = `${chain}:${tokenId}:history:v3:official`;
+            const historyCacheKey = `${chain}:${tokenId}:history:v4:official`;
 
             getSupplyCachedResource(
                 supplySuppliersCache,
@@ -9227,7 +9227,7 @@
             const supplierCacheKey = `${chain}:${tokenId}:suppliers`;
             const recentActivityKey = `${chain}:${tokenId}:activity:${SUPPLY_ACTIVITY_DEFAULT_DAYS}d`;
             const fullActivityKey = `${chain}:${tokenId}:activity:all`;
-            const historyCacheKey = `${chain}:${tokenId}:history:v3:official`;
+            const historyCacheKey = `${chain}:${tokenId}:history:v4:official`;
             const cachedSuppliers = getFreshSupplyCacheData(supplySuppliersCache, supplierCacheKey, { ttlMs: SUPPLY_CACHE_TTLS_MS.suppliers });
             const staleSuppliers = cachedSuppliers || getAnySupplyCacheData(supplySuppliersCache, supplierCacheKey);
             const cachedRecentActivity = getFreshSupplyCacheData(supplyRecentActivityCache, recentActivityKey, { ttlMs: SUPPLY_CACHE_TTLS_MS.activity });
