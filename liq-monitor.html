@@ -3788,19 +3788,68 @@
                     color: rgba(226,232,240,0.56);
                 }
                 .supply-activity-history-actions {
-                    margin-top: 12px;
+                    margin-top: 14px;
                     display: flex;
                     align-items: center;
-                    gap: 10px;
+                    justify-content: space-between;
+                    gap: 14px;
                     flex-wrap: wrap;
+                    padding: 12px 14px;
+                    border-radius: 16px;
+                    border: 1px solid rgba(255,255,255,0.07);
+                    background:
+                        linear-gradient(135deg, rgba(15,23,42,0.92), rgba(20,25,35,0.88)),
+                        linear-gradient(90deg, rgba(52,211,153,0.06), rgba(99,102,241,0.04));
+                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+                }
+                .supply-activity-history-scope {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 4px;
+                    min-width: 0;
+                    flex: 1 1 220px;
+                }
+                .supply-activity-history-kicker {
+                    font-size: 10px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.14em;
+                    color: rgba(148,163,184,0.56);
+                }
+                .supply-activity-history-state {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    min-width: 0;
+                    font-size: 13px;
+                    font-weight: 700;
+                    color: #f8fafc;
+                }
+                .supply-activity-history-dot {
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    flex-shrink: 0;
+                    background: #34d399;
+                    box-shadow: 0 0 0 4px rgba(52,211,153,0.12);
+                }
+                .supply-activity-history-dot.loading {
+                    background: #fbbf24;
+                    box-shadow: 0 0 0 4px rgba(251,191,36,0.12);
+                }
+                .supply-activity-history-dot.full {
+                    background: #22d3ee;
+                    box-shadow: 0 0 0 4px rgba(34,211,238,0.12);
                 }
                 .supply-activity-history-btn {
                     appearance: none;
-                    border: 1px solid rgba(52,211,153,0.24);
-                    background: linear-gradient(135deg, rgba(52,211,153,0.14), rgba(99,102,241,0.14));
-                    color: #ecfeff;
-                    height: 36px;
-                    padding: 0 14px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    border: 1px solid rgba(52,211,153,0.22);
+                    background: linear-gradient(135deg, rgba(52,211,153,0.16), rgba(99,102,241,0.16));
+                    color: #f8fafc;
+                    min-height: 38px;
+                    padding: 0 15px;
                     border-radius: 999px;
                     font-size: 12px;
                     font-weight: 700;
@@ -3809,6 +3858,12 @@
                     cursor: pointer;
                     transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
                     box-shadow: 0 10px 24px rgba(15,23,42,0.18);
+                }
+                .supply-activity-history-btn svg {
+                    width: 14px;
+                    height: 14px;
+                    flex-shrink: 0;
+                    opacity: 0.88;
                 }
                 .supply-activity-history-btn:hover:not(:disabled) {
                     transform: translateY(-1px);
@@ -3824,6 +3879,8 @@
                 .supply-activity-history-hint {
                     font-size: 12px;
                     color: rgba(226,232,240,0.52);
+                    flex: 1 1 100%;
+                    margin-top: -2px;
                 }
                 .supply-table-header,
                 .supply-activity-header {
@@ -4053,6 +4110,17 @@
                         align-items: stretch;
                         justify-content: flex-start;
                     }
+                    .supply-activity-history-actions {
+                        padding: 12px;
+                        gap: 12px;
+                    }
+                    .supply-activity-history-scope {
+                        flex-basis: 100%;
+                    }
+                    .supply-activity-history-btn {
+                        width: 100%;
+                        justify-content: center;
+                    }
                     .supply-activity-filter-row {
                         justify-content: flex-start;
                         margin-left: 0;
@@ -4128,7 +4196,7 @@
                     <div class="supply-history-head">
                         <div>
                             <div class="supply-history-title">Supply Liquidity In Time</div>
-                            <div class="supply-history-meta" id="supply-history-meta">Official Dolomite daily metrics feed for this asset's USD supply liquidity.</div>
+                            <div class="supply-history-meta" id="supply-history-meta">Official Dolomite daily USD supply-liquidity closes for this asset. Hover also shows token units.</div>
                         </div>
                         <div class="supply-history-delta" id="supply-history-delta"></div>
                     </div>
@@ -4198,7 +4266,17 @@
                             </h3>
                             <div class="supply-activity-subtitle" id="supply-activity-subtitle">Recent 30-day deposits, withdrawals, transfers, and liquidations for the selected market, with full history available on demand.</div>
                             <div class="supply-activity-history-actions">
-                                <button type="button" class="supply-activity-history-btn" id="supply-activity-load-all-btn" onclick="supplyLoadFullActivityHistory()">Load full history</button>
+                                <div class="supply-activity-history-scope">
+                                    <span class="supply-activity-history-kicker">Activity Scope</span>
+                                    <div class="supply-activity-history-state">
+                                        <span class="supply-activity-history-dot" id="supply-activity-history-dot"></span>
+                                        <span id="supply-activity-history-state">Fast 30D view</span>
+                                    </div>
+                                </div>
+                                <button type="button" class="supply-activity-history-btn" id="supply-activity-load-all-btn" onclick="supplyLoadFullActivityHistory()">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3.2-6.9"></path><polyline points="21 3 21 9 15 9"></polyline></svg>
+                                    <span id="supply-activity-load-all-label">Show older tx</span>
+                                </button>
                                 <span class="supply-activity-history-hint" id="supply-activity-history-hint">Showing a fast recent view first.</span>
                             </div>
                         </div>
@@ -6667,27 +6745,40 @@
 
         function updateSupplyActivityHistoryAction() {
             const button = document.getElementById('supply-activity-load-all-btn');
+            const buttonLabel = document.getElementById('supply-activity-load-all-label');
             const hint = document.getElementById('supply-activity-history-hint');
-            if (!button || !hint) return;
+            const state = document.getElementById('supply-activity-history-state');
+            const dot = document.getElementById('supply-activity-history-dot');
+            if (!button || !buttonLabel || !hint || !state || !dot) return;
             const activityStage = currentSupplyOverview?.activityStage || 'loading';
             const isFullLoading = !!currentSupplyOverview?.activityFullLoading;
+            dot.classList.remove('loading', 'full');
             if (activityStage === 'full') {
                 button.style.display = 'none';
                 button.disabled = false;
-                hint.textContent = 'Full history is loaded for this asset.';
+                buttonLabel.textContent = 'Show older tx';
+                state.textContent = 'Full history loaded';
+                dot.classList.add('full');
+                hint.textContent = 'Recent and older transactions are all loaded for this asset.';
                 return;
             }
             button.style.display = 'inline-flex';
             if (activityStage === 'recent') {
                 button.disabled = isFullLoading;
-                button.textContent = isFullLoading ? 'Loading full history...' : 'Load full history';
+                buttonLabel.textContent = isFullLoading ? 'Loading older tx...' : 'Show older tx';
+                state.textContent = isFullLoading ? 'Extending beyond 30D' : 'Fast 30D view';
+                if (isFullLoading) {
+                    dot.classList.add('loading');
+                }
                 hint.textContent = isFullLoading
                     ? 'Fetching older transactions for this asset now.'
-                    : 'Fast 30-day view is live. Load older tx only when you want deeper inspection.';
+                    : 'Recent transactions are live. Older history stays optional so this market opens faster.';
                 return;
             }
             button.disabled = true;
-            button.textContent = 'Loading recent activity...';
+            buttonLabel.textContent = 'Preparing recent tx...';
+            state.textContent = 'Syncing recent activity';
+            dot.classList.add('loading');
             hint.textContent = 'Recent activity is still loading first.';
         }
 
@@ -7475,14 +7566,25 @@
             document.getElementById('supply-activity-pagination').innerHTML = '';
             document.getElementById('supply-activity-count').textContent = '';
             const activityHistoryButton = document.getElementById('supply-activity-load-all-btn');
+            const activityHistoryButtonLabel = document.getElementById('supply-activity-load-all-label');
             const activityHistoryHint = document.getElementById('supply-activity-history-hint');
+            const activityHistoryState = document.getElementById('supply-activity-history-state');
+            const activityHistoryDot = document.getElementById('supply-activity-history-dot');
             if (activityHistoryButton) {
                 activityHistoryButton.style.display = 'inline-flex';
                 activityHistoryButton.disabled = true;
-                activityHistoryButton.textContent = 'Load full history';
+            }
+            if (activityHistoryButtonLabel) {
+                activityHistoryButtonLabel.textContent = 'Show older tx';
             }
             if (activityHistoryHint) {
                 activityHistoryHint.textContent = 'Choose an asset to unlock recent activity first.';
+            }
+            if (activityHistoryState) {
+                activityHistoryState.textContent = 'Fast 30D view';
+            }
+            if (activityHistoryDot) {
+                activityHistoryDot.classList.remove('loading', 'full');
             }
             const activitySearchInput = document.getElementById('supply-activity-search-input');
             const activitySearchWrap = document.getElementById('supply-activity-search-wrap');
@@ -7779,7 +7881,7 @@
                 chart.innerHTML = '<div class="supply-intel-empty">Loading official Dolomite supply-liquidity history for this asset...</div>';
                 axis.innerHTML = '';
                 delta.innerHTML = '<strong style="color:#e2e8f0">—</strong><span>Loading official history</span><span class="supply-history-delta-note">The chart is waiting for Dolomite\'s official daily token metrics feed.</span>';
-                meta.textContent = 'Official Dolomite daily supply-liquidity metrics are syncing for this market.';
+                meta.textContent = 'Official Dolomite daily USD supply-liquidity metrics are syncing for this market. Hover will also show token units.';
                 return;
             }
             if ((!points || points.length < 2 || visiblePoints.length < 2) && historyStage === 'error') {
@@ -7890,9 +7992,9 @@
                 ? (isTail ? 'Latest official daily close' : `Official close on ${supplyFormatDateLabel(lastPtData.timestamp)}`)
                 : (isTail ? 'Current supply liquidity' : `Supply on ${supplyFormatDateLabel(lastPtData.timestamp)}`);
             delta.innerHTML = `<strong style="color:#f8fafc">${valueCompact(Number(lastPtData.value || 0))}</strong><span>${latestLabel}</span><span class="supply-history-delta-note" style="color:${absDelta >= 0 ? '#86efac' : '#fca5a5'}">${sign}${valueCompact(Math.abs(absDelta))} (${sign}${Math.abs(pctChg).toFixed(2)}%) over ${supplyHistoryRange === 'custom' ? 'custom range' : 'full history'}</span>`;
-            meta.textContent = historySource === 'official-api'
-                ? `Official Dolomite token metrics API · daily USD supply-liquidity closes from ${supplyFormatFullDate(points[0].timestamp)} to ${supplyFormatFullDate(points[points.length - 1].timestamp)}. Hover for exact values and drag to zoom.`
-                : `Fallback replay from ${supplyFormatFullDate(points[0].timestamp)} to ${supplyFormatFullDate(points[points.length - 1].timestamp)} using Dolomite subgraph supply-par and interest-index history. Hover for exact values and drag to zoom.`;
+                meta.textContent = historySource === 'official-api'
+                    ? `Official Dolomite token metrics API · daily USD supply-liquidity closes from ${supplyFormatFullDate(points[0].timestamp)} to ${supplyFormatFullDate(points[points.length - 1].timestamp)}. Hover for exact USD values plus token units and drag to zoom.`
+                    : `Fallback replay from ${supplyFormatFullDate(points[0].timestamp)} to ${supplyFormatFullDate(points[points.length - 1].timestamp)} using Dolomite subgraph supply-par and interest-index history. Hover for exact values and drag to zoom.`;
 
             // Hover
             const tooltip = document.getElementById('supply-history-tooltip');
