@@ -3787,6 +3787,44 @@
                     font-size: 12px;
                     color: rgba(226,232,240,0.56);
                 }
+                .supply-activity-history-actions {
+                    margin-top: 12px;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    flex-wrap: wrap;
+                }
+                .supply-activity-history-btn {
+                    appearance: none;
+                    border: 1px solid rgba(52,211,153,0.24);
+                    background: linear-gradient(135deg, rgba(52,211,153,0.14), rgba(99,102,241,0.14));
+                    color: #ecfeff;
+                    height: 36px;
+                    padding: 0 14px;
+                    border-radius: 999px;
+                    font-size: 12px;
+                    font-weight: 700;
+                    letter-spacing: 0.01em;
+                    font-family: inherit;
+                    cursor: pointer;
+                    transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+                    box-shadow: 0 10px 24px rgba(15,23,42,0.18);
+                }
+                .supply-activity-history-btn:hover:not(:disabled) {
+                    transform: translateY(-1px);
+                    border-color: rgba(52,211,153,0.42);
+                    box-shadow: 0 16px 32px rgba(52,211,153,0.12);
+                }
+                .supply-activity-history-btn:disabled {
+                    opacity: 0.55;
+                    cursor: default;
+                    transform: none;
+                    box-shadow: none;
+                }
+                .supply-activity-history-hint {
+                    font-size: 12px;
+                    color: rgba(226,232,240,0.52);
+                }
                 .supply-table-header,
                 .supply-activity-header {
                     align-items: flex-start;
@@ -4158,7 +4196,11 @@
                             <h3 style="display:flex; align-items:center; gap:8px;">
                                 <span>Asset Activity</span> <span class="header-count" id="supply-activity-count"></span>
                             </h3>
-                            <div class="supply-activity-subtitle" id="supply-activity-subtitle">Deposits, withdrawals, transfers, and liquidations for the selected market across full available history.</div>
+                            <div class="supply-activity-subtitle" id="supply-activity-subtitle">Recent 30-day deposits, withdrawals, transfers, and liquidations for the selected market, with full history available on demand.</div>
+                            <div class="supply-activity-history-actions">
+                                <button type="button" class="supply-activity-history-btn" id="supply-activity-load-all-btn" onclick="supplyLoadFullActivityHistory()">Load full history</button>
+                                <span class="supply-activity-history-hint" id="supply-activity-history-hint">Showing a fast recent view first.</span>
+                            </div>
                         </div>
                     </div>
                     <div class="supply-activity-toolbar">
@@ -6514,6 +6556,7 @@
         let supplySortAsc = false;
         let currentSupplyOverview = null;
         let currentSupplyActivity = [];
+        let supplyActivityLoadAllHandler = null;
         const SUPPLY_CACHE_TTL_MS = 5 * 60 * 1000;
         const SUPPLY_CACHE_TTLS_MS = {
             bundle: 2 * 60 * 1000,
@@ -6608,15 +6651,50 @@
             const chainName = CHAIN_DISPLAY_NAMES[document.getElementById('supply-chain-select')?.value] || document.getElementById('supply-chain-select')?.value || '';
             if (!subtitle) return;
             const activityStage = currentSupplyOverview?.activityStage || 'loading';
+            const isFullLoading = !!currentSupplyOverview?.activityFullLoading;
             if (activityStage === 'full') {
                 subtitle.textContent = `Full deposit, withdrawal, transfer, and liquidation history for ${token} on ${chainName}.`;
                 return;
             }
             if (activityStage === 'recent') {
-                subtitle.textContent = `Recent activity for ${token} on ${chainName} is ready now · deeper history is still filling in the background.`;
+                subtitle.textContent = isFullLoading
+                    ? `Recent 30-day activity for ${token} on ${chainName} is ready now · loading older history on demand.`
+                    : `Recent 30-day activity for ${token} on ${chainName} is ready now · load full history only when you need older tx.`;
                 return;
             }
-            subtitle.textContent = `Recent activity for ${token} on ${chainName} is warming up first so the table appears faster.`;
+            subtitle.textContent = `Recent 30-day activity for ${token} on ${chainName} is warming up first so the table appears faster.`;
+        }
+
+        function updateSupplyActivityHistoryAction() {
+            const button = document.getElementById('supply-activity-load-all-btn');
+            const hint = document.getElementById('supply-activity-history-hint');
+            if (!button || !hint) return;
+            const activityStage = currentSupplyOverview?.activityStage || 'loading';
+            const isFullLoading = !!currentSupplyOverview?.activityFullLoading;
+            if (activityStage === 'full') {
+                button.style.display = 'none';
+                button.disabled = false;
+                hint.textContent = 'Full history is loaded for this asset.';
+                return;
+            }
+            button.style.display = 'inline-flex';
+            if (activityStage === 'recent') {
+                button.disabled = isFullLoading;
+                button.textContent = isFullLoading ? 'Loading full history...' : 'Load full history';
+                hint.textContent = isFullLoading
+                    ? 'Fetching older transactions for this asset now.'
+                    : 'Fast 30-day view is live. Load older tx only when you want deeper inspection.';
+                return;
+            }
+            button.disabled = true;
+            button.textContent = 'Loading recent activity...';
+            hint.textContent = 'Recent activity is still loading first.';
+        }
+
+        function supplyLoadFullActivityHistory() {
+            if (typeof supplyActivityLoadAllHandler === 'function') {
+                supplyActivityLoadAllHandler();
+            }
         }
 
         function supplyEscapeHtml(value) {
@@ -7365,6 +7443,7 @@
         function resetSupplyIntelState() {
             currentSupplyOverview = null;
             currentSupplyActivity = [];
+            supplyActivityLoadAllHandler = null;
             supplyActivityPage = 1;
             supplyActivitySearchQuery = '';
             supplyActivitySortField = 'time';
@@ -7395,6 +7474,16 @@
             if (stats) stats.innerHTML = '';
             document.getElementById('supply-activity-pagination').innerHTML = '';
             document.getElementById('supply-activity-count').textContent = '';
+            const activityHistoryButton = document.getElementById('supply-activity-load-all-btn');
+            const activityHistoryHint = document.getElementById('supply-activity-history-hint');
+            if (activityHistoryButton) {
+                activityHistoryButton.style.display = 'inline-flex';
+                activityHistoryButton.disabled = true;
+                activityHistoryButton.textContent = 'Load full history';
+            }
+            if (activityHistoryHint) {
+                activityHistoryHint.textContent = 'Choose an asset to unlock recent activity first.';
+            }
             const activitySearchInput = document.getElementById('supply-activity-search-input');
             const activitySearchWrap = document.getElementById('supply-activity-search-wrap');
             if (activitySearchInput) activitySearchInput.value = '';
@@ -7454,6 +7543,7 @@
                 `;
             }
             document.getElementById('supply-activity-pagination').innerHTML = '';
+            updateSupplyActivityHistoryAction();
         }
 
         initSupplyActivityRangePopover({
@@ -8321,6 +8411,7 @@
             updateSupplyActivitySortUi();
             syncSupplyActivityColumnFilterUi();
             updateSupplyActivitySubtitle();
+            updateSupplyActivityHistoryAction();
 
             if (filtered.length === 0) {
                 table.style.display = 'table';
@@ -9013,7 +9104,7 @@
             }
         }
 
-        // Warm recent activity first, then hydrate deeper history in the background.
+        // Load recent activity first and only fetch full history when the user asks for it.
         const SUPPLY_ACTIVITY_DEFAULT_DAYS = 30;
 
         async function onSupplyAssetChange() {
@@ -9163,6 +9254,7 @@
                     historySource: previousOverview.historySource || 'official-api',
                     historyMetric: previousOverview.historyMetric || 'usd',
                     activityStage: previousOverview.activityStage || 'loading',
+                    activityFullLoading: previousOverview.activityFullLoading || false,
                 };
             };
 
@@ -9185,8 +9277,8 @@
                     if (currentSupplyOverview.activityStage === 'full') return;
                     currentSupplyActivity = activityHistory?.rows || [];
                     currentSupplyOverview.activityStage = 'recent';
+                    currentSupplyOverview.activityFullLoading = false;
                     renderSupplyActivityTable();
-                    startFullActivityHydration();
                 });
             };
 
@@ -9224,6 +9316,7 @@
                     if (requestId !== supplyTabRequestId || !currentSupplyOverview) return;
                     currentSupplyActivity = activityHistory?.rows || [];
                     currentSupplyOverview.activityStage = 'full';
+                    currentSupplyOverview.activityFullLoading = false;
                     renderSupplyActivityTable();
                 });
             };
@@ -9331,6 +9424,11 @@
                     applyFullActivity(cachedFullActivity);
                     return;
                 }
+                onOverviewReady(() => {
+                    if (requestId !== supplyTabRequestId || !currentSupplyOverview) return;
+                    currentSupplyOverview.activityFullLoading = true;
+                    renderSupplyActivityTable();
+                });
                 const beginHydration = () => {
                     getSupplyCachedResource(
                         supplyFullActivityCache,
@@ -9345,6 +9443,11 @@
                         .catch(err => {
                             if (requestId !== supplyTabRequestId) return;
                             console.error('Full activity hydration err', err);
+                            onOverviewReady(() => {
+                                if (requestId !== supplyTabRequestId || !currentSupplyOverview) return;
+                                currentSupplyOverview.activityFullLoading = false;
+                                renderSupplyActivityTable();
+                            });
                             if (!currentSupplyActivity.length) {
                                 setSupplyActivityLoading('Could not load market activity right now.');
                             }
@@ -9355,6 +9458,12 @@
                 } else {
                     setTimeout(beginHydration, 160);
                 }
+            };
+
+            supplyActivityLoadAllHandler = () => {
+                if (requestId !== supplyTabRequestId || !currentSupplyOverview) return;
+                if (currentSupplyOverview.activityStage === 'full' || currentSupplyOverview.activityFullLoading) return;
+                startFullActivityHydration();
             };
 
             ensureBaseOverview();
