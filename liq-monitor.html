@@ -8015,7 +8015,16 @@
             const historyMetric = currentSupplyOverview?.historyMetric || 'token';
             const historySource = currentSupplyOverview?.historySource || 'subgraph-replay';
             const valueCompact = value => historyMetric === 'usd' ? formatUSDCompact(value) : supplyFormatTokenCompact(value);
-            const visiblePoints = getVisibleSupplyHistoryPoints(points || []);
+            const visiblePoints = getVisibleSupplyHistoryPoints(points || []).map(point => ({
+                ...point,
+                value: Math.max(0, Number(point?.value || 0)),
+                usdValue: Number.isFinite(Number(point?.usdValue))
+                    ? Math.max(0, Number(point.usdValue))
+                    : point?.usdValue,
+                tokenValue: Number.isFinite(Number(point?.tokenValue))
+                    ? Math.max(0, Number(point.tokenValue))
+                    : point?.tokenValue,
+            }));
 
             if ((!points || points.length < 2 || visiblePoints.length < 2) && historyStage === 'loading') {
                 chart.innerHTML = '<div class="supply-intel-empty">Loading official Dolomite supply-liquidity history for this asset...</div>';
@@ -8038,10 +8047,12 @@
             const width = 1000, height = 320;
             const padRight = 20, padTop = 20, padBottom = 20;
             const values = visiblePoints.map(p => Number(p.value || 0));
-            const rawMin = Math.min(...values), rawMax = Math.max(...values);
+            const rawMin = Math.max(0, Math.min(...values)), rawMax = Math.max(0, Math.max(...values));
             const rawSpread = rawMax - rawMin;
             const vertPad = rawSpread > 0 ? rawSpread * 0.08 : Math.max(rawMax * 0.02, 1);
-            const min = rawMin - vertPad, max = rawMax + vertPad, safeSpread = max - min;
+            const min = Math.max(0, rawMin - vertPad);
+            const max = Math.max(rawMax + vertPad, min + Math.max(rawMax * 0.02, 1));
+            const safeSpread = max - min;
             const yTicks = Array.from({ length: 5 }).map((_, i) => max - (safeSpread * i / 4));
             const yTickLabels = yTicks.map(value => supplyFormatHistoryAxisValue(value, historyMetric));
             const yLabelPad = Math.max(...yTickLabels.map(label => label.length), 0) * 7;
@@ -8592,8 +8603,8 @@
                 points: rows
                     .map(row => {
                         const timestamp = Number(row?.timestamp || 0);
-                        const usdValue = parseFloat(row?.supplyLiquidityUSD || '0');
-                        const tokenValue = parseFloat(row?.supplyLiquidityToken || '0');
+                        const usdValue = Math.max(0, parseFloat(row?.supplyLiquidityUSD || '0') || 0);
+                        const tokenValue = Math.max(0, parseFloat(row?.supplyLiquidityToken || '0') || 0);
                         return {
                             timestamp,
                             value: usdValue,
