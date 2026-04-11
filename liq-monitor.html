@@ -3780,6 +3780,21 @@
                     color: rgba(148,163,184,0.55);
                     font-family: 'JetBrains Mono', monospace;
                 }
+                .supply-history-brush-date-label {
+                    padding: 4px 0 0;
+                    min-height: 18px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 6px;
+                    text-align: center;
+                    font-size: 12px;
+                    color: rgba(226,232,240,0.66);
+                }
+                .supply-history-brush-date-label svg {
+                    flex-shrink: 0;
+                    opacity: 0.58;
+                }
                 .supply-history-brush {
                     position: relative;
                     height: 48px;
@@ -4293,6 +4308,7 @@
                     </div>
                     <div id="supply-history-chart" class="supply-history-chart"></div>
                     <div id="supply-history-axis" class="supply-history-axis"></div>
+                    <div id="supply-history-brush-date-label" class="supply-history-brush-date-label"></div>
                     <div id="supply-history-brush" class="supply-history-brush">
                         <div class="supply-history-brush-overlay supply-history-brush-overlay-left" id="supply-brush-overlay-left"></div>
                         <div class="supply-history-brush-handle supply-history-brush-handle-left" id="supply-brush-handle-left"><span></span></div>
@@ -7045,6 +7061,22 @@
             badge.classList.add('visible');
         }
 
+        function updateSupplyHistoryBrushDateLabel(points) {
+            const label = document.getElementById('supply-history-brush-date-label');
+            if (!label) return;
+            const safePoints = Array.isArray(points) ? points.filter(point => Number.isFinite(Number(point?.timestamp || 0))) : [];
+            if (safePoints.length === 0) {
+                label.innerHTML = '';
+                return;
+            }
+            const window = getSupplyHistoryWindow(safePoints);
+            if (!window.startTs || !window.endTs) {
+                label.innerHTML = '';
+                return;
+            }
+            label.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>${supplyFormatFullDate(window.startTs)} → ${supplyFormatFullDate(window.endTs)}</span>`;
+        }
+
         function getSupplyStorageKey(key) {
             return `${SUPPLY_CACHE_STORAGE_PREFIX}${key}`;
         }
@@ -7683,6 +7715,7 @@
             const activityLoading = document.getElementById('supply-activity-loading');
             const chart = document.getElementById('supply-history-chart');
             const axis = document.getElementById('supply-history-axis');
+            const brushDateLabel = document.getElementById('supply-history-brush-date-label');
             const stats = document.getElementById('supply-intel-stats');
             if (shell) shell.style.display = 'none';
             if (card) card.style.display = 'none';
@@ -7690,6 +7723,7 @@
             if (activityLoading) activityLoading.style.display = 'none';
             if (chart) chart.innerHTML = '';
             if (axis) axis.innerHTML = '';
+            if (brushDateLabel) brushDateLabel.innerHTML = '';
             if (stats) stats.innerHTML = '';
             document.getElementById('supply-activity-pagination').innerHTML = '';
             document.getElementById('supply-activity-count').textContent = '';
@@ -8029,18 +8063,21 @@
             if ((!points || points.length < 2 || visiblePoints.length < 2) && historyStage === 'loading') {
                 chart.innerHTML = '<div class="supply-intel-empty">Loading official Dolomite supply-liquidity history for this asset...</div>';
                 axis.innerHTML = '';
+                updateSupplyHistoryBrushDateLabel([]);
                 delta.innerHTML = '<strong style="color:#e2e8f0">—</strong><span>Loading official history</span><span class="supply-history-delta-note">The chart is waiting for Dolomite\'s official daily token metrics feed.</span>';
                 meta.textContent = 'Official Dolomite daily USD supply-liquidity metrics are syncing for this market. Hover will also show token units.';
                 return;
             }
             if ((!points || points.length < 2 || visiblePoints.length < 2) && historyStage === 'error') {
                 chart.innerHTML = '<div class="supply-history-empty" style="color:#fca5a5;">Could not load the official historical supply liquidity for this market.</div>';
-                axis.innerHTML = ''; delta.innerHTML = '<strong style="color:#fca5a5">—</strong><span>History unavailable</span>';
+                axis.innerHTML = '';
+                updateSupplyHistoryBrushDateLabel([]);
+                delta.innerHTML = '<strong style="color:#fca5a5">—</strong><span>History unavailable</span>';
                 meta.textContent = 'Try switching the market again in a moment.'; return;
             }
             if (!points || points.length < 2 || visiblePoints.length < 2) {
                 const msg = (points && points.length >= 2) ? 'The selected range is too narrow to draw a chart.' : 'Not enough official history points yet to draw this chart.';
-                chart.innerHTML = `<div class="supply-history-empty">${msg}</div>`; axis.innerHTML = ''; delta.innerHTML = '';
+                chart.innerHTML = `<div class="supply-history-empty">${msg}</div>`; axis.innerHTML = ''; updateSupplyHistoryBrushDateLabel([]); delta.innerHTML = '';
                 meta.textContent = (points && points.length >= 2) ? 'Widen the range using the brush below.' : 'Waiting for enough official supply history to accumulate.'; return;
             }
 
@@ -8252,6 +8289,7 @@
                 oL.style.width=`${lPx}px`; oR.style.width=`${bW-rPx}px`;
                 hL.style.left=`${lPx}px`; hR.style.left=`${rPx-hw}px`;
                 win.style.left=`${lPx+hw}px`; win.style.width=`${Math.max(0,rPx-lPx-hw*2)}px`;
+                updateSupplyHistoryBrushDateLabel(allPoints);
             }
             updateUI();
 
