@@ -781,7 +781,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            flex-shrink: 1;
+            flex: 1 1 auto;
             min-width: 0;
         }
 
@@ -807,6 +807,7 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 20px;
             padding: 6px 14px 6px 12px;
+            height: 32px;
             color: rgba(255, 255, 255, 0.55);
             font-size: 11px;
             font-weight: 600;
@@ -1271,9 +1272,9 @@
         /* ═══ Separator — subtle vertical line ═══ */
         .assets-modifier-sep {
             width: 1px;
-            height: 16px;
+            height: 20px;
             border-radius: 1px;
-            background: rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.12);
             flex-shrink: 0;
         }
 
@@ -1292,6 +1293,7 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 20px;
             padding: 6px 14px 6px 12px;
+            height: 32px;
             color: rgba(255, 255, 255, 0.55);
             font-size: 11px;
             font-weight: 600;
@@ -1848,9 +1850,11 @@
             border-radius: 20px;
             padding: 6px 14px;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            width: 400px;
+            flex: 1 1 220px;
+            min-width: 200px;
             max-width: 400px;
             backdrop-filter: blur(8px);
+            height: 32px;
         }
 
         .assets-th-search-wrap:hover {
@@ -1862,6 +1866,7 @@
             border-color: rgba(52, 211, 153, 0.5);
             background: rgba(52, 211, 153, 0.04);
             box-shadow: 0 0 16px rgba(52, 211, 153, 0.12), 0 0 4px rgba(52, 211, 153, 0.08), inset 0 0 12px rgba(52, 211, 153, 0.03);
+            max-width: 440px;
         }
 
         .assets-th-search-icon {
@@ -1940,6 +1945,7 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            height: 32px;
             padding: 5px 12px 5px 8px;
             border-radius: 20px;
             border: 1px solid rgba(255, 255, 255, 0.08);
@@ -2061,6 +2067,34 @@
 
         .assets-search-clear.visible {
             display: flex;
+        }
+
+        /* ═══ Keyboard shortcut hint badge ═══ */
+        .assets-search-kbd-hint {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.2);
+            font-size: 10px;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+            flex-shrink: 0;
+            transition: all 0.2s ease;
+            pointer-events: none;
+        }
+
+        .assets-th-search-wrap:focus-within .assets-search-kbd-hint {
+            opacity: 0;
+            width: 0;
+            min-width: 0;
+            overflow: hidden;
+            padding: 0;
+            border: none;
         }
 
         /* ═══ Focus-visible accessibility rings ═══ */
@@ -2190,6 +2224,7 @@
         .apr-pill {
             display: inline-flex;
             align-items: center;
+            height: 32px;
             background: rgba(255, 255, 255, 0.03);
             border-radius: 20px;
             border: 1px solid rgba(255, 255, 255, 0.08);
@@ -2227,7 +2262,7 @@
         }
 
         .apr-pill-opt {
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 700;
             letter-spacing: 0.5px;
             padding: 4px 12px;
@@ -2344,6 +2379,13 @@
         .assets-apy-red {
             color: #ef4444;
             font-weight: 600;
+        }
+
+        .assets-borrow-nil {
+            color: rgba(255, 255, 255, 0.12);
+            font-size: 16px;
+            letter-spacing: 2px;
+            user-select: none;
         }
 
         .assets-apy-dim {
@@ -14765,6 +14807,7 @@
                                 <input type="text" class="assets-th-search" id="assets-search"
                                     placeholder="Search token or paste address…" spellcheck="false"
                                     autocomplete="off">
+                                <span class="assets-search-kbd-hint">/</span>
                                 <button class="assets-search-clear" id="assets-search-clear" type="button" aria-label="Clear search" onclick="document.getElementById('assets-search').value='';this.classList.remove('visible');document.getElementById('assets-search').dispatchEvent(new Event('input'));">×</button>
                             </div>
                             <!-- Premium Asset Category Dropdown -->
@@ -14808,18 +14851,18 @@
                                         <line x1="2" y1="12" x2="22" y2="12"/>
                                         <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                                     </svg>
-                                    <span class="assets-network-btn-label" id="assets-network-btn-label">All Networks</span>
+                                    <span class="assets-network-btn-label" id="assets-network-btn-label">All Chains</span>
                                     <span class="assets-network-count" id="assets-network-count">6</span>
                                     <svg class="assets-network-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
                                 </button>
                                 <div class="assets-network-panel" id="assets-network-panel">
-                                    <div class="assets-network-panel-header">Select Network</div>
+                                    <div class="assets-network-panel-header">Select Chain</div>
                                     <div class="assets-network-grid">
                                         <button class="assets-network-opt active" data-chain="all" onclick="assets_selectNetwork(event, this)">
                                             <div class="assets-network-opt-icon all-icon">
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
                                             </div>
-                                            <span class="assets-network-opt-name">All Networks</span>
+                                            <span class="assets-network-opt-name">All Chains</span>
                                             <span class="assets-network-opt-check">
                                                 <svg viewBox="0 0 12 12" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg>
                                             </span>
@@ -20374,7 +20417,7 @@
                 // Show globe, hide chain icon
                 if (globeEl) globeEl.style.display = '';
                 if (existingChainIcon) existingChainIcon.remove();
-                label.textContent = 'All Networks';
+                label.textContent = 'All Chains';
                 count.textContent = '6';
                 count.style.display = '';
             } else {
@@ -20563,6 +20606,16 @@
                 const btn = document.getElementById('assets-cat-btn');
                 if (panel) panel.classList.remove('show');
                 if (btn) btn.classList.remove('open');
+            }
+        });
+
+        // Keyboard shortcut: "/" focuses search bar
+        document.addEventListener('keydown', function(e) {
+            if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey &&
+                document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                const s = document.getElementById('assets-search');
+                if (s) s.focus();
             }
         });
 
@@ -20836,7 +20889,7 @@
                         <div><span class="${supplyClass}" style="${supplyStyle}">${displaySupply.toFixed(2)}%</span></div>
                         ${breakdownHtml}
                     </td>
-                    <td><span class="assets-apy-red">${d.borrowApr > 0 ? d.borrowApr.toFixed(2) + '%' : '—'}</span></td>
+                    <td>${d.borrowApr > 0 ? `<span class="assets-apy-red">${d.borrowApr.toFixed(2)}%</span>` : '<span class="assets-borrow-nil">•••</span>'}</td>
                 </tr>`;
 
                 // Build detail row
