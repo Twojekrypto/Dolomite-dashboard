@@ -3172,10 +3172,15 @@
                     color: rgba(148,163,184,0.72);
                     margin-bottom: 10px;
                 }
+                .supply-intel-copy {
+                    min-width: 0;
+                    flex: 1 1 auto;
+                }
                 .supply-intel-title-row {
                     display: flex;
                     align-items: center;
                     gap: 12px;
+                    min-width: 0;
                 }
                 .supply-intel-title-icon {
                     width: 42px;
@@ -3189,10 +3194,30 @@
                     box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
                 }
                 .supply-intel-title {
+                    display: flex;
+                    flex-wrap: wrap;
+                    align-items: baseline;
+                    gap: 6px;
+                    min-width: 0;
                     font-size: 22px;
                     font-weight: 700;
                     letter-spacing: -0.02em;
                     color: #f8fafc;
+                    line-height: 1.08;
+                }
+                .supply-intel-title-symbol {
+                    white-space: nowrap;
+                }
+                .supply-intel-title-separator {
+                    color: rgba(148,163,184,0.72);
+                }
+                .supply-intel-title-chain {
+                    min-width: 0;
+                    color: rgba(226,232,240,0.82);
+                    font-size: 17px;
+                    font-weight: 600;
+                    letter-spacing: -0.01em;
+                    overflow-wrap: anywhere;
                 }
                 .supply-intel-subtitle {
                     margin-top: 4px;
@@ -4135,6 +4160,16 @@
                     .supply-intel-asof {
                         white-space: normal;
                     }
+                    .supply-intel-title {
+                        gap: 4px;
+                    }
+                    .supply-intel-title-separator {
+                        display: none;
+                    }
+                    .supply-intel-title-chain {
+                        width: 100%;
+                        font-size: 14px;
+                    }
                     .supply-intel-stats {
                         grid-template-columns: 1fr;
                     }
@@ -4239,7 +4274,7 @@
                         <div class="supply-intel-eyebrow">Selected Market</div>
                         <div class="supply-intel-title-row">
                             <img id="supply-intel-asset-icon" class="supply-intel-title-icon" src="dolomite-logo.svg" alt="">
-                            <div>
+                            <div class="supply-intel-copy">
                                 <div class="supply-intel-title" id="supply-intel-title">Choose an asset</div>
                                 <div class="supply-intel-subtitle" id="supply-intel-subtitle">Live liquidity, caps, supplier breadth, and full activity.</div>
                             </div>
@@ -7657,17 +7692,17 @@
             const stats = document.getElementById('supply-intel-stats');
             const chart = document.getElementById('supply-history-chart');
             const axis = document.getElementById('supply-history-axis');
-            const title = document.getElementById('supply-intel-title');
             const subtitle = document.getElementById('supply-intel-subtitle');
             const asof = document.getElementById('supply-intel-asof');
             const icon = document.getElementById('supply-intel-asset-icon');
             const symbol = tokenObj && tokenObj.symbol ? tokenObj.symbol : 'Selected Market';
+            const chainName = CHAIN_DISPLAY_NAMES[chain] || chain;
             const iconPath = tokenObj ? (getTokenIcon(truncateTokenName(symbol)) || SYMBOL_ICONS[symbol] || 'dolomite-logo.svg') : 'dolomite-logo.svg';
             if (icon) {
                 icon.src = iconPath;
                 icon.onerror = () => { icon.src = 'dolomite-logo.svg'; };
             }
-            if (title) title.textContent = symbol + ' · ' + (CHAIN_DISPLAY_NAMES[chain] || chain);
+            renderSupplyIntelTitle(symbol, chainName);
             if (subtitle) subtitle.textContent = 'Fetching supplier breadth now and syncing the official Dolomite daily supply-liquidity curve in the background...';
             if (asof) asof.textContent = 'Refreshing selected market';
             if (stats) {
@@ -7699,6 +7734,18 @@
             }
             document.getElementById('supply-activity-pagination').innerHTML = '';
             updateSupplyActivityHistoryAction();
+        }
+
+        function renderSupplyIntelTitle(symbol, chain) {
+            const title = document.getElementById('supply-intel-title');
+            if (!title) return;
+            const safeSymbol = supplyEscapeHtml(symbol || 'Selected Market');
+            const safeChain = supplyEscapeHtml(chain || '');
+            if (!safeChain) {
+                title.textContent = symbol || 'Selected Market';
+                return;
+            }
+            title.innerHTML = `<span class="supply-intel-title-symbol">${safeSymbol}</span><span class="supply-intel-title-separator" aria-hidden="true">·</span><span class="supply-intel-title-chain">${safeChain}</span>`;
         }
 
         initSupplyActivityRangePopover({
@@ -8177,7 +8224,6 @@
         function renderSupplyIntelOverview() {
             const shell = document.getElementById('supply-intel-shell');
             const stats = document.getElementById('supply-intel-stats');
-            const title = document.getElementById('supply-intel-title');
             const subtitle = document.getElementById('supply-intel-subtitle');
             const asof = document.getElementById('supply-intel-asof');
             const icon = document.getElementById('supply-intel-asset-icon');
@@ -8197,7 +8243,7 @@
                 icon.src = iconPath;
                 icon.onerror = () => { icon.src = 'dolomite-logo.svg'; };
             }
-            if (title) title.textContent = `${symbol} · ${chainName}`;
+            renderSupplyIntelTitle(symbol, chainName);
             if (subtitle) subtitle.textContent = hasSupplierCount
                 ? `Market #${info.token.marketId} · ${supplierCountDisplay} active supplier${info.supplierCount === 1 ? '' : 's'} · ${info.borrowingDisabled ? 'borrowing disabled' : 'borrowing enabled'}`
                 : (supplierStage === 'partial'
