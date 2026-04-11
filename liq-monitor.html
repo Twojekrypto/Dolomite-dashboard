@@ -6515,6 +6515,12 @@
         let currentSupplyOverview = null;
         let currentSupplyActivity = [];
         const SUPPLY_CACHE_TTL_MS = 5 * 60 * 1000;
+        const SUPPLY_CACHE_TTLS_MS = {
+            bundle: 2 * 60 * 1000,
+            suppliers: 15 * 60 * 1000,
+            activity: 3 * 60 * 1000,
+            history: 12 * 60 * 60 * 1000,
+        };
         const SUPPLY_CACHE_STORAGE_PREFIX = 'dolomite_supply_cache_v2:';
         const supplyChainBundleCache = new Map();
         const supplySuppliersCache = new Map();
@@ -6794,7 +6800,7 @@
             }
         }
 
-        function getFreshSupplyCacheData(cache, key, options = {}) {
+        function getSupplyCacheEntry(cache, key, options = {}) {
             const { persist = true } = options;
             let entry = cache.get(key);
             if ((!entry || !entry.data) && persist) {
@@ -6804,26 +6810,34 @@
                     entry = cache.get(key);
                 }
             }
+            return entry || null;
+        }
+
+        function isSupplyCacheEntryFresh(entry, ttlMs = SUPPLY_CACHE_TTL_MS) {
+            if (!entry || !entry.data) return false;
+            const safeTtl = Number.isFinite(ttlMs) && ttlMs > 0 ? ttlMs : SUPPLY_CACHE_TTL_MS;
+            return (Date.now() - Number(entry.ts || 0)) <= safeTtl;
+        }
+
+        function getFreshSupplyCacheData(cache, key, options = {}) {
+            const { persist = true, ttlMs = SUPPLY_CACHE_TTL_MS } = options;
+            const entry = getSupplyCacheEntry(cache, key, { persist });
             if (!entry || !entry.data) return null;
-            const isFresh = (Date.now() - Number(entry.ts || 0)) <= SUPPLY_CACHE_TTL_MS;
-            if (!isFresh && persist) {
-                deleteSupplyCacheStorage(key);
-            }
-            return isFresh ? entry.data : null;
+            return isSupplyCacheEntryFresh(entry, ttlMs) ? entry.data : null;
+        }
+
+        function getAnySupplyCacheData(cache, key, options = {}) {
+            const { persist = true } = options;
+            const entry = getSupplyCacheEntry(cache, key, { persist });
+            return entry && entry.data ? entry.data : null;
         }
 
         function getSupplyCachedResource(cache, key, loader, options = {}) {
-            const { persist = true } = options;
-            const entry = cache.get(key);
-            const fresh = entry && entry.data && (Date.now() - Number(entry.ts || 0)) <= SUPPLY_CACHE_TTL_MS;
+            const { persist = true, ttlMs = SUPPLY_CACHE_TTL_MS } = options;
+            const entry = getSupplyCacheEntry(cache, key, { persist });
+            const fresh = isSupplyCacheEntryFresh(entry, ttlMs);
             if (fresh) {
                 return Promise.resolve(entry.data);
-            }
-            if ((!entry || !entry.data) && persist) {
-                const stored = getFreshSupplyCacheData(cache, key, { persist });
-                if (stored) {
-                    return Promise.resolve(stored);
-                }
             }
             if (entry && entry.promise) {
                 return entry.promise;
@@ -7907,8 +7921,12 @@
             const symbol = info.token.symbol;
             const chainName = CHAIN_DISPLAY_NAMES[info.chain] || info.chain;
             const iconPath = getTokenIcon(truncateTokenName(symbol)) || SYMBOL_ICONS[symbol] || 'dolomite-logo.svg';
+            const supplierStage = info.supplierStage || 'loading';
             const hasSupplierCount = Number.isFinite(info.supplierCount);
-            const supplierCountDisplay = hasSupplierCount ? info.supplierCount.toLocaleString() : '…';
+            const supplierPreviewCount = Number.isFinite(info.supplierPreviewCount) ? info.supplierPreviewCount : currentSupplyData.length;
+            const supplierCountDisplay = hasSupplierCount
+                ? info.supplierCount.toLocaleString()
+                : (supplierStage === 'partial' && supplierPreviewCount > 0 ? `${supplierPreviewCount.toLocaleString()}+` : '…');
             if (icon) {
                 icon.src = iconPath;
                 icon.onerror = () => { icon.src = 'dolomite-logo.svg'; };
@@ -7916,7 +7934,9 @@
             if (title) title.textContent = `${symbol} · ${chainName}`;
             if (subtitle) subtitle.textContent = hasSupplierCount
                 ? `Market #${info.token.marketId} · ${supplierCountDisplay} active supplier${info.supplierCount === 1 ? '' : 's'} · ${info.borrowingDisabled ? 'borrowing disabled' : 'borrowing enabled'}`
-                : `Market #${info.token.marketId} · supplier breadth is still loading · ${info.borrowingDisabled ? 'borrowing disabled' : 'borrowing enabled'}`;
+                : (supplierStage === 'partial'
+                    ? `Market #${info.token.marketId} · top suppliers are ready while the broader supplier map is still loading · ${info.borrowingDisabled ? 'borrowing disabled' : 'borrowing enabled'}`
+                    : `Market #${info.token.marketId} · supplier breadth is still loading · ${info.borrowingDisabled ? 'borrowing disabled' : 'borrowing enabled'}`);
             if (asof) asof.textContent = `Live market snapshot + official Dolomite chart history · ${supplyFormatRelativeTime(Math.floor(Date.now() / 1000))}`;
 
             const supplyCapPct = info.supplyCap > 0 ? Math.min(100, (info.supply / info.supplyCap) * 100) : 0;
@@ -7930,7 +7950,13 @@
                         <div class="supply-intel-stat-label">Supplier Addresses</div>
                         <div class="supply-intel-stat-value">${supplierCountDisplay}</div>
                     </div>
-                    <div class="supply-intel-stat-sub">${topSupplier ? `Largest wallet holds ${supplyFormatPercent(concentrationPct)} of current supply.` : (hasSupplierCount ? 'Unique effective users currently supplying this market.' : 'Leaderboard is still hydrating in the background.')}</div>
+                    <div class="supply-intel-stat-sub">${topSupplier
+                        ? `Largest wallet holds ${supplyFormatPercent(concentrationPct)} of current supply.`
+                        : (hasSupplierCount
+                            ? 'Unique effective users currently supplying this market.'
+                            : (supplierStage === 'partial'
+                                ? 'Preview leaderboard is ready while the remaining suppliers hydrate in the background.'
+                                : 'Leaderboard is still hydrating in the background.'))}</div>
                 </div>
                 <div class="supply-intel-stat">
                     <div>
@@ -8429,7 +8455,8 @@
                 }
             });
 
-            document.getElementById('supply-count-header').textContent = `(${filtered.length})`;
+            const isPartialSupplierMap = (currentSupplyOverview?.supplierStage || 'full') === 'partial';
+            document.getElementById('supply-count-header').textContent = `(${filtered.length}${isPartialSupplierMap ? '+' : ''})`;
             
             const chain = document.getElementById('supply-chain-select').value;
             const tokenId = document.getElementById('supply-asset-select').value;
@@ -8587,9 +8614,30 @@
 
         let currentSupplyTokensList = [];
 
-        async function fetchAllSupplySuppliers(url, tokenId) {
+        function buildSupplySuppliersArray(suppliersMap) {
+            return Array.from(suppliersMap.entries())
+                .map(([address, values]) => ({
+                    address,
+                    par: values.par,
+                }))
+                .sort((a, b) => b.par - a.par);
+        }
+
+        async function fetchAllSupplySuppliers(url, tokenId, options = {}) {
+            const { onPartial = null } = options;
             const PAGE = 1000;
             const suppliersMap = new Map();
+            let loadedPages = 0;
+
+            const emitPartial = done => {
+                if (typeof onPartial !== 'function' || suppliersMap.size === 0) return;
+                try {
+                    onPartial(buildSupplySuppliersArray(suppliersMap), {
+                        done: !!done,
+                        loadedPages,
+                    });
+                } catch (_) {}
+            };
 
             const processRows = (rows) => {
                 rows.forEach(row => {
@@ -8618,6 +8666,8 @@
             const data0 = await doGraphQuery(url, buildQuery(0));
             const rows0 = data0 && data0.marginAccountTokenValues ? data0.marginAccountTokenValues : [];
             processRows(rows0);
+            loadedPages = rows0.length > 0 ? 1 : 0;
+            emitPartial(false);
 
             if (rows0.length >= PAGE) {
                 // Fire pages 1-9 in parallel (covers up to 10K suppliers)
@@ -8634,15 +8684,15 @@
                 for (const rows of pageResults) {
                     if (rows.length === 0) break;
                     processRows(rows);
+                    loadedPages += 1;
                 }
             }
 
-            return Array.from(suppliersMap.entries())
-                .map(([address, values]) => ({
-                    address,
-                    par: values.par,
-                }))
-                .sort((a, b) => b.par - a.par);
+            const finalSuppliers = buildSupplySuppliersArray(suppliersMap);
+            if (finalSuppliers.length) {
+                emitPartial(true);
+            }
+            return finalSuppliers;
         }
 
         function toggleSupplyAssetDropdown() {
@@ -8808,13 +8858,13 @@
                 supplySuppliersCache,
                 supplierCacheKey,
                 () => fetchAllSupplySuppliers(endpoint, tokenId),
-                { persist: true }
+                { persist: true, ttlMs: SUPPLY_CACHE_TTLS_MS.suppliers }
             ).catch(() => {});
             getSupplyCachedResource(
                 supplyFlowHistoryCache,
                 historyCacheKey,
                 () => fetchSupplyHistoryDataset(chain, endpoint, tokenId, sinceTs),
-                { persist: true }
+                { persist: true, ttlMs: SUPPLY_CACHE_TTLS_MS.history }
             ).catch(() => {});
         }
 
@@ -8857,7 +8907,7 @@
                 supplyChainBundleCache,
                 bundleCacheKey,
                 () => doGraphQuery(DOLOMITE_MINI_GRAPHS[chain], SUPPLY_CHAIN_BUNDLE_QUERY),
-                { persist: true }
+                { persist: true, ttlMs: SUPPLY_CACHE_TTLS_MS.bundle }
             ).then(bundle => {
                 const defaultAsset = getSupplyDefaultAsset(bundle?.tokens || []);
                 if (defaultAsset && defaultAsset.id) {
@@ -8929,12 +8979,20 @@
                 scheduleSupplyChainPrefetch(chain, currentSupplyTokensList, document.getElementById('supply-asset-select').value);
             };
 
-            const cachedBundle = getFreshSupplyCacheData(supplyChainBundleCache, bundleCacheKey, { persist: true });
+            const cachedBundle = getFreshSupplyCacheData(supplyChainBundleCache, bundleCacheKey, { persist: true, ttlMs: SUPPLY_CACHE_TTLS_MS.bundle });
+            const staleBundle = cachedBundle || getAnySupplyCacheData(supplyChainBundleCache, bundleCacheKey, { persist: true });
             if (cachedBundle) {
                 try {
                     applyBundleToUi(cachedBundle, { allowAutoSelect: true });
                     if (loader) {
                         loader.innerHTML = `<div class="loading-spinner"></div><div style="margin-top:12px; color:var(--text-muted); font-size:13px;">Using cached market map for an instant load...</div>`;
+                    }
+                } catch (_) {}
+            } else if (staleBundle) {
+                try {
+                    applyBundleToUi(staleBundle, { allowAutoSelect: true });
+                    if (loader) {
+                        loader.innerHTML = `<div class="loading-spinner"></div><div style="margin-top:12px; color:var(--text-muted); font-size:13px;">Using saved market map while refreshing the latest data...</div>`;
                     }
                 } catch (_) {}
             }
@@ -8944,12 +9002,13 @@
                     supplyChainBundleCache,
                     bundleCacheKey,
                     () => doGraphQuery(DOLOMITE_MINI_GRAPHS[chain], SUPPLY_CHAIN_BUNDLE_QUERY),
-                    { persist: true }
+                    { persist: true, ttlMs: SUPPLY_CACHE_TTLS_MS.bundle }
                 );
-                applyBundleToUi(data, { allowAutoSelect: !cachedBundle });
+                applyBundleToUi(data, { allowAutoSelect: !staleBundle });
                 warmOtherSupplyChains(chain);
             } catch (e) {
                 if (requestId !== supplyChainRequestId) return;
+                if (staleBundle) return;
                 assetText.textContent = 'Error loading markets';
             }
         }
@@ -8976,10 +9035,13 @@
             const recentActivityKey = `${chain}:${tokenId}:activity:${SUPPLY_ACTIVITY_DEFAULT_DAYS}d`;
             const fullActivityKey = `${chain}:${tokenId}:activity:all`;
             const historyCacheKey = `${chain}:${tokenId}:history:v3:official`;
-            const cachedSuppliers = getFreshSupplyCacheData(supplySuppliersCache, supplierCacheKey);
-            const cachedRecentActivity = getFreshSupplyCacheData(supplyRecentActivityCache, recentActivityKey);
+            const cachedSuppliers = getFreshSupplyCacheData(supplySuppliersCache, supplierCacheKey, { ttlMs: SUPPLY_CACHE_TTLS_MS.suppliers });
+            const staleSuppliers = cachedSuppliers || getAnySupplyCacheData(supplySuppliersCache, supplierCacheKey);
+            const cachedRecentActivity = getFreshSupplyCacheData(supplyRecentActivityCache, recentActivityKey, { ttlMs: SUPPLY_CACHE_TTLS_MS.activity });
+            const staleRecentActivity = cachedRecentActivity || getAnySupplyCacheData(supplyRecentActivityCache, recentActivityKey);
             const cachedFullActivity = getFreshSupplyCacheData(supplyFullActivityCache, fullActivityKey, { persist: false });
-            const cachedRecentHistory = getFreshSupplyCacheData(supplyFlowHistoryCache, historyCacheKey);
+            const cachedRecentHistory = getFreshSupplyCacheData(supplyFlowHistoryCache, historyCacheKey, { ttlMs: SUPPLY_CACHE_TTLS_MS.history });
+            const staleRecentHistory = cachedRecentHistory || getAnySupplyCacheData(supplyFlowHistoryCache, historyCacheKey);
             const cachedFullHistory = cachedRecentHistory;
             const activityLoadingEl = document.getElementById('supply-activity-loading');
             const priceUsd = currentSupplyOraclePrices[tokenId] || 0;
@@ -8990,7 +9052,7 @@
             let fullFlowHydrationStarted = false;
 
             loader.style.display = 'block';
-            loader.innerHTML = `<div class="loading-spinner"></div><div style="margin-top:12px; color:var(--text-muted); font-size:13px;">Fetching suppliers...</div>`;
+            loader.innerHTML = `<div class="loading-spinner"></div><div style="margin-top:12px; color:var(--text-muted); font-size:13px;">Loading top suppliers first...</div>`;
             table.style.display = 'none';
             tbody.innerHTML = '';
             setSupplyIntelLoading(tokenObj, chain);
@@ -9042,7 +9104,8 @@
                 }
             };
 
-            const buildOverviewSnapshot = supplierPars => {
+            const buildOverviewSnapshot = (supplierPars, options = {}) => {
+                const { supplierStage = Array.isArray(supplierPars) ? 'full' : null } = options;
                 const token = tokenObj;
                 const supply = parseFloat(token.supplyLiquidity || '0') || 0;
                 const supplyPar = parseFloat(token.totalPar?.supplyPar || '0') || 0;
@@ -9069,16 +9132,22 @@
                         .map((item, index) => ({ ...item, rank: index + 1 }));
                 }
 
-                const fallbackSupplierCount = Array.isArray(cachedSuppliers) ? cachedSuppliers.length : null;
-                const supplierCount = Array.isArray(supplierPars)
+                const resolvedSupplierStage = supplierStage || previousOverview.supplierStage || 'loading';
+                const fallbackSupplierCount = Array.isArray(staleSuppliers) ? staleSuppliers.length : null;
+                const supplierCount = (Array.isArray(supplierPars) && resolvedSupplierStage === 'full')
                     ? currentSupplyData.length
                     : (Number.isFinite(previousOverview.supplierCount) ? previousOverview.supplierCount : fallbackSupplierCount);
+                const supplierPreviewCount = Array.isArray(supplierPars)
+                    ? currentSupplyData.length
+                    : (Number.isFinite(previousOverview.supplierPreviewCount) ? previousOverview.supplierPreviewCount : 0);
 
                 return {
                     chain,
                     token,
                     priceUsd,
                     supplierCount,
+                    supplierPreviewCount,
+                    supplierStage: resolvedSupplierStage,
                     supply,
                     supplyPar,
                     supplyIndex,
@@ -9098,13 +9167,13 @@
             };
 
             const ensureBaseOverview = () => {
-                currentSupplyOverview = buildOverviewSnapshot(null);
+                currentSupplyOverview = buildOverviewSnapshot(null, { supplierStage: 'loading' });
                 renderSupplyIntelOverview();
                 flushOverviewReady();
             };
 
-            const buildOverviewFromSuppliers = supplierPars => {
-                currentSupplyOverview = buildOverviewSnapshot(supplierPars);
+            const buildOverviewFromSuppliers = (supplierPars, options = {}) => {
+                currentSupplyOverview = buildOverviewSnapshot(supplierPars, options);
                 renderSupplyIntelOverview();
                 renderSupplyTable();
                 flushOverviewReady();
@@ -9193,7 +9262,7 @@
                         supplyFlowHistoryCache,
                         historyCacheKey,
                         () => fetchSupplyHistoryDataset(chain, endpoint, tokenId, null),
-                        { persist: true }
+                        { persist: true, ttlMs: SUPPLY_CACHE_TTLS_MS.history }
                     )
                         .then(flowHistory => {
                             if (requestId !== supplyTabRequestId) return;
@@ -9228,7 +9297,7 @@
                             <div style="margin-top:4px; font-size:11px; color:rgba(255,255,255,0.35);">${entitiesText}</div>
                         </div>
                     `;
-                }), { persist: true });
+                }), { persist: true, ttlMs: SUPPLY_CACHE_TTLS_MS.activity });
 
             const recentHistoryPromise = cachedFullHistory
                 ? Promise.resolve(cachedFullHistory)
@@ -9236,14 +9305,23 @@
                     supplyFlowHistoryCache,
                     historyCacheKey,
                     () => fetchSupplyHistoryDataset(chain, endpoint, tokenId, sinceTs),
-                    { persist: true }
+                    { persist: true, ttlMs: SUPPLY_CACHE_TTLS_MS.history }
                 );
 
             const supplierPromise = getSupplyCachedResource(
                 supplySuppliersCache,
                 supplierCacheKey,
-                () => fetchAllSupplySuppliers(endpoint, tokenId),
-                { persist: true }
+                () => fetchAllSupplySuppliers(endpoint, tokenId, {
+                    onPartial: supplierPars => {
+                        if (requestId !== supplyTabRequestId || staleSuppliers || !Array.isArray(supplierPars) || !supplierPars.length) return;
+                        onOverviewReady(() => {
+                            if (requestId !== supplyTabRequestId) return;
+                            if ((currentSupplyOverview?.supplierStage || 'loading') === 'full' && currentSupplyData.length >= supplierPars.length) return;
+                            buildOverviewFromSuppliers(supplierPars, { supplierStage: 'partial' });
+                        });
+                    },
+                }),
+                { persist: true, ttlMs: SUPPLY_CACHE_TTLS_MS.suppliers }
             );
 
             const startFullActivityHydration = () => {
@@ -9281,20 +9359,20 @@
 
             ensureBaseOverview();
 
-            if (cachedSuppliers) {
-                buildOverviewFromSuppliers(cachedSuppliers);
+            if (staleSuppliers) {
+                buildOverviewFromSuppliers(staleSuppliers, { supplierStage: 'full' });
             }
 
             if (cachedFullHistory) {
                 applyFullFlow(cachedFullHistory);
-            } else if (cachedRecentHistory) {
-                applyRecentHistory(cachedRecentHistory);
+            } else if (staleRecentHistory) {
+                applyRecentHistory(staleRecentHistory);
             }
 
             if (cachedFullActivity) {
                 applyFullActivity(cachedFullActivity);
-            } else if (cachedRecentActivity) {
-                applyRecentActivity(cachedRecentActivity);
+            } else if (staleRecentActivity) {
+                applyRecentActivity(staleRecentActivity);
             }
 
             supplierPromise
@@ -9306,7 +9384,7 @@
                 .catch(e => {
                     console.error('Supply fetch err (suppliers)', e);
                     if (requestId !== supplyTabRequestId) return;
-                    if (cachedSuppliers) return;
+                    if (staleSuppliers) return;
                     const chart = document.getElementById('supply-history-chart');
                     const activityLoading = document.getElementById('supply-activity-loading');
                     const activityTable = document.getElementById('supply-activity-table');
@@ -9328,7 +9406,7 @@
                 .catch(err => {
                     if (requestId !== supplyTabRequestId) return;
                     console.error('Recent activity fetch err', err);
-                    if (cachedRecentActivity || cachedFullActivity) return;
+                    if (staleRecentActivity || cachedFullActivity) return;
                     if (activityLoadingEl) {
                         activityLoadingEl.innerHTML = `<div style="color:#fbbf24; font-weight:500; font-size:13px; padding:16px;">Recent activity could not be loaded. Try this market again in a moment.</div>`;
                         activityLoadingEl.style.display = 'block';
@@ -9347,7 +9425,7 @@
                 .catch(err => {
                     if (requestId !== supplyTabRequestId) return;
                     console.error('Recent history fetch err', err);
-                    if (cachedRecentHistory || cachedFullHistory) return;
+                    if (staleRecentHistory || cachedFullHistory) return;
                     onOverviewReady(() => {
                         if (requestId !== supplyTabRequestId || !currentSupplyOverview) return;
                         if (!currentSupplyOverview.historyPoints.length) {
