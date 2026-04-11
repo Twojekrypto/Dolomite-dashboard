@@ -5896,6 +5896,46 @@
             return '$' + n.toFixed(2);
         }
 
+        function supplyTrimAxisNumber(value, digits) {
+            return Number(value.toFixed(digits)).toString();
+        }
+
+        function supplyFormatHistoryAxisValue(value, metric) {
+            const n = Number(value || 0);
+            if (!Number.isFinite(n)) return '—';
+            const abs = Math.abs(n);
+            const sign = n < 0 ? '-' : '';
+
+            const compactBase = scaled => {
+                if (scaled >= 100) return Math.round(scaled).toString();
+                if (scaled >= 10) return supplyTrimAxisNumber(scaled, 1);
+                if (scaled >= 1) return supplyTrimAxisNumber(scaled, 2);
+                if (scaled >= 0.1) return supplyTrimAxisNumber(scaled, 2);
+                return supplyTrimAxisNumber(scaled, 3);
+            };
+
+            const formatScaled = (divisor, suffix) => {
+                const scaled = abs / divisor;
+                const body = compactBase(scaled);
+                return metric === 'usd'
+                    ? `${sign}$${body}${suffix}`
+                    : `${sign}${body}${suffix}`;
+            };
+
+            if (abs >= 1e9) return formatScaled(1e9, 'B');
+            if (abs >= 1e6) return formatScaled(1e6, 'M');
+            if (abs >= 1e3) return formatScaled(1e3, 'K');
+            if (metric === 'usd') {
+                if (abs >= 100) return `${sign}$${Math.round(abs)}`;
+                if (abs >= 1) return `${sign}$${supplyTrimAxisNumber(abs, 1)}`;
+                return `${sign}$${supplyTrimAxisNumber(abs, 2)}`;
+            }
+            if (abs >= 100) return `${sign}${Math.round(abs)}`;
+            if (abs >= 1) return `${sign}${supplyTrimAxisNumber(abs, 2)}`;
+            if (abs >= 0.01) return `${sign}${supplyTrimAxisNumber(abs, 3)}`;
+            return `${sign}${supplyTrimAxisNumber(abs, 4)}`;
+        }
+
         // ─── Event Handlers ──────────────────────────────────────────────────
         // Chain select handled above in custom dropdown click handler
 
@@ -7996,12 +8036,16 @@
             }
 
             const width = 1000, height = 320;
-            const padLeft = 72, padRight = 20, padTop = 20, padBottom = 20;
+            const padRight = 20, padTop = 20, padBottom = 20;
             const values = visiblePoints.map(p => Number(p.value || 0));
             const rawMin = Math.min(...values), rawMax = Math.max(...values);
             const rawSpread = rawMax - rawMin;
             const vertPad = rawSpread > 0 ? rawSpread * 0.08 : Math.max(rawMax * 0.02, 1);
             const min = rawMin - vertPad, max = rawMax + vertPad, safeSpread = max - min;
+            const yTicks = Array.from({ length: 5 }).map((_, i) => max - (safeSpread * i / 4));
+            const yTickLabels = yTicks.map(value => supplyFormatHistoryAxisValue(value, historyMetric));
+            const yLabelPad = Math.max(...yTickLabels.map(label => label.length), 0) * 7;
+            const padLeft = Math.max(72, Math.min(120, yLabelPad + 20));
             const innerW = width - padLeft - padRight, innerH = height - padTop - padBottom;
             const plotRight = width - padRight;
 
@@ -8029,9 +8073,9 @@
             const lastPt = pathPoints[pathPoints.length - 1], firstPt = pathPoints[0];
             const areaPath = `${linePath} L ${lastPt.x.toFixed(2)} ${(height - padBottom).toFixed(2)} L ${firstPt.x.toFixed(2)} ${(height - padBottom).toFixed(2)} Z`;
 
-            const yTicks = Array.from({ length: 5 }).map((_, i) => ({ value: max - (safeSpread * i / 4), y: padTop + (innerH * i / 4) }));
-            const gridLines = yTicks.map(t => `<line x1="${padLeft}" y1="${t.y.toFixed(1)}" x2="${plotRight}" y2="${t.y.toFixed(1)}" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>`).join('');
-            const yLabels = yTicks.map(t => `<text x="${padLeft - 10}" y="${(t.y + 4).toFixed(1)}" fill="rgba(148,163,184,0.50)" font-size="10" font-weight="500" font-family="'JetBrains Mono',monospace" text-anchor="end">${supplyEscapeHtml(valueCompact(t.value))}</text>`).join('');
+            const yTickData = yTicks.map((value, i) => ({ value, label: yTickLabels[i], y: padTop + (innerH * i / 4) }));
+            const gridLines = yTickData.map(t => `<line x1="${padLeft}" y1="${t.y.toFixed(1)}" x2="${plotRight}" y2="${t.y.toFixed(1)}" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>`).join('');
+            const yLabels = yTickData.map(t => `<text x="${padLeft - 12}" y="${(t.y + 4).toFixed(1)}" fill="rgba(148,163,184,0.50)" font-size="10" font-weight="500" font-family="'JetBrains Mono',monospace" text-anchor="end">${supplyEscapeHtml(t.label)}</text>`).join('');
 
             chart.innerHTML = `
                 <div class="supply-history-tooltip" id="supply-history-tooltip">
