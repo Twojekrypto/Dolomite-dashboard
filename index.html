@@ -766,7 +766,8 @@
             flex-direction: column;
             padding: 8px 0 12px;
             position: relative;
-            z-index: 30;
+            z-index: 100;
+            overflow: visible;
         }
 
         .assets-toolbar-row {
@@ -797,6 +798,7 @@
         .assets-cat-dropdown-wrap {
             position: relative;
             flex-shrink: 0;
+            z-index: 210;
         }
 
         .assets-network-btn {
@@ -895,14 +897,12 @@
         /* Panel dropdown */
         .assets-network-panel {
             display: none;
-            position: absolute;
-            top: calc(100% + 8px);
-            left: 0;
+            position: fixed;
             background: rgba(12, 16, 28, 0.97);
             border: 1px solid rgba(99, 102, 241, 0.2);
             border-radius: 14px;
             padding: 0;
-            z-index: 200;
+            z-index: 99999;
             backdrop-filter: blur(24px);
             -webkit-backdrop-filter: blur(24px);
             box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
@@ -1257,6 +1257,12 @@
             font-size: 11px;
             color: rgba(255, 255, 255, 0.8);
             letter-spacing: 0.02em;
+            white-space: nowrap;
+        }
+
+        #unified-tooltip.utip-mono {
+            max-width: none;
+            width: auto;
         }
 
         /* Dust toggle: DEPRECATED — replaced by .dust-pill */
@@ -1283,6 +1289,7 @@
         .assets-settings-wrap {
             position: relative;
             flex-shrink: 0;
+            z-index: 210;
         }
 
         .assets-settings-btn {
@@ -1379,15 +1386,13 @@
         /* ═══ REWARDS PANEL — same pattern as network/cat ═══ */
         .assets-settings-dropdown {
             display: none;
-            position: absolute;
-            top: calc(100% + 8px);
-            right: 0;
+            position: fixed;
             background: rgba(12, 16, 28, 0.97);
             border: 1px solid rgba(99, 102, 241, 0.2);
             border-radius: 14px;
             padding: 0;
             min-width: 220px;
-            z-index: 200;
+            z-index: 99999;
             backdrop-filter: blur(24px);
             -webkit-backdrop-filter: blur(24px);
             box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
@@ -1729,9 +1734,8 @@
             box-shadow: 0 0 6px rgba(248, 113, 113, 0.5) !important;
         }
 
-        /* GM breakdown tooltip */
         .gm-part[title] {
-            cursor: help;
+            cursor: default;
         }
 
         .yield-help-icon {
@@ -2423,7 +2427,10 @@
 
         .assets-apy-breakdown .gm-part {
             color: #60a5fa;
-            cursor: help;
+        }
+
+        .assets-apy-breakdown .breakdown-item {
+            cursor: default;
         }
 
         .assets-apy-breakdown .odolo-part {
@@ -2724,7 +2731,7 @@
 
             to {
                 opacity: 1;
-                transform: translateY(0) scale(1);
+                transform: none;
             }
         }
 
@@ -6441,7 +6448,7 @@
 
             to {
                 opacity: 1;
-                transform: translateY(0);
+                transform: none;
             }
         }
 
@@ -14951,7 +14958,7 @@
                                 </div>
                             </div>
                             <div class="assets-modifier-sep"></div>
-                            <div class="dust-pill active" id="assets-dust-toggle" tabindex="0" role="switch" aria-checked="true">
+                            <div class="dust-pill" id="assets-dust-toggle" tabindex="0" role="switch" aria-checked="false">
                                 <div class="dust-switch-track"><div class="dust-switch-knob"></div></div>
                                 <span class="dust-pill-label">Hide Dust</span>
                             </div>
@@ -20378,6 +20385,65 @@
         }
         window.assets_filterChainSeg = assets_filterChainSeg;
 
+        // ═══ Shared dropdown positioning helper (portal to body for fixed positioning) ═══
+        function _positionDropdown(panel, btn, alignRight) {
+            // Store original parent so we can return the panel later
+            if (!panel._originalParent) {
+                panel._originalParent = panel.parentElement;
+                panel._originalNextSibling = panel.nextElementSibling;
+            }
+            // Portal: move panel to body to escape transform containment
+            document.body.appendChild(panel);
+            
+            const r = btn.getBoundingClientRect();
+            const pw = panel.offsetWidth;
+            // Always position below the button
+            panel.style.top = (r.bottom + 8) + 'px';
+            // Horizontal
+            if (alignRight) {
+                let left = r.right - pw;
+                if (left < 8) left = 8;
+                panel.style.left = left + 'px';
+            } else {
+                let left = r.left;
+                if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+                if (left < 8) left = 8;
+                panel.style.left = left + 'px';
+            }
+        }
+        function _closeDropdownPortal(panel) {
+            if (panel && panel._originalParent && panel.parentElement === document.body) {
+                if (panel._originalNextSibling) {
+                    panel._originalParent.insertBefore(panel, panel._originalNextSibling);
+                } else {
+                    panel._originalParent.appendChild(panel);
+                }
+            }
+            if (panel) {
+                panel.style.top = '';
+                panel.style.left = '';
+                panel.style.right = '';
+            }
+        }
+        // Close all open dropdowns on scroll
+        function _closeAllDropdowns() {
+            const panels = [
+                ['assets-network-panel', 'assets-network-btn'],
+                ['assets-cat-panel', 'assets-cat-btn'],
+                ['assets-settings-dropdown', 'assets-settings-btn']
+            ];
+            panels.forEach(([panelId, btnId]) => {
+                const p = document.getElementById(panelId);
+                const b = document.getElementById(btnId);
+                if (p && p.classList.contains('show')) {
+                    p.classList.remove('show');
+                    _closeDropdownPortal(p);
+                }
+                if (b) b.classList.remove('open');
+            });
+        }
+        window.addEventListener('scroll', _closeAllDropdowns, { passive: true });
+
         // ═══ Premium Network Dropdown ═══
         function assets_toggleNetworkDropdown(e) {
             e.stopPropagation();
@@ -20385,14 +20451,19 @@
             const btn = document.getElementById('assets-network-btn');
             const isOpen = panel.classList.toggle('show');
             btn.classList.toggle('open', isOpen);
+            if (isOpen) {
+                _positionDropdown(panel, btn, false);
+            } else {
+                _closeDropdownPortal(panel);
+            }
             // Close other dropdowns
             const sd = document.getElementById('assets-settings-dropdown');
             const sb = document.getElementById('assets-settings-btn');
-            if (sd) sd.classList.remove('show');
+            if (sd) { sd.classList.remove('show'); _closeDropdownPortal(sd); }
             if (sb) sb.classList.remove('open');
             const cp = document.getElementById('assets-cat-panel');
             const cb = document.getElementById('assets-cat-btn');
-            if (cp) cp.classList.remove('show');
+            if (cp) { cp.classList.remove('show'); _closeDropdownPortal(cp); }
             if (cb) cb.classList.remove('open');
         }
 
@@ -20437,6 +20508,7 @@
 
             // Close panel
             panel.classList.remove('show');
+            _closeDropdownPortal(panel);
             btn.classList.remove('open');
 
             // Sync with existing chain filter logic
@@ -20457,14 +20529,19 @@
             const btn = document.getElementById('assets-settings-btn');
             const isOpen = dd.classList.toggle('show');
             btn.classList.toggle('open', isOpen);
+            if (isOpen) {
+                _positionDropdown(dd, btn, true);
+            } else {
+                _closeDropdownPortal(dd);
+            }
             // Close other dropdowns
             const np = document.getElementById('assets-network-panel');
             const nb = document.getElementById('assets-network-btn');
-            if (np) np.classList.remove('show');
+            if (np) { np.classList.remove('show'); _closeDropdownPortal(np); }
             if (nb) nb.classList.remove('open');
             const cp = document.getElementById('assets-cat-panel');
             const cb = document.getElementById('assets-cat-btn');
-            if (cp) cp.classList.remove('show');
+            if (cp) { cp.classList.remove('show'); _closeDropdownPortal(cp); }
             if (cb) cb.classList.remove('open');
         }
         window.assets_toggleSettings = assets_toggleSettings;
@@ -20500,19 +20577,26 @@
 
         // Close dropdowns on outside click
         document.addEventListener('click', function(e) {
+            const netPanel = document.getElementById('assets-network-panel');
             const netWrap = document.getElementById('assets-network-dropdown-wrap');
-            if (netWrap && !netWrap.contains(e.target)) {
-                const panel = document.getElementById('assets-network-panel');
+            if (netWrap && !netWrap.contains(e.target) && (!netPanel || !netPanel.contains(e.target))) {
                 const btn = document.getElementById('assets-network-btn');
-                if (panel) panel.classList.remove('show');
+                if (netPanel) { netPanel.classList.remove('show'); _closeDropdownPortal(netPanel); }
                 if (btn) btn.classList.remove('open');
             }
+            const settingsDd = document.getElementById('assets-settings-dropdown');
             const settingsWrap = document.getElementById('assets-settings-wrap');
-            if (settingsWrap && !settingsWrap.contains(e.target)) {
-                const settingsDd = document.getElementById('assets-settings-dropdown');
+            if (settingsWrap && !settingsWrap.contains(e.target) && (!settingsDd || !settingsDd.contains(e.target))) {
                 const settingsBtn = document.getElementById('assets-settings-btn');
-                if (settingsDd) settingsDd.classList.remove('show');
+                if (settingsDd) { settingsDd.classList.remove('show'); _closeDropdownPortal(settingsDd); }
                 if (settingsBtn) settingsBtn.classList.remove('open');
+            }
+            const catPanel = document.getElementById('assets-cat-panel');
+            const catWrap = document.getElementById('assets-cat-dropdown-wrap');
+            if (catWrap && !catWrap.contains(e.target) && (!catPanel || !catPanel.contains(e.target))) {
+                const catBtn = document.getElementById('assets-cat-btn');
+                if (catPanel) { catPanel.classList.remove('show'); _closeDropdownPortal(catPanel); }
+                if (catBtn) catBtn.classList.remove('open');
             }
         });
 
@@ -20536,14 +20620,19 @@
             const btn = document.getElementById('assets-cat-btn');
             const isOpen = panel.classList.toggle('show');
             btn.classList.toggle('open', isOpen);
+            if (isOpen) {
+                _positionDropdown(panel, btn, false);
+            } else {
+                _closeDropdownPortal(panel);
+            }
             // Close other dropdowns
             const np = document.getElementById('assets-network-panel');
             const nb = document.getElementById('assets-network-btn');
             const sd = document.getElementById('assets-settings-dropdown');
             const sb = document.getElementById('assets-settings-btn');
-            if (np) np.classList.remove('show');
+            if (np) { np.classList.remove('show'); _closeDropdownPortal(np); }
             if (nb) nb.classList.remove('open');
-            if (sd) sd.classList.remove('show');
+            if (sd) { sd.classList.remove('show'); _closeDropdownPortal(sd); }
             if (sb) sb.classList.remove('open');
         }
         window.assets_toggleCatDropdown = assets_toggleCatDropdown;
@@ -20583,6 +20672,7 @@
 
             // Close panel
             panel.classList.remove('show');
+            _closeDropdownPortal(panel);
             btn.classList.remove('open');
 
             // Update filter state
