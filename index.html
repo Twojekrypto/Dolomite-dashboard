@@ -12191,18 +12191,13 @@
                     <div class="card-header">
                         <h3 style="display:flex;align-items:center;gap:8px;margin:0">
                             <img src="odolo-logo-official.svg" width="22" height="22" alt="oDOLO" style="flex-shrink:0">
-                            Claimer Behavior
+                            <span class="hero-label-tip" style="position:relative;cursor:help;border-bottom:1px dotted rgba(255,255,255,.18);padding-bottom:1px">Claimer Behavior<span class="tooltip-bubble">What do wallets do after claiming oDOLO? Exercised = paired with DOLO for veDOLO. Outflow = sold/transferred. Held = still in wallet. Only claimed oDOLO is tracked. Hover for amounts.</span></span>
                             <span id="odolo-an-claimer-count"
                                 style="font-size:0.85em;font-weight:500;color:rgba(255,255,255,0.5);cursor:default;position:relative"
                                 onmouseenter="this.querySelector('.ct-tip').style.opacity=1"
                                 onmouseleave="this.querySelector('.ct-tip').style.opacity=0">—<span class="ct-tip"
                                     style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:rgba(20,24,37,0.95);color:rgba(255,255,255,0.7);font-size:10px;padding:4px 8px;border-radius:6px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;margin-bottom:4px;border:1px solid rgba(255,255,255,0.1)">unique
                                     claimers</span></span>
-                            <i class="tooltip-icon">?
-                                <span class="tooltip-bubble">What do wallets do after claiming oDOLO? Exercised = paired
-                                    with DOLO for veDOLO. Outflow = sold/transferred. Held = still in wallet. Only
-                                    claimed oDOLO is tracked. Hover for amounts.</span>
-                            </i>
                         </h3>
                     </div>
                     <div class="odolo-donut-container" style="border-top:none">
@@ -12227,16 +12222,9 @@
                 <div class="card-header">
                     <h3 style="display:flex;align-items:center;gap:8px;margin:0">
                         <img src="odolo-logo-official.svg" width="22" height="22" alt="oDOLO" style="flex-shrink:0">
-                        oDOLO Claimer Breakdown
+                        <span class="hero-label-tip" style="position:relative;cursor:help;border-bottom:1px dotted rgba(255,255,255,.18);padding-bottom:1px">oDOLO Claimer Breakdown<span class="tooltip-bubble">Full list of wallets that claimed oDOLO from rewards. Exercised = paired with DOLO for veDOLO. Outflow = sold/transferred (capped to claimed amount — purchased oDOLO excluded). Held = still in wallet. Bought Extra = additional oDOLO purchased and exercised beyond what was claimed.</span></span>
                         <span class="toolbar-count" id="odolo-claimer-table-count"
                             style="font-size:0.85em;opacity:0.7;font-weight:500"></span>
-                        <i class="tooltip-icon" style="margin-left:4px">?
-                            <span class="tooltip-bubble">Full list of wallets that claimed oDOLO from rewards.
-                                <b>Exercised</b> = paired with DOLO for veDOLO. <b>Outflow</b> = sold/transferred
-                                (capped to claimed amount — purchased oDOLO excluded). <b>Held</b> = still in wallet.
-                                <b>Bought Extra</b> = additional oDOLO purchased and exercised beyond what was
-                                claimed.</span>
-                        </i>
                     </h3>
                 </div>
                 <div class="dolo-flow-toolbar">
@@ -12358,7 +12346,7 @@
                                     style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">
                                     TX / Address</th>
                                 <th style="padding:8px 6px;text-align:right;color:#fff;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none"
-                                    data-sort="dolo" onclick="sortRecentExercisers('dolo')">⚪ DOLO Locked <span
+                                    data-sort="dolo" onclick="sortRecentExercisers('dolo')">🟠 oDOLO Exercised <span
                                         class="arrow">⇅</span></th>
                                 <th style="padding:8px 6px;text-align:right;color:#22d3ee;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none"
                                     data-sort="lock" onclick="sortRecentExercisers('lock')">🔵 Lock <span
@@ -12418,7 +12406,7 @@
                                     style="padding:8px 6px;text-align:left;color:rgba(255,255,255,0.4);font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08)">
                                     Address</th>
                                 <th style="padding:8px 6px;text-align:right;color:#fff;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none"
-                                    data-sort="total_vedolo" onclick="sortExercisers('total_vedolo')">⚪ DOLO Locked
+                                    data-sort="total_vedolo" onclick="sortExercisers('total_vedolo')">🟠 oDOLO Exercised
                                     <span class="arrow">⇅</span></th>
                                 <th style="padding:8px 6px;text-align:right;color:#22d3ee;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;user-select:none"
                                     data-sort="avg_lock" onclick="sortExercisers('avg_lock')">🔵 Avg Lock <span
@@ -12744,7 +12732,7 @@
                 /* Dotted-underline tooltip labels — subtle info hint */
                 .tvl-metric-label[data-tip],
                 .hero-label-tip {
-                    cursor: help;
+                    cursor: default;
                     border-bottom: 1px dotted rgba(255, 255, 255, .18);
                     padding-bottom: 1px;
                     display: inline-block;
@@ -12754,6 +12742,15 @@
                 .tvl-metric-label[data-tip]:hover,
                 .hero-label-tip:hover {
                     border-bottom-color: rgba(255, 255, 255, .4);
+                }
+
+                /* card-header h3 — hero-label-tip should inherit heading font */
+                .card-header h3 .hero-label-tip {
+                    font-size: inherit;
+                    font-weight: inherit;
+                    letter-spacing: inherit;
+                    color: inherit;
+                    text-transform: none;
                 }
 
                 /* Hide ? icon circles everywhere — replaced by underline */
@@ -12774,7 +12771,7 @@
                     display: none;
                     position: fixed;
                     width: 260px;
-                    background: rgba(10, 15, 30, .97);
+                    background: rgba(10, 15, 30, .98);
                     border: 1px solid rgba(99, 102, 241, .3);
                     border-radius: 10px;
                     padding: 11px 15px;
@@ -12784,12 +12781,14 @@
                     line-height: 1.55;
                     z-index: 99999;
                     backdrop-filter: blur(16px);
+                    -webkit-backdrop-filter: blur(16px);
                     box-shadow: 0 8px 32px rgba(0, 0, 0, .55), 0 0 0 1px rgba(255, 255, 255, .04);
                     pointer-events: none;
                     word-wrap: break-word;
                     white-space: normal;
                 }
 
+                /* Arrow — above label (default: arrow points down) */
                 #float-tip::after {
                     content: '';
                     position: absolute;
@@ -12797,10 +12796,20 @@
                     left: 24px;
                     width: 10px;
                     height: 10px;
-                    background: rgba(10, 15, 30, .97);
+                    background: rgba(10, 15, 30, .98);
                     border-right: 1px solid rgba(99, 102, 241, .3);
                     border-bottom: 1px solid rgba(99, 102, 241, .3);
                     transform: rotate(45deg);
+                }
+
+                /* Arrow — below label (flipped: arrow points up) */
+                #float-tip.below::after {
+                    bottom: auto;
+                    top: -6px;
+                    border-right: none;
+                    border-bottom: none;
+                    border-left: 1px solid rgba(99, 102, 241, .3);
+                    border-top: 1px solid rgba(99, 102, 241, .3);
                 }
 
                 .tvl-metric-value {
@@ -17430,7 +17439,7 @@
                 const costUsd = getTxCostUsd(tx);
                 const costDisplay = costUsd > 0 ? exFmtUsd(costUsd) : '—';
                 const costColor = '#fbbf24';  // always gold for $ display
-                html += '<td style="padding:4px 5px;text-align:right;color:#fff;font-weight:600;font-size:11px">' + (tx.vedolo ? vedolo_fmtDolo(tx.vedolo) + ' DOLO' : '—') + '</td>';
+                html += '<td style="padding:4px 5px;text-align:right;color:#fff;font-weight:600;font-size:11px">' + (tx.vedolo ? vedolo_fmtDolo(tx.vedolo) + ' oDOLO' : '—') + '</td>';
                 html += '<td style="padding:4px 5px;text-align:right;color:#22d3ee;font-size:11px">' + exFmtLock(tx.lock_days) + '</td>';
                 html += '<td style="padding:4px 5px;text-align:right;color:' + costColor + ';font-size:11px">' + costDisplay + '</td>';
                 const txPricePerVe = (costUsd > 0 && tx.vedolo > 0) ? costUsd / tx.vedolo : (tx.price || 0);
@@ -17770,7 +17779,7 @@
                     return exerciserSortAsc ? va - vb : vb - va;
                 }
                 if (exerciserSortKey === 'exercises') { va = a.exercises; vb = b.exercises; return exerciserSortAsc ? va - vb : vb - va; }
-                if (exerciserSortKey === 'total_vedolo') { va = (a.txs || []).reduce(function (s, t) { return s + (t.vedolo || 0); }, 0); vb = (b.txs || []).reduce(function (s, t) { return s + (t.vedolo || 0); }, 0); return exerciserSortAsc ? va - vb : vb - va; }
+                if (exerciserSortKey === 'total_vedolo') { va = (a.txs || []).reduce(function (s, t) { return s + (t.paid_token !== 'DOLO' && t.vedolo ? t.vedolo : 0); }, 0); vb = (b.txs || []).reduce(function (s, t) { return s + (t.paid_token !== 'DOLO' && t.vedolo ? t.vedolo : 0); }, 0); return exerciserSortAsc ? va - vb : vb - va; }
                 if (exerciserSortKey === 'avg_lock') { va = getUsdcAvgLock(a) || 0; vb = getUsdcAvgLock(b) || 0; return exerciserSortAsc ? va - vb : vb - va; }
                 if (exerciserSortKey === 'avg_price') {
                     va = getExerciserAvgPrice(a) || 0; vb = getExerciserAvgPrice(b) || 0;
@@ -17800,9 +17809,9 @@
                 html += '<tr class="exerciser-row" style="border-bottom:1px solid rgba(255,255,255,0.04);transition:transform 0.15s,background 0.15s" onmouseenter="this.style.transform=\'scale(1.01)\';this.style.background=\'rgba(255,255,255,0.03)\'" onmouseleave="this.style.transform=\'\';this.style.background=\'\'" onclick="openExerciserModal(\'' + e.address + '\',' + rank + ')">';
                 html += '<td style="padding:5px 6px;color:rgba(255,255,255,0.3)">' + rank + '</td>';
                 html += '<td style="padding:5px 6px"><span style="display:inline-flex;align-items:center;gap:4px"><a href="https://debank.com/profile/' + e.address + '" target="_blank" style="color:#fff;font-family:monospace;font-size:12px;text-decoration:none" class="addr-tooltip-wrap" data-full-addr="' + e.address + '" onclick="event.stopPropagation()">' + exShortAddr(e.address) + '</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr(\'' + e.address + '\',this)" title="Copy address"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span><a href="https://debank.com/profile/' + e.address + '" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display=\'none\'"></a></span></td>';
-                var totalVedolo = 0; (e.txs || []).forEach(function (tx) { if (tx.vedolo) totalVedolo += tx.vedolo; });
+                var totalVedolo = 0; (e.txs || []).forEach(function (tx) { if (tx.vedolo && tx.paid_token !== 'DOLO') totalVedolo += tx.vedolo; });
                 var totalDoloPaid = 0; (e.txs || []).forEach(function (tx) { if (tx.paid_token === 'DOLO' && tx.dolo_paid) totalDoloPaid += tx.dolo_paid; });
-                html += '<td style="padding:4px 5px;text-align:right;color:#fff;font-weight:600;font-size:11px">' + (totalVedolo > 0 ? vedolo_fmtDolo(totalVedolo) + ' DOLO' : '\u2014') + '</td>';
+                html += '<td style="padding:4px 5px;text-align:right;color:#fff;font-weight:600;font-size:11px">' + (totalVedolo > 0 ? vedolo_fmtDolo(totalVedolo) + ' oDOLO' : '\u2014') + '</td>';
                 html += '<td style="padding:4px 5px;text-align:right;color:#22d3ee;font-size:11px">' + exFmtLock(getUsdcAvgLock(e)) + '</td>';
                 var costHtml = '';
                 var totalCostUsd = e.total_usdc || 0;
@@ -29091,9 +29100,11 @@
                     return;
                 }
 
-                // 5. Generic data-tip elements
+                // 5. Generic data-tip elements (skip labels handled by #float-tip)
                 const generic = e.target.closest('[data-tip]');
-                if (generic && !generic.closest('.breakdown-item')) {
+                if (generic && !generic.closest('.breakdown-item') &&
+                    !generic.matches('.tvl-metric-label') && !generic.matches('.hero-label-tip') &&
+                    !generic.closest('.tvl-metric-label') && !generic.closest('.hero-label-tip')) {
                     showTip(generic, null, generic.getAttribute('data-tip'), false);
                     return;
                 }
@@ -29863,16 +29874,19 @@
                     var tipH = tip.offsetHeight;
                     var top = r.top - tipH - 10;
                     var left = r.left;
+                    var flipped = false;
                     /* Flip below if above viewport */
-                    if (top < 8) { top = r.bottom + 10; }
+                    if (top < 8) { top = r.bottom + 10; flipped = true; }
                     /* Keep within right edge */
                     if (left + 260 > window.innerWidth - 12) { left = window.innerWidth - 272; }
                     if (left < 8) left = 8;
                     tip.style.top = top + 'px';
                     tip.style.left = left + 'px';
+                    tip.classList.toggle('below', flipped);
                 });
                 el.addEventListener('mouseleave', function () {
                     tip.style.display = 'none';
+                    tip.classList.remove('below');
                 });
             });
         })();
