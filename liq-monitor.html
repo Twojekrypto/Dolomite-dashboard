@@ -291,19 +291,7 @@
         }
 
         .chain-trigger::after {
-            content: '';
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            border-left: 4px solid transparent;
-            border-right: 4px solid transparent;
-            border-top: 4px solid rgba(148, 163, 184, 0.6);
-            transition: transform 0.2s ease;
-        }
-
-        .chain-filter.open .chain-trigger::after {
-            transform: translateY(-50%) rotate(180deg);
+            display: none;
         }
 
         .chain-trigger:hover {
@@ -1468,12 +1456,11 @@
         .liquidation-command-frame .risk-dropdown.open .trigger-dot {
             filter: drop-shadow(0 0 8px rgba(52, 211, 153, 0.32));
         }
-        .liquidation-command-frame .chain-filter.active-filter .chain-trigger::after,
+        .liquidation-command-frame .chain-filter.active-filter .chain-trigger .trigger-chevron,
         .liquidation-command-frame .risk-dropdown.active-filter .risk-trigger .trigger-chevron,
-        .liquidation-command-frame .chain-filter.open .chain-trigger::after,
+        .liquidation-command-frame .chain-filter.open .chain-trigger .trigger-chevron,
         .liquidation-command-frame .risk-dropdown.open .risk-trigger .trigger-chevron {
             color: #34d399;
-            border-top-color: #34d399;
             opacity: 1;
         }
         .liquidation-command-frame .search-wrap.has-value {
