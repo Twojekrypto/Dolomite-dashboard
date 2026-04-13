@@ -1200,24 +1200,40 @@
         .sim-asset-popover-head {
             display: flex;
             flex-direction: column;
-            gap: 3px;
-            margin-bottom: 10px;
+            gap: 4px;
+            margin-bottom: 8px;
             padding: 2px 2px 0;
         }
-        .sim-asset-popover-title {
-            font-size: 12px;
-            font-weight: 700;
-            color: #f8fafc;
-            letter-spacing: 0.01em;
+        .sim-asset-popover-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
         }
-        .sim-asset-popover-copy {
-            font-size: 11px;
-            line-height: 1.45;
-            color: rgba(226,232,240,0.58);
+        .sim-asset-popover-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: rgba(191,219,254,0.72);
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+        }
+        .sim-asset-popover-meta {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 22px;
+            padding: 0 9px;
+            border-radius: 999px;
+            border: 1px solid rgba(96,165,250,0.16);
+            background: rgba(96,165,250,0.08);
+            color: rgba(191,219,254,0.84);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
         }
         .sim-asset-search-input {
             min-height: 40px;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             border-radius: 12px;
             background-color: rgba(255,255,255,0.035);
             border-color: rgba(255,255,255,0.07);
@@ -4133,10 +4149,12 @@
                             </button>
                             <div id="sim-asset-popover" class="sim-asset-popover">
                                 <div class="sim-asset-popover-head">
-                                    <div class="sim-asset-popover-title">Market Scope</div>
-                                    <div class="sim-asset-popover-copy">Choose the full market basket or isolate one token shock.</div>
+                                    <div class="sim-asset-popover-title-row">
+                                        <div class="sim-asset-popover-title">Market Scope</div>
+                                        <div class="sim-asset-popover-meta">Basket or token</div>
+                                    </div>
                                 </div>
-                                <input type="text" id="sim-asset-search" placeholder="Search token or basket..." class="col-token-search sim-asset-search-input">
+                                <input type="text" id="sim-asset-search" placeholder="Search market or token..." class="col-token-search sim-asset-search-input">
                                 <div id="sim-asset-list" class="col-token-list sim-asset-list-panel" role="listbox"></div>
                             </div>
                         </div>
@@ -6133,42 +6151,71 @@
             function renderSimAssetList(filter) {
                 const q = (filter || '').toLowerCase();
                 let html = '';
-                // Groups
-                const filteredGroups = SIM_GROUPS.filter(g => !q || g.label.toLowerCase().includes(q));
-                if (filteredGroups.length) {
-                    html += '<div style="font-size:9px;text-transform:uppercase;color:var(--text-muted);padding:6px 10px 4px;letter-spacing:0.8px;font-weight:700">Market Sets</div>';
-                    for (const g of filteredGroups) {
-                        const sel = window._simAsset === g.value ? ' selected' : '';
-                        const gIcon = g.iconUrl
-                            ? `<span class="sim-asset-option-icon"><img src="${g.iconUrl}" alt=""></span>`
-                            : `<span class="sim-asset-option-icon">${g.iconHtml || g.icon}</span>`;
-                        const subHtml = g.sub ? `<span class="sim-asset-option-sub">${g.sub}</span>` : '';
-                        html += `<div class="col-token-opt sim-asset-opt${sel}" data-value="${g.value}">`
-                            + gIcon
-                            + `<div class="sim-asset-option-copy"><span class="sim-asset-option-title">${g.label}</span>${subHtml}</div>`
-                            + `<div class="sim-asset-option-trail"><span class="sim-asset-option-check">${SIM_CHECK_ICON}</span></div>`
-                            + '</div>';
-                    }
+                function buildOptionMarkup(item, isSelected) {
+                    const selectedClass = isSelected ? ' selected' : '';
+                    const badge = item.badge ? `<span class="sim-asset-type-badge">${item.badge}</span>` : '';
+                    const subHtml = item.sub ? `<span class="sim-asset-option-sub">${item.sub}</span>` : '';
+                    const iconHtml = item.iconUrl
+                        ? `<span class="sim-asset-option-icon"><img src="${item.iconUrl}" alt=""></span>`
+                        : `<span class="sim-asset-option-icon">${item.iconHtml || item.icon}</span>`;
+                    return `<div class="col-token-opt sim-asset-opt${selectedClass}" data-value="${item.value}">`
+                        + iconHtml
+                        + `<div class="sim-asset-option-copy"><span class="sim-asset-option-title">${item.label}</span>${subHtml}</div>`
+                        + `<div class="sim-asset-option-trail">${badge}<span class="sim-asset-option-check">${SIM_CHECK_ICON}</span></div>`
+                        + '</div>';
                 }
-                // Individual tokens
-                const filteredTokens = sortedTokens.filter(s => !q || s.toLowerCase().includes(q));
-                if (filteredTokens.length) {
-                    html += '<div style="font-size:9px;text-transform:uppercase;color:var(--text-muted);padding:8px 10px 4px;letter-spacing:0.8px;font-weight:700;border-top:1px solid rgba(255,255,255,0.06);margin-top:4px">Individual Tokens</div>';
-                    for (const s of filteredTokens) {
-                        const sel = window._simAsset === 'token:' + s ? ' selected' : '';
-                        const iconUrl = typeof getTokenIcon === 'function' ? getTokenIcon(s) : null;
-                        const iconHtml = iconUrl
-                            ? `<span class="sim-asset-option-icon"><img src="${iconUrl}" alt=""></span>`
-                            : `<span class="sim-asset-option-icon">${s.charAt(0)}</span>`;
+
+                const filteredGroups = SIM_GROUPS
+                    .filter(g => !q || g.label.toLowerCase().includes(q))
+                    .map(g => ({
+                        value: g.value,
+                        label: g.label,
+                        sub: g.sub,
+                        iconUrl: g.iconUrl,
+                        iconHtml: g.iconHtml || g.icon,
+                    }));
+
+                const filteredTokens = sortedTokens
+                    .filter(s => !q || s.toLowerCase().includes(q))
+                    .map(s => {
                         const grp = getTokenGroup(s);
                         const grpLabel = grp === 'stable' ? 'Stable' : grp === 'eth' ? 'ETH' : grp === 'btc' ? 'BTC' : grp === 'bera' ? 'BERA' : '';
-                        const badge = grpLabel ? `<span class="sim-asset-type-badge">${grpLabel}</span>` : '';
-                        html += `<div class="col-token-opt sim-asset-opt${sel}" data-value="token:${s}">`
-                            + iconHtml
-                            + `<div class="sim-asset-option-copy"><span class="sim-asset-option-title">${s}</span></div>`
-                            + `<div class="sim-asset-option-trail">${badge}<span class="sim-asset-option-check">${SIM_CHECK_ICON}</span></div>`
-                            + '</div>';
-                    }
+                        return {
+                            value: 'token:' + s,
+                            label: s,
+                            iconUrl: typeof getTokenIcon === 'function' ? getTokenIcon(s) : null,
+                            iconHtml: s.charAt(0),
+                            badge: grpLabel,
+                        };
+                    });
+
+                const selectedItems = [];
+                const marketSetItems = [];
+                const tokenItems = [];
+
+                filteredGroups.forEach(item => {
+                    if (!q && window._simAsset === item.value) selectedItems.push(item);
+                    else marketSetItems.push(item);
+                });
+                filteredTokens.forEach(item => {
+                    if (!q && window._simAsset === item.value) selectedItems.push(item);
+                    else tokenItems.push(item);
+                });
+
+                if (selectedItems.length && !q) {
+                    html += '<div style="font-size:9px;text-transform:uppercase;color:rgba(34,211,238,0.54);padding:6px 10px 4px;letter-spacing:0.9px;font-weight:700">Current Selection</div>';
+                    html += selectedItems.map(item => buildOptionMarkup(item, true)).join('');
+                    html += '<div style="height:1px;background:rgba(255,255,255,0.06);margin:6px 2px;"></div>';
+                }
+
+                if (marketSetItems.length) {
+                    html += '<div style="font-size:9px;text-transform:uppercase;color:var(--text-muted);padding:6px 10px 4px;letter-spacing:0.8px;font-weight:700">Market Sets</div>';
+                    html += marketSetItems.map(item => buildOptionMarkup(item, false)).join('');
+                }
+
+                if (tokenItems.length) {
+                    html += `<div style="font-size:9px;text-transform:uppercase;color:var(--text-muted);padding:8px 10px 4px;letter-spacing:0.8px;font-weight:700;${marketSetItems.length || selectedItems.length ? 'border-top:1px solid rgba(255,255,255,0.06);margin-top:4px' : ''}">Individual Tokens</div>`;
+                    html += tokenItems.map(item => buildOptionMarkup(item, false)).join('');
                 }
                 if (!html) html = '<div style="padding:12px;text-align:center;color:var(--text-muted);font-size:11px">No tokens found</div>';
                 simAssetList.innerHTML = html;
@@ -6176,7 +6223,6 @@
                 simAssetList.querySelectorAll('.sim-asset-opt').forEach(el => {
                     el.addEventListener('click', () => {
                         window.setSimAsset(el.dataset.value);
-                        setSimAssetPopoverOpen(false);
                         simAssetSearch.value = '';
                     });
                 });
@@ -6188,6 +6234,7 @@
                 simAssetTrigger.addEventListener('click', (e) => {
                     e.stopPropagation();
                     const isOpen = simAssetMode ? simAssetMode.classList.contains('open') : false;
+                    if (!isOpen) closeFloatingMenus({ keepSimAsset: true });
                     setSimAssetPopoverOpen(!isOpen);
                     if (!isOpen) { simAssetSearch.value = ''; renderSimAssetList(''); simAssetSearch.focus(); }
                 });
@@ -6375,6 +6422,7 @@
                     // Update trigger button label + icon
                     const labelEl = document.getElementById('sim-asset-label');
                     const iconEl = document.getElementById('sim-asset-icon');
+                    const searchEl = document.getElementById('sim-asset-search');
                     const grp = SIM_GROUPS.find(g => g.value === asset);
                     if (grp) {
                         labelEl.textContent = grp.label;
@@ -6389,9 +6437,9 @@
                             ? `<img src="${iconUrl}" width="16" height="16" style="border-radius:50%" alt="">`
                             : sym.charAt(0);
                     }
+                    if (searchEl) searchEl.value = '';
                     renderSimAssetList('');
                     updateSim(parseInt(simSlider.value));
-                    setSimAssetPopoverOpen(false);
                 };
                 // Direction toggle (segmented pill)
                 window.setSimDir = function(dir) {
@@ -6532,9 +6580,8 @@
 
             trigger.addEventListener('click', (e) => {
                 e.stopPropagation();
-                // Close all other popovers first
-                document.querySelectorAll('.sim-multi-token-popover').forEach(p => { if (p !== popover) p.style.display = 'none'; });
                 const isOpen = popover.style.display !== 'none';
+                if (!isOpen) closeFloatingMenus({ keepSimMultiPopover: popover });
                 popover.style.display = isOpen ? 'none' : 'block';
                 if (!isOpen) { searchInput.value = ''; renderTokenList(''); searchInput.focus(); }
             });
@@ -6760,10 +6807,7 @@
         document.getElementById('chain-trigger').addEventListener('click', (e) => {
             e.stopPropagation();
             const wasOpen = document.getElementById('chain-filter').classList.contains('open');
-            // Close risk dropdown if open
-            document.getElementById('risk-dropdown').classList.remove('open');
-            // Close column filter popovers
-            document.querySelectorAll('th.col-filter-open').forEach(th => { th.classList.remove('col-filter-open'); const p = th.querySelector('.col-filter-popover'); if (p) p.style.display = ''; });
+            closeFloatingMenus({ keepChain: true });
             document.getElementById('chain-filter').classList.toggle('open', !wasOpen);
         });
 
@@ -6811,6 +6855,40 @@
             if (riskDropdown) {
                 riskDropdown.classList.toggle('active-filter', riskFilter !== 'all');
             }
+        }
+
+        function closeOpenHeaderPopovers(exceptTh = null) {
+            document.querySelectorAll('th.col-filter-open').forEach(th => {
+                if (th === exceptTh) return;
+                th.classList.remove('col-filter-open');
+                const popover = th.querySelector('.col-filter-popover');
+                if (popover) popover.style.display = '';
+            });
+        }
+
+        function closeSimAssetPopoverDom() {
+            const mode = document.getElementById('sim-asset-mode');
+            const popover = document.getElementById('sim-asset-popover');
+            const trigger = document.getElementById('sim-asset-trigger');
+            if (mode) mode.classList.remove('open');
+            if (popover) popover.style.display = 'none';
+            if (trigger) trigger.setAttribute('aria-expanded', 'false');
+        }
+
+        function closeFloatingMenus(opts = {}) {
+            const exceptTh = opts.exceptTh || null;
+            const keepChain = !!opts.keepChain;
+            const keepRisk = !!opts.keepRisk;
+            const keepSimAsset = !!opts.keepSimAsset;
+            const keepSimMultiPopover = opts.keepSimMultiPopover || null;
+
+            if (!keepChain) document.getElementById('chain-filter')?.classList.remove('open');
+            if (!keepRisk) document.getElementById('risk-dropdown')?.classList.remove('open');
+            closeOpenHeaderPopovers(exceptTh);
+            document.querySelectorAll('.sim-multi-token-popover').forEach(popover => {
+                if (popover !== keepSimMultiPopover) popover.style.display = 'none';
+            });
+            if (!keepSimAsset) closeSimAssetPopoverDom();
         }
 
         // ─── Filtering & Sorting ────────────────────────────────────────────
@@ -7438,10 +7516,7 @@
             e.stopPropagation();
             const dd = document.getElementById('risk-dropdown');
             const wasOpen = dd.classList.contains('open');
-            // Close chain dropdown if open
-            document.getElementById('chain-filter').classList.remove('open');
-            // Close column filter popovers
-            document.querySelectorAll('th.col-filter-open').forEach(th => { th.classList.remove('col-filter-open'); const p = th.querySelector('.col-filter-popover'); if (p) p.style.display = ''; });
+            closeFloatingMenus({ keepRisk: true });
             dd.classList.toggle('open', !wasOpen);
         });
 
@@ -7525,21 +7600,13 @@
             // Temporarily show to measure dimensions
             popoverEl.style.display = 'block';
             const pw = popoverEl.offsetWidth || 260;
-            const ph = popoverEl.offsetHeight || 400;
             popoverEl.style.display = '';  // Remove inline style, let CSS class rule
             let left = rect.left + rect.width / 2 - pw / 2;
             // Clamp to viewport bounds
             if (left < 8) left = 8;
             if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
             popoverEl.style.left = left + 'px';
-            // Decide above vs below: prefer above if requested or if not enough space below
-            const spaceBelow = window.innerHeight - rect.bottom - 8;
-            const spaceAbove = rect.top - 8;
-            if (preferAbove || (spaceBelow < ph && spaceAbove >= ph)) {
-                popoverEl.style.top = (rect.top - ph - 8) + 'px';
-            } else {
-                popoverEl.style.top = (rect.bottom + 6) + 'px';
-            }
+            popoverEl.style.top = (rect.bottom + 6) + 'px';
         }
 
         function initColFilterPopover(opts) {
@@ -7552,13 +7619,9 @@
 
             trigger.addEventListener('click', e => {
                 e.stopPropagation(); e.preventDefault();
-                document.querySelectorAll('th.col-filter-open').forEach(th => {
-                    if (th !== thParent) {
-                        th.classList.remove('col-filter-open');
-                        const p = th.querySelector('.col-filter-popover');
-                        if (p) p.style.display = '';
-                    }
-                });
+                if (!thParent.classList.contains('col-filter-open')) {
+                    closeFloatingMenus({ exceptTh: thParent });
+                }
                 thParent.classList.toggle('col-filter-open');
                 // Position popover fixed relative to trigger button
                 if (thParent.classList.contains('col-filter-open')) {
@@ -7774,13 +7837,9 @@
 
             trigger.addEventListener('click', e => {
                 e.stopPropagation(); e.preventDefault();
-                document.querySelectorAll('th.col-filter-open').forEach(th => {
-                    if (th !== thParent) {
-                        th.classList.remove('col-filter-open');
-                        const p = th.querySelector('.col-filter-popover');
-                        if (p) p.style.display = '';
-                    }
-                });
+                if (!thParent.classList.contains('col-filter-open')) {
+                    closeFloatingMenus({ exceptTh: thParent });
+                }
                 thParent.classList.toggle('col-filter-open');
                 if (thParent.classList.contains('col-filter-open')) {
                     const popover = thParent.querySelector('.col-filter-popover');
@@ -9009,13 +9068,9 @@
             trigger.addEventListener('click', e => {
                 e.preventDefault();
                 e.stopPropagation();
-                document.querySelectorAll('#supply-activity-table thead th.col-filter-open').forEach(th => {
-                    if (th !== thParent) {
-                        th.classList.remove('col-filter-open');
-                        const p = th.querySelector('.col-filter-popover');
-                        if (p) p.style.display = '';
-                    }
-                });
+                if (!thParent.classList.contains('col-filter-open')) {
+                    closeFloatingMenus({ exceptTh: thParent });
+                }
                 thParent.classList.toggle('col-filter-open');
                 if (thParent.classList.contains('col-filter-open')) {
                     syncInputsFromState();

@@ -24695,8 +24695,21 @@
             return rates;
         }
 
+        function earn_getHistoricalMerklCampaignTokenMap(chainId) {
+            const historicalMaps = {
+                ethereum: {
+                    // Historical WLFI Merkl campaigns no longer exposed in the live
+                    // interest-rates payload, but their accumulated rewards still need
+                    // to resolve back to the underlying Dolomite market for token detail views.
+                    '576387d3d84237f5': '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USDC
+                    '2ed15ca6f6a47991': '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USDC
+                },
+            };
+            return historicalMaps[String(chainId || '').toLowerCase()] || {};
+        }
+
         function earn_getMerklCampaignTokenMap(chainId) {
-            const map = {};
+            const map = { ...earn_getHistoricalMerklCampaignTokenMap(chainId) };
             Object.entries(earn_marketRates || {}).forEach(([key, entry]) => {
                 if (!key.startsWith(chainId + ':') || !entry || !Array.isArray(entry.rewardParts)) return;
                 const marketTokenAddr = (key.slice(chainId.length + 1) || '').toLowerCase();
