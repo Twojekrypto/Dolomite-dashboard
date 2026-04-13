@@ -1060,6 +1060,7 @@
             font-size: 12px;
             color: rgba(226,232,240,0.56);
             line-height: 1.45;
+            max-width: 460px;
         }
         .liquidation-sim-tabs-bar {
             display: flex;
@@ -1095,65 +1096,45 @@
             transition: opacity 0.2s;
         }
         .liquidation-sim-toolbar {
-            display: grid;
-            grid-template-columns: minmax(0, 1.35fr) auto;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 12px;
-        }
-        .liquidation-sim-control {
             display: flex;
             align-items: center;
             gap: 10px;
-            min-width: 0;
-            padding: 7px 9px;
-            border-radius: 14px;
-            border: 1px solid rgba(255,255,255,0.06);
-            background: rgba(7,12,24,0.54);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
-        }
-        .liquidation-sim-control-tag {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            flex: 0 0 auto;
-            min-height: 28px;
-            padding: 0 10px;
-            border-radius: 999px;
-            border: 1px solid rgba(148,163,184,0.14);
-            background: rgba(148,163,184,0.12);
-            color: rgba(226,232,240,0.74);
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
         }
         .liquidation-sim-dropdown {
             position: relative;
-            flex: 1 1 auto;
+            flex: 0 1 208px;
+            max-width: 208px;
             min-width: 0;
         }
         .liquidation-sim-trigger {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             width: 100%;
-            min-height: 40px;
-            padding: 0 6px 0 2px;
-            border-radius: 10px;
-            border: none;
-            background: transparent;
+            min-height: 42px;
+            padding: 0 10px 0 6px;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background:
+                radial-gradient(circle at top left, rgba(99,102,241,0.08), transparent 42%),
+                linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.02));
             color: #e2e8f0;
             font-size: 12px;
             font-weight: 600;
             cursor: pointer;
             font-family: inherit;
             transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
-            box-shadow: none;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
         }
-        .liquidation-sim-trigger:hover {
-            background: rgba(99,102,241,0.10);
-            box-shadow: 0 0 0 3px rgba(99,102,241,0.06);
+        .liquidation-sim-trigger:hover,
+        .liquidation-sim-dropdown.open .liquidation-sim-trigger {
+            border-color: rgba(96,165,250,0.24);
+            background:
+                radial-gradient(circle at top left, rgba(96,165,250,0.12), transparent 42%),
+                linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.028));
+            box-shadow: 0 0 0 3px rgba(96,165,250,0.08), inset 0 1px 0 rgba(255,255,255,0.06);
             transform: none;
         }
         .sim-asset-trigger {
@@ -1165,13 +1146,26 @@
             align-items: center;
             justify-content: center;
             flex: 0 0 auto;
-            width: 28px;
-            height: 28px;
-            border-radius: 999px;
-            background: rgba(255,255,255,0.055);
-            border: 1px solid rgba(255,255,255,0.08);
-            font-size: 13px;
+            width: 30px;
+            height: 30px;
+            border-radius: 10px;
+            background:
+                radial-gradient(circle at top left, rgba(125,211,252,0.22), transparent 48%),
+                linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.03));
+            border: 1px solid rgba(125,211,252,0.16);
+            color: #c4b5fd;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
             overflow: hidden;
+        }
+        .sim-asset-icon-badge svg {
+            width: 15px;
+            height: 15px;
+        }
+        .sim-asset-icon-badge img {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            object-fit: cover;
         }
         .sim-asset-label-text {
             min-width: 0;
@@ -1191,26 +1185,167 @@
             top: calc(100% + 8px);
             left: 0;
             z-index: 100;
-            width: 240px;
-            background: rgba(10,15,28,0.98);
-            border: 1px solid rgba(99,102,241,0.16);
-            border-radius: 14px;
-            padding: 10px;
-            box-shadow: 0 18px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(99,102,241,0.06);
+            width: max(100%, 320px);
+            max-width: min(390px, calc(100vw - 32px));
+            background:
+                radial-gradient(circle at top left, rgba(99,102,241,0.12), transparent 38%),
+                linear-gradient(180deg, rgba(11,16,30,0.985), rgba(8,12,24,0.985));
+            border: 1px solid rgba(129,140,248,0.16);
+            border-radius: 18px;
+            padding: 12px;
+            box-shadow: 0 24px 56px rgba(0,0,0,0.58), 0 0 0 1px rgba(99,102,241,0.05);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
+        }
+        .sim-asset-popover-head {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            margin-bottom: 10px;
+            padding: 2px 2px 0;
+        }
+        .sim-asset-popover-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #f8fafc;
+            letter-spacing: 0.01em;
+        }
+        .sim-asset-popover-copy {
+            font-size: 11px;
+            line-height: 1.45;
+            color: rgba(226,232,240,0.58);
+        }
+        .sim-asset-search-input {
+            min-height: 40px;
+            margin-bottom: 10px;
+            border-radius: 12px;
+            background-color: rgba(255,255,255,0.035);
+            border-color: rgba(255,255,255,0.07);
+        }
+        .sim-asset-list-panel {
+            max-height: 280px;
+            padding-right: 2px;
+        }
+        .sim-asset-opt {
+            align-items: center;
+            gap: 10px;
+            padding: 9px 10px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            color: rgba(226,232,240,0.9);
+        }
+        .sim-asset-opt:hover {
+            background: rgba(255,255,255,0.045);
+            border-color: rgba(255,255,255,0.06);
+            transform: translateY(-1px);
+        }
+        .sim-asset-opt.selected {
+            background:
+                radial-gradient(circle at left top, rgba(96,165,250,0.14), transparent 48%),
+                linear-gradient(180deg, rgba(96,165,250,0.10), rgba(96,165,250,0.04));
+            border-color: rgba(96,165,250,0.18);
+            color: #f8fafc;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+        }
+        .sim-asset-option-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.045);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #c4b5fd;
+            overflow: hidden;
+        }
+        .sim-asset-option-icon svg {
+            width: 16px;
+            height: 16px;
+        }
+        .sim-asset-option-icon img {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .sim-asset-option-copy {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .sim-asset-option-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: #eef2ff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .sim-asset-option-sub {
+            font-size: 10px;
+            line-height: 1.35;
+            color: rgba(148,163,184,0.82);
+        }
+        .sim-asset-option-trail {
+            margin-left: auto;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            flex: 0 0 auto;
+        }
+        .sim-asset-type-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 18px;
+            padding: 0 7px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.045);
+            border: 1px solid rgba(255,255,255,0.06);
+            color: rgba(148,163,184,0.86);
+            font-size: 8px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        .sim-asset-option-check {
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,0.10);
+            background: rgba(255,255,255,0.02);
+            color: transparent;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.18s ease;
+        }
+        .sim-asset-option-check svg {
+            width: 10px;
+            height: 10px;
+        }
+        .sim-asset-opt.selected .sim-asset-option-check {
+            color: #ffffff;
+            background: linear-gradient(135deg, #60a5fa, #818cf8);
+            border-color: rgba(129,140,248,0.4);
+            box-shadow: 0 0 12px rgba(99,102,241,0.18);
         }
         .liquidation-direction-toggle {
             position: relative;
             display: flex;
             padding: 2px;
-            border-radius: 12px;
-            background: rgba(0,0,0,0.22);
+            border-radius: 14px;
+            background:
+                radial-gradient(circle at top left, rgba(34,211,238,0.08), transparent 45%),
+                linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.02));
             border: 1px solid rgba(255,255,255,0.08);
             overflow: hidden;
-            min-height: 40px;
-            min-width: 194px;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+            min-height: 42px;
+            min-width: 168px;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
         }
         .liquidation-dir-pill {
             position: absolute;
@@ -1232,7 +1367,7 @@
             justify-content: center;
             gap: 6px;
             flex: 1 1 50%;
-            padding: 0 12px;
+            padding: 0 11px;
             border: none;
             background: transparent;
             color: var(--text-muted);
@@ -2374,11 +2509,8 @@
                 justify-content: flex-start;
             }
             .liquidation-sim-toolbar {
-                grid-template-columns: 1fr;
-            }
-            .liquidation-sim-control {
-                justify-content: space-between;
-                padding: 8px;
+                flex-direction: column;
+                align-items: stretch;
             }
             .liquidation-stat-grid,
             .liquidation-sim-metrics {
@@ -2396,8 +2528,13 @@
             .liquidation-slider-head {
                 align-items: stretch;
             }
+            .liquidation-sim-dropdown {
+                max-width: none;
+                flex-basis: auto;
+            }
             .liquidation-direction-toggle {
-                min-width: 180px;
+                min-width: 0;
+                width: 100%;
             }
             .liquidation-slider-value {
                 font-size: 28px;
@@ -3964,7 +4101,7 @@
                             </div>
                             <div>
                                 <div class="liquidation-sim-title">Risk Simulator</div>
-                                <div class="liquidation-sim-subtitle">Choose a market move and instantly see what slips below HF 1.0 in the visible set.</div>
+                                <div class="liquidation-sim-subtitle">Stress-test the visible set with one market shock or a custom basket.</div>
                             </div>
                         </div>
                     </div>
@@ -3982,34 +4119,38 @@
                     </div>
 
                     <div id="sim-simple-controls" class="liquidation-sim-toolbar">
-                        <div class="liquidation-sim-control">
-                            <span class="liquidation-sim-control-tag">Market</span>
-                            <div id="sim-asset-mode" class="liquidation-sim-dropdown">
-                                <button type="button" id="sim-asset-trigger" title="Select asset" class="liquidation-sim-trigger sim-asset-trigger">
-                                    <span id="sim-asset-icon" class="sim-asset-icon-badge">🌐</span>
-                                    <span id="sim-asset-label" class="sim-asset-label-text">All Volatile</span>
-                                    <svg class="sim-asset-caret" width="10" height="10" viewBox="0 0 20 20" fill="currentColor"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
-                                </button>
-                                <div id="sim-asset-popover" class="sim-asset-popover">
-                                    <input type="text" id="sim-asset-search" placeholder="Search token..." class="col-token-search" style="margin-bottom:8px">
-                                    <div id="sim-asset-list" class="col-token-list" style="max-height:260px;overflow-y:auto"></div>
+                        <div id="sim-asset-mode" class="liquidation-sim-dropdown">
+                            <button type="button" id="sim-asset-trigger" title="Select asset" class="liquidation-sim-trigger sim-asset-trigger" aria-haspopup="listbox" aria-expanded="false">
+                                <span id="sim-asset-icon" class="sim-asset-icon-badge">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <path d="M5 9.5h14"></path>
+                                        <path d="M6.5 9.5 8 17a2 2 0 0 0 2 1.6h4a2 2 0 0 0 2-1.6l1.5-7.5"></path>
+                                        <path d="M9 9.5 12 5l3 4.5"></path>
+                                    </svg>
+                                </span>
+                                <span id="sim-asset-label" class="sim-asset-label-text">Market Basket</span>
+                                <svg class="sim-asset-caret" width="10" height="10" viewBox="0 0 20 20" fill="currentColor"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
+                            </button>
+                            <div id="sim-asset-popover" class="sim-asset-popover">
+                                <div class="sim-asset-popover-head">
+                                    <div class="sim-asset-popover-title">Market Scope</div>
+                                    <div class="sim-asset-popover-copy">Choose the full market basket or isolate one token shock.</div>
                                 </div>
+                                <input type="text" id="sim-asset-search" placeholder="Search token or basket..." class="col-token-search sim-asset-search-input">
+                                <div id="sim-asset-list" class="col-token-list sim-asset-list-panel" role="listbox"></div>
                             </div>
                         </div>
 
-                        <div class="liquidation-sim-control">
-                            <span class="liquidation-sim-control-tag">Direction</span>
-                            <div id="sim-dir-toggle" class="liquidation-direction-toggle">
-                                <div id="sim-dir-pill" class="liquidation-dir-pill"></div>
-                                <button type="button" class="sim-dir-seg active" data-dir="drop" onclick="setSimDir('drop')" style="color:#f87171">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>
-                                    Drop
-                                </button>
-                                <button type="button" class="sim-dir-seg" data-dir="rise" onclick="setSimDir('rise')">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
-                                    Rise
-                                </button>
-                            </div>
+                        <div id="sim-dir-toggle" class="liquidation-direction-toggle" aria-label="Price direction">
+                            <div id="sim-dir-pill" class="liquidation-dir-pill"></div>
+                            <button type="button" class="sim-dir-seg active" data-dir="drop" onclick="setSimDir('drop')" style="color:#f87171">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>
+                                Drop
+                            </button>
+                            <button type="button" class="sim-dir-seg" data-dir="rise" onclick="setSimDir('rise')">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+                                Rise
+                            </button>
                         </div>
                     </div>
 
@@ -4017,7 +4158,7 @@
                         <div class="liquidation-slider-head">
                             <div class="liquidation-slider-copy">
                                 <span class="liquidation-slider-kicker">Scenario</span>
-                                <span id="sim-scenario-label" class="liquidation-slider-scenario">All volatile assets drop by</span>
+                                <span id="sim-scenario-label" class="liquidation-slider-scenario">Market basket drops by</span>
                             </div>
                             <button type="button" class="sim-reset-btn" id="sim-reset-btn" onclick="document.getElementById('sim-slider').value=0;document.getElementById('sim-slider').dispatchEvent(new Event('input'));" title="Reset to 0%">
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>Reset
@@ -5969,8 +6110,10 @@
                 }
             }
             // Build asset picker popover list
+            const MARKET_BASKET_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 9.5h14"></path><path d="M6.5 9.5 8 17a2 2 0 0 0 2 1.6h4a2 2 0 0 0 2-1.6l1.5-7.5"></path><path d="M9 9.5 12 5l3 4.5"></path></svg>';
+            const SIM_CHECK_ICON = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10.5 8.2 13.5 15 6.8"></path></svg>';
             const SIM_GROUPS = [
-                { value: 'all', icon: '🌐', label: 'All Volatile', sub: 'Stablecoins keep $1 peg' },
+                { value: 'all', iconHtml: MARKET_BASKET_ICON, label: 'Market Basket', sub: 'Moves non-stable markets together' },
             ];
             const sortedTokens = [...allTokenSymbols].sort((a, b) => (tokenTVL[b] || 0) - (tokenTVL[a] || 0));
             window._simSortedTokens = sortedTokens;
@@ -5978,6 +6121,14 @@
             const simAssetSearch = document.getElementById('sim-asset-search');
             const simAssetPopover = document.getElementById('sim-asset-popover');
             const simAssetTrigger = document.getElementById('sim-asset-trigger');
+            const simAssetMode = document.getElementById('sim-asset-mode');
+
+            function setSimAssetPopoverOpen(isOpen) {
+                if (!simAssetPopover || !simAssetMode) return;
+                simAssetPopover.style.display = isOpen ? 'block' : 'none';
+                simAssetMode.classList.toggle('open', isOpen);
+                if (simAssetTrigger) simAssetTrigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            }
 
             function renderSimAssetList(filter) {
                 const q = (filter || '').toLowerCase();
@@ -5985,16 +6136,17 @@
                 // Groups
                 const filteredGroups = SIM_GROUPS.filter(g => !q || g.label.toLowerCase().includes(q));
                 if (filteredGroups.length) {
-                    html += '<div style="font-size:9px;text-transform:uppercase;color:var(--text-muted);padding:6px 10px 4px;letter-spacing:0.8px;font-weight:700">Groups</div>';
+                    html += '<div style="font-size:9px;text-transform:uppercase;color:var(--text-muted);padding:6px 10px 4px;letter-spacing:0.8px;font-weight:700">Market Sets</div>';
                     for (const g of filteredGroups) {
                         const sel = window._simAsset === g.value ? ' selected' : '';
                         const gIcon = g.iconUrl
-                            ? `<img src="${g.iconUrl}" width="20" height="20" style="border-radius:50%;flex-shrink:0" alt="">`
-                            : `<span style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">${g.icon}</span>`;
-                        const subHtml = g.sub ? `<span style="font-size:9px;color:var(--text-muted);font-weight:400;opacity:0.7">${g.sub}</span>` : '';
-                        html += `<div class="col-token-opt sim-asset-opt${sel}" data-value="${g.value}" style="gap:8px;padding:7px 10px">`
+                            ? `<span class="sim-asset-option-icon"><img src="${g.iconUrl}" alt=""></span>`
+                            : `<span class="sim-asset-option-icon">${g.iconHtml || g.icon}</span>`;
+                        const subHtml = g.sub ? `<span class="sim-asset-option-sub">${g.sub}</span>` : '';
+                        html += `<div class="col-token-opt sim-asset-opt${sel}" data-value="${g.value}">`
                             + gIcon
-                            + `<div style="display:flex;flex-direction:column;gap:1px"><span style="font-weight:600;font-size:11px">${g.label}</span>${subHtml}</div>`
+                            + `<div class="sim-asset-option-copy"><span class="sim-asset-option-title">${g.label}</span>${subHtml}</div>`
+                            + `<div class="sim-asset-option-trail"><span class="sim-asset-option-check">${SIM_CHECK_ICON}</span></div>`
                             + '</div>';
                     }
                 }
@@ -6006,15 +6158,15 @@
                         const sel = window._simAsset === 'token:' + s ? ' selected' : '';
                         const iconUrl = typeof getTokenIcon === 'function' ? getTokenIcon(s) : null;
                         const iconHtml = iconUrl
-                            ? `<img src="${iconUrl}" width="18" height="18" style="border-radius:50%;flex-shrink:0" alt="">`
-                            : `<span style="width:18px;height:18px;border-radius:50%;background:rgba(99,102,241,0.15);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#a5b4fc;flex-shrink:0">${s.charAt(0)}</span>`;
+                            ? `<span class="sim-asset-option-icon"><img src="${iconUrl}" alt=""></span>`
+                            : `<span class="sim-asset-option-icon">${s.charAt(0)}</span>`;
                         const grp = getTokenGroup(s);
                         const grpLabel = grp === 'stable' ? 'Stable' : grp === 'eth' ? 'ETH' : grp === 'btc' ? 'BTC' : grp === 'bera' ? 'BERA' : '';
-                        const badge = grpLabel ? `<span style="margin-left:auto;font-size:8px;padding:1px 5px;border-radius:4px;background:rgba(255,255,255,0.04);color:var(--text-muted);font-weight:500;letter-spacing:0.3px">${grpLabel}</span>` : '';
-                        html += `<div class="col-token-opt sim-asset-opt${sel}" data-value="token:${s}" style="gap:8px;padding:5px 10px">`
+                        const badge = grpLabel ? `<span class="sim-asset-type-badge">${grpLabel}</span>` : '';
+                        html += `<div class="col-token-opt sim-asset-opt${sel}" data-value="token:${s}">`
                             + iconHtml
-                            + `<span style="font-weight:500;font-size:11px">${s}</span>`
-                            + badge
+                            + `<div class="sim-asset-option-copy"><span class="sim-asset-option-title">${s}</span></div>`
+                            + `<div class="sim-asset-option-trail">${badge}<span class="sim-asset-option-check">${SIM_CHECK_ICON}</span></div>`
                             + '</div>';
                     }
                 }
@@ -6024,7 +6176,7 @@
                 simAssetList.querySelectorAll('.sim-asset-opt').forEach(el => {
                     el.addEventListener('click', () => {
                         window.setSimAsset(el.dataset.value);
-                        simAssetPopover.style.display = 'none';
+                        setSimAssetPopoverOpen(false);
                         simAssetSearch.value = '';
                     });
                 });
@@ -6035,15 +6187,15 @@
             if (simAssetTrigger) {
                 simAssetTrigger.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    const isOpen = simAssetPopover.style.display !== 'none';
-                    simAssetPopover.style.display = isOpen ? 'none' : 'block';
+                    const isOpen = simAssetMode ? simAssetMode.classList.contains('open') : false;
+                    setSimAssetPopoverOpen(!isOpen);
                     if (!isOpen) { simAssetSearch.value = ''; renderSimAssetList(''); simAssetSearch.focus(); }
                 });
             }
             // Close on outside click
             document.addEventListener('click', (e) => {
                 if (simAssetPopover && !document.getElementById('sim-asset-mode').contains(e.target)) {
-                    simAssetPopover.style.display = 'none';
+                    setSimAssetPopoverOpen(false);
                 }
             });
 
@@ -6129,7 +6281,7 @@
                         sliderEl.style.setProperty('--sim-thumb-glow', thumbGlow);
                     }
                     // Scenario label
-                    const assetNames = { all: 'All volatile assets' };
+                    const assetNames = { all: 'Market basket' };
                     const name = isToken ? tokenName : (assetNames[asset] || asset);
                     const dirWord = isDrop ? 'drops' : 'rises';
                     document.getElementById('sim-scenario-label').textContent = `${name} ${dirWord} by`;
@@ -6228,7 +6380,7 @@
                         labelEl.textContent = grp.label;
                         iconEl.innerHTML = grp.iconUrl
                             ? `<img src="${grp.iconUrl}" width="16" height="16" style="border-radius:50%" alt="">`
-                            : grp.icon;
+                            : (grp.iconHtml || grp.icon);
                     } else if (asset.startsWith('token:')) {
                         const sym = asset.slice(6);
                         labelEl.textContent = sym;
@@ -6239,6 +6391,7 @@
                     }
                     renderSimAssetList('');
                     updateSim(parseInt(simSlider.value));
+                    setSimAssetPopoverOpen(false);
                 };
                 // Direction toggle (segmented pill)
                 window.setSimDir = function(dir) {
@@ -6290,7 +6443,7 @@
             tabMulti.querySelector('.sim-tab-line').style.opacity = isMulti ? '1' : '0';
 
             // Show/hide content
-            if (simpleControls) simpleControls.style.display = isMulti ? 'none' : 'grid';
+            if (simpleControls) simpleControls.style.display = isMulti ? 'none' : 'flex';
             if (sliderRow) sliderRow.style.display = isMulti ? 'none' : '';
             if (panel) panel.classList.toggle('visible', isMulti);
 
