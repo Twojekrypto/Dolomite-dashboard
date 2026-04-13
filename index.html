@@ -17439,7 +17439,7 @@
                 const costUsd = getTxCostUsd(tx);
                 const costDisplay = costUsd > 0 ? exFmtUsd(costUsd) : '—';
                 const costColor = '#fbbf24';  // always gold for $ display
-                html += '<td style="padding:4px 5px;text-align:right;color:#fff;font-weight:600;font-size:11px">' + (tx.vedolo ? vedolo_fmtDolo(tx.vedolo) + ' oDOLO' : '—') + '</td>';
+                html += '<td style="padding:4px 5px;text-align:right;color:#fff;font-weight:600;font-size:11px">' + (tx.vedolo ? vedolo_fmtDolo(tx.vedolo) : '—') + '</td>';
                 html += '<td style="padding:4px 5px;text-align:right;color:#22d3ee;font-size:11px">' + exFmtLock(tx.lock_days) + '</td>';
                 html += '<td style="padding:4px 5px;text-align:right;color:' + costColor + ';font-size:11px">' + costDisplay + '</td>';
                 const txPricePerVe = (costUsd > 0 && tx.vedolo > 0) ? costUsd / tx.vedolo : (tx.price || 0);
@@ -17811,7 +17811,7 @@
                 html += '<td style="padding:5px 6px"><span style="display:inline-flex;align-items:center;gap:4px"><a href="https://debank.com/profile/' + e.address + '" target="_blank" style="color:#fff;font-family:monospace;font-size:12px;text-decoration:none" class="addr-tooltip-wrap" data-full-addr="' + e.address + '" onclick="event.stopPropagation()">' + exShortAddr(e.address) + '</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr(\'' + e.address + '\',this)" title="Copy address"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span><a href="https://debank.com/profile/' + e.address + '" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display=\'none\'"></a></span></td>';
                 var totalVedolo = 0; (e.txs || []).forEach(function (tx) { if (tx.vedolo && tx.paid_token !== 'DOLO') totalVedolo += tx.vedolo; });
                 var totalDoloPaid = 0; (e.txs || []).forEach(function (tx) { if (tx.paid_token === 'DOLO' && tx.dolo_paid) totalDoloPaid += tx.dolo_paid; });
-                html += '<td style="padding:4px 5px;text-align:right;color:#fff;font-weight:600;font-size:11px">' + (totalVedolo > 0 ? vedolo_fmtDolo(totalVedolo) + ' oDOLO' : '\u2014') + '</td>';
+                html += '<td style="padding:4px 5px;text-align:right;color:#fff;font-weight:600;font-size:11px">' + (totalVedolo > 0 ? vedolo_fmtDolo(totalVedolo) : '\u2014') + '</td>';
                 html += '<td style="padding:4px 5px;text-align:right;color:#22d3ee;font-size:11px">' + exFmtLock(getUsdcAvgLock(e)) + '</td>';
                 var costHtml = '';
                 var totalCostUsd = e.total_usdc || 0;
