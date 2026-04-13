@@ -59,6 +59,31 @@ jobs:
           path: data/.netflow-progress
           key: netflow-progress-${{ github.run_id }}
 
+      - name: Validate earn netflow data
+        run: |
+          # Check that earn-netflow directory has valid JSON files
+          python3 -c "
+          import json, os, sys
+          d = 'data/earn-netflow'
+          if not os.path.isdir(d):
+              print('⚠️ No earn-netflow directory — skipping validation')
+              sys.exit(0)
+          files = [f for f in os.listdir(d) if f.endswith('.json')]
+          if not files:
+              print('❌ No JSON files in earn-netflow/')
+              sys.exit(1)
+          bad = 0
+          for f in files:
+              try:
+                  json.load(open(os.path.join(d, f)))
+              except:
+                  print(f'❌ Invalid JSON: {f}')
+                  bad += 1
+          if bad:
+              sys.exit(1)
+          print(f'✅ All {len(files)} earn-netflow files valid')
+          "
+
       - name: Commit & push changes
         run: |
           git config user.name "github-actions[bot]"
