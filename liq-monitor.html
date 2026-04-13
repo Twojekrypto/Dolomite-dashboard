@@ -428,13 +428,15 @@
             color: var(--text-muted);
             font-family: 'JetBrains Mono', monospace;
         }
-        .risk-trigger .trigger-chevron {
+        .risk-trigger .trigger-chevron,
+        .chain-trigger .trigger-chevron {
             width: 10px; height: 10px;
             color: rgba(255,255,255,0.3);
             transition: transform 0.2s ease;
             flex-shrink: 0;
         }
-        .risk-dropdown.open .risk-trigger .trigger-chevron {
+        .risk-dropdown.open .risk-trigger .trigger-chevron,
+        .chain-filter.open .chain-trigger .trigger-chevron {
             transform: rotate(180deg);
         }
         .risk-dropdown.open .risk-trigger {
@@ -1556,7 +1558,8 @@
             color: #86efac;
             border-color: rgba(52, 211, 153, 0.16);
         }
-        .liquidation-command-frame .risk-trigger .trigger-chevron {
+        .liquidation-command-frame .risk-trigger .trigger-chevron,
+        .liquidation-command-frame .chain-trigger .trigger-chevron {
             color: rgba(255,255,255,0.42);
         }
         .liquidation-command-frame .chain-menu,
