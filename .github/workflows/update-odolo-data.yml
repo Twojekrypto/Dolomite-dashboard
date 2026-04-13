@@ -74,6 +74,9 @@ jobs:
           ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
           ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}
 
+      - name: Validate generated data
+        run: python3 validate_data.py exercisers_by_address.json avg_lock_data.json odolo_contract_data.json early_exits.json
+
       - name: Commit & push changes
         run: |
           git config user.name "github-actions[bot]"

@@ -51,6 +51,9 @@ jobs:
       - name: Fetch oDOLO contract data
         run: python3 fetch_odolo_contract.py
 
+      - name: Validate generated data
+        run: python3 validate_data.py vedolo_holders.json vedolo_stats.json vedolo_expiry.json dolo_price.json defillama_data.json dolomite_tvl.json odolo_contract_data.json metrics_snapshot.json
+
       - name: Commit & push changes
         run: |
           git config user.name "github-actions[bot]"

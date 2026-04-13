@@ -46,6 +46,9 @@ jobs:
           ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}
         run: python generate_vedolo_flows.py
 
+      - name: Validate generated data
+        run: python3 validate_data.py vedolo_flows.json
+
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"

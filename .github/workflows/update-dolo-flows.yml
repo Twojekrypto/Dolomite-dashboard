@@ -75,6 +75,9 @@ jobs:
           path: dolo_holders_state.json
           key: dolo-holders-state-${{ github.run_number }}
 
+      - name: Validate generated data
+        run: python3 validate_data.py dolo_flows.json dolo_holders.json
+
       - name: Commit and push if changed
         if: always()
         run: |
