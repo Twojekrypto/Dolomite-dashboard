@@ -1128,14 +1128,27 @@
             transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
             box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
         }
-        .liquidation-sim-trigger:hover,
-        .liquidation-sim-dropdown.open .liquidation-sim-trigger {
+        .liquidation-sim-trigger:hover {
             border-color: rgba(96,165,250,0.24);
             background:
                 radial-gradient(circle at top left, rgba(96,165,250,0.12), transparent 42%),
                 linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.028));
             box-shadow: 0 0 0 3px rgba(96,165,250,0.08), inset 0 1px 0 rgba(255,255,255,0.06);
             transform: none;
+        }
+        /* Green glow when popover is open — matches search focus */
+        .liquidation-sim-dropdown.open .liquidation-sim-trigger {
+            border-color: #34d399;
+            background:
+                radial-gradient(circle at top left, rgba(52,211,153,0.12), transparent 42%),
+                linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.028));
+            box-shadow: 0 0 0 3px rgba(52,211,153,0.15), inset 0 1px 0 rgba(255,255,255,0.06);
+            transform: none;
+        }
+        /* Green border when custom assets are selected (not default Market Basket) */
+        .sim-asset-trigger.has-selection {
+            border-color: rgba(52,211,153,0.35) !important;
+            box-shadow: 0 0 0 3px rgba(52,211,153,0.10), inset 0 1px 0 rgba(255,255,255,0.06) !important;
         }
         .sim-asset-trigger {
             justify-content: flex-start;
@@ -1185,23 +1198,25 @@
             top: calc(100% + 8px);
             left: 0;
             z-index: 100;
-            width: max(100%, 320px);
-            max-width: min(390px, calc(100vw - 32px));
+            width: max(100%, 290px);
+            max-width: min(340px, calc(100vw - 32px));
             background:
-                radial-gradient(circle at top left, rgba(99,102,241,0.12), transparent 38%),
+                radial-gradient(circle at top left, rgba(99,102,241,0.10), transparent 42%),
                 linear-gradient(180deg, rgba(11,16,30,0.985), rgba(8,12,24,0.985));
             border: 1px solid rgba(129,140,248,0.16);
-            border-radius: 18px;
-            padding: 12px;
-            box-shadow: 0 24px 56px rgba(0,0,0,0.58), 0 0 0 1px rgba(99,102,241,0.05);
+            border-radius: 16px;
+            padding: 10px 10px 0;
+            box-shadow: 0 20px 48px rgba(0,0,0,0.55), 0 0 0 1px rgba(99,102,241,0.05);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
+            display: none;
+            flex-direction: column;
         }
         .sim-asset-popover-head {
             display: flex;
             flex-direction: column;
             gap: 4px;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             padding: 2px 2px 0;
         }
         .sim-asset-popover-title-row {
@@ -1221,52 +1236,74 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-height: 22px;
-            padding: 0 9px;
+            min-height: 20px;
+            padding: 0 8px;
             border-radius: 999px;
             border: 1px solid rgba(96,165,250,0.16);
             background: rgba(96,165,250,0.08);
             color: rgba(191,219,254,0.84);
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 700;
             letter-spacing: 0.02em;
         }
         .sim-asset-search-input {
-            min-height: 40px;
-            margin-bottom: 8px;
-            border-radius: 12px;
+            min-height: 34px;
+            margin-bottom: 6px;
+            border-radius: 10px;
             background-color: rgba(255,255,255,0.035);
             border-color: rgba(255,255,255,0.07);
+            font-size: 11px;
         }
         .sim-asset-list-panel {
-            max-height: 280px;
+            max-height: 260px;
             padding-right: 2px;
         }
+        /* Section headers inside popover */
+        .sim-asset-section-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            font-weight: 700;
+            padding: 6px 6px 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .sim-asset-section-label::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(255,255,255,0.06);
+        }
+        .sim-asset-section-label.quick { color: rgba(167,139,250,0.7); }
+        .sim-asset-section-label.tokens { color: rgba(148,163,184,0.6); }
+        .sim-asset-section-label.selected { color: rgba(34,211,238,0.6); }
         .sim-asset-opt {
             align-items: center;
-            gap: 10px;
-            padding: 9px 10px;
-            border-radius: 12px;
+            gap: 8px;
+            padding: 6px 8px;
+            border-radius: 10px;
             border: 1px solid transparent;
             color: rgba(226,232,240,0.9);
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.15s ease, border-color 0.15s ease;
         }
         .sim-asset-opt:hover {
-            background: rgba(255,255,255,0.045);
+            background: rgba(255,255,255,0.04);
             border-color: rgba(255,255,255,0.06);
-            transform: translateY(-1px);
         }
         .sim-asset-opt.selected {
             background:
-                radial-gradient(circle at left top, rgba(96,165,250,0.14), transparent 48%),
-                linear-gradient(180deg, rgba(96,165,250,0.10), rgba(96,165,250,0.04));
-            border-color: rgba(96,165,250,0.18);
+                radial-gradient(circle at left top, rgba(96,165,250,0.10), transparent 48%),
+                linear-gradient(180deg, rgba(96,165,250,0.06), rgba(96,165,250,0.02));
+            border-color: rgba(96,165,250,0.14);
             color: #f8fafc;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
         }
         .sim-asset-option-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 10px;
+            width: 26px;
+            height: 26px;
+            border-radius: 8px;
             flex: 0 0 auto;
             display: inline-flex;
             align-items: center;
@@ -1277,12 +1314,12 @@
             overflow: hidden;
         }
         .sim-asset-option-icon svg {
-            width: 16px;
-            height: 16px;
+            width: 14px;
+            height: 14px;
         }
         .sim-asset-option-icon img {
-            width: 18px;
-            height: 18px;
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
             object-fit: cover;
         }
@@ -1290,7 +1327,7 @@
             min-width: 0;
             display: flex;
             flex-direction: column;
-            gap: 2px;
+            gap: 1px;
         }
         .sim-asset-option-title {
             font-size: 11px;
@@ -1301,9 +1338,9 @@
             text-overflow: ellipsis;
         }
         .sim-asset-option-sub {
-            font-size: 10px;
-            line-height: 1.35;
-            color: rgba(148,163,184,0.82);
+            font-size: 9px;
+            line-height: 1.3;
+            color: rgba(148,163,184,0.72);
         }
         .sim-asset-option-trail {
             margin-left: auto;
@@ -1317,37 +1354,154 @@
             align-items: center;
             justify-content: center;
             min-height: 18px;
-            padding: 0 7px;
+            padding: 0 6px;
             border-radius: 999px;
-            background: rgba(255,255,255,0.045);
-            border: 1px solid rgba(255,255,255,0.06);
-            color: rgba(148,163,184,0.86);
             font-size: 8px;
             font-weight: 700;
-            letter-spacing: 0.08em;
+            letter-spacing: 0.06em;
             text-transform: uppercase;
+            /* Default: neutral */
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            color: rgba(148,163,184,0.7);
         }
+        /* Color-coded group badges */
+        .sim-asset-type-badge[data-group="eth"] {
+            background: rgba(96,165,250,0.12);
+            border-color: rgba(96,165,250,0.22);
+            color: #93c5fd;
+        }
+        .sim-asset-type-badge[data-group="btc"] {
+            background: rgba(251,146,60,0.12);
+            border-color: rgba(251,146,60,0.22);
+            color: #fdba74;
+        }
+        .sim-asset-type-badge[data-group="bera"] {
+            background: rgba(251,191,36,0.12);
+            border-color: rgba(251,191,36,0.22);
+            color: #fde68a;
+        }
+        .sim-asset-type-badge[data-group="stable"] {
+            background: rgba(52,211,153,0.10);
+            border-color: rgba(52,211,153,0.20);
+            color: #6ee7b7;
+        }
+        /* Checkbox — now first child (left side) in each option row */
         .sim-asset-option-check {
-            width: 18px;
-            height: 18px;
-            border-radius: 999px;
-            border: 1px solid rgba(255,255,255,0.10);
-            background: rgba(255,255,255,0.02);
+            width: 16px;
+            height: 16px;
+            border-radius: 5px;
+            border: 1.5px solid rgba(255,255,255,0.13);
+            background: rgba(255,255,255,0.03);
             color: transparent;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             transition: all 0.18s ease;
+            flex: 0 0 auto;
+            order: -1;
         }
         .sim-asset-option-check svg {
             width: 10px;
             height: 10px;
         }
+        .sim-asset-opt:hover .sim-asset-option-check {
+            border-color: rgba(129,140,248,0.35);
+            background: rgba(99,102,241,0.06);
+        }
         .sim-asset-opt.selected .sim-asset-option-check {
             color: #ffffff;
             background: linear-gradient(135deg, #60a5fa, #818cf8);
-            border-color: rgba(129,140,248,0.4);
-            box-shadow: 0 0 12px rgba(99,102,241,0.18);
+            border-color: rgba(129,140,248,0.5);
+            box-shadow: 0 0 10px rgba(99,102,241,0.2);
+        }
+        /* Popover sticky footer with selection count + apply */
+        .sim-asset-popover-footer {
+            position: sticky;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 8px 4px 10px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            background: linear-gradient(180deg, rgba(11,16,30,0.5), rgba(11,16,30,0.98) 25%);
+        }
+        .sim-asset-popover-footer-count {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+        .sim-asset-popover-footer-count strong {
+            color: #a5b4fc;
+            font-weight: 700;
+        }
+        .sim-asset-apply-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 14px;
+            border-radius: 8px;
+            border: 1px solid rgba(99,102,241,0.3);
+            background: linear-gradient(135deg, rgba(99,102,241,0.18), rgba(129,140,248,0.10));
+            color: #c7d2fe;
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+        .sim-asset-apply-btn:hover {
+            background: linear-gradient(135deg, rgba(99,102,241,0.28), rgba(129,140,248,0.16));
+            border-color: rgba(99,102,241,0.45);
+            color: #e0e7ff;
+            box-shadow: 0 0 16px rgba(99,102,241,0.12);
+        }
+        /* Selection count badge on trigger */
+        .sim-asset-count-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(129,140,248,0.15));
+            border: 1px solid rgba(129,140,248,0.3);
+            color: #c7d2fe;
+            font-size: 10px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            flex-shrink: 0;
+        }
+        /* Quick-select-all row separator */
+        .sim-asset-group-divider {
+            height: 1px;
+            background: rgba(255,255,255,0.06);
+            margin: 6px 2px;
+        }
+        /* Clear/reset × button next to trigger */
+        .sim-asset-clear-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            border: 1px solid rgba(239,68,68,0.2);
+            background: rgba(239,68,68,0.08);
+            color: rgba(248,113,113,0.7);
+            cursor: pointer;
+            transition: all 0.18s ease;
+            flex-shrink: 0;
+            margin-left: -4px;
+            align-self: center;
+        }
+        .sim-asset-clear-btn:hover {
+            background: rgba(239,68,68,0.18);
+            border-color: rgba(239,68,68,0.35);
+            color: #f87171;
+            box-shadow: 0 0 10px rgba(239,68,68,0.12);
         }
         .liquidation-direction-toggle {
             position: relative;
@@ -1362,6 +1516,16 @@
             min-height: 42px;
             min-width: 168px;
             box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+            transition: border-color 0.25s ease, box-shadow 0.25s ease;
+        }
+        /* Dynamic border glow based on direction */
+        .liquidation-direction-toggle.dir-drop {
+            border-color: rgba(239,68,68,0.35);
+            box-shadow: 0 0 0 3px rgba(239,68,68,0.10), inset 0 1px 0 rgba(255,255,255,0.05);
+        }
+        .liquidation-direction-toggle.dir-rise {
+            border-color: rgba(52,211,153,0.35);
+            box-shadow: 0 0 0 3px rgba(52,211,153,0.10), inset 0 1px 0 rgba(255,255,255,0.05);
         }
         .liquidation-dir-pill {
             position: absolute;
@@ -4151,13 +4315,21 @@
                                 <div class="sim-asset-popover-head">
                                     <div class="sim-asset-popover-title-row">
                                         <div class="sim-asset-popover-title">Market Scope</div>
-                                        <div class="sim-asset-popover-meta">Basket or token</div>
+                                        <div class="sim-asset-popover-meta">Multi-select</div>
                                     </div>
                                 </div>
                                 <input type="text" id="sim-asset-search" placeholder="Search market or token..." class="col-token-search sim-asset-search-input">
                                 <div id="sim-asset-list" class="col-token-list sim-asset-list-panel" role="listbox"></div>
+                                <div class="sim-asset-popover-footer">
+                                    <span class="sim-asset-popover-footer-count" id="sim-select-count"><strong>0</strong> selected</span>
+                                    <button type="button" class="sim-asset-apply-btn" id="sim-apply-btn" onclick="applySimSelection()">Apply &amp; Close</button>
+                                </div>
                             </div>
                         </div>
+                        <!-- Clear/reset button — visible when custom selection is active, sits inline in toolbar -->
+                        <button type="button" id="sim-asset-clear" class="sim-asset-clear-btn" title="Reset to Market Basket" onclick="resetSimAssets()" style="display:none">
+                            <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"/></svg>
+                        </button>
 
                         <div id="sim-dir-toggle" class="liquidation-direction-toggle" aria-label="Price direction">
                             <div id="sim-dir-pill" class="liquidation-dir-pill"></div>
@@ -6143,28 +6315,50 @@
 
             function setSimAssetPopoverOpen(isOpen) {
                 if (!simAssetPopover || !simAssetMode) return;
-                simAssetPopover.style.display = isOpen ? 'block' : 'none';
+                simAssetPopover.style.display = isOpen ? 'flex' : 'none';
                 simAssetMode.classList.toggle('open', isOpen);
                 if (simAssetTrigger) simAssetTrigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            }
+
+            // Multi-select state: Set of selected values ('all' or 'token:SYM')
+            // _simAssetPending holds the working selection inside the popover
+            window._simAssets = new Set(['all']);
+            window._simAssetPending = new Set(['all']);
+
+            function updateSimSelectCount() {
+                const countEl = document.getElementById('sim-select-count');
+                if (!countEl) return;
+                const pending = window._simAssetPending;
+                if (pending.has('all')) {
+                    countEl.innerHTML = '<strong>All volatile</strong> markets';
+                } else {
+                    const n = pending.size;
+                    countEl.innerHTML = `<strong>${n}</strong> token${n !== 1 ? 's' : ''} selected`;
+                }
             }
 
             function renderSimAssetList(filter) {
                 const q = (filter || '').toLowerCase();
                 let html = '';
+                const pending = window._simAssetPending;
+
                 function buildOptionMarkup(item, isSelected) {
                     const selectedClass = isSelected ? ' selected' : '';
-                    const badge = item.badge ? `<span class="sim-asset-type-badge">${item.badge}</span>` : '';
+                    const grpKey = item.badge ? item.badge.toLowerCase() : '';
+                    const badge = item.badge ? `<span class="sim-asset-type-badge" data-group="${grpKey}">${item.badge}</span>` : '';
                     const subHtml = item.sub ? `<span class="sim-asset-option-sub">${item.sub}</span>` : '';
                     const iconHtml = item.iconUrl
                         ? `<span class="sim-asset-option-icon"><img src="${item.iconUrl}" alt=""></span>`
                         : `<span class="sim-asset-option-icon">${item.iconHtml || item.icon}</span>`;
                     return `<div class="col-token-opt sim-asset-opt${selectedClass}" data-value="${item.value}">`
+                        + `<span class="sim-asset-option-check">${SIM_CHECK_ICON}</span>`
                         + iconHtml
                         + `<div class="sim-asset-option-copy"><span class="sim-asset-option-title">${item.label}</span>${subHtml}</div>`
-                        + `<div class="sim-asset-option-trail">${badge}<span class="sim-asset-option-check">${SIM_CHECK_ICON}</span></div>`
+                        + `<div class="sim-asset-option-trail">${badge}</div>`
                         + '</div>';
                 }
 
+                // "Market Basket" (select-all volatile) — always shown first
                 const filteredGroups = SIM_GROUPS
                     .filter(g => !q || g.label.toLowerCase().includes(q))
                     .map(g => ({
@@ -6189,44 +6383,128 @@
                         };
                     });
 
-                const selectedItems = [];
-                const marketSetItems = [];
-                const tokenItems = [];
-
-                filteredGroups.forEach(item => {
-                    if (!q && window._simAsset === item.value) selectedItems.push(item);
-                    else marketSetItems.push(item);
-                });
+                // Separate selected individual tokens to pin them at top
+                const selectedTokenItems = [];
+                const unselectedTokenItems = [];
                 filteredTokens.forEach(item => {
-                    if (!q && window._simAsset === item.value) selectedItems.push(item);
-                    else tokenItems.push(item);
+                    if (!q && pending.has(item.value)) {
+                        selectedTokenItems.push(item);
+                    } else {
+                        unselectedTokenItems.push(item);
+                    }
                 });
 
-                if (selectedItems.length && !q) {
-                    html += '<div style="font-size:9px;text-transform:uppercase;color:rgba(34,211,238,0.54);padding:6px 10px 4px;letter-spacing:0.9px;font-weight:700">Current Selection</div>';
-                    html += selectedItems.map(item => buildOptionMarkup(item, true)).join('');
-                    html += '<div style="height:1px;background:rgba(255,255,255,0.06);margin:6px 2px;"></div>';
+                // 1) Pinned selected tokens at top (when not searching and has individual selections)
+                if (selectedTokenItems.length && !q && !pending.has('all')) {
+                    html += '<div class="sim-asset-section-label selected">Selected</div>';
+                    html += selectedTokenItems.map(item => buildOptionMarkup(item, true)).join('');
                 }
 
-                if (marketSetItems.length) {
-                    html += '<div style="font-size:9px;text-transform:uppercase;color:var(--text-muted);padding:6px 10px 4px;letter-spacing:0.8px;font-weight:700">Market Sets</div>';
-                    html += marketSetItems.map(item => buildOptionMarkup(item, false)).join('');
+                // 2) Quick Select (Market Basket)
+                if (filteredGroups.length) {
+                    html += '<div class="sim-asset-section-label quick">Quick Select</div>';
+                    html += filteredGroups.map(item => buildOptionMarkup(item, pending.has(item.value))).join('');
                 }
 
-                if (tokenItems.length) {
-                    html += `<div style="font-size:9px;text-transform:uppercase;color:var(--text-muted);padding:8px 10px 4px;letter-spacing:0.8px;font-weight:700;${marketSetItems.length || selectedItems.length ? 'border-top:1px solid rgba(255,255,255,0.06);margin-top:4px' : ''}">Individual Tokens</div>`;
-                    html += tokenItems.map(item => buildOptionMarkup(item, false)).join('');
+                // 3) Individual tokens (unselected, or all when searching)
+                const tokensToShow = q ? filteredTokens : unselectedTokenItems;
+                if (tokensToShow.length) {
+                    html += '<div class="sim-asset-section-label tokens">Individual Tokens</div>';
+                    html += tokensToShow.map(item => buildOptionMarkup(item, pending.has(item.value))).join('');
                 }
                 if (!html) html = '<div style="padding:12px;text-align:center;color:var(--text-muted);font-size:11px">No tokens found</div>';
                 simAssetList.innerHTML = html;
-                // Click handlers
+
+                // Click handlers — toggle selection (multi-select)
                 simAssetList.querySelectorAll('.sim-asset-opt').forEach(el => {
-                    el.addEventListener('click', () => {
-                        window.setSimAsset(el.dataset.value);
-                        simAssetSearch.value = '';
+                    el.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const val = el.dataset.value;
+                        if (val === 'all') {
+                            // "Market Basket" toggles: if active, deselect; if not, select all volatile and clear individuals
+                            if (pending.has('all')) {
+                                pending.delete('all');
+                            } else {
+                                pending.clear();
+                                pending.add('all');
+                            }
+                        } else {
+                            // Individual token toggle
+                            pending.delete('all'); // uncheck "all" when picking individuals
+                            if (pending.has(val)) {
+                                pending.delete(val);
+                            } else {
+                                pending.add(val);
+                            }
+                            // If nothing selected, revert to "all"
+                            if (pending.size === 0) {
+                                pending.add('all');
+                            }
+                        }
+                        renderSimAssetList(simAssetSearch.value);
+                        updateSimSelectCount();
                     });
                 });
+                updateSimSelectCount();
             }
+
+            // Apply selection and close popover
+            window.applySimSelection = function() {
+                window._simAssets = new Set(window._simAssetPending);
+                updateSimTriggerLabel();
+                setSimAssetPopoverOpen(false);
+                updateSim(parseInt(simSlider.value));
+            };
+
+            // Reset to default Market Basket
+            window.resetSimAssets = function() {
+                window._simAssets = new Set(['all']);
+                window._simAssetPending = new Set(['all']);
+                updateSimTriggerLabel();
+                updateSim(parseInt(simSlider.value));
+            };
+
+            function updateSimTriggerLabel() {
+                const labelEl = document.getElementById('sim-asset-label');
+                const iconEl = document.getElementById('sim-asset-icon');
+                const assets = window._simAssets;
+
+                // Remove old count badge if any
+                const oldBadge = simAssetTrigger.querySelector('.sim-asset-count-badge');
+                if (oldBadge) oldBadge.remove();
+
+                // Green glow when custom selection (not default Market Basket)
+                const isCustom = !assets.has('all');
+                simAssetTrigger.classList.toggle('has-selection', isCustom);
+
+                // Show/hide × clear button
+                const clearBtn = document.getElementById('sim-asset-clear');
+                if (clearBtn) clearBtn.style.display = isCustom ? 'inline-flex' : 'none';
+
+                if (assets.has('all')) {
+                    labelEl.textContent = 'Market Basket';
+                    iconEl.innerHTML = MARKET_BASKET_ICON;
+                } else if (assets.size === 1) {
+                    const val = [...assets][0];
+                    const sym = val.startsWith('token:') ? val.slice(6) : val;
+                    labelEl.textContent = sym;
+                    const iconUrl = typeof getTokenIcon === 'function' ? getTokenIcon(sym) : null;
+                    iconEl.innerHTML = iconUrl
+                        ? `<img src="${iconUrl}" width="16" height="16" style="border-radius:50%" alt="">`
+                        : sym.charAt(0);
+                } else {
+                    // Multiple tokens selected
+                    const names = [...assets].map(v => v.startsWith('token:') ? v.slice(6) : v);
+                    labelEl.textContent = names.length <= 3 ? names.join(', ') : names.slice(0,2).join(', ') + '…';
+                    iconEl.innerHTML = MARKET_BASKET_ICON;
+                    // Add count badge
+                    const badge = document.createElement('span');
+                    badge.className = 'sim-asset-count-badge';
+                    badge.textContent = assets.size;
+                    simAssetTrigger.insertBefore(badge, simAssetTrigger.querySelector('.sim-asset-caret'));
+                }
+            }
+
             if (simAssetList) renderSimAssetList('');
             if (simAssetSearch) simAssetSearch.addEventListener('input', () => renderSimAssetList(simAssetSearch.value));
             // Toggle popover
@@ -6234,7 +6512,11 @@
                 simAssetTrigger.addEventListener('click', (e) => {
                     e.stopPropagation();
                     const isOpen = simAssetMode ? simAssetMode.classList.contains('open') : false;
-                    if (!isOpen) closeFloatingMenus({ keepSimAsset: true });
+                    if (!isOpen) {
+                        closeFloatingMenus({ keepSimAsset: true });
+                        // Sync pending to current
+                        window._simAssetPending = new Set(window._simAssets);
+                    }
                     setSimAssetPopoverOpen(!isOpen);
                     if (!isOpen) { simAssetSearch.value = ''; renderSimAssetList(''); simAssetSearch.focus(); }
                 });
@@ -6271,7 +6553,6 @@
             window._simTotalDebt = Math.round(noDust.reduce((s, p) => s + (p.debtUSD || 0), 0));
             window._simTotalCol = Math.round(noDust.reduce((s, p) => s + (p.collateralUSD || 0), 0));
             window._simTotalPos = window._simPositions.length;
-            window._simAsset = 'all';
             window._simDir = 'drop';
 
             const simSlider = document.getElementById('sim-slider');
@@ -6298,9 +6579,7 @@
                     const pct = changeVal / 100;
                     const isDrop = window._simDir === 'drop';
                     const priceMul = isDrop ? (1 - pct) : (1 + pct);
-                    const asset = window._simAsset;
-                    const isToken = asset.startsWith('token:');
-                    const tokenName = isToken ? asset.slice(6) : null;
+                    const assets = window._simAssets;
                     const pctLabel = document.getElementById('sim-pct-label');
                     const prefix = isDrop ? '-' : '+';
                     pctLabel.textContent = changeVal === 0 ? '0%' : prefix + changeVal + '%';
@@ -6327,11 +6606,27 @@
                         sliderEl.style.setProperty('--sim-thumb-color', thumbColor);
                         sliderEl.style.setProperty('--sim-thumb-glow', thumbGlow);
                     }
-                    // Scenario label
-                    const assetNames = { all: 'Market basket' };
-                    const name = isToken ? tokenName : (assetNames[asset] || asset);
+                    // Scenario label — build from selected assets
                     const dirWord = isDrop ? 'drops' : 'rises';
-                    document.getElementById('sim-scenario-label').textContent = `${name} ${dirWord} by`;
+                    let scenarioName;
+                    if (assets.has('all')) {
+                        scenarioName = 'Market basket';
+                    } else {
+                        const names = [...assets].map(v => v.startsWith('token:') ? v.slice(6) : v);
+                        scenarioName = names.length <= 3 ? names.join(', ') : names.slice(0,2).join(', ') + ' +' + (names.length - 2);
+                    }
+                    document.getElementById('sim-scenario-label').textContent = `${scenarioName} ${dirWord} by`;
+
+                    // Determine which individual tokens are selected
+                    const selectedTokens = new Set();
+                    let isMarketBasket = false;
+                    for (const a of assets) {
+                        if (a === 'all') {
+                            isMarketBasket = true;
+                        } else if (a.startsWith('token:')) {
+                            selectedTokens.add(a.slice(6));
+                        }
+                    }
 
                     let liqCount = 0, debtAtRisk = 0, colAtRisk = 0;
                     for (const p of window._simPositions) {
@@ -6339,27 +6634,24 @@
                         if (p.colUSD < 0.01 || p.debtUSD < 0.01) continue;
 
                         let newCol, newDebt;
-                        if (isToken) {
-                            // Individual token simulation
-                            const colToken = p.colTokens[tokenName] || 0;
-                            const debtToken = p.debtTokens[tokenName] || 0;
-                            newCol = p.colUSD + colToken * (priceMul - 1);
-                            newDebt = p.debtUSD + debtToken * (priceMul - 1);
+                        if (isMarketBasket) {
+                            // Group simulation — move all non-stable volatile tokens
+                            const affectsVolatile = ['eth', 'btc', 'bera', 'other_volatile'];
+                            newCol = p.colBreak.stable;
+                            newDebt = p.debtBreak.stable;
+                            for (const grp of affectsVolatile) {
+                                newCol += p.colBreak[grp] * priceMul;
+                                newDebt += p.debtBreak[grp] * priceMul;
+                            }
                         } else {
-                            // Group simulation
-                            const affectsVolatile = (asset === 'all')
-                                ? ['eth', 'btc', 'bera', 'other_volatile']
-                                : asset === 'stable' ? [] : [asset];
-                            const affectsStable = asset === 'stable';
-                            // Stable portion
-                            const stableMul = affectsStable ? priceMul : 1;
-                            newCol = p.colBreak.stable * stableMul;
-                            newDebt = p.debtBreak.stable * stableMul;
-                            // Volatile portions
-                            for (const grp of ['eth', 'btc', 'bera', 'other_volatile']) {
-                                const mul = affectsVolatile.includes(grp) ? priceMul : 1;
-                                newCol += p.colBreak[grp] * mul;
-                                newDebt += p.debtBreak[grp] * mul;
+                            // Individual token(s) simulation
+                            newCol = p.colUSD;
+                            newDebt = p.debtUSD;
+                            for (const tokenName of selectedTokens) {
+                                const colToken = p.colTokens[tokenName] || 0;
+                                const debtToken = p.debtTokens[tokenName] || 0;
+                                newCol += colToken * (priceMul - 1);
+                                newDebt += debtToken * (priceMul - 1);
                             }
                         }
                         const newHF = p.hf * (newCol / p.colUSD) / (newDebt / p.debtUSD);
@@ -6416,42 +6708,20 @@
                 simSlider.addEventListener('input', function() {
                     updateSim(parseInt(this.value));
                 });
-                // Asset selector (popover)
-                window.setSimAsset = function(asset) {
-                    window._simAsset = asset;
-                    // Update trigger button label + icon
-                    const labelEl = document.getElementById('sim-asset-label');
-                    const iconEl = document.getElementById('sim-asset-icon');
-                    const searchEl = document.getElementById('sim-asset-search');
-                    const grp = SIM_GROUPS.find(g => g.value === asset);
-                    if (grp) {
-                        labelEl.textContent = grp.label;
-                        iconEl.innerHTML = grp.iconUrl
-                            ? `<img src="${grp.iconUrl}" width="16" height="16" style="border-radius:50%" alt="">`
-                            : (grp.iconHtml || grp.icon);
-                    } else if (asset.startsWith('token:')) {
-                        const sym = asset.slice(6);
-                        labelEl.textContent = sym;
-                        const iconUrl = typeof getTokenIcon === 'function' ? getTokenIcon(sym) : null;
-                        iconEl.innerHTML = iconUrl
-                            ? `<img src="${iconUrl}" width="16" height="16" style="border-radius:50%" alt="">`
-                            : sym.charAt(0);
-                    }
-                    if (searchEl) searchEl.value = '';
-                    renderSimAssetList('');
-                    updateSim(parseInt(simSlider.value));
-                };
                 // Direction toggle (segmented pill)
                 window.setSimDir = function(dir) {
                     window._simDir = dir;
                     const pill = document.getElementById('sim-dir-pill');
+                    const toggle = document.getElementById('sim-dir-toggle');
                     const segs = document.querySelectorAll('.sim-dir-seg');
                     segs.forEach(btn => {
                         const isActive = btn.dataset.dir === dir;
                         btn.classList.toggle('active', isActive);
                         btn.style.color = isActive ? (dir === 'drop' ? '#f87171' : '#4ade80') : 'var(--text-muted)';
                     });
-                    // Slide pill
+                    // Slide pill + toggle border glow
+                    toggle.classList.remove('dir-drop', 'dir-rise');
+                    toggle.classList.add(dir === 'drop' ? 'dir-drop' : 'dir-rise');
                     if (dir === 'drop') {
                         pill.style.left = '2px';
                         pill.style.background = 'rgba(239,68,68,0.15)';
@@ -6465,6 +6735,8 @@
                     updateSim(parseInt(simSlider.value));
                 };
                 // Trigger initial state
+                // Set initial direction toggle glow
+                document.getElementById('sim-dir-toggle')?.classList.add('dir-drop');
                 updateSim(0);
                 document.getElementById('risk-simulator-section').style.opacity = '1';
             }
