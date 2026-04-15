@@ -7065,6 +7065,35 @@
             pointer-events: none;
         }
 
+        .earn-dust-switch {
+            gap: 8px;
+            padding: 7px 10px 7px 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        .earn-dust-switch:hover {
+            background: rgba(255, 255, 255, 0.07);
+        }
+
+        .earn-dust-switch.active {
+            background: rgba(251, 191, 36, 0.08);
+            border-color: rgba(251, 191, 36, 0.18);
+        }
+
+        .earn-dust-switch.active .dolo-flow-toggle-label {
+            color: #f8e7a0;
+        }
+
+        .earn-dust-switch .dolo-flow-toggle-track {
+            width: 30px;
+            height: 16px;
+        }
+
+        .earn-dust-switch .earn-dust-count {
+            margin-left: 2px;
+        }
+
         /* ═══════ Section separators ═══════ */
         #earn-lending-section {
             border-top: none;
@@ -7930,6 +7959,535 @@
             width: 1px;
             height: 20px;
             background: rgba(255, 255, 255, 0.06);
+        }
+
+        /* ═══════ Unified Premium Section System ═══════ */
+        #earn-supply-section,
+        #earn-past-section,
+        #earn-lending-section {
+            position: relative;
+            --earn-section-rgb: 148, 163, 184;
+            --earn-section-accent: #94a3b8;
+            border-radius: 18px;
+            border: 1px solid rgba(var(--earn-section-rgb), 0.12);
+            background:
+                linear-gradient(180deg, rgba(var(--earn-section-rgb), 0.06) 0%, rgba(9, 13, 24, 0.88) 22%, rgba(7, 10, 20, 0.94) 100%);
+            box-shadow:
+                0 20px 48px rgba(0, 0, 0, 0.18),
+                inset 0 1px 0 rgba(255, 255, 255, 0.04);
+            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px);
+            overflow: hidden;
+            isolation: isolate;
+        }
+
+        #earn-supply-section::before,
+        #earn-past-section::before,
+        #earn-lending-section::before {
+            content: '';
+            position: absolute;
+            inset: 0 0 auto 0;
+            height: 110px;
+            background: linear-gradient(180deg, rgba(var(--earn-section-rgb), 0.12), transparent 78%);
+            opacity: 0.5;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        #earn-supply-section {
+            --earn-section-rgb: 52, 211, 153;
+            --earn-section-accent: #34d399;
+        }
+
+        #earn-past-section {
+            --earn-section-rgb: 248, 113, 113;
+            --earn-section-accent: #f87171;
+        }
+
+        #earn-lending-section {
+            --earn-section-rgb: 56, 189, 248;
+            --earn-section-accent: #38bdf8;
+            border-top: none;
+            padding-top: 0;
+        }
+
+        .earn-supply-header,
+        .earn-past-header,
+        .earn-lending-header {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 16px 18px 12px;
+            position: relative;
+            border-radius: 0;
+            background: linear-gradient(90deg, rgba(var(--earn-section-rgb), 0.14) 0%, rgba(var(--earn-section-rgb), 0.06) 42%, transparent 100%);
+            z-index: 1;
+        }
+
+        .earn-supply-header::after,
+        .earn-past-header::after,
+        .earn-lending-header::after {
+            content: '';
+            position: absolute;
+            left: 18px;
+            right: 18px;
+            bottom: 0;
+            height: 1px;
+            background: linear-gradient(90deg, rgba(var(--earn-section-rgb), 0.26), rgba(var(--earn-section-rgb), 0.08), transparent);
+        }
+
+        .earn-past-header {
+            cursor: pointer;
+            -webkit-user-select: none;
+            user-select: none;
+            transition: background 0.25s ease;
+        }
+
+        .earn-past-header:hover {
+            background: linear-gradient(90deg, rgba(var(--earn-section-rgb), 0.18) 0%, rgba(var(--earn-section-rgb), 0.08) 42%, transparent 100%);
+        }
+
+        .earn-section-icon-shell {
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            color: var(--earn-section-accent);
+            background: rgba(var(--earn-section-rgb), 0.13);
+            border: 1px solid rgba(var(--earn-section-rgb), 0.18);
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.04),
+                0 8px 20px rgba(0, 0, 0, 0.12);
+            flex-shrink: 0;
+        }
+
+        .earn-section-icon-shell svg {
+            width: 16px;
+            height: 16px;
+            color: inherit;
+            stroke: currentColor;
+        }
+
+        .earn-section-title {
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.35px;
+            color: var(--earn-section-accent);
+        }
+
+        .earn-supply-count,
+        .earn-past-count,
+        .earn-lending-count,
+        .earn-section-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
+            border-radius: 999px;
+            background: rgba(var(--earn-section-rgb), 0.14);
+            border: 1px solid rgba(var(--earn-section-rgb), 0.16);
+            color: var(--earn-section-accent);
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.2px;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+        }
+
+        .earn-section-table-shell,
+        .table-scroll,
+        .earn-table-scroll,
+        .earn-past-body {
+            position: relative;
+            z-index: 1;
+        }
+
+        #earn-supply-section .earn-asset-table thead th,
+        #earn-past-section .earn-past-table thead th,
+        #earn-lending-section .earn-lending-table thead th {
+            background: rgba(var(--earn-section-rgb), 0.035);
+            color: rgba(226, 232, 240, 0.5);
+            padding-top: 12px;
+            padding-bottom: 12px;
+            letter-spacing: 0.95px;
+        }
+
+        #earn-supply-section .earn-asset-table thead tr,
+        #earn-past-section .earn-past-table thead tr,
+        #earn-lending-section .earn-lending-table thead tr {
+            background-image:
+                linear-gradient(rgba(var(--earn-section-rgb), 0.045), rgba(var(--earn-section-rgb), 0.045)),
+                linear-gradient(90deg, rgba(var(--earn-section-rgb), 0.18), rgba(var(--earn-section-rgb), 0.06), transparent);
+            background-size: 100% 100%, calc(100% - 36px) 1px;
+            background-position: 0 0, 18px 100%;
+            background-repeat: no-repeat;
+        }
+
+        #earn-supply-section .earn-asset-table tbody td,
+        #earn-past-section .earn-past-table tbody td,
+        #earn-lending-section .earn-lending-table tbody td {
+            border-bottom-color: rgba(var(--earn-section-rgb), 0.055);
+        }
+
+        #earn-supply-section .earn-asset-table tbody tr.earn-data-row:nth-child(even) td,
+        #earn-past-section .earn-past-table tbody tr.earn-data-row:nth-child(even) td {
+            background: rgba(255, 255, 255, 0.014);
+        }
+
+        #earn-supply-section .earn-asset-table tbody tr.earn-data-row:hover td,
+        #earn-past-section .earn-past-table tbody tr.earn-data-row:hover td {
+            background: rgba(var(--earn-section-rgb), 0.055);
+        }
+
+        #earn-supply-section .earn-asset-table tbody tr.earn-data-row:hover td:first-child,
+        #earn-past-section .earn-past-table tbody tr.earn-data-row:hover td:first-child,
+        #earn-supply-section .earn-asset-table tbody tr.earn-data-row.expanded td:first-child,
+        #earn-past-section .earn-past-table tbody tr.earn-data-row.expanded td:first-child {
+            box-shadow: inset 3px 0 0 var(--earn-section-accent);
+        }
+
+        #earn-supply-section .earn-asset-table tbody tr.earn-data-row.expanded td,
+        #earn-past-section .earn-past-table tbody tr.earn-data-row.expanded td {
+            background: rgba(var(--earn-section-rgb), 0.042);
+        }
+
+        #earn-supply-section .earn-detail-row td,
+        #earn-past-section .earn-detail-row td,
+        .earn-detail-row td {
+            padding: 0 18px 18px 18px !important;
+            border-bottom: none !important;
+            text-align: left !important;
+            background: transparent !important;
+        }
+
+        #earn-supply-section .earn-detail-row td:first-child,
+        #earn-past-section .earn-detail-row td:first-child,
+        .earn-detail-row td:first-child {
+            padding-left: 18px !important;
+        }
+
+        #earn-supply-section .earn-detail-stack,
+        #earn-past-section .earn-detail-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-top: 0;
+            padding: 22px 22px 24px !important;
+            border: 1px solid rgba(var(--earn-section-rgb), 0.11);
+            border-top: none;
+            border-radius: 0 0 18px 18px;
+            background: linear-gradient(180deg, rgba(var(--earn-section-rgb), 0.05) 0%, rgba(10, 15, 28, 0.82) 24%, rgba(7, 10, 20, 0.94) 100%);
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.03),
+                0 10px 28px rgba(0, 0, 0, 0.16);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #earn-supply-section .earn-detail-stack::before,
+        #earn-past-section .earn-detail-stack::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, rgba(var(--earn-section-rgb), 0.32), rgba(var(--earn-section-rgb), 0.14), transparent);
+        }
+
+        .earn-detail-panels {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            align-items: stretch;
+        }
+
+        .earn-detail-panel {
+            flex: 1 1 260px;
+            min-width: 260px;
+            padding: 18px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            background: rgba(255, 255, 255, 0.026);
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.03),
+                0 10px 24px rgba(0, 0, 0, 0.12);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .earn-detail-panel.metrics {
+            flex: 1 1 250px;
+        }
+
+        .earn-detail-panel.primary {
+            flex: 1.35 1 320px;
+            border-color: rgba(var(--earn-section-rgb), 0.18);
+            background: linear-gradient(135deg, rgba(var(--earn-section-rgb), 0.08) 0%, rgba(255, 255, 255, 0.025) 62%, rgba(255, 255, 255, 0.02) 100%);
+        }
+
+        .earn-detail-panel.rewards {
+            border-color: rgba(251, 191, 36, 0.16);
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.08) 0%, rgba(255, 255, 255, 0.024) 62%, rgba(255, 255, 255, 0.02) 100%);
+        }
+
+        .earn-detail-panel-glow {
+            position: absolute;
+            top: -60px;
+            right: -60px;
+            width: 160px;
+            height: 160px;
+            border-radius: 999px;
+            filter: blur(42px);
+            pointer-events: none;
+            opacity: 0.85;
+        }
+
+        .earn-detail-panel.primary .earn-detail-panel-glow {
+            background: rgba(var(--earn-section-rgb), 0.14);
+        }
+
+        .earn-detail-panel.rewards .earn-detail-panel-glow {
+            background: rgba(251, 191, 36, 0.14);
+        }
+
+        .earn-detail-panel-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 18px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .earn-detail-panel-titlewrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .earn-detail-panel-icon {
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            color: rgba(255, 255, 255, 0.72);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            flex-shrink: 0;
+        }
+
+        .earn-detail-panel.primary .earn-detail-panel-icon {
+            color: var(--earn-section-accent);
+            background: rgba(var(--earn-section-rgb), 0.12);
+            border-color: rgba(var(--earn-section-rgb), 0.16);
+        }
+
+        .earn-detail-panel.rewards .earn-detail-panel-icon {
+            color: #fbbf24;
+            background: rgba(251, 191, 36, 0.12);
+            border-color: rgba(251, 191, 36, 0.18);
+        }
+
+        .earn-detail-panel-label {
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.45px;
+            text-transform: uppercase;
+            color: rgba(226, 232, 240, 0.84);
+        }
+
+        .earn-detail-panel.primary .earn-detail-panel-label {
+            color: var(--earn-section-accent);
+        }
+
+        .earn-detail-panel.rewards .earn-detail-panel-label {
+            color: #fbbf24;
+        }
+
+        .earn-detail-hero {
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            position: relative;
+            z-index: 1;
+        }
+
+        .earn-detail-hero-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+
+        .earn-detail-hero-value {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+        }
+
+        .earn-detail-hero-value.positive {
+            color: rgba(52, 211, 153, 0.95);
+        }
+
+        .earn-detail-hero-value.negative {
+            color: rgba(248, 113, 113, 0.95);
+        }
+
+        .earn-detail-panel .earn-detail-rowline {
+            margin-bottom: 0;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .earn-detail-panel .earn-detail-rowline:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .earn-detail-panel .earn-detail-rowline:first-of-type {
+            padding-top: 0;
+        }
+
+        .earn-reward-list {
+            position: relative;
+            z-index: 1;
+        }
+
+        .earn-reward-row {
+            padding: 0 0 14px;
+            margin-bottom: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .earn-reward-row:last-child {
+            padding-bottom: 0;
+            margin-bottom: 0;
+            border-bottom: none;
+        }
+
+        .earn-reward-row-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .earn-reward-identity {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .earn-reward-icon {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        .earn-reward-name {
+            color: #fff;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .earn-reward-rate {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .earn-reward-rate-positive {
+            color: #fbbf24;
+            font-weight: 700;
+        }
+
+        .earn-reward-rate-muted {
+            color: var(--text-muted);
+        }
+
+        .earn-reward-subline {
+            margin-top: 6px;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.68);
+        }
+
+        .earn-reward-subline.note {
+            color: rgba(34, 211, 238, 0.8);
+        }
+
+        .earn-reward-usd-hint {
+            color: rgba(251, 191, 36, 0.72);
+        }
+
+        .earn-lend-detail-inner {
+            padding: 22px 22px 24px;
+            gap: 16px;
+            border: 1px solid rgba(56, 189, 248, 0.11);
+            border-top: none;
+            border-radius: 0 0 18px 18px;
+            background: linear-gradient(180deg, rgba(56, 189, 248, 0.05) 0%, rgba(10, 15, 28, 0.82) 24%, rgba(7, 10, 20, 0.94) 100%);
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.03),
+                0 10px 28px rgba(0, 0, 0, 0.16);
+        }
+
+        .earn-lend-section {
+            min-height: 100%;
+            padding: 16px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.026);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+        }
+
+        .earn-lend-section-title {
+            margin-bottom: 12px;
+            letter-spacing: 0.9px;
+        }
+
+        .earn-lend-token-row {
+            padding: 8px 2px;
+            border-bottom-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .earn-net-summary-bar {
+            border-radius: 12px;
+            border-color: rgba(255, 255, 255, 0.05);
+        }
+
+        @media (max-width: 768px) {
+            .earn-section-icon-shell {
+                width: 28px;
+                height: 28px;
+                border-radius: 9px;
+            }
+
+            #earn-supply-section .earn-detail-stack,
+            #earn-past-section .earn-detail-stack,
+            .earn-lend-detail-inner {
+                padding: 16px 16px 18px !important;
+            }
+
+            .earn-detail-panels {
+                flex-direction: column;
+            }
+
+            .earn-detail-panel {
+                min-width: 0;
+            }
         }
 
         .earn-dust-count {
@@ -13946,30 +14504,33 @@
                 <!-- Controls bar between summary card and table -->
                 <!-- Controls now inline in Supply Assets header -->
 
-                <div class="table-section" id="earn-supply-section">
+                <div class="table-section earn-section-card" id="earn-supply-section">
                     <div class="earn-supply-header">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-                            <polyline points="17 6 23 6 23 12" />
-                        </svg>
-                        <span>Supply Assets</span>
-                        <span class="earn-supply-count" id="earn-supply-count"></span>
+                        <span class="earn-section-icon-shell">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                                <polyline points="17 6 23 6 23 12" />
+                            </svg>
+                        </span>
+                        <span class="earn-section-title">Supply Assets</span>
+                        <span class="earn-supply-count earn-section-count" id="earn-supply-count"></span>
                         <span class="earn-live-refresh-badge" id="earn-live-refresh-badge" aria-hidden="true"></span>
                         <div class="earn-supply-controls">
-                            <button type="button" class="earn-filter-pill" id="earn-dust-toggle"
-                                onclick="earn_toggleDust()" title="Hide dust positions (< $1 balance & yield)">
-                                <span class="earn-toggle-dot"></span>
-                                <span class="earn-filter-label">Hide Dust</span>
+                            <label class="dolo-flow-toggle earn-dust-switch" id="earn-dust-toggle"
+                                title="Hide dust positions (< $1 balance & yield)">
+                                <input type="checkbox" id="earn-dust-input" onchange="earn_toggleDust()">
+                                <span class="dolo-flow-toggle-track"></span>
+                                <span class="dolo-flow-toggle-label">Hide Dust</span>
                                 <span class="earn-dust-count">0</span>
-                            </button>
+                            </label>
                             <div class="apr-pill" id="earn-apr-pill" onclick="earn_toggleAprApy()">
                                 <span class="apr-pill-opt active" id="earn-apr-opt">APR</span>
                                 <span class="apr-pill-opt" id="earn-apy-opt">APY</span>
                             </div>
                         </div>
                     </div>
-                    <div class="table-scroll">
+                    <div class="table-scroll earn-section-table-shell">
                         <table class="earn-asset-table">
                             <colgroup>
                                 <col>
@@ -14010,17 +14571,19 @@
 
                 <!-- Withdrawn section — OUTSIDE the scrollable table, always visible -->
                 <!-- Lending Positions (Borrow) section -->
-                <div id="earn-lending-section" style="display:none;margin-top:16px">
+                <div id="earn-lending-section" class="earn-section-card" style="display:none;margin-top:16px">
                     <div class="earn-lending-header">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="12" y1="1" x2="12" y2="23" />
-                            <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
-                        </svg>
-                        <span>Borrow Positions</span>
-                        <span class="earn-lending-count" id="earn-lending-count"></span>
+                        <span class="earn-section-icon-shell">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="12" y1="1" x2="12" y2="23" />
+                                <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+                            </svg>
+                        </span>
+                        <span class="earn-section-title">Borrow Positions</span>
+                        <span class="earn-lending-count earn-section-count" id="earn-lending-count"></span>
                     </div>
-                    <div class="earn-table-scroll" style="overflow-x:auto">
+                    <div class="earn-table-scroll earn-section-table-shell" style="overflow-x:auto">
                         <table class="earn-data-table earn-lending-table">
                             <colgroup>
                                 <col style="width:24%">
@@ -14050,19 +14613,21 @@
                     </div>
                 </div>
                 <!-- Withdrawn Assets — same UX as Earn supply rows -->
-                <div id="earn-past-section" style="display:none;margin-top:8px">
+                <div id="earn-past-section" class="earn-section-card" style="display:none;margin-top:8px">
                     <div class="earn-past-header" id="earn-past-toggle" onclick="earn_togglePastPositions()">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="10"/>
-                            <polyline points="12 6 12 12 16 14"/>
-                        </svg>
-                        <span class="earn-past-title">Withdrawn Assets</span>
-                        <span class="earn-past-count" id="earn-past-count">0</span>
+                        <span class="earn-section-icon-shell">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"/>
+                                <polyline points="12 6 12 12 16 14"/>
+                            </svg>
+                        </span>
+                        <span class="earn-past-title earn-section-title">Withdrawn Assets</span>
+                        <span class="earn-past-count earn-section-count" id="earn-past-count">0</span>
                         <svg class="earn-past-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="6 9 12 15 18 9"/>
                         </svg>
                     </div>
-                    <div class="earn-past-body" id="earn-past-body">
+                    <div class="earn-past-body earn-section-table-shell" id="earn-past-body">
                         <table class="earn-asset-table earn-past-table">
                             <colgroup>
                                 <col>
@@ -23260,10 +23825,12 @@
         function earn_toggleDust() {
             earn_showDust = !earn_showDust;
             const btn = document.getElementById('earn-dust-toggle');
+            const input = document.getElementById('earn-dust-input');
             if (btn) {
                 // active = filter ON = dust HIDDEN (inverted from before)
                 btn.classList.toggle('active', !earn_showDust);
             }
+            if (input) input.checked = !earn_showDust;
             // Suppress row animations on toggle re-render
             const tbl = document.querySelector('.earn-asset-table');
             if (tbl) tbl.classList.add('no-animate');
@@ -24409,42 +24976,44 @@
 
             const rewardRowsHtml = rewardRows.map(row => {
                 const iconHtml = row.icon
-                    ? `<img src="${earn_escapeHtml(row.icon)}" alt="${earn_escapeHtml(row.label)}" style="width:16px;height:16px;border-radius:4px;flex-shrink:0" onerror="this.style.display='none'">`
+                    ? `<img src="${earn_escapeHtml(row.icon)}" alt="${earn_escapeHtml(row.label)}" class="earn-reward-icon" onerror="this.style.display='none'">`
                     : '';
                 const displayRate = row.aprPct > 0 ? (earn_showApy ? aprToApy(row.aprPct) : row.aprPct) : 0;
                 const rateHtml = row.aprPct > 0.01
-                    ? `<span style="color:#fbbf24;font-weight:700">+${displayRate.toFixed(2)}% ${rateLabel}</span>`
-                    : '<span style="color:var(--text-muted)">—</span>';
+                    ? `<span class="earn-reward-rate-positive">+${displayRate.toFixed(2)}% ${rateLabel}</span>`
+                    : '<span class="earn-reward-rate-muted">—</span>';
 
                 let sublineHtml = '';
                 if (row.symbol === 'oDOLO') {
-                    sublineHtml = `<div style="margin-top:6px;font-size:11px;color:rgba(34,211,238,0.8)">${earn_escapeHtml(row.note || 'Current supplier incentive')}</div>`;
+                    sublineHtml = `<div class="earn-reward-subline note">${earn_escapeHtml(row.note || 'Current supplier incentive')}</div>`;
                 } else if (row.hasEarnedData) {
-                    const usdSuffix = row.earnedUsd > 0.01 ? ` · <span style="color:rgba(251,191,36,0.72)">~${earn_escapeHtml(earn_formatUSD(row.earnedUsd))}</span>` : '';
-                    sublineHtml = `<div style="margin-top:6px;font-size:11px;color:rgba(255,255,255,0.68)">Earned ${earn_escapeHtml(earn_formatRewardAmountCompact(row.earnedAmount))} ${earn_escapeHtml(row.label)}${usdSuffix}</div>`;
+                    const usdSuffix = row.earnedUsd > 0.01 ? ` · <span class="earn-reward-usd-hint">~${earn_escapeHtml(earn_formatUSD(row.earnedUsd))}</span>` : '';
+                    sublineHtml = `<div class="earn-reward-subline">Earned ${earn_escapeHtml(earn_formatRewardAmountCompact(row.earnedAmount))} ${earn_escapeHtml(row.label)}${usdSuffix}</div>`;
                 }
 
-                return `<div style="padding:0 0 14px;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:14px">
-                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-                        <div style="display:flex;align-items:center;gap:8px;min-width:0">
+                return `<div class="earn-reward-row">
+                    <div class="earn-reward-row-top">
+                        <div class="earn-reward-identity">
                             ${iconHtml}
-                            <span style="color:#fff;font-weight:600;white-space:nowrap">${earn_escapeHtml(row.label)}</span>
+                            <span class="earn-reward-name">${earn_escapeHtml(row.label)}</span>
                         </div>
-                        <div style="text-align:right;white-space:nowrap">${rateHtml}</div>
+                        <div class="earn-reward-rate">${rateHtml}</div>
                     </div>
                     ${sublineHtml}
                 </div>`;
             }).join('');
 
-            return `<div style="flex: 1; min-width: 280px; background: rgba(0,0,0,0.15); border: 1px solid rgba(251,191,36,0.14); border-radius: 12px; padding: 20px; position: relative; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
-                <div style="position:absolute;top:-56px;right:-56px;width:150px;height:150px;background:rgba(251,191,36,0.08);filter:blur(36px);border-radius:50%;pointer-events:none;"></div>
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;position:relative;z-index:1;">
-                    <div style="width:28px;height:28px;background:rgba(251,191,36,0.1);border-radius:8px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 1px rgba(251,191,36,0.08) inset;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14.5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            return `<div class="earn-detail-panel rewards">
+                <div class="earn-detail-panel-glow"></div>
+                <div class="earn-detail-panel-head">
+                    <div class="earn-detail-panel-titlewrap">
+                        <div class="earn-detail-panel-icon">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14.5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        </div>
+                        <div class="earn-detail-panel-label">Reward Yield</div>
                     </div>
-                    <div style="font-size:13px;font-weight:600;color:#fbbf24;text-transform:uppercase;letter-spacing:0.5px;">Reward Yield</div>
                 </div>
-                <div style="position:relative;z-index:1">${rewardRowsHtml}</div>
+                <div class="earn-reward-list">${rewardRowsHtml}</div>
             </div>`;
         }
 
@@ -24492,17 +25061,18 @@
             
             return `<tr class="earn-detail-row" id="${detailId}">
                 <td colspan="${colSpan}">
-                    <div class="earn-detail-stack" style="padding: 16px 24px;">
-                        <div style="display: flex; gap: 24px; flex-wrap: wrap;">
-                            <!-- Asset Metrics Card -->
-                            <div style="flex: 1; min-width: 250px; background: rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 20px;">
-                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 20px;">
-                                    <div style="width: 28px; height: 28px; background: rgba(255,255,255,0.05); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+                    <div class="earn-detail-stack">
+                        <div class="earn-detail-panels">
+                            <div class="earn-detail-panel metrics">
+                                <div class="earn-detail-panel-head">
+                                    <div class="earn-detail-panel-titlewrap">
+                                        <div class="earn-detail-panel-icon">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+                                        </div>
+                                        <div class="earn-detail-panel-label">Asset Metrics</div>
                                     </div>
-                                    <div style="font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Asset Metrics</div>
                                 </div>
-                                
+
                                 <div class="earn-detail-rowline">
                                     <span class="earn-detail-rowline-label">Token address</span>
                                     <span class="earn-detail-rowline-value" style="font-family:inherit">${detailAddress}</span>
@@ -24513,46 +25083,42 @@
                                 </div>
                                 <div class="earn-detail-rowline">
                                     <span class="earn-detail-rowline-label">Visible balance</span>
-                                    <span class="earn-detail-rowline-value" style="color: #fff; font-weight: 500;">${earn_escapeHtml(earn_formatAmount(position.wei, decimals, symbol))} <span style="font-size:11px; color:var(--text-muted)">${earn_escapeHtml(symbol)}</span></span>
+                                    <span class="earn-detail-rowline-value" style="color:#fff;font-weight:500;">${earn_escapeHtml(earn_formatAmount(position.wei, decimals, symbol))} <span style="font-size:11px;color:var(--text-muted)">${earn_escapeHtml(symbol)}</span></span>
                                 </div>
-                                <div class="earn-detail-rowline" style="border-bottom:none;">
+                                <div class="earn-detail-rowline">
                                     <span class="earn-detail-rowline-label">Current Usd value</span>
-                                    <span class="earn-detail-rowline-value" style="color: rgba(255,255,255,0.7); font-weight: 500;">≈ $${Number(position.usdValue || 0).toLocaleString('en-US', { minimumFractionDigits: Number(position.usdValue || 0) >= 1 ? 2 : 4, maximumFractionDigits: Number(position.usdValue || 0) >= 1 ? 2 : 4 })}</span>
+                                    <span class="earn-detail-rowline-value" style="color:rgba(255,255,255,0.72);font-weight:500;">≈ $${Number(position.usdValue || 0).toLocaleString('en-US', { minimumFractionDigits: Number(position.usdValue || 0) >= 1 ? 2 : 4, maximumFractionDigits: Number(position.usdValue || 0) >= 1 ? 2 : 4 })}</span>
                                 </div>
                             </div>
-                            
-                            <!-- Yield Performance Card -->
-                            <div style="flex: 1.5; min-width: 320px; background: rgba(0,0,0,0.15); border: 1px solid rgba(52, 211, 153, 0.15); border-radius: 12px; padding: 20px; position: relative; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
-                                <div style="position: absolute; top: -60px; right: -60px; width: 160px; height: 160px; background: rgba(52, 211, 153, 0.08); filter: blur(40px); border-radius: 50%; pointer-events: none;"></div>
-                                
-                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; position: relative; z-index: 1;">
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <div style="width: 28px; height: 28px; background: rgba(52, 211, 153, 0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 1px rgba(52,211,153,0.1) inset;">
+
+                            <div class="earn-detail-panel primary">
+                                <div class="earn-detail-panel-glow"></div>
+                                <div class="earn-detail-panel-head">
+                                    <div class="earn-detail-panel-titlewrap">
+                                        <div class="earn-detail-panel-icon">
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
                                         </div>
-                                        <div style="font-size: 13px; font-weight: 600; color: #34d399; text-transform: uppercase; letter-spacing: 0.5px;">Yield Performance</div>
+                                        <div class="earn-detail-panel-label">Yield Performance</div>
                                     </div>
-                                    <div class="earn-detail-meta" style="margin: 0; align-items: flex-start;">${metaChips.join('')}</div>
+                                    <div class="earn-detail-meta">${metaChips.join('')}</div>
                                 </div>
 
-                                <div style="position: relative; z-index: 1;">
-                                    <div class="earn-detail-rowline" style="margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 16px;">
-                                        <span class="earn-detail-rowline-label" style="font-size: 14px; font-weight: 500; color: #fff;">Total Net Yield</span>
-                                        <span class="earn-detail-rowline-value ${yieldClass}" style="font-size: 18px; font-weight: 700; display:flex; align-items:center; gap:4px;">${yieldCalc && yieldCalc.hasData ? `${yieldCalc.yieldSign}${yieldCalc.yieldFmt} <span style="font-size:12px;color:currentColor;opacity:0.7;font-weight:600">${symbol}</span>` : '—'}</span>
-                                    </div>
-                                    
-                                    <div class="earn-detail-rowline">
-                                        <span class="earn-detail-rowline-label" style="color:rgba(255,255,255,0.5)">Settled before moves</span>
-                                        <span class="earn-detail-rowline-value ${settledClass}">${yieldCalc && yieldCalc.hasData ? `${yieldCalc.settledYield > 0n ? '+' : yieldCalc.settledYield < 0n ? '-' : ''}${earn_formatAmount(earn_absBigInt(yieldCalc.settledYield), decimals, symbol)} ${symbol}` : '—'}</span>
-                                    </div>
-                                    <div class="earn-detail-rowline">
-                                        <span class="earn-detail-rowline-label" style="color:rgba(255,255,255,0.5)">Live in active earn</span>
-                                        <span class="earn-detail-rowline-value ${liveEarnClass}">${yieldCalc && yieldCalc.hasData ? `${yieldCalc.openSupplyYield > 0n ? '+' : yieldCalc.openSupplyYield < 0n ? '-' : ''}${earn_formatAmount(earn_absBigInt(yieldCalc.openSupplyYield), decimals, symbol)} ${symbol}` : '—'}</span>
-                                    </div>
-                                    <div class="earn-detail-rowline" style="border-bottom:none;">
-                                        <span class="earn-detail-rowline-label" style="color:rgba(255,255,255,0.5)">Live parked in borrow</span>
-                                        <span class="earn-detail-rowline-value ${parkedBorrowClass}">${yieldCalc && yieldCalc.hasData ? `${yieldCalc.openCollateralYield > 0n ? '+' : yieldCalc.openCollateralYield < 0n ? '-' : ''}${earn_formatAmount(earn_absBigInt(yieldCalc.openCollateralYield), decimals, symbol)} ${symbol}` : '—'}</span>
-                                    </div>
+                                <div class="earn-detail-hero">
+                                    <div class="earn-detail-hero-label">Total Net Yield</div>
+                                    <div class="earn-detail-hero-value ${yieldClass}">${yieldCalc && yieldCalc.hasData ? `${yieldCalc.yieldSign}${yieldCalc.yieldFmt} <span style="font-size:12px;color:currentColor;opacity:0.72;font-weight:600">${symbol}</span>` : '—'}</div>
+                                </div>
+
+                                <div class="earn-detail-rowline">
+                                    <span class="earn-detail-rowline-label" style="color:rgba(255,255,255,0.5)">Settled before moves</span>
+                                    <span class="earn-detail-rowline-value ${settledClass}">${yieldCalc && yieldCalc.hasData ? `${yieldCalc.settledYield > 0n ? '+' : yieldCalc.settledYield < 0n ? '-' : ''}${earn_formatAmount(earn_absBigInt(yieldCalc.settledYield), decimals, symbol)} ${symbol}` : '—'}</span>
+                                </div>
+                                <div class="earn-detail-rowline">
+                                    <span class="earn-detail-rowline-label" style="color:rgba(255,255,255,0.5)">Live in active earn</span>
+                                    <span class="earn-detail-rowline-value ${liveEarnClass}">${yieldCalc && yieldCalc.hasData ? `${yieldCalc.openSupplyYield > 0n ? '+' : yieldCalc.openSupplyYield < 0n ? '-' : ''}${earn_formatAmount(earn_absBigInt(yieldCalc.openSupplyYield), decimals, symbol)} ${symbol}` : '—'}</span>
+                                </div>
+                                <div class="earn-detail-rowline">
+                                    <span class="earn-detail-rowline-label" style="color:rgba(255,255,255,0.5)">Live parked in borrow</span>
+                                    <span class="earn-detail-rowline-value ${parkedBorrowClass}">${yieldCalc && yieldCalc.hasData ? `${yieldCalc.openCollateralYield > 0n ? '+' : yieldCalc.openCollateralYield < 0n ? '-' : ''}${earn_formatAmount(earn_absBigInt(yieldCalc.openCollateralYield), decimals, symbol)} ${symbol}` : '—'}</span>
                                 </div>
                             </div>
                             ${rewardsCardHtml}
@@ -28820,13 +29386,23 @@
                     ? (p.healthFactor > 10 ? '10<' : p.healthFactor.toFixed(hfDecimals))
                     : '—';
 
-                const emodeCell = p.eMode
-                    ? `<span class="earn-emode-badge" title="E-Mode — correlated assets use tighter liquidation ratios">${FLAME_SVG}E-Mode</span>`
-                    : '<span style="color:var(--text-muted);font-size:11px">—</span>';
+                const emodeBadge = p.eMode
+                    ? `<span class="earn-hf-emode-inline" title="E-Mode — correlated assets use tighter liquidation ratios">${FLAME_SVG}E</span>`
+                    : '';
 
                 const collateralDisplay = p.collateralUSD < 0.01 ? '$0.00' : earn_formatUSD(p.collateralUSD);
-                const collateralTokensHtml = earn_renderTokenPills(p.collateralTokens);
-                const debtTokensHtml = earn_renderTokenPills(p.debtTokens);
+
+                const renderMergedTokens = (tokens) => {
+                    if (!tokens || tokens.length === 0) return '';
+                    return '<div class="earn-merged-tokens">' + tokens.map(t => {
+                        const icon = SYMBOL_ICONS[t.symbol] || SYMBOL_ICONS[(t.symbol || '').toUpperCase()];
+                        const iconHtml = icon ? `<img src="${icon}" alt="${t.symbol}" onerror="this.style.display='none'">` : '';
+                        return `<span class="earn-merged-token">${iconHtml}${t.symbol} ${earn_formatUSDCompact(t.usd)}</span>`;
+                    }).join('') + '</div>';
+                };
+
+                const utilization = p.collateralUSD > 0 ? Math.min(100, (p.debtUSD / p.collateralUSD) * 100) : 0;
+                const ratioBar = `<div class="earn-hf-ratio-bar"><div class="earn-hf-ratio-fill risk-${riskClass}" style="width:${utilization.toFixed(1)}%"></div></div>`;
 
                 // Detail panel content
                 let totalAnnualYield = 0;
@@ -28868,21 +29444,26 @@
 
                 // Quick P&L preview for collapsed row
                 const pnlValue = p.netAccrued !== undefined ? p.netAccrued : null;
-                const pnlPreview = pnlValue !== null && Math.abs(pnlValue) > 0.01
-                    ? `<div class="earn-pnl-preview ${pnlValue >= 0 ? 'positive' : 'negative'}">${pnlValue >= 0 ? '+' : '-'}${earn_formatUSD(Math.abs(pnlValue))}</div>`
+                const pnlClass = pnlValue !== null ? (pnlValue >= 0 ? 'positive' : 'negative') : 'neutral';
+                const pnlDisplay = pnlValue !== null && Math.abs(pnlValue) > 0.01
+                    ? `${pnlValue >= 0 ? '+' : '-'}${earn_formatUSD(Math.abs(pnlValue))}`
+                    : '—';
+                const annualDisplay = Math.abs(netAnnual) > 0.01
+                    ? `<div class="earn-net-sub-inline">${netSign}${earn_formatUSD(Math.abs(netAnnual))}/yr</div>`
                     : '';
 
                 const dataRow = `<tr class="earn-lend-row risk-${riskClass}" data-idx="${i}" onclick="earn_toggleLendDetail(${i})" style="animation-delay:${i * 0.08}s">
-                    <td><span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span>${ageBadge}${chevronSvg}</td>
-                    <td style="text-align:center">${emodeCell}</td>
-                    <td><span class="earn-usd-collateral">${collateralDisplay}</span></td>
-                    <td><span class="earn-usd-debt">${earn_formatUSD(p.debtUSD)}</span></td>
-                    <td><div class="earn-token-pills">${collateralTokensHtml}</div></td>
-                    <td><div class="earn-token-pills">${debtTokensHtml}</div></td>
+                    <td>
+                        <span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span>${emodeBadge}${ageBadge}${chevronSvg}
+                        ${ratioBar}
+                    </td>
+                    <td><div class="earn-merged-col"><span class="earn-usd-collateral">${collateralDisplay}</span>${renderMergedTokens(p.collateralTokens)}</div></td>
+                    <td><div class="earn-merged-col"><span class="earn-usd-debt">${earn_formatUSD(p.debtUSD)}</span>${renderMergedTokens(p.debtTokens)}</div></td>
+                    <td><div class="earn-net-inline ${pnlClass}">${pnlDisplay}</div>${annualDisplay}</td>
                 </tr>`;
 
                 const detailRow = `<tr class="earn-lend-detail" id="earn-lend-detail-${i}">
-                    <td colspan="6">
+                    <td colspan="4">
                         <div class="earn-lend-detail-inner">
                             <div class="earn-lend-section">
                                 <div class="earn-lend-section-title earn">Collateral Earnings</div>
@@ -29527,6 +30108,7 @@
             }
             // Update dust count — only count dust from VISIBLE items
             const dustToggle = document.getElementById('earn-dust-toggle');
+            const dustInput = document.getElementById('earn-dust-input');
             if (dustToggle) {
                 let dustCount = 0;
                 // Count dust in active supply assets (always visible)
@@ -29552,13 +30134,14 @@
                 const countBadge = dustToggle.querySelector('.earn-dust-count');
                 if (dustCount > 0) {
                     dustToggle.style.display = '';
-                    dustToggle.disabled = false;
                     // active = filter ON = dust HIDDEN
                     dustToggle.classList.toggle('active', !earn_showDust);
+                    if (dustInput) dustInput.checked = !earn_showDust;
                     if (countBadge) countBadge.textContent = dustCount;
                 } else {
                     // No visible dust → hide the button entirely
                     dustToggle.style.display = 'none';
+                    if (dustInput) dustInput.checked = false;
                 }
             }
 
