@@ -2444,44 +2444,95 @@
             color: #f59e0b;
         }
 
-        .assets-spinner {
-            text-align: center;
-            padding: 60px 0;
-            color: rgba(255, 255, 255, 0.3);
-            font-size: 13px;
+        .assets-toolbar-outer.is-loading {
+            opacity: 0.58;
+            filter: saturate(0.82);
+            pointer-events: none;
         }
 
-        .assets-spinner .dot {
-            display: inline-block;
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.3);
-            margin: 0 3px;
-            animation: assets-pulse 1.2s ease-in-out infinite;
+        .assets-loading-shell {
+            display: none;
+            padding: 10px 0 14px;
         }
 
-        .assets-spinner .dot:nth-child(2) {
-            animation-delay: 0.2s;
+        .assets-loading-shell.visible {
+            display: block;
+            animation: earnFadeIn 0.32s ease;
         }
 
-        .assets-spinner .dot:nth-child(3) {
-            animation-delay: 0.4s;
+        .assets-loading-panel {
+            display: none;
         }
 
-        @keyframes assets-pulse {
+        .assets-loading-panel.visible {
+            display: block;
+        }
 
-            0%,
-            80%,
-            100% {
-                opacity: 0.2;
-                transform: scale(0.8);
-            }
+        .assets-loading-shell .earn-loading-card {
+            background:
+                radial-gradient(circle at top right, rgba(52, 211, 153, 0.16), transparent 32%),
+                radial-gradient(circle at bottom left, rgba(251, 191, 36, 0.12), transparent 28%),
+                linear-gradient(160deg, rgba(8, 13, 22, 0.98), rgba(11, 18, 28, 0.96) 42%, rgba(10, 14, 22, 0.97) 100%);
+        }
 
-            40% {
-                opacity: 1;
-                transform: scale(1.2);
-            }
+        .assets-loading-shell .earn-loading-badge {
+            background: rgba(52, 211, 153, 0.11);
+            border-color: rgba(52, 211, 153, 0.2);
+            color: #6ee7b7;
+        }
+
+        .assets-loading-shell .earn-loading-badge.is-cached {
+            background: rgba(251, 191, 36, 0.12);
+            border-color: rgba(251, 191, 36, 0.18);
+            color: #fcd34d;
+        }
+
+        .assets-loading-shell .earn-loading-chip {
+            background: rgba(255, 255, 255, 0.045);
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        .assets-loading-shell .earn-loading-ring {
+            background:
+                conic-gradient(
+                    from -90deg,
+                    rgba(52, 211, 153, 1) 0%,
+                    rgba(251, 191, 36, 0.96) calc(var(--earn-progress) * 0.64%),
+                    rgba(34, 211, 238, 0.94) calc(var(--earn-progress) * 1%),
+                    rgba(255, 255, 255, 0.08) 0 100%
+                );
+        }
+
+        .assets-loading-shell .earn-loading-clock-sub,
+        .assets-loading-shell .earn-loading-progresspill {
+            color: #fcd34d;
+        }
+
+        .assets-loading-shell .earn-loading-stage.is-active {
+            border-color: rgba(251, 191, 36, 0.18);
+            background: rgba(251, 191, 36, 0.08);
+        }
+
+        .assets-loading-shell .earn-loading-stage.is-active .earn-loading-stage-index {
+            border-color: rgba(251, 191, 36, 0.72);
+            color: #fcd34d;
+            box-shadow: 0 0 0 8px rgba(251, 191, 36, 0.08);
+        }
+
+        .assets-loading-shell .earn-loading-stage-status.is-live {
+            color: #fcd34d;
+            border-color: rgba(251, 191, 36, 0.22);
+            background: rgba(251, 191, 36, 0.12);
+        }
+
+        .assets-loading-shell .earn-loading-progressfill,
+        .assets-loading-shell .earn-loading-proof-dot {
+            background: linear-gradient(90deg, #34d399, #fbbf24 58%, #22d3ee);
+        }
+
+        .assets-loading-shell .earn-loading-progressnote,
+        .assets-loading-shell .earn-loading-stagelead {
+            color: rgba(248, 250, 252, 0.95);
         }
 
         /* Expandable asset detail rows */
@@ -12037,6 +12088,14 @@
             }
         }
     </style>
+    <link rel="dns-prefetch" href="//api.dolomite.io">
+    <link rel="dns-prefetch" href="//coins.llama.fi">
+    <link rel="dns-prefetch" href="//api.goldsky.com">
+    <link rel="dns-prefetch" href="//subgraph.api.dolomite.io">
+    <link rel="preconnect" href="https://api.dolomite.io" crossorigin>
+    <link rel="preconnect" href="https://coins.llama.fi" crossorigin>
+    <link rel="preconnect" href="https://api.goldsky.com" crossorigin>
+    <link rel="preconnect" href="https://subgraph.api.dolomite.io" crossorigin>
 </head>
 
 <body>
@@ -16304,9 +16363,8 @@
                     </div>
                 </div>
 
-                <div id="assets-spinner" class="assets-spinner">
-                    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-                    <div style="margin-top:8px">Loading rates from all chains…</div>
+                <div id="assets-spinner" class="assets-loading-shell">
+                    <div id="assets-loading-panel" class="assets-loading-panel" aria-live="polite"></div>
                 </div>
                 <div class="table-section" id="assets-table-wrap" style="display:none">
                     <div class="table-scroll">
@@ -21352,9 +21410,334 @@
         let assets_excludeLending = false;
         let assets_hideDust = false;
         let assets_showApy = false; // false=APR, true=APY
+        const ASSETS_LOADING_ESTIMATE_STORAGE_KEY = 'vedolo:assets:load-estimate:v1';
+        const ASSETS_LOADING_DEFAULT_ESTIMATE_MS = 6500;
+        const ASSETS_WARMUP_DELAY_MS = 1800;
+        let assets_loadingUi = {
+            active: false,
+            startedAt: 0,
+            estimateMs: 0,
+            progress: 0,
+            stageIndex: 0,
+            headline: '',
+            detail: '',
+        };
+        let assets_loadingTimer = null;
+        let assets_marketDataPromise = null;
+        let assets_prepareDataPromise = null;
+        let assets_prepareDataReady = false;
+        let assets_prefetchScheduled = false;
+        let assets_prefetchScheduleTimer = null;
+        let assets_prepareStatus = {
+            stageIndex: 0,
+            progress: 0.08,
+            headline: 'Loading verified asset markets',
+            detail: 'Syncing APR, prices and liquidity depth across every Dolomite chain before revealing the final stable table.',
+        };
 
         // Convert APR% to APY% (daily compounding)
         function aprToApy(apr) { return (Math.pow(1 + apr / 100 / 365, 365) - 1) * 100; }
+
+        function assets_getLoadingStages() {
+            return [
+                {
+                    title: 'Syncing APR feeds',
+                    body: 'Collecting supply, borrow and incentive rates from every Dolomite chain.',
+                },
+                {
+                    title: 'Pricing markets',
+                    body: 'Matching every listed asset with a live token price for stable APR comparisons.',
+                },
+                {
+                    title: 'Loading depth data',
+                    body: 'Syncing supply caps, borrow caps and liquidity depth from the Dolomite subgraphs.',
+                },
+                {
+                    title: 'Final table render',
+                    body: 'Preparing the hero metrics and the final stable assets table before reveal.',
+                },
+            ];
+        }
+
+        function assets_syncPrepareStatus(patch) {
+            patch = patch || {};
+            if (patch.stageIndex !== undefined) {
+                const nextStage = Number(patch.stageIndex || 0);
+                if (Number.isFinite(nextStage)) {
+                    assets_prepareStatus.stageIndex = Math.max(0, Math.min(3, nextStage));
+                }
+            }
+            if (patch.progress !== undefined) {
+                const nextProgress = Number(patch.progress || 0);
+                if (Number.isFinite(nextProgress)) {
+                    assets_prepareStatus.progress = Math.max(0.08, Math.min(0.99, nextProgress));
+                }
+            }
+            if (patch.headline) assets_prepareStatus.headline = String(patch.headline);
+            if (patch.detail) assets_prepareStatus.detail = String(patch.detail);
+            if (assets_loadingUi.active) {
+                assets_updateLoadingUi({
+                    stageIndex: assets_prepareStatus.stageIndex,
+                    progress: assets_prepareStatus.progress,
+                    headline: assets_prepareStatus.headline,
+                    detail: assets_prepareStatus.detail,
+                });
+            }
+        }
+
+        function assets_resetPrepareStatus() {
+            assets_prepareStatus = {
+                stageIndex: 0,
+                progress: 0.08,
+                headline: 'Loading verified asset markets',
+                detail: 'Syncing APR, prices and liquidity depth across every Dolomite chain before revealing the final stable table.',
+            };
+        }
+
+        function assets_loadEstimateMs() {
+            try {
+                const raw = localStorage.getItem(ASSETS_LOADING_ESTIMATE_STORAGE_KEY);
+                const value = raw ? JSON.parse(raw) : null;
+                const ms = value && Number(value.avgMs || 0);
+                if (Number.isFinite(ms) && ms > 1500) {
+                    return Math.min(20000, Math.max(2500, Math.round(ms)));
+                }
+            } catch (e) {
+                // Ignore storage failures.
+            }
+            return ASSETS_LOADING_DEFAULT_ESTIMATE_MS;
+        }
+
+        function assets_storeEstimateMs(durationMs) {
+            const duration = Number(durationMs || 0);
+            if (!Number.isFinite(duration) || duration < 1000 || duration > 60000) return;
+            try {
+                const raw = localStorage.getItem(ASSETS_LOADING_ESTIMATE_STORAGE_KEY);
+                const value = raw ? JSON.parse(raw) : {};
+                const prevAvg = Number(value && value.avgMs || 0);
+                const nextAvg = prevAvg > 0
+                    ? Math.round((prevAvg * 0.65) + (duration * 0.35))
+                    : Math.round(duration);
+                localStorage.setItem(ASSETS_LOADING_ESTIMATE_STORAGE_KEY, JSON.stringify({
+                    avgMs: nextAvg,
+                    updatedAt: Date.now(),
+                }));
+            } catch (e) {
+                // Ignore storage failures.
+            }
+        }
+
+        function assets_setToolbarLoading(active) {
+            const toolbar = document.querySelector('#view-assets .assets-toolbar-outer');
+            if (toolbar) toolbar.classList.toggle('is-loading', !!active);
+        }
+
+        function assets_clearLoadingUi() {
+            if (assets_loadingTimer) {
+                clearInterval(assets_loadingTimer);
+                assets_loadingTimer = null;
+            }
+            assets_loadingUi = {
+                active: false,
+                startedAt: 0,
+                estimateMs: 0,
+                progress: 0,
+                stageIndex: 0,
+                headline: '',
+                detail: '',
+            };
+            assets_setToolbarLoading(false);
+            const shell = document.getElementById('assets-spinner');
+            const panel = document.getElementById('assets-loading-panel');
+            if (shell) shell.classList.remove('visible');
+            if (panel) {
+                panel.classList.remove('visible');
+                panel.innerHTML = '';
+            }
+        }
+
+        function assets_renderLoadingUi() {
+            const shell = document.getElementById('assets-spinner');
+            const panel = document.getElementById('assets-loading-panel');
+            const state = assets_loadingUi || {};
+            if (!shell || !panel) return;
+            if (!state.active) {
+                shell.classList.remove('visible');
+                panel.classList.remove('visible');
+                panel.innerHTML = '';
+                return;
+            }
+
+            const stages = assets_getLoadingStages();
+            const elapsedMs = Math.max(0, earn_nowMs() - Number(state.startedAt || 0));
+            const estimateMs = Math.max(1800, Number(state.estimateMs || 0) || assets_loadEstimateMs());
+            const progress = Math.max(
+                Number(state.progress || 0),
+                Math.min(0.96, elapsedMs / estimateMs * 0.88)
+            );
+            const remainingMs = Math.max(0, estimateMs - elapsedMs);
+            const progressPct = Math.max(8, Math.min(99, Math.round(progress * 100)));
+            const activeStageIndex = Math.max(0, Math.min(stages.length - 1, Number(state.stageIndex || 0)));
+            const completedStages = Math.max(0, Math.min(stages.length, activeStageIndex));
+            const estimateText = remainingMs > 0
+                ? `about ${Math.ceil(remainingMs / 1000)}s left`
+                : 'finalizing…';
+            const countdownClock = earn_formatCountdownClock(remainingMs);
+            const etaClock = earn_formatEtaClock(remainingMs);
+            const topBadge = '<span class="earn-loading-badge"><span class="earn-live-refresh-dot"></span><strong>Cross-chain sync</strong><span>Rates, prices and depth</span></span>';
+
+            const stagesHtml = stages.map((stage, idx) => {
+                const cls = idx < activeStageIndex
+                    ? 'is-complete'
+                    : idx === activeStageIndex
+                        ? 'is-active'
+                        : '';
+                const stageStatus = idx < activeStageIndex
+                    ? '<span class="earn-loading-stage-status is-done">Done</span>'
+                    : idx === activeStageIndex
+                        ? '<span class="earn-loading-stage-status is-live">Live</span>'
+                        : '<span class="earn-loading-stage-status">Queued</span>';
+                return `
+                    <div class="earn-loading-stage ${cls}">
+                        <div class="earn-loading-stage-index">${idx + 1}</div>
+                        <div>
+                            <div class="earn-loading-stage-title-row">
+                                <div class="earn-loading-stage-title">${earn_escapeHtml(stage.title)}</div>
+                                ${stageStatus}
+                            </div>
+                            <div class="earn-loading-stage-body">${earn_escapeHtml(stage.body)}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            panel.innerHTML = `
+                <div class="earn-loading-card">
+                    <div class="earn-loading-topline">
+                        ${topBadge}
+                        <div class="earn-loading-chiprow">
+                            <span class="earn-loading-chip">Verified reveal</span>
+                            <span class="earn-loading-chip">${progressPct}% prepared</span>
+                            <span class="earn-loading-chip">${completedStages}/${stages.length} stages complete</span>
+                        </div>
+                    </div>
+                    <div class="earn-loading-main">
+                        <div class="earn-loading-intro">
+                            <div class="earn-loading-hero">
+                                <div class="earn-loading-kicker">
+                                    <span class="earn-loading-kicker-dot"></span>
+                                    <span>ASSETS</span>
+                                </div>
+                                <h3 class="earn-loading-title">${earn_escapeHtml(state.headline || 'Loading verified asset markets')}</h3>
+                                <p class="earn-loading-subtitle">${earn_escapeHtml(state.detail || 'We are syncing APR, prices and market depth before revealing the final stable assets table.')}</p>
+                            </div>
+                            <div class="earn-loading-hero-metrics">
+                                <div class="earn-loading-ringwrap">
+                                    <div class="earn-loading-ring" style="--earn-progress:${progressPct};">
+                                        <div class="earn-loading-ring-inner">
+                                            <div class="earn-loading-clock-label">Estimated time left</div>
+                                            <div class="earn-loading-clock-value">${earn_escapeHtml(countdownClock)}</div>
+                                            <div class="earn-loading-clock-sub">${progressPct}% loaded · ETA ${earn_escapeHtml(etaClock)}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="earn-loading-timing">
+                                    <div class="earn-loading-metric">
+                                        <div class="earn-loading-metric-label">Time Left</div>
+                                        <div class="earn-loading-metric-value">${earn_escapeHtml(estimateText)}</div>
+                                        <div class="earn-loading-metric-sub">Estimate adapts to successful Assets loads on this browser.</div>
+                                    </div>
+                                    <div class="earn-loading-metric">
+                                        <div class="earn-loading-metric-label">Elapsed</div>
+                                        <div class="earn-loading-metric-value">${earn_escapeHtml(earn_formatDuration(elapsedMs))}</div>
+                                        <div class="earn-loading-metric-sub">Partial rows stay hidden until the final pass is ready.</div>
+                                    </div>
+                                    <div class="earn-loading-metric">
+                                        <div class="earn-loading-metric-label">Coverage</div>
+                                        <div class="earn-loading-metric-value">${Object.keys(ASSETS_CHAINS).length} chains</div>
+                                        <div class="earn-loading-metric-sub">APR feeds, token prices and liquidity depth are being prepared together.</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="earn-loading-progressmeta">
+                                <span class="earn-loading-progressnote">The assets hero and table will appear once the final stable snapshot is ready.</span>
+                                <span class="earn-loading-progressnote">${progressPct}% of the estimated loading window has been completed.</span>
+                            </div>
+                            <div class="earn-loading-progressbar">
+                                <div class="earn-loading-progressfill" style="width:${progressPct}%"></div>
+                            </div>
+                            <div class="earn-loading-skeletoncaption">Final assets table preview</div>
+                            <div class="earn-loading-skeletons">${earn_buildLookupSkeletonRows(3)}</div>
+                        </div>
+                        <div class="earn-loading-stagecard">
+                            <div class="earn-loading-stagehead">
+                                <div>
+                                    <div class="earn-loading-stageeyebrow">Verification pipeline</div>
+                                    <div class="earn-loading-stagelead">${earn_escapeHtml(stages[activeStageIndex]?.title || 'Preparing final assets table')}</div>
+                                </div>
+                                <div class="earn-loading-progresspill">${activeStageIndex + 1}/${stages.length}</div>
+                            </div>
+                            <div class="earn-loading-stages">${stagesHtml}</div>
+                            <div class="earn-loading-proof">
+                                <div class="earn-loading-proof-row"><span class="earn-loading-proof-dot"></span>APR rows stay hidden until rates and prices are fully synced</div>
+                                <div class="earn-loading-proof-row"><span class="earn-loading-proof-dot"></span>Liquidity depth and caps finish before the final table is revealed</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            assets_setToolbarLoading(true);
+            shell.classList.add('visible');
+            panel.classList.add('visible');
+        }
+
+        function assets_startLoadingUi(opts) {
+            opts = opts || {};
+            assets_clearLoadingUi();
+            assets_loadingUi = {
+                active: true,
+                startedAt: earn_nowMs(),
+                estimateMs: assets_loadEstimateMs(),
+                progress: Number(opts.progress || 0.08),
+                stageIndex: Number(opts.stageIndex || 0),
+                headline: String(opts.headline || 'Loading verified asset markets'),
+                detail: String(opts.detail || 'We are syncing APR, prices and liquidity depth before revealing the final stable assets table.'),
+            };
+            assets_renderLoadingUi();
+            assets_loadingTimer = setInterval(() => {
+                if (!assets_loadingUi.active) return;
+                assets_renderLoadingUi();
+            }, 250);
+        }
+
+        function assets_updateLoadingUi(patch) {
+            if (!assets_loadingUi.active) return;
+            patch = patch || {};
+            if (patch.progress !== undefined) {
+                const nextProgress = Number(patch.progress || 0);
+                if (Number.isFinite(nextProgress)) {
+                    assets_loadingUi.progress = Math.max(assets_loadingUi.progress || 0, Math.min(0.99, nextProgress));
+                }
+            }
+            if (patch.stageIndex !== undefined) {
+                const nextStage = Number(patch.stageIndex || 0);
+                if (Number.isFinite(nextStage)) {
+                    assets_loadingUi.stageIndex = Math.max(assets_loadingUi.stageIndex || 0, Math.min(3, nextStage));
+                }
+            }
+            if (patch.headline) assets_loadingUi.headline = String(patch.headline);
+            if (patch.detail) assets_loadingUi.detail = String(patch.detail);
+            assets_renderLoadingUi();
+        }
+
+        function assets_finishLoadingUi(opts) {
+            opts = opts || {};
+            const durationMs = Number(opts.durationMs || 0);
+            if (opts.recordEstimate !== false && Number.isFinite(durationMs) && durationMs > 0) {
+                assets_storeEstimateMs(durationMs);
+            }
+            assets_clearLoadingUi();
+        }
 
         function assets_toggleAprApy() {
             assets_showApy = !assets_showApy;
@@ -21393,11 +21776,13 @@
         let assets_marketDataLoaded = false;
 
         async function assets_fetchMarketData() {
+            if (assets_marketDataLoaded) return true;
+            if (assets_marketDataPromise) return assets_marketDataPromise;
             const t0 = performance.now();
             const QUERY = `{
                 totalPars(first: 1000) {
                     id supplyPar borrowPar
-                    token { id symbol decimals marketId }
+                    token { id }
                 }
                 marketRiskInfos(first: 1000) {
                     id supplyMaxWei borrowMaxWei isBorrowingDisabled
@@ -21406,69 +21791,73 @@
                     id supplyIndex borrowIndex
                 }
             }`;
+            assets_marketDataPromise = (async () => {
+                await Promise.all(Object.entries(ASSETS_CHAINS).map(async ([chainKey, chain]) => {
+                    try {
+                        const ctrl = new AbortController();
+                        const timer = setTimeout(() => ctrl.abort(), 10000);
+                        const resp = await fetch(chain.subgraph, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ query: QUERY }),
+                            signal: ctrl.signal
+                        });
+                        clearTimeout(timer);
+                        const json = await resp.json();
+                        if (!json.data) return;
 
-            await Promise.all(Object.entries(ASSETS_CHAINS).map(async ([chainKey, chain]) => {
-                try {
-                    const ctrl = new AbortController();
-                    const timer = setTimeout(() => ctrl.abort(), 10000);
-                    const resp = await fetch(chain.subgraph, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ query: QUERY }),
-                        signal: ctrl.signal
-                    });
-                    clearTimeout(timer);
-                    const json = await resp.json();
-                    if (!json.data) return;
+                        const { totalPars, marketRiskInfos, interestIndexes } = json.data;
+                        const capsMap = {};
+                        (marketRiskInfos || []).forEach(r => {
+                            const sCap = r.supplyMaxWei ? parseFloat(r.supplyMaxWei) : 0;
+                            const bCap = r.borrowMaxWei ? parseFloat(r.borrowMaxWei) : 0;
+                            capsMap[r.id.toLowerCase()] = {
+                                supplyCap: sCap > 0.001 ? sCap : 0,
+                                borrowCap: bCap > 0.001 ? bCap : 0,
+                                isBorrowDisabled: r.isBorrowingDisabled === true,
+                            };
+                        });
+                        const indexMap = {};
+                        (interestIndexes || []).forEach(r => {
+                            indexMap[r.id.toLowerCase()] = {
+                                supplyIdx: parseFloat(r.supplyIndex) || 1,
+                                borrowIdx: parseFloat(r.borrowIndex) || 1,
+                            };
+                        });
 
-                    const { totalPars, marketRiskInfos, interestIndexes } = json.data;
-                    // Build caps + borrow-disabled lookup by token address
-                    const capsMap = {};
-                    (marketRiskInfos || []).forEach(r => {
-                        const sCap = r.supplyMaxWei ? parseFloat(r.supplyMaxWei) : 0;
-                        const bCap = r.borrowMaxWei ? parseFloat(r.borrowMaxWei) : 0;
-                        capsMap[r.id.toLowerCase()] = {
-                            supplyCap: sCap > 0.001 ? sCap : 0,
-                            borrowCap: bCap > 0.001 ? bCap : 0,
-                            isBorrowDisabled: r.isBorrowingDisabled === true,
-                        };
-                    });
-                    // Build interest index lookup
-                    const indexMap = {};
-                    (interestIndexes || []).forEach(r => {
-                        indexMap[r.id.toLowerCase()] = {
-                            supplyIdx: parseFloat(r.supplyIndex) || 1,
-                            borrowIdx: parseFloat(r.borrowIndex) || 1,
-                        };
-                    });
+                        let count = 0;
+                        (totalPars || []).forEach(tp => {
+                            const tokenAddr = tp.token?.id?.toLowerCase();
+                            if (!tokenAddr) return;
+                            const idx = indexMap[tokenAddr] || { supplyIdx: 1, borrowIdx: 1 };
+                            const supplied = (parseFloat(tp.supplyPar) || 0) * idx.supplyIdx;
+                            const borrowed = (parseFloat(tp.borrowPar) || 0) * idx.borrowIdx;
+                            const caps = capsMap[tokenAddr] || {};
+                            const key = chainKey + ':' + tokenAddr;
+                            assets_marketData[key] = {
+                                supplied,
+                                borrowed,
+                                supplyCapNum: caps.supplyCap || 0,
+                                borrowCapNum: caps.borrowCap || 0,
+                                isBorrowDisabled: caps.isBorrowDisabled || false,
+                                availableLiquidity: supplied - borrowed,
+                            };
+                            count++;
+                        });
+                        console.log(`📊 ${chainKey}: ${count} markets from subgraph`);
+                    } catch (e) {
+                        console.warn(`📊 ${chainKey}: subgraph failed`, e.message);
+                    }
+                }));
 
-                    let count = 0;
-                    (totalPars || []).forEach(tp => {
-                        const tokenAddr = tp.token?.id?.toLowerCase();
-                        if (!tokenAddr) return;
-                        const idx = indexMap[tokenAddr] || { supplyIdx: 1, borrowIdx: 1 };
-                        const supplied = (parseFloat(tp.supplyPar) || 0) * idx.supplyIdx;
-                        const borrowed = (parseFloat(tp.borrowPar) || 0) * idx.borrowIdx;
-                        const caps = capsMap[tokenAddr] || {};
-                        const key = chainKey + ':' + tokenAddr;
-                        assets_marketData[key] = {
-                            supplied,
-                            borrowed,
-                            supplyCapNum: caps.supplyCap || 0,
-                            borrowCapNum: caps.borrowCap || 0,
-                            isBorrowDisabled: caps.isBorrowDisabled || false,
-                            availableLiquidity: supplied - borrowed,
-                        };
-                        count++;
-                    });
-                    console.log(`📊 ${chainKey}: ${count} markets from subgraph`);
-                } catch (e) {
-                    console.warn(`📊 ${chainKey}: subgraph failed`, e.message);
-                }
-            }));
-
-            assets_marketDataLoaded = true;
-            console.log(`✅ Assets market data: ${Object.keys(assets_marketData).length} markets in ${((performance.now() - t0) / 1000).toFixed(1)}s`);
+                assets_marketDataLoaded = true;
+                console.log(`✅ Assets market data: ${Object.keys(assets_marketData).length} markets in ${((performance.now() - t0) / 1000).toFixed(1)}s`);
+                return true;
+            })().catch(e => {
+                assets_marketDataPromise = null;
+                throw e;
+            });
+            return assets_marketDataPromise;
         }
 
         function assets_classify(sym) {
@@ -21479,127 +21868,240 @@
             return 'other';
         }
 
+        async function assets_prepareData() {
+            if (assets_prepareDataReady) {
+                return {
+                    results: assets_allData,
+                    subgraphReady: assets_marketDataLoaded,
+                };
+            }
+            if (assets_prepareDataPromise) return assets_prepareDataPromise;
+
+            const results = [];
+            const LLAMA_CHAIN_MAP = { arbitrum: 'arbitrum', berachain: 'berachain', ethereum: 'ethereum', mantle: 'mantle', polygonzkevm: 'polygon_zkevm', xlayer: 'xlayer' };
+            assets_resetPrepareStatus();
+            assets_prepareDataPromise = (async () => {
+                const subgraphPromise = assets_fetchMarketData()
+                    .then(() => true)
+                    .catch(e => {
+                        console.warn('Assets: liquidity depth sync failed', e);
+                        return false;
+                    });
+
+                const fetches = Object.entries(ASSETS_CHAINS).map(async ([key, chain]) => {
+                    try {
+                        const resp = await fetch(`https://api.dolomite.io/tokens/${chain.id}/interest-rates?exclude-odolo=false`);
+                        if (!resp.ok) return;
+                        const json = await resp.json();
+                        if (!json || !json.interestRates) return;
+                        json.interestRates.forEach(r => {
+                            if (assets_shouldSkip(r)) return;
+                            const totalSupply = parseFloat(r.totalSupplyInterestRate) || 0;
+                            const baseBorrow = parseFloat(r.borrowInterestRate) || 0;
+                            const baseLending = parseFloat(r.supplyInterestRate) || 0;
+                            let odoloRewards = 0;
+                            const yieldSources = [];
+                            (r.outsideSupplyInterestRateParts || []).forEach(p => {
+                                if (p.label && p.label.includes('oDOLO') && p.interestRate) {
+                                    odoloRewards += parseFloat(p.interestRate) || 0;
+                                } else if (p.category === 'rewards' && p.interestRate) {
+                                    const rate = parseFloat(p.interestRate) || 0;
+                                    if (rate > 0) {
+                                        yieldSources.push({ label: p.label.replace(/ \(.*\)$/, ''), rate: rate * 100 });
+                                    }
+                                } else if (p.category === 'nativeYield' && p.interestRate) {
+                                    const rate = parseFloat(p.interestRate) || 0;
+                                    if (rate > 0) {
+                                        yieldSources.push({ label: p.label, rate: rate * 100 });
+                                    }
+                                }
+                            });
+                            const avg7d = r.historicalRates && r.historicalRates['7d']
+                                ? parseFloat(r.historicalRates['7d'].supplyInterestRate) || 0 : 0;
+                            let extYieldApr = 0;
+                            yieldSources.forEach(ys => {
+                                extYieldApr += ys.rate;
+                            });
+                            results.push({
+                                symbol: r.token.tokenSymbol,
+                                name: r.token.tokenName,
+                                addr: r.token.tokenAddress,
+                                chainKey: key,
+                                chainName: chain.name,
+                                chainShort: chain.short,
+                                chainIcon: chain.icon,
+                                supplyApr: totalSupply * 100,
+                                borrowApr: baseBorrow * 100,
+                                rewards: odoloRewards * 100,
+                                lendingApr: baseLending * 100,
+                                yieldSources: yieldSources,
+                                extYieldApr: extYieldApr,
+                                supplyApr7d: avg7d * 100,
+                                cat: assets_classify(r.token.tokenSymbol),
+                                price: 0,
+                            });
+                        });
+                    } catch (e) {
+                        console.warn(`Assets: ${chain.name} fetch failed`, e);
+                    }
+                });
+                await Promise.all(fetches);
+                assets_syncPrepareStatus({
+                    stageIndex: 1,
+                    progress: 0.34,
+                    detail: 'Cross-chain APR feeds are ready. Pricing every listed market now.',
+                });
+
+                try {
+                    const resultsByPriceKey = {};
+                    const seenPriceKeys = new Set();
+                    const priceKeys = [];
+                    results.forEach(r => {
+                        const llamaChain = LLAMA_CHAIN_MAP[r.chainKey] || r.chainKey;
+                        const priceKey = `${llamaChain}:${r.addr}`;
+                        if (!resultsByPriceKey[priceKey]) resultsByPriceKey[priceKey] = [];
+                        resultsByPriceKey[priceKey].push(r);
+                        if (seenPriceKeys.has(priceKey)) return;
+                        seenPriceKeys.add(priceKey);
+                        priceKeys.push(priceKey);
+                    });
+                    const priceTasks = [];
+                    for (let i = 0; i < priceKeys.length; i += 100) {
+                        const batch = priceKeys.slice(i, i + 100);
+                        priceTasks.push(
+                            fetch('https://coins.llama.fi/prices/current/' + batch.join(','))
+                                .then(async pResp => {
+                                    if (!pResp.ok) return;
+                                    const pData = await pResp.json();
+                                    const coins = pData.coins || {};
+                                    Object.entries(coins).forEach(([coinKey, coin]) => {
+                                        if (!coin || !coin.price) return;
+                                        (resultsByPriceKey[coinKey] || []).forEach(item => {
+                                            item.price = coin.price;
+                                        });
+                                    });
+                                })
+                        );
+                    }
+                    await Promise.all(priceTasks);
+                } catch (e) {
+                    console.warn('Price fetch failed', e);
+                }
+
+                assets_syncPrepareStatus({
+                    stageIndex: 2,
+                    progress: 0.58,
+                    detail: 'Prices are ready. Syncing liquidity depth, caps and utilization now.',
+                });
+
+                assets_allData = results;
+                const subgraphReady = await subgraphPromise;
+                assets_syncPrepareStatus({
+                    stageIndex: 3,
+                    progress: 0.9,
+                    headline: 'Finalizing verified asset dashboard',
+                    detail: subgraphReady
+                        ? 'APR, prices and liquidity depth are ready. Rendering the final stable table now.'
+                        : 'APR and prices are ready. Rendering the final stable table with the available depth data now.',
+                });
+                assets_prepareDataReady = true;
+                return { results, subgraphReady };
+            })().catch(e => {
+                assets_prepareDataPromise = null;
+                assets_prepareDataReady = false;
+                throw e;
+            });
+            return assets_prepareDataPromise;
+        }
+
+        function assets_startWarmupNow() {
+            if (assets_prefetchScheduleTimer) {
+                clearTimeout(assets_prefetchScheduleTimer);
+                assets_prefetchScheduleTimer = null;
+            }
+            assets_prefetchScheduled = false;
+            if (assets_prepareDataReady || assets_prepareDataPromise || assets_loaded) return;
+            assets_prepareData().catch(e => {
+                console.warn('Assets warmup failed', e);
+            });
+        }
+
+        function assets_scheduleWarmup(delayMs) {
+            if (assets_prepareDataReady || assets_prepareDataPromise || assets_loaded || assets_prefetchScheduled) return;
+            assets_prefetchScheduled = true;
+            const kickoff = () => assets_startWarmupNow();
+            const safeDelay = Math.max(0, Number(delayMs || 0));
+            if (safeDelay > 0) {
+                assets_prefetchScheduleTimer = setTimeout(kickoff, safeDelay);
+            } else {
+                kickoff();
+            }
+        }
+
+        function assets_setupWarmupTriggers() {
+            const startWarmup = () => assets_scheduleWarmup(0);
+            if (typeof requestIdleCallback === 'function') {
+                requestIdleCallback(startWarmup, { timeout: ASSETS_WARMUP_DELAY_MS });
+            } else {
+                assets_scheduleWarmup(ASSETS_WARMUP_DELAY_MS);
+            }
+            const tab = document.getElementById('tab-assets');
+            if (!tab) return;
+            ['mouseenter', 'focus', 'touchstart'].forEach(evt => {
+                tab.addEventListener(evt, assets_startWarmupNow, { passive: true });
+            });
+        }
 
 
         async function assets_init() {
             assets_loaded = true;
-            const results = [];
-            const LLAMA_CHAIN_MAP = { arbitrum: 'arbitrum', berachain: 'berachain', ethereum: 'ethereum', mantle: 'mantle', polygonzkevm: 'polygon_zkevm', xlayer: 'xlayer' };
-            // Start subgraph fetch immediately (runs in parallel with API fetch)
-            const subgraphPromise = assets_fetchMarketData();
-            const fetches = Object.entries(ASSETS_CHAINS).map(async ([key, chain]) => {
-                try {
-                    const resp = await fetch(`https://api.dolomite.io/tokens/${chain.id}/interest-rates?exclude-odolo=false`);
-                    if (!resp.ok) return;
-                    const json = await resp.json();
-                    if (!json || !json.interestRates) return;
-                    json.interestRates.forEach(r => {
-                        if (assets_shouldSkip(r)) return;
-                        const totalSupply = parseFloat(r.totalSupplyInterestRate) || 0;
-                        const baseBorrow = parseFloat(r.borrowInterestRate) || 0;
-                        const baseLending = parseFloat(r.supplyInterestRate) || 0;
-                        // Extract oDOLO rewards APR and yield source labels
-                        let odoloRewards = 0;
-                        const yieldSources = []; // [{label, rate}]
-                        (r.outsideSupplyInterestRateParts || []).forEach(p => {
-                            if (p.label && p.label.includes('oDOLO') && p.interestRate) {
-                                odoloRewards += parseFloat(p.interestRate) || 0;
-                            } else if (p.category === 'rewards' && p.interestRate) {
-                                // Non-oDOLO rewards (e.g., WLFI) — treat as yield sources
-                                const rate = parseFloat(p.interestRate) || 0;
-                                if (rate > 0) {
-                                    yieldSources.push({ label: p.label.replace(/ \(.*\)$/, ''), rate: rate * 100 });
-                                }
-                            } else if (p.category === 'nativeYield' && p.interestRate) {
-                                const rate = parseFloat(p.interestRate) || 0;
-                                if (rate > 0) {
-                                    yieldSources.push({ label: p.label, rate: rate * 100 });
-                                }
-                            }
-                        });
-                        // 7d average
-                        const avg7d = r.historicalRates && r.historicalRates['7d']
-                            ? parseFloat(r.historicalRates['7d'].supplyInterestRate) || 0 : 0;
-                        // Track total external yield APR
-                        let extYieldApr = 0;
-                        yieldSources.forEach(ys => {
-                            extYieldApr += ys.rate;
-                        });
-                        results.push({
-                            symbol: r.token.tokenSymbol,
-                            name: r.token.tokenName,
-                            addr: r.token.tokenAddress,
-                            chainKey: key,
-                            chainName: chain.name,
-                            chainShort: chain.short,
-                            chainIcon: chain.icon,
-                            supplyApr: totalSupply * 100,
-                            borrowApr: baseBorrow * 100,
-                            rewards: odoloRewards * 100,
-                            lendingApr: baseLending * 100,
-                            yieldSources: yieldSources,
-                            extYieldApr: extYieldApr,
-                            supplyApr7d: avg7d * 100,
-                            cat: assets_classify(r.token.tokenSymbol),
-                            price: 0,
-                        });
-                    });
-                } catch (e) {
-                    console.warn(`Assets: ${chain.name} fetch failed`, e);
-                }
-            });
-            await Promise.all(fetches);
+            const initStartedAt = earn_nowMs();
+            const heroEl = document.getElementById('assets-hero-section');
+            const tableWrapEl = document.getElementById('assets-table-wrap');
+            const dataReadyOnOpen = assets_prepareDataReady;
+            if (heroEl) heroEl.style.display = 'none';
+            if (tableWrapEl) tableWrapEl.style.display = 'none';
 
-            // Fetch prices from DeFi Llama
-            try {
-                const priceKeys = results.map(r => {
-                    const llamaChain = LLAMA_CHAIN_MAP[r.chainKey] || r.chainKey;
-                    return `${llamaChain}:${r.addr}`;
+            if (!dataReadyOnOpen) {
+                assets_startLoadingUi({
+                    headline: assets_prepareStatus.headline,
+                    detail: assets_prepareStatus.detail,
+                    progress: assets_prepareStatus.progress,
+                    stageIndex: assets_prepareStatus.stageIndex,
                 });
-                // Batch in groups of 100
-                for (let i = 0; i < priceKeys.length; i += 100) {
-                    const batch = priceKeys.slice(i, i + 100);
-                    const pResp = await fetch('https://coins.llama.fi/prices/current/' + batch.join(','));
-                    if (pResp.ok) {
-                        const pData = await pResp.json();
-                        const coins = pData.coins || {};
-                        batch.forEach((key, idx) => {
-                            const coin = coins[key];
-                            if (coin && coin.price) {
-                                results[i + idx].price = coin.price;
-                            }
-                        });
-                    }
-                }
-            } catch (e) {
-                console.warn('Price fetch failed', e);
             }
 
-            assets_allData = results;
+            try {
+                await assets_prepareData();
 
-            // Build chain pills
-            assets_buildChainPills();
-            // Bind category buttons
-            assets_bindCatPills();
-            // Bind table header sorting
-            assets_bindSortHeaders();
-            // Bind search + checkbox
-            assets_bindSearch();
-            
-            // Render table immediately with fast API data
-            assets_render();
+                // Build chain pills
+                assets_buildChainPills();
+                // Bind category buttons
+                assets_bindCatPills();
+                // Bind table header sorting
+                assets_bindSortHeaders();
+                // Bind search + checkbox
+                assets_bindSearch();
 
-            document.getElementById('assets-spinner').style.display = 'none';
-            document.getElementById('assets-table-wrap').style.display = '';
-
-            // Handle slow subgraph data in background
-            subgraphPromise.then(() => {
                 assets_updateHero();
-                // re-render to apply dust filters
                 assets_render();
-            }).catch(e => {
-                console.warn('Background subgraph fetch failed', e);
-            });
+                if (tableWrapEl) tableWrapEl.style.display = '';
+                if (!dataReadyOnOpen) {
+                    assets_finishLoadingUi({
+                        durationMs: earn_nowMs() - initStartedAt,
+                    });
+                } else {
+                    assets_clearLoadingUi();
+                }
+            } catch (e) {
+                console.error('Assets init failed:', e);
+                assets_finishLoadingUi({ recordEstimate: false });
+                const shell = document.getElementById('assets-spinner');
+                if (shell) {
+                    shell.classList.add('visible');
+                    shell.innerHTML = `<div class="earn-notice warn" style="margin:0"><svg class="earn-notice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4"></path><path d="M12 17h.01"></path><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg><div class="earn-notice-copy"><div class="earn-notice-title">Assets loading failed</div><div class="earn-notice-body">Refresh the page and try again. The Assets table could not be prepared.</div></div></div>`;
+                }
+            }
         }
 
         function assets_updateHero() {
@@ -21883,6 +22385,7 @@
 
         // Bind reward row toggles in settings dropdown
         document.addEventListener('DOMContentLoaded', function() {
+            assets_setupWarmupTriggers();
             const rewardMap = {
                 'settings-row-odolo':  { key: 'odolo',   dotId: 'settings-dot-odolo' },
                 'settings-row-yield':  { key: 'yield',   dotId: 'settings-dot-yield' },
