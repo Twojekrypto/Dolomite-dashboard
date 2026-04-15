@@ -13863,7 +13863,7 @@
                                     </th>
                                     <th data-sort="balance" class="sort-active" onclick="earn_sortAssets('balance')">
                                         Current Balance <span class="earn-sort-arrow">▼</span></th>
-                                    <th data-sort="yield" onclick="earn_sortAssets('yield')">Yield Earned / Value Today
+                                    <th data-sort="yield" onclick="earn_sortAssets('yield')">Total Yield Earned
                                         <span class="earn-sort-arrow">▼</span> <span class="tooltip-icon">?<span
                                                 class="tooltip-bubble">Cumulative token yield earned from Dolomite
                                                 lending,
@@ -13943,7 +13943,7 @@
                                             <span>Token</span>
                                         </div>
                                     </th>
-                                    <th style="text-align:right">Yield Earned / Value Today</th>
+                                    <th style="text-align:right">Total Yield Earned</th>
                                 </tr>
                             </thead>
                             <tbody id="earn-past-tbody"></tbody>
@@ -23318,7 +23318,7 @@
             if (!histTotalEl) return; // unified view — skip legacy rendering
             histTotalEl.innerHTML = `
                 <div class="earn-hist-total-item">
-                    <div class="earn-hist-total-label">Yield Value Today</div>
+                    <div class="earn-hist-total-label">Total Yield Earned</div>
                     <div class="earn-hist-total-value ${isPositive ? 'positive' : 'negative'}">${isPositive ? '+' : ''}${totalFmt}</div>
                 </div>
                 <div class="earn-hist-total-item">
@@ -23360,7 +23360,7 @@
                 } else if (item.isCollateralized) {
                     badge = '<span class="earn-hist-badge withdrawn" title="Supply balance is currently parked as collateral inside an open borrow account"><span class="earn-status-dot"></span>BORROW</span>';
                 } else if (item.isActive) {
-                    badge = '<span class="earn-hist-badge active">ACTIVE</span>';
+                    badge = '';
                 } else {
                     badge = '<span class="earn-hist-badge withdrawn">WITHDRAWN</span>';
                 }
@@ -23404,7 +23404,7 @@
                     yieldHtml = `<span class="earn-amount" style="color:var(--text-muted);font-size:13px" title="This was an isolation mode wrapper token used as collateral. The position has been fully closed.">Position Closed</span>`;
                 } else {
                     const yieldUsdFmt = item.yieldUsd !== 0
-                        ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">Current value ${item.yieldUsd > 0 ? '+' : item.yieldUsd < 0 ? '-' : ''}$${Math.abs(item.yieldUsd).toFixed(2)}</div>`
+                        ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${item.yieldUsd > 0 ? '+' : item.yieldUsd < 0 ? '-' : ''}$${Math.abs(item.yieldUsd).toFixed(2)}</div>`
                         : '';
                     yieldHtml = `<span class="earn-amount ${yieldColor}">${yieldSign}${yieldFmt}<span class="earn-amount-sym">${item.symbol}</span></span>${yieldUsdFmt}`;
                 }
@@ -24047,6 +24047,7 @@
 
         function earn_renderYieldSourceBadge(yieldCalc) {
             if (!yieldCalc || !yieldCalc.hasData) return '';
+            if (yieldCalc.method === 'interest-ledger') return '';
             const meta = earn_getYieldMethodMeta(yieldCalc.method);
             return `<span class="earn-debug-badge ${meta.cls}" title="${earn_escapeHtml(meta.title)}"><span class="earn-status-dot"></span>${earn_escapeHtml(meta.label)}</span>`;
         }
@@ -25300,7 +25301,7 @@
                         method: String(m.method || ''),
                     };
                 });
-                if (yieldHeader) yieldHeader.textContent = 'Yield Value Today ✓ Verified';
+                if (yieldHeader) yieldHeader.textContent = 'Total Yield Earned ✓ Verified';
                 console.log(
                     'Total yield: loaded precomputed verified ledger for',
                     Object.keys(verifiedLedger.markets).length,
@@ -25375,10 +25376,10 @@
             }
 
             if (marketsWithData > 0) {
-                if (yieldHeader) yieldHeader.textContent = 'Yield Value Today ✓';
+                if (yieldHeader) yieldHeader.textContent = 'Total Yield Earned ✓';
                 console.log('Total yield: computed index-based yield for', marketsWithData, 'markets');
             } else {
-                if (yieldHeader) yieldHeader.textContent = 'Yield Value Today';
+                if (yieldHeader) yieldHeader.textContent = 'Total Yield Earned';
             }
 
             earn_refreshHistoryYieldData();
@@ -28373,7 +28374,7 @@
                 const yieldFmt = earn_formatAmount(item.yieldWei, item.decimals, item.symbol);
                 const yieldUsdSign = item.yieldUsd > 0 ? '+' : (item.yieldUsd < 0 ? '-' : '');
                 const yieldUsdStr = Math.abs(item.yieldUsd) >= 0.01
-                    ? `<div class="earn-usd-sub" style="color:${yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">Current value ${yieldUsdSign}$${Math.abs(item.yieldUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>`
+                    ? `<div class="earn-usd-sub" style="color:${yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">${yieldUsdSign}$${Math.abs(item.yieldUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>`
                     : '';
                 const verifyBadge = earn_renderVerificationBadge(item.marketId, item.symbol, item.decimals);
 
@@ -28699,7 +28700,7 @@
 
                 if (yieldCalc.hasData) {
                     const yieldUsdStr = Math.abs(yieldCalc.yieldUsd) >= 0.01
-                        ? `<div class="earn-usd-sub" style="color:${yieldCalc.yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">Current value ${yieldCalc.yieldSign}$${Math.abs(yieldCalc.yieldUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>`
+                        ? `<div class="earn-usd-sub" style="color:${yieldCalc.yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">${yieldCalc.yieldSign}$${Math.abs(yieldCalc.yieldUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>`
                         : '';
                     yieldCellHtml = `<span class="earn-amount ${yieldCalc.yieldColor}">${yieldCalc.yieldSign + yieldCalc.yieldFmt}<span class="earn-amount-sym">${a.symbol}</span></span>${yieldUsdStr}`;
                 } else {
@@ -28789,7 +28790,6 @@
                                 <div class="earn-token-info">
                                     <div class="earn-token-name">${a.symbol} ${chevron}</div>
                                     <div style="display:flex;gap:6px;flex-wrap:wrap">
-                                        <span class="earn-hist-badge active">ACTIVE</span>
                                         ${verifyBadge}
                                         ${sourceBadge}
                                     </div>
@@ -28858,7 +28858,7 @@
                     const yieldColor = yieldPositive ? 'earn-yield-positive' : 'earn-yield-negative';
                     const yieldFmt = earn_formatAmount(item.yieldWei, item.decimals, item.symbol);
                     const yieldUsdFmt = item.yieldUsd !== 0
-                        ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">Current value ${item.yieldUsd > 0 ? '+' : item.yieldUsd < 0 ? '-' : ''}$${Math.abs(item.yieldUsd).toFixed(2)}</div>`
+                        ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${item.yieldUsd > 0 ? '+' : item.yieldUsd < 0 ? '-' : ''}$${Math.abs(item.yieldUsd).toFixed(2)}</div>`
                         : '';
 
                     const balFmt = earn_formatAmount(item.currentWei, item.decimals, item.symbol);
@@ -29039,7 +29039,7 @@
                             <div class="earn-summary-sub">${portfolioSub}</div>
                         </div>
                         <div class="earn-summary-stat">
-                            <div class="earn-summary-label">Yield Value Today</div>
+                            <div class="earn-summary-label">Total Yield Earned</div>
                             <div class="earn-summary-value ${yieldClass}">${yieldSign}${fmtUsd(Math.abs(totalYieldUsd))}</div>
                             <div class="earn-summary-sub">${totalYieldSub}</div>
                         </div>
