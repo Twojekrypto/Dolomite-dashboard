@@ -9625,6 +9625,10 @@
             animation: earnFadeIn 0.4s ease;
         }
 
+        .earn-results.loading-gate > :not(.earn-loading-panel) {
+            display: none !important;
+        }
+
         .earn-results.is-refreshing .earn-summary-card,
         .earn-results.is-refreshing .table-section {
             transition: opacity 0.22s ease, transform 0.22s ease, filter 0.22s ease;
@@ -9983,6 +9987,278 @@
             gap: 16px;
         }
 
+        .earn-loading-panel {
+            display: none;
+            padding: 10px 0 14px;
+        }
+
+        .earn-loading-panel.visible {
+            display: block;
+            animation: earnFadeIn 0.32s ease;
+        }
+
+        .earn-loading-card {
+            position: relative;
+            overflow: hidden;
+            border-radius: 24px;
+            padding: 26px 24px 24px;
+            background:
+                radial-gradient(circle at top right, rgba(52, 211, 153, 0.16), transparent 38%),
+                radial-gradient(circle at bottom left, rgba(99, 102, 241, 0.18), transparent 34%),
+                linear-gradient(180deg, rgba(15, 23, 42, 0.94), rgba(15, 23, 42, 0.88));
+            border: 1px solid rgba(148, 163, 184, 0.14);
+            box-shadow: 0 28px 64px rgba(15, 23, 42, 0.34);
+        }
+
+        .earn-loading-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(120deg, transparent 12%, rgba(255,255,255,0.06) 28%, transparent 44%);
+            transform: translateX(-120%);
+            animation: earnLoadingSweep 2.8s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        @keyframes earnLoadingSweep {
+            0% { transform: translateX(-120%); }
+            55% { transform: translateX(120%); }
+            100% { transform: translateX(120%); }
+        }
+
+        .earn-loading-topline {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .earn-loading-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(52, 211, 153, 0.12);
+            border: 1px solid rgba(52, 211, 153, 0.22);
+            color: #6ee7b7;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.45px;
+            text-transform: uppercase;
+        }
+
+        .earn-loading-badge strong {
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .earn-loading-main {
+            display: grid;
+            grid-template-columns: minmax(0, 1.15fr) minmax(220px, 0.85fr);
+            gap: 22px;
+            align-items: start;
+        }
+
+        .earn-loading-intro {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            min-width: 0;
+        }
+
+        .earn-loading-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            color: rgba(103, 232, 249, 0.9);
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+        }
+
+        .earn-loading-kicker-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            box-shadow: 0 0 0 0 rgba(103, 232, 249, 0.34);
+            animation: earnLivePulse 1.6s ease-in-out infinite;
+        }
+
+        .earn-loading-title {
+            margin: 0;
+            font-size: clamp(24px, 3vw, 34px);
+            line-height: 1.05;
+            letter-spacing: -0.03em;
+            color: #f8fafc;
+        }
+
+        .earn-loading-subtitle {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.7;
+            color: rgba(226, 232, 240, 0.74);
+            max-width: 640px;
+        }
+
+        .earn-loading-timing {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .earn-loading-metric {
+            padding: 14px 14px 12px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.035);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            min-width: 0;
+        }
+
+        .earn-loading-metric-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+            color: rgba(148, 163, 184, 0.82);
+            margin-bottom: 8px;
+        }
+
+        .earn-loading-metric-value {
+            font-size: 22px;
+            line-height: 1;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: -0.03em;
+        }
+
+        .earn-loading-metric-sub {
+            margin-top: 6px;
+            font-size: 11px;
+            color: rgba(148, 163, 184, 0.86);
+            line-height: 1.5;
+        }
+
+        .earn-loading-stagecard {
+            padding: 18px 16px;
+            border-radius: 20px;
+            background: rgba(15, 23, 42, 0.58);
+            border: 1px solid rgba(148, 163, 184, 0.12);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+        }
+
+        .earn-loading-stagehead {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .earn-loading-stageeyebrow {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.7px;
+            text-transform: uppercase;
+            color: rgba(148, 163, 184, 0.82);
+        }
+
+        .earn-loading-progresspill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 10px;
+            border-radius: 999px;
+            background: rgba(34, 211, 238, 0.1);
+            border: 1px solid rgba(34, 211, 238, 0.14);
+            color: #67e8f9;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .earn-loading-progressbar {
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            height: 10px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid rgba(255,255,255,0.04);
+            margin-bottom: 14px;
+        }
+
+        .earn-loading-progressfill {
+            height: 100%;
+            width: 0%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #34d399, #22d3ee 62%, #818cf8);
+            box-shadow: 0 0 18px rgba(34, 211, 238, 0.28);
+            transition: width 0.32s ease;
+        }
+
+        .earn-loading-stages {
+            display: grid;
+            gap: 10px;
+        }
+
+        .earn-loading-stage {
+            display: grid;
+            grid-template-columns: 14px minmax(0, 1fr);
+            gap: 12px;
+            align-items: start;
+            padding: 12px 0;
+        }
+
+        .earn-loading-stage + .earn-loading-stage {
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .earn-loading-stage-dot {
+            width: 14px;
+            height: 14px;
+            margin-top: 2px;
+            border-radius: 50%;
+            border: 2px solid rgba(148, 163, 184, 0.35);
+            background: transparent;
+            box-sizing: border-box;
+            transition: all 0.24s ease;
+        }
+
+        .earn-loading-stage.is-active .earn-loading-stage-dot {
+            border-color: rgba(34, 211, 238, 0.8);
+            background: rgba(34, 211, 238, 0.28);
+            box-shadow: 0 0 0 6px rgba(34, 211, 238, 0.08);
+        }
+
+        .earn-loading-stage.is-complete .earn-loading-stage-dot {
+            border-color: rgba(52, 211, 153, 0.95);
+            background: #34d399;
+            box-shadow: 0 0 0 6px rgba(52, 211, 153, 0.08);
+        }
+
+        .earn-loading-stage-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.92);
+            margin-bottom: 4px;
+        }
+
+        .earn-loading-stage-body {
+            font-size: 12px;
+            line-height: 1.55;
+            color: rgba(148, 163, 184, 0.88);
+        }
+
+        .earn-loading-skeletons {
+            margin-top: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
         .earn-loading-headline {
             display: flex;
             align-items: center;
@@ -10029,6 +10305,16 @@
             flex-direction: column;
             gap: 8px;
             min-width: 0;
+        }
+
+        @media (max-width: 920px) {
+            .earn-loading-main {
+                grid-template-columns: 1fr;
+            }
+
+            .earn-loading-timing {
+                grid-template-columns: 1fr;
+            }
         }
 
         /* Hide yield column when address has no yield data */
@@ -14451,6 +14737,7 @@
             </div>
 
             <div class="earn-results" id="earn-results">
+                <div class="earn-loading-panel" id="earn-loading-panel" aria-live="polite"></div>
                 <div class="earn-notices" id="earn-notices"></div>
                 <!-- Summary card -->
                 <div class="earn-summary-card" id="earn-summary-card"></div>
@@ -22037,6 +22324,281 @@
             return `${(value / 1000).toFixed(value >= 10000 ? 1 : 2)}s`;
         }
 
+        const EARN_LOOKUP_ESTIMATE_STORAGE_KEY = 'vedolo:earn:lookup-estimates:v1';
+        const EARN_LOOKUP_DEFAULT_ESTIMATE_MS = {
+            ethereum: 5000,
+            arbitrum: 9000,
+            berachain: 7000,
+            mantle: 6500,
+        };
+        let earn_lookupLoadingUi = {
+            active: false,
+            runId: 0,
+            chainId: '',
+            startedAt: 0,
+            estimateMs: 0,
+            progress: 0,
+            stageIndex: 0,
+            headline: '',
+            detail: '',
+            cached: false,
+        };
+        let earn_lookupLoadingTimer = null;
+
+        function earn_loadLookupEstimates() {
+            try {
+                const raw = localStorage.getItem(EARN_LOOKUP_ESTIMATE_STORAGE_KEY);
+                if (!raw) return {};
+                const parsed = JSON.parse(raw);
+                return parsed && typeof parsed === 'object' ? parsed : {};
+            } catch (e) {
+                return {};
+            }
+        }
+
+        function earn_saveLookupEstimates(value) {
+            try {
+                localStorage.setItem(EARN_LOOKUP_ESTIMATE_STORAGE_KEY, JSON.stringify(value || {}));
+            } catch (e) {
+                // Ignore storage failures in private browsing / strict environments.
+            }
+        }
+
+        function earn_getLookupEstimateMs(chainId) {
+            const cid = String(chainId || '').trim().toLowerCase();
+            const stored = earn_loadLookupEstimates();
+            const entry = stored[cid];
+            const storedMs = entry && Number(entry.avgMs || 0);
+            if (Number.isFinite(storedMs) && storedMs > 1500) {
+                return Math.min(20000, Math.max(2500, Math.round(storedMs)));
+            }
+            return EARN_LOOKUP_DEFAULT_ESTIMATE_MS[cid] || 7000;
+        }
+
+        function earn_storeLookupEstimateMs(chainId, durationMs) {
+            const cid = String(chainId || '').trim().toLowerCase();
+            const duration = Number(durationMs || 0);
+            if (!cid || !Number.isFinite(duration) || duration < 1000 || duration > 60000) return;
+            const stored = earn_loadLookupEstimates();
+            const prev = stored[cid] || {};
+            const prevAvg = Number(prev.avgMs || 0);
+            const nextAvg = prevAvg > 0
+                ? Math.round((prevAvg * 0.65) + (duration * 0.35))
+                : Math.round(duration);
+            stored[cid] = {
+                avgMs: nextAvg,
+                updatedAt: Date.now(),
+            };
+            earn_saveLookupEstimates(stored);
+        }
+
+        function earn_getLookupLoadingStages() {
+            return [
+                {
+                    title: 'Scanning wallet',
+                    body: 'Reading active balances and token metadata for the selected address.',
+                },
+                {
+                    title: 'Replaying ledger',
+                    body: 'Rebuilding deposits, withdrawals and borrow-linked collateral movement.',
+                },
+                {
+                    title: 'Verifying yield',
+                    body: 'Matching replay with verified ledger data and historical snapshots.',
+                },
+                {
+                    title: 'Final dashboard',
+                    body: 'Preparing rewards, lending analytics and the final stable summary.',
+                },
+            ];
+        }
+
+        function earn_isLookupLoadingGateActive() {
+            return !!(earn_lookupLoadingUi && earn_lookupLoadingUi.active);
+        }
+
+        function earn_clearLookupLoadingUi() {
+            if (earn_lookupLoadingTimer) {
+                clearInterval(earn_lookupLoadingTimer);
+                earn_lookupLoadingTimer = null;
+            }
+            earn_lookupLoadingUi = {
+                active: false,
+                runId: 0,
+                chainId: '',
+                startedAt: 0,
+                estimateMs: 0,
+                progress: 0,
+                stageIndex: 0,
+                headline: '',
+                detail: '',
+                cached: false,
+            };
+            const results = document.getElementById('earn-results');
+            if (results) results.classList.remove('loading-gate');
+            const panel = document.getElementById('earn-loading-panel');
+            if (panel) {
+                panel.classList.remove('visible');
+                panel.innerHTML = '';
+            }
+        }
+
+        function earn_renderLookupLoadingUi() {
+            const panel = document.getElementById('earn-loading-panel');
+            if (!panel) return;
+            const state = earn_lookupLoadingUi || {};
+            if (!state.active) {
+                panel.classList.remove('visible');
+                panel.innerHTML = '';
+                return;
+            }
+
+            const stages = earn_getLookupLoadingStages();
+            const elapsedMs = Math.max(0, earn_nowMs() - Number(state.startedAt || 0));
+            const estimateMs = Math.max(1500, Number(state.estimateMs || 0) || earn_getLookupEstimateMs(state.chainId));
+            const progress = Math.max(
+                Number(state.progress || 0),
+                Math.min(0.96, elapsedMs / estimateMs * 0.88)
+            );
+            const remainingMs = Math.max(0, estimateMs - elapsedMs);
+            const remainingSeconds = Math.ceil(remainingMs / 1000);
+            const progressPct = Math.max(8, Math.min(99, Math.round(progress * 100)));
+            const activeStageIndex = Math.max(0, Math.min(stages.length - 1, Number(state.stageIndex || 0)));
+            const chainName = EARN_CHAINS[state.chainId]?.name || 'selected network';
+            const estimateText = remainingMs > 0
+                ? `about ${remainingSeconds}s left`
+                : 'finalizing…';
+            const headerDetail = state.detail || 'We will reveal the dashboard only after the verified view is stable.';
+            const topBadge = state.cached
+                ? '<span class="earn-loading-badge"><span class="earn-live-refresh-dot"></span><strong>Warm start</strong> cached snapshot found</span>'
+                : '<span class="earn-loading-badge"><span class="earn-live-refresh-dot"></span><strong>Verified mode</strong> no partial refreshes</span>';
+
+            const stagesHtml = stages.map((stage, idx) => {
+                const cls = idx < activeStageIndex
+                    ? 'is-complete'
+                    : idx === activeStageIndex
+                        ? 'is-active'
+                        : '';
+                return `
+                    <div class="earn-loading-stage ${cls}">
+                        <div class="earn-loading-stage-dot"></div>
+                        <div>
+                            <div class="earn-loading-stage-title">${earn_escapeHtml(stage.title)}</div>
+                            <div class="earn-loading-stage-body">${earn_escapeHtml(stage.body)}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            panel.innerHTML = `
+                <div class="earn-loading-card">
+                    <div class="earn-loading-topline">
+                        ${topBadge}
+                    </div>
+                    <div class="earn-loading-main">
+                        <div class="earn-loading-intro">
+                            <div class="earn-loading-kicker">
+                                <span class="earn-loading-kicker-dot"></span>
+                                <span>${earn_escapeHtml(chainName)} EARN</span>
+                            </div>
+                            <h3 class="earn-loading-title">${earn_escapeHtml(state.headline || `Loading verified ${chainName} Earn data`)}</h3>
+                            <p class="earn-loading-subtitle">${earn_escapeHtml(headerDetail)}</p>
+                            <div class="earn-loading-timing">
+                                <div class="earn-loading-metric">
+                                    <div class="earn-loading-metric-label">Time Left</div>
+                                    <div class="earn-loading-metric-value">${earn_escapeHtml(estimateText)}</div>
+                                    <div class="earn-loading-metric-sub">Estimate learns from previous successful loads on this network.</div>
+                                </div>
+                                <div class="earn-loading-metric">
+                                    <div class="earn-loading-metric-label">Elapsed</div>
+                                    <div class="earn-loading-metric-value">${earn_escapeHtml(earn_formatDuration(elapsedMs))}</div>
+                                    <div class="earn-loading-metric-sub">Accuracy-first loading keeps intermediate data hidden.</div>
+                                </div>
+                                <div class="earn-loading-metric">
+                                    <div class="earn-loading-metric-label">Progress</div>
+                                    <div class="earn-loading-metric-value">${progressPct}%</div>
+                                    <div class="earn-loading-metric-sub">Balances, replay, yield and rewards are being prepared.</div>
+                                </div>
+                            </div>
+                            <div class="earn-loading-skeletons">${earn_buildLookupSkeletonRows(4)}</div>
+                        </div>
+                        <div class="earn-loading-stagecard">
+                            <div class="earn-loading-stagehead">
+                                <div class="earn-loading-stageeyebrow">Current phase</div>
+                                <div class="earn-loading-progresspill">${progressPct}% ready</div>
+                            </div>
+                            <div class="earn-loading-progressbar">
+                                <div class="earn-loading-progressfill" style="width:${progressPct}%"></div>
+                            </div>
+                            <div class="earn-loading-stages">${stagesHtml}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            panel.classList.add('visible');
+        }
+
+        function earn_startLookupLoadingUi(opts) {
+            opts = opts || {};
+            earn_clearLookupLoadingUi();
+            earn_lookupLoadingUi = {
+                active: true,
+                runId: Number(opts.runId || earn_activeLookupRunId || 0),
+                chainId: String(opts.chainId || document.getElementById('earn-chain')?.value || ''),
+                startedAt: earn_nowMs(),
+                estimateMs: earn_getLookupEstimateMs(opts.chainId || document.getElementById('earn-chain')?.value || ''),
+                progress: 0.08,
+                stageIndex: 0,
+                headline: String(opts.headline || 'Loading verified Earn data'),
+                detail: String(opts.detail || 'We are collecting balances, replaying ledger history and verifying total yield before showing the final view.'),
+                cached: !!opts.cached,
+            };
+            const results = document.getElementById('earn-results');
+            if (results) {
+                results.classList.add('visible', 'loading-gate');
+                results.classList.remove('is-refreshing');
+            }
+            earn_renderLookupLoadingUi();
+            earn_lookupLoadingTimer = setInterval(() => {
+                if (!earn_lookupLoadingUi.active) return;
+                earn_renderLookupLoadingUi();
+            }, 250);
+        }
+
+        function earn_updateLookupLoadingUi(runId, patch) {
+            if (!earn_lookupLoadingUi.active) return;
+            if (runId !== undefined && Number(runId || 0) !== Number(earn_lookupLoadingUi.runId || 0)) return;
+            patch = patch || {};
+            if (patch.progress !== undefined) {
+                const nextProgress = Number(patch.progress || 0);
+                if (Number.isFinite(nextProgress)) {
+                    earn_lookupLoadingUi.progress = Math.max(earn_lookupLoadingUi.progress || 0, Math.min(0.99, nextProgress));
+                }
+            }
+            if (patch.stageIndex !== undefined) {
+                const nextStage = Number(patch.stageIndex || 0);
+                if (Number.isFinite(nextStage)) {
+                    earn_lookupLoadingUi.stageIndex = Math.max(earn_lookupLoadingUi.stageIndex || 0, Math.min(3, nextStage));
+                }
+            }
+            if (patch.headline) earn_lookupLoadingUi.headline = String(patch.headline);
+            if (patch.detail) earn_lookupLoadingUi.detail = String(patch.detail);
+            earn_renderLookupLoadingUi();
+        }
+
+        function earn_finishLookupLoadingUi(opts) {
+            opts = opts || {};
+            if (opts.runId !== undefined && earn_lookupLoadingUi.active) {
+                if (Number(opts.runId || 0) !== Number(earn_lookupLoadingUi.runId || 0)) return;
+            }
+            const chainId = opts.chainId || earn_lookupLoadingUi.chainId;
+            const durationMs = Number(opts.durationMs || 0);
+            if (opts.recordEstimate !== false && chainId && Number.isFinite(durationMs) && durationMs > 0) {
+                earn_storeLookupEstimateMs(chainId, durationMs);
+            }
+            earn_clearLookupLoadingUi();
+        }
+
         function earn_createLookupProfiler(chainId, address, usedCache) {
             return {
                 chainId: String(chainId || ''),
@@ -27967,6 +28529,7 @@
         function earn_hideAll(opts) {
             opts = opts || {};
             const preserveResults = !!opts.preserveResults;
+            if (!preserveResults) earn_clearLookupLoadingUi();
             earn_lookupLoading = false;
             earn_lookupUsingCachedSnapshot = false;
             document.getElementById('earn-error').classList.remove('visible');
@@ -28005,7 +28568,7 @@
         function earn_updateLookupRefreshBadge() {
             const badge = document.getElementById('earn-live-refresh-badge');
             if (!badge) return;
-            const shouldShow = !!earn_lookupUsingCachedSnapshot && !!earn_lookupLoading;
+            const shouldShow = !!earn_lookupUsingCachedSnapshot && !!earn_lookupLoading && !earn_isLookupLoadingGateActive();
             badge.classList.toggle('visible', shouldShow);
             badge.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
             badge.innerHTML = shouldShow
@@ -28013,39 +28576,20 @@
                 : '';
         }
 
-        function earn_showLookupLoadingState(message) {
+        function earn_showLookupLoadingState(message, opts) {
+            opts = opts || {};
             earn_lookupLoading = true;
-            earn_lookupUsingCachedSnapshot = false;
-            const results = document.getElementById('earn-results');
-            const summary = document.getElementById('earn-summary-card');
-            const supplySection = document.getElementById('earn-supply-section');
-            const tbody = document.getElementById('earn-table-body');
-            const supplyCount = document.getElementById('earn-supply-count');
-            const filterBar = document.getElementById('earn-filter-bar');
-            const modeToggle = document.getElementById('earn-mode-toggle');
-
+            earn_lookupUsingCachedSnapshot = !!opts.cached;
             earn_setResultsRefreshing(false);
-            if (summary) {
-                summary.classList.add('visible', 'skeleton', 'no-animate');
-                summary.innerHTML = earn_buildLookupSkeletonSummary();
-            }
-            if (supplySection) supplySection.style.display = '';
-            if (supplyCount) supplyCount.textContent = '';
-            if (filterBar) filterBar.style.display = 'none';
-            if (modeToggle) modeToggle.classList.remove('visible');
-            if (tbody) {
-                tbody.innerHTML = `<tr class="earn-loading-row"><td colspan="4" style="text-align:center;padding:56px 24px;color:var(--text-muted)">
-                    <div class="earn-loading-shell">
-                        <div class="earn-loading-headline">
-                            <div class="spinner" style="display:inline-block;width:24px;height:24px;border:2px solid rgba(255,255,255,0.1);border-top-color:#34d399;border-radius:50%;animation:earnSpin 0.8s linear infinite"></div>
-                            <span>${earn_escapeHtml(message || 'Loading verified Earn data...')}</span>
-                        </div>
-                        <div class="earn-loading-copy">Showing balances first, then enriching the view with replay checks, pricing, and yield history.</div>
-                        <div class="earn-loading-rows">${earn_buildLookupSkeletonRows(6)}</div>
-                    </div>
-                </td></tr>`;
-            }
-            if (results) results.classList.add('visible');
+            earn_startLookupLoadingUi({
+                runId: opts.runId,
+                chainId: opts.chainId,
+                cached: !!opts.cached,
+                headline: message || 'Loading verified Earn data...',
+                detail: opts.detail || (opts.cached
+                    ? 'A cached verified snapshot was found. Live balances are being recomputed now, and the final dashboard will appear once the full view is stable.'
+                    : 'Balances, replay verification, rewards and total yield are being prepared. The dashboard appears only once the verified view is complete.'),
+            });
             earn_updateLookupRefreshBadge();
         }
 
@@ -28262,26 +28806,38 @@
             earn_lookupLoading = false;
             earn_lookupUsingCachedSnapshot = false;
             earn_renderNotices();
+            earn_showLookupLoadingState('Loading verified Earn data...', {
+                runId: lookupRunId,
+                chainId,
+                cached: !!cachedLookup,
+            });
             if (cachedLookup) {
                 earn_lookupUsingCachedSnapshot = true;
                 earn_applyLookupCache(cachedLookup);
                 earn_lookupLoading = true;
                 earn_setLookupProfileExtra(lookupProfile, 'cached assets', (cachedLookup.cachedAssets || []).length);
                 earn_updateLookupRefreshBadge();
-            } else {
-                earn_showLookupLoadingState('Loading verified Earn data...');
             }
 
             try {
                 const chain = earn_getChain();
                 if (chain.pending) {
                     earn_totalYieldStatus = 'idle';
+                    earn_finishLookupLoadingUi({ runId: lookupRunId, recordEstimate: false });
                     earn_showError(chain.name + ' is not yet live on Dolomite. Check back soon!');
                     earn_logLookupProfile(lookupProfile, 'failed');
                     btn.classList.remove('loading');
                     btn.disabled = false;
                     return;
                 }
+
+                const summaryPrefetchTasks = [
+                    earn_fetchOdoloClaimed(addr).catch(() => 0),
+                    earn_fetchMerklRewards(addr, chainId).catch(() => ({})),
+                ];
+                if (chainId === 'berachain') summaryPrefetchTasks.push(earn_fetchIBGTRewards(addr).catch(() => null));
+                if (chainId === 'arbitrum') summaryPrefetchTasks.push(earn_fetchDGMXRewards(addr).catch(() => null));
+                const summaryPrefetchPromise = Promise.allSettled(summaryPrefetchTasks);
 
                 // Prefetch liquidation_risk.json in parallel with balance lookup (don't await yet)
                 earn_prefetchLiqRisk();
@@ -28298,6 +28854,11 @@
                     .then(() => {
                         if (!isCurrentLookup()) return false;
                         earn_replayStatus = 'ready';
+                        earn_updateLookupLoadingUi(lookupRunId, {
+                            stageIndex: 2,
+                            progress: 0.56,
+                            detail: 'Ledger replay is complete. Verifying total yield against trusted snapshots now.',
+                        });
                         earn_renderNotices();
                         earn_markLookupProfile(lookupProfile, 'replay');
                         return true;
@@ -28317,6 +28878,11 @@
                         earn_replayVerificationSummary = { total: 0, verified: 0, mismatch: 0, unverified: 0 };
                         earn_replayVerificationReady = false;
                         earn_replayStatus = 'error';
+                        earn_updateLookupLoadingUi(lookupRunId, {
+                            stageIndex: 2,
+                            progress: 0.56,
+                            detail: 'Replay fell back to the safer path. Yield verification is still finishing with snapshot-backed data.',
+                        });
                         earn_renderNotices();
                         return false;
                     });
@@ -28328,10 +28894,18 @@
                     if (!isCurrentLookup()) return;
                     earn_markLookupProfile(lookupProfile, 'balances');
                     earn_setLookupProfileExtra(lookupProfile, 'active balances', balances.length);
+                    earn_updateLookupLoadingUi(lookupRunId, {
+                        stageIndex: 1,
+                        progress: 0.28,
+                        detail: balances.length > 0
+                            ? `Found ${balances.length} active position${balances.length !== 1 ? 's' : ''}. Replaying deposits and withdrawals now.`
+                            : 'No active supply balances yet. Checking replay and history before deciding what to show.',
+                    });
                 } catch (balanceErr) {
                     if (!isCurrentLookup()) return;
                     earn_markLookupProfile(lookupProfile, 'balances');
                     earn_totalYieldStatus = 'error';
+                    earn_finishLookupLoadingUi({ runId: lookupRunId, recordEstimate: false });
                     earn_showError('Balance lookup failed: ' + balanceErr.message);
                     earn_logLookupProfile(lookupProfile, 'failed');
                     return;
@@ -28409,6 +28983,11 @@
                                 earn_markLookupProfile(lookupProfile, 'complete');
                                 earn_logLookupProfile(lookupProfile, 'complete');
                                 earn_saveLookupCache(chainId, addr);
+                                earn_finishLookupLoadingUi({
+                                    runId: lookupRunId,
+                                    chainId,
+                                    durationMs: lookupProfile.marks.complete,
+                                });
                             });
                         }).catch(e => {
                             if (!isCurrentLookup()) return Promise.allSettled([lendingPromise]);
@@ -28418,6 +28997,11 @@
                                 earn_markLookupProfile(lookupProfile, 'complete');
                                 earn_logLookupProfile(lookupProfile, 'complete');
                                 earn_saveLookupCache(chainId, addr);
+                                earn_finishLookupLoadingUi({
+                                    runId: lookupRunId,
+                                    chainId,
+                                    durationMs: lookupProfile.marks.complete,
+                                });
                             });
                         });
 
@@ -28452,7 +29036,22 @@
                                 earn_totalYieldStatus = 'ready';
                                 earn_logLookupProfile(lookupProfile, 'complete');
                                 earn_renderResults([]);
-                            }).catch(e => console.warn('History load:', e));
+                                earn_finishLookupLoadingUi({
+                                    runId: lookupRunId,
+                                    chainId,
+                                    durationMs: lookupProfile.marks.complete,
+                                });
+                            }).catch(e => {
+                                console.warn('History load:', e);
+                                if (!isCurrentLookup()) return;
+                                earn_markLookupProfile(lookupProfile, 'complete');
+                                earn_logLookupProfile(lookupProfile, 'complete');
+                                earn_finishLookupLoadingUi({
+                                    runId: lookupRunId,
+                                    chainId,
+                                    durationMs: lookupProfile.marks.complete,
+                                });
+                            });
                                 btn.classList.remove('loading');
                                 btn.disabled = false;
                                 return;
@@ -28475,6 +29074,7 @@
                     document.getElementById('earn-empty').classList.add('visible');
                     earn_markLookupProfile(lookupProfile, 'complete');
                     earn_logLookupProfile(lookupProfile, 'complete');
+                    earn_finishLookupLoadingUi({ runId: lookupRunId, chainId, durationMs: lookupProfile.marks.complete });
                     return;
                 }
 
@@ -28654,6 +29254,13 @@
                 })
                     .then(result => {
                         if (!isCurrentLookup()) return result;
+                        if (result) {
+                            earn_updateLookupLoadingUi(lookupRunId, {
+                                stageIndex: 2,
+                                progress: 0.76,
+                                detail: 'Verified yield is ready. Loading history, rewards and lending analytics before reveal.',
+                            });
+                        }
                         if (result && !earn_lookupLoading && earn_cachedAssets && earn_cachedAssets.length > 0) {
                             const tblRef = document.querySelector('.earn-asset-table');
                             if (tblRef) tblRef.classList.add('no-animate');
@@ -28684,6 +29291,11 @@
                     .then(result => {
                         if (!isCurrentLookup()) return result;
                         earn_markLookupProfile(lookupProfile, 'totalYield');
+                        earn_updateLookupLoadingUi(lookupRunId, {
+                            stageIndex: 2,
+                            progress: 0.8,
+                            detail: 'Total yield is verified. Final sections are being prepared now.',
+                        });
                         return result;
                     })
                     .catch(e => {
@@ -28710,6 +29322,11 @@
                     .then(result => {
                         if (!isCurrentLookup()) return result;
                         earn_markLookupProfile(lookupProfile, 'lending');
+                        earn_updateLookupLoadingUi(lookupRunId, {
+                            stageIndex: 3,
+                            progress: 0.92,
+                            detail: 'Lending analytics are ready. Final verified dashboard is being revealed next.',
+                        });
                         return result;
                     })
                     .catch(e => console.warn('Lending load:', e));
@@ -28733,6 +29350,13 @@
                     .then(result => {
                         if (!isCurrentLookup()) return false;
                         if (result) earn_markLookupProfile(lookupProfile, 'history');
+                        if (result) {
+                            earn_updateLookupLoadingUi(lookupRunId, {
+                                stageIndex: 3,
+                                progress: 0.88,
+                                detail: 'History snapshots are loaded. Wrapping up rewards and lending sections now.',
+                            });
+                        }
                         return !!result;
                     })
                     .catch(e => {
@@ -28746,6 +29370,7 @@
                     pricesRefreshPromise,
                     apyPromise,
                     totalYieldPromise,
+                    summaryPrefetchPromise,
                     replayPromise.then(ok => {
                         if (!isCurrentLookup()) return null;
                         if (!ok) return null;
@@ -28753,11 +29378,18 @@
                         return true;
                     }),
                     historyPromise,
+                    lendingPromise,
                 ]).then(() => {
                     if (!isCurrentLookup()) return Promise.allSettled([lendingPromise]);
                     earn_lookupLoading = false;
                     earn_lookupUsingCachedSnapshot = false;
                     earn_setResultsRefreshing(false);
+                    earn_updateLookupLoadingUi(lookupRunId, {
+                        stageIndex: 3,
+                        progress: 0.99,
+                        headline: 'Finalizing verified Earn dashboard',
+                        detail: 'All critical data is loaded. Rendering the final stable view now.',
+                    });
                     const tblRef = document.querySelector('.earn-asset-table');
                     if (tblRef) tblRef.classList.add('no-animate');
                     earn_renderResults(enriched, { skipSummary: false, softRefresh: true });
@@ -28766,12 +29398,18 @@
                         earn_markLookupProfile(lookupProfile, 'complete');
                         earn_logLookupProfile(lookupProfile, 'complete');
                         earn_saveLookupCache(chainId, addr);
+                        earn_finishLookupLoadingUi({
+                            runId: lookupRunId,
+                            chainId,
+                            durationMs: lookupProfile.marks.complete,
+                        });
                     });
                 });
             } catch (e) {
                 if (!isCurrentLookup()) return;
                 console.error('EARN lookup error:', e, e.stack);
                 earn_totalYieldStatus = 'error';
+                earn_finishLookupLoadingUi({ runId: lookupRunId, recordEstimate: false });
                 earn_renderNotices();
                 earn_showError('Failed to fetch data from RPC. Please try again.');
                 earn_logLookupProfile(lookupProfile, 'failed');
@@ -30522,13 +31160,19 @@
             earn_renderNotices();
 
             // Show results
-            document.getElementById('earn-results').classList.add('visible');
+            const resultsEl = document.getElementById('earn-results');
+            const gatedLoading = earn_isLookupLoadingGateActive();
+            if (resultsEl) resultsEl.classList.add('visible');
             earn_updateLookupRefreshBadge();
-            // Show the inactive toggle
-            document.getElementById('earn-mode-toggle').classList.add('visible');
-            // Show filter bar
             const filterBar = document.getElementById('earn-filter-bar');
-            if (filterBar) filterBar.style.display = '';
+            const modeToggle = document.getElementById('earn-mode-toggle');
+            if (!gatedLoading) {
+                if (modeToggle) modeToggle.classList.add('visible');
+                if (filterBar) filterBar.style.display = '';
+            } else {
+                if (modeToggle) modeToggle.classList.remove('visible');
+                if (filterBar) filterBar.style.display = 'none';
+            }
 
             // Bind tooltip float for earn tab toggles (body-level float)
             const ttFloat = document.getElementById('toggle-tooltip-float');
