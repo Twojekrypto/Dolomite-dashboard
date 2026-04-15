@@ -7037,61 +7037,10 @@
             flex-shrink: 0;
         }
 
-        .earn-filter-pill.active .earn-toggle-dot {
-            background: #34d399;
-            box-shadow: 0 0 6px rgba(52, 211, 153, 0.5);
-        }
-
-        #earn-dust-toggle.active .earn-toggle-dot {
-            background: #fbbf24;
-            box-shadow: 0 0 6px rgba(251, 191, 36, 0.5);
-        }
-
-        #earn-dust-toggle.active {
-            background: rgba(251, 191, 36, 0.10);
-            border-color: rgba(251, 191, 36, 0.3);
-            color: #fbbf24;
-            box-shadow: 0 0 10px rgba(251, 191, 36, 0.08);
-        }
-
-        #earn-dust-toggle.active:hover {
-            background: rgba(251, 191, 36, 0.18);
-            border-color: rgba(251, 191, 36, 0.45);
-        }
-
         .earn-withdrawn-btn:disabled {
             opacity: 0.35;
             cursor: default;
             pointer-events: none;
-        }
-
-        .earn-dust-switch {
-            gap: 8px;
-            padding: 7px 10px 7px 8px;
-            background: rgba(255, 255, 255, 0.05);
-            border-color: rgba(255, 255, 255, 0.08);
-        }
-
-        .earn-dust-switch:hover {
-            background: rgba(255, 255, 255, 0.07);
-        }
-
-        .earn-dust-switch.active {
-            background: rgba(251, 191, 36, 0.08);
-            border-color: rgba(251, 191, 36, 0.18);
-        }
-
-        .earn-dust-switch.active .dolo-flow-toggle-label {
-            color: #f8e7a0;
-        }
-
-        .earn-dust-switch .dolo-flow-toggle-track {
-            width: 30px;
-            height: 16px;
-        }
-
-        .earn-dust-switch .earn-dust-count {
-            margin-left: 2px;
         }
 
         /* ═══════ Section separators ═══════ */
@@ -8502,11 +8451,6 @@
             font-weight: 700;
             background: rgba(255, 255, 255, 0.1);
             color: var(--text-muted);
-        }
-
-        #earn-dust-toggle.active .earn-dust-count {
-            background: rgba(251, 191, 36, 0.2);
-            color: #fbbf24;
         }
 
         .earn-withdrawn-icon {
@@ -14517,14 +14461,12 @@
                         <span class="earn-supply-count earn-section-count" id="earn-supply-count"></span>
                         <span class="earn-live-refresh-badge" id="earn-live-refresh-badge" aria-hidden="true"></span>
                         <div class="earn-supply-controls">
-                            <label class="dolo-flow-toggle earn-dust-switch" id="earn-dust-toggle"
-                                title="Hide dust positions (< $1 balance & yield)">
-                                <input type="checkbox" id="earn-dust-input" onchange="earn_toggleDust()">
-                                <span class="dolo-flow-toggle-track"></span>
-                                <span class="dolo-flow-toggle-label">Hide Dust</span>
-                                <span class="earn-dust-count">0</span>
-                            </label>
-                            <div class="apr-pill" id="earn-apr-pill" onclick="earn_toggleAprApy()">
+                            <div class="dust-pill" id="earn-dust-toggle" onclick="earn_toggleDust()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();earn_toggleDust();}" tabindex="0" role="switch" aria-checked="false" title="Hide dust positions (< $1 balance & yield)">
+                                <div class="dust-switch-track"><div class="dust-switch-knob"></div></div>
+                                <span class="dust-pill-label">Hide Dust</span>
+                            </div>
+                            <div class="apr-pill" id="earn-apr-pill" onclick="earn_toggleAprApy()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();earn_toggleAprApy();}" tabindex="0" role="radiogroup">
+                                <div class="apr-pill-slider" id="earn-apr-pill-slider"></div>
                                 <span class="apr-pill-opt active" id="earn-apr-opt">APR</span>
                                 <span class="apr-pill-opt" id="earn-apy-opt">APY</span>
                             </div>
@@ -14605,7 +14547,10 @@
                                         style="cursor:pointer;user-select:none">
                                         Debt <span class="earn-sort-arrow">▼</span>
                                     </th>
-                                    <th>Net P&amp;L</th>
+                                    <th data-sort="lend-pnl" onclick="earn_sortLendPositions('pnl')"
+                                        style="cursor:pointer;user-select:none;text-align:right">
+                                        Net P&amp;L <span class="earn-sort-arrow">▼</span>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody id="earn-lending-tbody"></tbody>
@@ -14641,7 +14586,10 @@
                                             <span>Token</span>
                                         </div>
                                     </th>
-                                    <th style="text-align:right">Total Yield Earned</th>
+                                    <th data-sort="yield" class="sort-active" onclick="earn_sortPastPositions('yield')"
+                                        style="text-align:right">
+                                        Total Yield Earned <span class="earn-sort-arrow">▼</span>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody id="earn-past-tbody"></tbody>
@@ -23825,12 +23773,11 @@
         function earn_toggleDust() {
             earn_showDust = !earn_showDust;
             const btn = document.getElementById('earn-dust-toggle');
-            const input = document.getElementById('earn-dust-input');
             if (btn) {
                 // active = filter ON = dust HIDDEN (inverted from before)
                 btn.classList.toggle('active', !earn_showDust);
+                btn.setAttribute('aria-checked', String(!earn_showDust));
             }
-            if (input) input.checked = !earn_showDust;
             // Suppress row animations on toggle re-render
             const tbl = document.querySelector('.earn-asset-table');
             if (tbl) tbl.classList.add('no-animate');
@@ -24056,9 +24003,9 @@
                 // Status badge
                 let badge;
                 if (item.isIsolation && !item.isActive) {
-                    badge = '<span class="earn-hist-badge isolation" title="Dolomite Isolation Mode — internal wrapper token used as collateral in borrow positions">🔒 ISOLATION</span>';
+                    badge = '<span class="earn-hist-badge isolation" data-tip="Dolomite Isolation Mode — internal wrapper token used as collateral in borrow positions">🔒 ISOLATION</span>';
                 } else if (item.isCollateralized) {
-                    badge = '<span class="earn-hist-badge withdrawn" title="Supply balance is currently parked as collateral inside an open borrow account"><span class="earn-status-dot"></span>BORROW</span>';
+                    badge = '<span class="earn-hist-badge withdrawn" data-tip="Supply balance is currently parked as collateral inside an open borrow account"><span class="earn-status-dot"></span>BORROW</span>';
                 } else if (item.isActive) {
                     badge = '';
                 } else {
@@ -24796,7 +24743,7 @@
             if (!earn_replayVerificationReady) return '';
             const presentation = earn_getVerificationPresentation(marketId, yieldCalc, symbol, decimals);
             if (!presentation || !presentation.counted) return '';
-            return `<span class="earn-verify-badge ${presentation.status}" title="${earn_escapeHtml(presentation.title)}"><span class="earn-status-dot"></span>${earn_escapeHtml(presentation.label)}</span>`;
+            return `<span class="earn-verify-badge ${presentation.status}" data-tip="${earn_escapeHtml(presentation.title)}"><span class="earn-status-dot"></span>${earn_escapeHtml(presentation.label)}</span>`;
         }
 
         function earn_escapeHtml(value) {
@@ -24838,7 +24785,7 @@
             if (!yieldCalc || !yieldCalc.hasData) return '';
             if (yieldCalc.method === 'interest-ledger') return '';
             const meta = earn_getYieldMethodMeta(yieldCalc.method);
-            return `<span class="earn-debug-badge ${meta.cls}" title="${earn_escapeHtml(meta.title)}"><span class="earn-status-dot"></span>${earn_escapeHtml(meta.label)}</span>`;
+            return `<span class="earn-debug-badge ${meta.cls}" data-tip="${earn_escapeHtml(meta.title)}"><span class="earn-status-dot"></span>${earn_escapeHtml(meta.label)}</span>`;
         }
 
         function earn_formatDebugDelta(value, decimals, symbol) {
@@ -25713,6 +25660,8 @@
             earn_showApy = !earn_showApy;
             document.getElementById('earn-apr-opt').classList.toggle('active', !earn_showApy);
             document.getElementById('earn-apy-opt').classList.toggle('active', earn_showApy);
+            const slider = document.getElementById('earn-apr-pill-slider');
+            if (slider) slider.classList.toggle('right', earn_showApy);
             const tbl = document.querySelector('.earn-asset-table');
             if (tbl) tbl.classList.add('no-animate');
             if (earn_cachedAssets) earn_renderResults(earn_cachedAssets, { skipSummary: true });
@@ -28426,6 +28375,8 @@
         // ---- Detail row helpers ----
         let earn_openDetailIdx = null; // track which detail row is currently open
         let earn_openPastDetailIdx = null; // track which withdrawn detail row is currently open
+        let earn_pastSortKey = 'yield';
+        let earn_pastSortDesc = true;
         function earn_scrollDetailIntoView(detail, dataRow, containerId) {
             const container = document.getElementById(containerId || 'earn-supply-section');
             if (!detail) return;
@@ -28510,6 +28461,28 @@
                     earn_scrollDetailIntoView(detail, dataRow, 'earn-past-section');
                 }, 50);
             }
+        }
+
+        function earn_sortPastPositions(key) {
+            if (!earn_historyData || earn_historyData.length === 0) return;
+            if (earn_pastSortKey === key) {
+                earn_pastSortDesc = !earn_pastSortDesc;
+            } else {
+                earn_pastSortKey = key;
+                earn_pastSortDesc = true;
+            }
+
+            document.querySelectorAll('.earn-past-table thead th[data-sort]').forEach(th => {
+                const isActive = th.dataset.sort === earn_pastSortKey;
+                th.classList.toggle('sort-active', isActive);
+                const arrow = th.querySelector('.earn-sort-arrow');
+                if (arrow) arrow.textContent = (isActive && !earn_pastSortDesc) ? '\u25b2' : '\u25bc';
+            });
+
+            const table = document.querySelector('.earn-past-table');
+            if (table) table.classList.add('no-animate');
+            earn_renderWithdrawnAssets();
+            if (table) requestAnimationFrame(() => table.classList.remove('no-animate'));
         }
 
         function earn_copyAddr(addr, el) {
@@ -29189,16 +29162,24 @@
                 return;
             }
 
-            // Sort by yield USD descending (most earned first)
-            inactiveItems.sort((a, b) => earn_compareBigInt(
-                earn_absUsdScaled(b.yieldUsdScaled || 0n),
-                earn_absUsdScaled(a.yieldUsdScaled || 0n)
-            ));
+            if (earn_pastSortKey === 'yield') {
+                inactiveItems.sort((a, b) => {
+                    const diff = earn_compareBigInt(a.yieldUsdScaled || 0n, b.yieldUsdScaled || 0n);
+                    return earn_pastSortDesc ? -diff : diff;
+                });
+            }
 
             countEl.textContent = inactiveItems.length;
             section.style.display = '';
             earn_openPastDetailIdx = null;
             const explorerBase = earn_getChain().explorer || 'https://etherscan.io';
+
+            document.querySelectorAll('.earn-past-table thead th[data-sort]').forEach(th => {
+                const isActive = th.dataset.sort === earn_pastSortKey;
+                th.classList.toggle('sort-active', isActive);
+                const arrow = th.querySelector('.earn-sort-arrow');
+                if (arrow) arrow.textContent = (isActive && !earn_pastSortDesc) ? '\u25b2' : '\u25bc';
+            });
 
             // Render rows in exact Earn-row UX
             tbody.innerHTML = inactiveItems.map((item, i) => {
@@ -29262,7 +29243,7 @@
                                 <div class="earn-token-info">
                                         <div class="earn-token-name">${item.symbol} ${chevron}</div>
                                         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:3px">
-                                        <span class="earn-hist-badge withdrawn"><span class="earn-status-dot"></span>${item.isCollateralized ? 'BORROW' : 'WITHDRAWN'}</span>
+                                        <span class="earn-hist-badge withdrawn"${item.isCollateralized ? ' data-tip="Supply balance is currently parked as collateral inside an open borrow account"' : ''}><span class="earn-status-dot"></span>${item.isCollateralized ? 'BORROW' : 'WITHDRAWN'}</span>
                                         ${verifyBadge}
                                         ${sourceBadge}
                                     </div>
@@ -29360,6 +29341,11 @@
             } else if (key === 'debt') {
                 earn_lendingPositions.sort((a, b) => {
                     const diff = (a.debtUSD || 0) - (b.debtUSD || 0);
+                    return earn_lendSortDesc ? -diff : diff;
+                });
+            } else if (key === 'pnl') {
+                earn_lendingPositions.sort((a, b) => {
+                    const diff = (a.netAccrued || 0) - (b.netAccrued || 0);
                     return earn_lendSortDesc ? -diff : diff;
                 });
             }
@@ -29767,7 +29753,7 @@
                                     ${iconHtml}
                                     <div class="earn-token-info">
                                         <div class="earn-token-name">${item.symbol}</div>
-                                        <span class="earn-hist-badge withdrawn"><span class="earn-status-dot"></span>${item.isCollateralized ? 'BORROW' : 'WITHDRAWN'}</span>
+                                        <span class="earn-hist-badge withdrawn"${item.isCollateralized ? ' data-tip="Supply balance is currently parked as collateral inside an open borrow account"' : ''}><span class="earn-status-dot"></span>${item.isCollateralized ? 'BORROW' : 'WITHDRAWN'}</span>
                                     </div>
                                 </div>
                             </div>
@@ -30108,7 +30094,6 @@
             }
             // Update dust count — only count dust from VISIBLE items
             const dustToggle = document.getElementById('earn-dust-toggle');
-            const dustInput = document.getElementById('earn-dust-input');
             if (dustToggle) {
                 let dustCount = 0;
                 // Count dust in active supply assets (always visible)
@@ -30131,17 +30116,15 @@
                         if (earn_isSubDollarYieldPair(balanceUsdScaled, item.yieldUsdScaled || 0n)) dustCount++;
                     });
                 }
-                const countBadge = dustToggle.querySelector('.earn-dust-count');
                 if (dustCount > 0) {
                     dustToggle.style.display = '';
                     // active = filter ON = dust HIDDEN
                     dustToggle.classList.toggle('active', !earn_showDust);
-                    if (dustInput) dustInput.checked = !earn_showDust;
-                    if (countBadge) countBadge.textContent = dustCount;
+                    dustToggle.setAttribute('aria-checked', String(!earn_showDust));
                 } else {
                     // No visible dust → hide the button entirely
                     dustToggle.style.display = 'none';
-                    if (dustInput) dustInput.checked = false;
+                    dustToggle.setAttribute('aria-checked', 'false');
                 }
             }
 
