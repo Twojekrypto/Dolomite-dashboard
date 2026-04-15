@@ -10000,24 +10000,42 @@
         .earn-loading-card {
             position: relative;
             overflow: hidden;
-            border-radius: 24px;
-            padding: 26px 24px 24px;
+            isolation: isolate;
+            border-radius: 28px;
+            padding: 28px 28px 24px;
             background:
-                radial-gradient(circle at top right, rgba(52, 211, 153, 0.16), transparent 38%),
-                radial-gradient(circle at bottom left, rgba(99, 102, 241, 0.18), transparent 34%),
-                linear-gradient(180deg, rgba(15, 23, 42, 0.94), rgba(15, 23, 42, 0.88));
-            border: 1px solid rgba(148, 163, 184, 0.14);
-            box-shadow: 0 28px 64px rgba(15, 23, 42, 0.34);
+                radial-gradient(circle at top right, rgba(52, 211, 153, 0.18), transparent 32%),
+                radial-gradient(circle at bottom left, rgba(34, 211, 238, 0.16), transparent 30%),
+                linear-gradient(160deg, rgba(6, 11, 20, 0.98), rgba(9, 19, 29, 0.95) 42%, rgba(9, 13, 22, 0.96) 100%);
+            border: 1px solid rgba(110, 231, 183, 0.14);
+            box-shadow:
+                0 32px 72px rgba(2, 6, 23, 0.56),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
         }
 
         .earn-loading-card::before {
             content: '';
             position: absolute;
             inset: 0;
-            background: linear-gradient(120deg, transparent 12%, rgba(255,255,255,0.06) 28%, transparent 44%);
+            background: linear-gradient(120deg, transparent 12%, rgba(255,255,255,0.08) 28%, transparent 44%);
             transform: translateX(-120%);
             animation: earnLoadingSweep 2.8s ease-in-out infinite;
             pointer-events: none;
+            z-index: 0;
+        }
+
+        .earn-loading-card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 28px 28px;
+            mask-image: linear-gradient(180deg, rgba(0,0,0,0.4), transparent 78%);
+            opacity: 0.16;
+            pointer-events: none;
+            z-index: 0;
         }
 
         @keyframes earnLoadingSweep {
@@ -10028,25 +10046,36 @@
 
         .earn-loading-topline {
             display: flex;
-            align-items: flex-start;
+            align-items: center;
             justify-content: space-between;
-            gap: 16px;
-            margin-bottom: 18px;
+            flex-wrap: wrap;
+            gap: 12px 16px;
+            margin-bottom: 22px;
+            position: relative;
+            z-index: 1;
         }
 
         .earn-loading-badge {
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            padding: 8px 12px;
+            flex-wrap: wrap;
+            padding: 10px 14px;
             border-radius: 999px;
-            background: rgba(52, 211, 153, 0.12);
-            border: 1px solid rgba(52, 211, 153, 0.22);
+            background: rgba(52, 211, 153, 0.1);
+            border: 1px solid rgba(52, 211, 153, 0.18);
             color: #6ee7b7;
             font-size: 11px;
             font-weight: 700;
-            letter-spacing: 0.45px;
+            letter-spacing: 0.4px;
             text-transform: uppercase;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+        }
+
+        .earn-loading-badge.is-cached {
+            background: rgba(34, 211, 238, 0.1);
+            border-color: rgba(34, 211, 238, 0.18);
+            color: #67e8f9;
         }
 
         .earn-loading-badge strong {
@@ -10054,18 +10083,49 @@
             font-weight: 700;
         }
 
+        .earn-loading-chiprow {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .earn-loading-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            min-height: 32px;
+            padding: 8px 11px;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, 0.08);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            color: rgba(226, 232, 240, 0.82);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.28px;
+        }
+
         .earn-loading-main {
             display: grid;
-            grid-template-columns: minmax(0, 1.15fr) minmax(220px, 0.85fr);
-            gap: 22px;
+            grid-template-columns: minmax(0, 1.24fr) minmax(300px, 0.76fr);
+            gap: 24px;
             align-items: start;
+            position: relative;
+            z-index: 1;
         }
 
         .earn-loading-intro {
             display: flex;
             flex-direction: column;
-            gap: 14px;
+            gap: 18px;
             min-width: 0;
+        }
+
+        .earn-loading-hero {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
 
         .earn-loading-kicker {
@@ -10090,10 +10150,11 @@
 
         .earn-loading-title {
             margin: 0;
-            font-size: clamp(24px, 3vw, 34px);
-            line-height: 1.05;
+            font-size: clamp(30px, 3.2vw, 42px);
+            line-height: 0.98;
             letter-spacing: -0.03em;
             color: #f8fafc;
+            max-width: 14ch;
         }
 
         .earn-loading-subtitle {
@@ -10101,20 +10162,119 @@
             font-size: 14px;
             line-height: 1.7;
             color: rgba(226, 232, 240, 0.74);
-            max-width: 640px;
+            max-width: 62ch;
+        }
+
+        .earn-loading-hero-metrics {
+            display: grid;
+            grid-template-columns: 220px minmax(0, 1fr);
+            gap: 18px;
+            align-items: stretch;
+        }
+
+        .earn-loading-ringwrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .earn-loading-ring {
+            --earn-progress: 0;
+            position: relative;
+            width: min(220px, 100%);
+            aspect-ratio: 1;
+            border-radius: 50%;
+            padding: 16px;
+            background:
+                conic-gradient(
+                    from -90deg,
+                    rgba(52, 211, 153, 1) 0%,
+                    rgba(34, 211, 238, 0.96) calc(var(--earn-progress) * 1%),
+                    rgba(255, 255, 255, 0.08) 0 100%
+                );
+            box-shadow:
+                0 18px 42px rgba(2, 6, 23, 0.36),
+                0 0 0 1px rgba(255,255,255,0.04);
+        }
+
+        .earn-loading-ring::before {
+            content: '';
+            position: absolute;
+            inset: 8px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 50% 35%, rgba(52, 211, 153, 0.16), transparent 60%);
+            border: 1px solid rgba(255,255,255,0.06);
+            opacity: 0.95;
+        }
+
+        .earn-loading-ring::after {
+            content: '';
+            position: absolute;
+            inset: 30px;
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.06);
+            opacity: 0.5;
+        }
+
+        .earn-loading-ring-inner {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 22px;
+            background: radial-gradient(circle at top, rgba(12, 20, 31, 0.95), rgba(4, 8, 15, 0.98));
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+        }
+
+        .earn-loading-clock-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.72px;
+            text-transform: uppercase;
+            color: rgba(148, 163, 184, 0.82);
+            margin-bottom: 10px;
+        }
+
+        .earn-loading-clock-value {
+            font-size: clamp(34px, 4vw, 48px);
+            line-height: 0.9;
+            font-weight: 800;
+            letter-spacing: -0.05em;
+            color: #f8fafc;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .earn-loading-clock-sub {
+            margin-top: 10px;
+            font-size: 12px;
+            line-height: 1.45;
+            color: rgba(186, 230, 253, 0.82);
         }
 
         .earn-loading-timing {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 12px;
         }
 
+        .earn-loading-timing .earn-loading-metric:nth-child(3) {
+            grid-column: 1 / -1;
+        }
+
         .earn-loading-metric {
-            padding: 14px 14px 12px;
-            border-radius: 16px;
-            background: rgba(255, 255, 255, 0.035);
-            border: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 16px 16px 14px;
+            border-radius: 18px;
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.02)),
+                rgba(255, 255, 255, 0.028);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
             min-width: 0;
         }
 
@@ -10133,21 +10293,40 @@
             font-weight: 800;
             color: #fff;
             letter-spacing: -0.03em;
+            font-family: 'JetBrains Mono', monospace;
         }
 
         .earn-loading-metric-sub {
-            margin-top: 6px;
+            margin-top: 8px;
             font-size: 11px;
             color: rgba(148, 163, 184, 0.86);
             line-height: 1.5;
         }
 
+        .earn-loading-progressmeta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px 14px;
+        }
+
+        .earn-loading-progressnote {
+            font-size: 11px;
+            line-height: 1.45;
+            color: rgba(191, 219, 254, 0.76);
+        }
+
         .earn-loading-stagecard {
-            padding: 18px 16px;
-            border-radius: 20px;
-            background: rgba(15, 23, 42, 0.58);
+            padding: 20px 18px 18px;
+            border-radius: 24px;
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02)),
+                rgba(6, 11, 20, 0.66);
             border: 1px solid rgba(148, 163, 184, 0.12);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.04),
+                0 16px 40px rgba(2, 6, 23, 0.28);
         }
 
         .earn-loading-stagehead {
@@ -10155,7 +10334,7 @@
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            margin-bottom: 14px;
+            margin-bottom: 18px;
         }
 
         .earn-loading-stageeyebrow {
@@ -10166,37 +10345,58 @@
             color: rgba(148, 163, 184, 0.82);
         }
 
+        .earn-loading-stagelead {
+            margin-top: 4px;
+            font-size: 18px;
+            line-height: 1.1;
+            font-weight: 700;
+            color: #f8fafc;
+            letter-spacing: -0.03em;
+        }
+
         .earn-loading-progresspill {
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            padding: 7px 10px;
+            min-height: 34px;
+            padding: 8px 12px;
             border-radius: 999px;
             background: rgba(34, 211, 238, 0.1);
             border: 1px solid rgba(34, 211, 238, 0.14);
             color: #67e8f9;
             font-size: 11px;
             font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
         }
 
         .earn-loading-progressbar {
             position: relative;
             overflow: hidden;
             width: 100%;
-            height: 10px;
+            height: 12px;
             border-radius: 999px;
             background: rgba(255, 255, 255, 0.07);
             border: 1px solid rgba(255,255,255,0.04);
-            margin-bottom: 14px;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
         }
 
         .earn-loading-progressfill {
             height: 100%;
             width: 0%;
             border-radius: inherit;
-            background: linear-gradient(90deg, #34d399, #22d3ee 62%, #818cf8);
+            background: linear-gradient(90deg, #34d399, #22d3ee 62%, #67e8f9);
             box-shadow: 0 0 18px rgba(34, 211, 238, 0.28);
             transition: width 0.32s ease;
+            position: relative;
+        }
+
+        .earn-loading-progressfill::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.48), transparent);
+            transform: translateX(-100%);
+            animation: earnLoadingSweep 2.6s ease-in-out infinite;
         }
 
         .earn-loading-stages {
@@ -10206,44 +10406,103 @@
 
         .earn-loading-stage {
             display: grid;
-            grid-template-columns: 14px minmax(0, 1fr);
+            grid-template-columns: 36px minmax(0, 1fr);
             gap: 12px;
             align-items: start;
-            padding: 12px 0;
+            padding: 12px 12px;
+            border-radius: 18px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid transparent;
+            transition: border-color 0.22s ease, background 0.22s ease, transform 0.22s ease;
         }
 
         .earn-loading-stage + .earn-loading-stage {
-            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            margin-top: 2px;
         }
 
-        .earn-loading-stage-dot {
-            width: 14px;
-            height: 14px;
+        .earn-loading-stage-index {
+            width: 36px;
+            height: 36px;
             margin-top: 2px;
             border-radius: 50%;
-            border: 2px solid rgba(148, 163, 184, 0.35);
-            background: transparent;
+            border: 1px solid rgba(148, 163, 184, 0.26);
+            background: rgba(15, 23, 42, 0.72);
             box-sizing: border-box;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(226, 232, 240, 0.86);
+            font-size: 12px;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
             transition: all 0.24s ease;
         }
 
-        .earn-loading-stage.is-active .earn-loading-stage-dot {
-            border-color: rgba(34, 211, 238, 0.8);
-            background: rgba(34, 211, 238, 0.28);
-            box-shadow: 0 0 0 6px rgba(34, 211, 238, 0.08);
+        .earn-loading-stage.is-active {
+            border-color: rgba(34, 211, 238, 0.18);
+            background: rgba(34, 211, 238, 0.07);
+            transform: translateY(-1px);
         }
 
-        .earn-loading-stage.is-complete .earn-loading-stage-dot {
+        .earn-loading-stage.is-active .earn-loading-stage-index {
+            border-color: rgba(34, 211, 238, 0.8);
+            color: #67e8f9;
+            box-shadow: 0 0 0 8px rgba(34, 211, 238, 0.08);
+        }
+
+        .earn-loading-stage.is-complete {
+            border-color: rgba(52, 211, 153, 0.14);
+            background: rgba(52, 211, 153, 0.055);
+        }
+
+        .earn-loading-stage.is-complete .earn-loading-stage-index {
             border-color: rgba(52, 211, 153, 0.95);
-            background: #34d399;
-            box-shadow: 0 0 0 6px rgba(52, 211, 153, 0.08);
+            background: rgba(52, 211, 153, 0.15);
+            color: #6ee7b7;
+            box-shadow: 0 0 0 8px rgba(52, 211, 153, 0.06);
+        }
+
+        .earn-loading-stage-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 5px;
         }
 
         .earn-loading-stage-title {
             font-size: 13px;
             font-weight: 700;
             color: rgba(255, 255, 255, 0.92);
-            margin-bottom: 4px;
+            min-width: 0;
+        }
+
+        .earn-loading-stage-status {
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            min-height: 24px;
+            padding: 5px 8px;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.16);
+            background: rgba(148, 163, 184, 0.08);
+            color: rgba(226, 232, 240, 0.72);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.45px;
+            text-transform: uppercase;
+        }
+
+        .earn-loading-stage-status.is-live {
+            color: #67e8f9;
+            border-color: rgba(34, 211, 238, 0.22);
+            background: rgba(34, 211, 238, 0.12);
+        }
+
+        .earn-loading-stage-status.is-done {
+            color: #6ee7b7;
+            border-color: rgba(52, 211, 153, 0.22);
+            background: rgba(52, 211, 153, 0.12);
         }
 
         .earn-loading-stage-body {
@@ -10252,34 +10511,44 @@
             color: rgba(148, 163, 184, 0.88);
         }
 
-        .earn-loading-skeletons {
+        .earn-loading-proof {
             margin-top: 18px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            display: grid;
+            gap: 10px;
+        }
+
+        .earn-loading-proof-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 11px;
+            line-height: 1.5;
+            color: rgba(226, 232, 240, 0.78);
+        }
+
+        .earn-loading-proof-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            background: linear-gradient(135deg, #34d399, #22d3ee);
+            box-shadow: 0 0 12px rgba(34, 211, 238, 0.32);
+        }
+
+        .earn-loading-skeletoncaption {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.72px;
+            text-transform: uppercase;
+            color: rgba(148, 163, 184, 0.82);
+        }
+
+        .earn-loading-skeletons {
             display: flex;
             flex-direction: column;
             gap: 12px;
-        }
-
-        .earn-loading-headline {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            font-size: 14px;
-            color: var(--text-primary);
-            font-weight: 600;
-        }
-
-        .earn-loading-copy {
-            font-size: 12px;
-            color: var(--text-muted);
-            text-align: center;
-        }
-
-        .earn-loading-rows {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            padding-top: 8px;
         }
 
         .earn-loading-rowcard {
@@ -10287,10 +10556,13 @@
             grid-template-columns: 28% 22% 25% 25%;
             align-items: center;
             gap: 16px;
-            padding: 14px 12px;
-            border-radius: 14px;
-            background: rgba(255, 255, 255, 0.025);
-            border: 1px solid rgba(255, 255, 255, 0.04);
+            padding: 15px 14px;
+            border-radius: 18px;
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.018)),
+                rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
         }
 
         .earn-loading-token {
@@ -10307,13 +10579,56 @@
             min-width: 0;
         }
 
-        @media (max-width: 920px) {
+        .earn-loading-rowcard .earn-skeleton-line,
+        .earn-loading-rowcard .earn-skeleton-pill,
+        .earn-loading-rowcard .earn-skeleton-circle {
+            opacity: 0.9;
+        }
+
+        @media (max-width: 1120px) {
             .earn-loading-main {
                 grid-template-columns: 1fr;
             }
 
+            .earn-loading-stagecard {
+                order: 2;
+            }
+        }
+
+        @media (max-width: 920px) {
+            .earn-loading-card {
+                padding: 22px 18px 18px;
+                border-radius: 24px;
+            }
+
+            .earn-loading-main {
+                grid-template-columns: 1fr;
+            }
+
+            .earn-loading-hero-metrics {
+                grid-template-columns: 1fr;
+            }
+
+            .earn-loading-ring {
+                width: min(220px, 84vw);
+            }
+
             .earn-loading-timing {
                 grid-template-columns: 1fr;
+            }
+
+            .earn-loading-timing .earn-loading-metric:nth-child(3) {
+                grid-column: auto;
+            }
+
+            .earn-loading-rowcard {
+                grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+                gap: 14px;
+            }
+
+            .earn-loading-rowcard > :nth-child(3),
+            .earn-loading-rowcard > :nth-child(4) {
+                display: none;
             }
         }
 
@@ -22325,6 +22640,27 @@
             return `${(value / 1000).toFixed(value >= 10000 ? 1 : 2)}s`;
         }
 
+        function earn_formatCountdownClock(ms) {
+            const totalSeconds = Math.max(0, Math.ceil(Number(ms || 0) / 1000));
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        function earn_formatEtaClock(ms) {
+            const remaining = Math.max(0, Number(ms || 0));
+            const eta = new Date(Date.now() + remaining);
+            try {
+                return eta.toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                });
+            } catch (e) {
+                return `${String(eta.getHours()).padStart(2, '0')}:${String(eta.getMinutes()).padStart(2, '0')}`;
+            }
+        }
+
         const EARN_LOOKUP_ESTIMATE_STORAGE_KEY = 'vedolo:earn:lookup-estimates:v1';
         const EARN_LOOKUP_DEFAULT_ESTIMATE_MS = {
             ethereum: 5000,
@@ -22465,14 +22801,24 @@
             const remainingSeconds = Math.ceil(remainingMs / 1000);
             const progressPct = Math.max(8, Math.min(99, Math.round(progress * 100)));
             const activeStageIndex = Math.max(0, Math.min(stages.length - 1, Number(state.stageIndex || 0)));
+            const completedStages = Math.max(0, Math.min(stages.length, activeStageIndex));
             const chainName = EARN_CHAINS[state.chainId]?.name || 'selected network';
             const estimateText = remainingMs > 0
                 ? `about ${remainingSeconds}s left`
                 : 'finalizing…';
+            const countdownClock = earn_formatCountdownClock(remainingMs);
+            const etaClock = earn_formatEtaClock(remainingMs);
             const headerDetail = state.detail || 'We will reveal the dashboard only after the verified view is stable.';
             const topBadge = state.cached
-                ? '<span class="earn-loading-badge"><span class="earn-live-refresh-dot"></span><strong>Warm start</strong> cached snapshot found</span>'
-                : '<span class="earn-loading-badge"><span class="earn-live-refresh-dot"></span><strong>Verified mode</strong> no partial refreshes</span>';
+                ? '<span class="earn-loading-badge is-cached"><span class="earn-live-refresh-dot"></span><strong>Warm start</strong><span>Snapshot cache detected</span></span>'
+                : '<span class="earn-loading-badge"><span class="earn-live-refresh-dot"></span><strong>Verified mode</strong><span>No partial refreshes</span></span>';
+            const statusChips = `
+                <div class="earn-loading-chiprow">
+                    <span class="earn-loading-chip">Accuracy first</span>
+                    <span class="earn-loading-chip">${progressPct}% prepared</span>
+                    <span class="earn-loading-chip">${completedStages}/${stages.length} stages complete</span>
+                </div>
+            `;
 
             const stagesHtml = stages.map((stage, idx) => {
                 const cls = idx < activeStageIndex
@@ -22480,11 +22826,19 @@
                     : idx === activeStageIndex
                         ? 'is-active'
                         : '';
+                const stageStatus = idx < activeStageIndex
+                    ? '<span class="earn-loading-stage-status is-done">Done</span>'
+                    : idx === activeStageIndex
+                        ? '<span class="earn-loading-stage-status is-live">Live</span>'
+                        : '<span class="earn-loading-stage-status">Queued</span>';
                 return `
                     <div class="earn-loading-stage ${cls}">
-                        <div class="earn-loading-stage-dot"></div>
+                        <div class="earn-loading-stage-index">${idx + 1}</div>
                         <div>
-                            <div class="earn-loading-stage-title">${earn_escapeHtml(stage.title)}</div>
+                            <div class="earn-loading-stage-title-row">
+                                <div class="earn-loading-stage-title">${earn_escapeHtml(stage.title)}</div>
+                                ${stageStatus}
+                            </div>
                             <div class="earn-loading-stage-body">${earn_escapeHtml(stage.body)}</div>
                         </div>
                     </div>
@@ -22495,43 +22849,69 @@
                 <div class="earn-loading-card">
                     <div class="earn-loading-topline">
                         ${topBadge}
+                        ${statusChips}
                     </div>
                     <div class="earn-loading-main">
                         <div class="earn-loading-intro">
-                            <div class="earn-loading-kicker">
-                                <span class="earn-loading-kicker-dot"></span>
-                                <span>${earn_escapeHtml(chainName)} EARN</span>
+                            <div class="earn-loading-hero">
+                                <div class="earn-loading-kicker">
+                                    <span class="earn-loading-kicker-dot"></span>
+                                    <span>${earn_escapeHtml(chainName)} EARN</span>
+                                </div>
+                                <h3 class="earn-loading-title">${earn_escapeHtml(state.headline || `Preparing your verified ${chainName} dashboard`)}</h3>
+                                <p class="earn-loading-subtitle">${earn_escapeHtml(headerDetail)}</p>
                             </div>
-                            <h3 class="earn-loading-title">${earn_escapeHtml(state.headline || `Loading verified ${chainName} Earn data`)}</h3>
-                            <p class="earn-loading-subtitle">${earn_escapeHtml(headerDetail)}</p>
-                            <div class="earn-loading-timing">
-                                <div class="earn-loading-metric">
-                                    <div class="earn-loading-metric-label">Time Left</div>
-                                    <div class="earn-loading-metric-value">${earn_escapeHtml(estimateText)}</div>
-                                    <div class="earn-loading-metric-sub">Estimate learns from previous successful loads on this network.</div>
+                            <div class="earn-loading-hero-metrics">
+                                <div class="earn-loading-ringwrap">
+                                    <div class="earn-loading-ring" style="--earn-progress:${progressPct};">
+                                        <div class="earn-loading-ring-inner">
+                                            <div class="earn-loading-clock-label">Estimated time left</div>
+                                            <div class="earn-loading-clock-value">${earn_escapeHtml(countdownClock)}</div>
+                                            <div class="earn-loading-clock-sub">${progressPct}% loaded · ETA ${earn_escapeHtml(etaClock)}</div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="earn-loading-metric">
-                                    <div class="earn-loading-metric-label">Elapsed</div>
-                                    <div class="earn-loading-metric-value">${earn_escapeHtml(earn_formatDuration(elapsedMs))}</div>
-                                    <div class="earn-loading-metric-sub">Accuracy-first loading keeps intermediate data hidden.</div>
-                                </div>
-                                <div class="earn-loading-metric">
-                                    <div class="earn-loading-metric-label">Progress</div>
-                                    <div class="earn-loading-metric-value">${progressPct}%</div>
-                                    <div class="earn-loading-metric-sub">Balances, replay, yield and rewards are being prepared.</div>
+                                <div class="earn-loading-timing">
+                                    <div class="earn-loading-metric">
+                                        <div class="earn-loading-metric-label">Time Left</div>
+                                        <div class="earn-loading-metric-value">${earn_escapeHtml(estimateText)}</div>
+                                        <div class="earn-loading-metric-sub">Estimate learns from successful loads on this network.</div>
+                                    </div>
+                                    <div class="earn-loading-metric">
+                                        <div class="earn-loading-metric-label">Elapsed</div>
+                                        <div class="earn-loading-metric-value">${earn_escapeHtml(earn_formatDuration(elapsedMs))}</div>
+                                        <div class="earn-loading-metric-sub">Intermediate calculations stay hidden until the verified view is stable.</div>
+                                    </div>
+                                    <div class="earn-loading-metric">
+                                        <div class="earn-loading-metric-label">Pipeline</div>
+                                        <div class="earn-loading-metric-value">${completedStages}/${stages.length}</div>
+                                        <div class="earn-loading-metric-sub">Balances, replay, yield and rewards are being assembled in sequence.</div>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="earn-loading-skeletons">${earn_buildLookupSkeletonRows(4)}</div>
-                        </div>
-                        <div class="earn-loading-stagecard">
-                            <div class="earn-loading-stagehead">
-                                <div class="earn-loading-stageeyebrow">Current phase</div>
-                                <div class="earn-loading-progresspill">${progressPct}% ready</div>
+                            <div class="earn-loading-progressmeta">
+                                <span class="earn-loading-progressnote">Verified reveal starts only after the final stable pass is ready.</span>
+                                <span class="earn-loading-progressnote">${progressPct}% of the estimated loading window has been completed.</span>
                             </div>
                             <div class="earn-loading-progressbar">
                                 <div class="earn-loading-progressfill" style="width:${progressPct}%"></div>
                             </div>
+                            <div class="earn-loading-skeletoncaption">Final dashboard preview</div>
+                            <div class="earn-loading-skeletons">${earn_buildLookupSkeletonRows(3)}</div>
+                        </div>
+                        <div class="earn-loading-stagecard">
+                            <div class="earn-loading-stagehead">
+                                <div>
+                                    <div class="earn-loading-stageeyebrow">Verification pipeline</div>
+                                    <div class="earn-loading-stagelead">${earn_escapeHtml(stages[activeStageIndex]?.title || 'Preparing final dashboard')}</div>
+                                </div>
+                                <div class="earn-loading-progresspill">${activeStageIndex + 1}/${stages.length}</div>
+                            </div>
                             <div class="earn-loading-stages">${stagesHtml}</div>
+                            <div class="earn-loading-proof">
+                                <div class="earn-loading-proof-row"><span class="earn-loading-proof-dot"></span>Only verified data will be shown in the final reveal</div>
+                                <div class="earn-loading-proof-row"><span class="earn-loading-proof-dot"></span>Snapshot history, replay and rewards finish before the gate opens</div>
+                            </div>
                         </div>
                     </div>
                 </div>
