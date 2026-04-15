@@ -21979,7 +21979,7 @@
         let earn_activeLookupRunId = 0;
         let earn_merklFetchStatus = 'idle'; // idle | loading | success | error
         let earn_merklFetchError = '';
-        const EARN_LOOKUP_CACHE_VERSION = 5;
+        const EARN_LOOKUP_CACHE_VERSION = 7;
         const EARN_LOOKUP_CACHE_TTL_MS = 10 * 60 * 1000;
         const earn_lookupResultCache = {};
         const EARN_PROFILE_LOGS = true;
@@ -21987,6 +21987,11 @@
 
         function earn_isLookupRunCurrent(runId) {
             return !runId || runId === earn_activeLookupRunId;
+        }
+
+        function earn_startLookupRun() {
+            earn_activeLookupRunId += 1;
+            return earn_activeLookupRunId;
         }
 
         function earn_nowMs() {
@@ -23795,11 +23800,15 @@
             requestAnimationFrame(() => window.scrollTo(0, scrollY));
         }
 
-        async function earn_lookupHistory() {
+        async function earn_lookupHistory(opts) {
+            opts = opts || {};
+            const runId = opts.runId;
+            const allowReplayRetry = opts.allowReplayRetry !== false;
             const addr = document.getElementById('earn-address').value.trim().toLowerCase();
             const chainId = document.getElementById('earn-chain').value;
             const chain = earn_getChain();
-            if (!addr || chain.pending) return;
+            if (!addr || chain.pending) return false;
+            if (!earn_isLookupRunCurrent(runId)) return false;
 
             // Show loading state
             const tbody = document.getElementById('earn-history-tbody');
@@ -23808,12 +23817,20 @@
             // Step 1: Use subgraph netflow data (already loaded or load now)
             try {
                 if (!earn_netflowData) {
+                    if (!allowReplayRetry) {
+                        if (!earn_isLookupRunCurrent(runId)) return false;
+                        earn_historyData = [];
+                        earn_renderHistory([]);
+                        earn_renderWithdrawnAssets();
+                        return false;
+                    }
                     await earn_fetchNetflow(); // Will rebuild the onchain replay
+                    if (!earn_isLookupRunCurrent(runId)) return false;
                 }
                 const addrFlows = earn_netflowData;
                 if (!addrFlows || Object.keys(addrFlows).length === 0) {
                     if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-muted)">No deposit/withdrawal history found for this address</td></tr>';
-                    return;
+                    return false;
                 }
 
                 // Step 2: Get all market IDs from netflow
@@ -23849,6 +23866,7 @@
                     return activeBalances[midStr]?.tokenAddr || collateralBalances[midStr]?.tokenAddr || marketTokens[midStr];
                 }).filter(Boolean);
                 await earn_fetchCoinGeckoPrices(allAddrs);
+                if (!earn_isLookupRunCurrent(runId)) return false;
 
                 // Step 7: Build history data
                 const historyItems = [];
@@ -23927,13 +23945,17 @@
                     });
                 }
 
+                if (!earn_isLookupRunCurrent(runId)) return false;
                 earn_historyData = historyItems;
                 earn_refreshHistoryYieldData();
                 earn_renderHistory(earn_historyData);
                 earn_renderWithdrawnAssets(); // Populate withdrawn assets collapsible section
+                return true;
             } catch (e) {
+                if (!earn_isLookupRunCurrent(runId)) return false;
                 console.error('History lookup failed:', e);
                 if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--accent-rose)">Error loading history: ${e.message}</td></tr>`;
+                return false;
             }
         }
 
@@ -25418,7 +25440,7 @@
                     : replayVerificationPending
                         ? 'interest-ledger-pending'
                         : 'interest-ledger-override';
-            } else if (hasSnapshotData && snapshotCandidate !== null && isReasonableActiveYield(snapshotCandidate)) {
+            } else if (snapshotTrusted && snapshotCandidate !== null && isReasonableActiveYield(snapshotCandidate)) {
                 totalYield = snapshotCandidate;
                 method = snapshotMethod;
             } else if (allowAcct0Netflow && hasAcct0Netflow) {
@@ -25998,6 +26020,16 @@
             }
         }
 
+        function earn_canUseVerifiedLedgerMarketEntry(entry) {
+            if (!entry || typeof entry !== 'object') return false;
+            const status = String(entry.status || '').trim().toLowerCase();
+            const method = String(entry.method || '').trim().toLowerCase();
+            if (status === 'verified' || status === 'no_netflow') return true;
+            if (status === 'mismatch' || status === 'unverified' || status === 'pending') return false;
+            if (method === 'snapshot-fallback') return false;
+            return !status;
+        }
+
         // Get historical market data for a specific address from a snapshot
         function earn_getHistoricalMarkets(snapshot, chainId, address) {
             if (!snapshot || !snapshot.snapshots) return null;
@@ -26014,10 +26046,13 @@
         async function earn_fetchTotalYield(opts) {
             opts = opts || {};
             const suppressRender = !!opts.suppressRender;
-            earn_totalYieldData = {};
-            earn_totalYieldDays = 0;
+            const runId = opts.runId;
+            if (!earn_isLookupRunCurrent(runId)) return false;
+            const nextTotalYieldData = {};
+            let nextTotalYieldDays = 0;
             if (!earn_snapshotManifest) await earn_loadManifest();
-            if (!earn_snapshotManifest) return;
+            if (!earn_isLookupRunCurrent(runId)) return false;
+            if (!earn_snapshotManifest) return false;
 
             const chainId = document.getElementById('earn-chain').value;
             const addr = document.getElementById('earn-address').value.trim();
@@ -26030,11 +26065,22 @@
             const yieldHeader = document.getElementById('earn-total-yield-header');
             if (yieldHeader) yieldHeader.textContent = 'Loading...';
 
+            // Needed markets come from visible active assets plus any netflow history for this address.
+            const neededMarkets = new Set((earn_cachedAssets || []).map(a => String(a.marketId)));
+            Object.keys(earn_netflowData || {}).forEach(mid => neededMarkets.add(String(mid)));
+
             // Preferred source: precomputed verified ledger for this exact address+chain.
             const verifiedLedger = await earn_fetchVerifiedLedgerForAddress(chainId, addr);
+            let trustedLedgerMarkets = 0;
+            let deferredLedgerMarkets = 0;
             if (verifiedLedger && verifiedLedger.markets && Object.keys(verifiedLedger.markets).length > 0) {
+                if (!earn_isLookupRunCurrent(runId)) return false;
                 Object.entries(verifiedLedger.markets).forEach(([mid, m]) => {
-                    earn_totalYieldData[String(mid)] = {
+                    if (!earn_canUseVerifiedLedgerMarketEntry(m)) {
+                        if (neededMarkets.has(String(mid))) deferredLedgerMarkets++;
+                        return;
+                    }
+                    nextTotalYieldData[String(mid)] = {
                         cumulativeYield: String(m.cumulativeYield || '0'),
                         days: Number(m.days || 0),
                         firstDate: m.firstDate || '',
@@ -26047,38 +26093,46 @@
                         method: String(m.method || ''),
                         snapshotCount: (m.firstDate && m.lastDate && m.firstDate !== m.lastDate) ? 2 : 1,
                     };
+                    trustedLedgerMarkets++;
+                    nextTotalYieldDays = Math.max(nextTotalYieldDays, Number(m.days || 0));
                 });
+                if (trustedLedgerMarkets > 0) {
+                    console.log(
+                        'Total yield: loaded trusted verified ledger entries for',
+                        trustedLedgerMarkets,
+                        'markets',
+                        deferredLedgerMarkets > 0 ? `(deferred ${deferredLedgerMarkets} markets to snapshot series)` : ''
+                    );
+                }
+            }
+            const marketsToCompute = new Set(Array.from(neededMarkets).filter(mid => !Object.prototype.hasOwnProperty.call(nextTotalYieldData, String(mid))));
+            if (marketsToCompute.size === 0 && trustedLedgerMarkets > 0) {
+                if (!earn_isLookupRunCurrent(runId)) return false;
+                earn_totalYieldData = nextTotalYieldData;
+                earn_totalYieldDays = nextTotalYieldDays;
                 if (yieldHeader) yieldHeader.textContent = 'Total Yield Earned ✓ Verified';
-                console.log(
-                    'Total yield: loaded precomputed verified ledger for',
-                    Object.keys(verifiedLedger.markets).length,
-                    'markets'
-                );
                 earn_refreshHistoryYieldData();
                 if (!suppressRender) {
                     earn_renderHistory(earn_historyData || []);
                     earn_renderWithdrawnAssets();
                     if (earn_cachedAssets) earn_renderResults(earn_cachedAssets, { skipSummary: true });
                 }
-                return;
+                return true;
             }
-
-            // Get all market IDs from current assets
-            const neededMarkets = new Set((earn_cachedAssets || []).map(a => String(a.marketId)));
-            Object.keys(earn_netflowData || {}).forEach(mid => neededMarkets.add(String(mid)));
 
             // Collect ALL snapshots with user data per market
             const marketHistory = {};
-            for (const mid of neededMarkets) marketHistory[mid] = [];
+            for (const mid of marketsToCompute) marketHistory[mid] = [];
 
             for (let i = 0; i < chainDates.length; i++) {
+                if (!earn_isLookupRunCurrent(runId)) return false;
                 const dateStr = chainDates[i];
                 const snapshot = await earn_fetchSnapshot(dateStr);
                 if (!snapshot) continue;
                 const markets = earn_getHistoricalMarkets(snapshot, chainId, addr);
                 if (!markets) continue;
 
-                for (const mid of neededMarkets) {
+                for (const mid of marketsToCompute) {
                     if (markets[mid]) {
                         marketHistory[mid].push({
                             date: dateStr,
@@ -26091,7 +26145,7 @@
 
             // Compute pairwise index-based yield per market
             let marketsWithData = 0;
-            for (const mid of neededMarkets) {
+            for (const mid of marketsToCompute) {
                 const history = marketHistory[mid];
                 if (history.length < 2) continue;
 
@@ -26112,7 +26166,7 @@
                 const ld = new Date(last.date + 'T00:00:00Z');
                 const days = Math.max(1, Math.round((ld - sd) / 86400000));
 
-                earn_totalYieldData[mid] = {
+                nextTotalYieldData[mid] = {
                     cumulativeYield: cumulativeYield.toString(),
                     days: days,
                     firstDate: first.date,
@@ -26121,12 +26175,23 @@
                     lastWei: last.wei.toString(),
                     snapshotCount: history.length,
                 };
+                nextTotalYieldDays = Math.max(nextTotalYieldDays, days);
                 marketsWithData++;
             }
 
-            if (marketsWithData > 0) {
+            if (!earn_isLookupRunCurrent(runId)) return false;
+            earn_totalYieldData = nextTotalYieldData;
+            earn_totalYieldDays = nextTotalYieldDays;
+            if (trustedLedgerMarkets > 0 && marketsWithData === 0) {
+                if (yieldHeader) yieldHeader.textContent = 'Total Yield Earned ✓ Verified';
+            } else if (marketsWithData > 0 || trustedLedgerMarkets > 0) {
                 if (yieldHeader) yieldHeader.textContent = 'Total Yield Earned ✓';
-                console.log('Total yield: computed index-based yield for', marketsWithData, 'markets');
+                console.log(
+                    'Total yield: computed index-based yield for',
+                    marketsWithData,
+                    'markets',
+                    trustedLedgerMarkets > 0 ? `after keeping ${trustedLedgerMarkets} trusted ledger markets` : ''
+                );
             } else {
                 if (yieldHeader) yieldHeader.textContent = 'Total Yield Earned';
             }
@@ -26137,6 +26202,7 @@
                 earn_renderWithdrawnAssets();
                 if (earn_cachedAssets) earn_renderResults(earn_cachedAssets, { skipSummary: true });
             }
+            return true;
         }
 
         // === External Rewards: MERKL WLFI + oDOLO per-position ===
@@ -27710,7 +27776,7 @@
                             <div class="spinner" style="display:inline-block;width:24px;height:24px;border:2px solid rgba(255,255,255,0.1);border-top-color:#34d399;border-radius:50%;animation:earnSpin 0.8s linear infinite"></div>
                             <span>${earn_escapeHtml(message || 'Loading verified Earn data...')}</span>
                         </div>
-                        <div class="earn-loading-copy">Fetching balances, replay history, total yield, and pricing before the first render.</div>
+                        <div class="earn-loading-copy">Showing balances first, then enriching the view with replay checks, pricing, and yield history.</div>
                         <div class="earn-loading-rows">${earn_buildLookupSkeletonRows(6)}</div>
                     </div>
                 </td></tr>`;
@@ -27880,6 +27946,8 @@
                 return;
             }
 
+            const lookupRunId = earn_startLookupRun();
+            const isCurrentLookup = () => earn_isLookupRunCurrent(lookupRunId);
             const cachedLookup = earn_loadLookupCache(chainId, addr);
             const lookupProfile = earn_createLookupProfiler(chainId, addr, !!cachedLookup);
             earn_hideAll();
@@ -27933,16 +28001,20 @@
 
                 const replayBlockTagPromise = earn_rpcRequest('eth_blockNumber', [], 3)
                     .then(blockTag => {
-                        earn_replayBlockTag = blockTag;
+                        if (isCurrentLookup()) {
+                            earn_replayBlockTag = blockTag;
+                        }
                         return blockTag;
                     });
 
                 const replayPromise = replayBlockTagPromise.then(blockTag => earn_fetchNetflow({ blockTag }))
                     .then(() => {
+                        if (!isCurrentLookup()) return false;
                         earn_markLookupProfile(lookupProfile, 'replay');
                         return true;
                     })
                     .catch(netflowErr => {
+                        if (!isCurrentLookup()) return false;
                         earn_markLookupProfile(lookupProfile, 'replay');
                         earn_lastReplayError = netflowErr;
                         console.warn('Onchain replay failed, continuing with fallback balances:', netflowErr);
@@ -27962,9 +28034,11 @@
                 try {
                     const replayBlockTag = await replayBlockTagPromise;
                     balances = await earn_fetchActiveSupplyBalances(addr, { blockTag: replayBlockTag });
+                    if (!isCurrentLookup()) return;
                     earn_markLookupProfile(lookupProfile, 'balances');
                     earn_setLookupProfileExtra(lookupProfile, 'active balances', balances.length);
                 } catch (balanceErr) {
+                    if (!isCurrentLookup()) return;
                     earn_markLookupProfile(lookupProfile, 'balances');
                     earn_showError('Balance lookup failed: ' + balanceErr.message);
                     earn_logLookupProfile(lookupProfile, 'failed');
@@ -27983,6 +28057,7 @@
                         const borrowTokenAddrs = earn_borrowPositionData.map(bp => bp.tokenAddr).filter(Boolean);
                         const collateralTokenAddrs = earn_collateralPositionData.map(cp => cp.tokenAddr).filter(Boolean);
                         await earn_fetchCoinGeckoPrices([...borrowTokenAddrs, ...collateralTokenAddrs]);
+                        if (!isCurrentLookup()) return;
                         earn_markLookupProfile(lookupProfile, 'prices');
 
                         // Build enriched array with only borrow positions
@@ -28007,13 +28082,15 @@
                         enriched.sort((a, b) => b.usdValue - a.usdValue);
                         earn_lookupLoading = false;
                         earn_lookupUsingCachedSnapshot = false;
+                        earn_setResultsRefreshing(false);
                         earn_markLookupProfile(lookupProfile, 'firstRenderReady');
-                        earn_renderResults(enriched);
+                        earn_renderResults(enriched, { skipSummary: false, softRefresh: !!cachedLookup });
                         earn_logLookupProfile(lookupProfile, 'firstRenderReady');
 
                         // Also fetch lending positions
-                        const lendingPromise = earn_fetchAndRenderLendingPositions()
+                        const lendingPromise = earn_fetchAndRenderLendingPositions({ runId: lookupRunId })
                             .then(result => {
+                                if (!isCurrentLookup()) return result;
                                 earn_markLookupProfile(lookupProfile, 'lending');
                                 return result;
                             })
@@ -28026,17 +28103,25 @@
                         }
 
                         // Also auto-load history for withdrawn assets
-                        earn_lookupHistory().then(() => {
-                            earn_markLookupProfile(lookupProfile, 'history');
-                            if (earn_cachedAssets) earn_renderResults(earn_cachedAssets, { skipSummary: false });
+                        earn_lookupHistory({ runId: lookupRunId, allowReplayRetry: false }).then(ok => {
+                            if (!isCurrentLookup()) return Promise.allSettled([lendingPromise]);
+                            if (ok) {
+                                earn_markLookupProfile(lookupProfile, 'history');
+                                const tblRef = document.querySelector('.earn-asset-table');
+                                if (tblRef) tblRef.classList.add('no-animate');
+                                if (earn_cachedAssets) earn_renderResults(earn_cachedAssets, { skipSummary: false, softRefresh: true });
+                            }
                             return Promise.allSettled([lendingPromise]).then(() => {
+                                if (!isCurrentLookup()) return;
                                 earn_markLookupProfile(lookupProfile, 'complete');
                                 earn_logLookupProfile(lookupProfile, 'complete');
                                 earn_saveLookupCache(chainId, addr);
                             });
                         }).catch(e => {
+                            if (!isCurrentLookup()) return Promise.allSettled([lendingPromise]);
                             console.warn('History load:', e);
                             return Promise.allSettled([lendingPromise]).then(() => {
+                                if (!isCurrentLookup()) return;
                                 earn_markLookupProfile(lookupProfile, 'complete');
                                 earn_logLookupProfile(lookupProfile, 'complete');
                                 earn_saveLookupCache(chainId, addr);
@@ -28049,8 +28134,10 @@
                     // Check if there's netflow history for this address
                     try {
                         const nfResp = await fetch(`${NETFLOW_BASE}/${chainId}.json`);
+                        if (!isCurrentLookup()) return;
                         if (nfResp.ok) {
                             const nfData = await nfResp.json();
+                            if (!isCurrentLookup()) return;
                             const addrFlows = nfData.netflows && nfData.netflows[addr.toLowerCase()];
                             if (addrFlows && Object.keys(addrFlows).length > 0) {
                                 // Has history but no active deposits — auto-enable inactive toggle
@@ -28065,7 +28152,8 @@
                                     if (icon) icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
                                 }
                                 // Load history and render in unified view
-                                earn_lookupHistory().then(() => {
+                                earn_lookupHistory({ runId: lookupRunId, allowReplayRetry: false }).then(() => {
+                                    if (!isCurrentLookup()) return;
                                     earn_markLookupProfile(lookupProfile, 'history');
                                     earn_markLookupProfile(lookupProfile, 'complete');
                                     earn_logLookupProfile(lookupProfile, 'complete');
@@ -28078,6 +28166,7 @@
                         }
                     } catch (e) { /* ignore netflow check failure */ }
 
+                    if (!isCurrentLookup()) return;
                     const emptyMsg = document.getElementById('earn-empty-msg');
                     emptyMsg.textContent = 'This address has no active deposits on Dolomite';
                     
@@ -28101,6 +28190,7 @@
                     ...earn_collateralPositionData.map(b => b.tokenAddr).filter(Boolean),
                     ...earn_borrowPositionData.map(b => b.tokenAddr).filter(Boolean),
                 ]).then(result => {
+                    if (!isCurrentLookup()) return result;
                     earn_markLookupProfile(lookupProfile, 'prices');
                     return result;
                 });
@@ -28121,6 +28211,7 @@
 
                 // Single batch RPC call for all token info
                 const batchResults = batchCalls.length > 0 ? await earn_rpcBatch(batchCalls) : [];
+                if (!isCurrentLookup()) return;
 
                 // Parse batch results
                 const tokenRaw = balances.map(() => ({ symHex: null, decHex: null }));
@@ -28138,6 +28229,7 @@
                     ? fetch(`https://api.dolomite.io/tokens/${doloChainId}/interest-rates?exclude-odolo=false`)
                         .then(r => r.ok ? r.json() : null)
                         .then(json => {
+                            if (!isCurrentLookup()) return;
                             if (!json || !json.interestRates) return;
                             json.interestRates.forEach(r => {
                                 const addr = (r.token.tokenAddress || '').toLowerCase();
@@ -28187,10 +28279,12 @@
                             earn_markLookupProfile(lookupProfile, 'apy');
                         })
                         .catch(e => {
+                            if (!isCurrentLookup()) return;
                             earn_markLookupProfile(lookupProfile, 'apy');
                             console.warn('Dolomite APY fetch:', e);
                         })
                     : Promise.resolve().then(() => {
+                        if (!isCurrentLookup()) return;
                         earn_markLookupProfile(lookupProfile, 'apy');
                     });
 
@@ -28278,12 +28372,14 @@
                     });
                 };
 
-                const totalYieldPromise = earn_fetchTotalYield({ suppressRender: true })
+                const totalYieldPromise = earn_fetchTotalYield({ suppressRender: true, runId: lookupRunId })
                     .then(result => {
+                        if (!isCurrentLookup()) return result;
                         earn_markLookupProfile(lookupProfile, 'totalYield');
                         return result;
                     })
                     .catch(e => {
+                        if (!isCurrentLookup()) return false;
                         earn_markLookupProfile(lookupProfile, 'totalYield');
                         console.warn('Total yield load:', e);
                     });
@@ -28329,10 +28425,19 @@
                 earn_lookupUsingCachedSnapshot = false;
                 earn_setResultsRefreshing(false);
                 earn_markLookupProfile(lookupProfile, 'firstRenderReady');
-                earn_renderResults(enriched, { skipSummary: false });
+                earn_renderResults(enriched, { skipSummary: false, softRefresh: !!cachedLookup });
                 earn_logLookupProfile(lookupProfile, 'firstRenderReady');
 
+                const lendingPromise = earn_fetchAndRenderLendingPositions({ runId: lookupRunId })
+                    .then(result => {
+                        if (!isCurrentLookup()) return result;
+                        earn_markLookupProfile(lookupProfile, 'lending');
+                        return result;
+                    })
+                    .catch(e => console.warn('Lending load:', e));
+
                 const pricesRefreshPromise = pricesPromise.then(() => {
+                    if (!isCurrentLookup()) return false;
                     updateAssetUsdValuesFromPriceCache();
                     sortEnrichedAssets();
                     earn_cachedAssets = enriched;
@@ -28342,58 +28447,59 @@
                     return false;
                 });
 
-                // Batch background data (APY + history + total yield) → single re-render
+                const historyPromise = Promise.allSettled([replayPromise, totalYieldPromise])
+                    .then(() => {
+                        if (!isCurrentLookup()) return false;
+                        return earn_lookupHistory({ runId: lookupRunId, allowReplayRetry: false });
+                    })
+                    .then(result => {
+                        if (!isCurrentLookup()) return false;
+                        if (result) earn_markLookupProfile(lookupProfile, 'history');
+                        return !!result;
+                    })
+                    .catch(e => {
+                        if (!isCurrentLookup()) return false;
+                        console.warn('History load:', e);
+                        return false;
+                    });
+
+                // Batch background data (APY + replay + prices + history + total yield) → single soft refresh
                 Promise.allSettled([
                     pricesRefreshPromise,
                     apyPromise,
                     totalYieldPromise,
                     replayPromise.then(ok => {
+                        if (!isCurrentLookup()) return null;
                         if (!ok) return null;
                         earn_refreshReplayVerificationFromCachedPositions();
                         return true;
                     }),
+                    historyPromise,
                 ]).then(() => {
+                    if (!isCurrentLookup()) return Promise.allSettled([lendingPromise]);
                     earn_lookupLoading = false;
                     earn_lookupUsingCachedSnapshot = false;
                     earn_setResultsRefreshing(false);
-                    earn_renderResults(enriched, { skipSummary: false });
-                    const lendingPromise = earn_fetchAndRenderLendingPositions()
-                        .then(result => {
-                            earn_markLookupProfile(lookupProfile, 'lending');
-                            return result;
-                        })
-                        .catch(e => console.warn('Lending load:', e));
                     const tblRef = document.querySelector('.earn-asset-table');
                     if (tblRef) tblRef.classList.add('no-animate');
-
-                    earn_lookupHistory()
-                        .then(() => {
-                            earn_markLookupProfile(lookupProfile, 'history');
-                            if (earn_cachedAssets) {
-                                earn_renderResults(earn_cachedAssets, { skipSummary: false });
-                            }
-                            return Promise.allSettled([lendingPromise]).then(() => {
-                                earn_markLookupProfile(lookupProfile, 'complete');
-                                earn_logLookupProfile(lookupProfile, 'complete');
-                                earn_saveLookupCache(chainId, addr);
-                            });
-                        })
-                        .catch(e => {
-                            console.warn('History load:', e);
-                            return Promise.allSettled([lendingPromise]).then(() => {
-                                earn_markLookupProfile(lookupProfile, 'complete');
-                                earn_logLookupProfile(lookupProfile, 'complete');
-                                earn_saveLookupCache(chainId, addr);
-                            });
-                        });
+                    earn_renderResults(enriched, { skipSummary: false, softRefresh: true });
+                    return Promise.allSettled([lendingPromise]).then(() => {
+                        if (!isCurrentLookup()) return;
+                        earn_markLookupProfile(lookupProfile, 'complete');
+                        earn_logLookupProfile(lookupProfile, 'complete');
+                        earn_saveLookupCache(chainId, addr);
+                    });
                 });
             } catch (e) {
+                if (!isCurrentLookup()) return;
                 console.error('EARN lookup error:', e, e.stack);
                 earn_showError('Failed to fetch data from RPC. Please try again.');
                 earn_logLookupProfile(lookupProfile, 'failed');
             } finally {
-                btn.classList.remove('loading');
-                btn.disabled = false;
+                if (isCurrentLookup()) {
+                    btn.classList.remove('loading');
+                    btn.disabled = false;
+                }
             }
         }
 
@@ -28620,11 +28726,14 @@
             }).join('');
         }
 
-        async function earn_fetchAndRenderLendingPositions() {
+        async function earn_fetchAndRenderLendingPositions(opts) {
+            opts = opts || {};
+            const runId = opts.runId;
             const section = document.getElementById('earn-lending-section');
             const tbody = document.getElementById('earn-lending-tbody');
             const countEl = document.getElementById('earn-lending-count');
             if (!section || !tbody) return;
+            if (!earn_isLookupRunCurrent(runId)) return null;
 
             const addr = document.getElementById('earn-address').value.trim().toLowerCase();
             const chainName = earn_getChain().name.toLowerCase();
@@ -28665,6 +28774,7 @@
                 ]) : Promise.resolve(null);
 
                 const data = await liqRiskPromise;
+                if (!earn_isLookupRunCurrent(runId)) return null;
                 if (!data) { section.style.display = 'none'; return; }
                 const positions = (data.positions || []).filter(p =>
                     p.address.toLowerCase() === addr && p.chain.toLowerCase() === chainKey
@@ -28682,11 +28792,17 @@
 
                 // ═══ ENRICH with subgraph data (par values + interest indexes) ═══
                 const sgResult = await sgPromise;
+                if (!earn_isLookupRunCurrent(runId)) return null;
                 // Await external rewards data
-                earn_merklRewards = await merklPromise;
+                const merklData = await merklPromise;
+                if (!earn_isLookupRunCurrent(runId)) return null;
+                earn_merklRewards = merklData;
                 earn_merklRewardsLoaded = true;
-                earn_odoloMeta = await odoloMetaPromise;
+                const odoloMeta = await odoloMetaPromise;
+                if (!earn_isLookupRunCurrent(runId)) return null;
+                earn_odoloMeta = odoloMeta;
                 await Promise.allSettled(rewardFetches); // ensure iBGT/dGMX data is populated
+                if (!earn_isLookupRunCurrent(runId)) return null;
 
                 if (sgResult) {
                     const [bpData, ixData, marketData] = sgResult;
@@ -28921,6 +29037,7 @@
                     const hb = b.healthFactor ?? 999;
                     return ha - hb;
                 });
+                if (!earn_isLookupRunCurrent(runId)) return null;
 
                 const FLAME_SVG = '<svg class="earn-emode-flame" viewBox="0 0 24 24" fill="none"><path d="M12 2c0 4-4 6-4 10a4 4 0 0 0 8 0c0-4-4-6-4-10z" fill="#fb923c" opacity="0.9"/><path d="M12 8c0 2.5-2 3.5-2 6a2 2 0 0 0 4 0c0-2.5-2-3.5-2-6z" fill="#fbbf24"/></svg>';
 
@@ -29937,6 +30054,16 @@
                     // Check if the current address has a known identity
                     const searchAddr = document.getElementById('earn-address').value.trim();
                     const addrBadgeHtml = (typeof dolo_labelBadge === 'function') ? dolo_labelBadge(searchAddr) : '';
+                    const summaryRunId = earn_activeLookupRunId;
+                    const summaryAddr = String(searchAddr || '').trim().toLowerCase();
+                    const summaryChainId = String(document.getElementById('earn-chain')?.value || '').trim().toLowerCase();
+                    const isSummaryRenderCurrent = () => {
+                        const currentAddr = String(document.getElementById('earn-address')?.value || '').trim().toLowerCase();
+                        const currentChainId = String(document.getElementById('earn-chain')?.value || '').trim().toLowerCase();
+                        return summaryRunId === earn_activeLookupRunId
+                            && summaryAddr === currentAddr
+                            && summaryChainId === currentChainId;
+                    };
 
                     summaryEl.innerHTML = `
                         <div class="earn-summary-stat">
@@ -29974,6 +30101,7 @@
                     // Fetch oDOLO claimed asynchronously
                     const earnAddr = document.getElementById('earn-address').value.trim();
                     earn_fetchOdoloClaimed(earnAddr).then(claimed => {
+                        if (!isSummaryRenderCurrent()) return;
                         const valEl = document.getElementById('earn-odolo-claimed-val');
                         const subEl = document.getElementById('earn-odolo-claimed-sub');
                         if (valEl) {
@@ -29998,14 +30126,9 @@
                     // Fetch MERKL WLFI rewards and add card if wallet has any
                     const earnChainId = document.getElementById('earn-chain').value;
                     earn_fetchMerklRewards(earnAddr, earnChainId).then(merklData => {
-                        const prevMerklSerialized = JSON.stringify(earn_merklRewards || {});
-                        const nextMerklSerialized = JSON.stringify(merklData || {});
-                        const shouldRefreshRewardRows = !earn_merklRewardsLoaded || prevMerklSerialized !== nextMerklSerialized;
+                        if (!isSummaryRenderCurrent()) return;
                         earn_merklRewards = merklData || {};
                         earn_merklRewardsLoaded = true;
-                        if (shouldRefreshRewardRows && earn_cachedAssets && earn_cachedAssets.length > 0) {
-                            earn_renderResults(earn_cachedAssets, { skipSummary: true, softRefresh: true });
-                        }
                         const wlfiData = merklData['WLFI'];
                         if (!wlfiData || wlfiData.accumulated < 0.01) return;
                         const WLFI_PRICE_CARD = 0.097;
@@ -30031,6 +30154,7 @@
                     // Fetch iBGT staking rewards (Berachain only)
                     if (earnChainId === 'berachain') {
                         earn_fetchIBGTRewards(earnAddr).then(ibgtData => {
+                            if (!isSummaryRenderCurrent()) return;
                             if (!ibgtData || (ibgtData.rewards.length === 0 && ibgtData.staked < 0.01)) return;
                             if (document.getElementById('earn-ibgt-card')) return;
                             const fmtIbgt = v => v >= 1000 ? (v / 1000).toFixed(2) + 'K' : v >= 1 ? v.toFixed(2) : v.toFixed(4);
@@ -30057,6 +30181,7 @@
                     // Fetch dGMX staking rewards (Arbitrum only)
                     if (earnChainId === 'arbitrum') {
                         earn_fetchDGMXRewards(earnAddr).then(dgmxData => {
+                            if (!isSummaryRenderCurrent()) return;
                             if (!dgmxData || dgmxData.staked < 0.01) return;
                             if (document.getElementById('earn-dgmx-card')) return;
                             const fmtGmx = v => v >= 1000 ? (v / 1000).toFixed(2) + 'K' : v >= 1 ? v.toFixed(2) : v.toFixed(4);
