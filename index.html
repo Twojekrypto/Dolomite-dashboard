@@ -8101,27 +8101,62 @@
         }
         .earn-past-table {
             width: 100%;
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
+            table-layout: fixed;
             margin-top: 8px;
         }
+        .earn-past-table colgroup col:nth-child(1) { width: 74%; }
+        .earn-past-table colgroup col:nth-child(2) { width: 26%; }
         .earn-past-table th {
             font-size: 10px;
             text-transform: uppercase;
-            letter-spacing: 0.7px;
-            color: rgba(255, 255, 255, 0.3);
+            letter-spacing: 0.8px;
+            color: rgba(148, 163, 184, 0.6);
             font-weight: 600;
-            padding: 8px 12px;
+            padding: 10px 18px;
             text-align: left;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            border-bottom: none;
+            background: rgba(52, 211, 153, 0.03);
+        }
+        .earn-past-table thead tr {
+            border-bottom: 1px solid transparent;
+            background-image: linear-gradient(rgba(52,211,153,0.04), rgba(52,211,153,0.04)),
+                              linear-gradient(90deg, rgba(52, 211, 153, 0.15), rgba(52, 211, 153, 0.04), transparent);
+            background-size: 100% 100%, calc(100% - 40px) 1px;
+            background-position: 0 0, 20px 100%;
+            background-repeat: no-repeat;
+        }
+        .earn-past-table th:first-child {
+            padding-left: 14px !important;
+            text-align: left !important;
+        }
+        .earn-past-table th:last-child {
+            text-align: right;
+            padding-right: 28px;
         }
         .earn-past-table td {
-            font-size: 12px;
-            padding: 10px 12px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+            font-size: 13px;
+            padding: 10px 18px;
+            border-bottom: 1px solid rgba(52, 211, 153, 0.04);
             font-variant-numeric: tabular-nums;
+            vertical-align: middle;
         }
-        .earn-past-table tr:hover td {
-            background: rgba(255, 255, 255, 0.02);
+        .earn-past-table td:first-child {
+            padding-left: 14px;
+        }
+        .earn-past-table td:last-child {
+            text-align: right;
+            padding-right: 28px;
+        }
+        .earn-past-table tbody tr.earn-data-row:nth-child(even) td {
+            background: rgba(255, 255, 255, 0.012);
+        }
+        .earn-past-table tbody tr.earn-data-row:hover td {
+            background: rgba(52, 211, 153, 0.045);
+        }
+        .earn-past-table tbody tr.earn-data-row:hover td:first-child {
+            box-shadow: inset 3px 0 0 #34d399;
         }
 
         .earn-past-table tbody tr.earn-data-row.earn-row-inactive {
@@ -8135,6 +8170,37 @@
 
         .earn-past-table tbody tr.earn-data-row.earn-row-inactive:hover {
             opacity: 1;
+        }
+        .earn-past-table tbody tr.earn-data-row.expanded td {
+            border-bottom-color: transparent;
+        }
+        .earn-past-table tbody tr.earn-data-row.expanded td:first-child {
+            border-radius: 16px 0 0 0;
+            box-shadow: inset 3px 0 0 #34d399;
+        }
+        .earn-past-table tbody tr.earn-data-row.expanded td:last-child {
+            border-radius: 0 16px 0 0;
+        }
+        .earn-past-table .earn-detail-row td {
+            padding: 0 18px 16px 18px !important;
+            border-bottom: none !important;
+            background: transparent !important;
+        }
+        .earn-past-table .earn-detail-row td:first-child {
+            padding-left: 18px !important;
+        }
+        .earn-past-table .earn-detail-stack {
+            margin-top: 0;
+            padding: 18px 20px !important;
+            border: 1px solid rgba(52, 211, 153, 0.08);
+            border-top: none;
+            border-radius: 0 0 16px 16px;
+            background: linear-gradient(180deg, rgba(10, 15, 28, 0.8), rgba(10, 20, 30, 0.66));
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 10px 24px rgba(0, 0, 0, 0.14);
+        }
+        .earn-past-table .earn-token-left,
+        .earn-past-table .earn-token-info {
+            min-width: 0;
         }
 
         .earn-past-token {
@@ -13959,6 +14025,10 @@
                     </div>
                     <div class="earn-past-body" id="earn-past-body">
                         <table class="earn-asset-table earn-past-table">
+                            <colgroup>
+                                <col>
+                                <col>
+                            </colgroup>
                             <thead>
                                 <tr>
                                     <th>
