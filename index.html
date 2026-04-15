@@ -7156,7 +7156,8 @@
         .earn-lending-table {
             table-layout: fixed;
             width: 100%;
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
         }
 
         .earn-lending-table thead th {
@@ -7431,6 +7432,13 @@
         }
         .earn-lending-table tbody tr.earn-lend-row.open td {
             background: rgba(248, 113, 113, 0.04);
+            border-bottom-color: transparent;
+        }
+        .earn-lending-table tbody tr.earn-lend-row.open td:first-child {
+            border-radius: 16px 0 0 0;
+        }
+        .earn-lending-table tbody tr.earn-lend-row.open td:last-child {
+            border-radius: 0 16px 0 0;
         }
         .earn-lending-table tbody tr.earn-lend-row:last-of-type td {
             border-bottom: none;
@@ -7472,8 +7480,9 @@
             display: table-row;
         }
         .earn-lend-detail td {
-            padding: 0 !important;
-            border-bottom: 1px solid rgba(248, 113, 113, 0.06);
+            padding: 0 12px 16px !important;
+            border-bottom: none !important;
+            background: transparent !important;
         }
 
         /* Inner container — glass panel with slide-in */
@@ -7483,7 +7492,10 @@
             grid-template-columns: 1fr 1fr 1fr;
             gap: 14px;
             background: linear-gradient(135deg, rgba(248, 113, 113, 0.025) 0%, rgba(167, 139, 250, 0.02) 100%);
-            border-top: 1px solid rgba(248, 113, 113, 0.08);
+            border: 1px solid rgba(248, 113, 113, 0.08);
+            border-top: none;
+            border-radius: 0 0 16px 16px;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 10px 24px rgba(0, 0, 0, 0.14);
             animation: earnDetailSlideIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
         }
@@ -8214,6 +8226,20 @@
         .earn-past-table .earn-token-left,
         .earn-past-table .earn-token-info {
             min-width: 0;
+        }
+        .earn-row-empty-filtered td {
+            cursor: default;
+            background: rgba(255, 255, 255, 0.012) !important;
+        }
+        .earn-row-empty-filtered:hover td {
+            background: rgba(255, 255, 255, 0.018) !important;
+        }
+        .earn-row-empty-filtered td:first-child {
+            box-shadow: none !important;
+        }
+        .earn-row-empty-filtered td:first-child,
+        .earn-row-empty-filtered td:last-child {
+            border-radius: 0 0 16px 16px;
         }
 
         .earn-past-token {
@@ -28938,7 +28964,8 @@
             const tbody = document.getElementById('earn-table-body');
             // Separate supply and borrow positions (respect dust toggle)
             const dustThreshold = earn_showDust ? 0 : 1;
-            const supplyAssets = assets.filter(a => !a.isBorrow && !a.isCollateral && a.usdValue >= dustThreshold);
+            const totalSupplyAssets = assets.filter(a => !a.isBorrow && !a.isCollateral);
+            const supplyAssets = totalSupplyAssets.filter(a => a.usdValue >= dustThreshold);
             const borrowAssets = assets.filter(a => a.isBorrow && a.usdValue >= dustThreshold);
 
             let html = '';
@@ -28947,7 +28974,7 @@
             // Note: don't exclude borrow markets here — borrow market filter only matters
             // for which yield CALCULATION method to use (netflow vs snapshot), not for
             // whether yield data EXISTS. Column visibility should be independent.
-            const hasAnyYield = supplyAssets.some(a => {
+            const hasAnyYield = totalSupplyAssets.some(a => {
                 const mid = String(a.marketId);
                 const hasNF = earn_netflowData && earn_netflowData[mid] !== undefined;
                 const hasA0 = earn_acct0NetflowData && earn_acct0NetflowData[mid] !== undefined;
@@ -28959,9 +28986,9 @@
             const table = document.querySelector('.earn-asset-table:not(.earn-past-table)');
             if (table) table.classList.toggle('no-yield', !hasAnyYield);
 
-            // Hide entire supply table section when address has no active supply positions
+            // Keep the supply section visible while filters are active so Hide Dust can always be toggled back off.
             const supplySection = document.getElementById('earn-supply-section');
-            if (supplyAssets.length === 0) {
+            if (totalSupplyAssets.length === 0) {
                 if (supplySection) supplySection.style.display = 'none';
             } else {
                 if (supplySection) supplySection.style.display = '';
@@ -29086,6 +29113,17 @@
                 </tr>`;
                 html += earn_buildSupplyDetailRow(idx, a, yieldCalc, explorerUrl);
             });
+
+            if (supplyAssets.length === 0 && totalSupplyAssets.length > 0) {
+                html += `<tr class="earn-data-row earn-row-empty-filtered">
+                    <td colspan="4" style="text-align:center;padding:28px 24px;color:var(--text-muted);border-bottom:none;">
+                        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+                            <span style="font-size:13px;color:rgba(255,255,255,0.74);font-weight:600">All supply assets are hidden by the current filter</span>
+                            <span style="font-size:11px;color:var(--text-muted)">Turn off <strong style="color:rgba(255,255,255,0.7);font-weight:600">Hide Dust</strong> to show small balances again.</span>
+                        </div>
+                    </td>
+                </tr>`;
+            }
 
             if (supplyAssets.length > 0) {
                 html += '<tr class="earn-table-spacer" aria-hidden="true"><td colspan="4"></td></tr>';
