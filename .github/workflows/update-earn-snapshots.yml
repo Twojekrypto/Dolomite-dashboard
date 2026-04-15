@@ -1,0 +1,82 @@
+name: Update Earn Snapshots
+
+on:
+  schedule:
+    - cron: '20 */6 * * *'  # Every 6 hours at :20
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-snapshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Generate fresh earn snapshots
+        run: python3 generate_earn_snapshots.py
+        env:
+          PYTHONUNBUFFERED: '1'
+
+      - name: Validate latest snapshot date
+        run: |
+          python3 - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          root = Path("data/earn-snapshots")
+          manifest = json.load((root / "manifest.json").open())
+          today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+          chains = {"arbitrum", "berachain", "ethereum", "mantle"}
+
+          assert today in manifest.get("dates", []), f"Today's snapshot date missing from manifest: {today}"
+          manifest_chains = set(manifest.get("chains", {}).get(today, []))
+          missing = chains - manifest_chains
+          assert not missing, f"Manifest missing chains for {today}: {sorted(missing)}"
+
+          payload = json.load((root / f"{today}.json").open())
+          snapshot_chains = set((payload.get("snapshots") or {}).keys())
+          missing_payload = chains - snapshot_chains
+          assert not missing_payload, f"Snapshot payload missing chains for {today}: {sorted(missing_payload)}"
+          print(f"Validated earn snapshots for {today}: {sorted(snapshot_chains)}")
+          PY
+
+      - name: Refresh tracked verified ledgers
+        run: |
+          python3 build_earn_verified_ledger.py \
+            --chain arbitrum \
+            --chain berachain \
+            --chain ethereum \
+            --chain mantle \
+            --existing-addresses
+        env:
+          PYTHONUNBUFFERED: '1'
+
+      - name: Validate generated earn data
+        run: python3 validate_data.py
+
+      - name: Commit & push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/earn-snapshots/ data/earn-verified-ledger/
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "📈 Earn snapshots update: $(date -u '+%Y-%m-%d %H:%M UTC')"
+          for i in 1 2 3; do
+            git pull --rebase -X theirs origin master && git push && break
+            echo "⚠️ Push attempt $i failed, retrying..."
+            sleep 5
+          done
