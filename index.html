@@ -9254,6 +9254,12 @@
             color: rgba(254, 240, 138, 0.96);
         }
 
+        .earn-notice.info {
+            border-color: rgba(56, 189, 248, 0.24);
+            background: rgba(8, 47, 73, 0.2);
+            color: rgba(186, 230, 253, 0.96);
+        }
+
         .earn-notice-icon {
             flex-shrink: 0;
             width: 18px;
@@ -9281,6 +9287,10 @@
 
         .earn-notice.warn .earn-notice-body {
             color: rgba(255, 251, 235, 0.82);
+        }
+
+        .earn-notice.info .earn-notice-body {
+            color: rgba(224, 242, 254, 0.82);
         }
 
         .earn-empty {
@@ -21977,11 +21987,24 @@
         let earn_lookupLoading = false;
         let earn_lookupUsingCachedSnapshot = false;
         let earn_activeLookupRunId = 0;
+        let earn_totalYieldStatus = 'idle'; // idle | loading | ready | error
         let earn_merklFetchStatus = 'idle'; // idle | loading | success | error
         let earn_merklFetchError = '';
-        const EARN_LOOKUP_CACHE_VERSION = 7;
+        const EARN_LOOKUP_CACHE_VERSION = 8;
         const EARN_LOOKUP_CACHE_TTL_MS = 10 * 60 * 1000;
         const earn_lookupResultCache = {};
+        const earn_rewardRequestCache = {
+            odoloClaimed: {},
+            merkl: {},
+            ibgt: {},
+            dgmx: {},
+            odoloMeta: null,
+        };
+        let earn_odoloClaimedLoadedFor = '';
+        let earn_merklRewardsLoadedFor = '';
+        let earn_ibgtRewardsLoadedFor = '';
+        let earn_dgmxRewardsLoadedFor = '';
+        let earn_odoloMetaLoaded = false;
         const EARN_PROFILE_LOGS = true;
         const EARN_SNAPSHOT_STALE_DAYS = 7;
 
@@ -21992,6 +22015,12 @@
         function earn_startLookupRun() {
             earn_activeLookupRunId += 1;
             return earn_activeLookupRunId;
+        }
+
+        function earn_getRemoteLookupKey(chainId, address) {
+            const cid = String(chainId || '').trim().toLowerCase();
+            const addr = String(address || '').trim().toLowerCase();
+            return cid && addr ? `${cid}:${addr}` : '';
         }
 
         function earn_nowMs() {
@@ -22109,12 +22138,18 @@
             earn_replayVerificationSummary = { total: 0, verified: 0, mismatch: 0, unverified: 0 };
             earn_replayVerificationReady = false;
             earn_lookupUsingCachedSnapshot = false;
+            earn_totalYieldStatus = 'idle';
             earn_lendingPositions = [];
             earn_merklRewards = {};
             earn_merklRewardsLoaded = false;
+            earn_merklRewardsLoadedFor = '';
             earn_merklFetchStatus = 'idle';
             earn_merklFetchError = '';
             earn_odoloMeta = null;
+            earn_odoloMetaLoaded = false;
+            earn_odoloClaimedLoadedFor = '';
+            earn_ibgtRewardsLoadedFor = '';
+            earn_dgmxRewardsLoadedFor = '';
             earn_currentPeriod = '1';
             if (earn_snapshotManifest) earn_buildPeriodButtons();
             // Hide lending positions section
@@ -22161,59 +22196,77 @@
             berachain: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-berachain-mainnet/latest/gn',
         };
         async function earn_fetchOdoloClaimed(userAddr) {
-            earn_odoloClaimed = 0;
-            earn_odoloUnclaimed = 0;
-            const addr = userAddr.toLowerCase();
-
-            // Parallel fetch: API allocation + on-chain claimed amount
-            const [apiResult, contractClaimed] = await Promise.allSettled([
-                // 1. Cumulative allocation from Dolomite API (includes merkle proof)
-                fetch(`https://api.dolomite.io/liquidity-mining/odolo/seasons/0/wallets/${addr}`)
-                    .then(r => r.json())
-                    .then(j => parseFloat(j?.user?.amount || '0')),
-                // 2. Already claimed from on-chain distributor contract
-                earn_beraRpcCall(IBGT_CONTRACTS.DISTRIBUTOR,
-                    IBGT_CONTRACTS.SEL_USER_CLAIM_AMOUNT + '000000000000000000000000' + addr.slice(2))
-                    .then(hex => parseInt(hex || '0x0', 16) / 1e18),
-            ]);
-
-            const cumulativeAllocation = apiResult.status === 'fulfilled' ? apiResult.value : 0;
-            const alreadyClaimed = contractClaimed.status === 'fulfilled' ? contractClaimed.value : 0;
-
-            earn_odoloClaimed = alreadyClaimed > 0 ? alreadyClaimed : 0;
-            earn_odoloUnclaimed = cumulativeAllocation > alreadyClaimed
-                ? cumulativeAllocation - alreadyClaimed : 0;
-
-            // Fallback: if contract call failed but API worked, use API amount as total
-            if (earn_odoloClaimed === 0 && cumulativeAllocation > 0) {
-                // Try subgraph fallback for claimed
-                try {
-                    const endpoint = ODOLO_SUBGRAPH_CHAINS['berachain'];
-                    let allClaims = [], skip = 0;
-                    const PAGE = 1000;
-                    while (true) {
-                        const query = `{ liquidityMiningClaims(first: ${PAGE}, skip: ${skip}, where: { user: "${addr}" }) { amount } }`;
-                        const resp = await fetch(endpoint, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ query }),
-                        });
-                        const json = await resp.json();
-                        const claims = (json.data && json.data.liquidityMiningClaims) || [];
-                        allClaims = allClaims.concat(claims);
-                        if (claims.length < PAGE) break;
-                        skip += PAGE;
-                    }
-                    earn_odoloClaimed = allClaims.reduce((sum, c) => sum + parseFloat(c.amount || '0'), 0);
-                    earn_odoloUnclaimed = cumulativeAllocation - earn_odoloClaimed;
-                    if (earn_odoloUnclaimed < 0) earn_odoloUnclaimed = 0;
-                } catch (e) {
-                    console.warn('oDOLO subgraph fallback error:', e);
-                }
+            const addr = String(userAddr || '').trim().toLowerCase();
+            if (!addr) {
+                earn_odoloClaimed = 0;
+                earn_odoloUnclaimed = 0;
+                return 0;
+            }
+            if (earn_odoloClaimedLoadedFor === addr) return earn_odoloClaimed;
+            if (earn_rewardRequestCache.odoloClaimed[addr]) {
+                return earn_rewardRequestCache.odoloClaimed[addr];
             }
 
-            console.log(`oDOLO: claimed=${earn_odoloClaimed.toFixed(2)}, unclaimed=${earn_odoloUnclaimed.toFixed(2)}, total=${cumulativeAllocation.toFixed(2)}`);
-            return earn_odoloClaimed;
+            const request = (async () => {
+                let claimedValue = 0;
+                let unclaimedValue = 0;
+
+                const [apiResult, contractClaimed] = await Promise.allSettled([
+                    fetch(`https://api.dolomite.io/liquidity-mining/odolo/seasons/0/wallets/${addr}`)
+                        .then(r => r.json())
+                        .then(j => parseFloat(j?.user?.amount || '0')),
+                    earn_beraRpcCall(IBGT_CONTRACTS.DISTRIBUTOR,
+                        IBGT_CONTRACTS.SEL_USER_CLAIM_AMOUNT + '000000000000000000000000' + addr.slice(2))
+                        .then(hex => parseInt(hex || '0x0', 16) / 1e18),
+                ]);
+
+                const cumulativeAllocation = apiResult.status === 'fulfilled' ? apiResult.value : 0;
+                const alreadyClaimed = contractClaimed.status === 'fulfilled' ? contractClaimed.value : 0;
+
+                claimedValue = alreadyClaimed > 0 ? alreadyClaimed : 0;
+                unclaimedValue = cumulativeAllocation > alreadyClaimed
+                    ? cumulativeAllocation - alreadyClaimed : 0;
+
+                if (claimedValue === 0 && cumulativeAllocation > 0) {
+                    try {
+                        const endpoint = ODOLO_SUBGRAPH_CHAINS.berachain;
+                        let allClaims = [];
+                        let skip = 0;
+                        const PAGE = 1000;
+                        while (true) {
+                            const query = `{ liquidityMiningClaims(first: ${PAGE}, skip: ${skip}, where: { user: "${addr}" }) { amount } }`;
+                            const resp = await fetch(endpoint, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ query }),
+                            });
+                            const json = await resp.json();
+                            const claims = (json.data && json.data.liquidityMiningClaims) || [];
+                            allClaims = allClaims.concat(claims);
+                            if (claims.length < PAGE) break;
+                            skip += PAGE;
+                        }
+                        claimedValue = allClaims.reduce((sum, c) => sum + parseFloat(c.amount || '0'), 0);
+                        unclaimedValue = cumulativeAllocation - claimedValue;
+                        if (unclaimedValue < 0) unclaimedValue = 0;
+                    } catch (e) {
+                        console.warn('oDOLO subgraph fallback error:', e);
+                    }
+                }
+
+                earn_odoloClaimed = claimedValue;
+                earn_odoloUnclaimed = unclaimedValue;
+                earn_odoloClaimedLoadedFor = addr;
+                console.log(`oDOLO: claimed=${claimedValue.toFixed(2)}, unclaimed=${unclaimedValue.toFixed(2)}, total=${cumulativeAllocation.toFixed(2)}`);
+                return claimedValue;
+            })();
+
+            earn_rewardRequestCache.odoloClaimed[addr] = request;
+            try {
+                return await request;
+            } finally {
+                delete earn_rewardRequestCache.odoloClaimed[addr];
+            }
         }
 
         // Berachain-specific RPC call (always uses Berachain RPC, not the selected chain)
@@ -22241,9 +22294,17 @@
         // Fetch iBGT staking rewards (HONEY, WBERA, wiBGT) for a given user
         // Call chain: diBGT Factory → Registry → MetaVault → Staking Vault
         async function earn_fetchIBGTRewards(userAddr) {
-            earn_ibgtRewards = null;
-            try {
-                const addr = userAddr.toLowerCase();
+            const addr = String(userAddr || '').trim().toLowerCase();
+            if (!addr) {
+                earn_ibgtRewards = null;
+                return null;
+            }
+            if (earn_ibgtRewardsLoadedFor === addr) return earn_ibgtRewards;
+            if (earn_rewardRequestCache.ibgt[addr]) {
+                return earn_rewardRequestCache.ibgt[addr];
+            }
+
+            const request = (async () => {
                 const pad = '000000000000000000000000';
 
                 // Step 1: Get user's MetaVault from BerachainRewardsRegistry
@@ -22283,11 +22344,21 @@
                 })).filter(r => r.amount > 0.000001);
 
                 earn_ibgtRewards = { staked, rewards, metaVault };
+                earn_ibgtRewardsLoadedFor = addr;
                 console.log(`iBGT Rewards: staked=${staked.toFixed(2)}, rewards=`, rewards);
                 return earn_ibgtRewards;
-            } catch (e) {
+            })().catch(e => {
                 console.warn('iBGT rewards fetch error:', e);
+                earn_ibgtRewards = null;
+                earn_ibgtRewardsLoadedFor = addr;
                 return null;
+            });
+
+            earn_rewardRequestCache.ibgt[addr] = request;
+            try {
+                return await request;
+            } finally {
+                delete earn_rewardRequestCache.ibgt[addr];
             }
         }
 
@@ -22334,9 +22405,17 @@
         let earn_dgmxRewards = null; // { staked, rewards: [{symbol, amount, address}], vault }
 
         async function earn_fetchDGMXRewards(userAddr) {
-            earn_dgmxRewards = null;
-            try {
-                const addr = userAddr.toLowerCase();
+            const addr = String(userAddr || '').trim().toLowerCase();
+            if (!addr) {
+                earn_dgmxRewards = null;
+                return null;
+            }
+            if (earn_dgmxRewardsLoadedFor === addr) return earn_dgmxRewards;
+            if (earn_rewardRequestCache.dgmx[addr]) {
+                return earn_rewardRequestCache.dgmx[addr];
+            }
+
+            const request = (async () => {
                 const pad = '000000000000000000000000';
                 const SEL_GET_VAULT = '0xb01f61e1'; // getVaultByAccount(address)
                 const SEL_CLAIMABLE = '0x402914f5'; // claimable(address)
@@ -22387,11 +22466,21 @@
                 }, 0);
 
                 earn_dgmxRewards = { staked, rewards, totalUsd, vault };
+                earn_dgmxRewardsLoadedFor = addr;
                 console.log(`dGMX Rewards: staked=${staked.toFixed(2)} sbfGMX, GMX=${gmxPending.toFixed(4)}, ETH=${ethPending.toFixed(6)}, esGMX=${esgmxPending.toFixed(4)}, bnGMX=${bnGmxPending.toFixed(4)}, total=$${totalUsd.toFixed(2)}`);
                 return earn_dgmxRewards;
-            } catch (e) {
+            })().catch(e => {
                 console.warn('dGMX rewards fetch error:', e);
+                earn_dgmxRewards = null;
+                earn_dgmxRewardsLoadedFor = addr;
                 return null;
+            });
+
+            earn_rewardRequestCache.dgmx[addr] = request;
+            try {
+                return await request;
+            } finally {
+                delete earn_rewardRequestCache.dgmx[addr];
             }
         }
 
@@ -22422,6 +22511,17 @@
                     if (attempt === retries - 1) throw e;
                 }
             }
+        }
+
+        function earn_withTimeout(promise, timeoutMs, label) {
+            const safeTimeoutMs = Math.max(1000, Number(timeoutMs || 0));
+            const timeoutLabel = String(label || 'Operation');
+            return Promise.race([
+                promise,
+                new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error(`${timeoutLabel} timed out after ${safeTimeoutMs}ms`)), safeTimeoutMs);
+                }),
+            ]);
         }
 
         function earn_isRpcRangeError(message) {
@@ -25847,6 +25947,20 @@
                 });
             }
 
+            if (earn_totalYieldStatus === 'loading') {
+                notices.push({
+                    tone: 'info',
+                    title: 'Verified Yield Is Loading',
+                    body: 'Balances are already visible. Total Yield Earned and ledger verification are still loading from replay + snapshot data and will update automatically.',
+                });
+            } else if (earn_totalYieldStatus === 'error') {
+                notices.push({
+                    tone: 'warn',
+                    title: 'Verified Yield Could Not Be Loaded',
+                    body: 'The page could not complete verified Total Yield calculation for this lookup. Balance data is still shown, but historical yield may be incomplete until the next refresh succeeds.',
+                });
+            }
+
             if (earn_merklFetchStatus === 'error') {
                 notices.push({
                     tone: 'warn',
@@ -25981,6 +26095,23 @@
             }
         }
 
+        async function earn_mapWithConcurrency(items, limit, worker) {
+            const list = Array.isArray(items) ? items : [];
+            const maxWorkers = Math.max(1, Math.min(Number(limit) || 1, list.length || 1));
+            const results = new Array(list.length);
+            let nextIndex = 0;
+
+            const runners = Array.from({ length: maxWorkers }, async () => {
+                while (nextIndex < list.length) {
+                    const currentIndex = nextIndex++;
+                    results[currentIndex] = await worker(list[currentIndex], currentIndex);
+                }
+            });
+
+            await Promise.all(runners);
+            return results;
+        }
+
         async function earn_fetchVerifiedLedgerForAddress(chainId, address) {
             const addr = String(address || '').trim().toLowerCase();
             if (!addr || !/^0x[a-f0-9]{40}$/.test(addr)) return null;
@@ -26047,12 +26178,19 @@
             opts = opts || {};
             const suppressRender = !!opts.suppressRender;
             const runId = opts.runId;
+            const activeMarketIds = Array.isArray(opts.activeMarketIds) ? opts.activeMarketIds : [];
             if (!earn_isLookupRunCurrent(runId)) return false;
+            earn_totalYieldStatus = 'loading';
+            earn_renderNotices();
             const nextTotalYieldData = {};
             let nextTotalYieldDays = 0;
             if (!earn_snapshotManifest) await earn_loadManifest();
             if (!earn_isLookupRunCurrent(runId)) return false;
-            if (!earn_snapshotManifest) return false;
+            if (!earn_snapshotManifest) {
+                earn_totalYieldStatus = 'error';
+                earn_renderNotices();
+                return false;
+            }
 
             const chainId = document.getElementById('earn-chain').value;
             const addr = document.getElementById('earn-address').value.trim();
@@ -26065,19 +26203,29 @@
             const yieldHeader = document.getElementById('earn-total-yield-header');
             if (yieldHeader) yieldHeader.textContent = 'Loading...';
 
-            // Needed markets come from visible active assets plus any netflow history for this address.
-            const neededMarkets = new Set((earn_cachedAssets || []).map(a => String(a.marketId)));
+            // Needed markets come from active assets discovered in the current lookup plus any
+            // replay/netflow history that identifies withdrawn markets for this wallet.
+            const neededMarkets = new Set(activeMarketIds.map(mid => String(mid)));
             Object.keys(earn_netflowData || {}).forEach(mid => neededMarkets.add(String(mid)));
 
             // Preferred source: precomputed verified ledger for this exact address+chain.
             const verifiedLedger = await earn_fetchVerifiedLedgerForAddress(chainId, addr);
             let trustedLedgerMarkets = 0;
             let deferredLedgerMarkets = 0;
+            const deferredLedgerMetaByMarket = {};
             if (verifiedLedger && verifiedLedger.markets && Object.keys(verifiedLedger.markets).length > 0) {
                 if (!earn_isLookupRunCurrent(runId)) return false;
                 Object.entries(verifiedLedger.markets).forEach(([mid, m]) => {
                     if (!earn_canUseVerifiedLedgerMarketEntry(m)) {
-                        if (neededMarkets.has(String(mid))) deferredLedgerMarkets++;
+                        if (neededMarkets.has(String(mid))) {
+                            deferredLedgerMarkets++;
+                            deferredLedgerMetaByMarket[String(mid)] = {
+                                verificationStatus: String(m.status || 'unverified'),
+                                isLatestSnapshot: m.isLatestSnapshot !== false,
+                                source: 'verified-ledger-deferred',
+                                method: String(m.method || ''),
+                            };
+                        }
                         return;
                     }
                     nextTotalYieldData[String(mid)] = {
@@ -26110,6 +26258,7 @@
                 if (!earn_isLookupRunCurrent(runId)) return false;
                 earn_totalYieldData = nextTotalYieldData;
                 earn_totalYieldDays = nextTotalYieldDays;
+                earn_totalYieldStatus = 'ready';
                 if (yieldHeader) yieldHeader.textContent = 'Total Yield Earned ✓ Verified';
                 earn_refreshHistoryYieldData();
                 if (!suppressRender) {
@@ -26117,31 +26266,36 @@
                     earn_renderWithdrawnAssets();
                     if (earn_cachedAssets) earn_renderResults(earn_cachedAssets, { skipSummary: true });
                 }
+                earn_renderNotices();
                 return true;
             }
 
-            // Collect ALL snapshots with user data per market
+            // Load snapshots concurrently so Total Yield does not wait on a long
+            // chain of sequential JSON fetches. Each snapshot is cached in-session.
             const marketHistory = {};
             for (const mid of marketsToCompute) marketHistory[mid] = [];
 
-            for (let i = 0; i < chainDates.length; i++) {
-                if (!earn_isLookupRunCurrent(runId)) return false;
-                const dateStr = chainDates[i];
+            const snapshotRows = await earn_mapWithConcurrency(chainDates, 6, async (dateStr) => {
+                if (!earn_isLookupRunCurrent(runId)) return null;
                 const snapshot = await earn_fetchSnapshot(dateStr);
-                if (!snapshot) continue;
+                if (!snapshot || !earn_isLookupRunCurrent(runId)) return null;
                 const markets = earn_getHistoricalMarkets(snapshot, chainId, addr);
-                if (!markets) continue;
+                if (!markets) return null;
+                return { date: dateStr, markets };
+            });
+            if (!earn_isLookupRunCurrent(runId)) return false;
 
-                for (const mid of marketsToCompute) {
-                    if (markets[mid]) {
-                        marketHistory[mid].push({
-                            date: dateStr,
-                            par: BigInt(markets[mid].par),
-                            wei: BigInt(markets[mid].wei),
-                        });
-                    }
-                }
-            }
+            snapshotRows.forEach(row => {
+                if (!row || !row.markets) return;
+                marketsToCompute.forEach(mid => {
+                    if (!row.markets[mid]) return;
+                    marketHistory[mid].push({
+                        date: row.date,
+                        par: BigInt(row.markets[mid].par),
+                        wei: BigInt(row.markets[mid].wei),
+                    });
+                });
+            });
 
             // Compute pairwise index-based yield per market
             let marketsWithData = 0;
@@ -26165,6 +26319,7 @@
                 const sd = new Date(first.date + 'T00:00:00Z');
                 const ld = new Date(last.date + 'T00:00:00Z');
                 const days = Math.max(1, Math.round((ld - sd) / 86400000));
+                const deferredMeta = deferredLedgerMetaByMarket[String(mid)] || null;
 
                 nextTotalYieldData[mid] = {
                     cumulativeYield: cumulativeYield.toString(),
@@ -26174,6 +26329,10 @@
                     lastPar: last.par.toString(),
                     lastWei: last.wei.toString(),
                     snapshotCount: history.length,
+                    verificationStatus: deferredMeta ? String(deferredMeta.verificationStatus || 'unverified') : '',
+                    isLatestSnapshot: deferredMeta ? deferredMeta.isLatestSnapshot !== false : true,
+                    source: deferredMeta ? deferredMeta.source : 'snapshot-series',
+                    method: deferredMeta ? (deferredMeta.method || 'snapshot-fallback') : 'snapshot-series',
                 };
                 nextTotalYieldDays = Math.max(nextTotalYieldDays, days);
                 marketsWithData++;
@@ -26182,6 +26341,7 @@
             if (!earn_isLookupRunCurrent(runId)) return false;
             earn_totalYieldData = nextTotalYieldData;
             earn_totalYieldDays = nextTotalYieldDays;
+            earn_totalYieldStatus = 'ready';
             if (trustedLedgerMarkets > 0 && marketsWithData === 0) {
                 if (yieldHeader) yieldHeader.textContent = 'Total Yield Earned ✓ Verified';
             } else if (marketsWithData > 0 || trustedLedgerMarkets > 0) {
@@ -26202,6 +26362,7 @@
                 earn_renderWithdrawnAssets();
                 if (earn_cachedAssets) earn_renderResults(earn_cachedAssets, { skipSummary: true });
             }
+            earn_renderNotices();
             return true;
         }
 
@@ -26215,17 +26376,34 @@
             const CHAIN_IDS = { ethereum: 1, berachain: 80094, arbitrum: 42161, mantle: 5000 };
             const numericId = CHAIN_IDS[chainId];
             if (!numericId) return {};
+            const addr = String(userAddr || '').trim().toLowerCase();
+            const requestKey = earn_getRemoteLookupKey(chainId, addr);
+            if (!requestKey) return {};
+            if (earn_merklRewardsLoadedFor === requestKey && earn_merklRewardsLoaded) {
+                earn_setMerklFetchState('success', '', userAddr, chainId);
+                return earn_merklRewards || {};
+            }
+            if (earn_rewardRequestCache.merkl[requestKey]) {
+                return earn_rewardRequestCache.merkl[requestKey];
+            }
+
             earn_setMerklFetchState('loading', '', userAddr, chainId);
-            try {
-                const url = `https://api.merkl.xyz/v3/rewards?chainIds=${numericId}&user=${userAddr.toLowerCase()}`;
+            const request = (async () => {
+                const url = `https://api.merkl.xyz/v3/rewards?chainIds=${numericId}&user=${addr}`;
                 const resp = await fetch(url);
                 if (!resp.ok) {
                     earn_setMerklFetchState('error', `HTTP ${resp.status}`, userAddr, chainId);
+                    earn_merklRewards = {};
+                    earn_merklRewardsLoaded = true;
+                    earn_merklRewardsLoadedFor = requestKey;
                     return {};
                 }
                 const data = await resp.json();
                 const chainData = data[String(numericId)];
                 if (!chainData) {
+                    earn_merklRewards = {};
+                    earn_merklRewardsLoaded = true;
+                    earn_merklRewardsLoadedFor = requestKey;
                     earn_setMerklFetchState('success', '', userAddr, chainId);
                     return {};
                 }
@@ -26280,25 +26458,56 @@
                     dolomiteRewards[sym].accumulated = Math.max(dolomiteRewards[sym].accumulated || 0, totalAmt);
                     dolomiteRewards[sym].unclaimed = Math.max(dolomiteRewards[sym].unclaimed || 0, totalUncl);
                 }
+                earn_merklRewards = dolomiteRewards;
+                earn_merklRewardsLoaded = true;
+                earn_merklRewardsLoadedFor = requestKey;
                 earn_setMerklFetchState('success', '', userAddr, chainId);
                 return dolomiteRewards;
-            } catch (e) {
+            })().catch(e => {
                 console.warn('MERKL rewards fetch failed:', e);
                 earn_setMerklFetchState('error', e && e.message ? e.message : String(e), userAddr, chainId);
+                earn_merklRewards = {};
+                earn_merklRewardsLoaded = true;
+                earn_merklRewardsLoadedFor = requestKey;
                 return {};
+            });
+
+            earn_rewardRequestCache.merkl[requestKey] = request;
+            try {
+                return await request;
+            } finally {
+                delete earn_rewardRequestCache.merkl[requestKey];
             }
         }
 
         // Fetch oDOLO metadata (per-token weekly allocation)
         async function earn_fetchOdoloMetadata() {
-            try {
+            if (earn_odoloMetaLoaded) return earn_odoloMeta;
+            if (earn_rewardRequestCache.odoloMeta) return earn_rewardRequestCache.odoloMeta;
+
+            const request = (async () => {
                 const resp = await fetch('https://api.dolomite.io/liquidity-mining/odolo/metadata');
-                if (!resp.ok) return null;
+                if (!resp.ok) {
+                    earn_odoloMeta = null;
+                    earn_odoloMetaLoaded = true;
+                    return null;
+                }
                 const data = await resp.json();
-                return data.metadata || null;
-            } catch (e) {
+                earn_odoloMeta = data.metadata || null;
+                earn_odoloMetaLoaded = true;
+                return earn_odoloMeta;
+            })().catch(e => {
                 console.warn('oDOLO metadata fetch failed:', e);
+                earn_odoloMeta = null;
+                earn_odoloMetaLoaded = true;
                 return null;
+            });
+
+            earn_rewardRequestCache.odoloMeta = request;
+            try {
+                return await request;
+            } finally {
+                earn_rewardRequestCache.odoloMeta = null;
             }
         }
 
@@ -26310,17 +26519,41 @@
             mantle: 'https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-mantle/latest/gn',
         };
 
-        // GraphQL query helper with pagination
-        async function earn_subgraphQuery(endpoint, query, variables) {
-            const resp = await fetch(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query, variables }),
-            });
-            if (!resp.ok) throw new Error(`Subgraph HTTP ${resp.status}`);
-            const json = await resp.json();
-            if (json.errors) throw new Error(json.errors[0].message);
-            return json.data;
+        const EARN_SUBGRAPH_TIMEOUT_MS = 8000;
+
+        // GraphQL query helper with timeout + retry so a hung subgraph request
+        // cannot block the whole replay / verified-yield pipeline forever.
+        async function earn_subgraphQuery(endpoint, query, variables, opts) {
+            opts = opts || {};
+            const retries = Math.max(1, Number(opts.retries || 2));
+            const timeoutMs = Math.max(1000, Number(opts.timeoutMs || EARN_SUBGRAPH_TIMEOUT_MS));
+            let lastError = null;
+
+            for (let attempt = 0; attempt < retries; attempt++) {
+                const ctrl = new AbortController();
+                const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+                try {
+                    const resp = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        signal: ctrl.signal,
+                        body: JSON.stringify({ query, variables }),
+                    });
+                    clearTimeout(timer);
+                    if (!resp.ok) throw new Error(`Subgraph HTTP ${resp.status}`);
+                    const json = await resp.json();
+                    if (json.errors) throw new Error(json.errors[0].message);
+                    return json.data;
+                } catch (e) {
+                    clearTimeout(timer);
+                    lastError = e && e.name === 'AbortError'
+                        ? new Error(`Subgraph timeout after ${timeoutMs}ms`)
+                        : e;
+                    if (attempt === retries - 1) break;
+                }
+            }
+
+            throw lastError || new Error('Subgraph query failed');
         }
 
         // Paginate through all results for a given entity (max 1000 per query)
@@ -27343,8 +27576,16 @@
                 ? performance.now()
                 : Date.now();
             const [subgraphResult, onchainResult] = await Promise.allSettled([
-                earn_buildSubgraphReplay(addr),
-                earn_buildOnchainReplay(addr, { blockTag: earn_replayBlockTag }),
+                earn_withTimeout(
+                    earn_buildSubgraphReplay(addr),
+                    12000,
+                    'Subgraph replay'
+                ),
+                earn_withTimeout(
+                    earn_buildOnchainReplay(addr, { blockTag: earn_replayBlockTag }),
+                    15000,
+                    'Onchain replay'
+                ),
             ]);
 
             let subgraphReplay = null;
@@ -27953,6 +28194,17 @@
             earn_hideAll();
             btn.classList.add('loading');
             btn.disabled = true;
+            earn_cachedAssets = [];
+            earn_netflowData = null;
+            earn_acct0NetflowData = null;
+            earn_totalYieldData = null;
+            earn_totalYieldDays = 0;
+            earn_marketRates = {};
+            earn_subgraphTokens = {};
+            earn_borrowPositionData = [];
+            earn_collateralPositionData = [];
+            earn_lendingPositions = [];
+            earn_replayAccountNumbers = [];
             earn_lastReplayError = null;
             earn_replayUsedSubgraphFallback = false;
             earn_openBorrowAccounts = new Set();
@@ -27971,11 +28223,21 @@
             earn_replayVerificationReady = false;
             earn_merklRewards = {};
             earn_merklRewardsLoaded = false;
+            earn_merklRewardsLoadedFor = '';
             earn_merklFetchStatus = 'idle';
             earn_merklFetchError = '';
+            earn_odoloClaimed = 0;
+            earn_odoloUnclaimed = 0;
+            earn_odoloClaimedLoadedFor = '';
+            earn_ibgtRewards = null;
+            earn_ibgtRewardsLoadedFor = '';
+            earn_dgmxRewards = null;
+            earn_dgmxRewardsLoadedFor = '';
             earn_odoloMeta = null;
+            earn_totalYieldStatus = 'loading';
             earn_lookupLoading = false;
             earn_lookupUsingCachedSnapshot = false;
+            earn_renderNotices();
             if (cachedLookup) {
                 earn_lookupUsingCachedSnapshot = true;
                 earn_applyLookupCache(cachedLookup);
@@ -27989,6 +28251,7 @@
             try {
                 const chain = earn_getChain();
                 if (chain.pending) {
+                    earn_totalYieldStatus = 'idle';
                     earn_showError(chain.name + ' is not yet live on Dolomite. Check back soon!');
                     earn_logLookupProfile(lookupProfile, 'failed');
                     btn.classList.remove('loading');
@@ -28040,6 +28303,7 @@
                 } catch (balanceErr) {
                     if (!isCurrentLookup()) return;
                     earn_markLookupProfile(lookupProfile, 'balances');
+                    earn_totalYieldStatus = 'error';
                     earn_showError('Balance lookup failed: ' + balanceErr.message);
                     earn_logLookupProfile(lookupProfile, 'failed');
                     return;
@@ -28082,6 +28346,7 @@
                         enriched.sort((a, b) => b.usdValue - a.usdValue);
                         earn_lookupLoading = false;
                         earn_lookupUsingCachedSnapshot = false;
+                        earn_totalYieldStatus = 'ready';
                         earn_setResultsRefreshing(false);
                         earn_markLookupProfile(lookupProfile, 'firstRenderReady');
                         earn_renderResults(enriched, { skipSummary: false, softRefresh: !!cachedLookup });
@@ -28153,12 +28418,13 @@
                                 }
                                 // Load history and render in unified view
                                 earn_lookupHistory({ runId: lookupRunId, allowReplayRetry: false }).then(() => {
-                                    if (!isCurrentLookup()) return;
-                                    earn_markLookupProfile(lookupProfile, 'history');
-                                    earn_markLookupProfile(lookupProfile, 'complete');
-                                    earn_logLookupProfile(lookupProfile, 'complete');
-                                    earn_renderResults([]);
-                                }).catch(e => console.warn('History load:', e));
+                                if (!isCurrentLookup()) return;
+                                earn_markLookupProfile(lookupProfile, 'history');
+                                earn_markLookupProfile(lookupProfile, 'complete');
+                                earn_totalYieldStatus = 'ready';
+                                earn_logLookupProfile(lookupProfile, 'complete');
+                                earn_renderResults([]);
+                            }).catch(e => console.warn('History load:', e));
                                 btn.classList.remove('loading');
                                 btn.disabled = false;
                                 return;
@@ -28177,6 +28443,7 @@
                         emptyTitle.innerHTML = addrBadgeHtml ? `<div style="display:flex;align-items:center;justify-content:center;gap:6px">No deposits found ${addrBadgeHtml}</div>` : 'No deposits found';
                     }
 
+                    earn_totalYieldStatus = 'ready';
                     document.getElementById('earn-empty').classList.add('visible');
                     earn_markLookupProfile(lookupProfile, 'complete');
                     earn_logLookupProfile(lookupProfile, 'complete');
@@ -28221,71 +28488,16 @@
                     else if (m.type === 'decimals') tokenRaw[m.idx].decHex = r;
                 });
 
-                // Fetch supply APY from Dolomite official API (non-blocking)
-                earn_marketRates = {};
-                const DOLO_CHAIN_IDS = { ethereum: 1, berachain: 80094, arbitrum: 42161, polygonzkevm: 1101, mantle: 5000, xlayer: 196 };
-                const doloChainId = DOLO_CHAIN_IDS[chainId];
-                const apyPromise = doloChainId
-                    ? fetch(`https://api.dolomite.io/tokens/${doloChainId}/interest-rates?exclude-odolo=false`)
-                        .then(r => r.ok ? r.json() : null)
-                        .then(json => {
-                            if (!isCurrentLookup()) return;
-                            if (!json || !json.interestRates) return;
-                            json.interestRates.forEach(r => {
-                                const addr = (r.token.tokenAddress || '').toLowerCase();
-                                const rate = parseFloat(r.totalSupplyInterestRate) || 0;
-                                const baseLending = parseFloat(r.supplyInterestRate) || 0;
-                                // Parse oDOLO rewards and yield sources (same as assets tab)
-                                let odoloRewards = 0;
-                                const yieldSources = [];
-                                const rewardParts = []; // Full reward parts for external rewards calc
-                                (r.outsideSupplyInterestRateParts || []).forEach(p => {
-                                    if (p.label && p.label.includes('oDOLO') && p.interestRate) {
-                                        odoloRewards += parseFloat(p.interestRate) || 0;
-                                    } else if (p.category === 'rewards' && p.interestRate) {
-                                        // Non-oDOLO rewards (e.g., WLFI) — treat as yield sources
-                                        const yr = parseFloat(p.interestRate) || 0;
-                                        if (yr > 0) {
-                                            yieldSources.push({ label: p.label.replace(/ \(.*\)$/, ''), rate: yr * 100 });
-                                            rewardParts.push({
-                                                label: p.label, apr: yr, symbol: p.rewardToken?.symbol || '',
-                                                tokenAddr: (p.rewardToken?.id || '').toLowerCase(),
-                                                claimUrl: p.rewardClaimUrl || '',
-                                                merklCampaignId: (p.merklData?.campaignIdentifier || '').toLowerCase()
-                                            });
-                                        }
-                                    } else if (p.category === 'nativeYield' && p.interestRate) {
-                                        const yr = parseFloat(p.interestRate) || 0;
-                                        if (yr > 0) yieldSources.push({ label: p.label, rate: yr * 100 });
-                                    }
-                                });
-                                let extYieldApr = 0;
-                                yieldSources.forEach(ys => { extYieldApr += ys.rate; });
-                                const borrowRate = parseFloat(r.totalBorrowInterestRate || r.borrowInterestRate || '0');
-                                const entry = {
-                                    apy: rate * 100,
-                                    lendingApr: baseLending * 100,
-                                    rewards: odoloRewards * 100,
-                                    rewardParts: rewardParts,
-                                    yieldSources: yieldSources,
-                                    extYieldApr: extYieldApr,
-                                    borrowApr: borrowRate * 100,
-                                };
-                                if (addr) earn_marketRates[chainId + ':' + addr] = entry;
-                                // Also key by symbol for fallback
-                                const sym = (r.token.tokenSymbol || '').toUpperCase();
-                                if (sym) earn_marketRates['sym:' + sym] = entry;
-                            });
-                            earn_markLookupProfile(lookupProfile, 'apy');
-                        })
-                        .catch(e => {
-                            if (!isCurrentLookup()) return;
-                            earn_markLookupProfile(lookupProfile, 'apy');
-                            console.warn('Dolomite APY fetch:', e);
-                        })
-                    : Promise.resolve().then(() => {
+                // Fetch supply APR/APY data once per chain and reuse the shared cache.
+                const apyPromise = earn_fetchMarketRates(chainId)
+                    .then(() => {
                         if (!isCurrentLookup()) return;
                         earn_markLookupProfile(lookupProfile, 'apy');
+                    })
+                    .catch(e => {
+                        if (!isCurrentLookup()) return;
+                        earn_markLookupProfile(lookupProfile, 'apy');
+                        console.warn('Dolomite APY fetch:', e);
                     });
 
                 // Enrich with token info + USD value (use fallback prices for instant render)
@@ -28372,19 +28584,6 @@
                     });
                 };
 
-                const totalYieldPromise = earn_fetchTotalYield({ suppressRender: true, runId: lookupRunId })
-                    .then(result => {
-                        if (!isCurrentLookup()) return result;
-                        earn_markLookupProfile(lookupProfile, 'totalYield');
-                        return result;
-                    })
-                    .catch(e => {
-                        if (!isCurrentLookup()) return false;
-                        earn_markLookupProfile(lookupProfile, 'totalYield');
-                        console.warn('Total yield load:', e);
-                    });
-
-
                 if (earn_collateralPositionData.length > 0) {
                     for (const cp of earn_collateralPositionData) {
                         const cgKey = chainId + ':' + cp.tokenAddr.toLowerCase();
@@ -28416,6 +28615,31 @@
 
                 // Update cached assets with borrows included
                 earn_cachedAssets = enriched;
+                const activeMarketIdsForYield = Array.from(new Set(
+                    balances.map(b => String(b.marketId || '')).filter(Boolean)
+                ));
+                const totalYieldPromise = replayPromise
+                    .then(() => {
+                        if (!isCurrentLookup()) return false;
+                        return earn_fetchTotalYield({
+                            suppressRender: true,
+                            runId: lookupRunId,
+                            activeMarketIds: activeMarketIdsForYield,
+                        });
+                    })
+                    .then(result => {
+                        if (!isCurrentLookup()) return result;
+                        earn_markLookupProfile(lookupProfile, 'totalYield');
+                        return result;
+                    })
+                    .catch(e => {
+                        if (!isCurrentLookup()) return false;
+                        earn_markLookupProfile(lookupProfile, 'totalYield');
+                        earn_totalYieldStatus = 'error';
+                        earn_renderNotices();
+                        console.warn('Total yield load:', e);
+                        return false;
+                    });
 
                 // Show the first live render immediately using cached/fallback USD values.
                 // Pricing, replay verification, and total yield continue in the background and
@@ -28493,6 +28717,8 @@
             } catch (e) {
                 if (!isCurrentLookup()) return;
                 console.error('EARN lookup error:', e, e.stack);
+                earn_totalYieldStatus = 'error';
+                earn_renderNotices();
                 earn_showError('Failed to fetch data from RPC. Please try again.');
                 earn_logLookupProfile(lookupProfile, 'failed');
             } finally {
@@ -29938,6 +30164,7 @@
                     let totalUsd = 0;
                     let totalYieldUsdScaled = 0n;
                     let pendingYieldAssetCount = 0;
+                    let trustedYieldAssetCount = 0;
                     let bestSymbol = '';
                     let bestYieldUsdScaled = 0n;
                     const visibleVerifySummary = { total: 0, verified: 0, mismatch: 0, unverified: 0 };
@@ -29956,6 +30183,7 @@
                             visibleVerifySummary[verifyPresentation.status] = (visibleVerifySummary[verifyPresentation.status] || 0) + 1;
                         }
                         if (verifiedYieldCalc.hasData && verifiedYieldCalc.trustedForTotal) {
+                            trustedYieldAssetCount++;
                             totalYieldUsdScaled += BigInt(verifiedYieldCalc.yieldUsdScaled || 0n);
                             if ((verifiedYieldCalc.yieldUsdScaled || 0n) > bestYieldUsdScaled) {
                                 bestYieldUsdScaled = verifiedYieldCalc.yieldUsdScaled || 0n;
@@ -29989,6 +30217,7 @@
                                 if ((item.yieldUsdScaled || 0n) !== 0n) pendingYieldAssetCount++;
                                 return;
                             }
+                            trustedYieldAssetCount++;
                             totalYieldUsdScaled += BigInt(item.yieldUsdScaled || 0n);
                             if ((item.yieldUsdScaled || 0n) > bestYieldUsdScaled) {
                                 bestYieldUsdScaled = item.yieldUsdScaled || 0n;
@@ -30003,9 +30232,15 @@
                     const yieldClass = totalYieldUsd >= 0 ? 'positive' : 'negative';
                     const yieldSign = totalYieldUsd >= 0 ? '+' : '-';
                     const bestYieldSign = bestYieldUsd > 0 ? '+' : bestYieldUsd < 0 ? '-' : '';
-                    const totalYieldSub = pendingYieldAssetCount > 0
-                        ? `Verified only · ${pendingYieldAssetCount} asset${pendingYieldAssetCount !== 1 ? 's' : ''} pending verification`
-                        : 'All-time lending yield · current market value';
+                    const isTotalYieldLoading = earn_totalYieldStatus === 'loading' && trustedYieldAssetCount === 0;
+                    const isTotalYieldRefreshing = earn_totalYieldStatus === 'loading' && trustedYieldAssetCount > 0;
+                    const totalYieldSub = isTotalYieldLoading
+                        ? 'Verifying snapshots and ledger...'
+                        : isTotalYieldRefreshing
+                            ? 'Refreshing verified data in background...'
+                            : pendingYieldAssetCount > 0
+                                ? `Verified only · ${pendingYieldAssetCount} asset${pendingYieldAssetCount !== 1 ? 's' : ''} pending verification`
+                                : 'All-time lending yield · current market value';
                     const verifySummary = visibleVerifySummary.total > 0
                         ? visibleVerifySummary
                         : (earn_replayVerificationSummary || { total: 0, verified: 0, mismatch: 0, unverified: 0 });
@@ -30073,7 +30308,7 @@
                         </div>
                         <div class="earn-summary-stat">
                             <div class="earn-summary-label">Total Yield Earned</div>
-                            <div class="earn-summary-value ${yieldClass}">${yieldSign}${fmtUsd(Math.abs(totalYieldUsd))}</div>
+                            <div class="earn-summary-value ${isTotalYieldLoading ? 'neutral' : yieldClass}">${isTotalYieldLoading ? 'Loading...' : `${yieldSign}${fmtUsd(Math.abs(totalYieldUsd))}`}</div>
                             <div class="earn-summary-sub">${totalYieldSub}</div>
                         </div>
                         <div class="earn-summary-stat">
