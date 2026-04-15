@@ -240,6 +240,18 @@ def _load_netflow_for_chain(chain):
     }
 
 
+def _discover_existing_addresses(output_dir, chain):
+    chain_dir = output_dir / chain
+    if not chain_dir.exists():
+        return set()
+    out = set()
+    for path in chain_dir.glob("*.json"):
+        address = path.stem.lower()
+        if address.startswith("0x") and len(address) == 42:
+            out.add(address)
+    return out
+
+
 def _update_manifest(output_dir, chain_meta):
     manifest_path = output_dir / "manifest.json"
     manifest = {"version": 1, "generatedAt": "", "chains": {}}
@@ -265,6 +277,8 @@ def main():
                         help="Address to generate (repeatable). If omitted, use --all-addresses.")
     parser.add_argument("--all-addresses", action="store_true",
                         help="Generate files for all addresses seen in latest snapshot or netflow")
+    parser.add_argument("--existing-addresses", action="store_true",
+                        help="Refresh only addresses that already exist in the output directory")
     parser.add_argument("--output-dir", default=str(OUTPUT_DIR),
                         help="Output directory (default: data/earn-verified-ledger)")
     args = parser.parse_args()
@@ -273,8 +287,8 @@ def main():
     manifest = _read_json(SNAPSHOT_DIR / "manifest.json")
 
     requested_addresses = {a.lower() for a in args.address if a}
-    if not requested_addresses and not args.all_addresses:
-        raise SystemExit("Provide --address ... or use --all-addresses")
+    if not requested_addresses and not args.all_addresses and not args.existing_addresses:
+        raise SystemExit("Provide --address ..., --existing-addresses, or use --all-addresses")
 
     chain_meta = {}
     for chain in sorted({c.lower() for c in args.chain}):
@@ -291,11 +305,12 @@ def main():
         latest_date, latest_chain_data = snapshots[-1]
         netflow_payload = _load_netflow_for_chain(chain)
         netflow_by_addr = netflow_payload["netflows"]
+        existing_addresses = _discover_existing_addresses(output_dir, chain) if args.existing_addresses else set()
 
         if args.all_addresses:
-            addresses = set(latest_chain_data.keys()) | set(netflow_by_addr.keys())
+            addresses = set(latest_chain_data.keys()) | set(netflow_by_addr.keys()) | requested_addresses | existing_addresses
         else:
-            addresses = set(requested_addresses)
+            addresses = set(requested_addresses) | existing_addresses
 
         print(f"[{chain}] snapshot={latest_date} addresses={len(addresses)}")
         wrote = 0

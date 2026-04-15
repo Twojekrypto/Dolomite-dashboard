@@ -8610,6 +8610,63 @@
             gap: 10px;
         }
 
+        .earn-notices {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .earn-notices.visible {
+            display: flex;
+        }
+
+        .earn-notice {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(148, 163, 184, 0.14);
+            background: rgba(15, 23, 42, 0.36);
+            color: rgba(226, 232, 240, 0.92);
+        }
+
+        .earn-notice.warn {
+            border-color: rgba(251, 191, 36, 0.24);
+            background: rgba(120, 53, 15, 0.16);
+            color: rgba(254, 240, 138, 0.96);
+        }
+
+        .earn-notice-icon {
+            flex-shrink: 0;
+            width: 18px;
+            height: 18px;
+            margin-top: 1px;
+            opacity: 0.9;
+        }
+
+        .earn-notice-copy {
+            min-width: 0;
+        }
+
+        .earn-notice-title {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.2px;
+            margin-bottom: 2px;
+        }
+
+        .earn-notice-body {
+            font-size: 12px;
+            line-height: 1.45;
+            color: rgba(255, 255, 255, 0.72);
+        }
+
+        .earn-notice.warn .earn-notice-body {
+            color: rgba(255, 251, 235, 0.82);
+        }
+
         .earn-empty {
             text-align: center;
             padding: 48px 24px;
@@ -13755,6 +13812,7 @@
             </div>
 
             <div class="earn-results" id="earn-results">
+                <div class="earn-notices" id="earn-notices"></div>
                 <!-- Summary card -->
                 <div class="earn-summary-card" id="earn-summary-card"></div>
 
@@ -13805,13 +13863,13 @@
                                     </th>
                                     <th data-sort="balance" class="sort-active" onclick="earn_sortAssets('balance')">
                                         Current Balance <span class="earn-sort-arrow">▼</span></th>
-                                    <th data-sort="yield" onclick="earn_sortAssets('yield')">Total Yield Earned
+                                    <th data-sort="yield" onclick="earn_sortAssets('yield')">Yield Earned / Value Today
                                         <span class="earn-sort-arrow">▼</span> <span class="tooltip-icon">?<span
-                                                class="tooltip-bubble">Cumulative interest earned from Dolomite
+                                                class="tooltip-bubble">Cumulative token yield earned from Dolomite
                                                 lending,
                                                 isolated from deposits, withdrawals, and swaps using supply
-                                                index tracking. Coverage period shown below each
-                                                value.</span></span>
+                                                index tracking. The USD subline is priced at current market
+                                                prices.</span></span>
                                     </th>
                                 </tr>
                             </thead>
@@ -13885,7 +13943,7 @@
                                             <span>Token</span>
                                         </div>
                                     </th>
-                                    <th style="text-align:right">Total Yield Earned</th>
+                                    <th style="text-align:right">Yield Earned / Value Today</th>
                                 </tr>
                             </thead>
                             <tbody id="earn-past-tbody"></tbody>
@@ -21273,10 +21331,13 @@
         let earn_lookupLoading = false;
         let earn_lookupUsingCachedSnapshot = false;
         let earn_activeLookupRunId = 0;
+        let earn_merklFetchStatus = 'idle'; // idle | loading | success | error
+        let earn_merklFetchError = '';
         const EARN_LOOKUP_CACHE_VERSION = 2;
         const EARN_LOOKUP_CACHE_TTL_MS = 10 * 60 * 1000;
         const earn_lookupResultCache = {};
         const EARN_PROFILE_LOGS = true;
+        const EARN_SNAPSHOT_STALE_DAYS = 7;
 
         function earn_isLookupRunCurrent(runId) {
             return !runId || runId === earn_activeLookupRunId;
@@ -21400,7 +21461,11 @@
             earn_lendingPositions = [];
             earn_merklRewards = {};
             earn_merklRewardsLoaded = false;
+            earn_merklFetchStatus = 'idle';
+            earn_merklFetchError = '';
             earn_odoloMeta = null;
+            earn_currentPeriod = '1';
+            if (earn_snapshotManifest) earn_buildPeriodButtons();
             // Hide lending positions section
             const lendingSection = document.getElementById('earn-lending-section');
             if (lendingSection) lendingSection.style.display = 'none';
@@ -22311,11 +22376,6 @@
                     if (pos.wei < 0n || pos.par < 0n) borrowAccounts.add(acct);
                 });
 
-                const verificationAggregated = aggregatePositions(decodedPositions);
-                verificationSupply = verificationAggregated.aggregatedSupply;
-                verificationCollateral = verificationAggregated.aggregatedCollateral;
-                verificationBorrow = verificationAggregated.aggregatedBorrow;
-
                 // Some RPC providers omit specific balances in getAccountBalances responses.
                 // Supplement missing per-account supply entries from the latest subgraph snapshot.
                 let mergedPositions = decodedPositions;
@@ -22376,6 +22436,14 @@
                 aggregatedSupply = aggregated.aggregatedSupply;
                 aggregatedCollateral = aggregated.aggregatedCollateral;
                 aggregatedBorrow = aggregated.aggregatedBorrow;
+
+                // Build verification maps from the final merged position set so collateral/supply
+                // classification stays in sync with any borrow accounts discovered via snapshot
+                // supplementation. Missing supplemented markets are still marked unverified above.
+                const verificationAggregated = aggregatePositions(mergedPositions);
+                verificationSupply = verificationAggregated.aggregatedSupply;
+                verificationCollateral = verificationAggregated.aggregatedCollateral;
+                verificationBorrow = verificationAggregated.aggregatedBorrow;
             } catch (rpcErr) {
                 console.warn('RPC balance lookup failed, using subgraph fallback:', rpcErr.message);
                 const snapshot = await ensureSubgraphSnapshot();
@@ -23183,9 +23251,6 @@
                         tokenName.startsWith('Dolomite Isolation')
                     );
 
-                    const depositNum = Number(totalDeposited) / (10 ** decimals);
-                    const withdrawNum = Number(totalWithdrawn) / (10 ** decimals);
-
                     historyItems.push({
                         marketId: mid,
                         tokenAddr,
@@ -23199,13 +23264,12 @@
                         currentWei,
                         currentPar: currentPosition ? currentPosition.par : 0n,
                         yieldWei: 0n,
+                        yieldUsdScaled: 0n,
                         yieldUsd: 0,
                         hasYieldData: false,
                         yieldMethod: null,
                         totalDeposited,
                         totalWithdrawn,
-                        depositNum,
-                        withdrawNum,
                         netFlow,
                         hasBreakdown,
                         hasOpenBorrow: currentBorrowPar > 0n || currentCollateralPar > 0n,
@@ -23229,24 +23293,22 @@
                 if (item.isIsolation && !item.isActive) return false;
                 // Remove dust positions (balance value < $1)
                 const chainId = document.getElementById('earn-chain').value;
-                const priceKey = chainId + ':' + (item.tokenAddr || '').toLowerCase();
-                const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[item.symbol] || 0;
-                const balanceNum = Number(item.currentWei) / (10 ** item.decimals);
-                const balanceUsd = Math.abs(balanceNum * price);
-                if (!earn_showDust && balanceUsd < 1 && Math.abs(item.yieldUsd) < 1) return false;
+                const balanceUsdScaled = earn_getTokenUsdScaled(item.currentWei, item.decimals, item.symbol, item.tokenAddr, chainId);
+                if (!earn_showDust && earn_isSubDollarYieldPair(balanceUsdScaled, item.yieldUsdScaled || 0n)) return false;
                 return true;
             });
 
             // Total summary
-            let totalYieldUsd = 0;
+            let totalYieldUsdScaled = 0n;
             let totalActive = 0;
             let totalWithdrawn = 0;
             items.forEach(item => {
                 // Exclude isolation mode tokens from total yield
-                if (!item.isIsolation) totalYieldUsd += item.yieldUsd;
+                if (!item.isIsolation) totalYieldUsdScaled += BigInt(item.yieldUsdScaled || 0n);
                 if (item.isActive) totalActive++; else totalWithdrawn++;
             });
 
+            const totalYieldUsd = earn_scaledUsdToNumber(totalYieldUsdScaled);
             const isPositive = totalYieldUsd >= 0;
             const totalFmt = totalYieldUsd >= 1000 ? '$' + (totalYieldUsd / 1000).toFixed(2) + 'K' :
                 totalYieldUsd >= 1 ? '$' + totalYieldUsd.toFixed(2) :
@@ -23256,7 +23318,7 @@
             if (!histTotalEl) return; // unified view — skip legacy rendering
             histTotalEl.innerHTML = `
                 <div class="earn-hist-total-item">
-                    <div class="earn-hist-total-label">Total Yield Earned</div>
+                    <div class="earn-hist-total-label">Yield Value Today</div>
                     <div class="earn-hist-total-value ${isPositive ? 'positive' : 'negative'}">${isPositive ? '+' : ''}${totalFmt}</div>
                 </div>
                 <div class="earn-hist-total-item">
@@ -23298,7 +23360,7 @@
                 } else if (item.isCollateralized) {
                     badge = '<span class="earn-hist-badge withdrawn" title="Supply balance is currently parked as collateral inside an open borrow account"><span class="earn-status-dot"></span>BORROW</span>';
                 } else if (item.isActive) {
-                    badge = '<span class="earn-hist-badge active">📍 ACTIVE</span>';
+                    badge = '<span class="earn-hist-badge active">ACTIVE</span>';
                 } else {
                     badge = '<span class="earn-hist-badge withdrawn">WITHDRAWN</span>';
                 }
@@ -23310,8 +23372,8 @@
                 // Deposit/Withdraw amounts
                 let depFmt, wdFmt;
                 if (item.hasBreakdown) {
-                    depFmt = item.depositNum > 0 ? earn_formatAmount(item.totalDeposited, item.decimals, item.symbol) : '—';
-                    wdFmt = item.withdrawNum > 0 ? earn_formatAmount(item.totalWithdrawn, item.decimals, item.symbol) : '—';
+                    depFmt = item.totalDeposited > 0n ? earn_formatAmount(item.totalDeposited, item.decimals, item.symbol) : '—';
+                    wdFmt = item.totalWithdrawn > 0n ? earn_formatAmount(item.totalWithdrawn, item.decimals, item.symbol) : '—';
                 } else {
                     // Old format — no d/w breakdown, show net flow
                     const absNet = item.netFlow < 0n ? -item.netFlow : item.netFlow;
@@ -23342,7 +23404,7 @@
                     yieldHtml = `<span class="earn-amount" style="color:var(--text-muted);font-size:13px" title="This was an isolation mode wrapper token used as collateral. The position has been fully closed.">Position Closed</span>`;
                 } else {
                     const yieldUsdFmt = item.yieldUsd !== 0
-                        ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${item.yieldUsd > 0 ? '+' : item.yieldUsd < 0 ? '-' : ''}$${Math.abs(item.yieldUsd).toFixed(2)}</div>`
+                        ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">Current value ${item.yieldUsd > 0 ? '+' : item.yieldUsd < 0 ? '-' : ''}$${Math.abs(item.yieldUsd).toFixed(2)}</div>`
                         : '';
                     yieldHtml = `<span class="earn-amount ${yieldColor}">${yieldSign}${yieldFmt}<span class="earn-amount-sym">${item.symbol}</span></span>${yieldUsdFmt}`;
                 }
@@ -23432,8 +23494,9 @@
             if (typeof value !== 'bigint') value = BigInt(value);
             const isNeg = value < 0n;
             const abs = isNeg ? -value : value;
-            const whole = abs / (10n ** BigInt(decimals));
-            const frac = abs % (10n ** BigInt(decimals));
+            const scale = earn_getPow10(decimals);
+            const whole = abs / scale;
+            const frac = abs % scale;
             const fracStr = frac.toString().padStart(decimals, '0');
 
             // Stablecoins: 1 decimal; others: 6 decimals
@@ -23446,10 +23509,75 @@
             return isNeg ? '-' + result : result;
         }
 
+        const EARN_USD_SCALE_DECIMALS = 8;
+        const EARN_USD_SCALE = 10n ** BigInt(EARN_USD_SCALE_DECIMALS);
+        const earn_pow10Cache = { 0: 1n, [EARN_USD_SCALE_DECIMALS]: EARN_USD_SCALE };
+
+        function earn_getPow10(decimals) {
+            const safeDecimals = Math.max(0, Number(decimals || 0));
+            if (!Object.prototype.hasOwnProperty.call(earn_pow10Cache, safeDecimals)) {
+                earn_pow10Cache[safeDecimals] = 10n ** BigInt(safeDecimals);
+            }
+            return earn_pow10Cache[safeDecimals];
+        }
+
+        function earn_bigIntToDecimalString(value, decimals, trimTrailingZeros) {
+            const amount = typeof value === 'bigint' ? value : BigInt(value || '0');
+            const safeDecimals = Math.max(0, Number(decimals || 0));
+            const negative = amount < 0n;
+            const abs = negative ? -amount : amount;
+            const scale = earn_getPow10(safeDecimals);
+            const whole = abs / scale;
+            const frac = abs % scale;
+            if (safeDecimals === 0) {
+                return `${negative ? '-' : ''}${whole.toString()}`;
+            }
+            let fracStr = frac.toString().padStart(safeDecimals, '0');
+            if (trimTrailingZeros) fracStr = fracStr.replace(/0+$/, '');
+            return `${negative ? '-' : ''}${whole.toString()}${fracStr ? '.' + fracStr : ''}`;
+        }
+
+        function earn_bigIntToDecimalNumber(value, decimals) {
+            return Number(earn_bigIntToDecimalString(value, decimals, true));
+        }
+
         function earn_getUsdPrice(symbol, tokenAddr, chainId) {
             const cid = chainId || document.getElementById('earn-chain')?.value || 'ethereum';
             const priceKey = cid + ':' + ((tokenAddr || '').toLowerCase());
             return earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[symbol] || 0;
+        }
+
+        function earn_getUsdValueScaled(amountWei, decimals, price) {
+            const amount = typeof amountWei === 'bigint' ? amountWei : BigInt(amountWei || '0');
+            if (!amount || !price) return 0n;
+            const tokenScale = earn_getPow10(decimals);
+            const priceScaled = earn_decimalToBigInt(String(price || 0), EARN_USD_SCALE_DECIMALS);
+            if (!priceScaled) return 0n;
+            return (amount * priceScaled) / tokenScale;
+        }
+
+        function earn_getTokenUsdScaled(amountWei, decimals, symbol, tokenAddr, chainId) {
+            return earn_getUsdValueScaled(amountWei, decimals, earn_getUsdPrice(symbol, tokenAddr, chainId));
+        }
+
+        function earn_scaledUsdToNumber(value) {
+            return earn_bigIntToDecimalNumber(value, EARN_USD_SCALE_DECIMALS);
+        }
+
+        function earn_compareBigInt(a, b) {
+            const left = typeof a === 'bigint' ? a : BigInt(a || '0');
+            const right = typeof b === 'bigint' ? b : BigInt(b || '0');
+            if (left === right) return 0;
+            return left > right ? 1 : -1;
+        }
+
+        function earn_absUsdScaled(value) {
+            return earn_absBigInt(typeof value === 'bigint' ? value : BigInt(value || '0'));
+        }
+
+        function earn_isSubDollarYieldPair(balanceUsdScaled, yieldUsdScaled) {
+            return earn_absUsdScaled(balanceUsdScaled) < EARN_USD_SCALE
+                && earn_absUsdScaled(yieldUsdScaled) < EARN_USD_SCALE;
         }
 
         function earn_decimalToBigInt(value, decimals) {
@@ -23828,6 +23956,36 @@
                     rawLabel: 'Mismatch',
                     rawTitle: fallbackTitle,
                     overridden: true,
+                    entry,
+                };
+            }
+
+            if (entry && entry.counted && fallbackStatus === 'unverified') {
+                const fallbackMethods = new Set(['snapshot', 'snapshot-partial', 'acct0-netflow', 'all-netflow', 'all-netflow-guarded', 'recent-cycle']);
+                const usesFallbackSource = !!(
+                    earn_replayUsedSubgraphFallback ||
+                    entry.snapshotIncomplete ||
+                    (yieldCalc && fallbackMethods.has(String(yieldCalc.method || '')))
+                );
+                const label = entry.snapshotIncomplete
+                    ? 'PENDING'
+                    : usesFallbackSource
+                        ? 'FALLBACK'
+                        : 'CHECKING';
+                const title = entry.snapshotIncomplete
+                    ? 'Current balance reconciliation is incomplete for this market because missing live balances were supplemented from snapshot data. Verification will remain pending until a full RPC response is available.'
+                    : usesFallbackSource
+                        ? 'This market is currently using fallback balance or yield data because live replay verification is unavailable.'
+                        : 'Replay verification for this market is still in progress.';
+                return {
+                    counted: true,
+                    status: 'unverified',
+                    label,
+                    title,
+                    rawStatus: entry.status || 'unverified',
+                    rawLabel: 'Unverified',
+                    rawTitle: fallbackTitle,
+                    overridden: false,
                     entry,
                 };
             }
@@ -24539,6 +24697,7 @@
                     hasData: false,
                     method: null,
                     totalYield: 0n,
+                    yieldUsdScaled: 0n,
                     yieldUsd: 0,
                     symbol,
                     decimals,
@@ -24558,8 +24717,8 @@
             const openBorrowYield = interestMeta ? BigInt(interestMeta.openBorrowYield || '0') : 0n;
 
             const price = earn_getUsdPrice(symbol, tokenAddr, chainId);
-            const yieldNum = Number(totalYield) / (10 ** decimals);
-            const yieldUsd = yieldNum * price;
+            const yieldUsdScaled = earn_getUsdValueScaled(totalYield, decimals, price);
+            const yieldUsd = earn_scaledUsdToNumber(yieldUsdScaled);
             const absYield = totalYield < 0n ? -totalYield : totalYield;
 
             return {
@@ -24567,6 +24726,7 @@
                 method,
                 totalYield,
                 absYield,
+                yieldUsdScaled,
                 yieldUsd,
                 settledYield,
                 openSupplyYield,
@@ -24604,10 +24764,11 @@
                 item.hasYieldData = calc.hasData;
                 item.yieldMethod = calc.method;
                 item.yieldWei = calc.totalYield;
+                item.yieldUsdScaled = calc.yieldUsdScaled;
                 item.yieldUsd = calc.yieldUsd;
             });
 
-            earn_historyData.sort((a, b) => b.yieldUsd - a.yieldUsd);
+            earn_historyData.sort((a, b) => earn_compareBigInt(b.yieldUsdScaled || 0n, a.yieldUsdScaled || 0n));
         }
 
         function earn_showError(msg) {
@@ -24764,12 +24925,6 @@
             if (earn_cachedAssets) earn_renderResults(earn_cachedAssets, { skipSummary: true });
         }
 
-        // Compute yield BigInt for a single asset (used for sort comparison)
-        function earn_getYieldForAsset(a) {
-            const calc = earn_calculateYield(a);
-            return calc.hasData ? calc.totalYield : 0n;
-        }
-
         // Sort assets and re-render
         function earn_sortAssets(key) {
             if (!earn_cachedAssets || earn_cachedAssets.length === 0) return;
@@ -24795,16 +24950,9 @@
                 });
             } else if (key === 'yield') {
                 earn_cachedAssets.sort((a, b) => {
-                    const ya = earn_getYieldForAsset(a);
-                    const yb = earn_getYieldForAsset(b);
-                    // Compare yield in USD: yield * price
-                    const cgKeyA = document.getElementById('earn-chain').value + ':' + a.tokenAddr.toLowerCase();
-                    const cgKeyB = document.getElementById('earn-chain').value + ':' + b.tokenAddr.toLowerCase();
-                    const priceA = earn_priceCache[cgKeyA] || TOKEN_USD_FALLBACK[a.symbol] || 0.01;
-                    const priceB = earn_priceCache[cgKeyB] || TOKEN_USD_FALLBACK[b.symbol] || 0.01;
-                    const yieldUsdA = Number(ya) / Math.pow(10, a.decimals) * priceA;
-                    const yieldUsdB = Number(yb) / Math.pow(10, b.decimals) * priceB;
-                    const diff = yieldUsdA - yieldUsdB;
+                    const yieldUsdA = earn_calculateYield(a).yieldUsdScaled || 0n;
+                    const yieldUsdB = earn_calculateYield(b).yieldUsdScaled || 0n;
+                    const diff = earn_compareBigInt(yieldUsdA, yieldUsdB);
                     return earn_sortDesc ? -diff : diff;
                 });
             } else if (key === 'apr') {
@@ -24871,9 +25019,12 @@
         let earn_totalYieldDays = 0; // number of days the total yield spans
         let earn_interestYieldData = null; // { marketId: { earnYield, settledYield, openBorrowYield, openSupplyYield, openCollateralYield, currentBorrowPar, currentSupplyPar } }
 
-        const SNAPSHOT_BASE = 'https://twojekrypto.github.io/vedolo-dashboard/data/earn-snapshots';
-        const NETFLOW_BASE = 'https://twojekrypto.github.io/vedolo-dashboard/data/earn-netflow';
-        const VERIFIED_LEDGER_BASE = 'https://twojekrypto.github.io/vedolo-dashboard/data/earn-verified-ledger';
+        const EARN_DATA_BASE = ((window.location.protocol === 'http:' || window.location.protocol === 'https:')
+            ? new URL('data/', window.location.href).href.replace(/\/$/, '')
+            : 'https://twojekrypto.github.io/vedolo-dashboard/data');
+        const SNAPSHOT_BASE = `${EARN_DATA_BASE}/earn-snapshots`;
+        const NETFLOW_BASE = `${EARN_DATA_BASE}/earn-netflow`;
+        const VERIFIED_LEDGER_BASE = `${EARN_DATA_BASE}/earn-verified-ledger`;
         let earn_netflowData = null; // { marketId: netFlowWei (string) } for current address+chain
         let earn_acct0NetflowData = null; // { marketId: weiString } account-0-only supply netflow (for borrow markets)
         let earn_subgraphTokens = {}; // { marketId: { symbol, decimals, name } } — token metadata from subgraph
@@ -24883,12 +25034,100 @@
         let earn_snapshotManifest = null;
         let earn_customSnapshotDate = null; // date string for custom selection
 
+        function earn_getLatestSnapshotDateForChain(chainId) {
+            if (!earn_snapshotManifest || !Array.isArray(earn_snapshotManifest.dates)) return null;
+            const targetChain = String(chainId || '').trim().toLowerCase();
+            if (!targetChain) return null;
+            for (let i = earn_snapshotManifest.dates.length - 1; i >= 0; i--) {
+                const dateStr = earn_snapshotManifest.dates[i];
+                const chains = earn_snapshotManifest.chains && earn_snapshotManifest.chains[dateStr];
+                if (Array.isArray(chains) && chains.map(v => String(v || '').toLowerCase()).includes(targetChain)) {
+                    return dateStr;
+                }
+            }
+            return null;
+        }
+
+        function earn_getSnapshotFreshness(chainId) {
+            const latestDate = earn_getLatestSnapshotDateForChain(chainId);
+            if (!latestDate) return null;
+            const today = new Date();
+            today.setUTCHours(0, 0, 0, 0);
+            const snapshotDate = new Date(latestDate + 'T00:00:00Z');
+            const ageDays = Math.max(0, Math.round((today - snapshotDate) / 86400000));
+            return {
+                latestDate,
+                ageDays,
+                stale: ageDays > EARN_SNAPSHOT_STALE_DAYS,
+            };
+        }
+
+        function earn_renderNotices() {
+            const noticesEl = document.getElementById('earn-notices');
+            if (!noticesEl) return;
+
+            const notices = [];
+            const chainId = document.getElementById('earn-chain')?.value || 'ethereum';
+            const chainName = EARN_CHAINS[chainId]?.name || chainId;
+            const snapshotFreshness = earn_getSnapshotFreshness(chainId);
+
+            if (snapshotFreshness && snapshotFreshness.stale) {
+                notices.push({
+                    tone: 'warn',
+                    title: 'Stale History Snapshots',
+                    body: `Latest ${chainName} snapshot: ${snapshotFreshness.latestDate} (${snapshotFreshness.ageDays} days old). Period shortcuts and historical yield comparisons may be incomplete.`,
+                });
+            }
+
+            if (earn_merklFetchStatus === 'error') {
+                notices.push({
+                    tone: 'warn',
+                    title: 'WLFI Rewards Unavailable',
+                    body: 'MERKL API did not respond for this lookup. External rewards cards and WLFI attribution may be temporarily undercounted.',
+                });
+            }
+
+            if (notices.length === 0) {
+                noticesEl.innerHTML = '';
+                noticesEl.classList.remove('visible');
+                return;
+            }
+
+            noticesEl.innerHTML = notices.map(notice => `
+                <div class="earn-notice ${notice.tone}">
+                    <svg class="earn-notice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 9v4"></path>
+                        <path d="M12 17h.01"></path>
+                        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    </svg>
+                    <div class="earn-notice-copy">
+                        <div class="earn-notice-title">${earn_escapeHtml(notice.title)}</div>
+                        <div class="earn-notice-body">${earn_escapeHtml(notice.body)}</div>
+                    </div>
+                </div>
+            `).join('');
+            noticesEl.classList.add('visible');
+        }
+
+        function earn_setMerklFetchState(status, errorMessage, address, chainId) {
+            const currentAddr = String(document.getElementById('earn-address')?.value || '').trim().toLowerCase();
+            const currentChainId = String(document.getElementById('earn-chain')?.value || '').trim().toLowerCase();
+            const targetAddr = String(address || '').trim().toLowerCase();
+            const targetChainId = String(chainId || '').trim().toLowerCase();
+            if (targetAddr && currentAddr && targetAddr !== currentAddr) return;
+            if (targetChainId && currentChainId && targetChainId !== currentChainId) return;
+            earn_merklFetchStatus = status || 'idle';
+            earn_merklFetchError = errorMessage || '';
+            earn_renderNotices();
+        }
+
         async function earn_loadManifest() {
             try {
                 const resp = await fetch(`${SNAPSHOT_BASE}/manifest.json`);
                 if (!resp.ok) return;
                 earn_snapshotManifest = await resp.json();
                 earn_buildPeriodButtons();
+                earn_renderNotices();
                 console.log('Snapshot manifest loaded:', earn_snapshotManifest.dates.length, 'dates');
             } catch (e) {
                 console.warn('Failed to load snapshot manifest:', e);
@@ -24906,12 +25145,19 @@
 
             const today = new Date();
             today.setUTCHours(0, 0, 0, 0);
+            const chainId = document.getElementById('earn-chain')?.value || '';
 
             // Smart period shortcuts — find closest available snapshot for each target
             const targets = [1, 3, 7, 14, 21, 28];
             const availDates = earn_snapshotManifest.dates
+                .filter(d => {
+                    const chains = earn_snapshotManifest.chains[d] || [];
+                    return !chainId || chains.includes(chainId);
+                })
                 .filter(d => d !== today.toISOString().slice(0, 10))
                 .sort();
+
+            let generatedCount = 0;
 
             targets.forEach(targetDays => {
                 const targetDate = new Date(today);
@@ -24946,7 +25192,10 @@
                 btn.onclick = () => earn_setPeriod(String(actualDays), bestDate);
 
                 bar.appendChild(btn);
+                generatedCount++;
             });
+
+            bar.classList.toggle('visible', generatedCount > 0);
         }
 
 
@@ -24979,6 +25228,18 @@
                 }
                 const data = await resp.json();
                 if (!data || typeof data !== 'object' || !data.markets || typeof data.markets !== 'object') {
+                    earn_verifiedLedgerCache[cacheKey] = null;
+                    return null;
+                }
+                const latestSnapshotDate = earn_getLatestSnapshotDateForChain(chainId);
+                const ledgerSnapshotDate = String(data.snapshotDate || '').trim();
+                if (latestSnapshotDate && ledgerSnapshotDate && ledgerSnapshotDate < latestSnapshotDate) {
+                    console.info('Ignoring stale verified ledger in favor of fresher snapshots:', {
+                        chainId,
+                        address: addr,
+                        ledgerSnapshotDate,
+                        latestSnapshotDate,
+                    });
                     earn_verifiedLedgerCache[cacheKey] = null;
                     return null;
                 }
@@ -25039,7 +25300,7 @@
                         method: String(m.method || ''),
                     };
                 });
-                if (yieldHeader) yieldHeader.textContent = 'Total Yield ✓ Verified';
+                if (yieldHeader) yieldHeader.textContent = 'Yield Value Today ✓ Verified';
                 console.log(
                     'Total yield: loaded precomputed verified ledger for',
                     Object.keys(verifiedLedger.markets).length,
@@ -25053,9 +25314,6 @@
                 }
                 return;
             }
-
-            const today = new Date();
-            today.setUTCHours(0, 0, 0, 0);
 
             // Get all market IDs from current assets
             const neededMarkets = new Set((earn_cachedAssets || []).map(a => String(a.marketId)));
@@ -25103,7 +25361,8 @@
                 const first = history[0];
                 const last = history[history.length - 1];
                 const sd = new Date(first.date + 'T00:00:00Z');
-                const days = Math.max(1, Math.round((today - sd) / 86400000));
+                const ld = new Date(last.date + 'T00:00:00Z');
+                const days = Math.max(1, Math.round((ld - sd) / 86400000));
 
                 earn_totalYieldData[mid] = {
                     cumulativeYield: cumulativeYield.toString(),
@@ -25116,10 +25375,10 @@
             }
 
             if (marketsWithData > 0) {
-                if (yieldHeader) yieldHeader.textContent = 'Total Yield ✓';
+                if (yieldHeader) yieldHeader.textContent = 'Yield Value Today ✓';
                 console.log('Total yield: computed index-based yield for', marketsWithData, 'markets');
             } else {
-                if (yieldHeader) yieldHeader.textContent = 'Total Yield';
+                if (yieldHeader) yieldHeader.textContent = 'Yield Value Today';
             }
 
             earn_refreshHistoryYieldData();
@@ -25140,13 +25399,20 @@
             const CHAIN_IDS = { ethereum: 1, berachain: 80094, arbitrum: 42161, mantle: 5000 };
             const numericId = CHAIN_IDS[chainId];
             if (!numericId) return {};
+            earn_setMerklFetchState('loading', '', userAddr, chainId);
             try {
                 const url = `https://api.merkl.xyz/v3/rewards?chainIds=${numericId}&user=${userAddr.toLowerCase()}`;
                 const resp = await fetch(url);
-                if (!resp.ok) return {};
+                if (!resp.ok) {
+                    earn_setMerklFetchState('error', `HTTP ${resp.status}`, userAddr, chainId);
+                    return {};
+                }
                 const data = await resp.json();
                 const chainData = data[String(numericId)];
-                if (!chainData) return {};
+                if (!chainData) {
+                    earn_setMerklFetchState('success', '', userAddr, chainId);
+                    return {};
+                }
                 const campaignTokenMap = earn_getMerklCampaignTokenMap(chainId);
                 // Extract Dolomite-specific rewards from campaignData
                 const dolomiteRewards = {};
@@ -25172,8 +25438,8 @@
                             continue;
                         }
                         if (!dolomiteRewards[sym]) dolomiteRewards[sym] = { accumulated: 0, unclaimed: 0, decimals: dec, token: reward.token, perToken: {}, perAccountToken: {}, assignedPerToken: {} };
-                        const amt = parseFloat(reward.accumulated || '0') / Math.pow(10, dec);
-                        const uncl = parseFloat(reward.unclaimed || '0') / Math.pow(10, dec);
+                        const amt = earn_bigIntToDecimalNumber(reward.accumulated || '0', dec);
+                        const uncl = earn_bigIntToDecimalNumber(reward.unclaimed || '0', dec);
                         dolomiteRewards[sym].accumulated += amt;
                         dolomiteRewards[sym].unclaimed += uncl;
                         // Track per collateral token for per-position attribution
@@ -25192,15 +25458,17 @@
                     const sym = tokenData && tokenData.symbol ? tokenData.symbol : '';
                     if (!sym || !unresolvedSymbols.has(sym)) continue;
                     const dec = tokenData.decimals || 18;
-                    const totalAmt = parseFloat(tokenData.accumulated || '0') / Math.pow(10, dec);
-                    const totalUncl = parseFloat(tokenData.unclaimed || '0') / Math.pow(10, dec);
+                    const totalAmt = earn_bigIntToDecimalNumber(tokenData.accumulated || '0', dec);
+                    const totalUncl = earn_bigIntToDecimalNumber(tokenData.unclaimed || '0', dec);
                     if (!dolomiteRewards[sym]) dolomiteRewards[sym] = { accumulated: 0, unclaimed: 0, decimals: dec, token: tokenData.token, perToken: {}, perAccountToken: {}, assignedPerToken: {} };
                     dolomiteRewards[sym].accumulated = Math.max(dolomiteRewards[sym].accumulated || 0, totalAmt);
                     dolomiteRewards[sym].unclaimed = Math.max(dolomiteRewards[sym].unclaimed || 0, totalUncl);
                 }
+                earn_setMerklFetchState('success', '', userAddr, chainId);
                 return dolomiteRewards;
             } catch (e) {
                 console.warn('MERKL rewards fetch failed:', e);
+                earn_setMerklFetchState('error', e && e.message ? e.message : String(e), userAddr, chainId);
                 return {};
             }
         }
@@ -26402,9 +26670,9 @@
             // Update header label
             const yh2 = document.getElementById('earn-yield-header');
             if (hasRealData) {
-                if (yh2) yh2.textContent = periodDays + 'D Yield ✓';
+                if (yh2) yh2.textContent = periodDays + 'D Yield Value ✓';
             } else {
-                if (yh2) yh2.textContent = periodDays + 'D Yield';
+                if (yh2) yh2.textContent = periodDays + 'D Yield Value';
             }
 
             // Re-render if we have cached data
@@ -26608,6 +26876,11 @@
             if (summary && !preserveResults) {
                 summary.classList.remove('visible', 'skeleton', 'no-animate');
                 summary.innerHTML = '';
+            }
+            const notices = document.getElementById('earn-notices');
+            if (notices && !preserveResults) {
+                notices.classList.remove('visible');
+                notices.innerHTML = '';
             }
             // Hide filter bar and reset toggles to defaults (active)
             const filterBar = document.getElementById('earn-filter-bar');
@@ -26854,6 +27127,8 @@
             earn_replayVerificationReady = false;
             earn_merklRewards = {};
             earn_merklRewardsLoaded = false;
+            earn_merklFetchStatus = 'idle';
+            earn_merklFetchError = '';
             earn_odoloMeta = null;
             earn_lookupLoading = false;
             earn_lookupUsingCachedSnapshot = false;
@@ -28061,11 +28336,8 @@
                 if (item.isIsolation && !item.isActive) return false;
                 if (activeAddrs.has(item.tokenAddr?.toLowerCase())) return false;
                 // Filter dust unless dust filter is off
-                const priceKey = chainId + ':' + (item.tokenAddr || '').toLowerCase();
-                const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[item.symbol] || 0;
-                const balNum = Number(item.currentWei) / (10 ** item.decimals);
-                const balUsd = Math.abs(balNum * price);
-                if (!earn_showDust && balUsd < 1 && Math.abs(item.yieldUsd) < 1) return false;
+                const balUsdScaled = earn_getTokenUsdScaled(item.currentWei, item.decimals, item.symbol, item.tokenAddr, chainId);
+                if (!earn_showDust && earn_isSubDollarYieldPair(balUsdScaled, item.yieldUsdScaled || 0n)) return false;
                 return true;
             });
 
@@ -28075,7 +28347,10 @@
             }
 
             // Sort by yield USD descending (most earned first)
-            inactiveItems.sort((a, b) => Math.abs(b.yieldUsd) - Math.abs(a.yieldUsd));
+            inactiveItems.sort((a, b) => earn_compareBigInt(
+                earn_absUsdScaled(b.yieldUsdScaled || 0n),
+                earn_absUsdScaled(a.yieldUsdScaled || 0n)
+            ));
 
             countEl.textContent = inactiveItems.length;
             section.style.display = '';
@@ -28098,7 +28373,7 @@
                 const yieldFmt = earn_formatAmount(item.yieldWei, item.decimals, item.symbol);
                 const yieldUsdSign = item.yieldUsd > 0 ? '+' : (item.yieldUsd < 0 ? '-' : '');
                 const yieldUsdStr = Math.abs(item.yieldUsd) >= 0.01
-                    ? `<div class="earn-usd-sub" style="color:${yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">${yieldUsdSign}$${Math.abs(item.yieldUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>`
+                    ? `<div class="earn-usd-sub" style="color:${yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">Current value ${yieldUsdSign}$${Math.abs(item.yieldUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>`
                     : '';
                 const verifyBadge = earn_renderVerificationBadge(item.marketId, item.symbol, item.decimals);
 
@@ -28424,7 +28699,7 @@
 
                 if (yieldCalc.hasData) {
                     const yieldUsdStr = Math.abs(yieldCalc.yieldUsd) >= 0.01
-                        ? `<div class="earn-usd-sub" style="color:${yieldCalc.yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">${yieldCalc.yieldSign}$${Math.abs(yieldCalc.yieldUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>`
+                        ? `<div class="earn-usd-sub" style="color:${yieldCalc.yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">Current value ${yieldCalc.yieldSign}$${Math.abs(yieldCalc.yieldUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>`
                         : '';
                     yieldCellHtml = `<span class="earn-amount ${yieldCalc.yieldColor}">${yieldCalc.yieldSign + yieldCalc.yieldFmt}<span class="earn-amount-sym">${a.symbol}</span></span>${yieldUsdStr}`;
                 } else {
@@ -28514,7 +28789,7 @@
                                 <div class="earn-token-info">
                                     <div class="earn-token-name">${a.symbol} ${chevron}</div>
                                     <div style="display:flex;gap:6px;flex-wrap:wrap">
-                                        <span class="earn-hist-badge active"><span class="earn-status-dot"></span>ACTIVE</span>
+                                        <span class="earn-hist-badge active">ACTIVE</span>
                                         ${verifyBadge}
                                         ${sourceBadge}
                                     </div>
@@ -28559,11 +28834,8 @@
                     if (item.isIsolation && !item.isActive) return false;
                     if (activeTokenAddrs.has(item.tokenAddr?.toLowerCase())) return false;
                     const chainId = document.getElementById('earn-chain').value;
-                    const priceKey = chainId + ':' + (item.tokenAddr || '').toLowerCase();
-                    const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[item.symbol] || 0;
-                    const balanceNum = Number(item.currentWei) / (10 ** item.decimals);
-                    const balanceUsd = Math.abs(balanceNum * price);
-                    if (!earn_showDust && balanceUsd < 1 && Math.abs(item.yieldUsd) < 1) return false;
+                    const balanceUsdScaled = earn_getTokenUsdScaled(item.currentWei, item.decimals, item.symbol, item.tokenAddr, chainId);
+                    if (!earn_showDust && earn_isSubDollarYieldPair(balanceUsdScaled, item.yieldUsdScaled || 0n)) return false;
                     return true;
                 });
 
@@ -28586,7 +28858,7 @@
                     const yieldColor = yieldPositive ? 'earn-yield-positive' : 'earn-yield-negative';
                     const yieldFmt = earn_formatAmount(item.yieldWei, item.decimals, item.symbol);
                     const yieldUsdFmt = item.yieldUsd !== 0
-                        ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${item.yieldUsd > 0 ? '+' : item.yieldUsd < 0 ? '-' : ''}$${Math.abs(item.yieldUsd).toFixed(2)}</div>`
+                        ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">Current value ${item.yieldUsd > 0 ? '+' : item.yieldUsd < 0 ? '-' : ''}$${Math.abs(item.yieldUsd).toFixed(2)}</div>`
                         : '';
 
                     const balFmt = earn_formatAmount(item.currentWei, item.decimals, item.symbol);
@@ -28610,10 +28882,7 @@
                             <span class="earn-amount" style="color:var(--text-muted)">${balFmt}<span class="earn-amount-sym">${item.symbol}</span></span>
                             ${(() => {
                             const chainId = document.getElementById('earn-chain').value;
-                            const priceKey = chainId + ':' + (item.tokenAddr || '').toLowerCase();
-                            const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[item.symbol] || 0;
-                            const balNum = Number(item.currentWei) / (10 ** item.decimals);
-                            const balUsd = Math.abs(balNum * price);
+                            const balUsd = Math.abs(earn_scaledUsdToNumber(earn_getTokenUsdScaled(item.currentWei, item.decimals, item.symbol, item.tokenAddr, chainId)));
                             return balUsd >= 0.01 ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">≈ $${balUsd >= 1000 ? (balUsd / 1000).toFixed(2) + 'K' : balUsd >= 1 ? balUsd.toFixed(2) : balUsd.toFixed(4)}</div>` : '';
                         })()}
                         </td>
@@ -28644,11 +28913,10 @@
                 const summaryEl = document.getElementById('earn-summary-card');
                 if (summaryEl) {
                     let totalUsd = 0;
-                    let totalDebtUsd = 0;
-                    let totalYieldUsd = 0;
+                    let totalYieldUsdScaled = 0n;
                     let pendingYieldAssetCount = 0;
                     let bestSymbol = '';
-                    let bestYieldUsd = 0;
+                    let bestYieldUsdScaled = 0n;
                     const visibleVerifySummary = { total: 0, verified: 0, mismatch: 0, unverified: 0 };
 
                     const dustThreshold = earn_showDust ? 0 : 1;
@@ -28665,9 +28933,9 @@
                             visibleVerifySummary[verifyPresentation.status] = (visibleVerifySummary[verifyPresentation.status] || 0) + 1;
                         }
                         if (verifiedYieldCalc.hasData && verifiedYieldCalc.trustedForTotal) {
-                            totalYieldUsd += verifiedYieldCalc.yieldUsd;
-                            if (verifiedYieldCalc.yieldUsd > bestYieldUsd) {
-                                bestYieldUsd = verifiedYieldCalc.yieldUsd;
+                            totalYieldUsdScaled += BigInt(verifiedYieldCalc.yieldUsdScaled || 0n);
+                            if ((verifiedYieldCalc.yieldUsdScaled || 0n) > bestYieldUsdScaled) {
+                                bestYieldUsdScaled = verifiedYieldCalc.yieldUsdScaled || 0n;
                                 bestSymbol = a.symbol;
                             }
                             return;
@@ -28687,32 +28955,34 @@
                         earn_historyData.forEach(item => {
                             if (item.isActive || item.isIsolation) return;
                             const chainId = document.getElementById('earn-chain').value;
-                            const priceKey = chainId + ':' + (item.tokenAddr || '').toLowerCase();
-                            const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[item.symbol] || 0;
-                            const balanceNum = Number(item.currentWei) / (10 ** item.decimals);
-                            const balanceUsd = Math.abs(balanceNum * price);
-                            if (!earn_showDust && balanceUsd < 1 && Math.abs(item.yieldUsd || 0) < 1) return;
+                            const balanceUsdScaled = earn_getTokenUsdScaled(item.currentWei, item.decimals, item.symbol, item.tokenAddr, chainId);
+                            if (!earn_showDust && earn_isSubDollarYieldPair(balanceUsdScaled, item.yieldUsdScaled || 0n)) return;
                             const histMeta = earn_totalYieldData && earn_totalYieldData[String(item.marketId)];
                             const histStatus = histMeta ? String(histMeta.verificationStatus || '') : '';
                             const histIsLatest = histMeta ? (histMeta.isLatestSnapshot !== false) : true;
                             const histUsesReplay = String(item.yieldMethod || '').startsWith('interest-ledger');
                             const histStatusTrusted = histUsesReplay || !histStatus || histStatus === 'verified' || histStatus === 'no_netflow';
                             if (!trustedHistoryMethods.has(String(item.yieldMethod || '')) || !histStatusTrusted || !histIsLatest) {
-                                if (Math.abs(item.yieldUsd || 0) > 0) pendingYieldAssetCount++;
+                                if ((item.yieldUsdScaled || 0n) !== 0n) pendingYieldAssetCount++;
                                 return;
                             }
-                            totalYieldUsd += (item.yieldUsd || 0);
-                            if ((item.yieldUsd || 0) > bestYieldUsd) { bestYieldUsd = item.yieldUsd; bestSymbol = item.symbol; }
+                            totalYieldUsdScaled += BigInt(item.yieldUsdScaled || 0n);
+                            if ((item.yieldUsdScaled || 0n) > bestYieldUsdScaled) {
+                                bestYieldUsdScaled = item.yieldUsdScaled || 0n;
+                                bestSymbol = item.symbol;
+                            }
                         });
                     }
 
+                    const totalYieldUsd = earn_scaledUsdToNumber(totalYieldUsdScaled);
+                    const bestYieldUsd = earn_scaledUsdToNumber(bestYieldUsdScaled);
                     const fmtUsd = v => v >= 1000 ? '$' + (v / 1000).toFixed(2) + 'K' : '$' + v.toFixed(2);
                     const yieldClass = totalYieldUsd >= 0 ? 'positive' : 'negative';
                     const yieldSign = totalYieldUsd >= 0 ? '+' : '-';
                     const bestYieldSign = bestYieldUsd > 0 ? '+' : bestYieldUsd < 0 ? '-' : '';
                     const totalYieldSub = pendingYieldAssetCount > 0
                         ? `Verified only · ${pendingYieldAssetCount} asset${pendingYieldAssetCount !== 1 ? 's' : ''} pending verification`
-                        : 'All-time lending yield';
+                        : 'All-time lending yield · current market value';
                     const verifySummary = visibleVerifySummary.total > 0
                         ? visibleVerifySummary
                         : (earn_replayVerificationSummary || { total: 0, verified: 0, mismatch: 0, unverified: 0 });
@@ -28724,6 +28994,7 @@
                         : verifySummary.total > 0
                             ? 'positive'
                             : 'neutral';
+                    const unverifiedLabel = earn_replayUsedSubgraphFallback ? 'fallback' : 'pending';
                     const verifySub = verifySummary.total === 0
                         ? (earn_lastReplayError
                             ? 'Fallback mode · replay unavailable'
@@ -28731,9 +29002,9 @@
                                 ? 'Fallback mode · subgraph replay'
                                 : 'No ledger checks yet')
                         : verifySummary.mismatch > 0
-                            ? `<span style="color:#f87171">${verifySummary.mismatch} mismatch${verifySummary.mismatch !== 1 ? 'es' : ''}</span>${verifySummary.unverified > 0 ? ' · ' + verifySummary.unverified + ' pending' : ''}`
+                            ? `<span style="color:#f87171">${verifySummary.mismatch} mismatch${verifySummary.mismatch !== 1 ? 'es' : ''}</span>${verifySummary.unverified > 0 ? ' · ' + verifySummary.unverified + ' ' + unverifiedLabel : ''}`
                             : verifySummary.unverified > 0
-                                ? `${verifySummary.verified} verified · ${verifySummary.unverified} pending`
+                                ? `${verifySummary.verified} verified · ${verifySummary.unverified} ${unverifiedLabel}`
                                 : 'All visible yield markets reconciled';
 
                     // Find best performer icon
@@ -28768,7 +29039,7 @@
                             <div class="earn-summary-sub">${portfolioSub}</div>
                         </div>
                         <div class="earn-summary-stat">
-                            <div class="earn-summary-label">Total Yield</div>
+                            <div class="earn-summary-label">Yield Value Today</div>
                             <div class="earn-summary-value ${yieldClass}">${yieldSign}${fmtUsd(Math.abs(totalYieldUsd))}</div>
                             <div class="earn-summary-sub">${totalYieldSub}</div>
                         </div>
@@ -28780,7 +29051,7 @@
                         <div class="earn-summary-stat">
                             <div class="earn-summary-label">Best Performer</div>
                             <div class="earn-summary-value positive">${bestIconHtml}${bestSymbol || '—'}</div>
-                            <div class="earn-summary-sub">${bestYieldUsd > 0 ? '<span class="sub-highlight">' + bestYieldSign + fmtUsd(Math.abs(bestYieldUsd)) + '</span> earned' : 'No yield data'}</div>
+                            <div class="earn-summary-sub">${bestYieldUsd > 0 ? '<span class="sub-highlight">' + bestYieldSign + fmtUsd(Math.abs(bestYieldUsd)) + '</span> current value' : 'No yield data'}</div>
                         </div>
                         <div class="earn-summary-stat">
                             <div class="earn-summary-label"><img src="odolo-logo-official.svg" alt="oDOLO" style="width:18px;height:18px;vertical-align:middle;margin-right:4px"> oDOLO Rewards</div>
@@ -28910,6 +29181,8 @@
                 }
             } // end skipSummary guard for summary card
 
+            earn_renderNotices();
+
             // Show results
             document.getElementById('earn-results').classList.add('visible');
             earn_updateLookupRefreshBadge();
@@ -28945,7 +29218,8 @@
                 // Count dust in active supply assets (always visible)
                 (earn_cachedAssets || []).forEach(a => {
                     if (a.isBorrow || a.isCollateral) return;
-                    if (a.usdValue < 1 && Math.abs(a.yieldUsd || 0) < 1) dustCount++;
+                    const yieldCalc = earn_calculateYield(a, { requireVerifiedInterest: false });
+                    if (a.usdValue < 1 && earn_absUsdScaled(yieldCalc.yieldUsdScaled || 0n) < EARN_USD_SCALE) dustCount++;
                 });
                 // Count dust in withdrawn items ONLY if withdrawn section is visible
                 const withdrawnSection = document.getElementById('earn-withdrawn-section');
@@ -28957,11 +29231,8 @@
                         if (item.isIsolation && !item.isActive) return;
                         if (activeAddrs.has(item.tokenAddr?.toLowerCase())) return;
                         const chainId = document.getElementById('earn-chain').value;
-                        const priceKey = chainId + ':' + (item.tokenAddr || '').toLowerCase();
-                        const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[item.symbol] || 0;
-                        const balanceNum = Number(item.currentWei) / (10 ** item.decimals);
-                        const balanceUsd = Math.abs(balanceNum * price);
-                        if (balanceUsd < 1 && Math.abs(item.yieldUsd) < 1) dustCount++;
+                        const balanceUsdScaled = earn_getTokenUsdScaled(item.currentWei, item.decimals, item.symbol, item.tokenAddr, chainId);
+                        if (earn_isSubDollarYieldPair(balanceUsdScaled, item.yieldUsdScaled || 0n)) dustCount++;
                     });
                 }
                 const countBadge = dustToggle.querySelector('.earn-dust-count');
