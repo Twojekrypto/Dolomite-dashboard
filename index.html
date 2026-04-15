@@ -21988,6 +21988,7 @@
         let earn_lookupUsingCachedSnapshot = false;
         let earn_activeLookupRunId = 0;
         let earn_totalYieldStatus = 'idle'; // idle | loading | ready | error
+        let earn_replayStatus = 'idle'; // idle | loading | ready | error
         let earn_merklFetchStatus = 'idle'; // idle | loading | success | error
         let earn_merklFetchError = '';
         const EARN_LOOKUP_CACHE_VERSION = 8;
@@ -22139,6 +22140,7 @@
             earn_replayVerificationReady = false;
             earn_lookupUsingCachedSnapshot = false;
             earn_totalYieldStatus = 'idle';
+            earn_replayStatus = 'idle';
             earn_lendingPositions = [];
             earn_merklRewards = {};
             earn_merklRewardsLoaded = false;
@@ -22522,6 +22524,14 @@
                     setTimeout(() => reject(new Error(`${timeoutLabel} timed out after ${safeTimeoutMs}ms`)), safeTimeoutMs);
                 }),
             ]);
+        }
+
+        function earn_getReplayTimeouts(chainId) {
+            const cid = String(chainId || '').trim().toLowerCase();
+            if (cid === 'arbitrum') {
+                return { subgraphMs: 12000, onchainMs: 8000 };
+            }
+            return { subgraphMs: 12000, onchainMs: 15000 };
         }
 
         function earn_isRpcRangeError(message) {
@@ -25953,11 +25963,23 @@
                     title: 'Verified Yield Is Loading',
                     body: 'Balances are already visible. Total Yield Earned and ledger verification are still loading from replay + snapshot data and will update automatically.',
                 });
+            } else if (earn_replayStatus === 'loading') {
+                notices.push({
+                    tone: 'info',
+                    title: 'Ledger Check Is Loading',
+                    body: 'Balances and yield are already visible. Final replay reconciliation is still running in the background and will update automatically.',
+                });
             } else if (earn_totalYieldStatus === 'error') {
                 notices.push({
                     tone: 'warn',
                     title: 'Verified Yield Could Not Be Loaded',
                     body: 'The page could not complete verified Total Yield calculation for this lookup. Balance data is still shown, but historical yield may be incomplete until the next refresh succeeds.',
+                });
+            } else if (earn_replayStatus === 'error') {
+                notices.push({
+                    tone: 'warn',
+                    title: 'Ledger Check Could Not Be Completed',
+                    body: 'Yield and balances are still shown, but final replay reconciliation did not complete for this lookup. Snapshot-backed values remain available.',
                 });
             }
 
@@ -27575,15 +27597,16 @@
             const replayStartTs = (typeof performance !== 'undefined' && performance.now)
                 ? performance.now()
                 : Date.now();
+            const replayTimeouts = earn_getReplayTimeouts(document.getElementById('earn-chain')?.value || '');
             const [subgraphResult, onchainResult] = await Promise.allSettled([
                 earn_withTimeout(
                     earn_buildSubgraphReplay(addr),
-                    12000,
+                    replayTimeouts.subgraphMs,
                     'Subgraph replay'
                 ),
                 earn_withTimeout(
                     earn_buildOnchainReplay(addr, { blockTag: earn_replayBlockTag }),
-                    15000,
+                    replayTimeouts.onchainMs,
                     'Onchain replay'
                 ),
             ]);
@@ -28235,6 +28258,7 @@
             earn_dgmxRewardsLoadedFor = '';
             earn_odoloMeta = null;
             earn_totalYieldStatus = 'loading';
+            earn_replayStatus = 'loading';
             earn_lookupLoading = false;
             earn_lookupUsingCachedSnapshot = false;
             earn_renderNotices();
@@ -28273,6 +28297,8 @@
                 const replayPromise = replayBlockTagPromise.then(blockTag => earn_fetchNetflow({ blockTag }))
                     .then(() => {
                         if (!isCurrentLookup()) return false;
+                        earn_replayStatus = 'ready';
+                        earn_renderNotices();
                         earn_markLookupProfile(lookupProfile, 'replay');
                         return true;
                     })
@@ -28290,6 +28316,8 @@
                         earn_replayVerificationData = {};
                         earn_replayVerificationSummary = { total: 0, verified: 0, mismatch: 0, unverified: 0 };
                         earn_replayVerificationReady = false;
+                        earn_replayStatus = 'error';
+                        earn_renderNotices();
                         return false;
                     });
 
@@ -28614,13 +28642,39 @@
                 }
 
                 // Update cached assets with borrows included
+                sortEnrichedAssets();
                 earn_cachedAssets = enriched;
                 const activeMarketIdsForYield = Array.from(new Set(
                     balances.map(b => String(b.marketId || '')).filter(Boolean)
                 ));
-                const totalYieldPromise = replayPromise
+                const totalYieldWarmPromise = earn_fetchTotalYield({
+                    suppressRender: true,
+                    runId: lookupRunId,
+                    activeMarketIds: activeMarketIdsForYield,
+                })
+                    .then(result => {
+                        if (!isCurrentLookup()) return result;
+                        if (result && !earn_lookupLoading && earn_cachedAssets && earn_cachedAssets.length > 0) {
+                            const tblRef = document.querySelector('.earn-asset-table');
+                            if (tblRef) tblRef.classList.add('no-animate');
+                            earn_renderResults(earn_cachedAssets, { skipSummary: false, softRefresh: true });
+                        }
+                        return result;
+                    })
+                    .catch(e => {
+                        if (!isCurrentLookup()) return false;
+                        earn_totalYieldStatus = 'error';
+                        earn_renderNotices();
+                        console.warn('Total yield load:', e);
+                        return false;
+                    });
+                const totalYieldPromise = Promise.allSettled([replayPromise, totalYieldWarmPromise])
                     .then(() => {
                         if (!isCurrentLookup()) return false;
+                        const currentYieldData = earn_totalYieldData || {};
+                        const replayMarketIds = Object.keys(earn_netflowData || {});
+                        const needsReplayExpansion = replayMarketIds.some(mid => !Object.prototype.hasOwnProperty.call(currentYieldData, String(mid)));
+                        if (!needsReplayExpansion) return !!earn_totalYieldData;
                         return earn_fetchTotalYield({
                             suppressRender: true,
                             runId: lookupRunId,
@@ -28637,7 +28691,7 @@
                         earn_markLookupProfile(lookupProfile, 'totalYield');
                         earn_totalYieldStatus = 'error';
                         earn_renderNotices();
-                        console.warn('Total yield load:', e);
+                        console.warn('Total yield refresh:', e);
                         return false;
                     });
 
@@ -29919,7 +29973,8 @@
                 return hasNF || hasA0 || hasIL || hasSS;
             });
             const table = document.querySelector('.earn-asset-table:not(.earn-past-table)');
-            if (table) table.classList.toggle('no-yield', !hasAnyYield);
+            const keepYieldColumnVisible = hasAnyYield || earn_totalYieldStatus === 'loading';
+            if (table) table.classList.toggle('no-yield', !keepYieldColumnVisible);
 
             // Keep the supply section visible while filters are active so Hide Dust can always be toggled back off.
             const supplySection = document.getElementById('earn-supply-section');
@@ -29942,7 +29997,10 @@
                         : '';
                     yieldCellHtml = `<span class="earn-amount ${yieldCalc.yieldColor}">${yieldCalc.yieldSign + yieldCalc.yieldFmt}<span class="earn-amount-sym">${a.symbol}</span></span>${yieldUsdStr}`;
                 } else {
-                    yieldCellHtml = `<span class="earn-amount" style="color:var(--text-muted)">—</span>`;
+                    const yieldPlaceholder = earn_totalYieldStatus === 'loading'
+                        ? 'Loading...'
+                        : '—';
+                    yieldCellHtml = `<span class="earn-amount" style="color:var(--text-muted)">${yieldPlaceholder}</span>`;
                 }
 
                 const weiFmt = earn_formatAmount(a.wei, a.decimals, a.symbol);
@@ -30241,29 +30299,43 @@
                             : pendingYieldAssetCount > 0
                                 ? `Verified only · ${pendingYieldAssetCount} asset${pendingYieldAssetCount !== 1 ? 's' : ''} pending verification`
                                 : 'All-time lending yield · current market value';
+                    const provisionalVerifyTotal = trustedYieldAssetCount + pendingYieldAssetCount;
+                    const hasProvisionalVerifySummary = !earn_replayVerificationReady && provisionalVerifyTotal > 0;
                     const verifySummary = visibleVerifySummary.total > 0
                         ? visibleVerifySummary
                         : (earn_replayVerificationSummary || { total: 0, verified: 0, mismatch: 0, unverified: 0 });
-                    const verifyValue = verifySummary.total > 0 ? `${verifySummary.verified}/${verifySummary.total}` : '—';
-                    const verifyClass = verifySummary.mismatch > 0
-                        ? 'negative'
-                        : verifySummary.unverified > 0
-                            ? 'neutral'
+                    const verifyValue = hasProvisionalVerifySummary
+                        ? `${trustedYieldAssetCount}/${provisionalVerifyTotal}`
                         : verifySummary.total > 0
-                            ? 'positive'
-                            : 'neutral';
-                    const unverifiedLabel = earn_replayUsedSubgraphFallback ? 'fallback' : 'pending';
-                    const verifySub = verifySummary.total === 0
-                        ? (earn_lastReplayError
-                            ? 'Fallback mode · replay unavailable'
-                            : earn_replayUsedSubgraphFallback
-                                ? 'Fallback mode · subgraph replay'
-                                : 'No ledger checks yet')
+                            ? `${verifySummary.verified}/${verifySummary.total}`
+                            : '—';
+                    const verifyClass = hasProvisionalVerifySummary
+                        ? (pendingYieldAssetCount > 0 ? 'neutral' : 'positive')
                         : verifySummary.mismatch > 0
-                            ? `<span style="color:#f87171">${verifySummary.mismatch} mismatch${verifySummary.mismatch !== 1 ? 'es' : ''}</span>${verifySummary.unverified > 0 ? ' · ' + verifySummary.unverified + ' ' + unverifiedLabel : ''}`
+                            ? 'negative'
                             : verifySummary.unverified > 0
-                                ? `${verifySummary.verified} verified · ${verifySummary.unverified} ${unverifiedLabel}`
-                                : 'All visible yield markets reconciled';
+                                ? 'neutral'
+                            : verifySummary.total > 0
+                                ? 'positive'
+                                : 'neutral';
+                    const unverifiedLabel = earn_replayUsedSubgraphFallback ? 'fallback' : 'pending';
+                    const verifySub = hasProvisionalVerifySummary
+                        ? (pendingYieldAssetCount > 0
+                            ? `${trustedYieldAssetCount} verified · ${pendingYieldAssetCount} snapshot fallback`
+                            : 'Visible active yield is ready')
+                        : verifySummary.total === 0
+                            ? (earn_lastReplayError
+                                ? 'Fallback mode · replay unavailable'
+                                : earn_replayStatus === 'loading'
+                                    ? 'Replay verification still loading'
+                                    : earn_replayUsedSubgraphFallback
+                                        ? 'Fallback mode · subgraph replay'
+                                        : 'No ledger checks yet')
+                            : verifySummary.mismatch > 0
+                                ? `<span style="color:#f87171">${verifySummary.mismatch} mismatch${verifySummary.mismatch !== 1 ? 'es' : ''}</span>${verifySummary.unverified > 0 ? ' · ' + verifySummary.unverified + ' ' + unverifiedLabel : ''}`
+                                : verifySummary.unverified > 0
+                                    ? `${verifySummary.verified} verified · ${verifySummary.unverified} ${unverifiedLabel}`
+                                    : 'All visible yield markets reconciled';
 
                     // Find best performer icon
                     let bestIcon = '';
