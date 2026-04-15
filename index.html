@@ -26246,7 +26246,7 @@
                 earn_interestYieldData = replay.interestYieldData || {};
                 earn_acct0NetflowData = replay.acct0Netflows || null;
                 earn_openBorrowAccounts = new Set((replay.openBorrowAccounts || []).map(v => String(v)));
-                earn_replayStateData = useSubgraphMode ? {} : (replay.replayStateData || {});
+                earn_replayStateData = replay.replayStateData || {};
                 earn_replayEventData = replay.eventTrace || [];
                 console.log(
                     `${useSubgraphMode ? 'Subgraph' : 'Onchain'} replay: ${Object.keys(earn_netflowData).length} markets, ${earn_replayAccountNumbers.length} account(s) for ${addr}`

@@ -91,7 +91,11 @@ jobs:
           # Stash progress cache and other untracked files BEFORE any git ops
           git stash --include-untracked || true
           git add data/earn-netflow/
-          git diff --staged --quiet && echo "No changes to commit" && git stash pop || true && exit 0
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            git stash pop || true
+            exit 0
+          fi
           git commit -m "📊 Earn netflow update: $(date -u '+%Y-%m-%d %H:%M UTC')"
           if ! git pull --rebase origin master; then
             echo "⚠️ Rebase conflict — resolving with our data..."
