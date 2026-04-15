@@ -21979,7 +21979,7 @@
         let earn_activeLookupRunId = 0;
         let earn_merklFetchStatus = 'idle'; // idle | loading | success | error
         let earn_merklFetchError = '';
-        const EARN_LOOKUP_CACHE_VERSION = 4;
+        const EARN_LOOKUP_CACHE_VERSION = 5;
         const EARN_LOOKUP_CACHE_TTL_MS = 10 * 60 * 1000;
         const earn_lookupResultCache = {};
         const EARN_PROFILE_LOGS = true;
@@ -22869,17 +22869,21 @@
                 if (!subgraphSnapshot) subgraphSnapshot = await earn_fetchCurrentAccountsFromSubgraph(addr);
                 return subgraphSnapshot;
             };
-            let accountNumbers = earn_replayAccountNumbers && earn_replayAccountNumbers.length > 0
-                ? Array.from(new Set(earn_replayAccountNumbers.map(v => String(v).trim()).filter(Boolean)))
-                : [fallbackAccountNum];
-            if ((!earn_replayAccountNumbers || earn_replayAccountNumbers.length === 0)) {
-                try {
-                    const snapshot = await ensureSubgraphSnapshot();
-                    if (snapshot.accountNumbers && snapshot.accountNumbers.length > 0) {
-                        accountNumbers = Array.from(new Set(snapshot.accountNumbers.map(v => String(v).trim()).filter(Boolean)));
-                    }
-                } catch (e) {
-                    console.warn('Subgraph account discovery failed:', e.message);
+            let accountNumbers = [fallbackAccountNum];
+            try {
+                const snapshot = await ensureSubgraphSnapshot();
+                // Current balance verification should only hit accounts that still have live positions.
+                // Reusing all replay accounts here pulls in historical/empty account numbers, which can
+                // make large RPC batches look incomplete and incorrectly downgrade healthy markets to PENDING.
+                if (snapshot.accountNumbers && snapshot.accountNumbers.length > 0) {
+                    accountNumbers = Array.from(new Set(snapshot.accountNumbers.map(v => String(v).trim()).filter(Boolean)));
+                } else if (earn_replayAccountNumbers && earn_replayAccountNumbers.length > 0) {
+                    accountNumbers = Array.from(new Set(earn_replayAccountNumbers.map(v => String(v).trim()).filter(Boolean)));
+                }
+            } catch (e) {
+                console.warn('Subgraph account discovery failed:', e.message);
+                if (earn_replayAccountNumbers && earn_replayAccountNumbers.length > 0) {
+                    accountNumbers = Array.from(new Set(earn_replayAccountNumbers.map(v => String(v).trim()).filter(Boolean)));
                 }
             }
             if (!accountNumbers.includes(fallbackAccountNum)) accountNumbers.unshift(fallbackAccountNum);
@@ -26312,7 +26316,7 @@
             const positions = [];
             (data.marginAccounts || []).forEach(ma => {
                 const accountNumber = String(ma.accountNumber || '0');
-                if (!accountNumbers.includes(accountNumber)) accountNumbers.push(accountNumber);
+                let accountHasOpenPosition = false;
                 (ma.tokenValues || []).forEach(tv => {
                     const token = tv.token || {};
                     const tokenAddr = (token.id || '').toLowerCase();
@@ -26321,6 +26325,7 @@
                     if (!tokenAddr || !marketId) return;
                     const par = earn_decimalToBigInt(tv.valuePar || '0', decimals);
                     if (par === 0n) return;
+                    accountHasOpenPosition = true;
                     const indexes = indexMap[tokenAddr] || { supplyIndex: 10n ** 18n, borrowIndex: 10n ** 18n };
                     const absPar = earn_absBigInt(par);
                     const idx = par > 0n ? indexes.supplyIndex : indexes.borrowIndex;
@@ -26349,6 +26354,9 @@
                         accountNumber,
                     });
                 });
+                if (accountHasOpenPosition && !accountNumbers.includes(accountNumber)) {
+                    accountNumbers.push(accountNumber);
+                }
             });
 
             const snapshot = { chainId, address, accountNumbers, positions };
