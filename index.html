@@ -22257,6 +22257,7 @@
         let earn_collateralPositionData = []; // positive supply balances parked inside borrow accounts
         let earn_replayAccountNumbers = []; // discovered account numbers from onchain logs
         let earn_subgraphAccountSnapshot = null; // { chainId, address, accountNumbers, positions }
+        let earn_subgraphAccountSnapshotRequests = {}; // { "chain:address" : Promise<snapshot> }
         let earn_lastReplayError = null;
         let earn_replayUsedSubgraphFallback = false;
         let earn_openBorrowAccounts = new Set(); // account numbers with any currently open borrow
@@ -26328,17 +26329,23 @@
                 return cached;
             }
 
+            const requestKey = String(chainId || '');
+            if (earn_marketRatesRequestCache[requestKey]) {
+                const inflight = await earn_marketRatesRequestCache[requestKey];
+                earn_marketRates = inflight || {};
+                return inflight || {};
+            }
+
             const doloChainId = EARN_DOLO_CHAIN_IDS[String(chainId || '')];
             if (!doloChainId) {
                 earn_marketRates = {};
                 return {};
             }
 
-            try {
+            const request = (async () => {
                 const resp = await fetch(`https://api.dolomite.io/tokens/${doloChainId}/interest-rates?exclude-odolo=false`);
                 const json = resp.ok ? await resp.json() : null;
                 const rates = earn_buildMarketRatesMap(chainId, json);
-                earn_marketRates = rates;
                 if (Object.keys(rates).length > 0) {
                     earn_marketRatesCache[String(chainId || '')] = {
                         savedAt: Date.now(),
@@ -26346,11 +26353,18 @@
                     };
                 }
                 return rates;
-            } catch (e) {
+            })().catch(e => {
                 console.warn('Dolomite APY fetch:', e);
-                const fallback = earn_getCachedMarketRates(chainId) || {};
-                earn_marketRates = fallback;
-                return fallback;
+                return earn_getCachedMarketRates(chainId) || {};
+            });
+
+            earn_marketRatesRequestCache[requestKey] = request;
+            try {
+                const rates = await request;
+                earn_marketRates = rates || {};
+                return rates || {};
+            } finally {
+                delete earn_marketRatesRequestCache[requestKey];
             }
         }
 
@@ -26454,6 +26468,7 @@
 
         // Historical snapshot cache: { '2026-02-11': { snapshots: { arbitrum: { ... } } } }
         const earn_snapshotCache = {};
+        let earn_snapshotRequestCache = {}; // { '2026-02-11': Promise<snapshot|null> }
         let earn_historicalData = null; // current period's historical data for the looked-up address
         let earn_totalYieldData = null; // oldest snapshot data for total yield (never changes after initial load)
         let earn_totalYieldDays = 0; // number of days the total yield spans
@@ -26469,9 +26484,12 @@
         let earn_acct0NetflowData = null; // { marketId: weiString } account-0-only supply netflow (for borrow markets)
         let earn_subgraphTokens = {}; // { marketId: { symbol, decimals, name } } — token metadata from subgraph
         let earn_verifiedLedgerCache = {}; // { "chain:address" : payload|null }
+        let earn_verifiedLedgerRequestCache = {}; // { "chain:address" : Promise<payload|null> }
+        let earn_marketRatesRequestCache = {}; // { chainId : Promise<rates> }
 
         // Snapshot manifest: { dates: [...], chains: { date: [chains] } }
         let earn_snapshotManifest = null;
+        let earn_snapshotManifestRequest = null;
         let earn_customSnapshotDate = null; // date string for custom selection
 
         function earn_getLatestSnapshotDateForChain(chainId) {
@@ -26588,15 +26606,29 @@
         }
 
         async function earn_loadManifest() {
+            if (earn_snapshotManifest) return earn_snapshotManifest;
+            if (earn_snapshotManifestRequest) return earn_snapshotManifestRequest;
+
+            const request = (async () => {
+                try {
+                    const resp = await fetch(`${SNAPSHOT_BASE}/manifest.json`);
+                    if (!resp.ok) return null;
+                    earn_snapshotManifest = await resp.json();
+                    earn_buildPeriodButtons();
+                    earn_renderNotices();
+                    console.log('Snapshot manifest loaded:', earn_snapshotManifest.dates.length, 'dates');
+                    return earn_snapshotManifest;
+                } catch (e) {
+                    console.warn('Failed to load snapshot manifest:', e);
+                    return null;
+                }
+            })();
+
+            earn_snapshotManifestRequest = request;
             try {
-                const resp = await fetch(`${SNAPSHOT_BASE}/manifest.json`);
-                if (!resp.ok) return;
-                earn_snapshotManifest = await resp.json();
-                earn_buildPeriodButtons();
-                earn_renderNotices();
-                console.log('Snapshot manifest loaded:', earn_snapshotManifest.dates.length, 'dates');
-            } catch (e) {
-                console.warn('Failed to load snapshot manifest:', e);
+                return await request;
+            } finally {
+                earn_snapshotManifestRequest = null;
             }
         }
 
@@ -26667,15 +26699,26 @@
 
         async function earn_fetchSnapshot(dateStr) {
             if (earn_snapshotCache[dateStr]) return earn_snapshotCache[dateStr];
+            if (earn_snapshotRequestCache[dateStr]) return earn_snapshotRequestCache[dateStr];
+
+            const request = (async () => {
+                try {
+                    const resp = await fetch(`${SNAPSHOT_BASE}/${dateStr}.json`);
+                    if (!resp.ok) return null;
+                    const data = await resp.json();
+                    earn_snapshotCache[dateStr] = data;
+                    return data;
+                } catch (e) {
+                    console.warn('Snapshot fetch failed for', dateStr, e);
+                    return null;
+                }
+            })();
+
+            earn_snapshotRequestCache[dateStr] = request;
             try {
-                const resp = await fetch(`${SNAPSHOT_BASE}/${dateStr}.json`);
-                if (!resp.ok) return null;
-                const data = await resp.json();
-                earn_snapshotCache[dateStr] = data;
-                return data;
-            } catch (e) {
-                console.warn('Snapshot fetch failed for', dateStr, e);
-                return null;
+                return await request;
+            } finally {
+                delete earn_snapshotRequestCache[dateStr];
             }
         }
 
@@ -26703,7 +26746,10 @@
             if (Object.prototype.hasOwnProperty.call(earn_verifiedLedgerCache, cacheKey)) {
                 return earn_verifiedLedgerCache[cacheKey];
             }
-            try {
+            if (earn_verifiedLedgerRequestCache[cacheKey]) {
+                return earn_verifiedLedgerRequestCache[cacheKey];
+            }
+            const request = (async () => {
                 const resp = await fetch(`${VERIFIED_LEDGER_BASE}/${chainId}/${addr}.json`);
                 if (!resp.ok) {
                     earn_verifiedLedgerCache[cacheKey] = null;
@@ -26728,10 +26774,16 @@
                 }
                 earn_verifiedLedgerCache[cacheKey] = data;
                 return data;
-            } catch (e) {
+            })().catch(e => {
                 console.warn('Verified ledger fetch failed:', e.message || e);
                 earn_verifiedLedgerCache[cacheKey] = null;
                 return null;
+            });
+            earn_verifiedLedgerRequestCache[cacheKey] = request;
+            try {
+                return await request;
+            } finally {
+                delete earn_verifiedLedgerRequestCache[cacheKey];
             }
         }
 
@@ -27167,6 +27219,10 @@
                 earn_subgraphAccountSnapshot.address === address) {
                 return earn_subgraphAccountSnapshot;
             }
+            const requestKey = `${chainId}:${address}`;
+            if (earn_subgraphAccountSnapshotRequests[requestKey]) {
+                return earn_subgraphAccountSnapshotRequests[requestKey];
+            }
 
             const endpoint = SUBGRAPH_ENDPOINTS[chainId];
             if (!endpoint) {
@@ -27175,7 +27231,8 @@
                 return empty;
             }
 
-            const query = `{
+            const request = (async () => {
+                const query = `{
                 marginAccounts(first: 1000, where: { effectiveUser: "${address}" }) {
                     accountNumber
                     tokenValues {
@@ -27185,66 +27242,74 @@
                 }
                 interestIndexes(first: 1000) { id supplyIndex borrowIndex }
             }`;
-            const data = await earn_subgraphQuery(endpoint, query);
-            const indexMap = {};
-            (data.interestIndexes || []).forEach(ix => {
-                const tokenAddr = (ix.id || '').toLowerCase();
-                indexMap[tokenAddr] = {
-                    supplyIndex: earn_decimalToBigInt(ix.supplyIndex || '1', 18),
-                    borrowIndex: earn_decimalToBigInt(ix.borrowIndex || '1', 18),
-                };
-            });
-
-            const accountNumbers = [];
-            const positions = [];
-            (data.marginAccounts || []).forEach(ma => {
-                const accountNumber = String(ma.accountNumber || '0');
-                let accountHasOpenPosition = false;
-                (ma.tokenValues || []).forEach(tv => {
-                    const token = tv.token || {};
-                    const tokenAddr = (token.id || '').toLowerCase();
-                    const decimals = Number(token.decimals || 18);
-                    const marketId = String(token.marketId || '');
-                    if (!tokenAddr || !marketId) return;
-                    const par = earn_decimalToBigInt(tv.valuePar || '0', decimals);
-                    if (par === 0n) return;
-                    accountHasOpenPosition = true;
-                    const indexes = indexMap[tokenAddr] || { supplyIndex: 10n ** 18n, borrowIndex: 10n ** 18n };
-                    const absPar = earn_absBigInt(par);
-                    const idx = par > 0n ? indexes.supplyIndex : indexes.borrowIndex;
-                    const absWei = (absPar * idx) / (10n ** 18n);
-                    const wei = par > 0n ? absWei : -absWei;
-
-                    earn_subgraphTokens[marketId] = {
-                        symbol: token.symbol || earn_subgraphTokens[marketId]?.symbol || 'UNK',
-                        decimals,
-                        name: token.name || token.symbol || earn_subgraphTokens[marketId]?.name || 'UNK',
-                        tokenAddr,
-                        icon: earn_subgraphTokens[marketId]?.icon || SYMBOL_ICONS[token.symbol] || SYMBOL_ICONS[(token.symbol || '').toUpperCase()] || null,
+                const data = await earn_subgraphQuery(endpoint, query);
+                const indexMap = {};
+                (data.interestIndexes || []).forEach(ix => {
+                    const tokenAddr = (ix.id || '').toLowerCase();
+                    indexMap[tokenAddr] = {
+                        supplyIndex: earn_decimalToBigInt(ix.supplyIndex || '1', 18),
+                        borrowIndex: earn_decimalToBigInt(ix.borrowIndex || '1', 18),
                     };
-                    earn_tokenCache[chainId + ':' + tokenAddr] = {
-                        symbol: earn_subgraphTokens[marketId].symbol,
-                        decimals,
-                        icon: earn_subgraphTokens[marketId].icon,
-                        name: earn_subgraphTokens[marketId].name,
-                    };
-
-                    positions.push({
-                        marketId,
-                        tokenAddr,
-                        par,
-                        wei,
-                        accountNumber,
-                    });
                 });
-                if (accountHasOpenPosition && !accountNumbers.includes(accountNumber)) {
-                    accountNumbers.push(accountNumber);
-                }
-            });
 
-            const snapshot = { chainId, address, accountNumbers, positions };
-            earn_subgraphAccountSnapshot = snapshot;
-            return snapshot;
+                const accountNumbers = [];
+                const positions = [];
+                (data.marginAccounts || []).forEach(ma => {
+                    const accountNumber = String(ma.accountNumber || '0');
+                    let accountHasOpenPosition = false;
+                    (ma.tokenValues || []).forEach(tv => {
+                        const token = tv.token || {};
+                        const tokenAddr = (token.id || '').toLowerCase();
+                        const decimals = Number(token.decimals || 18);
+                        const marketId = String(token.marketId || '');
+                        if (!tokenAddr || !marketId) return;
+                        const par = earn_decimalToBigInt(tv.valuePar || '0', decimals);
+                        if (par === 0n) return;
+                        accountHasOpenPosition = true;
+                        const indexes = indexMap[tokenAddr] || { supplyIndex: 10n ** 18n, borrowIndex: 10n ** 18n };
+                        const absPar = earn_absBigInt(par);
+                        const idx = par > 0n ? indexes.supplyIndex : indexes.borrowIndex;
+                        const absWei = (absPar * idx) / (10n ** 18n);
+                        const wei = par > 0n ? absWei : -absWei;
+
+                        earn_subgraphTokens[marketId] = {
+                            symbol: token.symbol || earn_subgraphTokens[marketId]?.symbol || 'UNK',
+                            decimals,
+                            name: token.name || token.symbol || earn_subgraphTokens[marketId]?.name || 'UNK',
+                            tokenAddr,
+                            icon: earn_subgraphTokens[marketId]?.icon || SYMBOL_ICONS[token.symbol] || SYMBOL_ICONS[(token.symbol || '').toUpperCase()] || null,
+                        };
+                        earn_tokenCache[chainId + ':' + tokenAddr] = {
+                            symbol: earn_subgraphTokens[marketId].symbol,
+                            decimals,
+                            icon: earn_subgraphTokens[marketId].icon,
+                            name: earn_subgraphTokens[marketId].name,
+                        };
+
+                        positions.push({
+                            marketId,
+                            tokenAddr,
+                            par,
+                            wei,
+                            accountNumber,
+                        });
+                    });
+                    if (accountHasOpenPosition && !accountNumbers.includes(accountNumber)) {
+                        accountNumbers.push(accountNumber);
+                    }
+                });
+
+                const snapshot = { chainId, address, accountNumbers, positions };
+                earn_subgraphAccountSnapshot = snapshot;
+                return snapshot;
+            })();
+
+            earn_subgraphAccountSnapshotRequests[requestKey] = request;
+            try {
+                return await request;
+            } finally {
+                delete earn_subgraphAccountSnapshotRequests[requestKey];
+            }
         }
 
         function earn_decodeUserActionLog(log, userAddr) {
@@ -28830,6 +28895,15 @@
                     btn.disabled = false;
                     return;
                 }
+
+                // Start exact upstream reads early so later verification stages can reuse the
+                // same in-flight request instead of waiting to begin after balances render.
+                Promise.allSettled([
+                    earn_loadManifest(),
+                    earn_fetchCurrentAccountsFromSubgraph(addr),
+                    earn_fetchVerifiedLedgerForAddress(chainId, addr),
+                    earn_fetchMarketRates(chainId),
+                ]);
 
                 const summaryPrefetchTasks = [
                     earn_fetchOdoloClaimed(addr).catch(() => 0),
