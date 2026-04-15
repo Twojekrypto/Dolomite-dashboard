@@ -28259,7 +28259,25 @@
                     };
                 });
 
-                earn_cachedAssets = enriched;
+                const updateAssetUsdValuesFromPriceCache = () => {
+                    enriched.forEach(asset => {
+                        const cgKey = chainId + ':' + String(asset.tokenAddr || '').toLowerCase();
+                        const livePrice = earn_priceCache[cgKey];
+                        if (livePrice) {
+                            const humanAmt = Math.abs(Number(asset.wei) / Math.pow(10, asset.decimals));
+                            asset.usdValue = humanAmt * livePrice;
+                        }
+                    });
+                };
+                const sortEnrichedAssets = () => {
+                    enriched.sort((a, b) => {
+                        const rankA = a.isBorrow ? 2 : a.isCollateral ? 1 : 0;
+                        const rankB = b.isBorrow ? 2 : b.isCollateral ? 1 : 0;
+                        if (rankA !== rankB) return rankA - rankB;
+                        return b.usdValue - a.usdValue;
+                    });
+                };
+
                 const totalYieldPromise = earn_fetchTotalYield({ suppressRender: true })
                     .then(result => {
                         earn_markLookupProfile(lookupProfile, 'totalYield');
@@ -28270,19 +28288,6 @@
                         console.warn('Total yield load:', e);
                     });
 
-
-                // Await prices so yield data is visible on first render
-                await pricesPromise;
-
-                // Re-compute USD values with CoinGecko real prices
-                enriched.forEach(a => {
-                    const cgKey = chainId + ':' + a.tokenAddr.toLowerCase();
-                    const realPrice = earn_priceCache[cgKey];
-                    if (realPrice) {
-                        const humanAmt = Number(a.wei) / Math.pow(10, a.decimals);
-                        a.usdValue = Math.abs(humanAmt * realPrice);
-                    }
-                });
 
                 if (earn_collateralPositionData.length > 0) {
                     for (const cp of earn_collateralPositionData) {
@@ -28316,17 +28321,30 @@
                 // Update cached assets with borrows included
                 earn_cachedAssets = enriched;
 
-                // Sort: supply positions first by USD descending, then borrow positions by USD descending
-                enriched.sort((a, b) => {
-                    const rankA = a.isBorrow ? 2 : a.isCollateral ? 1 : 0;
-                    const rankB = b.isBorrow ? 2 : b.isCollateral ? 1 : 0;
-                    if (rankA !== rankB) return rankA - rankB;
-                    return b.usdValue - a.usdValue;
+                // Show the first live render immediately using cached/fallback USD values.
+                // Pricing, replay verification, and total yield continue in the background and
+                // trigger a follow-up render once they finish.
+                sortEnrichedAssets();
+                earn_lookupLoading = false;
+                earn_lookupUsingCachedSnapshot = false;
+                earn_setResultsRefreshing(false);
+                earn_markLookupProfile(lookupProfile, 'firstRenderReady');
+                earn_renderResults(enriched, { skipSummary: false });
+                earn_logLookupProfile(lookupProfile, 'firstRenderReady');
+
+                const pricesRefreshPromise = pricesPromise.then(() => {
+                    updateAssetUsdValuesFromPriceCache();
+                    sortEnrichedAssets();
+                    earn_cachedAssets = enriched;
+                    return true;
+                }).catch(e => {
+                    console.warn('Price refresh after first render:', e);
+                    return false;
                 });
 
                 // Batch background data (APY + history + total yield) → single re-render
                 Promise.allSettled([
-                    pricesPromise,
+                    pricesRefreshPromise,
                     apyPromise,
                     totalYieldPromise,
                     replayPromise.then(ok => {
@@ -28337,9 +28355,8 @@
                 ]).then(() => {
                     earn_lookupLoading = false;
                     earn_lookupUsingCachedSnapshot = false;
-                    earn_markLookupProfile(lookupProfile, 'firstRenderReady');
+                    earn_setResultsRefreshing(false);
                     earn_renderResults(enriched, { skipSummary: false });
-                    earn_logLookupProfile(lookupProfile, 'firstRenderReady');
                     const lendingPromise = earn_fetchAndRenderLendingPositions()
                         .then(result => {
                             earn_markLookupProfile(lookupProfile, 'lending');
