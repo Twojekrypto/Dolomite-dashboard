@@ -7957,9 +7957,11 @@
             padding: 2px 7px;
             border-radius: 10px;
             font-size: 9px;
-            font-weight: 600;
+            font-weight: 700;
             letter-spacing: 0.6px;
             flex-shrink: 0;
+            line-height: 1;
+            border: 1px solid transparent;
         }
 
         .earn-hist-badge.active {
@@ -7978,14 +7980,16 @@
 
         .earn-hist-badge.withdrawn {
             background: rgba(239, 68, 68, 0.08);
-            color: rgba(239, 68, 68, 0.6);
+            color: #fca5a5;
+            border-color: rgba(239, 68, 68, 0.18);
         }
 
         .earn-hist-badge.withdrawn .earn-status-dot {
             width: 5px;
             height: 5px;
             border-radius: 50%;
-            background: rgba(239, 68, 68, 0.4);
+            background: #f87171;
+            box-shadow: 0 0 6px rgba(248, 113, 113, 0.35);
         }
 
         .earn-verify-badge {
@@ -23457,7 +23461,7 @@
                                 <div class="earn-token-info">
                                     <div class="earn-token-name">${item.symbol} ${chevron}</div>
                                     ${subtitle}
-                                    <div style="margin-top:3px;display:flex;gap:6px;flex-wrap:wrap">${badge}${verifyBadge}</div>
+                                    <div style="margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">${badge}${verifyBadge}</div>
                                 </div>
                             </div>
                         </div>
@@ -23927,6 +23931,71 @@
                     ...(supplementReplay.accountNumbers || []),
                 ])),
                 netflows: mergedNetflows,
+                interestYieldData: mergedSummary.interestYieldData,
+                replayStateData: mergedSummary.replayStateData,
+                marketMeta: {
+                    ...(supplementReplay.marketMeta || {}),
+                    ...(primaryReplay.marketMeta || {}),
+                },
+                openBorrowAccounts: mergedSummary.openBorrowAccounts,
+                accountStateData: mergedAccountStateData,
+                currentIndexMap: mergedCurrentIndexMap,
+                eventTrace: mergedEventTrace,
+            };
+        }
+
+        function earn_mergeReplayMissingMarkets(primaryReplay, supplementReplay, missingMarkets) {
+            const missing = new Set((missingMarkets || []).map(v => String(v)));
+            if (missing.size === 0) return primaryReplay;
+            if (!supplementReplay || !supplementReplay.accountStateData) return primaryReplay;
+
+            const mergedAccountStateData = { ...(primaryReplay.accountStateData || {}) };
+            let addedStates = 0;
+            Object.entries(supplementReplay.accountStateData || {}).forEach(([key, state]) => {
+                const marketId = String(state.marketId || '');
+                if (!missing.has(marketId)) return;
+                if (mergedAccountStateData[key]) return;
+                mergedAccountStateData[key] = state;
+                addedStates++;
+            });
+            if (addedStates === 0) return primaryReplay;
+
+            const mergedCurrentIndexMap = { ...(primaryReplay.currentIndexMap || {}) };
+            Object.entries(supplementReplay.currentIndexMap || {}).forEach(([mid, meta]) => {
+                if (!missing.has(String(mid))) return;
+                if (!mergedCurrentIndexMap[mid]) mergedCurrentIndexMap[mid] = meta;
+            });
+
+            const mergedSummary = earn_summarizeReplayAccountStates(mergedAccountStateData, mergedCurrentIndexMap);
+            const mergedNetflows = { ...(primaryReplay.netflows || {}) };
+            Object.entries(supplementReplay.netflows || {}).forEach(([mid, entry]) => {
+                if (!missing.has(String(mid))) return;
+                if (!mergedNetflows[mid]) mergedNetflows[mid] = entry;
+            });
+
+            const mergedAcct0Netflows = (primaryReplay.acct0Netflows || supplementReplay.acct0Netflows)
+                ? { ...(primaryReplay.acct0Netflows || {}) }
+                : null;
+            if (mergedAcct0Netflows) {
+                Object.entries(supplementReplay.acct0Netflows || {}).forEach(([mid, entry]) => {
+                    if (!missing.has(String(mid))) return;
+                    if (mergedAcct0Netflows[mid] === undefined) mergedAcct0Netflows[mid] = entry;
+                });
+            }
+
+            const mergedEventTrace = [
+                ...(primaryReplay.eventTrace || []),
+                ...(supplementReplay.eventTrace || []).filter(ev => missing.has(String(ev.marketId || ''))),
+            ];
+
+            return {
+                ...primaryReplay,
+                accountNumbers: Array.from(new Set([
+                    ...(primaryReplay.accountNumbers || []),
+                    ...(supplementReplay.accountNumbers || []),
+                ])),
+                netflows: mergedNetflows,
+                acct0Netflows: mergedAcct0Netflows,
                 interestYieldData: mergedSummary.interestYieldData,
                 replayStateData: mergedSummary.replayStateData,
                 marketMeta: {
@@ -25762,10 +25831,8 @@
                 const replayMarkets = new Set(Object.keys(onchainReplay.interestYieldData || {}));
                 const missingMarkets = activeMarkets.filter(mid => !replayMarkets.has(mid));
                 if (missingMarkets.length > 0) {
-                    // Missing markets can happen for edge assets where providers omit balance/index data.
-                    // Keep onchain replay as primary and let balance snapshot supplementation fill visibility.
                     return {
-                        shouldFallback: false,
+                        shouldFallback: true,
                         reason: 'missing-active-markets',
                         missingAccounts: [],
                         missingMarkets,
@@ -26641,6 +26708,30 @@
                                 replay = supplementedReplay;
                                 console.warn(
                                     `Coverage gap detected (${coverage.reason}); supplemented onchain replay with subgraph state for missing active accounts.`,
+                                    {
+                                        missingAccounts: coverage.missingAccounts || [],
+                                        missingMarkets: coverage.missingMarkets || [],
+                                    }
+                                );
+                            } else {
+                                console.warn(
+                                    `Coverage gap detected (${coverage.reason}); no supplementable subgraph state found, keeping onchain replay.`,
+                                    {
+                                        missingAccounts: coverage.missingAccounts || [],
+                                        missingMarkets: coverage.missingMarkets || [],
+                                    }
+                                );
+                            }
+                        } else if (coverage.reason === 'missing-active-markets') {
+                            const supplementedReplay = earn_mergeReplayMissingMarkets(
+                                onchainReplay,
+                                subgraphReplay,
+                                coverage.missingMarkets || []
+                            );
+                            if (supplementedReplay !== onchainReplay) {
+                                replay = supplementedReplay;
+                                console.warn(
+                                    `Coverage gap detected (${coverage.reason}); supplemented onchain replay with subgraph state for missing active markets.`,
                                     {
                                         missingAccounts: coverage.missingAccounts || [],
                                         missingMarkets: coverage.missingMarkets || [],
@@ -28504,7 +28595,7 @@
                                 ${iconHtml}
                                 <div class="earn-token-info">
                                         <div class="earn-token-name">${item.symbol} ${chevron}</div>
-                                        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:3px">
+                                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:3px">
                                         <span class="earn-hist-badge withdrawn"><span class="earn-status-dot"></span>${item.isCollateralized ? 'BORROW' : 'WITHDRAWN'}</span>
                                         ${verifyBadge}
                                         ${sourceBadge}
