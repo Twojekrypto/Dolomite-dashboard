@@ -12,6 +12,7 @@ Output data:
 
 The generated ledger stores per-market cumulative yield plus verification
 metadata comparing snapshot-derived yield vs netflow-derived yield.
+Generated files are intended for local/private use and should not be committed.
 """
 
 import argparse
@@ -270,7 +271,7 @@ def _update_manifest(output_dir, chain_meta):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Build verified EARN ledger files")
+    parser = argparse.ArgumentParser(description="Build local/private verified EARN ledger files")
     parser.add_argument("--chain", action="append", required=True,
                         help="Chain id (repeatable), e.g. --chain arbitrum --chain ethereum")
     parser.add_argument("--address", action="append", default=[],
@@ -280,7 +281,7 @@ def main():
     parser.add_argument("--existing-addresses", action="store_true",
                         help="Refresh only addresses that already exist in the output directory")
     parser.add_argument("--output-dir", default=str(OUTPUT_DIR),
-                        help="Output directory (default: data/earn-verified-ledger)")
+                        help="Output directory (default: data/earn-verified-ledger, kept local/private)")
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)
