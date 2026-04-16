@@ -3,14 +3,15 @@
 Scan DolomiteMargin on-chain events to compute netflow per address per market.
 Generates data/earn-netflow/{chainId}.json for each chain.
 
-Events scanned:
-  - LogDeposit(address indexed accountOwner, uint256 accountNumber, uint256 market, BalanceUpdate update)
-  - LogWithdraw(address indexed accountOwner, uint256 accountNumber, uint256 market, BalanceUpdate update)
-  
-Netflow = sum of deposits - sum of withdrawals (in wei)
+The scanner supports both the legacy DolomiteMargin event layout and the newer
+event topics/layout used by the replay verifier in the dashboard. This keeps
+backend netflow accounting aligned with the frontend replay model.
+
+Netflow = signed sum of all balance-changing deltaWei updates.
 Yield = currentWei - netflow
 """
 
+import argparse
 import json, os, sys, time
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -75,24 +76,36 @@ CHAINS = {
 }
 
 # Event signatures (keccak256 hashes)
-LOG_DEPOSIT    = "0x2bad8bc95088af2c247b30fa2b2e6a0886f88625e0945cd3051008e0e270198f"
-LOG_WITHDRAW   = "0xbc83c08f0b269b1726990c8348ffdf1ae1696244a14868d766e542a2f18cd7d4"
-LOG_TRADE      = "0x551e705b3457d01be14140987c43896f782b70542f778b43b9f5f94522302b6f"
-LOG_TRANSFER   = "0xe95afb1ad6381b7e0935d86b6442b2f145381aa2f821b5d49096b61d9ee08d4b"
-LOG_LIQUIDATE  = "0x5c18eb2c52b455100d6a3f07c1b2223d05d50135af3348404e76b1e42ddaef85"
+LOG_DEPOSIT = "0x2bad8bc95088af2c247b30fa2b2e6a0886f88625e0945cd3051008e0e270198f"
+LOG_WITHDRAW = "0xbc83c08f0b269b1726990c8348ffdf1ae1696244a14868d766e542a2f18cd7d4"
 
-# V2 DolomiteMargin event signatures (Berachain, Ethereum)
-# V2 uses compact BalanceUpdate: {uint256 value, bool sign} instead of V1's 4-word struct
-LOG_TRADE_V2     = "0x21281f8d59117d0399dc467dbdd321538ceffe3225e80e2bd4de6f1b3355cbc7"
-LOG_LIQUIDATE_V2 = "0xcc3330184b6d88cad87f9e9543b4d4110a6a3eaf20164ca5252d598d0acba3f1"
+# Legacy DolomiteMargin events
+LEGACY_LOG_TRADE = "0x551e705b3457d01be14140987c43896f782b70542f778b43b9f5f94522302b6f"
+LEGACY_LOG_TRANSFER = "0xe95afb1ad6381b7e0935d86b6442b2f145381aa2f821b5d49096b61d9ee08d4b"
+LEGACY_LOG_LIQUIDATE = "0x5c18eb2c52b455100d6a3f07c1b2223d05d50135af3348404e76b1e42ddaef85"
+
+# Current dashboard replay event topics/layout
+CURRENT_LOG_TRANSFER = "0x21281f8d59117d0399dc467dbdd321538ceffe3225e80e2bd4de6f1b3355cbc7"
+CURRENT_LOG_BUY = "0x2e346762bf4ae4568971c30b51fcebd2138275aafcfe12d872956e9f3e120893"
+CURRENT_LOG_SELL = "0xcc3330184b6d88cad87f9e9543b4d4110a6a3eaf20164ca5252d598d0acba3f1"
+CURRENT_LOG_TRADE = "0x54d4cc60cf7d570631cc1a58942812cb0fc461713613400f56932040c3497d19"
+CURRENT_LOG_LIQUIDATE = "0x1b9e65b359b871d74b1af1fc8b13b11635bfb097c4631b091eb762fda7e67dc7"
+CURRENT_LOG_VAPORIZE = "0xefdcfda4e0be180f29bfeebc4bcb6de1e950d70b41e9ee813bff9882ee16ca91"
 
 ALL_EVENTS = [
     LOG_DEPOSIT, LOG_WITHDRAW,
-    LOG_TRADE, LOG_TRANSFER, LOG_LIQUIDATE,       # V1
-    LOG_TRADE_V2, LOG_LIQUIDATE_V2,                # V2
+    LEGACY_LOG_TRADE, LEGACY_LOG_TRANSFER, LEGACY_LOG_LIQUIDATE,
+    CURRENT_LOG_TRANSFER, CURRENT_LOG_BUY, CURRENT_LOG_SELL,
+    CURRENT_LOG_TRADE, CURRENT_LOG_LIQUIDATE, CURRENT_LOG_VAPORIZE,
+]
+
+SECOND_OWNER_EVENTS = [
+    LEGACY_LOG_TRADE, LEGACY_LOG_TRANSFER, LEGACY_LOG_LIQUIDATE,
+    CURRENT_LOG_TRANSFER, CURRENT_LOG_TRADE, CURRENT_LOG_LIQUIDATE, CURRENT_LOG_VAPORIZE,
 ]
 
 BLOCK_CHUNK = 49999  # blocks per getLogs request (RPC max is typically 50k)
+ADDRESS_FILTER_CHUNK = 500000
 MAX_RETRIES = 3
 OUTPUT_DIR = Path(__file__).parent / "data" / "earn-netflow"
 PROGRESS_DIR = Path(__file__).parent / "data" / ".netflow-progress"
@@ -151,6 +164,25 @@ def get_logs(rpcs, rpc_idx, contract, topics, from_block, to_block):
     return rpc_call(rpcs, "eth_getLogs", params, rpc_idx)
 
 
+def _addr_topic(addr):
+    return "0x" + str(addr).lower().replace("0x", "").rjust(64, "0")
+
+
+def _dedupe_logs(logs):
+    seen = set()
+    out = []
+    for log in logs or []:
+        key = (
+            str(log.get("transactionHash", "")).lower(),
+            str(log.get("logIndex", "")).lower(),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(log)
+    return out
+
+
 def find_first_event_block(rpcs, rpc_idx, contract, latest_block):
     """Find the first block with events using log-based binary search in 1M chunks."""
     chunk = 1_000_000
@@ -176,22 +208,30 @@ def find_first_event_block(rpcs, rpc_idx, contract, latest_block):
     return 0
 
 
-def decode_balance_update(words, offset):
-    """Decode a BalanceUpdate struct: { Types.Wei { bool sign, uint256 value } x2 }.
-    Returns deltaWei (signed integer). The struct is 4 words:
-      word 0: newPar.sign, word 1: newPar.value
-      word 2: deltaWei.sign, word 3: deltaWei.value
-    """
-    sign = int(words[offset + 2], 16)   # deltaWei.sign: 1=positive, 0=negative
-    value = int(words[offset + 3], 16)  # deltaWei.value
+def decode_signed_bool_uint(words, offset):
+    """Decode { bool sign, uint256 value } into a signed integer."""
+    sign = int(words[offset], 16)
+    value = int(words[offset + 1], 16)
     return value if sign else -value
 
 
-def decode_deposit_withdraw_log(log):
-    """Decode a LogDeposit or LogWithdraw event.
-    Topics: [0] event sig, [1] indexed accountOwner
-    Data: accountNumber, market, BalanceUpdate(4 words)
-    """
+def decode_balance_update_current(words, offset):
+    """Decode current dashboard replay BalanceUpdate layout."""
+    return {
+        "delta": decode_signed_bool_uint(words, offset),
+        "new_par": decode_signed_bool_uint(words, offset + 2),
+    }
+
+
+def decode_balance_update_legacy(words, offset):
+    """Decode legacy BalanceUpdate layout used by older scanner logic."""
+    sign = int(words[offset + 2], 16)
+    value = int(words[offset + 3], 16)
+    return value if sign else -value
+
+
+def decode_legacy_deposit_withdraw_log(log):
+    """Decode a legacy LogDeposit or LogWithdraw event."""
     topics = log["topics"]
     data = log["data"].replace("0x", "")
     owner = "0x" + topics[1][-40:]
@@ -199,25 +239,12 @@ def decode_deposit_withdraw_log(log):
     if len(words) < 6:
         return None
     market_id = int(words[1], 16)
-    delta_wei = decode_balance_update(words, 2)
+    delta_wei = decode_balance_update_legacy(words, 2)
     return {"owner": owner.lower(), "market": str(market_id), "delta": delta_wei}
 
 
-def decode_trade_log(log):
-    """Decode a LogTrade event (swap).
-    Topics: [0] event sig, [1] indexed makerOwner, [2] indexed takerOwner
-    Data: makerAccountNumber(0), takerAccountNumber(1), inputMarket(2), outputMarket(3),
-          makerInputUpdate(4-7), makerOutputUpdate(8-11), takerInputUpdate(12-15), takerOutputUpdate(16-19)
-    Actually the layout is:
-      word 0: makerAccountNumber
-      word 1: takerAccountNumber
-      word 2: inputMarket
-      word 3: outputMarket
-      words 4-7:   makerInputUpdate  (BalanceUpdate for inputMarket on maker)
-      words 8-11:  makerOutputUpdate (BalanceUpdate for outputMarket on maker)
-      words 12-15: takerInputUpdate  (BalanceUpdate for inputMarket on taker - but we only track total)
-      words 16-19: takerOutputUpdate (BalanceUpdate for outputMarket on taker)
-    """
+def decode_legacy_trade_log(log):
+    """Decode a legacy LogTrade event."""
     topics = log["topics"]
     data = log["data"].replace("0x", "")
     maker = "0x" + topics[1][-40:]
@@ -228,8 +255,8 @@ def decode_trade_log(log):
     input_market = str(int(words[2], 16))
     output_market = str(int(words[3], 16))
     # Maker: gets delta on input and output markets
-    maker_input_delta = decode_balance_update(words, 4)
-    maker_output_delta = decode_balance_update(words, 8) if len(words) >= 12 else 0
+    maker_input_delta = decode_balance_update_legacy(words, 4)
+    maker_output_delta = decode_balance_update_legacy(words, 8) if len(words) >= 12 else 0
     
     results = [
         {"owner": maker.lower(), "market": input_market, "delta": maker_input_delta},
@@ -237,19 +264,15 @@ def decode_trade_log(log):
     ]
     # Taker side (if enough data)
     if taker and len(words) >= 20:
-        taker_input_delta = decode_balance_update(words, 12)
-        taker_output_delta = decode_balance_update(words, 16)
+        taker_input_delta = decode_balance_update_legacy(words, 12)
+        taker_output_delta = decode_balance_update_legacy(words, 16)
         results.append({"owner": taker.lower(), "market": input_market, "delta": taker_input_delta})
         results.append({"owner": taker.lower(), "market": output_market, "delta": taker_output_delta})
     return results
 
 
-def decode_transfer_log(log):
-    """Decode a LogTransfer event.
-    Topics: [0] event sig, [1] indexed accountOneOwner, [2] indexed accountTwoOwner
-    Data: accountOneNumber(0), accountTwoNumber(1), market(2),
-          updateOne(3-6), updateTwo(7-10)
-    """
+def decode_legacy_transfer_log(log):
+    """Decode a legacy LogTransfer event."""
     topics = log["topics"]
     data = log["data"].replace("0x", "")
     owner1 = "0x" + topics[1][-40:]
@@ -258,20 +281,16 @@ def decode_transfer_log(log):
     if len(words) < 7:
         return None
     market = str(int(words[2], 16))
-    delta1 = decode_balance_update(words, 3)
+    delta1 = decode_balance_update_legacy(words, 3)
     results = [{"owner": owner1.lower(), "market": market, "delta": delta1}]
     if owner2 and len(words) >= 11:
-        delta2 = decode_balance_update(words, 7)
+        delta2 = decode_balance_update_legacy(words, 7)
         results.append({"owner": owner2.lower(), "market": market, "delta": delta2})
     return results
 
 
-def decode_liquidate_log(log):
-    """Decode a LogLiquidate event.
-    Topics: [0] event sig, [1] indexed solidOwner, [2] indexed liquidOwner
-    Data: solidAccountNumber(0), liquidAccountNumber(1), heldMarket(2), owedMarket(3),
-          solidHeldUpdate(4-7), solidOwedUpdate(8-11), liquidHeldUpdate(12-15), liquidOwedUpdate(16-19)
-    """
+def decode_legacy_liquidate_log(log):
+    """Decode a legacy LogLiquidate event."""
     topics = log["topics"]
     data = log["data"].replace("0x", "")
     solid = "0x" + topics[1][-40:]
@@ -281,15 +300,15 @@ def decode_liquidate_log(log):
         return None
     held_market = str(int(words[2], 16))
     owed_market = str(int(words[3], 16))
-    solid_held_delta = decode_balance_update(words, 4)
-    solid_owed_delta = decode_balance_update(words, 8)
+    solid_held_delta = decode_balance_update_legacy(words, 4)
+    solid_owed_delta = decode_balance_update_legacy(words, 8)
     results = [
         {"owner": solid.lower(), "market": held_market, "delta": solid_held_delta},
         {"owner": solid.lower(), "market": owed_market, "delta": solid_owed_delta},
     ]
     if liquid and len(words) >= 20:
-        liquid_held_delta = decode_balance_update(words, 12)
-        liquid_owed_delta = decode_balance_update(words, 16)
+        liquid_held_delta = decode_balance_update_legacy(words, 12)
+        liquid_owed_delta = decode_balance_update_legacy(words, 16)
         results.append({"owner": liquid.lower(), "market": held_market, "delta": liquid_held_delta})
         results.append({"owner": liquid.lower(), "market": owed_market, "delta": liquid_owed_delta})
     return results
@@ -304,19 +323,26 @@ def load_progress(chain_id):
     return {"last_block": 0, "netflows": {}}
 
 
-def decode_trade_log_v2(log):
-    """Decode V2 LogTrade event (Berachain/Ethereum).
-    Topics: [sig, owner1 (taker), owner2 (maker)]
-    Data (11 words):
-      0: accNum1, 1: accNum2, 2: inputMarket, 3: outputMarket,
-      4: taker_input_value, 5: taker_input_sign,
-      6: taker_output_value, 7: taker_output_sign,
-      8: maker_input_value, 9: maker_input_sign,
-      10: maker_output_value  (sign implied: opposite of taker output)
-    
-    For self-trades (owner1==owner2, common with DolomiteMargin zaps/swaps),
-    only taker-side deltas are tracked to avoid double-counting.
-    """
+def decode_current_deposit_withdraw_log(log):
+    """Decode current replay-style deposit/withdraw event."""
+    try:
+        topics = log["topics"]
+        if len(topics) < 2:
+            return None
+        owner = "0x" + topics[1][-40:]
+        data = log["data"].replace("0x", "")
+        words = [data[i*64:(i+1)*64] for i in range(len(data)//64)]
+        if len(words) < 6:
+            return None
+        market_id = str(int(words[1], 16))
+        update = decode_balance_update_current(words, 2)
+        return [{"owner": owner.lower(), "market": market_id, "delta": update["delta"]}]
+    except Exception:
+        return None
+
+
+def decode_current_transfer_log(log):
+    """Decode current replay-style transfer event."""
     try:
         topics = log["topics"]
         if len(topics) < 3:
@@ -327,50 +353,19 @@ def decode_trade_log_v2(log):
         words = [data[i*64:(i+1)*64] for i in range(len(data)//64)]
         if len(words) < 11:
             return None
-        
-        input_market = str(int(words[2], 16))
-        output_market = str(int(words[3], 16))
-        
-        # Compact BalanceUpdate: {value, sign} where sign: 1=positive, 0=negative
-        def delta(val_idx, sign_idx):
-            v = int(words[val_idx], 16)
-            s = int(words[sign_idx], 16)
-            return v if s else -v
-        
-        # Taker side (owner1): the user's actual balance change
-        o1_input = delta(4, 5)
-        o1_output = delta(6, 7)
-        
-        results = [
-            {"owner": owner1.lower(), "market": input_market, "delta": o1_input},
-            {"owner": owner1.lower(), "market": output_market, "delta": o1_output},
+        market_id = str(int(words[2], 16))
+        update1 = decode_balance_update_current(words, 3)
+        update2 = decode_balance_update_current(words, 7)
+        return [
+            {"owner": owner1.lower(), "market": market_id, "delta": update1["delta"]},
+            {"owner": owner2.lower(), "market": market_id, "delta": update2["delta"]},
         ]
-        
-        # Only add maker side if it's a DIFFERENT address (cross-account trade)
-        if owner1.lower() != owner2.lower():
-            o2_input = delta(8, 9)
-            o2_output_val = int(words[10], 16)
-            o1_output_sign = int(words[7], 16)
-            o2_output = -o2_output_val if o1_output_sign else o2_output_val
-            results.append({"owner": owner2.lower(), "market": input_market, "delta": o2_input})
-            results.append({"owner": owner2.lower(), "market": output_market, "delta": o2_output})
-        
-        return results
     except Exception:
         return None
 
 
-def decode_liquidate_log_v2(log):
-    """Decode V2 LogLiquidate event (Berachain/Ethereum).
-    Topics: [sig, owner]
-    Data (12 words):
-      0: accountNumber, 1: heldMarket, 2: owedMarket,
-      3-4: heldDelta {value, sign},
-      5-6: owedDelta {value, sign},
-      7-8: liquidHeldDelta {value, sign},
-      9-10: liquidOwedDelta {value, sign},
-      11: liquidator address
-    """
+def decode_current_buy_sell_log(log):
+    """Decode current replay-style buy/sell event."""
     try:
         topics = log["topics"]
         if len(topics) < 2:
@@ -378,32 +373,135 @@ def decode_liquidate_log_v2(log):
         owner = "0x" + topics[1][-40:]
         data = log["data"].replace("0x", "")
         words = [data[i*64:(i+1)*64] for i in range(len(data)//64)]
-        if len(words) < 12:
+        if len(words) < 11:
             return None
-        
-        held_market = str(int(words[1], 16))
-        owed_market = str(int(words[2], 16))
-        liquidator = "0x" + words[11][-40:]
-        
-        def delta(val_idx, sign_idx):
-            v = int(words[val_idx], 16)
-            s = int(words[sign_idx], 16)
-            return v if s else -v
-        
-        solid_held = delta(3, 4)
-        solid_owed = delta(5, 6)
-        liquid_held = delta(7, 8)
-        liquid_owed = delta(9, 10)
-        
-        results = [
-            {"owner": owner.lower(), "market": held_market, "delta": solid_held},
-            {"owner": owner.lower(), "market": owed_market, "delta": solid_owed},
-            {"owner": liquidator.lower(), "market": held_market, "delta": liquid_held},
-            {"owner": liquidator.lower(), "market": owed_market, "delta": liquid_owed},
+        update_a = decode_balance_update_current(words, 3)
+        update_b = decode_balance_update_current(words, 7)
+        return [
+            {"owner": owner.lower(), "market": str(int(words[1], 16)), "delta": update_a["delta"]},
+            {"owner": owner.lower(), "market": str(int(words[2], 16)), "delta": update_b["delta"]},
         ]
-        return results
     except Exception:
         return None
+
+
+def decode_current_trade_log(log):
+    """Decode current replay-style trade event."""
+    try:
+        topics = log["topics"]
+        if len(topics) < 3:
+            return None
+        owner1 = "0x" + topics[1][-40:]
+        owner2 = "0x" + topics[2][-40:]
+        data = log["data"].replace("0x", "")
+        words = [data[i*64:(i+1)*64] for i in range(len(data)//64)]
+        if len(words) < 20:
+            return None
+        input_market = str(int(words[2], 16))
+        output_market = str(int(words[3], 16))
+        update1_in = decode_balance_update_current(words, 4)
+        update1_out = decode_balance_update_current(words, 8)
+        update2_in = decode_balance_update_current(words, 12)
+        update2_out = decode_balance_update_current(words, 16)
+        return [
+            {"owner": owner1.lower(), "market": input_market, "delta": update1_in["delta"]},
+            {"owner": owner1.lower(), "market": output_market, "delta": update1_out["delta"]},
+            {"owner": owner2.lower(), "market": input_market, "delta": update2_in["delta"]},
+            {"owner": owner2.lower(), "market": output_market, "delta": update2_out["delta"]},
+        ]
+    except Exception:
+        return None
+
+
+def decode_current_liquidate_log(log):
+    """Decode current replay-style liquidate event."""
+    try:
+        topics = log["topics"]
+        if len(topics) < 3:
+            return None
+        owner1 = "0x" + topics[1][-40:]
+        owner2 = "0x" + topics[2][-40:]
+        data = log["data"].replace("0x", "")
+        words = [data[i*64:(i+1)*64] for i in range(len(data)//64)]
+        if len(words) < 20:
+            return None
+        held_market = str(int(words[2], 16))
+        owed_market = str(int(words[3], 16))
+        solid_held = decode_balance_update_current(words, 4)
+        solid_owed = decode_balance_update_current(words, 8)
+        liquid_held = decode_balance_update_current(words, 12)
+        liquid_owed = decode_balance_update_current(words, 16)
+        return [
+            {"owner": owner1.lower(), "market": held_market, "delta": solid_held["delta"]},
+            {"owner": owner1.lower(), "market": owed_market, "delta": solid_owed["delta"]},
+            {"owner": owner2.lower(), "market": held_market, "delta": liquid_held["delta"]},
+            {"owner": owner2.lower(), "market": owed_market, "delta": liquid_owed["delta"]},
+        ]
+    except Exception:
+        return None
+
+
+def decode_current_vaporize_log(log):
+    """Decode current replay-style vaporize event."""
+    try:
+        topics = log["topics"]
+        if len(topics) < 3:
+            return None
+        owner1 = "0x" + topics[1][-40:]
+        owner2 = "0x" + topics[2][-40:]
+        data = log["data"].replace("0x", "")
+        words = [data[i*64:(i+1)*64] for i in range(len(data)//64)]
+        if len(words) < 16:
+            return None
+        held_market = str(int(words[2], 16))
+        borrowed_market = str(int(words[3], 16))
+        solid_held = decode_balance_update_current(words, 4)
+        solid_borrowed = decode_balance_update_current(words, 8)
+        vapor_borrowed = decode_balance_update_current(words, 12)
+        return [
+            {"owner": owner1.lower(), "market": held_market, "delta": solid_held["delta"]},
+            {"owner": owner1.lower(), "market": borrowed_market, "delta": solid_borrowed["delta"]},
+            {"owner": owner2.lower(), "market": borrowed_market, "delta": vapor_borrowed["delta"]},
+        ]
+    except Exception:
+        return None
+
+
+def decode_log_entries(log):
+    """Decode any known log type into [{owner, market, delta}, ...]."""
+    topic0 = (log.get("topics") or [""])[0].lower()
+    if topic0 == LOG_DEPOSIT:
+        current = decode_current_deposit_withdraw_log(log)
+        if current:
+            return current
+        legacy = decode_legacy_deposit_withdraw_log(log)
+        return [legacy] if legacy else None
+    if topic0 == LOG_WITHDRAW:
+        current = decode_current_deposit_withdraw_log(log)
+        if current:
+            return current
+        legacy = decode_legacy_deposit_withdraw_log(log)
+        if legacy:
+            legacy["delta"] = -abs(int(legacy["delta"]))
+            return [legacy]
+        return None
+    if topic0 == LEGACY_LOG_TRADE:
+        return decode_legacy_trade_log(log)
+    if topic0 == LEGACY_LOG_TRANSFER:
+        return decode_legacy_transfer_log(log)
+    if topic0 == LEGACY_LOG_LIQUIDATE:
+        return decode_legacy_liquidate_log(log)
+    if topic0 == CURRENT_LOG_TRANSFER:
+        return decode_current_transfer_log(log)
+    if topic0 == CURRENT_LOG_BUY or topic0 == CURRENT_LOG_SELL:
+        return decode_current_buy_sell_log(log)
+    if topic0 == CURRENT_LOG_TRADE:
+        return decode_current_trade_log(log)
+    if topic0 == CURRENT_LOG_LIQUIDATE:
+        return decode_current_liquidate_log(log)
+    if topic0 == CURRENT_LOG_VAPORIZE:
+        return decode_current_vaporize_log(log)
+    return None
 
 
 def save_progress(chain_id, progress):
@@ -413,7 +511,7 @@ def save_progress(chain_id, progress):
         json.dump(progress, f)
 
 
-def scan_chain(chain_id, chain_config, only_chains=None):
+def scan_chain(chain_id, chain_config, only_chains=None, target_addresses=None):
     """Scan a single chain for deposit/withdraw events."""
     if only_chains and chain_id not in only_chains:
         return
@@ -451,101 +549,101 @@ def scan_chain(chain_id, chain_config, only_chains=None):
     
     print(f"  Latest block: {latest_block:,}")
     
-    # Load progress
-    progress = load_progress(chain_id)
-    netflows = progress["netflows"]
-    start_block = progress["last_block"]
-    
-    if start_block == 0:
-        # Use hardcoded start block from config
+    target_addresses = {a.lower() for a in (target_addresses or []) if a}
+    target_addr_topics = [_addr_topic(addr) for addr in sorted(target_addresses)]
+
+    output_file = OUTPUT_DIR / f"{chain_id}.json"
+    existing_output = {}
+    if output_file.exists():
+        try:
+            with open(output_file) as f:
+                existing_output = json.load(f)
+        except Exception:
+            existing_output = {}
+
+    if target_addresses:
+        existing_netflows = existing_output.get("netflows", {}) or {}
+        netflows = {addr: data for addr, data in existing_netflows.items() if addr.lower() not in target_addresses}
+        filtered_netflows = {}
         start_block = chain_config["start_block"]
-        print(f"  Starting from block: {start_block:,}")
+        print(f"  Targeted rescan for {len(target_addresses)} address(es) from block: {start_block:,}")
     else:
-        print(f"  Resuming from block: {start_block:,}")
+        progress = load_progress(chain_id)
+        netflows = progress["netflows"]
+        filtered_netflows = netflows
+        start_block = progress["last_block"]
+
+        if start_block == 0:
+            start_block = chain_config["start_block"]
+            print(f"  Starting from block: {start_block:,}")
+        else:
+            print(f"  Resuming from block: {start_block:,}")
     
     # Scan in chunks
     current = start_block
     total_events = 0
-    chunk_size = BLOCK_CHUNK
+    chunk_size = ADDRESS_FILTER_CHUNK if target_addresses else BLOCK_CHUNK
     
     while current <= latest_block:
         to_block = min(current + chunk_size - 1, latest_block)
         
         try:
-            # Fetch ALL events in a single query
-            all_logs = get_logs(rpcs, rpc_idx, contract, [ALL_EVENTS], current, to_block) or []
+            # Fetch all logs. For targeted rescans, filter by indexed owner topics so we can
+            # rebuild a single address from genesis without a full-chain rescan.
+            if target_addresses:
+                topic_one_logs = get_logs(rpcs, rpc_idx, contract, [ALL_EVENTS, target_addr_topics], current, to_block) or []
+                topic_two_logs = get_logs(rpcs, rpc_idx, contract, [SECOND_OWNER_EVENTS, None, target_addr_topics], current, to_block) or []
+                all_logs = _dedupe_logs([*topic_one_logs, *topic_two_logs])
+            else:
+                all_logs = get_logs(rpcs, rpc_idx, contract, [ALL_EVENTS], current, to_block) or []
             
             events_in_chunk = len(all_logs)
             total_events += events_in_chunk
             
             # Helper to add flow to netflows
-            def add_flow(addr, mid, delta, flow_type):
-                if addr not in netflows:
-                    netflows[addr] = {}
-                if mid not in netflows[addr]:
-                    netflows[addr][mid] = {"t": "0", "d": "0", "w": "0", "s": "0", "x": "0", "l": "0"}
+            def add_flow(storage, addr, mid, delta, flow_type):
+                if addr not in storage:
+                    storage[addr] = {}
+                if mid not in storage[addr]:
+                    storage[addr][mid] = {"t": "0", "d": "0", "w": "0", "s": "0", "x": "0", "l": "0", "v": "0"}
                 # Ensure all keys exist (for old-format data)
-                for k in ("d", "w", "s", "x", "l"):
-                    if k not in netflows[addr][mid]:
-                        netflows[addr][mid][k] = "0"
-                old_t = int(netflows[addr][mid]["t"])
-                netflows[addr][mid]["t"] = str(old_t + delta)
-                old_ft = int(netflows[addr][mid][flow_type])
-                netflows[addr][mid][flow_type] = str(old_ft + abs(delta))
+                for k in ("d", "w", "s", "x", "l", "v"):
+                    if k not in storage[addr][mid]:
+                        storage[addr][mid][k] = "0"
+                old_t = int(storage[addr][mid]["t"])
+                storage[addr][mid]["t"] = str(old_t + delta)
+                old_ft = int(storage[addr][mid][flow_type])
+                storage[addr][mid][flow_type] = str(old_ft + abs(delta))
             
             # Process all logs
             for log in all_logs:
-                topic0 = log["topics"][0]
-                
-                if topic0 == LOG_DEPOSIT:
-                    decoded = decode_deposit_withdraw_log(log)
-                    if decoded:
-                        add_flow(decoded["owner"], decoded["market"], decoded["delta"], "d")
-                
-                elif topic0 == LOG_WITHDRAW:
-                    decoded = decode_deposit_withdraw_log(log)
-                    if decoded:
-                        # Negate: protocol reports withdrawn amount as positive,
-                        # but our netflow needs it negative (balance decreases)
-                        add_flow(decoded["owner"], decoded["market"], -abs(decoded["delta"]), "w")
-                
-                elif topic0 == LOG_TRADE:
-                    entries = decode_trade_log(log)
-                    if entries:
-                        for e in entries:
-                            add_flow(e["owner"], e["market"], e["delta"], "s")
-                
-                elif topic0 == LOG_TRANSFER:
-                    entries = decode_transfer_log(log)
-                    if entries:
-                        for e in entries:
-                            add_flow(e["owner"], e["market"], e["delta"], "x")
-                
-                elif topic0 == LOG_LIQUIDATE:
-                    entries = decode_liquidate_log(log)
-                    if entries:
-                        for e in entries:
-                            add_flow(e["owner"], e["market"], e["delta"], "l")
-                
-                elif topic0 == LOG_TRADE_V2:
-                    entries = decode_trade_log_v2(log)
-                    if entries:
-                        for e in entries:
-                            add_flow(e["owner"], e["market"], e["delta"], "s")
-                
-                elif topic0 == LOG_LIQUIDATE_V2:
-                    entries = decode_liquidate_log_v2(log)
-                    if entries:
-                        for e in entries:
-                            add_flow(e["owner"], e["market"], e["delta"], "l")
+                topic0 = log["topics"][0].lower()
+                flow_type = (
+                    "d" if topic0 == LOG_DEPOSIT else
+                    "w" if topic0 == LOG_WITHDRAW else
+                    "x" if topic0 in (LEGACY_LOG_TRANSFER, CURRENT_LOG_TRANSFER) else
+                    "l" if topic0 in (LEGACY_LOG_LIQUIDATE, CURRENT_LOG_LIQUIDATE) else
+                    "v" if topic0 == CURRENT_LOG_VAPORIZE else
+                    "s"
+                )
+                entries = decode_log_entries(log)
+                if not entries:
+                    continue
+                for entry in entries:
+                    owner = entry["owner"].lower()
+                    if target_addresses and owner not in target_addresses:
+                        continue
+                    storage = filtered_netflows if target_addresses else netflows
+                    add_flow(storage, owner, entry["market"], int(entry["delta"]), flow_type)
             
             pct = ((to_block - start_block) / max(1, latest_block - start_block)) * 100
             blocks_done = to_block - start_block
             if events_in_chunk > 0 or blocks_done % 500_000 < chunk_size:
-                print(f"  [{pct:5.1f}%] Block {to_block:,} — {events_in_chunk} events (total: {total_events}, addrs: {len(netflows)})")
+                addr_count = len(filtered_netflows if target_addresses else netflows)
+                print(f"  [{pct:5.1f}%] Block {to_block:,} — {events_in_chunk} events (total: {total_events}, addrs: {addr_count})")
             
             # Save progress periodically
-            if (to_block - start_block) % (chunk_size * 10) < chunk_size:
+            if not target_addresses and (to_block - start_block) % (chunk_size * 10) < chunk_size:
                 progress["last_block"] = to_block + 1
                 progress["netflows"] = netflows
                 save_progress(chain_id, progress)
@@ -576,14 +674,15 @@ def scan_chain(chain_id, chain_config, only_chains=None):
                 continue
     
     # Final save
-    progress["last_block"] = latest_block + 1
-    progress["netflows"] = netflows
-    save_progress(chain_id, progress)
-    
+    if not target_addresses:
+        progress["last_block"] = latest_block + 1
+        progress["netflows"] = netflows
+        save_progress(chain_id, progress)
+
     # Write output
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    output_file = OUTPUT_DIR / f"{chain_id}.json"
-    
+    if target_addresses:
+        netflows.update(filtered_netflows)
     output_data = {
         "chain": chain_id,
         "lastBlock": latest_block,
@@ -601,13 +700,22 @@ def scan_chain(chain_id, chain_config, only_chains=None):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Scan DolomiteMargin balance-changing events into netflow files")
+    parser.add_argument("chains", nargs="?", default="", help="Comma-separated chain ids, e.g. arbitrum,ethereum")
+    parser.add_argument("--address", action="append", default=[], help="Targeted owner address to rebuild from genesis")
+    args = parser.parse_args()
+
     only_chains = None
-    if len(sys.argv) > 1:
-        only_chains = [c.strip().lower() for c in sys.argv[1].split(",")]
+    if args.chains:
+        only_chains = [c.strip().lower() for c in args.chains.split(",") if c.strip()]
         print(f"Scanning only: {', '.join(only_chains)}")
+
+    target_addresses = [a.strip().lower() for a in args.address if str(a).strip()]
+    if target_addresses:
+        print(f"Target addresses: {', '.join(target_addresses)}")
     
     for chain_id, config in CHAINS.items():
-        scan_chain(chain_id, config, only_chains)
+        scan_chain(chain_id, config, only_chains, target_addresses=target_addresses)
     
     print(f"\n{'='*60}")
     print("Done! Files written to data/earn-netflow/")
