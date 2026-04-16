@@ -23557,6 +23557,7 @@
             earn_priceCache = {};
             earn_historyData = null;
             earn_totalYieldData = null;
+            earn_resolvedTotalYieldData = null;
             earn_subgraphTokens = {};
             earn_cachedAssets = [];
             earn_historicalData = null;
@@ -26234,6 +26235,140 @@
             return null;
         }
 
+        function earn_getResolvedTotalYieldSource(method, rawSource) {
+            const normalizedMethod = String(method || '');
+            const fallbackSource = String(rawSource || '');
+            switch (normalizedMethod) {
+                case 'interest-ledger':
+                case 'interest-ledger-override':
+                case 'interest-ledger-pending':
+                case 'interest-ledger-unverified':
+                    return 'replay-ledger';
+                case 'all-netflow-verified':
+                case 'all-netflow-pre-snapshot-carry':
+                    return 'public-netflow';
+                case 'recent-cycle-verified':
+                case 'recent-cycle-pre-snapshot-carry':
+                    return 'public-cycle';
+                case 'all-netflow':
+                case 'all-netflow-guarded':
+                    return 'netflow-fallback';
+                case 'recent-cycle':
+                    return 'cycle-fallback';
+                case 'acct0-netflow':
+                    return 'acct0-fallback';
+                default:
+                    return fallbackSource || 'snapshot-series';
+            }
+        }
+
+        function earn_buildResolvedTotalYieldEntry(marketId, yieldCalc) {
+            const hist = earn_totalYieldData ? earn_totalYieldData[String(marketId)] : null;
+            if (!hist) return null;
+
+            const rawSource = String(hist.rawSource !== undefined ? hist.rawSource : (hist.source || ''));
+            const rawMethod = String(hist.rawMethod !== undefined ? hist.rawMethod : (hist.method || ''));
+            const rawVerificationStatus = String(hist.rawVerificationStatus !== undefined ? hist.rawVerificationStatus : (hist.verificationStatus || ''));
+            const rawCumulativeYield = String(hist.rawCumulativeYield !== undefined ? hist.rawCumulativeYield : (hist.cumulativeYield || '0'));
+
+            let resolvedSource = String(hist.resolvedSource !== undefined ? hist.resolvedSource : rawSource);
+            let resolvedMethod = String(hist.resolvedMethod !== undefined ? hist.resolvedMethod : rawMethod);
+            let resolvedVerificationStatus = String(hist.resolvedVerificationStatus !== undefined ? hist.resolvedVerificationStatus : rawVerificationStatus);
+            let resolvedCumulativeYield = String(hist.resolvedCumulativeYield !== undefined ? hist.resolvedCumulativeYield : rawCumulativeYield);
+            let resolvedTrustedForTotal = !!hist.resolvedTrustedForTotal;
+
+            if (yieldCalc && yieldCalc.hasData) {
+                resolvedMethod = String(yieldCalc.method || resolvedMethod);
+                resolvedSource = earn_getResolvedTotalYieldSource(resolvedMethod, rawSource);
+                resolvedCumulativeYield = String(yieldCalc.totalYield || '0');
+                resolvedTrustedForTotal = !!yieldCalc.trustedForTotal;
+
+                if (yieldCalc.publicLedgerInference && yieldCalc.publicLedgerInference.status) {
+                    resolvedVerificationStatus = String(yieldCalc.publicLedgerInference.status || resolvedVerificationStatus);
+                } else if (resolvedMethod === 'interest-ledger' || resolvedMethod === 'interest-ledger-override') {
+                    resolvedVerificationStatus = String(yieldCalc.verificationStatus || 'verified');
+                } else if (yieldCalc.verificationStatus) {
+                    resolvedVerificationStatus = String(yieldCalc.verificationStatus || resolvedVerificationStatus);
+                }
+            }
+
+            return {
+                ...hist,
+                rawSource,
+                rawMethod,
+                rawVerificationStatus,
+                rawCumulativeYield,
+                resolvedSource,
+                resolvedMethod,
+                resolvedVerificationStatus,
+                resolvedCumulativeYield,
+                resolvedTrustedForTotal,
+            };
+        }
+
+        function earn_getResolvedTotalYieldEntry(marketId) {
+            const key = String(marketId);
+            if (earn_resolvedTotalYieldData && earn_resolvedTotalYieldData[key]) {
+                return earn_resolvedTotalYieldData[key];
+            }
+            return earn_buildResolvedTotalYieldEntry(key, null);
+        }
+
+        function earn_refreshResolvedTotalYieldData() {
+            if (!earn_totalYieldData || typeof earn_totalYieldData !== 'object') {
+                earn_resolvedTotalYieldData = {};
+                return;
+            }
+
+            const nextResolved = {};
+            Object.keys(earn_totalYieldData).forEach(mid => {
+                const resolved = earn_buildResolvedTotalYieldEntry(mid, null);
+                if (resolved) nextResolved[String(mid)] = resolved;
+            });
+
+            const activeMarketIds = new Set();
+            (earn_cachedAssets || []).forEach(position => {
+                if (!position || position.isBorrow || position.isCollateral) return;
+                const mid = String(position.marketId);
+                activeMarketIds.add(mid);
+                if (!nextResolved[mid]) return;
+                const resolved = earn_buildResolvedTotalYieldEntry(mid, earn_calculateYield(position));
+                if (resolved) nextResolved[mid] = resolved;
+            });
+
+            (earn_historyData || []).forEach(item => {
+                if (!item) return;
+                const mid = String(item.marketId);
+                if (activeMarketIds.has(mid) || !nextResolved[mid]) return;
+                const resolved = earn_buildResolvedTotalYieldEntry(mid, earn_calculateYield({
+                    marketId: item.marketId,
+                    tokenAddr: item.tokenAddr,
+                    symbol: item.symbol,
+                    decimals: item.decimals,
+                    currentWei: item.currentWei,
+                    currentPar: item.currentPar,
+                }, { applyHistoryGuards: true }));
+                if (resolved) nextResolved[mid] = resolved;
+            });
+
+            earn_resolvedTotalYieldData = nextResolved;
+            Object.keys(nextResolved).forEach(mid => {
+                if (!earn_totalYieldData[mid]) return;
+                earn_totalYieldData[mid] = {
+                    ...earn_totalYieldData[mid],
+                    rawSource: nextResolved[mid].rawSource,
+                    rawMethod: nextResolved[mid].rawMethod,
+                    rawVerificationStatus: nextResolved[mid].rawVerificationStatus,
+                    rawCumulativeYield: nextResolved[mid].rawCumulativeYield,
+                    resolvedSource: nextResolved[mid].resolvedSource,
+                    resolvedMethod: nextResolved[mid].resolvedMethod,
+                    resolvedVerificationStatus: nextResolved[mid].resolvedVerificationStatus,
+                    resolvedCumulativeYield: nextResolved[mid].resolvedCumulativeYield,
+                    resolvedTrustedForTotal: nextResolved[mid].resolvedTrustedForTotal,
+                };
+            });
+        }
+
         function earn_getVerificationParTolerance() {
             return 1n;
         }
@@ -27426,7 +27561,10 @@
         }
 
         function earn_refreshHistoryYieldData() {
-            if (!earn_historyData || earn_historyData.length === 0) return;
+            if (!earn_historyData || earn_historyData.length === 0) {
+                earn_refreshResolvedTotalYieldData();
+                return;
+            }
 
             earn_historyData.forEach(item => {
                 const calc = earn_calculateYield({
@@ -27446,6 +27584,7 @@
             });
 
             earn_historyData.sort((a, b) => earn_compareBigInt(b.yieldUsdScaled || 0n, a.yieldUsdScaled || 0n));
+            earn_refreshResolvedTotalYieldData();
         }
 
         function earn_showError(msg) {
@@ -27708,7 +27847,8 @@
         const earn_snapshotCache = {};
         let earn_snapshotRequestCache = {}; // { '2026-02-11': Promise<snapshot|null> }
         let earn_historicalData = null; // current period's historical data for the looked-up address
-        let earn_totalYieldData = null; // oldest snapshot data for total yield (never changes after initial load)
+        let earn_totalYieldData = null; // raw historical total-yield snapshot data (basis for replay/snapshot inference)
+        let earn_resolvedTotalYieldData = null; // final per-market total-yield metadata after replay/netflow inference
         let earn_totalYieldDays = 0; // number of days the total yield spans
         let earn_interestYieldData = null; // { marketId: { earnYield, settledYield, openBorrowYield, openSupplyYield, openCollateralYield, currentBorrowPar, currentSupplyPar } }
 
@@ -29982,6 +30122,7 @@
                 cachedAssets: earn_cachedAssets || [],
                 historyData: earn_historyData || [],
                 totalYieldData: earn_totalYieldData || {},
+                resolvedTotalYieldData: earn_resolvedTotalYieldData || {},
                 interestYieldData: earn_interestYieldData || {},
                 replayVerificationData: earn_replayVerificationData || {},
                 replayVerificationSummary: earn_replayVerificationSummary || { total: 0, verified: 0, mismatch: 0, unverified: 0 },
@@ -30021,6 +30162,7 @@
             earn_cachedAssets = snapshot.cachedAssets || [];
             earn_historyData = snapshot.historyData || [];
             earn_totalYieldData = snapshot.totalYieldData || {};
+            earn_resolvedTotalYieldData = snapshot.resolvedTotalYieldData || {};
             earn_interestYieldData = snapshot.interestYieldData || {};
             earn_replayVerificationData = snapshot.replayVerificationData || {};
             earn_replayVerificationSummary = snapshot.replayVerificationSummary || { total: 0, verified: 0, mismatch: 0, unverified: 0 };
@@ -30040,6 +30182,7 @@
                 };
             }
 
+            earn_refreshResolvedTotalYieldData();
             earn_setResultsRefreshing(true);
             earn_renderResults(earn_cachedAssets, { skipSummary: false, softRefresh: true });
             earn_renderCachedLendingPositions();
@@ -30074,6 +30217,7 @@
             earn_netflowData = null;
             earn_acct0NetflowData = null;
             earn_totalYieldData = null;
+            earn_resolvedTotalYieldData = null;
             earn_totalYieldDays = 0;
             earn_marketRates = {};
             earn_subgraphTokens = {};
@@ -32231,12 +32375,17 @@
                             const chainId = document.getElementById('earn-chain').value;
                             const balanceUsdScaled = earn_getTokenUsdScaled(item.currentWei, item.decimals, item.symbol, item.tokenAddr, chainId);
                             if (!earn_showDust && earn_isSubDollarYieldPair(balanceUsdScaled, item.yieldUsdScaled || 0n)) return;
-                            const histMeta = earn_totalYieldData && earn_totalYieldData[String(item.marketId)];
-                            const histStatus = histMeta ? String(histMeta.verificationStatus || '') : '';
+                            const histMeta = earn_getResolvedTotalYieldEntry(item.marketId);
+                            const histStatus = histMeta
+                                ? String(histMeta.resolvedVerificationStatus || histMeta.verificationStatus || '')
+                                : '';
                             const histIsLatest = histMeta ? (histMeta.isLatestSnapshot !== false) : true;
-                            const histUsesReplay = String(item.yieldMethod || '').startsWith('interest-ledger');
+                            const histMethod = histMeta
+                                ? String(histMeta.resolvedMethod || histMeta.method || item.yieldMethod || '')
+                                : String(item.yieldMethod || '');
+                            const histUsesReplay = histMethod.startsWith('interest-ledger');
                             const histStatusTrusted = histUsesReplay || !histStatus || histStatus === 'verified' || histStatus === 'pre_snapshot_carry' || histStatus === 'no_netflow';
-                            if (!trustedHistoryMethods.has(String(item.yieldMethod || '')) || !histStatusTrusted || !histIsLatest) {
+                            if (!trustedHistoryMethods.has(histMethod) || !histStatusTrusted || !histIsLatest) {
                                 if ((item.yieldUsdScaled || 0n) !== 0n) pendingYieldAssetCount++;
                                 return;
                             }
