@@ -35,21 +35,22 @@ Real-time analytics dashboard for the [Dolomite](https://dolomite.io) protocol â
 - Real-time balance fetching via on-chain RPC calls
 - Historical yield comparison with snapshot calendar
 - Smart period selection (3D / 7D / 14D / 21D / 28D)
-- Optional per-address verified ledger source (`data/earn-verified-ledger`) for higher-confidence totals
+- Optional local per-address verified ledger source (`data/earn-verified-ledger`) for higher-confidence totals
 
 ---
 
 ## âœ… Verified EARN Ledger (Phase 1)
 
-You can precompute deterministic, per-address EARN yield files and let the UI use them as the preferred source for `Total Yield`.
+You can precompute deterministic, per-address EARN yield files locally and let the UI use them as the preferred source for `Total Yield`.
+These files are intended to stay private and should not be committed to git.
 
 ```bash
 # Example: build verified files for selected addresses
 python3 build_earn_verified_ledger.py \
   --chain arbitrum \
   --chain ethereum \
-  --address 0x28DA3DdE285D8F1f87B2D858f89961Bb8B9Af180 \
-  --address 0x452d05846ebd273cecdd6a809d8fe131e590080d
+  --address 0xYourAddress1 \
+  --address 0xYourAddress2
 ```
 
 Outputs:
