@@ -16,7 +16,7 @@ permissions:
 jobs:
   update-netflow:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 180
 
     steps:
       - name: Checkout
@@ -42,10 +42,15 @@ jobs:
           CHAIN="${{ github.event.inputs.reset_chain }}"
           echo "Resetting progress for chain: $CHAIN"
           mkdir -p data/.netflow-progress
-          echo '{"last_block": 0, "netflows": {}}' > "data/.netflow-progress/${CHAIN}.json"
+          echo '{"version": 2, "last_block": 0, "netflows": {}, "cycleAccountState": {}, "cycleMarketState": {}}' > "data/.netflow-progress/${CHAIN}.json"
 
       - name: Scan earn netflow events
-        run: python3 scan_earn_netflow.py
+        run: |
+          if [ -n "${{ github.event.inputs.reset_chain }}" ]; then
+            python3 scan_earn_netflow.py "${{ github.event.inputs.reset_chain }}"
+          else
+            python3 scan_earn_netflow.py
+          fi
         env:
           PYTHONUNBUFFERED: '1'
           ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}

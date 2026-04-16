@@ -8,7 +8,11 @@ event topics/layout used by the replay verifier in the dashboard. This keeps
 backend netflow accounting aligned with the frontend replay model.
 
 Netflow = signed sum of all balance-changing deltaWei updates.
-Yield = currentWei - netflow
+Yield = currentWei - netflow.
+
+For current-layout events we also keep enough rolling balance state to derive a
+"recent cycle" baseline. That lets downstream verification distinguish all-time
+historical turnover from the active supply cycle of a market.
 """
 
 import argparse
@@ -109,6 +113,7 @@ ADDRESS_FILTER_CHUNK = 500000
 MAX_RETRIES = 3
 OUTPUT_DIR = Path(__file__).parent / "data" / "earn-netflow"
 PROGRESS_DIR = Path(__file__).parent / "data" / ".netflow-progress"
+PROGRESS_VERSION = 2
 
 rpc_id = 1
 
@@ -215,6 +220,10 @@ def decode_signed_bool_uint(words, offset):
     return value if sign else -value
 
 
+def decode_uint(words, offset):
+    return int(words[offset], 16)
+
+
 def decode_balance_update_current(words, offset):
     """Decode current dashboard replay BalanceUpdate layout."""
     return {
@@ -314,13 +323,116 @@ def decode_legacy_liquidate_log(log):
     return results
 
 
+def _empty_progress():
+    return {
+        "last_block": 0,
+        "netflows": {},
+        "cycle_account_state": {},
+        "cycle_market_state": {},
+        "cycle_state_enabled": True,
+    }
+
+
+def _serialize_cycle_account_state(cycle_account_state):
+    return {
+        f"{owner}|{account}|{market}": str(par)
+        for (owner, account, market), par in cycle_account_state.items()
+    }
+
+
+def _deserialize_cycle_account_state(raw_state):
+    cycle_account_state = {}
+    if not isinstance(raw_state, dict):
+        return cycle_account_state
+    for key, value in raw_state.items():
+        try:
+            owner, account, market = str(key).split("|", 2)
+            cycle_account_state[(owner, account, market)] = int(value)
+        except Exception:
+            continue
+    return cycle_account_state
+
+
+def _serialize_cycle_market_state(cycle_market_state):
+    serialized = {}
+    for (owner, market), state in cycle_market_state.items():
+        serialized[f"{owner}|{market}"] = {
+            "endingPar": str(state.get("endingPar", 0)),
+            "peakPar": str(state.get("peakPar", 0)),
+            "totalWei": str(state.get("totalWei", 0)),
+            "suffixCandidates": [
+                {
+                    "balance": str(candidate.get("balance", 0)),
+                    "prefixWei": str(candidate.get("prefixWei", 0)),
+                }
+                for candidate in state.get("suffixCandidates", [])
+            ],
+        }
+    return serialized
+
+
+def _deserialize_cycle_market_state(raw_state):
+    cycle_market_state = {}
+    if not isinstance(raw_state, dict):
+        return cycle_market_state
+    for key, value in raw_state.items():
+        try:
+            owner, market = str(key).split("|", 1)
+            suffix_candidates = []
+            for candidate in value.get("suffixCandidates", []) or []:
+                suffix_candidates.append({
+                    "balance": int(candidate.get("balance", 0)),
+                    "prefixWei": int(candidate.get("prefixWei", 0)),
+                })
+            cycle_market_state[(owner, market)] = {
+                "endingPar": int(value.get("endingPar", 0)),
+                "peakPar": int(value.get("peakPar", 0)),
+                "totalWei": int(value.get("totalWei", 0)),
+                "suffixCandidates": suffix_candidates,
+            }
+        except Exception:
+            continue
+    return cycle_market_state
+
+
+def _build_progress_payload(last_block, netflows, cycle_account_state, cycle_market_state):
+    return {
+        "version": PROGRESS_VERSION,
+        "last_block": last_block,
+        "netflows": netflows,
+        "cycleAccountState": _serialize_cycle_account_state(cycle_account_state),
+        "cycleMarketState": _serialize_cycle_market_state(cycle_market_state),
+    }
+
+
+def _build_legacy_progress_payload(last_block, netflows):
+    return {
+        "last_block": last_block,
+        "netflows": netflows,
+    }
+
+
 def load_progress(chain_id):
     """Load scanning progress for a chain."""
     progress_file = PROGRESS_DIR / f"{chain_id}.json"
     if progress_file.exists():
         with open(progress_file) as f:
-            return json.load(f)
-    return {"last_block": 0, "netflows": {}}
+            data = json.load(f)
+        if data.get("version") != PROGRESS_VERSION:
+            legacy = _empty_progress()
+            legacy["last_block"] = int(data.get("last_block", 0))
+            legacy["netflows"] = data.get("netflows", {}) or {}
+            legacy["cycle_state_enabled"] = False
+            print(f"  ℹ Legacy progress detected for {chain_id}; keeping incremental netflow and waiting for reset_chain to enable cycle-aware rebuild")
+            return legacy
+        return {
+            "last_block": int(data.get("last_block", 0)),
+            "netflows": data.get("netflows", {}) or {},
+            "cycle_account_state": _deserialize_cycle_account_state(data.get("cycleAccountState")),
+            "cycle_market_state": _deserialize_cycle_market_state(data.get("cycleMarketState")),
+            "cycle_state_enabled": True,
+        }
+    return _empty_progress()
 
 
 def decode_current_deposit_withdraw_log(log):
@@ -334,9 +446,16 @@ def decode_current_deposit_withdraw_log(log):
         words = [data[i*64:(i+1)*64] for i in range(len(data)//64)]
         if len(words) < 6:
             return None
+        account = str(decode_uint(words, 0))
         market_id = str(int(words[1], 16))
         update = decode_balance_update_current(words, 2)
-        return [{"owner": owner.lower(), "market": market_id, "delta": update["delta"]}]
+        return [{
+            "owner": owner.lower(),
+            "account": account,
+            "market": market_id,
+            "delta": update["delta"],
+            "new_par": update["new_par"],
+        }]
     except Exception:
         return None
 
@@ -353,12 +472,14 @@ def decode_current_transfer_log(log):
         words = [data[i*64:(i+1)*64] for i in range(len(data)//64)]
         if len(words) < 11:
             return None
+        account1 = str(decode_uint(words, 0))
+        account2 = str(decode_uint(words, 1))
         market_id = str(int(words[2], 16))
         update1 = decode_balance_update_current(words, 3)
         update2 = decode_balance_update_current(words, 7)
         return [
-            {"owner": owner1.lower(), "market": market_id, "delta": update1["delta"]},
-            {"owner": owner2.lower(), "market": market_id, "delta": update2["delta"]},
+            {"owner": owner1.lower(), "account": account1, "market": market_id, "delta": update1["delta"], "new_par": update1["new_par"]},
+            {"owner": owner2.lower(), "account": account2, "market": market_id, "delta": update2["delta"], "new_par": update2["new_par"]},
         ]
     except Exception:
         return None
@@ -375,11 +496,12 @@ def decode_current_buy_sell_log(log):
         words = [data[i*64:(i+1)*64] for i in range(len(data)//64)]
         if len(words) < 11:
             return None
+        account = str(decode_uint(words, 0))
         update_a = decode_balance_update_current(words, 3)
         update_b = decode_balance_update_current(words, 7)
         return [
-            {"owner": owner.lower(), "market": str(int(words[1], 16)), "delta": update_a["delta"]},
-            {"owner": owner.lower(), "market": str(int(words[2], 16)), "delta": update_b["delta"]},
+            {"owner": owner.lower(), "account": account, "market": str(int(words[1], 16)), "delta": update_a["delta"], "new_par": update_a["new_par"]},
+            {"owner": owner.lower(), "account": account, "market": str(int(words[2], 16)), "delta": update_b["delta"], "new_par": update_b["new_par"]},
         ]
     except Exception:
         return None
@@ -397,6 +519,8 @@ def decode_current_trade_log(log):
         words = [data[i*64:(i+1)*64] for i in range(len(data)//64)]
         if len(words) < 20:
             return None
+        account1 = str(decode_uint(words, 0))
+        account2 = str(decode_uint(words, 1))
         input_market = str(int(words[2], 16))
         output_market = str(int(words[3], 16))
         update1_in = decode_balance_update_current(words, 4)
@@ -404,10 +528,10 @@ def decode_current_trade_log(log):
         update2_in = decode_balance_update_current(words, 12)
         update2_out = decode_balance_update_current(words, 16)
         return [
-            {"owner": owner1.lower(), "market": input_market, "delta": update1_in["delta"]},
-            {"owner": owner1.lower(), "market": output_market, "delta": update1_out["delta"]},
-            {"owner": owner2.lower(), "market": input_market, "delta": update2_in["delta"]},
-            {"owner": owner2.lower(), "market": output_market, "delta": update2_out["delta"]},
+            {"owner": owner1.lower(), "account": account1, "market": input_market, "delta": update1_in["delta"], "new_par": update1_in["new_par"]},
+            {"owner": owner1.lower(), "account": account1, "market": output_market, "delta": update1_out["delta"], "new_par": update1_out["new_par"]},
+            {"owner": owner2.lower(), "account": account2, "market": input_market, "delta": update2_in["delta"], "new_par": update2_in["new_par"]},
+            {"owner": owner2.lower(), "account": account2, "market": output_market, "delta": update2_out["delta"], "new_par": update2_out["new_par"]},
         ]
     except Exception:
         return None
@@ -425,6 +549,8 @@ def decode_current_liquidate_log(log):
         words = [data[i*64:(i+1)*64] for i in range(len(data)//64)]
         if len(words) < 20:
             return None
+        account1 = str(decode_uint(words, 0))
+        account2 = str(decode_uint(words, 1))
         held_market = str(int(words[2], 16))
         owed_market = str(int(words[3], 16))
         solid_held = decode_balance_update_current(words, 4)
@@ -432,10 +558,10 @@ def decode_current_liquidate_log(log):
         liquid_held = decode_balance_update_current(words, 12)
         liquid_owed = decode_balance_update_current(words, 16)
         return [
-            {"owner": owner1.lower(), "market": held_market, "delta": solid_held["delta"]},
-            {"owner": owner1.lower(), "market": owed_market, "delta": solid_owed["delta"]},
-            {"owner": owner2.lower(), "market": held_market, "delta": liquid_held["delta"]},
-            {"owner": owner2.lower(), "market": owed_market, "delta": liquid_owed["delta"]},
+            {"owner": owner1.lower(), "account": account1, "market": held_market, "delta": solid_held["delta"], "new_par": solid_held["new_par"]},
+            {"owner": owner1.lower(), "account": account1, "market": owed_market, "delta": solid_owed["delta"], "new_par": solid_owed["new_par"]},
+            {"owner": owner2.lower(), "account": account2, "market": held_market, "delta": liquid_held["delta"], "new_par": liquid_held["new_par"]},
+            {"owner": owner2.lower(), "account": account2, "market": owed_market, "delta": liquid_owed["delta"], "new_par": liquid_owed["new_par"]},
         ]
     except Exception:
         return None
@@ -453,15 +579,17 @@ def decode_current_vaporize_log(log):
         words = [data[i*64:(i+1)*64] for i in range(len(data)//64)]
         if len(words) < 16:
             return None
+        account1 = str(decode_uint(words, 0))
+        account2 = str(decode_uint(words, 1))
         held_market = str(int(words[2], 16))
         borrowed_market = str(int(words[3], 16))
         solid_held = decode_balance_update_current(words, 4)
         solid_borrowed = decode_balance_update_current(words, 8)
         vapor_borrowed = decode_balance_update_current(words, 12)
         return [
-            {"owner": owner1.lower(), "market": held_market, "delta": solid_held["delta"]},
-            {"owner": owner1.lower(), "market": borrowed_market, "delta": solid_borrowed["delta"]},
-            {"owner": owner2.lower(), "market": borrowed_market, "delta": vapor_borrowed["delta"]},
+            {"owner": owner1.lower(), "account": account1, "market": held_market, "delta": solid_held["delta"], "new_par": solid_held["new_par"]},
+            {"owner": owner1.lower(), "account": account1, "market": borrowed_market, "delta": solid_borrowed["delta"], "new_par": solid_borrowed["new_par"]},
+            {"owner": owner2.lower(), "account": account2, "market": borrowed_market, "delta": vapor_borrowed["delta"], "new_par": vapor_borrowed["new_par"]},
         ]
     except Exception:
         return None
@@ -565,12 +693,18 @@ def scan_chain(chain_id, chain_config, only_chains=None, target_addresses=None):
         existing_netflows = existing_output.get("netflows", {}) or {}
         netflows = {addr: data for addr, data in existing_netflows.items() if addr.lower() not in target_addresses}
         filtered_netflows = {}
+        cycle_account_state = {}
+        cycle_market_state = {}
+        cycle_state_enabled = True
         start_block = chain_config["start_block"]
         print(f"  Targeted rescan for {len(target_addresses)} address(es) from block: {start_block:,}")
     else:
         progress = load_progress(chain_id)
         netflows = progress["netflows"]
         filtered_netflows = netflows
+        cycle_account_state = progress["cycle_account_state"]
+        cycle_market_state = progress["cycle_market_state"]
+        cycle_state_enabled = progress["cycle_state_enabled"]
         start_block = progress["last_block"]
 
         if start_block == 0:
@@ -614,6 +748,38 @@ def scan_chain(chain_id, chain_config, only_chains=None, target_addresses=None):
                 storage[addr][mid]["t"] = str(old_t + delta)
                 old_ft = int(storage[addr][mid][flow_type])
                 storage[addr][mid][flow_type] = str(old_ft + abs(delta))
+
+            def update_cycle_state(owner, account, market, delta, new_par):
+                if not cycle_state_enabled:
+                    return
+                if account is None or new_par is None:
+                    return
+
+                account_key = (owner, str(account), market)
+                prev_account_par = cycle_account_state.get(account_key, 0)
+                next_account_par = int(new_par)
+                par_delta = next_account_par - prev_account_par
+                cycle_account_state[account_key] = next_account_par
+
+                market_key = (owner, market)
+                state = cycle_market_state.setdefault(market_key, {
+                    "endingPar": 0,
+                    "peakPar": 0,
+                    "totalWei": 0,
+                    "suffixCandidates": [],
+                })
+                state["endingPar"] += par_delta
+                if state["endingPar"] > state["peakPar"]:
+                    state["peakPar"] = state["endingPar"]
+                state["totalWei"] += int(delta)
+
+                candidate = {
+                    "balance": state["endingPar"],
+                    "prefixWei": state["totalWei"],
+                }
+                while state["suffixCandidates"] and state["suffixCandidates"][-1]["balance"] >= candidate["balance"]:
+                    state["suffixCandidates"].pop()
+                state["suffixCandidates"].append(candidate)
             
             # Process all logs
             for log in all_logs:
@@ -635,6 +801,13 @@ def scan_chain(chain_id, chain_config, only_chains=None, target_addresses=None):
                         continue
                     storage = filtered_netflows if target_addresses else netflows
                     add_flow(storage, owner, entry["market"], int(entry["delta"]), flow_type)
+                    update_cycle_state(
+                        owner,
+                        entry.get("account"),
+                        entry["market"],
+                        entry["delta"],
+                        entry.get("new_par"),
+                    )
             
             pct = ((to_block - start_block) / max(1, latest_block - start_block)) * 100
             blocks_done = to_block - start_block
@@ -644,9 +817,17 @@ def scan_chain(chain_id, chain_config, only_chains=None, target_addresses=None):
             
             # Save progress periodically
             if not target_addresses and (to_block - start_block) % (chunk_size * 10) < chunk_size:
-                progress["last_block"] = to_block + 1
-                progress["netflows"] = netflows
-                save_progress(chain_id, progress)
+                payload = (
+                    _build_progress_payload(
+                        to_block + 1,
+                        netflows,
+                        cycle_account_state,
+                        cycle_market_state,
+                    )
+                    if cycle_state_enabled
+                    else _build_legacy_progress_payload(to_block + 1, netflows)
+                )
+                save_progress(chain_id, payload)
             
             # If we get too many logs, reduce chunk size
             if events_in_chunk > 5000:
@@ -675,9 +856,40 @@ def scan_chain(chain_id, chain_config, only_chains=None, target_addresses=None):
     
     # Final save
     if not target_addresses:
-        progress["last_block"] = latest_block + 1
-        progress["netflows"] = netflows
-        save_progress(chain_id, progress)
+        payload = (
+            _build_progress_payload(
+                latest_block + 1,
+                netflows,
+                cycle_account_state,
+                cycle_market_state,
+            )
+            if cycle_state_enabled
+            else _build_legacy_progress_payload(latest_block + 1, netflows)
+        )
+        save_progress(chain_id, payload)
+
+    for (owner, mid), state in cycle_market_state.items():
+        storage = filtered_netflows if target_addresses and owner in filtered_netflows else netflows
+        if owner not in storage or mid not in storage[owner]:
+            continue
+        storage_entry = storage[owner][mid]
+        storage_entry["endingPar"] = str(state["endingPar"])
+        if state["endingPar"] <= 0 or state["peakPar"] <= 0:
+            continue
+
+        reset_threshold = state["endingPar"] // 5
+        reset_candidate = None
+        for candidate in reversed(state["suffixCandidates"]):
+            if candidate["balance"] <= 0:
+                continue
+            if candidate["balance"] <= reset_threshold:
+                reset_candidate = candidate
+                break
+        if reset_candidate is None:
+            continue
+        recent_netflow = state["totalWei"] - reset_candidate["prefixWei"]
+        storage_entry["recentNetFlow"] = str(recent_netflow)
+        storage_entry["resetPar"] = str(reset_candidate["balance"])
 
     # Write output
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
