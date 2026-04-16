@@ -24421,8 +24421,16 @@
             const selector = '0x6a8194e7';
             const blockTag = opts.blockTag || earn_replayBlockTag || 'latest';
             const fallbackAccountNum = String(document.getElementById('earn-account-num')?.value || '0');
-            const getPositionKey = (accountNumber, marketId, tokenAddr) => {
-                return `${String(accountNumber || '0')}|${String(marketId || '')}|${String(tokenAddr || '').toLowerCase()}`;
+            const getPositionKey = (accountNumber, marketId) => {
+                // marketId is unique per chain, so tokenAddr mismatches from partial RPC decoding
+                // should not create a duplicate snapshot supplement for the same account position.
+                const normalizedAccount = accountNumber === undefined || accountNumber === null
+                    ? '0'
+                    : String(accountNumber);
+                const normalizedMarket = marketId === undefined || marketId === null
+                    ? ''
+                    : String(marketId);
+                return `${normalizedAccount}|${normalizedMarket}`;
             };
             const decodeAccountBalances = (hex, accountNumber) => {
                 if (!hex || hex === '0x') return [];
@@ -24539,11 +24547,17 @@
             }
             if (!accountNumbers.includes(fallbackAccountNum)) accountNumbers.unshift(fallbackAccountNum);
 
-            const aggregatePositions = (positions) => {
+            const aggregatePositions = (positions, knownBorrowAccounts) => {
                 const aggregatedSupply = {};
                 const aggregatedCollateral = {};
                 const aggregatedBorrow = {};
                 const accountHasBorrow = {};
+                if (knownBorrowAccounts && typeof knownBorrowAccounts.forEach === 'function') {
+                    knownBorrowAccounts.forEach(acct => {
+                        const normalized = String(acct || '').trim();
+                        if (normalized) accountHasBorrow[normalized] = true;
+                    });
+                }
                 (positions || []).forEach(pos => {
                     if (pos.wei < 0n) accountHasBorrow[String(pos.accountNumber)] = true;
                 });
@@ -24705,7 +24719,7 @@
                 const filtered = filterBorrowCollateralSupply(mergedPositions, borrowAccounts);
                 hiddenSupplyCount = filtered.hiddenSupplyCount;
                 earn_hiddenCollateralSupplyMarkets = filtered.hiddenMarketIds;
-                const aggregated = aggregatePositions(mergedPositions);
+                const aggregated = aggregatePositions(mergedPositions, borrowAccounts);
                 aggregatedSupply = aggregated.aggregatedSupply;
                 aggregatedCollateral = aggregated.aggregatedCollateral;
                 aggregatedBorrow = aggregated.aggregatedBorrow;
@@ -24713,7 +24727,7 @@
                 // Build verification maps from the final merged position set so collateral/supply
                 // classification stays in sync with any borrow accounts discovered via snapshot
                 // supplementation. Missing supplemented markets are still marked unverified above.
-                const verificationAggregated = aggregatePositions(mergedPositions);
+                const verificationAggregated = aggregatePositions(mergedPositions, borrowAccounts);
                 verificationSupply = verificationAggregated.aggregatedSupply;
                 verificationCollateral = verificationAggregated.aggregatedCollateral;
                 verificationBorrow = verificationAggregated.aggregatedBorrow;
@@ -24730,7 +24744,7 @@
                 const filtered = filterBorrowCollateralSupply(snapshot.positions || [], borrowAccounts);
                 hiddenSupplyCount = filtered.hiddenSupplyCount;
                 earn_hiddenCollateralSupplyMarkets = filtered.hiddenMarketIds;
-                const aggregated = aggregatePositions(snapshot.positions || []);
+                const aggregated = aggregatePositions(snapshot.positions || [], borrowAccounts);
                 aggregatedSupply = aggregated.aggregatedSupply;
                 aggregatedCollateral = aggregated.aggregatedCollateral;
                 aggregatedBorrow = aggregated.aggregatedBorrow;
