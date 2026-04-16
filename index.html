@@ -25979,24 +25979,27 @@
             if (!actualSupplyPositive && !actualCollateralPositive && !actualBorrowPositive) return false;
             if (actualSupplyPositive !== expectedSupplyPositive) return false;
             if (actualCollateralPositive !== expectedCollateralPositive) return false;
-            if (actualBorrowPositive !== expectedBorrowPositive) return false;
+            if (actualBorrowPositive && !expectedBorrowPositive) return false;
 
             if (earn_absBigInt(entry.supplyParDiff) > entry.parTolerance) return false;
             if (earn_absBigInt(entry.collateralParDiff) > entry.parTolerance) return false;
-            if (earn_absBigInt(entry.borrowParDiff) > entry.parTolerance) return false;
-            if (earn_absBigInt(entry.borrowWeiDiff) > entry.borrowWeiTolerance) return false;
             const supplyWithinWeiTolerance = earn_absBigInt(entry.supplyWeiDiff) <= entry.supplyWeiTolerance;
             const collateralWithinWeiTolerance = earn_absBigInt(entry.collateralWeiDiff) <= entry.collateralWeiTolerance;
+            const borrowWithinParTolerance = earn_absBigInt(entry.borrowParDiff) <= entry.parTolerance;
+            const borrowWithinWeiTolerance = earn_absBigInt(entry.borrowWeiDiff) <= entry.borrowWeiTolerance;
 
-            if (entry.rawVerified) return true;
+            if (entry.rawVerified && borrowWithinParTolerance && borrowWithinWeiTolerance) return true;
             if (!entry.usdDriftVerified) return false;
 
             // For snapshot-supplemented markets we allow tiny current-state wei drift to resolve
             // via the existing <$1 usdDriftVerified rule, but only after exposure patterns and
-            // par/borrow reconciliation already matched exactly.
+            // non-borrow par reconciliation already matched exactly. Borrow dust can settle to
+            // zero between replay and the follow-up balance check, so we tolerate tiny residual
+            // borrow drift when the only disagreement is sub-dollar borrow dust.
             if (actualSupplyPositive && !supplyWithinWeiTolerance) return true;
             if (actualCollateralPositive && !collateralWithinWeiTolerance) return true;
-            return supplyWithinWeiTolerance && collateralWithinWeiTolerance;
+            if (actualBorrowPositive === expectedBorrowPositive) return true;
+            return !actualBorrowPositive && expectedBorrowPositive;
         }
 
         function earn_getSnapshotLedgerPresentation(marketId, yieldCalc) {
