@@ -23093,7 +23093,7 @@
         let earn_replayStatus = 'idle'; // idle | loading | ready | error
         let earn_merklFetchStatus = 'idle'; // idle | loading | success | error
         let earn_merklFetchError = '';
-        const EARN_LOOKUP_CACHE_VERSION = 9;
+        const EARN_LOOKUP_CACHE_VERSION = 10;
         const EARN_LOOKUP_CACHE_TTL_MS = 10 * 60 * 1000;
         const earn_lookupResultCache = {};
         const earn_rewardRequestCache = {
@@ -27462,6 +27462,29 @@
                 flowMeta.totalVaporized !== 0n
             ));
             const allowHistoricalNetflowFallback = !(opts.applyHistoryGuards && !isActivePosition && hasComplexNetflow);
+            const shouldDeferFallbackUntilReplaySettles = requireVerifiedInterest
+                && earn_totalYieldStatus === 'loading'
+                && !publicLedgerInference;
+            const shouldBlockProvisionalFallback = requireVerifiedInterest
+                && replayVerificationPending
+                && interestYieldCandidate !== null
+                && !canUseVerifiedInterest
+                && !canOverrideMismatchedSnapshot
+                && !publicLedgerInference;
+
+            if (shouldDeferFallbackUntilReplaySettles || shouldBlockProvisionalFallback) {
+                return {
+                    hasData: false,
+                    method: 'interest-ledger-pending',
+                    totalYield: 0n,
+                    yieldUsdScaled: 0n,
+                    yieldUsd: 0,
+                    symbol,
+                    decimals,
+                    tokenAddr,
+                    verificationStatus: 'pending',
+                };
+            }
 
             if (canUseVerifiedInterest || canOverrideMismatchedSnapshot) {
                 totalYield = interestYieldCandidate;
