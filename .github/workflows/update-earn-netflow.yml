@@ -93,14 +93,13 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Stash progress cache and other untracked files BEFORE any git ops
-          git stash --include-untracked || true
           git add data/earn-netflow/
           if git diff --staged --quiet; then
             echo "No changes to commit"
-            git stash pop || true
             exit 0
           fi
+          # Keep staged earn-netflow changes intact while hiding runner-local cache files.
+          git stash push --keep-index --include-untracked --message "netflow-progress" -- data/.netflow-progress || true
           git commit -m "📊 Earn netflow update: $(date -u '+%Y-%m-%d %H:%M UTC')"
           if ! git pull --rebase origin master; then
             echo "⚠️ Rebase conflict — resolving with our data..."
