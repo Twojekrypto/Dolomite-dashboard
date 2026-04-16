@@ -25965,26 +25965,38 @@
         function earn_shouldTrustSnapshotSupplementedReplay(entry) {
             if (!entry || !entry.snapshotIncomplete || !entry.counted) return false;
             if (!(entry.rawVerified || entry.usdDriftVerified)) return false;
-            if (entry.actualBorrowPar !== 0n || entry.actualBorrowWei !== 0n) return false;
-            if (entry.expectedBorrowPar !== 0n || entry.expectedBorrowWei !== 0n) return false;
-
             const actualSupplyPositive = entry.actualSupplyPar > 0n || entry.actualSupplyWei > 0n;
             const actualCollateralPositive = entry.actualCollateralPar > 0n || entry.actualCollateralWei > 0n;
-            if (actualSupplyPositive === actualCollateralPositive) return false;
-            if (actualSupplyPositive && (entry.expectedCollateralPar !== 0n || entry.expectedCollateralWei !== 0n)) return false;
-            if (actualCollateralPositive && (entry.expectedSupplyPar !== 0n || entry.expectedSupplyWei !== 0n)) return false;
+            const actualBorrowPositive = entry.actualBorrowPar !== 0n || entry.actualBorrowWei !== 0n;
+            const expectedSupplyPositive = entry.expectedSupplyPar > 0n || entry.expectedSupplyWei > 0n;
+            const expectedCollateralPositive = entry.expectedCollateralPar > 0n || entry.expectedCollateralWei > 0n;
+            const expectedBorrowPositive = entry.expectedBorrowPar !== 0n || entry.expectedBorrowWei !== 0n;
+
+            // Snapshot supplementation can still be trusted for mixed supply/collateral exposure
+            // as long as replay and current-state agree on which sides are open. We only reject
+            // genuinely contradictory patterns such as ghost collateral/borrow that exists only
+            // on one side of the comparison.
+            if (!actualSupplyPositive && !actualCollateralPositive && !actualBorrowPositive) return false;
+            if (actualSupplyPositive !== expectedSupplyPositive) return false;
+            if (actualCollateralPositive !== expectedCollateralPositive) return false;
+            if (actualBorrowPositive !== expectedBorrowPositive) return false;
 
             if (earn_absBigInt(entry.supplyParDiff) > entry.parTolerance) return false;
             if (earn_absBigInt(entry.collateralParDiff) > entry.parTolerance) return false;
             if (earn_absBigInt(entry.borrowParDiff) > entry.parTolerance) return false;
-            if (earn_absBigInt(entry.supplyWeiDiff) > entry.supplyWeiTolerance) return false;
-            if (earn_absBigInt(entry.collateralWeiDiff) > entry.collateralWeiTolerance) return false;
             if (earn_absBigInt(entry.borrowWeiDiff) > entry.borrowWeiTolerance) return false;
+            const supplyWithinWeiTolerance = earn_absBigInt(entry.supplyWeiDiff) <= entry.supplyWeiTolerance;
+            const collateralWithinWeiTolerance = earn_absBigInt(entry.collateralWeiDiff) <= entry.collateralWeiTolerance;
 
-            const withinWeiTolerance = actualSupplyPositive
-                ? earn_absBigInt(entry.supplyWeiDiff) <= entry.supplyWeiTolerance
-                : earn_absBigInt(entry.collateralWeiDiff) <= entry.collateralWeiTolerance;
-            return withinWeiTolerance || entry.usdDriftVerified;
+            if (entry.rawVerified) return true;
+            if (!entry.usdDriftVerified) return false;
+
+            // For snapshot-supplemented markets we allow tiny current-state wei drift to resolve
+            // via the existing <$1 usdDriftVerified rule, but only after exposure patterns and
+            // par/borrow reconciliation already matched exactly.
+            if (actualSupplyPositive && !supplyWithinWeiTolerance) return true;
+            if (actualCollateralPositive && !collateralWithinWeiTolerance) return true;
+            return supplyWithinWeiTolerance && collateralWithinWeiTolerance;
         }
 
         function earn_getSnapshotLedgerPresentation(marketId, yieldCalc) {
