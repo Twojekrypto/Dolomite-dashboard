@@ -25990,11 +25990,33 @@
             const hist = earn_totalYieldData ? earn_totalYieldData[String(marketId)] : null;
             if (!hist || !yieldCalc || !yieldCalc.hasData) return null;
             const method = String(yieldCalc.method || '');
-            if (method !== 'snapshot' && method !== 'snapshot-partial') return null;
+            const publicLedgerMethod = method === 'all-netflow-verified'
+                || method === 'all-netflow-pre-snapshot-carry'
+                || method === 'recent-cycle-verified'
+                || method === 'recent-cycle-pre-snapshot-carry';
+            if (method !== 'snapshot' && method !== 'snapshot-partial' && !publicLedgerMethod) return null;
             if (hist.isLatestSnapshot === false) return null;
             const flowMeta = earn_parseNetflowEntry(earn_netflowData && earn_netflowData[String(marketId)]);
             const source = String(hist.source || '');
             const status = String(hist.verificationStatus || '').toLowerCase();
+            if (publicLedgerMethod && yieldCalc.publicLedgerInference) {
+                const inferred = yieldCalc.publicLedgerInference;
+                return {
+                    counted: true,
+                    status: 'verified',
+                    label: 'VERIFIED',
+                    title: inferred.status === 'pre_snapshot_carry'
+                        ? 'This market is trusted from public netflow plus snapshot history. Replay yield includes carry accrued before the first locally captured snapshot for this market.'
+                        : 'This market is trusted from public netflow because it reconciles cleanly with the public snapshot history.',
+                    rawStatus: inferred.status,
+                    rawLabel: inferred.status === 'pre_snapshot_carry' ? 'Pre-Snapshot Carry' : 'Verified',
+                    rawTitle: inferred.status === 'pre_snapshot_carry'
+                        ? 'Public netflow indicates older carry existed before local snapshot coverage began.'
+                        : 'Public netflow reconciles cleanly with snapshot history.',
+                    overridden: true,
+                    entry: null,
+                };
+            }
             const snapshotOnly = status === 'no_netflow' || (!flowMeta && (source === 'verified-ledger' || source === 'snapshot-series' || !source));
             if (status === 'verified' || status === 'pre_snapshot_carry') {
                 return {
@@ -26071,6 +26093,145 @@
             const firstDate = String(hist.firstDate || '');
             const lastDate = String(hist.lastDate || '');
             return !!(firstDate && lastDate && firstDate !== lastDate);
+        }
+
+        function earn_getHistoricalYieldTolerance(decimals) {
+            const safeDecimals = Math.max(0, Number(decimals || 18));
+            return 10n ** BigInt(Math.max(0, safeDecimals - 12));
+        }
+
+        function earn_getPreSnapshotResidualTolerance(decimals) {
+            const base = earn_getHistoricalYieldTolerance(decimals);
+            return base * 4n > 1n ? base * 4n : 1n;
+        }
+
+        function earn_getPreSnapshotCarryMeta(snapshotYield, diff, firstPar, firstWei, lastPar, lastWei, baselineNetflow, decimals, hasStaticParWindow) {
+            if (snapshotYield === null || diff === null) return null;
+            if (firstPar <= 0n || firstWei < baselineNetflow) return null;
+
+            const carry = firstWei - baselineNetflow;
+            if (carry < 0n) return null;
+
+            const residual = diff - carry;
+            const postSnapshotDelta = lastWei - firstWei;
+            const exactPostSnapshotWindow = snapshotYield === postSnapshotDelta;
+            if (hasStaticParWindow && exactPostSnapshotWindow) {
+                return {
+                    carry,
+                    residual,
+                    tinyParDriftWindow: false,
+                };
+            }
+
+            const parDrift = lastPar > firstPar ? (lastPar - firstPar) : (firstPar - lastPar);
+            if (parDrift > earn_getHistoricalYieldTolerance(decimals)) return null;
+            if (postSnapshotDelta < 0n || snapshotYield < 0n) return null;
+            if (earn_absBigInt(residual) > earn_getPreSnapshotResidualTolerance(decimals)) return null;
+
+            return {
+                carry,
+                residual,
+                tinyParDriftWindow: true,
+            };
+        }
+
+        function earn_buildPublicLedgerBaseline(name, baselineNetflow, snapshotYield, firstPar, firstWei, lastPar, lastWei, decimals, hasStaticParWindow) {
+            if (snapshotYield === null || baselineNetflow === null) return null;
+            const baselineYield = lastWei - baselineNetflow;
+            const diff = baselineYield - snapshotYield;
+            return {
+                name,
+                yield: baselineYield,
+                diff,
+                preSnapshotMeta: earn_getPreSnapshotCarryMeta(
+                    snapshotYield,
+                    diff,
+                    firstPar,
+                    firstWei,
+                    lastPar,
+                    lastWei,
+                    baselineNetflow,
+                    decimals,
+                    hasStaticParWindow
+                ),
+            };
+        }
+
+        function earn_getPublicLedgerInference(hist, flowMeta, decimals) {
+            if (!hist || !flowMeta || !earn_hasSufficientSnapshotHistory(hist)) return null;
+
+            const snapshotYield = hist.cumulativeYield !== undefined ? BigInt(hist.cumulativeYield || '0') : null;
+            const firstPar = BigInt(hist.firstPar || '0');
+            const firstWei = BigInt(hist.firstWei || '0');
+            const lastPar = BigInt(hist.lastPar || '0');
+            const lastWei = BigInt(hist.lastWei || '0');
+            const hasStaticParWindow = !!hist.hasStaticParWindow;
+            if (snapshotYield === null || lastWei < 0n) return null;
+
+            const baselines = [
+                earn_buildPublicLedgerBaseline(
+                    'all-time-netflow',
+                    flowMeta.netFlow,
+                    snapshotYield,
+                    firstPar,
+                    firstWei,
+                    lastPar,
+                    lastWei,
+                    decimals,
+                    hasStaticParWindow
+                )
+            ];
+            if (flowMeta.recentCycleNetFlow !== null) {
+                baselines.push(
+                    earn_buildPublicLedgerBaseline(
+                        'recent-cycle',
+                        flowMeta.recentCycleNetFlow,
+                        snapshotYield,
+                        firstPar,
+                        firstWei,
+                        lastPar,
+                        lastWei,
+                        decimals,
+                        hasStaticParWindow
+                    )
+                );
+            }
+
+            let chosen = null;
+            for (const candidate of baselines) {
+                if (!candidate) continue;
+                if (earn_absBigInt(candidate.diff) <= earn_getHistoricalYieldTolerance(decimals)) {
+                    chosen = candidate;
+                    break;
+                }
+            }
+            if (!chosen) {
+                for (const candidate of baselines) {
+                    if (!candidate || !candidate.preSnapshotMeta) continue;
+                    chosen = candidate;
+                    break;
+                }
+            }
+            if (!chosen) return null;
+
+            if (earn_absBigInt(chosen.diff) <= earn_getHistoricalYieldTolerance(decimals)) {
+                return {
+                    status: 'verified',
+                    verificationBaseline: chosen.name,
+                    canonicalYield: chosen.yield,
+                };
+            }
+            if (chosen.preSnapshotMeta) {
+                return {
+                    status: 'pre_snapshot_carry',
+                    verificationBaseline: chosen.name,
+                    canonicalYield: chosen.yield,
+                    preSnapshotCarry: chosen.preSnapshotMeta.carry,
+                    preSnapshotResidual: chosen.preSnapshotMeta.residual,
+                    hasTinyParDriftWindow: !!chosen.preSnapshotMeta.tinyParDriftWindow,
+                };
+            }
+            return null;
         }
 
         function earn_getVerificationParTolerance() {
@@ -26524,8 +26685,16 @@
                 case 'all-netflow':
                 case 'all-netflow-guarded':
                     return { label: 'Netflow Fallback', cls: 'fallback', title: 'Yield source: full historical netflow fallback.' };
+                case 'all-netflow-verified':
+                    return { label: 'Using Netflow', cls: 'replay', title: 'Yield source: public netflow reconciles cleanly with snapshot history and is treated as verified.' };
+                case 'all-netflow-pre-snapshot-carry':
+                    return { label: 'Using Netflow', cls: 'replay', title: 'Yield source: public netflow plus inferred pre-snapshot carry from snapshot history.' };
                 case 'recent-cycle':
                     return { label: 'Cycle Fallback', cls: 'fallback', title: 'Yield source: recent-cycle netflow fallback.' };
+                case 'recent-cycle-verified':
+                    return { label: 'Using Cycle', cls: 'replay', title: 'Yield source: recent-cycle netflow reconciles cleanly with snapshot history and is treated as verified.' };
+                case 'recent-cycle-pre-snapshot-carry':
+                    return { label: 'Using Cycle', cls: 'replay', title: 'Yield source: recent-cycle netflow plus inferred pre-snapshot carry from snapshot history.' };
                 default:
                     return { label: method ? method.replace(/-/g, ' ') : 'No Data', cls: 'unverified', title: 'Yield source unavailable for this market.' };
             }
@@ -27105,6 +27274,7 @@
                 snapshotStatus === 'pre_snapshot_carry' ||
                 snapshotStatus === 'no_netflow'
             ));
+            const publicLedgerInference = earn_getPublicLedgerInference(hist, flowMeta, decimals);
 
             let totalYield = null;
             let method = null;
@@ -27165,6 +27335,16 @@
                     : replayVerificationPending
                         ? 'interest-ledger-pending'
                         : 'interest-ledger-override';
+            } else if (publicLedgerInference && publicLedgerInference.status === 'verified') {
+                totalYield = publicLedgerInference.canonicalYield;
+                method = publicLedgerInference.verificationBaseline === 'recent-cycle'
+                    ? 'recent-cycle-verified'
+                    : 'all-netflow-verified';
+            } else if (publicLedgerInference && publicLedgerInference.status === 'pre_snapshot_carry') {
+                totalYield = publicLedgerInference.canonicalYield;
+                method = publicLedgerInference.verificationBaseline === 'recent-cycle'
+                    ? 'recent-cycle-pre-snapshot-carry'
+                    : 'all-netflow-pre-snapshot-carry';
             } else if (snapshotTrusted && snapshotCandidate !== null && isReasonableActiveYield(snapshotCandidate)) {
                 totalYield = snapshotCandidate;
                 method = snapshotMethod;
@@ -27230,12 +27410,18 @@
                 symbol,
                 decimals,
                 tokenAddr,
+                publicLedgerInference,
                 verificationStatus: (method === 'interest-ledger' || method === 'interest-ledger-override')
                     ? interestTrust.status
+                    : publicLedgerInference
+                        ? publicLedgerInference.status
                     : (snapshotStatus || interestTrust.status),
                 trustedForTotal: method === 'interest-ledger' || method === 'interest-ledger-override' || (
                     (method === 'snapshot' || method === 'snapshot-partial') && snapshotTrusted
-                ),
+                ) || method === 'all-netflow-verified'
+                    || method === 'all-netflow-pre-snapshot-carry'
+                    || method === 'recent-cycle-verified'
+                    || method === 'recent-cycle-pre-snapshot-carry',
             };
         }
 
@@ -27920,9 +28106,12 @@
                         cumulativeYield: String(m.cumulativeYield || '0'),
                         days: Number(m.days || 0),
                         firstDate: m.firstDate || '',
+                        firstPar: String(m.firstPar || '0'),
+                        firstWei: String(m.firstWei || '0'),
                         lastDate: m.lastDate || '',
                         lastPar: String(m.lastPar || '0'),
                         lastWei: String(m.lastWei || '0'),
+                        hasStaticParWindow: !!m.hasStaticParWindow,
                         verificationStatus: String(m.status || ''),
                         isLatestSnapshot: m.isLatestSnapshot !== false,
                         source: 'verified-ledger',
@@ -28013,9 +28202,12 @@
                     cumulativeYield: cumulativeYield.toString(),
                     days: days,
                     firstDate: first.date,
+                    firstPar: first.par.toString(),
+                    firstWei: first.wei.toString(),
                     lastDate: last.date,
                     lastPar: last.par.toString(),
                     lastWei: last.wei.toString(),
+                    hasStaticParWindow: history.every(point => point.par === first.par),
                     snapshotCount: history.length,
                     verificationStatus: deferredMeta ? String(deferredMeta.verificationStatus || 'unverified') : '',
                     isLatestSnapshot: deferredMeta ? deferredMeta.isLatestSnapshot !== false : true,
@@ -32024,7 +32216,16 @@
 
                     // Historical/withdrawn assets
                     if (earn_historyData) {
-                        const trustedHistoryMethods = new Set(['interest-ledger', 'interest-ledger-override', 'snapshot', 'snapshot-partial']);
+                        const trustedHistoryMethods = new Set([
+                            'interest-ledger',
+                            'interest-ledger-override',
+                            'snapshot',
+                            'snapshot-partial',
+                            'all-netflow-verified',
+                            'all-netflow-pre-snapshot-carry',
+                            'recent-cycle-verified',
+                            'recent-cycle-pre-snapshot-carry',
+                        ]);
                         earn_historyData.forEach(item => {
                             if (item.isActive || item.isIsolation) return;
                             const chainId = document.getElementById('earn-chain').value;
