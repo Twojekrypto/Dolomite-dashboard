@@ -24421,6 +24421,100 @@
             const selector = '0x6a8194e7';
             const blockTag = opts.blockTag || earn_replayBlockTag || 'latest';
             const fallbackAccountNum = String(document.getElementById('earn-account-num')?.value || '0');
+            const getPositionKey = (accountNumber, marketId, tokenAddr) => {
+                return `${String(accountNumber || '0')}|${String(marketId || '')}|${String(tokenAddr || '').toLowerCase()}`;
+            };
+            const decodeAccountBalances = (hex, accountNumber) => {
+                if (!hex || hex === '0x') return [];
+                const data = hex.replace('0x', '');
+                const word = (i) => data.slice(i * 64, (i + 1) * 64);
+                const toNum = (w) => BigInt('0x' + w);
+                const off0 = Number(toNum(word(0)));
+                const off1 = Number(toNum(word(1)));
+                const off2 = Number(toNum(word(2)));
+                const off3 = Number(toNum(word(3)));
+                const readArrayAt = (byteOffset) => {
+                    const wordIdx = byteOffset / 32;
+                    const len = Number(toNum(word(wordIdx)));
+                    const items = [];
+                    for (let i = 0; i < len; i++) items.push(word(wordIdx + 1 + i));
+                    return items;
+                };
+                const marketIds = readArrayAt(off0).map(w => Number(toNum(w)));
+                const tokenAddrs = readArrayAt(off1).map(w => '0x' + w.slice(24).toLowerCase());
+                const parsWordIdx = off2 / 32;
+                const parsLen = Number(toNum(word(parsWordIdx)));
+                const pars = [];
+                for (let i = 0; i < parsLen; i++) {
+                    const sign = toNum(word(parsWordIdx + 1 + i * 2)) !== 0n;
+                    const value = toNum(word(parsWordIdx + 2 + i * 2));
+                    pars.push({ sign, value });
+                }
+                const weisWordIdx = off3 / 32;
+                const weisLen = Number(toNum(word(weisWordIdx)));
+                const weis = [];
+                for (let i = 0; i < weisLen; i++) {
+                    const sign = toNum(word(weisWordIdx + 1 + i * 2)) !== 0n;
+                    const value = toNum(word(weisWordIdx + 2 + i * 2));
+                    weis.push({ sign, value });
+                }
+                const positions = [];
+                for (let i = 0; i < marketIds.length; i++) {
+                    const parVal = pars[i] ? (pars[i].sign ? pars[i].value : -pars[i].value) : 0n;
+                    const weiVal = weis[i] ? (weis[i].sign ? weis[i].value : -weis[i].value) : 0n;
+                    if (weiVal === 0n && parVal === 0n) continue;
+                    positions.push({
+                        marketId: marketIds[i],
+                        tokenAddr: tokenAddrs[i],
+                        par: parVal,
+                        wei: weiVal,
+                        accountNumber,
+                    });
+                }
+                return positions;
+            };
+            const countCoveredPositionKeys = (positions, expectedKeys) => {
+                if (!expectedKeys || expectedKeys.size === 0) return 0;
+                const positionKeys = new Set((positions || []).map(pos => getPositionKey(pos.accountNumber, pos.marketId, pos.tokenAddr)));
+                let covered = 0;
+                expectedKeys.forEach(key => {
+                    if (positionKeys.has(key)) covered++;
+                });
+                return covered;
+            };
+            const retryMissingAccountCoverage = async (missingKeysByAccount) => {
+                const recovered = {};
+                const accounts = Object.keys(missingKeysByAccount || {});
+                for (const accountNumber of accounts) {
+                    const expectedKeys = missingKeysByAccount[accountNumber];
+                    if (!expectedKeys || expectedKeys.size === 0) continue;
+                    let bestPositions = null;
+                    let bestCoverage = 0;
+                    for (let attempt = 0; attempt < 4; attempt++) {
+                        try {
+                            const result = await earn_rpcCall(
+                                chain.margin,
+                                selector + earn_padAddr(addr) + earn_padUint(accountNumber),
+                                2,
+                                blockTag
+                            );
+                            const decoded = decodeAccountBalances(result, accountNumber);
+                            const coverage = countCoveredPositionKeys(decoded, expectedKeys);
+                            if (coverage > bestCoverage) {
+                                bestCoverage = coverage;
+                                bestPositions = decoded;
+                            }
+                            if (coverage >= expectedKeys.size) break;
+                        } catch (retryErr) {
+                            console.warn('Active balance rescue retry failed for account', accountNumber, retryErr.message);
+                        }
+                    }
+                    if (bestPositions && bestCoverage > 0) {
+                        recovered[accountNumber] = bestPositions;
+                    }
+                }
+                return recovered;
+            };
             let subgraphSnapshot = null;
             const ensureSubgraphSnapshot = async () => {
                 if (!subgraphSnapshot) subgraphSnapshot = await earn_fetchCurrentAccountsFromSubgraph(addr);
@@ -24512,68 +24606,19 @@
                 if (missingResults > 0) {
                     throw new Error(`RPC returned ${missingResults} incomplete account balance result(s)`);
                 }
-                const decodedPositions = [];
+                const decodedByAccount = {};
 
                 results.forEach((result, idx) => {
                     if (!result || result === '0x') return;
                     const accountNumber = accountNumbers[idx];
-                    let decoded = [];
                     try {
-                        decoded = (function decodeAllBalances(hex) {
-                            if (!hex || hex === '0x') return [];
-                            const data = hex.replace('0x', '');
-                            const word = (i) => data.slice(i * 64, (i + 1) * 64);
-                            const toNum = (w) => BigInt('0x' + w);
-                            const off0 = Number(toNum(word(0)));
-                            const off1 = Number(toNum(word(1)));
-                            const off2 = Number(toNum(word(2)));
-                            const off3 = Number(toNum(word(3)));
-                            const readArrayAt = (byteOffset) => {
-                                const wordIdx = byteOffset / 32;
-                                const len = Number(toNum(word(wordIdx)));
-                                const items = [];
-                                for (let i = 0; i < len; i++) items.push(word(wordIdx + 1 + i));
-                                return items;
-                            };
-                            const marketIds = readArrayAt(off0).map(w => Number(toNum(w)));
-                            const tokenAddrs = readArrayAt(off1).map(w => '0x' + w.slice(24).toLowerCase());
-                            const parsWordIdx = off2 / 32;
-                            const parsLen = Number(toNum(word(parsWordIdx)));
-                            const pars = [];
-                            for (let i = 0; i < parsLen; i++) {
-                                const sign = toNum(word(parsWordIdx + 1 + i * 2)) !== 0n;
-                                const value = toNum(word(parsWordIdx + 2 + i * 2));
-                                pars.push({ sign, value });
-                            }
-                            const weisWordIdx = off3 / 32;
-                            const weisLen = Number(toNum(word(weisWordIdx)));
-                            const weis = [];
-                            for (let i = 0; i < weisLen; i++) {
-                                const sign = toNum(word(weisWordIdx + 1 + i * 2)) !== 0n;
-                                const value = toNum(word(weisWordIdx + 2 + i * 2));
-                                weis.push({ sign, value });
-                            }
-                            const positions = [];
-                            for (let i = 0; i < marketIds.length; i++) {
-                                const parVal = pars[i] ? (pars[i].sign ? pars[i].value : -pars[i].value) : 0n;
-                                const weiVal = weis[i] ? (weis[i].sign ? weis[i].value : -weis[i].value) : 0n;
-                                if (weiVal === 0n && parVal === 0n) continue;
-                                positions.push({
-                                    marketId: marketIds[i],
-                                    tokenAddr: tokenAddrs[i],
-                                    par: parVal,
-                                    wei: weiVal,
-                                    accountNumber,
-                                });
-                            }
-                            return positions;
-                        })(result);
+                        decodedByAccount[accountNumber] = decodeAccountBalances(result, accountNumber);
                     } catch (e) {
                         console.warn('Active balance decode failed for account', accountNumbers[idx], e.message);
-                        return;
+                        decodedByAccount[accountNumber] = [];
                     }
-                    decodedPositions.push(...decoded);
                 });
+                let decodedPositions = Object.values(decodedByAccount).flat();
 
                 // Build open-borrow set only from CURRENT onchain balances for this address.
                 // Do not seed from replay state (can be incomplete on very busy accounts).
@@ -24588,36 +24633,57 @@
                 let mergedPositions = decodedPositions;
                 try {
                     const snapshot = await ensureSubgraphSnapshot();
-                    const seenPositionKeys = new Set();
-                    decodedPositions.forEach(pos => {
-                        const acct = String(pos.accountNumber || '0');
-                        const key = `${acct}|${String(pos.marketId)}|${String(pos.tokenAddr || '').toLowerCase()}`;
-                        seenPositionKeys.add(key);
-                    });
-                    const seenSupplyKeys = new Set();
-                    decodedPositions.forEach(pos => {
-                        if (!(pos.wei > 0n)) return;
-                        const acct = String(pos.accountNumber || '0');
-                        const key = `${acct}|${String(pos.marketId)}|${String(pos.tokenAddr || '').toLowerCase()}`;
-                        seenSupplyKeys.add(key);
-                    });
-
                     (snapshot.positions || []).forEach(pos => {
                         const acct = String(pos.accountNumber || '0');
                         if (pos.wei < 0n || pos.par < 0n) borrowAccounts.add(acct);
                     });
 
+                    let seenPositionKeys = new Set(decodedPositions.map(pos => getPositionKey(pos.accountNumber, pos.marketId, pos.tokenAddr)));
+                    const missingKeysByAccount = {};
+                    (snapshot.positions || []).forEach(pos => {
+                        const acct = String(pos.accountNumber || '0');
+                        const key = getPositionKey(acct, pos.marketId, pos.tokenAddr);
+                        if (seenPositionKeys.has(key)) return;
+                        if (!missingKeysByAccount[acct]) missingKeysByAccount[acct] = new Set();
+                        missingKeysByAccount[acct].add(key);
+                    });
+
+                    const rescueAccounts = Object.keys(missingKeysByAccount);
+                    if (rescueAccounts.length > 0) {
+                        const rescuedByAccount = await retryMissingAccountCoverage(missingKeysByAccount);
+                        let rescuedPositions = 0;
+                        rescueAccounts.forEach(accountNumber => {
+                            const rescued = rescuedByAccount[accountNumber];
+                            if (!Array.isArray(rescued) || rescued.length === 0) return;
+                            const existing = decodedByAccount[accountNumber] || [];
+                            const existingCoverage = countCoveredPositionKeys(existing, missingKeysByAccount[accountNumber]);
+                            const rescuedCoverage = countCoveredPositionKeys(rescued, missingKeysByAccount[accountNumber]);
+                            if (rescuedCoverage <= existingCoverage) return;
+                            decodedByAccount[accountNumber] = rescued;
+                            rescuedPositions += rescuedCoverage - existingCoverage;
+                        });
+                        if (rescuedPositions > 0) {
+                            decodedPositions = Object.values(decodedByAccount).flat();
+                            seenPositionKeys = new Set(decodedPositions.map(pos => getPositionKey(pos.accountNumber, pos.marketId, pos.tokenAddr)));
+                            console.log(`Active balance rescue recovered ${rescuedPositions} missing position(s) from direct RPC retries.`);
+                        }
+                    }
+
+                    const seenSupplyKeys = new Set();
+                    decodedPositions.forEach(pos => {
+                        if (!(pos.wei > 0n)) return;
+                        seenSupplyKeys.add(getPositionKey(pos.accountNumber, pos.marketId, pos.tokenAddr));
+                    });
                     const supplemental = [];
                     (snapshot.positions || []).forEach(pos => {
                         const acct = String(pos.accountNumber || '0');
-                        const positionKey = `${acct}|${String(pos.marketId)}|${String(pos.tokenAddr || '').toLowerCase()}`;
+                        const positionKey = getPositionKey(acct, pos.marketId, pos.tokenAddr);
                         if (!seenPositionKeys.has(positionKey)) {
                             earn_replayVerificationIncompleteMarkets.add(String(pos.marketId));
                         }
                         if (!(pos.wei > 0n)) return;
-                        const key = `${acct}|${String(pos.marketId)}|${String(pos.tokenAddr || '').toLowerCase()}`;
-                        if (seenSupplyKeys.has(key)) return;
-                        seenSupplyKeys.add(key);
+                        if (seenSupplyKeys.has(positionKey)) return;
+                        seenSupplyKeys.add(positionKey);
                         supplemental.push({
                             ...pos,
                             accountNumber: acct,
@@ -25881,15 +25947,34 @@
             return hasGhostCollateral || hasGhostBorrow;
         }
 
+        function earn_shouldTrustSnapshotSupplementedReplay(entry) {
+            if (!entry || !entry.snapshotIncomplete || !entry.counted) return false;
+            if (!(entry.rawVerified || entry.usdDriftVerified)) return false;
+            if (entry.actualSupplyPar <= 0n || entry.actualSupplyWei <= 0n) return false;
+            if (entry.actualCollateralPar !== 0n || entry.actualCollateralWei !== 0n) return false;
+            if (entry.actualBorrowPar !== 0n || entry.actualBorrowWei !== 0n) return false;
+            if (entry.expectedCollateralPar !== 0n || entry.expectedCollateralWei !== 0n) return false;
+            if (entry.expectedBorrowPar !== 0n || entry.expectedBorrowWei !== 0n) return false;
+            if (earn_absBigInt(entry.supplyParDiff) > entry.parTolerance) return false;
+            if (earn_absBigInt(entry.collateralParDiff) > entry.parTolerance) return false;
+            if (earn_absBigInt(entry.borrowParDiff) > entry.parTolerance) return false;
+            if (earn_absBigInt(entry.collateralWeiDiff) > entry.collateralWeiTolerance) return false;
+            if (earn_absBigInt(entry.borrowWeiDiff) > entry.borrowWeiTolerance) return false;
+
+            const withinWeiTolerance = earn_absBigInt(entry.supplyWeiDiff) <= entry.supplyWeiTolerance;
+            return withinWeiTolerance || entry.usdDriftVerified;
+        }
+
         function earn_getInterestLedgerTrust(mid, opts) {
             opts = opts || {};
             const requireVerifiedInterest = opts.requireVerifiedInterest !== false;
             const entry = earn_getVerification(mid);
             const trustedVisibleSupplyMismatch = earn_shouldTrustVisibleSupplyReplayMismatch(entry);
+            const trustedSnapshotSupplement = earn_shouldTrustSnapshotSupplementedReplay(entry);
             if (!requireVerifiedInterest) {
                 return {
                     trusted: true,
-                    status: trustedVisibleSupplyMismatch ? 'verified' : (entry ? entry.status : 'unchecked'),
+                    status: (trustedVisibleSupplyMismatch || trustedSnapshotSupplement) ? 'verified' : (entry ? entry.status : 'unchecked'),
                     entry,
                 };
             }
@@ -25908,8 +25993,8 @@
                 };
             }
             return {
-                trusted: entry.status === 'verified' || trustedVisibleSupplyMismatch,
-                status: trustedVisibleSupplyMismatch ? 'verified' : (entry.status || 'unverified'),
+                trusted: entry.status === 'verified' || trustedVisibleSupplyMismatch || trustedSnapshotSupplement,
+                status: (trustedVisibleSupplyMismatch || trustedSnapshotSupplement) ? 'verified' : (entry.status || 'unverified'),
                 entry,
             };
         }
@@ -26256,6 +26341,7 @@
                 yieldCalc.trustedForTotal &&
                 (yieldCalc.method === 'interest-ledger' || yieldCalc.method === 'interest-ledger-override')
             );
+            const trustedSnapshotSupplement = earn_shouldTrustSnapshotSupplementedReplay(entry);
 
             if (entry && entry.counted && entry.status === 'mismatch' && trustedReplayYield) {
                 const driftText = entry.hasUsdDrift
@@ -26268,6 +26354,23 @@
                     title: `Total yield is trusted from the replay ledger and used for this asset.${driftText} Detailed reconciliation deltas remain available below for diagnostics.`,
                     rawStatus: entry.status,
                     rawLabel: 'Mismatch',
+                    rawTitle: fallbackTitle,
+                    overridden: true,
+                    entry,
+                };
+            }
+
+            if (entry && entry.counted && trustedSnapshotSupplement) {
+                const driftText = entry.hasUsdDrift
+                    ? ` Largest current-balance drift: ${earn_formatUsdDrift(entry.maxUsdDrift)}.`
+                    : '';
+                return {
+                    counted: true,
+                    status: 'verified',
+                    label: 'VERIFIED',
+                    title: `Current balance verification required a live subgraph supplement for a missing RPC position, but the supplemented replay reconciles cleanly and is treated as verified.${driftText}`,
+                    rawStatus: entry.status || 'unverified',
+                    rawLabel: entry.snapshotIncomplete ? 'Pending' : 'Unverified',
                     rawTitle: fallbackTitle,
                     overridden: true,
                     entry,
