@@ -118,6 +118,7 @@ def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_add
     markets_out = {}
     summary = {
         "verified": 0,
+        "pre_snapshot_carry": 0,
         "mismatch": 0,
         "no_netflow": 0,
         "no_snapshot": 0,
@@ -130,12 +131,15 @@ def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_add
         decimals = _parse_int(meta.get("decimals", 18))
 
         snapshot_yield = None
+        first_par = 0
+        first_wei = 0
         last_par = 0
         last_wei = 0
         first_date = ""
         last_date = ""
         days = 0
         is_latest_snapshot = False
+        has_static_par_window = False
 
         if hist:
             cumulative = 0
@@ -148,9 +152,12 @@ def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_add
                 cumulative += daily
             snapshot_yield = cumulative
             first_date = hist[0]["date"]
+            first_par = hist[0]["par"]
+            first_wei = hist[0]["wei"]
             last_date = hist[-1]["date"]
             last_par = hist[-1]["par"]
             last_wei = hist[-1]["wei"]
+            has_static_par_window = all(point["par"] == first_par for point in hist)
             is_latest_snapshot = (last_date == latest_date)
             try:
                 days = max(1, (_to_date(last_date) - _to_date(first_date)).days + 1)
@@ -175,12 +182,24 @@ def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_add
         status = "unavailable"
         method = "unavailable"
         canonical_yield = 0
+        pre_snapshot_carry = None
 
         if snapshot_yield is not None and netflow_yield is not None:
             if abs(diff) <= _get_tolerance(decimals):
                 status = "verified"
                 method = "netflow+snapshot"
                 canonical_yield = netflow_yield
+            elif (
+                hist
+                and has_static_par_window
+                and first_par > 0
+                and first_wei >= netflow_t
+                and snapshot_yield == (last_wei - first_wei)
+            ):
+                status = "pre_snapshot_carry"
+                method = "netflow+pre-snapshot-carry"
+                canonical_yield = netflow_yield
+                pre_snapshot_carry = first_wei - netflow_t
             else:
                 status = "mismatch"
                 method = "snapshot-fallback"
@@ -204,11 +223,14 @@ def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_add
             "status": status,
             "method": method,
             "firstDate": first_date,
+            "firstPar": str(first_par),
+            "firstWei": str(first_wei),
             "lastDate": last_date,
             "lastPar": str(last_par),
             "lastWei": str(last_wei),
             "days": days,
             "isLatestSnapshot": bool(is_latest_snapshot),
+            "hasStaticParWindow": bool(has_static_par_window),
         }
         if snapshot_yield is not None:
             payload["snapshotYield"] = str(snapshot_yield)
@@ -216,6 +238,8 @@ def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_add
             payload["netflowYield"] = str(netflow_yield)
         if diff is not None:
             payload["diff"] = str(diff)
+        if pre_snapshot_carry is not None:
+            payload["preSnapshotCarryYield"] = str(pre_snapshot_carry)
 
         markets_out[mid] = payload
 

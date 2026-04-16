@@ -25950,19 +25950,69 @@
         function earn_shouldTrustSnapshotSupplementedReplay(entry) {
             if (!entry || !entry.snapshotIncomplete || !entry.counted) return false;
             if (!(entry.rawVerified || entry.usdDriftVerified)) return false;
-            if (entry.actualSupplyPar <= 0n || entry.actualSupplyWei <= 0n) return false;
-            if (entry.actualCollateralPar !== 0n || entry.actualCollateralWei !== 0n) return false;
             if (entry.actualBorrowPar !== 0n || entry.actualBorrowWei !== 0n) return false;
-            if (entry.expectedCollateralPar !== 0n || entry.expectedCollateralWei !== 0n) return false;
             if (entry.expectedBorrowPar !== 0n || entry.expectedBorrowWei !== 0n) return false;
+
+            const actualSupplyPositive = entry.actualSupplyPar > 0n || entry.actualSupplyWei > 0n;
+            const actualCollateralPositive = entry.actualCollateralPar > 0n || entry.actualCollateralWei > 0n;
+            if (actualSupplyPositive === actualCollateralPositive) return false;
+            if (actualSupplyPositive && (entry.expectedCollateralPar !== 0n || entry.expectedCollateralWei !== 0n)) return false;
+            if (actualCollateralPositive && (entry.expectedSupplyPar !== 0n || entry.expectedSupplyWei !== 0n)) return false;
+
             if (earn_absBigInt(entry.supplyParDiff) > entry.parTolerance) return false;
             if (earn_absBigInt(entry.collateralParDiff) > entry.parTolerance) return false;
             if (earn_absBigInt(entry.borrowParDiff) > entry.parTolerance) return false;
+            if (earn_absBigInt(entry.supplyWeiDiff) > entry.supplyWeiTolerance) return false;
             if (earn_absBigInt(entry.collateralWeiDiff) > entry.collateralWeiTolerance) return false;
             if (earn_absBigInt(entry.borrowWeiDiff) > entry.borrowWeiTolerance) return false;
 
-            const withinWeiTolerance = earn_absBigInt(entry.supplyWeiDiff) <= entry.supplyWeiTolerance;
+            const withinWeiTolerance = actualSupplyPositive
+                ? earn_absBigInt(entry.supplyWeiDiff) <= entry.supplyWeiTolerance
+                : earn_absBigInt(entry.collateralWeiDiff) <= entry.collateralWeiTolerance;
             return withinWeiTolerance || entry.usdDriftVerified;
+        }
+
+        function earn_getSnapshotLedgerPresentation(marketId, yieldCalc) {
+            const hist = earn_totalYieldData ? earn_totalYieldData[String(marketId)] : null;
+            if (!hist || !yieldCalc || !yieldCalc.hasData) return null;
+            const method = String(yieldCalc.method || '');
+            if (method !== 'snapshot' && method !== 'snapshot-partial') return null;
+            if (hist.isLatestSnapshot === false) return null;
+            const flowMeta = earn_parseNetflowEntry(earn_netflowData && earn_netflowData[String(marketId)]);
+            const source = String(hist.source || '');
+            const status = String(hist.verificationStatus || '').toLowerCase();
+            const snapshotOnly = status === 'no_netflow' || (!flowMeta && (source === 'verified-ledger' || source === 'snapshot-series' || !source));
+            if (status === 'verified' || status === 'pre_snapshot_carry') {
+                return {
+                    counted: true,
+                    status: 'verified',
+                    label: 'VERIFIED',
+                    title: status === 'pre_snapshot_carry'
+                        ? 'This market is trusted from the replay ledger. Snapshot history confirms the post-snapshot accrual window, while older carry existed before local snapshot coverage began.'
+                        : 'This market is trusted from the local verified ledger snapshot and is fully reconciled for the latest snapshot series.',
+                    rawStatus: status,
+                    rawLabel: status === 'pre_snapshot_carry' ? 'Pre-Snapshot Carry' : 'Verified',
+                    rawTitle: status === 'pre_snapshot_carry'
+                        ? 'Replay yield includes carry accrued before the first locally captured snapshot for this market.'
+                        : 'Local verified ledger snapshot.',
+                    overridden: true,
+                    entry: null,
+                };
+            }
+            if (snapshotOnly) {
+                return {
+                    counted: true,
+                    status: 'unverified',
+                    label: 'SNAPSHOT ONLY',
+                    title: 'Historical netflow/replay coverage is unavailable for this market, so yield is derived from the latest snapshot series only. Treat this as not fully verified.',
+                    rawStatus: status || 'no_netflow',
+                    rawLabel: 'Snapshot Only',
+                    rawTitle: 'Historical netflow/replay coverage is unavailable for this market.',
+                    overridden: true,
+                    entry: null,
+                };
+            }
+            return null;
         }
 
         function earn_getInterestLedgerTrust(mid, opts) {
@@ -26322,6 +26372,7 @@
 
         function earn_getVerificationPresentation(marketId, yieldCalc, symbol, decimals) {
             const entry = earn_getVerification(marketId);
+            const snapshotLedgerPresentation = earn_getSnapshotLedgerPresentation(marketId, yieldCalc);
             const fallbackTitle = entry
                 ? earn_buildVerificationTitle(entry, symbol || 'UNK', decimals ?? 18)
                 : 'Ledger check unavailable.';
@@ -26342,6 +26393,10 @@
                 (yieldCalc.method === 'interest-ledger' || yieldCalc.method === 'interest-ledger-override')
             );
             const trustedSnapshotSupplement = earn_shouldTrustSnapshotSupplementedReplay(entry);
+
+            if (snapshotLedgerPresentation) {
+                return snapshotLedgerPresentation;
+            }
 
             if (entry && entry.counted && entry.status === 'mismatch' && trustedReplayYield) {
                 const driftText = entry.hasUsdDrift
@@ -27033,6 +27088,7 @@
             const snapshotTrusted = !!(hasSnapshotData && snapshotHasHistory && snapshotIsLatest && (
                 !snapshotStatus ||
                 snapshotStatus === 'verified' ||
+                snapshotStatus === 'pre_snapshot_carry' ||
                 snapshotStatus === 'no_netflow'
             ));
 
@@ -27773,7 +27829,7 @@
             if (!entry || typeof entry !== 'object') return false;
             const status = String(entry.status || '').trim().toLowerCase();
             const method = String(entry.method || '').trim().toLowerCase();
-            if (status === 'verified' || status === 'no_netflow') return true;
+            if (status === 'verified' || status === 'pre_snapshot_carry' || status === 'no_netflow') return true;
             if (status === 'mismatch' || status === 'unverified' || status === 'pending') return false;
             if (method === 'snapshot-fallback') return false;
             return !status;
@@ -31964,7 +32020,7 @@
                             const histStatus = histMeta ? String(histMeta.verificationStatus || '') : '';
                             const histIsLatest = histMeta ? (histMeta.isLatestSnapshot !== false) : true;
                             const histUsesReplay = String(item.yieldMethod || '').startsWith('interest-ledger');
-                            const histStatusTrusted = histUsesReplay || !histStatus || histStatus === 'verified' || histStatus === 'no_netflow';
+                            const histStatusTrusted = histUsesReplay || !histStatus || histStatus === 'verified' || histStatus === 'pre_snapshot_carry' || histStatus === 'no_netflow';
                             if (!trustedHistoryMethods.has(String(item.yieldMethod || '')) || !histStatusTrusted || !histIsLatest) {
                                 if ((item.yieldUsdScaled || 0n) !== 0n) pendingYieldAssetCount++;
                                 return;
