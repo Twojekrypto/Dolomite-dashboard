@@ -91,6 +91,32 @@ def _load_chain_snapshots(chain, chain_dates):
     return snapshots
 
 
+def _build_baseline_meta(baseline_name, baseline_t, decimals, snapshot_yield, first_par, first_wei, last_par, last_wei, has_static_par_window):
+    if snapshot_yield is None or baseline_t is None:
+        return None
+
+    baseline_yield = last_wei - baseline_t
+    diff = baseline_yield - snapshot_yield
+    pre_snapshot_meta = _get_pre_snapshot_carry_meta(
+        decimals,
+        snapshot_yield,
+        diff,
+        first_par,
+        first_wei,
+        last_par,
+        last_wei,
+        baseline_t,
+        has_static_par_window,
+    )
+    return {
+        "name": baseline_name,
+        "t": baseline_t,
+        "yield": baseline_yield,
+        "diff": diff,
+        "pre_snapshot_meta": pre_snapshot_meta,
+    }
+
+
 def _get_pre_snapshot_carry_meta(decimals, snapshot_yield, diff, first_par, first_wei, last_par, last_wei, netflow_t, has_static_par_window):
     if snapshot_yield is None or diff is None:
         return None
@@ -208,8 +234,14 @@ def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_add
 
         flow_entry = addr_flows.get(mid)
         netflow_t = None
+        recent_cycle_t = None
+        reset_par = None
+        ending_par = None
         if isinstance(flow_entry, dict):
             netflow_t = _parse_int(flow_entry.get("t", "0"))
+            recent_cycle_t = _parse_int(flow_entry.get("recentNetFlow"), None) if flow_entry.get("recentNetFlow") is not None else None
+            reset_par = _parse_int(flow_entry.get("resetPar"), None) if flow_entry.get("resetPar") is not None else None
+            ending_par = _parse_int(flow_entry.get("endingPar"), None) if flow_entry.get("endingPar") is not None else None
         elif flow_entry is not None:
             netflow_t = _parse_int(flow_entry)
 
@@ -217,9 +249,17 @@ def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_add
         if snapshot_yield is not None and netflow_t is not None:
             netflow_yield = last_wei - netflow_t
 
+        recent_cycle_yield = None
+        if snapshot_yield is not None and recent_cycle_t is not None:
+            recent_cycle_yield = last_wei - recent_cycle_t
+
         diff = None
         if snapshot_yield is not None and netflow_yield is not None:
             diff = netflow_yield - snapshot_yield
+
+        recent_cycle_diff = None
+        if snapshot_yield is not None and recent_cycle_yield is not None:
+            recent_cycle_diff = recent_cycle_yield - snapshot_yield
 
         status = "unavailable"
         method = "unavailable"
@@ -227,34 +267,77 @@ def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_add
         pre_snapshot_carry = None
         pre_snapshot_residual = None
         tiny_par_drift_window = False
+        verification_baseline = None
 
         if snapshot_yield is not None and netflow_yield is not None:
-            pre_snapshot_meta = _get_pre_snapshot_carry_meta(
-                decimals,
-                snapshot_yield,
-                diff,
-                first_par,
-                first_wei,
-                last_par,
-                last_wei,
-                netflow_t,
-                has_static_par_window,
-            )
-            if abs(diff) <= _get_tolerance(decimals):
+            baselines = [
+                _build_baseline_meta(
+                    "all-time-netflow",
+                    netflow_t,
+                    decimals,
+                    snapshot_yield,
+                    first_par,
+                    first_wei,
+                    last_par,
+                    last_wei,
+                    has_static_par_window,
+                )
+            ]
+            if recent_cycle_t is not None:
+                baselines.append(
+                    _build_baseline_meta(
+                        "recent-cycle",
+                        recent_cycle_t,
+                        decimals,
+                        snapshot_yield,
+                        first_par,
+                        first_wei,
+                        last_par,
+                        last_wei,
+                        has_static_par_window,
+                    )
+                )
+
+            chosen_baseline = None
+            for candidate in baselines:
+                if candidate is None:
+                    continue
+                if abs(candidate["diff"]) <= _get_tolerance(decimals):
+                    chosen_baseline = candidate
+                    break
+            if chosen_baseline is None:
+                for candidate in baselines:
+                    if candidate is None or candidate["pre_snapshot_meta"] is None:
+                        continue
+                    chosen_baseline = candidate
+                    break
+
+            if chosen_baseline and abs(chosen_baseline["diff"]) <= _get_tolerance(decimals):
                 status = "verified"
-                method = "netflow+snapshot"
-                canonical_yield = netflow_yield
-            elif pre_snapshot_meta is not None:
+                method = (
+                    "recent-cycle+snapshot"
+                    if chosen_baseline["name"] == "recent-cycle"
+                    else "netflow+snapshot"
+                )
+                canonical_yield = chosen_baseline["yield"]
+                verification_baseline = chosen_baseline["name"]
+            elif chosen_baseline and chosen_baseline["pre_snapshot_meta"] is not None:
                 status = "pre_snapshot_carry"
-                method = "netflow+pre-snapshot-carry"
-                canonical_yield = netflow_yield
-                pre_snapshot_carry = pre_snapshot_meta["carry"]
-                pre_snapshot_residual = pre_snapshot_meta["residual"]
-                tiny_par_drift_window = pre_snapshot_meta["tinyParDriftWindow"]
+                method = (
+                    "recent-cycle+pre-snapshot-carry"
+                    if chosen_baseline["name"] == "recent-cycle"
+                    else "netflow+pre-snapshot-carry"
+                )
+                canonical_yield = chosen_baseline["yield"]
+                pre_snapshot_carry = chosen_baseline["pre_snapshot_meta"]["carry"]
+                pre_snapshot_residual = chosen_baseline["pre_snapshot_meta"]["residual"]
+                tiny_par_drift_window = chosen_baseline["pre_snapshot_meta"]["tinyParDriftWindow"]
+                verification_baseline = chosen_baseline["name"]
             else:
                 status = "mismatch"
                 method = "snapshot-fallback"
                 canonical_yield = snapshot_yield
+
         elif snapshot_yield is not None:
             status = "no_netflow"
             method = "snapshot-only"
@@ -289,6 +372,18 @@ def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_add
             payload["netflowYield"] = str(netflow_yield)
         if diff is not None:
             payload["diff"] = str(diff)
+        if recent_cycle_yield is not None:
+            payload["recentCycleYield"] = str(recent_cycle_yield)
+        if recent_cycle_diff is not None:
+            payload["recentCycleDiff"] = str(recent_cycle_diff)
+        if recent_cycle_t is not None:
+            payload["recentCycleNetFlow"] = str(recent_cycle_t)
+        if reset_par is not None:
+            payload["resetPar"] = str(reset_par)
+        if ending_par is not None:
+            payload["endingPar"] = str(ending_par)
+        if verification_baseline is not None:
+            payload["verificationBaseline"] = verification_baseline
         if pre_snapshot_carry is not None:
             payload["preSnapshotCarryYield"] = str(pre_snapshot_carry)
         if pre_snapshot_residual is not None:
