@@ -64,6 +64,11 @@ def _get_tolerance(decimals):
     return 10 ** max(0, d - 12)
 
 
+def _get_pre_snapshot_residual_tolerance(decimals):
+    # Allow a few base units of residual drift when snapshot math spans a tiny par change.
+    return max(1, _get_tolerance(decimals) * 4)
+
+
 def _collect_chain_snapshot_dates(manifest, chain):
     dates = sorted(manifest.get("dates", []))
     out = []
@@ -84,6 +89,43 @@ def _load_chain_snapshots(chain, chain_dates):
         chain_data = (payload.get("snapshots", {}) or {}).get(chain, {}) or {}
         snapshots.append((date_str, chain_data))
     return snapshots
+
+
+def _get_pre_snapshot_carry_meta(decimals, snapshot_yield, diff, first_par, first_wei, last_par, last_wei, netflow_t, has_static_par_window):
+    if snapshot_yield is None or diff is None:
+        return None
+    if first_par <= 0 or first_wei < netflow_t:
+        return None
+
+    carry = first_wei - netflow_t
+    if carry < 0:
+        return None
+
+    residual = diff - carry
+    post_snapshot_delta = last_wei - first_wei
+    exact_post_snapshot_window = snapshot_yield == post_snapshot_delta
+    if has_static_par_window and exact_post_snapshot_window:
+        return {
+            "carry": carry,
+            "residual": residual,
+            "tinyParDriftWindow": False,
+        }
+
+    par_drift = abs(last_par - first_par)
+    if par_drift > _get_tolerance(decimals):
+        return None
+
+    if post_snapshot_delta < 0 or snapshot_yield < 0:
+        return None
+
+    if abs(residual) > _get_pre_snapshot_residual_tolerance(decimals):
+        return None
+
+    return {
+        "carry": carry,
+        "residual": residual,
+        "tinyParDriftWindow": True,
+    }
 
 
 def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_addr):
@@ -183,23 +225,32 @@ def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_add
         method = "unavailable"
         canonical_yield = 0
         pre_snapshot_carry = None
+        pre_snapshot_residual = None
+        tiny_par_drift_window = False
 
         if snapshot_yield is not None and netflow_yield is not None:
+            pre_snapshot_meta = _get_pre_snapshot_carry_meta(
+                decimals,
+                snapshot_yield,
+                diff,
+                first_par,
+                first_wei,
+                last_par,
+                last_wei,
+                netflow_t,
+                has_static_par_window,
+            )
             if abs(diff) <= _get_tolerance(decimals):
                 status = "verified"
                 method = "netflow+snapshot"
                 canonical_yield = netflow_yield
-            elif (
-                hist
-                and has_static_par_window
-                and first_par > 0
-                and first_wei >= netflow_t
-                and snapshot_yield == (last_wei - first_wei)
-            ):
+            elif pre_snapshot_meta is not None:
                 status = "pre_snapshot_carry"
                 method = "netflow+pre-snapshot-carry"
                 canonical_yield = netflow_yield
-                pre_snapshot_carry = first_wei - netflow_t
+                pre_snapshot_carry = pre_snapshot_meta["carry"]
+                pre_snapshot_residual = pre_snapshot_meta["residual"]
+                tiny_par_drift_window = pre_snapshot_meta["tinyParDriftWindow"]
             else:
                 status = "mismatch"
                 method = "snapshot-fallback"
@@ -240,6 +291,10 @@ def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_add
             payload["diff"] = str(diff)
         if pre_snapshot_carry is not None:
             payload["preSnapshotCarryYield"] = str(pre_snapshot_carry)
+        if pre_snapshot_residual is not None:
+            payload["preSnapshotCarryResidual"] = str(pre_snapshot_residual)
+        if tiny_par_drift_window:
+            payload["hasTinyParDriftWindow"] = True
 
         markets_out[mid] = payload
 
