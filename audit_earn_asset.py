@@ -30,7 +30,7 @@ import tempfile
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from build_earn_verified_ledger import (
     ROOT,
@@ -498,6 +498,8 @@ function buildCounts(rows) {
 
 async function main() {
   const input = readJson(INPUT_PATH, {});
+  const CHAIN = String((input && input.chain) || '');
+  const SNAPSHOT_DATE = String((input && input.snapshotDate) || '');
   const inputRows = (input.unresolved || input.addresses || []).filter(Boolean);
   const addresses = inputRows.map((entry) => typeof entry === 'string' ? entry : entry.wallet).filter(Boolean);
   const byAddress = Object.fromEntries(
@@ -531,8 +533,10 @@ async function main() {
 
   const writeSnapshot = () => {
     fs.writeFileSync(OUTPUT_PATH, JSON.stringify({
+      chain: CHAIN,
       marketId: MARKET_ID,
       symbol: SYMBOL,
+      snapshotDate: SNAPSHOT_DATE,
       startedAt: new Date(startedAt).toISOString(),
       updatedAt: new Date().toISOString(),
       inputCount: addresses.length,
@@ -1173,8 +1177,10 @@ def summarize_live_results(payload: dict) -> dict:
 
     return {
         "generatedAt": utc_now_iso(),
+        "chain": payload.get("chain") or "",
         "marketId": payload.get("marketId"),
         "symbol": payload.get("symbol"),
+        "snapshotDate": payload.get("snapshotDate") or "",
         "inputCount": input_count,
         "completed": completed,
         "verifiedChecked": verified,
@@ -1198,6 +1204,232 @@ def run_summarize_live_command(args: argparse.Namespace) -> int:
     payload = _read_json(Path(args.results))
     summary = summarize_live_results(payload)
     print(json.dumps(summary, ensure_ascii=False, indent=2))
+    return 0
+
+
+def merge_live_payloads(paths: Sequence[Path]) -> dict:
+    merged_rows: Dict[str, dict] = {}
+    started_candidates: List[str] = []
+    chain = ""
+    symbol = ""
+    market_id = ""
+    snapshot_date = ""
+
+    for path in paths:
+        payload = _read_json(path)
+        chain = str(payload.get("chain") or chain or "")
+        symbol = str(payload.get("symbol") or symbol or "")
+        market_id = str(payload.get("marketId") or market_id or "")
+        snapshot_date = str(payload.get("snapshotDate") or snapshot_date or "")
+        started = str(payload.get("startedAt") or "").strip()
+        if started:
+            started_candidates.append(started)
+        for row in payload.get("results") or []:
+            address = str(row.get("address") or "").lower()
+            if not address:
+                continue
+            merged_rows[address] = row
+
+    results = list(merged_rows.values())
+    results.sort(key=lambda row: str(row.get("address") or "").lower())
+    counts = Counter(normalize_live_row_category(row) for row in results)
+
+    return {
+        "chain": chain,
+        "marketId": market_id,
+        "symbol": symbol,
+        "snapshotDate": snapshot_date,
+        "startedAt": min(started_candidates) if started_candidates else utc_now_iso(),
+        "updatedAt": utc_now_iso(),
+        "inputCount": len(results),
+        "completed": len(results),
+        "counts": dict(counts),
+        "results": results,
+        "mergedFrom": [str(path) for path in paths],
+    }
+
+
+def row_to_retry_entry(row: dict) -> dict:
+    pattern, severity = parse_live_row_pattern(row)
+    return {
+        "wallet": str(row.get("address") or "").lower(),
+        "status": str(row.get("staticStatus") or ""),
+        "method": str(row.get("staticMethod") or ""),
+        "reason": str(row.get("staticReason") or ""),
+        "wei": str(row.get("staticWei") or ""),
+        "balance": None,
+        "balanceUsd": row.get("staticUsd"),
+        "liveCategory": normalize_live_row_category(row),
+        "pattern": pattern,
+        "severity": severity,
+    }
+
+
+def select_live_rows(
+    payload: dict,
+    mode: str,
+    categories: Optional[Sequence[str]] = None,
+) -> List[dict]:
+    selected: List[dict] = []
+    category_set = {str(cat).strip() for cat in (categories or []) if str(cat).strip()}
+
+    for row in payload.get("results") or []:
+        category = normalize_live_row_category(row)
+        pattern, _severity = parse_live_row_pattern(row)
+        is_real_nonverified = category in {"snapshot_only", "hidden_collateral_other", "has_data_other"}
+        is_blocking = is_real_nonverified and pattern not in NON_BLOCKING_REAL_PATTERNS
+        is_timeout = category in TIMEOUT_CATEGORIES
+        is_missing = category == "missing_position"
+
+        keep = False
+        if mode == "timeouts":
+            keep = is_timeout
+        elif mode == "blocking":
+            keep = is_blocking
+        elif mode == "real":
+            keep = is_real_nonverified
+        elif mode == "informational":
+            keep = is_real_nonverified and pattern in NON_BLOCKING_REAL_PATTERNS
+        elif mode == "missing":
+            keep = is_missing
+        elif mode == "categories":
+            keep = category in category_set
+
+        if keep:
+            selected.append(row)
+    return selected
+
+
+def build_extracted_live_payload(payload: dict, rows: Sequence[dict]) -> dict:
+    return {
+        "generatedAt": utc_now_iso(),
+        "chain": str(payload.get("chain") or ""),
+        "symbol": str(payload.get("symbol") or ""),
+        "marketId": str(payload.get("marketId") or ""),
+        "snapshotDate": str(payload.get("snapshotDate") or ""),
+        "inputCount": len(rows),
+        "unresolved": [row_to_retry_entry(row) for row in rows],
+    }
+
+
+def compact_position_summary(position: Optional[dict]) -> Optional[dict]:
+    if not position:
+        return None
+    return {
+        "accountNumber": str(position.get("accountNumber") or ""),
+        "wei": str(position.get("wei") or ""),
+        "par": str(position.get("par") or ""),
+        "isCollateral": bool(position.get("isCollateral")),
+        "isBorrow": bool(position.get("isBorrow")),
+    }
+
+
+def build_forensic_live_report(payload: dict) -> dict:
+    summary = summarize_live_results(payload)
+    blocking_rows = []
+    informational_rows = []
+
+    for row in payload.get("results") or []:
+        category = normalize_live_row_category(row)
+        if category not in {"snapshot_only", "hidden_collateral_other", "has_data_other"}:
+            continue
+        pattern, severity = parse_live_row_pattern(row)
+        focus = row.get("focusMarket") or {}
+        verify = focus.get("verificationData") or {}
+        entry = {
+            "address": str(row.get("address") or "").lower(),
+            "normalizedCategory": category,
+            "pattern": pattern,
+            "severity": severity,
+            "staticStatus": str(row.get("staticStatus") or ""),
+            "staticMethod": str(row.get("staticMethod") or ""),
+            "staticReason": str(row.get("staticReason") or ""),
+            "rootCauses": extract_root_causes(str(row.get("staticReason") or "")),
+            "positionKind": str(row.get("positionKind") or ""),
+            "marketRow": row.get("marketRow") or None,
+            "visiblePosition": compact_position_summary(row.get("visiblePosition")),
+            "collateralPosition": compact_position_summary(row.get("collateralPosition")),
+            "borrowPosition": compact_position_summary(row.get("borrowPosition")),
+            "resolvedSource": str(focus.get("resolvedSource") or ""),
+            "resolvedMethod": str(focus.get("resolvedMethod") or ""),
+            "resolvedVerificationStatus": str(focus.get("resolvedVerificationStatus") or ""),
+            "resolvedCumulativeYield": str(focus.get("resolvedCumulativeYield") or ""),
+            "calc": focus.get("calc") or None,
+            "verificationData": verify or None,
+            "elapsedMs": row.get("elapsedMs"),
+        }
+        if pattern in NON_BLOCKING_REAL_PATTERNS:
+            informational_rows.append(entry)
+        else:
+            blocking_rows.append(entry)
+
+    blocking_rows.sort(
+        key=lambda entry: (
+            -float(((entry.get("verificationData") or {}).get("maxUsdDrift") or 0) or 0),
+            entry["normalizedCategory"],
+            entry["address"],
+        )
+    )
+    informational_rows.sort(
+        key=lambda entry: (
+            -float(((entry.get("verificationData") or {}).get("maxUsdDrift") or 0) or 0),
+            entry["normalizedCategory"],
+            entry["address"],
+        )
+    )
+
+    return {
+        "generatedAt": utc_now_iso(),
+        "summary": summary,
+        "blockingRows": blocking_rows,
+        "informationalRows": informational_rows,
+    }
+
+
+def run_merge_live_command(args: argparse.Namespace) -> int:
+    paths = [Path(path) for path in args.results]
+    for path in paths:
+        if not path.exists():
+            raise SystemExit(f"Live results file not found: {path}")
+    payload = merge_live_payloads(paths)
+    output_path = Path(args.output)
+    write_json(output_path, payload)
+    print(json.dumps(summarize_live_results(payload), ensure_ascii=False, indent=2))
+    print(f"\nMerged live results: {output_path}")
+    return 0
+
+
+def run_extract_live_command(args: argparse.Namespace) -> int:
+    payload = _read_json(Path(args.results))
+    rows = select_live_rows(payload, args.mode, args.category or [])
+    extracted = build_extracted_live_payload(payload, rows)
+    if args.chain:
+        extracted["chain"] = args.chain
+    output_path = Path(args.output)
+    write_json(output_path, extracted)
+    print(
+        json.dumps(
+            {
+                "mode": args.mode,
+                "selected": len(rows),
+                "output": str(output_path),
+                "chain": extracted.get("chain") or "",
+                "symbol": extracted.get("symbol") or "",
+                "marketId": extracted.get("marketId") or "",
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0
+
+
+def run_forensic_live_command(args: argparse.Namespace) -> int:
+    payload = _read_json(Path(args.results))
+    report = build_forensic_live_report(payload)
+    if args.output:
+        write_json(Path(args.output), report)
+    print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0
 
 
@@ -1231,6 +1463,29 @@ def build_parser() -> argparse.ArgumentParser:
     summarize_parser = subparsers.add_parser("summarize-live", help="Summarize a live audit results JSON")
     summarize_parser.add_argument("--results", required=True, help="Path to live audit results JSON")
     summarize_parser.set_defaults(func=run_summarize_live_command)
+
+    merge_parser = subparsers.add_parser("merge-live", help="Merge multiple live audit results with latest row per wallet")
+    merge_parser.add_argument("--results", required=True, nargs="+", help="Live results JSON files in oldest->newest order")
+    merge_parser.add_argument("--output", required=True, help="Where to write the merged live results JSON")
+    merge_parser.set_defaults(func=run_merge_live_command)
+
+    extract_parser = subparsers.add_parser("extract-live", help="Extract a focused rerun cohort from live results")
+    extract_parser.add_argument("--results", required=True, help="Path to live audit results JSON")
+    extract_parser.add_argument(
+        "--mode",
+        required=True,
+        choices=["timeouts", "blocking", "real", "informational", "missing", "categories"],
+        help="Which cohort to extract",
+    )
+    extract_parser.add_argument("--category", action="append", help="Category name(s) when --mode=categories")
+    extract_parser.add_argument("--chain", help="Optional explicit chain to stamp into the extracted input")
+    extract_parser.add_argument("--output", required=True, help="Where to write the extracted unresolved cohort JSON")
+    extract_parser.set_defaults(func=run_extract_live_command)
+
+    forensic_parser = subparsers.add_parser("forensic-live", help="Build a detailed blocker report from live results")
+    forensic_parser.add_argument("--results", required=True, help="Path to live audit results JSON")
+    forensic_parser.add_argument("--output", help="Optional forensic report output path")
+    forensic_parser.set_defaults(func=run_forensic_live_command)
 
     return parser
 

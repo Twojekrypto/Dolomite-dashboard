@@ -79,6 +79,23 @@ python3 audit_earn_asset.py live \
 # 3. Summarize an existing live audit result
 python3 audit_earn_asset.py summarize-live \
   --results /tmp/earn_audit_arbitrum_usdc_live.json
+
+# 4. Merge a full pass with retry passes (latest row wins per wallet)
+python3 audit_earn_asset.py merge-live \
+  --results /tmp/usdc_full.json /tmp/usdc_timeout_retry.json /tmp/usdc_final_retry.json \
+  --output /tmp/usdc_merged.json
+
+# 5. Extract a focused retry cohort from an existing live result
+python3 audit_earn_asset.py extract-live \
+  --results /tmp/usdc_merged.json \
+  --mode blocking \
+  --chain arbitrum \
+  --output /tmp/usdc_blocking_retry.json
+
+# 6. Build a forensic report for the remaining real blockers
+python3 audit_earn_asset.py forensic-live \
+  --results /tmp/usdc_merged.json \
+  --output /tmp/usdc_forensic.json
 ```
 
 Notes:
@@ -86,6 +103,9 @@ Notes:
 - `static` is fast and good for cohort sizing plus unresolved filtering
 - `live` is slower but checks the real replay/verification behavior of the UI
 - `summarize-live` also groups root causes / patterns (for example timeout-heavy cases vs real snapshot mismatches)
+- `merge-live` should be used after retries so the newest row for each wallet replaces older pass results
+- `extract-live` is the easiest way to build timeout/blocking retry inputs without hand-editing JSON
+- `forensic-live` turns the remaining real tail into a focused blocker report with root causes and current-state context
 
 ---
 
