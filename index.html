@@ -24764,6 +24764,18 @@
             earn_replayActualCollateralMap = verificationCollateral;
             earn_buildReplayVerification(verificationSupply, verificationBorrow, verificationCollateral);
 
+            const pruneGhostCurrentMarkets = (target) => {
+                Object.keys(target || {}).forEach(mid => {
+                    const entry = earn_replayVerificationData ? earn_replayVerificationData[String(mid)] : null;
+                    if (earn_shouldHideGhostCurrentMarket(entry)) {
+                        delete target[mid];
+                    }
+                });
+            };
+            pruneGhostCurrentMarkets(aggregatedSupply);
+            pruneGhostCurrentMarkets(aggregatedCollateral);
+            pruneGhostCurrentMarkets(aggregatedBorrow);
+
             earn_borrowMarkets = new Set(Object.keys(aggregatedBorrow));
             earn_borrowPositionData = Object.values(aggregatedBorrow).map(pos => {
                 const meta = earn_subgraphTokens[String(pos.marketId)] || {};
@@ -25982,6 +25994,16 @@
             if (actualCollateralPositive !== expectedCollateralPositive) return false;
             if (actualBorrowPositive && !expectedBorrowPositive) return false;
 
+            if (entry.usdDriftVerified) {
+                const tinyUsdDust = entry.maxUsdDrift != null && Number(entry.maxUsdDrift) < 0.1;
+                if (tinyUsdDust) {
+                    const noBorrowMismatch = actualBorrowPositive === expectedBorrowPositive;
+                    const sameExposureSides = actualSupplyPositive === expectedSupplyPositive
+                        && actualCollateralPositive === expectedCollateralPositive;
+                    if (sameExposureSides && noBorrowMismatch) return true;
+                }
+            }
+
             if (earn_absBigInt(entry.supplyParDiff) > entry.parTolerance) return false;
             if (earn_absBigInt(entry.collateralParDiff) > entry.parTolerance) return false;
             const supplyWithinWeiTolerance = earn_absBigInt(entry.supplyWeiDiff) <= entry.supplyWeiTolerance;
@@ -26001,6 +26023,24 @@
             if (actualCollateralPositive && !collateralWithinWeiTolerance) return true;
             if (actualBorrowPositive === expectedBorrowPositive) return true;
             return !actualBorrowPositive && expectedBorrowPositive;
+        }
+
+        function earn_shouldHideGhostCurrentMarket(entry) {
+            if (!entry || !entry.snapshotIncomplete || !entry.counted) return false;
+            const actualAnyExposure = entry.actualSupplyPar > 0n
+                || entry.actualSupplyWei > 0n
+                || entry.actualCollateralPar > 0n
+                || entry.actualCollateralWei > 0n
+                || entry.actualBorrowPar > 0n
+                || entry.actualBorrowWei > 0n;
+            if (actualAnyExposure) return false;
+            const expectedAnyExposure = entry.expectedSupplyPar > 0n
+                || entry.expectedSupplyWei > 0n
+                || entry.expectedCollateralPar > 0n
+                || entry.expectedCollateralWei > 0n
+                || entry.expectedBorrowPar > 0n
+                || entry.expectedBorrowWei > 0n;
+            return expectedAnyExposure;
         }
 
         function earn_getSnapshotLedgerPresentation(marketId, yieldCalc) {
@@ -26465,12 +26505,16 @@
                 const sameSign = (prevPar > 0n && currentPar > 0n) || (prevPar < 0n && currentPar < 0n);
                 const reducedExposure = sameSign && earn_absBigInt(currentPar) < earn_absBigInt(prevPar);
                 const fullyClosed = currentPar === 0n;
-                if (!reducedExposure && !fullyClosed) return;
-
                 const flipsSign = prevPar !== 0n && currentPar !== 0n &&
                     ((prevPar > 0n && currentPar < 0n) || (prevPar < 0n && currentPar > 0n));
+                if (!reducedExposure && !fullyClosed && !flipsSign) return;
 
-                earn_settleReducedExposureYield(state, currentPar);
+                // If current state crossed through zero versus replay, settle the old side fully
+                // and reopen the new side at the current index. That prevents stale ghost borrow
+                // or ghost supply from surviving just because replay and latest balances disagree
+                // on which side of zero this account/market key ended on.
+                const settleTargetPar = flipsSign ? 0n : currentPar;
+                earn_settleReducedExposureYield(state, settleTargetPar);
                 state.par = currentPar;
                 if (state.par > 0n) state.hadSupply = true;
                 if (state.par < 0n) state.hadBorrow = true;
