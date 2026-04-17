@@ -24,10 +24,8 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
-import os
+import re
 import subprocess
-import sys
 import tempfile
 from collections import Counter
 from datetime import datetime, timezone
@@ -680,6 +678,24 @@ def explain_nonverified_reason(market: Optional[dict]) -> str:
     return f"{status}:{market.get('method') or 'unknown'}"
 
 
+def parse_reason_tokens(reason: str) -> List[str]:
+    raw = str(reason or "").strip()
+    if not raw:
+        return []
+    return [part.strip() for part in raw.split(" | ") if part.strip()]
+
+
+def extract_root_causes(reason: str) -> List[str]:
+    out: List[str] = []
+    for token in parse_reason_tokens(reason):
+        if ":" not in token:
+            out.append(token)
+            continue
+        _, suffix = token.split(":", 1)
+        out.append(suffix)
+    return out
+
+
 def build_static_report(
     chain: str,
     symbol: str,
@@ -699,6 +715,8 @@ def build_static_report(
 
     status_counts = Counter()
     method_counts = Counter()
+    reason_counts = Counter()
+    root_cause_counts = Counter()
     unresolved = []
 
     for holder in holders:
@@ -711,12 +729,16 @@ def build_static_report(
         method_counts[method] += 1
 
         if status not in ("verified", "pre_snapshot_carry"):
+            reason = explain_nonverified_reason(market)
+            if reason:
+                reason_counts[reason] += 1
+                root_cause_counts.update(extract_root_causes(reason))
             unresolved.append(
                 {
                     "wallet": address,
                     "status": status,
                     "method": method,
-                    "reason": explain_nonverified_reason(market),
+                    "reason": reason,
                     "wei": holder["wei"],
                     "balance": holder["balance"],
                     "balanceUsd": None,
@@ -733,6 +755,8 @@ def build_static_report(
         "holderCount": len(holders),
         "statusCounts": dict(status_counts),
         "methodCounts": dict(method_counts),
+        "reasonCounts": dict(reason_counts),
+        "rootCauseCounts": dict(root_cause_counts),
         "resolvedCount": status_counts.get("verified", 0) + status_counts.get("pre_snapshot_carry", 0),
         "unresolvedCount": len(unresolved),
         "unresolved": unresolved,
@@ -769,6 +793,7 @@ def print_static_summary(report: dict) -> None:
                 "resolvedCount": report["resolvedCount"],
                 "unresolvedCount": report["unresolvedCount"],
                 "statusCounts": status_counts,
+                "rootCauseCounts": report["rootCauseCounts"],
             },
             ensure_ascii=False,
             indent=2,
@@ -875,42 +900,135 @@ def run_live_command(args: argparse.Namespace) -> int:
     return 0
 
 
+TIMEOUT_CATEGORIES = {
+    "eval_timeout",
+    "timeout_pending",
+    "timeout_snapshot_only",
+    "timeout_hidden_collateral",
+    "timeout_other",
+    "timeout_no_snapshot",
+}
+
+VERIFIED_CATEGORIES = {
+    "replay_verified",
+    "public_verified",
+    "hidden_collateral_verified",
+    "snapshot_verified",
+    "verified_other",
+}
+
+
+def parse_balance_usd_from_cell(cell: Optional[str]) -> Optional[float]:
+    text = str(cell or "")
+    match = re.search(r"≈\s*\$([0-9][0-9,]*(?:\.[0-9]+)?)(K|M|B)?", text)
+    if not match:
+        return None
+    value = float(match.group(1).replace(",", ""))
+    suffix = match.group(2) or ""
+    mult = {"": 1.0, "K": 1_000.0, "M": 1_000_000.0, "B": 1_000_000_000.0}[suffix]
+    return value * mult
+
+
+def parse_live_row_pattern(row: dict) -> Tuple[str, str]:
+    category = str(row.get("category") or "unknown")
+    if category in VERIFIED_CATEGORIES:
+        return ("verified", "verified")
+    if category == "missing_position":
+        return ("missing_live_position", "info")
+
+    focus = row.get("focusMarket") or {}
+    verify = focus.get("verificationData") or {}
+    market_row = row.get("marketRow") or {}
+    reason = str(row.get("staticReason") or "")
+    root_causes = extract_root_causes(reason)
+    max_usd_drift = verify.get("maxUsdDrift")
+    balance_usd = parse_balance_usd_from_cell(market_row.get("balanceCell"))
+    loading_row = "loading" in str(market_row.get("yieldCell") or "").lower()
+
+    if category in TIMEOUT_CATEGORIES:
+        if "par_drift_above_tolerance" in root_causes:
+            return ("loading_timeout_par_drift", "medium")
+        if "netflow_exceeds_first_snapshot" in root_causes:
+            severity = "medium"
+            if max_usd_drift is not None and float(max_usd_drift) < 1:
+                severity = "low"
+            return ("loading_timeout_netflow_baseline", severity)
+        return ("loading_timeout_other", "medium" if loading_row else "low")
+
+    if category == "snapshot_only":
+        drift = float(max_usd_drift) if max_usd_drift is not None else None
+        if drift is not None and drift >= 1:
+            return ("material_snapshot_mismatch", "high")
+        if drift is not None and drift <= 0.01:
+            return ("tiny_snapshot_dust", "low")
+        if balance_usd is not None and balance_usd < 0.5:
+            return ("tiny_snapshot_balance", "low")
+        return ("snapshot_only_other", "medium")
+
+    if category == "hidden_collateral_other":
+        drift = float(max_usd_drift) if max_usd_drift is not None else None
+        if drift is not None and drift >= 1:
+            return ("material_hidden_collateral_gap", "medium")
+        return ("hidden_collateral_dust", "low")
+
+    if category == "borrow_only":
+        return ("borrow_only_position", "medium")
+
+    return (f"unclassified_{category}", "medium")
+
+
 def summarize_live_results(payload: dict) -> dict:
     counts = Counter(payload.get("counts") or {})
     results = payload.get("results") or []
     if not counts and results:
         counts = Counter((row.get("category") or "unknown") for row in results)
 
-    verified_categories = {
-        "replay_verified",
-        "public_verified",
-        "hidden_collateral_verified",
-        "snapshot_verified",
-        "verified_other",
-    }
     real_nonverified_categories = {
         "snapshot_only",
         "hidden_collateral_other",
-    }
-    timeout_categories = {
-        "eval_timeout",
-        "timeout_pending",
-        "timeout_snapshot_only",
-        "timeout_hidden_collateral",
-        "timeout_other",
-        "timeout_no_snapshot",
     }
     missing_categories = {
         "missing_position",
     }
 
-    verified = sum(counts.get(cat, 0) for cat in verified_categories)
+    verified = sum(counts.get(cat, 0) for cat in VERIFIED_CATEGORIES)
     real_nonverified = sum(counts.get(cat, 0) for cat in real_nonverified_categories)
-    timeouts = sum(counts.get(cat, 0) for cat in timeout_categories)
+    timeouts = sum(counts.get(cat, 0) for cat in TIMEOUT_CATEGORIES)
     missing = sum(counts.get(cat, 0) for cat in missing_categories)
     completed = int(payload.get("completed") or sum(counts.values()))
     input_count = int(payload.get("inputCount") or completed)
     active_checked = max(0, completed - missing)
+    pattern_counts = Counter()
+    severity_counts = Counter()
+    root_cause_counts = Counter()
+    for row in results:
+        pattern, severity = parse_live_row_pattern(row)
+        pattern_counts[pattern] += 1
+        severity_counts[severity] += 1
+        root_causes = extract_root_causes(str(row.get("staticReason") or ""))
+        if root_causes:
+            root_cause_counts.update(root_causes)
+
+    top_real_patterns = []
+    for row in results:
+        pattern, severity = parse_live_row_pattern(row)
+        if pattern == "verified" or pattern == "missing_live_position":
+            continue
+        if pattern.startswith("loading_timeout"):
+            continue
+        focus = row.get("focusMarket") or {}
+        verify = focus.get("verificationData") or {}
+        top_real_patterns.append(
+            {
+                "pattern": pattern,
+                "severity": severity,
+                "category": row.get("category"),
+                "rootCauses": extract_root_causes(str(row.get("staticReason") or "")),
+                "maxUsdDrift": verify.get("maxUsdDrift"),
+                "balanceCell": (row.get("marketRow") or {}).get("balanceCell"),
+                "yieldCell": (row.get("marketRow") or {}).get("yieldCell"),
+            }
+        )
 
     return {
         "generatedAt": utc_now_iso(),
@@ -925,6 +1043,10 @@ def summarize_live_results(payload: dict) -> dict:
         "timeouts": timeouts,
         "missingPosition": missing,
         "counts": dict(counts),
+        "patternCounts": dict(pattern_counts),
+        "severityCounts": dict(severity_counts),
+        "rootCauseCounts": dict(root_cause_counts),
+        "topRealPatterns": top_real_patterns[:10],
     }
 
 
