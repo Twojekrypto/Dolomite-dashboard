@@ -23995,9 +23995,9 @@
         function earn_getReplayTimeouts(chainId) {
             const cid = String(chainId || '').trim().toLowerCase();
             if (cid === 'arbitrum') {
-                return { subgraphMs: 35000, onchainMs: 90000 };
+                return { subgraphMs: 35000, onchainMs: 90000, softOnchainMs: 15000 };
             }
-            return { subgraphMs: 12000, onchainMs: 15000 };
+            return { subgraphMs: 12000, onchainMs: 15000, softOnchainMs: 0 };
         }
 
         function earn_isRpcRangeError(message) {
@@ -30033,6 +30033,10 @@
         // Fetch yield data directly from onchain logs and market getters.
         async function earn_fetchNetflow(opts) {
             opts = opts || {};
+            const replayRunId = Number(opts.runId || earn_activeLookupRunId || 0);
+            const onAsyncReplayUpdate = typeof opts.onAsyncReplayUpdate === 'function'
+                ? opts.onAsyncReplayUpdate
+                : null;
             earn_netflowData = null;
             earn_acct0NetflowData = null;
             earn_interestYieldData = null;
@@ -30059,6 +30063,17 @@
 
             const addr = document.getElementById('earn-address').value.trim().toLowerCase();
             if (!addr) return;
+
+            const hasReplayData = replay => !!(
+                replay && (
+                    Object.keys(replay.netflows || {}).length > 0 ||
+                    Object.keys(replay.interestYieldData || {}).length > 0
+                )
+            );
+            const settleReplay = promise => promise.then(
+                value => ({ status: 'fulfilled', value }),
+                reason => ({ status: 'rejected', reason })
+            );
 
             const applyReplayResult = (replay, useSubgraphMode) => {
                 Object.entries(replay.marketMeta || {}).forEach(([mid, meta]) => {
@@ -30095,105 +30110,93 @@
                 );
             };
 
-            const replayStartTs = (typeof performance !== 'undefined' && performance.now)
-                ? performance.now()
-                : Date.now();
-            const replayTimeouts = earn_getReplayTimeouts(document.getElementById('earn-chain')?.value || '');
-            const [subgraphResult, onchainResult] = await Promise.allSettled([
-                earn_withTimeout(
-                    earn_buildSubgraphReplay(addr),
-                    replayTimeouts.subgraphMs,
-                    'Subgraph replay'
-                ),
-                earn_withTimeout(
-                    earn_buildOnchainReplay(addr, { blockTag: earn_replayBlockTag }),
-                    replayTimeouts.onchainMs,
-                    'Onchain replay'
-                ),
-            ]);
+            const finalizeReplaySelection = async (subgraphResult, onchainResult) => {
+                const subgraphReplay = subgraphResult && subgraphResult.status === 'fulfilled'
+                    ? subgraphResult.value
+                    : null;
+                const subgraphError = subgraphResult && subgraphResult.status === 'rejected'
+                    ? subgraphResult.reason
+                    : null;
+                const hasSubgraphData = hasReplayData(subgraphReplay);
 
-            let subgraphReplay = null;
-            let subgraphError = null;
-            let hasSubgraphData = false;
-            if (subgraphResult.status === 'fulfilled') {
-                subgraphReplay = subgraphResult.value;
-                hasSubgraphData =
-                    Object.keys(subgraphReplay.netflows || {}).length > 0 ||
-                    Object.keys(subgraphReplay.interestYieldData || {}).length > 0;
-            } else {
-                subgraphError = subgraphResult.reason;
-                console.warn('Subgraph replay failed:', subgraphResult.reason);
-            }
-
-            let onchainReplay = null;
-            if (onchainResult.status === 'fulfilled') {
-                onchainReplay = onchainResult.value;
-            } else {
-                const onchainErr = onchainResult.reason;
-                if (subgraphReplay) {
-                    applyReplayResult(subgraphReplay, true);
-                    console.log(`Replay settled in ${Math.round((((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - replayStartTs))}ms (subgraph fallback).`);
-                    return;
+                let onchainReplay = null;
+                if (onchainResult && onchainResult.status === 'fulfilled') {
+                    onchainReplay = onchainResult.value;
+                } else {
+                    const onchainErr = onchainResult ? onchainResult.reason : null;
+                    if (subgraphReplay) {
+                        let replay = subgraphReplay;
+                        replay = await earn_refreshReplayWithLiveCurrentIndexes(replay, {
+                            blockTag: earn_replayBlockTag,
+                        });
+                        return { replay, useSubgraphMode: true };
+                    }
+                    if (subgraphError) throw subgraphError;
+                    throw onchainErr || new Error('Replay unavailable');
                 }
-                if (subgraphError) throw subgraphError;
-                throw onchainErr;
-            }
 
-            let replay = onchainReplay;
-            if (subgraphReplay) {
-                const onchainHasData =
-                    Object.keys(onchainReplay.netflows || {}).length > 0 ||
-                    Object.keys(onchainReplay.interestYieldData || {}).length > 0;
-                if (!onchainHasData && hasSubgraphData) {
-                    replay = subgraphReplay;
-                    console.warn(
-                        'Onchain replay returned no data; switched to subgraph replay fallback.'
-                    );
-                } else if (hasSubgraphData && onchainHasData) {
-                    const coverage = await earn_shouldUseSubgraphReplay(addr, onchainReplay);
-                    if (coverage.shouldFallback) {
-                        if (coverage.reason === 'missing-active-accounts') {
-                            const supplementedReplay = earn_mergeReplayMissingAccounts(
-                                onchainReplay,
-                                subgraphReplay,
-                                coverage.missingAccounts || []
-                            );
-                            if (supplementedReplay !== onchainReplay) {
-                                replay = supplementedReplay;
-                                console.warn(
-                                    `Coverage gap detected (${coverage.reason}); supplemented onchain replay with subgraph state for missing active accounts.`,
-                                    {
-                                        missingAccounts: coverage.missingAccounts || [],
-                                        missingMarkets: coverage.missingMarkets || [],
-                                    }
+                let replay = onchainReplay;
+                if (subgraphReplay) {
+                    const onchainHasData = hasReplayData(onchainReplay);
+                    if (!onchainHasData && hasSubgraphData) {
+                        replay = subgraphReplay;
+                        console.warn(
+                            'Onchain replay returned no data; switched to subgraph replay fallback.'
+                        );
+                    } else if (hasSubgraphData && onchainHasData) {
+                        const coverage = await earn_shouldUseSubgraphReplay(addr, onchainReplay);
+                        if (coverage.shouldFallback) {
+                            if (coverage.reason === 'missing-active-accounts') {
+                                const supplementedReplay = earn_mergeReplayMissingAccounts(
+                                    onchainReplay,
+                                    subgraphReplay,
+                                    coverage.missingAccounts || []
                                 );
+                                if (supplementedReplay !== onchainReplay) {
+                                    replay = supplementedReplay;
+                                    console.warn(
+                                        `Coverage gap detected (${coverage.reason}); supplemented onchain replay with subgraph state for missing active accounts.`,
+                                        {
+                                            missingAccounts: coverage.missingAccounts || [],
+                                            missingMarkets: coverage.missingMarkets || [],
+                                        }
+                                    );
+                                } else {
+                                    console.warn(
+                                        `Coverage gap detected (${coverage.reason}); no supplementable subgraph state found, keeping onchain replay.`,
+                                        {
+                                            missingAccounts: coverage.missingAccounts || [],
+                                            missingMarkets: coverage.missingMarkets || [],
+                                        }
+                                    );
+                                }
+                            } else if (coverage.reason === 'missing-active-markets') {
+                                const supplementedReplay = earn_mergeReplayMissingMarkets(
+                                    onchainReplay,
+                                    subgraphReplay,
+                                    coverage.missingMarkets || []
+                                );
+                                if (supplementedReplay !== onchainReplay) {
+                                    replay = supplementedReplay;
+                                    console.warn(
+                                        `Coverage gap detected (${coverage.reason}); supplemented onchain replay with subgraph state for missing active markets.`,
+                                        {
+                                            missingAccounts: coverage.missingAccounts || [],
+                                            missingMarkets: coverage.missingMarkets || [],
+                                        }
+                                    );
+                                } else {
+                                    console.warn(
+                                        `Coverage gap detected (${coverage.reason}); no supplementable subgraph state found, keeping onchain replay.`,
+                                        {
+                                            missingAccounts: coverage.missingAccounts || [],
+                                            missingMarkets: coverage.missingMarkets || [],
+                                        }
+                                    );
+                                }
                             } else {
                                 console.warn(
-                                    `Coverage gap detected (${coverage.reason}); no supplementable subgraph state found, keeping onchain replay.`,
-                                    {
-                                        missingAccounts: coverage.missingAccounts || [],
-                                        missingMarkets: coverage.missingMarkets || [],
-                                    }
-                                );
-                            }
-                        } else if (coverage.reason === 'missing-active-markets') {
-                            const supplementedReplay = earn_mergeReplayMissingMarkets(
-                                onchainReplay,
-                                subgraphReplay,
-                                coverage.missingMarkets || []
-                            );
-                            if (supplementedReplay !== onchainReplay) {
-                                replay = supplementedReplay;
-                                console.warn(
-                                    `Coverage gap detected (${coverage.reason}); supplemented onchain replay with subgraph state for missing active markets.`,
-                                    {
-                                        missingAccounts: coverage.missingAccounts || [],
-                                        missingMarkets: coverage.missingMarkets || [],
-                                    }
-                                );
-                            } else {
-                                console.warn(
-                                    `Coverage gap detected (${coverage.reason}); no supplementable subgraph state found, keeping onchain replay.`,
+                                    `Coverage gap detected (${coverage.reason}); keeping onchain replay in accuracy-first mode.`,
                                     {
                                         missingAccounts: coverage.missingAccounts || [],
                                         missingMarkets: coverage.missingMarkets || [],
@@ -30201,27 +30204,125 @@
                                 );
                             }
                         } else {
-                            console.warn(
-                                `Coverage gap detected (${coverage.reason}); keeping onchain replay in accuracy-first mode.`,
-                                {
-                                    missingAccounts: coverage.missingAccounts || [],
-                                    missingMarkets: coverage.missingMarkets || [],
-                                }
-                            );
+                            console.log('Using onchain replay (coverage OK, subgraph kept as emergency fallback).');
                         }
-                    } else {
-                        console.log('Using onchain replay (coverage OK, subgraph kept as emergency fallback).');
                     }
                 }
+
+                if (replay && replay !== onchainReplay) {
+                    replay = await earn_refreshReplayWithLiveCurrentIndexes(replay, {
+                        blockTag: earn_replayBlockTag,
+                    });
+                }
+
+                return {
+                    replay,
+                    useSubgraphMode: replay === subgraphReplay,
+                };
+            };
+
+            const replayStartTs = (typeof performance !== 'undefined' && performance.now)
+                ? performance.now()
+                : Date.now();
+            const replayTimeouts = earn_getReplayTimeouts(document.getElementById('earn-chain')?.value || '');
+            const subgraphSettledPromise = settleReplay(
+                earn_withTimeout(
+                    earn_buildSubgraphReplay(addr),
+                    replayTimeouts.subgraphMs,
+                    'Subgraph replay'
+                )
+            );
+            const onchainSettledPromise = settleReplay(
+                earn_withTimeout(
+                    earn_buildOnchainReplay(addr, { blockTag: earn_replayBlockTag }),
+                    replayTimeouts.onchainMs,
+                    'Onchain replay'
+                )
+            );
+
+            let subgraphResult = null;
+            let onchainResult = null;
+
+            const firstSettled = await Promise.race([
+                subgraphSettledPromise.then(result => ({ source: 'subgraph', result })),
+                onchainSettledPromise.then(result => ({ source: 'onchain', result })),
+            ]);
+
+            if (firstSettled.source === 'subgraph') {
+                subgraphResult = firstSettled.result;
+                if (subgraphResult.status === 'rejected') {
+                    console.warn('Subgraph replay failed:', subgraphResult.reason);
+                }
+                const subgraphReplay = subgraphResult.status === 'fulfilled' ? subgraphResult.value : null;
+                if (
+                    hasReplayData(subgraphReplay) &&
+                    replayTimeouts.softOnchainMs &&
+                    replayTimeouts.softOnchainMs < replayTimeouts.onchainMs
+                ) {
+                    const replayElapsedMs = Math.max(
+                        0,
+                        (((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - replayStartTs)
+                    );
+                    const softWaitMs = Math.max(0, replayTimeouts.softOnchainMs - replayElapsedMs);
+                    const softOnchainResult = await Promise.race([
+                        onchainSettledPromise.then(result => ({ kind: 'settled', result })),
+                        earn_sleep(softWaitMs).then(() => ({ kind: 'soft-timeout' })),
+                    ]);
+
+                    if (softOnchainResult.kind === 'settled') {
+                        onchainResult = softOnchainResult.result;
+                    } else {
+                        let provisionalReplay = subgraphReplay;
+                        provisionalReplay = await earn_refreshReplayWithLiveCurrentIndexes(provisionalReplay, {
+                            blockTag: earn_replayBlockTag,
+                        });
+                        applyReplayResult(provisionalReplay, true);
+                        console.warn(
+                            `Onchain replay exceeded soft deadline (${replayTimeouts.softOnchainMs}ms); using subgraph replay while onchain continues in background.`
+                        );
+                        onchainSettledPromise.then(async settled => {
+                            if (!earn_isLookupRunCurrent(replayRunId)) return;
+                            if (settled.status === 'rejected') return;
+                            try {
+                                const finalSelection = await finalizeReplaySelection(subgraphResult, settled);
+                                if (!finalSelection || !finalSelection.replay) return;
+                                const replayChanged = finalSelection.replay !== provisionalReplay || !finalSelection.useSubgraphMode;
+                                if (!replayChanged) return;
+                                applyReplayResult(finalSelection.replay, finalSelection.useSubgraphMode);
+                                console.log(
+                                    `Replay upgraded in background after ${Math.round((((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - replayStartTs))}ms.`
+                                );
+                                if (onAsyncReplayUpdate) {
+                                    await onAsyncReplayUpdate({
+                                        source: finalSelection.useSubgraphMode ? 'subgraph' : 'onchain',
+                                    });
+                                }
+                            } catch (upgradeErr) {
+                                console.warn('Background replay upgrade failed:', upgradeErr);
+                            }
+                        }).catch(() => {});
+                        console.log(
+                            `Replay settled in ${Math.round((((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - replayStartTs))}ms (subgraph soft fallback).`
+                        );
+                        return;
+                    }
+                }
+            } else {
+                onchainResult = firstSettled.result;
             }
 
-            if (replay && replay !== onchainReplay) {
-                replay = await earn_refreshReplayWithLiveCurrentIndexes(replay, {
-                    blockTag: earn_replayBlockTag,
-                });
+            if (subgraphResult === null) {
+                subgraphResult = await subgraphSettledPromise;
+                if (subgraphResult.status === 'rejected') {
+                    console.warn('Subgraph replay failed:', subgraphResult.reason);
+                }
+            }
+            if (onchainResult === null) {
+                onchainResult = await onchainSettledPromise;
             }
 
-            applyReplayResult(replay, replay === subgraphReplay);
+            const finalSelection = await finalizeReplaySelection(subgraphResult, onchainResult);
+            applyReplayResult(finalSelection.replay, finalSelection.useSubgraphMode);
             console.log(`Replay settled in ${Math.round((((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - replayStartTs))}ms.`);
         }
 
@@ -30808,7 +30909,23 @@
                         return blockTag;
                     });
 
-                const replayPromise = replayBlockTagPromise.then(blockTag => earn_fetchNetflow({ blockTag }))
+                const replayPromise = replayBlockTagPromise.then(blockTag => earn_fetchNetflow({
+                    blockTag,
+                    runId: lookupRunId,
+                    onAsyncReplayUpdate: async () => {
+                        if (!isCurrentLookup()) return;
+                        earn_reconcileReplayToCachedCurrentPositions();
+                        earn_refreshReplayVerificationFromCachedPositions();
+                        earn_refreshResolvedTotalYieldData();
+                        earn_renderNotices();
+                        const tblRef = document.querySelector('.earn-asset-table');
+                        if (tblRef) tblRef.classList.add('no-animate');
+                        if (earn_cachedAssets && earn_cachedAssets.length > 0) {
+                            earn_renderResults(earn_cachedAssets, { skipSummary: false, softRefresh: true });
+                        }
+                        earn_saveLookupCache(chainId, addr);
+                    },
+                }))
                     .then(() => {
                         if (!isCurrentLookup()) return false;
                         earn_replayStatus = 'ready';
