@@ -120,6 +120,14 @@
 - **Premium UX over Debug Data**: When users click to expand an asset detail view (e.g. `earn_buildSupplyDetailRow`), do not flood them with raw debugging data (like "Ledger check"). Consolidate key metrics into clean, aesthetic "Asset Metrics" and "Yield Performance" panels. High-quality UI focuses on visual hierarchy and relevant data.
 - **Glassmorphism Detail Cards**: Apply subtle glassmorphism styles (`background: rgba(0,0,0,0.15)`, `border: 1px solid rgba(255,255,255,0.05)`) with animated gradient blur glows behind them to create an "institutional-grade" look without writing heavy CSS frameworks.
 
+## Earn Audit Workflow
+- **Always preserve wallet identity on timeout rows**: The live audit runner must include `address` even for `eval_timeout`, otherwise timeout retries cannot target the real remaining cohort and the summary overstates unresolved work.
+- **Use `full pass -> timeout retry -> tiny final retry`**: For large EARN cohorts, the best quality/speed tradeoff is one full pass for the whole unresolved input, then a focused retry only for timeout categories, and finally a tiny last retry for the few timeouts that survive the first retry.
+- **Do not count `missing_position` as active failure**: A wallet that no longer has the market live should be separated from active verification stats. Final `X/X verified` must use `active = cohort - missing_position`, not total cohort rows.
+- **Measure merged final state by latest result per wallet**: When combining a full pass with retries, compute the final report by overwriting older rows with the newest row for the same wallet. Raw row counts from intermediate files can be misleading.
+- **Timeout retries can convert the majority of unresolved cases**: For hard Arbitrum EARN cohorts, many apparent failures are just slow replay cases. A focused timeout retry can turn most of them into `replay_verified` without changing verification logic.
+- **Fast future audits should split easy and hard work**: The next iteration of `audit_earn_asset.py` should support a built-in `fast first pass + focused retries` mode so new asset audits finish sooner without relaxing correctness standards.
+
 ### GitHub Actions State Files
 **Wzorzec błędu:** Zapomnienie o dopisaniu nowo wygenerowanego pliku JSON z backendu (np. `vesting_investors.json`) do linijki `git add` w `.github/workflows/update-dolo-flows.yml`. Plik był poprawnie generowany, ale pipeline go odrzucał, co na produkcji dawało ciche errory i brak danych do oznaczania inwestorów.
 **Reguła na przyszłość:** Gdy skrypt pythona w GitHub Actions pisze do nowego pliku JSON, ZAWSZE zmodyfikuj definicję Workflow i jawnie go wypepchnij (git add plik.json).
