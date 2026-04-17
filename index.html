@@ -23082,6 +23082,8 @@
         let earn_replayActualSupplyMap = {};
         let earn_replayActualBorrowMap = {};
         let earn_replayActualCollateralMap = {};
+        let earn_replayCurrentPositions = [];
+        let earn_replayCurrentBorrowAccounts = new Set();
         let earn_replayEventData = []; // ordered replay events for diagnostics/debug
         let earn_replayVerificationData = {}; // { marketId: { status, diffs..., counted } }
         let earn_replayVerificationSummary = { total: 0, verified: 0, mismatch: 0, unverified: 0 };
@@ -23577,6 +23579,8 @@
             earn_replayActualSupplyMap = {};
             earn_replayActualBorrowMap = {};
             earn_replayActualCollateralMap = {};
+            earn_replayCurrentPositions = [];
+            earn_replayCurrentBorrowAccounts = new Set();
             earn_replayEventData = [];
             earn_replayVerificationData = {};
             earn_replayVerificationSummary = { total: 0, verified: 0, mismatch: 0, unverified: 0 };
@@ -23929,6 +23933,21 @@
             }
         }
 
+        function earn_getRpcRetryDelayMs(error, attempt) {
+            const msg = String((error && error.message) || error || '').toLowerCase();
+            if (msg.includes('429') || msg.includes('rate limit') || msg.includes('too many requests')) {
+                return 800 * (attempt + 1);
+            }
+            if (msg.includes('abort') || msg.includes('timeout')) {
+                return 400 * (attempt + 1);
+            }
+            return 0;
+        }
+
+        async function earn_sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+        }
+
         async function earn_rpcRequest(method, params, retries = 3) {
             for (let attempt = 0; attempt < retries; attempt++) {
                 const rpcUrl = earn_nextRpc();
@@ -23954,6 +23973,10 @@
                 } catch (e) {
                     clearTimeout(timer);
                     if (attempt === retries - 1) throw e;
+                    const delayMs = earn_getRpcRetryDelayMs(e, attempt);
+                    if (delayMs > 0) {
+                        await earn_sleep(delayMs);
+                    }
                 }
             }
         }
@@ -23972,7 +23995,7 @@
         function earn_getReplayTimeouts(chainId) {
             const cid = String(chainId || '').trim().toLowerCase();
             if (cid === 'arbitrum') {
-                return { subgraphMs: 30000, onchainMs: 20000 };
+                return { subgraphMs: 35000, onchainMs: 90000 };
             }
             return { subgraphMs: 12000, onchainMs: 15000 };
         }
@@ -24095,6 +24118,10 @@
                         const settled = await Promise.allSettled(calls.map(c => earn_rpcCall(c.to, c.data, 3, c.blockTag || 'latest')));
                         return settled.map(s => s.status === 'fulfilled' ? s.value : null);
                     }
+                    const delayMs = earn_getRpcRetryDelayMs(e, attempt);
+                    if (delayMs > 0) {
+                        await earn_sleep(delayMs);
+                    }
                 }
             }
         }
@@ -24191,25 +24218,25 @@
 
         async function earn_fetchUserActionLogs(addr, toBlockOverride) {
             const chain = earn_getChain();
+            const chainId = document.getElementById('earn-chain').value;
             const ownerTopic = earn_addrTopic(addr);
-            const latestHex = toBlockOverride || await earn_rpcRequest('eth_blockNumber', [], 3);
+            const latestHex = toBlockOverride || await earn_rpcRequest('eth_blockNumber', [], chainId === 'arbitrum' ? 5 : 3);
             const fromBlock = '0x' + BigInt(chain.logStartBlock || 0).toString(16);
             const baseFilter = {
                 address: chain.margin,
                 fromBlock,
                 toBlock: latestHex,
             };
-
-            const [topicOneLogs, topicTwoLogs] = await Promise.all([
-                earn_rpcGetLogs({
-                    ...baseFilter,
-                    topics: [EARN_ACTION_LOG_TOPICS_ALL, ownerTopic],
-                }, { initialChunk: 500000 }),
-                earn_rpcGetLogs({
-                    ...baseFilter,
-                    topics: [EARN_ACTION_LOG_TOPICS_SECOND_OWNER, null, ownerTopic],
-                }, { initialChunk: 500000 }),
-            ]);
+            const initialChunk = chainId === 'arbitrum' ? 250000 : 500000;
+            const logRetries = chainId === 'arbitrum' ? 5 : 3;
+            const topicOneLogs = await earn_rpcGetLogs({
+                ...baseFilter,
+                topics: [EARN_ACTION_LOG_TOPICS_ALL, ownerTopic],
+            }, { initialChunk, retries: logRetries });
+            const topicTwoLogs = await earn_rpcGetLogs({
+                ...baseFilter,
+                topics: [EARN_ACTION_LOG_TOPICS_SECOND_OWNER, null, ownerTopic],
+            }, { initialChunk, retries: logRetries });
 
             const merged = [];
             const seen = new Set();
@@ -24229,10 +24256,12 @@
             const indexTopic = EARN_INDEX_UPDATE_TOPICS[chainId] || EARN_INDEX_UPDATE_TOPICS.default;
             const blocks = Array.from(blockMarketMap.keys()).sort((a, b) => a - b);
             const byBlock = {};
+            const rpcConcurrency = chainId === 'arbitrum' ? 2 : 4;
+            const logRetries = chainId === 'arbitrum' ? 5 : 3;
 
             for (let i = 0; i < blocks.length; i += 8) {
                 const slice = blocks.slice(i, i + 8);
-                const results = await Promise.all(slice.map(async blockNumber => {
+                const results = await earn_mapWithConcurrency(slice, rpcConcurrency, async blockNumber => {
                     const marketTopics = Array.from(blockMarketMap.get(blockNumber) || []).map(earn_uintTopic);
                     if (marketTopics.length === 0) return { blockNumber, logs: [] };
                     const blockHex = '0x' + blockNumber.toString(16);
@@ -24241,9 +24270,9 @@
                         fromBlock: blockHex,
                         toBlock: blockHex,
                         topics: [indexTopic, marketTopics],
-                    }, { initialChunk: 1 });
+                    }, { initialChunk: 1, retries: logRetries });
                     return { blockNumber, logs: logs || [] };
-                }));
+                });
 
                 results.forEach(({ blockNumber, logs }) => {
                     const perMarket = {};
@@ -24269,6 +24298,7 @@
         async function earn_fetchReplayMarketMeta(marketIds, opts) {
             opts = opts || {};
             const chain = earn_getChain();
+            const chainId = document.getElementById('earn-chain').value;
             const blockTag = opts.blockTag || 'latest';
             const calls = [];
             const map = [];
@@ -24278,7 +24308,7 @@
                 calls.push({ to: chain.margin, data: EARN_SEL_GET_MARKET_CURRENT_INDEX + earn_padUint(mid), blockTag });
                 map.push({ marketId: String(mid), type: 'index' });
             });
-            const results = calls.length ? await earn_rpcBatch(calls) : [];
+            const results = calls.length ? await earn_rpcBatch(calls, chainId === 'arbitrum' ? 5 : 3) : [];
             const currentIndexMap = {};
             const tokenAddrByMarket = {};
 
@@ -24421,6 +24451,8 @@
             const chain = earn_getChain();
             const selector = '0x6a8194e7';
             const blockTag = opts.blockTag || earn_replayBlockTag || 'latest';
+            earn_replayCurrentPositions = [];
+            earn_replayCurrentBorrowAccounts = new Set();
             const fallbackAccountNum = String(document.getElementById('earn-account-num')?.value || '0');
             const getPositionKey = (accountNumber, marketId) => {
                 // marketId is unique per chain, so tokenAddr mismatches from partial RPC decoding
@@ -24524,6 +24556,39 @@
                 }
                 return recovered;
             };
+            const retryMissingAccountBalanceResults = async (results) => {
+                const nextResults = Array.isArray(results) ? results.slice() : [];
+                let recovered = 0;
+                for (let idx = 0; idx < nextResults.length; idx++) {
+                    if (nextResults[idx] !== null) continue;
+                    const accountNumber = accountNumbers[idx];
+                    let recoveredResult = null;
+                    for (let attempt = 0; attempt < 4; attempt++) {
+                        try {
+                            const retried = await earn_rpcCall(
+                                chain.margin,
+                                selector + earn_padAddr(addr) + earn_padUint(accountNumber),
+                                2,
+                                blockTag
+                            );
+                            if (retried !== null && retried !== undefined) {
+                                recoveredResult = retried;
+                                break;
+                            }
+                        } catch (retryErr) {
+                            console.warn('Active balance null-result retry failed for account', accountNumber, retryErr.message);
+                        }
+                    }
+                    if (recoveredResult !== null && recoveredResult !== undefined) {
+                        nextResults[idx] = recoveredResult;
+                        recovered += 1;
+                    }
+                }
+                if (recovered > 0) {
+                    console.log(`Active balance retry recovered ${recovered} incomplete account balance result(s).`);
+                }
+                return nextResults;
+            };
             let subgraphSnapshot = null;
             const ensureSubgraphSnapshot = async () => {
                 if (!subgraphSnapshot) subgraphSnapshot = await earn_fetchCurrentAccountsFromSubgraph(addr);
@@ -24608,6 +24673,8 @@
             let usedSubgraphFallback = false;
             let hiddenSupplyCount = 0;
             let supplementedFromSnapshot = 0;
+            let missingResultAccounts = new Set();
+            let incompleteCoverageAccounts = new Set();
             earn_hiddenCollateralSupplyMarkets = new Set();
             earn_replayVerificationIncompleteMarkets = new Set();
             try {
@@ -24616,10 +24683,15 @@
                     data: selector + earn_padAddr(addr) + earn_padUint(accountNum),
                     blockTag,
                 }));
-                const results = calls.length ? await earn_rpcBatch(calls) : [];
+                const initialResults = calls.length ? await earn_rpcBatch(calls) : [];
+                const results = await retryMissingAccountBalanceResults(initialResults);
                 const missingResults = results.reduce((acc, r) => acc + (r === null ? 1 : 0), 0);
                 if (missingResults > 0) {
-                    throw new Error(`RPC returned ${missingResults} incomplete account balance result(s)`);
+                    missingResultAccounts = new Set(
+                        accountNumbers.filter((accountNumber, idx) => results[idx] === null).map(v => String(v))
+                    );
+                    incompleteCoverageAccounts = new Set(Array.from(missingResultAccounts));
+                    console.warn(`Active balance lookup proceeding with ${missingResults} incomplete account balance result(s); missing account(s) will be supplemented from snapshot where possible.`);
                 }
                 const decodedByAccount = {};
 
@@ -24682,6 +24754,12 @@
                             seenPositionKeys = new Set(decodedPositions.map(pos => getPositionKey(pos.accountNumber, pos.marketId, pos.tokenAddr)));
                             console.log(`Active balance rescue recovered ${rescuedPositions} missing position(s) from direct RPC retries.`);
                         }
+                        rescueAccounts.forEach(accountNumber => {
+                            const expectedKeys = missingKeysByAccount[accountNumber];
+                            const finalCoverage = countCoveredPositionKeys(decodedByAccount[accountNumber] || [], expectedKeys);
+                            if (finalCoverage < expectedKeys.size) incompleteCoverageAccounts.add(String(accountNumber));
+                            else incompleteCoverageAccounts.delete(String(accountNumber));
+                        });
                     }
 
                     const seenSupplyKeys = new Set();
@@ -24693,12 +24771,17 @@
                     (snapshot.positions || []).forEach(pos => {
                         const acct = String(pos.accountNumber || '0');
                         const positionKey = getPositionKey(acct, pos.marketId, pos.tokenAddr);
+                        const supplementEntireAccount = incompleteCoverageAccounts.has(acct);
                         if (!seenPositionKeys.has(positionKey)) {
                             earn_replayVerificationIncompleteMarkets.add(String(pos.marketId));
                         }
-                        if (!(pos.wei > 0n)) return;
-                        if (seenSupplyKeys.has(positionKey)) return;
-                        seenSupplyKeys.add(positionKey);
+                        if (supplementEntireAccount) {
+                            if (seenPositionKeys.has(positionKey)) return;
+                        } else {
+                            if (!(pos.wei > 0n)) return;
+                            if (seenSupplyKeys.has(positionKey)) return;
+                            seenSupplyKeys.add(positionKey);
+                        }
                         supplemental.push({
                             ...pos,
                             accountNumber: acct,
@@ -24717,6 +24800,8 @@
 
                 earn_reconcileReplayToCurrentPositions(mergedPositions, { borrowAccounts });
                 earn_openBorrowAccounts = borrowAccounts;
+                earn_replayCurrentPositions = mergedPositions.map(pos => ({ ...pos }));
+                earn_replayCurrentBorrowAccounts = new Set(Array.from(borrowAccounts));
 
                 const filtered = filterBorrowCollateralSupply(mergedPositions, borrowAccounts);
                 hiddenSupplyCount = filtered.hiddenSupplyCount;
@@ -24743,6 +24828,8 @@
                     if (pos.wei < 0n || pos.par < 0n) borrowAccounts.add(acct);
                 });
                 earn_openBorrowAccounts = borrowAccounts;
+                earn_replayCurrentPositions = (snapshot.positions || []).map(pos => ({ ...pos }));
+                earn_replayCurrentBorrowAccounts = new Set(Array.from(borrowAccounts));
                 const filtered = filterBorrowCollateralSupply(snapshot.positions || [], borrowAccounts);
                 hiddenSupplyCount = filtered.hiddenSupplyCount;
                 earn_hiddenCollateralSupplyMarkets = filtered.hiddenMarketIds;
@@ -27498,6 +27585,14 @@
             earn_buildReplayVerification(actualSupplyMap, actualBorrowMap, actualCollateralMap);
         }
 
+        function earn_reconcileReplayToCachedCurrentPositions() {
+            if (!earn_replayCurrentPositions || earn_replayCurrentPositions.length === 0) return 0;
+            return earn_reconcileReplayToCurrentPositions(
+                earn_replayCurrentPositions,
+                { borrowAccounts: earn_replayCurrentBorrowAccounts || new Set() }
+            );
+        }
+
         function earn_parseNetflowEntry(flowData) {
             if (flowData === undefined || flowData === null) return null;
             if (typeof flowData === 'string') {
@@ -29756,6 +29851,8 @@
             earn_replayActualSupplyMap = {};
             earn_replayActualBorrowMap = {};
             earn_replayActualCollateralMap = {};
+            earn_replayCurrentPositions = [];
+            earn_replayCurrentBorrowAccounts = new Set();
             earn_subgraphTokens = {};
 
             const addr = document.getElementById('earn-address').value.trim().toLowerCase();
@@ -31027,6 +31124,7 @@
                     replayPromise.then(ok => {
                         if (!isCurrentLookup()) return null;
                         if (!ok) return null;
+                        earn_reconcileReplayToCachedCurrentPositions();
                         earn_refreshReplayVerificationFromCachedPositions();
                         return true;
                     }),
