@@ -26062,6 +26062,36 @@
             return hasGhostCollateral || hasGhostBorrow;
         }
 
+        function earn_getAlignedReplayWeiDriftAdjustment(entry) {
+            if (!entry || entry.snapshotIncomplete || !entry.counted) return null;
+            if (earn_absBigInt(entry.supplyParDiff) > entry.parTolerance) return null;
+            if (earn_absBigInt(entry.collateralParDiff) > entry.parTolerance) return null;
+            if (earn_absBigInt(entry.borrowParDiff) > entry.parTolerance) return null;
+
+            const supplyExposureAligned = (entry.actualSupplyPar > 0n) === (entry.expectedSupplyPar > 0n);
+            const collateralExposureAligned = (entry.actualCollateralPar > 0n) === (entry.expectedCollateralPar > 0n);
+            const borrowExposureAligned = (entry.actualBorrowPar > 0n) === (entry.expectedBorrowPar > 0n);
+            if (!supplyExposureAligned || !collateralExposureAligned || !borrowExposureAligned) return null;
+
+            if (entry.actualSupplyPar === 0n && entry.expectedSupplyPar === 0n && entry.supplyWeiDiff !== 0n) return null;
+            if (entry.actualCollateralPar === 0n && entry.expectedCollateralPar === 0n && entry.collateralWeiDiff !== 0n) return null;
+            if (entry.actualBorrowPar === 0n && entry.expectedBorrowPar === 0n && entry.borrowWeiDiff !== 0n) return null;
+
+            const totalYieldCorrection = entry.supplyWeiDiff + entry.collateralWeiDiff - entry.borrowWeiDiff;
+            if (totalYieldCorrection === 0n) return null;
+
+            return {
+                totalYieldCorrection,
+                supplyYieldCorrection: entry.supplyWeiDiff,
+                collateralYieldCorrection: entry.collateralWeiDiff,
+                borrowYieldCorrection: -entry.borrowWeiDiff,
+            };
+        }
+
+        function earn_shouldTrustAlignedReplayWeiDrift(entry) {
+            return !!earn_getAlignedReplayWeiDriftAdjustment(entry);
+        }
+
         function earn_shouldTrustSnapshotSupplementedReplay(entry) {
             if (!entry || !entry.snapshotIncomplete || !entry.counted) return false;
             if (!(entry.rawVerified || entry.usdDriftVerified)) return false;
@@ -26200,11 +26230,12 @@
             const requireVerifiedInterest = opts.requireVerifiedInterest !== false;
             const entry = earn_getVerification(mid);
             const trustedVisibleSupplyMismatch = earn_shouldTrustVisibleSupplyReplayMismatch(entry);
+            const trustedAlignedReplayWeiDrift = earn_shouldTrustAlignedReplayWeiDrift(entry);
             const trustedSnapshotSupplement = earn_shouldTrustSnapshotSupplementedReplay(entry);
             if (!requireVerifiedInterest) {
                 return {
                     trusted: true,
-                    status: (trustedVisibleSupplyMismatch || trustedSnapshotSupplement) ? 'verified' : (entry ? entry.status : 'unchecked'),
+                    status: (trustedVisibleSupplyMismatch || trustedAlignedReplayWeiDrift || trustedSnapshotSupplement) ? 'verified' : (entry ? entry.status : 'unchecked'),
                     entry,
                 };
             }
@@ -26223,8 +26254,8 @@
                 };
             }
             return {
-                trusted: entry.status === 'verified' || trustedVisibleSupplyMismatch || trustedSnapshotSupplement,
-                status: (trustedVisibleSupplyMismatch || trustedSnapshotSupplement) ? 'verified' : (entry.status || 'unverified'),
+                trusted: entry.status === 'verified' || trustedVisibleSupplyMismatch || trustedAlignedReplayWeiDrift || trustedSnapshotSupplement,
+                status: (trustedVisibleSupplyMismatch || trustedAlignedReplayWeiDrift || trustedSnapshotSupplement) ? 'verified' : (entry.status || 'unverified'),
                 entry,
             };
         }
@@ -26378,11 +26409,34 @@
             return null;
         }
 
+        function earn_shouldHoldActiveYieldForReplaySettlement(opts) {
+            opts = opts || {};
+            if (opts.requireVerifiedInterest === false) return false;
+            if (!opts.isActivePosition) return false;
+            if (opts.publicLedgerInference) return false;
+            if (opts.canUseVerifiedInterest || opts.canOverrideMismatchedSnapshot) return false;
+
+            const replayStillLoading = earn_replayStatus === 'loading' || earn_replayStatus === 'idle';
+            if (!replayStillLoading) return false;
+
+            const hasPotentialFallbackSource = !!(
+                opts.hasSnapshotData ||
+                opts.hasAllNetflow ||
+                opts.hasAcct0Netflow ||
+                opts.hasInterestYield ||
+                opts.snapshotTrusted
+            );
+            if (!hasPotentialFallbackSource) return false;
+
+            return true;
+        }
+
         function earn_getResolvedTotalYieldSource(method, rawSource) {
             const normalizedMethod = String(method || '');
             const fallbackSource = String(rawSource || '');
             switch (normalizedMethod) {
                 case 'interest-ledger':
+                case 'interest-ledger-live-balance-adjusted':
                 case 'interest-ledger-override':
                 case 'interest-ledger-pending':
                 case 'interest-ledger-unverified':
@@ -26779,6 +26833,109 @@
             };
         }
 
+        function earn_advanceReplayAccountStateDataToCurrentIndexes(accountStateData, currentIndexMap) {
+            const states = earn_deserializeReplayStateMap(accountStateData || {});
+            let advancedStates = 0;
+
+            Object.values(states).forEach(state => {
+                const par = BigInt(state.par || 0n);
+                if (par === 0n) return;
+
+                const idxMeta = currentIndexMap ? currentIndexMap[state.marketId] : null;
+                const nextIndexRaw = par > 0n
+                    ? idxMeta?.supplyIndex
+                    : idxMeta?.borrowIndex;
+                if (nextIndexRaw === null || nextIndexRaw === undefined) return;
+
+                const nextIndex = BigInt(nextIndexRaw);
+                if (state.lastIndex === null || state.lastIndex === undefined) {
+                    state.lastIndex = nextIndex;
+                    return;
+                }
+
+                const lastIndex = BigInt(state.lastIndex);
+                if (nextIndex <= lastIndex) {
+                    state.lastIndex = nextIndex;
+                    return;
+                }
+
+                const deltaIdx = nextIndex - lastIndex;
+                const deltaWei = (earn_absBigInt(par) * deltaIdx) / (10n ** 18n);
+                if (deltaWei !== 0n) {
+                    state.liveYield += par >= 0n ? deltaWei : -deltaWei;
+                    advancedStates++;
+                }
+                state.lastIndex = nextIndex;
+            });
+
+            return {
+                accountStateData: earn_serializeReplayStateMap(states),
+                advancedStates,
+            };
+        }
+
+        async function earn_refreshReplayWithLiveCurrentIndexes(replay, opts) {
+            opts = opts || {};
+            if (!replay || !replay.accountStateData || Object.keys(replay.accountStateData).length === 0) {
+                return replay;
+            }
+
+            const marketIds = Array.from(new Set([
+                ...Object.keys(replay.currentIndexMap || {}),
+                ...Object.keys(replay.marketMeta || {}),
+                ...Object.keys(replay.interestYieldData || {}),
+                ...Object.keys(replay.replayStateData || {}),
+                ...Object.keys(replay.netflows || {}),
+            ].map(mid => String(mid)).filter(Boolean)));
+            if (marketIds.length === 0) return replay;
+
+            try {
+                const liveMeta = await earn_fetchReplayMarketMeta(marketIds, {
+                    blockTag: opts.blockTag || earn_replayBlockTag || 'latest',
+                });
+                const liveCurrentIndexMap = {};
+                Object.entries(liveMeta.currentIndexMap || {}).forEach(([mid, meta]) => {
+                    liveCurrentIndexMap[String(mid)] = {
+                        supplyIndex: meta && meta.supplyIndex !== null && meta.supplyIndex !== undefined
+                            ? String(meta.supplyIndex)
+                            : null,
+                        borrowIndex: meta && meta.borrowIndex !== null && meta.borrowIndex !== undefined
+                            ? String(meta.borrowIndex)
+                            : null,
+                    };
+                });
+
+                const advanced = earn_advanceReplayAccountStateDataToCurrentIndexes(
+                    replay.accountStateData,
+                    liveCurrentIndexMap
+                );
+                const refreshedSummary = earn_summarizeReplayAccountStates(
+                    advanced.accountStateData,
+                    liveCurrentIndexMap
+                );
+
+                if (advanced.advancedStates > 0) {
+                    console.log(`Advanced ${advanced.advancedStates} replay state(s) to live current indexes.`);
+                }
+
+                return {
+                    ...replay,
+                    interestYieldData: refreshedSummary.interestYieldData || replay.interestYieldData || {},
+                    replayStateData: refreshedSummary.replayStateData || replay.replayStateData || {},
+                    openBorrowAccounts: refreshedSummary.openBorrowAccounts || replay.openBorrowAccounts || [],
+                    accountStateData: advanced.accountStateData,
+                    currentIndexMap: liveCurrentIndexMap,
+                    marketMeta: {
+                        ...(replay.marketMeta || {}),
+                        ...(liveMeta.marketMeta || {}),
+                    },
+                };
+            } catch (error) {
+                console.warn('Live replay index refresh failed:', error && error.message ? error.message : error);
+                return replay;
+            }
+        }
+
         function earn_mergeReplayMissingAccounts(primaryReplay, supplementReplay, missingAccounts) {
             const missing = new Set((missingAccounts || []).map(v => String(v)));
             if (missing.size === 0) return primaryReplay;
@@ -26949,12 +27106,34 @@
                 yieldCalc &&
                 yieldCalc.hasData &&
                 yieldCalc.trustedForTotal &&
-                (yieldCalc.method === 'interest-ledger' || yieldCalc.method === 'interest-ledger-override')
+                (
+                    yieldCalc.method === 'interest-ledger' ||
+                    yieldCalc.method === 'interest-ledger-override' ||
+                    yieldCalc.method === 'interest-ledger-live-balance-adjusted'
+                )
             );
             const trustedSnapshotSupplement = earn_shouldTrustSnapshotSupplementedReplay(entry);
+            const trustedAlignedReplayWeiDrift = earn_shouldTrustAlignedReplayWeiDrift(entry);
 
             if (snapshotLedgerPresentation) {
                 return snapshotLedgerPresentation;
+            }
+
+            if (entry && entry.counted && trustedAlignedReplayWeiDrift) {
+                const driftText = entry.hasUsdDrift
+                    ? ` Largest current-balance drift resolved from live balances: ${earn_formatUsdDrift(entry.maxUsdDrift)}.`
+                    : '';
+                return {
+                    counted: true,
+                    status: 'verified',
+                    label: 'VERIFIED',
+                    title: `Replay matches the live position structure exactly. The remaining current-balance wei drift is applied directly from the live onchain balance for this asset.${driftText}`,
+                    rawStatus: entry.status || 'unverified',
+                    rawLabel: entry.snapshotIncomplete ? 'Pending' : 'Mismatch',
+                    rawTitle: fallbackTitle,
+                    overridden: true,
+                    entry,
+                };
             }
 
             if (entry && entry.counted && entry.status === 'mismatch' && trustedReplayYield) {
@@ -27054,6 +27233,8 @@
             switch (method) {
                 case 'interest-ledger':
                     return { label: 'Replay', cls: 'replay', title: 'Yield source: onchain replay ledger.' };
+                case 'interest-ledger-live-balance-adjusted':
+                    return { label: 'Using Replay', cls: 'replay', title: 'Yield source: replay ledger with the open-position balance aligned to the live onchain current balance.' };
                 case 'interest-ledger-override':
                     return { label: 'Using Replay', cls: 'replay', title: 'Yield source: onchain replay ledger used because the older snapshot for this market was stale or mismatched.' };
                 case 'interest-ledger-pending':
@@ -27086,7 +27267,7 @@
 
         function earn_renderYieldSourceBadge(yieldCalc) {
             if (!yieldCalc || !yieldCalc.hasData) return '';
-            if (yieldCalc.method === 'interest-ledger') return '';
+            if (yieldCalc.method === 'interest-ledger' || yieldCalc.method === 'interest-ledger-live-balance-adjusted') return '';
             const meta = earn_getYieldMethodMeta(yieldCalc.method);
             return `<span class="earn-debug-badge ${meta.cls}" data-tip="${earn_escapeHtml(meta.title)}"><span class="earn-status-dot"></span>${earn_escapeHtml(meta.label)}</span>`;
         }
@@ -27711,6 +27892,10 @@
             const canOverrideMismatchedSnapshot = interestYieldCandidate !== null && snapshotMismatch;
             const canUseUnverifiedInterest = interestYieldCandidate !== null && !interestTrust.trusted && !requireVerifiedInterest;
             const replayVerificationPending = interestTrust.status === 'pending';
+            const alignedReplayWeiDrift = earn_getAlignedReplayWeiDriftAdjustment(interestTrust.entry);
+            const adjustedInterestYieldCandidate = interestYieldCandidate !== null && alignedReplayWeiDrift
+                ? (interestYieldCandidate + alignedReplayWeiDrift.totalYieldCorrection)
+                : interestYieldCandidate;
             const hasComplexNetflow = !!(flowMeta && flowMeta.hasBreakdown && (
                 flowMeta.totalBorrowed !== 0n ||
                 flowMeta.totalSwapped !== 0n ||
@@ -27728,8 +27913,20 @@
                 && !canUseVerifiedInterest
                 && !canOverrideMismatchedSnapshot
                 && !publicLedgerInference;
+            const shouldHoldActiveYieldForReplay = earn_shouldHoldActiveYieldForReplaySettlement({
+                requireVerifiedInterest,
+                isActivePosition,
+                publicLedgerInference,
+                canUseVerifiedInterest,
+                canOverrideMismatchedSnapshot,
+                hasSnapshotData,
+                hasAllNetflow,
+                hasAcct0Netflow,
+                hasInterestYield,
+                snapshotTrusted,
+            });
 
-            if (shouldDeferFallbackUntilReplaySettles || shouldBlockProvisionalFallback) {
+            if (shouldDeferFallbackUntilReplaySettles || shouldBlockProvisionalFallback || shouldHoldActiveYieldForReplay) {
                 return {
                     hasData: false,
                     method: 'interest-ledger-pending',
@@ -27744,9 +27941,9 @@
             }
 
             if (canUseVerifiedInterest || canOverrideMismatchedSnapshot) {
-                totalYield = interestYieldCandidate;
+                totalYield = adjustedInterestYieldCandidate;
                 method = canUseVerifiedInterest
-                    ? 'interest-ledger'
+                    ? (alignedReplayWeiDrift ? 'interest-ledger-live-balance-adjusted' : 'interest-ledger')
                     : replayVerificationPending
                         ? 'interest-ledger-pending'
                         : 'interest-ledger-override';
@@ -27798,9 +27995,14 @@
             }
 
             const settledYield = interestMeta ? BigInt(interestMeta.settledYield || '0') : 0n;
-            const openSupplyYield = interestMeta ? BigInt(interestMeta.openSupplyYield || '0') : 0n;
-            const openCollateralYield = interestMeta ? BigInt(interestMeta.openCollateralYield || '0') : 0n;
-            const openBorrowYield = interestMeta ? BigInt(interestMeta.openBorrowYield || '0') : 0n;
+            let openSupplyYield = interestMeta ? BigInt(interestMeta.openSupplyYield || '0') : 0n;
+            let openCollateralYield = interestMeta ? BigInt(interestMeta.openCollateralYield || '0') : 0n;
+            let openBorrowYield = interestMeta ? BigInt(interestMeta.openBorrowYield || '0') : 0n;
+            if (alignedReplayWeiDrift && (method === 'interest-ledger' || method === 'interest-ledger-live-balance-adjusted' || method === 'interest-ledger-override')) {
+                openSupplyYield += alignedReplayWeiDrift.supplyYieldCorrection;
+                openCollateralYield += alignedReplayWeiDrift.collateralYieldCorrection;
+                openBorrowYield += alignedReplayWeiDrift.borrowYieldCorrection;
+            }
 
             const price = earn_getUsdPrice(symbol, tokenAddr, chainId);
             const yieldUsdScaled = earn_getUsdValueScaled(totalYield, decimals, price);
@@ -27826,12 +28028,12 @@
                 decimals,
                 tokenAddr,
                 publicLedgerInference,
-                verificationStatus: (method === 'interest-ledger' || method === 'interest-ledger-override')
+                verificationStatus: (method === 'interest-ledger' || method === 'interest-ledger-override' || method === 'interest-ledger-live-balance-adjusted')
                     ? interestTrust.status
                     : publicLedgerInference
                         ? publicLedgerInference.status
                     : (snapshotStatus || interestTrust.status),
-                trustedForTotal: method === 'interest-ledger' || method === 'interest-ledger-override' || (
+                trustedForTotal: method === 'interest-ledger' || method === 'interest-ledger-override' || method === 'interest-ledger-live-balance-adjusted' || (
                     (method === 'snapshot' || method === 'snapshot-partial') && snapshotTrusted
                 ) || method === 'all-netflow-verified'
                     || method === 'all-netflow-pre-snapshot-carry'
@@ -30013,6 +30215,12 @@
                 }
             }
 
+            if (replay && replay !== onchainReplay) {
+                replay = await earn_refreshReplayWithLiveCurrentIndexes(replay, {
+                    blockTag: earn_replayBlockTag,
+                });
+            }
+
             applyReplayResult(replay, replay === subgraphReplay);
             console.log(`Replay settled in ${Math.round((((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - replayStartTs))}ms.`);
         }
@@ -31008,10 +31216,20 @@
                             earn_updateLookupLoadingUi(lookupRunId, {
                                 stageIndex: 2,
                                 progress: 0.76,
-                                detail: 'Verified yield is ready. Loading history, rewards and lending analytics before reveal.',
+                                detail: (earn_replayStatus === 'ready' || earn_replayStatus === 'error')
+                                    ? 'Verified yield is ready. Loading history, rewards and lending analytics before reveal.'
+                                    : 'Historical yield is loaded. Waiting for replay reconciliation before revealing the final verified result.',
                             });
                         }
-                        if (result && !earn_lookupLoading && earn_cachedAssets && earn_cachedAssets.length > 0) {
+                        if (
+                            result &&
+                            !earn_lookupLoading &&
+                            earn_cachedAssets &&
+                            earn_cachedAssets.length > 0 &&
+                            earn_replayStatus !== 'loading' &&
+                            earn_replayStatus !== 'idle' &&
+                            earn_replayVerificationReady
+                        ) {
                             const tblRef = document.querySelector('.earn-asset-table');
                             if (tblRef) tblRef.classList.add('no-animate');
                             earn_renderResults(earn_cachedAssets, { skipSummary: false, softRefresh: true });
