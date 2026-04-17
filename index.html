@@ -26533,6 +26533,15 @@
                 if (resolved) nextResolved[mid] = resolved;
             });
 
+            (earn_collateralPositionData || []).forEach(position => {
+                if (!position) return;
+                const mid = String(position.marketId);
+                activeMarketIds.add(mid);
+                if (!nextResolved[mid]) return;
+                const resolved = earn_buildResolvedTotalYieldEntry(mid, earn_calculateYield(position));
+                if (resolved) nextResolved[mid] = resolved;
+            });
+
             (earn_historyData || []).forEach(item => {
                 if (!item) return;
                 const mid = String(item.marketId);
@@ -28780,6 +28789,10 @@
             // Needed markets come from active assets discovered in the current lookup plus any
             // replay/netflow history that identifies withdrawn markets for this wallet.
             const neededMarkets = new Set(activeMarketIds.map(mid => String(mid)));
+            (earn_collateralPositionData || []).forEach(position => {
+                if (!position) return;
+                neededMarkets.add(String(position.marketId || ''));
+            });
             Object.keys(earn_netflowData || {}).forEach(mid => neededMarkets.add(String(mid)));
 
             // Preferred source: precomputed verified ledger for this exact address+chain.
