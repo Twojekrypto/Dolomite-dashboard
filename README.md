@@ -85,6 +85,7 @@ Notes:
 - audit outputs default to `/tmp` and should stay local/private
 - `static` is fast and good for cohort sizing plus unresolved filtering
 - `live` is slower but checks the real replay/verification behavior of the UI
+- `summarize-live` also groups root causes / patterns (for example timeout-heavy cases vs real snapshot mismatches)
 
 ---
 
