@@ -24715,6 +24715,7 @@
                     console.warn('Snapshot supplement skipped:', snapshotErr.message);
                 }
 
+                earn_reconcileReplayToCurrentPositions(mergedPositions, { borrowAccounts });
                 earn_openBorrowAccounts = borrowAccounts;
 
                 const filtered = filterBorrowCollateralSupply(mergedPositions, borrowAccounts);
@@ -26415,7 +26416,99 @@
             return serialized;
         }
 
-        function earn_summarizeReplayAccountStates(accountStateData, currentIndexMap) {
+        function earn_deserializeReplayStateMap(accountStateData) {
+            const states = {};
+            Object.entries(accountStateData || {}).forEach(([key, state]) => {
+                states[key] = {
+                    account: String(state.account || ''),
+                    marketId: String(state.marketId || ''),
+                    par: BigInt(state.par || '0'),
+                    lastIndex: state.lastIndex === null || state.lastIndex === undefined ? null : BigInt(state.lastIndex),
+                    settledYield: BigInt(state.settledYield || '0'),
+                    liveYield: BigInt(state.liveYield || '0'),
+                    hadSupply: !!state.hadSupply,
+                    hadBorrow: !!state.hadBorrow,
+                };
+            });
+            return states;
+        }
+
+        function earn_reconcileReplayToCurrentPositions(positions, opts) {
+            opts = opts || {};
+            if (!earn_replayAccountStateData || Object.keys(earn_replayAccountStateData).length === 0) return 0;
+
+            const currentParByKey = {};
+            const currentBorrowAccounts = new Set(
+                opts.borrowAccounts && typeof opts.borrowAccounts.forEach === 'function'
+                    ? Array.from(opts.borrowAccounts, acct => String(acct || '').trim()).filter(Boolean)
+                    : []
+            );
+            (positions || []).forEach(pos => {
+                const account = String(pos.accountNumber || '0');
+                const marketId = String(pos.marketId || '');
+                if (!marketId) return;
+                const key = `${account}|${marketId}`;
+                currentParByKey[key] = (currentParByKey[key] || 0n) + BigInt(pos.par || 0);
+                if (BigInt(pos.par || 0) < 0n || BigInt(pos.wei || 0) < 0n) {
+                    currentBorrowAccounts.add(account);
+                }
+            });
+
+            const states = earn_deserializeReplayStateMap(earn_replayAccountStateData);
+            let adjustedStates = 0;
+
+            Object.entries(states).forEach(([key, state]) => {
+                const prevPar = BigInt(state.par || 0n);
+                const currentPar = currentParByKey[key] !== undefined ? currentParByKey[key] : 0n;
+                if (prevPar === currentPar) return;
+
+                const sameSign = (prevPar > 0n && currentPar > 0n) || (prevPar < 0n && currentPar < 0n);
+                const reducedExposure = sameSign && earn_absBigInt(currentPar) < earn_absBigInt(prevPar);
+                const fullyClosed = currentPar === 0n;
+                if (!reducedExposure && !fullyClosed) return;
+
+                const flipsSign = prevPar !== 0n && currentPar !== 0n &&
+                    ((prevPar > 0n && currentPar < 0n) || (prevPar < 0n && currentPar > 0n));
+
+                earn_settleReducedExposureYield(state, currentPar);
+                state.par = currentPar;
+                if (state.par > 0n) state.hadSupply = true;
+                if (state.par < 0n) state.hadBorrow = true;
+                if (state.par === 0n || flipsSign) {
+                    state.settledYield += state.liveYield;
+                    state.liveYield = 0n;
+                }
+
+                const idxMeta = earn_replayCurrentIndexMap ? earn_replayCurrentIndexMap[state.marketId] : null;
+                const nextIndex = state.par > 0n
+                    ? idxMeta?.supplyIndex
+                    : state.par < 0n
+                        ? idxMeta?.borrowIndex
+                        : null;
+                state.lastIndex = nextIndex === null || nextIndex === undefined ? null : BigInt(nextIndex);
+                adjustedStates += 1;
+            });
+
+            const serialized = earn_serializeReplayStateMap(states);
+            const summary = earn_summarizeReplayAccountStates(
+                serialized,
+                earn_replayCurrentIndexMap || {},
+                { borrowAccountsOverride: currentBorrowAccounts }
+            );
+            earn_replayAccountStateData = serialized;
+            earn_interestYieldData = summary.interestYieldData || {};
+            earn_replayStateData = summary.replayStateData || {};
+            earn_openBorrowAccounts = new Set((summary.openBorrowAccounts || []).map(v => String(v)));
+            if (adjustedStates > 0) {
+                console.log(`Reconciled ${adjustedStates} replay state(s) to current positions.`);
+            } else {
+                console.log(`Reclassified replay summary using ${currentBorrowAccounts.size} current borrow account(s).`);
+            }
+            return adjustedStates;
+        }
+
+        function earn_summarizeReplayAccountStates(accountStateData, currentIndexMap, opts) {
+            opts = opts || {};
             const states = Object.values(accountStateData || {}).map(state => ({
                 account: String(state.account || ''),
                 marketId: String(state.marketId || ''),
@@ -26426,6 +26519,9 @@
                 hadBorrow: !!state.hadBorrow,
             }));
 
+            const borrowAccountsOverride = opts.borrowAccountsOverride && typeof opts.borrowAccountsOverride.forEach === 'function'
+                ? new Set(Array.from(opts.borrowAccountsOverride, acct => String(acct || '').trim()).filter(Boolean))
+                : null;
             const openBorrowAccounts = new Set();
             const accountHasOpenBorrow = {};
             states.forEach(state => {
@@ -26436,6 +26532,13 @@
                     accountHasOpenBorrow[state.account] = false;
                 }
             });
+            if (borrowAccountsOverride) {
+                states.forEach(state => {
+                    accountHasOpenBorrow[state.account] = borrowAccountsOverride.has(state.account);
+                });
+                openBorrowAccounts.clear();
+                borrowAccountsOverride.forEach(account => openBorrowAccounts.add(account));
+            }
 
             const interestYieldData = {};
             const replayStateData = {};
@@ -27889,6 +27992,8 @@
         let earn_resolvedTotalYieldData = null; // final per-market total-yield metadata after replay/netflow inference
         let earn_totalYieldDays = 0; // number of days the total yield spans
         let earn_interestYieldData = null; // { marketId: { earnYield, settledYield, openBorrowYield, openSupplyYield, openCollateralYield, currentBorrowPar, currentSupplyPar } }
+        let earn_replayAccountStateData = {}; // serialized per-account replay states before current-state reconciliation
+        let earn_replayCurrentIndexMap = {}; // { marketId: { supplyIndex, borrowIndex } } for replay summary rebuilds
 
         const EARN_DATA_BASE = ((window.location.protocol === 'http:' || window.location.protocol === 'https:')
             ? new URL('data/', window.location.href).href.replace(/\/$/, '')
@@ -29590,6 +29695,8 @@
             earn_netflowData = null;
             earn_acct0NetflowData = null;
             earn_interestYieldData = null;
+            earn_replayAccountStateData = {};
+            earn_replayCurrentIndexMap = {};
             earn_collateralPositionData = [];
             earn_replayAccountNumbers = [];
             earn_replayUsedSubgraphFallback = false;
@@ -29638,6 +29745,8 @@
                 earn_openBorrowAccounts = new Set((replay.openBorrowAccounts || []).map(v => String(v)));
                 earn_replayStateData = replay.replayStateData || {};
                 earn_replayEventData = replay.eventTrace || [];
+                earn_replayAccountStateData = replay.accountStateData || {};
+                earn_replayCurrentIndexMap = replay.currentIndexMap || {};
                 console.log(
                     `${useSubgraphMode ? 'Subgraph' : 'Onchain'} replay: ${Object.keys(earn_netflowData).length} markets, ${earn_replayAccountNumbers.length} account(s) for ${addr}`
                 );
