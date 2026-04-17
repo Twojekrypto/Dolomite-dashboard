@@ -26904,14 +26904,18 @@
                             : null,
                     };
                 });
+                const mergedCurrentIndexMap = earn_mergeReplayCurrentIndexMap(
+                    replay.currentIndexMap || {},
+                    liveCurrentIndexMap
+                );
 
                 const advanced = earn_advanceReplayAccountStateDataToCurrentIndexes(
                     replay.accountStateData,
-                    liveCurrentIndexMap
+                    mergedCurrentIndexMap
                 );
                 const refreshedSummary = earn_summarizeReplayAccountStates(
                     advanced.accountStateData,
-                    liveCurrentIndexMap
+                    mergedCurrentIndexMap
                 );
 
                 if (advanced.advancedStates > 0) {
@@ -26924,7 +26928,7 @@
                     replayStateData: refreshedSummary.replayStateData || replay.replayStateData || {},
                     openBorrowAccounts: refreshedSummary.openBorrowAccounts || replay.openBorrowAccounts || [],
                     accountStateData: advanced.accountStateData,
-                    currentIndexMap: liveCurrentIndexMap,
+                    currentIndexMap: mergedCurrentIndexMap,
                     marketMeta: {
                         ...(replay.marketMeta || {}),
                         ...(liveMeta.marketMeta || {}),
@@ -26934,6 +26938,78 @@
                 console.warn('Live replay index refresh failed:', error && error.message ? error.message : error);
                 return replay;
             }
+        }
+
+        function earn_mergeReplayCurrentIndexMeta(primaryMeta, supplementMeta) {
+            if (!primaryMeta && !supplementMeta) return null;
+            return {
+                supplyIndex: primaryMeta && primaryMeta.supplyIndex !== null && primaryMeta.supplyIndex !== undefined
+                    ? primaryMeta.supplyIndex
+                    : (supplementMeta && supplementMeta.supplyIndex !== null && supplementMeta.supplyIndex !== undefined
+                        ? supplementMeta.supplyIndex
+                        : null),
+                borrowIndex: primaryMeta && primaryMeta.borrowIndex !== null && primaryMeta.borrowIndex !== undefined
+                    ? primaryMeta.borrowIndex
+                    : (supplementMeta && supplementMeta.borrowIndex !== null && supplementMeta.borrowIndex !== undefined
+                        ? supplementMeta.borrowIndex
+                        : null),
+            };
+        }
+
+        function earn_mergeReplayCurrentIndexMap(primaryMap, supplementMap, predicate) {
+            const merged = { ...(primaryMap || {}) };
+            Object.entries(supplementMap || {}).forEach(([mid, meta]) => {
+                if (predicate && !predicate(String(mid), meta)) return;
+                merged[mid] = earn_mergeReplayCurrentIndexMeta(merged[mid] || null, meta || null);
+            });
+            return merged;
+        }
+
+        function earn_getReplayMarketsMissingCurrentIndexes(replay) {
+            const missing = new Set();
+            Object.entries((replay && replay.replayStateData) || {}).forEach(([mid, entry]) => {
+                const state = entry || {};
+                const idxMeta = (replay && replay.currentIndexMap && replay.currentIndexMap[mid]) || {};
+                const expectedSupplyPar = BigInt(state.expectedSupplyPar || '0');
+                const expectedCollateralPar = BigInt(state.expectedCollateralSupplyPar || '0');
+                const expectedBorrowPar = BigInt(state.expectedBorrowPar || '0');
+                const needsSupplyIndex = expectedSupplyPar > 0n || expectedCollateralPar > 0n;
+                const needsBorrowIndex = expectedBorrowPar > 0n;
+                if (needsSupplyIndex && (idxMeta.supplyIndex === null || idxMeta.supplyIndex === undefined)) {
+                    missing.add(String(mid));
+                    return;
+                }
+                if (needsBorrowIndex && (idxMeta.borrowIndex === null || idxMeta.borrowIndex === undefined)) {
+                    missing.add(String(mid));
+                }
+            });
+            return Array.from(missing);
+        }
+
+        function earn_supplementReplayCurrentIndexes(primaryReplay, supplementReplay, targetMarkets) {
+            const targets = new Set((targetMarkets || []).map(v => String(v)));
+            if (targets.size === 0) return primaryReplay;
+            if (!supplementReplay || !supplementReplay.currentIndexMap) return primaryReplay;
+            const mergedCurrentIndexMap = earn_mergeReplayCurrentIndexMap(
+                primaryReplay.currentIndexMap || {},
+                supplementReplay.currentIndexMap || {},
+                mid => targets.has(String(mid))
+            );
+            const mergedSummary = earn_summarizeReplayAccountStates(
+                primaryReplay.accountStateData || {},
+                mergedCurrentIndexMap
+            );
+            return {
+                ...primaryReplay,
+                interestYieldData: mergedSummary.interestYieldData || primaryReplay.interestYieldData || {},
+                replayStateData: mergedSummary.replayStateData || primaryReplay.replayStateData || {},
+                openBorrowAccounts: mergedSummary.openBorrowAccounts || primaryReplay.openBorrowAccounts || [],
+                currentIndexMap: mergedCurrentIndexMap,
+                marketMeta: {
+                    ...(supplementReplay.marketMeta || {}),
+                    ...(primaryReplay.marketMeta || {}),
+                },
+            };
         }
 
         function earn_mergeReplayMissingAccounts(primaryReplay, supplementReplay, missingAccounts) {
@@ -26952,10 +27028,10 @@
             });
             if (addedStates === 0) return primaryReplay;
 
-            const mergedCurrentIndexMap = { ...(primaryReplay.currentIndexMap || {}) };
-            Object.entries(supplementReplay.currentIndexMap || {}).forEach(([mid, meta]) => {
-                if (!mergedCurrentIndexMap[mid]) mergedCurrentIndexMap[mid] = meta;
-            });
+            const mergedCurrentIndexMap = earn_mergeReplayCurrentIndexMap(
+                primaryReplay.currentIndexMap || {},
+                supplementReplay.currentIndexMap || {}
+            );
 
             const mergedSummary = earn_summarizeReplayAccountStates(mergedAccountStateData, mergedCurrentIndexMap);
             const mergedNetflows = { ...(primaryReplay.netflows || {}) };
@@ -27003,11 +27079,11 @@
             });
             if (addedStates === 0) return primaryReplay;
 
-            const mergedCurrentIndexMap = { ...(primaryReplay.currentIndexMap || {}) };
-            Object.entries(supplementReplay.currentIndexMap || {}).forEach(([mid, meta]) => {
-                if (!missing.has(String(mid))) return;
-                if (!mergedCurrentIndexMap[mid]) mergedCurrentIndexMap[mid] = meta;
-            });
+            const mergedCurrentIndexMap = earn_mergeReplayCurrentIndexMap(
+                primaryReplay.currentIndexMap || {},
+                supplementReplay.currentIndexMap || {},
+                mid => missing.has(String(mid))
+            );
 
             const mergedSummary = earn_summarizeReplayAccountStates(mergedAccountStateData, mergedCurrentIndexMap);
             const mergedNetflows = { ...(primaryReplay.netflows || {}) };
@@ -30205,6 +30281,21 @@
                             }
                         } else {
                             console.log('Using onchain replay (coverage OK, subgraph kept as emergency fallback).');
+                        }
+                        const missingIndexMarkets = earn_getReplayMarketsMissingCurrentIndexes(replay);
+                        if (missingIndexMarkets.length > 0) {
+                            const supplementedReplay = earn_supplementReplayCurrentIndexes(
+                                replay,
+                                subgraphReplay,
+                                missingIndexMarkets
+                            );
+                            if (supplementedReplay !== replay) {
+                                replay = supplementedReplay;
+                                console.warn(
+                                    'Supplemented replay with subgraph current indexes for markets missing live supply/borrow indexes.',
+                                    { missingMarkets: missingIndexMarkets }
+                                );
+                            }
                         }
                     }
                 }
