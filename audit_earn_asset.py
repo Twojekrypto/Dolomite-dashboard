@@ -1,0 +1,979 @@
+#!/usr/bin/env python3
+"""
+Audit EARN asset correctness using local snapshots/netflow and optional live UI replay.
+
+This tool is intentionally local-first:
+- it reads committed public data from data/earn-snapshots and data/earn-netflow
+- it can drive a local browser session against localhost for live replay verification
+- generated audit inputs/results should stay local (default paths point to /tmp)
+
+Examples:
+  python3 audit_earn_asset.py static --chain arbitrum --symbol USDC \
+    --output /tmp/usdc_static_audit.json \
+    --unresolved-output /tmp/usdc_unresolved.json
+
+  python3 audit_earn_asset.py live --chain arbitrum --symbol USDC \
+    --localhost-url 'http://127.0.0.1:8902/index.html?cb=usdc_audit' \
+    --debug-json-url 'http://127.0.0.1:9555/json' \
+    --output /tmp/usdc_live_audit.json
+
+  python3 audit_earn_asset.py summarize-live --results /tmp/usdc_live_audit.json
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import math
+import os
+import subprocess
+import sys
+import tempfile
+from collections import Counter
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Dict, Iterable, List, Optional, Tuple
+
+from build_earn_verified_ledger import (
+    ROOT,
+    SNAPSHOT_DIR,
+    _build_address_ledger,
+    _collect_chain_snapshot_dates,
+    _get_tolerance,
+    _load_chain_snapshots,
+    _load_netflow_for_chain,
+    _parse_int,
+    _read_json,
+)
+
+
+LIVE_AUDIT_JS = r"""
+const fs = require('node:fs');
+const { execFileSync } = require('node:child_process');
+
+const INPUT_PATH = process.argv[2];
+const OUTPUT_PATH = process.argv[3];
+const BASE_URL = process.argv[4];
+const DEBUG_JSON = process.argv[5];
+const WORKERS = Math.max(1, Number(process.argv[6] || 2));
+const MARKET_ID = String(process.argv[7] || '');
+const SYMBOL = String(process.argv[8] || '');
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function readJson(path, fallback) {
+  try {
+    return JSON.parse(fs.readFileSync(path, 'utf8'));
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function curlJson(url) {
+  const raw = execFileSync('curl', ['-s', url], { encoding: 'utf8' });
+  return JSON.parse(raw);
+}
+
+function getDebugTargets() {
+  return curlJson(DEBUG_JSON);
+}
+
+function createTarget(url) {
+  const base = DEBUG_JSON.replace(/\/json$/, '/json/new?');
+  try {
+    const raw = execFileSync('curl', ['-s', '-X', 'PUT', base + url], { encoding: 'utf8' });
+    return JSON.parse(raw);
+  } catch (_) {
+    return null;
+  }
+}
+
+function getPageTargets() {
+  return getDebugTargets().filter(
+    (target) => target.type === 'page' && typeof target.url === 'string' && target.webSocketDebuggerUrl
+  );
+}
+
+async function ensurePageTargets(url, count) {
+  let pages = getPageTargets().filter((target) => target.url.startsWith(url));
+  while (pages.length < count) {
+    createTarget(url);
+    await sleep(500);
+    pages = getPageTargets().filter((target) => target.url.startsWith(url));
+  }
+  return pages.slice(-count);
+}
+
+function createCdpClient(wsUrl) {
+  const ws = new WebSocket(wsUrl);
+  let nextId = 1;
+  const pending = new Map();
+
+  const ready = new Promise((resolve, reject) => {
+    ws.addEventListener('open', resolve, { once: true });
+    ws.addEventListener('error', (event) => reject(event.error || new Error('WebSocket open failed')), { once: true });
+  });
+
+  ws.addEventListener('message', (event) => {
+    const payload = JSON.parse(event.data);
+    if (!payload.id) return;
+    const entry = pending.get(payload.id);
+    if (!entry) return;
+    pending.delete(payload.id);
+    if (payload.error) entry.reject(new Error(payload.error.message || 'CDP request failed'));
+    else entry.resolve(payload.result);
+  });
+
+  ws.addEventListener('close', () => {
+    for (const entry of pending.values()) entry.reject(new Error('CDP socket closed'));
+    pending.clear();
+  });
+
+  return {
+    ready,
+    async send(method, params = {}) {
+      const id = nextId++;
+      const packet = { id, method, params };
+      const result = new Promise((resolve, reject) => pending.set(id, { resolve, reject }));
+      ws.send(JSON.stringify(packet));
+      return result;
+    },
+    close() {
+      ws.close();
+    },
+  };
+}
+
+function toExpression(source) {
+  return `(() => { try { ${source} } catch (error) { return { ok: false, error: String((error && error.stack) || error || 'Unknown error') }; } })()`;
+}
+
+async function evaluate(cdp, source) {
+  const result = await cdp.send('Runtime.evaluate', {
+    expression: toExpression(source),
+    returnByValue: true,
+    awaitPromise: true,
+  });
+  return result.result ? result.result.value : undefined;
+}
+
+async function evaluateWithTimeout(cdp, source, timeoutMs) {
+  let timer = null;
+  try {
+    return await Promise.race([
+      evaluate(cdp, source),
+      new Promise((resolve) => {
+        timer = setTimeout(() => resolve({
+          ok: false,
+          category: 'eval_timeout',
+          error: `Evaluation timed out after ${timeoutMs}ms`,
+        }), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+function buildAuditSource(address) {
+  return `
+    const address = ${JSON.stringify(address)};
+    const marketId = ${JSON.stringify(MARKET_ID)};
+    const symbol = ${JSON.stringify(SYMBOL)};
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    const resetState = () => {
+      try { sessionStorage.clear(); } catch (_) {}
+      if (typeof earn_clearLookupLoadingUi === 'function') earn_clearLookupLoadingUi();
+      if (!window.__auditOrigFetchVerifiedLedger && typeof earn_fetchVerifiedLedgerForAddress === 'function') {
+        window.__auditOrigFetchVerifiedLedger = earn_fetchVerifiedLedgerForAddress;
+      }
+      if (!window.__auditOrigLoadLookupCache && typeof earn_loadLookupCache === 'function') {
+        window.__auditOrigLoadLookupCache = earn_loadLookupCache;
+      }
+      if (!window.__auditOrigSaveLookupCache && typeof earn_saveLookupCache === 'function') {
+        window.__auditOrigSaveLookupCache = earn_saveLookupCache;
+      }
+      earn_fetchVerifiedLedgerForAddress = async () => null;
+      earn_loadLookupCache = () => null;
+      earn_saveLookupCache = () => {};
+      if (typeof earn_lookupResultCache === 'object' && earn_lookupResultCache) {
+        Object.keys(earn_lookupResultCache).forEach((key) => delete earn_lookupResultCache[key]);
+      }
+      earn_cachedAssets = [];
+      earn_historyData = [];
+      earn_netflowData = null;
+      earn_acct0NetflowData = null;
+      earn_totalYieldData = null;
+      earn_resolvedTotalYieldData = null;
+      earn_totalYieldDays = 0;
+      earn_borrowPositionData = [];
+      earn_collateralPositionData = [];
+      earn_lendingPositions = [];
+      earn_replayAccountNumbers = [];
+      earn_lastReplayError = null;
+      earn_replayUsedSubgraphFallback = false;
+      earn_openBorrowAccounts = new Set();
+      earn_hiddenCollateralSupplyMarkets = new Set();
+      earn_subgraphAccountSnapshot = null;
+      earn_interestYieldData = null;
+      earn_replayStateData = {};
+      earn_replayBlockTag = null;
+      earn_replayVerificationIncompleteMarkets = new Set();
+      earn_replayActualSupplyMap = {};
+      earn_replayActualBorrowMap = {};
+      earn_replayActualCollateralMap = {};
+      earn_replayEventData = [];
+      earn_replayVerificationData = {};
+      earn_replayVerificationSummary = { total: 0, verified: 0, mismatch: 0, unverified: 0 };
+      earn_replayVerificationReady = false;
+      earn_totalYieldStatus = 'idle';
+      earn_replayStatus = 'idle';
+      earn_lookupLoading = false;
+      earn_lookupUsingCachedSnapshot = false;
+    };
+
+    const summarizePosition = (position) => {
+      if (!position) return null;
+      return {
+        accountNumber: String(position.accountNumber || '0'),
+        wei: String(position.wei || 0n),
+        par: String(position.par || 0n),
+        isCollateral: !!position.isCollateral,
+        isBorrow: !!position.isBorrow,
+      };
+    };
+
+    const captureState = (label) => {
+      const rows = Array.from(document.querySelectorAll('#earn-table-body tr.earn-data-row'));
+      const marketRow = rows.find((row) => {
+        const tokenName = (row.querySelector('.earn-token-name')?.textContent || '').replace(/\\s+/g, ' ').trim();
+        return tokenName === symbol;
+      }) || null;
+      const visiblePosition = (earn_cachedAssets || []).find((pos) =>
+        String(pos.marketId || '') === marketId && !pos.isBorrow && !pos.isCollateral
+      ) || null;
+      const collateralPosition = (earn_collateralPositionData || []).find((pos) =>
+        String(pos.marketId || '') === marketId
+      ) || null;
+      const borrowPosition = (earn_borrowPositionData || []).find((pos) =>
+        String(pos.marketId || '') === marketId
+      ) || null;
+      const targetPosition = visiblePosition || collateralPosition || null;
+      const calc = targetPosition
+        ? earn_calculateYield(targetPosition, { requireVerifiedInterest: true })
+        : null;
+      const resolved = typeof earn_getResolvedTotalYieldEntry === 'function'
+        ? earn_getResolvedTotalYieldEntry(marketId)
+        : null;
+      const verify = earn_replayVerificationData ? earn_replayVerificationData[marketId] : null;
+
+      return {
+        label,
+        title: document.title,
+        href: location.href,
+        lookupLoading: !!earn_lookupLoading,
+        loadingGateActive: !!(earn_lookupLoadingUi && earn_lookupLoadingUi.active),
+        totalYieldStatus: String(earn_totalYieldStatus || ''),
+        replayStatus: String(earn_replayStatus || ''),
+        replayVerificationReady: !!earn_replayVerificationReady,
+        replayUsedSubgraphFallback: !!earn_replayUsedSubgraphFallback,
+        lastReplayError: (typeof earn_lastReplayError !== 'undefined' && earn_lastReplayError)
+          ? String(earn_lastReplayError.message || earn_lastReplayError)
+          : '',
+        positionKind: visiblePosition
+          ? 'visible_supply'
+          : collateralPosition
+            ? 'hidden_collateral'
+            : borrowPosition
+              ? 'borrow_only'
+              : 'missing',
+        visiblePosition: summarizePosition(visiblePosition),
+        collateralPosition: summarizePosition(collateralPosition),
+        borrowPosition: summarizePosition(borrowPosition),
+        marketRow: marketRow ? {
+          token: (marketRow.querySelector('.earn-token-name')?.textContent || '').replace(/\\s+/g, ' ').trim(),
+          verifyLabel: (marketRow.querySelector('.earn-verify-badge')?.textContent || '').replace(/\\s+/g, ' ').trim(),
+          sourceLabel: (marketRow.querySelector('.earn-debug-badge')?.textContent || '').replace(/\\s+/g, ' ').trim(),
+          balanceCell: (marketRow.querySelectorAll('td')[2]?.textContent || '').replace(/\\s+/g, ' ').trim(),
+          yieldCell: (marketRow.querySelectorAll('td')[3]?.textContent || '').replace(/\\s+/g, ' ').trim(),
+        } : null,
+        focusMarket: (!resolved && !calc && !verify) ? null : {
+          resolvedSource: resolved ? String(resolved.resolvedSource || '') : '',
+          resolvedMethod: resolved ? String(resolved.resolvedMethod || '') : '',
+          resolvedVerificationStatus: resolved ? String(resolved.resolvedVerificationStatus || '') : '',
+          resolvedCumulativeYield: resolved ? String(resolved.resolvedCumulativeYield || '') : '',
+          calc: calc ? {
+            hasData: !!calc.hasData,
+            method: String(calc.method || ''),
+            verificationStatus: String(calc.verificationStatus || ''),
+            trustedForTotal: !!calc.trustedForTotal,
+            totalYield: String(calc.totalYield || '0'),
+          } : null,
+          verificationData: verify ? {
+            status: String(verify.status || ''),
+            counted: !!verify.counted,
+            canVerify: !!verify.canVerify,
+            snapshotIncomplete: !!verify.snapshotIncomplete,
+            expectedSupplyWei: String(verify.expectedSupplyWei || '0'),
+            actualSupplyWei: String(verify.actualSupplyWei || '0'),
+            expectedCollateralWei: String(verify.expectedCollateralWei || '0'),
+            actualCollateralWei: String(verify.actualCollateralWei || '0'),
+            expectedBorrowWei: String(verify.expectedBorrowWei || '0'),
+            actualBorrowWei: String(verify.actualBorrowWei || '0'),
+            supplyWeiDiff: String(verify.supplyWeiDiff || '0'),
+            collateralWeiDiff: String(verify.collateralWeiDiff || '0'),
+            borrowWeiDiff: String(verify.borrowWeiDiff || '0'),
+            maxUsdDrift: verify.maxUsdDrift == null ? null : Number(verify.maxUsdDrift),
+          } : null,
+        },
+      };
+    };
+
+    const isSettled = (snap) => {
+      if (!snap) return false;
+      const rowLoading = snap.marketRow && /Loading/i.test(String(snap.marketRow.yieldCell || ''));
+      return !snap.loadingGateActive
+        && !snap.lookupLoading
+        && snap.totalYieldStatus !== 'loading'
+        && snap.totalYieldStatus !== 'idle'
+        && snap.replayStatus !== 'loading'
+        && snap.replayStatus !== 'idle'
+        && !rowLoading;
+    };
+
+    const classify = (snap, timedOut) => {
+      if (!snap) return timedOut ? 'timeout_no_snapshot' : 'missing_snapshot';
+      const verifyLabel = String((snap.marketRow && snap.marketRow.verifyLabel) || '');
+      const sourceLabel = String((snap.marketRow && snap.marketRow.sourceLabel) || '');
+      const focus = snap.focusMarket || {};
+      const resolvedSource = String(focus.resolvedSource || '');
+      const resolvedMethod = String(focus.resolvedMethod || '');
+      const resolvedStatus = String(focus.resolvedVerificationStatus || '');
+      const calc = focus.calc || null;
+      const verify = focus.verificationData || null;
+
+      if (snap.positionKind === 'missing') return 'missing_position';
+      if (snap.positionKind === 'borrow_only') return 'borrow_only';
+      if (snap.positionKind === 'hidden_collateral') {
+        if (resolvedSource === 'replay-ledger' && resolvedStatus === 'verified') return 'hidden_collateral_verified';
+        if ((resolvedSource === 'public-netflow' || resolvedSource === 'public-cycle') &&
+            (resolvedStatus === 'verified' || resolvedStatus === 'pre_snapshot_carry')) {
+          return 'hidden_collateral_verified';
+        }
+        return timedOut ? 'timeout_hidden_collateral' : 'hidden_collateral_other';
+      }
+      if (verifyLabel === 'VERIFIED') {
+        if (resolvedSource === 'replay-ledger') return 'replay_verified';
+        if (resolvedSource === 'public-netflow' || resolvedSource === 'public-cycle') return 'public_verified';
+        if (resolvedSource === 'snapshot-series') return 'snapshot_verified';
+        return 'verified_other';
+      }
+      if (verifyLabel === 'SNAPSHOT ONLY' ||
+          resolvedMethod.startsWith('snapshot') ||
+          resolvedSource === 'snapshot-series' ||
+          sourceLabel.includes('Snapshot')) {
+        return timedOut ? 'timeout_snapshot_only' : 'snapshot_only';
+      }
+      if (verifyLabel === 'PENDING' || resolvedStatus === 'pending' || (calc && calc.verificationStatus === 'pending')) {
+        return timedOut ? 'timeout_pending' : 'pending';
+      }
+      if (verify && verify.status === 'verified') return 'replay_verified';
+      if (resolvedSource === 'public-netflow' || resolvedSource === 'public-cycle') return 'public_verified';
+      if (timedOut) return 'timeout_other';
+      return calc && calc.hasData ? 'has_data_other' : 'no_data';
+    };
+
+    return (async () => {
+      if (typeof switchView !== 'function') {
+        return { ok: false, address, error: 'switchView unavailable', href: location.href, title: document.title };
+      }
+      resetState();
+      switchView('earn');
+      earnChainSelect('arbitrum');
+      document.getElementById('earn-address').value = address;
+
+      const startedAt = performance.now();
+      try {
+        earn_lookup();
+        let settled = false;
+        let stableSeenAt = 0;
+        let lastSnapshot = captureState('initial');
+        const maxWaitMs = 90000;
+
+        while ((performance.now() - startedAt) < maxWaitMs) {
+          await sleep(500);
+          lastSnapshot = captureState('poll');
+          if (isSettled(lastSnapshot)) {
+            if (!stableSeenAt) {
+              stableSeenAt = performance.now();
+            } else if ((performance.now() - stableSeenAt) >= 1200) {
+              settled = true;
+              break;
+            }
+          } else {
+            stableSeenAt = 0;
+          }
+        }
+
+        if (!settled) await sleep(1500);
+
+        const finalSnapshot = captureState(settled ? 'final' : 'timeout');
+        const timedOut = !settled;
+        return {
+          ok: true,
+          address,
+          timedOut,
+          category: classify(finalSnapshot, timedOut),
+          ...finalSnapshot,
+          elapsedMs: Math.round(performance.now() - startedAt),
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          address,
+          timedOut: false,
+          category: 'script_error',
+          error: String((error && error.stack) || error || 'Unknown error'),
+          href: location.href,
+          title: document.title,
+          elapsedMs: Math.round(performance.now() - startedAt),
+        };
+      }
+    })();
+  `;
+}
+
+async function initPage(cdp, url) {
+  await cdp.ready;
+  await cdp.send('Page.enable');
+  await cdp.send('Runtime.enable');
+  await cdp.send('Page.bringToFront');
+  await cdp.send('Page.navigate', { url });
+  await sleep(1200);
+}
+
+function buildCounts(rows) {
+  const counts = {};
+  rows.forEach((row) => {
+    const key = row.category || 'unknown';
+    counts[key] = (counts[key] || 0) + 1;
+  });
+  return counts;
+}
+
+async function main() {
+  const input = readJson(INPUT_PATH, {});
+  const inputRows = (input.unresolved || input.addresses || []).filter(Boolean);
+  const addresses = inputRows.map((entry) => typeof entry === 'string' ? entry : entry.wallet).filter(Boolean);
+  const byAddress = Object.fromEntries(
+    inputRows
+      .map((entry) => typeof entry === 'string' ? [entry, {}] : [entry.wallet, entry])
+      .filter(([wallet]) => !!wallet)
+  );
+  if (!addresses.length) throw new Error(`No addresses found in ${INPUT_PATH}`);
+
+  const existing = readJson(OUTPUT_PATH, null);
+  const existingRows = Array.isArray(existing && existing.results) ? existing.results : [];
+  const processed = new Map();
+  for (const row of existingRows) {
+    if (row && row.address) processed.set(String(row.address).toLowerCase(), row);
+  }
+
+  const results = existingRows.slice();
+  const remaining = addresses.filter((address) => !processed.has(String(address).toLowerCase()));
+
+  const startedAt = existing && existing.startedAt ? Date.parse(existing.startedAt) : Date.now();
+  const targets = await ensurePageTargets(BASE_URL, WORKERS);
+  const workers = [];
+  for (let i = 0; i < WORKERS; i++) {
+    const target = targets[i];
+    const cdp = createCdpClient(target.webSocketDebuggerUrl);
+    await initPage(cdp, BASE_URL);
+    workers.push({ id: i + 1, cdp, runs: 0 });
+  }
+
+  let cursor = 0;
+
+  const writeSnapshot = () => {
+    fs.writeFileSync(OUTPUT_PATH, JSON.stringify({
+      marketId: MARKET_ID,
+      symbol: SYMBOL,
+      startedAt: new Date(startedAt).toISOString(),
+      updatedAt: new Date().toISOString(),
+      inputCount: addresses.length,
+      completed: results.length,
+      counts: buildCounts(results),
+      results,
+    }, null, 2));
+  };
+
+  async function runWorker(worker) {
+    while (cursor < remaining.length) {
+      const index = cursor++;
+      const address = remaining[index];
+      const sourceMeta = byAddress[address] || {};
+      if (worker.runs > 0 && worker.runs % 25 === 0) {
+        await initPage(worker.cdp, BASE_URL);
+      }
+      const row = await evaluateWithTimeout(worker.cdp, buildAuditSource(address), 110000);
+      if (row && row.category === 'eval_timeout') {
+        await initPage(worker.cdp, BASE_URL);
+      }
+      results.push({
+        ...row,
+        staticStatus: sourceMeta.status || '',
+        staticMethod: sourceMeta.method || '',
+        staticReason: sourceMeta.reason || '',
+        staticWei: sourceMeta.wei || '',
+        staticUsd: sourceMeta.balanceUsd || '',
+        workerId: worker.id,
+      });
+      worker.runs++;
+      writeSnapshot();
+      console.log(JSON.stringify({
+        workerId: worker.id,
+        done: results.length,
+        total: addresses.length,
+        address,
+        category: row && row.category ? row.category : 'unknown',
+        elapsedMs: row && row.elapsedMs !== undefined ? row.elapsedMs : null,
+      }));
+    }
+  }
+
+  try {
+    await Promise.all(workers.map(runWorker));
+  } finally {
+    workers.forEach((worker) => worker.cdp.close());
+    writeSnapshot();
+  }
+}
+
+main().catch((error) => {
+  console.error(JSON.stringify({
+    ok: false,
+    error: String((error && error.stack) || error || 'Unknown error'),
+  }, null, 2));
+  process.exitCode = 1;
+});
+"""
+
+
+def utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def latest_snapshot_date(chain: str) -> str:
+    manifest = _read_json(SNAPSHOT_DIR / "manifest.json")
+    dates = _collect_chain_snapshot_dates(manifest, chain)
+    if not dates:
+        raise SystemExit(f"No snapshot dates found for chain '{chain}'")
+    return dates[-1]
+
+
+def load_snapshot_payload(snapshot_date: str) -> dict:
+    path = SNAPSHOT_DIR / f"{snapshot_date}.json"
+    if not path.exists():
+        raise SystemExit(f"Snapshot file not found: {path}")
+    return _read_json(path)
+
+
+def resolve_market(
+    chain: str,
+    symbol: str,
+    market_id: Optional[str],
+    snapshot_date: str,
+) -> Tuple[str, dict]:
+    payload = load_snapshot_payload(snapshot_date)
+    chain_data = (payload.get("snapshots") or {}).get(chain) or {}
+    matches: Dict[str, dict] = {}
+    symbol_norm = symbol.upper()
+    for addr_data in chain_data.values():
+        markets = (addr_data.get("markets") or {})
+        for mid_raw, market in markets.items():
+            if str(market.get("symbol") or "").upper() != symbol_norm:
+                continue
+            matches[str(mid_raw)] = {
+                "symbol": str(market.get("symbol") or symbol_norm),
+                "token": str(market.get("token") or "").lower(),
+                "decimals": _parse_int(market.get("decimals"), 18),
+            }
+    if market_id is not None:
+        selected = matches.get(str(market_id))
+        if not selected:
+            found = ", ".join(sorted(matches)) if matches else "none"
+            raise SystemExit(f"Market id '{market_id}' not found for {symbol_norm} on {chain}. Available ids: {found}")
+        return str(market_id), selected
+    if not matches:
+        raise SystemExit(f"No markets found for symbol '{symbol_norm}' on chain '{chain}'")
+    if len(matches) > 1:
+        formatted = ", ".join(f"{mid}:{meta['token'] or '?'}" for mid, meta in sorted(matches.items()))
+        raise SystemExit(
+            f"Symbol '{symbol_norm}' is ambiguous on {chain}. Pass --market-id explicitly. Options: {formatted}"
+        )
+    only_mid = next(iter(matches))
+    return only_mid, matches[only_mid]
+
+
+def get_active_holders(chain: str, snapshot_date: str, market_id: str) -> List[dict]:
+    payload = load_snapshot_payload(snapshot_date)
+    chain_data = (payload.get("snapshots") or {}).get(chain) or {}
+    out = []
+    for address, addr_data in chain_data.items():
+        market = ((addr_data.get("markets") or {}).get(str(market_id)) or {})
+        if not market:
+            continue
+        wei = _parse_int(market.get("wei"), 0)
+        if wei <= 0:
+            continue
+        decimals = _parse_int(market.get("decimals"), 18)
+        balance = wei / (10 ** decimals) if decimals >= 0 else float(wei)
+        out.append(
+            {
+                "wallet": str(address).lower(),
+                "wei": str(wei),
+                "balance": balance,
+                "symbol": str(market.get("symbol") or ""),
+                "token": str(market.get("token") or "").lower(),
+                "decimals": decimals,
+            }
+        )
+    return out
+
+
+def explain_nonverified_reason(market: Optional[dict]) -> str:
+    if not market:
+        return "missing-market"
+    status = str(market.get("status") or "unknown")
+    if status in ("verified", "pre_snapshot_carry"):
+        return status
+    reasons: List[str] = []
+
+    def baseline_reason(prefix: str, t_value: Optional[int]) -> Optional[str]:
+        if t_value is None:
+            return None
+        first_wei = _parse_int(market.get("firstWei"), 0)
+        if first_wei < t_value:
+            return f"{prefix}:netflow_exceeds_first_snapshot"
+        first_par = _parse_int(market.get("firstPar"), 0)
+        last_par = _parse_int(market.get("lastPar"), 0)
+        decimals = _parse_int(market.get("decimals"), 18)
+        if abs(last_par - first_par) > _get_tolerance(decimals):
+            return f"{prefix}:par_drift_above_tolerance"
+        return f"{prefix}:{status}"
+
+    if market.get("netflowYield") is not None:
+        reasons.append(baseline_reason("all-time-netflow", _parse_int(market.get("lastWei"), 0) - _parse_int(market.get("netflowYield"), 0)))
+    if market.get("recentCycleYield") is not None:
+        reasons.append(
+            baseline_reason(
+                "recent-cycle",
+                _parse_int(market.get("lastWei"), 0) - _parse_int(market.get("recentCycleYield"), 0),
+            )
+        )
+    reasons = [r for r in reasons if r]
+    if reasons:
+        return " | ".join(reasons)
+    return f"{status}:{market.get('method') or 'unknown'}"
+
+
+def build_static_report(
+    chain: str,
+    symbol: str,
+    market_id: str,
+    snapshot_date: str,
+    limit: Optional[int] = None,
+) -> dict:
+    manifest = _read_json(SNAPSHOT_DIR / "manifest.json")
+    chain_dates = _collect_chain_snapshot_dates(manifest, chain)
+    snapshots = _load_chain_snapshots(chain, chain_dates)
+    netflow = _load_netflow_for_chain(chain)["netflows"]
+
+    holders = get_active_holders(chain, snapshot_date, market_id)
+    holders.sort(key=lambda row: (-float(row["balance"]), row["wallet"]))
+    if limit is not None:
+        holders = holders[: max(0, int(limit))]
+
+    status_counts = Counter()
+    method_counts = Counter()
+    unresolved = []
+
+    for holder in holders:
+        address = holder["wallet"]
+        ledger = _build_address_ledger(address, chain, snapshot_date, snapshots, netflow)
+        market = ((ledger or {}).get("markets") or {}).get(str(market_id))
+        status = str((market or {}).get("status") or "missing")
+        method = str((market or {}).get("method") or "missing")
+        status_counts[status] += 1
+        method_counts[method] += 1
+
+        if status not in ("verified", "pre_snapshot_carry"):
+            unresolved.append(
+                {
+                    "wallet": address,
+                    "status": status,
+                    "method": method,
+                    "reason": explain_nonverified_reason(market),
+                    "wei": holder["wei"],
+                    "balance": holder["balance"],
+                    "balanceUsd": None,
+                }
+            )
+
+    return {
+        "generatedAt": utc_now_iso(),
+        "mode": "static",
+        "chain": chain,
+        "symbol": symbol,
+        "marketId": str(market_id),
+        "snapshotDate": snapshot_date,
+        "holderCount": len(holders),
+        "statusCounts": dict(status_counts),
+        "methodCounts": dict(method_counts),
+        "resolvedCount": status_counts.get("verified", 0) + status_counts.get("pre_snapshot_carry", 0),
+        "unresolvedCount": len(unresolved),
+        "unresolved": unresolved,
+    }
+
+
+def default_static_output(chain: str, symbol: str) -> Path:
+    return Path("/tmp") / f"earn_audit_{chain}_{symbol.lower()}_static.json"
+
+
+def default_unresolved_output(chain: str, symbol: str) -> Path:
+    return Path("/tmp") / f"earn_audit_{chain}_{symbol.lower()}_unresolved.json"
+
+
+def default_live_output(chain: str, symbol: str) -> Path:
+    return Path("/tmp") / f"earn_audit_{chain}_{symbol.lower()}_live.json"
+
+
+def write_json(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+
+
+def print_static_summary(report: dict) -> None:
+    status_counts = report["statusCounts"]
+    print(
+        json.dumps(
+            {
+                "chain": report["chain"],
+                "symbol": report["symbol"],
+                "marketId": report["marketId"],
+                "snapshotDate": report["snapshotDate"],
+                "holderCount": report["holderCount"],
+                "resolvedCount": report["resolvedCount"],
+                "unresolvedCount": report["unresolvedCount"],
+                "statusCounts": status_counts,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+
+
+def run_static_command(args: argparse.Namespace) -> int:
+    snapshot_date = args.snapshot_date or latest_snapshot_date(args.chain)
+    market_id, _ = resolve_market(args.chain, args.symbol, args.market_id, snapshot_date)
+    report = build_static_report(args.chain, args.symbol, market_id, snapshot_date, args.limit)
+
+    output_path = Path(args.output) if args.output else default_static_output(args.chain, args.symbol)
+    unresolved_output = (
+        Path(args.unresolved_output)
+        if args.unresolved_output
+        else default_unresolved_output(args.chain, args.symbol)
+    )
+
+    write_json(output_path, report)
+    write_json(
+        unresolved_output,
+        {
+            "generatedAt": utc_now_iso(),
+            "chain": report["chain"],
+            "symbol": report["symbol"],
+            "marketId": report["marketId"],
+            "snapshotDate": report["snapshotDate"],
+            "inputCount": report["unresolvedCount"],
+            "unresolved": report["unresolved"],
+        },
+    )
+    print_static_summary(report)
+    print(f"\nStatic report: {output_path}")
+    print(f"Unresolved cohort: {unresolved_output}")
+    return 0
+
+
+def ensure_live_input(
+    args: argparse.Namespace,
+) -> Tuple[Path, str, str, str]:
+    if args.input:
+        input_path = Path(args.input)
+        if not input_path.exists():
+            raise SystemExit(f"Live input file not found: {input_path}")
+        payload = _read_json(input_path)
+        chain = str(args.chain or payload.get("chain") or "")
+        market_id = str(args.market_id or payload.get("marketId") or "")
+        symbol = str(args.symbol or payload.get("symbol") or "")
+        if not chain or not market_id or not symbol:
+            raise SystemExit("Live input is missing chain/marketId/symbol; pass them explicitly if absent in the file.")
+        return input_path, chain, market_id, symbol
+
+    snapshot_date = args.snapshot_date or latest_snapshot_date(args.chain)
+    market_id, _ = resolve_market(args.chain, args.symbol, args.market_id, snapshot_date)
+    report = build_static_report(args.chain, args.symbol, market_id, snapshot_date, args.limit)
+    input_path = default_unresolved_output(args.chain, args.symbol)
+    write_json(
+        input_path,
+        {
+            "generatedAt": utc_now_iso(),
+            "chain": report["chain"],
+            "symbol": report["symbol"],
+            "marketId": report["marketId"],
+            "snapshotDate": report["snapshotDate"],
+            "inputCount": report["unresolvedCount"],
+            "unresolved": report["unresolved"],
+        },
+    )
+    return input_path, report["chain"], market_id, args.symbol
+
+
+def run_live_command(args: argparse.Namespace) -> int:
+    input_path, chain, market_id, symbol = ensure_live_input(args)
+    output_path = Path(args.output) if args.output else default_live_output(chain, symbol)
+
+    with tempfile.NamedTemporaryFile("w", suffix="_earn_live_audit.js", delete=False, encoding="utf-8") as tmp:
+        tmp.write(LIVE_AUDIT_JS)
+        js_path = Path(tmp.name)
+
+    cmd = [
+        "node",
+        str(js_path),
+        str(input_path),
+        str(output_path),
+        str(args.localhost_url),
+        str(args.debug_json_url),
+        str(args.workers),
+        str(market_id),
+        str(symbol),
+    ]
+
+    try:
+        proc = subprocess.run(cmd, cwd=str(ROOT), check=False)
+        if proc.returncode != 0:
+            raise SystemExit(proc.returncode)
+    finally:
+        try:
+            js_path.unlink()
+        except OSError:
+            pass
+
+    print(f"\nLive audit results: {output_path}")
+    return 0
+
+
+def summarize_live_results(payload: dict) -> dict:
+    counts = Counter(payload.get("counts") or {})
+    results = payload.get("results") or []
+    if not counts and results:
+        counts = Counter((row.get("category") or "unknown") for row in results)
+
+    verified_categories = {
+        "replay_verified",
+        "public_verified",
+        "hidden_collateral_verified",
+        "snapshot_verified",
+        "verified_other",
+    }
+    real_nonverified_categories = {
+        "snapshot_only",
+        "hidden_collateral_other",
+    }
+    timeout_categories = {
+        "eval_timeout",
+        "timeout_pending",
+        "timeout_snapshot_only",
+        "timeout_hidden_collateral",
+        "timeout_other",
+        "timeout_no_snapshot",
+    }
+    missing_categories = {
+        "missing_position",
+    }
+
+    verified = sum(counts.get(cat, 0) for cat in verified_categories)
+    real_nonverified = sum(counts.get(cat, 0) for cat in real_nonverified_categories)
+    timeouts = sum(counts.get(cat, 0) for cat in timeout_categories)
+    missing = sum(counts.get(cat, 0) for cat in missing_categories)
+    completed = int(payload.get("completed") or sum(counts.values()))
+    input_count = int(payload.get("inputCount") or completed)
+    active_checked = max(0, completed - missing)
+
+    return {
+        "generatedAt": utc_now_iso(),
+        "marketId": payload.get("marketId"),
+        "symbol": payload.get("symbol"),
+        "inputCount": input_count,
+        "completed": completed,
+        "verifiedChecked": verified,
+        "activeChecked": active_checked,
+        "verifiedCheckedRatio": (verified / active_checked) if active_checked else None,
+        "realNonVerifiedChecked": real_nonverified,
+        "timeouts": timeouts,
+        "missingPosition": missing,
+        "counts": dict(counts),
+    }
+
+
+def run_summarize_live_command(args: argparse.Namespace) -> int:
+    payload = _read_json(Path(args.results))
+    summary = summarize_live_results(payload)
+    print(json.dumps(summary, ensure_ascii=False, indent=2))
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Audit EARN asset cohorts using static and live checks")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    static_parser = subparsers.add_parser("static", help="Build a static cohort audit from snapshots/netflow")
+    static_parser.add_argument("--chain", required=True, help="Chain id, e.g. arbitrum")
+    static_parser.add_argument("--symbol", required=True, help="Asset symbol, e.g. USDC")
+    static_parser.add_argument("--market-id", help="Optional explicit market id")
+    static_parser.add_argument("--snapshot-date", help="Optional snapshot date (YYYY-MM-DD)")
+    static_parser.add_argument("--limit", type=int, help="Optional holder limit for a smaller sample")
+    static_parser.add_argument("--output", help="Where to write the full static report (default: /tmp)")
+    static_parser.add_argument("--unresolved-output", help="Where to write the unresolved input cohort (default: /tmp)")
+    static_parser.set_defaults(func=run_static_command)
+
+    live_parser = subparsers.add_parser("live", help="Run a live replay audit against localhost/Chrome")
+    live_parser.add_argument("--chain", help="Chain id, e.g. arbitrum")
+    live_parser.add_argument("--symbol", help="Asset symbol, e.g. USDC")
+    live_parser.add_argument("--market-id", help="Optional explicit market id")
+    live_parser.add_argument("--snapshot-date", help="Optional snapshot date (YYYY-MM-DD)")
+    live_parser.add_argument("--limit", type=int, help="Optional holder limit before building unresolved cohort")
+    live_parser.add_argument("--input", help="Optional prebuilt unresolved cohort JSON")
+    live_parser.add_argument("--localhost-url", default="http://127.0.0.1:8902/index.html?cb=earn_audit", help="Local dashboard URL")
+    live_parser.add_argument("--debug-json-url", default="http://127.0.0.1:9555/json", help="Chrome remote debugger /json endpoint")
+    live_parser.add_argument("--workers", type=int, default=2, help="Parallel browser workers")
+    live_parser.add_argument("--output", help="Where to write live audit results (default: /tmp)")
+    live_parser.set_defaults(func=run_live_command)
+
+    summarize_parser = subparsers.add_parser("summarize-live", help="Summarize a live audit results JSON")
+    summarize_parser.add_argument("--results", required=True, help="Path to live audit results JSON")
+    summarize_parser.set_defaults(func=run_summarize_live_command)
+
+    return parser
+
+
+def main(argv: Optional[Iterable[str]] = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

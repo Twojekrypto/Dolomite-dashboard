@@ -59,6 +59,33 @@ Outputs:
 
 When a file exists for the queried wallet, EARN uses it before snapshot fallback logic.
 
+## 🔎 EARN Asset Audit
+
+For repeatable local audits of a specific EARN asset, use:
+
+```bash
+# 1. Build a fast static cohort from snapshots + netflow
+python3 audit_earn_asset.py static \
+  --chain arbitrum \
+  --symbol USDC
+
+# 2. Run a live replay audit against localhost + Chrome remote debugger
+python3 audit_earn_asset.py live \
+  --chain arbitrum \
+  --symbol USDC \
+  --localhost-url 'http://127.0.0.1:8902/index.html?cb=usdc_audit' \
+  --debug-json-url 'http://127.0.0.1:9555/json'
+
+# 3. Summarize an existing live audit result
+python3 audit_earn_asset.py summarize-live \
+  --results /tmp/earn_audit_arbitrum_usdc_live.json
+```
+
+Notes:
+- audit outputs default to `/tmp` and should stay local/private
+- `static` is fast and good for cohort sizing plus unresolved filtering
+- `live` is slower but checks the real replay/verification behavior of the UI
+
 ---
 
 ## ⚙️ Data Pipeline
