@@ -157,7 +157,7 @@ async function evaluate(cdp, source) {
   return result.result ? result.result.value : undefined;
 }
 
-async function evaluateWithTimeout(cdp, source, timeoutMs) {
+async function evaluateWithTimeout(cdp, source, timeoutMs, address) {
   let timer = null;
   try {
     return await Promise.race([
@@ -165,6 +165,7 @@ async function evaluateWithTimeout(cdp, source, timeoutMs) {
       new Promise((resolve) => {
         timer = setTimeout(() => resolve({
           ok: false,
+          address,
           category: 'eval_timeout',
           error: `Evaluation timed out after ${timeoutMs}ms`,
         }), timeoutMs);
@@ -516,7 +517,7 @@ async function main() {
       if (worker.runs > 0 && worker.runs % 25 === 0) {
         await initPage(worker.cdp, BASE_URL);
       }
-      const row = await evaluateWithTimeout(worker.cdp, buildAuditSource(address), 110000);
+      const row = await evaluateWithTimeout(worker.cdp, buildAuditSource(address), 110000, address);
       if (row && row.category === 'eval_timeout') {
         await initPage(worker.cdp, BASE_URL);
       }
