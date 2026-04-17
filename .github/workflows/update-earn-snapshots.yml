@@ -51,7 +51,7 @@ jobs:
           print(f"Validated earn snapshots for {today}: {sorted(snapshot_chains)}")
           PY
 
-      - name: Refresh tracked verified ledgers
+      - name: Build local verified ledger cache
         run: |
           python3 build_earn_verified_ledger.py \
             --chain arbitrum \
@@ -69,7 +69,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/earn-snapshots/ data/earn-verified-ledger/
+          git add data/earn-snapshots/
           if git diff --staged --quiet; then
             echo "No changes to commit"
             exit 0
