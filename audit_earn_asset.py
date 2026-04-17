@@ -347,6 +347,19 @@ function buildAuditSource(address) {
       if (!snap) return timedOut ? 'timeout_no_snapshot' : 'missing_snapshot';
       const verifyLabel = String((snap.marketRow && snap.marketRow.verifyLabel) || '');
       const sourceLabel = String((snap.marketRow && snap.marketRow.sourceLabel) || '');
+      const balanceCell = String((snap.marketRow && snap.marketRow.balanceCell) || '');
+      const balanceMatch = balanceCell.match(/≈\s*\$([0-9][0-9,]*(?:\.[0-9]+)?)(K|M|B)?/);
+      const balanceMult = balanceMatch
+        ? ({ '': 1, K: 1_000, M: 1_000_000, B: 1_000_000_000 }[balanceMatch[2] || ''] || 1)
+        : 1;
+      const balanceUsd = balanceMatch ? Number(String(balanceMatch[1]).replace(/,/g, '')) * balanceMult : null;
+      const effectivePositionKind =
+        snap.positionKind === 'visible_supply' &&
+        verifyLabel !== 'VERIFIED' &&
+        balanceUsd != null &&
+        balanceUsd < 1
+          ? (snap.collateralPosition ? 'hidden_collateral' : (snap.borrowPosition ? 'borrow_only' : snap.positionKind))
+          : snap.positionKind;
       const focus = snap.focusMarket || {};
       const resolvedSource = String(focus.resolvedSource || '');
       const resolvedMethod = String(focus.resolvedMethod || '');
@@ -371,14 +384,14 @@ function buildAuditSource(address) {
         maxUsdDrift != null &&
         maxUsdDrift <= 0.1;
 
-      if (snap.positionKind === 'missing') return 'missing_position';
-      if (snap.positionKind === 'borrow_only') {
+      if (effectivePositionKind === 'missing') return 'missing_position';
+      if (effectivePositionKind === 'borrow_only') {
         if (verifyLabel === 'VERIFIED' || replayTrusted || publicTrusted || driftTrusted) {
           return 'verified_other';
         }
         return 'borrow_only';
       }
-      if (snap.positionKind === 'hidden_collateral') {
+      if (effectivePositionKind === 'hidden_collateral') {
         if (replayTrusted || publicTrusted || driftTrusted) {
           return 'hidden_collateral_verified';
         }
@@ -938,6 +951,17 @@ VERIFIED_CATEGORIES = {
     "verified_other",
 }
 
+NON_ACTIVE_CATEGORIES = {
+    "missing_position",
+    "borrow_only",
+}
+
+NON_BLOCKING_REAL_PATTERNS = {
+    "hidden_collateral_dust",
+    "tiny_snapshot_dust",
+    "tiny_snapshot_balance",
+}
+
 
 def parse_balance_usd_from_cell(cell: Optional[str]) -> Optional[float]:
     text = str(cell or "")
@@ -954,6 +978,17 @@ def normalize_live_row_category(row: dict) -> str:
     category = str(row.get("category") or "unknown")
     position_kind = str(row.get("positionKind") or "")
     market_row = row.get("marketRow") or {}
+    balance_usd = parse_balance_usd_from_cell(market_row.get("balanceCell"))
+    if (
+        position_kind == "visible_supply"
+        and balance_usd is not None
+        and balance_usd < 1
+        and str(market_row.get("verifyLabel") or "") != "VERIFIED"
+    ):
+        if row.get("collateralPosition"):
+            position_kind = "hidden_collateral"
+        elif row.get("borrowPosition"):
+            position_kind = "borrow_only"
     verify_label = str(market_row.get("verifyLabel") or "")
     source_label = str(market_row.get("sourceLabel") or "")
     focus = row.get("focusMarket") or {}
@@ -1035,6 +1070,8 @@ def parse_live_row_pattern(row: dict) -> Tuple[str, str]:
         return ("verified", "verified")
     if category == "missing_position":
         return ("missing_live_position", "info")
+    if category == "borrow_only":
+        return ("non_active_borrow_only", "info")
 
     focus = row.get("focusMarket") or {}
     verify = focus.get("verificationData") or {}
@@ -1071,9 +1108,6 @@ def parse_live_row_pattern(row: dict) -> Tuple[str, str]:
             return ("material_hidden_collateral_gap", "medium")
         return ("hidden_collateral_dust", "low")
 
-    if category == "borrow_only":
-        return ("borrow_only_position", "medium")
-
     return (f"unclassified_{category}", "medium")
 
 
@@ -1088,24 +1122,30 @@ def summarize_live_results(payload: dict) -> dict:
         "hidden_collateral_other",
         "has_data_other",
     }
-    missing_categories = {
-        "missing_position",
-    }
 
     verified = sum(counts.get(cat, 0) for cat in VERIFIED_CATEGORIES)
     real_nonverified = sum(counts.get(cat, 0) for cat in real_nonverified_categories)
     timeouts = sum(counts.get(cat, 0) for cat in TIMEOUT_CATEGORIES)
-    missing = sum(counts.get(cat, 0) for cat in missing_categories)
+    non_active = sum(counts.get(cat, 0) for cat in NON_ACTIVE_CATEGORIES)
+    missing = counts.get("missing_position", 0)
     completed = int(payload.get("completed") or sum(counts.values()))
     input_count = int(payload.get("inputCount") or completed)
-    active_checked = max(0, completed - missing)
+    active_checked = max(0, completed - non_active)
     pattern_counts = Counter()
     severity_counts = Counter()
     root_cause_counts = Counter()
+    blocking_real_nonverified = 0
+    informational_real_nonverified = 0
     for row in results:
         pattern, severity = parse_live_row_pattern(row)
         pattern_counts[pattern] += 1
         severity_counts[severity] += 1
+        normalized_category = normalize_live_row_category(row)
+        if normalized_category in real_nonverified_categories:
+            if pattern in NON_BLOCKING_REAL_PATTERNS:
+                informational_real_nonverified += 1
+            else:
+                blocking_real_nonverified += 1
         root_causes = extract_root_causes(str(row.get("staticReason") or ""))
         if root_causes:
             root_cause_counts.update(root_causes)
@@ -1141,7 +1181,10 @@ def summarize_live_results(payload: dict) -> dict:
         "activeChecked": active_checked,
         "verifiedCheckedRatio": (verified / active_checked) if active_checked else None,
         "realNonVerifiedChecked": real_nonverified,
+        "blockingRealNonVerifiedChecked": blocking_real_nonverified,
+        "informationalRealNonVerifiedChecked": informational_real_nonverified,
         "timeouts": timeouts,
+        "nonActiveChecked": non_active,
         "missingPosition": missing,
         "counts": dict(counts),
         "patternCounts": dict(pattern_counts),
