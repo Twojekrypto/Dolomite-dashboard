@@ -353,13 +353,33 @@ function buildAuditSource(address) {
       const resolvedStatus = String(focus.resolvedVerificationStatus || '');
       const calc = focus.calc || null;
       const verify = focus.verificationData || null;
+      const maxUsdDrift = verify && verify.maxUsdDrift != null ? Number(verify.maxUsdDrift) : null;
+      const replayTrusted =
+        resolvedSource === 'replay-ledger' &&
+        (
+          resolvedStatus === 'verified' ||
+          resolvedStatus === 'pre_snapshot_carry' ||
+          (calc && calc.verificationStatus === 'verified')
+        );
+      const publicTrusted =
+        (resolvedSource === 'public-netflow' || resolvedSource === 'public-cycle') &&
+        (resolvedStatus === 'verified' || resolvedStatus === 'pre_snapshot_carry');
+      const driftTrusted =
+        verify &&
+        verify.canVerify &&
+        verify.counted &&
+        maxUsdDrift != null &&
+        maxUsdDrift <= 0.1;
 
       if (snap.positionKind === 'missing') return 'missing_position';
-      if (snap.positionKind === 'borrow_only') return 'borrow_only';
+      if (snap.positionKind === 'borrow_only') {
+        if (verifyLabel === 'VERIFIED' || replayTrusted || publicTrusted || driftTrusted) {
+          return 'verified_other';
+        }
+        return 'borrow_only';
+      }
       if (snap.positionKind === 'hidden_collateral') {
-        if (resolvedSource === 'replay-ledger' && resolvedStatus === 'verified') return 'hidden_collateral_verified';
-        if ((resolvedSource === 'public-netflow' || resolvedSource === 'public-cycle') &&
-            (resolvedStatus === 'verified' || resolvedStatus === 'pre_snapshot_carry')) {
+        if (replayTrusted || publicTrusted || driftTrusted) {
           return 'hidden_collateral_verified';
         }
         return timedOut ? 'timeout_hidden_collateral' : 'hidden_collateral_other';
@@ -930,8 +950,87 @@ def parse_balance_usd_from_cell(cell: Optional[str]) -> Optional[float]:
     return value * mult
 
 
-def parse_live_row_pattern(row: dict) -> Tuple[str, str]:
+def normalize_live_row_category(row: dict) -> str:
     category = str(row.get("category") or "unknown")
+    position_kind = str(row.get("positionKind") or "")
+    market_row = row.get("marketRow") or {}
+    verify_label = str(market_row.get("verifyLabel") or "")
+    source_label = str(market_row.get("sourceLabel") or "")
+    focus = row.get("focusMarket") or {}
+    resolved_source = str(focus.get("resolvedSource") or "")
+    resolved_method = str(focus.get("resolvedMethod") or "")
+    resolved_status = str(focus.get("resolvedVerificationStatus") or "")
+    calc = focus.get("calc") or {}
+    verify = focus.get("verificationData") or {}
+    timed_out = bool(row.get("timedOut"))
+    max_usd_drift = verify.get("maxUsdDrift")
+    if max_usd_drift is not None:
+        max_usd_drift = float(max_usd_drift)
+
+    replay_trusted = (
+        resolved_source == "replay-ledger"
+        and (
+            resolved_status == "verified"
+            or resolved_status == "pre_snapshot_carry"
+            or calc.get("verificationStatus") == "verified"
+        )
+    )
+    public_trusted = (
+        resolved_source in {"public-netflow", "public-cycle"}
+        and resolved_status in {"verified", "pre_snapshot_carry"}
+    )
+    drift_trusted = (
+        bool(verify)
+        and verify.get("canVerify")
+        and verify.get("counted")
+        and max_usd_drift is not None
+        and max_usd_drift <= 0.1
+    )
+
+    if position_kind == "missing":
+        return "missing_position"
+    if position_kind == "borrow_only":
+        if verify_label == "VERIFIED" or replay_trusted or public_trusted or drift_trusted:
+            return "verified_other"
+        return "borrow_only"
+    if position_kind == "hidden_collateral":
+        if replay_trusted or public_trusted or drift_trusted:
+            return "hidden_collateral_verified"
+        return "timeout_hidden_collateral" if timed_out else "hidden_collateral_other"
+    if verify_label == "VERIFIED":
+        if resolved_source == "replay-ledger":
+            return "replay_verified"
+        if resolved_source in {"public-netflow", "public-cycle"}:
+            return "public_verified"
+        if resolved_source == "snapshot-series":
+            return "snapshot_verified"
+        return "verified_other"
+    if (
+        verify_label == "SNAPSHOT ONLY"
+        or resolved_method.startswith("snapshot")
+        or resolved_source == "snapshot-series"
+        or "Snapshot" in source_label
+    ):
+        return "timeout_snapshot_only" if timed_out else "snapshot_only"
+    if (
+        verify_label == "PENDING"
+        or resolved_status == "pending"
+        or calc.get("verificationStatus") == "pending"
+    ):
+        return "timeout_pending" if timed_out else "pending"
+    if verify.get("status") == "verified":
+        return "replay_verified"
+    if resolved_source in {"public-netflow", "public-cycle"}:
+        return "public_verified"
+    if timed_out:
+        return "timeout_other"
+    if calc.get("hasData"):
+        return "has_data_other"
+    return category or "no_data"
+
+
+def parse_live_row_pattern(row: dict) -> Tuple[str, str]:
+    category = normalize_live_row_category(row)
     if category in VERIFIED_CATEGORIES:
         return ("verified", "verified")
     if category == "missing_position":
@@ -979,14 +1078,15 @@ def parse_live_row_pattern(row: dict) -> Tuple[str, str]:
 
 
 def summarize_live_results(payload: dict) -> dict:
-    counts = Counter(payload.get("counts") or {})
     results = payload.get("results") or []
-    if not counts and results:
-        counts = Counter((row.get("category") or "unknown") for row in results)
+    counts = Counter(payload.get("counts") or {})
+    if results:
+        counts = Counter(normalize_live_row_category(row) for row in results)
 
     real_nonverified_categories = {
         "snapshot_only",
         "hidden_collateral_other",
+        "has_data_other",
     }
     missing_categories = {
         "missing_position",

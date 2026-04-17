@@ -127,6 +127,7 @@
 - **Measure merged final state by latest result per wallet**: When combining a full pass with retries, compute the final report by overwriting older rows with the newest row for the same wallet. Raw row counts from intermediate files can be misleading.
 - **Timeout retries can convert the majority of unresolved cases**: For hard Arbitrum EARN cohorts, many apparent failures are just slow replay cases. A focused timeout retry can turn most of them into `replay_verified` without changing verification logic.
 - **Fast future audits should split easy and hard work**: The next iteration of `audit_earn_asset.py` should support a built-in `fast first pass + focused retries` mode so new asset audits finish sooner without relaxing correctness standards.
+- **Normalize audit categories from raw row state, not stale saved labels**: Hidden collateral rows with `replay-ledger/public-* + pre_snapshot_carry` or tiny verified drift can be false negatives if the summary trusts the original stored `category`. Recompute the effective category from `positionKind`, resolved source/status, and verification drift when summarizing results so older batches and new assets both benefit from classification fixes.
 
 ### GitHub Actions State Files
 **Wzorzec błędu:** Zapomnienie o dopisaniu nowo wygenerowanego pliku JSON z backendu (np. `vesting_investors.json`) do linijki `git add` w `.github/workflows/update-dolo-flows.yml`. Plik był poprawnie generowany, ale pipeline go odrzucał, co na produkcji dawało ciche errory i brak danych do oznaczania inwestorów.
