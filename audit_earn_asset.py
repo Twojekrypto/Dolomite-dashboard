@@ -978,6 +978,16 @@ def parse_balance_usd_from_cell(cell: Optional[str]) -> Optional[float]:
     return value * mult
 
 
+def parse_bigint_like(value: object) -> int:
+    text = str(value or "0").strip()
+    if not text:
+        return 0
+    try:
+        return int(text)
+    except Exception:
+        return 0
+
+
 def normalize_live_row_category(row: dict) -> str:
     category = str(row.get("category") or "unknown")
     position_kind = str(row.get("positionKind") or "")
@@ -1108,6 +1118,26 @@ def parse_live_row_pattern(row: dict) -> Tuple[str, str]:
 
     if category == "hidden_collateral_other":
         drift = float(max_usd_drift) if max_usd_drift is not None else None
+        actual_supply_wei = parse_bigint_like(verify.get("actualSupplyWei"))
+        expected_supply_wei = parse_bigint_like(verify.get("expectedSupplyWei"))
+        actual_collateral_wei = parse_bigint_like(verify.get("actualCollateralWei"))
+        expected_collateral_wei = parse_bigint_like(verify.get("expectedCollateralWei"))
+        actual_borrow_wei = parse_bigint_like(verify.get("actualBorrowWei"))
+        expected_borrow_wei = parse_bigint_like(verify.get("expectedBorrowWei"))
+        if actual_supply_wei > 0 and not row.get("visiblePosition"):
+            has_hidden_overlap = (
+                actual_collateral_wei > 0
+                or expected_collateral_wei > 0
+                or actual_borrow_wei > 0
+                or expected_borrow_wei > 0
+                or expected_supply_wei == 0
+            )
+            if has_hidden_overlap:
+                if drift is not None and drift >= 100:
+                    return ("mixed_hidden_visible_overlap", "high")
+                if drift is not None and drift >= 1:
+                    return ("mixed_hidden_visible_overlap", "medium")
+                return ("mixed_hidden_visible_overlap", "low")
         if drift is not None and drift >= 1:
             return ("material_hidden_collateral_gap", "medium")
         return ("hidden_collateral_dust", "low")
