@@ -1141,9 +1141,53 @@ def parse_live_row_pattern(row: dict) -> Tuple[str, str]:
                 if drift is not None and drift >= 1:
                     return ("mixed_hidden_visible_overlap", "medium")
                 return ("mixed_hidden_visible_overlap", "low")
+        resolved_source = str(focus.get("resolvedSource") or "")
+        resolved_method = str(focus.get("resolvedMethod") or "")
+        calc = focus.get("calc") or {}
+        if (
+            actual_collateral_wei > 0
+            and actual_supply_wei == 0
+            and actual_borrow_wei == 0
+            and not row.get("visiblePosition")
+            and row.get("collateralPosition")
+            and not row.get("borrowPosition")
+            and not calc.get("hasData")
+            and not resolved_source
+            and not resolved_method
+        ):
+            if drift is not None and drift >= 1:
+                return ("hidden_collateral_coverage_gap", "medium")
+            return ("hidden_collateral_coverage_gap", "low")
         if drift is not None and drift >= 1:
             return ("material_hidden_collateral_gap", "medium")
         return ("hidden_collateral_dust", "low")
+
+    if category == "has_data_other":
+        drift = float(max_usd_drift) if max_usd_drift is not None else None
+        actual_supply_wei = parse_bigint_like(verify.get("actualSupplyWei"))
+        actual_collateral_wei = parse_bigint_like(verify.get("actualCollateralWei"))
+        actual_borrow_wei = parse_bigint_like(verify.get("actualBorrowWei"))
+        expected_supply_wei = parse_bigint_like(verify.get("expectedSupplyWei"))
+        expected_collateral_wei = parse_bigint_like(verify.get("expectedCollateralWei"))
+        expected_borrow_wei = parse_bigint_like(verify.get("expectedBorrowWei"))
+        has_visible = bool(row.get("visiblePosition"))
+        has_collateral = bool(row.get("collateralPosition"))
+        has_borrow = bool(row.get("borrowPosition"))
+        mixed_position_overlap = (
+            has_visible
+            and has_collateral
+            and has_borrow
+            and actual_supply_wei > 0
+            and actual_collateral_wei > 0
+            and actual_borrow_wei > 0
+            and expected_supply_wei > 0
+            and (expected_collateral_wei > 0 or expected_borrow_wei > 0)
+        )
+        if mixed_position_overlap:
+            if drift is not None and drift >= 100:
+                return ("mixed_position_overlap_mismatch", "high")
+            return ("mixed_position_overlap_mismatch", "medium")
+        return ("unclassified_has_data_other", "medium")
 
     return (f"unclassified_{category}", "medium")
 
@@ -1179,7 +1223,7 @@ def summarize_live_results(payload: dict) -> dict:
         severity_counts[severity] += 1
         normalized_category = normalize_live_row_category(row)
         if normalized_category in real_nonverified_categories:
-            if pattern in NON_BLOCKING_REAL_PATTERNS:
+            if severity in {"info", "low"} or pattern in NON_BLOCKING_REAL_PATTERNS:
                 informational_real_nonverified += 1
             else:
                 blocking_real_nonverified += 1
@@ -1308,9 +1352,9 @@ def select_live_rows(
 
     for row in payload.get("results") or []:
         category = normalize_live_row_category(row)
-        pattern, _severity = parse_live_row_pattern(row)
+        pattern, severity = parse_live_row_pattern(row)
         is_real_nonverified = category in {"snapshot_only", "hidden_collateral_other", "has_data_other"}
-        is_blocking = is_real_nonverified and pattern not in NON_BLOCKING_REAL_PATTERNS
+        is_blocking = is_real_nonverified and severity not in {"info", "low"} and pattern not in NON_BLOCKING_REAL_PATTERNS
         is_timeout = category in TIMEOUT_CATEGORIES
         is_missing = category == "missing_position"
 
@@ -1322,7 +1366,7 @@ def select_live_rows(
         elif mode == "real":
             keep = is_real_nonverified
         elif mode == "informational":
-            keep = is_real_nonverified and pattern in NON_BLOCKING_REAL_PATTERNS
+            keep = is_real_nonverified and (severity in {"info", "low"} or pattern in NON_BLOCKING_REAL_PATTERNS)
         elif mode == "missing":
             keep = is_missing
         elif mode == "categories":
@@ -1391,7 +1435,7 @@ def build_forensic_live_report(payload: dict) -> dict:
             "verificationData": verify or None,
             "elapsedMs": row.get("elapsedMs"),
         }
-        if pattern in NON_BLOCKING_REAL_PATTERNS:
+        if severity in {"info", "low"} or pattern in NON_BLOCKING_REAL_PATTERNS:
             informational_rows.append(entry)
         else:
             blocking_rows.append(entry)
