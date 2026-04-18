@@ -1070,10 +1070,14 @@ def normalize_live_row_category(row: dict) -> str:
         or calc.get("verificationStatus") == "pending"
     ):
         return "timeout_pending" if timed_out else "pending"
+    if replay_trusted:
+        return "replay_verified"
+    if public_trusted:
+        return "public_verified"
+    if drift_trusted:
+        return "replay_verified"
     if verify.get("status") == "verified":
         return "replay_verified"
-    if resolved_source in {"public-netflow", "public-cycle"}:
-        return "public_verified"
     if timed_out:
         return "timeout_other"
     if calc.get("hasData"):
