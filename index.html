@@ -26589,12 +26589,30 @@
             return relativeTolerance > minTolerance ? relativeTolerance : minTolerance;
         }
 
+        function earn_normalizeMarketId(value) {
+            if (value === undefined || value === null) return '';
+            const normalized = String(value);
+            return normalized === '' ? '' : normalized;
+        }
+
+        function earn_collectBorrowAccountsOverride(...sources) {
+            const merged = new Set();
+            sources.forEach(source => {
+                if (!source || typeof source.forEach !== 'function') return;
+                source.forEach(account => {
+                    const normalized = String(account || '').trim();
+                    if (normalized) merged.add(normalized);
+                });
+            });
+            return merged.size > 0 ? merged : null;
+        }
+
         function earn_serializeReplayStateMap(states) {
             const serialized = {};
             Object.entries(states || {}).forEach(([key, state]) => {
                 serialized[key] = {
                     account: String(state.account || ''),
-                    marketId: String(state.marketId || ''),
+                    marketId: earn_normalizeMarketId(state.marketId),
                     par: String(state.par || 0n),
                     lastIndex: state.lastIndex === null || state.lastIndex === undefined ? null : String(state.lastIndex),
                     settledYield: String(state.settledYield || 0n),
@@ -26611,7 +26629,7 @@
             Object.entries(accountStateData || {}).forEach(([key, state]) => {
                 states[key] = {
                     account: String(state.account || ''),
-                    marketId: String(state.marketId || ''),
+                    marketId: earn_normalizeMarketId(state.marketId),
                     par: BigInt(state.par || '0'),
                     lastIndex: state.lastIndex === null || state.lastIndex === undefined ? null : BigInt(state.lastIndex),
                     settledYield: BigInt(state.settledYield || '0'),
@@ -26635,7 +26653,7 @@
             );
             (positions || []).forEach(pos => {
                 const account = String(pos.accountNumber || '0');
-                const marketId = String(pos.marketId || '');
+                const marketId = earn_normalizeMarketId(pos.marketId);
                 if (!marketId) return;
                 const key = `${account}|${marketId}`;
                 currentParByKey[key] = (currentParByKey[key] || 0n) + BigInt(pos.par || 0);
@@ -26705,7 +26723,7 @@
             opts = opts || {};
             const states = Object.values(accountStateData || {}).map(state => ({
                 account: String(state.account || ''),
-                marketId: String(state.marketId || ''),
+                marketId: earn_normalizeMarketId(state.marketId),
                 par: BigInt(state.par || '0'),
                 settledYield: BigInt(state.settledYield || '0'),
                 liveYield: BigInt(state.liveYield || '0'),
@@ -26922,9 +26940,14 @@
                     replay.accountStateData,
                     mergedCurrentIndexMap
                 );
+                const borrowAccountsOverride = earn_collectBorrowAccountsOverride(
+                    replay.borrowAccountsOverride,
+                    replay.openBorrowAccounts
+                );
                 const refreshedSummary = earn_summarizeReplayAccountStates(
                     advanced.accountStateData,
-                    mergedCurrentIndexMap
+                    mergedCurrentIndexMap,
+                    { borrowAccountsOverride }
                 );
 
                 if (advanced.advancedStates > 0) {
@@ -26936,6 +26959,7 @@
                     interestYieldData: refreshedSummary.interestYieldData || replay.interestYieldData || {},
                     replayStateData: refreshedSummary.replayStateData || replay.replayStateData || {},
                     openBorrowAccounts: refreshedSummary.openBorrowAccounts || replay.openBorrowAccounts || [],
+                    borrowAccountsOverride: borrowAccountsOverride ? Array.from(borrowAccountsOverride) : (replay.borrowAccountsOverride || replay.openBorrowAccounts || []),
                     accountStateData: advanced.accountStateData,
                     currentIndexMap: mergedCurrentIndexMap,
                     marketMeta: {
@@ -27004,15 +27028,23 @@
                 supplementReplay.currentIndexMap || {},
                 mid => targets.has(String(mid))
             );
+            const borrowAccountsOverride = earn_collectBorrowAccountsOverride(
+                primaryReplay.borrowAccountsOverride,
+                primaryReplay.openBorrowAccounts,
+                supplementReplay.borrowAccountsOverride,
+                supplementReplay.openBorrowAccounts
+            );
             const mergedSummary = earn_summarizeReplayAccountStates(
                 primaryReplay.accountStateData || {},
-                mergedCurrentIndexMap
+                mergedCurrentIndexMap,
+                { borrowAccountsOverride }
             );
             return {
                 ...primaryReplay,
                 interestYieldData: mergedSummary.interestYieldData || primaryReplay.interestYieldData || {},
                 replayStateData: mergedSummary.replayStateData || primaryReplay.replayStateData || {},
                 openBorrowAccounts: mergedSummary.openBorrowAccounts || primaryReplay.openBorrowAccounts || [],
+                borrowAccountsOverride: borrowAccountsOverride ? Array.from(borrowAccountsOverride) : (primaryReplay.borrowAccountsOverride || primaryReplay.openBorrowAccounts || []),
                 currentIndexMap: mergedCurrentIndexMap,
                 marketMeta: {
                     ...(supplementReplay.marketMeta || {}),
@@ -27042,7 +27074,17 @@
                 supplementReplay.currentIndexMap || {}
             );
 
-            const mergedSummary = earn_summarizeReplayAccountStates(mergedAccountStateData, mergedCurrentIndexMap);
+            const borrowAccountsOverride = earn_collectBorrowAccountsOverride(
+                primaryReplay.borrowAccountsOverride,
+                primaryReplay.openBorrowAccounts,
+                supplementReplay.borrowAccountsOverride,
+                supplementReplay.openBorrowAccounts
+            );
+            const mergedSummary = earn_summarizeReplayAccountStates(
+                mergedAccountStateData,
+                mergedCurrentIndexMap,
+                { borrowAccountsOverride }
+            );
             const mergedNetflows = { ...(primaryReplay.netflows || {}) };
             Object.entries(supplementReplay.netflows || {}).forEach(([mid, entry]) => {
                 if (!mergedNetflows[mid]) mergedNetflows[mid] = entry;
@@ -27066,6 +27108,7 @@
                     ...(primaryReplay.marketMeta || {}),
                 },
                 openBorrowAccounts: mergedSummary.openBorrowAccounts,
+                borrowAccountsOverride: borrowAccountsOverride ? Array.from(borrowAccountsOverride) : (primaryReplay.borrowAccountsOverride || primaryReplay.openBorrowAccounts || []),
                 accountStateData: mergedAccountStateData,
                 currentIndexMap: mergedCurrentIndexMap,
                 eventTrace: mergedEventTrace,
@@ -27080,7 +27123,7 @@
             const mergedAccountStateData = { ...(primaryReplay.accountStateData || {}) };
             let addedStates = 0;
             Object.entries(supplementReplay.accountStateData || {}).forEach(([key, state]) => {
-                const marketId = String(state.marketId || '');
+                const marketId = earn_normalizeMarketId(state.marketId);
                 if (!missing.has(marketId)) return;
                 if (mergedAccountStateData[key]) return;
                 mergedAccountStateData[key] = state;
@@ -27094,7 +27137,17 @@
                 mid => missing.has(String(mid))
             );
 
-            const mergedSummary = earn_summarizeReplayAccountStates(mergedAccountStateData, mergedCurrentIndexMap);
+            const borrowAccountsOverride = earn_collectBorrowAccountsOverride(
+                primaryReplay.borrowAccountsOverride,
+                primaryReplay.openBorrowAccounts,
+                supplementReplay.borrowAccountsOverride,
+                supplementReplay.openBorrowAccounts
+            );
+            const mergedSummary = earn_summarizeReplayAccountStates(
+                mergedAccountStateData,
+                mergedCurrentIndexMap,
+                { borrowAccountsOverride }
+            );
             const mergedNetflows = { ...(primaryReplay.netflows || {}) };
             Object.entries(supplementReplay.netflows || {}).forEach(([mid, entry]) => {
                 if (!missing.has(String(mid))) return;
@@ -27113,7 +27166,7 @@
 
             const mergedEventTrace = [
                 ...(primaryReplay.eventTrace || []),
-                ...(supplementReplay.eventTrace || []).filter(ev => missing.has(String(ev.marketId || ''))),
+                ...(supplementReplay.eventTrace || []).filter(ev => missing.has(earn_normalizeMarketId(ev.marketId))),
             ];
 
             return {
@@ -27131,6 +27184,7 @@
                     ...(primaryReplay.marketMeta || {}),
                 },
                 openBorrowAccounts: mergedSummary.openBorrowAccounts,
+                borrowAccountsOverride: borrowAccountsOverride ? Array.from(borrowAccountsOverride) : (primaryReplay.borrowAccountsOverride || primaryReplay.openBorrowAccounts || []),
                 accountStateData: mergedAccountStateData,
                 currentIndexMap: mergedCurrentIndexMap,
                 eventTrace: mergedEventTrace,
@@ -28791,7 +28845,7 @@
             const neededMarkets = new Set(activeMarketIds.map(mid => String(mid)));
             (earn_collateralPositionData || []).forEach(position => {
                 if (!position) return;
-                neededMarkets.add(String(position.marketId || ''));
+                neededMarkets.add(earn_normalizeMarketId(position.marketId));
             });
             Object.keys(earn_netflowData || {}).forEach(mid => neededMarkets.add(String(mid)));
 
@@ -29218,7 +29272,7 @@
                         const token = tv.token || {};
                         const tokenAddr = (token.id || '').toLowerCase();
                         const decimals = Number(token.decimals || 18);
-                        const marketId = String(token.marketId || '');
+                        const marketId = earn_normalizeMarketId(token.marketId);
                         if (!tokenAddr || !marketId) return;
                         const par = earn_decimalToBigInt(tv.valuePar || '0', decimals);
                         if (par === 0n) return;
@@ -29353,7 +29407,7 @@
 
                 const activeMarkets = Array.from(new Set(
                     (snapshot.positions || [])
-                        .map(pos => String(pos.marketId || ''))
+                        .map(pos => earn_normalizeMarketId(pos.marketId))
                         .filter(Boolean)
                 ));
                 const replayMarkets = new Set(Object.keys(onchainReplay.interestYieldData || {}));
@@ -31424,7 +31478,7 @@
                 sortEnrichedAssets();
                 earn_cachedAssets = enriched;
                 const activeMarketIdsForYield = Array.from(new Set(
-                    balances.map(b => String(b.marketId || '')).filter(Boolean)
+                    balances.map(b => earn_normalizeMarketId(b.marketId)).filter(Boolean)
                 ));
                 const totalYieldWarmPromise = earn_fetchTotalYield({
                     suppressRender: true,
