@@ -1038,6 +1038,19 @@ def normalize_live_row_category(row: dict) -> str:
         and max_usd_drift is not None
         and max_usd_drift <= 0.1
     )
+    exact_verify_match = (
+        bool(verify)
+        and verify.get("canVerify")
+        and verify.get("counted")
+        and parse_bigint_like(verify.get("supplyWeiDiff")) == 0
+        and parse_bigint_like(verify.get("collateralWeiDiff")) == 0
+        and parse_bigint_like(verify.get("borrowWeiDiff")) == 0
+    )
+    calc_trusted = (
+        calc.get("hasData")
+        and calc.get("verificationStatus") == "verified"
+        and calc.get("trustedForTotal")
+    )
 
     if position_kind == "missing":
         return "missing_position"
@@ -1046,7 +1059,7 @@ def normalize_live_row_category(row: dict) -> str:
             return "verified_other"
         return "borrow_only"
     if position_kind == "hidden_collateral":
-        if replay_trusted or public_trusted or drift_trusted:
+        if replay_trusted or public_trusted or drift_trusted or (calc_trusted and exact_verify_match):
             return "hidden_collateral_verified"
         return "timeout_hidden_collateral" if timed_out else "hidden_collateral_other"
     if verify_label == "VERIFIED":
