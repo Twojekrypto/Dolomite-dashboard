@@ -245,6 +245,9 @@ function buildAuditSource(address) {
       };
     };
 
+    const normalizeMarketId = (value) =>
+      value === undefined || value === null ? '' : String(value);
+
     const captureState = (label) => {
       const rows = Array.from(document.querySelectorAll('#earn-table-body tr.earn-data-row'));
       const marketRow = rows.find((row) => {
@@ -252,13 +255,13 @@ function buildAuditSource(address) {
         return tokenName === symbol;
       }) || null;
       const visiblePosition = (earn_cachedAssets || []).find((pos) =>
-        String(pos.marketId || '') === marketId && !pos.isBorrow && !pos.isCollateral
+        normalizeMarketId(pos.marketId) === marketId && !pos.isBorrow && !pos.isCollateral
       ) || null;
       const collateralPosition = (earn_collateralPositionData || []).find((pos) =>
-        String(pos.marketId || '') === marketId
+        normalizeMarketId(pos.marketId) === marketId
       ) || null;
       const borrowPosition = (earn_borrowPositionData || []).find((pos) =>
-        String(pos.marketId || '') === marketId
+        normalizeMarketId(pos.marketId) === marketId
       ) || null;
       const targetPosition = visiblePosition || collateralPosition || null;
       const calc = targetPosition
