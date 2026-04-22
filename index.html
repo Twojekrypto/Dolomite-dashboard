@@ -9375,6 +9375,51 @@
             font-weight: 600;
         }
 
+        .earn-summary-mini-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 9px;
+            min-height: 0;
+        }
+
+        .earn-summary-mini-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            max-width: 100%;
+            padding: 4px 8px;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.16);
+            background: rgba(15, 23, 42, 0.5);
+            color: rgba(226, 232, 240, 0.76);
+            font-size: 10px;
+            line-height: 1.2;
+            letter-spacing: 0.12px;
+            white-space: nowrap;
+        }
+
+        .earn-summary-mini-pill .token {
+            color: rgba(241, 245, 249, 0.92);
+            font-weight: 700;
+        }
+
+        .earn-summary-mini-pill .amount {
+            color: rgba(148, 250, 197, 0.88);
+            font-weight: 600;
+        }
+
+        .earn-summary-stat.is-muted .earn-summary-mini-pill {
+            color: rgba(148, 163, 184, 0.45);
+            border-color: rgba(148, 163, 184, 0.1);
+            background: rgba(15, 23, 42, 0.28);
+        }
+
+        .earn-summary-stat.is-muted .earn-summary-mini-pill .token,
+        .earn-summary-stat.is-muted .earn-summary-mini-pill .amount {
+            color: inherit;
+        }
+
         .earn-summary-hero {
             gap: 12px;
             justify-content: flex-start;
@@ -34612,6 +34657,7 @@
                                     <div class="earn-summary-label">Rewards</div>
                                     <div class="earn-summary-value neutral" id="earn-rewards-overview-val">Loading...</div>
                                     <div class="earn-summary-sub" id="earn-rewards-overview-sub">Checking reward sources...</div>
+                                    <div class="earn-summary-mini-list" id="earn-rewards-overview-list"></div>
                                 </div>
                             </div>
                             <div class="earn-summary-secondary-grid">
@@ -34647,6 +34693,7 @@
 
                     const rewardsValueEl = document.getElementById('earn-rewards-overview-val');
                     const rewardsSubEl = document.getElementById('earn-rewards-overview-sub');
+                    const rewardsListEl = document.getElementById('earn-rewards-overview-list');
                     const rewardsCardEl = summaryEl.querySelector('.earn-rewards-overview-stat');
                     const rewardsState = {
                         odoloClaimed: null,
@@ -34656,49 +34703,40 @@
                         extraParts: [],
                     };
                     const formatRewardAmount = value => value >= 1000 ? (value / 1000).toFixed(2) + 'K' : value.toFixed(2);
-                    const rewardsTotalUsd = () => {
-                        const doloPrice = earn_getRewardTokenUsdPrice('DOLO', '0x0f81001ef0a83ecce5ccebf63eb302c70a39a654', earnChainId) || 0.03;
-                        let usd = 0;
-                        if (rewardsState.odoloClaimed !== null) {
-                            usd += ((rewardsState.odoloClaimed || 0) + (rewardsState.odoloUnclaimed || 0)) * doloPrice;
-                        }
-                        if (rewardsState.wlfiAccumulated !== null) {
-                            usd += (rewardsState.wlfiAccumulated || 0) * earn_getRewardTokenUsdPrice('WLFI', earn_merklRewards['WLFI'] && earn_merklRewards['WLFI'].token, earnChainId);
-                        }
-                        rewardsState.extraParts.forEach(part => {
-                            usd += Number(part.usd || 0);
-                        });
-                        return usd;
-                    };
                     const renderRewardsOverview = () => {
-                        if (!isSummaryRenderCurrent() || !rewardsValueEl || !rewardsSubEl) return;
+                        if (!isSummaryRenderCurrent() || !rewardsValueEl || !rewardsSubEl || !rewardsListEl) return;
                         const parts = [];
                         if (rewardsState.odoloClaimed !== null) {
                             const totalOdolo = (rewardsState.odoloClaimed || 0) + (rewardsState.odoloUnclaimed || 0);
-                            parts.push(`oDOLO ${formatRewardAmount(totalOdolo)}`);
+                            if (totalOdolo > 0.01) {
+                                parts.push({ symbol: 'oDOLO', amountLabel: formatRewardAmount(totalOdolo) });
+                            }
                         }
                         if (rewardsState.wlfiAccumulated !== null && rewardsState.wlfiAccumulated > 0.01) {
-                            const wlfiUsd = (rewardsState.wlfiAccumulated || 0) * earn_getRewardTokenUsdPrice('WLFI', earn_merklRewards['WLFI'] && earn_merklRewards['WLFI'].token, earnChainId);
-                            parts.push(`WLFI ~$${wlfiUsd >= 1000 ? (wlfiUsd / 1000).toFixed(2) + 'K' : wlfiUsd.toFixed(2)}`);
+                            parts.push({ symbol: 'WLFI', amountLabel: formatRewardAmount(rewardsState.wlfiAccumulated || 0) });
                         }
                         rewardsState.extraParts.forEach(part => {
-                            parts.push(part.label);
+                            if (!part || !part.amountLabel || !part.symbol) return;
+                            parts.push({ symbol: part.symbol, amountLabel: part.amountLabel });
                         });
 
-                        const totalUsd = rewardsTotalUsd();
                         if (parts.length === 0) {
                             rewardsValueEl.textContent = '0';
                             rewardsValueEl.className = 'earn-summary-value neutral';
                             rewardsSubEl.textContent = 'No active reward streams';
+                            rewardsListEl.innerHTML = '';
                             if (rewardsCardEl) rewardsCardEl.classList.add('is-muted');
                             return;
                         }
                         if (rewardsCardEl) rewardsCardEl.classList.remove('is-muted');
-                        rewardsValueEl.textContent = totalUsd > 0.01
-                            ? (totalUsd >= 1000 ? '$' + (totalUsd / 1000).toFixed(2) + 'K' : '$' + totalUsd.toFixed(2))
-                            : 'Active';
-                        rewardsValueEl.className = 'earn-summary-value positive';
-                        rewardsSubEl.textContent = `${parts.length} active stream${parts.length !== 1 ? 's' : ''}`;
+                        rewardsValueEl.textContent = `${parts.length} token${parts.length !== 1 ? 's' : ''}`;
+                        rewardsValueEl.className = 'earn-summary-value neutral';
+                        rewardsSubEl.textContent = parts.length === 1
+                            ? 'Additional reward token farmed'
+                            : 'Additional reward tokens farmed';
+                        rewardsListEl.innerHTML = parts.map(part => (
+                            `<span class="earn-summary-mini-pill"><span class="token">${earn_escapeHtml(part.symbol)}</span><span class="amount">${earn_escapeHtml(part.amountLabel)}</span></span>`
+                        )).join('');
                     };
 
                     // Fetch oDOLO claimed asynchronously
@@ -34728,11 +34766,13 @@
                             if (!isSummaryRenderCurrent()) return;
                             const fmtIbgt = v => v >= 1000 ? (v / 1000).toFixed(2) + 'K' : v >= 1 ? v.toFixed(2) : v.toFixed(4);
                             if (ibgtData && (ibgtData.rewards.length > 0 || ibgtData.staked > 0.01)) {
-                                const totalRewards = ibgtData.rewards.reduce((s, r) => s + r.amount, 0);
-                                rewardsState.extraParts = rewardsState.extraParts.filter(part => part.key !== 'ibgt');
-                                rewardsState.extraParts.push({
-                                    key: 'ibgt',
-                                    label: `iBGT ${totalRewards > 0 ? fmtIbgt(totalRewards) : fmtIbgt(ibgtData.staked)}`
+                                rewardsState.extraParts = rewardsState.extraParts.filter(part => !String(part.key || '').startsWith('ibgt:'));
+                                ibgtData.rewards.forEach(reward => {
+                                    rewardsState.extraParts.push({
+                                        key: `ibgt:${reward.symbol}`,
+                                        symbol: reward.symbol,
+                                        amountLabel: fmtIbgt(reward.amount),
+                                    });
                                 });
                                 renderRewardsOverview();
                             }
@@ -34745,10 +34785,13 @@
                             if (!isSummaryRenderCurrent()) return;
                             const fmtGmx = v => v >= 1000 ? (v / 1000).toFixed(2) + 'K' : v >= 1 ? v.toFixed(2) : v.toFixed(4);
                             if (dgmxData && dgmxData.staked > 0.01) {
-                                rewardsState.extraParts = rewardsState.extraParts.filter(part => part.key !== 'dgmx');
-                                rewardsState.extraParts.push({
-                                    key: 'dgmx',
-                                    label: `GMX ${dgmxData.totalUsd > 0.01 ? ('$' + (dgmxData.totalUsd >= 1000 ? (dgmxData.totalUsd / 1000).toFixed(2) + 'K' : dgmxData.totalUsd.toFixed(2))) : fmtGmx(dgmxData.staked)}`
+                                rewardsState.extraParts = rewardsState.extraParts.filter(part => !String(part.key || '').startsWith('dgmx:'));
+                                dgmxData.rewards.forEach(reward => {
+                                    rewardsState.extraParts.push({
+                                        key: `dgmx:${reward.symbol}`,
+                                        symbol: reward.symbol,
+                                        amountLabel: fmtGmx(reward.amount),
+                                    });
                                 });
                                 renderRewardsOverview();
                             }
