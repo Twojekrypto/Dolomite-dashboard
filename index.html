@@ -27954,7 +27954,6 @@
 
         function earn_getRewardTokenUsdPrice(symbol, tokenAddr, chainId) {
             const upper = String(symbol || '').toUpperCase();
-            if (upper === 'WLFI') return 0.097;
             const rewardTokenAddr = String(tokenAddr || '').toLowerCase();
             if (rewardTokenAddr) {
                 const directPrice = earn_priceCache[String(chainId || '') + ':' + rewardTokenAddr];
@@ -29954,12 +29953,14 @@
                     for (const [reasonKey, reward] of Object.entries(reasons)) {
                         let tokenAddr = '';
                         let accountNumber = '';
+                        let hasExplicitAccountNumber = false;
                         if (reasonKey.startsWith('Dolomite_')) {
                             tokenAddr = (reasonKey.replace('Dolomite_', '') || '').toLowerCase();
                         } else if (reasonKey.startsWith('MultiLogPerAdditionalParam_')) {
                             const campaignId = (reward && reward.mainParameter ? String(reward.mainParameter) : '').toLowerCase().replace(/^0x/, '');
                             tokenAddr = campaignId ? (campaignTokenMap[campaignId] || '') : '';
                             const accountMatch = reasonKey.match(/^MultiLogPerAdditionalParam_accountNumber_([^_]+)_/);
+                            hasExplicitAccountNumber = !!accountMatch;
                             accountNumber = accountMatch ? String(accountMatch[1]) : '';
                         } else {
                             continue;
@@ -29978,7 +29979,9 @@
                         // Track per collateral token for per-position attribution
                         if (!dolomiteRewards[sym].perToken[tokenAddr]) dolomiteRewards[sym].perToken[tokenAddr] = 0;
                         dolomiteRewards[sym].perToken[tokenAddr] += amt;
-                        if (accountNumber) {
+                        // Account number "0" is a valid Dolomite subaccount and must not
+                        // be treated as "unattributed" Merkl rewards.
+                        if (hasExplicitAccountNumber) {
                             if (!dolomiteRewards[sym].perAccountToken[accountNumber]) dolomiteRewards[sym].perAccountToken[accountNumber] = {};
                             if (!dolomiteRewards[sym].perAccountToken[accountNumber][tokenAddr]) dolomiteRewards[sym].perAccountToken[accountNumber][tokenAddr] = 0;
                             dolomiteRewards[sym].perAccountToken[accountNumber][tokenAddr] += amt;
@@ -29996,6 +29999,14 @@
                     if (!dolomiteRewards[sym]) dolomiteRewards[sym] = { accumulated: 0, unclaimed: 0, decimals: dec, token: tokenData.token, perToken: {}, perAccountToken: {}, assignedPerToken: {} };
                     dolomiteRewards[sym].accumulated = Math.max(dolomiteRewards[sym].accumulated || 0, totalAmt);
                     dolomiteRewards[sym].unclaimed = Math.max(dolomiteRewards[sym].unclaimed || 0, totalUncl);
+                }
+                const rewardTokenAddrs = Array.from(new Set(
+                    Object.values(dolomiteRewards)
+                        .map(entry => String(entry && entry.token ? entry.token : '').toLowerCase())
+                        .filter(Boolean)
+                ));
+                if (rewardTokenAddrs.length > 0) {
+                    await earn_fetchCoinGeckoPrices(rewardTokenAddrs);
                 }
                 earn_merklRewards = dolomiteRewards;
                 earn_merklRewardsLoaded = true;
@@ -33177,8 +33188,6 @@
                         const odoloEpochStart = earn_odoloMeta ? (earn_odoloMeta.odoloStartTimestamp || 0) : 0;
                         const odoloEpochDuration = 604800; // 7 days in seconds
                         const DOLO_PRICE = earn_priceCache[chainId + ':0x0f81001ef0a83ecce5ccebf63eb302c70a39a654'] || TOKEN_USD_FALLBACK['DOLO'] || 0.03;
-                        const WLFI_PRICE = 0.097; // CoinGecko March 2026
-
                         // Addresses blacklisted from oDOLO rewards (e.g. WLFI — confirmed by Dolomite team)
                         const ODOLO_BLACKLIST = new Set([
                             '0x5be9a4959308a0d0c7bc0870e319314d8d957dbb', // World Liberty Financial
@@ -33258,7 +33267,7 @@
                                         const unattributedPerTokenAmt = Math.max(0, totalPerTokenAmt - assignedPerTokenAmt);
                                         const perTokenAmt = exactPerAccountAmt + allocateTokenRewardToPosition(p.accountNumber, tokenAddr, unattributedPerTokenAmt);
                                         if (perTokenAmt > 0.01) {
-                                            const merklPrice = merklSym === 'WLFI' ? WLFI_PRICE : 0;
+                                            const merklPrice = earn_getRewardTokenUsdPrice(merklSym, merklData.token, chainId);
                                             const rateEntry = earn_marketRates[chainId + ':' + tokenAddr] || earn_marketRates['sym:' + symbol.toUpperCase()];
                                             const rewardApr = rateEntry && rateEntry.rewardParts
                                                 ? (rateEntry.rewardParts.find(rp => rp.symbol === merklSym) || {}).apr || 0
@@ -34654,7 +34663,7 @@
                             usd += ((rewardsState.odoloClaimed || 0) + (rewardsState.odoloUnclaimed || 0)) * doloPrice;
                         }
                         if (rewardsState.wlfiAccumulated !== null) {
-                            usd += (rewardsState.wlfiAccumulated || 0) * 0.097;
+                            usd += (rewardsState.wlfiAccumulated || 0) * earn_getRewardTokenUsdPrice('WLFI', earn_merklRewards['WLFI'] && earn_merklRewards['WLFI'].token, earnChainId);
                         }
                         rewardsState.extraParts.forEach(part => {
                             usd += Number(part.usd || 0);
@@ -34669,7 +34678,8 @@
                             parts.push(`oDOLO ${formatRewardAmount(totalOdolo)}`);
                         }
                         if (rewardsState.wlfiAccumulated !== null && rewardsState.wlfiAccumulated > 0.01) {
-                            parts.push(`WLFI ~$${((rewardsState.wlfiAccumulated || 0) * 0.097) >= 1000 ? (((rewardsState.wlfiAccumulated || 0) * 0.097) / 1000).toFixed(2) + 'K' : ((rewardsState.wlfiAccumulated || 0) * 0.097).toFixed(2)}`);
+                            const wlfiUsd = (rewardsState.wlfiAccumulated || 0) * earn_getRewardTokenUsdPrice('WLFI', earn_merklRewards['WLFI'] && earn_merklRewards['WLFI'].token, earnChainId);
+                            parts.push(`WLFI ~$${wlfiUsd >= 1000 ? (wlfiUsd / 1000).toFixed(2) + 'K' : wlfiUsd.toFixed(2)}`);
                         }
                         rewardsState.extraParts.forEach(part => {
                             parts.push(part.label);
