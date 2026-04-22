@@ -8593,6 +8593,51 @@
             box-shadow: 0 0 6px rgba(248, 113, 113, 0.35);
         }
 
+        .earn-verify-badge.coverage_incomplete {
+            background: rgba(251, 191, 36, 0.12);
+            color: #fcd34d;
+            border-color: rgba(251, 191, 36, 0.22);
+        }
+
+        .earn-verify-badge.coverage_incomplete .earn-status-dot {
+            background: #fcd34d;
+            box-shadow: 0 0 6px rgba(252, 211, 77, 0.32);
+        }
+
+        .earn-verify-badge.fallback {
+            background: rgba(251, 146, 60, 0.12);
+            color: #fdba74;
+            border-color: rgba(251, 146, 60, 0.22);
+        }
+
+        .earn-verify-badge.fallback .earn-status-dot {
+            background: #fdba74;
+            box-shadow: 0 0 6px rgba(253, 186, 116, 0.32);
+        }
+
+        .earn-verify-badge.inferred,
+        .earn-verify-badge.snapshot {
+            background: rgba(96, 165, 250, 0.12);
+            color: #93c5fd;
+            border-color: rgba(96, 165, 250, 0.22);
+        }
+
+        .earn-verify-badge.inferred .earn-status-dot,
+        .earn-verify-badge.snapshot .earn-status-dot {
+            background: #93c5fd;
+            box-shadow: 0 0 6px rgba(147, 197, 253, 0.3);
+        }
+
+        .earn-verify-badge.checking {
+            background: rgba(148, 163, 184, 0.12);
+            color: #cbd5e1;
+            border-color: rgba(148, 163, 184, 0.18);
+        }
+
+        .earn-verify-badge.checking .earn-status-dot {
+            background: rgba(203, 213, 225, 0.78);
+        }
+
         .earn-verify-badge.unverified {
             background: rgba(148, 163, 184, 0.12);
             color: #cbd5e1;
@@ -8894,7 +8939,7 @@
         /* ═══════ UX OVERHAUL: Summary Card ═══════ */
         .earn-summary-card {
             display: none;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 1px;
             margin-bottom: 24px;
             border-radius: 18px;
@@ -8904,14 +8949,28 @@
             animation: earnSummaryIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
-        /* 6 cards = 3+3 symmetric layout */
+        .earn-summary-card.cols-8 {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
         .earn-summary-card.cols-6 {
             grid-template-columns: repeat(3, 1fr);
         }
 
-        /* 7+ cards = 4+3 layout */
-        .earn-summary-card.cols-7 {
-            grid-template-columns: repeat(4, 1fr);
+        @media (max-width: 1120px) {
+            .earn-summary-card,
+            .earn-summary-card.cols-8,
+            .earn-summary-card.cols-6 {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 700px) {
+            .earn-summary-card,
+            .earn-summary-card.cols-8,
+            .earn-summary-card.cols-6 {
+                grid-template-columns: minmax(0, 1fr);
+            }
         }
 
         .earn-summary-card.visible {
@@ -9045,11 +9104,25 @@
             background: rgba(8, 12, 24, 0.92);
             backdrop-filter: blur(24px);
             padding: 20px 16px;
-            text-align: center;
+            text-align: left;
             position: relative;
             transition: background 0.3s ease, box-shadow 0.3s ease;
             animation: statFadeIn 0.5s ease both;
             min-width: 0; /* prevent overflow */
+            min-height: 152px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        .earn-summary-stat.is-primary {
+            background:
+                radial-gradient(circle at top left, rgba(52, 211, 153, 0.12), transparent 58%),
+                linear-gradient(180deg, rgba(8, 12, 24, 0.95), rgba(8, 12, 24, 0.88));
+        }
+
+        .earn-summary-stat.is-muted {
+            background: rgba(8, 12, 24, 0.8);
         }
 
         .earn-summary-stat:nth-child(1) { animation-delay: 0.1s; }
@@ -9077,6 +9150,12 @@
             box-shadow: inset 0 0 30px rgba(52, 211, 153, 0.03);
         }
 
+        .earn-summary-stat.is-primary:hover {
+            background:
+                radial-gradient(circle at top left, rgba(52, 211, 153, 0.18), transparent 58%),
+                linear-gradient(180deg, rgba(12, 18, 34, 0.96), rgba(10, 16, 30, 0.92));
+        }
+
         /* Override: disable metric-value scale/glow hover in Earn section */
         #view-earn .metric-cell:hover .metric-value,
         #view-earn .metric-cell:hover .metric-value.green,
@@ -9099,9 +9178,10 @@
             margin-bottom: 8px;
             display: flex;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             gap: 6px;
             font-weight: 600;
+            min-height: 24px;
         }
 
         .earn-summary-label .stat-icon {
@@ -9117,8 +9197,9 @@
             line-height: 1.2;
             display: flex;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             gap: 8px;
+            margin-top: auto;
         }
 
         .earn-summary-value.positive {
@@ -9155,10 +9236,24 @@
             font-size: 11px;
             color: rgba(148, 163, 184, 0.5);
             margin-top: 6px;
-            white-space: nowrap;
+            white-space: normal;
             overflow: hidden;
-            text-overflow: ellipsis;
             letter-spacing: 0.2px;
+            line-height: 1.4;
+            min-height: 32px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .earn-summary-stat.is-muted .earn-summary-value {
+            color: rgba(226, 232, 240, 0.72);
+            text-shadow: none;
+            filter: none;
+        }
+
+        .earn-summary-stat.is-muted .earn-summary-sub {
+            color: rgba(148, 163, 184, 0.4);
         }
 
         .earn-summary-sub .sub-highlight {
@@ -9704,7 +9799,12 @@
             letter-spacing: 0.3px;
             background: linear-gradient(90deg, rgba(52, 211, 153, 0.06) 0%, rgba(52, 211, 153, 0.02) 40%, transparent 100%);
             border-radius: 12px 12px 0 0;
-            position: relative;
+            position: sticky;
+            top: 12px;
+            z-index: 6;
+            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
         }
         .earn-supply-header::after {
             content: '';
@@ -9773,7 +9873,7 @@
             border: 1px solid rgba(52, 211, 153, 0.06);
             -webkit-backdrop-filter: blur(12px);
             backdrop-filter: blur(12px);
-            overflow-x: visible;
+            overflow: visible;
         }
 
         .earn-asset-table {
@@ -9803,6 +9903,11 @@
             z-index: 2;
             -webkit-backdrop-filter: blur(12px);
             backdrop-filter: blur(12px);
+        }
+
+        #earn-supply-section .earn-asset-table thead th {
+            top: 68px;
+            z-index: 4;
         }
 
         .earn-asset-table thead tr {
@@ -10928,6 +11033,27 @@
             color: #fcd34d;
             border-color: rgba(251, 191, 36, 0.24);
             background: rgba(251, 191, 36, 0.08);
+        }
+
+        .earn-detail-chip.coverage_incomplete,
+        .earn-debug-badge.coverage_incomplete {
+            color: #fcd34d;
+            border-color: rgba(251, 191, 36, 0.24);
+            background: rgba(251, 191, 36, 0.08);
+        }
+
+        .earn-detail-chip.checking,
+        .earn-debug-badge.checking {
+            color: #cbd5e1;
+            border-color: rgba(148, 163, 184, 0.24);
+            background: rgba(148, 163, 184, 0.08);
+        }
+
+        .earn-detail-chip.inferred,
+        .earn-debug-badge.inferred {
+            color: #93c5fd;
+            border-color: rgba(96, 165, 250, 0.24);
+            background: rgba(96, 165, 250, 0.08);
         }
 
         .earn-detail-chip.replay,
@@ -23078,12 +23204,15 @@
         let earn_hiddenCollateralSupplyMarkets = new Set(); // market IDs hidden from EARN while borrow stays open
         let earn_replayStateData = {}; // { marketId: { expectedSupplyPar, expectedSupplyWei, expectedBorrowPar, expectedBorrowWei, ... } }
         let earn_replayBlockTag = null; // block tag used for current replay + verification snapshot
+        let earn_canonicalSubaccountHistoryLastScannedBlock = null; // latest canonical subaccount-history block for current lookup
+        let earn_canonicalSubaccountHistoryFreshForBorrowRouting = false; // whether canonical subaccount history covers the replay block tag
         let earn_replayVerificationIncompleteMarkets = new Set(); // markets where current-state RPC coverage was incomplete
         let earn_replayActualSupplyMap = {};
         let earn_replayActualBorrowMap = {};
         let earn_replayActualCollateralMap = {};
         let earn_replayCurrentPositions = [];
         let earn_replayCurrentBorrowAccounts = new Set();
+        let earn_replayBorrowAccountsOverride = new Set();
         let earn_replayEventData = []; // ordered replay events for diagnostics/debug
         let earn_replayVerificationData = {}; // { marketId: { status, diffs..., counted } }
         let earn_replayVerificationSummary = { total: 0, verified: 0, mismatch: 0, unverified: 0 };
@@ -23095,7 +23224,7 @@
         let earn_replayStatus = 'idle'; // idle | loading | ready | error
         let earn_merklFetchStatus = 'idle'; // idle | loading | success | error
         let earn_merklFetchError = '';
-        const EARN_LOOKUP_CACHE_VERSION = 10;
+        const EARN_LOOKUP_CACHE_VERSION = 11;
         const EARN_LOOKUP_CACHE_TTL_MS = 10 * 60 * 1000;
         const earn_lookupResultCache = {};
         const earn_rewardRequestCache = {
@@ -23575,6 +23704,7 @@
             earn_hiddenCollateralSupplyMarkets = new Set();
             earn_replayStateData = {};
             earn_replayBlockTag = null;
+            earn_resetCanonicalSubaccountHistoryState();
             earn_replayVerificationIncompleteMarkets = new Set();
             earn_replayActualSupplyMap = {};
             earn_replayActualBorrowMap = {};
@@ -24613,57 +24743,6 @@
             }
             if (!accountNumbers.includes(fallbackAccountNum)) accountNumbers.unshift(fallbackAccountNum);
 
-            const aggregatePositions = (positions, knownBorrowAccounts) => {
-                const aggregatedSupply = {};
-                const aggregatedCollateral = {};
-                const aggregatedBorrow = {};
-                const accountHasBorrow = {};
-                if (knownBorrowAccounts && typeof knownBorrowAccounts.forEach === 'function') {
-                    knownBorrowAccounts.forEach(acct => {
-                        const normalized = String(acct || '').trim();
-                        if (normalized) accountHasBorrow[normalized] = true;
-                    });
-                }
-                (positions || []).forEach(pos => {
-                    if (pos.wei < 0n) accountHasBorrow[String(pos.accountNumber)] = true;
-                });
-                (positions || []).forEach(pos => {
-                    const mid = String(pos.marketId);
-                    const isCollateral = pos.wei > 0n && !!accountHasBorrow[String(pos.accountNumber)];
-                    const target = pos.wei < 0n
-                        ? aggregatedBorrow
-                        : isCollateral
-                            ? aggregatedCollateral
-                            : pos.wei > 0n
-                                ? aggregatedSupply
-                                : null;
-                    if (!target) return;
-                    if (!target[mid]) {
-                        target[mid] = { ...pos, isCollateral };
-                    } else {
-                        target[mid].wei += pos.wei;
-                        target[mid].par += pos.par;
-                    }
-                });
-                return { aggregatedSupply, aggregatedCollateral, aggregatedBorrow };
-            };
-
-            const filterBorrowCollateralSupply = (positions, borrowAccounts) => {
-                const filtered = [];
-                let hiddenSupplyCount = 0;
-                const hiddenMarketIds = new Set();
-                (positions || []).forEach(pos => {
-                    const acct = String(pos.accountNumber || '0');
-                    if (pos.wei > 0n && borrowAccounts.has(acct)) {
-                        hiddenSupplyCount++;
-                        hiddenMarketIds.add(String(pos.marketId));
-                        return;
-                    }
-                    filtered.push(pos);
-                });
-                return { filtered, hiddenSupplyCount, hiddenMarketIds };
-            };
-
             let aggregatedSupply = {};
             let aggregatedCollateral = {};
             let aggregatedBorrow = {};
@@ -24707,9 +24786,16 @@
                 });
                 let decodedPositions = Object.values(decodedByAccount).flat();
 
-                // Build open-borrow set only from CURRENT onchain balances for this address.
-                // Do not seed from replay state (can be incomplete on very busy accounts).
-                const borrowAccounts = new Set();
+                // Seed borrow-account routing from explicit replay/subgraph overrides first,
+                // then extend it with whatever the live current balances confirm onchain.
+                const borrowAccounts = new Set(
+                    Array.from(
+                        earn_collectBorrowAccountsOverride(
+                            earn_replayBorrowAccountsOverride,
+                            earn_openBorrowAccounts
+                        ) || []
+                    )
+                );
                 decodedPositions.forEach(pos => {
                     const acct = String(pos.accountNumber || '0');
                     if (pos.wei < 0n || pos.par < 0n) borrowAccounts.add(acct);
@@ -24720,6 +24806,8 @@
                 let mergedPositions = decodedPositions;
                 try {
                     const snapshot = await ensureSubgraphSnapshot();
+                    const snapshotBorrowAccounts = new Set((snapshot.borrowAccountNumbers || []).map(v => String(v)));
+                    snapshotBorrowAccounts.forEach(acct => borrowAccounts.add(acct));
                     (snapshot.positions || []).forEach(pos => {
                         const acct = String(pos.accountNumber || '0');
                         if (pos.wei < 0n || pos.par < 0n) borrowAccounts.add(acct);
@@ -24798,23 +24886,28 @@
                     console.warn('Snapshot supplement skipped:', snapshotErr.message);
                 }
 
-                earn_reconcileReplayToCurrentPositions(mergedPositions, { borrowAccounts });
-                earn_openBorrowAccounts = borrowAccounts;
+                const routedCurrent = earn_buildCurrentPositionBuckets(mergedPositions, {
+                    knownBorrowAccounts: borrowAccounts,
+                    borrowAccountsOverride: earn_replayBorrowAccountsOverride,
+                });
+                earn_reconcileReplayToCurrentPositions(mergedPositions, { borrowAccounts: routedCurrent.borrowAccounts });
+                earn_openBorrowAccounts = routedCurrent.borrowAccounts;
                 earn_replayCurrentPositions = mergedPositions.map(pos => ({ ...pos }));
-                earn_replayCurrentBorrowAccounts = new Set(Array.from(borrowAccounts));
+                earn_replayCurrentBorrowAccounts = new Set(Array.from(routedCurrent.borrowAccounts));
 
-                const filtered = filterBorrowCollateralSupply(mergedPositions, borrowAccounts);
-                hiddenSupplyCount = filtered.hiddenSupplyCount;
-                earn_hiddenCollateralSupplyMarkets = filtered.hiddenMarketIds;
-                const aggregated = aggregatePositions(mergedPositions, borrowAccounts);
-                aggregatedSupply = aggregated.aggregatedSupply;
-                aggregatedCollateral = aggregated.aggregatedCollateral;
-                aggregatedBorrow = aggregated.aggregatedBorrow;
+                hiddenSupplyCount = routedCurrent.hiddenSupplyCount;
+                earn_hiddenCollateralSupplyMarkets = routedCurrent.hiddenMarketIds;
+                aggregatedSupply = routedCurrent.aggregatedSupply;
+                aggregatedCollateral = routedCurrent.aggregatedCollateral;
+                aggregatedBorrow = routedCurrent.aggregatedBorrow;
 
                 // Build verification maps from the final merged position set so collateral/supply
                 // classification stays in sync with any borrow accounts discovered via snapshot
                 // supplementation. Missing supplemented markets are still marked unverified above.
-                const verificationAggregated = aggregatePositions(mergedPositions, borrowAccounts);
+                const verificationAggregated = earn_buildCurrentPositionBuckets(mergedPositions, {
+                    knownBorrowAccounts: routedCurrent.borrowAccounts,
+                    borrowAccountsOverride: earn_replayBorrowAccountsOverride,
+                });
                 verificationSupply = verificationAggregated.aggregatedSupply;
                 verificationCollateral = verificationAggregated.aggregatedCollateral;
                 verificationBorrow = verificationAggregated.aggregatedBorrow;
@@ -24822,21 +24915,32 @@
                 console.warn('RPC balance lookup failed, using subgraph fallback:', rpcErr.message);
                 const snapshot = await ensureSubgraphSnapshot();
                 // Subgraph fallback: derive open-borrow accounts from current snapshot only.
-                const borrowAccounts = new Set();
+                const borrowAccounts = new Set(
+                    Array.from(
+                        earn_collectBorrowAccountsOverride(
+                            earn_replayBorrowAccountsOverride,
+                            earn_openBorrowAccounts,
+                            snapshot.borrowAccountNumbers || []
+                        ) || []
+                    )
+                );
                 (snapshot.positions || []).forEach(pos => {
                     const acct = String(pos.accountNumber || '0');
                     if (pos.wei < 0n || pos.par < 0n) borrowAccounts.add(acct);
                 });
-                earn_openBorrowAccounts = borrowAccounts;
+                const routedSnapshot = earn_buildCurrentPositionBuckets(snapshot.positions || [], {
+                    knownBorrowAccounts: borrowAccounts,
+                    borrowAccountsOverride: earn_replayBorrowAccountsOverride,
+                    snapshotBorrowAccounts: snapshot.borrowAccountNumbers || [],
+                });
+                earn_openBorrowAccounts = routedSnapshot.borrowAccounts;
                 earn_replayCurrentPositions = (snapshot.positions || []).map(pos => ({ ...pos }));
-                earn_replayCurrentBorrowAccounts = new Set(Array.from(borrowAccounts));
-                const filtered = filterBorrowCollateralSupply(snapshot.positions || [], borrowAccounts);
-                hiddenSupplyCount = filtered.hiddenSupplyCount;
-                earn_hiddenCollateralSupplyMarkets = filtered.hiddenMarketIds;
-                const aggregated = aggregatePositions(snapshot.positions || [], borrowAccounts);
-                aggregatedSupply = aggregated.aggregatedSupply;
-                aggregatedCollateral = aggregated.aggregatedCollateral;
-                aggregatedBorrow = aggregated.aggregatedBorrow;
+                earn_replayCurrentBorrowAccounts = new Set(Array.from(routedSnapshot.borrowAccounts));
+                hiddenSupplyCount = routedSnapshot.hiddenSupplyCount;
+                earn_hiddenCollateralSupplyMarkets = routedSnapshot.hiddenMarketIds;
+                aggregatedSupply = routedSnapshot.aggregatedSupply;
+                aggregatedCollateral = routedSnapshot.aggregatedCollateral;
+                aggregatedBorrow = routedSnapshot.aggregatedBorrow;
                 verificationSupply = {};
                 verificationCollateral = {};
                 verificationBorrow = {};
@@ -26050,7 +26154,7 @@
         }
 
         function earn_shouldTrustVisibleSupplyReplayMismatch(entry) {
-            if (!entry || entry.status !== 'mismatch' || entry.snapshotIncomplete) return false;
+            if (!entry || entry.snapshotIncomplete) return false;
             if (entry.actualSupplyPar <= 0n || entry.actualSupplyWei <= 0n) return false;
             if (entry.actualCollateralPar !== 0n || entry.actualCollateralWei !== 0n) return false;
             if (entry.actualBorrowPar !== 0n || entry.actualBorrowWei !== 0n) return false;
@@ -26142,6 +26246,22 @@
             return !actualBorrowPositive && expectedBorrowPositive;
         }
 
+        function earn_getStrictVerificationStatus(entry) {
+            if (!entry || !entry.counted) return 'unverified';
+            if (!entry.canVerify) return 'coverage_incomplete';
+            if (entry.rawVerified) {
+                if (!entry.snapshotIncomplete || earn_shouldTrustSnapshotSupplementedReplay(entry)) {
+                    return 'verified';
+                }
+            }
+            if (!entry.snapshotIncomplete) {
+                if (earn_shouldTrustVisibleSupplyReplayMismatch(entry)) return 'verified';
+                if (earn_shouldTrustAlignedReplayWeiDrift(entry)) return 'verified';
+                return 'mismatch';
+            }
+            return 'coverage_incomplete';
+        }
+
         function earn_shouldHideGhostCurrentMarket(entry) {
             if (!entry || !entry.snapshotIncomplete || !entry.counted) return false;
             const actualAnyExposure = entry.actualSupplyPar > 0n
@@ -26173,15 +26293,34 @@
             const flowMeta = earn_parseNetflowEntry(earn_netflowData && earn_netflowData[String(marketId)]);
             const source = String(hist.source || '');
             const status = String(hist.verificationStatus || '').toLowerCase();
+            const rawStatus = String(
+                hist.rawVerificationStatus !== undefined
+                    ? hist.rawVerificationStatus
+                    : hist.verificationStatus || ''
+            ).toLowerCase();
+            const canonicalHistoryCoverageStatus = String(hist.canonicalHistoryCoverageStatus || '').toLowerCase();
             if (publicLedgerMethod && yieldCalc.publicLedgerInference) {
                 const inferred = yieldCalc.publicLedgerInference;
+                if (inferred.status === 'verified') {
+                    return {
+                        counted: true,
+                        status: 'verified',
+                        label: 'VERIFIED',
+                        title: 'Public netflow reconciles cleanly with historical snapshot data and fresh canonical subaccount history for this market.',
+                        rawStatus: inferred.status,
+                        rawLabel: 'Verified',
+                        rawTitle: 'Public netflow and snapshot history reconcile exactly for this market.',
+                        overridden: true,
+                        entry: null,
+                    };
+                }
                 return {
                     counted: true,
-                    status: 'verified',
-                    label: 'VERIFIED',
+                    status: 'inferred',
+                    label: inferred.status === 'pre_snapshot_carry' ? 'INFERRED CARRY' : 'INFERRED',
                     title: inferred.status === 'pre_snapshot_carry'
-                        ? 'This market is trusted from public netflow plus snapshot history. Replay yield includes carry accrued before the first locally captured snapshot for this market.'
-                        : 'This market is trusted from public netflow because it reconciles cleanly with the public snapshot history.',
+                        ? 'This market can be inferred from public netflow plus snapshot history, but it is not treated as strict verification because part of the carry predates local coverage.'
+                        : 'This market can be inferred from public netflow plus snapshot history, but it is not treated as strict verification.',
                     rawStatus: inferred.status,
                     rawLabel: inferred.status === 'pre_snapshot_carry' ? 'Pre-Snapshot Carry' : 'Verified',
                     rawTitle: inferred.status === 'pre_snapshot_carry'
@@ -26191,20 +26330,33 @@
                     entry: null,
                 };
             }
-            const snapshotOnly = status === 'no_netflow' || (!flowMeta && (source === 'verified-ledger' || source === 'snapshot-series' || !source));
-            if (status === 'verified' || status === 'pre_snapshot_carry') {
+            const snapshotOnly = rawStatus === 'no_netflow' || (!flowMeta && (source === 'verified-ledger' || source === 'snapshot-series' || !source));
+            if (status === 'inferred' || rawStatus === 'pre_snapshot_carry') {
                 return {
                     counted: true,
-                    status: 'verified',
-                    label: 'VERIFIED',
-                    title: status === 'pre_snapshot_carry'
-                        ? 'This market is trusted from the replay ledger. Snapshot history confirms the post-snapshot accrual window, while older carry existed before local snapshot coverage began.'
-                        : 'This market is trusted from the local verified ledger snapshot and is fully reconciled for the latest snapshot series.',
-                    rawStatus: status,
-                    rawLabel: status === 'pre_snapshot_carry' ? 'Pre-Snapshot Carry' : 'Verified',
-                    rawTitle: status === 'pre_snapshot_carry'
+                    status: 'inferred',
+                    label: 'INFERRED CARRY',
+                    title: rawStatus === 'pre_snapshot_carry'
+                        ? 'Historical snapshot data suggests older carry existed before local coverage began. This is useful evidence, but not strict replay verification.'
+                        : 'Historical snapshot data is available for this market, but it is not treated as strict replay verification.',
+                    rawStatus: rawStatus || status,
+                    rawLabel: rawStatus === 'pre_snapshot_carry' ? 'Pre-Snapshot Carry' : 'Historical',
+                    rawTitle: rawStatus === 'pre_snapshot_carry'
                         ? 'Replay yield includes carry accrued before the first locally captured snapshot for this market.'
-                        : 'Local verified ledger snapshot.',
+                        : 'Historical ledger data is available, but strict verification still requires replay-grade evidence.',
+                    overridden: true,
+                    entry: null,
+                };
+            }
+            if (status === 'coverage_incomplete' && canonicalHistoryCoverageStatus && canonicalHistoryCoverageStatus !== 'fresh') {
+                return {
+                    counted: true,
+                    status: 'coverage_incomplete',
+                    label: 'COVERAGE INCOMPLETE',
+                    title: 'Historical ledger data exists, but canonical subaccount history is not fresh enough for strict replay-grade verification at this block.',
+                    rawStatus: rawStatus || status,
+                    rawLabel: 'Coverage Incomplete',
+                    rawTitle: 'Canonical subaccount history is missing or stale for this market/address.',
                     overridden: true,
                     entry: null,
                 };
@@ -26212,10 +26364,10 @@
             if (snapshotOnly) {
                 return {
                     counted: true,
-                    status: 'unverified',
+                    status: 'snapshot',
                     label: 'SNAPSHOT ONLY',
                     title: 'Historical netflow/replay coverage is unavailable for this market, so yield is derived from the latest snapshot series only. Treat this as not fully verified.',
-                    rawStatus: status || 'no_netflow',
+                    rawStatus: rawStatus || status || 'no_netflow',
                     rawLabel: 'Snapshot Only',
                     rawTitle: 'Historical netflow/replay coverage is unavailable for this market.',
                     overridden: true,
@@ -26229,13 +26381,11 @@
             opts = opts || {};
             const requireVerifiedInterest = opts.requireVerifiedInterest !== false;
             const entry = earn_getVerification(mid);
-            const trustedVisibleSupplyMismatch = earn_shouldTrustVisibleSupplyReplayMismatch(entry);
-            const trustedAlignedReplayWeiDrift = earn_shouldTrustAlignedReplayWeiDrift(entry);
-            const trustedSnapshotSupplement = earn_shouldTrustSnapshotSupplementedReplay(entry);
+            const strictStatus = earn_getStrictVerificationStatus(entry);
             if (!requireVerifiedInterest) {
                 return {
                     trusted: true,
-                    status: (trustedVisibleSupplyMismatch || trustedAlignedReplayWeiDrift || trustedSnapshotSupplement) ? 'verified' : (entry ? entry.status : 'unchecked'),
+                    status: entry ? strictStatus : 'unchecked',
                     entry,
                 };
             }
@@ -26254,8 +26404,8 @@
                 };
             }
             return {
-                trusted: entry.status === 'verified' || trustedVisibleSupplyMismatch || trustedAlignedReplayWeiDrift || trustedSnapshotSupplement,
-                status: (trustedVisibleSupplyMismatch || trustedAlignedReplayWeiDrift || trustedSnapshotSupplement) ? 'verified' : (entry.status || 'unverified'),
+                trusted: strictStatus === 'verified',
+                status: strictStatus,
                 entry,
             };
         }
@@ -26295,6 +26445,7 @@
                     carry,
                     residual,
                     tinyParDriftWindow: false,
+                    windowType: 'exact_post_snapshot_window',
                 };
             }
 
@@ -26307,6 +26458,7 @@
                 carry,
                 residual,
                 tinyParDriftWindow: true,
+                windowType: 'tiny_par_drift_window',
             };
         }
 
@@ -26330,6 +26482,42 @@
                     hasStaticParWindow
                 ),
             };
+        }
+
+        function earn_chooseBestPublicLedgerBaseline(baselines, decimals) {
+            const tolerance = earn_getHistoricalYieldTolerance(decimals);
+            const exact = [];
+            const carry = [];
+            for (const candidate of baselines) {
+                if (!candidate) continue;
+                if (earn_absBigInt(candidate.diff) <= tolerance) {
+                    exact.push(candidate);
+                    continue;
+                }
+                if (candidate.preSnapshotMeta) carry.push(candidate);
+            }
+            if (exact.length > 0) {
+                exact.sort((left, right) => {
+                    const leftDiff = earn_absBigInt(left.diff);
+                    const rightDiff = earn_absBigInt(right.diff);
+                    if (leftDiff !== rightDiff) return leftDiff < rightDiff ? -1 : 1;
+                    return left.name === 'recent-cycle' ? -1 : 1;
+                });
+                return exact[0];
+            }
+            if (carry.length > 0) {
+                carry.sort((left, right) => {
+                    const leftTiny = left.preSnapshotMeta && left.preSnapshotMeta.tinyParDriftWindow ? 1 : 0;
+                    const rightTiny = right.preSnapshotMeta && right.preSnapshotMeta.tinyParDriftWindow ? 1 : 0;
+                    if (leftTiny !== rightTiny) return leftTiny - rightTiny;
+                    const leftResidual = earn_absBigInt(left.preSnapshotMeta.residual);
+                    const rightResidual = earn_absBigInt(right.preSnapshotMeta.residual);
+                    if (leftResidual !== rightResidual) return leftResidual < rightResidual ? -1 : 1;
+                    return left.name === 'recent-cycle' ? -1 : 1;
+                });
+                return carry[0];
+            }
+            return null;
         }
 
         function earn_getPublicLedgerInference(hist, flowMeta, decimals) {
@@ -26372,21 +26560,7 @@
                 );
             }
 
-            let chosen = null;
-            for (const candidate of baselines) {
-                if (!candidate) continue;
-                if (earn_absBigInt(candidate.diff) <= earn_getHistoricalYieldTolerance(decimals)) {
-                    chosen = candidate;
-                    break;
-                }
-            }
-            if (!chosen) {
-                for (const candidate of baselines) {
-                    if (!candidate || !candidate.preSnapshotMeta) continue;
-                    chosen = candidate;
-                    break;
-                }
-            }
+            const chosen = earn_chooseBestPublicLedgerBaseline(baselines, decimals);
             if (!chosen) return null;
 
             if (earn_absBigInt(chosen.diff) <= earn_getHistoricalYieldTolerance(decimals)) {
@@ -26403,6 +26577,7 @@
                     canonicalYield: chosen.yield,
                     preSnapshotCarry: chosen.preSnapshotMeta.carry,
                     preSnapshotResidual: chosen.preSnapshotMeta.residual,
+                    preSnapshotWindowType: chosen.preSnapshotMeta.windowType || '',
                     hasTinyParDriftWindow: !!chosen.preSnapshotMeta.tinyParDriftWindow,
                 };
             }
@@ -26459,6 +26634,14 @@
             }
         }
 
+        function earn_isTrustedInterestLedgerYieldCalc(yieldCalc) {
+            if (!yieldCalc || !yieldCalc.hasData || !yieldCalc.trustedForTotal) return false;
+            if (String(yieldCalc.verificationStatus || '') !== 'verified') return false;
+            const method = String(yieldCalc.method || '');
+            return method === 'interest-ledger'
+                || method === 'interest-ledger-override';
+        }
+
         function earn_buildResolvedTotalYieldEntry(marketId, yieldCalc) {
             const hist = earn_totalYieldData ? earn_totalYieldData[String(marketId)] : null;
             if (!hist) return null;
@@ -26473,18 +26656,38 @@
             let resolvedVerificationStatus = String(hist.resolvedVerificationStatus !== undefined ? hist.resolvedVerificationStatus : rawVerificationStatus);
             let resolvedCumulativeYield = String(hist.resolvedCumulativeYield !== undefined ? hist.resolvedCumulativeYield : rawCumulativeYield);
             let resolvedTrustedForTotal = !!hist.resolvedTrustedForTotal;
+            let resolvedCanonicalHistoryCoverageStatus = String(
+                hist.resolvedCanonicalHistoryCoverageStatus !== undefined
+                    ? hist.resolvedCanonicalHistoryCoverageStatus
+                    : (hist.canonicalHistoryCoverageStatus || '')
+            );
+            let resolvedCanonicalHistoryLastScannedBlock =
+                hist.resolvedCanonicalHistoryLastScannedBlock !== undefined
+                    ? hist.resolvedCanonicalHistoryLastScannedBlock
+                    : (hist.canonicalHistoryLastScannedBlock !== undefined ? hist.canonicalHistoryLastScannedBlock : null);
+            let resolvedCanonicalHistoryFreshForBorrowRouting =
+                hist.resolvedCanonicalHistoryFreshForBorrowRouting !== undefined
+                    ? !!hist.resolvedCanonicalHistoryFreshForBorrowRouting
+                    : !!hist.canonicalHistoryFreshForBorrowRouting;
 
             if (yieldCalc && yieldCalc.hasData) {
                 resolvedMethod = String(yieldCalc.method || resolvedMethod);
                 resolvedSource = earn_getResolvedTotalYieldSource(resolvedMethod, rawSource);
                 resolvedCumulativeYield = String(yieldCalc.totalYield || '0');
                 resolvedTrustedForTotal = !!yieldCalc.trustedForTotal;
+                resolvedCanonicalHistoryCoverageStatus = String(
+                    yieldCalc.canonicalHistoryCoverageStatus || resolvedCanonicalHistoryCoverageStatus
+                );
+                resolvedCanonicalHistoryLastScannedBlock =
+                    yieldCalc.canonicalHistoryLastScannedBlock !== undefined
+                        ? yieldCalc.canonicalHistoryLastScannedBlock
+                        : resolvedCanonicalHistoryLastScannedBlock;
+                resolvedCanonicalHistoryFreshForBorrowRouting =
+                    yieldCalc.canonicalHistoryFreshForBorrowRouting !== undefined
+                        ? !!yieldCalc.canonicalHistoryFreshForBorrowRouting
+                        : resolvedCanonicalHistoryFreshForBorrowRouting;
 
-                if (yieldCalc.publicLedgerInference && yieldCalc.publicLedgerInference.status) {
-                    resolvedVerificationStatus = String(yieldCalc.publicLedgerInference.status || resolvedVerificationStatus);
-                } else if (resolvedMethod === 'interest-ledger' || resolvedMethod === 'interest-ledger-override') {
-                    resolvedVerificationStatus = String(yieldCalc.verificationStatus || 'verified');
-                } else if (yieldCalc.verificationStatus) {
+                if (yieldCalc.verificationStatus) {
                     resolvedVerificationStatus = String(yieldCalc.verificationStatus || resolvedVerificationStatus);
                 }
             }
@@ -26500,6 +26703,9 @@
                 resolvedVerificationStatus,
                 resolvedCumulativeYield,
                 resolvedTrustedForTotal,
+                resolvedCanonicalHistoryCoverageStatus,
+                resolvedCanonicalHistoryLastScannedBlock,
+                resolvedCanonicalHistoryFreshForBorrowRouting,
             };
         }
 
@@ -26571,6 +26777,9 @@
                     resolvedVerificationStatus: nextResolved[mid].resolvedVerificationStatus,
                     resolvedCumulativeYield: nextResolved[mid].resolvedCumulativeYield,
                     resolvedTrustedForTotal: nextResolved[mid].resolvedTrustedForTotal,
+                    resolvedCanonicalHistoryCoverageStatus: nextResolved[mid].resolvedCanonicalHistoryCoverageStatus,
+                    resolvedCanonicalHistoryLastScannedBlock: nextResolved[mid].resolvedCanonicalHistoryLastScannedBlock,
+                    resolvedCanonicalHistoryFreshForBorrowRouting: nextResolved[mid].resolvedCanonicalHistoryFreshForBorrowRouting,
                 };
             });
         }
@@ -26605,6 +26814,117 @@
                 });
             });
             return merged.size > 0 ? merged : null;
+        }
+
+        function earn_pushUniqueAccount(list, account) {
+            const normalized = String(account || '').trim();
+            if (!normalized) return;
+            if (!Array.isArray(list)) return;
+            if (!list.includes(normalized)) list.push(normalized);
+        }
+
+        function earn_getCurrentPositionRoute(pos, accountHasBorrow) {
+            const accountNumber = String(pos && pos.accountNumber !== undefined ? pos.accountNumber : '0');
+            const explicitRoute = String(
+                pos && (pos.positionRoute !== undefined ? pos.positionRoute : pos.positionKind) || ''
+            ).trim().toLowerCase();
+            if (explicitRoute === 'borrow') return 'borrow';
+            if (explicitRoute === 'hidden-collateral' || explicitRoute === 'hidden_collateral' || explicitRoute === 'collateral') {
+                return 'collateral';
+            }
+            if (
+                (explicitRoute === 'visible-supply' || explicitRoute === 'visible_supply' || explicitRoute === 'supply' || explicitRoute === 'visible')
+                && !accountHasBorrow.has(accountNumber)
+            ) {
+                return 'supply';
+            }
+
+            const wei = BigInt(pos && pos.wei !== undefined ? pos.wei : 0);
+            const par = BigInt(pos && pos.par !== undefined ? pos.par : 0);
+            if (wei < 0n || par < 0n) return 'borrow';
+            if (wei > 0n && accountHasBorrow.has(accountNumber)) {
+                return 'collateral';
+            }
+            if (wei > 0n || par > 0n) return 'supply';
+            return null;
+        }
+
+        function earn_buildCurrentPositionBuckets(positions, opts) {
+            opts = opts || {};
+            const borrowAccounts = earn_collectBorrowAccountsOverride(
+                opts.knownBorrowAccounts,
+                opts.borrowAccountsOverride,
+                opts.snapshotBorrowAccounts
+            );
+            const accountHasBorrow = new Set(borrowAccounts ? Array.from(borrowAccounts) : []);
+
+            (positions || []).forEach(pos => {
+                const wei = BigInt(pos && pos.wei !== undefined ? pos.wei : 0);
+                const par = BigInt(pos && pos.par !== undefined ? pos.par : 0);
+                if (wei < 0n || par < 0n) {
+                    accountHasBorrow.add(String(pos && pos.accountNumber !== undefined ? pos.accountNumber : '0'));
+                }
+            });
+
+            const aggregatedSupply = {};
+            const aggregatedCollateral = {};
+            const aggregatedBorrow = {};
+            const hiddenMarketIds = new Set();
+            let hiddenSupplyCount = 0;
+
+            const appendPosition = (target, route, pos) => {
+                const mid = earn_normalizeMarketId(pos.marketId);
+                if (!mid) return;
+                const accountNumber = String(pos.accountNumber || '0');
+                const positionRoute = route === 'collateral'
+                    ? 'hidden-collateral'
+                    : route === 'borrow'
+                        ? 'borrow'
+                        : 'visible-supply';
+
+                if (!target[mid]) {
+                    target[mid] = {
+                        ...pos,
+                        marketId: mid,
+                        isCollateral: route === 'collateral',
+                        positionRoute,
+                        accountNumbers: [],
+                    };
+                } else {
+                    target[mid].wei += BigInt(pos.wei || 0);
+                    target[mid].par += BigInt(pos.par || 0);
+                }
+                target[mid].positionRoute = positionRoute;
+                target[mid].isCollateral = route === 'collateral';
+                earn_pushUniqueAccount(target[mid].accountNumbers, accountNumber);
+            };
+
+            (positions || []).forEach(pos => {
+                const route = earn_getCurrentPositionRoute(pos, accountHasBorrow);
+                if (!route) return;
+                if (route === 'borrow') {
+                    appendPosition(aggregatedBorrow, route, pos);
+                    return;
+                }
+                if (route === 'collateral') {
+                    if (BigInt(pos.wei || 0) > 0n) {
+                        hiddenSupplyCount += 1;
+                        hiddenMarketIds.add(earn_normalizeMarketId(pos.marketId));
+                    }
+                    appendPosition(aggregatedCollateral, route, pos);
+                    return;
+                }
+                appendPosition(aggregatedSupply, route, pos);
+            });
+
+            return {
+                aggregatedSupply,
+                aggregatedCollateral,
+                aggregatedBorrow,
+                borrowAccounts: accountHasBorrow,
+                hiddenSupplyCount,
+                hiddenMarketIds,
+            };
         }
 
         function earn_serializeReplayStateMap(states) {
@@ -27194,14 +27514,14 @@
         function earn_buildVerificationTitle(entry, symbol, decimals) {
             if (!entry) return '';
             if (entry.status === 'verified') {
-                if (entry.usdDriftVerified) {
-                    return `Replay has minor reconciliation drift under ${earn_formatUsdDrift(entry.usdVerificationThreshold)} and is treated as verified. Largest bucket drift: ${earn_formatUsdDrift(entry.maxUsdDrift)}.`;
-                }
                 return 'Replay reconciles with onchain current balances.';
             }
-            if (entry.status === 'unverified') {
+            if (entry.status === 'coverage_incomplete' || entry.status === 'unverified') {
                 if (entry.snapshotIncomplete) {
                     return 'Current onchain balance snapshot was incomplete for this market, so replay verification is temporarily withheld instead of flagging a mismatch.';
+                }
+                if (entry.usdDriftVerified) {
+                    return `Replay is close but not strictly verified because there is still residual drift. Largest bucket drift: ${earn_formatUsdDrift(entry.maxUsdDrift)}.`;
                 }
                 return 'Replay could not be fully reconciled for this market.';
             }
@@ -27233,94 +27553,38 @@
                 : 'Ledger check unavailable.';
             const fallbackStatus = !entry || !entry.counted
                 ? 'unverified'
-                : (entry.status || 'unverified');
+                : (entry.strictStatus || entry.status || 'unverified');
             const fallbackLabel = !entry || !entry.counted
                 ? 'UNVERIFIED'
                 : fallbackStatus === 'verified'
                     ? 'VERIFIED'
                     : fallbackStatus === 'mismatch'
                         ? 'MISMATCH'
-                        : 'UNVERIFIED';
-            const trustedReplayYield = !!(
-                yieldCalc &&
-                yieldCalc.hasData &&
-                yieldCalc.trustedForTotal &&
-                (
-                    yieldCalc.method === 'interest-ledger' ||
-                    yieldCalc.method === 'interest-ledger-override' ||
-                    yieldCalc.method === 'interest-ledger-live-balance-adjusted'
-                )
-            );
-            const trustedSnapshotSupplement = earn_shouldTrustSnapshotSupplementedReplay(entry);
-            const trustedAlignedReplayWeiDrift = earn_shouldTrustAlignedReplayWeiDrift(entry);
+                        : fallbackStatus === 'coverage_incomplete'
+                            ? 'INCOMPLETE'
+                            : 'UNVERIFIED';
 
             if (snapshotLedgerPresentation) {
                 return snapshotLedgerPresentation;
             }
 
-            if (entry && entry.counted && trustedAlignedReplayWeiDrift) {
-                const driftText = entry.hasUsdDrift
-                    ? ` Largest current-balance drift resolved from live balances: ${earn_formatUsdDrift(entry.maxUsdDrift)}.`
-                    : '';
-                return {
-                    counted: true,
-                    status: 'verified',
-                    label: 'VERIFIED',
-                    title: `Replay matches the live position structure exactly. The remaining current-balance wei drift is applied directly from the live onchain balance for this asset.${driftText}`,
-                    rawStatus: entry.status || 'unverified',
-                    rawLabel: entry.snapshotIncomplete ? 'Pending' : 'Mismatch',
-                    rawTitle: fallbackTitle,
-                    overridden: true,
-                    entry,
-                };
-            }
-
-            if (entry && entry.counted && entry.status === 'mismatch' && trustedReplayYield) {
-                const driftText = entry.hasUsdDrift
-                    ? ` Largest current-balance drift: ${earn_formatUsdDrift(entry.maxUsdDrift)}.`
-                    : '';
-                return {
-                    counted: true,
-                    status: 'verified',
-                    label: 'VERIFIED',
-                    title: `Total yield is trusted from the replay ledger and used for this asset.${driftText} Detailed reconciliation deltas remain available below for diagnostics.`,
-                    rawStatus: entry.status,
-                    rawLabel: 'Mismatch',
-                    rawTitle: fallbackTitle,
-                    overridden: true,
-                    entry,
-                };
-            }
-
-            if (entry && entry.counted && trustedSnapshotSupplement) {
-                const driftText = entry.hasUsdDrift
-                    ? ` Largest current-balance drift: ${earn_formatUsdDrift(entry.maxUsdDrift)}.`
-                    : '';
-                return {
-                    counted: true,
-                    status: 'verified',
-                    label: 'VERIFIED',
-                    title: `Current balance verification required a live subgraph supplement for a missing RPC position, but the supplemented replay reconciles cleanly and is treated as verified.${driftText}`,
-                    rawStatus: entry.status || 'unverified',
-                    rawLabel: entry.snapshotIncomplete ? 'Pending' : 'Unverified',
-                    rawTitle: fallbackTitle,
-                    overridden: true,
-                    entry,
-                };
-            }
-
-            if (entry && entry.counted && fallbackStatus === 'unverified') {
+            if (entry && entry.counted && (fallbackStatus === 'unverified' || fallbackStatus === 'coverage_incomplete')) {
                 const fallbackMethods = new Set(['snapshot', 'snapshot-partial', 'acct0-netflow', 'all-netflow', 'all-netflow-guarded', 'recent-cycle']);
                 const usesFallbackSource = !!(
                     earn_replayUsedSubgraphFallback ||
                     entry.snapshotIncomplete ||
                     (yieldCalc && fallbackMethods.has(String(yieldCalc.method || '')))
                 );
-                const label = entry.snapshotIncomplete
+                const label = entry.snapshotIncomplete || fallbackStatus === 'coverage_incomplete'
                     ? 'PENDING'
                     : usesFallbackSource
                         ? 'FALLBACK'
                         : 'CHECKING';
+                const status = entry.snapshotIncomplete || fallbackStatus === 'coverage_incomplete'
+                    ? 'coverage_incomplete'
+                    : usesFallbackSource
+                        ? 'fallback'
+                        : 'checking';
                 const title = entry.snapshotIncomplete
                     ? 'Current balance reconciliation is incomplete for this market because missing live balances were supplemented from snapshot data. Verification will remain pending until a full RPC response is available.'
                     : usesFallbackSource
@@ -27328,7 +27592,7 @@
                         : 'Replay verification for this market is still in progress.';
                 return {
                     counted: true,
-                    status: 'unverified',
+                    status,
                     label,
                     title,
                     rawStatus: entry.status || 'unverified',
@@ -27341,11 +27605,23 @@
 
             return {
                 counted: !!(entry && entry.counted),
-                status: fallbackStatus,
+                status: fallbackStatus === 'verified'
+                    ? 'verified'
+                    : fallbackStatus === 'mismatch'
+                        ? 'mismatch'
+                        : fallbackStatus === 'coverage_incomplete'
+                            ? 'coverage_incomplete'
+                        : 'unverified',
                 label: fallbackLabel,
                 title: fallbackTitle,
-                rawStatus: entry ? (entry.status || 'unverified') : 'unverified',
-                rawLabel: fallbackLabel === 'UNVERIFIED' ? 'Unverified' : fallbackLabel === 'VERIFIED' ? 'Verified' : 'Mismatch',
+                rawStatus: entry ? (entry.strictStatus || entry.status || 'unverified') : 'unverified',
+                rawLabel: fallbackLabel === 'UNVERIFIED'
+                    ? 'Unverified'
+                    : fallbackLabel === 'VERIFIED'
+                        ? 'Verified'
+                        : fallbackLabel === 'INCOMPLETE'
+                            ? 'Incomplete'
+                            : 'Mismatch',
                 rawTitle: fallbackTitle,
                 overridden: false,
                 entry,
@@ -27373,7 +27649,7 @@
                 case 'interest-ledger':
                     return { label: 'Replay', cls: 'replay', title: 'Yield source: onchain replay ledger.' };
                 case 'interest-ledger-live-balance-adjusted':
-                    return { label: 'Using Replay', cls: 'replay', title: 'Yield source: replay ledger with the open-position balance aligned to the live onchain current balance.' };
+                    return { label: 'Replay Adjusted', cls: 'unverified', title: 'Yield source: replay ledger adjusted to live onchain balance drift. Useful diagnostically, but not treated as strict verification.' };
                 case 'interest-ledger-override':
                     return { label: 'Using Replay', cls: 'replay', title: 'Yield source: onchain replay ledger used because the older snapshot for this market was stale or mismatched.' };
                 case 'interest-ledger-pending':
@@ -27381,24 +27657,24 @@
                 case 'interest-ledger-unverified':
                     return { label: 'Replay Pending', cls: 'unverified', title: 'Yield source: replay ledger available, but market is not fully verified yet.' };
                 case 'snapshot':
-                    return { label: 'Snapshot', cls: 'snapshot', title: 'Yield source: verified snapshot plus current live balance adjustment.' };
+                    return { label: 'Snapshot', cls: 'snapshot', title: 'Yield source: snapshot history plus current live balance adjustment. Not treated as strict verification.' };
                 case 'snapshot-partial':
-                    return { label: 'Snapshot Partial', cls: 'snapshot', title: 'Yield source: verified snapshot only; live par adjustment unavailable.' };
+                    return { label: 'Snapshot Partial', cls: 'snapshot', title: 'Yield source: partial snapshot history only. Not treated as strict verification.' };
                 case 'acct0-netflow':
                     return { label: 'Acct0 Fallback', cls: 'fallback', title: 'Yield source: legacy acct0 netflow fallback.' };
                 case 'all-netflow':
                 case 'all-netflow-guarded':
                     return { label: 'Netflow Fallback', cls: 'fallback', title: 'Yield source: full historical netflow fallback.' };
                 case 'all-netflow-verified':
-                    return { label: 'Using Netflow', cls: 'replay', title: 'Yield source: public netflow reconciles cleanly with snapshot history and is treated as verified.' };
+                    return { label: 'Netflow Inferred', cls: 'snapshot', title: 'Yield source: public netflow inferred from snapshot history. Not treated as strict verification.' };
                 case 'all-netflow-pre-snapshot-carry':
-                    return { label: 'Using Netflow', cls: 'replay', title: 'Yield source: public netflow plus inferred pre-snapshot carry from snapshot history.' };
+                    return { label: 'Carry Inferred', cls: 'snapshot', title: 'Yield source: public netflow plus inferred pre-snapshot carry from snapshot history. Not treated as strict verification.' };
                 case 'recent-cycle':
                     return { label: 'Cycle Fallback', cls: 'fallback', title: 'Yield source: recent-cycle netflow fallback.' };
                 case 'recent-cycle-verified':
-                    return { label: 'Using Cycle', cls: 'replay', title: 'Yield source: recent-cycle netflow reconciles cleanly with snapshot history and is treated as verified.' };
+                    return { label: 'Cycle Inferred', cls: 'snapshot', title: 'Yield source: recent-cycle netflow inferred from snapshot history. Not treated as strict verification.' };
                 case 'recent-cycle-pre-snapshot-carry':
-                    return { label: 'Using Cycle', cls: 'replay', title: 'Yield source: recent-cycle netflow plus inferred pre-snapshot carry from snapshot history.' };
+                    return { label: 'Cycle Carry', cls: 'snapshot', title: 'Yield source: recent-cycle netflow plus inferred pre-snapshot carry from snapshot history. Not treated as strict verification.' };
                 default:
                     return { label: method ? method.replace(/-/g, ' ') : 'No Data', cls: 'unverified', title: 'Yield source unavailable for this market.' };
             }
@@ -27783,17 +28059,10 @@
                 const usdVerificationThreshold = 1;
                 const usdDriftVerified = canVerify && hasUsdDrift && maxUsdDrift < usdVerificationThreshold;
                 const snapshotIncomplete = earn_replayVerificationIncompleteMarkets.has(String(mid));
-                const verified = rawVerified || usdDriftVerified;
-                const status = !hasEarnExposure
-                    ? 'unverified'
-                    : !canVerify || snapshotIncomplete
-                        ? 'unverified'
-                        : verified
-                            ? 'verified'
-                            : 'mismatch';
 
                 verificationData[mid] = {
-                    status,
+                    status: 'unverified',
+                    strictStatus: 'unverified',
                     counted: hasEarnExposure,
                     canVerify,
                     decimals,
@@ -27820,6 +28089,7 @@
                     collateralWeiTolerance,
                     borrowWeiTolerance,
                     rawVerified,
+                    strictVerified: canVerify && !snapshotIncomplete && rawVerified,
                     hasUsdDrift,
                     usdDriftVerified,
                     snapshotIncomplete,
@@ -27829,10 +28099,14 @@
                     borrowUsdDrift,
                     maxUsdDrift,
                 };
+                const strictStatus = earn_getStrictVerificationStatus(verificationData[mid]);
+                verificationData[mid].strictStatus = strictStatus;
+                verificationData[mid].status = !hasEarnExposure ? 'unverified' : strictStatus;
+                verificationData[mid].strictVerified = strictStatus === 'verified';
 
                 if (!hasEarnExposure) return;
                 summary.total++;
-                summary[status] = (summary[status] || 0) + 1;
+                summary[verificationData[mid].status] = (summary[verificationData[mid].status] || 0) + 1;
             });
 
             earn_replayVerificationData = verificationData;
@@ -28028,13 +28302,11 @@
                 : null;
             const interestYieldCandidate = hasInterestYield ? BigInt(interestMeta.earnYield || '0') : null;
             const canUseVerifiedInterest = interestYieldCandidate !== null && interestTrust.trusted;
-            const canOverrideMismatchedSnapshot = interestYieldCandidate !== null && snapshotMismatch;
+            const canOverrideMismatchedSnapshot = canUseVerifiedInterest && snapshotMismatch;
             const canUseUnverifiedInterest = interestYieldCandidate !== null && !interestTrust.trusted && !requireVerifiedInterest;
             const replayVerificationPending = interestTrust.status === 'pending';
             const alignedReplayWeiDrift = earn_getAlignedReplayWeiDriftAdjustment(interestTrust.entry);
-            const adjustedInterestYieldCandidate = interestYieldCandidate !== null && alignedReplayWeiDrift
-                ? (interestYieldCandidate + alignedReplayWeiDrift.totalYieldCorrection)
-                : interestYieldCandidate;
+            const adjustedInterestYieldCandidate = interestYieldCandidate;
             const hasComplexNetflow = !!(flowMeta && flowMeta.hasBreakdown && (
                 flowMeta.totalBorrowed !== 0n ||
                 flowMeta.totalSwapped !== 0n ||
@@ -28081,11 +28353,7 @@
 
             if (canUseVerifiedInterest || canOverrideMismatchedSnapshot) {
                 totalYield = adjustedInterestYieldCandidate;
-                method = canUseVerifiedInterest
-                    ? (alignedReplayWeiDrift ? 'interest-ledger-live-balance-adjusted' : 'interest-ledger')
-                    : replayVerificationPending
-                        ? 'interest-ledger-pending'
-                        : 'interest-ledger-override';
+                method = canOverrideMismatchedSnapshot ? 'interest-ledger-override' : 'interest-ledger';
             } else if (publicLedgerInference && publicLedgerInference.status === 'verified') {
                 totalYield = publicLedgerInference.canonicalYield;
                 method = publicLedgerInference.verificationBaseline === 'recent-cycle'
@@ -28137,7 +28405,7 @@
             let openSupplyYield = interestMeta ? BigInt(interestMeta.openSupplyYield || '0') : 0n;
             let openCollateralYield = interestMeta ? BigInt(interestMeta.openCollateralYield || '0') : 0n;
             let openBorrowYield = interestMeta ? BigInt(interestMeta.openBorrowYield || '0') : 0n;
-            if (alignedReplayWeiDrift && (method === 'interest-ledger' || method === 'interest-ledger-live-balance-adjusted' || method === 'interest-ledger-override')) {
+            if (alignedReplayWeiDrift && method === 'interest-ledger-live-balance-adjusted') {
                 openSupplyYield += alignedReplayWeiDrift.supplyYieldCorrection;
                 openCollateralYield += alignedReplayWeiDrift.collateralYieldCorrection;
                 openBorrowYield += alignedReplayWeiDrift.borrowYieldCorrection;
@@ -28147,6 +28415,30 @@
             const yieldUsdScaled = earn_getUsdValueScaled(totalYield, decimals, price);
             const yieldUsd = earn_scaledUsdToNumber(yieldUsdScaled);
             const absYield = totalYield < 0n ? -totalYield : totalYield;
+            const canonicalHistoryCoverageStatus = earn_getCanonicalSubaccountHistoryCoverageStatus();
+            const requiresCanonicalHistoryForReplay = (
+                method === 'interest-ledger'
+                || method === 'interest-ledger-override'
+                || method === 'interest-ledger-live-balance-adjusted'
+            ) && earn_positionRequiresCanonicalBorrowRouting(position);
+            const canonicalHistoryCoverageIncomplete = requiresCanonicalHistoryForReplay
+                && canonicalHistoryCoverageStatus !== 'fresh';
+            const strictVerificationStatus = (method === 'interest-ledger' || method === 'interest-ledger-override')
+                ? (canonicalHistoryCoverageIncomplete ? 'coverage_incomplete' : (interestTrust.status || 'unverified'))
+                : method === 'interest-ledger-live-balance-adjusted'
+                    ? (canonicalHistoryCoverageIncomplete ? 'coverage_incomplete' : 'live_balance_adjusted')
+                    : publicLedgerInference
+                        ? (
+                            publicLedgerInference.status === 'verified'
+                                ? (canonicalHistoryCoverageIncomplete ? 'coverage_incomplete' : 'verified')
+                                : 'inferred'
+                        )
+                        : (method === 'snapshot' || method === 'snapshot-partial')
+                            ? 'coverage_incomplete'
+                            : (method === 'all-netflow' || method === 'all-netflow-guarded' || method === 'recent-cycle' || method === 'acct0-netflow')
+                                ? 'fallback'
+                                : (interestTrust.status || snapshotStatus || 'unverified');
+            const strictTrustedForTotal = strictVerificationStatus === 'verified';
 
             return {
                 hasData: true,
@@ -28167,17 +28459,14 @@
                 decimals,
                 tokenAddr,
                 publicLedgerInference,
-                verificationStatus: (method === 'interest-ledger' || method === 'interest-ledger-override' || method === 'interest-ledger-live-balance-adjusted')
-                    ? interestTrust.status
-                    : publicLedgerInference
-                        ? publicLedgerInference.status
-                    : (snapshotStatus || interestTrust.status),
-                trustedForTotal: method === 'interest-ledger' || method === 'interest-ledger-override' || method === 'interest-ledger-live-balance-adjusted' || (
-                    (method === 'snapshot' || method === 'snapshot-partial') && snapshotTrusted
-                ) || method === 'all-netflow-verified'
-                    || method === 'all-netflow-pre-snapshot-carry'
-                    || method === 'recent-cycle-verified'
-                    || method === 'recent-cycle-pre-snapshot-carry',
+                verificationStatus: strictVerificationStatus,
+                trustedForTotal: strictTrustedForTotal,
+                canonicalHistoryCoverageStatus,
+                canonicalHistoryRequiresFreshForBorrowRouting: requiresCanonicalHistoryForReplay,
+                canonicalHistoryLastScannedBlock: earn_canonicalSubaccountHistoryLastScannedBlock === null
+                    ? null
+                    : String(earn_canonicalSubaccountHistoryLastScannedBlock),
+                canonicalHistoryFreshForBorrowRouting: !!earn_canonicalSubaccountHistoryFreshForBorrowRouting,
             };
         }
 
@@ -28481,11 +28770,14 @@
         const SNAPSHOT_BASE = `${EARN_DATA_BASE}/earn-snapshots`;
         const NETFLOW_BASE = `${EARN_DATA_BASE}/earn-netflow`;
         const VERIFIED_LEDGER_BASE = `${EARN_DATA_BASE}/earn-verified-ledger`;
+        const SUBACCOUNT_HISTORY_BASE = `${EARN_DATA_BASE}/earn-subaccount-history`;
         let earn_netflowData = null; // { marketId: netFlowWei (string) } for current address+chain
         let earn_acct0NetflowData = null; // { marketId: weiString } account-0-only supply netflow (for borrow markets)
         let earn_subgraphTokens = {}; // { marketId: { symbol, decimals, name } } — token metadata from subgraph
         let earn_verifiedLedgerCache = {}; // { "chain:address" : payload|null }
         let earn_verifiedLedgerRequestCache = {}; // { "chain:address" : Promise<payload|null> }
+        let earn_subaccountHistoryCache = {}; // { "chain:address" : payload|null }
+        let earn_subaccountHistoryRequestCache = {}; // { "chain:address" : Promise<payload|null> }
         let earn_marketRatesRequestCache = {}; // { chainId : Promise<rates> }
 
         // Snapshot manifest: { dates: [...], chains: { date: [chains] } }
@@ -28569,6 +28861,22 @@
                     tone: 'warn',
                     title: 'WLFI Rewards Unavailable',
                     body: 'MERKL API did not respond for this lookup. External rewards cards and WLFI attribution may be temporarily undercounted.',
+                });
+            }
+
+            const canonicalHistoryCoverageStatus = earn_getCanonicalSubaccountHistoryCoverageStatus();
+            const hasBorrowRoutedExposure = (earn_collateralPositionData || []).length > 0
+                || (earn_borrowPositionData || []).length > 0
+                || (earn_replayBorrowAccountsOverride && earn_replayBorrowAccountsOverride.size > 0);
+            if (hasBorrowRoutedExposure && canonicalHistoryCoverageStatus !== 'fresh') {
+                const coverageLabel = canonicalHistoryCoverageStatus === 'missing' ? 'missing' : 'stale';
+                const blockText = earn_canonicalSubaccountHistoryLastScannedBlock === null
+                    ? 'none'
+                    : String(earn_canonicalSubaccountHistoryLastScannedBlock);
+                notices.push({
+                    tone: 'warn',
+                    title: 'Canonical Subaccount History Not Fresh',
+                    body: `Hidden collateral and borrow-routed replay for this lookup relies on canonical subaccount history. Current coverage is ${coverageLabel} (last scanned block: ${blockText}), so affected markets stay coverage-incomplete until history is refreshed to the replay target.`,
                 });
             }
 
@@ -28740,6 +29048,300 @@
             return results;
         }
 
+        function earn_parseBlockNumberLike(value) {
+            if (value === undefined || value === null) return null;
+            const raw = String(value).trim();
+            if (!raw) return null;
+            try {
+                return BigInt(raw);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function earn_resetCanonicalSubaccountHistoryState() {
+            earn_canonicalSubaccountHistoryLastScannedBlock = null;
+            earn_canonicalSubaccountHistoryFreshForBorrowRouting = false;
+        }
+
+        function earn_setCanonicalSubaccountHistoryState(lastScannedBlock, freshForBorrowRouting) {
+            const parsedLastScannedBlock = earn_parseBlockNumberLike(lastScannedBlock);
+            if (parsedLastScannedBlock !== null) {
+                earn_canonicalSubaccountHistoryLastScannedBlock = parsedLastScannedBlock;
+            }
+            earn_canonicalSubaccountHistoryFreshForBorrowRouting = !!freshForBorrowRouting;
+        }
+
+        function earn_updateCanonicalSubaccountHistoryStateFromHints(historyHints) {
+            if (!historyHints || typeof historyHints !== 'object') return;
+            earn_setCanonicalSubaccountHistoryState(
+                historyHints.lastScannedBlock,
+                historyHints.freshForBorrowRouting
+            );
+        }
+
+        function earn_updateCanonicalSubaccountHistoryStateFromReplay(replay) {
+            if (!replay || typeof replay !== 'object') return;
+            earn_setCanonicalSubaccountHistoryState(
+                replay.canonicalSubaccountHistoryLastScannedBlock,
+                replay.canonicalSubaccountHistoryFreshForBorrowRouting
+            );
+        }
+
+        function earn_getCanonicalSubaccountHistoryCoverageStatus() {
+            if (earn_canonicalSubaccountHistoryLastScannedBlock === null) return 'missing';
+            return earn_canonicalSubaccountHistoryFreshForBorrowRouting ? 'fresh' : 'stale';
+        }
+
+        function earn_positionRequiresCanonicalBorrowRouting(position) {
+            if (!position || typeof position !== 'object') return false;
+            if (position.isCollateral || position.isBorrow) return true;
+            const route = String(
+                position.positionRoute !== undefined
+                    ? position.positionRoute
+                    : (position.positionKind !== undefined ? position.positionKind : '')
+            ).trim().toLowerCase();
+            return route === 'hidden-collateral'
+                || route === 'hidden_collateral'
+                || route === 'collateral'
+                || route === 'borrow'
+                || route === 'borrow_only';
+        }
+
+        function earn_extractSubaccountHistoryHints(history, opts) {
+            opts = opts || {};
+            if (!history || typeof history !== 'object') {
+                return {
+                    accountNumbers: [],
+                    borrowAccountNumbers: [],
+                    marketRoutes: {},
+                    lastScannedBlock: null,
+                    freshForBorrowRouting: false,
+                };
+            }
+
+            const blockTag = earn_parseBlockNumberLike(opts.blockTag);
+            const lastScannedBlock = earn_parseBlockNumberLike(history.lastScannedBlock);
+            const freshForBorrowRouting = blockTag !== null && lastScannedBlock !== null && lastScannedBlock >= blockTag;
+            const accountNumbers = [];
+            const borrowAccountNumbers = [];
+            const marketRoutes = {};
+
+            Object.values(history.accounts || {}).forEach(accountState => {
+                const account = String(accountState && accountState.account !== undefined ? accountState.account : '').trim();
+                if (!account || account === 'legacy-unknown' || accountState.accountKnown === false) return;
+                earn_pushUniqueAccount(accountNumbers, account);
+
+                const hasBorrow = !!accountState.hasBorrow;
+                if (freshForBorrowRouting && hasBorrow) {
+                    earn_pushUniqueAccount(borrowAccountNumbers, account);
+                }
+                if (!freshForBorrowRouting) return;
+
+                Object.values(accountState.markets || {}).forEach(marketState => {
+                    const marketId = earn_normalizeMarketId(
+                        marketState && marketState.marketId !== undefined ? marketState.marketId : ''
+                    );
+                    if (!marketId) return;
+                    const latestParRaw = marketState ? marketState.latestPar : null;
+                    if (latestParRaw === null || latestParRaw === undefined) return;
+                    const latestPar = BigInt(latestParRaw || '0');
+                    if (latestPar < 0n) {
+                        marketRoutes[`${account}|${marketId}`] = 'borrow';
+                    } else if (latestPar > 0n) {
+                        marketRoutes[`${account}|${marketId}`] = hasBorrow ? 'collateral' : 'supply';
+                    }
+                });
+            });
+
+            return {
+                accountNumbers,
+                borrowAccountNumbers,
+                marketRoutes,
+                lastScannedBlock,
+                freshForBorrowRouting,
+            };
+        }
+
+        function earn_supplementReplayAccountStateDataFromHistory(accountStateData, history, historyHints) {
+            if (
+                !historyHints
+                || !historyHints.freshForBorrowRouting
+                || !history
+                || typeof history !== 'object'
+            ) {
+                return {
+                    accountStateData,
+                    addedStates: 0,
+                };
+            }
+
+            const states = earn_deserializeReplayStateMap(accountStateData || {});
+            let addedStates = 0;
+
+            Object.values(history.accounts || {}).forEach(accountState => {
+                const account = String(
+                    accountState && accountState.account !== undefined ? accountState.account : ''
+                ).trim();
+                if (!account || account === 'legacy-unknown' || accountState.accountKnown === false) return;
+
+                Object.values(accountState.markets || {}).forEach(marketState => {
+                    const marketId = earn_normalizeMarketId(
+                        marketState && marketState.marketId !== undefined ? marketState.marketId : ''
+                    );
+                    if (!marketId) return;
+                    const latestParRaw = marketState ? marketState.latestPar : null;
+                    if (latestParRaw === null || latestParRaw === undefined) return;
+                    const latestPar = BigInt(latestParRaw || '0');
+                    if (latestPar <= 0n) return;
+
+                    const route = historyHints.marketRoutes[`${account}|${marketId}`] || '';
+                    if (route !== 'collateral' && route !== 'supply') return;
+
+                    const key = `${account}|${marketId}`;
+                    const existingState = states[key];
+                    if (existingState && existingState.par !== 0n) return;
+
+                    states[key] = {
+                        account,
+                        marketId,
+                        par: latestPar,
+                        lastIndex: existingState ? existingState.lastIndex : null,
+                        settledYield: existingState ? existingState.settledYield : 0n,
+                        liveYield: existingState ? existingState.liveYield : 0n,
+                        hadSupply: true,
+                        hadBorrow: existingState ? !!existingState.hadBorrow : false,
+                    };
+                    addedStates += 1;
+                });
+            });
+
+            if (addedStates === 0) {
+                return {
+                    accountStateData,
+                    addedStates: 0,
+                };
+            }
+
+            return {
+                accountStateData: earn_serializeReplayStateMap(states),
+                addedStates,
+            };
+        }
+
+        function earn_applySubaccountHistoryToReplay(replay, history, opts) {
+            if (!replay || typeof replay !== 'object') return replay;
+            const historyHints = earn_extractSubaccountHistoryHints(history, opts);
+            const replayAccountNumbers = Array.isArray(replay.accountNumbers)
+                ? replay.accountNumbers.map(v => String(v || '').trim()).filter(Boolean)
+                : [];
+            const nextAccountNumbers = replayAccountNumbers.length > 0
+                ? Array.from(new Set(replayAccountNumbers))
+                : historyHints.accountNumbers;
+
+            const priorBorrowAccounts = earn_collectBorrowAccountsOverride(
+                replay.borrowAccountsOverride,
+                replay.openBorrowAccounts
+            );
+            const mergedBorrowAccounts = historyHints.freshForBorrowRouting
+                ? earn_collectBorrowAccountsOverride(
+                    replay.borrowAccountsOverride,
+                    replay.openBorrowAccounts,
+                    historyHints.borrowAccountNumbers
+                )
+                : priorBorrowAccounts;
+
+            const borrowAccountsChanged = (() => {
+                const previous = priorBorrowAccounts || new Set();
+                const next = mergedBorrowAccounts || new Set();
+                if (previous.size !== next.size) return true;
+                for (const account of next) {
+                    if (!previous.has(account)) return true;
+                }
+                return false;
+            })();
+            const replayStateSupplement = earn_supplementReplayAccountStateDataFromHistory(
+                replay.accountStateData || {},
+                history,
+                historyHints
+            );
+            const supplementedAccountStateData = replayStateSupplement.accountStateData || replay.accountStateData || {};
+            const supplementedStates = replayStateSupplement.addedStates || 0;
+
+            const nextReplay = {
+                ...replay,
+                accountNumbers: nextAccountNumbers,
+                canonicalSubaccountHistoryLastScannedBlock: historyHints.lastScannedBlock === null
+                    ? null
+                    : String(historyHints.lastScannedBlock),
+                canonicalSubaccountHistoryFreshForBorrowRouting: !!historyHints.freshForBorrowRouting,
+            };
+
+            if (!mergedBorrowAccounts || (!borrowAccountsChanged && supplementedStates === 0)) {
+                return nextReplay;
+            }
+
+            if (!supplementedAccountStateData || Object.keys(supplementedAccountStateData).length === 0) {
+                return {
+                    ...nextReplay,
+                    openBorrowAccounts: Array.from(mergedBorrowAccounts),
+                    borrowAccountsOverride: Array.from(mergedBorrowAccounts),
+                };
+            }
+
+            const mergedSummary = earn_summarizeReplayAccountStates(
+                supplementedAccountStateData,
+                replay.currentIndexMap || {},
+                { borrowAccountsOverride: mergedBorrowAccounts }
+            );
+            return {
+                ...nextReplay,
+                interestYieldData: mergedSummary.interestYieldData || replay.interestYieldData || {},
+                replayStateData: mergedSummary.replayStateData || replay.replayStateData || {},
+                openBorrowAccounts: mergedSummary.openBorrowAccounts || replay.openBorrowAccounts || [],
+                borrowAccountsOverride: Array.from(mergedBorrowAccounts),
+                accountStateData: supplementedAccountStateData,
+            };
+        }
+
+        async function earn_fetchSubaccountHistoryForAddress(chainId, address) {
+            const addr = String(address || '').trim().toLowerCase();
+            if (!addr || !/^0x[a-f0-9]{40}$/.test(addr)) return null;
+            const cacheKey = `${chainId}:${addr}`;
+            if (Object.prototype.hasOwnProperty.call(earn_subaccountHistoryCache, cacheKey)) {
+                return earn_subaccountHistoryCache[cacheKey];
+            }
+            if (earn_subaccountHistoryRequestCache[cacheKey]) {
+                return earn_subaccountHistoryRequestCache[cacheKey];
+            }
+            const request = (async () => {
+                const resp = await fetch(`${SUBACCOUNT_HISTORY_BASE}/${chainId}/${addr}.json`, {
+                    cache: 'no-store',
+                });
+                if (!resp.ok) {
+                    earn_subaccountHistoryCache[cacheKey] = null;
+                    return null;
+                }
+                const data = await resp.json();
+                if (!data || typeof data !== 'object' || !data.accounts || typeof data.accounts !== 'object') {
+                    earn_subaccountHistoryCache[cacheKey] = null;
+                    return null;
+                }
+                earn_subaccountHistoryCache[cacheKey] = data;
+                return data;
+            })().catch(e => {
+                console.warn('Subaccount history fetch failed:', e.message || e);
+                earn_subaccountHistoryCache[cacheKey] = null;
+                return null;
+            });
+            earn_subaccountHistoryRequestCache[cacheKey] = request;
+            try {
+                return await request;
+            } finally {
+                delete earn_subaccountHistoryRequestCache[cacheKey];
+            }
+        }
+
         async function earn_fetchVerifiedLedgerForAddress(chainId, address) {
             const addr = String(address || '').trim().toLowerCase();
             if (!addr || !/^0x[a-f0-9]{40}$/.test(addr)) return null;
@@ -28751,7 +29353,9 @@
                 return earn_verifiedLedgerRequestCache[cacheKey];
             }
             const request = (async () => {
-                const resp = await fetch(`${VERIFIED_LEDGER_BASE}/${chainId}/${addr}.json`);
+                const resp = await fetch(`${VERIFIED_LEDGER_BASE}/${chainId}/${addr}.json`, {
+                    cache: 'no-store',
+                });
                 if (!resp.ok) {
                     earn_verifiedLedgerCache[cacheKey] = null;
                     return null;
@@ -28790,10 +29394,24 @@
 
         function earn_canUseVerifiedLedgerMarketEntry(entry) {
             if (!entry || typeof entry !== 'object') return false;
-            const status = String(entry.status || '').trim().toLowerCase();
-            const method = String(entry.method || '').trim().toLowerCase();
-            if (status === 'verified' || status === 'pre_snapshot_carry' || status === 'no_netflow') return true;
-            if (status === 'mismatch' || status === 'unverified' || status === 'pending') return false;
+            const status = String(entry.strictStatus || entry.status || '').trim().toLowerCase();
+            const rawStatus = String(entry.status || '').trim().toLowerCase();
+            const method = String(entry.strictMethod || entry.method || '').trim().toLowerCase();
+            const canonicalCoverage = String(entry.canonicalHistoryCoverageStatus || '').trim().toLowerCase();
+            if (status === 'verified') return true;
+            if (
+                status === 'inferred'
+                && rawStatus === 'pre_snapshot_carry'
+                && canonicalCoverage === 'fresh'
+                && method !== 'snapshot-fallback'
+            ) return true;
+            if (
+                status === 'mismatch'
+                || status === 'unverified'
+                || status === 'pending'
+                || status === 'coverage_incomplete'
+                || status === 'fallback'
+            ) return false;
             if (method === 'snapshot-fallback') return false;
             return !status;
         }
@@ -28861,10 +29479,15 @@
                         if (neededMarkets.has(String(mid))) {
                             deferredLedgerMarkets++;
                             deferredLedgerMetaByMarket[String(mid)] = {
-                                verificationStatus: String(m.status || 'unverified'),
+                                verificationStatus: String(m.strictStatus || m.status || 'unverified'),
+                                rawVerificationStatus: String(m.status || ''),
                                 isLatestSnapshot: m.isLatestSnapshot !== false,
                                 source: 'verified-ledger-deferred',
-                                method: String(m.method || ''),
+                                method: String(m.strictMethod || m.method || ''),
+                                rawMethod: String(m.method || ''),
+                                canonicalHistoryCoverageStatus: String(m.canonicalHistoryCoverageStatus || ''),
+                                canonicalHistoryLastScannedBlock: m.canonicalHistoryLastScannedBlock == null ? null : String(m.canonicalHistoryLastScannedBlock),
+                                canonicalHistoryFreshForBorrowRouting: String(m.canonicalHistoryCoverageStatus || '').toLowerCase() === 'fresh',
                             };
                         }
                         return;
@@ -28879,18 +29502,23 @@
                         lastPar: String(m.lastPar || '0'),
                         lastWei: String(m.lastWei || '0'),
                         hasStaticParWindow: !!m.hasStaticParWindow,
-                        verificationStatus: String(m.status || ''),
+                        verificationStatus: String(m.strictStatus || m.status || ''),
+                        rawVerificationStatus: String(m.status || ''),
                         isLatestSnapshot: m.isLatestSnapshot !== false,
                         source: 'verified-ledger',
-                        method: String(m.method || ''),
+                        method: String(m.strictMethod || m.method || ''),
+                        rawMethod: String(m.method || ''),
                         snapshotCount: (m.firstDate && m.lastDate && m.firstDate !== m.lastDate) ? 2 : 1,
+                        canonicalHistoryCoverageStatus: String(m.canonicalHistoryCoverageStatus || ''),
+                        canonicalHistoryLastScannedBlock: m.canonicalHistoryLastScannedBlock == null ? null : String(m.canonicalHistoryLastScannedBlock),
+                        canonicalHistoryFreshForBorrowRouting: String(m.canonicalHistoryCoverageStatus || '').toLowerCase() === 'fresh',
                     };
                     trustedLedgerMarkets++;
                     nextTotalYieldDays = Math.max(nextTotalYieldDays, Number(m.days || 0));
                 });
                 if (trustedLedgerMarkets > 0) {
                     console.log(
-                        'Total yield: loaded trusted verified ledger entries for',
+                        'Total yield: loaded historical ledger entries for',
                         trustedLedgerMarkets,
                         'markets',
                         deferredLedgerMarkets > 0 ? `(deferred ${deferredLedgerMarkets} markets to snapshot series)` : ''
@@ -28903,7 +29531,7 @@
                 earn_totalYieldData = nextTotalYieldData;
                 earn_totalYieldDays = nextTotalYieldDays;
                 earn_totalYieldStatus = 'ready';
-                if (yieldHeader) yieldHeader.textContent = 'Total Yield Earned ✓ Verified';
+                if (yieldHeader) yieldHeader.textContent = 'Total Yield Earned ✓ Historical';
                 earn_refreshHistoryYieldData();
                 if (!suppressRender) {
                     earn_renderHistory(earn_historyData || []);
@@ -28977,9 +29605,14 @@
                     hasStaticParWindow: history.every(point => point.par === first.par),
                     snapshotCount: history.length,
                     verificationStatus: deferredMeta ? String(deferredMeta.verificationStatus || 'unverified') : '',
+                    rawVerificationStatus: deferredMeta ? String(deferredMeta.rawVerificationStatus || '') : '',
                     isLatestSnapshot: deferredMeta ? deferredMeta.isLatestSnapshot !== false : true,
                     source: deferredMeta ? deferredMeta.source : 'snapshot-series',
                     method: deferredMeta ? (deferredMeta.method || 'snapshot-fallback') : 'snapshot-series',
+                    rawMethod: deferredMeta ? String(deferredMeta.rawMethod || '') : '',
+                    canonicalHistoryCoverageStatus: deferredMeta ? String(deferredMeta.canonicalHistoryCoverageStatus || '') : '',
+                    canonicalHistoryLastScannedBlock: deferredMeta ? deferredMeta.canonicalHistoryLastScannedBlock : null,
+                    canonicalHistoryFreshForBorrowRouting: deferredMeta ? !!deferredMeta.canonicalHistoryFreshForBorrowRouting : false,
                 };
                 nextTotalYieldDays = Math.max(nextTotalYieldDays, days);
                 marketsWithData++;
@@ -28990,7 +29623,7 @@
             earn_totalYieldDays = nextTotalYieldDays;
             earn_totalYieldStatus = 'ready';
             if (trustedLedgerMarkets > 0 && marketsWithData === 0) {
-                if (yieldHeader) yieldHeader.textContent = 'Total Yield Earned ✓ Verified';
+                if (yieldHeader) yieldHeader.textContent = 'Total Yield Earned ✓ Historical';
             } else if (marketsWithData > 0 || trustedLedgerMarkets > 0) {
                 if (yieldHeader) yieldHeader.textContent = 'Total Yield Earned ✓';
                 console.log(
@@ -29224,20 +29857,41 @@
         async function earn_fetchCurrentAccountsFromSubgraph(addr) {
             const chainId = document.getElementById('earn-chain').value;
             const address = String(addr || '').trim().toLowerCase();
-            if (!address) return { accountNumbers: [], positions: [] };
+            if (!address) return { accountNumbers: [], borrowAccountNumbers: [], positions: [] };
+            const historyTargetBlockTag = String(earn_replayBlockTag || '').trim();
             if (earn_subgraphAccountSnapshot &&
                 earn_subgraphAccountSnapshot.chainId === chainId &&
                 earn_subgraphAccountSnapshot.address === address) {
-                return earn_subgraphAccountSnapshot;
+                const snapshotTargetBlockTag = String(earn_subgraphAccountSnapshot.historyTargetBlockTag || '').trim();
+                const needsHistoryRefresh = !!(
+                    historyTargetBlockTag &&
+                    (
+                        !earn_subgraphAccountSnapshot.historyBorrowFresh ||
+                        snapshotTargetBlockTag !== historyTargetBlockTag
+                    )
+                );
+                if (!needsHistoryRefresh) {
+                    return earn_subgraphAccountSnapshot;
+                }
             }
-            const requestKey = `${chainId}:${address}`;
+            const requestKey = `${chainId}:${address}:${historyTargetBlockTag || 'no-blocktag'}`;
             if (earn_subgraphAccountSnapshotRequests[requestKey]) {
                 return earn_subgraphAccountSnapshotRequests[requestKey];
             }
 
             const endpoint = SUBGRAPH_ENDPOINTS[chainId];
             if (!endpoint) {
-                const empty = { chainId, address, accountNumbers: [], positions: [] };
+                const empty = {
+                    chainId,
+                    address,
+                    accountNumbers: [],
+                    borrowAccountNumbers: [],
+                    historicalAccountNumbers: [],
+                    positions: [],
+                    historyTargetBlockTag,
+                    historyBorrowFresh: false,
+                    historyLastScannedBlock: null,
+                };
                 earn_subgraphAccountSnapshot = empty;
                 return empty;
             }
@@ -29264,10 +29918,12 @@
                 });
 
                 const accountNumbers = [];
+                const borrowAccountNumbers = [];
                 const positions = [];
                 (data.marginAccounts || []).forEach(ma => {
                     const accountNumber = String(ma.accountNumber || '0');
                     let accountHasOpenPosition = false;
+                    let accountHasOpenBorrow = false;
                     (ma.tokenValues || []).forEach(tv => {
                         const token = tv.token || {};
                         const tokenAddr = (token.id || '').toLowerCase();
@@ -29282,6 +29938,7 @@
                         const idx = par > 0n ? indexes.supplyIndex : indexes.borrowIndex;
                         const absWei = (absPar * idx) / (10n ** 18n);
                         const wei = par > 0n ? absWei : -absWei;
+                        if (par < 0n || wei < 0n) accountHasOpenBorrow = true;
 
                         earn_subgraphTokens[marketId] = {
                             symbol: token.symbol || earn_subgraphTokens[marketId]?.symbol || 'UNK',
@@ -29308,9 +29965,48 @@
                     if (accountHasOpenPosition && !accountNumbers.includes(accountNumber)) {
                         accountNumbers.push(accountNumber);
                     }
+                    if (accountHasOpenBorrow && !borrowAccountNumbers.includes(accountNumber)) {
+                        borrowAccountNumbers.push(accountNumber);
+                    }
                 });
 
-                const snapshot = { chainId, address, accountNumbers, positions };
+                const subaccountHistory = await earn_fetchSubaccountHistoryForAddress(chainId, address);
+                const historyHints = earn_extractSubaccountHistoryHints(subaccountHistory, {
+                    blockTag: historyTargetBlockTag || null,
+                });
+                earn_updateCanonicalSubaccountHistoryStateFromHints(historyHints);
+                const borrowAccountSet = new Set([
+                    ...borrowAccountNumbers.map(v => String(v)),
+                    ...historyHints.borrowAccountNumbers.map(v => String(v)),
+                ]);
+                positions.forEach(pos => {
+                    const historyRoute = historyHints.marketRoutes[`${String(pos.accountNumber || '0')}|${earn_normalizeMarketId(pos.marketId)}`];
+                    if (historyRoute === 'borrow' || pos.par < 0n || pos.wei < 0n) {
+                        pos.positionKind = 'borrow';
+                    } else if (historyRoute === 'collateral') {
+                        pos.positionKind = 'hidden-collateral';
+                    } else if (historyRoute === 'supply') {
+                        pos.positionKind = 'visible-supply';
+                    } else if (borrowAccountSet.has(String(pos.accountNumber || '0'))) {
+                        pos.positionKind = 'hidden-collateral';
+                    } else {
+                        pos.positionKind = 'visible-supply';
+                    }
+                });
+
+                const snapshot = {
+                    chainId,
+                    address,
+                    accountNumbers,
+                    borrowAccountNumbers: Array.from(borrowAccountSet),
+                    historicalAccountNumbers: historyHints.accountNumbers,
+                    positions,
+                    historyTargetBlockTag,
+                    historyBorrowFresh: !!historyHints.freshForBorrowRouting,
+                    historyLastScannedBlock: historyHints.lastScannedBlock === null
+                        ? null
+                        : String(historyHints.lastScannedBlock),
+                };
                 earn_subgraphAccountSnapshot = snapshot;
                 return snapshot;
             })();
@@ -29461,6 +30157,7 @@
             const replayEventTrace = [];
             const marketDecimals = {};
             const accountNumbers = new Set();
+            const explicitBorrowAccounts = new Set();
             const INDEX_SCALE = 10n ** 18n;
 
             const toAmount = (rawValue, decimals) => {
@@ -29663,11 +30360,17 @@
                     if (nextIndex) accrueTo(state, nextIndex);
                 });
                 const accountStateData = earn_serializeReplayStateMap(states);
-                const summary = earn_summarizeReplayAccountStates(accountStateData, currentIndexMap);
+                const borrowAccountsOverride = explicitBorrowAccounts.size > 0 ? explicitBorrowAccounts : null;
+                const summary = earn_summarizeReplayAccountStates(
+                    accountStateData,
+                    currentIndexMap,
+                    { borrowAccountsOverride }
+                );
                 return {
                     byMarket: summary.interestYieldData,
                     replayStateData: summary.replayStateData,
                     openBorrowAccounts: summary.openBorrowAccounts,
+                    borrowAccountsOverride: borrowAccountsOverride ? Array.from(borrowAccountsOverride) : [],
                     accountStateData,
                     eventTrace: replayEventTrace,
                 };
@@ -29708,7 +30411,7 @@
                 ),
                 earn_subgraphPaginateAll(endpoint, 'borrowPositions',
                     `{ effectiveUser: "${userAddr}", status: "OPEN" }`,
-                    'amounts { token { marketId decimals } amountPar }'
+                    'marginAccount { accountNumber } amounts { token { marketId decimals } amountPar }'
                 ),
                 earn_subgraphPaginateAll(endpoint, 'transfers',
                     `{ fromEffectiveUser: "${userAddr}" }`,
@@ -29864,6 +30567,10 @@
                 }
             });
             borrowPositions.forEach(bp => {
+                const borrowAccount = bp.marginAccount && bp.marginAccount.accountNumber;
+                if (borrowAccount !== undefined && borrowAccount !== null && String(borrowAccount).trim() !== '') {
+                    explicitBorrowAccounts.add(String(borrowAccount));
+                }
                 (bp.amounts || []).forEach(amt => {
                     const amountPar = Number(amt.amountPar || '0');
                     if (!(amountPar < 0)) return;
@@ -29881,6 +30588,7 @@
             let replayOpenBorrowAccounts = [];
             let replayAccountStateData = {};
             let replayCurrentIndexMap = {};
+            let replayBorrowAccountsOverride = [];
             const marketMeta = {};
 
             if (allMarketIds.length > 0) {
@@ -29931,6 +30639,7 @@
                     interestYieldData = summary.byMarket || {};
                     replayStateData = summary.replayStateData || {};
                     replayOpenBorrowAccounts = summary.openBorrowAccounts || [];
+                    replayBorrowAccountsOverride = summary.borrowAccountsOverride || [];
                     replayAccountStateData = summary.accountStateData || {};
                     replayEventTrace.splice(0, replayEventTrace.length, ...(summary.eventTrace || []));
                     replayCurrentIndexMap = {};
@@ -29980,6 +30689,7 @@
                 replayStateData,
                 marketMeta,
                 openBorrowAccounts: Array.from(openBorrowAccountsSet),
+                borrowAccountsOverride: replayBorrowAccountsOverride,
                 accountStateData: replayAccountStateData,
                 currentIndexMap: replayCurrentIndexMap,
                 eventTrace: replayEventTrace,
@@ -30167,6 +30877,7 @@
                 replayStateData,
                 marketMeta,
                 openBorrowAccounts: summarizedReplay.openBorrowAccounts || [],
+                borrowAccountsOverride: summarizedReplay.openBorrowAccounts || [],
                 accountStateData,
                 currentIndexMap: replayCurrentIndexMap,
                 eventTrace: replayEventTrace,
@@ -30202,10 +30913,13 @@
             earn_replayActualCollateralMap = {};
             earn_replayCurrentPositions = [];
             earn_replayCurrentBorrowAccounts = new Set();
+            earn_replayBorrowAccountsOverride = new Set();
             earn_subgraphTokens = {};
 
             const addr = document.getElementById('earn-address').value.trim().toLowerCase();
             if (!addr) return;
+            const chainId = document.getElementById('earn-chain').value;
+            const canonicalSubaccountHistoryPromise = earn_fetchSubaccountHistoryForAddress(chainId, addr).catch(() => null);
 
             const hasReplayData = replay => !!(
                 replay && (
@@ -30217,8 +30931,16 @@
                 value => ({ status: 'fulfilled', value }),
                 reason => ({ status: 'rejected', reason })
             );
+            const hydrateReplayWithCanonicalHistory = async (replay) => {
+                if (!replay) return replay;
+                const subaccountHistory = await canonicalSubaccountHistoryPromise;
+                return earn_applySubaccountHistoryToReplay(replay, subaccountHistory, {
+                    blockTag: earn_replayBlockTag,
+                });
+            };
 
             const applyReplayResult = (replay, useSubgraphMode) => {
+                earn_updateCanonicalSubaccountHistoryStateFromReplay(replay);
                 Object.entries(replay.marketMeta || {}).forEach(([mid, meta]) => {
                     earn_subgraphTokens[mid] = {
                         symbol: meta.symbol || 'UNK',
@@ -30244,10 +30966,22 @@
                 earn_interestYieldData = replay.interestYieldData || {};
                 earn_acct0NetflowData = replay.acct0Netflows || null;
                 earn_openBorrowAccounts = new Set((replay.openBorrowAccounts || []).map(v => String(v)));
+                earn_replayBorrowAccountsOverride = new Set((replay.borrowAccountsOverride || replay.openBorrowAccounts || []).map(v => String(v)));
                 earn_replayStateData = replay.replayStateData || {};
                 earn_replayEventData = replay.eventTrace || [];
                 earn_replayAccountStateData = replay.accountStateData || {};
                 earn_replayCurrentIndexMap = replay.currentIndexMap || {};
+                const hasCurrentVerificationInputs =
+                    Object.keys(earn_replayActualSupplyMap || {}).length > 0 ||
+                    Object.keys(earn_replayActualBorrowMap || {}).length > 0 ||
+                    Object.keys(earn_replayActualCollateralMap || {}).length > 0 ||
+                    (earn_cachedAssets || []).length > 0 ||
+                    (earn_borrowPositionData || []).length > 0 ||
+                    (earn_collateralPositionData || []).length > 0;
+                if (hasCurrentVerificationInputs) {
+                    earn_refreshReplayVerificationFromCachedPositions();
+                    earn_refreshResolvedTotalYieldData();
+                }
                 console.log(
                     `${useSubgraphMode ? 'Subgraph' : 'Onchain'} replay: ${Object.keys(earn_netflowData).length} markets, ${earn_replayAccountNumbers.length} account(s) for ${addr}`
                 );
@@ -30272,6 +31006,7 @@
                         replay = await earn_refreshReplayWithLiveCurrentIndexes(replay, {
                             blockTag: earn_replayBlockTag,
                         });
+                        replay = await hydrateReplayWithCanonicalHistory(replay);
                         return { replay, useSubgraphMode: true };
                     }
                     if (subgraphError) throw subgraphError;
@@ -30373,6 +31108,8 @@
                     });
                 }
 
+                replay = await hydrateReplayWithCanonicalHistory(replay);
+
                 return {
                     replay,
                     useSubgraphMode: replay === subgraphReplay,
@@ -30434,6 +31171,7 @@
                         provisionalReplay = await earn_refreshReplayWithLiveCurrentIndexes(provisionalReplay, {
                             blockTag: earn_replayBlockTag,
                         });
+                        provisionalReplay = await hydrateReplayWithCanonicalHistory(provisionalReplay);
                         applyReplayResult(provisionalReplay, true);
                         console.warn(
                             `Onchain replay exceeded soft deadline (${replayTimeouts.softOnchainMs}ms); using subgraph replay while onchain continues in background.`
@@ -30444,6 +31182,7 @@
                             try {
                                 const finalSelection = await finalizeReplaySelection(subgraphResult, settled);
                                 if (!finalSelection || !finalSelection.replay) return;
+                                finalSelection.replay = await hydrateReplayWithCanonicalHistory(finalSelection.replay);
                                 const replayChanged = finalSelection.replay !== provisionalReplay || !finalSelection.useSubgraphMode;
                                 if (!replayChanged) return;
                                 applyReplayResult(finalSelection.replay, finalSelection.useSubgraphMode);
@@ -30480,6 +31219,7 @@
             }
 
             const finalSelection = await finalizeReplaySelection(subgraphResult, onchainResult);
+            finalSelection.replay = await hydrateReplayWithCanonicalHistory(finalSelection.replay);
             applyReplayResult(finalSelection.replay, finalSelection.useSubgraphMode);
             console.log(`Replay settled in ${Math.round((((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - replayStartTs))}ms.`);
         }
@@ -30698,6 +31438,27 @@
                         <div class="earn-skeleton-block"></div>
                         <div class="earn-skeleton-line md"></div>
                     </div>
+                </div>
+                <div class="earn-summary-stat">
+                    <div class="earn-skeleton-stack">
+                        <div class="earn-skeleton-line sm"></div>
+                        <div class="earn-skeleton-block"></div>
+                        <div class="earn-skeleton-line md"></div>
+                    </div>
+                </div>
+                <div class="earn-summary-stat">
+                    <div class="earn-skeleton-stack">
+                        <div class="earn-skeleton-line sm"></div>
+                        <div class="earn-skeleton-block"></div>
+                        <div class="earn-skeleton-line sm"></div>
+                    </div>
+                </div>
+                <div class="earn-summary-stat">
+                    <div class="earn-skeleton-stack">
+                        <div class="earn-skeleton-line sm"></div>
+                        <div class="earn-skeleton-block"></div>
+                        <div class="earn-skeleton-line md"></div>
+                    </div>
                 </div>`;
         }
 
@@ -30888,6 +31649,11 @@
                 borrowPositionData: earn_borrowPositionData || [],
                 collateralPositionData: earn_collateralPositionData || [],
                 openBorrowAccounts: Array.from(earn_openBorrowAccounts || []),
+                replayBorrowAccountsOverride: Array.from(earn_replayBorrowAccountsOverride || []),
+                canonicalSubaccountHistoryLastScannedBlock: earn_canonicalSubaccountHistoryLastScannedBlock === null
+                    ? null
+                    : String(earn_canonicalSubaccountHistoryLastScannedBlock),
+                canonicalSubaccountHistoryFreshForBorrowRouting: !!earn_canonicalSubaccountHistoryFreshForBorrowRouting,
                 hiddenCollateralSupplyMarkets: Array.from(earn_hiddenCollateralSupplyMarkets || []),
                 lendingPositions: earn_lendingPositions || [],
             };
@@ -30928,6 +31694,11 @@
             earn_borrowPositionData = snapshot.borrowPositionData || [];
             earn_collateralPositionData = snapshot.collateralPositionData || [];
             earn_openBorrowAccounts = new Set(snapshot.openBorrowAccounts || []);
+            earn_replayBorrowAccountsOverride = new Set(snapshot.replayBorrowAccountsOverride || snapshot.openBorrowAccounts || []);
+            earn_setCanonicalSubaccountHistoryState(
+                snapshot.canonicalSubaccountHistoryLastScannedBlock,
+                snapshot.canonicalSubaccountHistoryFreshForBorrowRouting
+            );
             earn_hiddenCollateralSupplyMarkets = new Set(snapshot.hiddenCollateralSupplyMarkets || []);
             earn_lendingPositions = snapshot.lendingPositions || [];
             if (snapshot.chainId && snapshot.marketRates && Object.keys(snapshot.marketRates || {}).length > 0) {
@@ -30988,6 +31759,7 @@
             earn_interestYieldData = null;
             earn_replayStateData = {};
             earn_replayBlockTag = null;
+            earn_resetCanonicalSubaccountHistoryState();
             earn_replayVerificationIncompleteMarkets = new Set();
             earn_replayActualSupplyMap = {};
             earn_replayActualBorrowMap = {};
@@ -30996,6 +31768,7 @@
             earn_replayVerificationData = {};
             earn_replayVerificationSummary = { total: 0, verified: 0, mismatch: 0, unverified: 0 };
             earn_replayVerificationReady = false;
+            earn_replayBorrowAccountsOverride = new Set();
             earn_merklRewards = {};
             earn_merklRewardsLoaded = false;
             earn_merklRewardsLoadedFor = '';
@@ -31044,6 +31817,7 @@
                 Promise.allSettled([
                     earn_loadManifest(),
                     earn_fetchCurrentAccountsFromSubgraph(addr),
+                    earn_fetchSubaccountHistoryForAddress(chainId, addr),
                     earn_fetchVerifiedLedgerForAddress(chainId, addr),
                     earn_fetchMarketRates(chainId),
                 ]);
@@ -31266,6 +32040,9 @@
                                 if (!isCurrentLookup()) return;
                                 earn_markLookupProfile(lookupProfile, 'history');
                                 earn_markLookupProfile(lookupProfile, 'complete');
+                                earn_lookupLoading = false;
+                                earn_lookupUsingCachedSnapshot = false;
+                                earn_setResultsRefreshing(false);
                                 earn_totalYieldStatus = 'ready';
                                 earn_logLookupProfile(lookupProfile, 'complete');
                                 earn_renderResults([]);
@@ -31278,6 +32055,9 @@
                                 console.warn('History load:', e);
                                 if (!isCurrentLookup()) return;
                                 earn_markLookupProfile(lookupProfile, 'complete');
+                                earn_lookupLoading = false;
+                                earn_lookupUsingCachedSnapshot = false;
+                                earn_setResultsRefreshing(false);
                                 earn_logLookupProfile(lookupProfile, 'complete');
                                 earn_finishLookupLoadingUi({
                                     runId: lookupRunId,
@@ -31293,6 +32073,9 @@
                     } catch (e) { /* ignore netflow check failure */ }
 
                     if (!isCurrentLookup()) return;
+                    earn_lookupLoading = false;
+                    earn_lookupUsingCachedSnapshot = false;
+                    earn_setResultsRefreshing(false);
                     const emptyMsg = document.getElementById('earn-empty-msg');
                     emptyMsg.textContent = 'This address has no active deposits on Dolomite';
                     
@@ -31888,6 +32671,86 @@
             }).join('');
         }
 
+        function earn_buildReplayFallbackLendingPositions() {
+            const chainId = document.getElementById('earn-chain')?.value || 'ethereum';
+            const collateralTokens = [];
+            const debtTokens = [];
+            const accruedCollateral = [];
+            const accruedDebt = [];
+            let totalAccruedYield = 0;
+            let totalAccruedCost = 0;
+
+            (earn_collateralPositionData || []).forEach(item => {
+                const usd = Math.abs(Number(item.usdValue || 0));
+                if (!(usd > 0)) return;
+                collateralTokens.push({
+                    symbol: item.symbol || '?',
+                    usd,
+                });
+                const calc = earn_calculateYield(item, { requireVerifiedInterest: false });
+                const openYieldRaw = calc && calc.openCollateralYield !== undefined
+                    ? BigInt(calc.openCollateralYield || 0)
+                    : 0n;
+                const accruedUsd = earn_scaledUsdToNumber(
+                    earn_getTokenUsdScaled(openYieldRaw, item.decimals, item.symbol, item.tokenAddr, chainId)
+                );
+                if (Math.abs(accruedUsd) > 0.0001) {
+                    accruedCollateral.push({
+                        symbol: item.symbol || '?',
+                        accruedUSD: accruedUsd,
+                    });
+                    totalAccruedYield += accruedUsd;
+                }
+            });
+
+            (earn_borrowPositionData || []).forEach(item => {
+                const usd = Math.abs(Number(item.usdValue || 0));
+                if (!(usd > 0)) return;
+                debtTokens.push({
+                    symbol: item.symbol || '?',
+                    usd,
+                });
+                const calc = earn_calculateYield(item, { requireVerifiedInterest: false });
+                const openBorrowRaw = calc && calc.openBorrowYield !== undefined
+                    ? BigInt(calc.openBorrowYield || 0)
+                    : 0n;
+                const accruedUsd = earn_scaledUsdToNumber(
+                    earn_getTokenUsdScaled(openBorrowRaw, item.decimals, item.symbol, item.tokenAddr, chainId)
+                );
+                if (Math.abs(accruedUsd) > 0.0001) {
+                    accruedDebt.push({
+                        symbol: item.symbol || '?',
+                        accruedUSD: accruedUsd,
+                    });
+                    totalAccruedCost += accruedUsd;
+                }
+            });
+
+            if (collateralTokens.length === 0 && debtTokens.length === 0) return [];
+
+            const collateralUSD = collateralTokens.reduce((sum, item) => sum + item.usd, 0);
+            const debtUSD = debtTokens.reduce((sum, item) => sum + item.usd, 0);
+
+            return [{
+                accountNumber: 'replay-fallback',
+                healthFactor: null,
+                collateralUSD,
+                debtUSD,
+                collateralTokens,
+                debtTokens,
+                accruedCollateral,
+                accruedDebt,
+                totalAccruedYield,
+                totalAccruedCost,
+                totalExternalRewardsUSD: 0,
+                netAccrued: totalAccruedYield - totalAccruedCost,
+                externalRewards: [],
+                eMode: false,
+                openTimestamp: 0,
+                replayFallback: true,
+            }];
+        }
+
         async function earn_fetchAndRenderLendingPositions(opts) {
             opts = opts || {};
             const runId = opts.runId;
@@ -31945,6 +32808,15 @@
                 earn_lendingPositions = positions;
 
                 if (positions.length === 0) {
+                    const replayFallbackPositions = earn_buildReplayFallbackLendingPositions();
+                    if (replayFallbackPositions.length > 0) {
+                        earn_lendingPositions = replayFallbackPositions;
+                        countEl.textContent = replayFallbackPositions.length;
+                        section.style.display = '';
+                        earn_reRenderLendingRows();
+                        earn_updateSummaryDebt(replayFallbackPositions);
+                        return replayFallbackPositions;
+                    }
                     section.style.display = 'none';
                     return;
                 }
@@ -32383,54 +33255,95 @@
             if (!el) el = document.getElementById('earn-summary-card');
             if (!el) return;
             const n = el.querySelectorAll('.earn-summary-stat').length;
-            el.classList.remove('cols-6', 'cols-7');
-            if (n >= 7) el.classList.add('cols-7');
+            el.classList.remove('cols-6', 'cols-8');
+            if (n >= 8) el.classList.add('cols-8');
             else if (n >= 6) el.classList.add('cols-6');
         }
 
         function earn_updateSummaryDebt(positions) {
             const summaryEl = document.getElementById('earn-summary-card');
-            if (!summaryEl || positions.length === 0) return;
+            if (!summaryEl) return;
 
             const totalDebt = positions.reduce((s, p) => s + (p.debtUSD || 0), 0);
             const totalCollateral = positions.reduce((s, p) => s + (p.collateralUSD || 0), 0);
             const activeCount = (earn_cachedAssets || []).filter(a => !a.isBorrow && !a.isCollateral && a.usdValue >= 0.01).length;
             const totalSupplyUsd = (earn_cachedAssets || []).filter(a => !a.isBorrow && !a.isCollateral).reduce((s, a) => s + (a.usdValue || 0), 0);
+            const accruedPositions = positions.filter(p => p.netAccrued !== undefined && p.netAccrued !== null && Number.isFinite(p.netAccrued));
+            const totalBorrowRoutePnl = accruedPositions.reduce((sum, p) => sum + (p.netAccrued || 0), 0);
+            const hasBorrowPositions = positions.length > 0;
+            const totalBorrowRouteAnnual = positions.reduce((sum, p) => {
+                const collateralTokens = Array.isArray(p.collateralTokens) ? p.collateralTokens : [];
+                const debtTokens = Array.isArray(p.debtTokens) ? p.debtTokens : [];
+                const annualYield = collateralTokens.reduce((acc, token) => {
+                    const rate = earn_getTokenRate(token.symbol, 'supply');
+                    return acc + ((token.usd || 0) * (rate / 100));
+                }, 0);
+                const annualCost = debtTokens.reduce((acc, token) => {
+                    const rate = earn_getTokenRate(token.symbol, 'borrow');
+                    return acc + ((token.usd || 0) * (rate / 100));
+                }, 0);
+                return sum + annualYield - annualCost;
+            }, 0);
 
-            // CSS already handles column layout via .earn-summary-card / .cols-N classes
+            const portfolioVal = totalSupplyUsd + totalCollateral - totalDebt;
+            const fmtUsd = v => v >= 1000 ? '$' + (v / 1000).toFixed(2) + 'K' : '$' + v.toFixed(2);
+            const portfolioValueEl = document.getElementById('earn-summary-portfolio-value');
+            const portfolioSubEl = document.getElementById('earn-summary-portfolio-sub');
+            if (portfolioValueEl) {
+                portfolioValueEl.textContent = fmtUsd(portfolioVal);
+                portfolioValueEl.className = 'earn-summary-value ' + (portfolioVal > 0 ? 'neutral' : 'negative');
+            }
+            if (portfolioSubEl) {
+                portfolioSubEl.innerHTML = `<span class="sub-highlight">${activeCount}</span> supply · <span style="color:#f87171">${positions.length}</span> borrow`;
+            }
+
+            const borrowRouteStat = summaryEl.querySelector('.earn-borrow-route-stat');
+            const routeVal = document.getElementById('earn-summary-borrow-route-value');
+            const routeSub = document.getElementById('earn-summary-borrow-route-sub');
+            if (borrowRouteStat && routeVal && routeSub) {
+                borrowRouteStat.classList.toggle('is-muted', !hasBorrowPositions);
+                routeVal.textContent = hasBorrowPositions ? String(positions.length) : 'None';
+                routeVal.className = 'earn-summary-value ' + (hasBorrowPositions ? 'neutral' : 'neutral');
+                routeSub.textContent = hasBorrowPositions
+                    ? `${positions.length} borrow route${positions.length !== 1 ? 's' : ''} active`
+                    : 'No open borrow route';
+            }
+
+            const debtStat = summaryEl.querySelector('.earn-debt-stat');
+            const debtValueEl = document.getElementById('earn-summary-debt-value');
+            const debtSubEl = document.getElementById('earn-summary-debt-sub');
+            if (debtStat && debtValueEl && debtSubEl) {
+                debtStat.classList.toggle('is-muted', !hasBorrowPositions);
+                debtValueEl.textContent = hasBorrowPositions ? `-${earn_formatUSD(totalDebt)}` : '$0.00';
+                debtValueEl.className = 'earn-summary-value ' + (hasBorrowPositions && totalDebt > 0.01 ? 'negative' : 'neutral');
+                debtSubEl.innerHTML = hasBorrowPositions
+                    ? `Collateral: <span class="sub-highlight">${earn_formatUSD(totalCollateral)}</span>`
+                    : 'No debt sourced from borrow routes';
+            }
+
+            const borrowPnlStat = summaryEl.querySelector('.earn-borrow-pnl-stat');
+            const borrowPnlValueEl = document.getElementById('earn-summary-borrow-pnl-value');
+            const borrowPnlSubEl = document.getElementById('earn-summary-borrow-pnl-sub');
+            const hasAccruedBorrowPnl = accruedPositions.length > 0;
+            const borrowPnlPositive = totalBorrowRoutePnl >= 0;
+            const borrowPnlValueClass = hasAccruedBorrowPnl
+                ? (borrowPnlPositive ? 'positive' : 'negative')
+                : 'neutral';
+            const borrowPnlValue = hasAccruedBorrowPnl
+                ? `${borrowPnlPositive ? '+' : '-'}${earn_formatUSD(Math.abs(totalBorrowRoutePnl))}`
+                : '—';
+            const borrowAnnualPositive = totalBorrowRouteAnnual >= 0;
+            const borrowPnlSub = hasAccruedBorrowPnl
+                ? `Open borrow route · ${borrowAnnualPositive ? '+' : '-'}${earn_formatUSD(Math.abs(totalBorrowRouteAnnual))}/yr est.`
+                : (hasBorrowPositions ? 'Open borrow route accrual is still loading' : 'No open borrow route');
+            if (borrowPnlStat && borrowPnlValueEl && borrowPnlSubEl) {
+                borrowPnlStat.classList.toggle('is-muted', !hasBorrowPositions);
+                borrowPnlValueEl.textContent = hasBorrowPositions ? borrowPnlValue : '—';
+                borrowPnlValueEl.className = 'earn-summary-value ' + (hasBorrowPositions ? borrowPnlValueClass : 'neutral');
+                borrowPnlSubEl.textContent = borrowPnlSub;
+            }
+
             earn_updateSummaryCardLayout(summaryEl);
-
-            // Find and update the portfolio card with true value (supply + collateral - debt)
-            const statEls = summaryEl.querySelectorAll('.earn-summary-stat');
-            if (statEls.length > 0) {
-                // Recalculate Portfolio Value = supply assets + (collateral - debt) from borrow positions
-                const portfolioVal = totalSupplyUsd + totalCollateral - totalDebt;
-                const fmtUsd = v => v >= 1000 ? '$' + (v / 1000).toFixed(2) + 'K' : '$' + v.toFixed(2);
-                const valEl = statEls[0].querySelector('.earn-summary-value');
-                if (valEl) {
-                    valEl.textContent = fmtUsd(portfolioVal);
-                    valEl.className = 'earn-summary-value ' + (portfolioVal > 0 ? 'neutral' : 'negative');
-                }
-                const sub = statEls[0].querySelector('.earn-summary-sub');
-                if (sub) sub.innerHTML = `<span class="sub-highlight">${activeCount}</span> supply · <span style="color:#f87171">${positions.length}</span> borrow`;
-            }
-
-            // Insert or update Total Debt stat (second position)
-            let debtStat = summaryEl.querySelector('.earn-debt-stat');
-            if (!debtStat) {
-                debtStat = document.createElement('div');
-                debtStat.className = 'earn-summary-stat earn-debt-stat';
-                // Insert after first stat
-                if (statEls.length > 1) {
-                    summaryEl.insertBefore(debtStat, statEls[1]);
-                } else {
-                    summaryEl.appendChild(debtStat);
-                }
-            }
-            debtStat.innerHTML = `
-                <div class="earn-summary-label" style="color:rgba(248,113,113,0.7)">Total Debt</div>
-                <div class="earn-summary-value" style="color:#f87171">-${earn_formatUSD(totalDebt)}</div>
-                <div class="earn-summary-sub">Collateral: <span class="sub-highlight">${earn_formatUSD(totalCollateral)}</span></div>`;
         }
 
         // Format a Unix timestamp as relative age (e.g. "42 days ago")
@@ -32838,6 +33751,13 @@
             const totalSupplyAssets = assets.filter(a => !a.isBorrow && !a.isCollateral);
             const supplyAssets = totalSupplyAssets.filter(a => a.usdValue >= dustThreshold);
             const borrowAssets = assets.filter(a => a.isBorrow && a.usdValue >= dustThreshold);
+            const hasBorrowContext = assets.some(a => a.isBorrow || a.isCollateral)
+                || ((earn_lendingPositions || []).length > 0);
+            const hasHistoricalEarnContext = Array.isArray(earn_historyData)
+                && earn_historyData.some(item => item && !item.isActive && !item.isIsolation);
+            const shouldShowSupplySection = totalSupplyAssets.length > 0
+                || hasBorrowContext
+                || hasHistoricalEarnContext;
 
             let html = '';
 
@@ -32860,12 +33780,12 @@
 
             // Keep the supply section visible while filters are active so Hide Dust can always be toggled back off.
             const supplySection = document.getElementById('earn-supply-section');
-            if (totalSupplyAssets.length === 0) {
-                if (supplySection) supplySection.style.display = 'none';
-            } else {
-                if (supplySection) supplySection.style.display = '';
-                const supplyCountEl = document.getElementById('earn-supply-count');
-                if (supplyCountEl) supplyCountEl.textContent = supplyAssets.length;
+            if (supplySection) {
+                supplySection.style.display = shouldShowSupplySection ? '' : 'none';
+            }
+            const supplyCountEl = document.getElementById('earn-supply-count');
+            if (supplyCountEl) {
+                supplyCountEl.textContent = supplyAssets.length;
             }
 
             supplyAssets.forEach((a, idx) => {
@@ -32995,6 +33915,23 @@
                         <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
                             <span style="font-size:13px;color:rgba(255,255,255,0.74);font-weight:600">All supply assets are hidden by the current filter</span>
                             <span style="font-size:11px;color:var(--text-muted)">Turn off <strong style="color:rgba(255,255,255,0.7);font-weight:600">Hide Dust</strong> to show small balances again.</span>
+                        </div>
+                    </td>
+                </tr>`;
+            } else if (supplyAssets.length === 0 && shouldShowSupplySection) {
+                const emptyTitle = hasBorrowContext
+                    ? 'No active earn deposits for this address'
+                    : 'No active earn deposits are visible right now';
+                const emptyHint = hasBorrowContext
+                    ? 'Borrow positions are shown below, and the Earn filters stay available here.'
+                    : hasHistoricalEarnContext
+                        ? 'Withdrawn assets are shown below, and you can still use Hide Dust and APR/APY here.'
+                        : 'Use the controls above to adjust the current Earn view.';
+                html += `<tr class="earn-data-row earn-row-empty-filtered">
+                    <td colspan="4" style="text-align:center;padding:28px 24px;color:var(--text-muted);border-bottom:none;">
+                        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+                            <span style="font-size:13px;color:rgba(255,255,255,0.74);font-weight:600">${emptyTitle}</span>
+                            <span style="font-size:11px;color:var(--text-muted)">${emptyHint}</span>
                         </div>
                     </td>
                 </tr>`;
@@ -33145,12 +34082,6 @@
                         const trustedHistoryMethods = new Set([
                             'interest-ledger',
                             'interest-ledger-override',
-                            'snapshot',
-                            'snapshot-partial',
-                            'all-netflow-verified',
-                            'all-netflow-pre-snapshot-carry',
-                            'recent-cycle-verified',
-                            'recent-cycle-pre-snapshot-carry',
                         ]);
                         earn_historyData.forEach(item => {
                             if (item.isActive || item.isIsolation) return;
@@ -33165,8 +34096,8 @@
                             const histMethod = histMeta
                                 ? String(histMeta.resolvedMethod || histMeta.method || item.yieldMethod || '')
                                 : String(item.yieldMethod || '');
-                            const histUsesReplay = histMethod.startsWith('interest-ledger');
-                            const histStatusTrusted = histUsesReplay || !histStatus || histStatus === 'verified' || histStatus === 'pre_snapshot_carry' || histStatus === 'no_netflow';
+                            const histUsesReplay = histMethod === 'interest-ledger' || histMethod === 'interest-ledger-override';
+                            const histStatusTrusted = histUsesReplay && histStatus === 'verified';
                             if (!trustedHistoryMethods.has(histMethod) || !histStatusTrusted || !histIsLatest) {
                                 if ((item.yieldUsdScaled || 0n) !== 0n) pendingYieldAssetCount++;
                                 return;
@@ -33200,6 +34131,12 @@
                     const verifySummary = visibleVerifySummary.total > 0
                         ? visibleVerifySummary
                         : (earn_replayVerificationSummary || { total: 0, verified: 0, mismatch: 0, unverified: 0 });
+                    const verifyPendingCount = Math.max(0,
+                        (verifySummary.total || 0)
+                        - (verifySummary.verified || 0)
+                        - (verifySummary.mismatch || 0)
+                        - (verifySummary.unverified || 0)
+                    );
                     const verifyValue = hasProvisionalVerifySummary
                         ? `${trustedYieldAssetCount}/${provisionalVerifyTotal}`
                         : verifySummary.total > 0
@@ -33209,7 +34146,7 @@
                         ? (pendingYieldAssetCount > 0 ? 'neutral' : 'positive')
                         : verifySummary.mismatch > 0
                             ? 'negative'
-                            : verifySummary.unverified > 0
+                            : (verifySummary.unverified > 0 || verifyPendingCount > 0)
                                 ? 'neutral'
                             : verifySummary.total > 0
                                 ? 'positive'
@@ -33231,6 +34168,8 @@
                                 ? `<span style="color:#f87171">${verifySummary.mismatch} mismatch${verifySummary.mismatch !== 1 ? 'es' : ''}</span>${verifySummary.unverified > 0 ? ' · ' + verifySummary.unverified + ' ' + unverifiedLabel : ''}`
                                 : verifySummary.unverified > 0
                                     ? `${verifySummary.verified} verified · ${verifySummary.unverified} ${unverifiedLabel}`
+                                    : verifyPendingCount > 0
+                                        ? `${verifySummary.verified} verified · ${verifyPendingCount} pending`
                                     : 'All visible yield markets reconciled';
 
                     // Find best performer icon
@@ -33245,14 +34184,44 @@
                         }
                     }
                     const bestIconHtml = bestIcon ? `<img class="best-icon" src="${bestIcon}" alt="">` : '';
+                    const hasBorrowContext = (((earn_cachedAssets || []).some(a => a.isBorrow || a.isCollateral))
+                        || ((earn_lendingPositions || []).length > 0));
+                    const borrowRouteCount = (earn_lendingPositions || []).length;
+                    const borrowRouteValue = borrowRouteCount > 0
+                        ? String(borrowRouteCount)
+                        : (hasBorrowContext ? 'Detected' : 'None');
+                    const borrowRouteSub = borrowRouteCount > 0
+                        ? `${borrowRouteCount} borrow route${borrowRouteCount !== 1 ? 's' : ''} active`
+                        : hasBorrowContext
+                            ? 'Collateral is parked inside an open borrow route'
+                            : 'No open borrow route';
 
                     // Count active non-dust supply assets
                     const activeCount = (earn_cachedAssets || []).filter(a => !a.isBorrow && !a.isCollateral && a.usdValue >= dustThreshold).length;
+                    const hasBorrowOnlyEarnContext = activeCount === 0
+                        && withdrawnCount === 0
+                        && (((earn_cachedAssets || []).some(a => a.isBorrow || a.isCollateral))
+                            || ((earn_lendingPositions || []).length > 0));
+                    const finalVerifyValue = hasBorrowOnlyEarnContext ? 'N/A' : verifyValue;
+                    const finalVerifyClass = hasBorrowOnlyEarnContext ? 'neutral' : verifyClass;
+                    const finalVerifySub = hasBorrowOnlyEarnContext
+                        ? 'Borrow-only route · no active Earn deposits to reconcile here'
+                        : verifySub;
+                    const initialDebtValue = hasBorrowContext ? 'Loading...' : '$0.00';
+                    const initialDebtClass = hasBorrowContext ? 'neutral' : 'neutral';
+                    const initialDebtSub = hasBorrowContext
+                        ? 'Fetching collateral and debt...'
+                        : 'No debt sourced from borrow routes';
+                    const initialBorrowPnlValue = hasBorrowContext ? 'Loading...' : '—';
+                    const initialBorrowPnlSub = hasBorrowContext
+                        ? 'Fetching open borrow route accrual...'
+                        : 'No open borrow route';
+                    const bestPerformerMutedClass = bestYieldUsd > 0 ? '' : ' is-muted';
+                    const bestPerformerValueClass = bestYieldUsd > 0 ? 'positive' : 'neutral';
+                    const rewardsMutedClass = ' is-muted';
 
                     // Portfolio sub label (will be updated when lending positions arrive)
-                    const portfolioSub = `<span class="sub-highlight">${activeCount}</span> active asset${activeCount !== 1 ? 's' : ''}`;
-
-                    // CSS handles column layout — starts at 5 (or 4 without debt card)
+                    const portfolioSub = `<span class="sub-highlight">${activeCount}</span> supply · <span style="color:#f87171">${borrowRouteCount}</span> borrow`;
 
                     // Check if the current address has a known identity
                     const searchAddr = document.getElementById('earn-address').value.trim();
@@ -33269,10 +34238,15 @@
                     };
 
                     summaryEl.innerHTML = `
-                        <div class="earn-summary-stat">
+                        <div class="earn-summary-stat is-primary">
                             <div class="earn-summary-label" style="display:flex;align-items:center;gap:4px">Portfolio Value${addrBadgeHtml}</div>
-                            <div class="earn-summary-value neutral">${fmtUsd(totalUsd)}</div>
-                            <div class="earn-summary-sub">${portfolioSub}</div>
+                            <div class="earn-summary-value neutral" id="earn-summary-portfolio-value">${fmtUsd(totalUsd)}</div>
+                            <div class="earn-summary-sub" id="earn-summary-portfolio-sub">${portfolioSub}</div>
+                        </div>
+                        <div class="earn-summary-stat earn-debt-stat${hasBorrowContext ? '' : ' is-muted'}">
+                            <div class="earn-summary-label" style="color:rgba(248,113,113,0.76)">Total Debt</div>
+                            <div class="earn-summary-value ${initialDebtClass}" id="earn-summary-debt-value">${initialDebtValue}</div>
+                            <div class="earn-summary-sub" id="earn-summary-debt-sub">${initialDebtSub}</div>
                         </div>
                         <div class="earn-summary-stat">
                             <div class="earn-summary-label">Total Yield Earned</div>
@@ -33281,102 +34255,126 @@
                         </div>
                         <div class="earn-summary-stat">
                             <div class="earn-summary-label">Ledger Check</div>
-                            <div class="earn-summary-value ${verifyClass}">${verifyValue}</div>
-                            <div class="earn-summary-sub">${verifySub}</div>
+                            <div class="earn-summary-value ${finalVerifyClass}">${finalVerifyValue}</div>
+                            <div class="earn-summary-sub">${finalVerifySub}</div>
                         </div>
-                        <div class="earn-summary-stat">
+                        <div class="earn-summary-stat earn-borrow-route-stat${hasBorrowContext ? '' : ' is-muted'}">
+                            <div class="earn-summary-label">Borrow Route</div>
+                            <div class="earn-summary-value neutral" id="earn-summary-borrow-route-value">${borrowRouteValue}</div>
+                            <div class="earn-summary-sub" id="earn-summary-borrow-route-sub">${borrowRouteSub}</div>
+                        </div>
+                        <div class="earn-summary-stat earn-borrow-pnl-stat${hasBorrowContext ? '' : ' is-muted'}">
+                            <div class="earn-summary-label" style="color:rgba(251,191,36,0.82)">Open Borrow Route P&amp;L</div>
+                            <div class="earn-summary-value neutral" id="earn-summary-borrow-pnl-value">${initialBorrowPnlValue}</div>
+                            <div class="earn-summary-sub" id="earn-summary-borrow-pnl-sub">${initialBorrowPnlSub}</div>
+                        </div>
+                        <div class="earn-summary-stat earn-best-performer-stat${bestPerformerMutedClass}">
                             <div class="earn-summary-label">Best Performer</div>
-                            <div class="earn-summary-value positive">${bestIconHtml}${bestSymbol || '—'}</div>
+                            <div class="earn-summary-value ${bestPerformerValueClass}">${bestIconHtml}${bestSymbol || '—'}</div>
                             <div class="earn-summary-sub">${bestYieldUsd > 0 ? '<span class="sub-highlight">' + bestYieldSign + fmtUsd(Math.abs(bestYieldUsd)) + '</span> current value' : 'No yield data'}</div>
                         </div>
-                        <div class="earn-summary-stat">
-                            <div class="earn-summary-label"><img src="odolo-logo-official.svg" alt="oDOLO" style="width:18px;height:18px;vertical-align:middle;margin-right:4px"> oDOLO Rewards</div>
-                            <div class="earn-summary-value positive" id="earn-odolo-claimed-val">...</div>
-                            <div class="earn-summary-sub" id="earn-odolo-claimed-sub">Loading...</div>
+                        <div class="earn-summary-stat earn-rewards-overview-stat${rewardsMutedClass}">
+                            <div class="earn-summary-label">Rewards</div>
+                            <div class="earn-summary-value neutral" id="earn-rewards-overview-val">Loading...</div>
+                            <div class="earn-summary-sub" id="earn-rewards-overview-sub">Checking reward sources...</div>
                         </div>`;
                     summaryEl.classList.add('visible');
+                    earn_updateSummaryCardLayout(summaryEl);
 
                     // Re-apply lending positions debt if already loaded (survives re-render)
                     if (earn_lendingPositions && earn_lendingPositions.length > 0) {
                         earn_updateSummaryDebt(earn_lendingPositions);
                     }
 
+                    const rewardsValueEl = document.getElementById('earn-rewards-overview-val');
+                    const rewardsSubEl = document.getElementById('earn-rewards-overview-sub');
+                    const rewardsCardEl = summaryEl.querySelector('.earn-rewards-overview-stat');
+                    const rewardsState = {
+                        odoloClaimed: null,
+                        odoloUnclaimed: earn_odoloUnclaimed || 0,
+                        wlfiAccumulated: null,
+                        wlfiUnclaimed: null,
+                        extraParts: [],
+                    };
+                    const formatRewardAmount = value => value >= 1000 ? (value / 1000).toFixed(2) + 'K' : value.toFixed(2);
+                    const rewardsTotalUsd = () => {
+                        const doloPrice = earn_getRewardTokenUsdPrice('DOLO', '0x0f81001ef0a83ecce5ccebf63eb302c70a39a654', earnChainId) || 0.03;
+                        let usd = 0;
+                        if (rewardsState.odoloClaimed !== null) {
+                            usd += ((rewardsState.odoloClaimed || 0) + (rewardsState.odoloUnclaimed || 0)) * doloPrice;
+                        }
+                        if (rewardsState.wlfiAccumulated !== null) {
+                            usd += (rewardsState.wlfiAccumulated || 0) * 0.097;
+                        }
+                        rewardsState.extraParts.forEach(part => {
+                            usd += Number(part.usd || 0);
+                        });
+                        return usd;
+                    };
+                    const renderRewardsOverview = () => {
+                        if (!isSummaryRenderCurrent() || !rewardsValueEl || !rewardsSubEl) return;
+                        const parts = [];
+                        if (rewardsState.odoloClaimed !== null) {
+                            const totalOdolo = (rewardsState.odoloClaimed || 0) + (rewardsState.odoloUnclaimed || 0);
+                            parts.push(`oDOLO ${formatRewardAmount(totalOdolo)}`);
+                        }
+                        if (rewardsState.wlfiAccumulated !== null && rewardsState.wlfiAccumulated > 0.01) {
+                            parts.push(`WLFI ~$${((rewardsState.wlfiAccumulated || 0) * 0.097) >= 1000 ? (((rewardsState.wlfiAccumulated || 0) * 0.097) / 1000).toFixed(2) + 'K' : ((rewardsState.wlfiAccumulated || 0) * 0.097).toFixed(2)}`);
+                        }
+                        rewardsState.extraParts.forEach(part => {
+                            parts.push(part.label);
+                        });
+
+                        const totalUsd = rewardsTotalUsd();
+                        if (parts.length === 0) {
+                            rewardsValueEl.textContent = '0';
+                            rewardsValueEl.className = 'earn-summary-value neutral';
+                            rewardsSubEl.textContent = 'No active reward streams';
+                            if (rewardsCardEl) rewardsCardEl.classList.add('is-muted');
+                            return;
+                        }
+                        if (rewardsCardEl) rewardsCardEl.classList.remove('is-muted');
+                        rewardsValueEl.textContent = totalUsd > 0.01
+                            ? (totalUsd >= 1000 ? '$' + (totalUsd / 1000).toFixed(2) + 'K' : '$' + totalUsd.toFixed(2))
+                            : 'Active';
+                        rewardsValueEl.className = 'earn-summary-value positive';
+                        rewardsSubEl.textContent = parts.join(' · ');
+                    };
+
                     // Fetch oDOLO claimed asynchronously
                     const earnAddr = document.getElementById('earn-address').value.trim();
+                    const earnChainId = document.getElementById('earn-chain').value;
                     earn_fetchOdoloClaimed(earnAddr).then(claimed => {
                         if (!isSummaryRenderCurrent()) return;
-                        const valEl = document.getElementById('earn-odolo-claimed-val');
-                        const subEl = document.getElementById('earn-odolo-claimed-sub');
-                        if (valEl) {
-                            const fmtAmt = v => v >= 1000 ? (v / 1000).toFixed(2) + 'K' : v.toFixed(2);
-                            const totalEarned = (claimed || 0) + (earn_odoloUnclaimed || 0);
-                            if (totalEarned > 0.01) {
-                                valEl.textContent = fmtAmt(totalEarned);
-                                valEl.className = 'earn-summary-value positive';
-                                if (earn_odoloUnclaimed > 0.01) {
-                                    subEl.innerHTML = 'Claimed ' + fmtAmt(claimed) + ' · <span style="color:#22d3ee">' + fmtAmt(earn_odoloUnclaimed) + ' unclaimed</span>';
-                                } else {
-                                    subEl.textContent = 'Claimed ' + fmtAmt(claimed) + ' · 0 unclaimed';
-                                }
-                            } else {
-                                valEl.textContent = '0';
-                                valEl.className = 'earn-summary-value neutral';
-                                subEl.textContent = 'Claimed 0 · 0 unclaimed';
-                            }
-                        }
+                        rewardsState.odoloClaimed = claimed || 0;
+                        rewardsState.odoloUnclaimed = earn_odoloUnclaimed || 0;
+                        renderRewardsOverview();
                     });
 
-                    // Fetch MERKL WLFI rewards and add card if wallet has any
-                    const earnChainId = document.getElementById('earn-chain').value;
+                    // Fetch MERKL WLFI rewards and fold them into the unified rewards card
                     earn_fetchMerklRewards(earnAddr, earnChainId).then(merklData => {
                         if (!isSummaryRenderCurrent()) return;
                         earn_merklRewards = merklData || {};
                         earn_merklRewardsLoaded = true;
                         const wlfiData = merklData['WLFI'];
-                        if (!wlfiData || wlfiData.accumulated < 0.01) return;
-                        const WLFI_PRICE_CARD = 0.097;
-                        const wlfiAmt = wlfiData.accumulated;
-                        const wlfiUsd = wlfiAmt * WLFI_PRICE_CARD;
-                        const wlfiUnclaimed = wlfiData.unclaimed || 0;
-                        // Check if card already exists
-                        if (document.getElementById('earn-wlfi-claimed-val')) return;
-                        const wlfiStat = document.createElement('div');
-                        wlfiStat.className = 'earn-summary-stat';
-                        wlfiStat.innerHTML = `
-                            <div class="earn-summary-label" style="color:rgba(251,191,36,0.8)"><img src="${SYMBOL_ICONS['WLFI'] || ''}" alt="WLFI" style="width:18px;height:18px;vertical-align:middle;margin-right:4px" onerror="this.style.display='none'"> WLFI Rewards</div>
-                            <div class="earn-summary-value positive" id="earn-wlfi-claimed-val" style="color:#fbbf24">${wlfiAmt >= 1000 ? (wlfiAmt / 1000).toFixed(2) + 'K' : wlfiAmt.toFixed(2)}</div>
-                            <div class="earn-summary-sub" id="earn-wlfi-claimed-sub">~$${wlfiUsd >= 1000 ? (wlfiUsd / 1000).toFixed(2) + 'K' : wlfiUsd.toFixed(2)}${wlfiUnclaimed > 0.01 ? ' · <span style="color:#fbbf24">' + (wlfiUnclaimed >= 1000 ? (wlfiUnclaimed / 1000).toFixed(2) + 'K' : wlfiUnclaimed.toFixed(2)) + ' unclaimed</span>' : ''}</div>`;
-                        const summaryCard = document.getElementById('earn-summary-card');
-                        if (summaryCard) {
-                            summaryCard.appendChild(wlfiStat);
-                            // Toggle responsive layout for extra cards
-                            earn_updateSummaryCardLayout(summaryCard);
-                        }
+                        rewardsState.wlfiAccumulated = wlfiData ? (wlfiData.accumulated || 0) : 0;
+                        rewardsState.wlfiUnclaimed = wlfiData ? (wlfiData.unclaimed || 0) : 0;
+                        renderRewardsOverview();
                     }).catch(e => console.warn('WLFI summary card fetch:', e));
 
                     // Fetch iBGT staking rewards (Berachain only)
                     if (earnChainId === 'berachain') {
                         earn_fetchIBGTRewards(earnAddr).then(ibgtData => {
                             if (!isSummaryRenderCurrent()) return;
-                            if (!ibgtData || (ibgtData.rewards.length === 0 && ibgtData.staked < 0.01)) return;
-                            if (document.getElementById('earn-ibgt-card')) return;
                             const fmtIbgt = v => v >= 1000 ? (v / 1000).toFixed(2) + 'K' : v >= 1 ? v.toFixed(2) : v.toFixed(4);
-                            const rewardLines = ibgtData.rewards.map(r => r.symbol + ': ' + fmtIbgt(r.amount)).join(' · ');
-                            const ibgtStat = document.createElement('div');
-                            ibgtStat.className = 'earn-summary-stat';
-                            ibgtStat.id = 'earn-ibgt-card';
-                            const stakedLabel = ibgtData.staked > 0 ? fmtIbgt(ibgtData.staked) + ' staked' : '';
-                            const subParts = [];
-                            if (stakedLabel) subParts.push(stakedLabel);
-                            if (rewardLines) subParts.push('<span style="color:#f97316">' + rewardLines + '</span>');
-                            ibgtStat.innerHTML = `
-                            <div class="earn-summary-label" style="color:rgba(249,115,22,0.85)">🔶 iBGT Rewards</div>
-                            <div class="earn-summary-value positive" style="color:#f97316">${ibgtData.rewards.length > 0 ? fmtIbgt(ibgtData.rewards.reduce((s, r) => s + r.amount, 0)) : '0'}</div>
-                            <div class="earn-summary-sub">${subParts.join(' · ') || 'No pending rewards'}</div>`;
-                            const summaryCard = document.getElementById('earn-summary-card');
-                            if (summaryCard) {
-                                summaryCard.appendChild(ibgtStat);
-                                earn_updateSummaryCardLayout(summaryCard);
+                            if (ibgtData && (ibgtData.rewards.length > 0 || ibgtData.staked > 0.01)) {
+                                const totalRewards = ibgtData.rewards.reduce((s, r) => s + r.amount, 0);
+                                rewardsState.extraParts = rewardsState.extraParts.filter(part => part.key !== 'ibgt');
+                                rewardsState.extraParts.push({
+                                    key: 'ibgt',
+                                    label: `iBGT ${totalRewards > 0 ? fmtIbgt(totalRewards) : fmtIbgt(ibgtData.staked)}`
+                                });
+                                renderRewardsOverview();
                             }
                         }).catch(e => console.warn('iBGT rewards card fetch:', e));
                     }
@@ -33385,30 +34383,14 @@
                     if (earnChainId === 'arbitrum') {
                         earn_fetchDGMXRewards(earnAddr).then(dgmxData => {
                             if (!isSummaryRenderCurrent()) return;
-                            if (!dgmxData || dgmxData.staked < 0.01) return;
-                            if (document.getElementById('earn-dgmx-card')) return;
                             const fmtGmx = v => v >= 1000 ? (v / 1000).toFixed(2) + 'K' : v >= 1 ? v.toFixed(2) : v.toFixed(4);
-                            const fmtUsd = v => v >= 1000 ? '$' + (v / 1000).toFixed(2) + 'K' : '$' + v.toFixed(2);
-                            const dgmxStat = document.createElement('div');
-                            dgmxStat.className = 'earn-summary-stat';
-                            dgmxStat.id = 'earn-dgmx-card';
-                            const stakedLabel = fmtGmx(dgmxData.staked) + ' GMX staked';
-                            const subParts = [stakedLabel];
-                            if (dgmxData.rewards.length > 0) {
-                                const rewardLines = dgmxData.rewards.map(r => r.symbol + ': ' + fmtGmx(r.amount)).join(' · ');
-                                subParts.push('<span style="color:#6366f1">' + rewardLines + '</span>');
-                            }
-                            const mainValue = dgmxData.totalUsd > 0.01
-                                ? fmtUsd(dgmxData.totalUsd)
-                                : (dgmxData.rewards.length > 0 ? fmtGmx(dgmxData.rewards[0].amount) + ' ' + dgmxData.rewards[0].symbol : 'Compounded');
-                            dgmxStat.innerHTML = `
-                            <div class="earn-summary-label" style="color:rgba(99,102,241,0.85)">💎 GMX Rewards</div>
-                            <div class="earn-summary-value positive" style="color:#6366f1">${mainValue}</div>
-                            <div class="earn-summary-sub">${subParts.join(' · ')}</div>`;
-                            const summaryCard = document.getElementById('earn-summary-card');
-                            if (summaryCard) {
-                                summaryCard.appendChild(dgmxStat);
-                                earn_updateSummaryCardLayout(summaryCard);
+                            if (dgmxData && dgmxData.staked > 0.01) {
+                                rewardsState.extraParts = rewardsState.extraParts.filter(part => part.key !== 'dgmx');
+                                rewardsState.extraParts.push({
+                                    key: 'dgmx',
+                                    label: `GMX ${dgmxData.totalUsd > 0.01 ? ('$' + (dgmxData.totalUsd >= 1000 ? (dgmxData.totalUsd / 1000).toFixed(2) + 'K' : dgmxData.totalUsd.toFixed(2))) : fmtGmx(dgmxData.staked)}`
+                                });
+                                renderRewardsOverview();
                             }
                         }).catch(e => console.warn('dGMX rewards card fetch:', e));
                     }
@@ -33475,13 +34457,14 @@
                         if (earn_isSubDollarYieldPair(balanceUsdScaled, item.yieldUsdScaled || 0n)) dustCount++;
                     });
                 }
-                if (dustCount > 0) {
+                const keepDustToggleVisible = shouldShowSupplySection;
+                if (dustCount > 0 || keepDustToggleVisible) {
                     dustToggle.style.display = '';
                     // active = filter ON = dust HIDDEN
                     dustToggle.classList.toggle('active', !earn_showDust);
                     dustToggle.setAttribute('aria-checked', String(!earn_showDust));
                 } else {
-                    // No visible dust → hide the button entirely
+                    // No visible context at all → hide the button entirely
                     dustToggle.style.display = 'none';
                     dustToggle.setAttribute('aria-checked', 'false');
                 }
