@@ -8015,10 +8015,11 @@
         .earn-past-header,
         .earn-lending-header {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
+            justify-content: space-between;
             flex-wrap: wrap;
-            gap: 10px;
-            padding: 16px 18px 12px;
+            gap: 16px;
+            padding: 18px 18px 14px;
             position: relative;
             border-radius: 0;
             background: linear-gradient(90deg, rgba(var(--earn-section-rgb), 0.14) 0%, rgba(var(--earn-section-rgb), 0.06) 42%, transparent 100%);
@@ -8098,6 +8099,7 @@
             box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
         }
 
+
         .earn-section-table-shell,
         .table-scroll,
         .earn-table-scroll,
@@ -8109,22 +8111,26 @@
         #earn-supply-section .earn-asset-table thead th,
         #earn-past-section .earn-past-table thead th,
         #earn-lending-section .earn-lending-table thead th {
-            background: rgba(var(--earn-section-rgb), 0.035);
+            position: sticky;
+            top: 0;
+            z-index: 4;
+            background:
+                linear-gradient(180deg, rgba(9, 14, 24, 0.96), rgba(13, 18, 29, 0.94)),
+                linear-gradient(135deg, rgba(var(--earn-section-rgb), 0.08), rgba(var(--earn-section-rgb), 0.025));
             color: rgba(226, 232, 240, 0.5);
             padding-top: 12px;
             padding-bottom: 12px;
             letter-spacing: 0.95px;
+            background-clip: padding-box;
+            box-shadow:
+                inset 0 -1px 0 rgba(var(--earn-section-rgb), 0.16),
+                0 10px 18px rgba(2, 6, 23, 0.18);
         }
 
         #earn-supply-section .earn-asset-table thead tr,
         #earn-past-section .earn-past-table thead tr,
         #earn-lending-section .earn-lending-table thead tr {
-            background-image:
-                linear-gradient(rgba(var(--earn-section-rgb), 0.045), rgba(var(--earn-section-rgb), 0.045)),
-                linear-gradient(90deg, rgba(var(--earn-section-rgb), 0.18), rgba(var(--earn-section-rgb), 0.06), transparent);
-            background-size: 100% 100%, calc(100% - 36px) 1px;
-            background-position: 0 0, 18px 100%;
-            background-repeat: no-repeat;
+            background: transparent;
         }
 
         #earn-supply-section .earn-asset-table tbody td,
@@ -8978,33 +8984,85 @@
         /* ═══════ UX OVERHAUL: Summary Card ═══════ */
         .earn-summary-card {
             display: none;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 1px;
-            margin-bottom: 24px;
+            grid-template-columns: minmax(0, 1.14fr) minmax(0, 0.86fr);
+            gap: 14px;
+            margin-bottom: 20px;
+            padding: 20px 22px 22px;
             border-radius: 18px;
-            overflow: hidden;
             position: relative;
-            background: linear-gradient(135deg, rgba(52, 211, 153, 0.25), rgba(99, 102, 241, 0.2), rgba(52, 211, 153, 0.1));
+            overflow: hidden;
+            background:
+                radial-gradient(circle at top right, rgba(52, 211, 153, 0.06), transparent 34%),
+                radial-gradient(circle at bottom left, rgba(99, 102, 241, 0.06), transparent 28%),
+                linear-gradient(155deg, rgba(14, 19, 28, 0.74) 0%, rgba(8, 12, 20, 0.82) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.05);
             animation: earnSummaryIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
-        .earn-summary-card.cols-8 {
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-        }
-
+        .earn-summary-card.cols-8,
         .earn-summary-card.cols-6 {
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: minmax(0, 1.14fr) minmax(0, 0.86fr);
         }
 
-        @media (max-width: 1120px) {
-            .earn-summary-card,
-            .earn-summary-card.cols-8,
-            .earn-summary-card.cols-6 {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
+        .earn-summary-card.visible,
+        .earn-summary-card.skeleton {
+            display: grid;
         }
 
-        @media (max-width: 700px) {
+        .earn-summary-card::before {
+            content: "";
+            position: absolute;
+            inset: 0 0 auto 0;
+            height: 1px;
+            background: linear-gradient(90deg, rgba(52, 211, 153, 0), rgba(52, 211, 153, 0.5) 18%, rgba(99, 102, 241, 0.42) 58%, rgba(52, 211, 153, 0));
+            opacity: 0.92;
+            pointer-events: none;
+        }
+
+        .earn-summary-card::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0.025), transparent 20%, transparent 80%, rgba(255, 255, 255, 0.02));
+            mask: linear-gradient(#000, transparent 88%);
+        }
+
+        .earn-summary-main,
+        .earn-summary-side {
+            min-width: 0;
+            position: relative;
+            z-index: 1;
+        }
+
+        .earn-summary-main {
+            display: flex;
+        }
+
+        .earn-summary-main .earn-summary-stat {
+            width: 100%;
+        }
+
+        .earn-summary-side {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .earn-summary-primary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .earn-summary-secondary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        @media (max-width: 1180px) {
             .earn-summary-card,
             .earn-summary-card.cols-8,
             .earn-summary-card.cols-6 {
@@ -9012,8 +9070,23 @@
             }
         }
 
-        .earn-summary-card.visible {
-            display: grid;
+        @media (max-width: 860px) {
+            .earn-summary-primary-grid,
+            .earn-summary-secondary-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 640px) {
+            .earn-summary-card {
+                padding: 18px;
+                gap: 12px;
+            }
+
+            .earn-summary-primary-grid,
+            .earn-summary-secondary-grid {
+                grid-template-columns: minmax(0, 1fr);
+            }
         }
 
         .earn-summary-card.no-animate {
@@ -9022,10 +9095,6 @@
 
         .earn-summary-card.no-animate .earn-summary-stat {
             animation: none !important;
-        }
-
-        .earn-summary-card.skeleton {
-            display: grid;
         }
 
         .earn-summary-card.skeleton::before {
@@ -9109,22 +9178,6 @@
             }
         }
 
-        /* Animated gradient border */
-        .earn-summary-card::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            border-radius: 18px;
-            padding: 1px;
-            background: linear-gradient(135deg, rgba(52, 211, 153, 0.4), rgba(99, 102, 241, 0.3), rgba(52, 211, 153, 0.15));
-            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-            -webkit-mask-composite: xor;
-            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-            mask-composite: exclude;
-            pointer-events: none;
-            z-index: 1;
-        }
-
         @keyframes earnSummaryIn {
             from {
                 opacity: 0;
@@ -9140,37 +9193,41 @@
         }
 
         .earn-summary-stat {
-            background: rgba(8, 12, 24, 0.92);
-            backdrop-filter: blur(24px);
-            padding: 20px 16px;
+            background:
+                radial-gradient(circle at top left, rgba(255, 255, 255, 0.035), transparent 42%),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.026), rgba(255, 255, 255, 0.014));
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            padding: 18px 18px 16px;
             text-align: left;
             position: relative;
             transition: background 0.3s ease, box-shadow 0.3s ease;
             animation: statFadeIn 0.5s ease both;
-            min-width: 0; /* prevent overflow */
-            min-height: 152px;
+            min-width: 0;
+            min-height: 136px;
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.055);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 12px 24px rgba(0, 0, 0, 0.12);
+            overflow: hidden;
         }
 
         .earn-summary-stat.is-primary {
             background:
-                radial-gradient(circle at top left, rgba(52, 211, 153, 0.12), transparent 58%),
-                linear-gradient(180deg, rgba(8, 12, 24, 0.95), rgba(8, 12, 24, 0.88));
+                radial-gradient(circle at top left, rgba(52, 211, 153, 0.1), transparent 46%),
+                radial-gradient(circle at bottom right, rgba(99, 102, 241, 0.08), transparent 42%),
+                linear-gradient(180deg, rgba(9, 14, 24, 0.96), rgba(10, 16, 28, 0.9));
+            min-height: 100%;
+            padding: 22px 22px 20px;
         }
 
         .earn-summary-stat.is-muted {
-            background: rgba(8, 12, 24, 0.8);
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0.008));
+            border-color: rgba(255, 255, 255, 0.04);
         }
-
-        .earn-summary-stat:nth-child(1) { animation-delay: 0.1s; }
-        .earn-summary-stat:nth-child(2) { animation-delay: 0.15s; }
-        .earn-summary-stat:nth-child(3) { animation-delay: 0.2s; }
-        .earn-summary-stat:nth-child(4) { animation-delay: 0.25s; }
-        .earn-summary-stat:nth-child(5) { animation-delay: 0.3s; }
-        .earn-summary-stat:nth-child(6) { animation-delay: 0.35s; }
-        .earn-summary-stat:nth-child(7) { animation-delay: 0.4s; }
 
         @keyframes statFadeIn {
             from {
@@ -9185,13 +9242,16 @@
         }
 
         .earn-summary-stat:hover {
-            background: rgba(14, 22, 40, 0.95);
-            box-shadow: inset 0 0 30px rgba(52, 211, 153, 0.03);
+            background:
+                radial-gradient(circle at top left, rgba(255, 255, 255, 0.045), transparent 46%),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.016));
+            box-shadow: inset 0 0 30px rgba(52, 211, 153, 0.02), 0 16px 30px rgba(0, 0, 0, 0.14);
         }
 
         .earn-summary-stat.is-primary:hover {
             background:
-                radial-gradient(circle at top left, rgba(52, 211, 153, 0.18), transparent 58%),
+                radial-gradient(circle at top left, rgba(52, 211, 153, 0.14), transparent 46%),
+                radial-gradient(circle at bottom right, rgba(99, 102, 241, 0.1), transparent 42%),
                 linear-gradient(180deg, rgba(12, 18, 34, 0.96), rgba(10, 16, 30, 0.92));
         }
 
@@ -9210,17 +9270,17 @@
         }
 
         .earn-summary-label {
-            font-size: 10px;
-            color: rgba(255, 255, 255, 0.95);
+            font-size: 11px;
+            color: rgba(148, 163, 184, 0.78);
             text-transform: uppercase;
-            letter-spacing: 1.8px;
-            margin-bottom: 8px;
+            letter-spacing: 0.14em;
+            margin-bottom: 10px;
             display: flex;
             align-items: center;
             justify-content: flex-start;
             gap: 6px;
-            font-weight: 600;
-            min-height: 24px;
+            font-weight: 700;
+            min-height: auto;
         }
 
         .earn-summary-label .stat-icon {
@@ -9229,16 +9289,16 @@
         }
 
         .earn-summary-value {
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 800;
             font-family: 'JetBrains Mono', monospace;
-            letter-spacing: -0.5px;
-            line-height: 1.2;
+            letter-spacing: -0.03em;
+            line-height: 1.15;
             display: flex;
             align-items: center;
             justify-content: flex-start;
             gap: 8px;
-            margin-top: auto;
+            margin-top: 0;
         }
 
         .earn-summary-value.positive {
@@ -9259,7 +9319,7 @@
 
         .earn-summary-value.neutral {
             color: #f1f5f9;
-            text-shadow: 0 0 20px rgba(241, 245, 249, 0.1);
+            text-shadow: 0 0 16px rgba(241, 245, 249, 0.08);
         }
 
         .earn-summary-value .best-icon {
@@ -9273,15 +9333,15 @@
 
         .earn-summary-sub {
             font-size: 11px;
-            color: rgba(148, 163, 184, 0.5);
-            margin-top: 6px;
+            color: rgba(226, 232, 240, 0.56);
+            margin-top: 8px;
             white-space: normal;
             overflow: hidden;
             letter-spacing: 0.2px;
             line-height: 1.4;
-            min-height: 32px;
+            min-height: 0;
             display: -webkit-box;
-            -webkit-line-clamp: 2;
+            -webkit-line-clamp: 3;
             -webkit-box-orient: vertical;
         }
 
@@ -9298,6 +9358,126 @@
         .earn-summary-sub .sub-highlight {
             color: rgba(52, 211, 153, 0.7);
             font-weight: 600;
+        }
+
+        .earn-summary-hero {
+            gap: 12px;
+            justify-content: flex-start;
+        }
+
+        .earn-summary-hero-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 8px;
+        }
+
+        .earn-summary-eyebrow {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: rgba(148, 163, 184, 0.72);
+            margin-bottom: 10px;
+        }
+
+        .earn-summary-context-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 12px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.04);
+            color: rgba(226, 232, 240, 0.72);
+            font-size: 11px;
+            font-weight: 600;
+            line-height: 1.35;
+            white-space: nowrap;
+        }
+
+        .earn-summary-hero .earn-summary-value {
+            font-size: 40px;
+            line-height: 1.05;
+            margin-top: auto;
+        }
+
+        .earn-summary-hero .earn-summary-sub {
+            font-size: 12px;
+            color: rgba(226, 232, 240, 0.62);
+            margin-top: 10px;
+        }
+
+        .earn-summary-chip-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .earn-summary-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.035);
+            color: rgba(226, 232, 240, 0.74);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+        }
+
+        .earn-summary-chip::before {
+            content: "";
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: rgba(148, 163, 184, 0.72);
+            box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.12);
+        }
+
+        .earn-summary-chip.is-positive::before {
+            background: rgba(52, 211, 153, 0.95);
+            box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.12);
+        }
+
+        .earn-summary-chip.is-warn::before {
+            background: rgba(251, 191, 36, 0.95);
+            box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.12);
+        }
+
+        .earn-summary-chip.is-muted::before {
+            background: rgba(148, 163, 184, 0.62);
+        }
+
+        .earn-summary-stat.kpi-primary {
+            min-height: 140px;
+        }
+
+        .earn-summary-stat.kpi-secondary {
+            min-height: 120px;
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
+            border-color: rgba(255, 255, 255, 0.045);
+        }
+
+        .earn-summary-stat.kpi-primary .earn-summary-value {
+            font-size: 24px;
+        }
+
+        .earn-summary-stat.kpi-secondary .earn-summary-value {
+            font-size: 20px;
+        }
+
+        .earn-summary-label.is-negative {
+            color: rgba(248, 113, 113, 0.68);
+        }
+
+        .earn-summary-label.is-warn {
+            color: rgba(251, 191, 36, 0.72);
         }
 
         /* ═══════ Filter Bar ═══════ */
@@ -9942,11 +10122,6 @@
             z-index: 2;
             -webkit-backdrop-filter: blur(12px);
             backdrop-filter: blur(12px);
-        }
-
-        #earn-supply-section .earn-asset-table thead th {
-            top: 68px;
-            z-index: 4;
         }
 
         .earn-asset-table thead tr {
@@ -31467,60 +31642,42 @@
 
         function earn_buildLookupSkeletonSummary() {
             return `
-                <div class="earn-summary-stat">
-                    <div class="earn-skeleton-stack">
-                        <div class="earn-skeleton-line sm"></div>
-                        <div class="earn-skeleton-block"></div>
-                        <div class="earn-skeleton-line md"></div>
+                <div class="earn-summary-main">
+                    <div class="earn-summary-stat earn-summary-hero is-primary">
+                        <div class="earn-skeleton-stack">
+                            <div class="earn-skeleton-line sm"></div>
+                            <div class="earn-skeleton-block" style="height:40px"></div>
+                            <div class="earn-skeleton-line lg"></div>
+                            <div class="earn-skeleton-meta">
+                                <span class="earn-skeleton-pill" style="width:104px"></span>
+                                <span class="earn-skeleton-pill" style="width:118px"></span>
+                                <span class="earn-skeleton-pill" style="width:132px"></span>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="earn-summary-stat">
-                    <div class="earn-skeleton-stack">
-                        <div class="earn-skeleton-line sm"></div>
-                        <div class="earn-skeleton-block"></div>
-                        <div class="earn-skeleton-line lg"></div>
+                <div class="earn-summary-side">
+                    <div class="earn-summary-primary-grid">
+                        ${Array.from({ length: 3 }, () => `
+                            <div class="earn-summary-stat kpi-primary">
+                                <div class="earn-skeleton-stack">
+                                    <div class="earn-skeleton-line sm"></div>
+                                    <div class="earn-skeleton-block"></div>
+                                    <div class="earn-skeleton-line md"></div>
+                                </div>
+                            </div>
+                        `).join('')}
                     </div>
-                </div>
-                <div class="earn-summary-stat">
-                    <div class="earn-skeleton-stack">
-                        <div class="earn-skeleton-line sm"></div>
-                        <div class="earn-skeleton-block"></div>
-                        <div class="earn-skeleton-line md"></div>
-                    </div>
-                </div>
-                <div class="earn-summary-stat">
-                    <div class="earn-skeleton-stack">
-                        <div class="earn-skeleton-line sm"></div>
-                        <div class="earn-skeleton-block"></div>
-                        <div class="earn-skeleton-line sm"></div>
-                    </div>
-                </div>
-                <div class="earn-summary-stat">
-                    <div class="earn-skeleton-stack">
-                        <div class="earn-skeleton-line sm"></div>
-                        <div class="earn-skeleton-block"></div>
-                        <div class="earn-skeleton-line md"></div>
-                    </div>
-                </div>
-                <div class="earn-summary-stat">
-                    <div class="earn-skeleton-stack">
-                        <div class="earn-skeleton-line sm"></div>
-                        <div class="earn-skeleton-block"></div>
-                        <div class="earn-skeleton-line md"></div>
-                    </div>
-                </div>
-                <div class="earn-summary-stat">
-                    <div class="earn-skeleton-stack">
-                        <div class="earn-skeleton-line sm"></div>
-                        <div class="earn-skeleton-block"></div>
-                        <div class="earn-skeleton-line sm"></div>
-                    </div>
-                </div>
-                <div class="earn-summary-stat">
-                    <div class="earn-skeleton-stack">
-                        <div class="earn-skeleton-line sm"></div>
-                        <div class="earn-skeleton-block"></div>
-                        <div class="earn-skeleton-line md"></div>
+                    <div class="earn-summary-secondary-grid">
+                        ${Array.from({ length: 4 }, () => `
+                            <div class="earn-summary-stat kpi-secondary">
+                                <div class="earn-skeleton-stack">
+                                    <div class="earn-skeleton-line sm"></div>
+                                    <div class="earn-skeleton-block"></div>
+                                    <div class="earn-skeleton-line sm"></div>
+                                </div>
+                            </div>
+                        `).join('')}
                     </div>
                 </div>`;
         }
@@ -33365,7 +33522,8 @@
 
             const totalDebt = positions.reduce((s, p) => s + (p.debtUSD || 0), 0);
             const totalCollateral = positions.reduce((s, p) => s + (p.collateralUSD || 0), 0);
-            const activeCount = (earn_cachedAssets || []).filter(a => !a.isBorrow && !a.isCollateral && a.usdValue >= 0.01).length;
+            const visibleDustThreshold = earn_showDust ? 0 : 1;
+            const activeCount = (earn_cachedAssets || []).filter(a => !a.isBorrow && !a.isCollateral && a.usdValue >= visibleDustThreshold).length;
             const totalSupplyUsd = (earn_cachedAssets || []).filter(a => !a.isBorrow && !a.isCollateral).reduce((s, a) => s + (a.usdValue || 0), 0);
             const accruedPositions = positions.filter(p => p.netAccrued !== undefined && p.netAccrued !== null && Number.isFinite(p.netAccrued));
             const totalBorrowRoutePnl = accruedPositions.reduce((sum, p) => sum + (p.netAccrued || 0), 0);
@@ -33388,6 +33546,8 @@
             const fmtUsd = v => v >= 1000 ? '$' + (v / 1000).toFixed(2) + 'K' : '$' + v.toFixed(2);
             const portfolioValueEl = document.getElementById('earn-summary-portfolio-value');
             const portfolioSubEl = document.getElementById('earn-summary-portfolio-sub');
+            const supplyChipEl = document.getElementById('earn-summary-supply-chip');
+            const borrowChipEl = document.getElementById('earn-summary-borrow-chip');
             if (portfolioValueEl) {
                 portfolioValueEl.textContent = fmtUsd(portfolioVal);
                 portfolioValueEl.className = 'earn-summary-value ' + (portfolioVal > 0 ? 'neutral' : 'negative');
@@ -33395,7 +33555,15 @@
             if (portfolioSubEl) {
                 portfolioSubEl.innerHTML = `<span class="sub-highlight">${activeCount}</span> supply · <span style="color:#f87171">${positions.length}</span> borrow`;
             }
-
+            if (supplyChipEl) {
+                supplyChipEl.textContent = `${activeCount} supply asset${activeCount !== 1 ? 's' : ''}`;
+            }
+            if (borrowChipEl) {
+                borrowChipEl.textContent = hasBorrowPositions
+                    ? `${positions.length} borrow route${positions.length !== 1 ? 's' : ''}`
+                    : 'No borrow routes';
+                borrowChipEl.className = 'earn-summary-chip ' + (hasBorrowPositions ? '' : 'is-muted');
+            }
             const borrowRouteStat = summaryEl.querySelector('.earn-borrow-route-stat');
             const routeVal = document.getElementById('earn-summary-borrow-route-value');
             const routeSub = document.getElementById('earn-summary-borrow-route-sub');
@@ -33416,7 +33584,7 @@
                 debtValueEl.textContent = hasBorrowPositions ? `-${earn_formatUSD(totalDebt)}` : '$0.00';
                 debtValueEl.className = 'earn-summary-value ' + (hasBorrowPositions && totalDebt > 0.01 ? 'negative' : 'neutral');
                 debtSubEl.innerHTML = hasBorrowPositions
-                    ? `Collateral: <span class="sub-highlight">${earn_formatUSD(totalCollateral)}</span>`
+                    ? `Against <span class="sub-highlight">${earn_formatUSD(totalCollateral)}</span> collateral`
                     : 'No debt sourced from borrow routes';
             }
 
@@ -33433,8 +33601,8 @@
                 : '—';
             const borrowAnnualPositive = totalBorrowRouteAnnual >= 0;
             const borrowPnlSub = hasAccruedBorrowPnl
-                ? `Open borrow route · ${borrowAnnualPositive ? '+' : '-'}${earn_formatUSD(Math.abs(totalBorrowRouteAnnual))}/yr est.`
-                : (hasBorrowPositions ? 'Open borrow route accrual is still loading' : 'No open borrow route');
+                ? `${borrowAnnualPositive ? '+' : '-'}${earn_formatUSD(Math.abs(totalBorrowRouteAnnual))}/yr at current rates`
+                : (hasBorrowPositions ? 'Waiting for borrow route accrual' : 'No open borrow route');
             if (borrowPnlStat && borrowPnlValueEl && borrowPnlSubEl) {
                 borrowPnlStat.classList.toggle('is-muted', !hasBorrowPositions);
                 borrowPnlValueEl.textContent = hasBorrowPositions ? borrowPnlValue : '—';
@@ -34239,12 +34407,12 @@
                     const isTotalYieldLoading = earn_totalYieldStatus === 'loading' && trustedYieldAssetCount === 0;
                     const isTotalYieldRefreshing = earn_totalYieldStatus === 'loading' && trustedYieldAssetCount > 0;
                     const totalYieldSub = isTotalYieldLoading
-                        ? 'Verifying snapshots and ledger...'
+                        ? 'Building verified yield'
                         : isTotalYieldRefreshing
-                            ? 'Refreshing verified data in background...'
+                            ? 'Refreshing verified yield'
                             : pendingYieldAssetCount > 0
-                                ? `Verified only · ${pendingYieldAssetCount} asset${pendingYieldAssetCount !== 1 ? 's' : ''} pending verification`
-                                : 'All-time lending yield · current market value';
+                                ? `Verified yield · ${pendingYieldAssetCount} pending`
+                                : 'Verified lifetime yield';
                     const provisionalVerifyTotal = trustedYieldAssetCount + pendingYieldAssetCount;
                     const hasProvisionalVerifySummary = !earn_replayVerificationReady && provisionalVerifyTotal > 0;
                     const verifySummary = visibleVerifySummary.total > 0
@@ -34273,23 +34441,23 @@
                     const unverifiedLabel = earn_replayUsedSubgraphFallback ? 'fallback' : 'pending';
                     const verifySub = hasProvisionalVerifySummary
                         ? (pendingYieldAssetCount > 0
-                            ? `${trustedYieldAssetCount} verified · ${pendingYieldAssetCount} snapshot fallback`
-                            : 'Visible active yield is ready')
+                            ? `${trustedYieldAssetCount} ready · ${pendingYieldAssetCount} pending`
+                            : 'Visible yield is ready')
                         : verifySummary.total === 0
                             ? (earn_lastReplayError
-                                ? 'Fallback mode · replay unavailable'
+                                ? 'Replay unavailable'
                                 : earn_replayStatus === 'loading'
-                                    ? 'Replay verification still loading'
+                                    ? 'Replay still loading'
                                     : earn_replayUsedSubgraphFallback
-                                        ? 'Fallback mode · subgraph replay'
-                                        : 'No ledger checks yet')
+                                        ? 'Fallback replay mode'
+                                        : 'No replay checks yet')
                             : verifySummary.mismatch > 0
-                                ? `<span style="color:#f87171">${verifySummary.mismatch} mismatch${verifySummary.mismatch !== 1 ? 'es' : ''}</span>${verifySummary.unverified > 0 ? ' · ' + verifySummary.unverified + ' ' + unverifiedLabel : ''}`
+                                ? `${verifySummary.mismatch} mismatch${verifySummary.mismatch !== 1 ? 'es' : ''}${verifySummary.unverified > 0 ? ' · ' + verifySummary.unverified + ' ' + unverifiedLabel : ''}`
                                 : verifySummary.unverified > 0
-                                    ? `${verifySummary.verified} verified · ${verifySummary.unverified} ${unverifiedLabel}`
+                                    ? `${verifySummary.verified} ready · ${verifySummary.unverified} ${unverifiedLabel}`
                                     : verifyPendingCount > 0
-                                        ? `${verifySummary.verified} verified · ${verifyPendingCount} pending`
-                                    : 'All visible yield markets reconciled';
+                                        ? `${verifySummary.verified} ready · ${verifyPendingCount} pending`
+                                    : 'All visible markets reconciled';
 
                     // Find best performer icon
                     let bestIcon = '';
@@ -34324,8 +34492,31 @@
                     const finalVerifyValue = hasBorrowOnlyEarnContext ? 'N/A' : verifyValue;
                     const finalVerifyClass = hasBorrowOnlyEarnContext ? 'neutral' : verifyClass;
                     const finalVerifySub = hasBorrowOnlyEarnContext
-                        ? 'Borrow-only route · no active Earn deposits to reconcile here'
+                        ? 'Not applicable for borrow-only accounts'
                         : verifySub;
+                    const summaryContextText = hasBorrowOnlyEarnContext
+                        ? 'Borrow-route only'
+                        : withdrawnCount > 0 && activeCount === 0
+                            ? 'Historical earn view'
+                            : activeCount > 0
+                                ? 'Live earn overview'
+                                : 'Account snapshot';
+                    const summaryVerificationChip = pendingYieldAssetCount > 0
+                        ? `${pendingYieldAssetCount} pending verify`
+                        : trustedYieldAssetCount > 0
+                            ? 'Strict yield ready'
+                            : 'No verified yield yet';
+                    const summaryVerificationChipClass = pendingYieldAssetCount > 0
+                        ? 'is-warn'
+                        : trustedYieldAssetCount > 0
+                            ? 'is-positive'
+                            : 'is-muted';
+                    const summaryBorrowChip = hasBorrowContext
+                        ? (borrowRouteCount > 0
+                            ? `${borrowRouteCount} borrow route${borrowRouteCount !== 1 ? 's' : ''}`
+                            : 'Borrow context detected')
+                        : 'No borrow routes';
+                    const summaryBorrowChipClass = hasBorrowContext ? '' : 'is-muted';
                     const initialDebtValue = hasBorrowContext ? 'Loading...' : '$0.00';
                     const initialDebtClass = hasBorrowContext ? 'neutral' : 'neutral';
                     const initialDebtSub = hasBorrowContext
@@ -34333,7 +34524,7 @@
                         : 'No debt sourced from borrow routes';
                     const initialBorrowPnlValue = hasBorrowContext ? 'Loading...' : '—';
                     const initialBorrowPnlSub = hasBorrowContext
-                        ? 'Fetching open borrow route accrual...'
+                        ? 'Annualized at current rates'
                         : 'No open borrow route';
                     const bestPerformerMutedClass = bestYieldUsd > 0 ? '' : ' is-muted';
                     const bestPerformerValueClass = bestYieldUsd > 0 ? 'positive' : 'neutral';
@@ -34357,45 +34548,64 @@
                     };
 
                     summaryEl.innerHTML = `
-                        <div class="earn-summary-stat is-primary">
-                            <div class="earn-summary-label" style="display:flex;align-items:center;gap:4px">Portfolio Value${addrBadgeHtml}</div>
-                            <div class="earn-summary-value neutral" id="earn-summary-portfolio-value">${fmtUsd(totalUsd)}</div>
-                            <div class="earn-summary-sub" id="earn-summary-portfolio-sub">${portfolioSub}</div>
+                        <div class="earn-summary-main">
+                            <div class="earn-summary-stat earn-summary-hero is-primary">
+                                <div class="earn-summary-hero-top">
+                                    <div>
+                                        <div class="earn-summary-eyebrow">Earn Overview</div>
+                                        <div class="earn-summary-label" style="display:flex;align-items:center;gap:4px">Portfolio Value${addrBadgeHtml}</div>
+                                    </div>
+                                    <div class="earn-summary-context-pill">${summaryContextText}</div>
+                                </div>
+                                <div class="earn-summary-value neutral" id="earn-summary-portfolio-value">${fmtUsd(totalUsd)}</div>
+                                <div class="earn-summary-sub" id="earn-summary-portfolio-sub">${portfolioSub}</div>
+                                <div class="earn-summary-chip-row">
+                                    <span class="earn-summary-chip" id="earn-summary-supply-chip">${activeCount} supply asset${activeCount !== 1 ? 's' : ''}</span>
+                                    <span class="earn-summary-chip ${summaryBorrowChipClass}" id="earn-summary-borrow-chip">${summaryBorrowChip}</span>
+                                    <span class="earn-summary-chip ${summaryVerificationChipClass}">${summaryVerificationChip}</span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="earn-summary-stat earn-debt-stat${hasBorrowContext ? '' : ' is-muted'}">
-                            <div class="earn-summary-label" style="color:rgba(248,113,113,0.76)">Total Debt</div>
-                            <div class="earn-summary-value ${initialDebtClass}" id="earn-summary-debt-value">${initialDebtValue}</div>
-                            <div class="earn-summary-sub" id="earn-summary-debt-sub">${initialDebtSub}</div>
-                        </div>
-                        <div class="earn-summary-stat">
-                            <div class="earn-summary-label">Total Yield Earned</div>
-                            <div class="earn-summary-value ${isTotalYieldLoading ? 'neutral' : yieldClass}">${isTotalYieldLoading ? 'Loading...' : `${yieldSign}${fmtUsd(Math.abs(totalYieldUsd))}`}</div>
-                            <div class="earn-summary-sub">${totalYieldSub}</div>
-                        </div>
-                        <div class="earn-summary-stat">
-                            <div class="earn-summary-label">Ledger Check</div>
-                            <div class="earn-summary-value ${finalVerifyClass}">${finalVerifyValue}</div>
-                            <div class="earn-summary-sub">${finalVerifySub}</div>
-                        </div>
-                        <div class="earn-summary-stat earn-borrow-route-stat${hasBorrowContext ? '' : ' is-muted'}">
-                            <div class="earn-summary-label">Borrow Route</div>
-                            <div class="earn-summary-value neutral" id="earn-summary-borrow-route-value">${borrowRouteValue}</div>
-                            <div class="earn-summary-sub" id="earn-summary-borrow-route-sub">${borrowRouteSub}</div>
-                        </div>
-                        <div class="earn-summary-stat earn-borrow-pnl-stat${hasBorrowContext ? '' : ' is-muted'}">
-                            <div class="earn-summary-label" style="color:rgba(251,191,36,0.82)">Open Borrow Route P&amp;L</div>
-                            <div class="earn-summary-value neutral" id="earn-summary-borrow-pnl-value">${initialBorrowPnlValue}</div>
-                            <div class="earn-summary-sub" id="earn-summary-borrow-pnl-sub">${initialBorrowPnlSub}</div>
-                        </div>
-                        <div class="earn-summary-stat earn-best-performer-stat${bestPerformerMutedClass}">
-                            <div class="earn-summary-label">Best Performer</div>
-                            <div class="earn-summary-value ${bestPerformerValueClass}">${bestIconHtml}${bestSymbol || '—'}</div>
-                            <div class="earn-summary-sub">${bestYieldUsd > 0 ? '<span class="sub-highlight">' + bestYieldSign + fmtUsd(Math.abs(bestYieldUsd)) + '</span> current value' : 'No yield data'}</div>
-                        </div>
-                        <div class="earn-summary-stat earn-rewards-overview-stat${rewardsMutedClass}">
-                            <div class="earn-summary-label">Rewards</div>
-                            <div class="earn-summary-value neutral" id="earn-rewards-overview-val">Loading...</div>
-                            <div class="earn-summary-sub" id="earn-rewards-overview-sub">Checking reward sources...</div>
+                        <div class="earn-summary-side">
+                            <div class="earn-summary-primary-grid">
+                                <div class="earn-summary-stat kpi-primary">
+                                    <div class="earn-summary-label">Total Yield Earned</div>
+                                    <div class="earn-summary-value ${isTotalYieldLoading ? 'neutral' : yieldClass}">${isTotalYieldLoading ? 'Loading...' : `${yieldSign}${fmtUsd(Math.abs(totalYieldUsd))}`}</div>
+                                    <div class="earn-summary-sub">${totalYieldSub}</div>
+                                </div>
+                                <div class="earn-summary-stat kpi-primary">
+                                    <div class="earn-summary-label">Ledger Check</div>
+                                    <div class="earn-summary-value ${finalVerifyClass}">${finalVerifyValue}</div>
+                                    <div class="earn-summary-sub">${finalVerifySub}</div>
+                                </div>
+                                <div class="earn-summary-stat kpi-primary earn-rewards-overview-stat${rewardsMutedClass}">
+                                    <div class="earn-summary-label">Rewards</div>
+                                    <div class="earn-summary-value neutral" id="earn-rewards-overview-val">Loading...</div>
+                                    <div class="earn-summary-sub" id="earn-rewards-overview-sub">Checking reward sources...</div>
+                                </div>
+                            </div>
+                            <div class="earn-summary-secondary-grid">
+                                <div class="earn-summary-stat kpi-secondary earn-debt-stat${hasBorrowContext ? '' : ' is-muted'}">
+                                    <div class="earn-summary-label is-negative">Total Debt</div>
+                                    <div class="earn-summary-value ${initialDebtClass}" id="earn-summary-debt-value">${initialDebtValue}</div>
+                                    <div class="earn-summary-sub" id="earn-summary-debt-sub">${initialDebtSub}</div>
+                                </div>
+                                <div class="earn-summary-stat kpi-secondary earn-borrow-pnl-stat${hasBorrowContext ? '' : ' is-muted'}">
+                                    <div class="earn-summary-label is-warn">Open Borrow Route P&amp;L</div>
+                                    <div class="earn-summary-value neutral" id="earn-summary-borrow-pnl-value">${initialBorrowPnlValue}</div>
+                                    <div class="earn-summary-sub" id="earn-summary-borrow-pnl-sub">${initialBorrowPnlSub}</div>
+                                </div>
+                                <div class="earn-summary-stat kpi-secondary earn-best-performer-stat${bestPerformerMutedClass}">
+                                    <div class="earn-summary-label">Best Performer</div>
+                                    <div class="earn-summary-value ${bestPerformerValueClass}">${bestIconHtml}${bestSymbol || '—'}</div>
+                                    <div class="earn-summary-sub">${bestYieldUsd > 0 ? '<span class="sub-highlight">' + bestYieldSign + fmtUsd(Math.abs(bestYieldUsd)) + '</span> current value' : 'No yield data'}</div>
+                                </div>
+                                <div class="earn-summary-stat kpi-secondary earn-borrow-route-stat${hasBorrowContext ? '' : ' is-muted'}">
+                                    <div class="earn-summary-label">Borrow Route</div>
+                                    <div class="earn-summary-value neutral" id="earn-summary-borrow-route-value">${borrowRouteValue}</div>
+                                    <div class="earn-summary-sub" id="earn-summary-borrow-route-sub">${borrowRouteSub}</div>
+                                </div>
+                            </div>
                         </div>`;
                     summaryEl.classList.add('visible');
                     earn_updateSummaryCardLayout(summaryEl);
@@ -34457,7 +34667,7 @@
                             ? (totalUsd >= 1000 ? '$' + (totalUsd / 1000).toFixed(2) + 'K' : '$' + totalUsd.toFixed(2))
                             : 'Active';
                         rewardsValueEl.className = 'earn-summary-value positive';
-                        rewardsSubEl.textContent = parts.join(' · ');
+                        rewardsSubEl.textContent = `${parts.length} active stream${parts.length !== 1 ? 's' : ''}`;
                     };
 
                     // Fetch oDOLO claimed asynchronously
