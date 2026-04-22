@@ -15527,13 +15527,7 @@
                                     <th data-sort="balance" class="sort-active" onclick="earn_sortAssets('balance')">
                                         Current Balance <span class="earn-sort-arrow">▼</span></th>
                                     <th data-sort="yield" onclick="earn_sortAssets('yield')">
-                                        <span class="earn-header-help tooltip-wrap">Total Yield Earned
-                                            <span class="tooltip-bubble">Cumulative token yield earned from Dolomite
-                                                lending,
-                                                isolated from deposits, withdrawals, and swaps using supply
-                                                index tracking. The USD subline is priced at current market
-                                                prices.</span>
-                                        </span>
+                                        <span>Total Yield Earned</span>
                                         <span class="earn-sort-arrow">▼</span>
                                     </th>
                                 </tr>
@@ -26830,7 +26824,8 @@
             opts = opts || {};
             if (opts.requireVerifiedInterest === false) return false;
             if (!opts.isActivePosition) return false;
-            if (opts.publicLedgerInference) return false;
+            const publicInferenceStatus = String((opts.publicLedgerInference && opts.publicLedgerInference.status) || '');
+            if (opts.publicLedgerInference && publicInferenceStatus !== 'pre_snapshot_carry') return false;
             if (opts.canUseVerifiedInterest || opts.canOverrideMismatchedSnapshot) return false;
 
             const replayStillLoading = earn_replayStatus === 'loading' || earn_replayStatus === 'idle';
