@@ -9376,9 +9376,9 @@
         }
 
         .earn-summary-mini-list {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
             margin-top: 10px;
             min-height: 0;
         }
@@ -9386,19 +9386,27 @@
         .earn-summary-mini-pill {
             display: flex;
             align-items: center;
-            gap: 8px;
+            justify-content: space-between;
+            gap: 10px;
             min-width: 0;
-            padding: 7px 9px;
-            border-radius: 12px;
+            padding: 8px 10px;
+            border-radius: 11px;
             border: 1px solid rgba(148, 163, 184, 0.14);
             background:
                 linear-gradient(135deg, rgba(15, 23, 42, 0.72), rgba(15, 23, 42, 0.48)),
                 rgba(15, 23, 42, 0.5);
             box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
             color: rgba(226, 232, 240, 0.76);
-            font-size: 10px;
+            font-size: 11px;
             line-height: 1.2;
             letter-spacing: 0.12px;
+        }
+
+        .earn-summary-mini-pill-main {
+            min-width: 0;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .earn-summary-mini-pill-icon {
@@ -9411,39 +9419,22 @@
             object-fit: cover;
         }
 
-        .earn-summary-mini-pill-body {
-            min-width: 0;
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-
-        .earn-summary-mini-pill-label {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            min-width: 0;
-        }
-
         .earn-summary-mini-pill .token {
             color: rgba(241, 245, 249, 0.92);
             font-weight: 700;
+            font-size: 11px;
             overflow: hidden;
             text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .earn-summary-mini-pill .amount {
             color: rgba(148, 250, 197, 0.88);
-            font-weight: 600;
-            font-size: 11px;
+            font-weight: 700;
+            font-size: 12px;
             letter-spacing: -0.01em;
-        }
-
-        .earn-summary-mini-pill-meta {
-            font-size: 9px;
-            color: rgba(148, 163, 184, 0.62);
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
 
         .earn-summary-stat.is-muted .earn-summary-mini-pill {
@@ -9458,15 +9449,8 @@
         }
 
         .earn-summary-stat.is-muted .earn-summary-mini-pill .token,
-        .earn-summary-stat.is-muted .earn-summary-mini-pill .amount,
-        .earn-summary-stat.is-muted .earn-summary-mini-pill-meta {
+        .earn-summary-stat.is-muted .earn-summary-mini-pill .amount {
             color: inherit;
-        }
-
-        @media (max-width: 640px) {
-            .earn-summary-mini-list {
-                grid-template-columns: minmax(0, 1fr);
-            }
         }
 
         .earn-summary-hero {
@@ -34753,21 +34737,28 @@
                     };
                     const formatRewardAmount = value => value >= 1000 ? (value / 1000).toFixed(2) + 'K' : value.toFixed(2);
                     const getRewardIcon = symbol => SYMBOL_ICONS[symbol] || SYMBOL_ICONS[String(symbol || '').toUpperCase()] || '';
+                    const formatRewardSummary = parts => {
+                        const names = parts.map(part => part.symbol);
+                        if (names.length === 0) return 'No active reward streams';
+                        if (names.length === 1) return `${names[0]} farmed`;
+                        if (names.length === 2) return `${names[0]} and ${names[1]} farmed`;
+                        return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]} farmed`;
+                    };
                     const renderRewardsOverview = () => {
                         if (!isSummaryRenderCurrent() || !rewardsValueEl || !rewardsSubEl || !rewardsListEl) return;
                         const parts = [];
                         if (rewardsState.odoloClaimed !== null) {
                             const totalOdolo = (rewardsState.odoloClaimed || 0) + (rewardsState.odoloUnclaimed || 0);
                             if (totalOdolo > 0.01) {
-                                parts.push({ symbol: 'oDOLO', amountLabel: formatRewardAmount(totalOdolo), metaLabel: 'Farmed rewards' });
+                                parts.push({ symbol: 'oDOLO', amountLabel: formatRewardAmount(totalOdolo) });
                             }
                         }
                         if (rewardsState.wlfiAccumulated !== null && rewardsState.wlfiAccumulated > 0.01) {
-                            parts.push({ symbol: 'WLFI', amountLabel: formatRewardAmount(rewardsState.wlfiAccumulated || 0), metaLabel: 'Farmed rewards' });
+                            parts.push({ symbol: 'WLFI', amountLabel: formatRewardAmount(rewardsState.wlfiAccumulated || 0) });
                         }
                         rewardsState.extraParts.forEach(part => {
                             if (!part || !part.amountLabel || !part.symbol) return;
-                            parts.push({ symbol: part.symbol, amountLabel: part.amountLabel, metaLabel: part.metaLabel || 'Farmed rewards' });
+                            parts.push({ symbol: part.symbol, amountLabel: part.amountLabel });
                         });
 
                         if (parts.length === 0) {
@@ -34779,18 +34770,16 @@
                             return;
                         }
                         if (rewardsCardEl) rewardsCardEl.classList.remove('is-muted');
-                        rewardsValueEl.textContent = `${parts.length} reward type${parts.length !== 1 ? 's' : ''}`;
+                        rewardsValueEl.textContent = `${parts.length} reward${parts.length !== 1 ? 's' : ''}`;
                         rewardsValueEl.className = 'earn-summary-value positive';
-                        rewardsSubEl.textContent = parts.length === 1
-                            ? 'Additional token farmed for this wallet'
-                            : 'Additional tokens farmed for this wallet';
+                        rewardsSubEl.textContent = formatRewardSummary(parts);
                         rewardsListEl.innerHTML = parts.map(part => (
                             `<span class="earn-summary-mini-pill">
-                                ${getRewardIcon(part.symbol) ? `<img src="${earn_escapeHtml(getRewardIcon(part.symbol))}" alt="${earn_escapeHtml(part.symbol)}" class="earn-summary-mini-pill-icon" onerror="this.style.display='none'">` : ''}
-                                <span class="earn-summary-mini-pill-body">
-                                    <span class="earn-summary-mini-pill-label"><span class="token">${earn_escapeHtml(part.symbol)}</span><span class="amount">${earn_escapeHtml(part.amountLabel)}</span></span>
-                                    <span class="earn-summary-mini-pill-meta">${earn_escapeHtml(part.metaLabel || 'Farmed rewards')}</span>
+                                <span class="earn-summary-mini-pill-main">
+                                    ${getRewardIcon(part.symbol) ? `<img src="${earn_escapeHtml(getRewardIcon(part.symbol))}" alt="${earn_escapeHtml(part.symbol)}" class="earn-summary-mini-pill-icon" onerror="this.style.display='none'">` : ''}
+                                    <span class="token">${earn_escapeHtml(part.symbol)}</span>
                                 </span>
+                                <span class="amount">${earn_escapeHtml(part.amountLabel)}</span>
                             </span>`
                         )).join('');
                     };
@@ -34828,7 +34817,6 @@
                                         key: `ibgt:${reward.symbol}`,
                                         symbol: reward.symbol,
                                         amountLabel: fmtIbgt(reward.amount),
-                                        metaLabel: 'Berachain rewards',
                                     });
                                 });
                                 renderRewardsOverview();
@@ -34848,7 +34836,6 @@
                                         key: `dgmx:${reward.symbol}`,
                                         symbol: reward.symbol,
                                         amountLabel: fmtGmx(reward.amount),
-                                        metaLabel: 'GMX rewards',
                                     });
                                 });
                                 renderRewardsOverview();
