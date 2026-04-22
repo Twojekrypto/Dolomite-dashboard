@@ -23279,6 +23279,7 @@
         let earn_ibgtRewardsLoadedFor = '';
         let earn_dgmxRewardsLoadedFor = '';
         let earn_odoloMetaLoaded = false;
+        let earn_globalEmptyState = false;
         const EARN_PROFILE_LOGS = true;
         const EARN_SNAPSHOT_STALE_DAYS = 7;
 
@@ -28856,6 +28857,11 @@
         function earn_renderNotices() {
             const noticesEl = document.getElementById('earn-notices');
             if (!noticesEl) return;
+            if (earn_globalEmptyState) {
+                noticesEl.innerHTML = '';
+                noticesEl.classList.remove('visible');
+                return;
+            }
 
             const notices = [];
             const chainId = document.getElementById('earn-chain')?.value || 'ethereum';
@@ -31535,6 +31541,7 @@
             opts = opts || {};
             const preserveResults = !!opts.preserveResults;
             if (!preserveResults) earn_clearLookupLoadingUi();
+            earn_globalEmptyState = false;
             earn_lookupLoading = false;
             earn_lookupUsingCachedSnapshot = false;
             document.getElementById('earn-error').classList.remove('visible');
@@ -31575,6 +31582,38 @@
             // Reset history state
             earn_historyData = null;
             earn_updateLookupRefreshBadge();
+        }
+
+        function earn_showGlobalEmptyState(opts) {
+            opts = opts || {};
+            earn_globalEmptyState = true;
+            earn_lookupLoading = false;
+            earn_lookupUsingCachedSnapshot = false;
+            earn_setResultsRefreshing(false);
+            const results = document.getElementById('earn-results');
+            if (results) {
+                results.classList.remove('visible', 'is-refreshing');
+            }
+            const modeToggle = document.getElementById('earn-mode-toggle');
+            if (modeToggle) modeToggle.classList.remove('visible');
+            const filterBar = document.getElementById('earn-filter-bar');
+            if (filterBar) filterBar.style.display = 'none';
+            const notices = document.getElementById('earn-notices');
+            if (notices) {
+                notices.classList.remove('visible');
+                notices.innerHTML = '';
+            }
+            const summary = document.getElementById('earn-summary-card');
+            if (summary) {
+                summary.classList.remove('visible', 'skeleton', 'no-animate');
+                summary.innerHTML = '';
+            }
+            const empty = document.getElementById('earn-empty');
+            const emptyTitle = document.getElementById('earn-empty-title');
+            const emptyMsg = document.getElementById('earn-empty-msg');
+            if (emptyTitle) emptyTitle.innerHTML = opts.title || 'No deposits found';
+            if (emptyMsg) emptyMsg.textContent = opts.message || 'This address has no active deposits on Dolomite';
+            if (empty) empty.classList.add('visible');
         }
 
         function earn_updateLookupRefreshBadge() {
@@ -31831,6 +31870,7 @@
             earn_odoloMeta = null;
             earn_totalYieldStatus = 'loading';
             earn_replayStatus = 'loading';
+            earn_globalEmptyState = false;
             earn_lookupLoading = false;
             earn_lookupUsingCachedSnapshot = false;
             earn_renderNotices();
@@ -32123,18 +32163,13 @@
                     earn_lookupLoading = false;
                     earn_lookupUsingCachedSnapshot = false;
                     earn_setResultsRefreshing(false);
-                    const emptyMsg = document.getElementById('earn-empty-msg');
-                    emptyMsg.textContent = 'This address has no active deposits on Dolomite';
-                    
-                    const emptyTitle = document.getElementById('earn-empty-title');
                     const searchAddr = document.getElementById('earn-address').value.trim();
                     const addrBadgeHtml = (typeof dolo_labelBadge === 'function') ? dolo_labelBadge(searchAddr) : '';
-                    if (emptyTitle) {
-                        emptyTitle.innerHTML = addrBadgeHtml ? `<div style="display:flex;align-items:center;justify-content:center;gap:6px">No deposits found ${addrBadgeHtml}</div>` : 'No deposits found';
-                    }
-
                     earn_totalYieldStatus = 'ready';
-                    document.getElementById('earn-empty').classList.add('visible');
+                    earn_showGlobalEmptyState({
+                        title: addrBadgeHtml ? `<div style="display:flex;align-items:center;justify-content:center;gap:6px">No deposits found ${addrBadgeHtml}</div>` : 'No deposits found',
+                        message: 'This address has no active deposits on Dolomite',
+                    });
                     earn_markLookupProfile(lookupProfile, 'complete');
                     earn_logLookupProfile(lookupProfile, 'complete');
                     earn_finishLookupLoadingUi({ runId: lookupRunId, chainId, durationMs: lookupProfile.marks.complete });
@@ -33785,6 +33820,15 @@
 
         function earn_renderResults(assets, opts) {
             opts = opts || {};
+            if (earn_globalEmptyState) {
+                const resultsEl = document.getElementById('earn-results');
+                if (resultsEl) resultsEl.classList.remove('visible', 'is-refreshing');
+                const modeToggle = document.getElementById('earn-mode-toggle');
+                if (modeToggle) modeToggle.classList.remove('visible');
+                const filterBar = document.getElementById('earn-filter-bar');
+                if (filterBar) filterBar.style.display = 'none';
+                return;
+            }
             const preservedOpenDetailIdx = opts.softRefresh ? earn_openDetailIdx : null;
             earn_openDetailIdx = null; // reset tracked open detail on re-render
             // Get current chain explorer
