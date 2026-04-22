@@ -8840,6 +8840,45 @@
             border-radius: 0 0 16px 16px;
         }
 
+        .earn-supply-empty-state {
+            position: relative;
+            z-index: 1;
+            padding: 22px 22px 24px;
+            border-top: 1px solid rgba(52, 211, 153, 0.08);
+            background:
+                linear-gradient(180deg, rgba(10, 15, 28, 0.56), rgba(10, 20, 30, 0.72));
+        }
+
+        .earn-supply-empty-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 120px;
+            padding: 20px 18px;
+            border-radius: 16px;
+            border: 1px dashed rgba(52, 211, 153, 0.18);
+            background:
+                radial-gradient(circle at top center, rgba(52, 211, 153, 0.06), transparent 62%),
+                rgba(8, 12, 24, 0.44);
+            text-align: center;
+        }
+
+        .earn-supply-empty-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.8);
+            letter-spacing: 0.15px;
+        }
+
+        .earn-supply-empty-hint {
+            max-width: 520px;
+            font-size: 11px;
+            line-height: 1.55;
+            color: rgba(148, 163, 184, 0.88);
+        }
+
         .earn-past-token {
             display: flex;
             align-items: center;
@@ -15302,6 +15341,7 @@
                             <tfoot id="earn-table-foot" style="display:none"></tfoot>
                         </table>
                     </div>
+                    <div class="earn-supply-empty-state" id="earn-supply-empty-state" style="display:none"></div>
                 </div>
 
                 <!-- Withdrawn section — OUTSIDE the scrollable table, always visible -->
@@ -31519,6 +31559,13 @@
             // Hide filter bar and reset toggles to defaults (active)
             const filterBar = document.getElementById('earn-filter-bar');
             if (filterBar) filterBar.style.display = 'none';
+            const supplyEmptyState = document.getElementById('earn-supply-empty-state');
+            if (supplyEmptyState) {
+                supplyEmptyState.style.display = 'none';
+                supplyEmptyState.innerHTML = '';
+            }
+            const supplyTableShell = document.querySelector('#earn-supply-section .earn-section-table-shell');
+            if (supplyTableShell) supplyTableShell.style.display = '';
             const inactiveToggle = document.getElementById('earn-inactive-toggle');
             if (inactiveToggle) inactiveToggle.classList.add('active');
             const dustToggle = document.getElementById('earn-dust-toggle');
@@ -33775,6 +33822,8 @@
                 return hasNF || hasA0 || hasIL || hasSS;
             });
             const table = document.querySelector('.earn-asset-table:not(.earn-past-table)');
+            const supplyTableShell = document.querySelector('#earn-supply-section .earn-section-table-shell');
+            const supplyEmptyState = document.getElementById('earn-supply-empty-state');
             const keepYieldColumnVisible = hasAnyYield || earn_totalYieldStatus === 'loading';
             if (table) table.classList.toggle('no-yield', !keepYieldColumnVisible);
 
@@ -33787,6 +33836,10 @@
             if (supplyCountEl) {
                 supplyCountEl.textContent = supplyAssets.length;
             }
+
+            let supplyEmptyTitle = '';
+            let supplyEmptyHint = '';
+            let showSupplyEmptyState = false;
 
             supplyAssets.forEach((a, idx) => {
                 let yieldCellHtml;
@@ -33910,35 +33963,40 @@
             });
 
             if (supplyAssets.length === 0 && totalSupplyAssets.length > 0) {
-                html += `<tr class="earn-data-row earn-row-empty-filtered">
-                    <td colspan="4" style="text-align:center;padding:28px 24px;color:var(--text-muted);border-bottom:none;">
-                        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
-                            <span style="font-size:13px;color:rgba(255,255,255,0.74);font-weight:600">All supply assets are hidden by the current filter</span>
-                            <span style="font-size:11px;color:var(--text-muted)">Turn off <strong style="color:rgba(255,255,255,0.7);font-weight:600">Hide Dust</strong> to show small balances again.</span>
-                        </div>
-                    </td>
-                </tr>`;
+                showSupplyEmptyState = true;
+                supplyEmptyTitle = 'All supply assets are hidden by the current filter';
+                supplyEmptyHint = 'Turn off Hide Dust to show small balances again.';
             } else if (supplyAssets.length === 0 && shouldShowSupplySection) {
-                const emptyTitle = hasBorrowContext
+                showSupplyEmptyState = true;
+                supplyEmptyTitle = hasBorrowContext
                     ? 'No active earn deposits for this address'
                     : 'No active earn deposits are visible right now';
-                const emptyHint = hasBorrowContext
+                supplyEmptyHint = hasBorrowContext
                     ? 'Borrow positions are shown below, and the Earn filters stay available here.'
                     : hasHistoricalEarnContext
                         ? 'Withdrawn assets are shown below, and you can still use Hide Dust and APR/APY here.'
                         : 'Use the controls above to adjust the current Earn view.';
-                html += `<tr class="earn-data-row earn-row-empty-filtered">
-                    <td colspan="4" style="text-align:center;padding:28px 24px;color:var(--text-muted);border-bottom:none;">
-                        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
-                            <span style="font-size:13px;color:rgba(255,255,255,0.74);font-weight:600">${emptyTitle}</span>
-                            <span style="font-size:11px;color:var(--text-muted)">${emptyHint}</span>
-                        </div>
-                    </td>
-                </tr>`;
             }
 
             if (supplyAssets.length > 0) {
                 html += '<tr class="earn-table-spacer" aria-hidden="true"><td colspan="4"></td></tr>';
+            }
+
+            if (supplyTableShell) {
+                supplyTableShell.style.display = showSupplyEmptyState ? 'none' : '';
+            }
+            if (supplyEmptyState) {
+                if (showSupplyEmptyState) {
+                    supplyEmptyState.style.display = '';
+                    supplyEmptyState.innerHTML = `
+                        <div class="earn-supply-empty-panel">
+                            <div class="earn-supply-empty-title">${supplyEmptyTitle}</div>
+                            <div class="earn-supply-empty-hint">${supplyEmptyHint}</div>
+                        </div>`;
+                } else {
+                    supplyEmptyState.style.display = 'none';
+                    supplyEmptyState.innerHTML = '';
+                }
             }
 
             // ═══════ LENDING POSITIONS (separate section below supply) ═══════
