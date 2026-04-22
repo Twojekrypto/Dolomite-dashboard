@@ -1,0 +1,55 @@
+{
+  "auditEarnAsset": {
+    "liveDefaults": {
+      "localhostUrl": "http://127.0.0.1:8902/index.html?cb=earn_audit",
+      "debugJsonUrl": "http://127.0.0.1:9555/json",
+      "workers": 6
+    },
+    "liveJs": {
+      "pageTargetPollMs": 250,
+      "pageReadyPollMs": 100,
+      "pageReadyMaxWaitMs": 3000,
+      "settlePollMs": 350,
+      "settleStablePolls": 3,
+      "timeoutFinalSnapshotDelayMs": 600,
+      "snapshotFlushEveryResults": 12,
+      "snapshotFlushMaxDelayMs": 2000
+    }
+  },
+  "runEarnChainLiveRerun": {
+    "localhostUrl": "http://127.0.0.1:8921/index.html?cb=earn_chain_live_rerun",
+    "debugJsonUrl": "http://127.0.0.1:9555/json",
+    "workersPerMarket": 6,
+    "retryWorkersPerMarket": 8,
+    "maxMarkets": 5,
+    "minUnresolvedCount": 1
+  },
+  "presets": {
+    "single-fast": {
+      "auditEarnAsset": {
+        "liveDefaults": {
+          "workers": 6
+        }
+      },
+      "runEarnChainLiveRerun": {
+        "workersPerMarket": 6,
+        "retryWorkersPerMarket": 8
+      }
+    },
+    "dual-sharded": {
+      "auditEarnAsset": {
+        "liveDefaults": {
+          "localhostUrl": "http://127.0.0.1:8921/index.html?cb=earn_audit_dual_a,http://127.0.0.1:8921/index.html?cb=earn_audit_dual_b",
+          "debugJsonUrl": "http://127.0.0.1:9555/json,http://127.0.0.1:9666/json",
+          "workers": 12
+        }
+      },
+      "runEarnChainLiveRerun": {
+        "localhostUrl": "http://127.0.0.1:8921/index.html?cb=earn_chain_live_dual_a,http://127.0.0.1:8921/index.html?cb=earn_chain_live_dual_b",
+        "debugJsonUrl": "http://127.0.0.1:9555/json,http://127.0.0.1:9666/json",
+        "workersPerMarket": 12,
+        "retryWorkersPerMarket": 12
+      }
+    }
+  }
+}

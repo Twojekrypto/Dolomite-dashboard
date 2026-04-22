@@ -1,0 +1,47 @@
+name: Earn Audit Checks
+
+on:
+  pull_request:
+    paths:
+      - 'audit_earn_asset.py'
+      - 'earn_live_config.py'
+      - 'run_earn_chain_live_rerun.py'
+      - 'run_earn_data_correctness_pipeline.py'
+      - 'run_earn_subaccount_history_incremental.py'
+      - 'run_earn_audit_checks.py'
+      - 'config/earn_live_defaults.json'
+      - 'tests/**'
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'audit_earn_asset.py'
+      - 'earn_live_config.py'
+      - 'run_earn_chain_live_rerun.py'
+      - 'run_earn_data_correctness_pipeline.py'
+      - 'run_earn_subaccount_history_incremental.py'
+      - 'run_earn_audit_checks.py'
+      - 'config/earn_live_defaults.json'
+      - 'tests/**'
+
+jobs:
+  earn-audit-checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run strict EARN audit checks
+        run: python3 run_earn_audit_checks.py
