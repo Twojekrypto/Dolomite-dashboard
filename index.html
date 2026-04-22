@@ -10146,6 +10146,19 @@
             background-repeat: no-repeat;
         }
 
+        /* EARN tables should scroll naturally with the page.
+           Keep the visual header styling, but do not pin column labels. */
+        #earn-supply-section .earn-asset-table thead,
+        #earn-supply-section .earn-asset-table thead th,
+        #earn-past-section .earn-past-table thead,
+        #earn-past-section .earn-past-table thead th,
+        #earn-lending-section .earn-lending-table thead,
+        #earn-lending-section .earn-lending-table thead th {
+            position: static;
+            top: auto;
+            z-index: auto;
+        }
+
         .earn-asset-table thead th:first-child {
             border-radius: 0;
             letter-spacing: 0.8px;
