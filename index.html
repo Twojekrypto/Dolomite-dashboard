@@ -9376,37 +9376,74 @@
         }
 
         .earn-summary-mini-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            margin-top: 9px;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            margin-top: 10px;
             min-height: 0;
         }
 
         .earn-summary-mini-pill {
-            display: inline-flex;
+            display: flex;
             align-items: center;
-            gap: 5px;
-            max-width: 100%;
-            padding: 4px 8px;
-            border-radius: 999px;
-            border: 1px solid rgba(148, 163, 184, 0.16);
-            background: rgba(15, 23, 42, 0.5);
+            gap: 8px;
+            min-width: 0;
+            padding: 7px 9px;
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.14);
+            background:
+                linear-gradient(135deg, rgba(15, 23, 42, 0.72), rgba(15, 23, 42, 0.48)),
+                rgba(15, 23, 42, 0.5);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
             color: rgba(226, 232, 240, 0.76);
             font-size: 10px;
             line-height: 1.2;
             letter-spacing: 0.12px;
-            white-space: nowrap;
+        }
+
+        .earn-summary-mini-pill-icon {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(148, 163, 184, 0.16);
+            object-fit: cover;
+        }
+
+        .earn-summary-mini-pill-body {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .earn-summary-mini-pill-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            min-width: 0;
         }
 
         .earn-summary-mini-pill .token {
             color: rgba(241, 245, 249, 0.92);
             font-weight: 700;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .earn-summary-mini-pill .amount {
             color: rgba(148, 250, 197, 0.88);
             font-weight: 600;
+            font-size: 11px;
+            letter-spacing: -0.01em;
+        }
+
+        .earn-summary-mini-pill-meta {
+            font-size: 9px;
+            color: rgba(148, 163, 184, 0.62);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
         }
 
         .earn-summary-stat.is-muted .earn-summary-mini-pill {
@@ -9415,9 +9452,21 @@
             background: rgba(15, 23, 42, 0.28);
         }
 
+        .earn-summary-stat.is-muted .earn-summary-mini-pill-icon {
+            opacity: 0.55;
+            border-color: rgba(148, 163, 184, 0.1);
+        }
+
         .earn-summary-stat.is-muted .earn-summary-mini-pill .token,
-        .earn-summary-stat.is-muted .earn-summary-mini-pill .amount {
+        .earn-summary-stat.is-muted .earn-summary-mini-pill .amount,
+        .earn-summary-stat.is-muted .earn-summary-mini-pill-meta {
             color: inherit;
+        }
+
+        @media (max-width: 640px) {
+            .earn-summary-mini-list {
+                grid-template-columns: minmax(0, 1fr);
+            }
         }
 
         .earn-summary-hero {
@@ -34703,21 +34752,22 @@
                         extraParts: [],
                     };
                     const formatRewardAmount = value => value >= 1000 ? (value / 1000).toFixed(2) + 'K' : value.toFixed(2);
+                    const getRewardIcon = symbol => SYMBOL_ICONS[symbol] || SYMBOL_ICONS[String(symbol || '').toUpperCase()] || '';
                     const renderRewardsOverview = () => {
                         if (!isSummaryRenderCurrent() || !rewardsValueEl || !rewardsSubEl || !rewardsListEl) return;
                         const parts = [];
                         if (rewardsState.odoloClaimed !== null) {
                             const totalOdolo = (rewardsState.odoloClaimed || 0) + (rewardsState.odoloUnclaimed || 0);
                             if (totalOdolo > 0.01) {
-                                parts.push({ symbol: 'oDOLO', amountLabel: formatRewardAmount(totalOdolo) });
+                                parts.push({ symbol: 'oDOLO', amountLabel: formatRewardAmount(totalOdolo), metaLabel: 'Farmed rewards' });
                             }
                         }
                         if (rewardsState.wlfiAccumulated !== null && rewardsState.wlfiAccumulated > 0.01) {
-                            parts.push({ symbol: 'WLFI', amountLabel: formatRewardAmount(rewardsState.wlfiAccumulated || 0) });
+                            parts.push({ symbol: 'WLFI', amountLabel: formatRewardAmount(rewardsState.wlfiAccumulated || 0), metaLabel: 'Farmed rewards' });
                         }
                         rewardsState.extraParts.forEach(part => {
                             if (!part || !part.amountLabel || !part.symbol) return;
-                            parts.push({ symbol: part.symbol, amountLabel: part.amountLabel });
+                            parts.push({ symbol: part.symbol, amountLabel: part.amountLabel, metaLabel: part.metaLabel || 'Farmed rewards' });
                         });
 
                         if (parts.length === 0) {
@@ -34729,13 +34779,19 @@
                             return;
                         }
                         if (rewardsCardEl) rewardsCardEl.classList.remove('is-muted');
-                        rewardsValueEl.textContent = `${parts.length} token${parts.length !== 1 ? 's' : ''}`;
-                        rewardsValueEl.className = 'earn-summary-value neutral';
+                        rewardsValueEl.textContent = `${parts.length} reward type${parts.length !== 1 ? 's' : ''}`;
+                        rewardsValueEl.className = 'earn-summary-value positive';
                         rewardsSubEl.textContent = parts.length === 1
-                            ? 'Additional reward token farmed'
-                            : 'Additional reward tokens farmed';
+                            ? 'Additional token farmed for this wallet'
+                            : 'Additional tokens farmed for this wallet';
                         rewardsListEl.innerHTML = parts.map(part => (
-                            `<span class="earn-summary-mini-pill"><span class="token">${earn_escapeHtml(part.symbol)}</span><span class="amount">${earn_escapeHtml(part.amountLabel)}</span></span>`
+                            `<span class="earn-summary-mini-pill">
+                                ${getRewardIcon(part.symbol) ? `<img src="${earn_escapeHtml(getRewardIcon(part.symbol))}" alt="${earn_escapeHtml(part.symbol)}" class="earn-summary-mini-pill-icon" onerror="this.style.display='none'">` : ''}
+                                <span class="earn-summary-mini-pill-body">
+                                    <span class="earn-summary-mini-pill-label"><span class="token">${earn_escapeHtml(part.symbol)}</span><span class="amount">${earn_escapeHtml(part.amountLabel)}</span></span>
+                                    <span class="earn-summary-mini-pill-meta">${earn_escapeHtml(part.metaLabel || 'Farmed rewards')}</span>
+                                </span>
+                            </span>`
                         )).join('');
                     };
 
@@ -34772,6 +34828,7 @@
                                         key: `ibgt:${reward.symbol}`,
                                         symbol: reward.symbol,
                                         amountLabel: fmtIbgt(reward.amount),
+                                        metaLabel: 'Berachain rewards',
                                     });
                                 });
                                 renderRewardsOverview();
@@ -34791,6 +34848,7 @@
                                         key: `dgmx:${reward.symbol}`,
                                         symbol: reward.symbol,
                                         amountLabel: fmtGmx(reward.amount),
+                                        metaLabel: 'GMX rewards',
                                     });
                                 });
                                 renderRewardsOverview();
