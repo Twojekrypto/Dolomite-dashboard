@@ -28854,6 +28854,22 @@
             };
         }
 
+        function earn_hasBorrowOnlyEarnContext() {
+            const activeSupplyCount = (earn_cachedAssets || []).filter(a => {
+                return a
+                    && !a.isBorrow
+                    && !a.isCollateral
+                    && Number(a.usdValue || 0) >= 0.01;
+            }).length;
+            const hasHistoricalEarnContext = Array.isArray(earn_historyData)
+                && earn_historyData.some(item => item && !item.isActive && !item.isIsolation);
+            const hasBorrowRoutedExposure = (earn_collateralPositionData || []).length > 0
+                || (earn_borrowPositionData || []).length > 0
+                || (earn_replayBorrowAccountsOverride && earn_replayBorrowAccountsOverride.size > 0)
+                || (earn_lendingPositions || []).length > 0;
+            return activeSupplyCount === 0 && !hasHistoricalEarnContext && hasBorrowRoutedExposure;
+        }
+
         function earn_renderNotices() {
             const noticesEl = document.getElementById('earn-notices');
             if (!noticesEl) return;
@@ -28914,15 +28930,16 @@
             const hasBorrowRoutedExposure = (earn_collateralPositionData || []).length > 0
                 || (earn_borrowPositionData || []).length > 0
                 || (earn_replayBorrowAccountsOverride && earn_replayBorrowAccountsOverride.size > 0);
-            if (hasBorrowRoutedExposure && canonicalHistoryCoverageStatus !== 'fresh') {
+            const hasBorrowOnlyContext = earn_hasBorrowOnlyEarnContext();
+            if (hasBorrowRoutedExposure && canonicalHistoryCoverageStatus !== 'fresh' && !hasBorrowOnlyContext) {
                 const coverageLabel = canonicalHistoryCoverageStatus === 'missing' ? 'missing' : 'stale';
                 const blockText = earn_canonicalSubaccountHistoryLastScannedBlock === null
                     ? 'none'
                     : String(earn_canonicalSubaccountHistoryLastScannedBlock);
                 notices.push({
-                    tone: 'warn',
-                    title: 'Canonical Subaccount History Not Fresh',
-                    body: `Hidden collateral and borrow-routed replay for this lookup relies on canonical subaccount history. Current coverage is ${coverageLabel} (last scanned block: ${blockText}), so affected markets stay coverage-incomplete until history is refreshed to the replay target.`,
+                    tone: 'info',
+                    title: 'Replay Confidence Is Limited For This Lookup',
+                    body: `Visible balances are still shown normally. The only thing missing is fresh local history for hidden-collateral / borrow-route replay, so strict verification stays coverage-incomplete for this lookup until that history catches up (coverage: ${coverageLabel}, last scanned block: ${blockText}).`,
                 });
             }
 
