@@ -24,6 +24,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 SNAPSHOT_DIR = ROOT / "data" / "earn-snapshots"
 NETFLOW_DIR = ROOT / "data" / "earn-netflow"
+HISTORY_DIR = ROOT / "data" / "earn-subaccount-history"
 OUTPUT_DIR = ROOT / "data" / "earn-verified-ledger"
 
 
@@ -67,6 +68,113 @@ def _get_tolerance(decimals):
 def _get_pre_snapshot_residual_tolerance(decimals):
     # Allow a few base units of residual drift when snapshot math spans a tiny par change.
     return max(1, _get_tolerance(decimals) * 4)
+
+
+def _history_path(chain, address):
+    return HISTORY_DIR / chain / f"{address.lower()}.json"
+
+
+def _load_canonical_history(chain, address):
+    path = _history_path(chain, address)
+    if not path.exists():
+        return None
+    payload = _read_json(path)
+    return payload if isinstance(payload, dict) else None
+
+
+def _canonical_history_coverage(history_payload, comparison_block):
+    if not isinstance(history_payload, dict):
+        return ("missing", None)
+    try:
+        last_scanned_block = int(history_payload.get("lastScannedBlock") or 0)
+    except Exception:
+        last_scanned_block = 0
+    if comparison_block and last_scanned_block < comparison_block:
+        return ("stale", last_scanned_block)
+    return ("fresh", last_scanned_block)
+
+
+def _derive_canonical_market_breakdown(history_payload, comparison_block):
+    result = {}
+    if not isinstance(history_payload, dict):
+        return result
+    accounts = history_payload.get("accounts") or {}
+    for account_key, account_state in accounts.items():
+        markets = account_state.get("markets") or {}
+        for market_id, market_state in markets.items():
+            row = result.setdefault(str(market_id), {
+                "marketId": str(market_id),
+                "historyTotalDeltaWei": 0,
+                "accountCount": 0,
+                "eventCount": 0,
+                "hasBorrowAccount": False,
+                "hasLegacyUnknownAccount": False,
+            })
+            account_total = 0
+            account_event_count = 0
+            for event in market_state.get("events") or []:
+                try:
+                    block_number = int(event.get("blockNumber"))
+                except Exception:
+                    continue
+                if comparison_block and block_number > comparison_block:
+                    continue
+                account_total += int(event.get("deltaWei") or 0)
+                account_event_count += 1
+            if account_event_count == 0:
+                continue
+            row["historyTotalDeltaWei"] += account_total
+            row["accountCount"] += 1
+            row["eventCount"] += account_event_count
+            if bool(account_state.get("hasBorrow")):
+                row["hasBorrowAccount"] = True
+            if str(account_key) == "legacy-unknown":
+                row["hasLegacyUnknownAccount"] = True
+    return result
+
+
+def _canonical_consistency_status(canonical_row, flow_entry):
+    has_history = bool(canonical_row and (canonical_row.get("eventCount") or 0) > 0)
+    has_netflow = isinstance(flow_entry, dict) and bool(flow_entry)
+    if has_history and has_netflow:
+        history_total = int(canonical_row.get("historyTotalDeltaWei") or 0)
+        netflow_total = _parse_int(flow_entry.get("t"), 0)
+        return "match" if history_total == netflow_total else "mismatch"
+    if has_history:
+        return "history_only"
+    if has_netflow:
+        return "netflow_only"
+    return "none"
+
+
+def _derive_strict_verification(raw_status, raw_method, *, canonical_coverage_status, canonical_consistency_status):
+    raw_status = str(raw_status or "unavailable")
+    raw_method = str(raw_method or "unavailable")
+    if raw_status == "verified":
+        if canonical_coverage_status != "fresh":
+            return ("coverage_incomplete", "canonical-history-coverage", "canonical_history_not_fresh")
+        if canonical_consistency_status != "match":
+            return ("mismatch", "canonical-history-mismatch", f"canonical_history_{canonical_consistency_status}")
+        return ("verified", raw_method, "exact_snapshot_netflow_match")
+    if raw_status == "pre_snapshot_carry":
+        if canonical_coverage_status != "fresh":
+            return ("coverage_incomplete", "canonical-history-coverage", "canonical_history_not_fresh")
+        if canonical_consistency_status != "match":
+            return ("mismatch", "canonical-history-mismatch", f"canonical_history_{canonical_consistency_status}")
+        return ("inferred", raw_method, "pre_snapshot_carry_requires_inference")
+    if raw_status == "mismatch":
+        if canonical_coverage_status == "fresh" and canonical_consistency_status not in {"none", "match"}:
+            return ("mismatch", "canonical-history-mismatch", f"canonical_history_{canonical_consistency_status}")
+        return ("mismatch", raw_method, "snapshot_netflow_mismatch")
+    if raw_status == "no_netflow":
+        if canonical_coverage_status != "fresh":
+            return ("coverage_incomplete", "canonical-history-coverage", "canonical_history_not_fresh")
+        return ("coverage_incomplete", raw_method, "netflow_missing_market")
+    if raw_status == "no_snapshot":
+        if canonical_coverage_status != "fresh":
+            return ("coverage_incomplete", "canonical-history-coverage", "canonical_history_not_fresh")
+        return ("coverage_incomplete", raw_method, "snapshot_missing_market")
+    return ("unavailable", raw_method, raw_status or "unavailable")
 
 
 def _collect_chain_snapshot_dates(manifest, chain):
@@ -117,6 +225,40 @@ def _build_baseline_meta(baseline_name, baseline_t, decimals, snapshot_yield, fi
     }
 
 
+def _select_best_baseline(candidates, *, tolerance):
+    exact_candidates = []
+    carry_candidates = []
+    for candidate in candidates:
+        if candidate is None:
+            continue
+        if abs(candidate["diff"]) <= tolerance:
+            exact_candidates.append(candidate)
+            continue
+        if candidate["pre_snapshot_meta"] is not None:
+            carry_candidates.append(candidate)
+
+    if exact_candidates:
+        exact_candidates.sort(
+            key=lambda candidate: (
+                abs(candidate["diff"]),
+                0 if candidate["name"] == "recent-cycle" else 1,
+            )
+        )
+        return exact_candidates[0]
+
+    if carry_candidates:
+        carry_candidates.sort(
+            key=lambda candidate: (
+                1 if candidate["pre_snapshot_meta"].get("tinyParDriftWindow") else 0,
+                abs(int(candidate["pre_snapshot_meta"].get("residual") or 0)),
+                0 if candidate["name"] == "recent-cycle" else 1,
+            )
+        )
+        return carry_candidates[0]
+
+    return None
+
+
 def _get_pre_snapshot_carry_meta(decimals, snapshot_yield, diff, first_par, first_wei, last_par, last_wei, netflow_t, has_static_par_window):
     if snapshot_yield is None or diff is None:
         return None
@@ -135,6 +277,7 @@ def _get_pre_snapshot_carry_meta(decimals, snapshot_yield, diff, first_par, firs
             "carry": carry,
             "residual": residual,
             "tinyParDriftWindow": False,
+            "windowType": "exact_post_snapshot_window",
         }
 
     par_drift = abs(last_par - first_par)
@@ -151,6 +294,7 @@ def _get_pre_snapshot_carry_meta(decimals, snapshot_yield, diff, first_par, firs
         "carry": carry,
         "residual": residual,
         "tinyParDriftWindow": True,
+        "windowType": "tiny_par_drift_window",
     }
 
 
@@ -158,6 +302,12 @@ def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_add
     address = address.lower()
     history_by_market = {}
     meta_by_market = {}
+    history_payload = _load_canonical_history(chain, address)
+    comparison_block = 0
+    try:
+        history_comparison_block = int((history_payload or {}).get("sourceMetadata", {}).get("lastNetflowBlock") or 0)
+    except Exception:
+        history_comparison_block = 0
 
     for date_str, chain_data in snapshots:
         addr_data = chain_data.get(address)
@@ -179,6 +329,23 @@ def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_add
             }
 
     addr_flows = netflow_by_addr.get(address, {}) or {}
+    if isinstance(history_payload, dict):
+        try:
+            comparison_block = max(
+                _parse_int(history_payload.get("lastScannedBlock"), 0),
+                history_comparison_block,
+            )
+        except Exception:
+            comparison_block = history_comparison_block
+    else:
+        comparison_block = history_comparison_block
+    if comparison_block <= 0:
+        comparison_block = history_comparison_block
+    canonical_coverage_status, canonical_last_scanned_block = _canonical_history_coverage(
+        history_payload,
+        history_comparison_block,
+    )
+    canonical_market_breakdown = _derive_canonical_market_breakdown(history_payload, history_comparison_block)
     market_ids = set(history_by_market.keys()) | {str(k) for k in addr_flows.keys()}
     if not market_ids:
         return None
@@ -190,6 +357,13 @@ def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_add
         "mismatch": 0,
         "no_netflow": 0,
         "no_snapshot": 0,
+        "unavailable": 0,
+    }
+    strict_summary = {
+        "verified": 0,
+        "inferred": 0,
+        "mismatch": 0,
+        "coverage_incomplete": 0,
         "unavailable": 0,
     }
 
@@ -298,19 +472,10 @@ def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_add
                     )
                 )
 
-            chosen_baseline = None
-            for candidate in baselines:
-                if candidate is None:
-                    continue
-                if abs(candidate["diff"]) <= _get_tolerance(decimals):
-                    chosen_baseline = candidate
-                    break
-            if chosen_baseline is None:
-                for candidate in baselines:
-                    if candidate is None or candidate["pre_snapshot_meta"] is None:
-                        continue
-                    chosen_baseline = candidate
-                    break
+            chosen_baseline = _select_best_baseline(
+                baselines,
+                tolerance=_get_tolerance(decimals),
+            )
 
             if chosen_baseline and abs(chosen_baseline["diff"]) <= _get_tolerance(decimals):
                 status = "verified"
@@ -348,6 +513,15 @@ def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_add
             canonical_yield = 0
 
         summary[status] = summary.get(status, 0) + 1
+        canonical_row = canonical_market_breakdown.get(mid) or {}
+        canonical_consistency_status = _canonical_consistency_status(canonical_row, flow_entry)
+        strict_status, strict_method, strict_reason = _derive_strict_verification(
+            status,
+            method,
+            canonical_coverage_status=canonical_coverage_status,
+            canonical_consistency_status=canonical_consistency_status,
+        )
+        strict_summary[strict_status] = strict_summary.get(strict_status, 0) + 1
 
         payload = {
             "token": str(meta.get("token", "")).lower(),
@@ -356,6 +530,9 @@ def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_add
             "cumulativeYield": str(canonical_yield),
             "status": status,
             "method": method,
+            "strictStatus": strict_status,
+            "strictMethod": strict_method,
+            "strictReason": strict_reason,
             "firstDate": first_date,
             "firstPar": str(first_par),
             "firstWei": str(first_wei),
@@ -365,6 +542,15 @@ def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_add
             "days": days,
             "isLatestSnapshot": bool(is_latest_snapshot),
             "hasStaticParWindow": bool(has_static_par_window),
+            "canonicalHistoryCoverageStatus": canonical_coverage_status,
+            "canonicalHistoryLastScannedBlock": canonical_last_scanned_block,
+            "canonicalHistoryComparisonBlock": history_comparison_block or None,
+            "canonicalHistoryConsistencyStatus": canonical_consistency_status,
+            "canonicalHistoryTotalDeltaWei": str(canonical_row.get("historyTotalDeltaWei", 0)),
+            "canonicalHistoryAccountCount": int(canonical_row.get("accountCount", 0)),
+            "canonicalHistoryEventCount": int(canonical_row.get("eventCount", 0)),
+            "canonicalHistoryHasBorrowAccount": bool(canonical_row.get("hasBorrowAccount")),
+            "canonicalHistoryHasLegacyUnknownAccount": bool(canonical_row.get("hasLegacyUnknownAccount")),
         }
         if snapshot_yield is not None:
             payload["snapshotYield"] = str(snapshot_yield)
@@ -382,24 +568,39 @@ def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_add
             payload["resetPar"] = str(reset_par)
         if ending_par is not None:
             payload["endingPar"] = str(ending_par)
+        if flow_entry is not None:
+            payload["canonicalHistoryNetflowDiffWei"] = str(
+                int(canonical_row.get("historyTotalDeltaWei", 0)) - _parse_int((flow_entry or {}).get("t"), 0)
+            )
         if verification_baseline is not None:
             payload["verificationBaseline"] = verification_baseline
         if pre_snapshot_carry is not None:
             payload["preSnapshotCarryYield"] = str(pre_snapshot_carry)
         if pre_snapshot_residual is not None:
             payload["preSnapshotCarryResidual"] = str(pre_snapshot_residual)
+        if pre_snapshot_carry is not None and chosen_baseline and chosen_baseline["pre_snapshot_meta"] is not None:
+            payload["preSnapshotCarryWindowType"] = str(
+                chosen_baseline["pre_snapshot_meta"].get("windowType") or ""
+            )
         if tiny_par_drift_window:
             payload["hasTinyParDriftWindow"] = True
 
         markets_out[mid] = payload
 
     return {
-        "version": 1,
+        "version": 2,
         "chain": chain,
         "address": address,
         "snapshotDate": latest_date,
         "generatedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "summary": summary,
+        "strictSummary": strict_summary,
+        "canonicalHistory": {
+            "coverageStatus": canonical_coverage_status,
+            "lastScannedBlock": canonical_last_scanned_block,
+            "comparisonBlock": history_comparison_block or None,
+            "freshForNetflowComparison": canonical_coverage_status == "fresh",
+        },
         "markets": markets_out,
     }
 
@@ -429,13 +630,13 @@ def _discover_existing_addresses(output_dir, chain):
 
 def _update_manifest(output_dir, chain_meta):
     manifest_path = output_dir / "manifest.json"
-    manifest = {"version": 1, "generatedAt": "", "chains": {}}
+    manifest = {"version": 2, "generatedAt": "", "chains": {}}
     if manifest_path.exists():
         try:
             manifest = _read_json(manifest_path)
         except Exception:
-            manifest = {"version": 1, "generatedAt": "", "chains": {}}
-    manifest["version"] = 1
+            manifest = {"version": 2, "generatedAt": "", "chains": {}}
+    manifest["version"] = 2
     manifest["generatedAt"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     chains = manifest.get("chains", {})
     for chain, meta in chain_meta.items():

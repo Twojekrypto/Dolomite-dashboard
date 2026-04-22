@@ -33,6 +33,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from build_earn_verified_ledger import (
+    OUTPUT_DIR as VERIFIED_LEDGER_DIR,
     ROOT,
     SNAPSHOT_DIR,
     _build_address_ledger,
@@ -43,19 +44,39 @@ from build_earn_verified_ledger import (
     _parse_int,
     _read_json,
 )
+from earn_live_config import (
+    build_endpoint_pairs,
+    get_audit_earn_asset_defaults,
+    get_live_preset_names,
+)
 
 
-LIVE_AUDIT_JS = r"""
+AUDIT_EARN_ASSET_DEFAULTS = get_audit_earn_asset_defaults()
+AUDIT_LIVE_DEFAULTS = AUDIT_EARN_ASSET_DEFAULTS["liveDefaults"]
+AUDIT_LIVE_JS_DEFAULTS = AUDIT_EARN_ASSET_DEFAULTS["liveJs"]
+LIVE_PRESET_NAMES = get_live_preset_names()
+
+
+LIVE_AUDIT_JS_TEMPLATE = r"""
 const fs = require('node:fs');
 const { execFileSync } = require('node:child_process');
 
 const INPUT_PATH = process.argv[2];
 const OUTPUT_PATH = process.argv[3];
-const BASE_URL = process.argv[4];
-const DEBUG_JSON = process.argv[5];
-const WORKERS = Math.max(1, Number(process.argv[6] || 2));
+const BASE_URLS = JSON.parse(process.argv[4] || '[]');
+const DEBUG_JSON_URLS = JSON.parse(process.argv[5] || '[]');
+const WORKERS = Math.max(1, Number(process.argv[6] || __DEFAULT_WORKERS__));
 const MARKET_ID = String(process.argv[7] || '');
 const SYMBOL = String(process.argv[8] || '');
+const PINNED_BLOCK_TAG = String(process.argv[9] || '');
+const PAGE_TARGET_POLL_MS = __PAGE_TARGET_POLL_MS__;
+const PAGE_READY_POLL_MS = __PAGE_READY_POLL_MS__;
+const PAGE_READY_MAX_WAIT_MS = __PAGE_READY_MAX_WAIT_MS__;
+const SETTLE_POLL_MS = __SETTLE_POLL_MS__;
+const SETTLE_STABLE_POLLS = __SETTLE_STABLE_POLLS__;
+const TIMEOUT_FINAL_SNAPSHOT_DELAY_MS = __TIMEOUT_FINAL_SNAPSHOT_DELAY_MS__;
+const SNAPSHOT_FLUSH_EVERY_RESULTS = __SNAPSHOT_FLUSH_EVERY_RESULTS__;
+const SNAPSHOT_FLUSH_MAX_DELAY_MS = __SNAPSHOT_FLUSH_MAX_DELAY_MS__;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -74,12 +95,32 @@ function curlJson(url) {
   return JSON.parse(raw);
 }
 
-function getDebugTargets() {
-  return curlJson(DEBUG_JSON);
+function getDebugTargets(debugJsonUrl) {
+  return curlJson(debugJsonUrl);
 }
 
-function createTarget(url) {
-  const base = DEBUG_JSON.replace(/\/json$/, '/json/new?');
+function parseUrl(raw) {
+  try {
+    return new URL(raw);
+  } catch (_) {
+    return null;
+  }
+}
+
+function samePageSurface(targetUrl, desiredUrl) {
+  const target = parseUrl(targetUrl);
+  const desired = parseUrl(desiredUrl);
+  if (!target || !desired) return false;
+  return target.origin === desired.origin && target.pathname === desired.pathname;
+}
+
+function targetMatchesUrl(targetUrl, desiredUrl) {
+  if (typeof targetUrl !== 'string' || !targetUrl) return false;
+  return targetUrl.startsWith(desiredUrl) || samePageSurface(targetUrl, desiredUrl);
+}
+
+function createTarget(url, debugJsonUrl) {
+  const base = debugJsonUrl.replace(/\/json$/, '/json/new?');
   try {
     const raw = execFileSync('curl', ['-s', '-X', 'PUT', base + url], { encoding: 'utf8' });
     return JSON.parse(raw);
@@ -88,20 +129,72 @@ function createTarget(url) {
   }
 }
 
-function getPageTargets() {
-  return getDebugTargets().filter(
+function getPageTargets(debugJsonUrl) {
+  return getDebugTargets(debugJsonUrl).filter(
     (target) => target.type === 'page' && typeof target.url === 'string' && target.webSocketDebuggerUrl
   );
 }
 
-async function ensurePageTargets(url, count) {
-  let pages = getPageTargets().filter((target) => target.url.startsWith(url));
-  while (pages.length < count) {
-    createTarget(url);
-    await sleep(500);
-    pages = getPageTargets().filter((target) => target.url.startsWith(url));
+function getMatchingPageTargets(url, debugJsonUrl) {
+  return getPageTargets(debugJsonUrl).filter((target) => targetMatchesUrl(target.url, url));
+}
+
+async function ensurePageTargets(url, count, debugJsonUrl) {
+  let pages = getMatchingPageTargets(url, debugJsonUrl);
+  let attempts = 0;
+  const maxAttempts = Math.max(count * 3, 8);
+  while (pages.length < count && attempts < maxAttempts) {
+    attempts += 1;
+    createTarget(url, debugJsonUrl);
+    await sleep(PAGE_TARGET_POLL_MS);
+    pages = getMatchingPageTargets(url, debugJsonUrl);
+  }
+  if (pages.length < count) {
+    throw new Error(
+      `Unable to provision ${count} Chrome page target(s) for ${url} via ${debugJsonUrl}; found ${pages.length} after ${attempts} attempt(s)`
+    );
   }
   return pages.slice(-count);
+}
+
+function buildEndpointPairs(baseUrls, debugJsonUrls) {
+  const normalizedBaseUrls = (Array.isArray(baseUrls) ? baseUrls : [])
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
+  const normalizedDebugUrls = (Array.isArray(debugJsonUrls) ? debugJsonUrls : [])
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
+
+  if (!normalizedBaseUrls.length) {
+    throw new Error('No localhost URLs provided for live audit.');
+  }
+  if (!normalizedDebugUrls.length) {
+    throw new Error('No Chrome debug /json URLs provided for live audit.');
+  }
+
+  const targetCount = Math.max(normalizedBaseUrls.length, normalizedDebugUrls.length);
+  if (![1, targetCount].includes(normalizedBaseUrls.length)) {
+    throw new Error(`localhost URL count must be 1 or match debug URL count; got ${normalizedBaseUrls.length} vs ${normalizedDebugUrls.length}`);
+  }
+  if (![1, targetCount].includes(normalizedDebugUrls.length)) {
+    throw new Error(`debug URL count must be 1 or match localhost URL count; got ${normalizedDebugUrls.length} vs ${normalizedBaseUrls.length}`);
+  }
+
+  return Array.from({ length: targetCount }, (_, index) => ({
+    baseUrl: normalizedBaseUrls[normalizedBaseUrls.length === 1 ? 0 : index],
+    debugJsonUrl: normalizedDebugUrls[normalizedDebugUrls.length === 1 ? 0 : index],
+  }));
+}
+
+function distributeWorkers(totalWorkers, endpointCount) {
+  const counts = [];
+  const safeEndpoints = Math.max(1, endpointCount);
+  const base = Math.floor(totalWorkers / safeEndpoints);
+  const remainder = totalWorkers % safeEndpoints;
+  for (let index = 0; index < safeEndpoints; index += 1) {
+    counts.push(base + (index < remainder ? 1 : 0));
+  }
+  return counts;
 }
 
 function createCdpClient(wsUrl) {
@@ -181,25 +274,48 @@ function buildAuditSource(address) {
     const address = ${JSON.stringify(address)};
     const marketId = ${JSON.stringify(MARKET_ID)};
     const symbol = ${JSON.stringify(SYMBOL)};
+    const pinnedBlockTag = ${JSON.stringify(PINNED_BLOCK_TAG)};
+    const settlePollMs = ${SETTLE_POLL_MS};
+    const settleStablePolls = ${SETTLE_STABLE_POLLS};
+    const timeoutFinalSnapshotDelayMs = ${TIMEOUT_FINAL_SNAPSHOT_DELAY_MS};
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
     const resetState = () => {
       try { sessionStorage.clear(); } catch (_) {}
       if (typeof earn_clearLookupLoadingUi === 'function') earn_clearLookupLoadingUi();
-      if (!window.__auditOrigFetchVerifiedLedger && typeof earn_fetchVerifiedLedgerForAddress === 'function') {
-        window.__auditOrigFetchVerifiedLedger = earn_fetchVerifiedLedgerForAddress;
-      }
       if (!window.__auditOrigLoadLookupCache && typeof earn_loadLookupCache === 'function') {
         window.__auditOrigLoadLookupCache = earn_loadLookupCache;
       }
       if (!window.__auditOrigSaveLookupCache && typeof earn_saveLookupCache === 'function') {
         window.__auditOrigSaveLookupCache = earn_saveLookupCache;
       }
-      earn_fetchVerifiedLedgerForAddress = async () => null;
+      if (!window.__auditOrigRpcRequest && typeof earn_rpcRequest === 'function') {
+        window.__auditOrigRpcRequest = earn_rpcRequest;
+      }
       earn_loadLookupCache = () => null;
       earn_saveLookupCache = () => {};
+      if (typeof window.__auditOrigRpcRequest === 'function') {
+        earn_rpcRequest = async (method, params, retries) => {
+          if (pinnedBlockTag && String(method || '') === 'eth_blockNumber') {
+            return pinnedBlockTag;
+          }
+          return window.__auditOrigRpcRequest(method, params, retries);
+        };
+      }
       if (typeof earn_lookupResultCache === 'object' && earn_lookupResultCache) {
         Object.keys(earn_lookupResultCache).forEach((key) => delete earn_lookupResultCache[key]);
+      }
+      if (typeof earn_subaccountHistoryCache === 'object' && earn_subaccountHistoryCache) {
+        Object.keys(earn_subaccountHistoryCache).forEach((key) => delete earn_subaccountHistoryCache[key]);
+      }
+      if (typeof earn_subaccountHistoryRequestCache === 'object' && earn_subaccountHistoryRequestCache) {
+        Object.keys(earn_subaccountHistoryRequestCache).forEach((key) => delete earn_subaccountHistoryRequestCache[key]);
+      }
+      if (typeof earn_verifiedLedgerCache === 'object' && earn_verifiedLedgerCache) {
+        Object.keys(earn_verifiedLedgerCache).forEach((key) => delete earn_verifiedLedgerCache[key]);
+      }
+      if (typeof earn_verifiedLedgerRequestCache === 'object' && earn_verifiedLedgerRequestCache) {
+        Object.keys(earn_verifiedLedgerRequestCache).forEach((key) => delete earn_verifiedLedgerRequestCache[key]);
       }
       earn_cachedAssets = [];
       earn_historyData = [];
@@ -228,6 +344,7 @@ function buildAuditSource(address) {
       earn_replayVerificationData = {};
       earn_replayVerificationSummary = { total: 0, verified: 0, mismatch: 0, unverified: 0 };
       earn_replayVerificationReady = false;
+      if (pinnedBlockTag) earn_replayBlockTag = pinnedBlockTag;
       earn_totalYieldStatus = 'idle';
       earn_replayStatus = 'idle';
       earn_lookupLoading = false;
@@ -271,6 +388,8 @@ function buildAuditSource(address) {
         ? earn_getResolvedTotalYieldEntry(marketId)
         : null;
       const verify = earn_replayVerificationData ? earn_replayVerificationData[marketId] : null;
+      const replayState = earn_replayStateData ? earn_replayStateData[marketId] : null;
+      const interestState = earn_interestYieldData ? earn_interestYieldData[marketId] : null;
 
       return {
         label,
@@ -285,6 +404,18 @@ function buildAuditSource(address) {
         lastReplayError: (typeof earn_lastReplayError !== 'undefined' && earn_lastReplayError)
           ? String(earn_lastReplayError.message || earn_lastReplayError)
           : '',
+        pinnedBlockTag: pinnedBlockTag || null,
+        canonicalHistory: {
+          coverageStatus: (typeof earn_getCanonicalSubaccountHistoryCoverageStatus === 'function')
+            ? String(earn_getCanonicalSubaccountHistoryCoverageStatus() || '')
+            : '',
+          lastScannedBlock: (typeof earn_canonicalSubaccountHistoryLastScannedBlock === 'undefined' || earn_canonicalSubaccountHistoryLastScannedBlock === null)
+            ? null
+            : String(earn_canonicalSubaccountHistoryLastScannedBlock),
+          freshForBorrowRouting: !!earn_canonicalSubaccountHistoryFreshForBorrowRouting,
+        },
+        replayBorrowAccountsOverride: Array.from(earn_replayBorrowAccountsOverride || []).map((value) => String(value || '')),
+        replayOpenBorrowAccounts: Array.from(earn_openBorrowAccounts || []).map((value) => String(value || '')),
         positionKind: visiblePosition
           ? 'visible_supply'
           : collateralPosition
@@ -307,12 +438,42 @@ function buildAuditSource(address) {
           resolvedMethod: resolved ? String(resolved.resolvedMethod || '') : '',
           resolvedVerificationStatus: resolved ? String(resolved.resolvedVerificationStatus || '') : '',
           resolvedCumulativeYield: resolved ? String(resolved.resolvedCumulativeYield || '') : '',
+          resolvedCanonicalHistoryCoverageStatus: resolved ? String(resolved.resolvedCanonicalHistoryCoverageStatus || '') : '',
+          resolvedCanonicalHistoryLastScannedBlock: resolved ? (resolved.resolvedCanonicalHistoryLastScannedBlock == null ? null : String(resolved.resolvedCanonicalHistoryLastScannedBlock)) : null,
+          resolvedCanonicalHistoryFreshForBorrowRouting: resolved ? !!resolved.resolvedCanonicalHistoryFreshForBorrowRouting : false,
+          replayState: replayState ? {
+            hadSupply: !!replayState.hadSupply,
+            hadBorrow: !!replayState.hadBorrow,
+            canVerify: replayState.canVerify !== false,
+            expectedSupplyPar: String(replayState.expectedSupplyPar || '0'),
+            expectedSupplyWei: String(replayState.expectedSupplyWei || '0'),
+            expectedCollateralSupplyPar: String(replayState.expectedCollateralSupplyPar || '0'),
+            expectedCollateralSupplyWei: String(replayState.expectedCollateralSupplyWei || '0'),
+            expectedBorrowPar: String(replayState.expectedBorrowPar || '0'),
+            expectedBorrowWei: String(replayState.expectedBorrowWei || '0'),
+          } : null,
+          interestState: interestState ? {
+            earnYield: String(interestState.earnYield || '0'),
+            settledYield: String(interestState.settledYield || '0'),
+            openBorrowYield: String(interestState.openBorrowYield || '0'),
+            openSupplyYield: String(interestState.openSupplyYield || '0'),
+            openCollateralYield: String(interestState.openCollateralYield || '0'),
+            currentBorrowPar: String(interestState.currentBorrowPar || '0'),
+            currentSupplyPar: String(interestState.currentSupplyPar || '0'),
+            currentCollateralSupplyPar: String(interestState.currentCollateralSupplyPar || '0'),
+            hadSupply: !!interestState.hadSupply,
+            hadBorrow: !!interestState.hadBorrow,
+          } : null,
           calc: calc ? {
             hasData: !!calc.hasData,
             method: String(calc.method || ''),
             verificationStatus: String(calc.verificationStatus || ''),
             trustedForTotal: !!calc.trustedForTotal,
             totalYield: String(calc.totalYield || '0'),
+            canonicalHistoryCoverageStatus: String(calc.canonicalHistoryCoverageStatus || ''),
+            canonicalHistoryRequiresFreshForBorrowRouting: !!calc.canonicalHistoryRequiresFreshForBorrowRouting,
+            canonicalHistoryLastScannedBlock: calc.canonicalHistoryLastScannedBlock == null ? null : String(calc.canonicalHistoryLastScannedBlock),
+            canonicalHistoryFreshForBorrowRouting: !!calc.canonicalHistoryFreshForBorrowRouting,
           } : null,
           verificationData: verify ? {
             status: String(verify.status || ''),
@@ -346,6 +507,23 @@ function buildAuditSource(address) {
         && !rowLoading;
     };
 
+    const buildStabilityKey = (snap) => {
+      if (!snap) return '';
+      try {
+        return JSON.stringify({
+          positionKind: snap.positionKind || '',
+          totalYieldStatus: snap.totalYieldStatus || '',
+          replayStatus: snap.replayStatus || '',
+          replayVerificationReady: !!snap.replayVerificationReady,
+          marketRow: snap.marketRow || null,
+          focusMarket: snap.focusMarket || null,
+          canonicalHistory: snap.canonicalHistory || null,
+        });
+      } catch (_) {
+        return '';
+      }
+    };
+
     const classify = (snap, timedOut) => {
       if (!snap) return timedOut ? 'timeout_no_snapshot' : 'missing_snapshot';
       const verifyLabel = String((snap.marketRow && snap.marketRow.verifyLabel) || '');
@@ -369,41 +547,36 @@ function buildAuditSource(address) {
       const resolvedStatus = String(focus.resolvedVerificationStatus || '');
       const calc = focus.calc || null;
       const verify = focus.verificationData || null;
-      const maxUsdDrift = verify && verify.maxUsdDrift != null ? Number(verify.maxUsdDrift) : null;
       const replayTrusted =
         resolvedSource === 'replay-ledger' &&
         (
           resolvedStatus === 'verified' ||
-          resolvedStatus === 'pre_snapshot_carry' ||
-          (calc && calc.verificationStatus === 'verified')
+          (calc && calc.verificationStatus === 'verified' && calc.trustedForTotal)
         );
-      const publicTrusted =
-        (resolvedSource === 'public-netflow' || resolvedSource === 'public-cycle') &&
-        (resolvedStatus === 'verified' || resolvedStatus === 'pre_snapshot_carry');
-      const driftTrusted =
-        verify &&
-        verify.canVerify &&
-        verify.counted &&
-        maxUsdDrift != null &&
-        maxUsdDrift <= 0.1;
+      const exactVerified =
+        (verify && verify.status === 'verified') ||
+        resolvedStatus === 'verified' ||
+        (calc && calc.verificationStatus === 'verified');
 
-      if (effectivePositionKind === 'missing') return 'missing_position';
+      if (effectivePositionKind === 'missing') {
+        if (replayTrusted || exactVerified) return 'replay_verified';
+        if (timedOut) return 'timeout_other';
+        return 'missing_position';
+      }
       if (effectivePositionKind === 'borrow_only') {
-        if (verifyLabel === 'VERIFIED' || replayTrusted || publicTrusted || driftTrusted) {
+        if (verifyLabel === 'VERIFIED' || replayTrusted) {
           return 'verified_other';
         }
         return 'borrow_only';
       }
       if (effectivePositionKind === 'hidden_collateral') {
-        if (replayTrusted || publicTrusted || driftTrusted) {
+        if (replayTrusted || exactVerified) {
           return 'hidden_collateral_verified';
         }
         return timedOut ? 'timeout_hidden_collateral' : 'hidden_collateral_other';
       }
       if (verifyLabel === 'VERIFIED') {
         if (resolvedSource === 'replay-ledger') return 'replay_verified';
-        if (resolvedSource === 'public-netflow' || resolvedSource === 'public-cycle') return 'public_verified';
-        if (resolvedSource === 'snapshot-series') return 'snapshot_verified';
         return 'verified_other';
       }
       if (verifyLabel === 'SNAPSHOT ONLY' ||
@@ -416,7 +589,6 @@ function buildAuditSource(address) {
         return timedOut ? 'timeout_pending' : 'pending';
       }
       if (verify && verify.status === 'verified') return 'replay_verified';
-      if (resolvedSource === 'public-netflow' || resolvedSource === 'public-cycle') return 'public_verified';
       if (timedOut) return 'timeout_other';
       return calc && calc.hasData ? 'has_data_other' : 'no_data';
     };
@@ -434,26 +606,33 @@ function buildAuditSource(address) {
       try {
         earn_lookup();
         let settled = false;
-        let stableSeenAt = 0;
+        let stablePolls = 0;
+        let lastStableKey = '';
         let lastSnapshot = captureState('initial');
         const maxWaitMs = 90000;
 
         while ((performance.now() - startedAt) < maxWaitMs) {
-          await sleep(500);
+          await sleep(settlePollMs);
           lastSnapshot = captureState('poll');
           if (isSettled(lastSnapshot)) {
-            if (!stableSeenAt) {
-              stableSeenAt = performance.now();
-            } else if ((performance.now() - stableSeenAt) >= 1200) {
+            const stableKey = buildStabilityKey(lastSnapshot);
+            if (stableKey && stableKey === lastStableKey) {
+              stablePolls += 1;
+            } else {
+              lastStableKey = stableKey;
+              stablePolls = 1;
+            }
+            if (stablePolls >= settleStablePolls) {
               settled = true;
               break;
             }
           } else {
-            stableSeenAt = 0;
+            stablePolls = 0;
+            lastStableKey = '';
           }
         }
 
-        if (!settled) await sleep(1500);
+        if (!settled) await sleep(timeoutFinalSnapshotDelayMs);
 
         const finalSnapshot = captureState(settled ? 'final' : 'timeout');
         const timedOut = !settled;
@@ -487,7 +666,24 @@ async function initPage(cdp, url) {
   await cdp.send('Runtime.enable');
   await cdp.send('Page.bringToFront');
   await cdp.send('Page.navigate', { url });
-  await sleep(1200);
+  const startedAt = Date.now();
+  while ((Date.now() - startedAt) < PAGE_READY_MAX_WAIT_MS) {
+    await sleep(PAGE_READY_POLL_MS);
+    try {
+      const ready = await evaluate(cdp, `
+        return (
+          document.readyState === 'complete' &&
+          typeof switchView === 'function' &&
+          !!document.getElementById('earn-address')
+        );
+      `);
+      if (ready) {
+        await sleep(150);
+        return;
+      }
+    } catch (_) {}
+  }
+  await sleep(400);
 }
 
 function buildCounts(rows) {
@@ -523,30 +719,71 @@ async function main() {
   const remaining = addresses.filter((address) => !processed.has(String(address).toLowerCase()));
 
   const startedAt = existing && existing.startedAt ? Date.parse(existing.startedAt) : Date.now();
-  const targets = await ensurePageTargets(BASE_URL, WORKERS);
+  const endpointPairs = buildEndpointPairs(BASE_URLS, DEBUG_JSON_URLS);
+  const workerCounts = distributeWorkers(WORKERS, endpointPairs.length);
   const workers = [];
-  for (let i = 0; i < WORKERS; i++) {
-    const target = targets[i];
-    const cdp = createCdpClient(target.webSocketDebuggerUrl);
-    await initPage(cdp, BASE_URL);
-    workers.push({ id: i + 1, cdp, runs: 0 });
+  let workerId = 1;
+  for (let endpointIndex = 0; endpointIndex < endpointPairs.length; endpointIndex += 1) {
+    const pair = endpointPairs[endpointIndex];
+    const count = workerCounts[endpointIndex] || 0;
+    if (count <= 0) continue;
+    const targets = await ensurePageTargets(pair.baseUrl, count, pair.debugJsonUrl);
+    for (let i = 0; i < count; i += 1) {
+      const target = targets[i];
+      const cdp = createCdpClient(target.webSocketDebuggerUrl);
+      await initPage(cdp, pair.baseUrl);
+      workers.push({ id: workerId++, cdp, runs: 0, baseUrl: pair.baseUrl });
+    }
   }
 
   let cursor = 0;
+  let snapshotDirty = false;
+  let lastSnapshotCount = results.length;
+  let lastSnapshotAt = Date.now();
+  let snapshotTimer = null;
 
-  const writeSnapshot = () => {
+  const buildSnapshotPayload = () => ({
+    chain: CHAIN,
+    marketId: MARKET_ID,
+    symbol: SYMBOL,
+    snapshotDate: SNAPSHOT_DATE,
+    startedAt: new Date(startedAt).toISOString(),
+    updatedAt: new Date().toISOString(),
+    inputCount: addresses.length,
+    completed: results.length,
+    counts: buildCounts(results),
+    results,
+  });
+
+  const flushSnapshot = () => {
+    if (!snapshotDirty) return;
+    snapshotDirty = false;
+    lastSnapshotCount = results.length;
+    lastSnapshotAt = Date.now();
     fs.writeFileSync(OUTPUT_PATH, JSON.stringify({
-      chain: CHAIN,
-      marketId: MARKET_ID,
-      symbol: SYMBOL,
-      snapshotDate: SNAPSHOT_DATE,
-      startedAt: new Date(startedAt).toISOString(),
-      updatedAt: new Date().toISOString(),
-      inputCount: addresses.length,
-      completed: results.length,
-      counts: buildCounts(results),
-      results,
+      ...buildSnapshotPayload(),
     }, null, 2));
+  };
+
+  const scheduleSnapshot = (force = false) => {
+    snapshotDirty = true;
+    const enoughResults = (results.length - lastSnapshotCount) >= SNAPSHOT_FLUSH_EVERY_RESULTS;
+    const dueByTime = (Date.now() - lastSnapshotAt) >= SNAPSHOT_FLUSH_MAX_DELAY_MS;
+    if (force || enoughResults || dueByTime) {
+      if (snapshotTimer) {
+        clearTimeout(snapshotTimer);
+        snapshotTimer = null;
+      }
+      flushSnapshot();
+      return;
+    }
+    if (!snapshotTimer) {
+      const delay = Math.max(250, SNAPSHOT_FLUSH_MAX_DELAY_MS - (Date.now() - lastSnapshotAt));
+      snapshotTimer = setTimeout(() => {
+        snapshotTimer = null;
+        flushSnapshot();
+      }, delay);
+    }
   };
 
   async function runWorker(worker) {
@@ -555,11 +792,11 @@ async function main() {
       const address = remaining[index];
       const sourceMeta = byAddress[address] || {};
       if (worker.runs > 0 && worker.runs % 25 === 0) {
-        await initPage(worker.cdp, BASE_URL);
+        await initPage(worker.cdp, worker.baseUrl);
       }
       const row = await evaluateWithTimeout(worker.cdp, buildAuditSource(address), 110000, address);
       if (row && row.category === 'eval_timeout') {
-        await initPage(worker.cdp, BASE_URL);
+        await initPage(worker.cdp, worker.baseUrl);
       }
       results.push({
         ...row,
@@ -571,7 +808,7 @@ async function main() {
         workerId: worker.id,
       });
       worker.runs++;
-      writeSnapshot();
+      scheduleSnapshot(false);
       console.log(JSON.stringify({
         workerId: worker.id,
         done: results.length,
@@ -586,8 +823,12 @@ async function main() {
   try {
     await Promise.all(workers.map(runWorker));
   } finally {
+    if (snapshotTimer) {
+      clearTimeout(snapshotTimer);
+      snapshotTimer = null;
+    }
     workers.forEach((worker) => worker.cdp.close());
-    writeSnapshot();
+    scheduleSnapshot(true);
   }
 }
 
@@ -599,6 +840,29 @@ main().catch((error) => {
   process.exitCode = 1;
 });
 """
+
+
+def build_live_audit_js(live_defaults: Optional[dict] = None, live_js_defaults: Optional[dict] = None) -> str:
+    live_defaults = live_defaults or AUDIT_LIVE_DEFAULTS
+    live_js_defaults = live_js_defaults or AUDIT_LIVE_JS_DEFAULTS
+    replacements = {
+        "__DEFAULT_WORKERS__": str(int(live_defaults["workers"])),
+        "__PAGE_TARGET_POLL_MS__": str(int(live_js_defaults["pageTargetPollMs"])),
+        "__PAGE_READY_POLL_MS__": str(int(live_js_defaults["pageReadyPollMs"])),
+        "__PAGE_READY_MAX_WAIT_MS__": str(int(live_js_defaults["pageReadyMaxWaitMs"])),
+        "__SETTLE_POLL_MS__": str(int(live_js_defaults["settlePollMs"])),
+        "__SETTLE_STABLE_POLLS__": str(int(live_js_defaults["settleStablePolls"])),
+        "__TIMEOUT_FINAL_SNAPSHOT_DELAY_MS__": str(int(live_js_defaults["timeoutFinalSnapshotDelayMs"])),
+        "__SNAPSHOT_FLUSH_EVERY_RESULTS__": str(int(live_js_defaults["snapshotFlushEveryResults"])),
+        "__SNAPSHOT_FLUSH_MAX_DELAY_MS__": str(int(live_js_defaults["snapshotFlushMaxDelayMs"])),
+    }
+    js = LIVE_AUDIT_JS_TEMPLATE
+    for placeholder, value in replacements.items():
+        js = js.replace(placeholder, value)
+    return js
+
+
+LIVE_AUDIT_JS = build_live_audit_js()
 
 
 def utc_now_iso() -> str:
@@ -686,10 +950,27 @@ def get_active_holders(chain: str, snapshot_date: str, market_id: str) -> List[d
 def explain_nonverified_reason(market: Optional[dict]) -> str:
     if not market:
         return "missing-market"
-    status = str(market.get("status") or "unknown")
-    if status in ("verified", "pre_snapshot_carry"):
+    status = str(market.get("strictStatus") or market.get("status") or "unknown")
+    raw_status = str(market.get("status") or "unknown")
+    if status == "verified":
         return status
     reasons: List[str] = []
+    canonical_coverage = str(market.get("canonicalHistoryCoverageStatus") or "").strip().lower()
+    canonical_consistency = str(market.get("canonicalHistoryConsistencyStatus") or "").strip().lower()
+
+    if canonical_coverage in {"missing", "stale"}:
+        reasons.append(f"canonical-history:{canonical_coverage}")
+    if canonical_consistency and canonical_consistency not in {"match", "none"}:
+        reasons.append(f"canonical-consistency:{canonical_consistency}")
+    if status == "inferred":
+        reasons.append("historical:pre_snapshot_carry")
+    elif status == "coverage_incomplete":
+        if raw_status == "no_netflow":
+            reasons.append("snapshot-only:no_netflow")
+        elif raw_status == "no_snapshot":
+            reasons.append("netflow-only:no_snapshot")
+        elif canonical_coverage not in {"missing", "stale"}:
+            reasons.append(f"coverage:{raw_status or 'incomplete'}")
 
     def baseline_reason(prefix: str, t_value: Optional[int]) -> Optional[str]:
         if t_value is None:
@@ -702,7 +983,7 @@ def explain_nonverified_reason(market: Optional[dict]) -> str:
         decimals = _parse_int(market.get("decimals"), 18)
         if abs(last_par - first_par) > _get_tolerance(decimals):
             return f"{prefix}:par_drift_above_tolerance"
-        return f"{prefix}:{status}"
+        return f"{prefix}:{raw_status}"
 
     if market.get("netflowYield") is not None:
         reasons.append(baseline_reason("all-time-netflow", _parse_int(market.get("lastWei"), 0) - _parse_int(market.get("netflowYield"), 0)))
@@ -715,8 +996,15 @@ def explain_nonverified_reason(market: Optional[dict]) -> str:
         )
     reasons = [r for r in reasons if r]
     if reasons:
-        return " | ".join(reasons)
-    return f"{status}:{market.get('method') or 'unknown'}"
+        seen = set()
+        ordered = []
+        for reason in reasons:
+            if not reason or reason in seen:
+                continue
+            seen.add(reason)
+            ordered.append(reason)
+        return " | ".join(ordered)
+    return f"{status}:{market.get('strictMethod') or market.get('method') or 'unknown'}"
 
 
 def parse_reason_tokens(reason: str) -> List[str]:
@@ -743,6 +1031,7 @@ def build_static_report(
     market_id: str,
     snapshot_date: str,
     limit: Optional[int] = None,
+    verified_ledger_dir: Optional[Path] = VERIFIED_LEDGER_DIR,
 ) -> dict:
     manifest = _read_json(SNAPSHOT_DIR / "manifest.json")
     chain_dates = _collect_chain_snapshot_dates(manifest, chain)
@@ -759,17 +1048,37 @@ def build_static_report(
     reason_counts = Counter()
     root_cause_counts = Counter()
     unresolved = []
+    ledger_cache: Dict[str, Optional[dict]] = {}
+
+    def load_cached_ledger(address: str) -> Optional[dict]:
+        address = address.lower()
+        if address in ledger_cache:
+            return ledger_cache[address]
+        ledger = None
+        if verified_ledger_dir is not None:
+            ledger_path = Path(verified_ledger_dir) / chain / f"{address}.json"
+            if ledger_path.exists():
+                try:
+                    payload = _read_json(ledger_path)
+                    if isinstance(payload, dict) and str(payload.get("snapshotDate") or "") >= str(snapshot_date):
+                        ledger = payload
+                except Exception:
+                    ledger = None
+        if ledger is None:
+            ledger = _build_address_ledger(address, chain, snapshot_date, snapshots, netflow)
+        ledger_cache[address] = ledger
+        return ledger
 
     for holder in holders:
         address = holder["wallet"]
-        ledger = _build_address_ledger(address, chain, snapshot_date, snapshots, netflow)
+        ledger = load_cached_ledger(address)
         market = ((ledger or {}).get("markets") or {}).get(str(market_id))
-        status = str((market or {}).get("status") or "missing")
-        method = str((market or {}).get("method") or "missing")
+        status = str((market or {}).get("strictStatus") or (market or {}).get("status") or "missing")
+        method = str((market or {}).get("strictMethod") or (market or {}).get("method") or "missing")
         status_counts[status] += 1
         method_counts[method] += 1
 
-        if status not in ("verified", "pre_snapshot_carry"):
+        if status != "verified":
             reason = explain_nonverified_reason(market)
             if reason:
                 reason_counts[reason] += 1
@@ -779,10 +1088,14 @@ def build_static_report(
                     "wallet": address,
                     "status": status,
                     "method": method,
+                    "rawStatus": str((market or {}).get("status") or "missing"),
+                    "rawMethod": str((market or {}).get("method") or "missing"),
                     "reason": reason,
                     "wei": holder["wei"],
                     "balance": holder["balance"],
                     "balanceUsd": None,
+                    "canonicalHistoryCoverageStatus": str((market or {}).get("canonicalHistoryCoverageStatus") or ""),
+                    "canonicalHistoryConsistencyStatus": str((market or {}).get("canonicalHistoryConsistencyStatus") or ""),
                 }
             )
 
@@ -794,11 +1107,12 @@ def build_static_report(
         "marketId": str(market_id),
         "snapshotDate": snapshot_date,
         "holderCount": len(holders),
+        "strictMode": True,
         "statusCounts": dict(status_counts),
         "methodCounts": dict(method_counts),
         "reasonCounts": dict(reason_counts),
         "rootCauseCounts": dict(root_cause_counts),
-        "resolvedCount": status_counts.get("verified", 0) + status_counts.get("pre_snapshot_carry", 0),
+        "resolvedCount": status_counts.get("verified", 0),
         "unresolvedCount": len(unresolved),
         "unresolved": unresolved,
     }
@@ -910,9 +1224,12 @@ def ensure_live_input(
 def run_live_command(args: argparse.Namespace) -> int:
     input_path, chain, market_id, symbol = ensure_live_input(args)
     output_path = Path(args.output) if args.output else default_live_output(chain, symbol)
+    endpoint_pairs = build_endpoint_pairs(args.localhost_url, args.debug_json_url)
+    localhost_urls = [pair["localhostUrl"] for pair in endpoint_pairs]
+    debug_json_urls = [pair["debugJsonUrl"] for pair in endpoint_pairs]
 
     with tempfile.NamedTemporaryFile("w", suffix="_earn_live_audit.js", delete=False, encoding="utf-8") as tmp:
-        tmp.write(LIVE_AUDIT_JS)
+        tmp.write(build_live_audit_js())
         js_path = Path(tmp.name)
 
     cmd = [
@@ -920,11 +1237,12 @@ def run_live_command(args: argparse.Namespace) -> int:
         str(js_path),
         str(input_path),
         str(output_path),
-        str(args.localhost_url),
-        str(args.debug_json_url),
+        json.dumps(localhost_urls),
+        json.dumps(debug_json_urls),
         str(args.workers),
         str(market_id),
         str(symbol),
+        str(args.block_tag or ""),
     ]
 
     try:
@@ -941,6 +1259,22 @@ def run_live_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def apply_live_preset_overrides(args: argparse.Namespace) -> argparse.Namespace:
+    preset_name = str(getattr(args, "live_preset", "") or "").strip()
+    if not preset_name:
+        return args
+
+    preset = get_audit_earn_asset_defaults(preset_name)
+    preset_live = preset["liveDefaults"]
+    if args.localhost_url == AUDIT_LIVE_DEFAULTS["localhostUrl"]:
+        args.localhost_url = preset_live["localhostUrl"]
+    if args.debug_json_url == AUDIT_LIVE_DEFAULTS["debugJsonUrl"]:
+        args.debug_json_url = preset_live["debugJsonUrl"]
+    if int(args.workers) == int(AUDIT_LIVE_DEFAULTS["workers"]):
+        args.workers = int(preset_live["workers"])
+    return args
+
+
 TIMEOUT_CATEGORIES = {
     "eval_timeout",
     "timeout_pending",
@@ -952,9 +1286,7 @@ TIMEOUT_CATEGORIES = {
 
 VERIFIED_CATEGORIES = {
     "replay_verified",
-    "public_verified",
     "hidden_collateral_verified",
-    "snapshot_verified",
     "verified_other",
 }
 
@@ -967,6 +1299,12 @@ NON_BLOCKING_REAL_PATTERNS = {
     "hidden_collateral_dust",
     "tiny_snapshot_dust",
     "tiny_snapshot_balance",
+    "tiny_non_strict_inferred_drift",
+    "tiny_non_strict_fallback_drift",
+    "exact_match_non_strict_inferred",
+    "exact_match_non_strict_fallback",
+    "exact_hidden_collateral_non_strict_inferred",
+    "exact_hidden_collateral_non_strict_fallback",
 }
 
 
@@ -989,6 +1327,16 @@ def parse_bigint_like(value: object) -> int:
         return int(text)
     except Exception:
         return 0
+
+
+def verification_has_exact_zero_diff(verify: dict) -> bool:
+    if not isinstance(verify, dict) or not verify:
+        return False
+    return (
+        parse_bigint_like(verify.get("supplyWeiDiff")) == 0
+        and parse_bigint_like(verify.get("collateralWeiDiff")) == 0
+        and parse_bigint_like(verify.get("borrowWeiDiff")) == 0
+    )
 
 
 def normalize_live_row_category(row: dict) -> str:
@@ -1015,28 +1363,18 @@ def normalize_live_row_category(row: dict) -> str:
     calc = focus.get("calc") or {}
     verify = focus.get("verificationData") or {}
     timed_out = bool(row.get("timedOut"))
-    max_usd_drift = verify.get("maxUsdDrift")
-    if max_usd_drift is not None:
-        max_usd_drift = float(max_usd_drift)
 
     replay_trusted = (
         resolved_source == "replay-ledger"
         and (
             resolved_status == "verified"
-            or resolved_status == "pre_snapshot_carry"
-            or calc.get("verificationStatus") == "verified"
+            or (calc.get("verificationStatus") == "verified" and calc.get("trustedForTotal"))
         )
     )
-    public_trusted = (
-        resolved_source in {"public-netflow", "public-cycle"}
-        and resolved_status in {"verified", "pre_snapshot_carry"}
-    )
-    drift_trusted = (
-        bool(verify)
-        and verify.get("canVerify")
-        and verify.get("counted")
-        and max_usd_drift is not None
-        and max_usd_drift <= 0.1
+    exact_verified = (
+        verify.get("status") == "verified"
+        or resolved_status == "verified"
+        or calc.get("verificationStatus") == "verified"
     )
     exact_verify_match = (
         bool(verify)
@@ -1053,22 +1391,24 @@ def normalize_live_row_category(row: dict) -> str:
     )
 
     if position_kind == "missing":
+        # Prefer the final verified replay snapshot over an earlier missing-position
+        # capture so late-settling rows do not fall into a false missing tail.
+        if replay_trusted or exact_verified or (calc_trusted and exact_verify_match):
+            return "replay_verified"
+        if timed_out:
+            return "timeout_other"
         return "missing_position"
     if position_kind == "borrow_only":
-        if verify_label == "VERIFIED" or replay_trusted or public_trusted or drift_trusted:
+        if verify_label == "VERIFIED" or replay_trusted:
             return "verified_other"
         return "borrow_only"
     if position_kind == "hidden_collateral":
-        if replay_trusted or public_trusted or drift_trusted or (calc_trusted and exact_verify_match):
+        if replay_trusted or exact_verified or (calc_trusted and exact_verify_match):
             return "hidden_collateral_verified"
         return "timeout_hidden_collateral" if timed_out else "hidden_collateral_other"
     if verify_label == "VERIFIED":
         if resolved_source == "replay-ledger":
             return "replay_verified"
-        if resolved_source in {"public-netflow", "public-cycle"}:
-            return "public_verified"
-        if resolved_source == "snapshot-series":
-            return "snapshot_verified"
         return "verified_other"
     if (
         verify_label == "SNAPSHOT ONLY"
@@ -1084,10 +1424,6 @@ def normalize_live_row_category(row: dict) -> str:
     ):
         return "timeout_pending" if timed_out else "pending"
     if replay_trusted:
-        return "replay_verified"
-    if public_trusted:
-        return "public_verified"
-    if drift_trusted:
         return "replay_verified"
     if verify.get("status") == "verified":
         return "replay_verified"
@@ -1115,6 +1451,9 @@ def parse_live_row_pattern(row: dict) -> Tuple[str, str]:
     max_usd_drift = verify.get("maxUsdDrift")
     balance_usd = parse_balance_usd_from_cell(market_row.get("balanceCell"))
     loading_row = "loading" in str(market_row.get("yieldCell") or "").lower()
+    resolved_verification_status = str(focus.get("resolvedVerificationStatus") or "")
+    resolved_canonical_coverage = str(focus.get("resolvedCanonicalHistoryCoverageStatus") or "").lower()
+    exact_zero_diff = verification_has_exact_zero_diff(verify)
 
     if category in TIMEOUT_CATEGORIES:
         if "par_drift_above_tolerance" in root_causes:
@@ -1162,6 +1501,15 @@ def parse_live_row_pattern(row: dict) -> Tuple[str, str]:
         resolved_method = str(focus.get("resolvedMethod") or "")
         calc = focus.get("calc") or {}
         if (
+            resolved_canonical_coverage == "fresh"
+            and verify.get("status") == "coverage_incomplete"
+            and exact_zero_diff
+            and resolved_verification_status in {"fallback", "inferred"}
+        ):
+            if resolved_verification_status == "inferred":
+                return ("exact_hidden_collateral_non_strict_inferred", "low")
+            return ("exact_hidden_collateral_non_strict_fallback", "low")
+        if (
             actual_collateral_wei > 0
             and actual_supply_wei == 0
             and actual_borrow_wei == 0
@@ -1190,6 +1538,44 @@ def parse_live_row_pattern(row: dict) -> Tuple[str, str]:
         has_visible = bool(row.get("visiblePosition"))
         has_collateral = bool(row.get("collateralPosition"))
         has_borrow = bool(row.get("borrowPosition"))
+        non_strict_exact = (
+            resolved_canonical_coverage == "fresh"
+            and verify.get("status") == "coverage_incomplete"
+            and resolved_verification_status in {"fallback", "inferred"}
+        )
+        if non_strict_exact and exact_zero_diff:
+            if resolved_verification_status == "inferred":
+                return ("exact_match_non_strict_inferred", "low")
+            return ("exact_match_non_strict_fallback", "low")
+        if non_strict_exact and drift is not None and drift <= 0.01:
+            if resolved_verification_status == "inferred":
+                return ("tiny_non_strict_inferred_drift", "low")
+            return ("tiny_non_strict_fallback_drift", "low")
+        if (
+            has_visible
+            and has_collateral
+            and not has_borrow
+            and actual_supply_wei > 0
+            and actual_collateral_wei > 0
+            and expected_supply_wei > 0
+            and expected_collateral_wei == 0
+        ):
+            if drift is not None and drift >= 100:
+                return ("mixed_visible_hidden_overlap", "high")
+            if drift is not None and drift >= 1:
+                return ("mixed_visible_hidden_overlap", "medium")
+            return ("mixed_visible_hidden_overlap", "low")
+        if (
+            has_visible
+            and not has_collateral
+            and actual_supply_wei > 0
+            and expected_supply_wei == 0
+        ):
+            if drift is not None and drift >= 100:
+                return ("material_visible_supply_gap", "high")
+            if drift is not None and drift >= 1:
+                return ("material_visible_supply_gap", "medium")
+            return ("visible_supply_dust_gap", "low")
         mixed_position_overlap = (
             has_visible
             and has_collateral
@@ -1435,6 +1821,7 @@ def build_forensic_live_report(payload: dict) -> dict:
             "normalizedCategory": category,
             "pattern": pattern,
             "severity": severity,
+            "canonicalHistory": row.get("canonicalHistory") or None,
             "staticStatus": str(row.get("staticStatus") or ""),
             "staticMethod": str(row.get("staticMethod") or ""),
             "staticReason": str(row.get("staticReason") or ""),
@@ -1548,9 +1935,11 @@ def build_parser() -> argparse.ArgumentParser:
     live_parser.add_argument("--snapshot-date", help="Optional snapshot date (YYYY-MM-DD)")
     live_parser.add_argument("--limit", type=int, help="Optional holder limit before building unresolved cohort")
     live_parser.add_argument("--input", help="Optional prebuilt unresolved cohort JSON")
-    live_parser.add_argument("--localhost-url", default="http://127.0.0.1:8902/index.html?cb=earn_audit", help="Local dashboard URL")
-    live_parser.add_argument("--debug-json-url", default="http://127.0.0.1:9555/json", help="Chrome remote debugger /json endpoint")
-    live_parser.add_argument("--workers", type=int, default=2, help="Parallel browser workers")
+    live_parser.add_argument("--live-preset", choices=LIVE_PRESET_NAMES, help="Optional named live audit preset, e.g. dual-sharded")
+    live_parser.add_argument("--localhost-url", default=AUDIT_LIVE_DEFAULTS["localhostUrl"], help="Local dashboard URL or comma-separated list of dashboard URLs")
+    live_parser.add_argument("--debug-json-url", default=AUDIT_LIVE_DEFAULTS["debugJsonUrl"], help="Chrome remote debugger /json endpoint or comma-separated list of endpoints")
+    live_parser.add_argument("--workers", type=int, default=int(AUDIT_LIVE_DEFAULTS["workers"]), help="Parallel browser workers")
+    live_parser.add_argument("--block-tag", help="Optional fixed replay block tag to match canonical history freshness")
     live_parser.add_argument("--output", help="Where to write live audit results (default: /tmp)")
     live_parser.set_defaults(func=run_live_command)
 
@@ -1587,6 +1976,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Optional[Iterable[str]] = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    if getattr(args, "command", None) == "live":
+        args = apply_live_preset_overrides(args)
     return args.func(args)
 
 
