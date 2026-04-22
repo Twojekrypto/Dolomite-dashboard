@@ -9410,13 +9410,31 @@
         }
 
         .earn-summary-mini-pill-icon {
-            width: 18px;
-            height: 18px;
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
             flex-shrink: 0;
             background: rgba(15, 23, 42, 0.85);
             border: 1px solid rgba(148, 163, 184, 0.16);
             object-fit: cover;
+        }
+
+        .earn-summary-mini-pill-icon-fallback {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.14);
+            background: rgba(30, 41, 59, 0.68);
+            color: rgba(241, 245, 249, 0.82);
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            flex-shrink: 0;
         }
 
         .earn-summary-mini-pill .token {
@@ -9426,6 +9444,10 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+        }
+
+        .earn-summary-mini-pill.has-icon .token {
+            display: none;
         }
 
         .earn-summary-mini-pill .amount {
@@ -9444,6 +9466,11 @@
         }
 
         .earn-summary-stat.is-muted .earn-summary-mini-pill-icon {
+            opacity: 0.55;
+            border-color: rgba(148, 163, 184, 0.1);
+        }
+
+        .earn-summary-stat.is-muted .earn-summary-mini-pill-icon-fallback {
             opacity: 0.55;
             border-color: rgba(148, 163, 184, 0.1);
         }
@@ -34739,13 +34766,7 @@
                     };
                     const formatRewardAmount = value => value >= 1000 ? (value / 1000).toFixed(2) + 'K' : value.toFixed(2);
                     const getRewardIcon = symbol => SYMBOL_ICONS[symbol] || SYMBOL_ICONS[String(symbol || '').toUpperCase()] || '';
-                    const formatRewardSummary = parts => {
-                        const names = parts.map(part => part.symbol);
-                        if (names.length === 0) return 'No active reward streams';
-                        if (names.length === 1) return `${names[0]} farmed`;
-                        if (names.length === 2) return `${names[0]} and ${names[1]} farmed`;
-                        return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]} farmed`;
-                    };
+                    const formatRewardSummary = count => count === 1 ? 'Farmed reward token' : 'Farmed reward tokens';
                     const renderRewardsOverview = () => {
                         if (!isSummaryRenderCurrent() || !rewardsValueEl || !rewardsSubEl || !rewardsListEl) return;
                         const parts = [];
@@ -34774,15 +34795,21 @@
                         if (rewardsCardEl) rewardsCardEl.classList.remove('is-muted');
                         rewardsValueEl.textContent = `${parts.length} reward${parts.length !== 1 ? 's' : ''}`;
                         rewardsValueEl.className = 'earn-summary-value positive';
-                        rewardsSubEl.textContent = formatRewardSummary(parts);
+                        rewardsSubEl.textContent = formatRewardSummary(parts.length);
                         rewardsListEl.innerHTML = parts.map(part => (
-                            `<span class="earn-summary-mini-pill">
+                            (() => {
+                                const icon = getRewardIcon(part.symbol);
+                                const iconOrFallback = icon
+                                    ? `<img src="${earn_escapeHtml(icon)}" alt="${earn_escapeHtml(part.symbol)}" class="earn-summary-mini-pill-icon" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<span class=&quot;earn-summary-mini-pill-icon-fallback&quot;>${earn_escapeHtml(part.symbol.slice(0, 3))}</span>')">`
+                                    : `<span class="earn-summary-mini-pill-icon-fallback">${earn_escapeHtml(part.symbol.slice(0, 3))}</span>`;
+                                return `<span class="earn-summary-mini-pill${icon ? ' has-icon' : ''}" title="${earn_escapeHtml(part.symbol)}" aria-label="${earn_escapeHtml(part.symbol)} reward">
                                 <span class="earn-summary-mini-pill-main">
-                                    ${getRewardIcon(part.symbol) ? `<img src="${earn_escapeHtml(getRewardIcon(part.symbol))}" alt="${earn_escapeHtml(part.symbol)}" class="earn-summary-mini-pill-icon" onerror="this.style.display='none'">` : ''}
+                                    ${iconOrFallback}
                                     <span class="token">${earn_escapeHtml(part.symbol)}</span>
                                 </span>
                                 <span class="amount">${earn_escapeHtml(part.amountLabel)}</span>
-                            </span>`
+                            </span>`;
+                            })()
                         )).join('');
                     };
 
