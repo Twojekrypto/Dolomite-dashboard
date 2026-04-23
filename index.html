@@ -13679,9 +13679,11 @@
 
                 .migrated-chart-shell {
                     position: relative;
-                    margin: 0 24px;
-                    min-height: 340px;
-                    padding: 14px 18px 20px;
+                    width: calc(100% - 48px);
+                    max-width: 980px;
+                    margin: 0 auto;
+                    min-height: 292px;
+                    padding: 12px 16px 18px;
                     border-radius: 20px;
                     border: 1px solid rgba(255, 255, 255, 0.07);
                     background:
@@ -13692,7 +13694,8 @@
                 }
 
                 .migrated-chart-shell.is-compact {
-                    min-height: 300px;
+                    min-height: 252px;
+                    max-width: 940px;
                 }
 
                 .migrated-chart-canvas {
@@ -13759,6 +13762,21 @@
                     font-size: 10px;
                     color: rgba(203, 213, 225, 0.58);
                     white-space: nowrap;
+                    padding: 5px 8px;
+                    border-radius: 999px;
+                    border: 1px solid transparent;
+                    transition: opacity 0.18s ease, color 0.18s ease, background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+                }
+
+                .migrated-chart-legend-item.active {
+                    color: rgba(248, 250, 252, 0.94);
+                    background: rgba(99, 102, 241, 0.12);
+                    border-color: rgba(129, 140, 248, 0.22);
+                    transform: translateY(-1px);
+                }
+
+                .migrated-chart-legend-item.dim {
+                    opacity: 0.42;
                 }
 
                 .migrated-chart-legend-dot,
@@ -13797,11 +13815,27 @@
                     border: 1px solid rgba(255, 255, 255, 0.07);
                     font-size: 11px;
                     color: rgba(226, 232, 240, 0.74);
+                    transition: opacity 0.18s ease, transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
                 }
 
                 .migrated-chart-stat-pill b {
                     color: #f8fafc;
                     font-weight: 700;
+                }
+
+                .migrated-chart-stat-pill.active {
+                    background: linear-gradient(180deg, rgba(99, 102, 241, 0.14), rgba(99, 102, 241, 0.08));
+                    border-color: rgba(129, 140, 248, 0.26);
+                    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+                    transform: translateY(-1px);
+                }
+
+                .migrated-chart-stat-pill.dim {
+                    opacity: 0.5;
+                }
+
+                .migrated-chart-stat-pill .meta {
+                    color: rgba(148, 163, 184, 0.72);
                 }
 
                 .migrated-chart-tooltip {
@@ -13884,7 +13918,7 @@
                     border: 2px solid rgba(255, 255, 255, 0.92);
                     box-shadow:
                         0 0 0 3px rgba(99, 102, 241, 0.22),
-                        0 0 20px rgba(99, 102, 241, 0.24);
+                        0 0 26px rgba(99, 102, 241, 0.32);
                     transform: scale(0.92);
                 }
 
@@ -13894,11 +13928,11 @@
 
                 .migrated-chart-hover-bar {
                     border-radius: 12px 12px 10px 10px;
-                    border: 1px solid rgba(255, 255, 255, 0.16);
-                    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+                    border: 1px solid rgba(255, 255, 255, 0.22);
+                    background: linear-gradient(180deg, rgba(129, 140, 248, 0.14), rgba(129, 140, 248, 0.05));
                     box-shadow:
                         inset 0 0 0 1px rgba(255, 255, 255, 0.04),
-                        0 10px 24px rgba(15, 23, 42, 0.24);
+                        0 12px 28px rgba(15, 23, 42, 0.28);
                 }
 
                 @media (max-width: 860px) {
@@ -13912,7 +13946,7 @@
                     }
 
                     .migrated-chart-shell {
-                        min-height: 300px;
+                        min-height: 252px;
                     }
 
                     .migrated-chart-footer {
@@ -13936,7 +13970,7 @@
 
                     .migrated-chart-shell {
                         margin: 0 16px;
-                        min-height: 270px;
+                        min-height: 232px;
                         padding: 10px 12px 14px;
                     }
 
@@ -13973,11 +14007,11 @@
                     <div id="treasury-lockdist-status" class="migrated-chart-status">Preparing the lock distribution chart…</div>
                 </div>
                 <div class="migrated-chart-footer">
-                    <div class="migrated-chart-legend">
-                        <span class="migrated-chart-legend-item"><span class="migrated-chart-legend-dot" style="background:#3b82f6"></span>&lt;$1K</span>
-                        <span class="migrated-chart-legend-item"><span class="migrated-chart-legend-dot" style="background:#10b981"></span>$1K–10K</span>
-                        <span class="migrated-chart-legend-item"><span class="migrated-chart-legend-dot" style="background:#f59e0b"></span>$10K–50K</span>
-                        <span class="migrated-chart-legend-item"><span class="migrated-chart-legend-dot" style="background:#ec4899;box-shadow:0 0 10px rgba(236,72,153,.38)"></span>&gt;$50K whales</span>
+                    <div id="treasury-discount-legend" class="migrated-chart-legend">
+                        <span class="migrated-chart-legend-item" data-legend-key="small"><span class="migrated-chart-legend-dot" style="background:#3b82f6"></span>&lt;$1K</span>
+                        <span class="migrated-chart-legend-item" data-legend-key="medium"><span class="migrated-chart-legend-dot" style="background:#10b981"></span>$1K–10K</span>
+                        <span class="migrated-chart-legend-item" data-legend-key="large"><span class="migrated-chart-legend-dot" style="background:#f59e0b"></span>$10K–50K</span>
+                        <span class="migrated-chart-legend-item" data-legend-key="whale"><span class="migrated-chart-legend-dot" style="background:#ec4899;box-shadow:0 0 10px rgba(236,72,153,.38)"></span>&gt;$50K whales</span>
                     </div>
                     <div id="treasury-lockdist-stats" class="migrated-chart-stats"></div>
                 </div>
@@ -14811,12 +14845,12 @@
                     <div id="treasury-discount-status" class="migrated-chart-status">Loading the latest oDOLO exercise curve…</div>
                 </div>
                 <div class="migrated-chart-footer">
-                    <div class="migrated-chart-legend">
-                        <span class="migrated-chart-legend-item"><span class="migrated-chart-legend-line" style="background:#f59e0b"></span>Theoretical schedule</span>
-                        <span class="migrated-chart-legend-item"><span class="migrated-chart-legend-dot" style="background:#3b82f6"></span>&lt;$500</span>
-                        <span class="migrated-chart-legend-item"><span class="migrated-chart-legend-dot" style="background:#10b981"></span>$500–5K</span>
-                        <span class="migrated-chart-legend-item"><span class="migrated-chart-legend-dot" style="background:#f59e0b"></span>$5K–25K</span>
-                        <span class="migrated-chart-legend-item"><span class="migrated-chart-legend-dot" style="background:#ec4899;box-shadow:0 0 10px rgba(236,72,153,.38)"></span>&gt;$25K whales</span>
+                    <div id="treasury-lockdist-legend" class="migrated-chart-legend">
+                        <span class="migrated-chart-legend-item" data-legend-key="theory"><span class="migrated-chart-legend-line" style="background:#f59e0b"></span>Theoretical schedule</span>
+                        <span class="migrated-chart-legend-item" data-legend-key="small"><span class="migrated-chart-legend-dot" style="background:#3b82f6"></span>&lt;$500</span>
+                        <span class="migrated-chart-legend-item" data-legend-key="medium"><span class="migrated-chart-legend-dot" style="background:#10b981"></span>$500–5K</span>
+                        <span class="migrated-chart-legend-item" data-legend-key="large"><span class="migrated-chart-legend-dot" style="background:#f59e0b"></span>$5K–25K</span>
+                        <span class="migrated-chart-legend-item" data-legend-key="whale"><span class="migrated-chart-legend-dot" style="background:#ec4899;box-shadow:0 0 10px rgba(236,72,153,.38)"></span>&gt;$25K whales</span>
                     </div>
                     <div id="treasury-discount-stats" class="migrated-chart-stats"></div>
                 </div>
@@ -35957,6 +35991,86 @@
 
 
 
+        function treasury_setLegendFocus(containerId, activeKeys = []) {
+            const root = document.getElementById(containerId);
+            if (!root) return;
+            const keys = Array.isArray(activeKeys) ? activeKeys.filter(Boolean) : (activeKeys ? [activeKeys] : []);
+            root.querySelectorAll('.migrated-chart-legend-item').forEach(item => {
+                const key = item.getAttribute('data-legend-key');
+                const active = keys.length > 0 && keys.includes(key);
+                item.classList.toggle('active', active);
+                item.classList.toggle('dim', keys.length > 0 && !active);
+            });
+        }
+
+        function treasury_renderStatPills(containerId, pills = [], activeKeys = []) {
+            const root = document.getElementById(containerId);
+            if (!root) return;
+            const keys = Array.isArray(activeKeys) ? activeKeys.filter(Boolean) : (activeKeys ? [activeKeys] : []);
+            root.innerHTML = pills.map((pill) => {
+                const key = pill.key ? ` data-pill-key="${pill.key}"` : '';
+                const value = pill.valueHtml || '';
+                const label = pill.label || '';
+                const meta = pill.meta ? `<span class="meta">${pill.meta}</span>` : '';
+                return `<span class="migrated-chart-stat-pill"${key}><span>${label}</span><b>${value}</b>${meta}</span>`;
+            }).join('');
+            root.querySelectorAll('.migrated-chart-stat-pill').forEach(item => {
+                const key = item.getAttribute('data-pill-key');
+                const active = keys.length > 0 && key && keys.includes(key);
+                item.classList.toggle('active', active);
+                item.classList.toggle('dim', keys.length > 0 && !active);
+            });
+        }
+
+        function treasury_getDiscountTier(usdc) {
+            if (usdc >= 25000) return 'whale';
+            if (usdc >= 5000) return 'large';
+            if (usdc >= 500) return 'medium';
+            return 'small';
+        }
+
+        function treasury_renderDiscountStatsDefault(txs, avgLock, avgDisc, largest, popularLockLabel, popularLockCount) {
+            const fmtUsd = v => v >= 1000 ? '$' + (v / 1000).toFixed(1) + 'K' : '$' + Math.round(v);
+            treasury_renderStatPills('treasury-discount-stats', [
+                { key: 'exercises', label: 'Exercises', valueHtml: txs.length.toLocaleString() },
+                { key: 'avg-lock', label: 'Avg lock', valueHtml: `${avgLock.toFixed(0)}d` },
+                { key: 'avg-discount', label: 'Avg discount', valueHtml: `${avgDisc.toFixed(1)}%` },
+                { key: 'largest', label: 'Largest', valueHtml: `<span style="color:#ec4899">${fmtUsd(largest.usdc)}</span>` },
+                { key: 'popular-lock', label: 'Popular lock', valueHtml: popularLockLabel, meta: `(${popularLockCount}×)` },
+            ]);
+        }
+
+        function treasury_renderDiscountStatsHover(point) {
+            const lockLabel = point.days >= 365 ? (point.days / 365).toFixed(1) + 'y' : Math.round(point.days) + 'd';
+            const usdLabel = point.usdc >= 1000 ? '$' + (point.usdc / 1000).toFixed(1) + 'K' : '$' + point.usdc.toFixed(0);
+            const vedoloLabel = point.vedolo >= 1000 ? (point.vedolo / 1000).toFixed(1) + 'K' : point.vedolo.toFixed(0);
+            treasury_renderStatPills('treasury-discount-stats', [
+                { key: 'hover-lock', label: 'Lock', valueHtml: lockLabel },
+                { key: 'hover-discount', label: 'Discount', valueHtml: `<span style="color:#34d399">${point.discount.toFixed(1)}%</span>` },
+                { key: 'hover-cost', label: 'Cost', valueHtml: `<span style="color:#22d3ee">${usdLabel}</span>` },
+                { key: 'hover-vedolo', label: 'veDOLO', valueHtml: `<span style="color:#a78bfa">${vedoloLabel}</span>` },
+            ], ['hover-lock', 'hover-discount', 'hover-cost', 'hover-vedolo']);
+        }
+
+        function treasury_renderLockStatsDefault(totalExercises, medianLabel, topBucket, topPct) {
+            treasury_renderStatPills('treasury-lockdist-stats', [
+                { key: 'exercises', label: 'Exercises', valueHtml: totalExercises.toLocaleString() },
+                { key: 'median-lock', label: 'Median lock', valueHtml: medianLabel },
+                { key: 'top-bucket', label: 'Top bucket', valueHtml: `<span style="color:#a78bfa">${topBucket.label}</span>`, meta: `(${topPct}%)` },
+            ]);
+        }
+
+        function treasury_renderLockStatsHover(bucket, totalExercises) {
+            const pct = totalExercises > 0 ? (bucket.count / totalExercises * 100).toFixed(1) : '0.0';
+            const fmtV = v => v >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : Math.round(v).toLocaleString();
+            treasury_renderStatPills('treasury-lockdist-stats', [
+                { key: 'bucket', label: 'Bucket', valueHtml: bucket.label },
+                { key: 'bucket-exercises', label: 'Exercises', valueHtml: bucket.count.toLocaleString(), meta: `(${pct}%)` },
+                { key: 'bucket-volume', label: 'veDOLO', valueHtml: `<span style="color:#a78bfa">${fmtV(bucket.vedolo)}</span>` },
+                { key: 'bucket-paid', label: 'Paid', valueHtml: `<span style="color:#22d3ee">$${fmtV(bucket.usdc)}</span>` },
+            ], ['bucket', 'bucket-exercises', 'bucket-volume', 'bucket-paid']);
+        }
+
         // ===== oDOLO DISCOUNT CURVE (Scatter — Enhanced) =====
         let _discountCurveTxCache = null; // cached for hover
         let _discountCurveHoverState = null;
@@ -35966,7 +36080,7 @@
             if (!canvas || !shell) return false;
             const dpr = window.devicePixelRatio || 1;
             const width = Math.max(320, Math.round(shell.clientWidth));
-            const height = Math.max(240, Math.round(shell.clientHeight));
+            const height = Math.max(228, Math.round(shell.clientHeight));
             if (width < 120 || height < 120) {
                 treasury_setChartStatus('discount', 'Finalizing chart layout…');
                 return false;
@@ -36114,17 +36228,8 @@
             const popularLockDays = parseInt(popularLock[0]);
             const popularLockLabel = popularLockDays >= 365 ? (popularLockDays / 365).toFixed(popularLockDays % 365 === 0 ? 0 : 1) + 'y' : popularLockDays + 'd';
 
-            const fmtUsd = v => v >= 1000 ? '$' + (v / 1000).toFixed(1) + 'K' : '$' + Math.round(v);
-            const statsEl = document.getElementById('treasury-discount-stats');
-            if (statsEl) {
-                statsEl.innerHTML = `
-                    <span class="migrated-chart-stat-pill">Exercises <b>${txs.length.toLocaleString()}</b></span>
-                    <span class="migrated-chart-stat-pill">Avg lock <b>${avgLock.toFixed(0)}d</b></span>
-                    <span class="migrated-chart-stat-pill">Avg discount <b>${avgDisc.toFixed(1)}%</b></span>
-                    <span class="migrated-chart-stat-pill">Largest <b style="color:#ec4899">${fmtUsd(largest.usdc)}</b></span>
-                    <span class="migrated-chart-stat-pill">Popular lock <b>${popularLockLabel}</b> <span style="color:rgba(255,255,255,.42)">(${popularLock[1]}×)</span></span>
-                `;
-            }
+            treasury_renderDiscountStatsDefault(txs, avgLock, avgDisc, largest, popularLockLabel, popularLock[1]);
+            treasury_setLegendFocus('treasury-discount-legend');
 
             _discountCurveHoverState = {
                 pad,
@@ -36155,6 +36260,7 @@
                         }
                     });
                     if (closest) {
+                        const tierKey = treasury_getDiscountTier(closest.usdc);
                         const lockLabel = closest.days >= 365 ? (closest.days / 365).toFixed(1) + 'y' : Math.round(closest.days) + 'd';
                         const usdLabel = closest.usdc >= 1000 ? '$' + (closest.usdc / 1000).toFixed(1) + 'K' : '$' + closest.usdc.toFixed(0);
                         const vedoloLabel = closest.vedolo >= 1000 ? (closest.vedolo / 1000).toFixed(1) + 'K' : closest.vedolo.toFixed(0);
@@ -36167,6 +36273,8 @@
                         `;
                         tip.style.display = 'block';
                         treasury_placeChartTooltip(tip, e, 220);
+                        treasury_renderDiscountStatsHover(closest);
+                        treasury_setLegendFocus('treasury-discount-legend', [tierKey, 'theory']);
                         if (overlay) {
                             const shellRect = document.getElementById('treasury-discount-shell').getBoundingClientRect();
                             const size = Math.max(18, closest.r * 4.2);
@@ -36178,11 +36286,15 @@
                         }
                     } else {
                         tip.style.display = 'none';
+                        treasury_renderDiscountStatsDefault(_discountCurveTxCache || [], avgLock, avgDisc, largest, popularLockLabel, popularLock[1]);
+                        treasury_setLegendFocus('treasury-discount-legend');
                         if (overlay) overlay.classList.remove('is-visible');
                     }
                 });
                 canvas.addEventListener('mouseleave', function () {
                     if (tip) tip.style.display = 'none';
+                    treasury_renderDiscountStatsDefault(_discountCurveTxCache || [], avgLock, avgDisc, largest, popularLockLabel, popularLock[1]);
+                    treasury_setLegendFocus('treasury-discount-legend');
                     if (overlay) overlay.classList.remove('is-visible');
                 });
             }
@@ -36202,7 +36314,18 @@
                 btnCount.classList.toggle('is-active', mode === 'count');
                 btnVedolo.classList.toggle('is-active', mode === 'vedolo');
             }
-            if (redraw && _lockDistData) treasury_drawLockBars();
+            if (redraw && _lockDistData) {
+                treasury_drawLockBars();
+                if (_lockDistData.meta) {
+                    treasury_renderLockStatsDefault(
+                        _lockDistData.totalExercises,
+                        _lockDistData.meta.medianLabel,
+                        _lockDistData.meta.topBucket,
+                        _lockDistData.meta.topPct
+                    );
+                }
+                treasury_setLegendFocus('treasury-lockdist-legend');
+            }
         }
 
         // USDC volume tier definitions
@@ -36276,13 +36399,10 @@
             allDays.sort((a, b) => a - b);
             const median = allDays.length > 0 ? allDays[Math.floor(allDays.length / 2)] : 0;
             const medianLabel = median >= 365 ? (median / 365).toFixed(1) + 'y' : Math.round(median) + 'd';
+            _lockDistData.meta = { topBucket, topPct, medianLabel };
 
-            const statsEl = document.getElementById('treasury-lockdist-stats');
-            statsEl.innerHTML = `
-                <span class="migrated-chart-stat-pill">Exercises <b>${totalExercises.toLocaleString()}</b></span>
-                <span class="migrated-chart-stat-pill">Median lock <b>${medianLabel}</b></span>
-                <span class="migrated-chart-stat-pill">Top bucket <b style="color:#a78bfa">${topBucket.label}</b> <span style="color:rgba(255,255,255,.42)">(${topPct}%)</span></span>
-            `;
+            treasury_renderLockStatsDefault(totalExercises, medianLabel, topBucket, topPct);
+            treasury_setLegendFocus('treasury-lockdist-legend');
 
             if (!treasury_drawLockBars()) return false;
 
@@ -36303,12 +36423,18 @@
                     );
                     if (!hit) {
                         tooltip.style.display = 'none';
+                        treasury_renderLockStatsDefault(totalExercises, medianLabel, topBucket, topPct);
+                        treasury_setLegendFocus('treasury-lockdist-legend');
                         if (overlay) overlay.classList.remove('is-visible');
                         return;
                     }
                     const bucket = hit.bucket;
                     const pct = _lockDistHoverState.totalExercises > 0 ? (bucket.count / _lockDistHoverState.totalExercises * 100).toFixed(1) : 0;
                     const fmtV = v => v >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : Math.round(v).toLocaleString();
+                    const dominantTier = bucket.tiers.reduce((best, tier, ti) => {
+                        const value = _lockDistMode === 'count' ? tier.count : tier.vedolo;
+                        return value > best.value ? { value, key: _lockDistTiers[ti].key } : best;
+                    }, { value: -1, key: null });
                     let tierRows = '';
                     bucket.tiers.forEach((t, ti) => {
                         if (t.count > 0) {
@@ -36331,6 +36457,8 @@
                     `;
                     tooltip.style.display = 'block';
                     treasury_placeChartTooltip(tooltip, evt, 238);
+                    treasury_renderLockStatsHover(bucket, _lockDistHoverState.totalExercises);
+                    treasury_setLegendFocus('treasury-lockdist-legend', dominantTier.key ? [dominantTier.key] : []);
                     if (overlay) {
                         const shellRect = document.getElementById('treasury-lockdist-shell').getBoundingClientRect();
                         overlay.style.left = `${(rect.left - shellRect.left) + hit.x - 4}px`;
@@ -36342,6 +36470,8 @@
                 });
                 canvas.addEventListener('mouseleave', () => {
                     tooltip.style.display = 'none';
+                    treasury_renderLockStatsDefault(totalExercises, medianLabel, topBucket, topPct);
+                    treasury_setLegendFocus('treasury-lockdist-legend');
                     if (overlay) overlay.classList.remove('is-visible');
                 });
             }
@@ -36354,7 +36484,7 @@
             const shell = document.getElementById('treasury-lockdist-shell');
             if (!canvas || !shell) return false;
             const width = Math.max(320, Math.round(shell.clientWidth));
-            const height = Math.max(220, Math.round(shell.clientHeight));
+            const height = Math.max(214, Math.round(shell.clientHeight));
             if (width < 120 || height < 120) {
                 treasury_setChartStatus('lockdist', 'Finalizing chart layout…');
                 return false;
@@ -36418,14 +36548,16 @@
             ctx.restore();
 
             // Draw stacked bars
-            const gap = 6;
-            const barW = (plotW - gap * (buckets.length - 1)) / buckets.length;
+            const slotW = plotW / buckets.length;
+            const barW = Math.min(34, slotW * 0.58);
+            const gap = Math.max(10, slotW - barW);
+            const groupOffset = (plotW - ((barW * buckets.length) + (gap * (buckets.length - 1)))) / 2;
             const barRects = [];
 
             buckets.forEach((b, i) => {
                 const totalVal = isCount ? b.count : b.vedolo;
                 const totalBarH = maxVal > 0 ? (totalVal / maxVal) * plotH : 0;
-                const x = pad.left + i * (barW + gap);
+                const x = pad.left + groupOffset + i * (barW + gap);
                 const yTop = pad.top + plotH - totalBarH;
                 barRects.push({ x, y: yTop, w: barW, h: totalBarH, bucket: b });
 
