@@ -24389,41 +24389,14 @@
                 ? nextBorrowApr * nextUtilRatio * model.lendingTakeFactor
                 : 0;
 
-            let dilutionMultiplier = 1;
-            if (nextSuppliedUsd <= 0) {
-                dilutionMultiplier = 0;
-            } else if (model.suppliedUsd > 0) {
-                dilutionMultiplier = model.suppliedUsd / nextSuppliedUsd;
-            }
-            const nextOdoloApr = model.currentOdoloApr * dilutionMultiplier;
-            const nextRewardYieldApr = model.currentRewardYieldApr * dilutionMultiplier;
-            const nextStaticYieldApr = nextSuppliedUsd > 0 ? model.currentStaticYieldApr : 0;
-
-            const currentParts = {
-                lendingApr: model.currentLendingApr,
-                odoloApr: model.currentOdoloApr,
-                rewardYieldApr: model.currentRewardYieldApr,
-                staticYieldApr: model.currentStaticYieldApr,
-            };
-            const nextParts = {
-                lendingApr: nextLendingApr,
-                odoloApr: nextOdoloApr,
-                rewardYieldApr: nextRewardYieldApr,
-                staticYieldApr: nextStaticYieldApr,
-            };
-
-            const currentTotalApr = assets_getVisibleSimulatorTotal(currentParts);
-            const nextTotalApr = assets_getVisibleSimulatorTotal(nextParts);
-            const currentDisplayRate = assets_showApy && currentTotalApr > 0 ? aprToApy(currentTotalApr) : currentTotalApr;
-            const nextDisplayRate = assets_showApy && nextTotalApr > 0 ? aprToApy(nextTotalApr) : nextTotalApr;
+            const currentDisplayRate = assets_showApy && model.currentLendingApr > 0 ? aprToApy(model.currentLendingApr) : model.currentLendingApr;
+            const nextDisplayRate = assets_showApy && nextLendingApr > 0 ? aprToApy(nextLendingApr) : nextLendingApr;
             const deltaDisplayRate = nextDisplayRate - currentDisplayRate;
 
-            let statusText = 'Live estimate';
+            let statusText = 'Live lending estimate';
             let statusTone = 'info';
-            if (!model.borrowCurveActive && (model.currentOdoloApr > 0 || model.currentRewardYieldApr > 0)) {
-                statusText = 'Rewards-only estimate';
-            } else if (!model.borrowCurveActive) {
-                statusText = 'Mostly static market';
+            if (!model.borrowCurveActive) {
+                statusText = 'Static lending market';
             }
             if (requestedUsd <= 0) {
                 statusText = 'Enter an amount';
@@ -24443,8 +24416,6 @@
                 maxUsd,
                 statusText,
                 statusTone,
-                currentParts,
-                nextParts,
                 currentDisplayRate,
                 nextDisplayRate,
                 deltaDisplayRate,
@@ -24481,12 +24452,12 @@
                     <div class="assets-sim-stat">
                         <div class="assets-sim-stat-label">Now</div>
                         <div class="assets-sim-stat-value">${assets_fmtDisplayedPercent(snapshot.currentDisplayRate)}</div>
-                        <div class="assets-sim-stat-sub">Current visible ${assets_getRateViewLabel()}</div>
+                        <div class="assets-sim-stat-sub">Current lending ${assets_getRateViewLabel()}</div>
                     </div>
                     <div class="assets-sim-stat">
                         <div class="assets-sim-stat-label">After ${modeVerb}</div>
                         <div class="assets-sim-stat-value">${assets_fmtDisplayedPercent(snapshot.nextDisplayRate)}</div>
-                        <div class="assets-sim-stat-sub">Estimated ${assets_getRateViewLabel()} after your move</div>
+                        <div class="assets-sim-stat-sub">Estimated lending ${assets_getRateViewLabel()} after your move</div>
                     </div>
                     <div class="assets-sim-stat">
                         <div class="assets-sim-stat-label">Impact</div>
@@ -24564,16 +24535,16 @@
             const model = assets_getSimulatorModel(d, md);
             if (!model) {
                 return `<div class="assets-detail-section assets-sim-section">
-                    <div class="assets-section-header simulator">
-                        <div style="display:flex;align-items:center;gap:8px">
-                            <span class="section-dot"></span>
-                            <div class="assets-sim-header-copy">
-                                <span>APR Impact Simulator</span>
-                                <small>Waiting for a live USD price for ${earn_escapeHtml(d.symbol || d.name || 'this market')}.</small>
-                            </div>
+                <div class="assets-section-header simulator">
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <span class="section-dot"></span>
+                        <div class="assets-sim-header-copy">
+                            <span>Lending APR Impact</span>
+                            <small>Waiting for a live USD price for ${earn_escapeHtml(d.symbol || d.name || 'this market')}.</small>
                         </div>
-                        <span class="assets-sim-status warn">Price feed pending</span>
                     </div>
+                    <span class="assets-sim-status warn">Price feed pending</span>
+                </div>
                 </div>`;
             }
 
@@ -24597,11 +24568,11 @@
                     <div style="display:flex;align-items:center;gap:8px">
                         <span class="section-dot"></span>
                         <div class="assets-sim-header-copy">
-                            <span>APR Impact Simulator</span>
-                            <small>Type an amount to see how ${earn_escapeHtml(model.symbol)} would move right now.</small>
+                            <span>Lending APR Impact</span>
+                            <small>Type an amount to see how ${earn_escapeHtml(model.symbol)} lending would move right now.</small>
                         </div>
                     </div>
-                    <span id="${rowId}-sim-status" class="assets-sim-status${snapshot && snapshot.statusTone === 'warn' ? ' warn' : ''}">${earn_escapeHtml(snapshot ? snapshot.statusText : 'Live kink + reward dilution estimate')}</span>
+                    <span id="${rowId}-sim-status" class="assets-sim-status${snapshot && snapshot.statusTone === 'warn' ? ' warn' : ''}">${earn_escapeHtml(snapshot ? snapshot.statusText : 'Live lending estimate')}</span>
                 </div>
                 <div class="assets-sim-controls">
                     <div class="assets-sim-control-group">
