@@ -12611,15 +12611,6 @@
                         </svg>
                         EARN
                     </button>
-                    <button class="nav-tab" id="tab-treasury" onclick="switchView('treasury')">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M2 20h20" />
-                            <path d="M5 20V8l7-5 7 5v12" />
-                            <rect x="9" y="12" width="6" height="8" rx="1" />
-                        </svg>
-                        TREASURY
-                    </button>
                     <button class="nav-tab" id="tab-lending" onclick="switchView('lending')" style="display:none">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                             stroke-linecap="round" stroke-linejoin="round">
@@ -13565,6 +13556,46 @@
                 <div class="protocol-contracts proto-contracts"></div>
             </div>
 
+            <!-- ── veDOLO LOCK DURATION DISTRIBUTION ── -->
+            <div class="treasury-card anim anim-d4" style="margin-top:24px">
+                <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+                    <h3 style="display:flex;align-items:center;gap:8px;margin:0">
+                        <img src="vedolo-logo.svg" width="22" height="22" alt="veDOLO" style="flex-shrink:0">
+                        Lock Duration Distribution
+                        <span style="font-size:11px;color:rgba(255,255,255,.35);font-weight:400;margin-left:8px">How
+                            long do users lock?</span>
+                    </h3>
+                    <div style="display:flex;gap:4px;background:rgba(255,255,255,.06);border-radius:6px;padding:2px">
+                        <button id="lock-dist-toggle-count" onclick="treasury_toggleLockDist('count')"
+                            style="padding:4px 12px;font-size:11px;border:none;border-radius:4px;cursor:pointer;background:rgba(99,102,241,.5);color:#e2e8f0;font-weight:600;transition:all .2s">Count</button>
+                        <button id="lock-dist-toggle-vedolo" onclick="treasury_toggleLockDist('vedolo')"
+                            style="padding:4px 12px;font-size:11px;border:none;border-radius:4px;cursor:pointer;background:transparent;color:rgba(255,255,255,.4);font-weight:500;transition:all .2s">veDOLO</button>
+                    </div>
+                </div>
+                <div style="position:relative;width:100%;height:300px;padding:0 20px 20px">
+                    <canvas id="treasury-lockdist-canvas" style="width:100%;height:100%"></canvas>
+                </div>
+                <div style="display:flex;gap:16px;padding:4px 24px 12px;flex-wrap:wrap;align-items:center">
+                    <div style="display:flex;align-items:center;gap:5px"><span
+                            style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#3b82f6"></span><span
+                            style="font-size:10px;color:rgba(255,255,255,.4)">&lt;$1K</span></div>
+                    <div style="display:flex;align-items:center;gap:5px"><span
+                            style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#10b981"></span><span
+                            style="font-size:10px;color:rgba(255,255,255,.4)">$1K–10K</span></div>
+                    <div style="display:flex;align-items:center;gap:5px"><span
+                            style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#f59e0b"></span><span
+                            style="font-size:10px;color:rgba(255,255,255,.4)">$10K–50K</span></div>
+                    <div style="display:flex;align-items:center;gap:5px"><span
+                            style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#ec4899;box-shadow:0 0 5px rgba(236,72,153,.4)"></span><span
+                            style="font-size:10px;color:rgba(255,255,255,.4)">&gt;$50K 🐋</span></div>
+                    <div id="treasury-lockdist-stats"
+                        style="margin-left:auto;display:flex;gap:16px;font-size:11px;color:rgba(255,255,255,.5)"></div>
+                </div>
+                <div id="treasury-lockdist-tooltip"
+                    style="display:none;position:fixed;z-index:9999;background:rgba(15,23,42,0.97);border:1px solid rgba(99,102,241,0.3);border-radius:8px;padding:10px 14px;font-size:11px;color:#e2e8f0;pointer-events:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.5);line-height:1.6;white-space:nowrap">
+                </div>
+            </div>
+
         </div><!-- /view-vedolo -->
 
         <!-- oDOLO VIEW -->
@@ -14373,6 +14404,59 @@
                 </div>
                 <div class="protocol-links-row proto-links"></div>
                 <div class="protocol-contracts proto-contracts"></div>
+            </div>
+
+            <!-- ── oDOLO DISCOUNT CURVE ── -->
+            <div class="treasury-card anim anim-d4" style="margin-top:24px">
+                <div class="card-header">
+                    <h3 style="display:flex;align-items:center;gap:8px;margin:0">
+                        <img src="odolo-logo-official.svg" width="22" height="22" alt="oDOLO" style="flex-shrink:0">
+                        oDOLO Discount Curve
+                        <span style="font-size:11px;color:rgba(255,255,255,.35);font-weight:400;margin-left:8px">Theory
+                            vs Reality</span>
+                    </h3>
+                </div>
+                <div style="padding:0 20px 10px">
+                    <p style="margin:0 0 12px;font-size:12px;color:rgba(255,255,255,.45);line-height:1.5">
+                        Each dot = one oDOLO exercise. The orange line shows the theoretical discount schedule (5% at 7
+                        days → 50% at 2 years).
+                    </p>
+                </div>
+                <div style="position:relative;width:100%;height:340px;padding:0 20px 20px">
+                    <canvas id="treasury-discount-canvas" style="width:100%;height:100%"></canvas>
+                </div>
+                <div style="display:flex;gap:16px;padding:0 24px 18px;flex-wrap:wrap;align-items:center">
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span
+                            style="display:inline-block;width:10px;height:2px;background:#f59e0b;border-radius:1px"></span>
+                        <span style="font-size:11px;color:rgba(255,255,255,.5)">Theoretical</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span
+                            style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6"></span>
+                        <span style="font-size:10px;color:rgba(255,255,255,.4)">&lt;$500</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span
+                            style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981"></span>
+                        <span style="font-size:10px;color:rgba(255,255,255,.4)">$500–5K</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span
+                            style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b"></span>
+                        <span style="font-size:10px;color:rgba(255,255,255,.4)">$5K–25K</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span
+                            style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#ec4899;box-shadow:0 0 6px rgba(236,72,153,.5)"></span>
+                        <span style="font-size:10px;color:rgba(255,255,255,.4)">&gt;$25K 🐋</span>
+                    </div>
+                    <div id="treasury-discount-stats"
+                        style="margin-left:auto;display:flex;gap:16px;font-size:11px;color:rgba(255,255,255,.5)"></div>
+                </div>
+                <div id="treasury-discount-tooltip"
+                    style="display:none;position:fixed;z-index:9999;background:rgba(15,23,42,0.97);border:1px solid rgba(99,102,241,0.3);border-radius:8px;padding:10px 14px;font-size:11px;color:#e2e8f0;pointer-events:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.5);line-height:1.6;white-space:nowrap">
+                </div>
             </div>
 
         </div><!-- /view-odolo -->
@@ -16239,101 +16323,6 @@
                 </div>
             </div>
 
-            <!-- ── oDOLO DISCOUNT CURVE ── -->
-            <div class="treasury-card" style="margin-top:24px">
-                <div class="card-header">
-                    <h3 style="display:flex;align-items:center;gap:8px;margin:0">
-                        <img src="dolo-logo.svg" width="22" height="22" alt="oDOLO" style="flex-shrink:0">
-                        oDOLO Discount Curve
-                        <span style="font-size:11px;color:rgba(255,255,255,.35);font-weight:400;margin-left:8px">Theory
-                            vs Reality</span>
-                    </h3>
-                </div>
-                <div style="padding:0 20px 10px">
-                    <p style="margin:0 0 12px;font-size:12px;color:rgba(255,255,255,.45);line-height:1.5">
-                        Each dot = one oDOLO exercise. The orange line shows the theoretical discount schedule (5% at 7
-                        days → 50% at 2 years).
-                    </p>
-                </div>
-                <div style="position:relative;width:100%;height:340px;padding:0 20px 20px">
-                    <canvas id="treasury-discount-canvas" style="width:100%;height:100%"></canvas>
-                </div>
-                <div style="display:flex;gap:16px;padding:0 24px 18px;flex-wrap:wrap;align-items:center">
-                    <div style="display:flex;align-items:center;gap:6px">
-                        <span
-                            style="display:inline-block;width:10px;height:2px;background:#f59e0b;border-radius:1px"></span>
-                        <span style="font-size:11px;color:rgba(255,255,255,.5)">Theoretical</span>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:6px">
-                        <span
-                            style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6"></span>
-                        <span style="font-size:10px;color:rgba(255,255,255,.4)">&lt;$500</span>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:6px">
-                        <span
-                            style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981"></span>
-                        <span style="font-size:10px;color:rgba(255,255,255,.4)">$500–5K</span>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:6px">
-                        <span
-                            style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b"></span>
-                        <span style="font-size:10px;color:rgba(255,255,255,.4)">$5K–25K</span>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:6px">
-                        <span
-                            style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#ec4899;box-shadow:0 0 6px rgba(236,72,153,.5)"></span>
-                        <span style="font-size:10px;color:rgba(255,255,255,.4)">&gt;$25K 🐋</span>
-                    </div>
-                    <div id="treasury-discount-stats"
-                        style="margin-left:auto;display:flex;gap:16px;font-size:11px;color:rgba(255,255,255,.5)"></div>
-                </div>
-                <!-- Hover tooltip for discount chart -->
-                <div id="treasury-discount-tooltip"
-                    style="display:none;position:fixed;z-index:9999;background:rgba(15,23,42,0.97);border:1px solid rgba(99,102,241,0.3);border-radius:8px;padding:10px 14px;font-size:11px;color:#e2e8f0;pointer-events:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.5);line-height:1.6;white-space:nowrap">
-                </div>
-            </div>
-
-            <!-- ── veDOLO LOCK DURATION DISTRIBUTION ── -->
-            <div class="treasury-card" style="margin-top:24px">
-                <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
-                    <h3 style="display:flex;align-items:center;gap:8px;margin:0">
-                        <img src="dolo-logo.svg" width="22" height="22" alt="veDOLO" style="flex-shrink:0">
-                        Lock Duration Distribution
-                        <span style="font-size:11px;color:rgba(255,255,255,.35);font-weight:400;margin-left:8px">How
-                            long do users lock?</span>
-                    </h3>
-                    <div style="display:flex;gap:4px;background:rgba(255,255,255,.06);border-radius:6px;padding:2px">
-                        <button id="lock-dist-toggle-count" onclick="treasury_toggleLockDist('count')"
-                            style="padding:4px 12px;font-size:11px;border:none;border-radius:4px;cursor:pointer;background:rgba(99,102,241,.5);color:#e2e8f0;font-weight:600;transition:all .2s">Count</button>
-                        <button id="lock-dist-toggle-vedolo" onclick="treasury_toggleLockDist('vedolo')"
-                            style="padding:4px 12px;font-size:11px;border:none;border-radius:4px;cursor:pointer;background:transparent;color:rgba(255,255,255,.4);font-weight:500;transition:all .2s">veDOLO</button>
-                    </div>
-                </div>
-                <div style="position:relative;width:100%;height:300px;padding:0 20px 20px">
-                    <canvas id="treasury-lockdist-canvas" style="width:100%;height:100%"></canvas>
-                </div>
-                <div style="display:flex;gap:16px;padding:4px 24px 12px;flex-wrap:wrap;align-items:center">
-                    <div style="display:flex;align-items:center;gap:5px"><span
-                            style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#3b82f6"></span><span
-                            style="font-size:10px;color:rgba(255,255,255,.4)">&lt;$1K</span></div>
-                    <div style="display:flex;align-items:center;gap:5px"><span
-                            style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#10b981"></span><span
-                            style="font-size:10px;color:rgba(255,255,255,.4)">$1K–10K</span></div>
-                    <div style="display:flex;align-items:center;gap:5px"><span
-                            style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#f59e0b"></span><span
-                            style="font-size:10px;color:rgba(255,255,255,.4)">$10K–50K</span></div>
-                    <div style="display:flex;align-items:center;gap:5px"><span
-                            style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#ec4899;box-shadow:0 0 5px rgba(236,72,153,.4)"></span><span
-                            style="font-size:10px;color:rgba(255,255,255,.4)">&gt;$50K 🐋</span></div>
-                    <div id="treasury-lockdist-stats"
-                        style="margin-left:auto;display:flex;gap:16px;font-size:11px;color:rgba(255,255,255,.5)"></div>
-                </div>
-                <!-- Hover tooltip -->
-                <div id="treasury-lockdist-tooltip"
-                    style="display:none;position:fixed;z-index:9999;background:rgba(15,23,42,0.97);border:1px solid rgba(99,102,241,0.3);border-radius:8px;padding:10px 14px;font-size:11px;color:#e2e8f0;pointer-events:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.5);line-height:1.6;white-space:nowrap">
-                </div>
-            </div>
-
             <!-- ── RECOUP POOL FUNDING ── -->
             <div class="treasury-card" style="margin-top:24px">
                 <div class="card-header">
@@ -18192,16 +18181,20 @@
             currentView = view;
 
             // Toggle view sections
-            ['vedolo', 'odolo', 'dolo', 'earn', 'assets', 'tvl', 'treasury', 'lending'].forEach(v => {
-                document.getElementById('view-' + v).classList.toggle('active', view === v);
-                document.getElementById('tab-' + v).classList.toggle('active', view === v);
+            ['vedolo', 'odolo', 'dolo', 'earn', 'assets', 'tvl', 'lending'].forEach(v => {
+                const viewEl = document.getElementById('view-' + v);
+                const tabEl = document.getElementById('tab-' + v);
+                if (viewEl) viewEl.classList.toggle('active', view === v);
+                if (tabEl) tabEl.classList.toggle('active', view === v);
             });
+            const legacyTreasuryView = document.getElementById('view-treasury');
+            if (legacyTreasuryView) legacyTreasuryView.classList.remove('active');
 
             // Re-position sliders now that hidden containers are visible
             setTimeout(repositionAllSliders, 50);
 
             // Update page title
-            const titles = { vedolo: 'veDOLO', odolo: 'oDOLO', dolo: 'DOLO', earn: 'EARN', assets: 'ASSETS', tvl: 'TVL', treasury: 'TREASURY', lending: 'LENDING' };
+            const titles = { vedolo: 'veDOLO', odolo: 'oDOLO', dolo: 'DOLO', earn: 'EARN', assets: 'ASSETS', tvl: 'TVL', lending: 'LENDING' };
             document.title = (titles[view] || 'Dashboard') + ' — Berachain Dashboard';
 
             // Lazy-load lending iframe on first visit
@@ -18220,6 +18213,14 @@
             // Re-render oDOLO donut on switch (canvas needs visible dimensions)
             if (view === 'odolo' && odolo_cachedData) {
                 setTimeout(() => odolo_renderDonut(odolo_cachedData), 50);
+            }
+
+            // Re-render migrated treasury analytics where they now live
+            if (view === 'odolo' && treasury_exercisersData) {
+                setTimeout(() => treasury_renderDiscountCurve(treasury_exercisersData), 80);
+            }
+            if (view === 'vedolo' && treasury_exercisersData) {
+                setTimeout(() => treasury_renderLockDistribution(treasury_exercisersData), 80);
             }
 
             // Re-render TVL charts on switch to TVL tab
@@ -18254,13 +18255,9 @@
             // Scroll to top
             window.scrollTo({ top: 0, behavior: 'smooth' });
 
-            // Load treasury data on first visit
-            if (view === 'treasury' && !treasury_loaded) {
+            // Load treasury analytics on first visit to the tabs that now host them
+            if ((view === 'odolo' || view === 'vedolo') && !treasury_loaded) {
                 treasury_init();
-            }
-            // Re-render treasury donut on switch
-            if (view === 'treasury' && treasury_loaded && treasury_supplyData) {
-                setTimeout(() => odolo_drawMiniDonut('treasury-supply-canvas', treasury_supplyData, 'treasury-supply-total', 'treasury-supply-center-sub', 'TOTAL SUPPLY', 'treasury-supply-legend', treasury_supplyData.reduce((s, x) => s + x.value, 0)), 50);
             }
         }
 
@@ -35256,6 +35253,7 @@
         // ===== TREASURY NAMESPACE =====
         let treasury_loaded = false;
         let treasury_supplyData = null;
+        let treasury_exercisersData = null;
 
         // ===== Protocol Addresses sort =====
         let treasuryAddrSortKey = 'rank';
@@ -35441,6 +35439,7 @@
 
                 // ── 5. oDOLO Discount Curve ──
                 if (exercisersResp && exercisersResp.exercisers) {
+                    treasury_exercisersData = exercisersResp.exercisers;
                     setTimeout(() => treasury_renderDiscountCurve(exercisersResp.exercisers), 100);
                 }
 
