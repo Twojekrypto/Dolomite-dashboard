@@ -5601,8 +5601,8 @@
                 }
                 .supply-activity-summary-head {
                     display: flex;
-                    align-items: flex-start;
-                    justify-content: space-between;
+                    align-items: center;
+                    justify-content: flex-start;
                     gap: 12px;
                     flex-wrap: wrap;
                     margin-bottom: 14px;
@@ -5613,12 +5613,6 @@
                     letter-spacing: 0.14em;
                     text-transform: uppercase;
                     color: rgba(148,163,184,0.72);
-                }
-                .supply-activity-summary-note {
-                    font-size: 12px;
-                    line-height: 1.45;
-                    color: rgba(226,232,240,0.58);
-                    max-width: 760px;
                 }
                 .supply-activity-summary-grid {
                     display: grid;
@@ -6099,12 +6093,18 @@
 
             <div class="table-card-outer" id="supply-activity-card" style="display:none;">
                 <div class="table-card-inner">
+                    <div class="supply-activity-summary" id="supply-activity-summary" style="display:none;">
+                        <div class="supply-activity-summary-head">
+                            <div class="supply-activity-summary-label">Flow Snapshot</div>
+                        </div>
+                        <div class="supply-activity-summary-grid" id="supply-activity-summary-grid"></div>
+                    </div>
                     <div class="table-card-header supply-activity-header">
                         <div class="supply-activity-heading">
                             <h3 style="display:flex; align-items:center; gap:8px;">
                                 <span>Asset Activity</span> <span class="header-count" id="supply-activity-count"></span>
                             </h3>
-                            <div class="supply-activity-subtitle" id="supply-activity-subtitle">Recent 30-day deposits, withdrawals, transfers, and liquidations for the selected market, with full history available on demand.</div>
+                            <div class="supply-activity-subtitle" id="supply-activity-subtitle">Deposits, withdrawals, transfers, and liquidations for the selected market.</div>
                         </div>
                     </div>
                     <div class="supply-activity-toolbar">
@@ -6131,13 +6131,6 @@
                             <button class="supply-filter-pill active" data-type="transfer" onclick="toggleSupplyActivityType('transfer')">Transfers</button>
                             <button class="supply-filter-pill active" data-type="liquidation" onclick="toggleSupplyActivityType('liquidation')">Liquidations</button>
                         </div>
-                    </div>
-                    <div class="supply-activity-summary" id="supply-activity-summary" style="display:none;">
-                        <div class="supply-activity-summary-head">
-                            <div class="supply-activity-summary-label">Flow Snapshot</div>
-                            <div class="supply-activity-summary-note" id="supply-activity-summary-note">Net flow = deposits minus withdrawals. Transfers and liquidations are tracked as internal volume.</div>
-                        </div>
-                        <div class="supply-activity-summary-grid" id="supply-activity-summary-grid"></div>
                     </div>
                     <div class="table-scroll">
                         <div id="supply-activity-loading" class="loading-state" style="display:none; padding:40px;">
@@ -8786,19 +8779,7 @@
             const token = currentSupplyOverview?.token?.symbol || (currentSupplyTokensMap[document.getElementById('supply-asset-select')?.value]?.symbol || 'the selected market');
             const chainName = CHAIN_DISPLAY_NAMES[document.getElementById('supply-chain-select')?.value] || document.getElementById('supply-chain-select')?.value || '';
             if (!subtitle) return;
-            const activityStage = currentSupplyOverview?.activityStage || 'loading';
-            const isFullLoading = !!currentSupplyOverview?.activityFullLoading;
-            if (activityStage === 'full') {
-                subtitle.textContent = `Full deposit, withdrawal, transfer, and liquidation history for ${token} on ${chainName}.`;
-                return;
-            }
-            if (activityStage === 'recent') {
-                subtitle.textContent = isFullLoading
-                    ? `Latest 30-day activity for ${token} on ${chainName} is ready now while older history keeps syncing.`
-                    : `Latest 30-day activity for ${token} on ${chainName} is ready now · load older history only when you need it.`;
-                return;
-            }
-            subtitle.textContent = `Loading the latest 30-day activity for ${token} on ${chainName} first so the table becomes usable faster.`;
+            subtitle.textContent = `Deposits, withdrawals, transfers, and liquidations for ${token} on ${chainName}.`;
         }
 
         function updateSupplyActivityHistoryAction() {
@@ -8816,7 +8797,7 @@
                 button.style.display = 'none';
                 button.disabled = false;
                 buttonLabel.textContent = 'Load older tx';
-                state.textContent = 'Full history ready';
+                state.textContent = 'Full history';
                 badge.classList.add('full');
                 dot.classList.add('full');
                 return;
@@ -8825,7 +8806,7 @@
             if (activityStage === 'recent') {
                 button.disabled = isFullLoading;
                 buttonLabel.textContent = isFullLoading ? 'Loading older tx...' : 'Load older tx';
-                state.textContent = isFullLoading ? 'Extending beyond 30D' : 'Recent 30D ready';
+                state.textContent = isFullLoading ? '30D ready · syncing older' : '30D ready';
                 if (isFullLoading) {
                     badge.classList.add('loading');
                     dot.classList.add('loading');
@@ -8834,7 +8815,7 @@
             }
             button.disabled = true;
             buttonLabel.textContent = 'Preparing recent tx...';
-            state.textContent = 'Syncing latest 30D';
+            state.textContent = 'Loading 30D';
             badge.classList.add('loading');
             dot.classList.add('loading');
         }
@@ -10682,23 +10663,12 @@
         function renderSupplyActivitySummary(filteredRows) {
             const summaryEl = document.getElementById('supply-activity-summary');
             const summaryGrid = document.getElementById('supply-activity-summary-grid');
-            const summaryNote = document.getElementById('supply-activity-summary-note');
-            if (!summaryEl || !summaryGrid || !summaryNote) return;
+            if (!summaryEl || !summaryGrid) return;
 
             const rows = Array.isArray(filteredRows) ? filteredRows : [];
             const nowTs = Math.floor(Date.now() / 1000);
             const tokenSymbol = currentSupplyOverview?.token?.symbol || '';
             const liveSupply = Number(currentSupplyOverview?.supply || 0);
-            const filtersActive = !!supplyActivitySearchQuery ||
-                supplyActivityFilters.size !== Object.keys(SUPPLY_ACTIVITY_META).length ||
-                supplyActivityTimeMin != null ||
-                supplyActivityTimeMax != null ||
-                supplyActivityAmountMin != null ||
-                supplyActivityAmountMax != null ||
-                supplyActivityUsdMin != null ||
-                supplyActivityUsdMax != null;
-            const notePrefix = filtersActive ? 'Snapshot respects the active table filters. ' : '';
-            summaryNote.textContent = `${notePrefix}Net flow = deposits minus withdrawals. Transfers and liquidations are tracked as internal volume.`;
 
             const periods = [
                 { label: '24H', seconds: 24 * 60 * 60 },
@@ -11538,7 +11508,7 @@
             syncSupplyActivityColumnFilterUi();
             syncSupplyHistoryControls([]);
             if (activitySubtitle) {
-                activitySubtitle.textContent = `Loading the latest 30-day activity for ${tokenObj.symbol} on ${CHAIN_DISPLAY_NAMES[chain] || chain} first so the table becomes usable faster.`;
+                activitySubtitle.textContent = `Deposits, withdrawals, transfers, and liquidations for ${tokenObj.symbol} on ${CHAIN_DISPLAY_NAMES[chain] || chain}.`;
             }
 
             const onOverviewReady = fn => {
