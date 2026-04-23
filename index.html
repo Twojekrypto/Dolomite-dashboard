@@ -36118,7 +36118,7 @@
             if (!canvas || !shell) return false;
             const dpr = window.devicePixelRatio || 1;
             const width = Math.max(320, Math.round(shell.clientWidth));
-            const height = Math.max(228, Math.round(shell.clientHeight));
+            const height = Math.max(214, Math.min(244, Math.round(width * 0.22)));
             if (width < 120 || height < 120) {
                 treasury_setChartStatus('discount', 'Finalizing chart layout…');
                 return false;
@@ -36343,8 +36343,10 @@
         let _lockDistMode = 'count';
         let _lockDistData = null;
         let _lockDistHoverState = null;
+        let _lockDistHoveredIndex = -1;
         function treasury_toggleLockDist(mode, redraw = true) {
             _lockDistMode = mode;
+            _lockDistHoveredIndex = -1;
             // Toggle button styles
             const btnCount = document.getElementById('lock-dist-toggle-count');
             const btnVedolo = document.getElementById('lock-dist-toggle-vedolo');
@@ -36353,7 +36355,7 @@
                 btnVedolo.classList.toggle('is-active', mode === 'vedolo');
             }
             if (redraw && _lockDistData) {
-                treasury_drawLockBars();
+                treasury_drawLockBars(-1);
                 if (_lockDistData.meta) {
                     treasury_renderLockStatsDefault(
                         _lockDistData.totalExercises,
@@ -36460,6 +36462,10 @@
                         my >= _lockDistHoverState.pad.top && my <= _lockDistHoverState.pad.top + _lockDistHoverState.plotH
                     );
                     if (!hit) {
+                        if (_lockDistHoveredIndex !== -1) {
+                            _lockDistHoveredIndex = -1;
+                            treasury_drawLockBars(-1);
+                        }
                         tooltip.style.display = 'none';
                         treasury_renderLockStatsDefault(totalExercises, medianLabel, topBucket, topPct);
                         treasury_setLegendFocus('treasury-lockdist-legend');
@@ -36495,6 +36501,10 @@
                     `;
                     tooltip.style.display = 'block';
                     treasury_placeChartTooltip(tooltip, evt, 238);
+                    if (_lockDistHoveredIndex !== hit.index) {
+                        _lockDistHoveredIndex = hit.index;
+                        treasury_drawLockBars(hit.index);
+                    }
                     treasury_renderLockStatsHover(bucket, _lockDistHoverState.totalExercises);
                     treasury_setLegendFocus('treasury-lockdist-legend', dominantTier.key ? [dominantTier.key] : []);
                     if (overlay) {
@@ -36507,6 +36517,10 @@
                     }
                 });
                 canvas.addEventListener('mouseleave', () => {
+                    if (_lockDistHoveredIndex !== -1) {
+                        _lockDistHoveredIndex = -1;
+                        treasury_drawLockBars(-1);
+                    }
                     tooltip.style.display = 'none';
                     treasury_renderLockStatsDefault(totalExercises, medianLabel, topBucket, topPct);
                     treasury_setLegendFocus('treasury-lockdist-legend');
@@ -36516,13 +36530,13 @@
             return true;
         }
 
-        function treasury_drawLockBars() {
+        function treasury_drawLockBars(hoveredIndex = -1) {
             const { buckets, totalExercises } = _lockDistData;
             const canvas = document.getElementById('treasury-lockdist-canvas');
             const shell = document.getElementById('treasury-lockdist-shell');
             if (!canvas || !shell) return false;
             const width = Math.max(320, Math.round(shell.clientWidth));
-            const height = Math.max(214, Math.round(shell.clientHeight));
+            const height = Math.max(214, Math.min(244, Math.round(width * 0.22)));
             if (width < 120 || height < 120) {
                 treasury_setChartStatus('lockdist', 'Finalizing chart layout…');
                 return false;
@@ -36597,14 +36611,19 @@
                 const totalBarH = maxVal > 0 ? (totalVal / maxVal) * plotH : 0;
                 const x = pad.left + groupOffset + i * (barW + gap);
                 const yTop = pad.top + plotH - totalBarH;
-                barRects.push({ x, y: yTop, w: barW, h: totalBarH, bucket: b });
+                barRects.push({ index: i, x, y: yTop, w: barW, h: totalBarH, bucket: b });
+                const isHovered = hoveredIndex === i;
+                const isDimmed = hoveredIndex >= 0 && !isHovered;
+                const drawAlpha = isDimmed ? 0.26 : 1;
 
                 // Glow behind full bar — color from dominant veDOLO tier
                 if (totalBarH > 5) {
                     const topTier = b.tiers.reduce((best, t, ti) => {
                         return t.vedolo > best.val ? { val: t.vedolo, idx: ti } : best;
                     }, { val: 0, idx: 0 });
-                    ctx.fillStyle = _lockDistTiers[topTier.idx].glow;
+                    ctx.fillStyle = isHovered
+                        ? 'rgba(129,140,248,0.18)'
+                        : _lockDistTiers[topTier.idx].glow;
                     ctx.fillRect(x - 2, yTop - 4, barW + 4, totalBarH + 4);
                 }
 
@@ -36620,6 +36639,7 @@
                     const segY = yOffset - segH;
 
                     ctx.fillStyle = _lockDistTiers[ti].color;
+                    ctx.globalAlpha = drawAlpha;
 
                     // Check if this is the topmost visible segment for rounded corners
                     const isTopSegment = ti === b.tiers.reduce((last, seg, si) => {
@@ -36653,9 +36673,19 @@
 
                     yOffset = segY;
                 });
+                ctx.globalAlpha = 1;
+
+                if (isHovered && totalBarH > 8) {
+                    ctx.strokeStyle = 'rgba(255,255,255,0.62)';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.roundRect(x - 1.5, yTop - 2.5, barW + 3, totalBarH + 4, [8, 8, 10, 10]);
+                    ctx.stroke();
+                }
 
                 // Value on top of bar
                 if (totalBarH > 20) {
+                    ctx.globalAlpha = isDimmed ? 0.46 : 0.9;
                     ctx.fillStyle = 'rgba(255,255,255,.8)';
                     ctx.font = 'bold 10px system-ui';
                     ctx.textAlign = 'center';
@@ -36666,9 +36696,11 @@
                         topLabel = totalVal >= 1e6 ? (totalVal / 1e6).toFixed(1) + 'M' : totalVal >= 1e3 ? (totalVal / 1e3).toFixed(0) + 'K' : Math.round(totalVal).toString();
                     }
                     ctx.fillText(topLabel, x + barW / 2, yTop - 5);
+                    ctx.globalAlpha = 1;
                 }
 
                 // X-axis label
+                ctx.globalAlpha = isDimmed ? 0.42 : 1;
                 ctx.fillStyle = 'rgba(255,255,255,.45)';
                 ctx.font = '10px system-ui';
                 ctx.textAlign = 'center';
@@ -36681,6 +36713,7 @@
                     ctx.font = '9px system-ui';
                     ctx.fillText(pct + '%', x + barW / 2, pad.top + plotH + 28);
                 }
+                ctx.globalAlpha = 1;
             });
             _lockDistHoverState = { pad, plotH, totalExercises, barRects };
             treasury_setChartStatus('lockdist', '');
