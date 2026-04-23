@@ -9,6 +9,10 @@ from audit_earn_asset import (
 
 
 class AuditEarnAssetTest(unittest.TestCase):
+    def test_normalize_live_row_category_canonicalizes_legacy_aliases(self):
+        self.assertEqual(normalize_live_row_category({"category": "verified_other"}), "verified_nonstandard")
+        self.assertEqual(normalize_live_row_category({"category": "borrow_only"}), "non_active_borrow_route")
+
     def test_normalize_live_row_category_marks_replay_verified(self):
         row = {
             "positionKind": "visible_supply",
@@ -70,6 +74,15 @@ class AuditEarnAssetTest(unittest.TestCase):
             parse_live_row_pattern(row),
             ("exact_match_non_strict_inferred", "low"),
         )
+
+    def test_parse_live_row_pattern_marks_non_active_borrow_route_as_info(self):
+        row = {
+            "positionKind": "borrow_only",
+            "marketRow": {"verifyLabel": "", "sourceLabel": ""},
+            "focusMarket": {},
+        }
+        self.assertEqual(normalize_live_row_category(row), "non_active_borrow_route")
+        self.assertEqual(parse_live_row_pattern(row), ("non_active_borrow_route", "info"))
 
     def test_parse_live_row_pattern_detects_hidden_collateral_coverage_gap(self):
         row = {
@@ -256,16 +269,26 @@ class AuditEarnAssetTest(unittest.TestCase):
                 "pageReadyMaxWaitMs": 113,
                 "settlePollMs": 114,
                 "settleStablePolls": 5,
+                "maxWaitMs": 117,
+                "lateReplayGraceMs": 118,
                 "timeoutFinalSnapshotDelayMs": 115,
                 "snapshotFlushEveryResults": 7,
                 "snapshotFlushMaxDelayMs": 116,
+                "snapshotFetchTimeoutMs": 119,
             },
         )
         self.assertIn("const WORKERS = Math.max(1, Number(process.argv[6] || 6));", js)
         self.assertIn("const PAGE_TARGET_POLL_MS = 111;", js)
+        self.assertIn("const MAX_WAIT_MS = 117;", js)
+        self.assertIn("const LATE_REPLAY_GRACE_MS = 118;", js)
+        self.assertIn("const SNAPSHOT_FETCH_TIMEOUT_MS = 119;", js)
+        self.assertIn("const EVALUATION_TIMEOUT_MS = MAX_WAIT_MS + LATE_REPLAY_GRACE_MS + TIMEOUT_FINAL_SNAPSHOT_DELAY_MS + 10000;", js)
         self.assertIn("const SNAPSHOT_FLUSH_EVERY_RESULTS = 7;", js)
         self.assertIn("function buildEndpointPairs(baseUrls, debugJsonUrls)", js)
         self.assertIn("function distributeWorkers(totalWorkers, endpointCount)", js)
+        self.assertIn("const shouldExtendForLateReplay = (snap) => {", js)
+        self.assertIn("globalThis.__EARN_SNAPSHOT_FETCH_TIMEOUT_OVERRIDE__ = ${SNAPSHOT_FETCH_TIMEOUT_MS};", js)
+        self.assertIn("usedLateReplayGrace = true;", js)
         self.assertIn("if (replayTrusted || exactVerified) return 'replay_verified';", js)
 
     def test_build_live_audit_js_guards_target_creation_loop(self):
