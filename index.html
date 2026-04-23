@@ -2781,6 +2781,335 @@
             animation: assets-card-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) 0.06s both;
         }
 
+        .assets-detail-section.assets-sim-section {
+            grid-column: 1 / -1;
+            animation: assets-card-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
+            padding: 16px 18px 18px;
+            background:
+                radial-gradient(circle at top right, rgba(52, 211, 153, 0.08), transparent 28%),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0.016));
+        }
+
+        .assets-section-header.simulator {
+            color: #7dd3fc;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .assets-section-header.simulator .section-dot {
+            background: #38bdf8;
+            box-shadow: 0 0 6px rgba(56, 189, 248, 0.45);
+        }
+
+        .assets-sim-header-copy {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .assets-sim-header-copy small {
+            font-size: 11px;
+            letter-spacing: 0;
+            text-transform: none;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .assets-sim-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(56, 189, 248, 0.18);
+            background: rgba(56, 189, 248, 0.08);
+            color: #7dd3fc;
+            font-size: 10px;
+            letter-spacing: 0.9px;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .assets-sim-status.warn {
+            border-color: rgba(251, 191, 36, 0.18);
+            background: rgba(251, 191, 36, 0.08);
+            color: #fcd34d;
+        }
+
+        .assets-sim-controls {
+            display: grid;
+            grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.1fr) minmax(0, 0.95fr);
+            gap: 14px;
+            align-items: end;
+        }
+
+        .assets-sim-control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .assets-sim-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.9px;
+            color: rgba(255, 255, 255, 0.38);
+            font-weight: 700;
+        }
+
+        .assets-sim-mode {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.035);
+            width: fit-content;
+        }
+
+        .assets-sim-mode button,
+        .assets-sim-presets button {
+            border: none;
+            outline: none;
+            cursor: pointer;
+            font: inherit;
+            transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+        }
+
+        .assets-sim-mode button {
+            min-width: 92px;
+            padding: 9px 14px;
+            border-radius: 999px;
+            background: transparent;
+            color: rgba(255, 255, 255, 0.55);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .assets-sim-mode button.active {
+            background: linear-gradient(90deg, rgba(52, 211, 153, 0.18), rgba(56, 189, 248, 0.18));
+            color: rgba(255, 255, 255, 0.95);
+            box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.12);
+        }
+
+        .assets-sim-input-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(7, 12, 20, 0.58);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+        }
+
+        .assets-sim-input-prefix {
+            font-size: 16px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.82);
+        }
+
+        .assets-sim-input-wrap input {
+            width: 100%;
+            border: none;
+            background: transparent;
+            color: rgba(255, 255, 255, 0.96);
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            outline: none;
+        }
+
+        .assets-sim-input-wrap input::placeholder {
+            color: rgba(255, 255, 255, 0.24);
+        }
+
+        .assets-sim-input-caption {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.36);
+        }
+
+        .assets-sim-presets {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .assets-sim-presets button {
+            padding: 8px 10px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.04);
+            color: rgba(255, 255, 255, 0.68);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .assets-sim-presets button:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.92);
+            transform: translateY(-1px);
+        }
+
+        .assets-sim-presets button.active {
+            background: rgba(56, 189, 248, 0.14);
+            color: rgba(255, 255, 255, 0.96);
+            border-color: rgba(56, 189, 248, 0.26);
+            box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.08);
+        }
+
+        .assets-sim-presets button:disabled {
+            opacity: 0.4;
+            cursor: default;
+            transform: none;
+        }
+
+        .assets-sim-results {
+            margin-top: 16px;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .assets-sim-stat {
+            padding: 14px 14px 13px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            background: rgba(255, 255, 255, 0.03);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+            min-width: 0;
+        }
+
+        .assets-sim-stat-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.85px;
+            color: rgba(255, 255, 255, 0.36);
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .assets-sim-stat-value {
+            font-size: 22px;
+            font-weight: 800;
+            line-height: 1.05;
+            color: rgba(255, 255, 255, 0.96);
+            letter-spacing: -0.03em;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .assets-sim-stat-value.positive {
+            color: #34d399;
+        }
+
+        .assets-sim-stat-value.negative {
+            color: #f87171;
+        }
+
+        .assets-sim-stat-sub {
+            margin-top: 7px;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.42);
+            line-height: 1.45;
+        }
+
+        .assets-sim-stat-sub strong {
+            color: rgba(255, 255, 255, 0.74);
+            font-weight: 700;
+        }
+
+        .assets-sim-context {
+            margin-top: 12px;
+            padding: 11px 13px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            background: rgba(255, 255, 255, 0.024);
+            font-size: 11px;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.46);
+        }
+
+        .assets-sim-context strong {
+            color: rgba(255, 255, 255, 0.86);
+            font-weight: 700;
+        }
+
+        .assets-sim-breakdown {
+            margin-top: 14px;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .assets-sim-breakdown-card {
+            padding: 12px 13px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            background: rgba(255, 255, 255, 0.024);
+            min-width: 0;
+        }
+
+        .assets-sim-breakdown-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 9px;
+            font-size: 11px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .assets-sim-breakdown-title span:last-child {
+            font-variant-numeric: tabular-nums;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .assets-sim-breakdown-lines {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+
+        .assets-sim-breakdown-line {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.62);
+            min-width: 0;
+        }
+
+        .assets-sim-breakdown-line strong {
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 700;
+        }
+
+        .assets-sim-breakdown-line span:first-child {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .assets-sim-footnote {
+            margin-top: 12px;
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            font-size: 11px;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.38);
+        }
+
+        .assets-sim-footnote strong {
+            color: rgba(255, 255, 255, 0.7);
+            font-weight: 700;
+        }
+
         @keyframes assets-card-in {
             from {
                 opacity: 0;
@@ -2862,6 +3191,20 @@
         @media (max-width: 800px) {
             .assets-detail-sections {
                 grid-template-columns: 1fr;
+            }
+
+            .assets-sim-controls,
+            .assets-sim-results,
+            .assets-sim-breakdown {
+                grid-template-columns: 1fr;
+            }
+
+            .assets-sim-mode {
+                width: 100%;
+            }
+
+            .assets-sim-mode button {
+                flex: 1 1 0;
             }
         }
 
@@ -22835,18 +23178,24 @@
                             const baseLending = parseFloat(r.supplyInterestRate) || 0;
                             let odoloRewards = 0;
                             const yieldSources = [];
+                            const rewardYieldSources = [];
+                            const staticYieldSources = [];
                             (r.outsideSupplyInterestRateParts || []).forEach(p => {
                                 if (p.label && p.label.includes('oDOLO') && p.interestRate) {
                                     odoloRewards += parseFloat(p.interestRate) || 0;
                                 } else if (p.category === 'rewards' && p.interestRate) {
                                     const rate = parseFloat(p.interestRate) || 0;
                                     if (rate > 0) {
-                                        yieldSources.push({ label: p.label.replace(/ \(.*\)$/, ''), rate: rate * 100 });
+                                        const cleaned = { label: p.label.replace(/ \(.*\)$/, ''), rate: rate * 100, kind: 'reward' };
+                                        yieldSources.push(cleaned);
+                                        rewardYieldSources.push(cleaned);
                                     }
                                 } else if (p.category === 'nativeYield' && p.interestRate) {
                                     const rate = parseFloat(p.interestRate) || 0;
                                     if (rate > 0) {
-                                        yieldSources.push({ label: p.label, rate: rate * 100 });
+                                        const cleaned = { label: p.label, rate: rate * 100, kind: 'native' };
+                                        yieldSources.push(cleaned);
+                                        staticYieldSources.push(cleaned);
                                     }
                                 }
                             });
@@ -22855,6 +23204,14 @@
                             let extYieldApr = 0;
                             yieldSources.forEach(ys => {
                                 extYieldApr += ys.rate;
+                            });
+                            let rewardYieldApr = 0;
+                            rewardYieldSources.forEach(ys => {
+                                rewardYieldApr += ys.rate;
+                            });
+                            let staticYieldApr = 0;
+                            staticYieldSources.forEach(ys => {
+                                staticYieldApr += ys.rate;
                             });
                             results.push({
                                 symbol: r.token.tokenSymbol,
@@ -22866,9 +23223,16 @@
                                 chainIcon: chain.icon,
                                 supplyApr: totalSupply * 100,
                                 borrowApr: baseBorrow * 100,
+                                lowerOptimalApr: (parseFloat(r.lowerOptimalRate) || 0) * 100,
+                                upperOptimalApr: (parseFloat(r.upperOptimalRate) || 0) * 100,
+                                optimalUtilizationRate: parseFloat(r.optimalUtilizationRate) || 0,
                                 rewards: odoloRewards * 100,
                                 lendingApr: baseLending * 100,
                                 yieldSources: yieldSources,
+                                rewardYieldApr: rewardYieldApr,
+                                rewardYieldSources: rewardYieldSources,
+                                staticYieldApr: staticYieldApr,
+                                staticYieldSources: staticYieldSources,
                                 extYieldApr: extYieldApr,
                                 supplyApr7d: avg7d * 100,
                                 cat: assets_classify(r.token.tokenSymbol),
@@ -22928,6 +23292,9 @@
                     detail: 'Prices are ready. Syncing liquidity depth, caps and utilization now.',
                 });
 
+                assets_allData = results;
+                const subgraphReady = await subgraphPromise;
+
                 const missingBotanixPrices = results.some(r => r.chainKey === 'botanix' && !(r.price > 0));
                 if (missingBotanixPrices) {
                     try {
@@ -22939,15 +23306,15 @@
                             const md = assets_marketData[mdKey];
                             const supplied = Number(md?.supplied) || 0;
                             const tokenUsd = Number(botanixUsd[item.symbol]) || 0;
-                            if (supplied > 0 && tokenUsd > 0) item.price = tokenUsd / supplied;
+                            if (supplied > 0 && tokenUsd > 0) {
+                                item.price = tokenUsd / supplied;
+                            }
                         });
                     } catch (e) {
                         console.warn('Assets Botanix price fallback failed', e);
                     }
                 }
 
-                assets_allData = results;
-                const subgraphReady = await subgraphPromise;
                 assets_syncPrepareStatus({
                     stageIndex: 3,
                     progress: 0.9,
@@ -23811,6 +24178,471 @@
             }, 1500);
         }
 
+        const assets_simulatorStates = {};
+
+        function assets_clamp(value, min, max) {
+            return Math.min(max, Math.max(min, value));
+        }
+
+        function assets_fmtUsdCompact(value) {
+            const safe = Number.isFinite(value) ? Math.max(0, value) : 0;
+            if (safe >= 1e9) return '$' + (safe / 1e9).toFixed(2) + 'B';
+            if (safe >= 1e6) return '$' + (safe / 1e6).toFixed(2) + 'M';
+            if (safe >= 1e3) return '$' + (safe / 1e3).toFixed(2) + 'K';
+            if (safe >= 1) return '$' + safe.toFixed(2);
+            return '$' + safe.toFixed(4);
+        }
+
+        function assets_fmtPrice(value) {
+            const safe = Number.isFinite(value) ? Math.max(0, value) : 0;
+            if (safe >= 1000) return '$' + safe.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            if (safe >= 1) return '$' + safe.toFixed(2);
+            if (safe >= 0.01) return '$' + safe.toFixed(4);
+            return '$' + safe.toFixed(6);
+        }
+
+        function assets_fmtRateForView(rateApr) {
+            const safe = Number.isFinite(rateApr) ? rateApr : 0;
+            const displayed = assets_showApy && safe > 0 ? aprToApy(safe) : safe;
+            return displayed.toFixed(2) + '%';
+        }
+
+        function assets_fmtDisplayedPercent(value) {
+            const safe = Number.isFinite(value) ? value : 0;
+            return safe.toFixed(2) + '%';
+        }
+
+        function assets_fmtAprPercent(value) {
+            const safe = Number.isFinite(value) ? value : 0;
+            return safe.toFixed(2) + '%';
+        }
+
+        function assets_getRateViewLabel() {
+            return assets_showApy ? 'APY' : 'APR';
+        }
+
+        function assets_computeBorrowCurveApr(utilRatio, lowerOptimalApr, upperOptimalApr, optimalUtilRatio) {
+            const util = assets_clamp(Number(utilRatio) || 0, 0, 0.999999);
+            const optimal = assets_clamp(Number(optimalUtilRatio) || 0.8, 0.05, 0.98);
+            const lower = Math.max(0, Number(lowerOptimalApr) || 0);
+            const upper = Math.max(lower, Number(upperOptimalApr) || lower);
+            if (util <= 0 || upper <= 0) return 0;
+            if (util <= optimal) {
+                return lower * (util / optimal);
+            }
+            const denom = Math.max(1e-9, 1 - optimal);
+            return lower + (upper - lower) * ((util - optimal) / denom);
+        }
+
+        function assets_getSimulatorModel(d, md) {
+            if (!d || !md) return null;
+            const price = Number(d.price) || 0;
+            if (!(price > 0)) return null;
+
+            const suppliedTokens = Number(md.supplied) || 0;
+            const borrowedTokens = Number(md.borrowed) || 0;
+            const availableTokens = Number(md.availableLiquidity) || 0;
+            const suppliedUsd = suppliedTokens * price;
+            const borrowedUsd = borrowedTokens * price;
+            const availableUsd = availableTokens * price;
+            const supplyCapUsd = md.supplyCapNum > 0 ? (Number(md.supplyCapNum) || 0) * price : Infinity;
+            const currentUtilRatio = suppliedTokens > 0 ? assets_clamp(borrowedTokens / suppliedTokens, 0, 0.999999) : 0;
+            const optimalUtilRatio = assets_clamp(Number(d.optimalUtilizationRate) || 0.8, 0.05, 0.98);
+            const lowerOptimalApr = Math.max(0, Number(d.lowerOptimalApr) || 0);
+            const upperOptimalApr = Math.max(lowerOptimalApr, Number(d.upperOptimalApr) || Number(d.borrowApr) || 0);
+            const inferredBorrowApr = assets_computeBorrowCurveApr(currentUtilRatio, lowerOptimalApr, upperOptimalApr, optimalUtilRatio);
+            const currentBorrowApr = Math.max(0, Number(d.borrowApr) || inferredBorrowApr);
+            const currentLendingApr = Math.max(0, Number(d.lendingApr) || 0);
+            const currentOdoloApr = Math.max(0, Number(d.rewards) || 0);
+            const currentRewardYieldApr = Math.max(0, Number(d.rewardYieldApr) || 0);
+            const currentStaticYieldApr = Math.max(0, Number(d.staticYieldApr) || Math.max(0, (Number(d.extYieldApr) || 0) - currentRewardYieldApr));
+
+            let lendingTakeFactor = 0.9;
+            if (currentBorrowApr > 0.0001 && currentUtilRatio > 0) {
+                lendingTakeFactor = assets_clamp(currentLendingApr / (currentBorrowApr * currentUtilRatio), 0, 1.1);
+            }
+
+            return {
+                symbol: d.symbol || d.name || 'asset',
+                chainName: d.chainName || '',
+                price,
+                suppliedTokens,
+                borrowedTokens,
+                availableTokens,
+                suppliedUsd,
+                borrowedUsd,
+                availableUsd,
+                supplyCapUsd,
+                currentUtilRatio,
+                optimalUtilRatio,
+                lowerOptimalApr,
+                upperOptimalApr,
+                currentBorrowApr,
+                currentLendingApr,
+                currentOdoloApr,
+                currentRewardYieldApr,
+                currentStaticYieldApr,
+                lendingTakeFactor,
+                borrowCurveActive: !md.isBorrowDisabled && upperOptimalApr > 0,
+            };
+        }
+
+        function assets_getSimulatorMaxUsd(model, mode) {
+            if (!model) return 0;
+            if (mode === 'withdraw') {
+                return Math.max(0, Math.min(model.availableUsd, model.suppliedUsd));
+            }
+            if (Number.isFinite(model.supplyCapUsd)) {
+                return Math.max(0, model.supplyCapUsd - model.suppliedUsd);
+            }
+            return Infinity;
+        }
+
+        function assets_getSimulatorPresets(model, mode) {
+            if (!model) return [];
+            const maxUsd = assets_getSimulatorMaxUsd(model, mode);
+            const base = mode === 'withdraw' ? Math.max(250, model.availableUsd || model.suppliedUsd || 0) : Math.max(250, model.suppliedUsd || 0);
+            const seeds = [
+                500,
+                2500,
+                10000,
+                50000,
+                250000,
+                base * 0.01,
+                base * 0.05,
+                base * 0.1,
+            ];
+            const filtered = seeds
+                .map(v => Math.round(v / 100) * 100)
+                .filter(v => v >= 100 && (!Number.isFinite(maxUsd) || v <= maxUsd))
+                .filter((v, idx, arr) => arr.indexOf(v) === idx)
+                .sort((a, b) => a - b);
+            if (Number.isFinite(maxUsd) && maxUsd > 0) {
+                const maxRounded = Math.round(maxUsd / 100) * 100;
+                if (maxRounded >= 100 && !filtered.includes(maxRounded)) filtered.push(maxRounded);
+            }
+            return filtered.slice(0, 4);
+        }
+
+        function assets_chooseDefaultSimulatorUsd(model, mode) {
+            const presets = assets_getSimulatorPresets(model, mode);
+            if (presets.length >= 2) return presets[1];
+            if (presets.length === 1) return presets[0];
+            return mode === 'withdraw' ? 1000 : 5000;
+        }
+
+        function assets_getVisibleSimulatorTotal(parts) {
+            let total = 0;
+            if (!assets_excludeLending) total += parts.lendingApr || 0;
+            if (!assets_excludeOdolo) total += parts.odoloApr || 0;
+            if (!assets_excludeYield) total += (parts.rewardYieldApr || 0) + (parts.staticYieldApr || 0);
+            return total;
+        }
+
+        function assets_getSimulatorBreakdownLines(parts) {
+            const lines = [];
+            if (!parts) return lines;
+            if (!assets_excludeLending && (parts.lendingApr || 0) > 0.0001) {
+                lines.push({ label: 'Lending', value: assets_fmtRateForView(parts.lendingApr || 0) });
+            }
+            if (!assets_excludeOdolo && (parts.odoloApr || 0) > 0.0001) {
+                lines.push({ label: 'oDOLO incentives', value: assets_fmtRateForView(parts.odoloApr || 0) });
+            }
+            if (!assets_excludeYield && (parts.rewardYieldApr || 0) > 0.0001) {
+                lines.push({ label: 'External rewards', value: assets_fmtRateForView(parts.rewardYieldApr || 0) });
+            }
+            if (!assets_excludeYield && (parts.staticYieldApr || 0) > 0.0001) {
+                lines.push({ label: 'Native / protocol yield', value: assets_fmtRateForView(parts.staticYieldApr || 0) });
+            }
+            return lines;
+        }
+
+        function assets_buildSimulatorBreakdownCard(title, subtitle, lines) {
+            const body = lines.length
+                ? lines.map(line => `<div class="assets-sim-breakdown-line"><span>${earn_escapeHtml(line.label || '')}</span><strong>${earn_escapeHtml(line.value || '')}</strong></div>`).join('')
+                : '<div class="assets-sim-breakdown-line"><span>No visible sources</span><strong>Hidden by filters</strong></div>';
+            return `<div class="assets-sim-breakdown-card">
+                <div class="assets-sim-breakdown-title">
+                    <span>${earn_escapeHtml(title)}</span>
+                    <span>${earn_escapeHtml(subtitle)}</span>
+                </div>
+                <div class="assets-sim-breakdown-lines">${body}</div>
+            </div>`;
+        }
+
+        function assets_computeSimulatorSnapshot(state) {
+            if (!state || !state.model) return null;
+            const model = state.model;
+            const requestedUsd = Math.max(0, Number(state.usdInput) || 0);
+            const maxUsd = assets_getSimulatorMaxUsd(model, state.mode);
+            const effectiveUsd = Number.isFinite(maxUsd) ? Math.min(requestedUsd, maxUsd) : requestedUsd;
+            const deltaTokens = effectiveUsd > 0 ? (effectiveUsd / model.price) : 0;
+            const nextSuppliedTokens = state.mode === 'deposit'
+                ? model.suppliedTokens + deltaTokens
+                : Math.max(0, model.suppliedTokens - deltaTokens);
+            const nextSuppliedUsd = nextSuppliedTokens * model.price;
+            const nextUtilRatio = nextSuppliedTokens > 0
+                ? assets_clamp(model.borrowedTokens / nextSuppliedTokens, 0, 0.999999)
+                : 0;
+            const nextBorrowApr = model.borrowCurveActive
+                ? assets_computeBorrowCurveApr(nextUtilRatio, model.lowerOptimalApr, model.upperOptimalApr, model.optimalUtilRatio)
+                : 0;
+            const nextLendingApr = nextSuppliedTokens > 0
+                ? nextBorrowApr * nextUtilRatio * model.lendingTakeFactor
+                : 0;
+
+            let dilutionMultiplier = 1;
+            if (nextSuppliedUsd <= 0) {
+                dilutionMultiplier = 0;
+            } else if (model.suppliedUsd > 0) {
+                dilutionMultiplier = model.suppliedUsd / nextSuppliedUsd;
+            }
+            const nextOdoloApr = model.currentOdoloApr * dilutionMultiplier;
+            const nextRewardYieldApr = model.currentRewardYieldApr * dilutionMultiplier;
+            const nextStaticYieldApr = nextSuppliedUsd > 0 ? model.currentStaticYieldApr : 0;
+
+            const currentParts = {
+                lendingApr: model.currentLendingApr,
+                odoloApr: model.currentOdoloApr,
+                rewardYieldApr: model.currentRewardYieldApr,
+                staticYieldApr: model.currentStaticYieldApr,
+            };
+            const nextParts = {
+                lendingApr: nextLendingApr,
+                odoloApr: nextOdoloApr,
+                rewardYieldApr: nextRewardYieldApr,
+                staticYieldApr: nextStaticYieldApr,
+            };
+
+            const currentTotalApr = assets_getVisibleSimulatorTotal(currentParts);
+            const nextTotalApr = assets_getVisibleSimulatorTotal(nextParts);
+            const currentDisplayRate = assets_showApy && currentTotalApr > 0 ? aprToApy(currentTotalApr) : currentTotalApr;
+            const nextDisplayRate = assets_showApy && nextTotalApr > 0 ? aprToApy(nextTotalApr) : nextTotalApr;
+            const deltaDisplayRate = nextDisplayRate - currentDisplayRate;
+
+            let statusText = 'Live estimate';
+            let statusTone = 'info';
+            if (!model.borrowCurveActive && (model.currentOdoloApr > 0 || model.currentRewardYieldApr > 0)) {
+                statusText = 'Rewards-only estimate';
+            } else if (!model.borrowCurveActive) {
+                statusText = 'Mostly static market';
+            }
+            if (requestedUsd <= 0) {
+                statusText = 'Enter an amount';
+            }
+            if (state.mode === 'withdraw' && requestedUsd > effectiveUsd + 0.01) {
+                statusText = 'Capped by withdrawable liquidity';
+                statusTone = 'warn';
+            } else if (state.mode === 'deposit' && Number.isFinite(maxUsd) && requestedUsd > effectiveUsd + 0.01) {
+                statusText = 'Capped by supply cap';
+                statusTone = 'warn';
+            }
+
+            return {
+                mode: state.mode,
+                requestedUsd,
+                effectiveUsd,
+                maxUsd,
+                statusText,
+                statusTone,
+                currentParts,
+                nextParts,
+                currentDisplayRate,
+                nextDisplayRate,
+                deltaDisplayRate,
+                currentUtilPct: model.currentUtilRatio * 100,
+                nextUtilPct: nextUtilRatio * 100,
+                currentBorrowApr: model.currentBorrowApr,
+                nextBorrowApr,
+                nextSuppliedUsd,
+            };
+        }
+
+        function assets_buildSimulatorResultsHtml(snapshot) {
+            if (!snapshot) return '';
+            const direction = snapshot.deltaDisplayRate > 0 ? 'positive' : (snapshot.deltaDisplayRate < 0 ? 'negative' : '');
+            const deltaPrefix = snapshot.deltaDisplayRate > 0 ? '+' : (snapshot.deltaDisplayRate < 0 ? '−' : '');
+            const modeVerb = snapshot.mode === 'deposit' ? 'deposit' : 'withdrawal';
+            const impactSummary = snapshot.deltaDisplayRate > 0
+                ? `Higher than now`
+                : snapshot.deltaDisplayRate < 0
+                    ? `Lower than now`
+                    : `No visible change`;
+            const contextBits = [
+                `Utilization <strong>${snapshot.currentUtilPct.toFixed(1)}%</strong> → <strong>${snapshot.nextUtilPct.toFixed(1)}%</strong>`,
+            ];
+            if (snapshot.currentBorrowApr > 0 || snapshot.nextBorrowApr > 0) {
+                contextBits.push(`Borrow <strong>${assets_fmtAprPercent(snapshot.currentBorrowApr)}</strong> → <strong>${assets_fmtAprPercent(snapshot.nextBorrowApr)}</strong>`);
+            }
+            if (snapshot.effectiveUsd > 0) {
+                contextBits.push(`${assets_fmtUsdCompact(snapshot.effectiveUsd)} ${modeVerb}`);
+            }
+            if (Number.isFinite(snapshot.maxUsd) && snapshot.maxUsd > 0) {
+                contextBits.push(`${snapshot.mode === 'deposit' ? 'Headroom' : 'Withdrawable'} <strong>${assets_fmtUsdCompact(snapshot.maxUsd)}</strong>`);
+            }
+
+            return `
+                <div class="assets-sim-results">
+                    <div class="assets-sim-stat">
+                        <div class="assets-sim-stat-label">Now</div>
+                        <div class="assets-sim-stat-value">${assets_fmtDisplayedPercent(snapshot.currentDisplayRate)}</div>
+                        <div class="assets-sim-stat-sub">Current visible ${assets_getRateViewLabel()}</div>
+                    </div>
+                    <div class="assets-sim-stat">
+                        <div class="assets-sim-stat-label">After ${modeVerb}</div>
+                        <div class="assets-sim-stat-value">${assets_fmtDisplayedPercent(snapshot.nextDisplayRate)}</div>
+                        <div class="assets-sim-stat-sub">Estimated ${assets_getRateViewLabel()} after your move</div>
+                    </div>
+                    <div class="assets-sim-stat">
+                        <div class="assets-sim-stat-label">Impact</div>
+                        <div class="assets-sim-stat-value ${direction}">${deltaPrefix}${assets_fmtDisplayedPercent(Math.abs(snapshot.deltaDisplayRate))}</div>
+                        <div class="assets-sim-stat-sub">${impactSummary}</div>
+                    </div>
+                </div>
+                <div class="assets-sim-context">
+                    ${contextBits.join(' · ')}
+                </div>
+            `;
+        }
+
+        function assets_renderSimulatorResults(rowId) {
+            const state = assets_simulatorStates[rowId];
+            if (!state) return;
+            const snapshot = assets_computeSimulatorSnapshot(state);
+            if (!snapshot) return;
+
+            const statusEl = document.getElementById(rowId + '-sim-status');
+            if (statusEl) {
+                statusEl.textContent = snapshot.statusText;
+                statusEl.classList.toggle('warn', snapshot.statusTone === 'warn');
+            }
+
+            const resultsEl = document.getElementById(rowId + '-sim-results-wrap');
+            if (resultsEl) {
+                resultsEl.innerHTML = assets_buildSimulatorResultsHtml(snapshot);
+            }
+
+            const inputEl = document.getElementById(rowId + '-sim-input');
+            if (inputEl) {
+                inputEl.value = state.usdInput > 0 ? state.usdInput : '';
+            }
+
+            document.querySelectorAll(`[data-assets-sim-mode="${rowId}"]`).forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === state.mode);
+            });
+
+            const presets = assets_getSimulatorPresets(state.model, state.mode);
+            const presetsEl = document.getElementById(rowId + '-sim-presets');
+            if (presetsEl) {
+                presetsEl.innerHTML = presets.length
+                    ? presets.map(value => `<button type="button" data-assets-sim-preset="${rowId}" data-value="${value}" class="${Math.abs((state.usdInput || 0) - value) < 0.5 ? 'active' : ''}" onclick="event.stopPropagation(); assets_applySimulatorPreset('${rowId}', ${value})">${assets_fmtUsdCompact(value)}</button>`).join('')
+                    : '<button type="button" disabled>No presets</button>';
+            }
+
+            const captionEl = document.getElementById(rowId + '-sim-caption');
+            if (captionEl) {
+                const capText = state.mode === 'deposit'
+                    ? (Number.isFinite(snapshot.maxUsd) && snapshot.maxUsd > 0 ? `Headroom ${assets_fmtUsdCompact(snapshot.maxUsd)}` : 'No live supply cap')
+                    : `Withdrawable ${assets_fmtUsdCompact(snapshot.maxUsd)}`;
+                captionEl.textContent = `${assets_fmtPrice(state.model.price)} price · ${capText}`;
+            }
+        }
+
+        function assets_handleSimulatorMode(rowId, mode) {
+            const state = assets_simulatorStates[rowId];
+            if (!state) return;
+            state.mode = mode === 'withdraw' ? 'withdraw' : 'deposit';
+            if (!(Number(state.usdInput) > 0)) {
+                state.usdInput = assets_chooseDefaultSimulatorUsd(state.model, state.mode);
+            }
+            assets_renderSimulatorResults(rowId);
+        }
+
+        function assets_handleSimulatorInput(rowId, value) {
+            const state = assets_simulatorStates[rowId];
+            if (!state) return;
+            const parsed = parseFloat(String(value).replace(/,/g, ''));
+            state.usdInput = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+            assets_renderSimulatorResults(rowId);
+        }
+
+        function assets_applySimulatorPreset(rowId, usd) {
+            const state = assets_simulatorStates[rowId];
+            if (!state) return;
+            state.usdInput = Math.max(0, Number(usd) || 0);
+            assets_renderSimulatorResults(rowId);
+        }
+
+        function assets_buildSimulatorSection(rowId, d, md) {
+            const model = assets_getSimulatorModel(d, md);
+            if (!model) {
+                return `<div class="assets-detail-section assets-sim-section">
+                    <div class="assets-section-header simulator">
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <span class="section-dot"></span>
+                            <div class="assets-sim-header-copy">
+                                <span>APR Impact Simulator</span>
+                                <small>Waiting for a live USD price for ${earn_escapeHtml(d.symbol || d.name || 'this market')}.</small>
+                            </div>
+                        </div>
+                        <span class="assets-sim-status warn">Price feed pending</span>
+                    </div>
+                </div>`;
+            }
+
+            if (!assets_simulatorStates[rowId]) {
+                assets_simulatorStates[rowId] = {
+                    model,
+                    mode: 'deposit',
+                    usdInput: assets_chooseDefaultSimulatorUsd(model, 'deposit'),
+                };
+            } else {
+                assets_simulatorStates[rowId].model = model;
+            }
+
+            const state = assets_simulatorStates[rowId];
+            const snapshot = assets_computeSimulatorSnapshot(state);
+            const presets = assets_getSimulatorPresets(model, state.mode);
+            const presetHtml = presets.map(value => `<button type="button" data-assets-sim-preset="${rowId}" data-value="${value}" class="${Math.abs((state.usdInput || 0) - value) < 0.5 ? 'active' : ''}" onclick="event.stopPropagation(); assets_applySimulatorPreset('${rowId}', ${value})">${assets_fmtUsdCompact(value)}</button>`).join('');
+
+            return `<div class="assets-detail-section assets-sim-section">
+                <div class="assets-section-header simulator">
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <span class="section-dot"></span>
+                        <div class="assets-sim-header-copy">
+                            <span>APR Impact Simulator</span>
+                            <small>Type an amount to see how ${earn_escapeHtml(model.symbol)} would move right now.</small>
+                        </div>
+                    </div>
+                    <span id="${rowId}-sim-status" class="assets-sim-status${snapshot && snapshot.statusTone === 'warn' ? ' warn' : ''}">${earn_escapeHtml(snapshot ? snapshot.statusText : 'Live kink + reward dilution estimate')}</span>
+                </div>
+                <div class="assets-sim-controls">
+                    <div class="assets-sim-control-group">
+                        <div class="assets-sim-label">Action</div>
+                        <div class="assets-sim-mode" onclick="event.stopPropagation()">
+                            <button type="button" data-assets-sim-mode="${rowId}" data-mode="deposit" class="${state.mode === 'deposit' ? 'active' : ''}" onclick="event.stopPropagation(); assets_handleSimulatorMode('${rowId}', 'deposit')">Deposit</button>
+                            <button type="button" data-assets-sim-mode="${rowId}" data-mode="withdraw" class="${state.mode === 'withdraw' ? 'active' : ''}" onclick="event.stopPropagation(); assets_handleSimulatorMode('${rowId}', 'withdraw')">Withdraw</button>
+                        </div>
+                    </div>
+                    <div class="assets-sim-control-group">
+                        <div class="assets-sim-label">Amount (USD)</div>
+                        <div class="assets-sim-input-wrap" onclick="event.stopPropagation()">
+                            <span class="assets-sim-input-prefix">$</span>
+                            <input id="${rowId}-sim-input" type="number" min="0" step="100" inputmode="decimal" placeholder="25000" value="${state.usdInput > 0 ? state.usdInput : ''}" oninput="assets_handleSimulatorInput('${rowId}', this.value)" onclick="event.stopPropagation()">
+                        </div>
+                        <div id="${rowId}-sim-caption" class="assets-sim-input-caption">${assets_fmtPrice(model.price)} price · ${state.mode === 'deposit' && Number.isFinite(snapshot.maxUsd) ? `Headroom ${assets_fmtUsdCompact(snapshot.maxUsd)}` : state.mode === 'withdraw' ? `Withdrawable ${assets_fmtUsdCompact(snapshot.maxUsd)}` : 'No live supply cap'}</div>
+                    </div>
+                    <div class="assets-sim-control-group">
+                        <div class="assets-sim-label">Quick presets</div>
+                        <div id="${rowId}-sim-presets" class="assets-sim-presets" onclick="event.stopPropagation()">
+                            ${presetHtml || '<button type="button" disabled>No presets</button>'}
+                        </div>
+                    </div>
+                </div>
+                <div id="${rowId}-sim-results-wrap">${assets_buildSimulatorResultsHtml(snapshot)}</div>
+            </div>`;
+        }
+
         function assets_buildDetailRow(rowId, d, md) {
             if (!md) {
                 const msg = assets_marketDataLoaded ? 'Data not available on this chain' : 'Loading market data...';
@@ -23903,12 +24735,15 @@
                 </div>`;
             }
 
+            const simulatorSection = assets_buildSimulatorSection(rowId, d, md);
+
             return `<tr class="assets-detail-row" id="${rowId}-detail"><td colspan="4">
                 <div class="assets-detail-wrap">
 
                     <div class="assets-detail-sections">
                         ${supplySection}
                         ${borrowSection}
+                        ${simulatorSection}
                     </div>
                 </div>
             </td></tr>`;
