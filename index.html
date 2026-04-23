@@ -17152,7 +17152,7 @@
                                         <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                                     </svg>
                                     <span class="assets-network-btn-label" id="assets-network-btn-label">All Chains</span>
-                                    <span class="assets-network-count" id="assets-network-count">6</span>
+                                    <span class="assets-network-count" id="assets-network-count">7</span>
                                     <svg class="assets-network-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
                                 </button>
                                 <div class="assets-network-panel" id="assets-network-panel">
@@ -17184,6 +17184,13 @@
                                         <button class="assets-network-opt" data-chain="ethereum" onclick="assets_selectNetwork(event, this)">
                                             <img class="assets-network-opt-icon" src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" alt="Ethereum">
                                             <span class="assets-network-opt-name">Ethereum</span>
+                                            <span class="assets-network-opt-check">
+                                                <svg viewBox="0 0 12 12" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg>
+                                            </span>
+                                        </button>
+                                        <button class="assets-network-opt" data-chain="botanix" onclick="assets_selectNetwork(event, this)">
+                                            <img class="assets-network-opt-icon" src="https://icons.llamao.fi/icons/chains/rsz_botanix.jpg" alt="Botanix">
+                                            <span class="assets-network-opt-name">Botanix</span>
                                             <span class="assets-network-opt-check">
                                                 <svg viewBox="0 0 12 12" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg>
                                             </span>
@@ -22679,6 +22686,7 @@
             berachain: { id: 80094, name: 'Berachain', short: 'BERA', icon: 'https://icons.llamao.fi/icons/chains/rsz_berachain.jpg', subgraph: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-berachain-mainnet/latest/gn', explorer: 'https://berascan.com/address/' },
             arbitrum: { id: 42161, name: 'Arbitrum', short: 'ARB', icon: 'https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg', subgraph: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-arbitrum/latest/gn', explorer: 'https://arbiscan.io/address/' },
             ethereum: { id: 1, name: 'Ethereum', short: 'ETH', icon: 'https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg', subgraph: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-ethereum/latest/gn', explorer: 'https://etherscan.io/address/' },
+            botanix: { id: 3637, name: 'Botanix', short: 'BOT', icon: 'https://icons.llamao.fi/icons/chains/rsz_botanix.jpg', subgraph: 'https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-botanix/latest/gn', explorer: 'https://explorer.botanixlabs.dev/address/' },
             mantle: { id: 5000, name: 'Mantle', short: 'MNT', icon: 'https://icons.llamao.fi/icons/chains/rsz_mantle.jpg', subgraph: 'https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-mantle/latest/gn', explorer: 'https://mantlescan.xyz/address/' },
             polygonzkevm: { id: 1101, name: 'Polygon zkEVM', short: 'zkEVM', icon: 'https://icons.llamao.fi/icons/chains/rsz_polygon%20zkevm.jpg', subgraph: 'https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-polygon-zkevm/latest/gn', explorer: 'https://zkevm.polygonscan.com/address/' },
             xlayer: { id: 196, name: 'X Layer', short: 'XLAY', icon: 'https://icons.llamao.fi/icons/chains/rsz_x%20layer.jpg', subgraph: 'https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-x-layer/latest/gn', explorer: 'https://www.okx.com/web3/explorer/xlayer/address/' },
@@ -22804,7 +22812,7 @@
             if (assets_prepareDataPromise) return assets_prepareDataPromise;
 
             const results = [];
-            const LLAMA_CHAIN_MAP = { arbitrum: 'arbitrum', berachain: 'berachain', ethereum: 'ethereum', mantle: 'mantle', polygonzkevm: 'polygon_zkevm', xlayer: 'xlayer' };
+            const LLAMA_CHAIN_MAP = { arbitrum: 'arbitrum', berachain: 'berachain', ethereum: 'ethereum', botanix: 'botanix', mantle: 'mantle', polygonzkevm: 'polygon_zkevm', xlayer: 'xlayer' };
             assets_resetPrepareStatus();
             assets_prepareDataPromise = (async () => {
                 const subgraphPromise = assets_fetchMarketData()
@@ -22919,6 +22927,24 @@
                     progress: 0.58,
                     detail: 'Prices are ready. Syncing liquidity depth, caps and utilization now.',
                 });
+
+                const missingBotanixPrices = results.some(r => r.chainKey === 'botanix' && !(r.price > 0));
+                if (missingBotanixPrices) {
+                    try {
+                        const officialTvl = await fetch('dolomite_tvl.json?' + Date.now()).then(r => r.ok ? r.json() : null);
+                        const botanixUsd = officialTvl?.chainTokensInUsd?.Botanix || {};
+                        results.forEach(item => {
+                            if (item.chainKey !== 'botanix' || item.price > 0) return;
+                            const mdKey = item.chainKey + ':' + (item.addr || '').toLowerCase();
+                            const md = assets_marketData[mdKey];
+                            const supplied = Number(md?.supplied) || 0;
+                            const tokenUsd = Number(botanixUsd[item.symbol]) || 0;
+                            if (supplied > 0 && tokenUsd > 0) item.price = tokenUsd / supplied;
+                        });
+                    } catch (e) {
+                        console.warn('Assets Botanix price fallback failed', e);
+                    }
+                }
 
                 assets_allData = results;
                 const subgraphReady = await subgraphPromise;
