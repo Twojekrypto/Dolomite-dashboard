@@ -2979,6 +2979,44 @@
             background: rgba(255, 255, 255, 0.03);
             box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
             min-width: 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .assets-sim-stat::before {
+            content: '';
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 3px;
+            opacity: 0.9;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .assets-sim-stat.is-now {
+            border-color: rgba(125, 211, 252, 0.14);
+            background: linear-gradient(180deg, rgba(125, 211, 252, 0.08), rgba(255, 255, 255, 0.025));
+        }
+
+        .assets-sim-stat.is-now::before {
+            background: #7dd3fc;
+        }
+
+        .assets-sim-stat.is-positive {
+            border-color: rgba(52, 211, 153, 0.16);
+            background: linear-gradient(180deg, rgba(52, 211, 153, 0.08), rgba(255, 255, 255, 0.025));
+        }
+
+        .assets-sim-stat.is-positive::before {
+            background: #34d399;
+        }
+
+        .assets-sim-stat.is-negative {
+            border-color: rgba(248, 113, 113, 0.16);
+            background: linear-gradient(180deg, rgba(248, 113, 113, 0.08), rgba(255, 255, 255, 0.025));
+        }
+
+        .assets-sim-stat.is-negative::before {
+            background: #f87171;
         }
 
         .assets-sim-stat-label {
@@ -2988,6 +3026,18 @@
             color: rgba(255, 255, 255, 0.36);
             font-weight: 700;
             margin-bottom: 8px;
+        }
+
+        .assets-sim-stat.is-now .assets-sim-stat-label {
+            color: rgba(186, 230, 253, 0.78);
+        }
+
+        .assets-sim-stat.is-positive .assets-sim-stat-label {
+            color: rgba(167, 243, 208, 0.82);
+        }
+
+        .assets-sim-stat.is-negative .assets-sim-stat-label {
+            color: rgba(254, 202, 202, 0.82);
         }
 
         .assets-sim-stat-value {
@@ -3007,11 +3057,27 @@
             color: #f87171;
         }
 
+        .assets-sim-stat-value.is-now {
+            color: #e0f2fe;
+        }
+
         .assets-sim-stat-sub {
             margin-top: 7px;
             font-size: 11px;
             color: rgba(255, 255, 255, 0.42);
             line-height: 1.45;
+        }
+
+        .assets-sim-stat.is-now .assets-sim-stat-sub {
+            color: rgba(224, 242, 254, 0.58);
+        }
+
+        .assets-sim-stat.is-positive .assets-sim-stat-sub {
+            color: rgba(209, 250, 229, 0.58);
+        }
+
+        .assets-sim-stat.is-negative .assets-sim-stat-sub {
+            color: rgba(254, 226, 226, 0.58);
         }
 
         .assets-sim-stat-sub strong {
@@ -24431,6 +24497,7 @@
         function assets_buildSimulatorResultsHtml(snapshot) {
             if (!snapshot) return '';
             const direction = snapshot.deltaDisplayRate > 0 ? 'positive' : (snapshot.deltaDisplayRate < 0 ? 'negative' : '');
+            const afterDirection = snapshot.nextDisplayRate > snapshot.currentDisplayRate ? 'positive' : (snapshot.nextDisplayRate < snapshot.currentDisplayRate ? 'negative' : '');
             const deltaPrefix = snapshot.deltaDisplayRate > 0 ? '+' : (snapshot.deltaDisplayRate < 0 ? '−' : '');
             const modeVerb = snapshot.mode === 'deposit' ? 'deposit' : 'withdrawal';
             const impactSummary = snapshot.deltaDisplayRate > 0
@@ -24450,17 +24517,17 @@
 
             return `
                 <div class="assets-sim-results">
-                    <div class="assets-sim-stat">
+                    <div class="assets-sim-stat is-now">
                         <div class="assets-sim-stat-label">Now</div>
-                        <div class="assets-sim-stat-value">${assets_fmtDisplayedPercent(snapshot.currentDisplayRate)}</div>
+                        <div class="assets-sim-stat-value is-now">${assets_fmtDisplayedPercent(snapshot.currentDisplayRate)}</div>
                         <div class="assets-sim-stat-sub">Current lending ${assets_getRateViewLabel()}</div>
                     </div>
-                    <div class="assets-sim-stat">
+                    <div class="assets-sim-stat ${afterDirection ? `is-${afterDirection}` : ''}">
                         <div class="assets-sim-stat-label">After ${modeVerb}</div>
-                        <div class="assets-sim-stat-value">${assets_fmtDisplayedPercent(snapshot.nextDisplayRate)}</div>
+                        <div class="assets-sim-stat-value ${afterDirection}">${assets_fmtDisplayedPercent(snapshot.nextDisplayRate)}</div>
                         <div class="assets-sim-stat-sub">Estimated lending ${assets_getRateViewLabel()} after your move</div>
                     </div>
-                    <div class="assets-sim-stat">
+                    <div class="assets-sim-stat ${direction ? `is-${direction}` : ''}">
                         <div class="assets-sim-stat-label">Impact</div>
                         <div class="assets-sim-stat-value ${direction}">${deltaPrefix}${assets_fmtDisplayedPercent(Math.abs(snapshot.deltaDisplayRate))}</div>
                         <div class="assets-sim-stat-sub">${impactSummary}</div>
