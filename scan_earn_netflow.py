@@ -35,6 +35,9 @@ CHAINS = {
     "ethereum": {
         "margin": "0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D",
         "rpcs": [
+            *([] if not os.environ.get("ALCHEMY_ETHEREUM_RPC") else [os.environ["ALCHEMY_ETHEREUM_RPC"]]),
+            *([] if not os.environ.get("ALCHEMY_ETHEREUM_RPC_2") else [os.environ["ALCHEMY_ETHEREUM_RPC_2"]]),
+            *([] if not os.environ.get("ALCHEMY_ETHEREUM_RPC_3") else [os.environ["ALCHEMY_ETHEREUM_RPC_3"]]),
             "https://ethereum-rpc.publicnode.com/",
             "https://1rpc.io/eth",
             "https://eth.llamarpc.com/",

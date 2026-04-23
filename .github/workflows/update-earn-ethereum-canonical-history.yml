@@ -1,0 +1,112 @@
+name: Refresh Ethereum Canonical EARN History
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: earn-ethereum-canonical-history
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONUNBUFFERED: '1'
+      ALCHEMY_ETHEREUM_RPC: ${{ secrets.ALCHEMY_ETHEREUM_RPC }}
+      ALCHEMY_ETHEREUM_RPC_2: ${{ secrets.ALCHEMY_ETHEREUM_RPC_2 }}
+      ALCHEMY_ETHEREUM_RPC_3: ${{ secrets.ALCHEMY_ETHEREUM_RPC_3 }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Refresh Ethereum canonical history incrementally
+        run: |
+          set -euo pipefail
+          python3 run_earn_subaccount_history_incremental.py continue \
+            --chain ethereum \
+            --refresh-plan \
+            --max-scan-workers 8 \
+            --max-apply-workers 8 \
+            --max-new-backfill-workers 4
+
+          for i in $(seq 1 120); do
+            python3 run_earn_subaccount_history_incremental.py continue \
+              --chain ethereum \
+              --max-scan-workers 8 \
+              --max-apply-workers 8 \
+              --max-new-backfill-workers 4 \
+              --json > /tmp/earn-ethereum-step.json
+            if python3 - <<'PY'
+          import json, sys
+          payload = json.load(open('/tmp/earn-ethereum-step.json'))
+          status = payload.get('status') or {}
+          coverage = status.get('coverage') or {}
+          print(
+              f"Cycle {status.get('cycleId')} | "
+              f"complete={status.get('complete')} | "
+              f"scan={status.get('scan', {}).get('completedWorkerCount')}/"
+              f"{status.get('scan', {}).get('workerCount')} | "
+              f"apply={status.get('apply', {}).get('completedWorkerCount')}/"
+              f"{status.get('apply', {}).get('workerCount')} | "
+              f"coverage={coverage.get('freshWalletCount')}/"
+              f"{coverage.get('selectedAddressCount')}"
+          )
+          sys.exit(0 if status.get('complete') else 1)
+          PY
+            then
+              break
+            fi
+            sleep 10
+          done
+
+          python3 run_earn_subaccount_history_incremental.py status --chain ethereum --json > /tmp/earn-ethereum-status.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          status = json.load(open('/tmp/earn-ethereum-status.json'))
+          coverage = status.get('coverage') or {}
+          assert status.get('complete') is True, f"Incremental cycle incomplete: {status}"
+          assert coverage.get('selectedAddressCount', 0) > 0, f"No selected addresses in coverage: {coverage}"
+          assert coverage.get('freshWalletCount') == coverage.get('selectedAddressCount'), f"Coverage not fully fresh: {coverage}"
+
+          target = Path('data/earn-subaccount-history/ethereum/0x28da3dde285d8f1f87b2d858f89961bb8b9af180.json')
+          assert target.exists(), f"Expected address history missing: {target}"
+          payload = json.load(target.open())
+          assert int(payload.get('lastScannedBlock') or 0) > 0, f"Invalid lastScannedBlock for {target}"
+          print(f"Validated Ethereum canonical history freshness for {coverage.get('freshWalletCount')} wallets")
+          PY
+
+      - name: Run EARN audit checks
+        run: python3 run_earn_audit_checks.py
+
+      - name: Commit and push refreshed canonical history
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f data/earn-subaccount-history/manifest.json data/earn-subaccount-history/ethereum
+          if git diff --staged --quiet; then
+            echo "No canonical history changes to commit"
+            exit 0
+          fi
+          git commit -m "🔄 Refresh Ethereum canonical EARN history — $(date -u '+%Y-%m-%d %H:%M UTC')"
+          for i in 1 2 3; do
+            git pull --rebase -X theirs origin master && git push && break
+            echo "⚠️ Push attempt $i failed, retrying..."
+            sleep 5
+          done
