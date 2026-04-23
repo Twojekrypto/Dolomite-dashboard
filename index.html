@@ -9400,13 +9400,19 @@
             font-size: 11px;
             line-height: 1.2;
             letter-spacing: 0.12px;
+            overflow: hidden;
         }
 
         .earn-summary-mini-pill-main {
             min-width: 0;
+            flex: 1 1 auto;
             display: inline-flex;
             align-items: center;
             gap: 8px;
+        }
+
+        .earn-summary-mini-pill-main[data-tip] {
+            cursor: help;
         }
 
         .earn-summary-mini-pill-icon {
@@ -9438,12 +9444,7 @@
         }
 
         .earn-summary-mini-pill .token {
-            color: rgba(241, 245, 249, 0.92);
-            font-weight: 700;
-            font-size: 11px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            display: none;
         }
 
         .earn-summary-mini-pill.has-icon .token {
@@ -25784,6 +25785,8 @@
             'BGT': DOLO_CDN + 'BGT.59af0fc7aad30ed3de49e3115ee24d04.svg',
             'iBGT': DOLO_CDN + 'BGT.59af0fc7aad30ed3de49e3115ee24d04.svg',
             'IBGT': DOLO_CDN + 'BGT.59af0fc7aad30ed3de49e3115ee24d04.svg',
+            'wiBGT': DOLO_CDN + 'iBGT.88932437445efa66139716bca4a9c19b.svg',
+            'WIBGT': DOLO_CDN + 'iBGT.88932437445efa66139716bca4a9c19b.svg',
             'oriBGT': DOLO_CDN + 'oriBGT.7f3393531bde0f56498780c803133999.svg',
             'ORIBGT': DOLO_CDN + 'oriBGT.7f3393531bde0f56498780c803133999.svg',
             'HENLO': DOLO_CDN + 'HENLO.8d50b084294cb406094f0005d46c2c75.svg',
@@ -34873,6 +34876,32 @@
                     };
                     const formatRewardAmount = value => value >= 1000 ? (value / 1000).toFixed(2) + 'K' : value.toFixed(2);
                     const getRewardIcon = symbol => SYMBOL_ICONS[symbol] || SYMBOL_ICONS[String(symbol || '').toUpperCase()] || '';
+                    const getRewardDisplayName = symbol => {
+                        const key = String(symbol || '').trim();
+                        const upper = key.toUpperCase();
+                        const names = {
+                            'ODOLO': 'oDOLO reward',
+                            'WLFI': 'WLFI reward',
+                            'HONEY': 'Honey',
+                            'WBERA': 'Wrapped BERA',
+                            'WIBGT': 'Wrapped iBGT',
+                            'IBGT': 'iBGT',
+                            'GMX': 'GMX',
+                            'ESGMX': 'esGMX',
+                            'WETH': 'Wrapped Ether',
+                            'ETH': 'Ether',
+                        };
+                        return names[key] || names[upper] || key;
+                    };
+                    const getRewardFallbackLabel = symbol => {
+                        const key = String(symbol || '').trim();
+                        if (!key) return '?';
+                        if (key.toLowerCase() === 'widgt') return 'wB';
+                        if (key.toLowerCase() === 'wibgt') return 'wB';
+                        if (key.toLowerCase() === 'odolo') return 'oD';
+                        if (key.length <= 3) return key.toUpperCase();
+                        return key.replace(/[^a-z0-9]/gi, '').slice(0, 2).toUpperCase();
+                    };
                     const formatRewardSummary = count => count === 1 ? 'Farmed reward token' : 'Farmed reward tokens';
                     const renderRewardsOverview = () => {
                         if (!isSummaryRenderCurrent() || !rewardsValueEl || !rewardsSubEl || !rewardsListEl) return;
@@ -34906,11 +34935,15 @@
                         rewardsListEl.innerHTML = parts.map(part => (
                             (() => {
                                 const icon = getRewardIcon(part.symbol);
+                                const rewardName = getRewardDisplayName(part.symbol);
+                                const tooltipText = rewardName === part.symbol
+                                    ? rewardName
+                                    : `${rewardName} (${part.symbol})`;
                                 const iconOrFallback = icon
-                                    ? `<img src="${earn_escapeHtml(icon)}" alt="${earn_escapeHtml(part.symbol)}" class="earn-summary-mini-pill-icon" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<span class=&quot;earn-summary-mini-pill-icon-fallback&quot;>${earn_escapeHtml(part.symbol.slice(0, 3))}</span>')">`
-                                    : `<span class="earn-summary-mini-pill-icon-fallback">${earn_escapeHtml(part.symbol.slice(0, 3))}</span>`;
-                                return `<span class="earn-summary-mini-pill${icon ? ' has-icon' : ''}" title="${earn_escapeHtml(part.symbol)}" aria-label="${earn_escapeHtml(part.symbol)} reward">
-                                <span class="earn-summary-mini-pill-main">
+                                    ? `<img src="${earn_escapeHtml(icon)}" alt="${earn_escapeHtml(rewardName)}" class="earn-summary-mini-pill-icon" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<span class=&quot;earn-summary-mini-pill-icon-fallback&quot;>${earn_escapeHtml(getRewardFallbackLabel(part.symbol))}</span>')">`
+                                    : `<span class="earn-summary-mini-pill-icon-fallback">${earn_escapeHtml(getRewardFallbackLabel(part.symbol))}</span>`;
+                                return `<span class="earn-summary-mini-pill${icon ? ' has-icon' : ''}" aria-label="${earn_escapeHtml(tooltipText)} reward">
+                                <span class="earn-summary-mini-pill-main" data-tip="${earn_escapeHtml(tooltipText)}" aria-label="${earn_escapeHtml(tooltipText)}">
                                     ${iconOrFallback}
                                     <span class="token">${earn_escapeHtml(part.symbol)}</span>
                                 </span>
