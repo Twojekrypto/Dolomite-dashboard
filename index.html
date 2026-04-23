@@ -2839,22 +2839,16 @@
 
         .assets-sim-controls {
             display: grid;
-            grid-template-columns: minmax(180px, 0.92fr) minmax(260px, 1.2fr) minmax(220px, 1fr);
-            gap: 12px;
-            align-items: stretch;
+            grid-template-columns: minmax(180px, 0.9fr) minmax(250px, 1.2fr) minmax(220px, 1.05fr);
+            gap: 14px;
+            align-items: start;
         }
 
         .assets-sim-control-group {
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
-            gap: 10px;
+            gap: 8px;
             min-width: 0;
-            padding: 12px 13px;
-            border-radius: 14px;
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.016));
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
         }
 
         .assets-sim-label {
@@ -2873,7 +2867,7 @@
             border-radius: 999px;
             border: 1px solid rgba(255, 255, 255, 0.08);
             background: rgba(255, 255, 255, 0.035);
-            width: 100%;
+            width: fit-content;
             max-width: 100%;
         }
 
@@ -2887,8 +2881,7 @@
         }
 
         .assets-sim-mode button {
-            flex: 1 1 0;
-            min-width: 0;
+            min-width: 92px;
             padding: 8px 13px;
             border-radius: 999px;
             background: transparent;
@@ -2907,12 +2900,19 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 11px 12px;
-            min-height: 52px;
+            padding: 12px 14px;
+            min-height: 56px;
             border-radius: 14px;
             border: 1px solid rgba(255, 255, 255, 0.08);
-            background: rgba(7, 12, 20, 0.52);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+            background: rgba(7, 12, 20, 0.58);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+            transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+        }
+
+        .assets-sim-input-wrap:focus-within {
+            border-color: rgba(125, 211, 252, 0.22);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 0 0 3px rgba(56, 189, 248, 0.08);
+            background: rgba(9, 15, 24, 0.72);
         }
 
         .assets-sim-input-prefix {
@@ -2934,7 +2934,7 @@
             border: none;
             background: transparent;
             color: rgba(255, 255, 255, 0.96);
-            font-size: 20px;
+            font-size: 22px;
             font-weight: 700;
             letter-spacing: -0.02em;
             outline: none;
@@ -3039,14 +3039,13 @@
         }
 
         .assets-sim-presets {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            display: flex;
+            flex-wrap: wrap;
             gap: 8px;
             align-items: stretch;
         }
 
         .assets-sim-presets button {
-            min-height: 36px;
             padding: 8px 10px;
             border-radius: 999px;
             background: rgba(255, 255, 255, 0.04);
@@ -3054,7 +3053,6 @@
             border: 1px solid rgba(255, 255, 255, 0.07);
             font-size: 11px;
             font-weight: 700;
-            justify-content: center;
         }
 
         .assets-sim-presets button:hover {
@@ -3077,14 +3075,14 @@
         }
 
         .assets-sim-results {
-            margin-top: 14px;
+            margin-top: 16px;
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 12px;
         }
 
         .assets-sim-stat {
-            padding: 14px 14px 12px;
+            padding: 14px 14px 13px;
             border-radius: 14px;
             border: 1px solid rgba(255, 255, 255, 0.07);
             background: rgba(255, 255, 255, 0.03);
@@ -3092,9 +3090,6 @@
             min-width: 0;
             position: relative;
             overflow: hidden;
-            min-height: 104px;
-            display: flex;
-            flex-direction: column;
         }
 
         .assets-sim-stat::before {
@@ -3139,7 +3134,7 @@
             letter-spacing: 0.85px;
             color: rgba(255, 255, 255, 0.36);
             font-weight: 700;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
 
         .assets-sim-stat.is-now .assets-sim-stat-label {
@@ -3176,8 +3171,7 @@
         }
 
         .assets-sim-stat-sub {
-            margin-top: auto;
-            padding-top: 9px;
+            margin-top: 7px;
             font-size: 11px;
             color: rgba(255, 255, 255, 0.42);
             line-height: 1.45;
@@ -3209,24 +3203,11 @@
             font-size: 11px;
             line-height: 1.5;
             color: rgba(255, 255, 255, 0.46);
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
         }
 
         .assets-sim-context strong {
             color: rgba(255, 255, 255, 0.86);
             font-weight: 700;
-        }
-
-        .assets-sim-context-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 10px;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.06);
         }
 
         .assets-sim-breakdown {
@@ -3388,8 +3369,7 @@
 
             .assets-sim-controls,
             .assets-sim-results,
-            .assets-sim-breakdown,
-            .assets-sim-presets {
+            .assets-sim-breakdown {
                 grid-template-columns: 1fr;
             }
 
@@ -24664,8 +24644,6 @@
             if (snapshot.effectiveUsd > 0) {
                 contextBits.push(`${assets_fmtUsdCompact(snapshot.effectiveUsd)} ${modeVerb}`);
             }
-            const contextHtml = contextBits.map(bit => `<span class="assets-sim-context-chip">${bit}</span>`).join('');
-
             return `
                 <div class="assets-sim-results">
                     <div class="assets-sim-stat is-now">
@@ -24685,7 +24663,7 @@
                     </div>
                 </div>
                 <div class="assets-sim-context">
-                    ${contextHtml}
+                    ${contextBits.join(' · ')}
                 </div>
             `;
         }
