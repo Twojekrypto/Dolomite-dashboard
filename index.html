@@ -2781,622 +2781,408 @@
             animation: assets-card-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) 0.06s both;
         }
 
+        /* ═══ YIELD SIMULATOR — Premium Glassmorphism Card ═══ */
         .assets-detail-section.assets-sim-section {
             grid-column: 1 / -1;
             animation: assets-card-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
-            padding: 16px 18px 18px;
+            padding: 0;
+            background: transparent;
+            border: none;
+            overflow: hidden;
+        }
+        .assets-detail-section.assets-sim-section:hover {
+            background: transparent;
+            border-color: transparent;
+        }
+        .assets-sim-card {
+            position: relative;
+            border-radius: 16px;
+            border: 1px solid rgba(125, 211, 252, 0.12);
             background:
-                radial-gradient(circle at top right, rgba(52, 211, 153, 0.08), transparent 28%),
-                linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0.016));
+                radial-gradient(ellipse at 20% 0%, rgba(56, 189, 248, 0.07), transparent 55%),
+                radial-gradient(ellipse at 80% 100%, rgba(52, 211, 153, 0.05), transparent 50%),
+                linear-gradient(180deg, rgba(12, 18, 32, 0.92), rgba(8, 12, 24, 0.96));
+            box-shadow:
+                0 0 0 1px rgba(255,255,255,0.03) inset,
+                0 1px 0 rgba(255,255,255,0.04) inset,
+                0 4px 24px rgba(0,0,0,0.25);
+            overflow: hidden;
+        }
+        .assets-sim-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(125, 211, 252, 0.25), rgba(52, 211, 153, 0.18), transparent);
         }
 
-        .assets-section-header.simulator {
-            color: #7dd3fc;
+        /* Header */
+        .assets-sim-header {
+            display: flex;
+            align-items: center;
             justify-content: space-between;
-            gap: 10px;
+            gap: 12px;
+            padding: 16px 20px 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
             flex-wrap: wrap;
         }
-
-        .assets-section-header.simulator .section-dot {
-            background: #38bdf8;
-            box-shadow: 0 0 6px rgba(56, 189, 248, 0.45);
+        .assets-sim-header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
         }
-
+        .assets-sim-header-icon {
+            width: 32px; height: 32px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(56,189,248,0.15), rgba(52,211,153,0.12));
+            border: 1px solid rgba(125,211,252,0.12);
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .assets-sim-header-icon svg {
+            width: 16px; height: 16px;
+            stroke: #7dd3fc; fill: none;
+            stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+        }
         .assets-sim-header-copy {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 2px;
         }
-
+        .assets-sim-header-copy span {
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            background: linear-gradient(90deg, #bae6fd, #a7f3d0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
         .assets-sim-header-copy small {
             font-size: 11px;
             letter-spacing: 0;
             text-transform: none;
             font-weight: 500;
-            color: rgba(255, 255, 255, 0.5);
+            color: rgba(255, 255, 255, 0.42);
         }
-
         .assets-sim-status {
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            padding: 6px 10px;
+            padding: 5px 10px;
             border-radius: 999px;
-            border: 1px solid rgba(56, 189, 248, 0.18);
-            background: rgba(56, 189, 248, 0.08);
+            border: 1px solid rgba(56, 189, 248, 0.15);
+            background: rgba(56, 189, 248, 0.06);
             color: #7dd3fc;
             font-size: 10px;
             letter-spacing: 0.9px;
             text-transform: uppercase;
             font-weight: 700;
+            white-space: nowrap;
         }
-
+        .assets-sim-status::before {
+            content: '';
+            width: 5px; height: 5px;
+            border-radius: 50%;
+            background: #38bdf8;
+            box-shadow: 0 0 6px rgba(56,189,248,0.6);
+            animation: sim-status-pulse 2s ease-in-out infinite;
+        }
         .assets-sim-status.warn {
             border-color: rgba(251, 191, 36, 0.18);
-            background: rgba(251, 191, 36, 0.08);
+            background: rgba(251, 191, 36, 0.06);
             color: #fcd34d;
         }
-
-        .assets-sim-controls {
-            display: grid;
-            grid-template-columns: minmax(176px, 0.82fr) minmax(236px, 1fr) minmax(208px, 0.9fr);
-            gap: 12px;
-            align-items: start;
+        .assets-sim-status.warn::before {
+            background: #fbbf24;
+            box-shadow: 0 0 6px rgba(251,191,36,0.6);
+        }
+        @keyframes sim-status-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
         }
 
-        .assets-sim-control-group {
+        /* Controls Body */
+        .assets-sim-body {
+            padding: 18px 20px 20px;
             display: flex;
             flex-direction: column;
-            gap: 7px;
-            min-width: 0;
+            gap: 16px;
+        }
+        .assets-sim-controls-row {
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+            flex-wrap: wrap;
         }
 
-        .assets-sim-control-group.is-action {
-            max-width: 246px;
-        }
-
-        .assets-sim-control-group.is-amount {
-            max-width: 320px;
-        }
-
+        /* Mode Toggle */
+        .assets-sim-control-group { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
         .assets-sim-label {
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.9px;
-            color: rgba(255, 255, 255, 0.38);
-            font-weight: 700;
+            font-size: 10px; text-transform: uppercase; letter-spacing: 0.9px;
+            color: rgba(255,255,255,0.34); font-weight: 700;
         }
-
         .assets-sim-mode {
-            display: inline-flex;
-            align-items: center;
-            gap: 3px;
-            padding: 2px;
-            border-radius: 999px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            background: rgba(255, 255, 255, 0.035);
-            width: fit-content;
-            max-width: 100%;
+            display: inline-flex; align-items: center; gap: 2px;
+            padding: 3px; border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.07);
+            background: rgba(255,255,255,0.03);
+            position: relative; width: fit-content;
         }
-
         .assets-sim-mode button,
         .assets-sim-presets button {
-            border: none;
-            outline: none;
-            cursor: pointer;
-            font: inherit;
-            transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+            border: none; outline: none; cursor: pointer; font: inherit;
+            transition: all 0.22s cubic-bezier(0.22,1,0.36,1);
         }
-
         .assets-sim-mode button {
-            min-width: 88px;
-            min-height: 32px;
-            padding: 6px 13px;
-            border-radius: 999px;
+            min-width: 90px; min-height: 34px;
+            padding: 7px 16px; border-radius: 10px;
             background: transparent;
-            color: rgba(255, 255, 255, 0.55);
-            font-size: 11px;
-            font-weight: 700;
+            color: rgba(255,255,255,0.45);
+            font-size: 12px; font-weight: 700;
+            position: relative; z-index: 1;
         }
-
+        .assets-sim-mode button:hover:not(.active) { color: rgba(255,255,255,0.7); }
         .assets-sim-mode button.active {
-            background: linear-gradient(90deg, rgba(52, 211, 153, 0.18), rgba(56, 189, 248, 0.18));
-            color: rgba(255, 255, 255, 0.95);
-            box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.12);
+            background: linear-gradient(135deg, rgba(56,189,248,0.14), rgba(52,211,153,0.10));
+            color: rgba(255,255,255,0.95);
+            box-shadow: 0 0 0 1px rgba(125,211,252,0.10) inset, 0 1px 4px rgba(0,0,0,0.15);
         }
 
+        /* Amount Input */
+        .assets-sim-control-group.is-amount { flex: 1 1 160px; }
         .assets-sim-input-wrap {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 10px;
-            min-height: 44px;
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 12px; min-height: 44px;
             border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            background: rgba(7, 12, 20, 0.58);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-            transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+            border: 1px solid rgba(255,255,255,0.07);
+            background: rgba(6, 10, 18, 0.65);
+            box-shadow: 0 1px 0 rgba(255,255,255,0.03) inset, 0 2px 8px rgba(0,0,0,0.12);
+            transition: border-color 0.22s, box-shadow 0.22s, background 0.22s;
         }
-
         .assets-sim-input-wrap:focus-within {
-            border-color: rgba(125, 211, 252, 0.22);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 0 0 3px rgba(56, 189, 248, 0.08);
-            background: rgba(9, 15, 24, 0.72);
+            border-color: rgba(125,211,252,0.28);
+            box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 0 0 3px rgba(56,189,248,0.08), 0 0 20px rgba(56,189,248,0.04);
+            background: rgba(8, 14, 26, 0.8);
         }
-
         .assets-sim-input-prefix {
-            font-size: 15px;
-            font-weight: 700;
-            color: rgba(255, 255, 255, 0.82);
+            font-size: 16px; font-weight: 700; color: rgba(255,255,255,0.5);
+            transition: color 0.22s;
         }
-
-        .assets-sim-input-main {
-            flex: 1 1 auto;
-            min-width: 0;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
+        .assets-sim-input-wrap:focus-within .assets-sim-input-prefix { color: #7dd3fc; }
+        .assets-sim-input-main { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; }
         .assets-sim-input-wrap input {
-            width: 100%;
-            border: none;
-            background: transparent;
-            color: rgba(255, 255, 255, 0.96);
-            font-size: 17px;
-            font-weight: 700;
-            letter-spacing: -0.02em;
-            outline: none;
-            font-variant-numeric: tabular-nums;
+            width: 100%; border: none; background: transparent;
+            color: rgba(255,255,255,0.96);
+            font-size: 18px; font-weight: 700; letter-spacing: -0.02em;
+            outline: none; font-variant-numeric: tabular-nums;
         }
-
-        .assets-sim-input-wrap input[type=number] {
-            -moz-appearance: textfield;
-            appearance: textfield;
-        }
-
+        .assets-sim-input-wrap input[type=number] { -moz-appearance: textfield; appearance: textfield; }
         .assets-sim-input-wrap input[type=number]::-webkit-outer-spin-button,
-        .assets-sim-input-wrap input[type=number]::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-
-        .assets-sim-input-wrap input::placeholder {
-            color: rgba(255, 255, 255, 0.24);
-        }
-
-        .assets-sim-input-tools {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            margin-left: auto;
-            flex: 0 0 auto;
-        }
-
+        .assets-sim-input-wrap input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .assets-sim-input-wrap input::placeholder { color: rgba(255,255,255,0.2); }
+        .assets-sim-input-tools { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; flex: 0 0 auto; }
         .assets-sim-max {
-            border: none;
-            outline: none;
-            cursor: pointer;
-            font: inherit;
-            min-height: 28px;
-            padding: 0 10px;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.06);
-            color: rgba(255, 255, 255, 0.72);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            font-size: 10px;
-            font-weight: 800;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+            border: none; outline: none; cursor: pointer; font: inherit;
+            min-height: 28px; padding: 0 10px; border-radius: 8px;
+            background: rgba(255,255,255,0.05);
+            color: rgba(255,255,255,0.6);
+            border: 1px solid rgba(255,255,255,0.07);
+            font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+            transition: all 0.22s;
         }
-
         .assets-sim-max:hover:not(:disabled) {
-            background: rgba(56, 189, 248, 0.12);
-            color: rgba(255, 255, 255, 0.92);
-            border-color: rgba(56, 189, 248, 0.22);
+            background: rgba(56,189,248,0.10); color: rgba(255,255,255,0.9);
+            border-color: rgba(56,189,248,0.20);
         }
-
         .assets-sim-max.active {
-            background: linear-gradient(90deg, rgba(52, 211, 153, 0.18), rgba(56, 189, 248, 0.18));
-            color: rgba(255, 255, 255, 0.95);
-            border-color: rgba(125, 211, 252, 0.18);
-            box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.1);
+            background: linear-gradient(90deg, rgba(52,211,153,0.14), rgba(56,189,248,0.14));
+            color: rgba(255,255,255,0.95); border-color: rgba(125,211,252,0.16);
         }
-
-        .assets-sim-max:disabled {
-            opacity: 0.38;
-            cursor: default;
-        }
-
-        .assets-sim-stepper {
-            display: inline-flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
+        .assets-sim-max:disabled { opacity: 0.3; cursor: default; }
+        .assets-sim-stepper { display: inline-flex; flex-direction: column; gap: 3px; }
         .assets-sim-stepper button {
-            border: none;
-            outline: none;
-            cursor: pointer;
-            font: inherit;
-            width: 24px;
-            height: 14px;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.05);
-            color: rgba(255, 255, 255, 0.72);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+            border: none; outline: none; cursor: pointer; font: inherit;
+            width: 24px; height: 14px; border-radius: 6px;
+            background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.55);
+            border: 1px solid rgba(255,255,255,0.06);
+            display: inline-flex; align-items: center; justify-content: center;
+            transition: all 0.18s;
         }
+        .assets-sim-stepper button:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.9); }
+        .assets-sim-stepper button:active { transform: translateY(1px); }
+        .assets-sim-stepper button span { line-height: 1; font-size: 11px; font-weight: 800; transform: translateY(-0.5px); }
 
-        .assets-sim-stepper button:hover {
-            background: rgba(255, 255, 255, 0.09);
-            color: rgba(255, 255, 255, 0.95);
-            border-color: rgba(255, 255, 255, 0.14);
-        }
-
-        .assets-sim-stepper button:active {
-            transform: translateY(1px);
-        }
-
-        .assets-sim-stepper button span {
-            line-height: 1;
-            font-size: 11px;
-            font-weight: 800;
-            transform: translateY(-0.5px);
-        }
-
+        /* Preset Chips */
         .assets-sim-presets {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            align-items: stretch;
+            display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
         }
-
         .assets-sim-presets button {
-            min-height: 32px;
-            padding: 7px 10px;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.04);
-            color: rgba(255, 255, 255, 0.68);
-            border: 1px solid rgba(255, 255, 255, 0.07);
-            font-size: 11px;
-            font-weight: 700;
+            min-height: 34px; padding: 7px 14px; border-radius: 10px;
+            background: rgba(255,255,255,0.03);
+            color: rgba(255,255,255,0.55);
+            border: 1px solid rgba(255,255,255,0.06);
+            font-size: 12px; font-weight: 700;
+            backdrop-filter: blur(4px);
         }
-
         .assets-sim-presets button:hover {
-            background: rgba(255, 255, 255, 0.08);
-            color: rgba(255, 255, 255, 0.92);
+            background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.9);
+            border-color: rgba(255,255,255,0.12);
             transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
-
         .assets-sim-presets button.active {
-            background: rgba(56, 189, 248, 0.14);
-            color: rgba(255, 255, 255, 0.96);
-            border-color: rgba(56, 189, 248, 0.26);
-            box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.08);
+            background: linear-gradient(135deg, rgba(56,189,248,0.12), rgba(52,211,153,0.08));
+            color: rgba(255,255,255,0.96);
+            border-color: rgba(125,211,252,0.20);
+            box-shadow: 0 0 12px rgba(56,189,248,0.08) inset;
+        }
+        .assets-sim-presets button:disabled { opacity: 0.3; cursor: default; transform: none; }
+
+        /* ─── Results Section ─── */
+        .assets-sim-results-section {
+            margin-top: 2px;
+            padding: 16px 0 0;
+            border-top: 1px solid rgba(255,255,255,0.05);
         }
 
-        .assets-sim-presets button:disabled {
-            opacity: 0.4;
-            cursor: default;
-            transform: none;
-        }
-
-        .assets-sim-results {
-            margin-top: 16px;
+        /* Rate Flow: Current → Projected → Impact */
+        .assets-sim-rate-flow {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 12px;
+            grid-template-columns: 1fr auto 1fr auto 1fr;
+            gap: 0;
+            align-items: center;
         }
-
-        .assets-sim-stat {
-            padding: 14px 14px 13px;
-            border-radius: 14px;
-            border: 1px solid rgba(255, 255, 255, 0.07);
-            background: rgba(255, 255, 255, 0.03);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
-            min-width: 0;
+        .assets-sim-rate-card {
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.05);
+            background: rgba(255,255,255,0.02);
             position: relative;
             overflow: hidden;
+            transition: border-color 0.3s, background 0.3s;
+            animation: sim-card-enter 0.4s cubic-bezier(0.22,1,0.36,1) both;
         }
-
-        .assets-sim-stat::before {
-            content: '';
-            position: absolute;
-            inset: 0 auto 0 0;
-            width: 3px;
-            opacity: 0.9;
-            background: rgba(255, 255, 255, 0.08);
+        .assets-sim-rate-card:nth-child(1) { animation-delay: 0s; }
+        .assets-sim-rate-card:nth-child(3) { animation-delay: 0.06s; }
+        .assets-sim-rate-card:nth-child(5) { animation-delay: 0.12s; }
+        @keyframes sim-card-enter {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-
-        .assets-sim-stat.is-now {
-            border-color: rgba(125, 211, 252, 0.14);
-            background: linear-gradient(180deg, rgba(125, 211, 252, 0.08), rgba(255, 255, 255, 0.025));
+        .assets-sim-rate-card::before {
+            content: ''; position: absolute; top: 0; left: 0; bottom: 0;
+            width: 3px; border-radius: 3px 0 0 3px;
+            background: rgba(255,255,255,0.06);
         }
-
-        .assets-sim-stat.is-now::before {
-            background: #7dd3fc;
+        .assets-sim-rate-card.is-current {
+            border-color: rgba(125,211,252,0.12);
+            background: linear-gradient(180deg, rgba(125,211,252,0.05), rgba(255,255,255,0.015));
         }
-
-        .assets-sim-stat.is-positive {
-            border-color: rgba(52, 211, 153, 0.16);
-            background: linear-gradient(180deg, rgba(52, 211, 153, 0.08), rgba(255, 255, 255, 0.025));
+        .assets-sim-rate-card.is-current::before { background: #7dd3fc; }
+        .assets-sim-rate-card.is-projected.positive {
+            border-color: rgba(52,211,153,0.14);
+            background: linear-gradient(180deg, rgba(52,211,153,0.05), rgba(255,255,255,0.015));
         }
-
-        .assets-sim-stat.is-positive::before {
-            background: #34d399;
+        .assets-sim-rate-card.is-projected.positive::before { background: #34d399; }
+        .assets-sim-rate-card.is-projected.negative {
+            border-color: rgba(248,113,113,0.14);
+            background: linear-gradient(180deg, rgba(248,113,113,0.05), rgba(255,255,255,0.015));
         }
+        .assets-sim-rate-card.is-projected.negative::before { background: #f87171; }
+        .assets-sim-rate-card.is-impact { text-align: center; }
+        .assets-sim-rate-card.is-impact.positive { border-color: rgba(52,211,153,0.16); background: linear-gradient(180deg, rgba(52,211,153,0.06), transparent); }
+        .assets-sim-rate-card.is-impact.positive::before { background: #34d399; }
+        .assets-sim-rate-card.is-impact.negative { border-color: rgba(248,113,113,0.16); background: linear-gradient(180deg, rgba(248,113,113,0.06), transparent); }
+        .assets-sim-rate-card.is-impact.negative::before { background: #f87171; }
 
-        .assets-sim-stat.is-negative {
-            border-color: rgba(248, 113, 113, 0.16);
-            background: linear-gradient(180deg, rgba(248, 113, 113, 0.08), rgba(255, 255, 255, 0.025));
+        .assets-sim-rate-label {
+            font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px;
+            font-weight: 700; margin-bottom: 6px;
+            color: rgba(255,255,255,0.34);
         }
+        .assets-sim-rate-card.is-current .assets-sim-rate-label { color: rgba(186,230,253,0.7); }
+        .assets-sim-rate-card.is-projected.positive .assets-sim-rate-label { color: rgba(167,243,208,0.75); }
+        .assets-sim-rate-card.is-projected.negative .assets-sim-rate-label { color: rgba(254,202,202,0.75); }
+        .assets-sim-rate-card.is-impact.positive .assets-sim-rate-label { color: rgba(167,243,208,0.75); }
+        .assets-sim-rate-card.is-impact.negative .assets-sim-rate-label { color: rgba(254,202,202,0.75); }
 
-        .assets-sim-stat.is-negative::before {
-            background: #f87171;
-        }
-
-        .assets-sim-stat-label {
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.85px;
-            color: rgba(255, 255, 255, 0.36);
-            font-weight: 700;
-            margin-bottom: 8px;
-        }
-
-        .assets-sim-stat.is-now .assets-sim-stat-label {
-            color: rgba(186, 230, 253, 0.78);
-        }
-
-        .assets-sim-stat.is-positive .assets-sim-stat-label {
-            color: rgba(167, 243, 208, 0.82);
-        }
-
-        .assets-sim-stat.is-negative .assets-sim-stat-label {
-            color: rgba(254, 202, 202, 0.82);
-        }
-
-        .assets-sim-stat-value {
-            font-size: 22px;
-            font-weight: 800;
-            line-height: 1.05;
-            color: rgba(255, 255, 255, 0.96);
+        .assets-sim-rate-value {
+            font-size: 24px; font-weight: 800; line-height: 1.1;
+            color: rgba(255,255,255,0.95);
             letter-spacing: -0.03em;
             font-variant-numeric: tabular-nums;
         }
+        .assets-sim-rate-value.current-color { color: #e0f2fe; }
+        .assets-sim-rate-value.positive { color: #34d399; }
+        .assets-sim-rate-value.negative { color: #f87171; }
 
-        .assets-sim-stat-value.positive {
-            color: #34d399;
+        .assets-sim-rate-sub {
+            margin-top: 5px; font-size: 11px; line-height: 1.35;
+            color: rgba(255,255,255,0.36);
         }
+        .assets-sim-rate-card.is-current .assets-sim-rate-sub { color: rgba(224,242,254,0.5); }
 
-        .assets-sim-stat-value.negative {
-            color: #f87171;
+        /* Arrow between cards */
+        .assets-sim-flow-arrow {
+            display: flex; align-items: center; justify-content: center;
+            padding: 0 6px; color: rgba(255,255,255,0.16);
+            font-size: 16px;
         }
+        .assets-sim-flow-arrow svg { width: 20px; height: 20px; stroke: rgba(255,255,255,0.18); fill: none; stroke-width: 2; }
 
-        .assets-sim-stat-value.is-now {
-            color: #e0f2fe;
-        }
 
-        .assets-sim-stat-sub {
-            margin-top: 7px;
-            font-size: 11px;
-            color: rgba(255, 255, 255, 0.42);
-            line-height: 1.45;
-        }
 
-        .assets-sim-stat.is-now .assets-sim-stat-sub {
-            color: rgba(224, 242, 254, 0.58);
-        }
-
-        .assets-sim-stat.is-positive .assets-sim-stat-sub {
-            color: rgba(209, 250, 229, 0.58);
-        }
-
-        .assets-sim-stat.is-negative .assets-sim-stat-sub {
-            color: rgba(254, 226, 226, 0.58);
-        }
-
-        .assets-sim-stat-sub strong {
-            color: rgba(255, 255, 255, 0.74);
-            font-weight: 700;
-        }
-
+        /* Context Footer */
         .assets-sim-context {
-            margin-top: 12px;
-            padding: 11px 13px;
-            border-radius: 14px;
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            background: rgba(255, 255, 255, 0.024);
-            font-size: 11px;
-            line-height: 1.5;
-            color: rgba(255, 255, 255, 0.46);
-        }
-
-        .assets-sim-context strong {
-            color: rgba(255, 255, 255, 0.86);
-            font-weight: 700;
-        }
-
-        .assets-sim-breakdown {
             margin-top: 14px;
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.04);
+            background: rgba(255,255,255,0.015);
+            font-size: 11px; line-height: 1.5;
+            color: rgba(255,255,255,0.38);
+            display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+        }
+        .assets-sim-context strong { color: rgba(255,255,255,0.78); font-weight: 700; }
+        .assets-sim-context-sep {
+            width: 3px; height: 3px; border-radius: 50%;
+            background: rgba(255,255,255,0.15); flex-shrink: 0;
         }
 
-        .assets-sim-breakdown-card {
-            padding: 12px 13px;
-            border-radius: 14px;
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            background: rgba(255, 255, 255, 0.024);
-            min-width: 0;
-        }
-
-        .assets-sim-breakdown-title {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            margin-bottom: 9px;
-            font-size: 11px;
-            font-weight: 700;
-            color: rgba(255, 255, 255, 0.8);
-        }
-
-        .assets-sim-breakdown-title span:last-child {
-            font-variant-numeric: tabular-nums;
-            color: rgba(255, 255, 255, 0.5);
-        }
-
-        .assets-sim-breakdown-lines {
-            display: flex;
-            flex-direction: column;
-            gap: 7px;
-        }
-
-        .assets-sim-breakdown-line {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            font-size: 11px;
-            color: rgba(255, 255, 255, 0.62);
-            min-width: 0;
-        }
-
-        .assets-sim-breakdown-line strong {
-            color: rgba(255, 255, 255, 0.9);
-            font-weight: 700;
-        }
-
-        .assets-sim-breakdown-line span:first-child {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
+        /* Breakdown cards (kept for compatibility) */
+        .assets-sim-breakdown { margin-top: 14px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+        .assets-sim-breakdown-card { padding: 12px 13px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); min-width: 0; }
+        .assets-sim-breakdown-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 9px; font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.75); }
+        .assets-sim-breakdown-title span:last-child { font-variant-numeric: tabular-nums; color: rgba(255,255,255,0.45); }
+        .assets-sim-breakdown-lines { display: flex; flex-direction: column; gap: 7px; }
+        .assets-sim-breakdown-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 11px; color: rgba(255,255,255,0.55); min-width: 0; }
+        .assets-sim-breakdown-line strong { color: rgba(255,255,255,0.85); font-weight: 700; }
+        .assets-sim-breakdown-line span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
         .assets-sim-footnote {
-            margin-top: 12px;
-            display: flex;
-            justify-content: space-between;
-            gap: 16px;
-            flex-wrap: wrap;
-            font-size: 11px;
-            line-height: 1.5;
-            color: rgba(255, 255, 255, 0.38);
+            margin-top: 12px; display: flex; justify-content: space-between;
+            gap: 16px; flex-wrap: wrap; font-size: 11px; line-height: 1.5; color: rgba(255,255,255,0.35);
         }
-
-        .assets-sim-footnote strong {
-            color: rgba(255, 255, 255, 0.7);
-            font-weight: 700;
-        }
+        .assets-sim-footnote strong { color: rgba(255,255,255,0.65); font-weight: 700; }
 
         @keyframes assets-card-in {
-            from {
-                opacity: 0;
-                transform: translateY(8px) scale(0.97);
-            }
-
-            to {
-                opacity: 1;
-                transform: none;
-            }
-        }
-
-        /* === CA Row === */
-        .assets-detail-ca {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: 6px;
-            margin-bottom: 14px;
-            padding: 6px 12px;
-            background: rgba(255, 255, 255, 0.025);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            border-radius: 10px;
-            font-size: 12px;
-            transition: background 0.25s, border-color 0.25s, box-shadow 0.25s;
-        }
-
-        .assets-detail-ca:hover {
-            background: rgba(255, 255, 255, 0.05);
-            border-color: rgba(255, 255, 255, 0.12);
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
-        }
-
-        .assets-ca-chain-icon {
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-        }
-
-        .assets-ca-address {
-            color: rgba(255, 255, 255, 0.55);
-            font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-            font-size: 11.5px;
-            text-decoration: none;
-            transition: color 0.2s;
-            letter-spacing: 0.3px;
-        }
-
-        .assets-ca-address:hover {
-            color: #4fc3f7;
-        }
-
-        .assets-ca-copy {
-            background: none;
-            border: none;
-            padding: 2px;
-            cursor: pointer;
-            color: rgba(255, 255, 255, 0.3);
-            transition: color 0.2s, transform 0.15s;
-            display: flex;
-            align-items: center;
-        }
-
-        .assets-ca-copy:hover {
-            color: #fff;
-            transform: scale(1.15);
-        }
-
-        .assets-ca-copy svg {
-            width: 13px;
-            height: 13px;
-        }
-
-        .assets-ca-copy.copied {
-            color: #4ade80;
+            from { opacity: 0; transform: translateY(8px) scale(0.97); }
+            to { opacity: 1; transform: none; }
         }
 
         /* === Responsive === */
         @media (max-width: 800px) {
-            .assets-detail-sections {
-                grid-template-columns: 1fr;
-            }
-
-            .assets-sim-controls,
-            .assets-sim-results,
-            .assets-sim-breakdown {
-                grid-template-columns: 1fr;
-            }
-
-            .assets-sim-mode {
-                width: 100%;
-            }
-
-            .assets-sim-mode button {
-                flex: 1 1 0;
-            }
-
-            .assets-sim-control-group.is-action,
-            .assets-sim-control-group.is-amount {
-                max-width: none;
-            }
+            .assets-detail-sections { grid-template-columns: 1fr; }
+            .assets-sim-controls-row { flex-direction: column; align-items: stretch; }
+            .assets-sim-rate-flow { grid-template-columns: 1fr; gap: 8px; }
+            .assets-sim-flow-arrow { transform: rotate(90deg); padding: 4px 0; }
+            .assets-sim-earnings { grid-template-columns: 1fr; }
+            .assets-sim-mode { width: 100%; }
+            .assets-sim-mode button { flex: 1 1 0; }
+            .assets-sim-control-group.is-amount { max-width: none; }
+            .assets-sim-breakdown { grid-template-columns: 1fr; }
         }
 
         .earn-asset-table thead {
@@ -24641,48 +24427,65 @@
             };
         }
 
+        function assets_computeEarningsProjection(depositUsd, aprPct) {
+            const apr = Number.isFinite(aprPct) ? Math.max(0, aprPct) : 0;
+            const usd = Number.isFinite(depositUsd) ? Math.max(0, depositUsd) : 0;
+            const rate = assets_showApy && apr > 0 ? aprToApy(apr) : apr;
+            const yearly = usd * (rate / 100);
+            return {
+                daily: yearly / 365,
+                monthly: yearly / 12,
+                yearly: yearly,
+            };
+        }
+
         function assets_buildSimulatorResultsHtml(snapshot) {
             if (!snapshot) return '';
             const direction = snapshot.deltaDisplayRate > 0 ? 'positive' : (snapshot.deltaDisplayRate < 0 ? 'negative' : '');
-            const afterDirection = snapshot.nextDisplayRate > snapshot.currentDisplayRate ? 'positive' : (snapshot.nextDisplayRate < snapshot.currentDisplayRate ? 'negative' : '');
+            const afterDir = snapshot.nextDisplayRate > snapshot.currentDisplayRate ? 'positive' : (snapshot.nextDisplayRate < snapshot.currentDisplayRate ? 'negative' : '');
             const deltaPrefix = snapshot.deltaDisplayRate > 0 ? '+' : (snapshot.deltaDisplayRate < 0 ? '−' : '');
             const modeVerb = snapshot.mode === 'deposit' ? 'deposit' : 'withdrawal';
-            const impactSummary = snapshot.deltaDisplayRate > 0
-                ? `Higher than now`
-                : snapshot.deltaDisplayRate < 0
-                    ? `Lower than now`
-                    : `No visible change`;
-            const contextBits = [
-                `Utilization <strong>${snapshot.currentUtilPct.toFixed(1)}%</strong> → <strong>${snapshot.nextUtilPct.toFixed(1)}%</strong>`,
-            ];
+
+            // Arrow SVG
+            const arrowSvg = '<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+
+
+            // Context bits
+            const ctx = [];
+            ctx.push(`Utilization <strong>${snapshot.currentUtilPct.toFixed(1)}%</strong> → <strong>${snapshot.nextUtilPct.toFixed(1)}%</strong>`);
             if (snapshot.currentBorrowApr > 0 || snapshot.nextBorrowApr > 0) {
-                contextBits.push(`Borrow <strong>${assets_fmtAprPercent(snapshot.currentBorrowApr)}</strong> → <strong>${assets_fmtAprPercent(snapshot.nextBorrowApr)}</strong>`);
+                ctx.push(`Borrow <strong>${assets_fmtAprPercent(snapshot.currentBorrowApr)}</strong> → <strong>${assets_fmtAprPercent(snapshot.nextBorrowApr)}</strong>`);
             }
             if (snapshot.effectiveUsd > 0) {
-                contextBits.push(`${assets_fmtUsdCompact(snapshot.effectiveUsd)} ${modeVerb}`);
+                ctx.push(`${assets_fmtUsdCompact(snapshot.effectiveUsd)} ${modeVerb}`);
             }
+            const ctxHtml = ctx.map((c, i) => i > 0 ? `<span class="assets-sim-context-sep"></span>${c}` : c).join('');
+
             return `
-                <div class="assets-sim-results">
-                    <div class="assets-sim-stat is-now">
-                        <div class="assets-sim-stat-label">Now</div>
-                        <div class="assets-sim-stat-value is-now">${assets_fmtDisplayedPercent(snapshot.currentDisplayRate)}</div>
-                        <div class="assets-sim-stat-sub">Current lending ${assets_getRateViewLabel()}</div>
+                <div class="assets-sim-results-section">
+                    <div class="assets-sim-rate-flow">
+                        <div class="assets-sim-rate-card is-current">
+                            <div class="assets-sim-rate-label">Current</div>
+                            <div class="assets-sim-rate-value current-color">${assets_fmtDisplayedPercent(snapshot.currentDisplayRate)}</div>
+                            <div class="assets-sim-rate-sub">Lending ${assets_getRateViewLabel()}</div>
+                        </div>
+                        <div class="assets-sim-flow-arrow">${arrowSvg}</div>
+                        <div class="assets-sim-rate-card is-projected ${afterDir}">
+                            <div class="assets-sim-rate-label">After ${modeVerb}</div>
+                            <div class="assets-sim-rate-value ${afterDir}">${assets_fmtDisplayedPercent(snapshot.nextDisplayRate)}</div>
+                            <div class="assets-sim-rate-sub">Projected ${assets_getRateViewLabel()}</div>
+                        </div>
+                        <div class="assets-sim-flow-arrow">${arrowSvg}</div>
+                        <div class="assets-sim-rate-card is-impact ${direction}">
+                            <div class="assets-sim-rate-label">Impact</div>
+                            <div class="assets-sim-rate-value ${direction}">${deltaPrefix}${assets_fmtDisplayedPercent(Math.abs(snapshot.deltaDisplayRate))}</div>
+                            <div class="assets-sim-rate-sub">${direction === 'positive' ? 'Higher than now' : direction === 'negative' ? 'Lower than now' : 'No change'}</div>
+                        </div>
                     </div>
-                    <div class="assets-sim-stat ${afterDirection ? `is-${afterDirection}` : ''}">
-                        <div class="assets-sim-stat-label">After ${modeVerb}</div>
-                        <div class="assets-sim-stat-value ${afterDirection}">${assets_fmtDisplayedPercent(snapshot.nextDisplayRate)}</div>
-                        <div class="assets-sim-stat-sub">Estimated lending ${assets_getRateViewLabel()} after your move</div>
-                    </div>
-                    <div class="assets-sim-stat ${direction ? `is-${direction}` : ''}">
-                        <div class="assets-sim-stat-label">Impact</div>
-                        <div class="assets-sim-stat-value ${direction}">${deltaPrefix}${assets_fmtDisplayedPercent(Math.abs(snapshot.deltaDisplayRate))}</div>
-                        <div class="assets-sim-stat-sub">${impactSummary}</div>
-                    </div>
-                </div>
-                <div class="assets-sim-context">
-                    ${contextBits.join(' · ')}
-                </div>
-            `;
+
+                    <div class="assets-sim-context">${ctxHtml}</div>
+                </div>`;
         }
 
         function assets_renderSimulatorResults(rowId) {
@@ -24777,17 +24580,20 @@
 
         function assets_buildSimulatorSection(rowId, d, md) {
             const model = assets_getSimulatorModel(d, md);
+            const simIcon = '<svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>';
             if (!model) {
                 return `<div class="assets-detail-section assets-sim-section">
-                <div class="assets-section-header simulator">
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <span class="section-dot"></span>
-                        <div class="assets-sim-header-copy">
-                            <span>Lending APR Impact</span>
-                            <small>Waiting for a live USD price for ${earn_escapeHtml(d.symbol || d.name || 'this market')}.</small>
+                <div class="assets-sim-card">
+                    <div class="assets-sim-header">
+                        <div class="assets-sim-header-left">
+                            <div class="assets-sim-header-icon">${simIcon}</div>
+                            <div class="assets-sim-header-copy">
+                                <span>Yield Simulator</span>
+                                <small>Waiting for a live USD price for ${earn_escapeHtml(d.symbol || d.name || 'this market')}.</small>
+                            </div>
                         </div>
+                        <span class="assets-sim-status warn">Price feed pending</span>
                     </div>
-                    <span class="assets-sim-status warn">Price feed pending</span>
                 </div>
                 </div>`;
             }
@@ -24809,48 +24615,52 @@
             const presetHtml = presets.map(value => `<button type="button" data-assets-sim-preset="${rowId}" data-value="${value}" class="${Math.abs((state.usdInput || 0) - value) < 0.5 ? 'active' : ''}" onclick="event.stopPropagation(); assets_applySimulatorPreset('${rowId}', ${value})">${assets_fmtUsdCompact(value)}</button>`).join('');
 
             return `<div class="assets-detail-section assets-sim-section">
-                <div class="assets-section-header simulator">
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <span class="section-dot"></span>
-                        <div class="assets-sim-header-copy">
-                            <span>Lending APR Impact</span>
-                            <small>Type an amount to see how ${earn_escapeHtml(model.symbol)} lending would move right now.</small>
-                        </div>
-                    </div>
-                    <span id="${rowId}-sim-status" class="assets-sim-status${snapshot && snapshot.statusTone === 'warn' ? ' warn' : ''}">${earn_escapeHtml(snapshot ? snapshot.statusText : 'Live lending estimate')}</span>
-                </div>
-                <div class="assets-sim-controls">
-                    <div class="assets-sim-control-group is-action">
-                        <div class="assets-sim-label">Action</div>
-                        <div class="assets-sim-mode" onclick="event.stopPropagation()">
-                            <button type="button" data-assets-sim-mode="${rowId}" data-mode="deposit" class="${state.mode === 'deposit' ? 'active' : ''}" onclick="event.stopPropagation(); assets_handleSimulatorMode('${rowId}', 'deposit')">Deposit</button>
-                            <button type="button" data-assets-sim-mode="${rowId}" data-mode="withdraw" class="${state.mode === 'withdraw' ? 'active' : ''}" onclick="event.stopPropagation(); assets_handleSimulatorMode('${rowId}', 'withdraw')">Withdraw</button>
-                        </div>
-                    </div>
-                    <div class="assets-sim-control-group is-amount">
-                        <div class="assets-sim-label">Amount (USD)</div>
-                        <div class="assets-sim-input-wrap" onclick="event.stopPropagation()">
-                            <div class="assets-sim-input-main">
-                                <span class="assets-sim-input-prefix">$</span>
-                                <input id="${rowId}-sim-input" type="number" min="0" step="100" inputmode="decimal" placeholder="25000" value="${state.usdInput > 0 ? state.usdInput : ''}" oninput="assets_handleSimulatorInput('${rowId}', this.value)" onclick="event.stopPropagation()">
+                <div class="assets-sim-card">
+                    <div class="assets-sim-header">
+                        <div class="assets-sim-header-left">
+                            <div class="assets-sim-header-icon">${simIcon}</div>
+                            <div class="assets-sim-header-copy">
+                                <span>Yield Simulator</span>
+                                <small>Simulate how your ${earn_escapeHtml(model.symbol)} lending rate changes.</small>
                             </div>
-                            <div class="assets-sim-input-tools">
-                                <button id="${rowId}-sim-max" type="button" class="assets-sim-max${finiteMaxUsd > 0 && Math.abs((state.usdInput || 0) - finiteMaxUsd) < 0.5 ? ' active' : ''}" ${finiteMaxUsd > 0 ? '' : 'disabled'} onclick="event.stopPropagation(); assets_applySimulatorMax('${rowId}')">Max</button>
-                                <div class="assets-sim-stepper">
-                                    <button type="button" onclick="event.stopPropagation(); assets_nudgeSimulatorInput('${rowId}', 'up')"><span>▴</span></button>
-                                    <button type="button" onclick="event.stopPropagation(); assets_nudgeSimulatorInput('${rowId}', 'down')"><span>▾</span></button>
+                        </div>
+                        <span id="${rowId}-sim-status" class="assets-sim-status${snapshot && snapshot.statusTone === 'warn' ? ' warn' : ''}">${earn_escapeHtml(snapshot ? snapshot.statusText : 'Live lending estimate')}</span>
+                    </div>
+                    <div class="assets-sim-body">
+                        <div class="assets-sim-controls-row">
+                            <div class="assets-sim-control-group">
+                                <div class="assets-sim-label">Action</div>
+                                <div class="assets-sim-mode" onclick="event.stopPropagation()">
+                                    <button type="button" data-assets-sim-mode="${rowId}" data-mode="deposit" class="${state.mode === 'deposit' ? 'active' : ''}" onclick="event.stopPropagation(); assets_handleSimulatorMode('${rowId}', 'deposit')">Deposit</button>
+                                    <button type="button" data-assets-sim-mode="${rowId}" data-mode="withdraw" class="${state.mode === 'withdraw' ? 'active' : ''}" onclick="event.stopPropagation(); assets_handleSimulatorMode('${rowId}', 'withdraw')">Withdraw</button>
+                                </div>
+                            </div>
+                            <div class="assets-sim-control-group is-amount">
+                                <div class="assets-sim-label">Amount (USD)</div>
+                                <div class="assets-sim-input-wrap" onclick="event.stopPropagation()">
+                                    <div class="assets-sim-input-main">
+                                        <span class="assets-sim-input-prefix">$</span>
+                                        <input id="${rowId}-sim-input" type="number" min="0" step="100" inputmode="decimal" placeholder="25000" value="${state.usdInput > 0 ? state.usdInput : ''}" oninput="assets_handleSimulatorInput('${rowId}', this.value)" onclick="event.stopPropagation()">
+                                    </div>
+                                    <div class="assets-sim-input-tools">
+                                        <button id="${rowId}-sim-max" type="button" class="assets-sim-max${finiteMaxUsd > 0 && Math.abs((state.usdInput || 0) - finiteMaxUsd) < 0.5 ? ' active' : ''}" ${finiteMaxUsd > 0 ? '' : 'disabled'} onclick="event.stopPropagation(); assets_applySimulatorMax('${rowId}')">Max</button>
+                                        <div class="assets-sim-stepper">
+                                            <button type="button" onclick="event.stopPropagation(); assets_nudgeSimulatorInput('${rowId}', 'up')"><span>▴</span></button>
+                                            <button type="button" onclick="event.stopPropagation(); assets_nudgeSimulatorInput('${rowId}', 'down')"><span>▾</span></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="assets-sim-control-group">
+                                <div class="assets-sim-label">Quick presets</div>
+                                <div id="${rowId}-sim-presets" class="assets-sim-presets" onclick="event.stopPropagation()">
+                                    ${presetHtml || '<button type="button" disabled>No presets</button>'}
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="assets-sim-control-group is-presets">
-                        <div class="assets-sim-label">Quick presets</div>
-                        <div id="${rowId}-sim-presets" class="assets-sim-presets" onclick="event.stopPropagation()">
-                            ${presetHtml || '<button type="button" disabled>No presets</button>'}
-                        </div>
+                        <div id="${rowId}-sim-results-wrap">${assets_buildSimulatorResultsHtml(snapshot)}</div>
                     </div>
                 </div>
-                <div id="${rowId}-sim-results-wrap">${assets_buildSimulatorResultsHtml(snapshot)}</div>
             </div>`;
         }
 
