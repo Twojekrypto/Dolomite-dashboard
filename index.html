@@ -24734,7 +24734,7 @@
             if (!state) return;
             const maxUsd = assets_getFiniteSimulatorMaxUsd(state.model, state.mode);
             if (!(maxUsd > 0)) return;
-            state.usdInput = maxUsd;
+            state.usdInput = Math.floor(maxUsd);
             assets_renderSimulatorResults(rowId);
         }
 
