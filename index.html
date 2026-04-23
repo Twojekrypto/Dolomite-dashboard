@@ -13547,44 +13547,362 @@
                 </div>
             </div>
 
+            <style>
+                .migrated-chart-card {
+                    position: relative;
+                    margin-top: 24px;
+                    overflow: hidden;
+                    border-radius: 18px;
+                    border: 1px solid rgba(255, 255, 255, 0.08);
+                    background:
+                        radial-gradient(circle at top right, rgba(99, 102, 241, 0.08), transparent 26%),
+                        radial-gradient(circle at bottom left, rgba(16, 185, 129, 0.08), transparent 24%),
+                        linear-gradient(155deg, rgba(14, 19, 30, 0.96) 0%, rgba(10, 13, 22, 0.98) 100%);
+                    box-shadow: 0 16px 42px rgba(0, 0, 0, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+                }
+
+                .migrated-chart-card::before {
+                    content: "";
+                    position: absolute;
+                    inset: 0 0 auto;
+                    height: 1px;
+                    background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0));
+                    pointer-events: none;
+                }
+
+                .migrated-chart-head {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    gap: 20px;
+                    padding: 22px 24px 14px;
+                }
+
+                .migrated-chart-heading {
+                    min-width: 0;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                }
+
+                .migrated-chart-eyebrow {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-size: 10px;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    letter-spacing: 1.25px;
+                    color: rgba(226, 232, 240, 0.56);
+                }
+
+                .migrated-chart-eyebrow::before {
+                    content: "";
+                    width: 7px;
+                    height: 7px;
+                    border-radius: 999px;
+                    background: rgba(96, 165, 250, 0.78);
+                    box-shadow: 0 0 12px rgba(96, 165, 250, 0.42);
+                }
+
+                .migrated-chart-card--lock .migrated-chart-eyebrow::before {
+                    background: rgba(167, 139, 250, 0.86);
+                    box-shadow: 0 0 12px rgba(167, 139, 250, 0.4);
+                }
+
+                .migrated-chart-title {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    flex-wrap: wrap;
+                    margin: 0;
+                    font-size: 21px;
+                    font-weight: 700;
+                    letter-spacing: -0.02em;
+                    color: #f8fafc;
+                }
+
+                .migrated-chart-title img {
+                    flex-shrink: 0;
+                    filter: drop-shadow(0 4px 12px rgba(15, 23, 42, 0.24));
+                }
+
+                .migrated-chart-subtitle {
+                    margin: 0;
+                    max-width: 760px;
+                    font-size: 12px;
+                    line-height: 1.6;
+                    color: rgba(203, 213, 225, 0.72);
+                }
+
+                .migrated-chart-controls {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    flex-shrink: 0;
+                }
+
+                .migrated-chart-toggle {
+                    display: inline-flex;
+                    gap: 4px;
+                    padding: 3px;
+                    border-radius: 999px;
+                    border: 1px solid rgba(255, 255, 255, 0.08);
+                    background: rgba(15, 23, 42, 0.58);
+                    backdrop-filter: blur(12px);
+                    -webkit-backdrop-filter: blur(12px);
+                }
+
+                .migrated-chart-toggle button {
+                    padding: 6px 12px;
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: rgba(226, 232, 240, 0.58);
+                    border: none;
+                    border-radius: 999px;
+                    background: transparent;
+                    cursor: pointer;
+                    transition: background 0.22s ease, color 0.22s ease, transform 0.22s ease;
+                }
+
+                .migrated-chart-toggle button:hover {
+                    color: #f8fafc;
+                    transform: translateY(-1px);
+                }
+
+                .migrated-chart-toggle button.is-active {
+                    background: rgba(99, 102, 241, 0.55);
+                    color: #e2e8f0;
+                    font-weight: 600;
+                    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+                }
+
+                .migrated-chart-shell {
+                    position: relative;
+                    margin: 0 20px;
+                    min-height: 340px;
+                    padding: 12px 16px 18px;
+                    border-radius: 18px;
+                    border: 1px solid rgba(255, 255, 255, 0.06);
+                    background:
+                        linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015)),
+                        radial-gradient(circle at top, rgba(255, 255, 255, 0.04), transparent 58%),
+                        rgba(7, 10, 19, 0.9);
+                    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+                }
+
+                .migrated-chart-shell.is-compact {
+                    min-height: 300px;
+                }
+
+                .migrated-chart-canvas {
+                    display: block;
+                    width: 100%;
+                    height: 100%;
+                    border-radius: 14px;
+                }
+
+                .migrated-chart-status {
+                    position: absolute;
+                    inset: 12px 16px 18px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 20px 24px;
+                    border-radius: 14px;
+                    background: linear-gradient(180deg, rgba(10, 14, 24, 0.84), rgba(10, 14, 24, 0.6));
+                    border: 1px dashed rgba(148, 163, 184, 0.18);
+                    color: rgba(226, 232, 240, 0.72);
+                    font-size: 12px;
+                    letter-spacing: 0.2px;
+                    text-align: center;
+                    line-height: 1.6;
+                    z-index: 1;
+                    backdrop-filter: blur(10px);
+                    -webkit-backdrop-filter: blur(10px);
+                    transition: opacity 0.22s ease, visibility 0.22s ease;
+                }
+
+                .migrated-chart-status.is-hidden {
+                    opacity: 0;
+                    visibility: hidden;
+                    pointer-events: none;
+                }
+
+                .migrated-chart-status.is-error {
+                    color: rgba(248, 113, 113, 0.88);
+                    border-color: rgba(248, 113, 113, 0.28);
+                }
+
+                .migrated-chart-footer {
+                    display: flex;
+                    gap: 18px;
+                    align-items: flex-start;
+                    justify-content: space-between;
+                    flex-wrap: wrap;
+                    padding: 16px 24px 20px;
+                }
+
+                .migrated-chart-legend {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 10px 14px;
+                    align-items: center;
+                    min-width: 0;
+                }
+
+                .migrated-chart-legend-item {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 7px;
+                    font-size: 10px;
+                    color: rgba(203, 213, 225, 0.58);
+                    white-space: nowrap;
+                }
+
+                .migrated-chart-legend-dot,
+                .migrated-chart-legend-line {
+                    flex-shrink: 0;
+                }
+
+                .migrated-chart-legend-dot {
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 999px;
+                    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+                }
+
+                .migrated-chart-legend-line {
+                    width: 12px;
+                    height: 2px;
+                    border-radius: 999px;
+                }
+
+                .migrated-chart-stats {
+                    display: flex;
+                    gap: 10px 12px;
+                    flex-wrap: wrap;
+                    justify-content: flex-end;
+                    margin-left: auto;
+                }
+
+                .migrated-chart-stat-pill {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    padding: 8px 10px;
+                    border-radius: 999px;
+                    background: rgba(255, 255, 255, 0.04);
+                    border: 1px solid rgba(255, 255, 255, 0.06);
+                    font-size: 11px;
+                    color: rgba(226, 232, 240, 0.72);
+                }
+
+                .migrated-chart-stat-pill b {
+                    color: #f8fafc;
+                    font-weight: 700;
+                }
+
+                .migrated-chart-tooltip {
+                    display: none;
+                    position: fixed;
+                    z-index: 9999;
+                    min-width: 170px;
+                    max-width: 260px;
+                    padding: 12px 14px;
+                    border-radius: 12px;
+                    background: rgba(15, 23, 42, 0.97);
+                    border: 1px solid rgba(99, 102, 241, 0.28);
+                    color: #e2e8f0;
+                    font-size: 11px;
+                    line-height: 1.6;
+                    pointer-events: none;
+                    backdrop-filter: blur(14px);
+                    -webkit-backdrop-filter: blur(14px);
+                    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.34);
+                }
+
+                @media (max-width: 860px) {
+                    .migrated-chart-head {
+                        flex-direction: column;
+                    }
+
+                    .migrated-chart-controls {
+                        width: 100%;
+                        justify-content: flex-start;
+                    }
+
+                    .migrated-chart-shell {
+                        min-height: 300px;
+                    }
+
+                    .migrated-chart-footer {
+                        flex-direction: column;
+                    }
+
+                    .migrated-chart-stats {
+                        margin-left: 0;
+                        justify-content: flex-start;
+                    }
+                }
+
+                @media (max-width: 640px) {
+                    .migrated-chart-head {
+                        padding: 20px 18px 14px;
+                    }
+
+                    .migrated-chart-title {
+                        font-size: 18px;
+                    }
+
+                    .migrated-chart-shell {
+                        margin: 0 16px;
+                        min-height: 270px;
+                        padding: 10px 12px 14px;
+                    }
+
+                    .migrated-chart-footer {
+                        padding: 14px 16px 18px;
+                    }
+
+                    .migrated-chart-status {
+                        inset: 10px 12px 14px;
+                    }
+                }
+            </style>
+
             <!-- ── veDOLO LOCK DURATION DISTRIBUTION ── -->
-            <div class="treasury-card anim anim-d4" style="margin-top:24px">
-                <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
-                    <h3 style="display:flex;align-items:center;gap:8px;margin:0">
-                        <img src="vedolo-logo.svg" width="22" height="22" alt="veDOLO" style="flex-shrink:0">
-                        Lock Duration Distribution
-                        <span style="font-size:11px;color:rgba(255,255,255,.35);font-weight:400;margin-left:8px">How
-                            long do users lock?</span>
-                    </h3>
-                    <div style="display:flex;gap:4px;background:rgba(255,255,255,.06);border-radius:6px;padding:2px">
-                        <button id="lock-dist-toggle-count" onclick="treasury_toggleLockDist('count')"
-                            style="padding:4px 12px;font-size:11px;border:none;border-radius:4px;cursor:pointer;background:rgba(99,102,241,.5);color:#e2e8f0;font-weight:600;transition:all .2s">Count</button>
-                        <button id="lock-dist-toggle-vedolo" onclick="treasury_toggleLockDist('vedolo')"
-                            style="padding:4px 12px;font-size:11px;border:none;border-radius:4px;cursor:pointer;background:transparent;color:rgba(255,255,255,.4);font-weight:500;transition:all .2s">veDOLO</button>
+            <div class="treasury-card migrated-chart-card migrated-chart-card--lock anim anim-d4">
+                <div class="migrated-chart-head">
+                    <div class="migrated-chart-heading">
+                        <span class="migrated-chart-eyebrow">veDOLO analytics</span>
+                        <h3 class="migrated-chart-title">
+                            <img src="vedolo-logo.svg" width="22" height="22" alt="veDOLO">
+                            Lock Duration Distribution
+                        </h3>
+                        <p class="migrated-chart-subtitle">See where users concentrate their lock lengths and how whale-sized exercises shape the curve. Hover any bucket to inspect count, veDOLO volume, and size mix.</p>
+                    </div>
+                    <div class="migrated-chart-controls">
+                        <div class="migrated-chart-toggle">
+                            <button id="lock-dist-toggle-count" onclick="treasury_toggleLockDist('count')">Count</button>
+                            <button id="lock-dist-toggle-vedolo" onclick="treasury_toggleLockDist('vedolo')">veDOLO</button>
+                        </div>
                     </div>
                 </div>
-                <div style="position:relative;width:100%;height:300px;padding:0 20px 20px">
-                    <canvas id="treasury-lockdist-canvas" style="width:100%;height:100%"></canvas>
+                <div id="treasury-lockdist-shell" class="migrated-chart-shell is-compact">
+                    <canvas id="treasury-lockdist-canvas" class="migrated-chart-canvas"></canvas>
+                    <div id="treasury-lockdist-status" class="migrated-chart-status">Preparing the lock distribution chart…</div>
                 </div>
-                <div style="display:flex;gap:16px;padding:4px 24px 12px;flex-wrap:wrap;align-items:center">
-                    <div style="display:flex;align-items:center;gap:5px"><span
-                            style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#3b82f6"></span><span
-                            style="font-size:10px;color:rgba(255,255,255,.4)">&lt;$1K</span></div>
-                    <div style="display:flex;align-items:center;gap:5px"><span
-                            style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#10b981"></span><span
-                            style="font-size:10px;color:rgba(255,255,255,.4)">$1K–10K</span></div>
-                    <div style="display:flex;align-items:center;gap:5px"><span
-                            style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#f59e0b"></span><span
-                            style="font-size:10px;color:rgba(255,255,255,.4)">$10K–50K</span></div>
-                    <div style="display:flex;align-items:center;gap:5px"><span
-                            style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#ec4899;box-shadow:0 0 5px rgba(236,72,153,.4)"></span><span
-                            style="font-size:10px;color:rgba(255,255,255,.4)">&gt;$50K 🐋</span></div>
-                    <div id="treasury-lockdist-stats"
-                        style="margin-left:auto;display:flex;gap:16px;font-size:11px;color:rgba(255,255,255,.5)"></div>
+                <div class="migrated-chart-footer">
+                    <div class="migrated-chart-legend">
+                        <span class="migrated-chart-legend-item"><span class="migrated-chart-legend-dot" style="background:#3b82f6"></span>&lt;$1K</span>
+                        <span class="migrated-chart-legend-item"><span class="migrated-chart-legend-dot" style="background:#10b981"></span>$1K–10K</span>
+                        <span class="migrated-chart-legend-item"><span class="migrated-chart-legend-dot" style="background:#f59e0b"></span>$10K–50K</span>
+                        <span class="migrated-chart-legend-item"><span class="migrated-chart-legend-dot" style="background:#ec4899;box-shadow:0 0 10px rgba(236,72,153,.38)"></span>&gt;$50K whales</span>
+                    </div>
+                    <div id="treasury-lockdist-stats" class="migrated-chart-stats"></div>
                 </div>
-                <div id="treasury-lockdist-tooltip"
-                    style="display:none;position:fixed;z-index:9999;background:rgba(15,23,42,0.97);border:1px solid rgba(99,102,241,0.3);border-radius:8px;padding:10px 14px;font-size:11px;color:#e2e8f0;pointer-events:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.5);line-height:1.6;white-space:nowrap">
-                </div>
+                <div id="treasury-lockdist-tooltip" class="migrated-chart-tooltip"></div>
             </div>
 
             <!-- Protocol Info -->
@@ -14398,56 +14716,32 @@
             </div>
 
             <!-- ── oDOLO DISCOUNT CURVE ── -->
-            <div class="treasury-card anim anim-d4" style="margin-top:24px">
-                <div class="card-header">
-                    <h3 style="display:flex;align-items:center;gap:8px;margin:0">
-                        <img src="odolo-logo-official.svg" width="22" height="22" alt="oDOLO" style="flex-shrink:0">
-                        oDOLO Discount Curve
-                        <span style="font-size:11px;color:rgba(255,255,255,.35);font-weight:400;margin-left:8px">Theory
-                            vs Reality</span>
-                    </h3>
-                </div>
-                <div style="padding:0 20px 10px">
-                    <p style="margin:0 0 12px;font-size:12px;color:rgba(255,255,255,.45);line-height:1.5">
-                        Each dot = one oDOLO exercise. The orange line shows the theoretical discount schedule (5% at 7
-                        days → 50% at 2 years).
-                    </p>
-                </div>
-                <div style="position:relative;width:100%;height:340px;padding:0 20px 20px">
-                    <canvas id="treasury-discount-canvas" style="width:100%;height:100%"></canvas>
-                </div>
-                <div style="display:flex;gap:16px;padding:0 24px 18px;flex-wrap:wrap;align-items:center">
-                    <div style="display:flex;align-items:center;gap:6px">
-                        <span
-                            style="display:inline-block;width:10px;height:2px;background:#f59e0b;border-radius:1px"></span>
-                        <span style="font-size:11px;color:rgba(255,255,255,.5)">Theoretical</span>
+            <div class="treasury-card migrated-chart-card migrated-chart-card--discount anim anim-d4">
+                <div class="migrated-chart-head">
+                    <div class="migrated-chart-heading">
+                        <span class="migrated-chart-eyebrow">oDOLO analytics</span>
+                        <h3 class="migrated-chart-title">
+                            <img src="odolo-logo-official.svg" width="22" height="22" alt="oDOLO">
+                            oDOLO Discount Curve
+                        </h3>
+                        <p class="migrated-chart-subtitle">Each point is a real oDOLO exercise. The dashed line shows the theoretical discount schedule, so you can compare expected pricing with how users actually exercise.</p>
                     </div>
-                    <div style="display:flex;align-items:center;gap:6px">
-                        <span
-                            style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6"></span>
-                        <span style="font-size:10px;color:rgba(255,255,255,.4)">&lt;$500</span>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:6px">
-                        <span
-                            style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981"></span>
-                        <span style="font-size:10px;color:rgba(255,255,255,.4)">$500–5K</span>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:6px">
-                        <span
-                            style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b"></span>
-                        <span style="font-size:10px;color:rgba(255,255,255,.4)">$5K–25K</span>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:6px">
-                        <span
-                            style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#ec4899;box-shadow:0 0 6px rgba(236,72,153,.5)"></span>
-                        <span style="font-size:10px;color:rgba(255,255,255,.4)">&gt;$25K 🐋</span>
-                    </div>
-                    <div id="treasury-discount-stats"
-                        style="margin-left:auto;display:flex;gap:16px;font-size:11px;color:rgba(255,255,255,.5)"></div>
                 </div>
-                <div id="treasury-discount-tooltip"
-                    style="display:none;position:fixed;z-index:9999;background:rgba(15,23,42,0.97);border:1px solid rgba(99,102,241,0.3);border-radius:8px;padding:10px 14px;font-size:11px;color:#e2e8f0;pointer-events:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.5);line-height:1.6;white-space:nowrap">
+                <div id="treasury-discount-shell" class="migrated-chart-shell">
+                    <canvas id="treasury-discount-canvas" class="migrated-chart-canvas"></canvas>
+                    <div id="treasury-discount-status" class="migrated-chart-status">Loading the latest oDOLO exercise curve…</div>
                 </div>
+                <div class="migrated-chart-footer">
+                    <div class="migrated-chart-legend">
+                        <span class="migrated-chart-legend-item"><span class="migrated-chart-legend-line" style="background:#f59e0b"></span>Theoretical schedule</span>
+                        <span class="migrated-chart-legend-item"><span class="migrated-chart-legend-dot" style="background:#3b82f6"></span>&lt;$500</span>
+                        <span class="migrated-chart-legend-item"><span class="migrated-chart-legend-dot" style="background:#10b981"></span>$500–5K</span>
+                        <span class="migrated-chart-legend-item"><span class="migrated-chart-legend-dot" style="background:#f59e0b"></span>$5K–25K</span>
+                        <span class="migrated-chart-legend-item"><span class="migrated-chart-legend-dot" style="background:#ec4899;box-shadow:0 0 10px rgba(236,72,153,.38)"></span>&gt;$25K whales</span>
+                    </div>
+                    <div id="treasury-discount-stats" class="migrated-chart-stats"></div>
+                </div>
+                <div id="treasury-discount-tooltip" class="migrated-chart-tooltip"></div>
             </div>
 
             <!-- Protocol Info -->
@@ -18217,10 +18511,10 @@
 
             // Re-render migrated treasury analytics where they now live
             if (view === 'odolo' && treasury_exercisersData) {
-                setTimeout(() => treasury_renderDiscountCurve(treasury_exercisersData), 80);
+                treasury_scheduleChartRender('discount', 80);
             }
             if (view === 'vedolo' && treasury_exercisersData) {
-                setTimeout(() => treasury_renderLockDistribution(treasury_exercisersData), 80);
+                treasury_scheduleChartRender('lockdist', 80);
             }
 
             // Re-render TVL charts on switch to TVL tab
@@ -35254,6 +35548,72 @@
         let treasury_loaded = false;
         let treasury_supplyData = null;
         let treasury_exercisersData = null;
+        const treasury_chartTimers = { discount: null, lockdist: null };
+        let treasury_chartResizeBound = false;
+
+        function treasury_getChartConfig(kind) {
+            return kind === 'discount'
+                ? {
+                    expectedView: 'odolo',
+                    canvasId: 'treasury-discount-canvas',
+                    shellId: 'treasury-discount-shell',
+                    statusId: 'treasury-discount-status',
+                    render: () => treasury_renderDiscountCurve(treasury_exercisersData),
+                }
+                : {
+                    expectedView: 'vedolo',
+                    canvasId: 'treasury-lockdist-canvas',
+                    shellId: 'treasury-lockdist-shell',
+                    statusId: 'treasury-lockdist-status',
+                    render: () => treasury_renderLockDistribution(treasury_exercisersData),
+                };
+        }
+
+        function treasury_setChartStatus(kind, message = '', tone = 'loading') {
+            const cfg = treasury_getChartConfig(kind);
+            const status = document.getElementById(cfg.statusId);
+            if (!status) return;
+            status.textContent = message;
+            status.classList.remove('is-hidden', 'is-error');
+            if (!message) {
+                status.classList.add('is-hidden');
+                return;
+            }
+            if (tone === 'error') status.classList.add('is-error');
+        }
+
+        function treasury_bindChartResize() {
+            if (treasury_chartResizeBound) return;
+            treasury_chartResizeBound = true;
+            window.addEventListener('resize', () => {
+                if (currentView === 'odolo' && treasury_exercisersData) treasury_scheduleChartRender('discount', 60);
+                if (currentView === 'vedolo' && treasury_exercisersData) treasury_scheduleChartRender('lockdist', 60);
+            });
+        }
+
+        function treasury_scheduleChartRender(kind, delay = 0, attempt = 0) {
+            const cfg = treasury_getChartConfig(kind);
+            if (!treasury_exercisersData) {
+                treasury_setChartStatus(kind, 'Waiting for exercise data…');
+                return;
+            }
+            clearTimeout(treasury_chartTimers[kind]);
+            treasury_chartTimers[kind] = setTimeout(() => {
+                const shell = document.getElementById(cfg.shellId);
+                const canvas = document.getElementById(cfg.canvasId);
+                if (!shell || !canvas) return;
+                const rect = shell.getBoundingClientRect();
+                const viewVisible = currentView === cfg.expectedView;
+                if (!viewVisible || rect.width < 120 || rect.height < 120) {
+                    if (viewVisible && attempt < 12) {
+                        treasury_setChartStatus(kind, 'Finalizing chart layout…');
+                        treasury_scheduleChartRender(kind, 100, attempt + 1);
+                    }
+                    return;
+                }
+                cfg.render();
+            }, delay);
+        }
 
         // ===== Protocol Addresses sort =====
         let treasuryAddrSortKey = 'rank';
@@ -35311,6 +35671,7 @@
 
         async function treasury_init() {
             treasury_loaded = true;
+            treasury_bindChartResize();
             const fmt = n => Number(Math.round(n)).toLocaleString();
             const fmtM = n => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : fmt(n);
 
@@ -35440,12 +35801,12 @@
                 // ── 5. oDOLO Discount Curve ──
                 if (exercisersResp && exercisersResp.exercisers) {
                     treasury_exercisersData = exercisersResp.exercisers;
-                    setTimeout(() => treasury_renderDiscountCurve(exercisersResp.exercisers), 100);
+                    treasury_scheduleChartRender('discount', 100);
                 }
 
                 // ── 5b. Lock Duration Distribution ──
                 if (exercisersResp && exercisersResp.exercisers) {
-                    setTimeout(() => treasury_renderLockDistribution(exercisersResp.exercisers), 120);
+                    treasury_scheduleChartRender('lockdist', 120);
                 }
 
                 // ── 6. Recoup Pool Funding ──
@@ -35463,24 +35824,28 @@
 
         // ===== oDOLO DISCOUNT CURVE (Scatter — Enhanced) =====
         let _discountCurveTxCache = null; // cached for hover
-        let _discountCurvePad = null;
-        let _discountCurvePlot = null;
+        let _discountCurveHoverState = null;
         function treasury_renderDiscountCurve(exercisers) {
             const canvas = document.getElementById('treasury-discount-canvas');
-            if (!canvas) return;
+            const shell = document.getElementById('treasury-discount-shell');
+            if (!canvas || !shell) return false;
             const dpr = window.devicePixelRatio || 1;
-            const rect = canvas.parentElement.getBoundingClientRect();
-            canvas.width = rect.width * dpr;
-            canvas.height = rect.height * dpr;
-            canvas.style.width = rect.width + 'px';
-            canvas.style.height = rect.height + 'px';
+            const width = Math.max(320, Math.round(shell.clientWidth));
+            const height = Math.max(240, Math.round(shell.clientHeight));
+            if (width < 120 || height < 120) {
+                treasury_setChartStatus('discount', 'Finalizing chart layout…');
+                return false;
+            }
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            canvas.style.width = width + 'px';
+            canvas.style.height = height + 'px';
             const ctx = canvas.getContext('2d');
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.scale(dpr, dpr);
-            const W = rect.width, H = rect.height;
-            const pad = { top: 20, right: 20, bottom: 40, left: 55 };
+            const W = width, H = height;
+            const pad = { top: 24, right: 26, bottom: 44, left: 58 };
             const plotW = W - pad.left - pad.right, plotH = H - pad.top - pad.bottom;
-            _discountCurvePad = pad;
-            _discountCurvePlot = { W, H, plotW, plotH, maxDays: 730, maxDisc: 55 };
 
             // ── Color tiers by USDC volume ──
             function getTierColor(usdc, alpha) {
@@ -35507,10 +35872,28 @@
                 });
             });
             _discountCurveTxCache = txs;
+            if (!txs.length) {
+                ctx.clearRect(0, 0, W, H);
+                treasury_setChartStatus('discount', 'No oDOLO exercise data is available yet for this curve.');
+                const statsEl = document.getElementById('treasury-discount-stats');
+                if (statsEl) statsEl.innerHTML = '';
+                return false;
+            }
+            treasury_setChartStatus('discount', '');
 
             // Axes
             const maxDays = 730;
             const maxDisc = 55;
+
+            ctx.clearRect(0, 0, W, H);
+
+            const chartBg = ctx.createLinearGradient(0, pad.top, 0, pad.top + plotH);
+            chartBg.addColorStop(0, 'rgba(255,255,255,0.035)');
+            chartBg.addColorStop(1, 'rgba(255,255,255,0.01)');
+            ctx.fillStyle = chartBg;
+            ctx.beginPath();
+            ctx.roundRect(pad.left, pad.top, plotW, plotH, 18);
+            ctx.fill();
 
             // Grid & axes
             ctx.strokeStyle = 'rgba(255,255,255,.06)';
@@ -35552,12 +35935,14 @@
 
             // ── Sort txs: draw small first, whales on top ──
             const sortedTxs = [...txs].sort((a, b) => a.usdc - b.usdc);
+            const plottedPoints = [];
 
             // ── Scatter dots with tier-based colors + glow ──
             sortedTxs.forEach(tx => {
                 const x = pad.left + (Math.min(tx.days, maxDays) / maxDays) * plotW;
                 const y = pad.top + plotH - (Math.min(tx.discount, maxDisc) / maxDisc) * plotH;
                 const r = Math.max(2.5, Math.min(7, Math.sqrt(tx.usdc / 400)));
+                plottedPoints.push({ ...tx, x, y, r });
 
                 // Glow effect for large exercises (>$10K)
                 if (tx.usdc >= 10000) {
@@ -35598,31 +35983,40 @@
             const statsEl = document.getElementById('treasury-discount-stats');
             if (statsEl) {
                 statsEl.innerHTML = `
-                    <span>Exercises: <b style="color:rgba(255,255,255,.7)">${txs.length.toLocaleString()}</b></span>
-                    <span>Avg lock: <b style="color:rgba(255,255,255,.7)">${avgLock.toFixed(0)}d</b></span>
-                    <span>Avg discount: <b style="color:rgba(255,255,255,.7)">${avgDisc.toFixed(1)}%</b></span>
-                    <span>Largest: <b style="color:#ec4899">${fmtUsd(largest.usdc)}</b></span>
-                    <span>Popular lock: <b style="color:rgba(255,255,255,.7)">${popularLockLabel}</b> <span style="color:rgba(255,255,255,.35)">(${popularLock[1]}×)</span></span>
+                    <span class="migrated-chart-stat-pill">Exercises <b>${txs.length.toLocaleString()}</b></span>
+                    <span class="migrated-chart-stat-pill">Avg lock <b>${avgLock.toFixed(0)}d</b></span>
+                    <span class="migrated-chart-stat-pill">Avg discount <b>${avgDisc.toFixed(1)}%</b></span>
+                    <span class="migrated-chart-stat-pill">Largest <b style="color:#ec4899">${fmtUsd(largest.usdc)}</b></span>
+                    <span class="migrated-chart-stat-pill">Popular lock <b>${popularLockLabel}</b> <span style="color:rgba(255,255,255,.42)">(${popularLock[1]}×)</span></span>
                 `;
             }
+
+            _discountCurveHoverState = {
+                pad,
+                plotW,
+                plotH,
+                points: plottedPoints,
+                maxDays,
+                maxDisc,
+            };
 
             // ── Hover tooltip ──
             if (!canvas._hoverBound) {
                 canvas._hoverBound = true;
                 const tip = document.getElementById('treasury-discount-tooltip');
                 canvas.addEventListener('mousemove', function (e) {
-                    if (!_discountCurveTxCache || !tip) return;
+                    if (!_discountCurveHoverState || !tip) return;
                     const cRect = canvas.getBoundingClientRect();
                     const mx = e.clientX - cRect.left;
                     const my = e.clientY - cRect.top;
-                    const p = _discountCurvePad;
-                    const pl = _discountCurvePlot;
-                    let closest = null, closestDist = 20; // 20px threshold
-                    _discountCurveTxCache.forEach(tx => {
-                        const x = p.left + (Math.min(tx.days, pl.maxDays) / pl.maxDays) * pl.plotW;
-                        const y = p.top + pl.plotH - (Math.min(tx.discount, pl.maxDisc) / pl.maxDisc) * pl.plotH;
-                        const dist = Math.sqrt((mx - x) ** 2 + (my - y) ** 2);
-                        if (dist < closestDist) { closestDist = dist; closest = tx; }
+                    let closest = null, closestDist = Infinity;
+                    _discountCurveHoverState.points.forEach(point => {
+                        const dist = Math.hypot(mx - point.x, my - point.y);
+                        const threshold = Math.max(18, point.r + 10);
+                        if (dist <= threshold && dist < closestDist) {
+                            closest = point;
+                            closestDist = dist;
+                        }
                     });
                     if (closest) {
                         const lockLabel = closest.days >= 365 ? (closest.days / 365).toFixed(1) + 'y' : Math.round(closest.days) + 'd';
@@ -35652,24 +36046,23 @@
                     canvas.style.cursor = '';
                 });
             }
+            return true;
         }
 
         // ===== veDOLO LOCK DURATION DISTRIBUTION (Bar Chart) =====
         let _lockDistMode = 'count';
         let _lockDistData = null;
-        function treasury_toggleLockDist(mode) {
+        let _lockDistHoverState = null;
+        function treasury_toggleLockDist(mode, redraw = true) {
             _lockDistMode = mode;
             // Toggle button styles
             const btnCount = document.getElementById('lock-dist-toggle-count');
             const btnVedolo = document.getElementById('lock-dist-toggle-vedolo');
-            if (mode === 'count') {
-                btnCount.style.background = 'rgba(99,102,241,.5)'; btnCount.style.color = '#e2e8f0'; btnCount.style.fontWeight = '600';
-                btnVedolo.style.background = 'transparent'; btnVedolo.style.color = 'rgba(255,255,255,.4)'; btnVedolo.style.fontWeight = '500';
-            } else {
-                btnVedolo.style.background = 'rgba(99,102,241,.5)'; btnVedolo.style.color = '#e2e8f0'; btnVedolo.style.fontWeight = '600';
-                btnCount.style.background = 'transparent'; btnCount.style.color = 'rgba(255,255,255,.4)'; btnCount.style.fontWeight = '500';
+            if (btnCount && btnVedolo) {
+                btnCount.classList.toggle('is-active', mode === 'count');
+                btnVedolo.classList.toggle('is-active', mode === 'vedolo');
             }
-            if (_lockDistData) treasury_drawLockBars();
+            if (redraw && _lockDistData) treasury_drawLockBars();
         }
 
         // USDC volume tier definitions
@@ -35725,7 +36118,15 @@
                 });
             });
 
+            treasury_toggleLockDist(_lockDistMode, false);
             _lockDistData = { buckets, totalExercises };
+            if (!totalExercises) {
+                treasury_setChartStatus('lockdist', 'No veDOLO lock exercise data is available yet.');
+                const statsEl = document.getElementById('treasury-lockdist-stats');
+                if (statsEl) statsEl.innerHTML = '';
+                return false;
+            }
+            treasury_setChartStatus('lockdist', '');
 
             // Stats
             const topBucket = buckets.reduce((a, b) => b.count > a.count ? b : a, buckets[0]);
@@ -35738,73 +36139,81 @@
 
             const statsEl = document.getElementById('treasury-lockdist-stats');
             statsEl.innerHTML = `
-                <span>Exercises: <b style="color:#e2e8f0">${totalExercises.toLocaleString()}</b></span>
-                <span>Median lock: <b style="color:#e2e8f0">${medianLabel}</b></span>
-                <span>Top bucket: <b style="color:#a78bfa">${topBucket.label}</b> (${topPct}%)</span>
+                <span class="migrated-chart-stat-pill">Exercises <b>${totalExercises.toLocaleString()}</b></span>
+                <span class="migrated-chart-stat-pill">Median lock <b>${medianLabel}</b></span>
+                <span class="migrated-chart-stat-pill">Top bucket <b style="color:#a78bfa">${topBucket.label}</b> <span style="color:rgba(255,255,255,.42)">(${topPct}%)</span></span>
             `;
 
-            treasury_drawLockBars();
+            if (!treasury_drawLockBars()) return false;
 
             // Tooltip hover
             const canvas = document.getElementById('treasury-lockdist-canvas');
             const tooltip = document.getElementById('treasury-lockdist-tooltip');
-            canvas.addEventListener('mousemove', function (evt) {
-                if (!_lockDistData) return;
-                const rect = canvas.getBoundingClientRect();
-                const mx = evt.clientX - rect.left;
-                const my = evt.clientY - rect.top;
-                const pad = { top: 20, right: 20, bottom: 40, left: 55 };
-                const plotW = rect.width - pad.left - pad.right;
-                const plotH = rect.height - pad.top - pad.bottom;
-                const bkts = _lockDistData.buckets;
-                const gap = 6;
-                const barW = (plotW - gap * (bkts.length - 1)) / bkts.length;
-                let hit = null;
-                for (let i = 0; i < bkts.length; i++) {
-                    const x = pad.left + i * (barW + gap);
-                    if (mx >= x && mx <= x + barW && my >= pad.top && my <= pad.top + plotH) {
-                        hit = bkts[i];
-                        break;
+            if (!canvas._hoverBound) {
+                canvas._hoverBound = true;
+                canvas.addEventListener('mousemove', function (evt) {
+                    if (!_lockDistHoverState || !tooltip) return;
+                    const rect = canvas.getBoundingClientRect();
+                    const mx = evt.clientX - rect.left;
+                    const my = evt.clientY - rect.top;
+                    const hit = _lockDistHoverState.barRects.find(bar =>
+                        mx >= bar.x && mx <= bar.x + bar.w &&
+                        my >= _lockDistHoverState.pad.top && my <= _lockDistHoverState.pad.top + _lockDistHoverState.plotH
+                    );
+                    if (!hit) {
+                        tooltip.style.display = 'none';
+                        canvas.style.cursor = 'default';
+                        return;
                     }
-                }
-                if (hit) {
-                    const pct = _lockDistData.totalExercises > 0 ? (hit.count / _lockDistData.totalExercises * 100).toFixed(1) : 0;
+                    const bucket = hit.bucket;
+                    const pct = _lockDistHoverState.totalExercises > 0 ? (bucket.count / _lockDistHoverState.totalExercises * 100).toFixed(1) : 0;
                     const fmtV = v => v >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : Math.round(v).toLocaleString();
                     let tierRows = '';
-                    hit.tiers.forEach((t, ti) => {
+                    bucket.tiers.forEach((t, ti) => {
                         if (t.count > 0) {
                             const tierDef = _lockDistTiers[ti];
                             tierRows += `<span style="color:${tierDef.color}">●</span> ${tierDef.label}: <b>${t.count}</b> (${fmtV(t.vedolo)} veDOLO)<br>`;
                         }
                     });
-                    tooltip.innerHTML = `<b style="color:#a78bfa">${hit.label}</b> — <b>${hit.count.toLocaleString()}</b> exercises (${pct}%)<br>` +
-                        `Total: <b>${fmtV(hit.vedolo)}</b> veDOLO · <b>$${fmtV(hit.usdc)}</b> USDC<br>` +
-                        `<span style="display:block;margin-top:4px;padding-top:4px;border-top:1px solid rgba(255,255,255,.1)">${tierRows}</span>`;
+                    tooltip.innerHTML = `<div style="font-weight:600;margin-bottom:4px;color:#fff">${bucket.label}</div>`
+                        + `<div>Exercises <b style="color:#fff">${bucket.count.toLocaleString()}</b> <span style="color:rgba(226,232,240,.5)">(${pct}%)</span></div>`
+                        + `<div>Volume <b style="color:#a78bfa">${fmtV(bucket.vedolo)}</b> veDOLO</div>`
+                        + `<div>Paid <b style="color:#22d3ee">$${fmtV(bucket.usdc)}</b> USDC</div>`
+                        + `<div style="display:block;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.08)">${tierRows}</div>`;
                     tooltip.style.display = 'block';
-                    tooltip.style.left = (evt.clientX + 14) + 'px';
-                    tooltip.style.top = (evt.clientY - 20) + 'px';
+                    tooltip.style.left = Math.min(evt.clientX + 14, window.innerWidth - 280) + 'px';
+                    tooltip.style.top = Math.max(12, evt.clientY - 22) + 'px';
                     canvas.style.cursor = 'crosshair';
-                } else {
+                });
+                canvas.addEventListener('mouseleave', () => {
                     tooltip.style.display = 'none';
                     canvas.style.cursor = 'default';
-                }
-            });
-            canvas.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; canvas.style.cursor = 'default'; });
+                });
+            }
+            return true;
         }
 
         function treasury_drawLockBars() {
             const { buckets, totalExercises } = _lockDistData;
             const canvas = document.getElementById('treasury-lockdist-canvas');
-            const rect = canvas.getBoundingClientRect();
+            const shell = document.getElementById('treasury-lockdist-shell');
+            if (!canvas || !shell) return false;
+            const width = Math.max(320, Math.round(shell.clientWidth));
+            const height = Math.max(220, Math.round(shell.clientHeight));
+            if (width < 120 || height < 120) {
+                treasury_setChartStatus('lockdist', 'Finalizing chart layout…');
+                return false;
+            }
             const dpr = window.devicePixelRatio || 1;
-            canvas.width = rect.width * dpr;
-            canvas.height = rect.height * dpr;
-            canvas.style.width = rect.width + 'px';
-            canvas.style.height = rect.height + 'px';
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            canvas.style.width = width + 'px';
+            canvas.style.height = height + 'px';
             const ctx = canvas.getContext('2d');
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.scale(dpr, dpr);
-            const W = rect.width, H = rect.height;
-            const pad = { top: 20, right: 20, bottom: 40, left: 55 };
+            const W = width, H = height;
+            const pad = { top: 24, right: 24, bottom: 42, left: 58 };
             const plotW = W - pad.left - pad.right;
             const plotH = H - pad.top - pad.bottom;
 
@@ -35814,6 +36223,14 @@
             const maxVal = Math.max(...values, 1);
 
             ctx.clearRect(0, 0, W, H);
+
+            const chartBg = ctx.createLinearGradient(0, pad.top, 0, pad.top + plotH);
+            chartBg.addColorStop(0, 'rgba(255,255,255,0.035)');
+            chartBg.addColorStop(1, 'rgba(255,255,255,0.01)');
+            ctx.fillStyle = chartBg;
+            ctx.beginPath();
+            ctx.roundRect(pad.left, pad.top, plotW, plotH, 18);
+            ctx.fill();
 
             // Grid lines
             ctx.strokeStyle = 'rgba(255,255,255,.06)';
@@ -35848,11 +36265,14 @@
             // Draw stacked bars
             const gap = 6;
             const barW = (plotW - gap * (buckets.length - 1)) / buckets.length;
+            const barRects = [];
 
             buckets.forEach((b, i) => {
                 const totalVal = isCount ? b.count : b.vedolo;
                 const totalBarH = maxVal > 0 ? (totalVal / maxVal) * plotH : 0;
                 const x = pad.left + i * (barW + gap);
+                const yTop = pad.top + plotH - totalBarH;
+                barRects.push({ x, y: yTop, w: barW, h: totalBarH, bucket: b });
 
                 // Glow behind full bar — color from dominant veDOLO tier
                 if (totalBarH > 5) {
@@ -35860,7 +36280,6 @@
                         return t.vedolo > best.val ? { val: t.vedolo, idx: ti } : best;
                     }, { val: 0, idx: 0 });
                     ctx.fillStyle = _lockDistTiers[topTier.idx].glow;
-                    const yTop = pad.top + plotH - totalBarH;
                     ctx.fillRect(x - 2, yTop - 4, barW + 4, totalBarH + 4);
                 }
 
@@ -35911,7 +36330,6 @@
                 });
 
                 // Value on top of bar
-                const yTop = pad.top + plotH - totalBarH;
                 if (totalBarH > 20) {
                     ctx.fillStyle = 'rgba(255,255,255,.8)';
                     ctx.font = 'bold 10px system-ui';
@@ -35939,6 +36357,9 @@
                     ctx.fillText(pct + '%', x + barW / 2, pad.top + plotH + 28);
                 }
             });
+            _lockDistHoverState = { pad, plotH, totalExercises, barRects };
+            treasury_setChartStatus('lockdist', '');
+            return true;
         }
 
 
