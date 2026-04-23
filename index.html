@@ -13865,6 +13865,42 @@
                     margin-right: 6px;
                 }
 
+                .migrated-chart-hover-ring,
+                .migrated-chart-hover-bar {
+                    position: absolute;
+                    z-index: 2;
+                    pointer-events: none;
+                    opacity: 0;
+                    transition: opacity 0.14s ease, transform 0.14s ease, box-shadow 0.14s ease;
+                }
+
+                .migrated-chart-hover-ring.is-visible,
+                .migrated-chart-hover-bar.is-visible {
+                    opacity: 1;
+                }
+
+                .migrated-chart-hover-ring {
+                    border-radius: 999px;
+                    border: 2px solid rgba(255, 255, 255, 0.92);
+                    box-shadow:
+                        0 0 0 3px rgba(99, 102, 241, 0.22),
+                        0 0 20px rgba(99, 102, 241, 0.24);
+                    transform: scale(0.92);
+                }
+
+                .migrated-chart-hover-ring.is-visible {
+                    transform: scale(1);
+                }
+
+                .migrated-chart-hover-bar {
+                    border-radius: 12px 12px 10px 10px;
+                    border: 1px solid rgba(255, 255, 255, 0.16);
+                    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+                    box-shadow:
+                        inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+                        0 10px 24px rgba(15, 23, 42, 0.24);
+                }
+
                 @media (max-width: 860px) {
                     .migrated-chart-head {
                         flex-direction: column;
@@ -21590,6 +21626,7 @@
             '0x93ae9fe008636d2d6d7376198a54edb20367968f': { label: 'CEX or MM', type: 'cex' },
             '0x753f43cca3dbd2bbe963609f8d25a833433a10c9': { label: 'Gate.io', type: 'cex' },
             '0xb8001c3ec9aa1985f6c747e25c28324e4a361ec1': { label: 'Cobo Custody', type: 'cex' },
+            '0x2b3bf74b29f59fb8dda41cf3d6a8da28cf8e7921': { label: 'BingX 29', type: 'cex' },
             '0x3e9b9a16743551da49b5e136c716bba7932d2cec': { label: 'oDOLO Vester', type: 'protocol', treasury: true },
             // LP pools
             '0x003896387666c5c11458eeb3f927b72a11b19783': { label: 'Uniswap V3 DOLO/USDC', type: 'lp' },
@@ -35665,6 +35702,21 @@
             return tip;
         }
 
+        function treasury_getChartOverlay(id, shellId, className) {
+            const shell = document.getElementById(shellId);
+            if (!shell) return null;
+            let overlay = document.getElementById(id);
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = id;
+                overlay.className = className;
+            }
+            if (overlay.parentElement !== shell) {
+                shell.appendChild(overlay);
+            }
+            return overlay;
+        }
+
         function treasury_bindChartResize() {
             if (treasury_chartResizeBound) return;
             treasury_chartResizeBound = true;
@@ -36087,6 +36139,7 @@
             if (!canvas._hoverBound) {
                 canvas._hoverBound = true;
                 const tip = treasury_getChartTooltip('treasury-discount-tooltip');
+                const overlay = treasury_getChartOverlay('treasury-discount-hover-ring', 'treasury-discount-shell', 'migrated-chart-hover-ring');
                 canvas.addEventListener('mousemove', function (e) {
                     if (!_discountCurveHoverState || !tip) return;
                     const cRect = canvas.getBoundingClientRect();
@@ -36114,12 +36167,23 @@
                         `;
                         tip.style.display = 'block';
                         treasury_placeChartTooltip(tip, e, 220);
+                        if (overlay) {
+                            const shellRect = document.getElementById('treasury-discount-shell').getBoundingClientRect();
+                            const size = Math.max(18, closest.r * 4.2);
+                            overlay.style.width = `${size}px`;
+                            overlay.style.height = `${size}px`;
+                            overlay.style.left = `${(cRect.left - shellRect.left) + closest.x - (size / 2)}px`;
+                            overlay.style.top = `${(cRect.top - shellRect.top) + closest.y - (size / 2)}px`;
+                            overlay.classList.add('is-visible');
+                        }
                     } else {
                         tip.style.display = 'none';
+                        if (overlay) overlay.classList.remove('is-visible');
                     }
                 });
                 canvas.addEventListener('mouseleave', function () {
                     if (tip) tip.style.display = 'none';
+                    if (overlay) overlay.classList.remove('is-visible');
                 });
             }
             return true;
@@ -36227,6 +36291,7 @@
             const tooltip = treasury_getChartTooltip('treasury-lockdist-tooltip');
             if (!canvas._hoverBound) {
                 canvas._hoverBound = true;
+                const overlay = treasury_getChartOverlay('treasury-lockdist-hover-bar', 'treasury-lockdist-shell', 'migrated-chart-hover-bar');
                 canvas.addEventListener('mousemove', function (evt) {
                     if (!_lockDistHoverState || !tooltip) return;
                     const rect = canvas.getBoundingClientRect();
@@ -36238,6 +36303,7 @@
                     );
                     if (!hit) {
                         tooltip.style.display = 'none';
+                        if (overlay) overlay.classList.remove('is-visible');
                         return;
                     }
                     const bucket = hit.bucket;
@@ -36265,9 +36331,18 @@
                     `;
                     tooltip.style.display = 'block';
                     treasury_placeChartTooltip(tooltip, evt, 238);
+                    if (overlay) {
+                        const shellRect = document.getElementById('treasury-lockdist-shell').getBoundingClientRect();
+                        overlay.style.left = `${(rect.left - shellRect.left) + hit.x - 4}px`;
+                        overlay.style.top = `${(rect.top - shellRect.top) + hit.y - 4}px`;
+                        overlay.style.width = `${hit.w + 8}px`;
+                        overlay.style.height = `${hit.h + 8}px`;
+                        overlay.classList.add('is-visible');
+                    }
                 });
                 canvas.addEventListener('mouseleave', () => {
                     tooltip.style.display = 'none';
+                    if (overlay) overlay.classList.remove('is-visible');
                 });
             }
             return true;
