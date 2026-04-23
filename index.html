@@ -14878,6 +14878,15 @@
                         </h3>
                         <p class="migrated-chart-subtitle">Each point is a real oDOLO exercise. The dashed line shows the theoretical discount schedule, so you can compare expected pricing with how users actually exercise.</p>
                     </div>
+                    <div class="migrated-chart-controls">
+                        <div class="migrated-chart-toggle" id="discount-filter-toggle">
+                            <button id="discount-filter-all" class="is-active" onclick="treasury_toggleDiscountFilter('all')">All</button>
+                            <button id="discount-filter-small" onclick="treasury_toggleDiscountFilter('small')">&lt;$500</button>
+                            <button id="discount-filter-medium" onclick="treasury_toggleDiscountFilter('medium')">$500–5K</button>
+                            <button id="discount-filter-large" onclick="treasury_toggleDiscountFilter('large')">$5K–25K</button>
+                            <button id="discount-filter-whale" onclick="treasury_toggleDiscountFilter('whale')">&gt;$25K</button>
+                        </div>
+                    </div>
                 </div>
                 <div id="treasury-discount-shell" class="migrated-chart-shell">
                     <canvas id="treasury-discount-canvas" class="migrated-chart-canvas"></canvas>
@@ -36112,10 +36121,47 @@
         // ===== oDOLO DISCOUNT CURVE (Scatter — Enhanced) =====
         let _discountCurveTxCache = null; // cached for hover
         let _discountCurveHoverState = null;
+        let _discountCurveFilter = 'all';
+
+        function treasury_txMatchesDiscountFilter(tx, filter) {
+            if (!tx || filter === 'all') return true;
+            const usdc = Number(tx.usdc || 0);
+            if (filter === 'small') return usdc < 500;
+            if (filter === 'medium') return usdc >= 500 && usdc < 5000;
+            if (filter === 'large') return usdc >= 5000 && usdc < 25000;
+            if (filter === 'whale') return usdc >= 25000;
+            return true;
+        }
+
+        function treasury_syncDiscountFilterButtons() {
+            ['all', 'small', 'medium', 'large', 'whale'].forEach(key => {
+                const btn = document.getElementById(`discount-filter-${key}`);
+                if (btn) btn.classList.toggle('is-active', _discountCurveFilter === key);
+            });
+        }
+
+        function treasury_applyDiscountLegendState() {
+            treasury_setLegendFocus(
+                'treasury-discount-legend',
+                _discountCurveFilter === 'all' ? [] : [_discountCurveFilter]
+            );
+        }
+
+        function treasury_toggleDiscountFilter(filter, redraw = true) {
+            _discountCurveFilter = filter;
+            treasury_syncDiscountFilterButtons();
+            if (redraw && treasury_exercisersData) {
+                treasury_renderDiscountCurve(treasury_exercisersData);
+            } else {
+                treasury_applyDiscountLegendState();
+            }
+        }
+
         function treasury_renderDiscountCurve(exercisers) {
             const canvas = document.getElementById('treasury-discount-canvas');
             const shell = document.getElementById('treasury-discount-shell');
             if (!canvas || !shell) return false;
+            treasury_syncDiscountFilterButtons();
             const dpr = window.devicePixelRatio || 1;
             const width = Math.max(320, Math.round(shell.clientWidth));
             const height = Math.max(228, Math.min(266, Math.round(width * 0.24)));
@@ -36152,7 +36198,7 @@
                         // 5% at 7 days → 50% at 730 days (linear)
                         const clampedDays = Math.max(7, Math.min(tx.lock_days, 730));
                         const discount = 5 + (clampedDays - 7) / (730 - 7) * 45;
-                        if (discount > 0 && discount <= 55) {
+                        if (discount > 0 && discount <= 55 && treasury_txMatchesDiscountFilter(tx, _discountCurveFilter)) {
                             txs.push({ days: tx.lock_days, discount: Math.round(discount * 10) / 10, usdc: tx.usdc, vedolo: tx.vedolo });
                         }
                     }
@@ -36161,9 +36207,15 @@
             _discountCurveTxCache = txs;
             if (!txs.length) {
                 ctx.clearRect(0, 0, W, H);
-                treasury_setChartStatus('discount', 'No oDOLO exercise data is available yet for this curve.');
+                treasury_setChartStatus(
+                    'discount',
+                    _discountCurveFilter === 'all'
+                        ? 'No oDOLO exercise data is available yet for this curve.'
+                        : 'No oDOLO exercises match the selected filter yet.'
+                );
                 const statsEl = document.getElementById('treasury-discount-stats');
                 if (statsEl) statsEl.innerHTML = '';
+                treasury_applyDiscountLegendState();
                 return false;
             }
             treasury_setChartStatus('discount', '');
@@ -36267,7 +36319,7 @@
             const popularLockLabel = popularLockDays >= 365 ? (popularLockDays / 365).toFixed(popularLockDays % 365 === 0 ? 0 : 1) + 'y' : popularLockDays + 'd';
 
             treasury_renderDiscountStatsDefault(txs, avgLock, avgDisc, largest, popularLockLabel, popularLock[1]);
-            treasury_setLegendFocus('treasury-discount-legend');
+            treasury_applyDiscountLegendState();
 
             _discountCurveHoverState = {
                 pad,
@@ -36325,14 +36377,14 @@
                     } else {
                         tip.style.display = 'none';
                         treasury_renderDiscountStatsDefault(_discountCurveTxCache || [], avgLock, avgDisc, largest, popularLockLabel, popularLock[1]);
-                        treasury_setLegendFocus('treasury-discount-legend');
+                        treasury_applyDiscountLegendState();
                         if (overlay) overlay.classList.remove('is-visible');
                     }
                 });
                 canvas.addEventListener('mouseleave', function () {
                     if (tip) tip.style.display = 'none';
                     treasury_renderDiscountStatsDefault(_discountCurveTxCache || [], avgLock, avgDisc, largest, popularLockLabel, popularLock[1]);
-                    treasury_setLegendFocus('treasury-discount-legend');
+                    treasury_applyDiscountLegendState();
                     if (overlay) overlay.classList.remove('is-visible');
                 });
             }
