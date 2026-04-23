@@ -36,6 +36,7 @@ BLOCK_TIME = 2  # ~2 seconds per block on Berachain
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_JSON = os.path.join(DATA_DIR, "vedolo_flows.json")
 STATE_FILE = os.path.join(DATA_DIR, "vedolo_flows_state.json")
+EXERCISERS_BY_ADDRESS_FILE = os.path.join(DATA_DIR, "exercisers_by_address.json")
 
 
 def load_state():
@@ -53,6 +54,54 @@ def save_state(state):
     with open(tmp, "w") as f:
         json.dump(state, f)
     os.replace(tmp, STATE_FILE)
+
+
+def load_odolo_exerciser_lookup():
+    """Map oDOLO exercise tx hash -> end-user wallet."""
+    if not os.path.exists(EXERCISERS_BY_ADDRESS_FILE):
+        return {}
+    try:
+        with open(EXERCISERS_BY_ADDRESS_FILE) as f:
+            payload = json.load(f)
+    except Exception:
+        return {}
+
+    lookup = {}
+    for entry in payload.get("exercisers", []) or []:
+        address = str(entry.get("address") or "").strip().lower()
+        if not address.startswith("0x") or len(address) != 42:
+            continue
+        for tx in entry.get("txs", []) or []:
+            tx_hash = str(tx.get("hash") or "").strip().lower()
+            if tx_hash.startswith("0x") and len(tx_hash) == 66 and tx_hash not in lookup:
+                lookup[tx_hash] = address
+    return lookup
+
+
+def remap_odolo_lock_beneficiaries(locks, exerciser_lookup):
+    """Use oDOLO exercise metadata to attribute protocol-routed locks to users."""
+    resolved = 0
+    unresolved = 0
+
+    for lock in locks:
+        if not lock.get("isOdolo"):
+            continue
+        tx_hash = str(lock.get("txHash") or "").strip().lower()
+        original_address = str(lock.get("address") or ODOLO_VESTER).strip().lower() or ODOLO_VESTER
+        lock["protocolAddress"] = original_address
+        beneficiary = exerciser_lookup.get(tx_hash)
+        if beneficiary:
+            lock["address"] = beneficiary
+            lock["beneficiaryAddress"] = beneficiary
+            lock["addressSource"] = "odolo-exerciser"
+            resolved += 1
+        else:
+            lock["address"] = ODOLO_VESTER
+            lock["beneficiaryAddress"] = None
+            lock["addressSource"] = "odolo-vester-fallback"
+            unresolved += 1
+
+    return resolved, unresolved
 
 
 def rpc_call(method, params, timeout=15):
@@ -322,6 +371,14 @@ def main():
         # Tag new locks
         for lock in new_locks:
             lock["isOdolo"] = lock["txHash"].lower() in exercise_txs
+
+    exerciser_lookup = load_odolo_exerciser_lookup()
+    resolved_odolo, unresolved_odolo = remap_odolo_lock_beneficiaries(all_locks, exerciser_lookup)
+    if resolved_odolo or unresolved_odolo:
+        print(
+            f"  Remapped {resolved_odolo:,} oDOLO-routed locks to end-user wallets"
+            f" ({unresolved_odolo:,} still routed through protocol fallback)"
+        )
 
     # Sort by timestamp desc
     all_unlocks.sort(key=lambda x: x["timestamp"], reverse=True)
