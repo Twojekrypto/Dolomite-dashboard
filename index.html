@@ -2839,15 +2839,16 @@
 
         .assets-sim-controls {
             display: grid;
-            grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.1fr) minmax(0, 0.95fr);
+            grid-template-columns: minmax(180px, 0.9fr) minmax(240px, 1.15fr) minmax(220px, 1.1fr);
             gap: 14px;
-            align-items: end;
+            align-items: start;
         }
 
         .assets-sim-control-group {
             display: flex;
             flex-direction: column;
             gap: 8px;
+            min-width: 0;
         }
 
         .assets-sim-label {
@@ -2866,7 +2867,7 @@
             border-radius: 999px;
             border: 1px solid rgba(255, 255, 255, 0.08);
             background: rgba(255, 255, 255, 0.035);
-            width: fit-content;
+            width: 100%;
         }
 
         .assets-sim-mode button,
@@ -2899,6 +2900,7 @@
             align-items: center;
             gap: 10px;
             padding: 12px 14px;
+            min-height: 52px;
             border-radius: 14px;
             border: 1px solid rgba(255, 255, 255, 0.08);
             background: rgba(7, 12, 20, 0.58);
@@ -2926,15 +2928,11 @@
             color: rgba(255, 255, 255, 0.24);
         }
 
-        .assets-sim-input-caption {
-            font-size: 11px;
-            color: rgba(255, 255, 255, 0.36);
-        }
-
         .assets-sim-presets {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
+            align-items: stretch;
         }
 
         .assets-sim-presets button {
@@ -24477,9 +24475,6 @@
             if (snapshot.effectiveUsd > 0) {
                 contextBits.push(`${assets_fmtUsdCompact(snapshot.effectiveUsd)} ${modeVerb}`);
             }
-            if (Number.isFinite(snapshot.maxUsd) && snapshot.maxUsd > 0) {
-                contextBits.push(`${snapshot.mode === 'deposit' ? 'Headroom' : 'Withdrawable'} <strong>${assets_fmtUsdCompact(snapshot.maxUsd)}</strong>`);
-            }
 
             return `
                 <div class="assets-sim-results">
@@ -24537,14 +24532,6 @@
                 presetsEl.innerHTML = presets.length
                     ? presets.map(value => `<button type="button" data-assets-sim-preset="${rowId}" data-value="${value}" class="${Math.abs((state.usdInput || 0) - value) < 0.5 ? 'active' : ''}" onclick="event.stopPropagation(); assets_applySimulatorPreset('${rowId}', ${value})">${assets_fmtUsdCompact(value)}</button>`).join('')
                     : '<button type="button" disabled>No presets</button>';
-            }
-
-            const captionEl = document.getElementById(rowId + '-sim-caption');
-            if (captionEl) {
-                const capText = state.mode === 'deposit'
-                    ? (Number.isFinite(snapshot.maxUsd) && snapshot.maxUsd > 0 ? `Headroom ${assets_fmtUsdCompact(snapshot.maxUsd)}` : 'No live supply cap')
-                    : `Withdrawable ${assets_fmtUsdCompact(snapshot.maxUsd)}`;
-                captionEl.textContent = `${assets_fmtPrice(state.model.price)} price · ${capText}`;
             }
         }
 
@@ -24630,7 +24617,6 @@
                             <span class="assets-sim-input-prefix">$</span>
                             <input id="${rowId}-sim-input" type="number" min="0" step="100" inputmode="decimal" placeholder="25000" value="${state.usdInput > 0 ? state.usdInput : ''}" oninput="assets_handleSimulatorInput('${rowId}', this.value)" onclick="event.stopPropagation()">
                         </div>
-                        <div id="${rowId}-sim-caption" class="assets-sim-input-caption">${assets_fmtPrice(model.price)} price · ${state.mode === 'deposit' && Number.isFinite(snapshot.maxUsd) ? `Headroom ${assets_fmtUsdCompact(snapshot.maxUsd)}` : state.mode === 'withdraw' ? `Withdrawable ${assets_fmtUsdCompact(snapshot.maxUsd)}` : 'No live supply cap'}</div>
                     </div>
                     <div class="assets-sim-control-group">
                         <div class="assets-sim-label">Quick presets</div>
