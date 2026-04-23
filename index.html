@@ -13698,6 +13698,13 @@
                     max-width: 940px;
                 }
 
+                #treasury-discount-shell {
+                    width: calc(100% - 28px);
+                    max-width: 1100px;
+                    min-height: 244px;
+                    padding: 10px 14px 14px;
+                }
+
                 .migrated-chart-canvas {
                     display: block;
                     width: 100%;
@@ -13745,6 +13752,12 @@
                     justify-content: space-between;
                     flex-wrap: wrap;
                     padding: 18px 26px 22px;
+                }
+
+                .migrated-chart-footer--legend-only {
+                    justify-content: flex-start;
+                    padding-top: 14px;
+                    padding-bottom: 18px;
                 }
 
                 .migrated-chart-legend {
@@ -13949,6 +13962,11 @@
                         min-height: 252px;
                     }
 
+                    #treasury-discount-shell {
+                        width: calc(100% - 24px);
+                        min-height: 228px;
+                    }
+
                     .migrated-chart-footer {
                         flex-direction: column;
                     }
@@ -13972,6 +13990,11 @@
                         margin: 0 16px;
                         min-height: 232px;
                         padding: 10px 12px 14px;
+                    }
+
+                    #treasury-discount-shell {
+                        width: auto;
+                        min-height: 214px;
                     }
 
                     .migrated-chart-footer {
@@ -14007,7 +14030,7 @@
                     <div id="treasury-lockdist-status" class="migrated-chart-status">Preparing the lock distribution chart…</div>
                 </div>
                 <div class="migrated-chart-footer">
-                    <div id="treasury-discount-legend" class="migrated-chart-legend">
+                    <div id="treasury-lockdist-legend" class="migrated-chart-legend">
                         <span class="migrated-chart-legend-item" data-legend-key="small"><span class="migrated-chart-legend-dot" style="background:#3b82f6"></span>&lt;$1K</span>
                         <span class="migrated-chart-legend-item" data-legend-key="medium"><span class="migrated-chart-legend-dot" style="background:#10b981"></span>$1K–10K</span>
                         <span class="migrated-chart-legend-item" data-legend-key="large"><span class="migrated-chart-legend-dot" style="background:#f59e0b"></span>$10K–50K</span>
@@ -14844,15 +14867,14 @@
                     <canvas id="treasury-discount-canvas" class="migrated-chart-canvas"></canvas>
                     <div id="treasury-discount-status" class="migrated-chart-status">Loading the latest oDOLO exercise curve…</div>
                 </div>
-                <div class="migrated-chart-footer">
-                    <div id="treasury-lockdist-legend" class="migrated-chart-legend">
+                <div class="migrated-chart-footer migrated-chart-footer--legend-only">
+                    <div id="treasury-discount-legend" class="migrated-chart-legend">
                         <span class="migrated-chart-legend-item" data-legend-key="theory"><span class="migrated-chart-legend-line" style="background:#f59e0b"></span>Theoretical schedule</span>
                         <span class="migrated-chart-legend-item" data-legend-key="small"><span class="migrated-chart-legend-dot" style="background:#3b82f6"></span>&lt;$500</span>
                         <span class="migrated-chart-legend-item" data-legend-key="medium"><span class="migrated-chart-legend-dot" style="background:#10b981"></span>$500–5K</span>
                         <span class="migrated-chart-legend-item" data-legend-key="large"><span class="migrated-chart-legend-dot" style="background:#f59e0b"></span>$5K–25K</span>
                         <span class="migrated-chart-legend-item" data-legend-key="whale"><span class="migrated-chart-legend-dot" style="background:#ec4899;box-shadow:0 0 10px rgba(236,72,153,.38)"></span>&gt;$25K whales</span>
                     </div>
-                    <div id="treasury-discount-stats" class="migrated-chart-stats"></div>
                 </div>
                 <div id="treasury-discount-tooltip" class="migrated-chart-tooltip"></div>
             </div>
