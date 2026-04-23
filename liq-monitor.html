@@ -8720,6 +8720,10 @@
         const SUPPLY_ACTIVITY_PAGE_SIZE = 12;
         let supplyActivityFilters = new Set(['deposit', 'withdraw', 'transfer', 'liquidation']);
 
+        function getSupplyCacheChainKey(chain) {
+            return chain === 'base' ? 'botanix_v2' : chain;
+        }
+
         const SUPPLY_ACTIVITY_META = {
             deposit: { label: 'Deposit', cls: 'deposit' },
             withdraw: { label: 'Withdrawal', cls: 'withdraw' },
@@ -11275,8 +11279,9 @@
             if (!chain || !tokenId || !DOLOMITE_MINI_GRAPHS[chain]) return;
             const endpoint = DOLOMITE_MINI_GRAPHS[chain];
             const sinceTs = Math.floor(Date.now() / 1000) - (SUPPLY_ACTIVITY_DEFAULT_DAYS * 24 * 60 * 60);
-            const supplierCacheKey = `${chain}:${tokenId}:suppliers`;
-            const historyCacheKey = `${chain}:${tokenId}:history:v4:official`;
+            const cacheChain = getSupplyCacheChainKey(chain);
+            const supplierCacheKey = `${cacheChain}:${tokenId}:suppliers`;
+            const historyCacheKey = `${cacheChain}:${tokenId}:history:v4:official`;
 
             getSupplyCachedResource(
                 supplySuppliersCache,
@@ -11326,7 +11331,7 @@
 
         function prefetchSupplyChainBundle(chain) {
             if (!chain || !DOLOMITE_MINI_GRAPHS[chain]) return Promise.resolve(null);
-            const bundleCacheKey = `${chain}:bundle`;
+            const bundleCacheKey = `${getSupplyCacheChainKey(chain)}:bundle`;
             return getSupplyCachedResource(
                 supplyChainBundleCache,
                 bundleCacheKey,
@@ -11365,7 +11370,7 @@
             const assetText = document.getElementById('selected-asset-text');
             const assetIcon = document.getElementById('selected-asset-icon');
             const loader = document.getElementById('supply-loading-state');
-            const bundleCacheKey = `${chain}:bundle`;
+            const bundleCacheKey = `${getSupplyCacheChainKey(chain)}:bundle`;
             resetSupplyIntelState();
             currentSupplyData = [];
             currentSupplyOraclePrices = {};
@@ -11453,12 +11458,13 @@
             const supplyTitle = document.getElementById('supply-table-title');
             const tokenObj = currentSupplyTokensMap[tokenId] || { decimals: 18, symbol: 'TOKEN', marketId: '—' };
             const endpoint = DOLOMITE_MINI_GRAPHS[chain];
+            const cacheChain = getSupplyCacheChainKey(chain);
             const nowTs = Math.floor(Date.now() / 1000);
             const sinceTs = nowTs - (SUPPLY_ACTIVITY_DEFAULT_DAYS * 24 * 60 * 60);
-            const supplierCacheKey = `${chain}:${tokenId}:suppliers`;
-            const recentActivityKey = `${chain}:${tokenId}:activity:${SUPPLY_ACTIVITY_DEFAULT_DAYS}d`;
-            const fullActivityKey = `${chain}:${tokenId}:activity:all`;
-            const historyCacheKey = `${chain}:${tokenId}:history:v4:official`;
+            const supplierCacheKey = `${cacheChain}:${tokenId}:suppliers`;
+            const recentActivityKey = `${cacheChain}:${tokenId}:activity:${SUPPLY_ACTIVITY_DEFAULT_DAYS}d`;
+            const fullActivityKey = `${cacheChain}:${tokenId}:activity:all`;
+            const historyCacheKey = `${cacheChain}:${tokenId}:history:v4:official`;
             const cachedSuppliers = getFreshSupplyCacheData(supplySuppliersCache, supplierCacheKey, { ttlMs: SUPPLY_CACHE_TTLS_MS.suppliers });
             const staleSuppliers = cachedSuppliers || getAnySupplyCacheData(supplySuppliersCache, supplierCacheKey);
             const cachedRecentActivity = getFreshSupplyCacheData(supplyRecentActivityCache, recentActivityKey, { ttlMs: SUPPLY_CACHE_TTLS_MS.activity });
