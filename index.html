@@ -20055,6 +20055,7 @@
                         if (doloTvls && doloTvls.currentChainTvls) {
                             llRes.currentChainTvls = doloTvls.currentChainTvls;
                             if (doloTvls.tokensInUsd) llRes.tokensInUsd = doloTvls.tokensInUsd;
+                            if (doloTvls.chainTokensInUsd) llRes.chainTokensInUsd = doloTvls.chainTokensInUsd;
                             console.log('✅ DOLO: Override applied with Official Dolomite TVL');
                         }
                     } catch (e) {
@@ -24528,13 +24529,16 @@
             if (!calls || calls.length === 0) return [];
             const MAX_BATCH = 25;
             if (calls.length > MAX_BATCH) {
-                const merged = [];
+                const chainId = document.getElementById('earn-chain')?.value || '';
+                const chunkConcurrency = String(chainId).toLowerCase() === 'arbitrum' ? 4 : 2;
+                const chunks = [];
                 for (let i = 0; i < calls.length; i += MAX_BATCH) {
-                    const chunk = calls.slice(i, i + MAX_BATCH);
-                    const chunkResults = await earn_rpcBatch(chunk, retries);
-                    merged.push(...chunkResults);
+                    chunks.push(calls.slice(i, i + MAX_BATCH));
                 }
-                return merged;
+                const chunkResults = await earn_mapWithConcurrency(chunks, chunkConcurrency, async (chunk) => {
+                    return earn_rpcBatch(chunk, retries);
+                });
+                return chunkResults.flat();
             }
             const batch = calls.map((c, i) => ({
                 jsonrpc: '2.0',
@@ -24920,8 +24924,11 @@
         async function earn_fetchActiveSupplyBalances(addr, opts) {
             opts = opts || {};
             const chain = earn_getChain();
+            const chainId = document.getElementById('earn-chain').value;
             const selector = '0x6a8194e7';
             const blockTag = opts.blockTag || earn_replayBlockTag || 'latest';
+            const balanceRetryConcurrency = String(chainId).toLowerCase() === 'arbitrum' ? 12 : 4;
+            const coverageRetryConcurrency = String(chainId).toLowerCase() === 'arbitrum' ? 8 : 4;
             earn_replayCurrentPositions = [];
             earn_replayCurrentBorrowAccounts = new Set();
             const fallbackAccountNum = String(document.getElementById('earn-account-num')?.value || '0');
@@ -24997,9 +25004,9 @@
             const retryMissingAccountCoverage = async (missingKeysByAccount) => {
                 const recovered = {};
                 const accounts = Object.keys(missingKeysByAccount || {});
-                for (const accountNumber of accounts) {
+                const rescueResults = await earn_mapWithConcurrency(accounts, coverageRetryConcurrency, async (accountNumber) => {
                     const expectedKeys = missingKeysByAccount[accountNumber];
-                    if (!expectedKeys || expectedKeys.size === 0) continue;
+                    if (!expectedKeys || expectedKeys.size === 0) return null;
                     let bestPositions = null;
                     let bestCoverage = 0;
                     for (let attempt = 0; attempt < 4; attempt++) {
@@ -25022,19 +25029,26 @@
                         }
                     }
                     if (bestPositions && bestCoverage > 0) {
-                        recovered[accountNumber] = bestPositions;
+                        return { accountNumber, bestPositions };
                     }
-                }
+                    return null;
+                });
+                rescueResults.forEach(entry => {
+                    if (entry && entry.accountNumber) recovered[entry.accountNumber] = entry.bestPositions;
+                });
                 return recovered;
             };
             const retryMissingAccountBalanceResults = async (results) => {
                 const nextResults = Array.isArray(results) ? results.slice() : [];
-                let recovered = 0;
+                const missingIndices = [];
                 for (let idx = 0; idx < nextResults.length; idx++) {
-                    if (nextResults[idx] !== null) continue;
+                    if (nextResults[idx] === null) missingIndices.push(idx);
+                }
+                const retryAttempts = missingIndices.length > 96 ? 2 : 4;
+                const recoveredEntries = await earn_mapWithConcurrency(missingIndices, balanceRetryConcurrency, async (idx) => {
                     const accountNumber = accountNumbers[idx];
                     let recoveredResult = null;
-                    for (let attempt = 0; attempt < 4; attempt++) {
+                    for (let attempt = 0; attempt < retryAttempts; attempt++) {
                         try {
                             const retried = await earn_rpcCall(
                                 chain.margin,
@@ -25050,11 +25064,16 @@
                             console.warn('Active balance null-result retry failed for account', accountNumber, retryErr.message);
                         }
                     }
-                    if (recoveredResult !== null && recoveredResult !== undefined) {
-                        nextResults[idx] = recoveredResult;
+                    return { idx, recoveredResult };
+                });
+                let recovered = 0;
+                recoveredEntries.forEach(entry => {
+                    if (!entry) return;
+                    if (entry.recoveredResult !== null && entry.recoveredResult !== undefined) {
+                        nextResults[entry.idx] = entry.recoveredResult;
                         recovered += 1;
                     }
-                }
+                });
                 if (recovered > 0) {
                     console.log(`Active balance retry recovered ${recovered} incomplete account balance result(s).`);
                 }
@@ -25125,7 +25144,7 @@
                         decodedByAccount[accountNumber] = [];
                     }
                 });
-                let decodedPositions = Object.values(decodedByAccount).flat();
+                let decodedPositions = earn_coalesceCurrentPositions(Object.values(decodedByAccount).flat());
 
                 // Seed borrow-account routing from explicit replay/subgraph overrides first,
                 // then extend it with whatever the live current balances confirm onchain.
@@ -25179,7 +25198,7 @@
                             rescuedPositions += rescuedCoverage - existingCoverage;
                         });
                         if (rescuedPositions > 0) {
-                            decodedPositions = Object.values(decodedByAccount).flat();
+                            decodedPositions = earn_coalesceCurrentPositions(Object.values(decodedByAccount).flat());
                             seenPositionKeys = new Set(decodedPositions.map(pos => getPositionKey(pos.accountNumber, pos.marketId, pos.tokenAddr)));
                             console.log(`Active balance rescue recovered ${rescuedPositions} missing position(s) from direct RPC retries.`);
                         }
@@ -25220,7 +25239,7 @@
                     });
 
                     if (supplemental.length > 0) {
-                        mergedPositions = decodedPositions.concat(supplemental);
+                        mergedPositions = earn_coalesceCurrentPositions(decodedPositions.concat(supplemental));
                         supplementedFromSnapshot = supplemental.length;
                     }
                 } catch (snapshotErr) {
@@ -26592,8 +26611,11 @@
         function earn_getStrictVerificationStatus(entry) {
             if (!entry || !entry.counted) return 'unverified';
             if (!entry.canVerify) return 'coverage_incomplete';
+            if (entry.snapshotIncomplete && earn_shouldTrustSnapshotSupplementedReplay(entry)) {
+                return 'verified';
+            }
             if (entry.rawVerified) {
-                if (!entry.snapshotIncomplete || earn_shouldTrustSnapshotSupplementedReplay(entry)) {
+                if (!entry.snapshotIncomplete) {
                     return 'verified';
                 }
             }
@@ -27269,6 +27291,32 @@
                 hiddenSupplyCount,
                 hiddenMarketIds,
             };
+        }
+
+        function earn_coalesceCurrentPositions(positions) {
+            const merged = {};
+            (positions || []).forEach(pos => {
+                if (!pos) return;
+                const accountNumber = String(pos.accountNumber || '0');
+                const marketId = earn_normalizeMarketId(pos.marketId);
+                const tokenAddr = String(pos.tokenAddr || '').toLowerCase();
+                if (!marketId) return;
+                const key = `${accountNumber}|${marketId}|${tokenAddr}`;
+                if (!merged[key]) {
+                    merged[key] = {
+                        ...pos,
+                        accountNumber,
+                        marketId,
+                        tokenAddr,
+                        par: BigInt(pos.par || 0),
+                        wei: BigInt(pos.wei || 0),
+                    };
+                    return;
+                }
+                merged[key].par += BigInt(pos.par || 0);
+                merged[key].wei += BigInt(pos.wei || 0);
+            });
+            return Object.values(merged).filter(pos => BigInt(pos.par || 0) !== 0n || BigInt(pos.wei || 0) !== 0n);
         }
 
         function earn_serializeReplayStateMap(states) {
@@ -29371,13 +29419,24 @@
         }
 
 
+        const EARN_SNAPSHOT_TIMEOUT_MS = 12000;
+
         async function earn_fetchSnapshot(dateStr) {
             if (earn_snapshotCache[dateStr]) return earn_snapshotCache[dateStr];
             if (earn_snapshotRequestCache[dateStr]) return earn_snapshotRequestCache[dateStr];
 
             const request = (async () => {
+                const timeoutMs = Math.max(
+                    1000,
+                    Number(globalThis.__EARN_SNAPSHOT_FETCH_TIMEOUT_OVERRIDE__ || EARN_SNAPSHOT_TIMEOUT_MS)
+                );
+                const ctrl = new AbortController();
+                const timer = setTimeout(() => ctrl.abort(), timeoutMs);
                 try {
-                    const resp = await fetch(`${SNAPSHOT_BASE}/${dateStr}.json`);
+                    const resp = await fetch(`${SNAPSHOT_BASE}/${dateStr}.json`, {
+                        cache: 'no-store',
+                        signal: ctrl.signal,
+                    });
                     if (!resp.ok) return null;
                     const data = await resp.json();
                     earn_snapshotCache[dateStr] = data;
@@ -29385,6 +29444,8 @@
                 } catch (e) {
                     console.warn('Snapshot fetch failed for', dateStr, e);
                     return null;
+                } finally {
+                    clearTimeout(timer);
                 }
             })();
 
@@ -30347,6 +30408,8 @@
                     }
                 });
 
+                const coalescedPositions = earn_coalesceCurrentPositions(positions);
+
                 const subaccountHistory = await earn_fetchSubaccountHistoryForAddress(chainId, address);
                 const historyHints = earn_extractSubaccountHistoryHints(subaccountHistory, {
                     blockTag: historyTargetBlockTag || null,
@@ -30356,7 +30419,7 @@
                     ...borrowAccountNumbers.map(v => String(v)),
                     ...historyHints.borrowAccountNumbers.map(v => String(v)),
                 ]);
-                positions.forEach(pos => {
+                coalescedPositions.forEach(pos => {
                     const historyRoute = historyHints.marketRoutes[`${String(pos.accountNumber || '0')}|${earn_normalizeMarketId(pos.marketId)}`];
                     if (historyRoute === 'borrow' || pos.par < 0n || pos.wei < 0n) {
                         pos.positionKind = 'borrow';
@@ -30377,7 +30440,7 @@
                     accountNumbers,
                     borrowAccountNumbers: Array.from(borrowAccountSet),
                     historicalAccountNumbers: historyHints.accountNumbers,
-                    positions,
+                    positions: coalescedPositions,
                     historyTargetBlockTag,
                     historyBorrowFresh: !!historyHints.freshForBorrowRouting,
                     historyLastScannedBlock: historyHints.lastScannedBlock === null

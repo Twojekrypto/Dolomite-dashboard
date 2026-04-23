@@ -74,9 +74,13 @@ const PAGE_READY_POLL_MS = __PAGE_READY_POLL_MS__;
 const PAGE_READY_MAX_WAIT_MS = __PAGE_READY_MAX_WAIT_MS__;
 const SETTLE_POLL_MS = __SETTLE_POLL_MS__;
 const SETTLE_STABLE_POLLS = __SETTLE_STABLE_POLLS__;
+const MAX_WAIT_MS = __MAX_WAIT_MS__;
+const LATE_REPLAY_GRACE_MS = __LATE_REPLAY_GRACE_MS__;
 const TIMEOUT_FINAL_SNAPSHOT_DELAY_MS = __TIMEOUT_FINAL_SNAPSHOT_DELAY_MS__;
 const SNAPSHOT_FLUSH_EVERY_RESULTS = __SNAPSHOT_FLUSH_EVERY_RESULTS__;
 const SNAPSHOT_FLUSH_MAX_DELAY_MS = __SNAPSHOT_FLUSH_MAX_DELAY_MS__;
+const SNAPSHOT_FETCH_TIMEOUT_MS = __SNAPSHOT_FETCH_TIMEOUT_MS__;
+const EVALUATION_TIMEOUT_MS = MAX_WAIT_MS + LATE_REPLAY_GRACE_MS + TIMEOUT_FINAL_SNAPSHOT_DELAY_MS + 10000;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -277,6 +281,8 @@ function buildAuditSource(address) {
     const pinnedBlockTag = ${JSON.stringify(PINNED_BLOCK_TAG)};
     const settlePollMs = ${SETTLE_POLL_MS};
     const settleStablePolls = ${SETTLE_STABLE_POLLS};
+    const maxWaitMs = ${MAX_WAIT_MS};
+    const lateReplayGraceMs = ${LATE_REPLAY_GRACE_MS};
     const timeoutFinalSnapshotDelayMs = ${TIMEOUT_FINAL_SNAPSHOT_DELAY_MS};
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -565,9 +571,9 @@ function buildAuditSource(address) {
       }
       if (effectivePositionKind === 'borrow_only') {
         if (verifyLabel === 'VERIFIED' || replayTrusted) {
-          return 'verified_other';
+          return 'verified_nonstandard';
         }
-        return 'borrow_only';
+        return 'non_active_borrow_route';
       }
       if (effectivePositionKind === 'hidden_collateral') {
         if (replayTrusted || exactVerified) {
@@ -577,7 +583,7 @@ function buildAuditSource(address) {
       }
       if (verifyLabel === 'VERIFIED') {
         if (resolvedSource === 'replay-ledger') return 'replay_verified';
-        return 'verified_other';
+        return 'verified_nonstandard';
       }
       if (verifyLabel === 'SNAPSHOT ONLY' ||
           resolvedMethod.startsWith('snapshot') ||
@@ -593,10 +599,20 @@ function buildAuditSource(address) {
       return calc && calc.hasData ? 'has_data_other' : 'no_data';
     };
 
+    const shouldExtendForLateReplay = (snap) => {
+      if (!snap) return false;
+      if (String(snap.replayStatus || '') !== 'ready') return false;
+      if (String(snap.totalYieldStatus || '') !== 'loading') return false;
+      if (!snap.replayUsedSubgraphFallback) return false;
+      if (String(snap.lastReplayError || '').trim()) return false;
+      return true;
+    };
+
     return (async () => {
       if (typeof switchView !== 'function') {
         return { ok: false, address, error: 'switchView unavailable', href: location.href, title: document.title };
       }
+      globalThis.__EARN_SNAPSHOT_FETCH_TIMEOUT_OVERRIDE__ = ${SNAPSHOT_FETCH_TIMEOUT_MS};
       resetState();
       switchView('earn');
       earnChainSelect('arbitrum');
@@ -609,9 +625,10 @@ function buildAuditSource(address) {
         let stablePolls = 0;
         let lastStableKey = '';
         let lastSnapshot = captureState('initial');
-        const maxWaitMs = 90000;
+        let waitBudgetMs = maxWaitMs;
+        let usedLateReplayGrace = false;
 
-        while ((performance.now() - startedAt) < maxWaitMs) {
+        while (true) {
           await sleep(settlePollMs);
           lastSnapshot = captureState('poll');
           if (isSettled(lastSnapshot)) {
@@ -630,6 +647,16 @@ function buildAuditSource(address) {
             stablePolls = 0;
             lastStableKey = '';
           }
+
+          const elapsedMs = performance.now() - startedAt;
+          if (elapsedMs >= waitBudgetMs) {
+            if (!usedLateReplayGrace && shouldExtendForLateReplay(lastSnapshot)) {
+              usedLateReplayGrace = true;
+              waitBudgetMs += lateReplayGraceMs;
+              continue;
+            }
+            break;
+          }
         }
 
         if (!settled) await sleep(timeoutFinalSnapshotDelayMs);
@@ -641,6 +668,8 @@ function buildAuditSource(address) {
           address,
           timedOut,
           category: classify(finalSnapshot, timedOut),
+          usedLateReplayGrace,
+          waitBudgetMs,
           ...finalSnapshot,
           elapsedMs: Math.round(performance.now() - startedAt),
         };
@@ -794,7 +823,7 @@ async function main() {
       if (worker.runs > 0 && worker.runs % 25 === 0) {
         await initPage(worker.cdp, worker.baseUrl);
       }
-      const row = await evaluateWithTimeout(worker.cdp, buildAuditSource(address), 110000, address);
+      const row = await evaluateWithTimeout(worker.cdp, buildAuditSource(address), EVALUATION_TIMEOUT_MS, address);
       if (row && row.category === 'eval_timeout') {
         await initPage(worker.cdp, worker.baseUrl);
       }
@@ -852,9 +881,12 @@ def build_live_audit_js(live_defaults: Optional[dict] = None, live_js_defaults: 
         "__PAGE_READY_MAX_WAIT_MS__": str(int(live_js_defaults["pageReadyMaxWaitMs"])),
         "__SETTLE_POLL_MS__": str(int(live_js_defaults["settlePollMs"])),
         "__SETTLE_STABLE_POLLS__": str(int(live_js_defaults["settleStablePolls"])),
+        "__MAX_WAIT_MS__": str(int(live_js_defaults["maxWaitMs"])),
+        "__LATE_REPLAY_GRACE_MS__": str(int(live_js_defaults["lateReplayGraceMs"])),
         "__TIMEOUT_FINAL_SNAPSHOT_DELAY_MS__": str(int(live_js_defaults["timeoutFinalSnapshotDelayMs"])),
         "__SNAPSHOT_FLUSH_EVERY_RESULTS__": str(int(live_js_defaults["snapshotFlushEveryResults"])),
         "__SNAPSHOT_FLUSH_MAX_DELAY_MS__": str(int(live_js_defaults["snapshotFlushMaxDelayMs"])),
+        "__SNAPSHOT_FETCH_TIMEOUT_MS__": str(int(live_js_defaults["snapshotFetchTimeoutMs"])),
     }
     js = LIVE_AUDIT_JS_TEMPLATE
     for placeholder, value in replacements.items():
@@ -1284,15 +1316,26 @@ TIMEOUT_CATEGORIES = {
     "timeout_no_snapshot",
 }
 
+CANONICAL_CATEGORY_ALIASES = {
+    "verified_other": "verified_nonstandard",
+    "borrow_only": "non_active_borrow_route",
+}
+
+
+def canonicalize_live_category(category: object) -> str:
+    text = str(category or "").strip()
+    return CANONICAL_CATEGORY_ALIASES.get(text, text)
+
+
 VERIFIED_CATEGORIES = {
     "replay_verified",
     "hidden_collateral_verified",
-    "verified_other",
+    "verified_nonstandard",
 }
 
 NON_ACTIVE_CATEGORIES = {
     "missing_position",
-    "borrow_only",
+    "non_active_borrow_route",
 }
 
 NON_BLOCKING_REAL_PATTERNS = {
@@ -1340,7 +1383,7 @@ def verification_has_exact_zero_diff(verify: dict) -> bool:
 
 
 def normalize_live_row_category(row: dict) -> str:
-    category = str(row.get("category") or "unknown")
+    category = canonicalize_live_category(row.get("category") or "unknown")
     position_kind = str(row.get("positionKind") or "")
     market_row = row.get("marketRow") or {}
     balance_usd = parse_balance_usd_from_cell(market_row.get("balanceCell"))
@@ -1400,8 +1443,8 @@ def normalize_live_row_category(row: dict) -> str:
         return "missing_position"
     if position_kind == "borrow_only":
         if verify_label == "VERIFIED" or replay_trusted:
-            return "verified_other"
-        return "borrow_only"
+            return "verified_nonstandard"
+        return "non_active_borrow_route"
     if position_kind == "hidden_collateral":
         if replay_trusted or exact_verified or (calc_trusted and exact_verify_match):
             return "hidden_collateral_verified"
@@ -1409,7 +1452,7 @@ def normalize_live_row_category(row: dict) -> str:
     if verify_label == "VERIFIED":
         if resolved_source == "replay-ledger":
             return "replay_verified"
-        return "verified_other"
+        return "verified_nonstandard"
     if (
         verify_label == "SNAPSHOT ONLY"
         or resolved_method.startswith("snapshot")
@@ -1440,8 +1483,8 @@ def parse_live_row_pattern(row: dict) -> Tuple[str, str]:
         return ("verified", "verified")
     if category == "missing_position":
         return ("missing_live_position", "info")
-    if category == "borrow_only":
-        return ("non_active_borrow_only", "info")
+    if category == "non_active_borrow_route":
+        return ("non_active_borrow_route", "info")
 
     focus = row.get("focusMarket") or {}
     verify = focus.get("verificationData") or {}

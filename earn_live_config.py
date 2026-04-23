@@ -31,9 +31,12 @@ DEFAULT_CONFIG: Dict[str, Any] = {
             "pageReadyMaxWaitMs": 3000,
             "settlePollMs": 350,
             "settleStablePolls": 3,
+            "maxWaitMs": 90000,
+            "lateReplayGraceMs": 45000,
             "timeoutFinalSnapshotDelayMs": 600,
             "snapshotFlushEveryResults": 12,
             "snapshotFlushMaxDelayMs": 2000,
+            "snapshotFetchTimeoutMs": 12000,
         },
     },
     "runEarnChainLiveRerun": {
