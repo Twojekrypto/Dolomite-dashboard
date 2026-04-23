@@ -29327,6 +29327,26 @@
             earn_renderNotices();
         }
 
+        function earn_softRefreshRewardsUi(address, chainId) {
+            const currentAddr = String(document.getElementById('earn-address')?.value || '').trim().toLowerCase();
+            const currentChainId = String(document.getElementById('earn-chain')?.value || '').trim().toLowerCase();
+            const targetAddr = String(address || '').trim().toLowerCase();
+            const targetChainId = String(chainId || '').trim().toLowerCase();
+            if (!targetAddr || !targetChainId) return;
+            if (!currentAddr || !currentChainId) return;
+            if (targetAddr !== currentAddr || targetChainId !== currentChainId) return;
+
+            if (earn_cachedAssets && earn_cachedAssets.length > 0) {
+                const tblRef = document.querySelector('.earn-asset-table');
+                if (tblRef) tblRef.classList.add('no-animate');
+                earn_renderResults(earn_cachedAssets, { skipSummary: false, softRefresh: true });
+            }
+
+            if (Array.isArray(earn_lendingPositions) && earn_lendingPositions.length > 0) {
+                earn_reRenderLendingRows();
+            }
+        }
+
         async function earn_loadManifest() {
             if (earn_snapshotManifest) return earn_snapshotManifest;
             if (earn_snapshotManifestRequest) return earn_snapshotManifestRequest;
@@ -29420,6 +29440,7 @@
 
 
         const EARN_SNAPSHOT_TIMEOUT_MS = 12000;
+        const EARN_CANONICAL_LOOKUP_BLOCK_LAG_TOLERANCE = 64n;
 
         async function earn_fetchSnapshot(dateStr) {
             if (earn_snapshotCache[dateStr]) return earn_snapshotCache[dateStr];
@@ -29483,6 +29504,11 @@
             } catch (e) {
                 return null;
             }
+        }
+
+        function earn_formatBlockTagFromBigInt(value) {
+            if (typeof value !== 'bigint' || value < 0n) return null;
+            return '0x' + value.toString(16);
         }
 
         function earn_resetCanonicalSubaccountHistoryState() {
@@ -30173,13 +30199,20 @@
                         .map(entry => String(entry && entry.token ? entry.token : '').toLowerCase())
                         .filter(Boolean)
                 ));
-                if (rewardTokenAddrs.length > 0) {
-                    await earn_fetchCoinGeckoPrices(rewardTokenAddrs);
-                }
                 earn_merklRewards = dolomiteRewards;
                 earn_merklRewardsLoaded = true;
                 earn_merklRewardsLoadedFor = requestKey;
                 earn_setMerklFetchState('success', '', userAddr, chainId);
+                earn_softRefreshRewardsUi(userAddr, chainId);
+                if (rewardTokenAddrs.length > 0) {
+                    void earn_fetchCoinGeckoPrices(rewardTokenAddrs)
+                        .then(() => {
+                            earn_softRefreshRewardsUi(userAddr, chainId);
+                        })
+                        .catch(e => {
+                            console.warn('MERKL reward price refresh failed:', e);
+                        });
+                }
                 return dolomiteRewards;
             })().catch(e => {
                 console.warn('MERKL rewards fetch failed:', e);
@@ -32296,13 +32329,24 @@
                 // Prefetch liquidation_risk.json in parallel with balance lookup (don't await yet)
                 earn_prefetchLiqRisk();
 
-                const replayBlockTagPromise = earn_rpcRequest('eth_blockNumber', [], 3)
-                    .then(blockTag => {
-                        if (isCurrentLookup()) {
-                            earn_replayBlockTag = blockTag;
+                const replayBlockTagPromise = Promise.all([
+                    earn_rpcRequest('eth_blockNumber', [], 3),
+                    earn_fetchSubaccountHistoryForAddress(chainId, addr).catch(() => null),
+                ]).then(([headBlockTag, canonicalHistory]) => {
+                    let preferredBlockTag = headBlockTag;
+                    const headBlock = earn_parseBlockNumberLike(headBlockTag);
+                    const historyBlock = earn_parseBlockNumberLike(canonicalHistory && canonicalHistory.lastScannedBlock);
+                    if (headBlock !== null && historyBlock !== null && headBlock >= historyBlock) {
+                        const lag = headBlock - historyBlock;
+                        if (lag > 0n && lag <= EARN_CANONICAL_LOOKUP_BLOCK_LAG_TOLERANCE) {
+                            preferredBlockTag = earn_formatBlockTagFromBigInt(historyBlock) || headBlockTag;
                         }
-                        return blockTag;
-                    });
+                    }
+                    if (isCurrentLookup()) {
+                        earn_replayBlockTag = preferredBlockTag;
+                    }
+                    return preferredBlockTag;
+                });
 
                 const replayPromise = replayBlockTagPromise.then(blockTag => earn_fetchNetflow({
                     blockTag,
