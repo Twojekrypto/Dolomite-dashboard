@@ -2839,16 +2839,24 @@
 
         .assets-sim-controls {
             display: grid;
-            grid-template-columns: minmax(180px, 0.9fr) minmax(250px, 1.2fr) minmax(220px, 1.05fr);
-            gap: 14px;
+            grid-template-columns: minmax(176px, 0.82fr) minmax(236px, 1fr) minmax(208px, 0.9fr);
+            gap: 12px;
             align-items: start;
         }
 
         .assets-sim-control-group {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 7px;
             min-width: 0;
+        }
+
+        .assets-sim-control-group.is-action {
+            max-width: 246px;
+        }
+
+        .assets-sim-control-group.is-amount {
+            max-width: 320px;
         }
 
         .assets-sim-label {
@@ -2863,7 +2871,7 @@
             display: inline-flex;
             align-items: center;
             gap: 3px;
-            padding: 3px;
+            padding: 2px;
             border-radius: 999px;
             border: 1px solid rgba(255, 255, 255, 0.08);
             background: rgba(255, 255, 255, 0.035);
@@ -2881,13 +2889,13 @@
         }
 
         .assets-sim-mode button {
-            min-width: 92px;
-            min-height: 34px;
-            padding: 7px 13px;
+            min-width: 88px;
+            min-height: 32px;
+            padding: 6px 13px;
             border-radius: 999px;
             background: transparent;
             color: rgba(255, 255, 255, 0.55);
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 700;
         }
 
@@ -2900,10 +2908,10 @@
         .assets-sim-input-wrap {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 10px 12px;
-            min-height: 48px;
-            border-radius: 14px;
+            gap: 8px;
+            padding: 8px 10px;
+            min-height: 44px;
+            border-radius: 12px;
             border: 1px solid rgba(255, 255, 255, 0.08);
             background: rgba(7, 12, 20, 0.58);
             box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
@@ -2917,7 +2925,7 @@
         }
 
         .assets-sim-input-prefix {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 700;
             color: rgba(255, 255, 255, 0.82);
         }
@@ -2927,7 +2935,7 @@
             min-width: 0;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
 
         .assets-sim-input-wrap input {
@@ -2935,10 +2943,11 @@
             border: none;
             background: transparent;
             color: rgba(255, 255, 255, 0.96);
-            font-size: 19px;
+            font-size: 17px;
             font-weight: 700;
             letter-spacing: -0.02em;
             outline: none;
+            font-variant-numeric: tabular-nums;
         }
 
         .assets-sim-input-wrap input[type=number] {
@@ -2959,7 +2968,7 @@
         .assets-sim-input-tools {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             margin-left: auto;
             flex: 0 0 auto;
         }
@@ -2969,8 +2978,8 @@
             outline: none;
             cursor: pointer;
             font: inherit;
-            min-height: 30px;
-            padding: 6px 10px;
+            min-height: 28px;
+            padding: 0 10px;
             border-radius: 999px;
             background: rgba(255, 255, 255, 0.06);
             color: rgba(255, 255, 255, 0.72);
@@ -3003,7 +3012,7 @@
         .assets-sim-stepper {
             display: inline-flex;
             flex-direction: column;
-            gap: 5px;
+            gap: 4px;
         }
 
         .assets-sim-stepper button {
@@ -3011,9 +3020,9 @@
             outline: none;
             cursor: pointer;
             font: inherit;
-            width: 26px;
-            height: 15px;
-            border-radius: 9px;
+            width: 24px;
+            height: 14px;
+            border-radius: 8px;
             background: rgba(255, 255, 255, 0.05);
             color: rgba(255, 255, 255, 0.72);
             border: 1px solid rgba(255, 255, 255, 0.08);
@@ -3048,8 +3057,8 @@
         }
 
         .assets-sim-presets button {
-            min-height: 34px;
-            padding: 8px 10px;
+            min-height: 32px;
+            padding: 7px 10px;
             border-radius: 999px;
             background: rgba(255, 255, 255, 0.04);
             color: rgba(255, 255, 255, 0.68);
@@ -3382,6 +3391,11 @@
 
             .assets-sim-mode button {
                 flex: 1 1 0;
+            }
+
+            .assets-sim-control-group.is-action,
+            .assets-sim-control-group.is-amount {
+                max-width: none;
             }
         }
 
@@ -24806,14 +24820,14 @@
                     <span id="${rowId}-sim-status" class="assets-sim-status${snapshot && snapshot.statusTone === 'warn' ? ' warn' : ''}">${earn_escapeHtml(snapshot ? snapshot.statusText : 'Live lending estimate')}</span>
                 </div>
                 <div class="assets-sim-controls">
-                    <div class="assets-sim-control-group">
+                    <div class="assets-sim-control-group is-action">
                         <div class="assets-sim-label">Action</div>
                         <div class="assets-sim-mode" onclick="event.stopPropagation()">
                             <button type="button" data-assets-sim-mode="${rowId}" data-mode="deposit" class="${state.mode === 'deposit' ? 'active' : ''}" onclick="event.stopPropagation(); assets_handleSimulatorMode('${rowId}', 'deposit')">Deposit</button>
                             <button type="button" data-assets-sim-mode="${rowId}" data-mode="withdraw" class="${state.mode === 'withdraw' ? 'active' : ''}" onclick="event.stopPropagation(); assets_handleSimulatorMode('${rowId}', 'withdraw')">Withdraw</button>
                         </div>
                     </div>
-                    <div class="assets-sim-control-group">
+                    <div class="assets-sim-control-group is-amount">
                         <div class="assets-sim-label">Amount (USD)</div>
                         <div class="assets-sim-input-wrap" onclick="event.stopPropagation()">
                             <div class="assets-sim-input-main">
@@ -24829,7 +24843,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="assets-sim-control-group">
+                    <div class="assets-sim-control-group is-presets">
                         <div class="assets-sim-label">Quick presets</div>
                         <div id="${rowId}-sim-presets" class="assets-sim-presets" onclick="event.stopPropagation()">
                             ${presetHtml || '<button type="button" disabled>No presets</button>'}
