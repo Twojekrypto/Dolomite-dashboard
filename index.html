@@ -2914,6 +2914,14 @@
             color: rgba(255, 255, 255, 0.82);
         }
 
+        .assets-sim-input-main {
+            flex: 1 1 auto;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
         .assets-sim-input-wrap input {
             width: 100%;
             border: none;
@@ -2925,8 +2933,102 @@
             outline: none;
         }
 
+        .assets-sim-input-wrap input[type=number] {
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+
+        .assets-sim-input-wrap input[type=number]::-webkit-outer-spin-button,
+        .assets-sim-input-wrap input[type=number]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
         .assets-sim-input-wrap input::placeholder {
             color: rgba(255, 255, 255, 0.24);
+        }
+
+        .assets-sim-input-tools {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+            flex: 0 0 auto;
+        }
+
+        .assets-sim-max {
+            border: none;
+            outline: none;
+            cursor: pointer;
+            font: inherit;
+            padding: 7px 11px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.06);
+            color: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+        }
+
+        .assets-sim-max:hover:not(:disabled) {
+            background: rgba(56, 189, 248, 0.12);
+            color: rgba(255, 255, 255, 0.92);
+            border-color: rgba(56, 189, 248, 0.22);
+        }
+
+        .assets-sim-max.active {
+            background: linear-gradient(90deg, rgba(52, 211, 153, 0.18), rgba(56, 189, 248, 0.18));
+            color: rgba(255, 255, 255, 0.95);
+            border-color: rgba(125, 211, 252, 0.18);
+            box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.1);
+        }
+
+        .assets-sim-max:disabled {
+            opacity: 0.38;
+            cursor: default;
+        }
+
+        .assets-sim-stepper {
+            display: inline-flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .assets-sim-stepper button {
+            border: none;
+            outline: none;
+            cursor: pointer;
+            font: inherit;
+            width: 28px;
+            height: 18px;
+            border-radius: 9px;
+            background: rgba(255, 255, 255, 0.05);
+            color: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+        }
+
+        .assets-sim-stepper button:hover {
+            background: rgba(255, 255, 255, 0.09);
+            color: rgba(255, 255, 255, 0.95);
+            border-color: rgba(255, 255, 255, 0.14);
+        }
+
+        .assets-sim-stepper button:active {
+            transform: translateY(1px);
+        }
+
+        .assets-sim-stepper button span {
+            line-height: 1;
+            font-size: 11px;
+            font-weight: 800;
+            transform: translateY(-0.5px);
         }
 
         .assets-sim-presets {
@@ -24389,11 +24491,32 @@
             return filtered.slice(0, 4);
         }
 
+        function assets_getFiniteSimulatorMaxUsd(model, mode) {
+            const maxUsd = assets_getSimulatorMaxUsd(model, mode);
+            return Number.isFinite(maxUsd) && maxUsd > 0 ? maxUsd : 0;
+        }
+
         function assets_chooseDefaultSimulatorUsd(model, mode) {
             const presets = assets_getSimulatorPresets(model, mode);
             if (presets.length >= 2) return presets[1];
             if (presets.length === 1) return presets[0];
             return mode === 'withdraw' ? 1000 : 5000;
+        }
+
+        function assets_getSimulatorStepUsd(state) {
+            const model = state && state.model;
+            if (!model) return 100;
+            const base = Math.max(
+                Number(state.usdInput) || 0,
+                assets_getFiniteSimulatorMaxUsd(model, state.mode) * 0.02,
+                100
+            );
+            if (base < 1000) return 100;
+            if (base < 10000) return 500;
+            if (base < 50000) return 1000;
+            if (base < 250000) return 5000;
+            if (base < 1000000) return 10000;
+            return 50000;
         }
 
         function assets_getVisibleSimulatorTotal(parts) {
@@ -24561,6 +24684,13 @@
                 inputEl.value = state.usdInput > 0 ? state.usdInput : '';
             }
 
+            const maxBtnEl = document.getElementById(rowId + '-sim-max');
+            if (maxBtnEl) {
+                const finiteMaxUsd = assets_getFiniteSimulatorMaxUsd(state.model, state.mode);
+                maxBtnEl.disabled = !(finiteMaxUsd > 0);
+                maxBtnEl.classList.toggle('active', finiteMaxUsd > 0 && Math.abs((state.usdInput || 0) - finiteMaxUsd) < 0.5);
+            }
+
             document.querySelectorAll(`[data-assets-sim-mode="${rowId}"]`).forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.mode === state.mode);
             });
@@ -24599,6 +24729,29 @@
             assets_renderSimulatorResults(rowId);
         }
 
+        function assets_applySimulatorMax(rowId) {
+            const state = assets_simulatorStates[rowId];
+            if (!state) return;
+            const maxUsd = assets_getFiniteSimulatorMaxUsd(state.model, state.mode);
+            if (!(maxUsd > 0)) return;
+            state.usdInput = maxUsd;
+            assets_renderSimulatorResults(rowId);
+        }
+
+        function assets_nudgeSimulatorInput(rowId, direction) {
+            const state = assets_simulatorStates[rowId];
+            if (!state) return;
+            const stepUsd = assets_getSimulatorStepUsd(state);
+            const currentUsd = Math.max(0, Number(state.usdInput) || 0);
+            const nextRaw = direction === 'down' ? currentUsd - stepUsd : currentUsd + stepUsd;
+            const maxUsd = assets_getSimulatorMaxUsd(state.model, state.mode);
+            const bounded = Number.isFinite(maxUsd)
+                ? Math.min(Math.max(0, nextRaw), maxUsd)
+                : Math.max(0, nextRaw);
+            state.usdInput = bounded;
+            assets_renderSimulatorResults(rowId);
+        }
+
         function assets_buildSimulatorSection(rowId, d, md) {
             const model = assets_getSimulatorModel(d, md);
             if (!model) {
@@ -24629,6 +24782,7 @@
             const state = assets_simulatorStates[rowId];
             const snapshot = assets_computeSimulatorSnapshot(state);
             const presets = assets_getSimulatorPresets(model, state.mode);
+            const finiteMaxUsd = assets_getFiniteSimulatorMaxUsd(model, state.mode);
             const presetHtml = presets.map(value => `<button type="button" data-assets-sim-preset="${rowId}" data-value="${value}" class="${Math.abs((state.usdInput || 0) - value) < 0.5 ? 'active' : ''}" onclick="event.stopPropagation(); assets_applySimulatorPreset('${rowId}', ${value})">${assets_fmtUsdCompact(value)}</button>`).join('');
 
             return `<div class="assets-detail-section assets-sim-section">
@@ -24653,8 +24807,17 @@
                     <div class="assets-sim-control-group">
                         <div class="assets-sim-label">Amount (USD)</div>
                         <div class="assets-sim-input-wrap" onclick="event.stopPropagation()">
-                            <span class="assets-sim-input-prefix">$</span>
-                            <input id="${rowId}-sim-input" type="number" min="0" step="100" inputmode="decimal" placeholder="25000" value="${state.usdInput > 0 ? state.usdInput : ''}" oninput="assets_handleSimulatorInput('${rowId}', this.value)" onclick="event.stopPropagation()">
+                            <div class="assets-sim-input-main">
+                                <span class="assets-sim-input-prefix">$</span>
+                                <input id="${rowId}-sim-input" type="number" min="0" step="100" inputmode="decimal" placeholder="25000" value="${state.usdInput > 0 ? state.usdInput : ''}" oninput="assets_handleSimulatorInput('${rowId}', this.value)" onclick="event.stopPropagation()">
+                            </div>
+                            <div class="assets-sim-input-tools">
+                                <button id="${rowId}-sim-max" type="button" class="assets-sim-max${finiteMaxUsd > 0 && Math.abs((state.usdInput || 0) - finiteMaxUsd) < 0.5 ? ' active' : ''}" ${finiteMaxUsd > 0 ? '' : 'disabled'} onclick="event.stopPropagation(); assets_applySimulatorMax('${rowId}')">Max</button>
+                                <div class="assets-sim-stepper">
+                                    <button type="button" onclick="event.stopPropagation(); assets_nudgeSimulatorInput('${rowId}', 'up')"><span>▴</span></button>
+                                    <button type="button" onclick="event.stopPropagation(); assets_nudgeSimulatorInput('${rowId}', 'down')"><span>▾</span></button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="assets-sim-control-group">
