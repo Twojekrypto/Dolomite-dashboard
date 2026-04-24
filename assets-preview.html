@@ -515,6 +515,7 @@ body::before{
 tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .tok-ico{width:30px;height:30px;border-radius:50%;background:var(--bg-3);border:1px solid var(--line-2);overflow:hidden;flex-shrink:0;display:grid;place-items:center}
 .tok-ico img{width:100%;height:100%;object-fit:cover}
+.tok-ico img.grayscale{filter:grayscale(1) brightness(1.5)}
 .tok-meta{display:flex;flex-direction:column;min-width:0}
 .tok-name{font-weight:600;color:var(--fg-1);display:flex;align-items:center;gap:8px}
 .tok-name .tok-sym{font-family:var(--mono);font-size:13px;letter-spacing:.2px}
@@ -1379,6 +1380,8 @@ const tokenIcon = (sym, row={}) => {
     || 'dolomite-logo.svg';
 };
 const tokIcon = tokenIcon;
+const GRAYSCALE_SYMBOLS = new Set(['CRV','USD0','USD0++','deUSD','sdeUSD','MATIC','POL','stcUSD','cUSD','USDT','cbBTC']);
+const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? "grayscale" : "";
 const chainIcon = (chain)=>`https://icons.llamao.fi/icons/chains/rsz_${chain==="polygonzkevm"?"polygon%20zkevm":chain==="xlayer"?"x%20layer":chain}.jpg`;
 
 const fmtPrice = (v)=>{
@@ -1691,7 +1694,7 @@ function updateHero(){
   const heroToken = document.querySelector(".hero-token");
   if(heroToken){
     const topChain = chainMeta(topSupply.chain);
-    heroToken.innerHTML = `<img src="${tokIcon(topSupply.sym, topSupply)}" onerror="this.style.display='none'" alt="${topSupply.sym}">
+    heroToken.innerHTML = `<img class="${tokenIconClass(topSupply.sym)}" src="${tokIcon(topSupply.sym, topSupply)}" onerror="this.style.display='none'" alt="${topSupply.sym}">
         ${topSupply.sym}
         <span class="hero-chain-pill"><img src="${topChain.icon}" onerror="this.style.display='none'" alt="">${topChain.name}</span>`;
   }
@@ -1790,7 +1793,7 @@ function render(){
           <div class="asset-cell">
             <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             <div class="tok-ico">
-              <img src="${tokIcon(r.sym, r)}" onerror="this.style.display='none'" alt="">
+              <img class="${tokenIconClass(r.sym)}" src="${tokIcon(r.sym, r)}" onerror="this.style.display='none'" alt="">
             </div>
             <div class="tok-meta">
               <div class="tok-name"><span class="tok-sym">${r.sym}</span><span class="tok-long">${r.name}</span></div>
