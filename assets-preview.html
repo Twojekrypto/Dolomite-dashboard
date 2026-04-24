@@ -1,0 +1,1976 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dolomite · Assets — Premium Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ==========================================================================
+   DESIGN TOKENS — Graphite + Gold (premium, restrained)
+   ========================================================================== */
+:root{
+  /* Backgrounds */
+  --bg-0:#09090b;          /* page */
+  --bg-1:#0f0f11;          /* section */
+  --bg-2:#141417;          /* card */
+  --bg-3:#1a1a1e;          /* elevated / hover */
+  --bg-4:#202024;          /* input */
+
+  /* Borders & dividers */
+  --line-1:rgba(255,255,255,.05);
+  --line-2:rgba(255,255,255,.08);
+  --line-3:rgba(255,255,255,.14);
+
+  /* Text */
+  --fg-1:#f4f3ef;          /* primary (warm white) */
+  --fg-2:#a5a29a;          /* secondary */
+  --fg-3:#6b6a66;          /* muted */
+  --fg-4:#48474a;          /* disabled */
+
+  /* Single premium accent — restrained */
+  --gold:#c9a227;
+  --gold-hi:#e4c15a;
+  --gold-lo:#8a6e1a;
+  --gold-wash:rgba(201,162,39,.10);
+  --gold-line:rgba(201,162,39,.30);
+
+  /* Neutral status (muted, never neon) */
+  --up:#8aa37b;
+  --down:#b4796b;
+  --up-wash:rgba(138,163,123,.10);
+  --down-wash:rgba(180,121,107,.10);
+
+  /* Supply-source accent for External Yield — cool steel so it reads
+     distinct from white (Lending) and gold (oDOLO). */
+  --yield:#7fa8b8;
+
+  /* Geometry */
+  --r-sm:8px;
+  --r-md:12px;
+  --r-lg:16px;
+  --r-xl:22px;
+
+  /* Shadows */
+  --sh-card:0 1px 0 rgba(255,255,255,.02) inset, 0 1px 2px rgba(0,0,0,.4);
+  --sh-hi:0 8px 28px rgba(0,0,0,.45);
+
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --ease:cubic-bezier(.2,.7,.2,1);
+}
+
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{background:var(--bg-0);color:var(--fg-1);font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5}
+body{min-height:100vh;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input{font:inherit}
+
+/* Page bg — very subtle vignette only */
+body::before{
+  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(1000px 600px at 80% -10%,rgba(201,162,39,.04),transparent 60%),
+    radial-gradient(800px 500px at -10% 110%,rgba(255,255,255,.02),transparent 60%);
+}
+
+.wrap{max-width:1320px;margin:0 auto;padding:40px 28px 96px}
+
+/* =========================================================================
+   TOP — logo banner + sticky nav
+   ========================================================================= */
+.site-top{
+  display:flex;flex-direction:column;align-items:center;
+  gap:14px;margin-bottom:40px;
+}
+
+.site-brand{
+  position:relative;
+  display:flex;justify-content:center;align-items:center;
+  width:100%;
+  padding:18px 0 0;
+}
+/* Warm gold atmosphere behind the banner — two layered radials make it
+   sit in the page rather than on top of it. */
+.site-brand::before{
+  content:"";position:absolute;inset:-6% -12% 12% -12%;z-index:-1;
+  background:
+    radial-gradient(55% 55% at 50% 50%, rgba(201,162,39,.14) 0%, transparent 72%),
+    radial-gradient(90% 110% at 50% 100%, rgba(201,162,39,.05) 0%, transparent 65%);
+  filter:blur(20px);pointer-events:none;
+}
+/* Page-coloured vignette overlay: fades the logo's rectangular backdrop
+   into the exact page bg at the edges, hiding the blue-purple undertone. */
+.site-brand::after{
+  content:"";position:absolute;
+  top:50%;left:50%;transform:translate(-50%,-50%);
+  width:min(100%,820px);aspect-ratio:495/195;
+  pointer-events:none;
+  background:radial-gradient(
+    ellipse 78% 82% at center,
+    transparent 42%,
+    rgba(9,9,11,.55) 72%,
+    var(--bg-0) 100%
+  );
+}
+/* Logo colour-corrected toward the palette: desaturated, hue-rotated off
+   the blue undertone, tight radial mask so only the content stays solid. */
+.site-brand img{
+  max-width:820px;width:100%;height:auto;display:block;
+  filter:
+    saturate(.82)
+    contrast(.92)
+    brightness(.93)
+    hue-rotate(-7deg);
+  -webkit-mask-image:radial-gradient(
+    ellipse 78% 80% at center,
+    #000 38%,
+    rgba(0,0,0,.7) 62%,
+    rgba(0,0,0,.25) 82%,
+    transparent 98%
+  );
+          mask-image:radial-gradient(
+    ellipse 78% 80% at center,
+    #000 38%,
+    rgba(0,0,0,.7) 62%,
+    rgba(0,0,0,.25) 82%,
+    transparent 98%
+  );
+  transition:filter .4s var(--ease),transform .4s var(--ease);
+}
+.site-brand img:hover{
+  filter:
+    saturate(.92)
+    contrast(.96)
+    brightness(.98)
+    hue-rotate(-5deg);
+  transform:translateY(-1px);
+}
+
+/* Nav sits below the logo with a small gap (no overlap). */
+.site-nav-wrap{
+  position:sticky;top:12px;z-index:30;
+  display:flex;justify-content:center;
+  pointer-events:none;
+}
+.site-nav{
+  pointer-events:auto;
+  display:inline-flex;align-items:center;gap:2px;
+  background:rgba(16,16,20,.72);
+  backdrop-filter:blur(22px) saturate(160%);
+  -webkit-backdrop-filter:blur(22px) saturate(160%);
+  border:1px solid var(--line-2);
+  padding:5px;border-radius:12px;
+  box-shadow:
+    0 6px 24px rgba(0,0,0,.45),
+    0 1px 0 rgba(255,255,255,.03) inset;
+}
+.nav-item{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:9px 14px;border-radius:8px;
+  font-size:13px;font-weight:500;color:var(--fg-2);
+  cursor:pointer;
+  transition:color .15s var(--ease),background .15s var(--ease);
+  -webkit-tap-highlight-color:transparent;
+}
+.nav-item img,
+.nav-item svg{
+  width:15px;height:15px;flex-shrink:0;
+  transition:opacity .15s var(--ease);
+}
+.nav-item img{border-radius:50%;background:var(--bg-3);object-fit:contain}
+.nav-item svg{color:var(--fg-3);opacity:.85}
+.nav-item:hover{color:var(--fg-1);background:var(--bg-3)}
+.nav-item:hover svg{color:var(--fg-1);opacity:1}
+.nav-item.active{
+  color:var(--fg-1);background:var(--bg-3);
+  box-shadow:inset 0 0 0 1px var(--gold-line);
+}
+.nav-item.active svg{color:var(--gold);opacity:1}
+.nav-item.active::after{
+  content:"";width:4px;height:4px;border-radius:50%;
+  background:var(--gold);margin-left:2px;
+  box-shadow:0 0 6px var(--gold-line);
+}
+
+/* =========================================================================
+   HERO — yield focus, graphite + subtle gold
+   ========================================================================= */
+.hero{
+  position:relative;
+  background:linear-gradient(180deg,var(--bg-2),var(--bg-1));
+  border:1px solid var(--line-2);
+  border-radius:var(--r-xl);
+  padding:28px 32px;
+  margin-bottom:24px;
+  overflow:hidden;
+}
+.hero::before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(650px 280px at 85% -20%,rgba(201,162,39,.08),transparent 60%);
+}
+.hero-top{display:flex;align-items:center;gap:8px;margin-bottom:10px;color:var(--gold);font-size:11px;letter-spacing:2px;text-transform:uppercase;font-weight:700}
+.hero-top svg{width:14px;height:14px}
+
+.hero-headline{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:24px}
+.hero-value{
+  font-family:var(--mono);
+  font-size:clamp(40px,5.6vw,58px);
+  font-weight:700;letter-spacing:-2px;
+  color:var(--fg-1);
+  font-variant-numeric:tabular-nums;
+}
+.hero-value .pct{color:var(--gold)}
+.hero-token{display:inline-flex;align-items:center;gap:10px;padding:6px 12px;border-radius:999px;background:var(--bg-3);border:1px solid var(--line-2);font-size:14px;font-weight:600;color:var(--fg-1)}
+.hero-token img{width:18px;height:18px;border-radius:50%}
+.hero-chain-pill{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--fg-2);padding:3px 7px;border-radius:4px;background:rgba(255,255,255,.04);border:1px solid var(--line-2)}
+
+.hero-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.hero-card{
+  background:rgba(255,255,255,.02);
+  border:1px solid var(--line-2);
+  border-radius:var(--r-md);
+  padding:18px 20px;
+  transition:border-color .25s var(--ease),background .25s var(--ease),transform .25s var(--ease);
+  position:relative;
+}
+.hero-card:hover{border-color:var(--line-3);background:rgba(255,255,255,.035);transform:translateY(-1px)}
+.hero-card .hc-label{font-size:10px;text-transform:uppercase;letter-spacing:1.6px;color:var(--fg-3);font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.hero-card .hc-label svg{width:12px;height:12px;color:var(--fg-3)}
+.hero-card .hc-value{font-family:var(--mono);font-size:24px;font-weight:600;letter-spacing:-.5px;color:var(--fg-1);font-variant-numeric:tabular-nums}
+.hero-card .hc-value.accent{color:var(--gold)}
+.hero-card .hc-sub{font-size:11px;color:var(--fg-3);margin-top:4px}
+
+/* =========================================================================
+   CARD SHELL
+   ========================================================================= */
+.card{
+  background:var(--bg-2);
+  border:1px solid var(--line-2);
+  border-radius:var(--r-xl);
+  box-shadow:var(--sh-card);
+  overflow:visible;        /* allow dropdowns to escape when table is short */
+  position:relative;
+}
+.card-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px 24px 18px;
+  border-bottom:1px solid var(--line-1);
+}
+.card-title{display:flex;align-items:center;gap:10px}
+.card-title h2{font-size:16px;font-weight:600;letter-spacing:-.1px;color:var(--fg-1)}
+.card-title .count-badge{font-family:var(--mono);font-size:11px;color:var(--fg-2);background:var(--bg-3);border:1px solid var(--line-2);padding:3px 8px;border-radius:999px}
+.card-meta{font-size:11px;color:var(--fg-3);font-family:var(--mono);display:flex;align-items:center;gap:6px}
+.pulse{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
+
+/* =========================================================================
+   TOOLBAR
+   ========================================================================= */
+.toolbar{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:14px 24px;
+  background:linear-gradient(180deg,var(--bg-1),var(--bg-2));
+  border-bottom:1px solid var(--line-1);
+  flex-wrap:wrap;
+}
+.tb-left,.tb-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
+/* search */
+.search{
+  position:relative;
+  display:flex;align-items:center;
+  width:280px;
+  background:var(--bg-3);
+  border:1px solid var(--line-2);
+  border-radius:10px;
+  height:36px;
+  padding:0 14px 0 36px;
+  transition:border-color .2s var(--ease);
+}
+.search:focus-within{border-color:var(--gold-line)}
+.search svg{position:absolute;left:12px;width:14px;height:14px;color:var(--fg-3)}
+.search input{flex:1;background:none;border:0;outline:0;color:var(--fg-1);font-size:13px}
+.search input::placeholder{color:var(--fg-3)}
+.search .kbd{font-family:var(--mono);font-size:10px;color:var(--fg-3);border:1px solid var(--line-2);border-radius:4px;padding:1px 5px;background:var(--bg-4)}
+
+/* dropdown btn */
+.dd{position:relative}
+.dd-btn{
+  display:inline-flex;align-items:center;gap:8px;
+  height:36px;padding:0 12px;
+  background:var(--bg-3);border:1px solid var(--line-2);
+  border-radius:10px;font-size:13px;color:var(--fg-1);font-weight:500;
+  transition:border-color .2s var(--ease),background .2s var(--ease);
+}
+.dd-btn:hover{border-color:var(--line-3)}
+.dd-btn.open{border-color:var(--gold-line);background:var(--bg-4)}
+.dd-btn .icon{width:14px;height:14px;color:var(--fg-2);flex-shrink:0;transition:color .2s var(--ease)}
+.dd-btn .lbl{
+  flex:1;min-width:0;text-align:left;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.dd-btn .count{font-family:var(--mono);font-size:10px;color:var(--fg-3);background:var(--bg-4);padding:2px 6px;border-radius:999px;border:1px solid var(--line-2);flex-shrink:0;transition:color .2s var(--ease),border-color .2s var(--ease),background .2s var(--ease)}
+.dd-btn .chev{width:10px;height:10px;color:var(--fg-3);flex-shrink:0;transition:transform .2s var(--ease),color .2s var(--ease)}
+.dd-btn.open .chev{transform:rotate(180deg)}
+
+/* Persistent filtered state — subtle gold accent, matches the .open
+   style so selection reads "something is picked" without shouting. */
+.dd-btn.filtered{
+  border-color:var(--gold-line);
+  background:var(--bg-4);
+}
+.dd-btn.filtered .count{
+  color:var(--gold);
+  border-color:var(--gold-line);
+}
+.dd-btn.filtered:hover{border-color:var(--gold-line)}
+
+/* Fixed widths so labels never resize the button — "All Chains", "2 chains",
+   "Polygon zkEVM" and "Berachain" all occupy the same space. */
+#dd-cat .dd-btn{min-width:170px}
+#dd-net .dd-btn{min-width:210px}
+#dd-rw  .dd-btn{min-width:150px}
+
+/* Quick-clear × — only visible when the filter has a selection */
+.dd-clear{
+  display:none;
+  align-items:center;justify-content:center;
+  width:18px;height:18px;border-radius:4px;
+  margin-left:-2px;flex-shrink:0;
+  color:var(--fg-3);cursor:pointer;
+  transition:color .15s var(--ease),background .15s var(--ease);
+}
+.dd-btn.filtered .dd-clear{display:inline-flex}
+.dd-clear:hover{background:rgba(201,162,39,.18);color:var(--gold)}
+.dd-clear svg{width:10px;height:10px;pointer-events:none}
+
+.dd-panel{
+  position:absolute;top:calc(100% + 6px);left:0;
+  min-width:220px;max-width:320px;
+  background:var(--bg-2);
+  border:1px solid var(--line-2);
+  border-radius:var(--r-md);
+  box-shadow:var(--sh-hi);
+  padding:6px;z-index:40;
+  opacity:0;transform:translateY(-4px);pointer-events:none;
+  transition:opacity .18s var(--ease),transform .18s var(--ease);
+}
+.dd-panel.show{opacity:1;transform:translateY(0);pointer-events:auto}
+.dd-panel-head{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:var(--fg-3);font-weight:600;padding:8px 10px 6px}
+.dd-list{display:flex;flex-direction:column}
+.dd-opt{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 10px;border-radius:6px;
+  font-size:13px;color:var(--fg-2);cursor:pointer;
+  transition:background .15s var(--ease),color .15s var(--ease);
+}
+.dd-opt + .dd-opt{border-top:1px solid var(--line-1)}
+.dd-opt:hover{background:var(--bg-3);color:var(--fg-1)}
+.dd-opt.active{background:rgba(201,162,39,.04);color:var(--fg-1)}
+.dd-opt img,
+.dd-opt .dd-ico{
+  width:18px;height:18px;border-radius:50%;flex-shrink:0;
+  background:var(--bg-4);border:1px solid var(--line-2);
+  display:grid;place-items:center;object-fit:cover;
+  transition:border-color .15s var(--ease);
+}
+.dd-opt.active img,
+.dd-opt.active .dd-ico{border-color:var(--gold-line)}
+.dd-opt .dd-ico svg{width:11px;height:11px;color:var(--fg-3)}
+.dd-opt.active .dd-ico svg{color:var(--gold)}
+.dd-opt-name{flex:1;min-width:0}
+/* Checkbox indicator on LEFT — mirrors Rewards filter */
+.dd-opt-check{
+  width:15px;height:15px;border-radius:4px;flex-shrink:0;
+  background:var(--bg-4);border:1.5px solid var(--line-3);
+  display:grid;place-items:center;
+  transition:background .15s var(--ease),border-color .15s var(--ease);
+}
+.dd-opt-check svg{
+  width:9px;height:9px;
+  color:var(--bg-0);
+  opacity:0;transition:opacity .15s var(--ease);
+}
+.dd-opt.active .dd-opt-check{background:var(--gold);border-color:var(--gold)}
+.dd-opt.active .dd-opt-check svg{opacity:1}
+
+/* pill switch (APR/APY) */
+.pill-switch{
+  position:relative;
+  display:inline-flex;align-items:center;
+  background:var(--bg-3);border:1px solid var(--line-2);
+  border-radius:10px;padding:3px;height:36px;
+}
+.pill-switch .opt{position:relative;z-index:1;padding:0 14px;height:28px;display:inline-flex;align-items:center;font-size:12px;font-weight:600;color:var(--fg-3);letter-spacing:.4px;transition:color .2s var(--ease)}
+.pill-switch .opt.active{color:var(--bg-0)}
+.pill-switch .slider{position:absolute;top:3px;left:3px;height:28px;border-radius:8px;background:var(--gold);box-shadow:0 2px 8px rgba(201,162,39,.35);transition:transform .25s var(--ease),width .25s var(--ease)}
+
+/* toggle pill (hide dust) */
+.toggle-pill{display:inline-flex;align-items:center;gap:10px;height:36px;padding:0 14px 0 10px;background:var(--bg-3);border:1px solid var(--line-2);border-radius:10px;font-size:13px;color:var(--fg-2);cursor:pointer;transition:border-color .2s var(--ease),color .2s var(--ease)}
+.toggle-pill:hover{border-color:var(--line-3);color:var(--fg-1)}
+.toggle-pill.on{color:var(--fg-1);border-color:var(--gold-line);background:var(--gold-wash)}
+.toggle-track{width:26px;height:14px;border-radius:999px;background:var(--bg-4);border:1px solid var(--line-2);position:relative;transition:background .2s var(--ease)}
+.toggle-knob{position:absolute;top:1px;left:1px;width:10px;height:10px;border-radius:50%;background:var(--fg-3);transition:transform .22s var(--ease),background .22s var(--ease)}
+.toggle-pill.on .toggle-track{background:var(--gold-wash);border-color:var(--gold-line)}
+.toggle-pill.on .toggle-knob{transform:translateX(12px);background:var(--gold)}
+
+/* rewards btn with dots */
+.rw-btn{display:inline-flex;align-items:center;gap:8px}
+.rw-dots{display:inline-flex;gap:3px}
+.rw-dot{width:6px;height:6px;border-radius:50%;background:var(--fg-4);transition:background .2s var(--ease)}
+.rw-dot.on{background:var(--gold)}
+
+/* rewards dropdown — minimal filter-table */
+.dd-panel-rw{padding:6px;min-width:220px}
+.dd-panel-rw .dd-panel-head{padding:8px 10px 6px}
+.rw-list{display:flex;flex-direction:column}
+.rw-item{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 10px;border-radius:6px;cursor:pointer;
+  transition:background .15s var(--ease);
+}
+.rw-item + .rw-item{border-top:1px solid var(--line-1)}
+.rw-item:hover{background:var(--bg-3)}
+.rw-check{
+  width:15px;height:15px;border-radius:4px;flex-shrink:0;
+  background:var(--bg-4);border:1.5px solid var(--line-3);
+  display:grid;place-items:center;
+  transition:background .15s var(--ease),border-color .15s var(--ease);
+}
+.rw-check svg{
+  width:9px;height:9px;
+  color:var(--bg-0);
+  opacity:0;transition:opacity .15s var(--ease);
+}
+.rw-item.active .rw-check{background:var(--gold);border-color:var(--gold)}
+.rw-item.active .rw-check svg{opacity:1}
+.rw-dot-src{width:7px;height:7px;border-radius:2px;flex-shrink:0}
+.rw-dot-src.lending{background:var(--fg-1)}
+.rw-dot-src.odolo{background:var(--gold)}
+.rw-dot-src.yield{background:var(--yield)}
+.rw-name{font-size:13px;font-weight:500;color:var(--fg-2);flex:1;min-width:0}
+.rw-item.active .rw-name{color:var(--fg-1)}
+
+.sep{width:1px;height:22px;background:var(--line-2)}
+
+/* =========================================================================
+   TABLE — dense, terminal-inspired
+   ========================================================================= */
+.tbl-wrap{overflow-x:auto;border-radius:0 0 var(--r-xl) var(--r-xl)}
+.tbl tbody tr:last-child td{border-bottom:0}
+.tbl{
+  width:100%;border-collapse:separate;border-spacing:0;
+  font-size:13px;
+}
+.tbl thead th{
+  position:sticky;top:0;z-index:2;
+  font-size:10px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;
+  color:var(--fg-3);text-align:left;
+  padding:12px 18px;
+  background:var(--bg-1);
+  border-bottom:1px solid var(--line-2);
+  white-space:nowrap;
+  user-select:none;
+  cursor:pointer;
+}
+.tbl thead th .sort{display:inline-block;margin-left:6px;color:var(--fg-4);font-size:9px}
+.tbl thead th.sorted{color:var(--gold)}
+.tbl thead th.sorted .sort{color:var(--gold)}
+.tbl thead th.num{text-align:right}
+.tbl thead th:hover{color:var(--fg-1)}
+
+.tbl tbody tr{
+  transition:background .15s var(--ease);
+  cursor:pointer;
+}
+.tbl tbody td{
+  padding:12px 18px;
+  border-bottom:1px solid var(--line-1);
+  vertical-align:middle;
+  color:var(--fg-1);
+  font-variant-numeric:tabular-nums;
+}
+.tbl tbody td.num{text-align:right;font-family:var(--mono);font-weight:500}
+.tbl tbody tr:hover td{background:var(--bg-3)}
+.tbl tbody tr.expanded td{background:rgba(201,162,39,.035);border-bottom-color:transparent}
+
+/* asset cell */
+.asset-cell{display:flex;align-items:center;gap:14px;min-width:0}
+.chev{width:14px;height:14px;color:var(--fg-4);flex-shrink:0;transition:transform .2s var(--ease),color .2s var(--ease)}
+tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
+.tok-ico{width:30px;height:30px;border-radius:50%;background:var(--bg-3);border:1px solid var(--line-2);overflow:hidden;flex-shrink:0;display:grid;place-items:center}
+.tok-ico img{width:100%;height:100%;object-fit:cover}
+.tok-meta{display:flex;flex-direction:column;min-width:0}
+.tok-name{font-weight:600;color:var(--fg-1);display:flex;align-items:center;gap:8px}
+.tok-name .tok-sym{font-family:var(--mono);font-size:13px;letter-spacing:.2px}
+.tok-name .tok-long{color:var(--fg-3);font-weight:400;font-size:12px}
+.tok-tags{display:flex;align-items:center;gap:6px;margin-top:3px}
+.tag{font-size:10px;letter-spacing:.4px;padding:2px 7px;border-radius:4px;color:var(--fg-2);background:var(--bg-3);border:1px solid var(--line-2);font-weight:500;display:inline-flex;align-items:center;gap:5px}
+.tag.chain{text-transform:capitalize}
+.tag.chain .dot{width:6px;height:6px;border-radius:50%}
+.tag.cat{color:var(--fg-3)}
+.tag.odolo{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+
+/* chain dot colors — restrained */
+.dot-berachain{background:#c9a227}
+.dot-arbitrum{background:#6b8aa8}
+.dot-ethereum{background:#8a8a9e}
+.dot-botanix{background:#b4796b}
+.dot-mantle{background:#6a7a6e}
+.dot-polygonzkevm{background:#8a6b9a}
+.dot-xlayer{background:#7a7a6b}
+
+/* price cell */
+.price-val{color:var(--fg-1);font-family:var(--mono)}
+
+/* APY / supply cell — vertical breakdown (original-style) */
+.apy-cell{display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:130px;line-height:1.1}
+.apy-val{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--gold);letter-spacing:-.3px;line-height:1}
+.apy-lines{display:flex;flex-direction:column;gap:3px;align-items:flex-end}
+.apy-line{
+  display:inline-flex;align-items:center;gap:6px;
+  font-family:var(--mono);font-size:10.5px;font-weight:500;letter-spacing:.1px;
+  line-height:1.2;white-space:nowrap;
+}
+.apy-line .apy-dash{color:var(--fg-4);font-weight:400}
+.apy-line .apy-src{font-weight:500}
+.apy-line .apy-num{font-weight:600;font-variant-numeric:tabular-nums;min-width:52px;text-align:right}
+/* Lending — native yield, primary white */
+.apy-line.lending .apy-src,
+.apy-line.lending .apy-num{color:var(--fg-1)}
+.apy-line.lending .apy-dash{color:var(--fg-3)}
+/* oDOLO — protocol rewards, gold accent */
+.apy-line.odolo .apy-src,
+.apy-line.odolo .apy-num{color:var(--gold)}
+.apy-line.odolo .apy-dash{color:var(--gold-line)}
+/* External yield — cool steel, clearly distinct */
+.apy-line.yield .apy-src,
+.apy-line.yield .apy-num{color:var(--yield)}
+.apy-line.yield .apy-dash{color:rgba(127,168,184,.5)}
+
+/* borrow cell */
+.bw-val{font-family:var(--mono);font-size:14px;font-weight:500;color:var(--down)}
+
+/* expanded row */
+.exp-row td{padding:0;background:var(--bg-1);border-bottom:1px solid var(--line-2)}
+.exp-body{
+  display:flex;flex-direction:column;gap:22px;
+  padding:22px 32px 26px 62px;
+  background:linear-gradient(180deg,var(--bg-1) 0%,var(--bg-2) 100%);
+}
+.exp-stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.exp-stat{border-left:1px solid var(--line-2);padding-left:16px}
+.exp-stat:first-child{border-left:0;padding-left:0}
+.exp-stat .lbl{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:var(--fg-3);font-weight:600;margin-bottom:8px}
+.exp-stat .val{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--fg-1);letter-spacing:-.3px}
+.exp-stat .val.accent{color:var(--gold)}
+.exp-stat .sub{font-size:11px;color:var(--fg-3);margin-top:4px;font-family:var(--mono)}
+.exp-bar{margin-top:8px;width:100%;height:4px;border-radius:2px;background:var(--bg-3);overflow:hidden}
+.exp-bar>span{display:block;height:100%;background:var(--gold);opacity:.75}
+
+/* ========== YIELD CALCULATOR ========== */
+.calc{
+  background:linear-gradient(180deg,rgba(201,162,39,.025),rgba(201,162,39,.008));
+  border:1px solid var(--line-2);
+  border-radius:var(--r-md);
+  padding:18px 20px;
+}
+.calc-head{display:flex;flex-direction:column;align-items:flex-start;gap:12px;margin-bottom:14px}
+.calc-title{display:flex;align-items:center;gap:10px;font-size:11px;text-transform:uppercase;letter-spacing:1.6px;font-weight:700;color:var(--gold)}
+.calc-title svg{width:14px;height:14px}
+
+.calc-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%}
+.calc-tabs{display:inline-flex;background:var(--bg-3);border:1px solid var(--line-2);border-radius:8px;padding:3px;position:relative}
+.calc-tab{padding:6px 14px;font-size:11px;font-weight:600;letter-spacing:.4px;color:var(--fg-3);border-radius:6px;cursor:pointer;transition:color .2s var(--ease),background .2s var(--ease)}
+.calc-tab.active{color:var(--bg-0);background:var(--gold)}
+.calc-input-wrap{
+  display:inline-flex;align-items:stretch;
+  background:var(--bg-4);border:1px solid var(--line-2);
+  border-radius:8px;height:34px;overflow:hidden;
+  transition:border-color .2s var(--ease);
+}
+.calc-input-wrap:focus-within{border-color:var(--gold-line)}
+.calc-input-wrap .dol{
+  display:flex;align-items:center;
+  padding-left:12px;padding-right:2px;
+  color:var(--fg-3);font-family:var(--mono);font-size:13px;
+}
+.calc-input{
+  background:none;border:0;outline:0;
+  color:var(--fg-1);font-family:var(--mono);font-size:13px;
+  width:120px;text-align:right;
+  padding:0 10px 0 4px;
+}
+/* Kill native spinners */
+.calc-input::-webkit-outer-spin-button,
+.calc-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.calc-input[type="number"]{-moz-appearance:textfield;appearance:textfield}
+
+/* Custom stepper */
+.calc-steppers{
+  display:flex;flex-direction:column;
+  width:22px;flex-shrink:0;
+  border-left:1px solid var(--line-2);
+}
+.calc-stepper{
+  flex:1;
+  display:grid;place-items:center;
+  background:transparent;border:0;cursor:pointer;
+  color:var(--fg-3);
+  transition:background .12s var(--ease),color .12s var(--ease);
+  -webkit-user-select:none;user-select:none;
+}
+.calc-stepper + .calc-stepper{border-top:1px solid var(--line-2)}
+.calc-stepper:hover{background:var(--bg-3);color:var(--fg-1)}
+.calc-stepper:active,
+.calc-stepper.pressing{background:var(--gold-wash);color:var(--gold)}
+.calc-stepper svg{width:9px;height:9px;stroke-width:2.5;pointer-events:none}
+
+.calc-max{
+  background:var(--bg-3);border:1px solid var(--line-2);
+  padding:0 12px;height:34px;margin-left:8px;
+  border-radius:8px;
+  font-size:10px;letter-spacing:1px;font-weight:600;
+  color:var(--fg-2);cursor:pointer;
+  transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease);
+}
+.calc-max:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+
+.calc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:4px}
+.calc-row{
+  display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;
+  padding:10px 14px;border-radius:8px;background:rgba(255,255,255,.015);
+  border:1px solid var(--line-1);
+}
+.calc-side{display:flex;flex-direction:column;gap:2px;min-width:0}
+.calc-side-lbl{font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--fg-3);font-weight:600}
+.calc-side-val{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--fg-1);font-variant-numeric:tabular-nums}
+.calc-side-val.right{text-align:right}
+.calc-side-val.gold{color:var(--gold)}
+.calc-side-val.down{color:var(--down)}
+.calc-arrow{width:16px;height:10px;opacity:.6;color:var(--fg-3)}
+.calc-arrow.up-dir{color:var(--up)}
+.calc-arrow.down-dir{color:var(--down)}
+
+.calc-earn{
+  margin-top:14px;padding-top:14px;border-top:1px solid var(--line-1);
+  display:grid;grid-template-columns:auto repeat(3,1fr);gap:18px;align-items:center;
+}
+.calc-earn-lbl{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:var(--fg-3);font-weight:600}
+.calc-earn-item{display:flex;flex-direction:column;gap:2px}
+.calc-earn-period{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--fg-3);font-weight:500}
+.calc-earn-val{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--gold)}
+.calc-note{
+  margin-top:12px;padding:10px 12px;
+  font-size:11px;color:var(--fg-3);line-height:1.55;
+  background:rgba(255,255,255,.015);border:1px solid var(--line-1);
+  border-radius:8px;
+  border-left:2px solid var(--gold-line);
+}
+
+/* ========== CHARTS (history + util curve) ========== */
+.exp-charts-row{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.chart-card{
+  background:rgba(255,255,255,.02);
+  border:1px solid var(--line-2);
+  border-radius:var(--r-md);
+  padding:16px 18px 14px;
+}
+.chart-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.chart-title{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:var(--fg-3);font-weight:600}
+.chart-legend{display:flex;gap:10px;font-size:10px;color:var(--fg-3)}
+.lg-dot{display:inline-block;width:8px;height:2px;border-radius:1px;margin-right:5px;vertical-align:middle}
+.lg-dot.gold{background:var(--gold)}
+.lg-dot.dn{background:var(--down)}
+.lg-dot.dashed{background:linear-gradient(90deg,var(--gold) 50%,transparent 50%);background-size:3px 100%}
+.chart-svg{width:100%;height:110px;display:block}
+.chart-note{font-size:10px;color:var(--fg-3);margin-top:6px;font-family:var(--mono)}
+
+/* ========== LINKS ========== */
+.exp-links{display:flex;gap:10px;padding-top:14px;border-top:1px solid var(--line-1)}
+.exp-links a{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--fg-2);padding:8px 12px;border-radius:8px;border:1px solid var(--line-2);background:var(--bg-3);transition:border-color .2s var(--ease),color .2s var(--ease)}
+.exp-links a:hover{color:var(--gold);border-color:var(--gold-line)}
+.exp-links svg{width:12px;height:12px}
+
+/* =========================================================================
+   PROTOCOL INFO CARD (bottom of page)
+   ========================================================================= */
+.proto{margin-top:24px;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-xl);overflow:hidden;box-shadow:var(--sh-card)}
+.proto-head{display:flex;flex-direction:column;align-items:flex-start;gap:16px;padding:22px 24px 20px;border-bottom:1px solid var(--line-1)}
+.proto-brand{display:flex;align-items:center;gap:14px}
+.proto-brand-mark{width:40px;height:40px;border-radius:50%;background:var(--bg-3);border:1px solid var(--line-2);display:grid;place-items:center;overflow:hidden;flex-shrink:0}
+.proto-brand-mark img{width:28px;height:28px;object-fit:contain}
+.proto-brand-text{display:flex;flex-direction:column;gap:2px}
+.proto-brand-name{font-size:15px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px}
+.proto-brand-sub{font-size:12px;color:var(--fg-3)}
+
+.proto-links{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.proto-pill{
+  display:inline-flex;align-items:center;gap:7px;
+  height:32px;padding:0 12px;
+  font-size:12px;color:var(--fg-2);
+  background:var(--bg-3);border:1px solid var(--line-2);border-radius:999px;
+  transition:border-color .2s var(--ease),color .2s var(--ease),background .2s var(--ease);
+}
+.proto-pill:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.proto-pill svg{width:13px;height:13px}
+
+.proto-body{padding:20px 24px 24px}
+.proto-body-head{font-size:10px;text-transform:uppercase;letter-spacing:1.6px;color:var(--fg-3);font-weight:600;margin-bottom:14px}
+.proto-addrs{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.proto-addr{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:12px 14px;background:var(--bg-1);border:1px solid var(--line-2);border-radius:var(--r-md);
+  transition:border-color .2s var(--ease),background .2s var(--ease);
+  cursor:pointer;
+}
+.proto-addr:hover{border-color:var(--gold-line);background:rgba(201,162,39,.02)}
+.proto-addr-left{display:flex;align-items:center;gap:12px;min-width:0}
+.proto-token{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.proto-token img{width:22px;height:22px;border-radius:50%;object-fit:cover;background:var(--bg-3);border:1px solid var(--line-2)}
+.proto-token-name{font-size:13px;font-weight:600;color:var(--fg-1)}
+.proto-chain-chip{display:inline-flex;align-items:center;gap:5px;font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--fg-3);padding:2px 7px;border-radius:4px;background:var(--bg-3);border:1px solid var(--line-2);font-weight:500}
+.proto-chain-chip img{width:11px;height:11px;border-radius:50%}
+.proto-addr-right{display:flex;align-items:center;gap:8px;min-width:0;flex:1;justify-content:flex-end}
+.proto-addr-hex{font-family:var(--mono);font-size:11px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+.proto-copy{width:26px;height:26px;border-radius:6px;background:var(--bg-3);border:1px solid var(--line-2);display:grid;place-items:center;color:var(--fg-3);flex-shrink:0;transition:color .2s var(--ease),border-color .2s var(--ease)}
+.proto-copy:hover{color:var(--gold);border-color:var(--gold-line)}
+.proto-copy.copied{color:var(--up);border-color:var(--up)}
+.proto-copy svg{width:12px;height:12px}
+
+/* footer small */
+.foot{margin-top:24px;text-align:center;font-size:11px;color:var(--fg-3);letter-spacing:.3px}
+
+/* responsive */
+@media (max-width:980px){
+  .hero-grid{grid-template-columns:1fr 1fr}
+  .exp-stats-row{grid-template-columns:1fr 1fr}
+  .exp-charts-row{grid-template-columns:1fr}
+  .calc-grid{grid-template-columns:1fr}
+  .calc-earn{grid-template-columns:1fr 1fr 1fr}
+  .calc-earn-lbl{grid-column:1/-1}
+}
+@media (max-width:640px){
+  .wrap{padding:24px 16px 48px}
+  .hero{padding:22px 18px}
+  .hero-grid{grid-template-columns:1fr}
+  .search{width:100%}
+  .tb-left,.tb-right{width:100%}
+  .exp-body{padding:18px 20px 20px 24px}
+  .exp-stats-row{grid-template-columns:1fr}
+  .calc-earn{grid-template-columns:1fr}
+  .proto-addrs{grid-template-columns:1fr}
+  .proto-addr-hex{max-width:120px}
+  .site-top{gap:10px;margin-bottom:32px}
+  .site-brand{padding:12px 0 0}
+  .site-brand img{max-width:460px}
+  .nav-item{padding:8px 10px;gap:6px;font-size:12px}
+  .nav-item.active::after{display:none}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- TOP -->
+  <header class="site-top">
+    <div class="site-brand">
+      <img src="TwojeKrypto%20dashboard.png" alt="Dolomite Dashboard · Powered by TwojeKrypto">
+    </div>
+    <div class="site-nav-wrap">
+      <nav class="site-nav">
+        <a class="nav-item" data-tab="dolo">
+          <img src="dolo-logo.svg" alt="" onerror="this.style.display='none'">
+          <span>DOLO</span>
+        </a>
+        <a class="nav-item" data-tab="odolo">
+          <img src="odolo-logo-official.svg" alt="" onerror="this.style.display='none'">
+          <span>oDOLO</span>
+        </a>
+        <a class="nav-item" data-tab="vedolo">
+          <img src="vedolo-logo.svg" alt="" onerror="this.style.display='none'">
+          <span>veDOLO</span>
+        </a>
+        <a class="nav-item" data-tab="tvl">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-6 4 4 5-8"/></svg>
+          <span>TVL</span>
+        </a>
+        <a class="nav-item" data-tab="earn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/></svg>
+          <span>Earn</span>
+        </a>
+        <a class="nav-item active" data-tab="assets">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          <span>Assets</span>
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-top">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+      Best Yield Opportunity
+    </div>
+    <div class="hero-headline">
+      <div class="hero-value"><span class="pct">18.42</span><span style="color:var(--fg-3);font-size:.45em;margin-left:4px">%</span></div>
+      <div class="hero-token">
+        <img src="https://app.dolomite.io/static/media/HONEY.3f0a04d651c47e52fb627fd616a9b92e.svg" onerror="this.style.display='none'" alt="HONEY">
+        HONEY
+        <span class="hero-chain-pill"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#c9a227;margin-right:5px;vertical-align:middle"></span>Berachain</span>
+      </div>
+    </div>
+
+    <div class="hero-grid">
+      <div class="hero-card">
+        <div class="hc-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
+          Avg Supply APR
+        </div>
+        <div class="hc-value accent">4.87%</div>
+        <div class="hc-sub">across 42 markets</div>
+      </div>
+      <div class="hero-card">
+        <div class="hc-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+          oDOLO Boost
+        </div>
+        <div class="hc-value">+2.31%</div>
+        <div class="hc-sub">average incentive</div>
+      </div>
+      <div class="hero-card">
+        <div class="hc-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Total Markets
+        </div>
+        <div class="hc-value">42</div>
+        <div class="hc-sub">listed assets · 7 chains</div>
+      </div>
+      <div class="hero-card">
+        <div class="hc-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+          Highest Borrow
+        </div>
+        <div class="hc-value">12.84%</div>
+        <div class="hc-sub">USDC · Berachain</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ASSETS CARD -->
+  <section class="card">
+    <div class="card-head">
+      <div class="card-title">
+        <h2>Dolomite Assets</h2>
+        <span class="count-badge" id="count-badge">42 markets</span>
+      </div>
+      <div class="card-meta"><span class="pulse"></span>Live · updated 2m ago</div>
+    </div>
+
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+      <div class="tb-left">
+        <label class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="q" type="text" placeholder="Search token or paste address…" spellcheck="false" autocomplete="off">
+          <span class="kbd">/</span>
+        </label>
+
+        <!-- CATEGORY -->
+        <div class="dd" id="dd-cat">
+          <button class="dd-btn" data-dd="cat">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+            <span class="lbl">All Assets</span>
+            <span class="dd-clear" data-clear="cat" role="button" aria-label="Clear category filter" title="Clear filter">
+              <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg>
+            </span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dd-panel">
+            <div class="dd-panel-head">Category</div>
+            <div class="dd-list">
+              <div class="dd-opt active" data-cat="all"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><div class="dd-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg></div><span class="dd-opt-name">All Assets</span></div>
+              <div class="dd-opt" data-cat="stable"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://app.dolomite.io/static/media/USDC.5f67b2404ca2e547fb00b70128d132cd.svg" onerror="this.style.display='none'"><span class="dd-opt-name">Stablecoins</span></div>
+              <div class="dd-opt" data-cat="btc"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://app.dolomite.io/static/media/WBTC.f3c8718835179e7543b5.png" onerror="this.style.display='none'"><span class="dd-opt-name">BTC &amp; Wrapped</span></div>
+              <div class="dd-opt" data-cat="eth"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://app.dolomite.io/static/media/ETH.6a879eb637c89695e6c5f5dc65c8c927.svg" onerror="this.style.display='none'"><span class="dd-opt-name">ETH &amp; LSTs</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- NETWORK -->
+        <div class="dd" id="dd-net">
+          <button class="dd-btn" data-dd="net">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <span class="lbl">All Chains</span>
+            <span class="count">7</span>
+            <span class="dd-clear" data-clear="net" role="button" aria-label="Clear chain filter" title="Clear filter">
+              <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg>
+            </span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dd-panel">
+            <div class="dd-panel-head">Chain</div>
+            <div class="dd-list">
+              <div class="dd-opt active" data-net="all"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><div class="dd-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg></div><span class="dd-opt-name">All Chains</span></div>
+              <div class="dd-opt" data-net="berachain"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Berachain</span></div>
+              <div class="dd-opt" data-net="arbitrum"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Arbitrum</span></div>
+              <div class="dd-opt" data-net="ethereum"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Ethereum</span></div>
+              <div class="dd-opt" data-net="botanix"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_botanix.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Botanix</span></div>
+              <div class="dd-opt" data-net="mantle"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_mantle.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Mantle</span></div>
+              <div class="dd-opt" data-net="polygonzkevm"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_polygon%20zkevm.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Polygon zkEVM</span></div>
+              <div class="dd-opt" data-net="xlayer"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_x%20layer.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">X Layer</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tb-right">
+        <!-- REWARDS -->
+        <div class="dd" id="dd-rw">
+          <button class="dd-btn rw-btn" data-dd="rw">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+            <span class="lbl">Rewards</span>
+            <span class="rw-dots"><span class="rw-dot on"></span><span class="rw-dot on"></span><span class="rw-dot on"></span></span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dd-panel dd-panel-rw">
+            <div class="dd-panel-head">Supply sources</div>
+            <div class="rw-list">
+              <div class="rw-item active" data-rw="lending">
+                <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
+                <span class="rw-dot-src lending"></span>
+                <div class="rw-name">Lending</div>
+              </div>
+              <div class="rw-item active" data-rw="odolo">
+                <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
+                <span class="rw-dot-src odolo"></span>
+                <div class="rw-name">oDOLO</div>
+              </div>
+              <div class="rw-item active" data-rw="yield">
+                <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
+                <span class="rw-dot-src yield"></span>
+                <div class="rw-name">Yield</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sep"></div>
+
+        <div class="toggle-pill" id="dust">
+          <div class="toggle-track"><div class="toggle-knob"></div></div>
+          <span>Hide Dust</span>
+        </div>
+
+        <div class="sep"></div>
+
+        <div class="pill-switch" id="aprapy">
+          <div class="slider" style="width:52px;transform:translateX(0)"></div>
+          <span class="opt active" data-val="APR">APR</span>
+          <span class="opt" data-val="APY">APY</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="tbl-wrap">
+      <table class="tbl" id="tbl">
+        <thead>
+          <tr>
+            <th data-sort="name" style="padding-left:32px">Asset</th>
+            <th data-sort="price" class="num">Price</th>
+            <th data-sort="supply" class="num sorted">Supply <span class="sort">▼</span></th>
+            <th data-sort="borrow" class="num" style="padding-right:32px">Borrow</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"><!-- filled by JS --></tbody>
+      </table>
+    </div>
+
+  </section>
+
+  <!-- PROTOCOL INFO -->
+  <section class="proto">
+    <div class="proto-head">
+      <div class="proto-brand">
+        <div class="proto-brand-mark">
+          <img src="dolo-logo.svg" alt="DOLO" onerror="this.outerHTML='<span style=&quot;color:var(--gold);font-weight:800;font-size:16px&quot;>◆</span>'">
+        </div>
+        <div class="proto-brand-text">
+          <div class="proto-brand-name">Dolomite</div>
+          <div class="proto-brand-sub">Multi-chain lending &amp; margin protocol</div>
+        </div>
+      </div>
+      <div class="proto-links">
+        <a class="proto-pill" href="https://dolomite.io" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+          Website
+        </a>
+        <a class="proto-pill" href="https://twitter.com/Dolomite_io" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          Twitter
+        </a>
+        <a class="proto-pill" href="https://t.me/dolomite_official" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0a12 12 0 00-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+          Telegram
+        </a>
+        <a class="proto-pill" href="https://discord.com/invite/uDRzrB2YgP" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037 19.736 19.736 0 00-4.885 1.515.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028 14.09 14.09 0 001.226-1.994.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.086 2.157 2.419 0 1.334-.955 2.419-2.157 2.419zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.086 2.157 2.419 0 1.334-.946 2.419-2.157 2.419z"/></svg>
+          Discord
+        </a>
+        <a class="proto-pill" href="https://docs.dolomite.io/" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+          Docs
+        </a>
+        <a class="proto-pill" href="https://github.com/dolomite-exchange" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          GitHub
+        </a>
+        <a class="proto-pill" href="https://docs.dolomite.io/security/audits" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Audits
+        </a>
+      </div>
+    </div>
+    <div class="proto-body">
+      <div class="proto-body-head">Contract Addresses</div>
+      <div class="proto-addrs" id="proto-addrs"><!-- filled by JS --></div>
+    </div>
+  </section>
+
+  <div class="foot">Preview · local design proposal · <span id="now"></span></div>
+</div>
+
+<script>
+/* ==========================================================================
+   MOCK DATA — shape kept close to the real dataset
+   ========================================================================== */
+const ASSETS = [
+  {sym:"HONEY",name:"Honey",cat:"stable",chain:"berachain",price:1.00,chg:0.02,supply:18.42,odolo:6.10,yield:7.80,lending:4.52,borrow:9.40,tvl:42_300_000,util:58,dust:false},
+  {sym:"USDC",name:"USD Coin",cat:"stable",chain:"berachain",price:1.00,chg:0.00,supply:11.27,odolo:3.40,yield:0,lending:7.87,borrow:12.84,tvl:89_400_000,util:76,dust:false},
+  {sym:"USDT",name:"Tether",cat:"stable",chain:"arbitrum",price:1.0001,chg:-0.01,supply:9.14,odolo:2.10,yield:0,lending:7.04,borrow:10.22,tvl:54_200_000,util:71,dust:false},
+  {sym:"WETH",name:"Wrapped Ether",cat:"eth",chain:"ethereum",price:3542.18,chg:1.24,supply:3.44,odolo:0.90,yield:0,lending:2.54,borrow:4.12,tvl:121_000_000,util:44,dust:false},
+  {sym:"wstETH",name:"Wrapped stETH",cat:"eth",chain:"ethereum",price:4120.55,chg:1.18,supply:6.21,odolo:0.80,yield:3.11,lending:2.30,borrow:4.50,tvl:66_500_000,util:49,dust:false},
+  {sym:"WBTC",name:"Wrapped Bitcoin",cat:"btc",chain:"arbitrum",price:94210.77,chg:-0.62,supply:2.18,odolo:0.40,yield:0,lending:1.78,borrow:3.25,tvl:150_100_000,util:38,dust:false},
+  {sym:"cbBTC",name:"Coinbase BTC",cat:"btc",chain:"ethereum",price:94180.02,chg:-0.59,supply:2.92,odolo:0.65,yield:0.80,lending:1.47,borrow:3.10,tvl:28_800_000,util:41,dust:false},
+  {sym:"rsETH",name:"Restaked ETH",cat:"eth",chain:"berachain",price:3618.09,chg:1.02,supply:7.84,odolo:1.30,yield:4.20,lending:2.34,borrow:5.05,tvl:19_700_000,util:52,dust:false},
+  {sym:"BYUSD",name:"Berachain Yield USD",cat:"stable",chain:"berachain",price:1.001,chg:0.03,supply:12.90,odolo:4.20,yield:5.30,lending:3.40,borrow:8.90,tvl:18_200_000,util:63,dust:false},
+  {sym:"WBERA",name:"Wrapped Bera",cat:"eth",chain:"berachain",price:8.42,chg:2.18,supply:5.33,odolo:1.80,yield:0,lending:3.53,borrow:6.60,tvl:34_400_000,util:47,dust:false},
+  {sym:"iBGT",name:"Infrared BGT",cat:"eth",chain:"berachain",price:8.61,chg:2.25,supply:14.77,odolo:5.40,yield:6.10,lending:3.27,borrow:7.88,tvl:22_900_000,util:55,dust:false},
+  {sym:"MNT",name:"Mantle",cat:"eth",chain:"mantle",price:0.78,chg:-1.14,supply:4.12,odolo:1.10,yield:0,lending:3.02,borrow:5.44,tvl:7_400_000,util:39,dust:false},
+  {sym:"ARB",name:"Arbitrum",cat:"eth",chain:"arbitrum",price:0.64,chg:-0.88,supply:3.08,odolo:0.70,yield:0,lending:2.38,borrow:4.80,tvl:11_200_000,util:42,dust:false},
+  {sym:"uniBTC",name:"Universal BTC",cat:"btc",chain:"botanix",price:94205.11,chg:-0.48,supply:3.88,odolo:1.20,yield:1.40,lending:1.28,borrow:3.95,tvl:3_200_000,util:34,dust:false},
+  {sym:"DAI",name:"Dai Stablecoin",cat:"stable",chain:"ethereum",price:1.000,chg:0.01,supply:6.64,odolo:1.50,yield:0,lending:5.14,borrow:8.40,tvl:24_600_000,util:64,dust:false},
+  {sym:"OKB",name:"OKB",cat:"eth",chain:"xlayer",price:48.22,chg:0.42,supply:1.88,odolo:0.50,yield:0,lending:1.38,borrow:2.60,tvl:1_900_000,util:28,dust:false},
+  {sym:"POL",name:"Polygon",cat:"eth",chain:"polygonzkevm",price:0.31,chg:-2.10,supply:0.42,odolo:0,yield:0,lending:0.42,borrow:1.10,tvl:180_000,util:12,dust:true},
+  {sym:"sUSDe",name:"Staked USDe",cat:"stable",chain:"arbitrum",price:1.102,chg:0.18,supply:11.30,odolo:1.40,yield:8.90,lending:2.92,borrow:6.40,tvl:6_100_000,util:51,dust:false},
+];
+
+/* Normalise lending APR to match the kink model output at current util
+   with a default 15% reserve factor — keeps every record self-consistent
+   so the calculator never jumps on a tiny deposit. */
+ASSETS.forEach(r => {
+  r.lending = +(r.borrow * r.util/100 * 0.85).toFixed(2);
+});
+
+/* ==========================================================================
+   STATE
+   ========================================================================== */
+const state = {
+  q:"",
+  cats: new Set(),    // empty set = "All Assets"
+  nets: new Set(),    // empty set = "All Chains"
+  sort:{key:"supply",dir:"desc"},
+  rw:{odolo:true,yield:true,lending:true},
+  dust:false,
+  mode:"APR",
+  expanded:new Set(),
+  calc:new Map()      // per-row calculator state {action, amount}
+};
+
+const CAT_LABELS = {stable:"Stablecoins", btc:"BTC & Wrapped", eth:"ETH & LSTs"};
+const CHAIN_LABELS = {berachain:"Berachain", arbitrum:"Arbitrum", ethereum:"Ethereum", botanix:"Botanix", mantle:"Mantle", polygonzkevm:"Polygon zkEVM", xlayer:"X Layer"};
+
+/* ==========================================================================
+   HELPERS
+   ========================================================================== */
+// Official Dolomite app CDN — same source used by liq-monitor.html
+// so every listed token renders with its real, full-colour icon.
+const DOLO_CDN = 'https://app.dolomite.io/static/media/';
+const SYMBOL_ICONS = {
+  // Stablecoins
+  'USDC'  : DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
+  'USDT'  : DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
+  'DAI'   : 'icons/dai.svg',
+  'sUSDe' : DOLO_CDN + 'sUSDe.60857af2b2de944764d31ffa3711252c.svg',
+  'USDe'  : DOLO_CDN + 'USDe-alt.ce2f05f4bb09aa83c4dd5886a5a2886f.svg',
+  'BYUSD' : DOLO_CDN + 'BYUSD.8c0a1d051c4192302d739dbae5928286.svg',
+  'HONEY' : DOLO_CDN + 'HONEY.3f0a04d651c47e52fb627fd616a9b92e.svg',
+  'NECT'  : DOLO_CDN + 'NECT.61b2d550cd59933e77667c3d75f73f5a.svg',
+  // ETH & LSTs
+  'ETH'   : DOLO_CDN + 'ETH.6a879eb637c89695e6c5f5dc65c8c927.svg',
+  'WETH'  : DOLO_CDN + 'WETH.8f785563e47cbf373160.png',
+  'wstETH': DOLO_CDN + 'wstETH.2e97640d284bbe78da3776549d27ec47.svg',
+  'weETH' : DOLO_CDN + 'weETH.ac3fd68b653520508855e997e756d116.svg',
+  'rETH'  : DOLO_CDN + 'rETH.bab59070c249d5b359fa196fed62e60e.svg',
+  'rsETH' : DOLO_CDN + 'rsETH.2270aa7836bedfa00c1a1d2967df0c33.svg',
+  'ezETH' : DOLO_CDN + 'ezETH.23c954d818f85c10660e5c0a476ff398.svg',
+  'mETH'  : DOLO_CDN + 'mETH.589d7c134eea64fa2033e80dced1e34d.svg',
+  'beraETH': DOLO_CDN + 'beraETH.661651b3419b7bb331ab2ebcb427b21b.svg',
+  // BTC
+  'WBTC'  : DOLO_CDN + 'WBTC.f3c8718835179e7543b5.png',
+  'cbBTC' : DOLO_CDN + 'CBBTC.fb6f792430a130d980920b6e69857bce.svg',
+  'uniBTC': DOLO_CDN + 'uniBTC.bac6fdc858f4d751e79211986782ddd1.svg',
+  'LBTC'  : DOLO_CDN + 'LBTC.095d1662f9a83aea1c899fa1eeb84502.svg',
+  'tBTC'  : DOLO_CDN + 'tBTC.2907801a7fa28c6583322ad3c2931333.svg',
+  'SolvBTC': DOLO_CDN + 'solvBTC.326d594ebd54e4317f078b70f72a58b4.svg',
+  // Berachain
+  'BERA'  : DOLO_CDN + 'BERA.a24a9b40b3447dde7ea1d2cab4dd59e9.svg',
+  'WBERA' : DOLO_CDN + 'wBERA.4ca51f80e3cd585d5152483f427d0416.svg',
+  'iBERA' : DOLO_CDN + 'iBERA.10d1ede095601cbc9bb5bf3bcdcb22a1.svg',
+  'iBGT'  : DOLO_CDN + 'iBGT.88932437445efa66139716bca4a9c19b.svg',
+  'BGT'   : DOLO_CDN + 'BGT.59af0fc7aad30ed3de49e3115ee24d04.svg',
+  // L2 / governance
+  'DOLO'  : 'dolo-logo.svg',
+  'ARB'   : DOLO_CDN + 'ARB.f8b26a91d3f23a571be6398aa1a1f119.svg',
+  'MNT'   : DOLO_CDN + 'MNT.7e882ac93f636391a8f7d2e0841cad98.svg',
+  'OKB'   : DOLO_CDN + 'OKB.dfac9609700af55b3d9ef4e0e5b28f01.svg',
+  'POL'   : DOLO_CDN + 'MATIC.dfc4843b6db6db48662b1db5f752f9f1.svg',
+};
+const tokIcon = (sym) => SYMBOL_ICONS[sym] || 'dolomite-logo.svg';
+const chainIcon = (chain)=>`https://icons.llamao.fi/icons/chains/rsz_${chain==="polygonzkevm"?"polygon%20zkevm":chain==="xlayer"?"x%20layer":chain}.jpg`;
+
+const fmtPrice = (v)=>{
+  if(v>=1000) return "$"+v.toLocaleString("en-US",{maximumFractionDigits:0});
+  if(v>=1) return "$"+v.toFixed(2);
+  return "$"+v.toFixed(4);
+};
+const fmtChg = (v)=>(v>=0?"+":"")+v.toFixed(2)+"%";
+const fmtPct = (v)=>v.toFixed(2)+"%";
+const fmtCmp = (v)=>{
+  if(v>=1e9) return "$"+(v/1e9).toFixed(2)+"B";
+  if(v>=1e6) return "$"+(v/1e6).toFixed(1)+"M";
+  if(v>=1e3) return "$"+(v/1e3).toFixed(0)+"K";
+  return "$"+v.toFixed(0);
+};
+const fmtUsd = (v)=>{
+  const abs=Math.abs(v);
+  if(abs>=1e6) return "$"+(v/1e6).toFixed(2)+"M";
+  if(abs>=1e3) return "$"+(v/1e3).toFixed(2)+"K";
+  if(abs>=1) return "$"+v.toFixed(2);
+  return "$"+v.toFixed(4);
+};
+const avg = (arr)=> arr.reduce((a,b)=>a+b,0)/arr.length;
+
+/* APY = (1 + APR/n)^n - 1 ; n = 365 daily compound */
+const aprToApy = (apr)=>((Math.pow(1+apr/100/365,365)-1)*100);
+
+/* ==========================================================================
+   SIMULATE — kink interest-rate model
+   ==========================================================================
+   Dolomite-style: borrow APR = slope1 * u  for u ≤ kink
+                                slope1*kink + slope2*(u - kink) for u > kink
+   We back out slope1 from current (util, borrow), pick a realistic slope2,
+   then recompute supply APR from (1 - reserve) * borrow * util.
+   User deposit raises total supply (util drops), user withdraw shrinks it
+   (util rises; capped so borrowed can't exceed total).
+*/
+const KINK = 80;
+const RESERVE_FACTOR_DEFAULT = 0.15;
+
+function kinkModel(row){
+  const slope1 = row.borrow / Math.max(row.util,1);
+  const slope2 = slope1 * 10;  // kink model steepens sharply
+  return {slope1, slope2};
+}
+function borrowAt(row, util){
+  const {slope1,slope2} = kinkModel(row);
+  return util<=KINK ? slope1*util : slope1*KINK + slope2*(util-KINK);
+}
+/* Back out the per-asset reserve factor so that the model reproduces
+   the recorded row.lending at the current utilization. This keeps
+   "now" values exactly in sync with the table and means any change
+   comes purely from utilization. */
+function effectiveRF(row){
+  const raw = row.borrow * row.util/100;
+  if(raw <= 0) return RESERVE_FACTOR_DEFAULT;
+  return Math.max(0, Math.min(0.6, 1 - row.lending/raw));
+}
+function lendingAt(row, util){
+  return borrowAt(row, util) * util/100 * (1 - effectiveRF(row));
+}
+function supplyAt(row, util){
+  // lending interest only; oDOLO + external yield don't depend on util
+  let s = 0;
+  if(state.rw.odolo) s += row.odolo;
+  if(state.rw.yield) s += row.yield;
+  if(state.rw.lending) s += lendingAt(row, util);
+  return s;
+}
+
+function simulate(row, calc){
+  const delta = (calc.action==="deposit"?1:-1) * Math.max(0, +calc.amount||0);
+  const borrowed = row.tvl * row.util/100;
+  // withdraw can't exceed available cash (tvl - borrowed)
+  const cash = row.tvl - borrowed;
+  const effDelta = calc.action==="withdraw" ? -Math.min(Math.abs(delta), cash * 0.999) : delta;
+  const newTvl = Math.max(borrowed, row.tvl + effDelta);
+  const newUtil = Math.min(99.5, borrowed / newTvl * 100);
+
+  // raw APRs (used for compounding math) — use per-asset effective reserve
+  // factor so "now" lending matches the recorded value exactly
+  const newBorrowApr  = borrowAt(row, newUtil);
+  const newLendingApr = lendingAt(row, newUtil);
+  const oldBorrowApr  = row.borrow;
+  const oldLendingApr = row.lending;   // === lendingAt(row, row.util) by construction
+
+  // display values honour current APR/APY mode
+  const newBorrow  = state.mode==="APY" ? aprToApy(newBorrowApr)  : newBorrowApr;
+  const newLending = state.mode==="APY" ? aprToApy(newLendingApr) : newLendingApr;
+  const oldBorrow  = state.mode==="APY" ? aprToApy(oldBorrowApr)  : oldBorrowApr;
+  const oldLending = state.mode==="APY" ? aprToApy(oldLendingApr) : oldLendingApr;
+
+  // earnings: native lending yield only (oDOLO + external yield don't depend on util)
+  const amt = Math.max(0, +calc.amount||0);
+  const rate = newLendingApr/100;
+  const yearly = amt * rate;
+
+  return {
+    newUtil, newBorrow, newLending, oldBorrow, oldLending,
+    utilDir:     newUtil>row.util       ? "up-dir" : newUtil<row.util       ? "down-dir" : "",
+    lendingDir:  newLending>oldLending  ? "up-dir" : newLending<oldLending  ? "down-dir" : "",
+    borrowDir:   newBorrow>oldBorrow    ? "up-dir" : newBorrow<oldBorrow    ? "down-dir" : "",
+    earnDay: yearly/365,
+    earnMonth: yearly/12,
+    earnYear: yearly
+  };
+}
+
+/* ==========================================================================
+   HISTORY + CURVE CHARTS (inline SVG, deterministic mock)
+   ========================================================================== */
+const _hist = new Map();
+function histCache(row){
+  if(_hist.has(row.sym)) return _hist.get(row.sym);
+  // deterministic pseudo-random seeded on symbol
+  let seed = 0; for(const c of row.sym) seed = (seed*31 + c.charCodeAt(0)) >>> 0;
+  const rand = ()=>{ seed = (seed*1664525 + 1013904223) >>> 0; return (seed/0xffffffff); };
+  const days=30;
+  const supply=[], borrow=[];
+  let s = row._supply * 0.85, b = row.borrow * 0.85;
+  for(let i=0;i<days;i++){
+    supply.push(s); borrow.push(b);
+    s += (rand()-0.5) * row._supply * 0.08;
+    b += (rand()-0.5) * row.borrow * 0.06;
+    s = Math.max(0.05, s);
+    b = Math.max(0.5, b);
+  }
+  supply[days-1] = row._supply;
+  borrow[days-1] = row.borrow;
+  const o = {supply, borrow};
+  _hist.set(row.sym, o);
+  return o;
+}
+
+function historyChartSVG(row){
+  const h = histCache(row);
+  const W = 400, H = 110, PAD_X = 8, PAD_Y = 12;
+  const all = [...h.supply, ...h.borrow];
+  const min = Math.min(...all), max = Math.max(...all);
+  const span = Math.max(0.5, max - min);
+  const n = h.supply.length;
+  const xs = i => PAD_X + i/(n-1) * (W - 2*PAD_X);
+  const ys = v => H - PAD_Y - (v - min)/span * (H - 2*PAD_Y);
+  const mkPath = arr => arr.map((v,i)=>`${i===0?"M":"L"}${xs(i).toFixed(1)} ${ys(v).toFixed(1)}`).join(" ");
+  const areaPath = mkPath(h.supply) + ` L${xs(n-1).toFixed(1)} ${H-PAD_Y} L${xs(0).toFixed(1)} ${H-PAD_Y} Z`;
+  // grid
+  const gridY = [0.25,0.5,0.75].map(p=>{
+    const y = PAD_Y + p*(H-2*PAD_Y);
+    return `<line x1="${PAD_X}" y1="${y}" x2="${W-PAD_X}" y2="${y}" stroke="rgba(255,255,255,.04)" stroke-width="1"/>`;
+  }).join("");
+  const last = n-1;
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="chart-svg">
+    <defs>
+      <linearGradient id="g-${row.sym}" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0%" stop-color="rgba(201,162,39,.25)"/>
+        <stop offset="100%" stop-color="rgba(201,162,39,0)"/>
+      </linearGradient>
+    </defs>
+    ${gridY}
+    <path d="${areaPath}" fill="url(#g-${row.sym})"/>
+    <path d="${mkPath(h.borrow)}" fill="none" stroke="#b4796b" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>
+    <path d="${mkPath(h.supply)}" fill="none" stroke="#c9a227" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${xs(last).toFixed(1)}" cy="${ys(h.supply[last]).toFixed(1)}" r="3" fill="#c9a227"/>
+    <circle cx="${xs(last).toFixed(1)}" cy="${ys(h.borrow[last]).toFixed(1)}" r="3" fill="#b4796b"/>
+  </svg>`;
+}
+
+function utilCurveSVG(row, markAfter){
+  const W = 400, H = 110, PAD_X = 22, PAD_Y = 10;
+  const {slope1, slope2} = kinkModel(row);
+  const rf = effectiveRF(row);
+  const borrowAtU = u => u<=KINK ? slope1*u : slope1*KINK + slope2*(u-KINK);
+  const supplyAtU = u => borrowAtU(u) * u/100 * (1 - rf);
+  // y scale up to borrow at util 100%
+  const yMax = Math.max(10, borrowAtU(99));
+  const xs = u => PAD_X + u/100 * (W - 2*PAD_X);
+  const ys = v => H - PAD_Y - v/yMax * (H - 2*PAD_Y);
+  let bPts = [], sPts = [];
+  for(let u=0; u<=100; u+=1){
+    bPts.push(`${xs(u).toFixed(1)},${ys(borrowAtU(u)).toFixed(1)}`);
+    sPts.push(`${xs(u).toFixed(1)},${ys(supplyAtU(u)).toFixed(1)}`);
+  }
+  // grid
+  const grid = [0,25,50,75,100].map(u=>{
+    const x = xs(u);
+    return `<line x1="${x}" y1="${PAD_Y}" x2="${x}" y2="${H-PAD_Y}" stroke="rgba(255,255,255,.03)" stroke-width="1"/>
+    <text x="${x}" y="${H-1}" text-anchor="middle" fill="#6b6a66" font-size="8" font-family="JetBrains Mono">${u}%</text>`;
+  }).join("");
+  // kink marker
+  const kinkX = xs(KINK);
+  // current util marker
+  const curX = xs(row.util), curY = ys(borrowAtU(row.util));
+  // after marker
+  const afterX = xs(markAfter), afterY = ys(borrowAtU(markAfter));
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="chart-svg">
+    ${grid}
+    <line x1="${kinkX}" y1="${PAD_Y}" x2="${kinkX}" y2="${H-PAD_Y}" stroke="rgba(255,255,255,.08)" stroke-width="1" stroke-dasharray="2 3"/>
+    <polyline points="${sPts.join(" ")}" fill="none" stroke="#c9a227" stroke-width="1.2" stroke-dasharray="3 3" opacity=".8"/>
+    <polyline points="${bPts.join(" ")}" fill="none" stroke="#c9a227" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${curX.toFixed(1)}" cy="${curY.toFixed(1)}" r="4" fill="none" stroke="rgba(255,255,255,.4)" stroke-width="1.2"/>
+    <circle cx="${afterX.toFixed(1)}" cy="${afterY.toFixed(1)}" r="4" fill="#c9a227" stroke="#0a0a0c" stroke-width="1.5"/>
+  </svg>`;
+}
+
+function activeSupply(row){
+  let s=0;
+  if(state.rw.odolo) s+=row.odolo;
+  if(state.rw.yield) s+=row.yield;
+  if(state.rw.lending) s+=row.lending;
+  return s;
+}
+
+/* ==========================================================================
+   RENDER
+   ========================================================================== */
+function render(){
+  const tb = document.getElementById("tbody");
+  const q = state.q.trim().toLowerCase();
+  let rows = ASSETS.filter(r=>{
+    if(state.cats.size>0 && !state.cats.has(r.cat)) return false;
+    if(state.nets.size>0 && !state.nets.has(r.chain)) return false;
+    if(state.dust && r.dust) return false;
+    if(q){
+      if(!r.sym.toLowerCase().includes(q) && !r.name.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  }).map(r=>({...r,_supply:activeSupply(r)}));
+
+  const {key,dir} = state.sort;
+  rows.sort((a,b)=>{
+    let va,vb;
+    if(key==="name"){va=a.sym;vb=b.sym}
+    else if(key==="price"){va=a.price;vb=b.price}
+    else if(key==="supply"){va=a._supply;vb=b._supply}
+    else if(key==="borrow"){va=a.borrow;vb=b.borrow}
+    if(typeof va==="string") return dir==="asc"?va.localeCompare(vb):vb.localeCompare(va);
+    return dir==="asc"?va-vb:vb-va;
+  });
+
+  // count
+  document.getElementById("count-badge").textContent = rows.length + " markets";
+
+  // sort arrows
+  document.querySelectorAll("thead th").forEach(th=>{
+    const k=th.dataset.sort;
+    th.classList.toggle("sorted",k===key);
+    const ex=th.querySelector(".sort");
+    if(ex) ex.remove();
+    if(k===key){
+      const s=document.createElement("span");
+      s.className="sort";
+      s.textContent = dir==="asc" ? "▲" : "▼";
+      th.appendChild(s);
+    }
+  });
+
+  tb.innerHTML = rows.map(r=>{
+    const supply = state.mode==="APY" ? aprToApy(r._supply) : r._supply;
+    const borrow = state.mode==="APY" ? aprToApy(r.borrow) : r.borrow;
+    const chainCls = "dot-"+r.chain;
+
+    // vertical breakdown shown under the big Supply value
+    // order: Lending (native, always top) → oDOLO → External Yield
+    const parts = [];
+    if(state.rw.lending && r.lending>0) parts.push({k:"lending", l:"Lending", v:r.lending});
+    if(state.rw.odolo   && r.odolo>0)   parts.push({k:"odolo",   l:"oDOLO",   v:r.odolo});
+    if(state.rw.yield   && r.yield>0)   parts.push({k:"yield",   l:"Yield",   v:r.yield});
+    const lineHTML = parts.map(p=>
+      `<div class="apy-line ${p.k}"><span class="apy-dash">—</span><span class="apy-src">${p.l}</span><span class="apy-num">${fmtPct(p.v)}</span></div>`
+    ).join("");
+
+    const expanded = state.expanded.has(r.sym);
+    const calc = state.calc.get(r.sym) || {action:"deposit",amount:10000};
+    state.calc.set(r.sym, calc);
+    const row = `
+      <tr class="data ${expanded?"expanded":""}" data-sym="${r.sym}">
+        <td style="padding-left:32px">
+          <div class="asset-cell">
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            <div class="tok-ico">
+              <img src="${tokIcon(r.sym)}" onerror="this.style.display='none'" alt="">
+            </div>
+            <div class="tok-meta">
+              <div class="tok-name"><span class="tok-sym">${r.sym}</span><span class="tok-long">${r.name}</span></div>
+              <div class="tok-tags">
+                <span class="tag chain"><span class="dot ${chainCls}"></span>${r.chain==="polygonzkevm"?"Polygon zkEVM":r.chain==="xlayer"?"X Layer":r.chain}</span>
+              </div>
+            </div>
+          </div>
+        </td>
+        <td class="num">
+          <span class="price-val">${fmtPrice(r.price)}</span>
+        </td>
+        <td class="num">
+          <div class="apy-cell">
+            <div class="apy-val">${fmtPct(supply)}</div>
+            <div class="apy-lines">${lineHTML}</div>
+          </div>
+        </td>
+        <td class="num" style="padding-right:32px"><span class="bw-val">${fmtPct(borrow)}</span></td>
+      </tr>
+    `;
+    const sim = expanded ? simulate(r, calc) : null;
+    const exp = expanded ? `
+      <tr class="exp-row" data-sym="${r.sym}">
+        <td colspan="4">
+          <div class="exp-body">
+
+            <!-- STATS ROW -->
+            <div class="exp-stats-row">
+              <div class="exp-stat">
+                <div class="lbl">TVL</div>
+                <div class="val">${fmtCmp(r.tvl)}</div>
+                <div class="sub">market size</div>
+              </div>
+              <div class="exp-stat">
+                <div class="lbl">Utilization</div>
+                <div class="val">${r.util.toFixed(1)}%</div>
+                <div class="exp-bar"><span style="width:${r.util}%"></span></div>
+              </div>
+              <div class="exp-stat">
+                <div class="lbl">Supply APR</div>
+                <div class="val accent">${fmtPct(r._supply)}</div>
+                <div class="sub">${state.rw.lending?`Lending ${fmtPct(r.lending)}`:""}${state.rw.yield && r.yield>0?` · Yield ${fmtPct(r.yield)}`:""}${state.rw.odolo && r.odolo>0?` · oDOLO ${fmtPct(r.odolo)}`:""}</div>
+              </div>
+              <div class="exp-stat">
+                <div class="lbl">Net Spread</div>
+                <div class="val">${fmtPct(r.borrow - r._supply)}</div>
+                <div class="sub">borrow − supply</div>
+              </div>
+            </div>
+
+            <!-- CALCULATOR -->
+            <div class="calc" data-sym="${r.sym}">
+              <div class="calc-head">
+                <div class="calc-title">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="13" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="10" y2="18"/><line x1="13" y1="18" x2="16" y2="18"/></svg>
+                  Yield Calculator
+                </div>
+                <div class="calc-controls">
+                  <div class="calc-tabs" data-calc-tabs>
+                    <div class="calc-tab ${calc.action==="deposit"?"active":""}" data-action="deposit">Deposit</div>
+                    <div class="calc-tab ${calc.action==="withdraw"?"active":""}" data-action="withdraw">Withdraw</div>
+                  </div>
+                  <div class="calc-input-wrap">
+                    <span class="dol">$</span>
+                    <input class="calc-input" type="number" min="0" value="${calc.amount}" data-calc-input inputmode="numeric">
+                    <div class="calc-steppers">
+                      <button class="calc-stepper" data-step="up" aria-label="Increase amount" tabindex="-1">
+                        <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 7 5 3 8 7"/></svg>
+                      </button>
+                      <button class="calc-stepper" data-step="down" aria-label="Decrease amount" tabindex="-1">
+                        <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 3 5 7 8 3"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                  <button class="calc-max" data-calc-max>MAX</button>
+                </div>
+              </div>
+
+              <div class="calc-grid">
+                <div class="calc-row">
+                  <div class="calc-side">
+                    <div class="calc-side-lbl">Utilization · now</div>
+                    <div class="calc-side-val">${r.util.toFixed(2)}%</div>
+                  </div>
+                  <svg class="calc-arrow ${sim.utilDir}" viewBox="0 0 16 10"><path d="M0 5 L12 5 M9 2 L12 5 L9 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <div class="calc-side">
+                    <div class="calc-side-lbl" style="text-align:right">Utilization · after</div>
+                    <div class="calc-side-val right">${sim.newUtil.toFixed(2)}%</div>
+                  </div>
+                </div>
+                <div class="calc-row">
+                  <div class="calc-side">
+                    <div class="calc-side-lbl">Native Lending ${state.mode} · now</div>
+                    <div class="calc-side-val gold">${fmtPct(sim.oldLending)}</div>
+                  </div>
+                  <svg class="calc-arrow ${sim.lendingDir}" viewBox="0 0 16 10"><path d="M0 5 L12 5 M9 2 L12 5 L9 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <div class="calc-side">
+                    <div class="calc-side-lbl" style="text-align:right">Native Lending ${state.mode} · after</div>
+                    <div class="calc-side-val right gold">${fmtPct(sim.newLending)}</div>
+                  </div>
+                </div>
+                <div class="calc-row">
+                  <div class="calc-side">
+                    <div class="calc-side-lbl">Borrow ${state.mode} · now</div>
+                    <div class="calc-side-val down">${fmtPct(sim.oldBorrow)}</div>
+                  </div>
+                  <svg class="calc-arrow ${sim.borrowDir}" viewBox="0 0 16 10"><path d="M0 5 L12 5 M9 2 L12 5 L9 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <div class="calc-side">
+                    <div class="calc-side-lbl" style="text-align:right">Borrow ${state.mode} · after</div>
+                    <div class="calc-side-val right down">${fmtPct(sim.newBorrow)}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="calc-earn">
+                <div class="calc-earn-lbl">${calc.action==="deposit"?"Projected earnings · native lending only":"Lending earnings you'd forfeit"}</div>
+                <div class="calc-earn-item">
+                  <div class="calc-earn-period">per day</div>
+                  <div class="calc-earn-val">${fmtUsd(sim.earnDay)}</div>
+                </div>
+                <div class="calc-earn-item">
+                  <div class="calc-earn-period">per month</div>
+                  <div class="calc-earn-val">${fmtUsd(sim.earnMonth)}</div>
+                </div>
+                <div class="calc-earn-item">
+                  <div class="calc-earn-period">per year</div>
+                  <div class="calc-earn-val">${fmtUsd(sim.earnYear)}</div>
+                </div>
+              </div>
+
+              <div class="calc-note">
+                Only the native lending portion of APR reacts to utilization changes. Any oDOLO rewards${r.yield>0?" and external yield":""} apply on top and don't depend on your deposit.
+              </div>
+            </div>
+
+            <!-- CHARTS ROW -->
+            <div class="exp-charts-row">
+              <div class="chart-card">
+                <div class="chart-head">
+                  <div class="chart-title">Historical rates · 30d</div>
+                  <div class="chart-legend">
+                    <span><span class="lg-dot gold"></span>Supply</span>
+                    <span><span class="lg-dot dn"></span>Borrow</span>
+                  </div>
+                </div>
+                ${historyChartSVG(r)}
+                <div class="chart-note">Supply avg ${fmtPct(avg(histCache(r).supply))} · Borrow avg ${fmtPct(avg(histCache(r).borrow))}</div>
+              </div>
+              <div class="chart-card">
+                <div class="chart-head">
+                  <div class="chart-title">Utilization curve · kink model</div>
+                  <div class="chart-legend">
+                    <span><span class="lg-dot gold"></span>Borrow</span>
+                    <span><span class="lg-dot dashed"></span>Supply</span>
+                  </div>
+                </div>
+                ${utilCurveSVG(r, sim.newUtil)}
+                <div class="chart-note">Kink at 80% · current ${r.util.toFixed(1)}% → after ${sim.newUtil.toFixed(1)}%</div>
+              </div>
+            </div>
+
+            <!-- LINKS -->
+            <div class="exp-links">
+              <a href="https://app.dolomite.io" target="_blank">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                Open in Dolomite app
+              </a>
+            </div>
+          </div>
+        </td>
+      </tr>` : "";
+
+    return row + exp;
+  }).join("");
+
+  // bind row clicks
+  tb.querySelectorAll("tr.data").forEach(tr=>{
+    tr.addEventListener("click",()=>{
+      const s=tr.dataset.sym;
+      if(state.expanded.has(s)) state.expanded.delete(s); else state.expanded.add(s);
+      render();
+    });
+  });
+  // expanded row: keep clicks inside from collapsing
+  tb.querySelectorAll("tr.exp-row").forEach(tr=>{
+    tr.addEventListener("click", e=>e.stopPropagation());
+  });
+
+  // calculator: tab switch
+  tb.querySelectorAll(".calc").forEach(cl=>{
+    const sym = cl.dataset.sym;
+    const row = ASSETS.find(a=>a.sym===sym);
+    const calc = state.calc.get(sym);
+    cl.querySelectorAll(".calc-tab").forEach(tab=>{
+      tab.addEventListener("click", e=>{
+        e.stopPropagation();
+        calc.action = tab.dataset.action;
+        render();
+      });
+    });
+    const input = cl.querySelector("[data-calc-input]");
+    if(input){
+      input.addEventListener("click", e=>e.stopPropagation());
+      input.addEventListener("input", e=>{
+        const v = Math.max(0, parseFloat(e.target.value)||0);
+        calc.amount = v;
+        // partial re-render to avoid losing focus
+        updateCalc(sym);
+      });
+      // Keyboard arrows — smart step (not fixed browser step)
+      input.addEventListener("keydown", e=>{
+        if(e.key!=="ArrowUp" && e.key!=="ArrowDown") return;
+        e.preventDefault();
+        stepAmount(e.key==="ArrowUp"?1:-1, e.shiftKey?10:1);
+      });
+    }
+
+    // Smart step: scale with magnitude so stepping never feels stuck or jumpy
+    function smartStep(val){
+      const v = Math.max(0, val);
+      if(v < 1000)     return 100;
+      if(v < 10000)    return 1000;
+      if(v < 100000)   return 10000;
+      if(v < 1000000)  return 100000;
+      return 1000000;
+    }
+    function stepAmount(dir, mult){
+      mult = mult || 1;
+      // decrementing near a boundary? use the lower range step so 10000→9000 not 10000→0
+      const refVal = dir>0 ? calc.amount : Math.max(0, calc.amount - 1);
+      const step = smartStep(refVal) * mult;
+      calc.amount = Math.max(0, Math.round((calc.amount + dir*step)/step)*step);
+      if(input) input.value = calc.amount;
+      updateCalc(sym);
+    }
+
+    // Custom steppers with press-and-hold acceleration
+    cl.querySelectorAll(".calc-stepper").forEach(btn=>{
+      const dir = btn.dataset.step==="up" ? 1 : -1;
+      let t1=null, t2=null;
+      const fire = ()=> stepAmount(dir, 1);
+      const stop = ()=>{
+        if(t1){clearTimeout(t1); t1=null}
+        if(t2){clearInterval(t2); t2=null}
+        btn.classList.remove("pressing");
+      };
+      const start = e=>{
+        e.stopPropagation();
+        if(e.cancelable) e.preventDefault();
+        btn.classList.add("pressing");
+        fire();
+        t1 = setTimeout(()=>{
+          t2 = setInterval(fire, 60);
+        }, 380);
+      };
+      btn.addEventListener("mousedown", start);
+      btn.addEventListener("mouseup", stop);
+      btn.addEventListener("mouseleave", stop);
+      btn.addEventListener("touchstart", start, {passive:false});
+      btn.addEventListener("touchend", stop);
+      btn.addEventListener("touchcancel", stop);
+      // swallow click so it doesn't bubble to the row
+      btn.addEventListener("click", e=>e.stopPropagation());
+    });
+
+    const maxBtn = cl.querySelector("[data-calc-max]");
+    if(maxBtn){
+      maxBtn.addEventListener("click", e=>{
+        e.stopPropagation();
+        if(calc.action==="withdraw"){
+          const borrowed = row.tvl * row.util/100;
+          const cash = row.tvl - borrowed;
+          calc.amount = Math.floor(cash);
+        } else {
+          // no hard cap on deposit; use a sensible ceiling (10% of tvl)
+          calc.amount = Math.max(10000, Math.floor(row.tvl * 0.1));
+        }
+        if(input) input.value = calc.amount;
+        updateCalc(sym);
+      });
+    }
+  });
+}
+
+// lightweight partial update for calculator (avoids rerender/focus loss)
+function updateCalc(sym){
+  const row0 = ASSETS.find(a=>a.sym===sym);
+  const row = {...row0, _supply: activeSupply(row0)};
+  const calc = state.calc.get(sym);
+  const sim = simulate(row, calc);
+  const sel = document.querySelector(`.calc[data-sym="${sym}"]`);
+  if(!sel) return;
+  const rows = sel.querySelectorAll(".calc-row");
+  // Utilization row
+  rows[0].querySelectorAll(".calc-side-val")[1].textContent = sim.newUtil.toFixed(2)+"%";
+  const ar0 = rows[0].querySelector(".calc-arrow");
+  ar0.classList.remove("up-dir","down-dir"); if(sim.utilDir) ar0.classList.add(sim.utilDir);
+  // Native Lending row
+  rows[1].querySelectorAll(".calc-side-val")[0].textContent = fmtPct(sim.oldLending);
+  rows[1].querySelectorAll(".calc-side-val")[1].textContent = fmtPct(sim.newLending);
+  const ar1 = rows[1].querySelector(".calc-arrow");
+  ar1.classList.remove("up-dir","down-dir"); if(sim.lendingDir) ar1.classList.add(sim.lendingDir);
+  // Borrow row
+  rows[2].querySelectorAll(".calc-side-val")[0].textContent = fmtPct(sim.oldBorrow);
+  rows[2].querySelectorAll(".calc-side-val")[1].textContent = fmtPct(sim.newBorrow);
+  const ar2 = rows[2].querySelector(".calc-arrow");
+  ar2.classList.remove("up-dir","down-dir"); if(sim.borrowDir) ar2.classList.add(sim.borrowDir);
+  // earnings
+  const es = sel.querySelectorAll(".calc-earn-val");
+  es[0].textContent = fmtUsd(sim.earnDay);
+  es[1].textContent = fmtUsd(sim.earnMonth);
+  es[2].textContent = fmtUsd(sim.earnYear);
+  // update util curve "after" marker — redraw only that chart
+  const expRow = document.querySelector(`tr.exp-row[data-sym="${sym}"]`);
+  if(expRow){
+    const chartSlots = expRow.querySelectorAll(".chart-card");
+    if(chartSlots[1]){
+      // replace svg + note
+      const svgHost = chartSlots[1].querySelector("svg");
+      if(svgHost){
+        const tmp = document.createElement("div");
+        tmp.innerHTML = utilCurveSVG(row, sim.newUtil);
+        svgHost.replaceWith(tmp.firstChild);
+      }
+      const note = chartSlots[1].querySelector(".chart-note");
+      if(note) note.textContent = `Kink at 80% · current ${row.util.toFixed(1)}% → after ${sim.newUtil.toFixed(1)}%`;
+    }
+  }
+}
+
+/* ==========================================================================
+   WIRE UP
+   ========================================================================== */
+document.getElementById("q").addEventListener("input",e=>{state.q=e.target.value;render()});
+
+// sort
+document.querySelectorAll("thead th").forEach(th=>{
+  th.addEventListener("click",()=>{
+    const k=th.dataset.sort;
+    if(state.sort.key===k){state.sort.dir = state.sort.dir==="asc"?"desc":"asc"}
+    else {state.sort.key=k;state.sort.dir="desc"}
+    render();
+  });
+});
+
+// dropdowns — generic toggle
+document.querySelectorAll("[data-dd]").forEach(btn=>{
+  btn.addEventListener("click",e=>{
+    e.stopPropagation();
+    const panel = btn.nextElementSibling;
+    const was = panel.classList.contains("show");
+    document.querySelectorAll(".dd-panel.show").forEach(p=>p.classList.remove("show"));
+    document.querySelectorAll(".dd-btn.open").forEach(b=>b.classList.remove("open"));
+    if(!was){panel.classList.add("show");btn.classList.add("open")}
+  });
+});
+document.addEventListener("click",()=>{
+  document.querySelectorAll(".dd-panel.show").forEach(p=>p.classList.remove("show"));
+  document.querySelectorAll(".dd-btn.open").forEach(b=>b.classList.remove("open"));
+});
+
+// CATEGORY — multi-select; dropdown stays open
+function syncCatDropdown(){
+  const allOpt = document.querySelector('#dd-cat .dd-opt[data-cat="all"]');
+  allOpt.classList.toggle("active", state.cats.size === 0);
+  document.querySelectorAll('#dd-cat .dd-opt[data-cat]').forEach(o=>{
+    const k = o.dataset.cat;
+    if(k==="all") return;
+    o.classList.toggle("active", state.cats.has(k));
+  });
+  const btn = document.querySelector('#dd-cat .dd-btn');
+  btn.classList.toggle("filtered", state.cats.size > 0);
+  const lbl = btn.querySelector(".lbl");
+  if(state.cats.size === 0) lbl.textContent = "All Assets";
+  else if(state.cats.size === 1) lbl.textContent = CAT_LABELS[[...state.cats][0]] || [...state.cats][0];
+  else lbl.textContent = `${state.cats.size} categories`;
+}
+document.querySelectorAll("#dd-cat .dd-opt").forEach(opt=>{
+  opt.addEventListener("click",e=>{
+    e.stopPropagation();
+    const key = opt.dataset.cat;
+    if(key === "all") state.cats.clear();
+    else {
+      if(state.cats.has(key)) state.cats.delete(key);
+      else state.cats.add(key);
+    }
+    syncCatDropdown();
+    render();
+    // NOTE: dropdown intentionally stays open so user can pick multiple
+  });
+});
+
+// NETWORK — multi-select; dropdown stays open
+function syncNetDropdown(){
+  const allOpt = document.querySelector('#dd-net .dd-opt[data-net="all"]');
+  allOpt.classList.toggle("active", state.nets.size === 0);
+  document.querySelectorAll('#dd-net .dd-opt[data-net]').forEach(o=>{
+    const k = o.dataset.net;
+    if(k==="all") return;
+    o.classList.toggle("active", state.nets.has(k));
+  });
+  const btn = document.querySelector('#dd-net .dd-btn');
+  btn.classList.toggle("filtered", state.nets.size > 0);
+  const lbl = btn.querySelector(".lbl");
+  const count = btn.querySelector(".count");
+  if(state.nets.size === 0){
+    lbl.textContent = "All Chains";
+    if(count) count.textContent = "7";
+  } else if(state.nets.size === 1){
+    lbl.textContent = CHAIN_LABELS[[...state.nets][0]] || [...state.nets][0];
+    if(count) count.textContent = "1";
+  } else {
+    lbl.textContent = `${state.nets.size} chains`;
+    if(count) count.textContent = state.nets.size;
+  }
+}
+document.querySelectorAll("#dd-net .dd-opt").forEach(opt=>{
+  opt.addEventListener("click",e=>{
+    e.stopPropagation();
+    const key = opt.dataset.net;
+    if(key === "all") state.nets.clear();
+    else {
+      if(state.nets.has(key)) state.nets.delete(key);
+      else state.nets.add(key);
+    }
+    syncNetDropdown();
+    render();
+  });
+});
+// rewards — checkbox-style items
+function syncRewardsButton(){
+  const btn = document.querySelector('#dd-rw .dd-btn');
+  // Mirror the 3 dots on the toolbar button
+  const dots = btn.querySelectorAll(".rw-dot");
+  const order = ["odolo","yield","lending"];
+  dots.forEach((d,i) => d.classList.toggle("on", state.rw[order[i]]));
+  // Rewards is considered "active" whenever at least one source is enabled —
+  // which is effectively always (default has all 3 on). The subtle highlight
+  // signals "rewards are being included in the APR shown".
+  const anyOn = state.rw.lending || state.rw.odolo || state.rw.yield;
+  btn.classList.toggle("filtered", anyOn);
+}
+document.querySelectorAll("#dd-rw .rw-item").forEach(item=>{
+  item.addEventListener("click",e=>{
+    e.stopPropagation();
+    const key = item.dataset.rw;
+    state.rw[key] = !state.rw[key];
+    item.classList.toggle("active", state.rw[key]);
+    syncRewardsButton();
+    render();
+  });
+});
+// Set rewards as filtered on initial load (default = all 3 on)
+syncRewardsButton();
+
+// Quick-clear × buttons on Category + Chain filters
+document.querySelectorAll('.dd-clear').forEach(x=>{
+  x.addEventListener('click',e=>{
+    e.stopPropagation();
+    const which = x.dataset.clear;
+    if(which === "cat"){ state.cats.clear(); syncCatDropdown(); }
+    if(which === "net"){ state.nets.clear(); syncNetDropdown(); }
+    render();
+  });
+});
+
+// dust
+document.getElementById("dust").addEventListener("click",()=>{
+  state.dust=!state.dust;
+  document.getElementById("dust").classList.toggle("on",state.dust);
+  render();
+});
+
+// apr / apy
+const aprapy = document.getElementById("aprapy");
+aprapy.querySelectorAll(".opt").forEach(opt=>{
+  opt.addEventListener("click",()=>{
+    aprapy.querySelectorAll(".opt").forEach(o=>o.classList.remove("active"));
+    opt.classList.add("active");
+    state.mode = opt.dataset.val;
+    const idx = state.mode==="APY" ? 1 : 0;
+    aprapy.querySelector(".slider").style.transform = `translateX(${idx*52}px)`;
+    render();
+  });
+});
+
+// nav — visual active state (other tabs not rendered in this preview)
+document.querySelectorAll(".nav-item").forEach(it=>{
+  it.addEventListener("click",e=>{
+    e.preventDefault();
+    document.querySelectorAll(".nav-item").forEach(n=>n.classList.remove("active"));
+    it.classList.add("active");
+  });
+});
+
+// timestamp
+document.getElementById("now").textContent = new Date().toLocaleString();
+
+/* ==========================================================================
+   PROTOCOL INFO — contract addresses
+   ========================================================================== */
+const CONTRACTS = [
+  {token:"DOLO",   logo:"dolo-logo.svg",              chain:"Ethereum",  chainIco:"https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg", addr:"0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654", explorer:"https://etherscan.io"},
+  {token:"DOLO",   logo:"dolo-logo.svg",              chain:"Berachain", chainIco:"https://icons.llamao.fi/icons/chains/rsz_berachain.jpg", addr:"0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654", explorer:"https://berascan.com"},
+  {token:"oDOLO",  logo:"odolo-logo-official.svg",    chain:"Berachain", chainIco:"https://icons.llamao.fi/icons/chains/rsz_berachain.jpg", addr:"0x02E513b5B54eE216Bf836ceb471507488fC89543", explorer:"https://berascan.com"},
+  {token:"veDOLO", logo:"vedolo-logo.svg",            chain:"Berachain", chainIco:"https://icons.llamao.fi/icons/chains/rsz_berachain.jpg", addr:"0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4", explorer:"https://berascan.com"},
+];
+const shorten = (a)=>a.slice(0,6)+"…"+a.slice(-4);
+const COPY_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+const CHECK_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+
+document.getElementById("proto-addrs").innerHTML = CONTRACTS.map((c,i)=>`
+  <div class="proto-addr" data-idx="${i}">
+    <div class="proto-addr-left">
+      <div class="proto-token">
+        <img src="${c.logo}" alt="${c.token}" onerror="this.style.display='none'">
+        <span class="proto-token-name">${c.token}</span>
+      </div>
+      <span class="proto-chain-chip"><img src="${c.chainIco}" onerror="this.style.display='none'">${c.chain}</span>
+    </div>
+    <div class="proto-addr-right">
+      <span class="proto-addr-hex" title="${c.addr}">${shorten(c.addr)}</span>
+      <button class="proto-copy" data-copy="${c.addr}" aria-label="Copy address">${COPY_ICO}</button>
+    </div>
+  </div>
+`).join("");
+
+// clicks: row = open explorer, button = copy
+document.querySelectorAll(".proto-addr").forEach(row=>{
+  const idx = +row.dataset.idx;
+  const c = CONTRACTS[idx];
+  row.addEventListener("click", e=>{
+    if(e.target.closest(".proto-copy")) return;
+    window.open(`${c.explorer}/token/${c.addr}`, "_blank", "noopener");
+  });
+});
+document.querySelectorAll(".proto-copy").forEach(btn=>{
+  btn.addEventListener("click", async e=>{
+    e.stopPropagation();
+    const addr = btn.dataset.copy;
+    try { await navigator.clipboard.writeText(addr); } catch(_) {}
+    btn.classList.add("copied");
+    btn.innerHTML = CHECK_ICO;
+    setTimeout(()=>{ btn.classList.remove("copied"); btn.innerHTML = COPY_ICO; }, 1400);
+  });
+});
+
+render();
+</script>
+</body>
+</html>
