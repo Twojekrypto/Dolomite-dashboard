@@ -339,15 +339,20 @@ input{font:inherit}
   max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 .addr-link:hover{color:var(--gold)}
-.label-badge{
-  display:inline-flex;align-items:center;max-width:150px;height:18px;padding:0 6px;border-radius:5px;
-  font-size:9px;font-weight:700;letter-spacing:.35px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  border:1px solid var(--line-2);color:var(--fg-2);background:var(--bg-3);
+.wallet-label-line{display:flex;align-items:center;gap:6px;min-width:0;max-width:100%}
+.wallet-label-name{
+  max-width:145px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:var(--fg-2);font-size:11px;font-weight:650;letter-spacing:.15px;line-height:1.25;
 }
-.label-badge.cex{color:#d9b06d;border-color:rgba(201,162,39,.26);background:rgba(201,162,39,.08)}
-.label-badge.protocol,.label-badge.lp{color:#aeb5d8;border-color:rgba(143,152,200,.24);background:rgba(143,152,200,.08)}
-.label-badge.bot,.label-badge.liquidator{color:var(--down);border-color:var(--down-line);background:var(--down-wash)}
-.label-badge.investor{color:var(--profit);border-color:var(--profit-line);background:var(--profit-wash)}
+.wallet-type-chip{
+  display:inline-flex;align-items:center;height:16px;padding:0 5px;border-radius:5px;flex-shrink:0;
+  font-size:8px;font-weight:800;letter-spacing:.65px;text-transform:uppercase;
+  border:1px solid var(--line-2);color:var(--fg-3);background:rgba(255,255,255,.025);
+}
+.wallet-type-chip.cex{color:#d9b06d;border-color:rgba(201,162,39,.26);background:rgba(201,162,39,.075)}
+.wallet-type-chip.protocol,.wallet-type-chip.lp{color:#aeb5d8;border-color:rgba(143,152,200,.24);background:rgba(143,152,200,.075)}
+.wallet-type-chip.bot,.wallet-type-chip.liquidator{color:var(--down);border-color:var(--down-line);background:var(--down-wash)}
+.wallet-type-chip.investor{color:var(--profit);border-color:var(--profit-line);background:var(--profit-wash)}
 .addr-sub{display:flex;align-items:center;gap:6px;color:var(--fg-3);font-size:11px}
 .chain-dot{display:inline-flex;align-items:center;gap:4px}
 .chain-dot img{width:13px;height:13px;border-radius:50%;object-fit:cover}
@@ -360,7 +365,6 @@ input{font:inherit}
 .copy-btn svg{width:12px;height:12px}
 .holder-addr-cell{align-items:flex-start;gap:0}
 .holder-addr-main{gap:4px}
-.holder-label-line{display:flex;align-items:center;min-width:0}
 .holder-address-line{gap:6px}
 .holder-address-line .addr-link{max-width:142px}
 .debank-btn{
@@ -845,6 +849,9 @@ function fmtToken(value, digits=1){
 function fmtInt(value){return (Number(value)||0).toLocaleString("en-US",{maximumFractionDigits:0})}
 function shortAddr(addr){return `${addr.slice(0,6)}...${addr.slice(-4)}`}
 function infoFor(addr){return DOLO_ADDR_LABELS[String(addr||"").toLowerCase()] || null}
+function walletTypeLabel(type){
+  return {cex:"CEX",protocol:"Protocol",lp:"LP",bot:"Bot",liquidator:"Liq.",investor:"Investor"}[type] || String(type || "Wallet");
+}
 function isKnownOrContract(row){
   const info = infoFor(row.address);
   return Boolean(info && ["cex","protocol","lp","bot","liquidator"].includes(info.type)) || Boolean(row.is_contract);
@@ -890,7 +897,10 @@ function holderAddressCell(row, chain){
   const url = explorerUrl(row.address, chain || primaryChain(row));
   const debankUrl = `https://debank.com/profile/${row.address}`;
   const label = info
-    ? `<div class="holder-label-line"><span class="label-badge ${escapeHtml(info.type)}" title="${escapeHtml(info.label)}">${escapeHtml(info.label)}</span></div>`
+    ? `<div class="wallet-label-line" title="${escapeHtml(`${info.label} · ${walletTypeLabel(info.type)}`)}">
+        <span class="wallet-label-name">${escapeHtml(info.label)}</span>
+        <span class="wallet-type-chip ${escapeHtml(info.type)}">${escapeHtml(walletTypeLabel(info.type))}</span>
+      </div>`
     : "";
   return `
     <div class="addr-cell holder-addr-cell">
