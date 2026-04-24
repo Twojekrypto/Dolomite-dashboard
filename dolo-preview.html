@@ -1,0 +1,1128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dolomite · DOLO</title>
+<link rel="icon" href="dolomite-logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg-0:#09090b;
+  --bg-1:#0f0f11;
+  --bg-2:#141417;
+  --bg-3:#1a1a1e;
+  --bg-4:#202024;
+  --line-1:rgba(255,255,255,.05);
+  --line-2:rgba(255,255,255,.08);
+  --line-3:rgba(255,255,255,.14);
+  --fg-1:#f4f3ef;
+  --fg-2:#a5a29a;
+  --fg-3:#6b6a66;
+  --fg-4:#48474a;
+  --gold:#c9a227;
+  --gold-hi:#e4c15a;
+  --gold-wash:rgba(201,162,39,.10);
+  --gold-line:rgba(201,162,39,.30);
+  --profit:#75b87b;
+  --profit-hi:#9fcea1;
+  --profit-wash:rgba(117,184,123,.10);
+  --profit-line:rgba(117,184,123,.30);
+  --down:#b4796b;
+  --down-wash:rgba(180,121,107,.10);
+  --down-line:rgba(180,121,107,.30);
+  --eth:#8f98c8;
+  --bera:#c9a227;
+  --r-md:12px;
+  --r-xl:22px;
+  --sh-card:0 1px 0 rgba(255,255,255,.02) inset,0 1px 2px rgba(0,0,0,.4);
+  --sh-hi:0 8px 28px rgba(0,0,0,.45);
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --ease:cubic-bezier(.2,.7,.2,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg-0);color:var(--fg-1);font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5}
+body{min-height:100vh;overflow-x:hidden}
+body::before{
+  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(1000px 600px at 80% -10%,rgba(201,162,39,.04),transparent 60%),
+    radial-gradient(800px 500px at -10% 110%,rgba(255,255,255,.02),transparent 60%);
+}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input{font:inherit}
+.wrap{max-width:1320px;margin:0 auto;padding:40px 28px 96px}
+.site-top{display:flex;flex-direction:column;align-items:center;gap:14px;margin-bottom:40px}
+.site-brand{position:relative;display:flex;justify-content:center;align-items:center;width:100%;padding:18px 0 0}
+.site-brand::before{
+  content:"";position:absolute;inset:-6% -12% 12% -12%;z-index:-1;
+  background:
+    radial-gradient(55% 55% at 50% 50%,rgba(201,162,39,.14) 0%,transparent 72%),
+    radial-gradient(90% 110% at 50% 100%,rgba(201,162,39,.05) 0%,transparent 65%);
+  filter:blur(20px);pointer-events:none;
+}
+.site-brand::after{
+  content:"";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:min(100%,820px);aspect-ratio:495/195;pointer-events:none;
+  background:radial-gradient(ellipse 78% 82% at center,transparent 42%,rgba(9,9,11,.55) 72%,var(--bg-0) 100%);
+}
+.site-brand img{
+  max-width:820px;width:100%;height:auto;display:block;
+  filter:saturate(.82) contrast(.92) brightness(.93) hue-rotate(-7deg);
+  -webkit-mask-image:radial-gradient(ellipse 78% 80% at center,#000 38%,rgba(0,0,0,.7) 62%,rgba(0,0,0,.25) 82%,transparent 98%);
+          mask-image:radial-gradient(ellipse 78% 80% at center,#000 38%,rgba(0,0,0,.7) 62%,rgba(0,0,0,.25) 82%,transparent 98%);
+}
+.site-nav-wrap{position:sticky;top:12px;z-index:30;display:flex;justify-content:center;pointer-events:none}
+.site-nav{
+  pointer-events:auto;display:inline-flex;align-items:center;gap:2px;
+  background:rgba(16,16,20,.72);
+  backdrop-filter:blur(22px) saturate(160%);
+  -webkit-backdrop-filter:blur(22px) saturate(160%);
+  border:1px solid var(--line-2);
+  padding:5px;border-radius:12px;
+  box-shadow:0 6px 24px rgba(0,0,0,.45),0 1px 0 rgba(255,255,255,.03) inset;
+}
+.nav-item{
+  display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:8px;
+  font-size:13px;font-weight:500;color:var(--fg-2);
+  transition:color .15s var(--ease),background .15s var(--ease);
+  -webkit-tap-highlight-color:transparent;
+}
+.nav-item img,.nav-item svg{width:15px;height:15px;flex-shrink:0}
+.nav-item img{border-radius:50%;background:var(--bg-3);object-fit:contain}
+.nav-item svg{color:var(--fg-3);opacity:.85}
+.nav-item:hover{color:var(--fg-1);background:var(--bg-3)}
+.nav-item.active{
+  color:var(--fg-1);background:var(--bg-3);
+  box-shadow:inset 0 0 0 1px var(--gold-line);
+}
+.nav-item.active::after{
+  content:"";width:4px;height:4px;border-radius:50%;
+  background:var(--gold);margin-left:2px;box-shadow:0 0 6px var(--gold-line);
+}
+.hero{
+  position:relative;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));
+  border:1px solid var(--line-2);border-radius:var(--r-xl);
+  padding:28px 32px;margin-bottom:24px;overflow:hidden;box-shadow:var(--sh-card);
+}
+.hero::before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(650px 280px at 86% -20%,rgba(201,162,39,.09),transparent 60%);
+}
+.hero-top{position:relative;display:flex;align-items:center;gap:8px;margin-bottom:10px;color:var(--fg-1);font-size:11px;letter-spacing:2px;text-transform:uppercase;font-weight:700}
+.hero-top img{width:15px;height:15px;border-radius:50%}
+.hero-headline{position:relative;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:24px}
+.hero-price{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.hero-value{
+  font-family:var(--mono);font-size:clamp(42px,5.8vw,64px);font-weight:700;
+  letter-spacing:-2px;color:var(--fg-1);line-height:1;font-variant-numeric:tabular-nums;
+}
+.change-pill{
+  display:inline-flex;align-items:center;gap:6px;min-height:32px;
+  padding:5px 10px;border-radius:999px;border:1px solid var(--line-2);
+  background:rgba(255,255,255,.025);font-family:var(--mono);font-size:12px;font-weight:600;
+}
+.change-pill.up{color:var(--profit);border-color:var(--profit-line);background:var(--profit-wash)}
+.change-pill.down{color:var(--down);border-color:var(--down-line);background:var(--down-wash)}
+.hero-token{
+  display:inline-flex;align-items:center;gap:10px;min-height:38px;
+  padding:7px 10px 7px 12px;border-radius:999px;
+  background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.025));
+  border:1px solid var(--line-2);box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+  font-size:13px;font-weight:650;color:var(--fg-1);
+}
+.hero-token>img{width:22px;height:22px;border-radius:50%;background:var(--bg-3);border:1px solid var(--line-2)}
+.hero-token-name{font-family:var(--mono);letter-spacing:.15px;line-height:1}
+.hero-token-sep{width:1px;height:16px;background:var(--line-2)}
+.chain-mini{display:inline-flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;letter-spacing:.9px;color:var(--fg-2)}
+.chain-mini img{width:14px;height:14px;border-radius:50%;object-fit:cover;background:transparent;box-shadow:0 0 0 1px rgba(255,255,255,.16)}
+.hero-grid{position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.hero-card{
+  background:rgba(255,255,255,.02);border:1px solid var(--line-2);border-radius:var(--r-md);
+  padding:18px 20px;transition:border-color .25s var(--ease),background .25s var(--ease),transform .25s var(--ease);
+}
+.hero-card:hover{border-color:var(--line-3);background:rgba(255,255,255,.035);transform:translateY(-1px)}
+.hc-label{font-size:10px;text-transform:uppercase;letter-spacing:1.6px;color:var(--fg-3);font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.hc-value{font-family:var(--mono);font-size:24px;font-weight:600;letter-spacing:-.5px;color:var(--fg-1);font-variant-numeric:tabular-nums}
+.hc-value.green{color:var(--profit)}
+.hc-value.gold{color:var(--gold)}
+.hc-sub{font-size:11px;color:var(--fg-3);margin-top:4px}
+.stats-strip{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px;
+}
+.stat-chip{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  min-height:58px;padding:13px 15px;background:var(--bg-2);
+  border:1px solid var(--line-2);border-radius:var(--r-md);box-shadow:var(--sh-card);
+}
+.stat-label{display:flex;align-items:center;gap:8px;color:var(--fg-3);font-size:11px;text-transform:uppercase;letter-spacing:1.2px;font-weight:650}
+.stat-label img{width:16px;height:16px;border-radius:50%}
+.stat-value{font-family:var(--mono);font-size:15px;color:var(--fg-1);font-weight:600;text-align:right}
+.stat-value.eth{color:var(--eth)}
+.stat-value.bera{color:var(--gold)}
+.stat-value.multi{color:var(--profit)}
+.grid-main{display:grid;grid-template-columns:minmax(0,1fr);gap:24px}
+.card{
+  background:var(--bg-2);border:1px solid var(--line-2);
+  border-radius:var(--r-xl);box-shadow:var(--sh-card);overflow:hidden;position:relative;
+}
+.card-head{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:20px 24px 18px;border-bottom:1px solid var(--line-1);
+  flex-wrap:wrap;
+}
+.card-title{display:flex;align-items:center;gap:10px;min-width:0}
+.card-title img{width:22px;height:22px;border-radius:50%;flex-shrink:0}
+.card-title h2{font-size:16px;font-weight:600;letter-spacing:-.1px;color:var(--fg-1);white-space:nowrap}
+.count-badge{font-family:var(--mono);font-size:11px;color:var(--fg-2);background:var(--bg-3);border:1px solid var(--line-2);padding:3px 8px;border-radius:999px}
+.card-meta{font-size:11px;color:var(--fg-3);font-family:var(--mono);display:flex;align-items:center;gap:6px}
+.pulse{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
+.toolbar{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:14px 24px;background:linear-gradient(180deg,var(--bg-1),var(--bg-2));
+  border-bottom:1px solid var(--line-1);flex-wrap:wrap;
+}
+.tb-left,.tb-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.search{
+  position:relative;display:flex;align-items:center;width:280px;height:36px;
+  background:var(--bg-3);border:1px solid var(--line-2);border-radius:10px;
+  padding:0 14px 0 36px;transition:border-color .2s var(--ease);
+}
+.search:focus-within{border-color:var(--gold-line)}
+.search svg{position:absolute;left:12px;width:14px;height:14px;color:var(--fg-3)}
+.search input{flex:1;background:none;border:0;outline:0;color:var(--fg-1);font-size:13px;min-width:0}
+.search input::placeholder{color:var(--fg-3)}
+.pill-switch{
+  position:relative;display:inline-flex;align-items:center;
+  background:var(--bg-3);border:1px solid var(--line-2);border-radius:10px;
+  padding:3px;height:36px;-webkit-user-select:none;user-select:none;
+}
+.pill-switch .opt{
+  position:relative;z-index:1;padding:0 13px;height:28px;display:inline-flex;align-items:center;gap:6px;
+  font-size:12px;font-weight:600;color:var(--fg-3);letter-spacing:.25px;
+  border-radius:8px;transition:color .2s var(--ease);
+}
+.pill-switch .opt img{width:14px;height:14px;border-radius:50%;object-fit:cover}
+.pill-switch .opt.active{color:var(--bg-0)}
+.pill-switch .slider{
+  position:absolute;top:3px;left:3px;height:28px;border-radius:8px;background:var(--gold);
+  box-shadow:0 2px 8px rgba(201,162,39,.35);transition:transform .25s var(--ease),width .25s var(--ease);
+}
+.toggle-pill{
+  display:inline-flex;align-items:center;gap:10px;height:36px;padding:0 14px 0 10px;
+  background:var(--bg-3);border:1px solid var(--line-2);border-radius:10px;
+  font-size:13px;color:var(--fg-2);transition:border-color .2s var(--ease),color .2s var(--ease);
+}
+.toggle-pill:hover{border-color:var(--line-3);color:var(--fg-1)}
+.toggle-pill.on{color:var(--fg-1);border-color:var(--gold-line);background:var(--gold-wash)}
+.toggle-track{width:26px;height:14px;border-radius:999px;background:var(--bg-4);border:1px solid var(--line-2);position:relative;transition:background .2s var(--ease)}
+.toggle-knob{position:absolute;top:1px;left:1px;width:10px;height:10px;border-radius:50%;background:var(--fg-3);transition:transform .22s var(--ease),background .22s var(--ease)}
+.toggle-pill.on .toggle-knob{transform:translateX(12px);background:var(--gold)}
+.flow-summary{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:14px 24px;border-bottom:1px solid var(--line-1);
+  background:rgba(255,255,255,.01);
+}
+.mini-card{
+  border:1px solid var(--line-1);border-radius:10px;padding:11px 12px;background:rgba(255,255,255,.018);
+}
+.mini-label{font-size:10px;color:var(--fg-3);text-transform:uppercase;letter-spacing:1.2px;font-weight:650;margin-bottom:5px}
+.mini-value{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--fg-1);font-variant-numeric:tabular-nums}
+.mini-value.green{color:var(--profit)}
+.mini-value.red{color:var(--down)}
+.mini-value.gold{color:var(--gold)}
+.flow-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:1px solid var(--line-1)}
+.flow-panel:first-child{border-right:1px solid var(--line-1)}
+.flow-panel-head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:14px 18px;border-bottom:1px solid var(--line-1);background:var(--bg-1);
+}
+.flow-panel-title{display:flex;align-items:center;gap:8px;font-size:12px;text-transform:uppercase;letter-spacing:1.2px;font-weight:700;color:var(--fg-2)}
+.flow-panel-title .dot{width:7px;height:7px;border-radius:50%}
+.flow-panel-title.green .dot{background:var(--profit)}
+.flow-panel-title.red .dot{background:var(--down)}
+.flow-panel-total{font-family:var(--mono);font-size:12px;color:var(--fg-3)}
+.tbl-wrap{
+  overflow:auto;scrollbar-color:rgba(201,162,39,.45) rgba(255,255,255,.04);scrollbar-width:thin;
+}
+.tbl-wrap.holders{max-height:660px}
+.tbl-wrap::-webkit-scrollbar{width:10px;height:10px}
+.tbl-wrap::-webkit-scrollbar-track{background:rgba(255,255,255,.035);border-radius:999px}
+.tbl-wrap::-webkit-scrollbar-thumb{background:rgba(201,162,39,.35);border:2px solid var(--bg-2);border-radius:999px}
+.tbl-wrap::-webkit-scrollbar-thumb:hover{background:rgba(201,162,39,.55)}
+.tbl{
+  width:100%;border-collapse:separate;border-spacing:0;font-size:13px;
+}
+.tbl thead th{
+  position:sticky;top:0;z-index:2;font-size:10px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;
+  color:var(--fg-3);text-align:left;padding:12px 16px;background:var(--bg-1);
+  border-bottom:1px solid var(--line-2);white-space:nowrap;user-select:none;cursor:default;
+}
+.tbl thead th[data-sort],.tbl thead th[data-flow-sort]{cursor:pointer}
+.tbl thead th.num{text-align:right}
+.tbl thead th.sorted{color:var(--gold)}
+.tbl thead th .sort{display:inline-block;margin-left:5px;color:var(--fg-4);font-size:9px}
+.tbl tbody td{
+  padding:11px 16px;border-bottom:1px solid var(--line-1);vertical-align:middle;
+  color:var(--fg-1);font-variant-numeric:tabular-nums;
+}
+.tbl tbody td.num{text-align:right;font-family:var(--mono);font-weight:500}
+.tbl tbody tr{transition:background .15s var(--ease)}
+.tbl tbody tr:hover td{background:var(--bg-3)}
+.flow-panel .tbl{table-layout:fixed}
+.flow-panel .tbl th,.flow-panel .tbl td{padding-left:12px;padding-right:12px}
+.flow-panel .tbl th:nth-child(1),.flow-panel .tbl td:nth-child(1){width:42px}
+.flow-panel .tbl th:nth-child(2),.flow-panel .tbl td:nth-child(2){width:33%}
+.flow-panel .tbl th:nth-child(3),.flow-panel .tbl td:nth-child(3){width:18%}
+.flow-panel .tbl th:nth-child(4),.flow-panel .tbl td:nth-child(4){width:19%}
+.flow-panel .tbl th:nth-child(5),.flow-panel .tbl td:nth-child(5){width:16%}
+.flow-panel .tbl th:nth-child(6),.flow-panel .tbl td:nth-child(6){width:58px}
+.rank{font-family:var(--mono);color:var(--fg-3);font-size:12px}
+.addr-cell{display:flex;align-items:center;gap:8px;min-width:0}
+.addr-main{display:flex;flex-direction:column;gap:3px;min-width:0}
+.addr-line{display:flex;align-items:center;gap:7px;min-width:0}
+.addr-link{
+  font-family:var(--mono);font-size:12px;font-weight:600;color:var(--fg-1);
+  max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.addr-link:hover{color:var(--gold)}
+.label-badge{
+  display:inline-flex;align-items:center;max-width:150px;height:18px;padding:0 6px;border-radius:5px;
+  font-size:9px;font-weight:700;letter-spacing:.35px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  border:1px solid var(--line-2);color:var(--fg-2);background:var(--bg-3);
+}
+.label-badge.cex{color:#d9b06d;border-color:rgba(201,162,39,.26);background:rgba(201,162,39,.08)}
+.label-badge.protocol,.label-badge.lp{color:#aeb5d8;border-color:rgba(143,152,200,.24);background:rgba(143,152,200,.08)}
+.label-badge.bot,.label-badge.liquidator{color:var(--down);border-color:var(--down-line);background:var(--down-wash)}
+.label-badge.investor{color:var(--profit);border-color:var(--profit-line);background:var(--profit-wash)}
+.addr-sub{display:flex;align-items:center;gap:6px;color:var(--fg-3);font-size:11px}
+.chain-dot{display:inline-flex;align-items:center;gap:4px}
+.chain-dot img{width:13px;height:13px;border-radius:50%;object-fit:cover}
+.copy-btn{
+  width:22px;height:22px;border-radius:6px;display:inline-grid;place-items:center;flex-shrink:0;
+  color:var(--fg-3);background:rgba(255,255,255,.025);border:1px solid var(--line-1);
+  transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease);
+}
+.copy-btn:hover,.copy-btn.copied{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.copy-btn svg{width:12px;height:12px}
+.num.green{color:var(--profit)}
+.num.red{color:var(--down)}
+.num.eth{color:var(--eth)}
+.num.bera{color:var(--gold)}
+.muted{color:var(--fg-3)}
+.empty{padding:30px 16px!important;text-align:center;color:var(--fg-3)!important;font-size:13px}
+.footer-line{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  padding:14px 24px;color:var(--fg-3);font-size:11px;border-top:1px solid var(--line-1);
+}
+.pager{display:flex;align-items:center;gap:6px}
+.pager button{
+  min-width:30px;height:28px;border:1px solid var(--line-2);border-radius:8px;background:var(--bg-3);
+  color:var(--fg-2);font-size:12px;transition:border-color .15s var(--ease),color .15s var(--ease),background .15s var(--ease);
+}
+.pager button:hover:not(:disabled){border-color:var(--gold-line);color:var(--fg-1);background:var(--gold-wash)}
+.pager button:disabled{opacity:.35;cursor:not-allowed}
+.pager .page-info{font-family:var(--mono);font-size:11px;color:var(--fg-3);min-width:56px;text-align:center}
+.error-box{
+  margin:24px 0;padding:18px 20px;border:1px solid var(--down-line);border-radius:var(--r-md);
+  color:var(--down);background:var(--down-wash);font-size:13px;
+}
+@media (max-width:1050px){
+  .hero-grid,.stats-strip,.flow-summary{grid-template-columns:repeat(2,1fr)}
+  .flow-grid{grid-template-columns:1fr}
+  .flow-panel:first-child{border-right:0;border-bottom:1px solid var(--line-1)}
+}
+@media (max-width:760px){
+  .wrap{padding:24px 14px 70px}
+  .site-nav{width:100%;overflow:auto;justify-content:flex-start}
+  .nav-item{padding:8px 11px;white-space:nowrap}
+  .hero{padding:22px 18px}
+  .hero-headline{align-items:flex-start}
+  .hero-grid,.stats-strip,.flow-summary{grid-template-columns:1fr}
+  .card-head,.toolbar,.footer-line{padding-left:16px;padding-right:16px}
+  .card-head{align-items:flex-start}
+  .card-head .card-meta{width:100%;justify-content:flex-start;margin-left:32px;margin-top:-6px}
+  .tb-left,.tb-right{width:100%}
+  .search{width:100%}
+  .pill-switch{max-width:100%;overflow:auto}
+  .tbl{min-width:820px}
+  .flow-panel .tbl{min-width:0}
+  .flow-panel .tbl th:nth-child(5),.flow-panel .tbl td:nth-child(5),
+  .flow-panel .tbl th:nth-child(6),.flow-panel .tbl td:nth-child(6){display:none}
+  .flow-panel .tbl th:nth-child(1),.flow-panel .tbl td:nth-child(1){width:40px}
+  .flow-panel .tbl th:nth-child(2),.flow-panel .tbl td:nth-child(2){width:48%}
+  .flow-panel .tbl th:nth-child(3),.flow-panel .tbl td:nth-child(3){width:24%}
+  .flow-panel .tbl th:nth-child(4),.flow-panel .tbl td:nth-child(4){width:28%}
+  #holdersCard .tbl{min-width:0;table-layout:fixed}
+  #holdersCard .tbl th:nth-child(3),#holdersCard .tbl td:nth-child(3),
+  #holdersCard .tbl th:nth-child(4),#holdersCard .tbl td:nth-child(4),
+  #holdersCard .tbl th:nth-child(6),#holdersCard .tbl td:nth-child(6){display:none}
+  #holdersCard .tbl th:nth-child(1),#holdersCard .tbl td:nth-child(1){width:40px}
+  #holdersCard .tbl th:nth-child(2),#holdersCard .tbl td:nth-child(2){width:62%}
+  #holdersCard .tbl th:nth-child(5),#holdersCard .tbl td:nth-child(5){width:28%}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="site-top">
+    <a class="site-brand" href="./assets/" aria-label="Dolomite dashboard">
+      <img src="TwojeKrypto dashboard.png" alt="Dolomite dashboard">
+    </a>
+    <div class="site-nav-wrap">
+      <nav class="site-nav" aria-label="Dashboard sections">
+        <a class="nav-item" href="./assets/" data-tab="assets">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>
+          Assets
+        </a>
+        <a class="nav-item active" href="./dolo/" data-tab="dolo">
+          <img src="dolo-logo.svg" alt=""> DOLO
+        </a>
+        <a class="nav-item" href="./odolo/" data-tab="odolo">
+          <img src="odolo-logo-official.svg" alt=""> oDOLO
+        </a>
+        <a class="nav-item" href="./vedolo/" data-tab="vedolo">
+          <img src="vedolo-logo.svg" alt=""> veDOLO
+        </a>
+        <a class="nav-item" href="./tvl/" data-tab="tvl">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-5 5"/></svg>
+          TVL
+        </a>
+        <a class="nav-item" href="./earn/" data-tab="earn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6"/></svg>
+          Earn
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="app" aria-live="polite">
+    <section class="hero">
+      <div class="hero-top"><img src="dolo-logo.svg" alt=""> DOLO Token</div>
+      <div class="hero-headline">
+        <div class="hero-price">
+          <div class="hero-value" id="price">—</div>
+          <div class="change-pill" id="change">— 24h</div>
+        </div>
+        <div class="hero-token" title="DOLO contract is tracked across Ethereum and Berachain">
+          <img src="dolo-logo.svg" alt="">
+          <span class="hero-token-name">DOLO</span>
+          <span class="hero-token-sep"></span>
+          <span class="chain-mini"><img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" alt=""> ETH</span>
+          <span class="chain-mini"><img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" alt=""> BERA</span>
+        </div>
+      </div>
+      <div class="hero-grid">
+        <div class="hero-card">
+          <div class="hc-label">Market Cap</div>
+          <div class="hc-value green" id="marketCap">—</div>
+          <div class="hc-sub">via CoinGecko snapshot</div>
+        </div>
+        <div class="hero-card">
+          <div class="hc-label">24h Volume</div>
+          <div class="hc-value" id="volume">—</div>
+          <div class="hc-sub">spot trading activity</div>
+        </div>
+        <div class="hero-card">
+          <div class="hc-label">Circulating Supply</div>
+          <div class="hc-value" id="circSupply">—</div>
+          <div class="hc-sub">current reported supply</div>
+        </div>
+        <div class="hero-card">
+          <div class="hc-label">Tracked Holders</div>
+          <div class="hc-value gold" id="holdersCount">—</div>
+          <div class="hc-sub">Ethereum + Berachain</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="stats-strip" aria-label="DOLO holder distribution">
+      <div class="stat-chip">
+        <div class="stat-label"><img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" alt=""> ETH only</div>
+        <div class="stat-value eth" id="ethOnly">—</div>
+      </div>
+      <div class="stat-chip">
+        <div class="stat-label"><img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" alt=""> BERA only</div>
+        <div class="stat-value bera" id="beraOnly">—</div>
+      </div>
+      <div class="stat-chip">
+        <div class="stat-label">Both chains</div>
+        <div class="stat-value multi" id="bothChains">—</div>
+      </div>
+      <div class="stat-chip">
+        <div class="stat-label">Tracked supply</div>
+        <div class="stat-value" id="trackedSupply">—</div>
+      </div>
+    </section>
+
+    <div class="grid-main">
+      <section class="card" id="flowCard">
+        <div class="card-head">
+          <div class="card-title">
+            <img src="dolo-logo.svg" alt="">
+            <h2>DOLO Flow</h2>
+            <span class="count-badge" id="flowPeriodLabel">1D</span>
+          </div>
+          <div class="card-meta"><span class="pulse"></span><span id="flowUpdated">Loading...</span></div>
+        </div>
+        <div class="toolbar">
+          <div class="tb-left">
+            <label class="search">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              <input id="flowSearch" type="search" placeholder="Search address or label">
+            </label>
+            <div class="pill-switch" id="flowChainPills" data-state="all">
+              <span class="slider"></span>
+              <button class="opt active" data-chain="all">All</button>
+              <button class="opt" data-chain="eth"><img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" alt=""> ETH</button>
+              <button class="opt" data-chain="bera"><img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" alt=""> BERA</button>
+            </div>
+          </div>
+          <div class="tb-right">
+            <button class="toggle-pill" id="flowHideKnown" type="button" aria-pressed="false">
+              <span class="toggle-track"><span class="toggle-knob"></span></span>
+              Hide CEX, CA & Bots
+            </button>
+            <div class="pill-switch" id="flowPeriodPills" data-state="1d">
+              <span class="slider"></span>
+              <button class="opt active" data-period="1d">1D</button>
+              <button class="opt" data-period="7d">7D</button>
+              <button class="opt" data-period="30d">30D</button>
+              <button class="opt" data-period="90d">90D</button>
+              <button class="opt" data-period="180d">180D</button>
+              <button class="opt" data-period="all">ALL</button>
+            </div>
+          </div>
+        </div>
+        <div class="flow-summary">
+          <div class="mini-card">
+            <div class="mini-label">Net flow</div>
+            <div class="mini-value" id="netFlow">—</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-label">Accumulated</div>
+            <div class="mini-value green" id="totalAcc">—</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-label">Outflow</div>
+            <div class="mini-value red" id="totalSell">—</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-label">Transfers</div>
+            <div class="mini-value gold" id="totalTransfers">—</div>
+          </div>
+        </div>
+        <div class="flow-grid">
+          <div class="flow-panel">
+            <div class="flow-panel-head">
+              <div class="flow-panel-title green"><span class="dot"></span> Top Accumulators</div>
+              <div class="flow-panel-total" id="accCount">—</div>
+            </div>
+            <div class="tbl-wrap">
+              <table class="tbl">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Address</th>
+                    <th class="num" data-flow-table="acc" data-flow-sort="balance">Balance <span class="sort">⇅</span></th>
+                    <th class="num sorted" data-flow-table="acc" data-flow-sort="display_flow">Net DOLO <span class="sort">▼</span></th>
+                    <th class="num">USD</th>
+                    <th class="num">Txs</th>
+                  </tr>
+                </thead>
+                <tbody id="accRows"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="flow-panel">
+            <div class="flow-panel-head">
+              <div class="flow-panel-title red"><span class="dot"></span> Top Outflows</div>
+              <div class="flow-panel-total" id="sellCount">—</div>
+            </div>
+            <div class="tbl-wrap">
+              <table class="tbl">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Address</th>
+                    <th class="num" data-flow-table="sell" data-flow-sort="balance">Balance <span class="sort">⇅</span></th>
+                    <th class="num sorted" data-flow-table="sell" data-flow-sort="display_flow">Net DOLO <span class="sort">▼</span></th>
+                    <th class="num">USD</th>
+                    <th class="num">Txs</th>
+                  </tr>
+                </thead>
+                <tbody id="sellRows"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" id="holdersCard">
+        <div class="card-head">
+          <div class="card-title">
+            <img src="dolo-logo.svg" alt="">
+            <h2>DOLO Holders</h2>
+            <span class="count-badge" id="holderCount">—</span>
+          </div>
+          <div class="card-meta"><span class="pulse"></span><span id="holdersUpdated">Loading...</span></div>
+        </div>
+        <div class="toolbar">
+          <div class="tb-left">
+            <label class="search">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              <input id="holderSearch" type="search" placeholder="Search address or label">
+            </label>
+            <div class="pill-switch" id="holderChainPills" data-state="all">
+              <span class="slider"></span>
+              <button class="opt active" data-chain="all">All</button>
+              <button class="opt" data-chain="eth"><img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" alt=""> ETH</button>
+              <button class="opt" data-chain="bera"><img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" alt=""> BERA</button>
+              <button class="opt" data-chain="both">Both</button>
+            </div>
+          </div>
+          <div class="tb-right">
+            <button class="toggle-pill" id="holderHideKnown" type="button" aria-pressed="false">
+              <span class="toggle-track"><span class="toggle-knob"></span></span>
+              Hide CEX, CA & Bots
+            </button>
+            <div class="pill-switch" id="holderPeriodPills" data-state="1d">
+              <span class="slider"></span>
+              <button class="opt active" data-period="1d">1D</button>
+              <button class="opt" data-period="7d">7D</button>
+              <button class="opt" data-period="30d">30D</button>
+              <button class="opt" data-period="90d">90D</button>
+              <button class="opt" data-period="180d">180D</button>
+              <button class="opt" data-period="all">ALL</button>
+            </div>
+          </div>
+        </div>
+        <div class="tbl-wrap holders">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th data-sort="rank" class="sorted"># <span class="sort">▲</span></th>
+                <th data-sort="address">Address <span class="sort">⇅</span></th>
+                <th class="num" data-sort="balance_eth">ETH <span class="sort">⇅</span></th>
+                <th class="num" data-sort="balance_bera">BERA <span class="sort">⇅</span></th>
+                <th class="num" data-sort="balance">Balance <span class="sort">⇅</span></th>
+                <th class="num" data-sort="change">Change <span class="sort">⇅</span></th>
+              </tr>
+            </thead>
+            <tbody id="holderRows"></tbody>
+          </table>
+        </div>
+        <div class="footer-line">
+          <span id="holderFooter">—</span>
+          <div class="pager">
+            <button id="firstPage" type="button">«</button>
+            <button id="prevPage" type="button">‹</button>
+            <span class="page-info" id="pageInfo">—</span>
+            <button id="nextPage" type="button">›</button>
+            <button id="lastPage" type="button">»</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+const ETH_ICON = "https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg";
+const BERA_ICON = "https://icons.llamao.fi/icons/chains/rsz_berachain.jpg";
+const PERIOD_LABELS = { "1d":"1D", "7d":"7D", "30d":"30D", "90d":"90D", "180d":"180D", all:"ALL" };
+const DOLO_ADDR_LABELS = {
+  "0x3e9b9a16743551da49b5e136c716bba7932d2cec":{label:"oDOLO Vester",type:"protocol",treasury:true},
+  "0xf977814e90da44bfa03b6295a0616a897441acec":{label:"Binance 8",type:"cex"},
+  "0x28c6c06298d514db089934071355e5743bf21d60":{label:"Binance 14",type:"cex"},
+  "0x21a31ee1afc51d94c2efccaa2092ad1028285549":{label:"Binance 35",type:"cex"},
+  "0xdfd5293d8e347dfe59e90efd55b2956a1343963d":{label:"Binance US",type:"cex"},
+  "0xbe0eb53f46cd790cd13851d5eff43d12404d33e8":{label:"Binance 7",type:"cex"},
+  "0x56eddb7aa87536c09ccc2793473599fd21a8b17f":{label:"Binance 16",type:"cex"},
+  "0x9696f59e4d72e237be84ffd425dcad154bf96976":{label:"Binance 18",type:"cex"},
+  "0xa9d1e08c7793af67e9d92fe308d5697fb81d3e43":{label:"Binance Deposit",type:"cex"},
+  "0xd862cdcfeb856c32b3c4f7563f4811d8ddfd42e2":{label:"CA",type:"protocol"},
+  "0x1103fc560de8b710983e7f3ec09d587f3f848566":{label:"CA",type:"protocol"},
+  "0x035ae7d933dcbfe617ffba194a88af0c2867b90c":{label:"Gate.io",type:"cex"},
+  "0x8782163068c7cd74d2510768a61135c1e4eb07b3":{label:"Gate.io",type:"cex"},
+  "0x0d0707963952f2fba59dd06f2b425ace40b492fe":{label:"Gate.io",type:"cex"},
+  "0xf89d7b9c864f589bbf53a82105107622b35eaa40":{label:"Bybit",type:"cex"},
+  "0xdf3100ac6c20c4a9443ece6c639c4ee91d592062":{label:"Coinbase",type:"cex"},
+  "0xe337c67ee9077e31aab205b25e8593b0e1c00cc4":{label:"Coinbase",type:"cex"},
+  "0x38fc9e8c73ea02f3a7de1da0760e71277f1e5e24":{label:"Coinbase",type:"cex"},
+  "0x305833cadd13a6d7febc6619304a6943a9a1ed22":{label:"Binance",type:"cex"},
+  "0x478271c960137418c9d90082dddbf68aa72e4367":{label:"Gate.io",type:"cex"},
+  "0x43684d03d81d3a4c70da68febdd61029d426f042":{label:"Binance 117",type:"cex"},
+  "0x7a1d00de77c0162d55d84a051bdc6840852b4a60":{label:"CEX or MM",type:"cex"},
+  "0x9642b23ed1e01df1092b92641051881a322f5d4e":{label:"MEXC",type:"cex"},
+  "0x1157a2076b9bb22a85cc2c162f20fab3898f4101":{label:"FalconX",type:"cex"},
+  "0x0529ea5885702715e83923c59746ae8734c553b7":{label:"Bitpanda",type:"cex"},
+  "0xd2dd7b597fd2435b6db61ddf48544fd931e6869f":{label:"Kraken",type:"cex"},
+  "0xfc89c020774524c9d03bd5de48fec149b10bdec3":{label:"CEX or MM",type:"cex"},
+  "0xd5c342acbeedef81ab8e6072323bfda76172d05f":{label:"CEX or MM",type:"cex"},
+  "0x38285671612d6f0ef7c3483f500d39fa71d66a1c":{label:"CEX or MM",type:"cex"},
+  "0x98adef6f2ac8572ec48965509d69a8dd5e8bba9d":{label:"Binance 93",type:"cex"},
+  "0x93ae9fe008636d2d6d7376198a54edb20367968f":{label:"CEX or MM",type:"cex"},
+  "0x753f43cca3dbd2bbe963609f8d25a833433a10c9":{label:"Gate.io",type:"cex"},
+  "0xb8001c3ec9aa1985f6c747e25c28324e4a361ec1":{label:"Cobo Custody",type:"cex"},
+  "0x2b3bf74b29f59fb8dda41cf3d6a8da28cf8e7921":{label:"BingX 29",type:"cex"},
+  "0x003896387666c5c11458eeb3f927b72a11b19783":{label:"Uniswap V3 DOLO/USDC",type:"lp"},
+  "0xd5980e98a89e2d2361b3be657e8a003c6d3514e3":{label:"Kodiak DOLO/WBERA",type:"lp"},
+  "0x8991017b74f9f8070bff5b322802dd26e05e0cc7":{label:"Bulla DOLO/HONEY",type:"lp"},
+  "0xcb86b75ee6133d179a12d550b09fb3cdb1e141d4":{label:"veDOLO",type:"protocol"},
+  "0x89576fce04dd73933f74bbcd4e6f0d9125118542":{label:"Borrow Position Proxy",type:"protocol",treasury:true},
+  "0x003ca23fd5f0ca87d01f6ec6cd14a8ae60c2b97d":{label:"Dolomite Margin",type:"protocol",treasury:true},
+  "0x06265db7ecd9c5724a97bd4909146625d2e2619c":{label:"Operational Wallet",type:"protocol",treasury:true},
+  "0x000000000004444c5dc75cb358380d2e3de08a90":{label:"Permit2",type:"protocol"},
+  "0x2f41d42de3eab9e75f3d417259f24421771fb700":{label:"Dolomite EOA",type:"protocol",treasury:true},
+  "0x6e939bbaceb45159982a2cac3a1fcbf7e93cf682":{label:"Dolomite Main",type:"protocol",treasury:true},
+  "0xa75c21c5be284122a87a37a76cc6c4dd3e55a1d4":{label:"Gnosis Safe Multisig",type:"protocol",treasury:true},
+  "0xcfc30d38a47817363a98a46834acf7040b17d7b0":{label:"Admin Proxy",type:"protocol",treasury:true},
+  "0xd88f473832b0403c7736ef237af5aff8759b99ef":{label:"oDOLO Airdrop",type:"protocol",treasury:true},
+  "0x51b3116ef47073ab8a0353a2751dc533d4238527":{label:"Revenue Proxy",type:"protocol",treasury:true},
+  "0xa3f079292cc35ba64996fe0bce3049928a838bc9":{label:"Treasury Proxy",type:"protocol",treasury:true},
+  "0x185000fb4d98acea1a771db3714a431f7fe51cac":{label:"Core Team 1",type:"protocol",treasury:true},
+  "0x882e6d630a8c70a6a8d29a4d33f960b1267aa3d1":{label:"Core Team 2",type:"protocol",treasury:true},
+  "0x6c97802a1815bc459004c686560244de28a2de75":{label:"Core Team 3",type:"protocol",treasury:true},
+  "0x665b3ce67daeb5b19d4d14bbdb6297da0ffa5bf1":{label:"Core Team 4",type:"protocol",treasury:true},
+  "0x3f1f155949f32fa3e688093d176a1b5a72c488eb":{label:"Core Team 5",type:"protocol",treasury:true},
+  "0xf2b42104b5ac0b3145a5e18b84aa3fd76d0fdeec":{label:"Core Team 6",type:"protocol",treasury:true},
+  "0xb8ba44d5e46562ec011ade12603f353b18089a41":{label:"Core Team 7",type:"protocol",treasury:true},
+  "0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07":{label:"Investor Vesting CA",type:"protocol",treasury:true},
+  "0xbf3c4e55a444ed489736c3d856b0cd0533fc2edd":{label:"Core Team 8",type:"protocol",treasury:true},
+  "0x7efd088ae500598a19a242d6d48b9f7e0d061176":{label:"Early Investor Vesting CA",type:"protocol",treasury:true},
+  "0xb05ba67c11fc0b92a7bcb18e50cba87ce2d15109":{label:"Bot / MM",type:"bot"},
+  "0x5a6f918fcda24e9b5143f3a1b77e63df6de30f74":{label:"Bot / MM",type:"bot"},
+  "0x6a2383cff0d46d2b7d29759f17c26fba726f3ea3":{label:"Bot / MM",type:"bot"},
+  "0x278d858f05b94576c1e6f73285886876ff6ef8d2":{label:"Bot (CA)",type:"bot"},
+  "0x1ff6b8e1192eb0369006bbad76da9068b68961b2":{label:"Liquidator",type:"liquidator"},
+  "0xb7131fc8cdc43060a6210257f537dba5fcae6aed":{label:"MEV / Liquidator Bot",type:"liquidator"},
+  "0x9e7728077f753dfdf53c2236097e27c743890992":{label:"DEX Router",type:"protocol"},
+  "0xb180647d5ad76abeb6be0d363f6e182bd8df46d1":{label:"Coinbase",type:"cex"},
+  "0xd97107064b8c7520aae6c6e6ca75bb2aa73b670d":{label:"CEX Whale",type:"cex"},
+  "0x9cb677f2a8daa9511ae79c2ba56395552b5d030d":{label:"Active Trader/Bot",type:"bot"}
+};
+
+const state = {
+  price:null,
+  holders:null,
+  flows:null,
+  flowPeriod:"1d",
+  flowChain:"all",
+  flowSearch:"",
+  flowHideKnown:false,
+  holderChain:"all",
+  holderSearch:"",
+  holderHideKnown:false,
+  holderPeriod:"1d",
+  holderPage:1,
+  holderSort:"rank",
+  holderSortAsc:true,
+  flowSort:{acc:"display_flow",sell:"display_flow"},
+  flowSortAsc:{acc:false,sell:false}
+};
+const HOLDER_PER_PAGE = 18;
+const FLOW_LIMIT = 10;
+const $ = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+
+function escapeHtml(value){
+  return String(value ?? "").replace(/[&<>"']/g, ch => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[ch]));
+}
+function fmtUsd(value){
+  const n = Number(value) || 0;
+  const sign = n < 0 ? "-" : "";
+  const abs = Math.abs(n);
+  if (abs >= 1e9) return `${sign}$${(abs/1e9).toFixed(2)}B`;
+  if (abs >= 1e6) return `${sign}$${(abs/1e6).toFixed(2)}M`;
+  if (abs >= 1e3) return `${sign}$${(abs/1e3).toFixed(1)}K`;
+  return `${sign}$${abs.toFixed(abs >= 10 ? 0 : 2)}`;
+}
+function fmtToken(value, digits=1){
+  const n = Number(value) || 0;
+  const abs = Math.abs(n);
+  if (abs >= 1e9) return `${(n/1e9).toFixed(2)}B`;
+  if (abs >= 1e6) return `${(n/1e6).toFixed(digits)}M`;
+  if (abs >= 1e3) return `${(n/1e3).toFixed(digits)}K`;
+  return n.toLocaleString("en-US",{maximumFractionDigits:abs >= 100 ? 0 : 2});
+}
+function fmtInt(value){return (Number(value)||0).toLocaleString("en-US",{maximumFractionDigits:0})}
+function shortAddr(addr){return `${addr.slice(0,6)}...${addr.slice(-4)}`}
+function infoFor(addr){return DOLO_ADDR_LABELS[String(addr||"").toLowerCase()] || null}
+function isKnownOrContract(row){
+  const info = infoFor(row.address);
+  return Boolean(info && ["cex","protocol","lp","bot","liquidator"].includes(info.type)) || Boolean(row.is_contract);
+}
+function hasChain(row, chain){return Array.isArray(row.chains) && row.chains.includes(chain)}
+function explorerUrl(addr, chain){
+  return chain === "bera" ? `https://berascan.com/address/${addr}` : `https://etherscan.io/address/${addr}`;
+}
+function primaryChain(row){
+  if (hasChain(row,"bera") && !hasChain(row,"eth")) return "bera";
+  if (hasChain(row,"eth") && !hasChain(row,"bera")) return "eth";
+  return "eth";
+}
+function matchesSearch(addr, query){
+  if (!query) return true;
+  const lower = String(addr||"").toLowerCase();
+  if (lower.includes(query)) return true;
+  const info = infoFor(addr);
+  return Boolean(info && (`${info.label} ${info.type}`).toLowerCase().includes(query));
+}
+function changeMap(period){
+  const raw = state.flows?.balance_changes?.[period] || {};
+  return new Map(Object.entries(raw).map(([addr,val]) => [addr.toLowerCase(), Number(val)||0]));
+}
+function copyIcon(){
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+}
+function chainBadges(row){
+  const parts = [];
+  if (hasChain(row,"eth")) parts.push(`<span class="chain-dot"><img src="${ETH_ICON}" alt="">ETH</span>`);
+  if (hasChain(row,"bera")) parts.push(`<span class="chain-dot"><img src="${BERA_ICON}" alt="">BERA</span>`);
+  if (!parts.length) parts.push(`<span class="muted">No chain</span>`);
+  return parts.join("");
+}
+function addressCell(row, chain){
+  const info = infoFor(row.address);
+  const label = info ? `<span class="label-badge ${escapeHtml(info.type)}" title="${escapeHtml(info.label)}">${escapeHtml(info.label)}</span>` : "";
+  const url = explorerUrl(row.address, chain || primaryChain(row));
+  return `
+    <div class="addr-cell">
+      <button class="copy-btn" type="button" data-copy="${escapeHtml(row.address)}" title="Copy address">${copyIcon()}</button>
+      <div class="addr-main">
+        <div class="addr-line">
+          <a class="addr-link" href="${url}" target="_blank" rel="noopener" title="${escapeHtml(row.address)}">${shortAddr(row.address)}</a>
+          ${label}
+        </div>
+        <div class="addr-sub">${chainBadges(row)}</div>
+      </div>
+    </div>
+  `;
+}
+function updatePillSlider(container){
+  const slider = $(".slider", container);
+  const active = $(".opt.active", container);
+  if (!slider || !active) return;
+  const box = container.getBoundingClientRect();
+  const btn = active.getBoundingClientRect();
+  if (!btn.width) return;
+  slider.style.width = `${btn.width}px`;
+  slider.style.transform = `translateX(${btn.left - box.left - 3}px)`;
+}
+function initPills(containerId, attr, callback){
+  const container = $(`#${containerId}`);
+  if (!container) return;
+  $$(".opt", container).forEach(btn => {
+    btn.addEventListener("click", () => {
+      $$(".opt", container).forEach(opt => opt.classList.remove("active"));
+      btn.classList.add("active");
+      container.dataset.state = btn.dataset[attr] || "";
+      updatePillSlider(container);
+      callback(btn.dataset[attr], btn);
+    });
+  });
+  requestAnimationFrame(() => updatePillSlider(container));
+}
+function initToggle(id, prop, render){
+  const btn = $(`#${id}`);
+  btn.addEventListener("click", () => {
+    state[prop] = !state[prop];
+    btn.classList.toggle("on", state[prop]);
+    btn.setAttribute("aria-pressed", String(state[prop]));
+    render();
+  });
+}
+async function fetchJson(path){
+  const res = await fetch(`${path}?v=${Date.now()}`, {cache:"no-cache"});
+  if (!res.ok) throw new Error(`${path} returned HTTP ${res.status}`);
+  return res.json();
+}
+async function loadDynamicLabels(){
+  try{
+    const data = await fetchJson("vesting_investors.json");
+    if (data && !Array.isArray(data)){
+      for (const addr of data.early_investors || []) DOLO_ADDR_LABELS[addr.toLowerCase()] ||= {label:"Early Investor",type:"investor"};
+      for (const addr of data.investors || []) DOLO_ADDR_LABELS[addr.toLowerCase()] ||= {label:"Investor",type:"investor"};
+      for (const addr of data.team || []) DOLO_ADDR_LABELS[addr.toLowerCase()] ||= {label:"Core Team",type:"protocol",treasury:true};
+    }
+  }catch(_){}
+}
+function renderHero(){
+  const p = state.price || {};
+  $("#price").textContent = p.price ? `$${Number(p.price).toFixed(4)}` : "—";
+  const change = Number(p.change_24h) || 0;
+  const changeEl = $("#change");
+  changeEl.textContent = `${change >= 0 ? "+" : ""}${change.toFixed(2)}% 24h`;
+  changeEl.classList.toggle("up", change >= 0);
+  changeEl.classList.toggle("down", change < 0);
+  $("#marketCap").textContent = fmtUsd(p.market_cap);
+  $("#volume").textContent = fmtUsd(p.volume_24h);
+  $("#circSupply").textContent = fmtToken(p.circulating_supply,2);
+  const stats = state.holders?.stats || {};
+  $("#holdersCount").textContent = fmtInt(stats.total_holders);
+  $("#ethOnly").textContent = fmtInt(stats.eth_only);
+  $("#beraOnly").textContent = fmtInt(stats.bera_only);
+  $("#bothChains").textContent = fmtInt(stats.both_chains);
+  $("#trackedSupply").textContent = `${fmtToken(stats.total_supply_tracked,2)} DOLO`;
+  if (state.price?.last_updated) $("#flowUpdated").textContent = `Price: ${new Date(state.price.last_updated).toLocaleString()}`;
+  if (state.holders?.timestamp) $("#holdersUpdated").textContent = `Updated: ${new Date(state.holders.timestamp).toLocaleString()}`;
+}
+function mergeFlows(kind){
+  const period = state.flows?.periods?.[state.flowPeriod] || {};
+  const chains = state.flowChain === "all" ? ["eth","bera"] : [state.flowChain];
+  const map = new Map();
+  for (const chain of chains){
+    const cd = period[chain] || {};
+    for (const row of cd.accumulators || []){
+      const key = row.address.toLowerCase();
+      const cur = map.get(key) || {address:row.address,net_flow:0,usd_value:0,tx_count:0,balance:0,chains:[],is_contract:false};
+      cur.net_flow += Number(row.net_flow)||0;
+      cur.usd_value += Number(row.usd_value)||0;
+      cur.tx_count += Number(row.tx_count)||0;
+      cur.balance = Math.max(cur.balance, Number(row.balance)||0);
+      if (!cur.chains.includes(chain)) cur.chains.push(chain);
+      map.set(key, cur);
+    }
+    for (const row of cd.sellers || []){
+      const key = row.address.toLowerCase();
+      const cur = map.get(key) || {address:row.address,net_flow:0,usd_value:0,tx_count:0,balance:0,chains:[],is_contract:false};
+      cur.net_flow -= Number(row.net_flow)||0;
+      cur.usd_value += Number(row.usd_value)||0;
+      cur.tx_count += Number(row.tx_count)||0;
+      cur.balance = Math.max(cur.balance, Number(row.balance)||0);
+      if (!cur.chains.includes(chain)) cur.chains.push(chain);
+      map.set(key, cur);
+    }
+  }
+  let rows = Array.from(map.values()).map(row => {
+    const holder = holderByAddress(row.address);
+    if (holder){
+      row.balance = holder.balance || row.balance;
+      row.balance_eth = holder.balance_eth || 0;
+      row.balance_bera = holder.balance_bera || 0;
+      row.is_contract = Boolean(holder.is_contract);
+      row.chains = holder.chains?.length ? holder.chains : row.chains;
+    }
+    return row;
+  });
+  rows = rows.filter(row => kind === "acc" ? row.net_flow > 0 : row.net_flow < 0);
+  rows = rows.map(row => ({...row, display_flow:Math.abs(row.net_flow)}));
+  if (state.flowSearch) rows = rows.filter(row => matchesSearch(row.address, state.flowSearch));
+  if (state.flowHideKnown) rows = rows.filter(row => !isKnownOrContract(row));
+  return rows;
+}
+function sortFlowRows(rows, type){
+  const sort = state.flowSort[type] || "display_flow";
+  const asc = Boolean(state.flowSortAsc[type]);
+  const direction = asc ? 1 : -1;
+  return rows.sort((a,b) => {
+    const av = Number(a[sort]) || 0;
+    const bv = Number(b[sort]) || 0;
+    if (av < bv) return -1 * direction;
+    if (av > bv) return 1 * direction;
+    return String(a.address).localeCompare(String(b.address));
+  });
+}
+function periodTransferCount(){
+  const period = state.flows?.periods?.[state.flowPeriod] || {};
+  if (state.flowChain === "all") return (period.eth?.total_transfers || 0) + (period.bera?.total_transfers || 0);
+  return period[state.flowChain]?.total_transfers || 0;
+}
+function holderByAddress(addr){
+  const rows = state.holders?.holders || [];
+  const lower = String(addr||"").toLowerCase();
+  return rows.find(row => row.address.toLowerCase() === lower);
+}
+function renderFlow(){
+  if (!state.flows) return;
+  $("#flowPeriodLabel").textContent = PERIOD_LABELS[state.flowPeriod];
+  if (state.flows.timestamp) $("#flowUpdated").textContent = `Updated: ${new Date(`${state.flows.timestamp}Z`).toLocaleString()}`;
+  const acc = sortFlowRows(mergeFlows("acc"), "acc");
+  const sell = sortFlowRows(mergeFlows("sell"), "sell");
+  const totalAcc = acc.reduce((sum,row) => sum + row.display_flow, 0);
+  const totalSell = sell.reduce((sum,row) => sum + row.display_flow, 0);
+  const net = totalAcc - totalSell;
+  const netEl = $("#netFlow");
+  netEl.textContent = `${net >= 0 ? "+" : "-"}${fmtToken(Math.abs(net),1)} DOLO`;
+  netEl.classList.toggle("green", net >= 0);
+  netEl.classList.toggle("red", net < 0);
+  $("#totalAcc").textContent = `+${fmtToken(totalAcc,1)}`;
+  $("#totalSell").textContent = `-${fmtToken(totalSell,1)}`;
+  $("#totalTransfers").textContent = fmtInt(periodTransferCount());
+  $("#accCount").textContent = `${fmtInt(acc.length)} wallets`;
+  $("#sellCount").textContent = `${fmtInt(sell.length)} wallets`;
+  $("#accRows").innerHTML = renderFlowRows(acc.slice(0,FLOW_LIMIT), true);
+  $("#sellRows").innerHTML = renderFlowRows(sell.slice(0,FLOW_LIMIT), false);
+  updateFlowSortHeaders();
+}
+function renderFlowRows(rows, isAcc){
+  if (!rows.length) return `<tr><td colspan="6" class="empty">No matching flow data</td></tr>`;
+  return rows.map((row,i) => {
+    const chain = state.flowChain === "all" ? primaryChain(row) : state.flowChain;
+    return `
+      <tr>
+        <td class="rank">${i + 1}</td>
+        <td>${addressCell(row, chain)}</td>
+        <td class="num">${fmtToken(row.balance,1)}</td>
+        <td class="num ${isAcc ? "green" : "red"}">${isAcc ? "+" : "-"}${fmtToken(row.display_flow,1)}</td>
+        <td class="num muted">${fmtUsd(row.usd_value)}</td>
+        <td class="num muted">${fmtInt(row.tx_count)}</td>
+      </tr>
+    `;
+  }).join("");
+}
+function filteredHolders(){
+  const q = state.holderSearch;
+  const cm = changeMap(state.holderPeriod);
+  let rows = (state.holders?.holders || []).filter(row => {
+    if (state.holderHideKnown && !matchesSearch(row.address, q) && isKnownOrContract(row)) return false;
+    if (q && !matchesSearch(row.address, q)) return false;
+    if (state.holderChain === "eth") return hasChain(row,"eth");
+    if (state.holderChain === "bera") return hasChain(row,"bera");
+    if (state.holderChain === "both") return hasChain(row,"eth") && hasChain(row,"bera");
+    return true;
+  }).map(row => ({...row, change:cm.get(row.address.toLowerCase()) || 0}));
+  const direction = state.holderSortAsc ? 1 : -1;
+  const key = state.holderSort;
+  rows.sort((a,b) => {
+    let av = key === "address" ? a.address.toLowerCase() : Number(a[key]) || 0;
+    let bv = key === "address" ? b.address.toLowerCase() : Number(b[key]) || 0;
+    if (av < bv) return -1 * direction;
+    if (av > bv) return 1 * direction;
+    return (a.rank || 0) - (b.rank || 0);
+  });
+  return rows;
+}
+function displayBalance(row){
+  if (state.holderChain === "eth") return row.balance_eth || 0;
+  if (state.holderChain === "bera") return row.balance_bera || 0;
+  return row.balance || 0;
+}
+function renderHolders(){
+  const rows = filteredHolders();
+  const pages = Math.max(1, Math.ceil(rows.length / HOLDER_PER_PAGE));
+  state.holderPage = Math.max(1, Math.min(state.holderPage, pages));
+  const start = (state.holderPage - 1) * HOLDER_PER_PAGE;
+  const page = rows.slice(start, start + HOLDER_PER_PAGE);
+  $("#holderCount").textContent = fmtInt(rows.length);
+  $("#holderRows").innerHTML = page.length ? page.map(renderHolderRow).join("") : `<tr><td colspan="6" class="empty">No matching holders</td></tr>`;
+  $("#holderFooter").textContent = `Showing ${rows.length ? fmtInt(start + 1) : 0}-${fmtInt(Math.min(start + HOLDER_PER_PAGE, rows.length))} of ${fmtInt(rows.length)} wallets`;
+  $("#pageInfo").textContent = `${state.holderPage} / ${pages}`;
+  $("#firstPage").disabled = state.holderPage === 1;
+  $("#prevPage").disabled = state.holderPage === 1;
+  $("#nextPage").disabled = state.holderPage === pages;
+  $("#lastPage").disabled = state.holderPage === pages;
+  updateHolderSortHeaders();
+}
+function renderHolderRow(row){
+  const chain = primaryChain(row);
+  const change = Number(row.change) || 0;
+  const changeClass = change > 0 ? "green" : change < 0 ? "red" : "muted";
+  const changeText = change ? `${change > 0 ? "+" : "-"}${fmtToken(Math.abs(change),1)}` : "—";
+  return `
+    <tr>
+      <td class="rank">${row.rank || "—"}</td>
+      <td>${addressCell(row, chain)}</td>
+      <td class="num eth">${row.balance_eth ? fmtToken(row.balance_eth,1) : "—"}</td>
+      <td class="num bera">${row.balance_bera ? fmtToken(row.balance_bera,1) : "—"}</td>
+      <td class="num">${fmtToken(displayBalance(row),1)}</td>
+      <td class="num ${changeClass}" title="${PERIOD_LABELS[state.holderPeriod]} balance change">${changeText}</td>
+    </tr>
+  `;
+}
+function updateHolderSortHeaders(){
+  $$("#holdersCard th[data-sort]").forEach(th => {
+    th.classList.toggle("sorted", th.dataset.sort === state.holderSort);
+    const sort = $(".sort", th);
+    if (sort) sort.textContent = th.dataset.sort === state.holderSort ? (state.holderSortAsc ? "▲" : "▼") : "⇅";
+  });
+}
+function updateFlowSortHeaders(){
+  $$("#flowCard th[data-flow-sort]").forEach(th => {
+    const type = th.dataset.flowTable;
+    const sort = th.dataset.flowSort;
+    const active = state.flowSort[type] === sort;
+    th.classList.toggle("sorted", active);
+    const icon = $(".sort", th);
+    if (icon) icon.textContent = active ? (state.flowSortAsc[type] ? "▲" : "▼") : "⇅";
+  });
+}
+function updateAllPillSliders(){
+  $$(".pill-switch").forEach(updatePillSlider);
+}
+function bindEvents(){
+  initPills("flowPeriodPills","period", value => {state.flowPeriod = value; renderFlow();});
+  initPills("flowChainPills","chain", value => {state.flowChain = value; renderFlow();});
+  initPills("holderChainPills","chain", value => {state.holderChain = value; state.holderPage = 1; renderHolders();});
+  initPills("holderPeriodPills","period", value => {state.holderPeriod = value; renderHolders();});
+  initToggle("flowHideKnown","flowHideKnown", renderFlow);
+  initToggle("holderHideKnown","holderHideKnown", () => {state.holderPage = 1; renderHolders();});
+  $("#flowSearch").addEventListener("input", event => {state.flowSearch = event.target.value.toLowerCase().trim(); renderFlow();});
+  $("#holderSearch").addEventListener("input", event => {state.holderSearch = event.target.value.toLowerCase().trim(); state.holderPage = 1; renderHolders();});
+  $$("#holdersCard th[data-sort]").forEach(th => th.addEventListener("click", () => {
+    const sort = th.dataset.sort;
+    if (state.holderSort === sort) state.holderSortAsc = !state.holderSortAsc;
+    else {
+      state.holderSort = sort;
+      state.holderSortAsc = sort === "rank" || sort === "address";
+    }
+    state.holderPage = 1;
+    renderHolders();
+  }));
+  $$("#flowCard th[data-flow-sort]").forEach(th => th.addEventListener("click", () => {
+    const type = th.dataset.flowTable;
+    const sort = th.dataset.flowSort;
+    if (state.flowSort[type] === sort) state.flowSortAsc[type] = !state.flowSortAsc[type];
+    else {
+      state.flowSort[type] = sort;
+      state.flowSortAsc[type] = false;
+    }
+    renderFlow();
+  }));
+  $("#firstPage").addEventListener("click", () => {state.holderPage = 1; renderHolders();});
+  $("#prevPage").addEventListener("click", () => {state.holderPage -= 1; renderHolders();});
+  $("#nextPage").addEventListener("click", () => {state.holderPage += 1; renderHolders();});
+  $("#lastPage").addEventListener("click", () => {state.holderPage = 999999; renderHolders();});
+  document.addEventListener("click", async event => {
+    const btn = event.target.closest("[data-copy]");
+    if (!btn) return;
+    event.preventDefault();
+    event.stopPropagation();
+    try{
+      await navigator.clipboard.writeText(btn.dataset.copy);
+      btn.classList.add("copied");
+      setTimeout(() => btn.classList.remove("copied"), 900);
+    }catch(_){}
+  });
+  window.addEventListener("resize", updateAllPillSliders);
+}
+async function init(){
+  bindEvents();
+  try{
+    await loadDynamicLabels();
+    const [price, holders, flows] = await Promise.all([
+      fetchJson("dolo_price.json"),
+      fetchJson("dolo_holders.json"),
+      fetchJson("dolo_flows.json")
+    ]);
+    state.price = price;
+    state.holders = holders;
+    state.flows = flows;
+    renderHero();
+    renderFlow();
+    renderHolders();
+    updateAllPillSliders();
+  }catch(error){
+    console.error(error);
+    $("#app").insertAdjacentHTML("afterbegin", `<div class="error-box">Unable to load DOLO data: ${escapeHtml(error.message)}</div>`);
+  }
+}
+init();
+</script>
+</body>
+</html>
