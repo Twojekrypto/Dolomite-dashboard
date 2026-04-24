@@ -1476,6 +1476,8 @@ const explorerUrl = (row)=>{
   const base = chainMeta(row.chain).explorer || "";
   return row.addr && base ? base + row.addr : "";
 };
+const isWrappedMarketName = (row)=>/^(GM|GLV):\s*/i.test(String(row.name || "")) || /^gm[A-Z0-9].*/.test(String(row.sym || "")) || /^GLV-/i.test(String(row.sym || ""));
+const tokenNameHtml = (row)=>`<span class="tok-sym">${row.sym}</span>${isWrappedMarketName(row) ? "" : `<span class="tok-long">${row.name}</span>`}`;
 function shouldSkipMarket(row){
   const sym = row.token?.tokenSymbol || "";
   const name = row.token?.tokenName || "";
@@ -1845,7 +1847,7 @@ function render(){
               <img class="${tokenIconClass(r.sym)}" src="${tokIcon(r.sym, r)}" onerror="this.style.display='none'" alt="">
             </div>
             <div class="tok-meta">
-              <div class="tok-name"><span class="tok-sym">${r.sym}</span><span class="tok-long">${r.name}</span></div>
+              <div class="tok-name">${tokenNameHtml(r)}</div>
               <div class="tok-tags">
                 <span class="tag chain"><img src="${chain.icon}" onerror="this.style.display='none'" alt="">${chain.name}</span>
                 ${caHTML}
