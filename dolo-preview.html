@@ -139,7 +139,7 @@ input{font:inherit}
 .hero-token-sep{width:1px;height:16px;background:var(--line-2)}
 .chain-mini{display:inline-flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;letter-spacing:.9px;color:var(--fg-2)}
 .chain-mini img{width:14px;height:14px;border-radius:50%;object-fit:cover;background:transparent;box-shadow:0 0 0 1px rgba(255,255,255,.16)}
-.hero-grid{position:relative;display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+.hero-grid{position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
 .hero-card{
   background:rgba(255,255,255,.02);border:1px solid var(--line-2);border-radius:var(--r-md);
   padding:18px 20px;transition:border-color .25s var(--ease),background .25s var(--ease),transform .25s var(--ease);
@@ -274,11 +274,11 @@ input{font:inherit}
 .flow-panel .tbl{table-layout:fixed}
 .flow-panel .tbl th,.flow-panel .tbl td{padding-left:12px;padding-right:12px}
 .flow-panel .tbl th:nth-child(1),.flow-panel .tbl td:nth-child(1){width:42px}
-.flow-panel .tbl th:nth-child(2),.flow-panel .tbl td:nth-child(2){width:33%}
-.flow-panel .tbl th:nth-child(3),.flow-panel .tbl td:nth-child(3){width:18%}
-.flow-panel .tbl th:nth-child(4),.flow-panel .tbl td:nth-child(4){width:19%}
-.flow-panel .tbl th:nth-child(5),.flow-panel .tbl td:nth-child(5){width:16%}
-.flow-panel .tbl th:nth-child(6),.flow-panel .tbl td:nth-child(6){width:58px}
+.flow-panel .tbl th:nth-child(2),.flow-panel .tbl td:nth-child(2){width:44%}
+.flow-panel .tbl th:nth-child(3),.flow-panel .tbl td:nth-child(3){width:25%}
+.flow-panel .tbl th:nth-child(4),.flow-panel .tbl td:nth-child(4){width:31%}
+#holdersCard.chain-eth .holder-chain-col,
+#holdersCard.chain-bera .holder-chain-col{display:none}
 .rank{font-family:var(--mono);color:var(--fg-3);font-size:12px}
 .addr-cell{display:flex;align-items:center;gap:8px;min-width:0}
 .addr-main{display:flex;flex-direction:column;gap:3px;min-width:0}
@@ -349,8 +349,6 @@ input{font:inherit}
   .pill-switch{max-width:100%;overflow:auto}
   .tbl{min-width:820px}
   .flow-panel .tbl{min-width:0}
-  .flow-panel .tbl th:nth-child(5),.flow-panel .tbl td:nth-child(5),
-  .flow-panel .tbl th:nth-child(6),.flow-panel .tbl td:nth-child(6){display:none}
   .flow-panel .tbl th:nth-child(1),.flow-panel .tbl td:nth-child(1){width:40px}
   .flow-panel .tbl th:nth-child(2),.flow-panel .tbl td:nth-child(2){width:48%}
   .flow-panel .tbl th:nth-child(3),.flow-panel .tbl td:nth-child(3){width:24%}
@@ -412,11 +410,6 @@ input{font:inherit}
           <div class="hc-label">Market Cap</div>
           <div class="hc-value green" id="marketCap">—</div>
           <div class="hc-sub">via CoinGecko snapshot</div>
-        </div>
-        <div class="hero-card">
-          <div class="hc-label">24h Volume</div>
-          <div class="hc-value" id="volume">—</div>
-          <div class="hc-sub">spot trading activity</div>
         </div>
         <div class="hero-card">
           <div class="hc-label">Circulating Supply</div>
@@ -507,8 +500,6 @@ input{font:inherit}
                     <th>Address</th>
                     <th class="num" data-flow-table="acc" data-flow-sort="balance">Balance <span class="sort">⇅</span></th>
                     <th class="num sorted" data-flow-table="acc" data-flow-sort="display_flow">Net DOLO <span class="sort">▼</span></th>
-                    <th class="num">USD</th>
-                    <th class="num">Txs</th>
                   </tr>
                 </thead>
                 <tbody id="accRows"></tbody>
@@ -528,8 +519,6 @@ input{font:inherit}
                     <th>Address</th>
                     <th class="num" data-flow-table="sell" data-flow-sort="balance">Balance <span class="sort">⇅</span></th>
                     <th class="num sorted" data-flow-table="sell" data-flow-sort="display_flow">Net DOLO <span class="sort">▼</span></th>
-                    <th class="num">USD</th>
-                    <th class="num">Txs</th>
                   </tr>
                 </thead>
                 <tbody id="sellRows"></tbody>
@@ -557,9 +546,8 @@ input{font:inherit}
             <div class="pill-switch" id="holderChainPills" data-state="all">
               <span class="slider"></span>
               <button class="opt active" data-chain="all">All</button>
-              <button class="opt" data-chain="eth"><img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" alt=""> ETH</button>
               <button class="opt" data-chain="bera"><img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" alt=""> BERA</button>
-              <button class="opt" data-chain="both">Both</button>
+              <button class="opt" data-chain="eth"><img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" alt=""> ETH</button>
             </div>
           </div>
           <div class="tb-right">
@@ -584,9 +572,9 @@ input{font:inherit}
               <tr>
                 <th data-sort="rank" class="sorted"># <span class="sort">▲</span></th>
                 <th data-sort="address">Address <span class="sort">⇅</span></th>
-                <th class="num" data-sort="balance_eth">ETH <span class="sort">⇅</span></th>
-                <th class="num" data-sort="balance_bera">BERA <span class="sort">⇅</span></th>
-                <th class="num" data-sort="balance">Balance <span class="sort">⇅</span></th>
+                <th class="num holder-chain-col" data-sort="balance_eth">ETH <span class="sort">⇅</span></th>
+                <th class="num holder-chain-col" data-sort="balance_bera">BERA <span class="sort">⇅</span></th>
+                <th class="num" data-sort="balance"><span id="holderBalanceHeader">Balance</span> <span class="sort">⇅</span></th>
                 <th class="num" data-sort="change">Change <span class="sort">⇅</span></th>
               </tr>
             </thead>
@@ -759,14 +747,20 @@ function changeMap(period){
 function copyIcon(){
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
 }
-function chainBadges(row){
+function chainBadges(row, focusChain){
   const parts = [];
+  if (focusChain === "eth" || focusChain === "bera") {
+    if (!hasChain(row, focusChain)) return `<span class="muted">No ${focusChain.toUpperCase()}</span>`;
+    const icon = focusChain === "eth" ? ETH_ICON : BERA_ICON;
+    const label = focusChain === "eth" ? "ETH" : "BERA";
+    return `<span class="chain-dot"><img src="${icon}" alt="">${label}</span>`;
+  }
   if (hasChain(row,"eth")) parts.push(`<span class="chain-dot"><img src="${ETH_ICON}" alt="">ETH</span>`);
   if (hasChain(row,"bera")) parts.push(`<span class="chain-dot"><img src="${BERA_ICON}" alt="">BERA</span>`);
   if (!parts.length) parts.push(`<span class="muted">No chain</span>`);
   return parts.join("");
 }
-function addressCell(row, chain){
+function addressCell(row, chain, badgeChain){
   const info = infoFor(row.address);
   const label = info ? `<span class="label-badge ${escapeHtml(info.type)}" title="${escapeHtml(info.label)}">${escapeHtml(info.label)}</span>` : "";
   const url = explorerUrl(row.address, chain || primaryChain(row));
@@ -778,7 +772,7 @@ function addressCell(row, chain){
           <a class="addr-link" href="${url}" target="_blank" rel="noopener" title="${escapeHtml(row.address)}">${shortAddr(row.address)}</a>
           ${label}
         </div>
-        <div class="addr-sub">${chainBadges(row)}</div>
+        <div class="addr-sub">${chainBadges(row, badgeChain)}</div>
       </div>
     </div>
   `;
@@ -840,7 +834,6 @@ function renderHero(){
   changeEl.classList.toggle("up", change >= 0);
   changeEl.classList.toggle("down", change < 0);
   $("#marketCap").textContent = fmtUsd(p.market_cap);
-  $("#volume").textContent = fmtUsd(p.volume_24h);
   $("#circSupply").textContent = fmtToken(p.circulating_supply,2);
   const stats = state.holders?.stats || {};
   $("#holdersCount").textContent = fmtInt(stats.total_holders);
@@ -937,7 +930,7 @@ function renderFlow(){
   updateFlowSortHeaders();
 }
 function renderFlowRows(rows, isAcc){
-  if (!rows.length) return `<tr><td colspan="6" class="empty">No matching flow data</td></tr>`;
+  if (!rows.length) return `<tr><td colspan="4" class="empty">No matching flow data</td></tr>`;
   return rows.map((row,i) => {
     const chain = state.flowChain === "all" ? primaryChain(row) : state.flowChain;
     return `
@@ -946,8 +939,6 @@ function renderFlowRows(rows, isAcc){
         <td>${addressCell(row, chain)}</td>
         <td class="num">${fmtToken(row.balance,1)}</td>
         <td class="num ${isAcc ? "green" : "red"}">${isAcc ? "+" : "-"}${fmtToken(row.display_flow,1)}</td>
-        <td class="num muted">${fmtUsd(row.usd_value)}</td>
-        <td class="num muted">${fmtInt(row.tx_count)}</td>
       </tr>
     `;
   }).join("");
@@ -960,7 +951,6 @@ function filteredHolders(){
     if (q && !matchesSearch(row.address, q)) return false;
     if (state.holderChain === "eth") return hasChain(row,"eth");
     if (state.holderChain === "bera") return hasChain(row,"bera");
-    if (state.holderChain === "both") return hasChain(row,"eth") && hasChain(row,"bera");
     return true;
   }).map(row => ({...row, change:cm.get(row.address.toLowerCase()) || 0}));
   const direction = state.holderSortAsc ? 1 : -1;
@@ -985,6 +975,12 @@ function renderHolders(){
   state.holderPage = Math.max(1, Math.min(state.holderPage, pages));
   const start = (state.holderPage - 1) * HOLDER_PER_PAGE;
   const page = rows.slice(start, start + HOLDER_PER_PAGE);
+  $("#holdersCard").classList.toggle("chain-eth", state.holderChain === "eth");
+  $("#holdersCard").classList.toggle("chain-bera", state.holderChain === "bera");
+  const balanceHeader = $("#holderBalanceHeader");
+  if (balanceHeader) {
+    balanceHeader.textContent = state.holderChain === "eth" ? "ETH Balance" : state.holderChain === "bera" ? "BERA Balance" : "Balance";
+  }
   $("#holderCount").textContent = fmtInt(rows.length);
   $("#holderRows").innerHTML = page.length ? page.map(renderHolderRow).join("") : `<tr><td colspan="6" class="empty">No matching holders</td></tr>`;
   $("#holderFooter").textContent = `Showing ${rows.length ? fmtInt(start + 1) : 0}-${fmtInt(Math.min(start + HOLDER_PER_PAGE, rows.length))} of ${fmtInt(rows.length)} wallets`;
@@ -996,16 +992,17 @@ function renderHolders(){
   updateHolderSortHeaders();
 }
 function renderHolderRow(row){
-  const chain = primaryChain(row);
+  const chain = state.holderChain === "eth" || state.holderChain === "bera" ? state.holderChain : primaryChain(row);
+  const badgeChain = state.holderChain === "eth" || state.holderChain === "bera" ? state.holderChain : null;
   const change = Number(row.change) || 0;
   const changeClass = change > 0 ? "green" : change < 0 ? "red" : "muted";
   const changeText = change ? `${change > 0 ? "+" : "-"}${fmtToken(Math.abs(change),1)}` : "—";
   return `
     <tr>
       <td class="rank">${row.rank || "—"}</td>
-      <td>${addressCell(row, chain)}</td>
-      <td class="num eth">${row.balance_eth ? fmtToken(row.balance_eth,1) : "—"}</td>
-      <td class="num bera">${row.balance_bera ? fmtToken(row.balance_bera,1) : "—"}</td>
+      <td>${addressCell(row, chain, badgeChain)}</td>
+      <td class="num eth holder-chain-col">${row.balance_eth ? fmtToken(row.balance_eth,1) : "—"}</td>
+      <td class="num bera holder-chain-col">${row.balance_bera ? fmtToken(row.balance_bera,1) : "—"}</td>
       <td class="num">${fmtToken(displayBalance(row),1)}</td>
       <td class="num ${changeClass}" title="${PERIOD_LABELS[state.holderPeriod]} balance change">${changeText}</td>
     </tr>
