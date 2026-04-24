@@ -248,12 +248,35 @@ input{font:inherit}
   box-shadow:0 2px 8px rgba(201,162,39,.35);transition:transform .25s var(--ease),width .25s var(--ease);
 }
 .toggle-pill{
-  display:inline-flex;align-items:center;gap:10px;height:36px;padding:0 14px 0 10px;
+  position:relative;display:inline-flex;align-items:center;gap:10px;height:36px;padding:0 14px 0 10px;
   background:var(--bg-3);border:1px solid var(--line-2);border-radius:10px;
   font-size:13px;color:var(--fg-2);transition:border-color .2s var(--ease),color .2s var(--ease);
 }
 .toggle-pill:hover{border-color:var(--line-3);color:var(--fg-1)}
 .toggle-pill.on{color:var(--fg-1);border-color:var(--gold-line);background:var(--gold-wash)}
+.toggle-pill[data-tooltip]::before,
+.toggle-pill[data-tooltip]::after{
+  position:absolute;z-index:80;left:12px;top:calc(100% + 9px);
+  opacity:0;pointer-events:none;transition:opacity .16s var(--ease),transform .16s var(--ease);
+}
+.toggle-pill[data-tooltip]::before{
+  content:"";width:9px;height:9px;transform:translate(15px,-4px) rotate(45deg);
+  background:rgba(20,20,23,.98);border-left:1px solid var(--line-2);border-top:1px solid var(--line-2);
+}
+.toggle-pill[data-tooltip]::after{
+  content:attr(data-tooltip);width:min(285px,calc(100vw - 36px));transform:translateY(4px);
+  padding:10px 12px;border:1px solid var(--line-2);border-radius:10px;
+  background:rgba(20,20,23,.98);box-shadow:var(--sh-hi);backdrop-filter:blur(14px);
+  color:var(--fg-2);font-size:11px;line-height:1.45;text-align:left;white-space:normal;
+}
+.toggle-pill[data-tooltip]:hover::before,
+.toggle-pill[data-tooltip]:hover::after,
+.toggle-pill[data-tooltip]:focus-visible::before,
+.toggle-pill[data-tooltip]:focus-visible::after{
+  opacity:1;transform:translateY(0);
+}
+.toggle-pill[data-tooltip]:hover::before,
+.toggle-pill[data-tooltip]:focus-visible::before{transform:translate(15px,-4px) rotate(45deg)}
 .toggle-track{width:26px;height:14px;border-radius:999px;background:var(--bg-4);border:1px solid var(--line-2);position:relative;transition:background .2s var(--ease)}
 .toggle-knob{position:absolute;top:1px;left:1px;width:10px;height:10px;border-radius:50%;background:var(--fg-3);transition:transform .22s var(--ease),background .22s var(--ease)}
 .toggle-pill.on .toggle-knob{transform:translateX(12px);background:var(--gold)}
@@ -601,7 +624,7 @@ input{font:inherit}
                 </button>
               </div>
             </div>
-            <button class="toggle-pill" id="flowHideKnown" type="button" aria-pressed="false" title="Hide centralized exchanges, smart contracts, protocol wallets, LP pools and bots from the flow tables.">
+            <button class="toggle-pill" id="flowHideKnown" type="button" aria-pressed="false" data-tooltip="Hides centralized exchanges, smart contracts, protocol wallets, LP pools and bot or liquidator addresses from the DOLO Flow tables.">
               <span class="toggle-track"><span class="toggle-knob"></span></span>
               Hide CEX
             </button>
@@ -722,7 +745,7 @@ input{font:inherit}
                 </button>
               </div>
             </div>
-            <button class="toggle-pill" id="holderHideKnown" type="button" aria-pressed="false" title="Hide centralized exchanges, smart contracts, protocol wallets, LP pools and bots from the holders table.">
+            <button class="toggle-pill" id="holderHideKnown" type="button" aria-pressed="false" data-tooltip="Hides centralized exchanges, smart contracts, protocol wallets, LP pools and bot or liquidator addresses from the DOLO Holders table.">
               <span class="toggle-track"><span class="toggle-knob"></span></span>
               Hide CEX
             </button>
@@ -1280,8 +1303,8 @@ function filteredHolders(){
   const q = state.holderSearch;
   const cm = changeMap(state.holderPeriod);
   let rows = (state.holders?.holders || []).filter(row => {
-    if (state.holderHideKnown && !matchesSearch(row.address, q) && isKnownOrContract(row)) return false;
     if (q && !matchesSearch(row.address, q)) return false;
+    if (state.holderHideKnown && isKnownOrContract(row)) return false;
     if (state.holderChain === "eth") return hasChain(row,"eth");
     if (state.holderChain === "bera") return hasChain(row,"bera");
     return true;
