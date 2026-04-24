@@ -86,7 +86,7 @@ function serveStatic(filePath, res) {
 
 const server = http.createServer((req, res) => {
     const parsed = url.parse(req.url, true);
-    const pathname = parsed.pathname;
+    const pathname = decodeURIComponent(parsed.pathname);
 
     // --- API Proxy ---
     if (pathname === '/api/proxy') {

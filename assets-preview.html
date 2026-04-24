@@ -225,7 +225,8 @@ body::before{
 .hero-value .pct{color:var(--gold)}
 .hero-token{display:inline-flex;align-items:center;gap:10px;padding:6px 12px;border-radius:999px;background:var(--bg-3);border:1px solid var(--line-2);font-size:14px;font-weight:600;color:var(--fg-1)}
 .hero-token img{width:18px;height:18px;border-radius:50%}
-.hero-chain-pill{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--fg-2);padding:3px 7px;border-radius:4px;background:rgba(255,255,255,.04);border:1px solid var(--line-2)}
+.hero-chain-pill{display:inline-flex;align-items:center;gap:5px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--fg-2);padding:3px 7px;border-radius:4px;background:rgba(255,255,255,.04);border:1px solid var(--line-2)}
+.hero-chain-pill img{width:12px;height:12px;border-radius:50%;object-fit:cover}
 
 .hero-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
 .hero-card{
@@ -510,6 +511,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .tag{font-size:10px;letter-spacing:.4px;padding:2px 7px;border-radius:4px;color:var(--fg-2);background:var(--bg-3);border:1px solid var(--line-2);font-weight:500;display:inline-flex;align-items:center;gap:5px}
 .tag.chain{text-transform:capitalize}
 .tag.chain .dot{width:6px;height:6px;border-radius:50%}
+.tag.chain img{width:12px;height:12px;border-radius:50%;object-fit:cover}
 .tag.cat{color:var(--fg-3)}
 .tag.odolo{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
 
@@ -1023,13 +1025,12 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 
 <script>
 /* ==========================================================================
-   MOCK DATA — shape kept close to the real dataset
+   STATIC FALLBACK — replaced at runtime by official Dolomite rates
    ========================================================================== */
-// Full Dolomite asset roster extracted from liquidation_risk.json positions
-// (109 markets across 7 chains: Arbitrum, Base, Berachain, Ethereum,
-// Mantle, Polygon zkEVM, X Layer). Mock APR/TVL values; real wiring will
-// come when migrating into index.html.
-const ASSETS = [
+// Kept only so the design renders if official APIs are temporarily unavailable.
+// The live path below replaces this with api.dolomite.io interest rates and
+// subgraph liquidity/price data before marking the table as official.
+let ASSETS = [
   {"sym":"AAVE","name":"Aave","cat":"eth","chain":"arbitrum","price":25.46,"odolo":1.59,"yield":0,"lending":1.65,"borrow":5.09,"tvl":8490000,"util":38.07,"dust":false},
   {"sym":"ARB","name":"Arbitrum","cat":"eth","chain":"arbitrum","price":21.53,"odolo":1.44,"yield":0,"lending":0.56,"borrow":1.81,"tvl":6630000,"util":36.08,"dust":false},
   {"sym":"DAI","name":"Dai Stablecoin","cat":"stable","chain":"arbitrum","price":1,"odolo":0.02,"yield":0,"lending":4.64,"borrow":9.45,"tvl":53620000,"util":57.76,"dust":false},
@@ -1164,7 +1165,7 @@ const CHAIN_LABELS = {
   botanix:"Botanix", mantle:"Mantle",
   polygonzkevm:"Polygon zkEVM", xlayer:"X Layer"
 };
-const CHAIN_COUNT_TOTAL = 7;
+let CHAIN_COUNT_TOTAL = 7;
 
 /* ==========================================================================
    HELPERS
@@ -1178,12 +1179,17 @@ const SYMBOL_ICONS = {
   'USDC.e' : DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
   'USDC.E' : DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
   'USDT'   : DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
+  'USDT0'  : DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
   'USD₮0'  : DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
   'DAI'    : 'icons/dai.svg',
+  'USDM'   : DOLO_CDN + 'USDM.6c74738cd3a3499145fda4386f94cb8f.svg',
+  'wUSDM'  : DOLO_CDN + 'wUSDM.91bedb44039233b7c172ff95ea112192.svg',
   'USDe'   : DOLO_CDN + 'USDe-alt.ce2f05f4bb09aa83c4dd5886a5a2886f.svg',
   'sUSDe'  : DOLO_CDN + 'sUSDe.60857af2b2de944764d31ffa3711252c.svg',
   'USDa'   : DOLO_CDN + 'USDa.d95d6e9683a87b9007323745861f6b74.svg',
+  'USDai'  : DOLO_CDN + 'USDai.8c41c3dde0d91e5e38e1aafb27cf6e55.svg',
   'sUSDa'  : DOLO_CDN + 'sUSDa.dc563217493f063b521fe276283e0d51.svg',
+  'sUSDai' : DOLO_CDN + 'sUSDai.5a9e2565db913d6bbd950993cc04bcde.svg',
   'savUSD' : DOLO_CDN + 'savUSD.a2df97177abb3f75f4313a7241aa5fb0.svg',
   'rUSD'   : DOLO_CDN + 'rUSD.9b373643ab772af9dab0807b476b9afb.svg',
   'srUSD'  : DOLO_CDN + 'srUSD.bef2b101351c2021e25a96dc70122077.svg',
@@ -1193,8 +1199,14 @@ const SYMBOL_ICONS = {
   'NECT'   : DOLO_CDN + 'NECT.61b2d550cd59933e77667c3d75f73f5a.svg',
   'HONEY'  : DOLO_CDN + 'HONEY.3f0a04d651c47e52fb627fd616a9b92e.svg',
   'MIM'    : DOLO_CDN + 'MIM.3926602167b2dc6b73725f1cbd641130.svg',
+  'GRAI'   : DOLO_CDN + 'GRAI.34fe5f7729b8c43b63ff0ab77c7b2b51.svg',
+  'eUSD'   : DOLO_CDN + 'eUSD.5785fe83caa38875ac585eda225c0d02.svg',
   'USDS'   : DOLO_CDN + 'USDs.106fa406e23ae22c8bb6120c2ed861f4.svg',
   'sUSDS'  : DOLO_CDN + 'sUSDs.788070a4e1bbf5ab8c6130d47bdf8108.svg',
+  'USD0'   : 'icons/usd0.png',
+  'USD0++' : 'icons/usd0.png',
+  'deUSD'  : 'icons/deusd.png',
+  'sdeUSD' : 'icons/deusd.png',
   'USDY'   : DOLO_CDN + 'USDY.56cf7a38e78550dd507090fe52a59b41.svg',
   'USD1'   : DOLO_CDN + 'USD1.b88613f468d884c0a044350162ec22c2.svg',
   'cUSD'   : 'icons/stcusd.png',
@@ -1212,18 +1224,36 @@ const SYMBOL_ICONS = {
   'beraETH': DOLO_CDN + 'beraETH.661651b3419b7bb331ab2ebcb427b21b.svg',
   'WOETH'  : DOLO_CDN + 'WOETH.d17df010b680ea8c9c3e74d49b8e2e07.svg',
   'STONE'  : DOLO_CDN + 'STONE-alt.bf62e30edc6330897c738a4f9f1f5179.svg',
+  'rswETH' : DOLO_CDN + 'rswETH.fc4bdb76a764bf110676766fd0185dfe.svg',
+  'tETH'   : DOLO_CDN + 'tETH.77b0839567f787ef80a76c3e83b90293.svg',
+  'ETH+'   : DOLO_CDN + 'ETH_plus.58a00bd8aa8caafbc3837b4dcd7a1786.svg',
+  'ETHx'   : DOLO_CDN + 'ETH_plus.58a00bd8aa8caafbc3837b4dcd7a1786.svg',
+  'ylstETH': DOLO_CDN + 'ylstETH.8b2fa7c2cee8860ed6acbc0fa174eba5.svg',
   // BTC
+  'BTC'    : DOLO_CDN + 'BTC.ccaa294316dc68d8ecb092ef90e2c07c.svg',
   'WBTC'   : DOLO_CDN + 'WBTC.f3c8718835179e7543b5.png',
   'cbBTC'  : DOLO_CDN + 'CBBTC.fb6f792430a130d980920b6e69857bce.svg',
   'uniBTC' : DOLO_CDN + 'uniBTC.bac6fdc858f4d751e79211986782ddd1.svg',
   'LBTC'   : DOLO_CDN + 'LBTC.095d1662f9a83aea1c899fa1eeb84502.svg',
   'tBTC'   : DOLO_CDN + 'tBTC.2907801a7fa28c6583322ad3c2931333.svg',
   'SolvBTC': DOLO_CDN + 'solvBTC.326d594ebd54e4317f078b70f72a58b4.svg',
+  'SolvBTC.a': DOLO_CDN + 'solvBTC.326d594ebd54e4317f078b70f72a58b4.svg',
+  'xSolvBTC': DOLO_CDN + 'xSolvBTC.b2110d70dea973b20c4f1e6a137f2256.svg',
+  'solvBTCbbn': DOLO_CDN + 'solvBTCbbn.a4ffbb3feb4a22c2ca5564097b70f35c.svg',
   'eBTC'   : DOLO_CDN + 'eBTC.e48b2e6a0a78d4ffc09991510cb5792b.svg',
   'FBTC'   : DOLO_CDN + 'FBTC.f29f5d2839b1b765719121f8094c7f11.svg',
   'PumpBTC': DOLO_CDN + 'PumpBTC.aa48de36289e8439daf0456c4252dd27.svg',
-  'pBTC'   : DOLO_CDN + 'WBTC.f3c8718835179e7543b5.png',
-  'stBTC'  : DOLO_CDN + 'WBTC.f3c8718835179e7543b5.png',
+  'pumpBTC': DOLO_CDN + 'PumpBTC.aa48de36289e8439daf0456c4252dd27.svg',
+  'pumpBTC.bera': DOLO_CDN + 'PumpBTC.aa48de36289e8439daf0456c4252dd27.svg',
+  'pBTC'   : DOLO_CDN + 'pBTC-2.33f92d1521de41c2fd041b11c9d77c7a.svg',
+  'stBTC'  : DOLO_CDN + 'stBTC.3935aab6a35bd55630f244a1f56631ba.svg',
+  'SBTC'   : DOLO_CDN + 'SBTC.42e2a04abe2a5a21904064d886e10804.svg',
+  'ylPumpBTC': DOLO_CDN + 'ylPumpBTC.4ed846397580cd47e2ac1cc59dba2d56.svg',
+  'ylpumpBTC': DOLO_CDN + 'ylPumpBTC.4ed846397580cd47e2ac1cc59dba2d56.svg',
+  'ylfBTC' : DOLO_CDN + 'WBTC.f3c8718835179e7543b5.png',
+  'ylBTCLRT': DOLO_CDN + 'ylBTCLRT.de3276def7f8a795b2215806ce3776d6.svg',
+  'ylBTCLST': DOLO_CDN + 'ylBTCLRT.de3276def7f8a795b2215806ce3776d6.svg',
+  'STONEBTC': DOLO_CDN + 'STONEBTC.4ca9c1ebc2fca809154e406e9afa589b.svg',
   // Berachain
   'BERA'   : DOLO_CDN + 'BERA.a24a9b40b3447dde7ea1d2cab4dd59e9.svg',
   'WBERA'  : DOLO_CDN + 'wBERA.4ca51f80e3cd585d5152483f427d0416.svg',
@@ -1247,13 +1277,15 @@ const SYMBOL_ICONS = {
   'DPX'    : DOLO_CDN + 'DPX.ac054aa02be296979160d68dbb594a39.svg',
   'GRAIL'  : DOLO_CDN + 'GRAIL.13f8e457ed0e3d6868b41f28eb431819.svg',
   'JONES'  : DOLO_CDN + 'JONES.3ce2e6a8fb1444d9d6439e5781e6c2c1.svg',
+  'PREMIA' : DOLO_CDN + 'PREMIA.6c5c2339f3179353bb163b4e53d8dfa1.svg',
   'MAGIC'  : DOLO_CDN + 'MAGIC.e86265b765bebd6be26b2485691ab714.svg',
   'RDNT'   : DOLO_CDN + 'RDNT.92d507e82611bb1e4353e8b8cae0a73a.svg',
   'XAI'    : DOLO_CDN + 'XAI.ed6137b5d4b6078ac5061beb0e9b78f5.svg',
   'WLFI'   : DOLO_CDN + 'WLFI.2c1e57c98e3cad7282c40941b36ee606.svg',
   'OHM'    : DOLO_CDN + 'OHM.2df913d6b9413f26311c1df9718d1461.svg',
   'IR'     : DOLO_CDN + 'IR.4f115e858cbe4dbe82da00a8443ab1af.svg',
-  'HENLO'  : DOLO_CDN + 'HENLO.5b3d3df8e28a6cf6eb24f41a4ccb15d0.svg',
+  'KDK'    : DOLO_CDN + 'KDK.31acd6ac4abb4a8c30812380c009f685.svg',
+  'HENLO'  : DOLO_CDN + 'HENLO.8d50b084294cb406094f0005d46c2c75.svg',
   'oUSDT'  : DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
   // Network / L2
   'MNT'    : DOLO_CDN + 'MNT.7e882ac93f636391a8f7d2e0841cad98.svg',
@@ -1262,8 +1294,79 @@ const SYMBOL_ICONS = {
   'WOKB'   : DOLO_CDN + 'WOKB.4a6ddee6f2dfa841dd0932eab45ae376.svg',
   'POL'    : DOLO_CDN + 'MATIC.dfc4843b6db6db48662b1db5f752f9f1.svg',
   'MATIC'  : DOLO_CDN + 'MATIC.dfc4843b6db6db48662b1db5f752f9f1.svg',
+  // Pendle PT tokens
+  'PT-GLP' : DOLO_CDN + 'PT-GLP.10ed789425b588fe57650640de551bed.svg',
+  'PT-rETH': DOLO_CDN + 'PT-rETH.e2b8a22fc3817c3a51225d7ffb5e616b.svg',
+  'PT-wstETH': DOLO_CDN + 'PT-wstETH.09d3f15856b64c9b4f64c8de1264db37.svg',
+  'PT-weETH': DOLO_CDN + 'PT-weETH.24d74aa18d08440b7f662eba78dcc52c.svg',
+  'PT-eETH': DOLO_CDN + 'PT-weETH.24d74aa18d08440b7f662eba78dcc52c.svg',
+  'PT-ezETH': DOLO_CDN + 'PT-ezETH.d1ed194653ea88e9f3fe8c029064d654.svg',
+  'PT-rsETH': DOLO_CDN + 'PT-rsETH.857e86584fe78053a1044b78df689b4d.svg',
+  'PT-mETH': DOLO_CDN + 'PT-mETH.793642f12d4c303ecf771107c77ecfbb.svg',
+  'PT-cmETH': DOLO_CDN + 'PT-cmETH.f49c697e967386e0fd082040501e92e0.svg',
+  'PT-USDe': DOLO_CDN + 'PT-USDe.b5a8d24289b509fe4e6b4c702a790828.svg',
+  'PT-MNT' : DOLO_CDN + 'PT-MNT.19aa4a53e3aa4337407a1502ae89fc31.svg',
+  // GMX V2 / GLV market tokens from the official Dolomite Earn app
+  'gmARB-USD': DOLO_CDN + 'ARB-GM.50df3ed4a1a52b938992cb5e08efbc36.svg',
+  'gmBTC-USD': DOLO_CDN + 'WBTC-GM.6e7f69538bb02b42b881b86aea5c6d6e.svg',
+  'gmETH-USD': DOLO_CDN + 'ETH-GM.0b7d447f3c11298af07411c926352c71.svg',
+  'gmLINK-USD': DOLO_CDN + 'LINK-GM.7d4b33346ec9822f9dc7c22a393f7698.svg',
+  'gmBTC'  : DOLO_CDN + 'WBTC-GM.6e7f69538bb02b42b881b86aea5c6d6e.svg',
+  'gmETH'  : DOLO_CDN + 'ETH-GM.0b7d447f3c11298af07411c926352c71.svg',
+  'gmUNI-USD': DOLO_CDN + 'UNI-GM.8a4dfd0dc79f5b60138039338d28a6c7.svg',
+  'gmAAVE-USD': DOLO_CDN + 'gmAAVE.e032a2febd818f511cf782e09b12f212.svg',
+  'gmDOGE-USD': DOLO_CDN + 'gmDOGE.36090e2ebcd305890c779e005d41d331.svg',
+  'gmGMX-USD': DOLO_CDN + 'gmGMX.2c5cb2e0f1769629b38580607b77ecbc.svg',
+  'gmSOL-USD': DOLO_CDN + 'gmSOL.73d56a4a2dcf3d39fc5c946b8c65c631.svg',
+  'gmWstETH-USD': DOLO_CDN + 'wstETH.2e97640d284bbe78da3776549d27ec47.svg',
+  'gmGMX'  : DOLO_CDN + 'gmGMX.2c5cb2e0f1769629b38580607b77ecbc.svg',
+  'gmPENDLE-USD': DOLO_CDN + 'gmPENDLE.cd8acede00414f70056c0fb9aa2baa7c.svg',
+  'gmPEPE-USD': DOLO_CDN + 'gmPEPE.966f4beb1b823729066c29c52921b664.svg',
+  'gmWIF-USD': DOLO_CDN + 'gmWIF.8dfcfc27c0c56651a2e523e97c7fdcb4.svg',
+  'GLV-BTC': DOLO_CDN + 'GLV-BTC.c576682a1343bbfde84710a572b5a68e.svg',
+  'GLV-ETH': DOLO_CDN + 'GLV-ETH.092b4c8a9412efd58d3542d26bc5a522.svg',
 };
-const tokIcon = (sym) => SYMBOL_ICONS[sym] || 'dolomite-logo.svg';
+const TOKEN_ICON_OVERRIDES = {
+  'arbitrum:0x2c799166c9f0dbf9efc5004cbce4c5a37fa39329': SYMBOL_ICONS['gmARB-USD'],
+  'arbitrum:0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef': SYMBOL_ICONS['gmBTC-USD'],
+  'arbitrum:0x505582242757f16d72f8c4462a616e388ca1b074': SYMBOL_ICONS['gmETH-USD'],
+  'arbitrum:0x18cb14564fbb015bd3439220d177799355abc0e0': SYMBOL_ICONS['gmLINK-USD'],
+  'arbitrum:0xb15bbbfcff6c411410c66642306d1ffa7ecec4d8': SYMBOL_ICONS['gmBTC'],
+  'arbitrum:0x2d165a76dd3e552df3860789331ab73c5a3d7f92': SYMBOL_ICONS['gmETH'],
+  'arbitrum:0x20d51cb520c4622dcc3d7e35003dbab07d547e7e': SYMBOL_ICONS['gmUNI-USD'],
+  'arbitrum:0x24c9121c75c099b38d40020872b8a0d2c27c614d': SYMBOL_ICONS['gmAAVE-USD'],
+  'arbitrum:0x1beed3b7d1237b7773b5c4c249933e3ca5e027c1': SYMBOL_ICONS['gmDOGE-USD'],
+  'arbitrum:0x5c99f6cf6069698d234d50bf69ebd2f53e45ed1c': SYMBOL_ICONS['gmGMX-USD'],
+  'arbitrum:0x1ebb1c7023addbb2b6e30e6f4c8d4a4440bfd412': SYMBOL_ICONS['gmSOL-USD'],
+  'arbitrum:0xc587646f67b38739006ed0200e2e0a26fdb01c9b': SYMBOL_ICONS['gmWstETH-USD'],
+  'arbitrum:0xcf248baf933c7b1b876b997246f25021a65383b3': SYMBOL_ICONS['gmGMX'],
+  'arbitrum:0xe5d6fe410c69b44c357403a1936b3bfaddbe340b': SYMBOL_ICONS['gmPENDLE-USD'],
+  'arbitrum:0x6586f1db71513daf94b0431156d225a46c00f20b': SYMBOL_ICONS['gmPEPE-USD'],
+  'arbitrum:0xf5063b40fa66ab2fbda2e6807ac5759a41a1b0c3': SYMBOL_ICONS['gmWIF-USD'],
+  'arbitrum:0x7e584529bb40220a2bd5d0c13e3d65abd4a47f0e': SYMBOL_ICONS['GLV-BTC'],
+  'arbitrum:0x11f4532c05fb8ea6320b1dc155bfdc2498a5d8b4': SYMBOL_ICONS['GLV-ETH'],
+  'arbitrum:0x51fc0f6660482ea73330e414efd7808811a57fa2': SYMBOL_ICONS['PREMIA'],
+  'arbitrum:0x894134a25a5fac1c2c26f1d8fbf05111a3cb9487': SYMBOL_ICONS['GRAI'],
+  'arbitrum:0x12275dcb9048680c4be40942ea4d92c74c63b844': SYMBOL_ICONS['eUSD'],
+  'arbitrum:0x18c14c2d707b2212e17d1579789fc06010cfca23': SYMBOL_ICONS['ETH+'],
+  'berachain:0xe946dd7d03f6f5c440f68c84808ca88d26475fc5': SYMBOL_ICONS['ylfBTC'],
+  'berachain:0x1fcca65fb6ae3b2758b9b2b394cb227eae404e1e': SYMBOL_ICONS['pumpBTC.bera'],
+  'berachain:0x91a6af4c8cb1673ab0d776828b6b271ac3da9dcb': SYMBOL_ICONS['USD0'],
+  'berachain:0x30ea2d525ef7c234f8aa6e3a8909b88f71244cb0': SYMBOL_ICONS['USD0++'],
+  'berachain:0x7203fb920421170cc4da001d758fde8f391a0570': SYMBOL_ICONS['deUSD'],
+  'berachain:0xaf51434ac57f05e0bc397739c15cf653dbdbd86d': SYMBOL_ICONS['sdeUSD'],
+};
+const tokenIcon = (sym, row={}) => {
+  const addrKey = row.chain && row.addr ? `${row.chain}:${String(row.addr).toLowerCase()}` : "";
+  const s = String(sym || "").trim();
+  return TOKEN_ICON_OVERRIDES[addrKey]
+    || row.icon
+    || SYMBOL_ICONS[s]
+    || SYMBOL_ICONS[s.toUpperCase()]
+    || SYMBOL_ICONS[s.replace(/-\\d{1,2}[A-Z]{3}\\d{4}$/i, "")]
+    || 'dolomite-logo.svg';
+};
+const tokIcon = tokenIcon;
 const chainIcon = (chain)=>`https://icons.llamao.fi/icons/chains/rsz_${chain==="polygonzkevm"?"polygon%20zkevm":chain==="xlayer"?"x%20layer":chain}.jpg`;
 
 const fmtPrice = (v)=>{
@@ -1290,6 +1393,172 @@ const avg = (arr)=> arr.reduce((a,b)=>a+b,0)/arr.length;
 
 /* APY = (1 + APR/n)^n - 1 ; n = 365 daily compound */
 const aprToApy = (apr)=>((Math.pow(1+apr/100/365,365)-1)*100);
+const rateForMode = (apr)=> state.mode==="APY" && apr > 0 ? aprToApy(apr) : apr;
+const fmtRate = (apr)=>fmtPct(rateForMode(apr));
+const marketKey = (row)=> row.key || `${row.chain}:${(row.addr || row.sym || row.name || "").toLowerCase()}`;
+const chainMeta = (chainKey)=>LIVE_CHAINS[chainKey] || {name:CHAIN_LABELS[chainKey] || chainKey, short:chainKey, id:null, icon:chainIcon(chainKey)};
+
+const LIVE_CHAINS = {
+  berachain: {id:80094, name:"Berachain", short:"BERA", icon:chainIcon("berachain"), subgraph:"https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-berachain-mainnet/latest/gn"},
+  arbitrum: {id:42161, name:"Arbitrum", short:"ARB", icon:chainIcon("arbitrum"), subgraph:"https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-arbitrum/latest/gn"},
+  ethereum: {id:1, name:"Ethereum", short:"ETH", icon:chainIcon("ethereum"), subgraph:"https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-ethereum/latest/gn"},
+  botanix: {id:3637, name:"Botanix", short:"BOT", icon:chainIcon("botanix"), subgraph:"https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-botanix/latest/gn"},
+  mantle: {id:5000, name:"Mantle", short:"MNT", icon:chainIcon("mantle"), subgraph:"https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-mantle/latest/gn"},
+  polygonzkevm: {id:1101, name:"Polygon zkEVM", short:"zkEVM", icon:chainIcon("polygonzkevm"), subgraph:"https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-polygon-zkevm/latest/gn"},
+  xlayer: {id:196, name:"X Layer", short:"XLAY", icon:chainIcon("xlayer"), subgraph:"https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-x-layer/latest/gn"}
+};
+const STABLE_SYMBOLS = new Set(["USDC","USDT","USDT0","USD₮0","DAI","USDC.E","USDC.e","HONEY","USDE","sUSDe","SUSDE","NECT","RUSD","rUSD","SRUSD","srUSD","WSRUSD","wsrUSD","BYUSD","MIM","USDS","sUSDS","SUSDS","USDA","USDa","SAVUSD","savUSD","USD1","USDY","CUSD","cUSD","STCUSD","stcUSD"]);
+const BTC_SYMBOLS = new Set(["BTC","WBTC","LBTC","EBTC","eBTC","SOLVBTC","SolvBTC","SOLVBTC.BBN","TBTC","tBTC","UNIBTC","uniBTC","PUMPBTC","PumpBTC","CBBTC","cbBTC","FBTC","STBTC","stBTC","SBTC","pBTC"]);
+const ETH_SYMBOLS = new Set(["ETH","WETH","WSTETH","wstETH","STETH","RETH","rETH","WEETH","weETH","BERAETH","beraETH","EZETH","ezETH","RSETH","rsETH","STONE","WOETH","METH","mETH","CMETH","cmETH","BERA","WBERA","iBERA","sWBERA","wgBERA","iBGT","diBGT","oriBGT","PT-iBGT-25DEC2025"]);
+const SKIP_PREFIXES = ["dPT-","dYT-","Dolomite Isolation","djUSDC","dfsGLP","dplvGLP","dARB","dGMX","mGLP","sGLP"];
+
+function classifyAsset(sym){
+  if(STABLE_SYMBOLS.has(sym)) return "stable";
+  if(BTC_SYMBOLS.has(sym)) return "btc";
+  if(ETH_SYMBOLS.has(sym)) return "eth";
+  return "eth";
+}
+function shouldSkipMarket(row){
+  const sym = row.token?.tokenSymbol || "";
+  const name = row.token?.tokenName || "";
+  return SKIP_PREFIXES.some(p => sym.startsWith(p) || name.startsWith(p));
+}
+function parseYieldParts(parts){
+  let odolo = 0;
+  let external = 0;
+  const sources = [];
+  (parts || []).forEach(p=>{
+    const raw = (parseFloat(p.interestRate) || 0) * 100;
+    if(raw <= 0) return;
+    const label = String(p.label || "").replace(/\s*\(.*?\)\s*/g,"").replace(/\s+APR$/i,"").replace(/\s+APY$/i,"").trim() || "Yield";
+    if(label.toLowerCase().includes("odolo")){
+      odolo += raw;
+    } else if(p.category === "rewards" || p.category === "nativeYield"){
+      external += raw;
+      sources.push({label, rate: raw, category:p.category || "yield"});
+    }
+  });
+  return {odolo, external, sources};
+}
+
+async function fetchMarketDepth(){
+  const QUERY = `{
+    totalPars(first: 1000) { id supplyPar borrowPar token { id } }
+    marketRiskInfos(first: 1000) { id supplyMaxWei borrowMaxWei isBorrowingDisabled }
+    interestIndexes(first: 1000) { id supplyIndex borrowIndex }
+    oraclePrices(first: 1000) { id price token { id } }
+  }`;
+  const out = {};
+  await Promise.all(Object.entries(LIVE_CHAINS).map(async ([chainKey, chain])=>{
+    try{
+      const resp = await fetch(chain.subgraph, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({query:QUERY})});
+      if(!resp.ok) return;
+      const json = await resp.json();
+      const data = json.data || {};
+      const indexes = {};
+      (data.interestIndexes || []).forEach(r=>{ indexes[String(r.id).toLowerCase()] = {s:parseFloat(r.supplyIndex)||1, b:parseFloat(r.borrowIndex)||1}; });
+      const caps = {};
+      (data.marketRiskInfos || []).forEach(r=>{ caps[String(r.id).toLowerCase()] = {s:parseFloat(r.supplyMaxWei)||0, b:parseFloat(r.borrowMaxWei)||0, disabled:r.isBorrowingDisabled===true}; });
+      const prices = {};
+      (data.oraclePrices || []).forEach(r=>{
+        const addr = String(r.token?.id || r.id || "").toLowerCase();
+        if(addr) prices[addr] = parseFloat(r.price) || 0;
+      });
+      (data.totalPars || []).forEach(tp=>{
+        const addr = String(tp.token?.id || "").toLowerCase();
+        if(!addr) return;
+        const idx = indexes[addr] || {s:1,b:1};
+        const cap = caps[addr] || {};
+        const supplied = (parseFloat(tp.supplyPar)||0) * idx.s;
+        const borrowed = (parseFloat(tp.borrowPar)||0) * idx.b;
+        out[`${chainKey}:${addr}`] = {
+          supplied,
+          borrowed,
+          availableLiquidity: Math.max(0, supplied - borrowed),
+          supplyCap: cap.s || 0,
+          borrowCap: cap.b || 0,
+          borrowDisabled: cap.disabled || false,
+          price: prices[addr] || 0
+        };
+      });
+    }catch(e){
+      console.warn("Market depth fetch failed", chainKey, e);
+    }
+  }));
+  return out;
+}
+
+async function loadLiveAssets(){
+  const depthPromise = fetchMarketDepth();
+  const rows = [];
+  await Promise.all(Object.entries(LIVE_CHAINS).map(async ([chainKey, chain])=>{
+    try{
+      const resp = await fetch(`https://api.dolomite.io/tokens/${chain.id}/interest-rates?exclude-odolo=false`);
+      if(!resp.ok) return;
+      const json = await resp.json();
+      (json.interestRates || []).forEach(r=>{
+        if(shouldSkipMarket(r)) return;
+        const token = r.token || {};
+        const sym = token.tokenSymbol || "UNKNOWN";
+        const addr = String(token.tokenAddress || "").toLowerCase();
+        const parts = parseYieldParts(r.outsideSupplyInterestRateParts);
+        rows.push({
+          key:`${chainKey}:${addr || String(token.marketId || sym).toLowerCase()}`,
+          sym,
+          name: token.tokenName || sym,
+          addr,
+          marketId: token.marketId,
+          cat: classifyAsset(sym),
+          chain: chainKey,
+          chainName: chain.name,
+          icon: tokenIcon(sym, {chain: chainKey, addr}),
+          price: 0,
+          odolo: parts.odolo,
+          yield: parts.external,
+          yieldSources: parts.sources,
+          lending: (parseFloat(r.supplyInterestRate)||0) * 100,
+          borrow: (parseFloat(r.borrowInterestRate)||0) * 100,
+          supplyApr: (parseFloat(r.totalSupplyInterestRate)||0) * 100,
+          lowerOptimalApr: (parseFloat(r.lowerOptimalRate)||0) * 100,
+          upperOptimalApr: (parseFloat(r.upperOptimalRate)||0) * 100,
+          optimalUtilizationRate: parseFloat(r.optimalUtilizationRate)||0,
+          tvl: 0,
+          util: 0,
+          dust: false,
+          borrowDisabled: false,
+          depthReady: false
+        });
+      });
+    }catch(e){
+      console.warn("Interest rate fetch failed", chainKey, e);
+    }
+  }));
+  const depth = await depthPromise;
+  rows.forEach(row=>{
+    const md = depth[row.key];
+    if(!md) return;
+    row.depthReady = true;
+    row.price = md.price || row.price || 0;
+    row.supplied = md.supplied;
+    row.borrowed = md.borrowed;
+    row.availableLiquidity = md.availableLiquidity;
+    row.supplyCap = md.supplyCap;
+    row.borrowCap = md.borrowCap;
+    row.borrowDisabled = md.borrowDisabled;
+    row.util = md.supplied > 0 ? (md.borrowed / md.supplied) * 100 : 0;
+    row.tvl = (md.supplied || 0) * (row.price || 0);
+    row.borrowedUsd = (md.borrowed || 0) * (row.price || 0);
+    row.dust = row.depthReady && row.tvl < 10000;
+  });
+  return rows;
+}
+
+function setLiveStatus(ok, count){
+  const el = document.querySelector(".card-meta");
+  if(el) el.innerHTML = `<span class="pulse"></span>${ok ? "Live · official rates" : "Fallback · static snapshot"}`;
+  const foot = document.getElementById("now");
+  if(foot) foot.textContent = `${count} markets · ${new Date().toLocaleString("en-US",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}`;
+}
 
 /* ==========================================================================
    SIMULATE — kink interest-rate model
@@ -1310,6 +1579,14 @@ function kinkModel(row){
   return {slope1, slope2};
 }
 function borrowAt(row, util){
+  if(row.lowerOptimalApr > 0 || row.upperOptimalApr > 0){
+    const u = Math.max(0, Math.min(99.9999, util)) / 100;
+    const opt = Math.max(0.05, Math.min(0.98, row.optimalUtilizationRate || 0.8));
+    const lower = Math.max(0, row.lowerOptimalApr || 0);
+    const upper = Math.max(lower, row.upperOptimalApr || row.borrow || 0);
+    if(u <= opt) return opt > 0 ? lower * (u / opt) : 0;
+    return lower + (upper - lower) * ((u - opt) / Math.max(1e-9, 1 - opt));
+  }
   const {slope1,slope2} = kinkModel(row);
   return util<=KINK ? slope1*util : slope1*KINK + slope2*(util-KINK);
 }
@@ -1335,13 +1612,17 @@ function supplyAt(row, util){
 }
 
 function simulate(row, calc){
-  const delta = (calc.action==="deposit"?1:-1) * Math.max(0, +calc.amount||0);
-  const borrowed = row.tvl * row.util/100;
-  // withdraw can't exceed available cash (tvl - borrowed)
-  const cash = row.tvl - borrowed;
-  const effDelta = calc.action==="withdraw" ? -Math.min(Math.abs(delta), cash * 0.999) : delta;
-  const newTvl = Math.max(borrowed, row.tvl + effDelta);
-  const newUtil = Math.min(99.5, borrowed / newTvl * 100);
+  const requested = Math.max(0, +calc.amount||0);
+  const suppliedUsd = Math.max(0, Number(row.tvl) || 0);
+  const borrowedUsd = row.borrowedUsd != null ? Math.max(0, Number(row.borrowedUsd)||0) : suppliedUsd * Math.max(0,row.util)/100;
+  const cash = row.availableLiquidity != null ? Math.max(0, Number(row.availableLiquidity) * (row.price || 0)) : Math.max(0, suppliedUsd - borrowedUsd);
+  const capRemaining = row.supplyCap && row.price ? Math.max(0, row.supplyCap * row.price - suppliedUsd) : Infinity;
+  const effectiveAmount = calc.action==="withdraw"
+    ? Math.min(requested, cash)
+    : Math.min(requested, capRemaining);
+  const effDelta = calc.action==="withdraw" ? -effectiveAmount : effectiveAmount;
+  const newTvl = Math.max(borrowedUsd, suppliedUsd + effDelta);
+  const newUtil = newTvl > 0 ? Math.min(99.9999, borrowedUsd / newTvl * 100) : 0;
 
   // raw APRs (used for compounding math) — use per-asset effective reserve
   // factor so "now" lending matches the recorded value exactly
@@ -1357,12 +1638,12 @@ function simulate(row, calc){
   const oldLending = state.mode==="APY" ? aprToApy(oldLendingApr) : oldLendingApr;
 
   // earnings: native lending yield only (oDOLO + external yield don't depend on util)
-  const amt = Math.max(0, +calc.amount||0);
-  const rate = newLendingApr/100;
+  const rate = (calc.action==="withdraw" ? oldLendingApr : newLendingApr)/100;
+  const amt = effectiveAmount;
   const yearly = amt * rate;
 
   return {
-    newUtil, newBorrow, newLending, oldBorrow, oldLending,
+    newUtil, newBorrow, newLending, oldBorrow, oldLending, requested, effectiveAmount,
     utilDir:     newUtil>row.util       ? "up-dir" : newUtil<row.util       ? "down-dir" : "",
     lendingDir:  newLending>oldLending  ? "up-dir" : newLending<oldLending  ? "down-dir" : "",
     borrowDir:   newBorrow>oldBorrow    ? "up-dir" : newBorrow<oldBorrow    ? "down-dir" : "",
@@ -1383,6 +1664,49 @@ function activeSupply(row){
   return s;
 }
 
+function updateHero(){
+  let data = ASSETS.map(r=>({...r,_supply:activeSupply(r)})).filter(r=>!r.dust);
+  if(data.length === 0) data = ASSETS.map(r=>({...r,_supply:activeSupply(r)}));
+  if(data.length === 0) return;
+  const topSupply = data.reduce((best,r)=>r._supply > best._supply ? r : best, data[0]);
+  const topBorrow = data.reduce((best,r)=>r.borrow > best.borrow ? r : best, data[0]);
+  const avgSupply = avg(data.map(r=>r._supply));
+  const odoloRows = data.filter(r=>r.odolo > 0);
+  const avgOdolo = odoloRows.length ? avg(odoloRows.map(r=>r.odolo)) : 0;
+  const chains = new Set(data.map(r=>r.chain));
+  const heroValue = document.querySelector(".hero-value .pct");
+  if(heroValue) heroValue.textContent = rateForMode(topSupply._supply).toFixed(2);
+  const heroToken = document.querySelector(".hero-token");
+  if(heroToken){
+    const topChain = chainMeta(topSupply.chain);
+    heroToken.innerHTML = `<img src="${tokIcon(topSupply.sym, topSupply)}" onerror="this.style.display='none'" alt="${topSupply.sym}">
+        ${topSupply.sym}
+        <span class="hero-chain-pill"><img src="${topChain.icon}" onerror="this.style.display='none'" alt="">${topChain.name}</span>`;
+  }
+  const cards = document.querySelectorAll(".hero-card");
+  if(cards[0]){
+    cards[0].querySelector(".hc-label").lastChild.textContent = ` Avg Supply ${state.mode}`;
+    cards[0].querySelector(".hc-value").textContent = fmtRate(avgSupply);
+    cards[0].querySelector(".hc-sub").textContent = `across ${data.length} markets`;
+  }
+  if(cards[1]){
+    cards[1].querySelector(".hc-value").textContent = avgOdolo > 0 ? "+" + fmtRate(avgOdolo) : "—";
+    cards[1].querySelector(".hc-sub").textContent = odoloRows.length ? `${odoloRows.length} boosted markets` : "no active boosts";
+  }
+  if(cards[2]){
+    const allChains = new Set(ASSETS.map(r=>r.chain));
+    cards[2].querySelector(".hc-value").textContent = String(ASSETS.length);
+    cards[2].querySelector(".hc-sub").textContent = `listed assets · ${allChains.size} chains`;
+  }
+  if(cards[3]){
+    cards[3].querySelector(".hc-value").textContent = fmtRate(topBorrow.borrow);
+    cards[3].querySelector(".hc-sub").textContent = `${topBorrow.sym} · ${chainMeta(topBorrow.chain).name}`;
+  }
+  CHAIN_COUNT_TOTAL = new Set(ASSETS.map(r=>r.chain)).size || CHAIN_COUNT_TOTAL;
+  const netCount = document.querySelector("#dd-net .dd-btn .count");
+  if(netCount && state.nets.size === 0) netCount.textContent = String(CHAIN_COUNT_TOTAL);
+}
+
 /* ==========================================================================
    RENDER
    ========================================================================== */
@@ -1398,6 +1722,8 @@ function render(){
     }
     return true;
   }).map(r=>({...r,_supply:activeSupply(r)}));
+
+  updateHero();
 
   const {key,dir} = state.sort;
   rows.sort((a,b)=>{
@@ -1430,7 +1756,8 @@ function render(){
   tb.innerHTML = rows.map(r=>{
     const supply = state.mode==="APY" ? aprToApy(r._supply) : r._supply;
     const borrow = state.mode==="APY" ? aprToApy(r.borrow) : r.borrow;
-    const chainCls = "dot-"+r.chain;
+    const chain = chainMeta(r.chain);
+    const keyId = marketKey(r);
 
     // vertical breakdown shown under the big Supply value
     // order: Lending (native, always top) → oDOLO → External Yield
@@ -1439,24 +1766,24 @@ function render(){
     if(state.rw.odolo   && r.odolo>0)   parts.push({k:"odolo",   l:"oDOLO",   v:r.odolo});
     if(state.rw.yield   && r.yield>0)   parts.push({k:"yield",   l:"Yield",   v:r.yield});
     const lineHTML = parts.map(p=>
-      `<div class="apy-line ${p.k}"><span class="apy-dash">—</span><span class="apy-src">${p.l}</span><span class="apy-num">${fmtPct(p.v)}</span></div>`
+      `<div class="apy-line ${p.k}"><span class="apy-dash">—</span><span class="apy-src">${p.l}</span><span class="apy-num">${fmtRate(p.v)}</span></div>`
     ).join("");
 
-    const expanded = state.expanded.has(r.sym);
-    const calc = state.calc.get(r.sym) || {action:"deposit",amount:10000};
-    state.calc.set(r.sym, calc);
+    const expanded = state.expanded.has(keyId);
+    const calc = state.calc.get(keyId) || {action:"deposit",amount:10000};
+    state.calc.set(keyId, calc);
     const row = `
-      <tr class="data ${expanded?"expanded":""}" data-sym="${r.sym}">
+      <tr class="data ${expanded?"expanded":""}" data-key="${keyId}">
         <td style="padding-left:32px">
           <div class="asset-cell">
             <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             <div class="tok-ico">
-              <img src="${tokIcon(r.sym)}" onerror="this.style.display='none'" alt="">
+              <img src="${tokIcon(r.sym, r)}" onerror="this.style.display='none'" alt="">
             </div>
             <div class="tok-meta">
               <div class="tok-name"><span class="tok-sym">${r.sym}</span><span class="tok-long">${r.name}</span></div>
               <div class="tok-tags">
-                <span class="tag chain"><span class="dot ${chainCls}"></span>${r.chain==="polygonzkevm"?"Polygon zkEVM":r.chain==="xlayer"?"X Layer":r.chain}</span>
+                <span class="tag chain"><img src="${chain.icon}" onerror="this.style.display='none'" alt="">${chain.name}</span>
               </div>
             </div>
           </div>
@@ -1474,8 +1801,9 @@ function render(){
       </tr>
     `;
     const sim = expanded ? simulate(r, calc) : null;
+    const displaySpread = rateForMode(r.borrow) - rateForMode(r._supply);
     const exp = expanded ? `
-      <tr class="exp-row" data-sym="${r.sym}">
+      <tr class="exp-row" data-key="${keyId}">
         <td colspan="4">
           <div class="exp-body">
 
@@ -1489,22 +1817,22 @@ function render(){
               <div class="exp-stat">
                 <div class="lbl">Utilization</div>
                 <div class="val">${r.util.toFixed(1)}%</div>
-                <div class="exp-bar"><span style="width:${r.util}%"></span></div>
+                <div class="exp-bar"><span style="width:${Math.max(0, Math.min(100, r.util))}%"></span></div>
               </div>
               <div class="exp-stat">
-                <div class="lbl">Supply APR</div>
-                <div class="val accent">${fmtPct(r._supply)}</div>
-                <div class="sub">${state.rw.lending?`Lending ${fmtPct(r.lending)}`:""}${state.rw.yield && r.yield>0?` · Yield ${fmtPct(r.yield)}`:""}${state.rw.odolo && r.odolo>0?` · oDOLO ${fmtPct(r.odolo)}`:""}</div>
+                <div class="lbl">Supply ${state.mode}</div>
+                <div class="val accent">${fmtRate(r._supply)}</div>
+                <div class="sub">${state.rw.lending?`Lending ${fmtRate(r.lending)}`:""}${state.rw.yield && r.yield>0?` · Yield ${fmtRate(r.yield)}`:""}${state.rw.odolo && r.odolo>0?` · oDOLO ${fmtRate(r.odolo)}`:""}</div>
               </div>
               <div class="exp-stat">
                 <div class="lbl">Net Spread</div>
-                <div class="val ${(r.borrow - r._supply) < 0 ? 'down' : ''}">${fmtPct(r.borrow - r._supply)}</div>
+                <div class="val ${displaySpread < 0 ? 'down' : ''}">${fmtPct(displaySpread)}</div>
                 <div class="sub">borrow − supply</div>
               </div>
             </div>
 
             <!-- CALCULATOR -->
-            <div class="calc" data-sym="${r.sym}">
+            <div class="calc" data-key="${keyId}">
               <div class="calc-head">
                 <div class="calc-title">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="13" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="10" y2="18"/><line x1="13" y1="18" x2="16" y2="18"/></svg>
@@ -1568,7 +1896,7 @@ function render(){
               </div>
 
               <div class="calc-earn">
-                <div class="calc-earn-lbl">${calc.action==="deposit"?"Projected earnings · native lending only":"Lending earnings you'd forfeit"}</div>
+                <div class="calc-earn-lbl">${calc.action==="deposit"?"Projected earnings · native lending only":"Lending earnings you'd forfeit"}${sim.requested > sim.effectiveAmount + 0.01 ? " · capped" : ""}</div>
                 <div class="calc-earn-item">
                   <div class="calc-earn-period">per day</div>
                   <div class="calc-earn-val">${fmtUsd(sim.earnDay)}</div>
@@ -1598,7 +1926,7 @@ function render(){
   // bind row clicks
   tb.querySelectorAll("tr.data").forEach(tr=>{
     tr.addEventListener("click",()=>{
-      const s=tr.dataset.sym;
+      const s=tr.dataset.key;
       if(state.expanded.has(s)) state.expanded.delete(s); else state.expanded.add(s);
       render();
     });
@@ -1610,9 +1938,9 @@ function render(){
 
   // calculator: tab switch
   tb.querySelectorAll(".calc").forEach(cl=>{
-    const sym = cl.dataset.sym;
-    const row = ASSETS.find(a=>a.sym===sym);
-    const calc = state.calc.get(sym);
+    const key = cl.dataset.key;
+    const row = ASSETS.find(a=>marketKey(a)===key);
+    const calc = state.calc.get(key);
     cl.querySelectorAll(".calc-tab").forEach(tab=>{
       tab.addEventListener("click", e=>{
         e.stopPropagation();
@@ -1627,7 +1955,7 @@ function render(){
         const v = Math.max(0, parseFloat(e.target.value)||0);
         calc.amount = v;
         // partial re-render to avoid losing focus
-        updateCalc(sym);
+        updateCalc(key);
       });
       // Keyboard arrows — smart step (not fixed browser step)
       input.addEventListener("keydown", e=>{
@@ -1653,7 +1981,7 @@ function render(){
       const step = smartStep(refVal) * mult;
       calc.amount = Math.max(0, Math.round((calc.amount + dir*step)/step)*step);
       if(input) input.value = calc.amount;
-      updateCalc(sym);
+      updateCalc(key);
     }
 
     // Custom steppers with press-and-hold acceleration
@@ -1690,27 +2018,26 @@ function render(){
       maxBtn.addEventListener("click", e=>{
         e.stopPropagation();
         if(calc.action==="withdraw"){
-          const borrowed = row.tvl * row.util/100;
-          const cash = row.tvl - borrowed;
+          const cash = row.availableLiquidity != null && row.price ? row.availableLiquidity * row.price : row.tvl - (row.borrowedUsd != null ? row.borrowedUsd : row.tvl * row.util/100);
           calc.amount = Math.floor(cash);
         } else {
-          // no hard cap on deposit; use a sensible ceiling (10% of tvl)
-          calc.amount = Math.max(10000, Math.floor(row.tvl * 0.1));
+          const capRemaining = row.supplyCap && row.price ? Math.max(0, row.supplyCap * row.price - row.tvl) : Infinity;
+          calc.amount = Number.isFinite(capRemaining) && capRemaining > 0 ? Math.floor(capRemaining) : Math.max(10000, Math.floor(row.tvl * 0.1));
         }
         if(input) input.value = calc.amount;
-        updateCalc(sym);
+        updateCalc(key);
       });
     }
   });
 }
 
 // lightweight partial update for calculator (avoids rerender/focus loss)
-function updateCalc(sym){
-  const row0 = ASSETS.find(a=>a.sym===sym);
+function updateCalc(key){
+  const row0 = ASSETS.find(a=>marketKey(a)===key);
   const row = {...row0, _supply: activeSupply(row0)};
-  const calc = state.calc.get(sym);
+  const calc = state.calc.get(key);
   const sim = simulate(row, calc);
-  const sel = document.querySelector(`.calc[data-sym="${sym}"]`);
+  const sel = Array.from(document.querySelectorAll(".calc")).find(el=>el.dataset.key===key);
   if(!sel) return;
   const rows = sel.querySelectorAll(".calc-row");
   // Utilization row
@@ -1732,6 +2059,8 @@ function updateCalc(sym){
   es[0].textContent = fmtUsd(sim.earnDay);
   es[1].textContent = fmtUsd(sim.earnMonth);
   es[2].textContent = fmtUsd(sim.earnYear);
+  const lbl = sel.querySelector(".calc-earn-lbl");
+  if(lbl) lbl.textContent = (calc.action==="deposit" ? "Projected earnings · native lending only" : "Lending earnings you'd forfeit") + (sim.requested > sim.effectiveAmount + 0.01 ? " · capped" : "");
 }
 
 /* ==========================================================================
@@ -1951,7 +2280,27 @@ document.querySelectorAll(".proto-copy").forEach(btn=>{
   });
 });
 
-render();
+async function initAssetsPreview(){
+  render();
+  try{
+    const liveRows = await loadLiveAssets();
+    if(liveRows.length > 0){
+      ASSETS = liveRows;
+      state.expanded.clear();
+      state.calc.clear();
+      CHAIN_COUNT_TOTAL = new Set(ASSETS.map(r=>r.chain)).size;
+      syncNetDropdown();
+      render();
+      setLiveStatus(true, ASSETS.length);
+      return;
+    }
+    setLiveStatus(false, ASSETS.length);
+  }catch(e){
+    console.warn("Live asset data failed; using static fallback", e);
+    setLiveStatus(false, ASSETS.length);
+  }
+}
+initAssetsPreview();
 </script>
 </body>
 </html>
