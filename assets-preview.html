@@ -459,7 +459,19 @@ body::before{
 /* =========================================================================
    TABLE — dense, terminal-inspired
    ========================================================================= */
-.tbl-wrap{overflow-x:auto;border-radius:0 0 var(--r-xl) var(--r-xl)}
+.tbl-wrap{
+  --asset-table-head-h:44px;
+  --asset-table-row-h:67px;
+  max-height:calc(var(--asset-table-head-h) + (20 * var(--asset-table-row-h)));
+  overflow:auto;
+  border-radius:0 0 var(--r-xl) var(--r-xl);
+  scrollbar-color:rgba(201,162,39,.45) rgba(255,255,255,.04);
+  scrollbar-width:thin;
+}
+.tbl-wrap::-webkit-scrollbar{width:10px;height:10px}
+.tbl-wrap::-webkit-scrollbar-track{background:rgba(255,255,255,.035);border-radius:999px}
+.tbl-wrap::-webkit-scrollbar-thumb{background:rgba(201,162,39,.35);border:2px solid var(--bg-2);border-radius:999px}
+.tbl-wrap::-webkit-scrollbar-thumb:hover{background:rgba(201,162,39,.55)}
 .tbl tbody tr:last-child td{border-bottom:0}
 .tbl{
   width:100%;border-collapse:separate;border-spacing:0;
