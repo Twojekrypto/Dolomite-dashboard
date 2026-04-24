@@ -21,6 +21,32 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.join(SCRIPT_DIR, "avg_lock_data.json")
 
 
+def has_valid_existing_output():
+    """Return True when the previous average-lock output is safe to keep."""
+    if not os.path.exists(OUTPUT_FILE):
+        return False
+    try:
+        with open(OUTPUT_FILE) as f:
+            data = json.load(f)
+    except Exception:
+        return False
+    return (
+        isinstance(data, dict)
+        and data.get("total_exercises", 0) > 0
+        and data.get("valid_durations", 0) > 0
+        and data.get("avg_lock_days", 0) > 0
+    )
+
+
+def preserve_existing_output(reason):
+    """Keep the previous good output when the explorer returns no history."""
+    if has_valid_existing_output():
+        print(f"  ⚠️ {reason}; keeping existing avg_lock_data.json")
+        return True
+    print(f"  ❌ {reason}; no valid existing avg_lock_data.json to keep")
+    return False
+
+
 def get_all_exercise_txs():
     """Fetch ALL exercise transactions from the Vester contract."""
     all_txs = []
@@ -91,6 +117,10 @@ def main():
     print("\n  Fetching all exercise transactions...")
     txs = get_all_exercise_txs()
     print(f"\n  Total exercise transactions: {len(txs)}")
+    if not txs:
+        if preserve_existing_output("Routescan returned zero exercise transactions"):
+            return
+        raise SystemExit(1)
 
     durations = []
     for tx in txs:
@@ -99,8 +129,9 @@ def main():
             durations.append(dur)
 
     if not durations:
-        print("  No valid durations found!")
-        return
+        if preserve_existing_output("No valid durations found"):
+            return
+        raise SystemExit(1)
 
     avg_seconds = sum(durations) / len(durations)
     avg_days = avg_seconds / 86400

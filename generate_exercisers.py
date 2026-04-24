@@ -43,6 +43,34 @@ MAX_RETRIES = 3
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 CACHE_FILE = os.path.join(DATA_DIR, "exercisers_cache.json")
+OUTPUT_FILE = os.path.join(DATA_DIR, "exercisers_by_address.json")
+
+
+def has_valid_existing_output():
+    """Return True when the last generated production output is safe to keep."""
+    if not os.path.exists(OUTPUT_FILE):
+        return False
+    try:
+        with open(OUTPUT_FILE) as f:
+            data = json.load(f)
+    except Exception:
+        return False
+    return (
+        isinstance(data, dict)
+        and data.get("total_addresses", 0) >= 5
+        and data.get("total_exercises", 0) >= 5
+        and isinstance(data.get("exercisers"), list)
+        and len(data["exercisers"]) >= 5
+    )
+
+
+def preserve_existing_output(reason):
+    """Keep the previous good output when an upstream API returns no history."""
+    if has_valid_existing_output():
+        print(f"  ⚠️ {reason}; keeping existing exercisers_by_address.json", flush=True)
+        return True
+    print(f"  ❌ {reason}; no valid existing exercisers_by_address.json to keep", flush=True)
+    return False
 
 
 def load_cache():
@@ -217,6 +245,10 @@ def main():
     print("\n[1/3] Fetching Vester transactions...")
     all_txs = get_all_transactions()
     print(f"  Total: {len(all_txs)}")
+    if not all_txs:
+        if preserve_existing_output("Routescan returned zero Vester transactions"):
+            return
+        raise SystemExit(1)
 
     exercise_txs = [
         tx for tx in all_txs
@@ -225,6 +257,10 @@ def main():
         and tx.get("txreceipt_status") == "1"
     ]
     print(f"\n[2/3] Exercise transactions: {len(exercise_txs)}")
+    if not exercise_txs:
+        if preserve_existing_output("Routescan returned zero exercise transactions"):
+            return
+        raise SystemExit(1)
     # Count by method
     m1 = sum(1 for tx in exercise_txs if tx.get('methodId') == EXERCISE_METHOD_ID)
     m2 = sum(1 for tx in exercise_txs if tx.get('methodId') == EXERCISE_METHOD_ID_2)
@@ -393,7 +429,12 @@ def main():
         "exercisers": exercisers
     }
 
-    with open("exercisers_by_address.json", "w") as f:
+    if not exercisers:
+        if preserve_existing_output("generated exerciser set was empty"):
+            return
+        raise SystemExit(1)
+
+    with open(OUTPUT_FILE, "w") as f:
         json.dump(result, f, indent=2)
 
     avg_price = result["total_usdc"] / total_vedolo if total_vedolo > 0 else 0
