@@ -70,6 +70,10 @@ function proxyRequest(targetUrl, res) {
 }
 
 function serveStatic(filePath, res) {
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
+        filePath = path.join(filePath, 'index.html');
+    }
+
     const ext = path.extname(filePath).toLowerCase();
     const mime = MIME[ext] || 'application/octet-stream';
 
