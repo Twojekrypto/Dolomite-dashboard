@@ -387,8 +387,17 @@ input{font:inherit}
   color:var(--fg-2);font-size:12px;transition:border-color .15s var(--ease),color .15s var(--ease),background .15s var(--ease);
 }
 .pager button:hover:not(:disabled){border-color:var(--gold-line);color:var(--fg-1);background:var(--gold-wash)}
+.pager button.active{border-color:var(--gold-line);background:var(--gold);color:var(--bg-0);font-weight:700}
 .pager button:disabled{opacity:.35;cursor:not-allowed}
 .pager .page-info{font-family:var(--mono);font-size:11px;color:var(--fg-3);min-width:56px;text-align:center}
+.flow-pager{
+  justify-content:center;padding:12px 14px;border-top:1px solid var(--line-1);
+  background:rgba(255,255,255,.01);
+}
+.flow-pager:empty{display:none}
+.flow-pager .ellipsis{min-width:16px;text-align:center;color:var(--fg-3);font-family:var(--mono)}
+#holdersCard .footer-line{position:relative;justify-content:center;min-height:57px}
+#holderFooter{position:absolute;left:24px}
 .error-box{
   margin:24px 0;padding:18px 20px;border:1px solid var(--down-line);border-radius:var(--r-md);
   color:var(--down);background:var(--down-wash);font-size:13px;
@@ -406,6 +415,9 @@ input{font:inherit}
   .hero-headline{align-items:flex-start}
   .hero-grid,.stats-strip,.flow-summary{grid-template-columns:1fr}
   .card-head,.toolbar,.footer-line{padding-left:16px;padding-right:16px}
+  #holdersCard .footer-line{flex-direction:column;gap:10px}
+  #holderFooter{position:static;order:2}
+  #holdersCard .footer-line .pager{order:1}
   .card-head{align-items:flex-start}
   .card-head .card-meta{width:100%;justify-content:flex-start;margin-left:32px;margin-top:-6px}
   .tb-left,.tb-right{width:100%}
@@ -569,6 +581,7 @@ input{font:inherit}
                 <tbody id="accRows"></tbody>
               </table>
             </div>
+            <div class="pager flow-pager" id="accPager"></div>
           </div>
           <div class="flow-panel">
             <div class="flow-panel-head">
@@ -588,6 +601,7 @@ input{font:inherit}
                 <tbody id="sellRows"></tbody>
               </table>
             </div>
+            <div class="pager flow-pager" id="sellPager"></div>
           </div>
         </div>
       </section>
@@ -773,7 +787,8 @@ const state = {
   holderSort:"rank",
   holderSortAsc:true,
   flowSort:{acc:"display_flow",sell:"display_flow"},
-  flowSortAsc:{acc:false,sell:false}
+  flowSortAsc:{acc:false,sell:false},
+  flowPage:{acc:1,sell:1}
 };
 const HOLDER_PER_PAGE = 18;
 const FLOW_LIMIT = 10;
@@ -1053,6 +1068,36 @@ function sortFlowRows(rows, type){
     return String(a.address).localeCompare(String(b.address));
   });
 }
+function resetFlowPages(){
+  state.flowPage.acc = 1;
+  state.flowPage.sell = 1;
+}
+function pageNumbers(current, total){
+  if (total <= 5) return Array.from({length:total}, (_, i) => i + 1);
+  if (current <= 3) return [1, 2, 3, 4, "...", total];
+  if (current >= total - 2) return [1, "...", total - 3, total - 2, total - 1, total];
+  return [1, "...", current - 1, current, current + 1, "...", total];
+}
+function renderFlowPager(type, totalRows){
+  const totalPages = Math.max(1, Math.ceil(totalRows / FLOW_LIMIT));
+  state.flowPage[type] = Math.max(1, Math.min(state.flowPage[type] || 1, totalPages));
+  const el = type === "acc" ? $("#accPager") : $("#sellPager");
+  if (!el) return;
+  if (totalPages <= 1) {
+    el.innerHTML = "";
+    return;
+  }
+  const current = state.flowPage[type];
+  const nums = pageNumbers(current, totalPages).map(page => {
+    if (page === "...") return `<span class="ellipsis">...</span>`;
+    return `<button type="button" data-flow-table="${type}" data-flow-page="${page}" class="${page === current ? "active" : ""}" aria-current="${page === current ? "page" : "false"}">${page}</button>`;
+  }).join("");
+  el.innerHTML = `
+    <button type="button" data-flow-table="${type}" data-flow-page="${current - 1}" ${current === 1 ? "disabled" : ""}>‹</button>
+    ${nums}
+    <button type="button" data-flow-table="${type}" data-flow-page="${current + 1}" ${current === totalPages ? "disabled" : ""}>›</button>
+  `;
+}
 function periodTransferCount(){
   const period = state.flows?.periods?.[state.flowPeriod] || {};
   if (state.flowChain === "all") return (period.eth?.total_transfers || 0) + (period.bera?.total_transfers || 0);
@@ -1081,17 +1126,25 @@ function renderFlow(){
   $("#totalTransfers").textContent = fmtInt(periodTransferCount());
   $("#accCount").textContent = `${fmtInt(acc.length)} wallets`;
   $("#sellCount").textContent = `${fmtInt(sell.length)} wallets`;
-  $("#accRows").innerHTML = renderFlowRows(acc.slice(0,FLOW_LIMIT), true);
-  $("#sellRows").innerHTML = renderFlowRows(sell.slice(0,FLOW_LIMIT), false);
+  const accPages = Math.max(1, Math.ceil(acc.length / FLOW_LIMIT));
+  const sellPages = Math.max(1, Math.ceil(sell.length / FLOW_LIMIT));
+  state.flowPage.acc = Math.max(1, Math.min(state.flowPage.acc || 1, accPages));
+  state.flowPage.sell = Math.max(1, Math.min(state.flowPage.sell || 1, sellPages));
+  const accStart = (state.flowPage.acc - 1) * FLOW_LIMIT;
+  const sellStart = (state.flowPage.sell - 1) * FLOW_LIMIT;
+  $("#accRows").innerHTML = renderFlowRows(acc.slice(accStart, accStart + FLOW_LIMIT), true, accStart);
+  $("#sellRows").innerHTML = renderFlowRows(sell.slice(sellStart, sellStart + FLOW_LIMIT), false, sellStart);
+  renderFlowPager("acc", acc.length);
+  renderFlowPager("sell", sell.length);
   updateFlowSortHeaders();
 }
-function renderFlowRows(rows, isAcc){
+function renderFlowRows(rows, isAcc, offset=0){
   if (!rows.length) return `<tr><td colspan="4" class="empty">No matching flow data</td></tr>`;
   return rows.map((row,i) => {
     const chain = state.flowChain === "all" ? primaryChain(row) : state.flowChain;
     return `
       <tr>
-        <td class="rank">${i + 1}</td>
+        <td class="rank">${offset + i + 1}</td>
         <td>${addressCell(row, chain)}</td>
         <td class="num">${fmtToken(row.balance,1)}</td>
         <td class="num ${isAcc ? "green" : "red"}">${isAcc ? "+" : "-"}${fmtToken(row.display_flow,1)}</td>
@@ -1188,13 +1241,13 @@ function updateAllPillSliders(){
   $$(".pill-switch").forEach(updatePillSlider);
 }
 function bindEvents(){
-  initPills("flowPeriodPills","period", value => {state.flowPeriod = value; renderFlow();});
-  initPills("flowChainPills","chain", value => {state.flowChain = value; renderFlow();});
+  initPills("flowPeriodPills","period", value => {state.flowPeriod = value; resetFlowPages(); renderFlow();});
+  initPills("flowChainPills","chain", value => {state.flowChain = value; resetFlowPages(); renderFlow();});
   initHolderChainDropdown();
   initPills("holderPeriodPills","period", value => {state.holderPeriod = value; renderHolders();});
-  initToggle("flowHideKnown","flowHideKnown", renderFlow);
+  initToggle("flowHideKnown","flowHideKnown", () => {resetFlowPages(); renderFlow();});
   initToggle("holderHideKnown","holderHideKnown", () => {state.holderPage = 1; renderHolders();});
-  $("#flowSearch").addEventListener("input", event => {state.flowSearch = event.target.value.toLowerCase().trim(); renderFlow();});
+  $("#flowSearch").addEventListener("input", event => {state.flowSearch = event.target.value.toLowerCase().trim(); resetFlowPages(); renderFlow();});
   $("#holderSearch").addEventListener("input", event => {state.holderSearch = event.target.value.toLowerCase().trim(); state.holderPage = 1; renderHolders();});
   $$("#holdersCard th[data-sort]").forEach(th => th.addEventListener("click", () => {
     const sort = th.dataset.sort;
@@ -1214,8 +1267,17 @@ function bindEvents(){
       state.flowSort[type] = sort;
       state.flowSortAsc[type] = false;
     }
+    state.flowPage[type] = 1;
     renderFlow();
   }));
+  document.addEventListener("click", event => {
+    const pageBtn = event.target.closest("[data-flow-page]");
+    if (!pageBtn) return;
+    const type = pageBtn.dataset.flowTable;
+    if (type !== "acc" && type !== "sell") return;
+    state.flowPage[type] = Number(pageBtn.dataset.flowPage) || 1;
+    renderFlow();
+  });
   $("#firstPage").addEventListener("click", () => {state.holderPage = 1; renderHolders();});
   $("#prevPage").addEventListener("click", () => {state.holderPage -= 1; renderHolders();});
   $("#nextPage").addEventListener("click", () => {state.holderPage += 1; renderHolders();});
