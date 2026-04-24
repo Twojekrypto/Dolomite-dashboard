@@ -527,6 +527,25 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .tag.chain img{width:12px;height:12px;border-radius:50%;object-fit:cover}
 .tag.cat{color:var(--fg-3)}
 .tag.odolo{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.token-ca{
+  display:inline-flex;align-items:center;gap:4px;
+  font-family:var(--mono);font-size:10px;line-height:1;
+  color:var(--fg-3);text-decoration:none;
+  padding:3px 6px;border-radius:4px;
+  background:rgba(255,255,255,.025);border:1px solid var(--line-1);
+  transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease);
+}
+.token-ca:hover{color:var(--fg-1);border-color:var(--gold-line);background:var(--gold-wash)}
+.token-ca-label{font-size:9px;letter-spacing:.6px;color:var(--fg-4);font-family:'Inter',system-ui,sans-serif;font-weight:700}
+.token-ca-copy{
+  width:20px;height:20px;border-radius:5px;
+  display:inline-grid;place-items:center;flex-shrink:0;
+  color:var(--fg-3);background:rgba(255,255,255,.025);border:1px solid var(--line-1);
+  transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease);
+}
+.token-ca-copy:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.token-ca-copy.copied{color:var(--up);border-color:var(--up)}
+.token-ca-copy svg{width:11px;height:11px}
 
 /* chain dot colors — restrained */
 .dot-berachain{background:#c9a227}
@@ -596,6 +615,34 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .calc-head{display:flex;flex-direction:column;align-items:flex-start;gap:12px;margin-bottom:14px}
 .calc-title{display:flex;align-items:center;gap:10px;font-size:11px;text-transform:uppercase;letter-spacing:1.6px;font-weight:700;color:var(--gold)}
 .calc-title svg{width:14px;height:14px}
+.calc-help{
+  position:relative;
+  width:17px;height:17px;border-radius:50%;
+  display:inline-grid;place-items:center;
+  margin-left:-2px;
+  font-size:11px;line-height:1;font-weight:800;letter-spacing:0;
+  color:var(--fg-2);background:var(--bg-3);border:1px solid var(--line-2);
+  cursor:help;
+  transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease);
+}
+.calc-help:hover,.calc-help:focus-visible{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash);outline:0}
+.calc-help-tip{
+  position:absolute;left:50%;bottom:calc(100% + 9px);z-index:5;
+  width:min(320px,calc(100vw - 56px));
+  transform:translateX(-50%) translateY(4px);
+  opacity:0;pointer-events:none;
+  padding:10px 12px;border-radius:8px;
+  color:var(--fg-2);background:rgba(15,15,17,.98);
+  border:1px solid var(--line-3);box-shadow:var(--sh-hi);
+  font-family:'Inter',system-ui,sans-serif;font-size:11px;font-weight:500;letter-spacing:0;text-transform:none;line-height:1.45;
+  transition:opacity .15s var(--ease),transform .15s var(--ease);
+}
+.calc-help-tip::after{
+  content:"";position:absolute;left:50%;top:100%;transform:translateX(-50%);
+  border:6px solid transparent;border-top-color:rgba(15,15,17,.98);
+}
+.calc-help:hover .calc-help-tip,
+.calc-help:focus-visible .calc-help-tip{opacity:1;transform:translateX(-50%) translateY(0)}
 
 .calc-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%}
 .calc-tabs{display:inline-flex;background:var(--bg-3);border:1px solid var(--line-2);border-radius:8px;padding:3px;position:relative}
@@ -678,15 +725,6 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .calc-earn-item{display:flex;flex-direction:column;gap:2px}
 .calc-earn-period{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--fg-3);font-weight:500}
 .calc-earn-val{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--gold)}
-.calc-note{
-  margin-top:12px;padding:10px 12px;
-  font-size:11px;color:var(--fg-3);line-height:1.55;
-  background:rgba(255,255,255,.015);border:1px solid var(--line-1);
-  border-radius:8px;
-  border-left:2px solid var(--gold-line);
-}
-
-
 /* =========================================================================
    PROTOCOL INFO CARD (bottom of page)
    ========================================================================= */
@@ -1411,16 +1449,16 @@ const aprToApy = (apr)=>((Math.pow(1+apr/100/365,365)-1)*100);
 const rateForMode = (apr)=> state.mode==="APY" && apr > 0 ? aprToApy(apr) : apr;
 const fmtRate = (apr)=>fmtPct(rateForMode(apr));
 const marketKey = (row)=> row.key || `${row.chain}:${(row.addr || row.sym || row.name || "").toLowerCase()}`;
-const chainMeta = (chainKey)=>LIVE_CHAINS[chainKey] || {name:CHAIN_LABELS[chainKey] || chainKey, short:chainKey, id:null, icon:chainIcon(chainKey)};
+const chainMeta = (chainKey)=>LIVE_CHAINS[chainKey] || {name:CHAIN_LABELS[chainKey] || chainKey, short:chainKey, id:null, icon:chainIcon(chainKey), explorer:""};
 
 const LIVE_CHAINS = {
-  berachain: {id:80094, name:"Berachain", short:"BERA", icon:chainIcon("berachain"), subgraph:"https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-berachain-mainnet/latest/gn"},
-  arbitrum: {id:42161, name:"Arbitrum", short:"ARB", icon:chainIcon("arbitrum"), subgraph:"https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-arbitrum/latest/gn"},
-  ethereum: {id:1, name:"Ethereum", short:"ETH", icon:chainIcon("ethereum"), subgraph:"https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-ethereum/latest/gn"},
-  botanix: {id:3637, name:"Botanix", short:"BOT", icon:chainIcon("botanix"), subgraph:"https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-botanix/latest/gn"},
-  mantle: {id:5000, name:"Mantle", short:"MNT", icon:chainIcon("mantle"), subgraph:"https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-mantle/latest/gn"},
-  polygonzkevm: {id:1101, name:"Polygon zkEVM", short:"zkEVM", icon:chainIcon("polygonzkevm"), subgraph:"https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-polygon-zkevm/latest/gn"},
-  xlayer: {id:196, name:"X Layer", short:"XLAY", icon:chainIcon("xlayer"), subgraph:"https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-x-layer/latest/gn"}
+  berachain: {id:80094, name:"Berachain", short:"BERA", icon:chainIcon("berachain"), explorer:"https://berascan.com/address/", subgraph:"https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-berachain-mainnet/latest/gn"},
+  arbitrum: {id:42161, name:"Arbitrum", short:"ARB", icon:chainIcon("arbitrum"), explorer:"https://arbiscan.io/address/", subgraph:"https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-arbitrum/latest/gn"},
+  ethereum: {id:1, name:"Ethereum", short:"ETH", icon:chainIcon("ethereum"), explorer:"https://etherscan.io/address/", subgraph:"https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-ethereum/latest/gn"},
+  botanix: {id:3637, name:"Botanix", short:"BOT", icon:chainIcon("botanix"), explorer:"https://explorer.botanixlabs.dev/address/", subgraph:"https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-botanix/latest/gn"},
+  mantle: {id:5000, name:"Mantle", short:"MNT", icon:chainIcon("mantle"), explorer:"https://mantlescan.xyz/address/", subgraph:"https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-mantle/latest/gn"},
+  polygonzkevm: {id:1101, name:"Polygon zkEVM", short:"zkEVM", icon:chainIcon("polygonzkevm"), explorer:"https://zkevm.polygonscan.com/address/", subgraph:"https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-polygon-zkevm/latest/gn"},
+  xlayer: {id:196, name:"X Layer", short:"XLAY", icon:chainIcon("xlayer"), explorer:"https://www.okx.com/web3/explorer/xlayer/address/", subgraph:"https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-x-layer/latest/gn"}
 };
 const STABLE_SYMBOLS = new Set(["USDC","USDT","USDT0","USD₮0","DAI","USDC.E","USDC.e","HONEY","USDE","sUSDe","SUSDE","NECT","RUSD","rUSD","SRUSD","srUSD","WSRUSD","wsrUSD","BYUSD","MIM","USDS","sUSDS","SUSDS","USDA","USDa","SAVUSD","savUSD","USD1","USDY","CUSD","cUSD","STCUSD","stcUSD"]);
 const BTC_SYMBOLS = new Set(["BTC","WBTC","LBTC","EBTC","eBTC","SOLVBTC","SolvBTC","SOLVBTC.BBN","TBTC","tBTC","UNIBTC","uniBTC","PUMPBTC","PumpBTC","CBBTC","cbBTC","FBTC","STBTC","stBTC","SBTC","pBTC"]);
@@ -1433,6 +1471,11 @@ function classifyAsset(sym){
   if(ETH_SYMBOLS.has(sym)) return "eth";
   return "eth";
 }
+const shortAddr = (a)=>String(a || "").slice(0,6)+"…"+String(a || "").slice(-4);
+const explorerUrl = (row)=>{
+  const base = chainMeta(row.chain).explorer || "";
+  return row.addr && base ? base + row.addr : "";
+};
 function shouldSkipMarket(row){
   const sym = row.token?.tokenSymbol || "";
   const name = row.token?.tokenName || "";
@@ -1773,6 +1816,12 @@ function render(){
     const borrow = state.mode==="APY" ? aprToApy(r.borrow) : r.borrow;
     const chain = chainMeta(r.chain);
     const keyId = marketKey(r);
+    const addrUrl = explorerUrl(r);
+    const caHTML = r.addr ? `
+                  <a class="token-ca" href="${addrUrl || "#"}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="${r.addr}">
+                    <span class="token-ca-label">CA</span><span>${shortAddr(r.addr)}</span>
+                  </a>
+                  <button class="token-ca-copy" data-copy="${r.addr}" aria-label="Copy ${r.sym} contract address" title="Copy CA">${COPY_ICO}</button>` : "";
 
     // vertical breakdown shown under the big Supply value
     // order: Lending (native, always top) → oDOLO → External Yield
@@ -1799,6 +1848,7 @@ function render(){
               <div class="tok-name"><span class="tok-sym">${r.sym}</span><span class="tok-long">${r.name}</span></div>
               <div class="tok-tags">
                 <span class="tag chain"><img src="${chain.icon}" onerror="this.style.display='none'" alt="">${chain.name}</span>
+                ${caHTML}
               </div>
             </div>
           </div>
@@ -1852,6 +1902,9 @@ function render(){
                 <div class="calc-title">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="13" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="10" y2="18"/><line x1="13" y1="18" x2="16" y2="18"/></svg>
                   Yield Calculator
+                  <span class="calc-help" tabindex="0" aria-label="Yield calculator note">?
+                    <span class="calc-help-tip">Only the native lending portion of APR reacts to utilization changes. Any oDOLO rewards${r.yield>0?" and external yield":""} apply on top and don't depend on your deposit.</span>
+                  </span>
                 </div>
                 <div class="calc-controls">
                   <div class="calc-tabs" data-calc-tabs>
@@ -1926,9 +1979,6 @@ function render(){
                 </div>
               </div>
 
-              <div class="calc-note">
-                Only the native lending portion of APR reacts to utilization changes. Any oDOLO rewards${r.yield>0?" and external yield":""} apply on top and don't depend on your deposit.
-              </div>
             </div>
 
           </div>
@@ -1949,6 +1999,16 @@ function render(){
   // expanded row: keep clicks inside from collapsing
   tb.querySelectorAll("tr.exp-row").forEach(tr=>{
     tr.addEventListener("click", e=>e.stopPropagation());
+  });
+  tb.querySelectorAll(".token-ca-copy").forEach(btn=>{
+    btn.addEventListener("click", async e=>{
+      e.stopPropagation();
+      const addr = btn.dataset.copy;
+      try { await navigator.clipboard.writeText(addr); } catch(_) {}
+      btn.classList.add("copied");
+      btn.innerHTML = CHECK_ICO;
+      setTimeout(()=>{ btn.classList.remove("copied"); btn.innerHTML = COPY_ICO; }, 1400);
+    });
   });
 
   // calculator: tab switch
