@@ -717,14 +717,6 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .calc-arrow.up-dir{color:var(--up)}
 .calc-arrow.down-dir{color:var(--down)}
 
-.calc-earn{
-  margin-top:14px;padding-top:14px;border-top:1px solid var(--line-1);
-  display:grid;grid-template-columns:auto repeat(3,1fr);gap:18px;align-items:center;
-}
-.calc-earn-lbl{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:var(--fg-3);font-weight:600}
-.calc-earn-item{display:flex;flex-direction:column;gap:2px}
-.calc-earn-period{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--fg-3);font-weight:500}
-.calc-earn-val{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--gold)}
 /* =========================================================================
    PROTOCOL INFO CARD (bottom of page)
    ========================================================================= */
@@ -779,8 +771,6 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   .hero-grid{grid-template-columns:1fr 1fr}
   .exp-stats-row{grid-template-columns:1fr 1fr}
   .calc-grid{grid-template-columns:1fr}
-  .calc-earn{grid-template-columns:1fr 1fr 1fr}
-  .calc-earn-lbl{grid-column:1/-1}
 }
 @media (max-width:640px){
   .wrap{padding:24px 16px 48px}
@@ -790,7 +780,6 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   .tb-left,.tb-right{width:100%}
   .exp-body{padding:18px 20px 20px 24px}
   .exp-stats-row{grid-template-columns:1fr}
-  .calc-earn{grid-template-columns:1fr}
   .proto-addrs{grid-template-columns:1fr}
   .proto-addr-hex{max-width:120px}
   .site-top{gap:10px;margin-bottom:32px}
@@ -1697,19 +1686,11 @@ function simulate(row, calc){
   const oldBorrow  = state.mode==="APY" ? aprToApy(oldBorrowApr)  : oldBorrowApr;
   const oldLending = state.mode==="APY" ? aprToApy(oldLendingApr) : oldLendingApr;
 
-  // earnings: native lending yield only (oDOLO + external yield don't depend on util)
-  const rate = (calc.action==="withdraw" ? oldLendingApr : newLendingApr)/100;
-  const amt = effectiveAmount;
-  const yearly = amt * rate;
-
   return {
     newUtil, newBorrow, newLending, oldBorrow, oldLending, requested, effectiveAmount,
     utilDir:     newUtil>row.util       ? "up-dir" : newUtil<row.util       ? "down-dir" : "",
     lendingDir:  newLending>oldLending  ? "up-dir" : newLending<oldLending  ? "down-dir" : "",
-    borrowDir:   newBorrow>oldBorrow    ? "up-dir" : newBorrow<oldBorrow    ? "down-dir" : "",
-    earnDay: yearly/365,
-    earnMonth: yearly/12,
-    earnYear: yearly
+    borrowDir:   newBorrow>oldBorrow    ? "up-dir" : newBorrow<oldBorrow    ? "down-dir" : ""
   };
 }
 
@@ -1965,22 +1946,6 @@ function render(){
                 </div>
               </div>
 
-              <div class="calc-earn">
-                <div class="calc-earn-lbl">${calc.action==="deposit"?"Projected earnings · native lending only":"Lending earnings you'd forfeit"}${sim.requested > sim.effectiveAmount + 0.01 ? " · capped" : ""}</div>
-                <div class="calc-earn-item">
-                  <div class="calc-earn-period">per day</div>
-                  <div class="calc-earn-val">${fmtUsd(sim.earnDay)}</div>
-                </div>
-                <div class="calc-earn-item">
-                  <div class="calc-earn-period">per month</div>
-                  <div class="calc-earn-val">${fmtUsd(sim.earnMonth)}</div>
-                </div>
-                <div class="calc-earn-item">
-                  <div class="calc-earn-period">per year</div>
-                  <div class="calc-earn-val">${fmtUsd(sim.earnYear)}</div>
-                </div>
-              </div>
-
             </div>
 
           </div>
@@ -2131,13 +2096,6 @@ function updateCalc(key){
   rows[2].querySelectorAll(".calc-side-val")[1].textContent = fmtPct(sim.newBorrow);
   const ar2 = rows[2].querySelector(".calc-arrow");
   ar2.classList.remove("up-dir","down-dir"); if(sim.borrowDir) ar2.classList.add(sim.borrowDir);
-  // earnings
-  const es = sel.querySelectorAll(".calc-earn-val");
-  es[0].textContent = fmtUsd(sim.earnDay);
-  es[1].textContent = fmtUsd(sim.earnMonth);
-  es[2].textContent = fmtUsd(sim.earnYear);
-  const lbl = sel.querySelector(".calc-earn-lbl");
-  if(lbl) lbl.textContent = (calc.action==="deposit" ? "Projected earnings · native lending only" : "Lending earnings you'd forfeit") + (sim.requested > sim.effectiveAmount + 0.01 ? " · capped" : "");
 }
 
 /* ==========================================================================
