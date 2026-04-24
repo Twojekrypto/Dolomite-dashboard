@@ -363,9 +363,6 @@ input{font:inherit}
 .holder-label-line{display:flex;align-items:center;min-width:0}
 .holder-address-line{gap:6px}
 .holder-address-line .addr-link{max-width:142px}
-.flow-address-line .addr-link{max-width:126px}
-.flow-chain-line{margin-top:1px;font-size:10px}
-.flow-chain-line .chain-dot img{width:12px;height:12px}
 .debank-btn{
   width:22px;height:22px;border-radius:6px;display:inline-grid;place-items:center;flex-shrink:0;
   color:var(--fg-3);background:rgba(255,255,255,.025);border:1px solid var(--line-1);
@@ -884,29 +881,6 @@ function chainBadges(row, focusChain){
   if (!parts.length) parts.push(`<span class="muted">No chain</span>`);
   return parts.join("");
 }
-function addressCell(row, chain, badgeChain){
-  const info = infoFor(row.address);
-  const url = explorerUrl(row.address, chain || primaryChain(row));
-  const debankUrl = `https://debank.com/profile/${row.address}`;
-  const label = info
-    ? `<div class="holder-label-line"><span class="label-badge ${escapeHtml(info.type)}" title="${escapeHtml(info.label)}">${escapeHtml(info.label)}</span></div>`
-    : "";
-  return `
-    <div class="addr-cell holder-addr-cell flow-addr-cell">
-      <div class="addr-main holder-addr-main">
-        ${label}
-        <div class="addr-line holder-address-line flow-address-line">
-          <a class="addr-link" href="${url}" target="_blank" rel="noopener" title="${escapeHtml(row.address)}">${shortAddr(row.address)}</a>
-          <button class="copy-btn" type="button" data-copy="${escapeHtml(row.address)}" title="Copy address">${copyIcon()}</button>
-          <a class="debank-btn" href="${debankUrl}" target="_blank" rel="noopener" title="View on DeBank">
-            <img src="https://debank.com/favicon.ico" alt="" onerror="this.parentElement.style.display='none'">
-          </a>
-        </div>
-        <div class="addr-sub flow-chain-line">${chainBadges(row, badgeChain)}</div>
-      </div>
-    </div>
-  `;
-}
 function holderAddressCell(row, chain){
   const info = infoFor(row.address);
   const url = explorerUrl(row.address, chain || primaryChain(row));
@@ -1188,11 +1162,10 @@ function renderFlowRows(rows, isAcc, offset=0){
   if (!rows.length) return `<tr><td colspan="4" class="empty">No matching flow data</td></tr>`;
   return rows.map((row,i) => {
     const chain = state.flowChain === "all" ? primaryChain(row) : state.flowChain;
-    const badgeChain = state.flowChain === "all" ? undefined : chain;
     return `
       <tr>
         <td class="rank">${offset + i + 1}</td>
-        <td>${addressCell(row, chain, badgeChain)}</td>
+        <td>${holderAddressCell(row, chain)}</td>
         <td class="num">${fmtToken(row.balance,1)}</td>
         <td class="num ${isAcc ? "green" : "red"}">${isAcc ? "+" : "-"}${fmtToken(row.display_flow,1)}</td>
       </tr>
