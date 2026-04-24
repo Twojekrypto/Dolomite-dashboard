@@ -517,6 +517,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .dot-berachain{background:#c9a227}
 .dot-arbitrum{background:#6b8aa8}
 .dot-ethereum{background:#8a8a9e}
+.dot-base{background:#4b7fb8}
 .dot-botanix{background:#b4796b}
 .dot-mantle{background:#6a7a6e}
 .dot-polygonzkevm{background:#8a6b9a}
@@ -566,6 +567,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .exp-stat .lbl{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:var(--fg-3);font-weight:600;margin-bottom:8px}
 .exp-stat .val{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--fg-1);letter-spacing:-.3px}
 .exp-stat .val.accent{color:var(--gold)}
+.exp-stat .val.down{color:var(--down)}
 .exp-stat .sub{font-size:11px;color:var(--fg-3);margin-top:4px;font-family:var(--mono)}
 .exp-bar{margin-top:8px;width:100%;height:4px;border-radius:2px;background:var(--bg-3);overflow:hidden}
 .exp-bar>span{display:block;height:100%;background:var(--gold);opacity:.75}
@@ -670,29 +672,6 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   border-left:2px solid var(--gold-line);
 }
 
-/* ========== CHARTS (history + util curve) ========== */
-.exp-charts-row{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-.chart-card{
-  background:rgba(255,255,255,.02);
-  border:1px solid var(--line-2);
-  border-radius:var(--r-md);
-  padding:16px 18px 14px;
-}
-.chart-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-.chart-title{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:var(--fg-3);font-weight:600}
-.chart-legend{display:flex;gap:10px;font-size:10px;color:var(--fg-3)}
-.lg-dot{display:inline-block;width:8px;height:2px;border-radius:1px;margin-right:5px;vertical-align:middle}
-.lg-dot.gold{background:var(--gold)}
-.lg-dot.dn{background:var(--down)}
-.lg-dot.dashed{background:linear-gradient(90deg,var(--gold) 50%,transparent 50%);background-size:3px 100%}
-.chart-svg{width:100%;height:110px;display:block}
-.chart-note{font-size:10px;color:var(--fg-3);margin-top:6px;font-family:var(--mono)}
-
-/* ========== LINKS ========== */
-.exp-links{display:flex;gap:10px;padding-top:14px;border-top:1px solid var(--line-1)}
-.exp-links a{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--fg-2);padding:8px 12px;border-radius:8px;border:1px solid var(--line-2);background:var(--bg-3);transition:border-color .2s var(--ease),color .2s var(--ease)}
-.exp-links a:hover{color:var(--gold);border-color:var(--gold-line)}
-.exp-links svg{width:12px;height:12px}
 
 /* =========================================================================
    PROTOCOL INFO CARD (bottom of page)
@@ -747,7 +726,6 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 @media (max-width:980px){
   .hero-grid{grid-template-columns:1fr 1fr}
   .exp-stats-row{grid-template-columns:1fr 1fr}
-  .exp-charts-row{grid-template-columns:1fr}
   .calc-grid{grid-template-columns:1fr}
   .calc-earn{grid-template-columns:1fr 1fr 1fr}
   .calc-earn-lbl{grid-column:1/-1}
@@ -905,7 +883,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
           <button class="dd-btn" data-dd="net">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
             <span class="lbl">All Chains</span>
-            <span class="count">7</span>
+            <span class="count">8</span>
             <span class="dd-clear" data-clear="net" role="button" aria-label="Clear chain filter" title="Clear filter">
               <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg>
             </span>
@@ -918,6 +896,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
               <div class="dd-opt" data-net="berachain"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Berachain</span></div>
               <div class="dd-opt" data-net="arbitrum"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Arbitrum</span></div>
               <div class="dd-opt" data-net="ethereum"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Ethereum</span></div>
+              <div class="dd-opt" data-net="base"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_base.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Base</span></div>
               <div class="dd-opt" data-net="botanix"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_botanix.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Botanix</span></div>
               <div class="dd-opt" data-net="mantle"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_mantle.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Mantle</span></div>
               <div class="dd-opt" data-net="polygonzkevm"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_polygon%20zkevm.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Polygon zkEVM</span></div>
@@ -1048,25 +1027,120 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 /* ==========================================================================
    MOCK DATA — shape kept close to the real dataset
    ========================================================================== */
+// Full Dolomite asset roster extracted from liquidation_risk.json positions
+// (109 markets across 7 chains: Arbitrum, Base, Berachain, Ethereum,
+// Mantle, Polygon zkEVM, X Layer). Mock APR/TVL values; real wiring will
+// come when migrating into index.html.
 const ASSETS = [
-  {sym:"HONEY",name:"Honey",cat:"stable",chain:"berachain",price:1.00,chg:0.02,supply:18.42,odolo:6.10,yield:7.80,lending:4.52,borrow:9.40,tvl:42_300_000,util:58,dust:false},
-  {sym:"USDC",name:"USD Coin",cat:"stable",chain:"berachain",price:1.00,chg:0.00,supply:11.27,odolo:3.40,yield:0,lending:7.87,borrow:12.84,tvl:89_400_000,util:76,dust:false},
-  {sym:"USDT",name:"Tether",cat:"stable",chain:"arbitrum",price:1.0001,chg:-0.01,supply:9.14,odolo:2.10,yield:0,lending:7.04,borrow:10.22,tvl:54_200_000,util:71,dust:false},
-  {sym:"WETH",name:"Wrapped Ether",cat:"eth",chain:"ethereum",price:3542.18,chg:1.24,supply:3.44,odolo:0.90,yield:0,lending:2.54,borrow:4.12,tvl:121_000_000,util:44,dust:false},
-  {sym:"wstETH",name:"Wrapped stETH",cat:"eth",chain:"ethereum",price:4120.55,chg:1.18,supply:6.21,odolo:0.80,yield:3.11,lending:2.30,borrow:4.50,tvl:66_500_000,util:49,dust:false},
-  {sym:"WBTC",name:"Wrapped Bitcoin",cat:"btc",chain:"arbitrum",price:94210.77,chg:-0.62,supply:2.18,odolo:0.40,yield:0,lending:1.78,borrow:3.25,tvl:150_100_000,util:38,dust:false},
-  {sym:"cbBTC",name:"Coinbase BTC",cat:"btc",chain:"ethereum",price:94180.02,chg:-0.59,supply:2.92,odolo:0.65,yield:0.80,lending:1.47,borrow:3.10,tvl:28_800_000,util:41,dust:false},
-  {sym:"rsETH",name:"Restaked ETH",cat:"eth",chain:"berachain",price:3618.09,chg:1.02,supply:7.84,odolo:1.30,yield:4.20,lending:2.34,borrow:5.05,tvl:19_700_000,util:52,dust:false},
-  {sym:"BYUSD",name:"Berachain Yield USD",cat:"stable",chain:"berachain",price:1.001,chg:0.03,supply:12.90,odolo:4.20,yield:5.30,lending:3.40,borrow:8.90,tvl:18_200_000,util:63,dust:false},
-  {sym:"WBERA",name:"Wrapped Bera",cat:"eth",chain:"berachain",price:8.42,chg:2.18,supply:5.33,odolo:1.80,yield:0,lending:3.53,borrow:6.60,tvl:34_400_000,util:47,dust:false},
-  {sym:"iBGT",name:"Infrared BGT",cat:"eth",chain:"berachain",price:8.61,chg:2.25,supply:14.77,odolo:5.40,yield:6.10,lending:3.27,borrow:7.88,tvl:22_900_000,util:55,dust:false},
-  {sym:"MNT",name:"Mantle",cat:"eth",chain:"mantle",price:0.78,chg:-1.14,supply:4.12,odolo:1.10,yield:0,lending:3.02,borrow:5.44,tvl:7_400_000,util:39,dust:false},
-  {sym:"ARB",name:"Arbitrum",cat:"eth",chain:"arbitrum",price:0.64,chg:-0.88,supply:3.08,odolo:0.70,yield:0,lending:2.38,borrow:4.80,tvl:11_200_000,util:42,dust:false},
-  {sym:"uniBTC",name:"Universal BTC",cat:"btc",chain:"botanix",price:94205.11,chg:-0.48,supply:3.88,odolo:1.20,yield:1.40,lending:1.28,borrow:3.95,tvl:3_200_000,util:34,dust:false},
-  {sym:"DAI",name:"Dai Stablecoin",cat:"stable",chain:"ethereum",price:1.000,chg:0.01,supply:6.64,odolo:1.50,yield:0,lending:5.14,borrow:8.40,tvl:24_600_000,util:64,dust:false},
-  {sym:"OKB",name:"OKB",cat:"eth",chain:"xlayer",price:48.22,chg:0.42,supply:1.88,odolo:0.50,yield:0,lending:1.38,borrow:2.60,tvl:1_900_000,util:28,dust:false},
-  {sym:"POL",name:"Polygon",cat:"eth",chain:"polygonzkevm",price:0.31,chg:-2.10,supply:0.42,odolo:0,yield:0,lending:0.42,borrow:1.10,tvl:180_000,util:12,dust:true},
-  {sym:"sUSDe",name:"Staked USDe",cat:"stable",chain:"arbitrum",price:1.102,chg:0.18,supply:11.30,odolo:1.40,yield:8.90,lending:2.92,borrow:6.40,tvl:6_100_000,util:51,dust:false},
+  {"sym":"AAVE","name":"Aave","cat":"eth","chain":"arbitrum","price":25.46,"odolo":1.59,"yield":0,"lending":1.65,"borrow":5.09,"tvl":8490000,"util":38.07,"dust":false},
+  {"sym":"ARB","name":"Arbitrum","cat":"eth","chain":"arbitrum","price":21.53,"odolo":1.44,"yield":0,"lending":0.56,"borrow":1.81,"tvl":6630000,"util":36.08,"dust":false},
+  {"sym":"DAI","name":"Dai Stablecoin","cat":"stable","chain":"arbitrum","price":1,"odolo":0.02,"yield":0,"lending":4.64,"borrow":9.45,"tvl":53620000,"util":57.76,"dust":false},
+  {"sym":"DPX","name":"Dopex","cat":"eth","chain":"arbitrum","price":23.05,"odolo":0.23,"yield":0,"lending":1.36,"borrow":4.15,"tvl":6130000,"util":38.43,"dust":false},
+  {"sym":"GMX","name":"GMX","cat":"eth","chain":"arbitrum","price":16.9,"odolo":2.23,"yield":0,"lending":1.76,"borrow":6.74,"tvl":7110000,"util":30.79,"dust":false},
+  {"sym":"GRAIL","name":"Camelot GRAIL","cat":"eth","chain":"arbitrum","price":24.71,"odolo":1.7,"yield":0,"lending":2.4,"borrow":6.98,"tvl":1410000,"util":40.39,"dust":false},
+  {"sym":"JONES","name":"Jones DAO","cat":"eth","chain":"arbitrum","price":18.43,"odolo":0.51,"yield":0,"lending":1.18,"borrow":4.23,"tvl":6020000,"util":32.73,"dust":false},
+  {"sym":"LINK","name":"Chainlink","cat":"eth","chain":"arbitrum","price":34.8,"odolo":1.67,"yield":0,"lending":1.1,"borrow":3.27,"tvl":8430000,"util":39.44,"dust":false},
+  {"sym":"MAGIC","name":"Magic","cat":"eth","chain":"arbitrum","price":7.38,"odolo":0.62,"yield":0,"lending":0.57,"borrow":2.69,"tvl":7360000,"util":24.9,"dust":false},
+  {"sym":"MIM","name":"Magic Internet Money","cat":"stable","chain":"arbitrum","price":1,"odolo":2.05,"yield":0,"lending":6.46,"borrow":9.7,"tvl":11480000,"util":78.39,"dust":false},
+  {"sym":"PENDLE","name":"Pendle","cat":"eth","chain":"arbitrum","price":6.12,"odolo":1.1,"yield":0,"lending":0.51,"borrow":2.98,"tvl":1510000,"util":20.01,"dust":false},
+  {"sym":"RDNT","name":"Radiant","cat":"eth","chain":"arbitrum","price":38.52,"odolo":1.94,"yield":0,"lending":1.04,"borrow":6.08,"tvl":4650000,"util":20.09,"dust":false},
+  {"sym":"UNI","name":"Uniswap","cat":"eth","chain":"arbitrum","price":3.34,"odolo":0.62,"yield":0,"lending":1.33,"borrow":5.23,"tvl":1580000,"util":29.91,"dust":false},
+  {"sym":"USDC","name":"USD Coin","cat":"stable","chain":"arbitrum","price":1,"odolo":0.48,"yield":0,"lending":5.64,"borrow":8.75,"tvl":61050000,"util":75.83,"dust":false},
+  {"sym":"USDC.e","name":"USD Coin (Bridged)","cat":"stable","chain":"arbitrum","price":1,"odolo":1.06,"yield":0,"lending":4.4,"borrow":7.64,"tvl":37790000,"util":67.83,"dust":false},
+  {"sym":"USDS","name":"Sky USD","cat":"stable","chain":"arbitrum","price":1,"odolo":1.14,"yield":0,"lending":6.48,"borrow":11.29,"tvl":54230000,"util":67.57,"dust":false},
+  {"sym":"USDT","name":"Tether","cat":"stable","chain":"arbitrum","price":1,"odolo":2.43,"yield":0,"lending":8.18,"borrow":13.68,"tvl":50890000,"util":70.37,"dust":false},
+  {"sym":"USDe","name":"USDe","cat":"stable","chain":"arbitrum","price":1,"odolo":1.41,"yield":0,"lending":6.19,"borrow":10.91,"tvl":23940000,"util":66.77,"dust":false},
+  {"sym":"WBTC","name":"Wrapped Bitcoin","cat":"btc","chain":"arbitrum","price":94401.92,"odolo":0.3,"yield":0,"lending":2.07,"borrow":5.75,"tvl":138400000,"util":42.42,"dust":false},
+  {"sym":"WETH","name":"Wrapped Ether","cat":"eth","chain":"arbitrum","price":3561.64,"odolo":1.31,"yield":0,"lending":1.04,"borrow":3.27,"tvl":83440000,"util":37.25,"dust":false},
+  {"sym":"WOETH","name":"Wrapped Origin ETH","cat":"eth","chain":"arbitrum","price":12.09,"odolo":1.69,"yield":0,"lending":1.22,"borrow":3.65,"tvl":58340000,"util":39.17,"dust":false},
+  {"sym":"XAI","name":"Xai","cat":"eth","chain":"arbitrum","price":33.22,"odolo":1.81,"yield":0,"lending":1.44,"borrow":5.59,"tvl":3780000,"util":30.22,"dust":false},
+  {"sym":"ezETH","name":"Renzo ETH","cat":"eth","chain":"arbitrum","price":11.33,"odolo":1.88,"yield":8.06,"lending":2.92,"borrow":7.27,"tvl":55370000,"util":47.24,"dust":false},
+  {"sym":"rETH","name":"Rocket Pool ETH","cat":"eth","chain":"arbitrum","price":7.8,"odolo":1.93,"yield":4.74,"lending":1.91,"borrow":4.53,"tvl":112270000,"util":49.51,"dust":false},
+  {"sym":"rsETH","name":"KelpDAO Restaked ETH","cat":"eth","chain":"arbitrum","price":18.75,"odolo":1.56,"yield":5.17,"lending":1.85,"borrow":4.09,"tvl":41670000,"util":53.1,"dust":false},
+  {"sym":"sUSDS","name":"Staked sUSDS","cat":"stable","chain":"arbitrum","price":1,"odolo":1.26,"yield":7.91,"lending":8.17,"borrow":13.95,"tvl":23170000,"util":68.86,"dust":false},
+  {"sym":"tBTC","name":"Threshold BTC","cat":"btc","chain":"arbitrum","price":94805.48,"odolo":0.56,"yield":0,"lending":1.68,"borrow":4.21,"tvl":16710000,"util":47.04,"dust":false},
+  {"sym":"uniBTC","name":"Universal BTC","cat":"btc","chain":"arbitrum","price":94195.42,"odolo":1.08,"yield":0,"lending":1.32,"borrow":3.34,"tvl":31600000,"util":46.42,"dust":false},
+  {"sym":"weETH","name":"Wrapped eETH","cat":"eth","chain":"arbitrum","price":18.99,"odolo":0.51,"yield":3.31,"lending":3.18,"borrow":6.61,"tvl":91840000,"util":56.59,"dust":false},
+  {"sym":"wstETH","name":"Wrapped Staked ETH","cat":"eth","chain":"arbitrum","price":6.84,"odolo":0.59,"yield":4.36,"lending":1.75,"borrow":4.46,"tvl":6820000,"util":46.27,"dust":false},
+  {"sym":"USDC.e","name":"USD Coin (Bridged)","cat":"stable","chain":"base","price":1,"odolo":0.15,"yield":0,"lending":6.8,"borrow":13.02,"tvl":58040000,"util":61.45,"dust":false},
+  {"sym":"WETH","name":"Wrapped Ether","cat":"eth","chain":"base","price":3497.81,"odolo":0.77,"yield":0,"lending":1.59,"borrow":3.61,"tvl":56840000,"util":51.7,"dust":false},
+  {"sym":"oUSDT","name":"oUSDT","cat":"eth","chain":"base","price":42.87,"odolo":0.09,"yield":0,"lending":0.68,"borrow":1.96,"tvl":5370000,"util":41.06,"dust":false},
+  {"sym":"pBTC","name":"pBTC","cat":"btc","chain":"base","price":94912.75,"odolo":2.32,"yield":0,"lending":1.81,"borrow":4.6,"tvl":135460000,"util":46.39,"dust":false},
+  {"sym":"stBTC","name":"Staked BTC","cat":"btc","chain":"base","price":93889.49,"odolo":1.06,"yield":0,"lending":1.25,"borrow":4.14,"tvl":60360000,"util":35.54,"dust":false},
+  {"sym":"BYUSD","name":"Berachain Yield USD","cat":"stable","chain":"berachain","price":1,"odolo":3.7,"yield":0,"lending":6.63,"borrow":12.83,"tvl":27770000,"util":60.82,"dust":false},
+  {"sym":"DOLO","name":"Dolomite","cat":"eth","chain":"berachain","price":1.2,"odolo":2.72,"yield":0,"lending":1.09,"borrow":4.76,"tvl":1100000,"util":26.94,"dust":false},
+  {"sym":"HENLO","name":"Henlo","cat":"eth","chain":"berachain","price":15.49,"odolo":3.22,"yield":0,"lending":0.89,"borrow":5.6,"tvl":8850000,"util":18.79,"dust":false},
+  {"sym":"HONEY","name":"Honey","cat":"stable","chain":"berachain","price":1,"odolo":0.56,"yield":0,"lending":6.61,"borrow":11.84,"tvl":65030000,"util":65.66,"dust":false},
+  {"sym":"IR","name":"Infrared","cat":"eth","chain":"berachain","price":22.3,"odolo":3.08,"yield":0,"lending":0.58,"borrow":4.2,"tvl":7120000,"util":16.38,"dust":false},
+  {"sym":"LBTC","name":"Lombard BTC","cat":"btc","chain":"berachain","price":94516.53,"odolo":4.13,"yield":0,"lending":1.67,"borrow":4.54,"tvl":97700000,"util":43.3,"dust":false},
+  {"sym":"NECT","name":"Nectar","cat":"stable","chain":"berachain","price":1,"odolo":4.06,"yield":0,"lending":5.68,"borrow":9,"tvl":71670000,"util":74.28,"dust":false},
+  {"sym":"OHM","name":"Olympus","cat":"eth","chain":"berachain","price":14.53,"odolo":1.73,"yield":0,"lending":0.76,"borrow":5.74,"tvl":4330000,"util":15.51,"dust":false},
+  {"sym":"PT-iBGT-25DEC2025","name":"PT iBGT DEC2025","cat":"eth","chain":"berachain","price":45.37,"odolo":2.38,"yield":6.67,"lending":0.45,"borrow":2.34,"tvl":7240000,"util":22.42,"dust":false},
+  {"sym":"STONE","name":"StakeStone Ether","cat":"eth","chain":"berachain","price":11.22,"odolo":3.61,"yield":0,"lending":2.57,"borrow":7.22,"tvl":94100000,"util":41.92,"dust":false},
+  {"sym":"SolvBTC","name":"Solv BTC","cat":"btc","chain":"berachain","price":94688.62,"odolo":2.51,"yield":0,"lending":1.88,"borrow":5.84,"tvl":46640000,"util":37.79,"dust":false},
+  {"sym":"USDC.e","name":"USD Coin (Bridged)","cat":"stable","chain":"berachain","price":1,"odolo":2.45,"yield":0,"lending":5.2,"borrow":10.55,"tvl":13930000,"util":58,"dust":false},
+  {"sym":"USDa","name":"USDa","cat":"stable","chain":"berachain","price":1,"odolo":1.85,"yield":0,"lending":6.02,"borrow":11.72,"tvl":29840000,"util":60.39,"dust":false},
+  {"sym":"USDe","name":"USDe","cat":"stable","chain":"berachain","price":1,"odolo":3.85,"yield":0,"lending":5.54,"borrow":10.38,"tvl":19860000,"util":62.79,"dust":false},
+  {"sym":"USD₮0","name":"Tether (USDT0)","cat":"stable","chain":"berachain","price":1,"odolo":2.47,"yield":0,"lending":4.32,"borrow":7.11,"tvl":60770000,"util":71.54,"dust":false},
+  {"sym":"WBERA","name":"Wrapped Bera","cat":"eth","chain":"berachain","price":42.58,"odolo":0.7,"yield":0,"lending":1.78,"borrow":5.34,"tvl":5520000,"util":39.13,"dust":false},
+  {"sym":"WBTC","name":"Wrapped Bitcoin","cat":"btc","chain":"berachain","price":95162.3,"odolo":0.57,"yield":0,"lending":1.24,"borrow":4.46,"tvl":22240000,"util":32.84,"dust":false},
+  {"sym":"WETH","name":"Wrapped Ether","cat":"eth","chain":"berachain","price":3567.3,"odolo":3.28,"yield":0,"lending":2.01,"borrow":6.07,"tvl":26420000,"util":38.91,"dust":false},
+  {"sym":"beraETH","name":"Bera ETH","cat":"eth","chain":"berachain","price":8.46,"odolo":0.68,"yield":0,"lending":1.93,"borrow":6.43,"tvl":39590000,"util":35.33,"dust":false},
+  {"sym":"diBGT","name":"Dolomite iBGT","cat":"eth","chain":"berachain","price":29.5,"odolo":2.63,"yield":8.42,"lending":0.84,"borrow":2.22,"tvl":7650000,"util":44.29,"dust":false},
+  {"sym":"eBTC","name":"Ethena BTC","cat":"btc","chain":"berachain","price":93733.92,"odolo":0.9,"yield":0,"lending":2.37,"borrow":5.77,"tvl":22570000,"util":48.28,"dust":false},
+  {"sym":"iBERA","name":"Infrared Bera","cat":"eth","chain":"berachain","price":16.08,"odolo":3.42,"yield":8.09,"lending":0.26,"borrow":1.8,"tvl":9270000,"util":17.27,"dust":false},
+  {"sym":"oriBGT","name":"Origin iBGT","cat":"eth","chain":"berachain","price":6.16,"odolo":1.69,"yield":8.4,"lending":0.43,"borrow":2.47,"tvl":4620000,"util":20.68,"dust":false},
+  {"sym":"pol-rUSD","name":"Polygon rUSD","cat":"eth","chain":"berachain","price":15.07,"odolo":3.56,"yield":0,"lending":2.08,"borrow":5.46,"tvl":770000,"util":44.86,"dust":false},
+  {"sym":"rUSD","name":"Reserve USD","cat":"stable","chain":"berachain","price":1,"odolo":1.57,"yield":0,"lending":7.33,"borrow":11.84,"tvl":33010000,"util":72.82,"dust":false},
+  {"sym":"sUSDe","name":"Staked USDe","cat":"stable","chain":"berachain","price":1,"odolo":2.81,"yield":5.9,"lending":5.77,"borrow":11.11,"tvl":11680000,"util":61.05,"dust":false},
+  {"sym":"sWBERA","name":"Staked WBERA","cat":"eth","chain":"berachain","price":35.36,"odolo":0.85,"yield":4.83,"lending":0.95,"borrow":2.94,"tvl":4460000,"util":38.21,"dust":false},
+  {"sym":"savUSD","name":"Staked USD","cat":"stable","chain":"berachain","price":1,"odolo":4.34,"yield":2.62,"lending":6.34,"borrow":9.51,"tvl":28280000,"util":78.49,"dust":false},
+  {"sym":"srUSD","name":"Staked Reserve USD","cat":"stable","chain":"berachain","price":1,"odolo":2.56,"yield":0,"lending":4.81,"borrow":8.1,"tvl":70390000,"util":69.89,"dust":false},
+  {"sym":"uniBTC","name":"Universal BTC","cat":"btc","chain":"berachain","price":94126.59,"odolo":1.14,"yield":0,"lending":1.34,"borrow":5.19,"tvl":108580000,"util":30.29,"dust":false},
+  {"sym":"weETH","name":"Wrapped eETH","cat":"eth","chain":"berachain","price":13.06,"odolo":1.89,"yield":5,"lending":1.82,"borrow":4.2,"tvl":62380000,"util":51.05,"dust":false},
+  {"sym":"wgBERA","name":"Wrapped gBERA","cat":"eth","chain":"berachain","price":43.79,"odolo":2.43,"yield":2.77,"lending":0.89,"borrow":4.1,"tvl":8870000,"util":25.65,"dust":false},
+  {"sym":"CRV","name":"Curve","cat":"eth","chain":"ethereum","price":12.13,"odolo":2.2,"yield":0,"lending":0.69,"borrow":2.38,"tvl":9580000,"util":33.9,"dust":false},
+  {"sym":"DOLO","name":"Dolomite","cat":"eth","chain":"ethereum","price":49.75,"odolo":1.53,"yield":0,"lending":0.47,"borrow":1.69,"tvl":860000,"util":32.39,"dust":false},
+  {"sym":"LINK","name":"Chainlink","cat":"eth","chain":"ethereum","price":10.89,"odolo":1.24,"yield":0,"lending":1.43,"borrow":5.33,"tvl":7740000,"util":31.54,"dust":false},
+  {"sym":"SolvBTC","name":"Solv BTC","cat":"btc","chain":"ethereum","price":94195.91,"odolo":0.29,"yield":0,"lending":0.73,"borrow":2.03,"tvl":84850000,"util":42.04,"dust":false},
+  {"sym":"USD1","name":"USD1","cat":"stable","chain":"ethereum","price":1,"odolo":2.04,"yield":0,"lending":7.07,"borrow":10.97,"tvl":8990000,"util":75.78,"dust":false},
+  {"sym":"USDC","name":"USD Coin","cat":"stable","chain":"ethereum","price":1,"odolo":2.08,"yield":0,"lending":6.72,"borrow":11.75,"tvl":67380000,"util":67.28,"dust":false},
+  {"sym":"USDT","name":"Tether","cat":"stable","chain":"ethereum","price":1,"odolo":2.38,"yield":0,"lending":6.51,"borrow":11.44,"tvl":45570000,"util":66.99,"dust":false},
+  {"sym":"WBTC","name":"Wrapped Bitcoin","cat":"btc","chain":"ethereum","price":94692.99,"odolo":0.36,"yield":0,"lending":0.74,"borrow":2.22,"tvl":148060000,"util":39.18,"dust":false},
+  {"sym":"WETH","name":"Wrapped Ether","cat":"eth","chain":"ethereum","price":3481.55,"odolo":0.35,"yield":0,"lending":1.14,"borrow":3.1,"tvl":73990000,"util":43.36,"dust":false},
+  {"sym":"WLFI","name":"WLFI","cat":"eth","chain":"ethereum","price":25.97,"odolo":1.22,"yield":0,"lending":0.96,"borrow":4.74,"tvl":6370000,"util":23.71,"dust":false},
+  {"sym":"cUSD","name":"cUSD","cat":"stable","chain":"ethereum","price":1,"odolo":0.66,"yield":0,"lending":6.22,"borrow":12.76,"tvl":25500000,"util":57.37,"dust":false},
+  {"sym":"cbBTC","name":"Coinbase BTC","cat":"btc","chain":"ethereum","price":94482.89,"odolo":2.06,"yield":0,"lending":1.3,"borrow":4.48,"tvl":94950000,"util":34.12,"dust":false},
+  {"sym":"mETH","name":"Mantle Staked ETH","cat":"eth","chain":"ethereum","price":22.83,"odolo":1.97,"yield":6.8,"lending":2.27,"borrow":4.71,"tvl":114600000,"util":56.81,"dust":false},
+  {"sym":"rUSD","name":"Reserve USD","cat":"stable","chain":"ethereum","price":1,"odolo":1.09,"yield":0,"lending":6.74,"borrow":13.29,"tvl":26240000,"util":59.68,"dust":false},
+  {"sym":"sUSDe","name":"Staked USDe","cat":"stable","chain":"ethereum","price":1,"odolo":1.95,"yield":4.34,"lending":7.4,"borrow":13.49,"tvl":46720000,"util":64.54,"dust":false},
+  {"sym":"srUSD","name":"Staked Reserve USD","cat":"stable","chain":"ethereum","price":1,"odolo":2.42,"yield":0,"lending":6.04,"borrow":9.44,"tvl":55950000,"util":75.23,"dust":false},
+  {"sym":"stcUSD","name":"Staked cUSD","cat":"stable","chain":"ethereum","price":1,"odolo":2.03,"yield":0,"lending":5.93,"borrow":9.87,"tvl":7090000,"util":70.68,"dust":false},
+  {"sym":"weETH","name":"Wrapped eETH","cat":"eth","chain":"ethereum","price":11.68,"odolo":2.28,"yield":3.22,"lending":1.43,"borrow":3.94,"tvl":13660000,"util":42.65,"dust":false},
+  {"sym":"wsrUSD","name":"Wrapped Staked rUSD","cat":"stable","chain":"ethereum","price":1,"odolo":0.57,"yield":0,"lending":8.3,"borrow":13.64,"tvl":24090000,"util":71.55,"dust":false},
+  {"sym":"wstETH","name":"Wrapped Staked ETH","cat":"eth","chain":"ethereum","price":25.89,"odolo":1.91,"yield":2.33,"lending":1.47,"borrow":3.16,"tvl":84200000,"util":54.74,"dust":false},
+  {"sym":"FBTC","name":"Ignition FBTC","cat":"btc","chain":"mantle","price":93898.82,"odolo":2.4,"yield":0,"lending":0.81,"borrow":3.45,"tvl":101510000,"util":27.64,"dust":false},
+  {"sym":"USDC","name":"USD Coin","cat":"stable","chain":"mantle","price":1,"odolo":2.21,"yield":0,"lending":5.82,"borrow":10.95,"tvl":54540000,"util":62.58,"dust":false},
+  {"sym":"USDT","name":"Tether","cat":"stable","chain":"mantle","price":1,"odolo":1.96,"yield":0,"lending":4.76,"borrow":9.79,"tvl":17990000,"util":57.24,"dust":false},
+  {"sym":"USDY","name":"Ondo USD Yield","cat":"stable","chain":"mantle","price":1,"odolo":1.36,"yield":0,"lending":3.73,"borrow":7.83,"tvl":53850000,"util":56.09,"dust":false},
+  {"sym":"USDe","name":"USDe","cat":"stable","chain":"mantle","price":1,"odolo":1.84,"yield":0,"lending":3.77,"borrow":7.89,"tvl":72640000,"util":56.24,"dust":false},
+  {"sym":"WBTC","name":"Wrapped Bitcoin","cat":"btc","chain":"mantle","price":93591.4,"odolo":1.13,"yield":0,"lending":0.92,"borrow":2.37,"tvl":12970000,"util":45.61,"dust":false},
+  {"sym":"WETH","name":"Wrapped Ether","cat":"eth","chain":"mantle","price":3516.97,"odolo":2.15,"yield":0,"lending":1.42,"borrow":3.71,"tvl":84310000,"util":44.92,"dust":false},
+  {"sym":"WMNT","name":"Wrapped Mantle","cat":"eth","chain":"mantle","price":39.58,"odolo":1.96,"yield":0,"lending":0.91,"borrow":3,"tvl":9170000,"util":35.86,"dust":false},
+  {"sym":"cmETH","name":"Cached mETH","cat":"eth","chain":"mantle","price":8.51,"odolo":2.47,"yield":4.95,"lending":3.5,"borrow":6.92,"tvl":119100000,"util":59.53,"dust":false},
+  {"sym":"mETH","name":"Mantle Staked ETH","cat":"eth","chain":"mantle","price":20.4,"odolo":1.3,"yield":3.72,"lending":3.15,"borrow":7.56,"tvl":50000000,"util":49.03,"dust":false},
+  {"sym":"DAI","name":"Dai Stablecoin","cat":"stable","chain":"polygonzkevm","price":1,"odolo":0.26,"yield":0,"lending":4.58,"borrow":8.9,"tvl":56710000,"util":60.6,"dust":false},
+  {"sym":"LINK","name":"Chainlink","cat":"eth","chain":"polygonzkevm","price":17.15,"odolo":0.08,"yield":0,"lending":0.41,"borrow":2.14,"tvl":8950000,"util":22.47,"dust":false},
+  {"sym":"MATIC","name":"Matic","cat":"eth","chain":"polygonzkevm","price":36.43,"odolo":0.47,"yield":0,"lending":2.38,"borrow":6.59,"tvl":1230000,"util":42.55,"dust":false},
+  {"sym":"POL","name":"Polygon","cat":"eth","chain":"polygonzkevm","price":40.53,"odolo":1.34,"yield":0,"lending":1.6,"borrow":5.89,"tvl":4510000,"util":31.92,"dust":false},
+  {"sym":"USDC.E","name":"USD Coin (Bridged)","cat":"stable","chain":"polygonzkevm","price":1,"odolo":1.24,"yield":0,"lending":4.74,"borrow":7.34,"tvl":65620000,"util":75.98,"dust":false},
+  {"sym":"USDT","name":"Tether","cat":"stable","chain":"polygonzkevm","price":1,"odolo":1.6,"yield":0,"lending":4.51,"borrow":8.29,"tvl":26700000,"util":63.99,"dust":false},
+  {"sym":"WBTC","name":"Wrapped Bitcoin","cat":"btc","chain":"polygonzkevm","price":94471.59,"odolo":1.72,"yield":0,"lending":1.24,"borrow":3.54,"tvl":77910000,"util":41.26,"dust":false},
+  {"sym":"WETH","name":"Wrapped Ether","cat":"eth","chain":"polygonzkevm","price":3507.55,"odolo":1.69,"yield":0,"lending":1.29,"borrow":3.72,"tvl":91170000,"util":40.65,"dust":false},
+  {"sym":"USDC","name":"USD Coin","cat":"stable","chain":"xlayer","price":1,"odolo":1.7,"yield":0,"lending":8.55,"borrow":13.05,"tvl":78710000,"util":77.04,"dust":false},
+  {"sym":"USDT","name":"Tether","cat":"stable","chain":"xlayer","price":1,"odolo":0.6,"yield":0,"lending":7.24,"borrow":11.5,"tvl":14790000,"util":74.06,"dust":false},
+  {"sym":"WETH","name":"Wrapped Ether","cat":"eth","chain":"xlayer","price":3490.97,"odolo":1.51,"yield":0,"lending":2.23,"borrow":4.69,"tvl":1780000,"util":55.85,"dust":false},
+  {"sym":"WOKB","name":"Wrapped OKB","cat":"eth","chain":"xlayer","price":32.71,"odolo":0.72,"yield":0,"lending":1.36,"borrow":4.54,"tvl":1400000,"util":35.26,"dust":false}
 ];
 
 /* Normalise lending APR to match the kink model output at current util
@@ -1092,7 +1166,12 @@ const state = {
 };
 
 const CAT_LABELS = {stable:"Stablecoins", btc:"BTC & Wrapped", eth:"ETH & LSTs"};
-const CHAIN_LABELS = {berachain:"Berachain", arbitrum:"Arbitrum", ethereum:"Ethereum", botanix:"Botanix", mantle:"Mantle", polygonzkevm:"Polygon zkEVM", xlayer:"X Layer"};
+const CHAIN_LABELS = {
+  berachain:"Berachain", arbitrum:"Arbitrum", ethereum:"Ethereum",
+  base:"Base", botanix:"Botanix", mantle:"Mantle",
+  polygonzkevm:"Polygon zkEVM", xlayer:"X Layer"
+};
+const CHAIN_COUNT_TOTAL = 8;
 
 /* ==========================================================================
    HELPERS
@@ -1102,43 +1181,94 @@ const CHAIN_LABELS = {berachain:"Berachain", arbitrum:"Arbitrum", ethereum:"Ethe
 const DOLO_CDN = 'https://app.dolomite.io/static/media/';
 const SYMBOL_ICONS = {
   // Stablecoins
-  'USDC'  : DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
-  'USDT'  : DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
-  'DAI'   : 'icons/dai.svg',
-  'sUSDe' : DOLO_CDN + 'sUSDe.60857af2b2de944764d31ffa3711252c.svg',
-  'USDe'  : DOLO_CDN + 'USDe-alt.ce2f05f4bb09aa83c4dd5886a5a2886f.svg',
-  'BYUSD' : DOLO_CDN + 'BYUSD.8c0a1d051c4192302d739dbae5928286.svg',
-  'HONEY' : DOLO_CDN + 'HONEY.3f0a04d651c47e52fb627fd616a9b92e.svg',
-  'NECT'  : DOLO_CDN + 'NECT.61b2d550cd59933e77667c3d75f73f5a.svg',
+  'USDC'   : DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
+  'USDC.e' : DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
+  'USDC.E' : DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
+  'USDT'   : DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
+  'USD₮0'  : DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
+  'DAI'    : 'icons/dai.svg',
+  'USDe'   : DOLO_CDN + 'USDe-alt.ce2f05f4bb09aa83c4dd5886a5a2886f.svg',
+  'sUSDe'  : DOLO_CDN + 'sUSDe.60857af2b2de944764d31ffa3711252c.svg',
+  'USDa'   : DOLO_CDN + 'USDa.d95d6e9683a87b9007323745861f6b74.svg',
+  'sUSDa'  : DOLO_CDN + 'sUSDa.dc563217493f063b521fe276283e0d51.svg',
+  'savUSD' : DOLO_CDN + 'savUSD.a2df97177abb3f75f4313a7241aa5fb0.svg',
+  'rUSD'   : DOLO_CDN + 'rUSD.9b373643ab772af9dab0807b476b9afb.svg',
+  'srUSD'  : DOLO_CDN + 'srUSD.bef2b101351c2021e25a96dc70122077.svg',
+  'wsrUSD' : DOLO_CDN + 'srUSD.bef2b101351c2021e25a96dc70122077.svg',
+  'pol-rUSD': DOLO_CDN + 'pol-rUSD.315d0412835066838a187ecd29acb7ca.svg',
+  'BYUSD'  : DOLO_CDN + 'BYUSD.8c0a1d051c4192302d739dbae5928286.svg',
+  'NECT'   : DOLO_CDN + 'NECT.61b2d550cd59933e77667c3d75f73f5a.svg',
+  'HONEY'  : DOLO_CDN + 'HONEY.3f0a04d651c47e52fb627fd616a9b92e.svg',
+  'MIM'    : DOLO_CDN + 'MIM.3926602167b2dc6b73725f1cbd641130.svg',
+  'USDS'   : DOLO_CDN + 'USDs.106fa406e23ae22c8bb6120c2ed861f4.svg',
+  'sUSDS'  : DOLO_CDN + 'sUSDs.788070a4e1bbf5ab8c6130d47bdf8108.svg',
+  'USDY'   : DOLO_CDN + 'USDY.56cf7a38e78550dd507090fe52a59b41.svg',
+  'USD1'   : DOLO_CDN + 'USD1.b88613f468d884c0a044350162ec22c2.svg',
+  'cUSD'   : 'icons/stcusd.png',
+  'stcUSD' : 'icons/stcusd.png',
   // ETH & LSTs
-  'ETH'   : DOLO_CDN + 'ETH.6a879eb637c89695e6c5f5dc65c8c927.svg',
-  'WETH'  : DOLO_CDN + 'WETH.8f785563e47cbf373160.png',
-  'wstETH': DOLO_CDN + 'wstETH.2e97640d284bbe78da3776549d27ec47.svg',
-  'weETH' : DOLO_CDN + 'weETH.ac3fd68b653520508855e997e756d116.svg',
-  'rETH'  : DOLO_CDN + 'rETH.bab59070c249d5b359fa196fed62e60e.svg',
-  'rsETH' : DOLO_CDN + 'rsETH.2270aa7836bedfa00c1a1d2967df0c33.svg',
-  'ezETH' : DOLO_CDN + 'ezETH.23c954d818f85c10660e5c0a476ff398.svg',
-  'mETH'  : DOLO_CDN + 'mETH.589d7c134eea64fa2033e80dced1e34d.svg',
+  'ETH'    : DOLO_CDN + 'ETH.6a879eb637c89695e6c5f5dc65c8c927.svg',
+  'WETH'   : DOLO_CDN + 'WETH.8f785563e47cbf373160.png',
+  'wstETH' : DOLO_CDN + 'wstETH.2e97640d284bbe78da3776549d27ec47.svg',
+  'weETH'  : DOLO_CDN + 'weETH.ac3fd68b653520508855e997e756d116.svg',
+  'rETH'   : DOLO_CDN + 'rETH.bab59070c249d5b359fa196fed62e60e.svg',
+  'rsETH'  : DOLO_CDN + 'rsETH.2270aa7836bedfa00c1a1d2967df0c33.svg',
+  'ezETH'  : DOLO_CDN + 'ezETH.23c954d818f85c10660e5c0a476ff398.svg',
+  'mETH'   : DOLO_CDN + 'mETH.589d7c134eea64fa2033e80dced1e34d.svg',
+  'cmETH'  : DOLO_CDN + 'cmETH.8cab59dd270fad4e153b008454f9f54e.svg',
   'beraETH': DOLO_CDN + 'beraETH.661651b3419b7bb331ab2ebcb427b21b.svg',
+  'WOETH'  : DOLO_CDN + 'WOETH.d17df010b680ea8c9c3e74d49b8e2e07.svg',
+  'STONE'  : DOLO_CDN + 'STONE-alt.bf62e30edc6330897c738a4f9f1f5179.svg',
   // BTC
-  'WBTC'  : DOLO_CDN + 'WBTC.f3c8718835179e7543b5.png',
-  'cbBTC' : DOLO_CDN + 'CBBTC.fb6f792430a130d980920b6e69857bce.svg',
-  'uniBTC': DOLO_CDN + 'uniBTC.bac6fdc858f4d751e79211986782ddd1.svg',
-  'LBTC'  : DOLO_CDN + 'LBTC.095d1662f9a83aea1c899fa1eeb84502.svg',
-  'tBTC'  : DOLO_CDN + 'tBTC.2907801a7fa28c6583322ad3c2931333.svg',
+  'WBTC'   : DOLO_CDN + 'WBTC.f3c8718835179e7543b5.png',
+  'cbBTC'  : DOLO_CDN + 'CBBTC.fb6f792430a130d980920b6e69857bce.svg',
+  'uniBTC' : DOLO_CDN + 'uniBTC.bac6fdc858f4d751e79211986782ddd1.svg',
+  'LBTC'   : DOLO_CDN + 'LBTC.095d1662f9a83aea1c899fa1eeb84502.svg',
+  'tBTC'   : DOLO_CDN + 'tBTC.2907801a7fa28c6583322ad3c2931333.svg',
   'SolvBTC': DOLO_CDN + 'solvBTC.326d594ebd54e4317f078b70f72a58b4.svg',
+  'eBTC'   : DOLO_CDN + 'eBTC.e48b2e6a0a78d4ffc09991510cb5792b.svg',
+  'FBTC'   : DOLO_CDN + 'FBTC.f29f5d2839b1b765719121f8094c7f11.svg',
+  'PumpBTC': DOLO_CDN + 'PumpBTC.aa48de36289e8439daf0456c4252dd27.svg',
+  'pBTC'   : DOLO_CDN + 'WBTC.f3c8718835179e7543b5.png',
+  'stBTC'  : DOLO_CDN + 'WBTC.f3c8718835179e7543b5.png',
   // Berachain
-  'BERA'  : DOLO_CDN + 'BERA.a24a9b40b3447dde7ea1d2cab4dd59e9.svg',
-  'WBERA' : DOLO_CDN + 'wBERA.4ca51f80e3cd585d5152483f427d0416.svg',
-  'iBERA' : DOLO_CDN + 'iBERA.10d1ede095601cbc9bb5bf3bcdcb22a1.svg',
-  'iBGT'  : DOLO_CDN + 'iBGT.88932437445efa66139716bca4a9c19b.svg',
-  'BGT'   : DOLO_CDN + 'BGT.59af0fc7aad30ed3de49e3115ee24d04.svg',
-  // L2 / governance
-  'DOLO'  : 'dolo-logo.svg',
-  'ARB'   : DOLO_CDN + 'ARB.f8b26a91d3f23a571be6398aa1a1f119.svg',
-  'MNT'   : DOLO_CDN + 'MNT.7e882ac93f636391a8f7d2e0841cad98.svg',
-  'OKB'   : DOLO_CDN + 'OKB.dfac9609700af55b3d9ef4e0e5b28f01.svg',
-  'POL'   : DOLO_CDN + 'MATIC.dfc4843b6db6db48662b1db5f752f9f1.svg',
+  'BERA'   : DOLO_CDN + 'BERA.a24a9b40b3447dde7ea1d2cab4dd59e9.svg',
+  'WBERA'  : DOLO_CDN + 'wBERA.4ca51f80e3cd585d5152483f427d0416.svg',
+  'iBERA'  : DOLO_CDN + 'iBERA.10d1ede095601cbc9bb5bf3bcdcb22a1.svg',
+  'sWBERA' : DOLO_CDN + 'sWBERA.e2be8febc13f6552990168c4e232d62a.svg',
+  'wgBERA' : DOLO_CDN + 'wgBERA.e10d0909ba87a40264fe74050034b025.svg',
+  'iBGT'   : DOLO_CDN + 'iBGT.88932437445efa66139716bca4a9c19b.svg',
+  'oriBGT' : DOLO_CDN + 'oriBGT.7f3393531bde0f56498780c803133999.svg',
+  'diBGT'  : DOLO_CDN + 'iBGT.88932437445efa66139716bca4a9c19b.svg',
+  'BGT'    : DOLO_CDN + 'BGT.59af0fc7aad30ed3de49e3115ee24d04.svg',
+  'PT-iBGT-25DEC2025': DOLO_CDN + 'PT-iBGT.45a4b4c47be320270ac8d1ce32439d2a.svg',
+  // DeFi / Governance
+  'DOLO'   : 'dolo-logo.svg',
+  'ARB'    : DOLO_CDN + 'ARB.f8b26a91d3f23a571be6398aa1a1f119.svg',
+  'LINK'   : DOLO_CDN + 'LINK.e6e8d688b54af33e1f99.png',
+  'GMX'    : DOLO_CDN + 'GMX.b836adc14ee095fd9b7671e718878333.svg',
+  'PENDLE' : DOLO_CDN + 'PENDLE.e4e3db03c3798bf15a6c384ab5de3fee.svg',
+  'AAVE'   : DOLO_CDN + 'AAVE.a9c152c66f6bed5f3d0865b8d5ea0dba.svg',
+  'UNI'    : DOLO_CDN + 'UNI.fbe3002e628fbf39d75525ae192d3665.svg',
+  'CRV'    : DOLO_CDN + 'CRV.f927723690ec12fcc8381902a361c75e.svg',
+  'DPX'    : DOLO_CDN + 'DPX.ac054aa02be296979160d68dbb594a39.svg',
+  'GRAIL'  : DOLO_CDN + 'GRAIL.13f8e457ed0e3d6868b41f28eb431819.svg',
+  'JONES'  : DOLO_CDN + 'JONES.3ce2e6a8fb1444d9d6439e5781e6c2c1.svg',
+  'MAGIC'  : DOLO_CDN + 'MAGIC.e86265b765bebd6be26b2485691ab714.svg',
+  'RDNT'   : DOLO_CDN + 'RDNT.92d507e82611bb1e4353e8b8cae0a73a.svg',
+  'XAI'    : DOLO_CDN + 'XAI.ed6137b5d4b6078ac5061beb0e9b78f5.svg',
+  'WLFI'   : DOLO_CDN + 'WLFI.2c1e57c98e3cad7282c40941b36ee606.svg',
+  'OHM'    : DOLO_CDN + 'OHM.2df913d6b9413f26311c1df9718d1461.svg',
+  'IR'     : DOLO_CDN + 'IR.4f115e858cbe4dbe82da00a8443ab1af.svg',
+  'HENLO'  : DOLO_CDN + 'HENLO.5b3d3df8e28a6cf6eb24f41a4ccb15d0.svg',
+  'oUSDT'  : DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
+  // Network / L2
+  'MNT'    : DOLO_CDN + 'MNT.7e882ac93f636391a8f7d2e0841cad98.svg',
+  'WMNT'   : DOLO_CDN + 'WMNT.a58988c614392a216cc8937be5ab96db.svg',
+  'OKB'    : DOLO_CDN + 'OKB.dfac9609700af55b3d9ef4e0e5b28f01.svg',
+  'WOKB'   : DOLO_CDN + 'WOKB.4a6ddee6f2dfa841dd0932eab45ae376.svg',
+  'POL'    : DOLO_CDN + 'MATIC.dfc4843b6db6db48662b1db5f752f9f1.svg',
+  'MATIC'  : DOLO_CDN + 'MATIC.dfc4843b6db6db48662b1db5f752f9f1.svg',
 };
 const tokIcon = (sym) => SYMBOL_ICONS[sym] || 'dolomite-logo.svg';
 const chainIcon = (chain)=>`https://icons.llamao.fi/icons/chains/rsz_${chain==="polygonzkevm"?"polygon%20zkevm":chain==="xlayer"?"x%20layer":chain}.jpg`;
@@ -1249,101 +1379,8 @@ function simulate(row, calc){
   };
 }
 
-/* ==========================================================================
-   HISTORY + CURVE CHARTS (inline SVG, deterministic mock)
-   ========================================================================== */
-const _hist = new Map();
-function histCache(row){
-  if(_hist.has(row.sym)) return _hist.get(row.sym);
-  // deterministic pseudo-random seeded on symbol
-  let seed = 0; for(const c of row.sym) seed = (seed*31 + c.charCodeAt(0)) >>> 0;
-  const rand = ()=>{ seed = (seed*1664525 + 1013904223) >>> 0; return (seed/0xffffffff); };
-  const days=30;
-  const supply=[], borrow=[];
-  let s = row._supply * 0.85, b = row.borrow * 0.85;
-  for(let i=0;i<days;i++){
-    supply.push(s); borrow.push(b);
-    s += (rand()-0.5) * row._supply * 0.08;
-    b += (rand()-0.5) * row.borrow * 0.06;
-    s = Math.max(0.05, s);
-    b = Math.max(0.5, b);
-  }
-  supply[days-1] = row._supply;
-  borrow[days-1] = row.borrow;
-  const o = {supply, borrow};
-  _hist.set(row.sym, o);
-  return o;
-}
-
-function historyChartSVG(row){
-  const h = histCache(row);
-  const W = 400, H = 110, PAD_X = 8, PAD_Y = 12;
-  const all = [...h.supply, ...h.borrow];
-  const min = Math.min(...all), max = Math.max(...all);
-  const span = Math.max(0.5, max - min);
-  const n = h.supply.length;
-  const xs = i => PAD_X + i/(n-1) * (W - 2*PAD_X);
-  const ys = v => H - PAD_Y - (v - min)/span * (H - 2*PAD_Y);
-  const mkPath = arr => arr.map((v,i)=>`${i===0?"M":"L"}${xs(i).toFixed(1)} ${ys(v).toFixed(1)}`).join(" ");
-  const areaPath = mkPath(h.supply) + ` L${xs(n-1).toFixed(1)} ${H-PAD_Y} L${xs(0).toFixed(1)} ${H-PAD_Y} Z`;
-  // grid
-  const gridY = [0.25,0.5,0.75].map(p=>{
-    const y = PAD_Y + p*(H-2*PAD_Y);
-    return `<line x1="${PAD_X}" y1="${y}" x2="${W-PAD_X}" y2="${y}" stroke="rgba(255,255,255,.04)" stroke-width="1"/>`;
-  }).join("");
-  const last = n-1;
-  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="chart-svg">
-    <defs>
-      <linearGradient id="g-${row.sym}" x1="0" x2="0" y1="0" y2="1">
-        <stop offset="0%" stop-color="rgba(201,162,39,.25)"/>
-        <stop offset="100%" stop-color="rgba(201,162,39,0)"/>
-      </linearGradient>
-    </defs>
-    ${gridY}
-    <path d="${areaPath}" fill="url(#g-${row.sym})"/>
-    <path d="${mkPath(h.borrow)}" fill="none" stroke="#b4796b" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>
-    <path d="${mkPath(h.supply)}" fill="none" stroke="#c9a227" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="${xs(last).toFixed(1)}" cy="${ys(h.supply[last]).toFixed(1)}" r="3" fill="#c9a227"/>
-    <circle cx="${xs(last).toFixed(1)}" cy="${ys(h.borrow[last]).toFixed(1)}" r="3" fill="#b4796b"/>
-  </svg>`;
-}
-
-function utilCurveSVG(row, markAfter){
-  const W = 400, H = 110, PAD_X = 22, PAD_Y = 10;
-  const {slope1, slope2} = kinkModel(row);
-  const rf = effectiveRF(row);
-  const borrowAtU = u => u<=KINK ? slope1*u : slope1*KINK + slope2*(u-KINK);
-  const supplyAtU = u => borrowAtU(u) * u/100 * (1 - rf);
-  // y scale up to borrow at util 100%
-  const yMax = Math.max(10, borrowAtU(99));
-  const xs = u => PAD_X + u/100 * (W - 2*PAD_X);
-  const ys = v => H - PAD_Y - v/yMax * (H - 2*PAD_Y);
-  let bPts = [], sPts = [];
-  for(let u=0; u<=100; u+=1){
-    bPts.push(`${xs(u).toFixed(1)},${ys(borrowAtU(u)).toFixed(1)}`);
-    sPts.push(`${xs(u).toFixed(1)},${ys(supplyAtU(u)).toFixed(1)}`);
-  }
-  // grid
-  const grid = [0,25,50,75,100].map(u=>{
-    const x = xs(u);
-    return `<line x1="${x}" y1="${PAD_Y}" x2="${x}" y2="${H-PAD_Y}" stroke="rgba(255,255,255,.03)" stroke-width="1"/>
-    <text x="${x}" y="${H-1}" text-anchor="middle" fill="#6b6a66" font-size="8" font-family="JetBrains Mono">${u}%</text>`;
-  }).join("");
-  // kink marker
-  const kinkX = xs(KINK);
-  // current util marker
-  const curX = xs(row.util), curY = ys(borrowAtU(row.util));
-  // after marker
-  const afterX = xs(markAfter), afterY = ys(borrowAtU(markAfter));
-  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="chart-svg">
-    ${grid}
-    <line x1="${kinkX}" y1="${PAD_Y}" x2="${kinkX}" y2="${H-PAD_Y}" stroke="rgba(255,255,255,.08)" stroke-width="1" stroke-dasharray="2 3"/>
-    <polyline points="${sPts.join(" ")}" fill="none" stroke="#c9a227" stroke-width="1.2" stroke-dasharray="3 3" opacity=".8"/>
-    <polyline points="${bPts.join(" ")}" fill="none" stroke="#c9a227" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="${curX.toFixed(1)}" cy="${curY.toFixed(1)}" r="4" fill="none" stroke="rgba(255,255,255,.4)" stroke-width="1.2"/>
-    <circle cx="${afterX.toFixed(1)}" cy="${afterY.toFixed(1)}" r="4" fill="#c9a227" stroke="#0a0a0c" stroke-width="1.5"/>
-  </svg>`;
-}
+// Historical-rate + utilization-curve charts were removed; only calculator
+// + basic stat breakdown remain in the expanded-row detail panel.
 
 function activeSupply(row){
   let s=0;
@@ -1468,7 +1505,7 @@ function render(){
               </div>
               <div class="exp-stat">
                 <div class="lbl">Net Spread</div>
-                <div class="val">${fmtPct(r.borrow - r._supply)}</div>
+                <div class="val ${(r.borrow - r._supply) < 0 ? 'down' : ''}">${fmtPct(r.borrow - r._supply)}</div>
                 <div class="sub">borrow − supply</div>
               </div>
             </div>
@@ -1558,39 +1595,6 @@ function render(){
               </div>
             </div>
 
-            <!-- CHARTS ROW -->
-            <div class="exp-charts-row">
-              <div class="chart-card">
-                <div class="chart-head">
-                  <div class="chart-title">Historical rates · 30d</div>
-                  <div class="chart-legend">
-                    <span><span class="lg-dot gold"></span>Supply</span>
-                    <span><span class="lg-dot dn"></span>Borrow</span>
-                  </div>
-                </div>
-                ${historyChartSVG(r)}
-                <div class="chart-note">Supply avg ${fmtPct(avg(histCache(r).supply))} · Borrow avg ${fmtPct(avg(histCache(r).borrow))}</div>
-              </div>
-              <div class="chart-card">
-                <div class="chart-head">
-                  <div class="chart-title">Utilization curve · kink model</div>
-                  <div class="chart-legend">
-                    <span><span class="lg-dot gold"></span>Borrow</span>
-                    <span><span class="lg-dot dashed"></span>Supply</span>
-                  </div>
-                </div>
-                ${utilCurveSVG(r, sim.newUtil)}
-                <div class="chart-note">Kink at 80% · current ${r.util.toFixed(1)}% → after ${sim.newUtil.toFixed(1)}%</div>
-              </div>
-            </div>
-
-            <!-- LINKS -->
-            <div class="exp-links">
-              <a href="https://app.dolomite.io" target="_blank">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                Open in Dolomite app
-              </a>
-            </div>
           </div>
         </td>
       </tr>` : "";
@@ -1735,22 +1739,6 @@ function updateCalc(sym){
   es[0].textContent = fmtUsd(sim.earnDay);
   es[1].textContent = fmtUsd(sim.earnMonth);
   es[2].textContent = fmtUsd(sim.earnYear);
-  // update util curve "after" marker — redraw only that chart
-  const expRow = document.querySelector(`tr.exp-row[data-sym="${sym}"]`);
-  if(expRow){
-    const chartSlots = expRow.querySelectorAll(".chart-card");
-    if(chartSlots[1]){
-      // replace svg + note
-      const svgHost = chartSlots[1].querySelector("svg");
-      if(svgHost){
-        const tmp = document.createElement("div");
-        tmp.innerHTML = utilCurveSVG(row, sim.newUtil);
-        svgHost.replaceWith(tmp.firstChild);
-      }
-      const note = chartSlots[1].querySelector(".chart-note");
-      if(note) note.textContent = `Kink at 80% · current ${row.util.toFixed(1)}% → after ${sim.newUtil.toFixed(1)}%`;
-    }
-  }
 }
 
 /* ==========================================================================
@@ -1830,7 +1818,7 @@ function syncNetDropdown(){
   const count = btn.querySelector(".count");
   if(state.nets.size === 0){
     lbl.textContent = "All Chains";
-    if(count) count.textContent = "7";
+    if(count) count.textContent = String(CHAIN_COUNT_TOTAL);
   } else if(state.nets.size === 1){
     lbl.textContent = CHAIN_LABELS[[...state.nets][0]] || [...state.nets][0];
     if(count) count.textContent = "1";
