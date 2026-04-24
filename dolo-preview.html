@@ -401,13 +401,12 @@ input{font:inherit}
 .pager button:hover:not(:disabled){border-color:var(--gold-line);color:var(--fg-1);background:var(--gold-wash)}
 .pager button.active{border-color:var(--gold-line);background:var(--gold);color:var(--bg-0);font-weight:700}
 .pager button:disabled{opacity:.35;cursor:not-allowed}
-.pager .page-info{font-family:var(--mono);font-size:11px;color:var(--fg-3);min-width:56px;text-align:center}
-.flow-pager{
+.flow-panel > .table-pager{
   justify-content:center;margin-top:auto;padding:12px 14px;border-top:1px solid var(--line-1);
   background:rgba(255,255,255,.01);
 }
-.flow-pager:empty{display:none}
-.flow-pager .ellipsis{min-width:16px;text-align:center;color:var(--fg-3);font-family:var(--mono)}
+.table-pager:empty{display:none}
+.table-pager .ellipsis{min-width:16px;text-align:center;color:var(--fg-3);font-family:var(--mono)}
 #holdersCard .footer-line{position:relative;justify-content:center;min-height:57px}
 #holderFooter{position:absolute;left:24px}
 .error-box{
@@ -614,7 +613,7 @@ input{font:inherit}
                 <tbody id="accRows"></tbody>
               </table>
             </div>
-            <div class="pager flow-pager" id="accPager"></div>
+            <div class="pager table-pager" id="accPager"></div>
           </div>
           <div class="flow-panel">
             <div class="flow-panel-head">
@@ -634,7 +633,7 @@ input{font:inherit}
                 <tbody id="sellRows"></tbody>
               </table>
             </div>
-            <div class="pager flow-pager" id="sellPager"></div>
+            <div class="pager table-pager" id="sellPager"></div>
           </div>
         </div>
       </section>
@@ -715,13 +714,7 @@ input{font:inherit}
         </div>
         <div class="footer-line">
           <span id="holderFooter">—</span>
-          <div class="pager">
-            <button id="firstPage" type="button">«</button>
-            <button id="prevPage" type="button">‹</button>
-            <span class="page-info" id="pageInfo">—</span>
-            <button id="nextPage" type="button">›</button>
-            <button id="lastPage" type="button">»</button>
-          </div>
+          <div class="pager table-pager" id="holderPager"></div>
         </div>
       </section>
     </div>
@@ -1116,25 +1109,30 @@ function pageNumbers(current, total){
   if (current >= total - 2) return [1, "...", total - 3, total - 2, total - 1, total];
   return [1, "...", current - 1, current, current + 1, "...", total];
 }
+function pagerHtml(current, totalPages, scope, table){
+  if (totalPages <= 1) return "";
+  const tableAttr = table ? ` data-page-table="${table}"` : "";
+  const nums = pageNumbers(current, totalPages).map(page => {
+    if (page === "...") return `<span class="ellipsis">...</span>`;
+    return `<button type="button" data-page-scope="${scope}"${tableAttr} data-page="${page}" class="${page === current ? "active" : ""}" aria-current="${page === current ? "page" : "false"}">${page}</button>`;
+  }).join("");
+  return `
+    <button type="button" data-page-scope="${scope}"${tableAttr} data-page="${current - 1}" ${current === 1 ? "disabled" : ""}>‹</button>
+    ${nums}
+    <button type="button" data-page-scope="${scope}"${tableAttr} data-page="${current + 1}" ${current === totalPages ? "disabled" : ""}>›</button>
+  `;
+}
 function renderFlowPager(type, totalRows){
   const totalPages = Math.max(1, Math.ceil(totalRows / FLOW_LIMIT));
   state.flowPage[type] = Math.max(1, Math.min(state.flowPage[type] || 1, totalPages));
   const el = type === "acc" ? $("#accPager") : $("#sellPager");
   if (!el) return;
-  if (totalPages <= 1) {
-    el.innerHTML = "";
-    return;
-  }
-  const current = state.flowPage[type];
-  const nums = pageNumbers(current, totalPages).map(page => {
-    if (page === "...") return `<span class="ellipsis">...</span>`;
-    return `<button type="button" data-flow-table="${type}" data-flow-page="${page}" class="${page === current ? "active" : ""}" aria-current="${page === current ? "page" : "false"}">${page}</button>`;
-  }).join("");
-  el.innerHTML = `
-    <button type="button" data-flow-table="${type}" data-flow-page="${current - 1}" ${current === 1 ? "disabled" : ""}>‹</button>
-    ${nums}
-    <button type="button" data-flow-table="${type}" data-flow-page="${current + 1}" ${current === totalPages ? "disabled" : ""}>›</button>
-  `;
+  el.innerHTML = pagerHtml(state.flowPage[type], totalPages, "flow", type);
+}
+function renderHolderPager(totalPages){
+  const el = $("#holderPager");
+  if (!el) return;
+  el.innerHTML = pagerHtml(state.holderPage, totalPages, "holders");
 }
 function periodTransferCount(){
   const period = state.flows?.periods?.[state.flowPeriod] || {};
@@ -1235,11 +1233,7 @@ function renderHolders(){
   $("#holderCount").textContent = fmtInt(rows.length);
   $("#holderRows").innerHTML = page.length ? page.map(renderHolderRow).join("") : `<tr><td colspan="6" class="empty">No matching holders</td></tr>`;
   $("#holderFooter").textContent = `Showing ${rows.length ? fmtInt(start + 1) : 0}-${fmtInt(Math.min(start + HOLDER_PER_PAGE, rows.length))} of ${fmtInt(rows.length)} wallets`;
-  $("#pageInfo").textContent = `${state.holderPage} / ${pages}`;
-  $("#firstPage").disabled = state.holderPage === 1;
-  $("#prevPage").disabled = state.holderPage === 1;
-  $("#nextPage").disabled = state.holderPage === pages;
-  $("#lastPage").disabled = state.holderPage === pages;
+  renderHolderPager(pages);
   updateHolderSortHeaders();
 }
 function renderHolderRow(row){
@@ -1309,17 +1303,21 @@ function bindEvents(){
     renderFlow();
   }));
   document.addEventListener("click", event => {
-    const pageBtn = event.target.closest("[data-flow-page]");
+    const pageBtn = event.target.closest("[data-page]");
     if (!pageBtn) return;
-    const type = pageBtn.dataset.flowTable;
-    if (type !== "acc" && type !== "sell") return;
-    state.flowPage[type] = Number(pageBtn.dataset.flowPage) || 1;
-    renderFlow();
+    const scope = pageBtn.dataset.pageScope;
+    const page = Number(pageBtn.dataset.page) || 1;
+    if (scope === "flow") {
+      const type = pageBtn.dataset.pageTable;
+      if (type !== "acc" && type !== "sell") return;
+      state.flowPage[type] = page;
+      renderFlow();
+    }
+    if (scope === "holders") {
+      state.holderPage = page;
+      renderHolders();
+    }
   });
-  $("#firstPage").addEventListener("click", () => {state.holderPage = 1; renderHolders();});
-  $("#prevPage").addEventListener("click", () => {state.holderPage -= 1; renderHolders();});
-  $("#nextPage").addEventListener("click", () => {state.holderPage += 1; renderHolders();});
-  $("#lastPage").addEventListener("click", () => {state.holderPage = 999999; renderHolders();});
   document.addEventListener("click", async event => {
     const btn = event.target.closest("[data-copy]");
     if (!btn) return;
