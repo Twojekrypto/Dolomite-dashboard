@@ -139,7 +139,7 @@ input{font:inherit}
 .hero-token-sep{width:1px;height:16px;background:var(--line-2)}
 .chain-mini{display:inline-flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;letter-spacing:.9px;color:var(--fg-2)}
 .chain-mini img{width:14px;height:14px;border-radius:50%;object-fit:cover;background:transparent;box-shadow:0 0 0 1px rgba(255,255,255,.16)}
-.hero-grid{position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.hero-grid{position:relative;display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
 .hero-card{
   background:rgba(255,255,255,.02);border:1px solid var(--line-2);border-radius:var(--r-md);
   padding:18px 20px;transition:border-color .25s var(--ease),background .25s var(--ease),transform .25s var(--ease);
@@ -406,13 +406,6 @@ input{font:inherit}
           <div class="hero-value" id="price">—</div>
           <div class="change-pill" id="change">— 24h</div>
         </div>
-        <div class="hero-token" title="DOLO contract is tracked across Ethereum and Berachain">
-          <img src="dolo-logo.svg" alt="">
-          <span class="hero-token-name">DOLO</span>
-          <span class="hero-token-sep"></span>
-          <span class="chain-mini"><img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" alt=""> ETH</span>
-          <span class="chain-mini"><img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" alt=""> BERA</span>
-        </div>
       </div>
       <div class="hero-grid">
         <div class="hero-card">
@@ -435,25 +428,11 @@ input{font:inherit}
           <div class="hc-value gold" id="holdersCount">—</div>
           <div class="hc-sub">Ethereum + Berachain</div>
         </div>
-      </div>
-    </section>
-
-    <section class="stats-strip" aria-label="DOLO holder distribution">
-      <div class="stat-chip">
-        <div class="stat-label"><img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" alt=""> ETH only</div>
-        <div class="stat-value eth" id="ethOnly">—</div>
-      </div>
-      <div class="stat-chip">
-        <div class="stat-label"><img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" alt=""> BERA only</div>
-        <div class="stat-value bera" id="beraOnly">—</div>
-      </div>
-      <div class="stat-chip">
-        <div class="stat-label">Both chains</div>
-        <div class="stat-value multi" id="bothChains">—</div>
-      </div>
-      <div class="stat-chip">
-        <div class="stat-label">Tracked supply</div>
-        <div class="stat-value" id="trackedSupply">—</div>
+        <div class="hero-card">
+          <div class="hc-label">Tracked Supply</div>
+          <div class="hc-value" id="trackedSupply">—</div>
+          <div class="hc-sub">tracked across both chains</div>
+        </div>
       </div>
     </section>
 
@@ -865,9 +844,6 @@ function renderHero(){
   $("#circSupply").textContent = fmtToken(p.circulating_supply,2);
   const stats = state.holders?.stats || {};
   $("#holdersCount").textContent = fmtInt(stats.total_holders);
-  $("#ethOnly").textContent = fmtInt(stats.eth_only);
-  $("#beraOnly").textContent = fmtInt(stats.bera_only);
-  $("#bothChains").textContent = fmtInt(stats.both_chains);
   $("#trackedSupply").textContent = `${fmtToken(stats.total_supply_tracked,2)} DOLO`;
   if (state.price?.last_updated) $("#flowUpdated").textContent = `Price: ${new Date(state.price.last_updated).toLocaleString()}`;
   if (state.holders?.timestamp) $("#holdersUpdated").textContent = `Updated: ${new Date(state.holders.timestamp).toLocaleString()}`;
