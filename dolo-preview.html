@@ -363,6 +363,9 @@ input{font:inherit}
 .holder-label-line{display:flex;align-items:center;min-width:0}
 .holder-address-line{gap:6px}
 .holder-address-line .addr-link{max-width:142px}
+.flow-address-line .addr-link{max-width:126px}
+.flow-chain-line{margin-top:1px;font-size:10px}
+.flow-chain-line .chain-dot img{width:12px;height:12px}
 .debank-btn{
   width:22px;height:22px;border-radius:6px;display:inline-grid;place-items:center;flex-shrink:0;
   color:var(--fg-3);background:rgba(255,255,255,.025);border:1px solid var(--line-1);
@@ -521,18 +524,39 @@ input{font:inherit}
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
               <input id="flowSearch" type="search" placeholder="Search address or label">
             </label>
-            <div class="pill-switch" id="flowChainPills" data-state="all">
-              <span class="slider"></span>
-              <button class="opt active" data-chain="all">All</button>
-              <button class="opt" data-chain="eth"><img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" alt=""> ETH</button>
-              <button class="opt" data-chain="bera"><img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" alt=""> BERA</button>
+            <div class="chain-dd" id="flowChainDropdown">
+              <button class="chain-dd-btn" id="flowChainBtn" type="button" aria-haspopup="listbox" aria-expanded="false">
+                <span class="chain-dd-icon" id="flowChainIcon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20"/><path d="M12 2a15 15 0 0 0 0 20"/></svg>
+                </span>
+                <span class="chain-dd-label" id="flowChainLabel">All Chains</span>
+                <svg class="chain-dd-chev" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 7 5 5 5-5"/></svg>
+              </button>
+              <div class="chain-dd-panel" role="listbox" aria-label="Flow network filter">
+                <div class="chain-dd-panel-head">Network</div>
+                <button class="chain-dd-option active" type="button" role="option" data-chain="all">
+                  <span class="chain-dd-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20"/><path d="M12 2a15 15 0 0 0 0 20"/></svg></span>
+                  All Chains
+                  <span class="chain-dd-check">✓</span>
+                </button>
+                <button class="chain-dd-option" type="button" role="option" data-chain="bera">
+                  <img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" alt="">
+                  Berachain
+                  <span class="chain-dd-check">✓</span>
+                </button>
+                <button class="chain-dd-option" type="button" role="option" data-chain="eth">
+                  <img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" alt="">
+                  Ethereum
+                  <span class="chain-dd-check">✓</span>
+                </button>
+              </div>
             </div>
+            <button class="toggle-pill" id="flowHideKnown" type="button" aria-pressed="false" title="Hide centralized exchanges, smart contracts, protocol wallets, LP pools and bots from the flow tables.">
+              <span class="toggle-track"><span class="toggle-knob"></span></span>
+              Hide CEX
+            </button>
           </div>
           <div class="tb-right">
-            <button class="toggle-pill" id="flowHideKnown" type="button" aria-pressed="false">
-              <span class="toggle-track"><span class="toggle-knob"></span></span>
-              Hide CEX, CA & Bots
-            </button>
             <div class="pill-switch" id="flowPeriodPills" data-state="1d">
               <span class="slider"></span>
               <button class="opt active" data-period="1d">1D</button>
@@ -862,17 +886,23 @@ function chainBadges(row, focusChain){
 }
 function addressCell(row, chain, badgeChain){
   const info = infoFor(row.address);
-  const label = info ? `<span class="label-badge ${escapeHtml(info.type)}" title="${escapeHtml(info.label)}">${escapeHtml(info.label)}</span>` : "";
   const url = explorerUrl(row.address, chain || primaryChain(row));
+  const debankUrl = `https://debank.com/profile/${row.address}`;
+  const label = info
+    ? `<div class="holder-label-line"><span class="label-badge ${escapeHtml(info.type)}" title="${escapeHtml(info.label)}">${escapeHtml(info.label)}</span></div>`
+    : "";
   return `
-    <div class="addr-cell">
-      <button class="copy-btn" type="button" data-copy="${escapeHtml(row.address)}" title="Copy address">${copyIcon()}</button>
-      <div class="addr-main">
-        <div class="addr-line">
+    <div class="addr-cell holder-addr-cell flow-addr-cell">
+      <div class="addr-main holder-addr-main">
+        ${label}
+        <div class="addr-line holder-address-line flow-address-line">
           <a class="addr-link" href="${url}" target="_blank" rel="noopener" title="${escapeHtml(row.address)}">${shortAddr(row.address)}</a>
-          ${label}
+          <button class="copy-btn" type="button" data-copy="${escapeHtml(row.address)}" title="Copy address">${copyIcon()}</button>
+          <a class="debank-btn" href="${debankUrl}" target="_blank" rel="noopener" title="View on DeBank">
+            <img src="https://debank.com/favicon.ico" alt="" onerror="this.parentElement.style.display='none'">
+          </a>
         </div>
-        <div class="addr-sub">${chainBadges(row, badgeChain)}</div>
+        <div class="addr-sub flow-chain-line">${chainBadges(row, badgeChain)}</div>
       </div>
     </div>
   `;
@@ -932,29 +962,30 @@ function initToggle(id, prop, render){
     render();
   });
 }
-function holderChainIconHtml(chain){
+function chainIconHtml(chain){
   if (chain === "eth") return `<img src="${ETH_ICON}" alt="">`;
   if (chain === "bera") return `<img src="${BERA_ICON}" alt="">`;
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20"/><path d="M12 2a15 15 0 0 0 0 20"/></svg>`;
 }
-function holderChainLabel(chain){
+function chainLabel(chain){
   if (chain === "eth") return "Ethereum";
   if (chain === "bera") return "Berachain";
   return "All Chains";
 }
-function updateHolderChainDropdown(){
-  const dd = $("#holderChainDropdown");
+function updateChainDropdown(kind){
+  const dd = $(`#${kind}ChainDropdown`);
   if (!dd) return;
-  $("#holderChainIcon").innerHTML = holderChainIconHtml(state.holderChain);
-  $("#holderChainLabel").textContent = holderChainLabel(state.holderChain);
+  const chain = state[`${kind}Chain`];
+  $(`#${kind}ChainIcon`).innerHTML = chainIconHtml(chain);
+  $(`#${kind}ChainLabel`).textContent = chainLabel(chain);
   $$(".chain-dd-option", dd).forEach(option => {
-    option.classList.toggle("active", option.dataset.chain === state.holderChain);
-    option.setAttribute("aria-selected", String(option.dataset.chain === state.holderChain));
+    option.classList.toggle("active", option.dataset.chain === chain);
+    option.setAttribute("aria-selected", String(option.dataset.chain === chain));
   });
 }
-function initHolderChainDropdown(){
-  const dd = $("#holderChainDropdown");
-  const btn = $("#holderChainBtn");
+function initChainDropdown(kind, onChange){
+  const dd = $(`#${kind}ChainDropdown`);
+  const btn = $(`#${kind}ChainBtn`);
   if (!dd || !btn) return;
   btn.addEventListener("click", event => {
     event.stopPropagation();
@@ -965,12 +996,11 @@ function initHolderChainDropdown(){
   $$(".chain-dd-option", dd).forEach(option => {
     option.addEventListener("click", event => {
       event.stopPropagation();
-      state.holderChain = option.dataset.chain;
-      state.holderPage = 1;
+      state[`${kind}Chain`] = option.dataset.chain;
       dd.classList.remove("open");
       btn.setAttribute("aria-expanded", "false");
-      updateHolderChainDropdown();
-      renderHolders();
+      updateChainDropdown(kind);
+      onChange();
     });
   });
   document.addEventListener("click", event => {
@@ -979,7 +1009,19 @@ function initHolderChainDropdown(){
       btn.setAttribute("aria-expanded", "false");
     }
   });
-  updateHolderChainDropdown();
+  updateChainDropdown(kind);
+}
+function initFlowChainDropdown(){
+  initChainDropdown("flow", () => {
+    resetFlowPages();
+    renderFlow();
+  });
+}
+function initHolderChainDropdown(){
+  initChainDropdown("holder", () => {
+    state.holderPage = 1;
+    renderHolders();
+  });
 }
 async function fetchJson(path){
   const res = await fetch(`${path}?v=${Date.now()}`, {cache:"no-cache"});
@@ -1042,11 +1084,15 @@ function mergeFlows(kind){
   let rows = Array.from(map.values()).map(row => {
     const holder = holderByAddress(row.address);
     if (holder){
-      row.balance = holder.balance || row.balance;
+      row.balance = state.flowChain === "eth"
+        ? (holder.balance_eth || row.balance)
+        : state.flowChain === "bera"
+          ? (holder.balance_bera || row.balance)
+          : (holder.balance || row.balance);
       row.balance_eth = holder.balance_eth || 0;
       row.balance_bera = holder.balance_bera || 0;
       row.is_contract = Boolean(holder.is_contract);
-      row.chains = holder.chains?.length ? holder.chains : row.chains;
+      row.chains = state.flowChain === "all" && holder.chains?.length ? holder.chains : row.chains;
     }
     return row;
   });
@@ -1142,10 +1188,11 @@ function renderFlowRows(rows, isAcc, offset=0){
   if (!rows.length) return `<tr><td colspan="4" class="empty">No matching flow data</td></tr>`;
   return rows.map((row,i) => {
     const chain = state.flowChain === "all" ? primaryChain(row) : state.flowChain;
+    const badgeChain = state.flowChain === "all" ? undefined : chain;
     return `
       <tr>
         <td class="rank">${offset + i + 1}</td>
-        <td>${addressCell(row, chain)}</td>
+        <td>${addressCell(row, chain, badgeChain)}</td>
         <td class="num">${fmtToken(row.balance,1)}</td>
         <td class="num ${isAcc ? "green" : "red"}">${isAcc ? "+" : "-"}${fmtToken(row.display_flow,1)}</td>
       </tr>
@@ -1242,7 +1289,7 @@ function updateAllPillSliders(){
 }
 function bindEvents(){
   initPills("flowPeriodPills","period", value => {state.flowPeriod = value; resetFlowPages(); renderFlow();});
-  initPills("flowChainPills","chain", value => {state.flowChain = value; resetFlowPages(); renderFlow();});
+  initFlowChainDropdown();
   initHolderChainDropdown();
   initPills("holderPeriodPills","period", value => {state.holderPeriod = value; renderHolders();});
   initToggle("flowHideKnown","flowHideKnown", () => {resetFlowPages(); renderFlow();});
