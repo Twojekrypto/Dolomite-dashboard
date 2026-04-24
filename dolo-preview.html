@@ -195,6 +195,40 @@ input{font:inherit}
 .search svg{position:absolute;left:12px;width:14px;height:14px;color:var(--fg-3)}
 .search input{flex:1;background:none;border:0;outline:0;color:var(--fg-1);font-size:13px;min-width:0}
 .search input::placeholder{color:var(--fg-3)}
+.chain-dd{position:relative}
+.chain-dd-btn{
+  display:inline-flex;align-items:center;gap:8px;height:36px;min-width:156px;
+  padding:0 12px;background:var(--bg-3);border:1px solid var(--line-2);
+  border-radius:10px;font-size:13px;color:var(--fg-1);font-weight:500;
+  transition:border-color .2s var(--ease),background .2s var(--ease);
+}
+.chain-dd-btn:hover,.chain-dd.open .chain-dd-btn{border-color:var(--gold-line);background:var(--bg-4)}
+.chain-dd-btn img,.chain-dd-option img{width:15px;height:15px;border-radius:50%;object-fit:cover;flex-shrink:0}
+.chain-dd-icon{
+  width:15px;height:15px;border-radius:50%;display:inline-grid;place-items:center;
+  color:var(--gold);background:var(--gold-wash);border:1px solid var(--gold-line);flex-shrink:0;
+}
+.chain-dd-icon svg{width:10px;height:10px}
+.chain-dd-label{flex:1;text-align:left;white-space:nowrap}
+.chain-dd-chev{width:12px;height:12px;color:var(--fg-3);transition:transform .18s var(--ease)}
+.chain-dd.open .chain-dd-chev{transform:rotate(180deg)}
+.chain-dd-panel{
+  position:absolute;top:calc(100% + 6px);left:0;min-width:190px;
+  background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-md);
+  box-shadow:var(--sh-hi);padding:6px;z-index:45;
+  opacity:0;transform:translateY(-4px);pointer-events:none;
+  transition:opacity .18s var(--ease),transform .18s var(--ease);
+}
+.chain-dd.open .chain-dd-panel{opacity:1;transform:translateY(0);pointer-events:auto}
+.chain-dd-panel-head{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:var(--fg-3);font-weight:600;padding:8px 10px 6px}
+.chain-dd-option{
+  width:100%;display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:6px;
+  color:var(--fg-2);font-size:13px;text-align:left;transition:background .15s var(--ease),color .15s var(--ease);
+}
+.chain-dd-option:hover{background:var(--bg-3);color:var(--fg-1)}
+.chain-dd-option.active{background:rgba(201,162,39,.05);color:var(--fg-1)}
+.chain-dd-check{margin-left:auto;color:var(--gold);font-family:var(--mono);font-size:12px;opacity:0}
+.chain-dd-option.active .chain-dd-check{opacity:1}
 .pill-switch{
   position:relative;display:inline-flex;align-items:center;
   background:var(--bg-3);border:1px solid var(--line-2);border-radius:10px;
@@ -264,6 +298,8 @@ input{font:inherit}
 .tbl thead th.num{text-align:right}
 .tbl thead th.sorted{color:var(--gold)}
 .tbl thead th .sort{display:inline-block;margin-left:5px;color:var(--fg-4);font-size:9px}
+.th-chain-label{display:inline-flex;align-items:center;justify-content:flex-end;gap:6px}
+.th-chain-label img{width:15px;height:15px;border-radius:50%;object-fit:cover}
 .tbl tbody td{
   padding:11px 16px;border-bottom:1px solid var(--line-1);vertical-align:middle;
   color:var(--fg-1);font-variant-numeric:tabular-nums;
@@ -569,18 +605,39 @@ input{font:inherit}
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
               <input id="holderSearch" type="search" placeholder="Search address or label">
             </label>
-            <div class="pill-switch" id="holderChainPills" data-state="all">
-              <span class="slider"></span>
-              <button class="opt active" data-chain="all">All</button>
-              <button class="opt" data-chain="bera"><img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" alt=""> BERA</button>
-              <button class="opt" data-chain="eth"><img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" alt=""> ETH</button>
+            <div class="chain-dd" id="holderChainDropdown">
+              <button class="chain-dd-btn" id="holderChainBtn" type="button" aria-haspopup="listbox" aria-expanded="false">
+                <span class="chain-dd-icon" id="holderChainIcon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20"/><path d="M12 2a15 15 0 0 0 0 20"/></svg>
+                </span>
+                <span class="chain-dd-label" id="holderChainLabel">All Chains</span>
+                <svg class="chain-dd-chev" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 7 5 5 5-5"/></svg>
+              </button>
+              <div class="chain-dd-panel" role="listbox" aria-label="Holder network filter">
+                <div class="chain-dd-panel-head">Network</div>
+                <button class="chain-dd-option active" type="button" role="option" data-chain="all">
+                  <span class="chain-dd-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20"/><path d="M12 2a15 15 0 0 0 0 20"/></svg></span>
+                  All Chains
+                  <span class="chain-dd-check">✓</span>
+                </button>
+                <button class="chain-dd-option" type="button" role="option" data-chain="bera">
+                  <img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" alt="">
+                  Berachain
+                  <span class="chain-dd-check">✓</span>
+                </button>
+                <button class="chain-dd-option" type="button" role="option" data-chain="eth">
+                  <img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" alt="">
+                  Ethereum
+                  <span class="chain-dd-check">✓</span>
+                </button>
+              </div>
             </div>
+            <button class="toggle-pill" id="holderHideKnown" type="button" aria-pressed="false" title="Hide centralized exchanges, smart contracts, protocol wallets, LP pools and bots from the holders table.">
+              <span class="toggle-track"><span class="toggle-knob"></span></span>
+              Hide CEX
+            </button>
           </div>
           <div class="tb-right">
-            <button class="toggle-pill" id="holderHideKnown" type="button" aria-pressed="false">
-              <span class="toggle-track"><span class="toggle-knob"></span></span>
-              Hide CEX, CA & Bots
-            </button>
             <div class="pill-switch" id="holderPeriodPills" data-state="1d">
               <span class="slider"></span>
               <button class="opt active" data-period="1d">1D</button>
@@ -598,8 +655,8 @@ input{font:inherit}
               <tr>
                 <th data-sort="rank" class="sorted"># <span class="sort">▲</span></th>
                 <th data-sort="address">Address <span class="sort">⇅</span></th>
-                <th class="num holder-chain-col" data-sort="balance_eth">ETH <span class="sort">⇅</span></th>
-                <th class="num holder-chain-col" data-sort="balance_bera">BERA <span class="sort">⇅</span></th>
+                <th class="num holder-chain-col" data-sort="balance_eth"><span class="th-chain-label"><img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" alt="">ETH</span> <span class="sort">⇅</span></th>
+                <th class="num holder-chain-col" data-sort="balance_bera"><span class="th-chain-label"><img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" alt="">BERA</span> <span class="sort">⇅</span></th>
                 <th class="num" data-sort="balance"><span id="holderBalanceHeader">Balance</span> <span class="sort">⇅</span></th>
                 <th class="num" data-sort="change">Change <span class="sort">⇅</span></th>
               </tr>
@@ -858,6 +915,55 @@ function initToggle(id, prop, render){
     render();
   });
 }
+function holderChainIconHtml(chain){
+  if (chain === "eth") return `<img src="${ETH_ICON}" alt="">`;
+  if (chain === "bera") return `<img src="${BERA_ICON}" alt="">`;
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20"/><path d="M12 2a15 15 0 0 0 0 20"/></svg>`;
+}
+function holderChainLabel(chain){
+  if (chain === "eth") return "Ethereum";
+  if (chain === "bera") return "Berachain";
+  return "All Chains";
+}
+function updateHolderChainDropdown(){
+  const dd = $("#holderChainDropdown");
+  if (!dd) return;
+  $("#holderChainIcon").innerHTML = holderChainIconHtml(state.holderChain);
+  $("#holderChainLabel").textContent = holderChainLabel(state.holderChain);
+  $$(".chain-dd-option", dd).forEach(option => {
+    option.classList.toggle("active", option.dataset.chain === state.holderChain);
+    option.setAttribute("aria-selected", String(option.dataset.chain === state.holderChain));
+  });
+}
+function initHolderChainDropdown(){
+  const dd = $("#holderChainDropdown");
+  const btn = $("#holderChainBtn");
+  if (!dd || !btn) return;
+  btn.addEventListener("click", event => {
+    event.stopPropagation();
+    const open = !dd.classList.contains("open");
+    dd.classList.toggle("open", open);
+    btn.setAttribute("aria-expanded", String(open));
+  });
+  $$(".chain-dd-option", dd).forEach(option => {
+    option.addEventListener("click", event => {
+      event.stopPropagation();
+      state.holderChain = option.dataset.chain;
+      state.holderPage = 1;
+      dd.classList.remove("open");
+      btn.setAttribute("aria-expanded", "false");
+      updateHolderChainDropdown();
+      renderHolders();
+    });
+  });
+  document.addEventListener("click", event => {
+    if (!dd.contains(event.target)) {
+      dd.classList.remove("open");
+      btn.setAttribute("aria-expanded", "false");
+    }
+  });
+  updateHolderChainDropdown();
+}
 async function fetchJson(path){
   const res = await fetch(`${path}?v=${Date.now()}`, {cache:"no-cache"});
   if (!res.ok) throw new Error(`${path} returned HTTP ${res.status}`);
@@ -1027,7 +1133,11 @@ function renderHolders(){
   $("#holdersCard").classList.toggle("chain-bera", state.holderChain === "bera");
   const balanceHeader = $("#holderBalanceHeader");
   if (balanceHeader) {
-    balanceHeader.textContent = state.holderChain === "eth" ? "ETH Balance" : state.holderChain === "bera" ? "BERA Balance" : "Balance";
+    balanceHeader.innerHTML = state.holderChain === "eth"
+      ? `<span class="th-chain-label"><img src="${ETH_ICON}" alt="">ETH Balance</span>`
+      : state.holderChain === "bera"
+        ? `<span class="th-chain-label"><img src="${BERA_ICON}" alt="">BERA Balance</span>`
+        : "Balance";
   }
   $("#holderCount").textContent = fmtInt(rows.length);
   $("#holderRows").innerHTML = page.length ? page.map(renderHolderRow).join("") : `<tr><td colspan="6" class="empty">No matching holders</td></tr>`;
@@ -1078,7 +1188,7 @@ function updateAllPillSliders(){
 function bindEvents(){
   initPills("flowPeriodPills","period", value => {state.flowPeriod = value; renderFlow();});
   initPills("flowChainPills","chain", value => {state.flowChain = value; renderFlow();});
-  initPills("holderChainPills","chain", value => {state.holderChain = value; state.holderPage = 1; renderHolders();});
+  initHolderChainDropdown();
   initPills("holderPeriodPills","period", value => {state.holderPeriod = value; renderHolders();});
   initToggle("flowHideKnown","flowHideKnown", renderFlow);
   initToggle("holderHideKnown","holderHideKnown", () => {state.holderPage = 1; renderHolders();});
