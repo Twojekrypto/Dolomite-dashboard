@@ -37,15 +37,18 @@
   --gold-wash:rgba(201,162,39,.10);
   --gold-line:rgba(201,162,39,.30);
 
-  /* Neutral status (muted, never neon) */
-  --up:#8aa37b;
+  /* Financial meaning (muted, never neon) */
+  --profit:#75b87b;
+  --profit-hi:#9fcea1;
+  --profit-wash:rgba(117,184,123,.10);
+  --profit-line:rgba(117,184,123,.30);
+  --up:#75b87b;
   --down:#b4796b;
-  --up-wash:rgba(138,163,123,.10);
+  --up-wash:rgba(117,184,123,.10);
   --down-wash:rgba(180,121,107,.10);
 
-  /* Supply-source accent for External Yield — cool steel so it reads
-     distinct from white (Lending) and gold (oDOLO). */
-  --yield:#7fa8b8;
+  /* External Yield stays in the profit family, while oDOLO remains gold. */
+  --yield:#9fcea1;
 
   /* Geometry */
   --r-sm:8px;
@@ -211,8 +214,8 @@ body::before{
   content:"";position:absolute;inset:0;pointer-events:none;
   background:radial-gradient(650px 280px at 85% -20%,rgba(201,162,39,.08),transparent 60%);
 }
-.hero-top{display:flex;align-items:center;gap:8px;margin-bottom:10px;color:var(--gold);font-size:11px;letter-spacing:2px;text-transform:uppercase;font-weight:700}
-.hero-top svg{width:14px;height:14px}
+.hero-top{display:flex;align-items:center;gap:8px;margin-bottom:10px;color:var(--fg-1);font-size:11px;letter-spacing:2px;text-transform:uppercase;font-weight:700}
+.hero-top svg{width:14px;height:14px;color:var(--profit)}
 
 .hero-headline{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:24px}
 .hero-value{
@@ -222,7 +225,7 @@ body::before{
   color:var(--fg-1);
   font-variant-numeric:tabular-nums;
 }
-.hero-value .pct{color:var(--gold)}
+.hero-value .pct{color:var(--profit)}
 .hero-token{display:inline-flex;align-items:center;gap:10px;padding:6px 12px;border-radius:999px;background:var(--bg-3);border:1px solid var(--line-2);font-size:14px;font-weight:600;color:var(--fg-1)}
 .hero-token img{width:18px;height:18px;border-radius:50%}
 .hero-chain-pill{display:inline-flex;align-items:center;gap:5px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--fg-2);padding:3px 7px;border-radius:4px;background:rgba(255,255,255,.04);border:1px solid var(--line-2)}
@@ -242,6 +245,11 @@ body::before{
 .hero-card .hc-label svg{width:12px;height:12px;color:var(--fg-3)}
 .hero-card .hc-value{font-family:var(--mono);font-size:24px;font-weight:600;letter-spacing:-.5px;color:var(--fg-1);font-variant-numeric:tabular-nums}
 .hero-card .hc-value.accent{color:var(--gold)}
+.hero-card.supply .hc-label,
+.hero-card.supply .hc-label svg,
+.hero-card.supply .hc-value{color:var(--profit)}
+.hero-card.odolo .hc-value{color:var(--gold)}
+.hero-card.borrow .hc-value{color:var(--down)}
 .hero-card .hc-sub{font-size:11px;color:var(--fg-3);margin-top:4px}
 
 /* =========================================================================
@@ -561,7 +569,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 
 /* APY / supply cell — vertical breakdown (original-style) */
 .apy-cell{display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:130px;line-height:1.1}
-.apy-val{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--gold);letter-spacing:-.3px;line-height:1}
+.apy-val{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--profit);letter-spacing:-.3px;line-height:1}
 .apy-lines{display:flex;flex-direction:column;gap:3px;align-items:flex-end}
 .apy-line{
   display:inline-flex;align-items:center;gap:6px;
@@ -571,18 +579,18 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .apy-line .apy-dash{color:var(--fg-4);font-weight:400}
 .apy-line .apy-src{font-weight:500}
 .apy-line .apy-num{font-weight:600;font-variant-numeric:tabular-nums;min-width:52px;text-align:right}
-/* Lending — native yield, primary white */
+/* Lending — native yield, green profit signal */
 .apy-line.lending .apy-src,
-.apy-line.lending .apy-num{color:var(--fg-1)}
-.apy-line.lending .apy-dash{color:var(--fg-3)}
+.apy-line.lending .apy-num{color:var(--profit)}
+.apy-line.lending .apy-dash{color:var(--profit-line)}
 /* oDOLO — protocol rewards, gold accent */
 .apy-line.odolo .apy-src,
 .apy-line.odolo .apy-num{color:var(--gold)}
 .apy-line.odolo .apy-dash{color:var(--gold-line)}
-/* External yield — cool steel, clearly distinct */
+/* External yield — yield signal, kept close to profit green */
 .apy-line.yield .apy-src,
-.apy-line.yield .apy-num{color:var(--yield)}
-.apy-line.yield .apy-dash{color:rgba(127,168,184,.5)}
+.apy-line.yield .apy-num{color:var(--profit-hi)}
+.apy-line.yield .apy-dash{color:var(--profit-line)}
 
 /* borrow cell */
 .bw-val{font-family:var(--mono);font-size:14px;font-weight:500;color:var(--down)}
@@ -599,7 +607,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .exp-stat:first-child{border-left:0;padding-left:0}
 .exp-stat .lbl{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:var(--fg-3);font-weight:600;margin-bottom:8px}
 .exp-stat .val{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--fg-1);letter-spacing:-.3px}
-.exp-stat .val.accent{color:var(--gold)}
+.exp-stat .val.accent{color:var(--profit)}
 .exp-stat .val.down{color:var(--down)}
 .exp-stat .sub{font-size:11px;color:var(--fg-3);margin-top:4px;font-family:var(--mono)}
 .exp-bar{margin-top:8px;width:100%;height:4px;border-radius:2px;background:var(--bg-3);overflow:hidden}
@@ -712,6 +720,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .calc-side-val{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--fg-1);font-variant-numeric:tabular-nums}
 .calc-side-val.right{text-align:right}
 .calc-side-val.gold{color:var(--gold)}
+.calc-side-val.profit{color:var(--profit)}
 .calc-side-val.down{color:var(--down)}
 .calc-arrow{width:16px;height:10px;opacity:.6;color:var(--fg-3)}
 .calc-arrow.up-dir{color:var(--up)}
@@ -844,15 +853,15 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
     </div>
 
     <div class="hero-grid">
-      <div class="hero-card">
+      <div class="hero-card supply">
         <div class="hc-label">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
           Avg Supply APR
         </div>
-        <div class="hc-value accent">4.87%</div>
+        <div class="hc-value">4.87%</div>
         <div class="hc-sub">across 42 markets</div>
       </div>
-      <div class="hero-card">
+      <div class="hero-card odolo">
         <div class="hc-label">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
           oDOLO Boost
@@ -860,7 +869,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
         <div class="hc-value">+2.31%</div>
         <div class="hc-sub">average incentive</div>
       </div>
-      <div class="hero-card">
+      <div class="hero-card markets">
         <div class="hc-label">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
           Total Markets
@@ -868,7 +877,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
         <div class="hc-value">42</div>
         <div class="hc-sub">listed assets · 7 chains</div>
       </div>
-      <div class="hero-card">
+      <div class="hero-card borrow">
         <div class="hc-label">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
           Highest Borrow
@@ -1937,12 +1946,12 @@ function render(){
                 <div class="calc-row">
                   <div class="calc-side">
                     <div class="calc-side-lbl">Native Lending ${state.mode} · now</div>
-                    <div class="calc-side-val gold">${fmtPct(sim.oldLending)}</div>
+                    <div class="calc-side-val profit">${fmtPct(sim.oldLending)}</div>
                   </div>
                   <svg class="calc-arrow ${sim.lendingDir}" viewBox="0 0 16 10"><path d="M0 5 L12 5 M9 2 L12 5 L9 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                   <div class="calc-side">
                     <div class="calc-side-lbl" style="text-align:right">Native Lending ${state.mode} · after</div>
-                    <div class="calc-side-val right gold">${fmtPct(sim.newLending)}</div>
+                    <div class="calc-side-val right profit">${fmtPct(sim.newLending)}</div>
                   </div>
                 </div>
                 <div class="calc-row">
