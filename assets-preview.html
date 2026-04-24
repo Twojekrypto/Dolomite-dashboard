@@ -591,6 +591,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 /* APY / supply cell — vertical breakdown (original-style) */
 .apy-cell{display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:130px;line-height:1.1}
 .apy-val{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--profit);letter-spacing:-.3px;line-height:1}
+.apy-val.negative{color:var(--down)}
 .apy-lines{display:flex;flex-direction:column;gap:3px;align-items:flex-end}
 .apy-line{
   display:inline-flex;align-items:center;gap:6px;
@@ -612,6 +613,9 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .apy-line.yield .apy-src,
 .apy-line.yield .apy-num{color:var(--yield)}
 .apy-line.yield .apy-dash{color:rgba(143,183,200,.50)}
+.apy-line.negative .apy-src,
+.apy-line.negative .apy-num{color:var(--down)}
+.apy-line.negative .apy-dash{color:rgba(180,121,107,.50)}
 
 /* borrow cell */
 .bw-val{font-family:var(--mono);font-size:14px;font-weight:500;color:var(--down)}
@@ -1520,7 +1524,7 @@ function parseYieldParts(parts){
   const sources = [];
   (parts || []).forEach(p=>{
     const raw = (parseFloat(p.interestRate) || 0) * 100;
-    if(raw <= 0) return;
+    if(raw === 0) return;
     const label = String(p.label || "").replace(/\s*\(.*?\)\s*/g,"").replace(/\s+APR$/i,"").replace(/\s+APY$/i,"").trim() || "Yield";
     if(label.toLowerCase().includes("odolo")){
       odolo += raw;
@@ -1711,6 +1715,22 @@ function simulate(row, calc){
   const effectiveAmount = calc.action==="withdraw"
     ? Math.min(requested, cash)
     : Math.min(requested, capRemaining);
+  if(effectiveAmount <= 0){
+    const oldBorrow = state.mode==="APY" ? aprToApy(row.borrow) : row.borrow;
+    const oldLending = state.mode==="APY" ? aprToApy(row.lending) : row.lending;
+    return {
+      newUtil: row.util,
+      newBorrow: oldBorrow,
+      newLending: oldLending,
+      oldBorrow,
+      oldLending,
+      requested,
+      effectiveAmount,
+      utilDir:"",
+      lendingDir:"",
+      borrowDir:""
+    };
+  }
   const effDelta = calc.action==="withdraw" ? -effectiveAmount : effectiveAmount;
   const newTvl = Math.max(borrowedUsd, suppliedUsd + effDelta);
   const newUtil = newTvl > 0 ? Math.min(99.9999, borrowedUsd / newTvl * 100) : 0;
@@ -1853,11 +1873,11 @@ function render(){
     // vertical breakdown shown under the big Supply value
     // order: Lending (native, always top) → oDOLO → External Yield
     const parts = [];
-    if(state.rw.lending && r.lending>0) parts.push({k:"lending", l:"Lending", v:r.lending});
-    if(state.rw.odolo   && r.odolo>0)   parts.push({k:"odolo",   l:"oDOLO",   v:r.odolo});
-    if(state.rw.yield   && r.yield>0)   parts.push({k:"yield",   l:"Yield",   v:r.yield});
+    if(state.rw.lending && r.lending!==0) parts.push({k:"lending", l:"Lending", v:r.lending});
+    if(state.rw.odolo   && r.odolo!==0)   parts.push({k:"odolo",   l:"oDOLO",   v:r.odolo});
+    if(state.rw.yield   && r.yield!==0)   parts.push({k:"yield",   l:"Yield",   v:r.yield});
     const lineHTML = parts.map(p=>
-      `<div class="apy-line ${p.k}"><span class="apy-dash">—</span><span class="apy-src">${p.l}</span><span class="apy-num">${fmtRate(p.v)}</span></div>`
+      `<div class="apy-line ${p.k} ${p.v < 0 ? "negative" : ""}"><span class="apy-dash">—</span><span class="apy-src">${p.l}</span><span class="apy-num">${fmtRate(p.v)}</span></div>`
     ).join("");
 
     const expanded = state.expanded.has(keyId);
@@ -1885,7 +1905,7 @@ function render(){
         </td>
         <td class="num">
           <div class="apy-cell">
-            <div class="apy-val">${fmtPct(supply)}</div>
+            <div class="apy-val ${supply < 0 ? "negative" : ""}">${fmtPct(supply)}</div>
             <div class="apy-lines">${lineHTML}</div>
           </div>
         </td>
@@ -1913,8 +1933,8 @@ function render(){
               </div>
               <div class="exp-stat">
                 <div class="lbl">Supply ${state.mode}</div>
-                <div class="val accent">${fmtRate(r._supply)}</div>
-                <div class="sub">${state.rw.lending?`Lending ${fmtRate(r.lending)}`:""}${state.rw.yield && r.yield>0?` · Yield ${fmtRate(r.yield)}`:""}${state.rw.odolo && r.odolo>0?` · oDOLO ${fmtRate(r.odolo)}`:""}</div>
+                <div class="val ${r._supply < 0 ? "down" : "accent"}">${fmtRate(r._supply)}</div>
+                <div class="sub">${state.rw.lending?`Lending ${fmtRate(r.lending)}`:""}${state.rw.yield && r.yield!==0?` · Yield ${fmtRate(r.yield)}`:""}${state.rw.odolo && r.odolo!==0?` · oDOLO ${fmtRate(r.odolo)}`:""}</div>
               </div>
               <div class="exp-stat">
                 <div class="lbl">Net Spread</div>
