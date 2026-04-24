@@ -1453,12 +1453,22 @@ const STABLE_SYMBOLS = new Set(["USDC","USDT","USDT0","USD₮0","DAI","USDC.E","
 const BTC_SYMBOLS = new Set(["BTC","WBTC","LBTC","EBTC","eBTC","SOLVBTC","SolvBTC","SOLVBTC.BBN","TBTC","tBTC","UNIBTC","uniBTC","PUMPBTC","PumpBTC","CBBTC","cbBTC","FBTC","STBTC","stBTC","SBTC","pBTC"]);
 const ETH_SYMBOLS = new Set(["ETH","WETH","WSTETH","wstETH","STETH","RETH","rETH","WEETH","weETH","BERAETH","beraETH","EZETH","ezETH","RSETH","rsETH","STONE","WOETH","METH","mETH","CMETH","cmETH","BERA","WBERA","iBERA","sWBERA","wgBERA","iBGT","diBGT","oriBGT","PT-iBGT-25DEC2025"]);
 const SKIP_PREFIXES = ["dPT-","dYT-","Dolomite Isolation","djUSDC","dfsGLP","dplvGLP","dARB","dGMX","mGLP","sGLP"];
+const MONTH_INDEX = {JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11};
 
 function classifyAsset(sym){
   if(STABLE_SYMBOLS.has(sym)) return "stable";
   if(BTC_SYMBOLS.has(sym)) return "btc";
   if(ETH_SYMBOLS.has(sym)) return "eth";
   return "eth";
+}
+function maturityDateFor(sym, name=""){
+  const match = `${sym || ""} ${name || ""}`.match(/(\d{1,2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(20\d{2})/i);
+  if(!match) return null;
+  return new Date(Date.UTC(+match[3], MONTH_INDEX[match[2].toUpperCase()], +match[1], 23, 59, 59));
+}
+function isExpiredMarket(sym, name=""){
+  const maturity = maturityDateFor(sym, name);
+  return !!maturity && maturity < new Date();
 }
 const shortAddr = (a)=>String(a || "").slice(0,6)+"…"+String(a || "").slice(-4);
 const explorerUrl = (row)=>{
@@ -1470,6 +1480,7 @@ const tokenNameHtml = (row)=>`<span class="tok-sym">${row.sym}</span>${isWrapped
 function shouldSkipMarket(row){
   const sym = row.token?.tokenSymbol || "";
   const name = row.token?.tokenName || "";
+  if(isExpiredMarket(sym, name)) return true;
   return SKIP_PREFIXES.some(p => sym.startsWith(p) || name.startsWith(p));
 }
 function parseYieldParts(parts){
@@ -1755,6 +1766,7 @@ function render(){
   const tb = document.getElementById("tbody");
   const q = state.q.trim().toLowerCase();
   let rows = ASSETS.filter(r=>{
+    if(isExpiredMarket(r.sym, r.name)) return false;
     if(state.cats.size>0 && !state.cats.has(r.cat)) return false;
     if(state.nets.size>0 && !state.nets.has(r.chain)) return false;
     if(state.dust && r.dust) return false;
