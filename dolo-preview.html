@@ -270,6 +270,7 @@ input{font:inherit}
 .mini-value.red{color:var(--down)}
 .mini-value.gold{color:var(--gold)}
 .flow-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:1px solid var(--line-1)}
+.flow-panel{display:flex;flex-direction:column;min-width:0}
 .flow-panel:first-child{border-right:1px solid var(--line-1)}
 .flow-panel-head{
   display:flex;align-items:center;justify-content:space-between;gap:12px;
@@ -310,7 +311,9 @@ input{font:inherit}
 .tbl tbody tr{transition:background .15s var(--ease)}
 .tbl tbody tr:hover td{background:var(--bg-3)}
 .flow-panel .tbl{table-layout:fixed}
+.flow-panel .tbl-wrap{flex:1 1 auto;min-height:690px}
 .flow-panel .tbl th,.flow-panel .tbl td{padding-left:12px;padding-right:12px}
+.flow-panel .tbl tbody tr,.flow-panel .tbl tbody td{height:65px}
 .flow-panel .tbl th:nth-child(1),.flow-panel .tbl td:nth-child(1){width:42px}
 .flow-panel .tbl th:nth-child(2),.flow-panel .tbl td:nth-child(2){width:44%}
 .flow-panel .tbl th:nth-child(3),.flow-panel .tbl td:nth-child(3){width:25%}
@@ -365,6 +368,7 @@ input{font:inherit}
 .copy-btn svg{width:12px;height:12px}
 .holder-addr-cell{align-items:flex-start;gap:0}
 .holder-addr-main{gap:4px}
+#flowCard .holder-addr-main{min-height:40px;justify-content:center}
 .holder-address-line{gap:6px}
 .holder-address-line .addr-link{max-width:142px}
 .debank-btn{
@@ -399,7 +403,7 @@ input{font:inherit}
 .pager button:disabled{opacity:.35;cursor:not-allowed}
 .pager .page-info{font-family:var(--mono);font-size:11px;color:var(--fg-3);min-width:56px;text-align:center}
 .flow-pager{
-  justify-content:center;padding:12px 14px;border-top:1px solid var(--line-1);
+  justify-content:center;margin-top:auto;padding:12px 14px;border-top:1px solid var(--line-1);
   background:rgba(255,255,255,.01);
 }
 .flow-pager:empty{display:none}
