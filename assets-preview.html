@@ -200,34 +200,52 @@ body::before{
 }
 
 /* =========================================================================
-   HERO — yield focus, graphite + subtle gold
+   HERO — aligned with DOLO graphite + gold system
    ========================================================================= */
 .hero{
   position:relative;
   background:linear-gradient(180deg,var(--bg-2),var(--bg-1));
   border:1px solid var(--line-2);
   border-radius:var(--r-xl);
-  padding:28px 32px;
+  padding:28px 32px 24px;
   margin-bottom:24px;
   overflow:hidden;
 }
 .hero::before{
-  content:"";position:absolute;inset:0;pointer-events:none;
-  background:radial-gradient(650px 280px at 85% -20%,rgba(201,162,39,.08),transparent 60%);
+  content:"";position:absolute;left:0;right:0;top:0;height:1px;pointer-events:none;
+  background:linear-gradient(90deg,transparent 0%,var(--gold-line) 30%,var(--gold-line) 70%,transparent 100%);
+  opacity:.6;
 }
-.hero-top{display:flex;align-items:center;gap:8px;margin-bottom:10px;color:var(--fg-1);font-size:11px;letter-spacing:2px;text-transform:uppercase;font-weight:700}
-.hero-top svg{width:14px;height:14px;color:var(--profit)}
+.hero::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(720px 320px at 80% -30%,rgba(201,162,39,.08),transparent 65%);
+}
+.hero-brand{display:flex;align-items:center;gap:16px;margin-bottom:26px;position:relative;z-index:1;flex-wrap:wrap}
+.hero-token-logo{
+  width:52px;height:52px;border-radius:50%;
+  background:var(--bg-3);border:1px solid var(--line-2);
+  display:grid;place-items:center;overflow:hidden;flex-shrink:0;
+}
+.hero-token-logo svg{width:26px;height:26px;color:var(--gold)}
+.hero-token-text{display:flex;flex-direction:column;gap:3px;min-width:0}
+.hero-token-title{font-size:24px;font-weight:800;color:var(--fg-1);letter-spacing:-.7px;line-height:1}
+.hero-token-sub{font-size:12.5px;color:var(--fg-3);font-weight:400;line-height:1.3}
+.hero-token-sub b{color:var(--fg-2);font-weight:500}
+.hero-meta{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}
+.hero-live{font-size:11px;color:var(--fg-3);font-family:var(--mono);display:inline-flex;align-items:center;gap:6px}
+.hero-live .dot{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
 
-.hero-headline{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:24px}
+.hero-headline{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;padding-bottom:26px;margin-bottom:0;position:relative;z-index:1}
 .hero-value{
   font-family:var(--mono);
-  font-size:clamp(40px,5.6vw,58px);
-  font-weight:700;letter-spacing:-2px;
+  font-size:clamp(44px,6vw,62px);
+  font-weight:700;letter-spacing:-2.5px;
   color:var(--fg-1);
+  line-height:1;
   font-variant-numeric:tabular-nums;
 }
 .hero-value .pct,
-.hero-value .pct-symbol{color:var(--profit)}
+.hero-value .pct-symbol{color:var(--fg-1)}
 .hero-value .pct-symbol{font-size:.45em;margin-left:4px}
 .hero-token{
   display:inline-flex;align-items:center;gap:9px;
@@ -253,24 +271,30 @@ body::before{
   box-shadow:0 0 0 1px rgba(255,255,255,.16);
 }
 
-.hero-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.hero-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:0;
+  padding-top:22px;border-top:1px solid var(--line-1);
+  position:relative;z-index:1;
+}
 .hero-card{
-  background:rgba(255,255,255,.02);
-  border:1px solid var(--line-2);
-  border-radius:var(--r-md);
-  padding:18px 20px;
-  transition:border-color .25s var(--ease),background .25s var(--ease),transform .25s var(--ease);
+  background:transparent;
+  border:0;
+  border-left:1px solid var(--line-1);
+  border-radius:0;
+  padding:0 24px;
+  transition:none;
   position:relative;
 }
-.hero-card:hover{border-color:var(--line-3);background:rgba(255,255,255,.035);transform:translateY(-1px)}
+.hero-card:first-child{border-left:0;padding-left:0}
+.hero-card:hover{background:transparent;transform:none}
 .hero-card .hc-label{font-size:10px;text-transform:uppercase;letter-spacing:1.6px;color:var(--fg-3);font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px}
 .hero-card .hc-label svg{width:12px;height:12px;color:var(--fg-3)}
 .hero-card .hc-label img{width:10px;height:10px;border-radius:50%;object-fit:contain;opacity:.82;flex-shrink:0}
 .hero-card .hc-value{font-family:var(--mono);font-size:24px;font-weight:600;letter-spacing:-.5px;color:var(--fg-1);font-variant-numeric:tabular-nums}
 .hero-card .hc-value.accent{color:var(--gold)}
-.hero-card.supply .hc-value{color:var(--profit)}
+.hero-card.supply .hc-value{color:var(--fg-1)}
 .hero-card.odolo .hc-value{color:var(--gold)}
-.hero-card.borrow .hc-value{color:var(--down)}
+.hero-card.borrow .hc-value{color:var(--fg-1)}
 .hero-card .hc-sub{font-size:11px;color:var(--fg-3);margin-top:4px}
 
 /* =========================================================================
@@ -755,16 +779,21 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 /* =========================================================================
    PROTOCOL INFO CARD (bottom of page)
    ========================================================================= */
-.proto{margin-top:24px;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-xl);overflow:hidden;box-shadow:var(--sh-card)}
-.proto-head{display:flex;flex-direction:column;align-items:flex-start;gap:16px;padding:22px 24px 20px;border-bottom:1px solid var(--line-1)}
+.proto{margin-top:24px;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-xl);overflow:hidden;box-shadow:var(--sh-card);position:relative}
+.proto::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold-line),transparent);opacity:.55}
+.proto-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:22px 24px 20px;border-bottom:1px solid var(--line-1);flex-wrap:wrap}
 .proto-brand{display:flex;align-items:center;gap:14px}
-.proto-brand-mark{width:40px;height:40px;border-radius:50%;background:var(--bg-3);border:1px solid var(--line-2);display:grid;place-items:center;overflow:hidden;flex-shrink:0}
-.proto-brand-mark img{width:28px;height:28px;object-fit:contain}
+.proto-brand-mark{width:46px;height:46px;border-radius:50%;background:var(--bg-3);border:1px solid var(--line-2);display:grid;place-items:center;overflow:hidden;flex-shrink:0}
+.proto-brand-mark img{width:32px;height:32px;object-fit:contain}
 .proto-brand-text{display:flex;flex-direction:column;gap:2px}
-.proto-brand-name{font-size:15px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px}
+.proto-brand-name{font-size:18px;font-weight:800;color:var(--fg-1);letter-spacing:-.4px}
 .proto-brand-sub{font-size:12px;color:var(--fg-3)}
+.proto-brand-sub b{color:var(--fg-2);font-weight:500}
 
 .proto-links{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.proto-links-group{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.proto-links-label{font-size:10px;text-transform:uppercase;letter-spacing:1.3px;color:var(--fg-4);font-weight:600;margin-right:2px}
+.proto-links-sep{width:1px;height:20px;background:var(--line-2);margin:0 2px}
 .proto-pill{
   display:inline-flex;align-items:center;gap:7px;
   height:32px;padding:0 12px;
@@ -797,6 +826,9 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .proto-copy:hover{color:var(--gold);border-color:var(--gold-line)}
 .proto-copy.copied{color:var(--up);border-color:var(--up)}
 .proto-copy svg{width:12px;height:12px}
+.proto-explore{width:26px;height:26px;border-radius:6px;background:var(--bg-3);border:1px solid var(--line-2);display:grid;place-items:center;color:var(--fg-3);flex-shrink:0;transition:color .2s var(--ease),border-color .2s var(--ease)}
+.proto-explore:hover{color:var(--gold);border-color:var(--gold-line)}
+.proto-explore svg{width:12px;height:12px}
 
 /* footer small */
 .foot{margin-top:24px;text-align:center;font-size:11px;color:var(--fg-3);letter-spacing:.3px}
@@ -811,12 +843,16 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   .wrap{padding:24px 16px 48px}
   .hero{padding:22px 18px}
   .hero-grid{grid-template-columns:1fr}
+  .hero-card{border-left:0;border-top:1px solid var(--line-1);padding:14px 0 0}
+  .hero-card:first-child{border-top:0;padding-top:0}
+  .hero-meta{margin-left:0;width:100%}
   .search{width:100%}
   .tb-left,.tb-right{width:100%}
   .exp-body{padding:18px 20px 20px 24px}
   .exp-stats-row{grid-template-columns:1fr}
   .proto-addrs{grid-template-columns:1fr}
   .proto-addr-hex{max-width:120px}
+  .proto-links-sep{display:none}
   .site-top{gap:10px;margin-bottom:32px}
   .site-brand{padding:12px 0 0}
   .site-brand img{max-width:460px}
@@ -839,7 +875,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
           <span>Assets</span>
         </a>
-        <a class="nav-item" href="./tvl/" data-tab="tvl">
+        <a class="nav-item" href="./#tvl" data-tab="tvl">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-6 4 4 5-8"/></svg>
           <span>TVL</span>
         </a>
@@ -847,15 +883,15 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
           <img src="dolo-logo.svg" alt="" onerror="this.style.display='none'">
           <span>DOLO</span>
         </a>
-        <a class="nav-item" href="./odolo/" data-tab="odolo">
+        <a class="nav-item" href="./#odolo" data-tab="odolo">
           <img src="odolo-logo-official.svg" alt="" onerror="this.style.display='none'">
           <span>oDOLO</span>
         </a>
-        <a class="nav-item" href="./vedolo/" data-tab="vedolo">
+        <a class="nav-item" href="./#vedolo" data-tab="vedolo">
           <img src="vedolo-logo.svg" alt="" onerror="this.style.display='none'">
           <span>veDOLO</span>
         </a>
-        <a class="nav-item" href="./earn/" data-tab="earn">
+        <a class="nav-item" href="./#earn" data-tab="earn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/></svg>
           <span>Earn</span>
         </a>
@@ -865,9 +901,17 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 
   <!-- HERO -->
   <section class="hero">
-    <div class="hero-top">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-      Best Yield Opportunity
+    <div class="hero-brand">
+      <div class="hero-token-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+      </div>
+      <div class="hero-token-text">
+        <div class="hero-token-title">Assets</div>
+        <div class="hero-token-sub"><b>Dolomite</b> lending markets</div>
+      </div>
+      <div class="hero-meta">
+        <div class="hero-live"><span class="dot"></span>Live markets</div>
+      </div>
     </div>
     <div class="hero-headline">
       <div class="hero-value"><span class="pct">18.42</span><span class="pct-symbol">%</span></div>
@@ -1056,38 +1100,24 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
         </div>
         <div class="proto-brand-text">
           <div class="proto-brand-name">Dolomite</div>
-          <div class="proto-brand-sub">Multi-chain lending &amp; margin protocol</div>
+          <div class="proto-brand-sub" id="proto-market-sub"><b>Lending &amp; margin</b> · multi-chain money markets</div>
         </div>
       </div>
       <div class="proto-links">
-        <a class="proto-pill" href="https://dolomite.io" target="_blank" rel="noopener">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
-          Website
-        </a>
-        <a class="proto-pill" href="https://twitter.com/Dolomite_io" target="_blank" rel="noopener">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-          Twitter
-        </a>
-        <a class="proto-pill" href="https://t.me/dolomite_official" target="_blank" rel="noopener">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0a12 12 0 00-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
-          Telegram
-        </a>
-        <a class="proto-pill" href="https://discord.com/invite/uDRzrB2YgP" target="_blank" rel="noopener">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037 19.736 19.736 0 00-4.885 1.515.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028 14.09 14.09 0 001.226-1.994.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.086 2.157 2.419 0 1.334-.955 2.419-2.157 2.419zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.086 2.157 2.419 0 1.334-.946 2.419-2.157 2.419z"/></svg>
-          Discord
-        </a>
-        <a class="proto-pill" href="https://docs.dolomite.io/" target="_blank" rel="noopener">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
-          Docs
-        </a>
-        <a class="proto-pill" href="https://github.com/dolomite-exchange" target="_blank" rel="noopener">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-          GitHub
-        </a>
-        <a class="proto-pill" href="https://docs.dolomite.io/security/audits" target="_blank" rel="noopener">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          Audits
-        </a>
+        <div class="proto-links-group">
+          <span class="proto-links-label">Community</span>
+          <a class="proto-pill" href="https://twitter.com/Dolomite_io" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>Twitter</a>
+          <a class="proto-pill" href="https://t.me/dolomite_official" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0a12 12 0 00-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>Telegram</a>
+          <a class="proto-pill" href="https://discord.com/invite/uDRzrB2YgP" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037 19.736 19.736 0 00-4.885 1.515.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028 14.09 14.09 0 001.226-1.994.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.086 2.157 2.419 0 1.334-.955 2.419-2.157 2.419zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.086 2.157 2.419 0 1.334-.946 2.419-2.157 2.419z"/></svg>Discord</a>
+        </div>
+        <span class="proto-links-sep"></span>
+        <div class="proto-links-group">
+          <span class="proto-links-label">Resources</span>
+          <a class="proto-pill" href="https://dolomite.io" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>Website</a>
+          <a class="proto-pill" href="https://docs.dolomite.io/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>Docs</a>
+          <a class="proto-pill" href="https://github.com/dolomite-exchange" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>GitHub</a>
+          <a class="proto-pill" href="https://docs.dolomite.io/security/audits" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Audits</a>
+        </div>
       </div>
     </div>
     <div class="proto-body">
@@ -1096,7 +1126,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
     </div>
   </section>
 
-  <div class="foot">Preview · local design proposal · <span id="now"></span></div>
+  <div class="foot">Assets dashboard · onchain market data · <span id="now"></span></div>
 </div>
 
 <script>
@@ -1778,8 +1808,11 @@ function updateHero(){
   const odoloRows = data.filter(r=>r.odolo > 0);
   const avgOdolo = odoloRows.length ? avg(odoloRows.map(r=>r.odolo)) : 0;
   const chains = new Set(data.map(r=>r.chain));
+  const allChains = new Set(ASSETS.map(r=>r.chain));
   const heroValue = document.querySelector(".hero-value .pct");
   if(heroValue) heroValue.textContent = rateForMode(topSupply._supply).toFixed(2);
+  const heroLive = document.querySelector(".hero-live");
+  if(heroLive) heroLive.innerHTML = `<span class="dot"></span>${data.length} live markets · ${allChains.size} chains`;
   const heroToken = document.querySelector(".hero-token");
   if(heroToken){
     const topChain = chainMeta(topSupply.chain);
@@ -1799,7 +1832,6 @@ function updateHero(){
     cards[1].querySelector(".hc-sub").textContent = odoloRows.length ? `${odoloRows.length} boosted markets` : "no active boosts";
   }
   if(cards[2]){
-    const allChains = new Set(ASSETS.map(r=>r.chain));
     cards[2].querySelector(".hc-value").textContent = String(ASSETS.length);
     cards[2].querySelector(".hc-sub").textContent = `listed assets · ${allChains.size} chains`;
   }
@@ -1810,6 +1842,8 @@ function updateHero(){
   CHAIN_COUNT_TOTAL = new Set(ASSETS.map(r=>r.chain)).size || CHAIN_COUNT_TOTAL;
   const netCount = document.querySelector("#dd-net .dd-btn .count");
   if(netCount && state.nets.size === 0) netCount.textContent = String(CHAIN_COUNT_TOTAL);
+  const protoSub = document.getElementById("proto-market-sub");
+  if(protoSub) protoSub.innerHTML = `<b>Lending &amp; margin</b> · ${data.length} live markets · ${allChains.size} chains`;
 }
 
 /* ==========================================================================
@@ -2334,6 +2368,7 @@ const CONTRACTS = [
 const shorten = (a)=>a.slice(0,6)+"…"+a.slice(-4);
 const COPY_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
 const CHECK_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+const EXT_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
 
 document.getElementById("proto-addrs").innerHTML = CONTRACTS.map((c,i)=>`
   <div class="proto-addr" data-idx="${i}">
@@ -2347,6 +2382,7 @@ document.getElementById("proto-addrs").innerHTML = CONTRACTS.map((c,i)=>`
     <div class="proto-addr-right">
       <span class="proto-addr-hex" title="${c.addr}">${shorten(c.addr)}</span>
       <button class="proto-copy" data-copy="${c.addr}" aria-label="Copy address">${COPY_ICO}</button>
+      <button class="proto-explore" data-url="${c.explorer}/token/${c.addr}" aria-label="Open in explorer" title="Open in block explorer">${EXT_ICO}</button>
     </div>
   </div>
 `).join("");
@@ -2356,8 +2392,15 @@ document.querySelectorAll(".proto-addr").forEach(row=>{
   const idx = +row.dataset.idx;
   const c = CONTRACTS[idx];
   row.addEventListener("click", e=>{
-    if(e.target.closest(".proto-copy")) return;
+    if(e.target.closest(".proto-copy") || e.target.closest(".proto-explore")) return;
     window.open(`${c.explorer}/token/${c.addr}`, "_blank", "noopener");
+  });
+});
+document.querySelectorAll(".proto-explore").forEach(btn=>{
+  btn.addEventListener("click", e=>{
+    e.stopPropagation();
+    const url = btn.dataset.url;
+    if(url) window.open(url, "_blank", "noopener");
   });
 });
 document.querySelectorAll(".proto-copy").forEach(btn=>{

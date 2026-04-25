@@ -3,436 +3,403 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Dolomite · DOLO</title>
-<link rel="icon" href="dolomite-logo.svg" type="image/svg+xml">
+<title>Dolomite · DOLO — Premium Preview</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+/* ==========================================================================
+   DESIGN TOKENS — Graphite + Gold (shared with assets-preview)
+   ========================================================================== */
 :root{
-  --bg-0:#09090b;
-  --bg-1:#0f0f11;
-  --bg-2:#141417;
-  --bg-3:#1a1a1e;
-  --bg-4:#202024;
-  --line-1:rgba(255,255,255,.05);
-  --line-2:rgba(255,255,255,.08);
-  --line-3:rgba(255,255,255,.14);
-  --fg-1:#f4f3ef;
-  --fg-2:#a5a29a;
-  --fg-3:#6b6a66;
-  --fg-4:#48474a;
-  --gold:#c9a227;
-  --gold-hi:#e4c15a;
-  --gold-wash:rgba(201,162,39,.10);
-  --gold-line:rgba(201,162,39,.30);
-  --profit:#75b87b;
-  --profit-hi:#9fcea1;
-  --profit-wash:rgba(117,184,123,.10);
-  --profit-line:rgba(117,184,123,.30);
-  --down:#b4796b;
-  --down-wash:rgba(180,121,107,.10);
-  --down-line:rgba(180,121,107,.30);
-  --eth:#8f98c8;
-  --bera:#c9a227;
-  --r-md:12px;
-  --r-xl:22px;
-  --sh-card:0 1px 0 rgba(255,255,255,.02) inset,0 1px 2px rgba(0,0,0,.4);
+  --bg-0:#09090b; --bg-1:#0f0f11; --bg-2:#141417; --bg-3:#1a1a1e; --bg-4:#202024;
+  --line-1:rgba(255,255,255,.05);--line-2:rgba(255,255,255,.08);--line-3:rgba(255,255,255,.14);
+  --fg-1:#f4f3ef;--fg-2:#a5a29a;--fg-3:#6b6a66;--fg-4:#48474a;
+  --gold:#c9a227;--gold-hi:#e4c15a;--gold-lo:#8a6e1a;
+  --gold-wash:rgba(201,162,39,.10);--gold-line:rgba(201,162,39,.30);
+  --up:#8aa37b;--down:#b4796b;
+  --r-sm:8px;--r-md:12px;--r-lg:16px;--r-xl:22px;
+  --sh-card:0 1px 0 rgba(255,255,255,.02) inset, 0 1px 2px rgba(0,0,0,.4);
   --sh-hi:0 8px 28px rgba(0,0,0,.45);
   --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
   --ease:cubic-bezier(.2,.7,.2,1);
 }
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html,body{background:var(--bg-0);color:var(--fg-1);font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5}
 body{min-height:100vh;overflow-x:hidden}
-body::before{
-  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
-  background:
-    radial-gradient(1000px 600px at 80% -10%,rgba(201,162,39,.04),transparent 60%),
-    radial-gradient(800px 500px at -10% 110%,rgba(255,255,255,.02),transparent 60%);
-}
 a{color:inherit;text-decoration:none}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 input{font:inherit}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(1000px 600px at 80% -10%,rgba(201,162,39,.04),transparent 60%),
+             radial-gradient(800px 500px at -10% 110%,rgba(255,255,255,.02),transparent 60%);}
 .wrap{max-width:1320px;margin:0 auto;padding:40px 28px 96px}
+
+/* TOP — same banner + sticky nav as assets-preview */
 .site-top{display:flex;flex-direction:column;align-items:center;gap:14px;margin-bottom:40px}
 .site-brand{position:relative;display:flex;justify-content:center;align-items:center;width:100%;padding:18px 0 0}
-.site-brand::before{
-  content:"";position:absolute;inset:-6% -12% 12% -12%;z-index:-1;
-  background:
-    radial-gradient(55% 55% at 50% 50%,rgba(201,162,39,.14) 0%,transparent 72%),
-    radial-gradient(90% 110% at 50% 100%,rgba(201,162,39,.05) 0%,transparent 65%);
-  filter:blur(20px);pointer-events:none;
-}
-.site-brand::after{
-  content:"";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  width:min(100%,820px);aspect-ratio:495/195;pointer-events:none;
-  background:radial-gradient(ellipse 78% 82% at center,transparent 42%,rgba(9,9,11,.55) 72%,var(--bg-0) 100%);
-}
-.site-brand img{
-  max-width:820px;width:100%;height:auto;display:block;
-  filter:saturate(.82) contrast(.92) brightness(.93) hue-rotate(-7deg);
+.site-brand::before{content:"";position:absolute;inset:-6% -12% 12% -12%;z-index:-1;pointer-events:none;filter:blur(20px);
+  background:radial-gradient(55% 55% at 50% 50%,rgba(201,162,39,.14) 0%,transparent 72%),
+             radial-gradient(90% 110% at 50% 100%,rgba(201,162,39,.05) 0%,transparent 65%);}
+.site-brand::after{content:"";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(100%,820px);aspect-ratio:495/195;pointer-events:none;
+  background:radial-gradient(ellipse 78% 82% at center,transparent 42%,rgba(9,9,11,.55) 72%,var(--bg-0) 100%);}
+.site-brand img{max-width:820px;width:100%;height:auto;display:block;filter:saturate(.9) contrast(.97) brightness(.97) hue-rotate(-7deg);
   -webkit-mask-image:radial-gradient(ellipse 78% 80% at center,#000 38%,rgba(0,0,0,.7) 62%,rgba(0,0,0,.25) 82%,transparent 98%);
           mask-image:radial-gradient(ellipse 78% 80% at center,#000 38%,rgba(0,0,0,.7) 62%,rgba(0,0,0,.25) 82%,transparent 98%);
-}
+  transition:filter .4s var(--ease),transform .4s var(--ease);}
+.site-brand img:hover{filter:saturate(.98) contrast(1) brightness(1) hue-rotate(-5deg);transform:translateY(-1px)}
+
 .site-nav-wrap{position:sticky;top:12px;z-index:30;display:flex;justify-content:center;pointer-events:none}
-.site-nav{
-  pointer-events:auto;display:inline-flex;align-items:center;gap:2px;
-  background:rgba(16,16,20,.72);
-  backdrop-filter:blur(22px) saturate(160%);
-  -webkit-backdrop-filter:blur(22px) saturate(160%);
-  border:1px solid var(--line-2);
-  padding:5px;border-radius:12px;
-  box-shadow:0 6px 24px rgba(0,0,0,.45),0 1px 0 rgba(255,255,255,.03) inset;
-}
-.nav-item{
-  display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:8px;
-  font-size:13px;font-weight:500;color:var(--fg-2);
-  transition:color .15s var(--ease),background .15s var(--ease);
-  -webkit-tap-highlight-color:transparent;
-}
-.nav-item img,.nav-item svg{width:15px;height:15px;flex-shrink:0}
+.site-nav{pointer-events:auto;display:inline-flex;align-items:center;gap:2px;background:rgba(16,16,20,.72);
+  backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);
+  border:1px solid var(--line-2);padding:5px;border-radius:12px;
+  box-shadow:0 6px 24px rgba(0,0,0,.45),0 1px 0 rgba(255,255,255,.03) inset;}
+.nav-item{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:8px;font-size:13px;font-weight:500;color:var(--fg-2);cursor:pointer;
+  transition:color .15s var(--ease),background .15s var(--ease);-webkit-tap-highlight-color:transparent;}
+.nav-item img,.nav-item svg{width:15px;height:15px;flex-shrink:0;transition:opacity .15s var(--ease)}
 .nav-item img{border-radius:50%;background:var(--bg-3);object-fit:contain}
 .nav-item svg{color:var(--fg-3);opacity:.85}
 .nav-item:hover{color:var(--fg-1);background:var(--bg-3)}
-.nav-item.active{
-  color:var(--fg-1);background:var(--bg-3);
-  box-shadow:inset 0 0 0 1px var(--gold-line);
-}
-.nav-item.active::after{
-  content:"";width:4px;height:4px;border-radius:50%;
-  background:var(--gold);margin-left:2px;box-shadow:0 0 6px var(--gold-line);
-}
+.nav-item:hover svg{color:var(--fg-1);opacity:1}
+.nav-item.active{color:var(--fg-1);background:var(--bg-3);box-shadow:inset 0 0 0 1px var(--gold-line)}
+.nav-item.active svg{color:var(--gold);opacity:1}
+.nav-item.active::after{content:"";width:4px;height:4px;border-radius:50%;background:var(--gold);margin-left:2px;box-shadow:0 0 6px var(--gold-line)}
+
+/* HERO — typographic strip (no per-stat cards), gold edge accent */
 .hero{
-  position:relative;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));
+  position:relative;
+  background:linear-gradient(180deg,var(--bg-2),var(--bg-1));
   border:1px solid var(--line-2);border-radius:var(--r-xl);
-  padding:28px 32px;margin-bottom:24px;overflow:hidden;box-shadow:var(--sh-card);
+  padding:28px 32px 24px;margin-bottom:24px;overflow:hidden;
 }
 .hero::before{
+  content:"";position:absolute;left:0;right:0;top:0;height:1px;
+  background:linear-gradient(90deg,transparent 0%,var(--gold-line) 30%,var(--gold-line) 70%,transparent 100%);
+  opacity:.6;pointer-events:none;
+}
+.hero::after{
   content:"";position:absolute;inset:0;pointer-events:none;
-  background:radial-gradient(650px 280px at 86% -20%,rgba(201,162,39,.09),transparent 60%);
+  background:radial-gradient(720px 320px at 80% -30%,rgba(201,162,39,.08),transparent 65%);
 }
-.hero-top{position:relative;display:flex;align-items:center;gap:8px;margin-bottom:10px;color:var(--fg-1);font-size:11px;letter-spacing:2px;text-transform:uppercase;font-weight:700}
-.hero-top img{width:15px;height:15px;border-radius:50%}
-.hero-headline{position:relative;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:24px}
-.hero-price{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-.hero-value{
-  font-family:var(--mono);font-size:clamp(42px,5.8vw,64px);font-weight:700;
-  letter-spacing:-2px;color:var(--fg-1);line-height:1;font-variant-numeric:tabular-nums;
+
+/* Brand row — logo + h1 heading + tagline (column) | chain chips + live (right) */
+.hero-brand{display:flex;align-items:center;gap:16px;margin-bottom:26px;position:relative;z-index:1;flex-wrap:wrap}
+.hero-token-logo{
+  width:52px;height:52px;border-radius:50%;
+  background:var(--bg-3);border:1px solid var(--line-2);
+  display:grid;place-items:center;overflow:hidden;flex-shrink:0;
 }
-.change-pill{
-  display:inline-flex;align-items:center;gap:6px;min-height:32px;
-  padding:5px 10px;border-radius:999px;border:1px solid var(--line-2);
-  background:rgba(255,255,255,.025);font-family:var(--mono);font-size:12px;font-weight:600;
+.hero-token-logo img{width:38px;height:38px;object-fit:contain}
+.hero-token-text{display:flex;flex-direction:column;gap:3px;min-width:0}
+.hero-token-name{
+  font-size:24px;font-weight:800;color:var(--fg-1);
+  letter-spacing:-.7px;line-height:1;
 }
-.change-pill.up{color:var(--profit);border-color:var(--profit-line);background:var(--profit-wash)}
-.change-pill.down{color:var(--down);border-color:var(--down-line);background:var(--down-wash)}
-.hero-token{
-  display:inline-flex;align-items:center;gap:10px;min-height:38px;
-  padding:7px 10px 7px 12px;border-radius:999px;
-  background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.025));
-  border:1px solid var(--line-2);box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
-  font-size:13px;font-weight:650;color:var(--fg-1);
+.hero-token-sub{font-size:12.5px;color:var(--fg-3);font-weight:400;line-height:1.3}
+.hero-token-sub b{color:var(--fg-2);font-weight:500}
+.hero-meta{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}
+.hero-live{font-size:11px;color:var(--fg-3);font-family:var(--mono);display:inline-flex;align-items:center;gap:6px}
+.hero-live .dot{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
+
+/* Price row */
+.hero-price-row{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;padding-bottom:26px;position:relative;z-index:1}
+.hero-price{
+  font-family:var(--mono);font-size:clamp(44px,6vw,62px);font-weight:700;
+  letter-spacing:-2.5px;color:var(--fg-1);font-variant-numeric:tabular-nums;line-height:1;
 }
-.hero-token>img{width:22px;height:22px;border-radius:50%;background:var(--bg-3);border:1px solid var(--line-2)}
-.hero-token-name{font-family:var(--mono);letter-spacing:.15px;line-height:1}
-.hero-token-sep{width:1px;height:16px;background:var(--line-2)}
-.chain-mini{display:inline-flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;letter-spacing:.9px;color:var(--fg-2)}
-.chain-mini img{width:14px;height:14px;border-radius:50%;object-fit:cover;background:transparent;box-shadow:0 0 0 1px rgba(255,255,255,.16)}
-.hero-grid{position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
-.hero-card{
-  background:rgba(255,255,255,.02);border:1px solid var(--line-2);border-radius:var(--r-md);
-  padding:18px 20px;transition:border-color .25s var(--ease),background .25s var(--ease),transform .25s var(--ease);
+.hero-chg{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:8px 14px;border-radius:10px;
+  font-family:var(--mono);font-weight:600;font-size:14px;letter-spacing:.2px;
 }
-.hero-card:hover{border-color:var(--line-3);background:rgba(255,255,255,.035);transform:translateY(-1px)}
-.hc-label{font-size:10px;text-transform:uppercase;letter-spacing:1.6px;color:var(--fg-3);font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px}
-.hc-value{font-family:var(--mono);font-size:24px;font-weight:600;letter-spacing:-.5px;color:var(--fg-1);font-variant-numeric:tabular-nums}
-.hc-value.green{color:var(--profit)}
-.hc-value.gold{color:var(--gold)}
-.hc-sub{font-size:11px;color:var(--fg-3);margin-top:4px}
-.stats-strip{
-  display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px;
+.hero-chg.up{color:var(--up);background:rgba(138,163,123,.10);border:1px solid rgba(138,163,123,.25)}
+.hero-chg.down{color:var(--down);background:rgba(180,121,107,.10);border:1px solid rgba(180,121,107,.25)}
+.hero-chg svg{width:13px;height:13px}
+.hero-chg .lbl{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;opacity:.7;margin-left:2px}
+
+/* Stats — 4-column strip with vertical dividers */
+.hero-stats{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:0;
+  padding-top:22px;border-top:1px solid var(--line-1);
+  position:relative;z-index:1;
 }
-.stat-chip{
-  display:flex;align-items:center;justify-content:space-between;gap:12px;
-  min-height:58px;padding:13px 15px;background:var(--bg-2);
-  border:1px solid var(--line-2);border-radius:var(--r-md);box-shadow:var(--sh-card);
+.hero-stat{padding:0 24px;border-left:1px solid var(--line-1);position:relative}
+.hero-stat:first-child{border-left:0;padding-left:0}
+.hero-stat .lbl{
+  font-size:10px;text-transform:uppercase;letter-spacing:1.6px;
+  color:var(--fg-3);font-weight:600;margin-bottom:12px;
+  display:flex;align-items:center;gap:7px;
 }
-.stat-label{display:flex;align-items:center;gap:8px;color:var(--fg-3);font-size:11px;text-transform:uppercase;letter-spacing:1.2px;font-weight:650}
-.stat-label img{width:16px;height:16px;border-radius:50%}
-.stat-value{font-family:var(--mono);font-size:15px;color:var(--fg-1);font-weight:600;text-align:right}
-.stat-value.eth{color:var(--eth)}
-.stat-value.bera{color:var(--gold)}
-.stat-value.multi{color:var(--profit)}
-.grid-main{display:grid;grid-template-columns:minmax(0,1fr);gap:24px}
-#holdersCard{order:1}
-#flowCard{order:2}
-.card{
-  background:var(--bg-2);border:1px solid var(--line-2);
-  border-radius:var(--r-xl);box-shadow:var(--sh-card);overflow:hidden;position:relative;
+.hero-stat .lbl svg{width:11px;height:11px;color:var(--fg-3)}
+.hero-stat .val{
+  font-family:var(--mono);font-size:24px;font-weight:600;letter-spacing:-.6px;
+  color:var(--fg-1);font-variant-numeric:tabular-nums;line-height:1;
 }
-.card-head{
-  display:flex;align-items:center;justify-content:space-between;gap:16px;
-  padding:20px 24px 18px;border-bottom:1px solid var(--line-1);
-  flex-wrap:wrap;
-}
-.card-title{display:flex;align-items:center;gap:10px;min-width:0}
-.card-title img{width:22px;height:22px;border-radius:50%;flex-shrink:0}
-.card-title h2{font-size:16px;font-weight:600;letter-spacing:-.1px;color:var(--fg-1);white-space:nowrap}
-.count-badge{font-family:var(--mono);font-size:11px;color:var(--fg-2);background:var(--bg-3);border:1px solid var(--line-2);padding:3px 8px;border-radius:999px}
+.hero-stat .val.gold{color:var(--gold)}
+.hero-stat .sub{font-size:11px;color:var(--fg-3);margin-top:8px;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.hero-stat .sub.up{color:var(--up)}
+.hero-stat .sub.down{color:var(--down)}
+.hero-bar{margin-top:10px;height:3px;background:var(--bg-3);border-radius:2px;overflow:hidden;border:1px solid var(--line-1)}
+.hero-bar > span{display:block;height:100%;background:var(--gold);border-radius:1px;transition:width .4s var(--ease)}
+
+/* CARD */
+.card{background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-xl);box-shadow:var(--sh-card);overflow:visible;position:relative;margin-bottom:24px}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 18px;border-bottom:1px solid var(--line-1);gap:12px;flex-wrap:wrap}
+.card-title{display:flex;align-items:center;gap:10px}
+.card-title h2{font-size:16px;font-weight:600;letter-spacing:-.1px;color:var(--fg-1)}
+.card-title .count-badge{font-family:var(--mono);font-size:11px;color:var(--fg-2);background:var(--bg-3);border:1px solid var(--line-2);padding:3px 8px;border-radius:999px}
 .card-meta{font-size:11px;color:var(--fg-3);font-family:var(--mono);display:flex;align-items:center;gap:6px}
 .pulse{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
-.toolbar{
-  display:flex;align-items:center;justify-content:space-between;gap:14px;
-  padding:14px 24px;background:linear-gradient(180deg,var(--bg-1),var(--bg-2));
-  border-bottom:1px solid var(--line-1);flex-wrap:wrap;
-}
+
+/* TOOLBAR */
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 24px;background:linear-gradient(180deg,var(--bg-1),var(--bg-2));border-bottom:1px solid var(--line-1);flex-wrap:wrap}
 .tb-left,.tb-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.search{
-  position:relative;display:flex;align-items:center;width:280px;height:36px;
-  background:var(--bg-3);border:1px solid var(--line-2);border-radius:10px;
-  padding:0 14px 0 36px;transition:border-color .2s var(--ease);
-}
-.search:focus-within{border-color:var(--gold-line)}
+
+/* SEARCH — affordance: focus ring, kbd hint */
+.search{position:relative;display:flex;align-items:center;width:280px;background:var(--bg-3);border:1px solid var(--line-2);border-radius:10px;height:36px;padding:0 14px 0 36px;
+  transition:border-color .2s var(--ease),box-shadow .2s var(--ease)}
+.search:focus-within{border-color:var(--gold-line);box-shadow:0 0 0 3px rgba(201,162,39,.06)}
 .search svg{position:absolute;left:12px;width:14px;height:14px;color:var(--fg-3)}
-.search input{flex:1;background:none;border:0;outline:0;color:var(--fg-1);font-size:13px;min-width:0}
+.search input{flex:1;background:none;border:0;outline:0;color:var(--fg-1);font-size:13px}
 .search input::placeholder{color:var(--fg-3)}
-.chain-dd{position:relative}
-.chain-dd-btn{
-  display:inline-flex;align-items:center;gap:8px;height:36px;min-width:156px;
-  padding:0 12px;background:var(--bg-3);border:1px solid var(--line-2);
-  border-radius:10px;font-size:13px;color:var(--fg-1);font-weight:500;
-  transition:border-color .2s var(--ease),background .2s var(--ease);
+.search .kbd{font-family:var(--mono);font-size:10px;color:var(--fg-3);border:1px solid var(--line-2);border-radius:4px;padding:1px 5px;background:var(--bg-4)}
+
+/* DROPDOWN */
+.dd{position:relative}
+.dd-btn{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 12px;background:var(--bg-3);border:1px solid var(--line-2);border-radius:10px;font-size:13px;color:var(--fg-1);font-weight:500;
+  transition:border-color .2s var(--ease),background .2s var(--ease)}
+.dd-btn:hover{border-color:var(--line-3)}
+.dd-btn.open{border-color:var(--gold-line);background:var(--bg-4)}
+.dd-btn .icon{width:14px;height:14px;color:var(--fg-2);flex-shrink:0;transition:color .2s var(--ease)}
+.dd-btn .lbl{flex:1;min-width:0;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dd-btn .count{font-family:var(--mono);font-size:10px;color:var(--fg-3);background:var(--bg-4);padding:2px 6px;border-radius:999px;border:1px solid var(--line-2);flex-shrink:0;transition:all .2s var(--ease)}
+.dd-btn .chev{width:10px;height:10px;color:var(--fg-3);flex-shrink:0;transition:transform .2s var(--ease),color .2s var(--ease)}
+.dd-btn.open .chev{transform:rotate(180deg)}
+.dd-btn.filtered{border-color:var(--gold-line);background:var(--bg-4)}
+.dd-btn.filtered .count{color:var(--gold);border-color:var(--gold-line)}
+.dd-btn.filtered:hover{border-color:var(--gold-line)}
+#dd-chain .dd-btn,#dd-flows-chain .dd-btn{min-width:160px}
+#dd-types .dd-btn,#dd-flows-types .dd-btn{min-width:160px}
+#dd-flows-period .dd-btn{min-width:90px}
+
+/* TAG / TYPE FILTER dropdown — checkbox rows with hover tooltip */
+.dd-panel-types{padding:6px;min-width:230px}
+.dd-panel-types .rw-list{display:flex;flex-direction:column}
+.dd-panel-types .rw-item{
+  position:relative;
+  display:flex;align-items:center;gap:10px;
+  padding:9px 10px;border-radius:6px;cursor:pointer;
+  transition:background .15s var(--ease);
 }
-.chain-dd-btn:hover,.chain-dd.open .chain-dd-btn{border-color:var(--gold-line);background:var(--bg-4)}
-.chain-dd-btn img,.chain-dd-option img{width:15px;height:15px;border-radius:50%;object-fit:cover;flex-shrink:0}
-.chain-dd-icon{
-  width:15px;height:15px;border-radius:50%;display:inline-grid;place-items:center;
-  color:var(--gold);background:var(--gold-wash);border:1px solid var(--gold-line);flex-shrink:0;
+.dd-panel-types .rw-item + .rw-item{border-top:1px solid var(--line-1)}
+.dd-panel-types .rw-item:hover{background:var(--bg-3)}
+.dd-panel-types .rw-check{
+  width:15px;height:15px;border-radius:4px;flex-shrink:0;
+  background:var(--bg-4);border:1.5px solid var(--line-3);
+  display:grid;place-items:center;
+  transition:background .15s var(--ease),border-color .15s var(--ease);
 }
-.chain-dd-icon svg{width:10px;height:10px}
-.chain-dd-label{flex:1;text-align:left;white-space:nowrap}
-.chain-dd-chev{width:12px;height:12px;color:var(--fg-3);transition:transform .18s var(--ease)}
-.chain-dd.open .chain-dd-chev{transform:rotate(180deg)}
-.chain-dd-panel{
-  position:absolute;top:calc(100% + 6px);left:0;min-width:190px;
-  background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-md);
-  box-shadow:var(--sh-hi);padding:6px;z-index:45;
-  opacity:0;transform:translateY(-4px);pointer-events:none;
-  transition:opacity .18s var(--ease),transform .18s var(--ease);
+.dd-panel-types .rw-check svg{width:9px;height:9px;color:var(--bg-0);opacity:0;transition:opacity .15s var(--ease)}
+.dd-panel-types .rw-item.active .rw-check{background:var(--gold);border-color:var(--gold)}
+.dd-panel-types .rw-item.active .rw-check svg{opacity:1}
+.dd-panel-types .rw-dot-src{width:7px;height:7px;border-radius:2px;flex-shrink:0}
+.dd-panel-types .rw-dot-src.eoa{background:var(--fg-2)}
+.dd-panel-types .rw-dot-src.ca{background:var(--gold)}
+.dd-panel-types .rw-dot-src.cex{background:var(--down)}
+.dd-panel-types .rw-dot-src.mm{background:#9ab7c2}
+.dd-panel-types .rw-dot-src.bot{background:#b4a87a}
+.dd-panel-types .rw-name{font-size:13px;font-weight:500;color:var(--fg-2);flex:1;min-width:0}
+.dd-panel-types .rw-item.active .rw-name{color:var(--fg-1)}
+
+/* Hover tooltip on each filter row — explains what the type means */
+.dd-panel-types .rw-item[data-tip]:hover::after{
+  content: attr(data-tip);
+  position:absolute;
+  left:calc(100% + 8px);top:50%;transform:translateY(-50%);
+  background:var(--bg-1);border:1px solid var(--line-2);
+  padding:7px 10px;border-radius:6px;
+  font-size:11px;color:var(--fg-2);font-weight:400;line-height:1.4;
+  white-space:nowrap;
+  box-shadow:var(--sh-hi);
+  z-index:50;
+  pointer-events:none;
 }
-.chain-dd.open .chain-dd-panel{opacity:1;transform:translateY(0);pointer-events:auto}
-.chain-dd-panel-head{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:var(--fg-3);font-weight:600;padding:8px 10px 6px}
-.chain-dd-option{
-  width:100%;display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:6px;
-  color:var(--fg-2);font-size:13px;text-align:left;transition:background .15s var(--ease),color .15s var(--ease);
+.dd-panel-types .rw-item[data-tip]:hover::before{
+  content:"";position:absolute;
+  left:100%;top:50%;transform:translateY(-50%);
+  border:6px solid transparent;
+  border-right-color:var(--line-2);
+  z-index:50;pointer-events:none;
 }
-.chain-dd-option:hover{background:var(--bg-3);color:var(--fg-1)}
-.chain-dd-option.active{background:rgba(201,162,39,.05);color:var(--fg-1)}
-.chain-dd-check{margin-left:auto;color:var(--gold);font-family:var(--mono);font-size:12px;opacity:0}
-.chain-dd-option.active .chain-dd-check{opacity:1}
-.pill-switch{
-  position:relative;display:inline-flex;align-items:center;
-  background:var(--bg-3);border:1px solid var(--line-2);border-radius:10px;
-  padding:3px;height:36px;-webkit-user-select:none;user-select:none;
-}
-.pill-switch .opt{
-  position:relative;z-index:1;padding:0 13px;height:28px;display:inline-flex;align-items:center;gap:6px;
-  font-size:12px;font-weight:600;color:var(--fg-3);letter-spacing:.25px;
-  border-radius:8px;transition:color .2s var(--ease);
-}
-.pill-switch .opt img{width:14px;height:14px;border-radius:50%;object-fit:cover}
-.pill-switch .opt.active{color:var(--bg-0)}
-.pill-switch .slider{
-  position:absolute;top:3px;left:3px;height:28px;border-radius:8px;background:var(--gold);
-  box-shadow:0 2px 8px rgba(201,162,39,.35);transition:transform .25s var(--ease),width .25s var(--ease);
-}
-.toggle-pill{
-  position:relative;display:inline-flex;align-items:center;gap:10px;height:36px;padding:0 14px 0 10px;
-  background:var(--bg-3);border:1px solid var(--line-2);border-radius:10px;
-  font-size:13px;color:var(--fg-2);transition:border-color .2s var(--ease),color .2s var(--ease);
-}
+.dd-panel{position:absolute;top:calc(100% + 6px);left:0;min-width:220px;max-width:320px;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-md);box-shadow:var(--sh-hi);padding:6px;z-index:40;
+  opacity:0;transform:translateY(-4px);pointer-events:none;transition:opacity .18s var(--ease),transform .18s var(--ease);}
+.dd-panel.show{opacity:1;transform:translateY(0);pointer-events:auto}
+.dd-panel-head{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:var(--fg-3);font-weight:600;padding:8px 10px 6px}
+.dd-list{display:flex;flex-direction:column}
+.dd-opt{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:6px;font-size:13px;color:var(--fg-2);cursor:pointer;transition:background .15s var(--ease),color .15s var(--ease)}
+.dd-opt + .dd-opt{border-top:1px solid var(--line-1)}
+.dd-opt:hover{background:var(--bg-3);color:var(--fg-1)}
+.dd-opt.active{background:rgba(201,162,39,.04);color:var(--fg-1)}
+.dd-opt img,.dd-opt .dd-ico{width:18px;height:18px;border-radius:50%;flex-shrink:0;background:var(--bg-4);border:1px solid var(--line-2);display:grid;place-items:center;object-fit:cover;transition:border-color .15s var(--ease)}
+.dd-opt.active img,.dd-opt.active .dd-ico{border-color:var(--gold-line)}
+.dd-opt-name{flex:1;min-width:0}
+.dd-opt-check{width:15px;height:15px;border-radius:4px;flex-shrink:0;background:var(--bg-4);border:1.5px solid var(--line-3);display:grid;place-items:center;transition:background .15s var(--ease),border-color .15s var(--ease)}
+.dd-opt-check svg{width:9px;height:9px;color:var(--bg-0);opacity:0;transition:opacity .15s var(--ease)}
+.dd-opt.active .dd-opt-check{background:var(--gold);border-color:var(--gold)}
+.dd-opt.active .dd-opt-check svg{opacity:1}
+.dd-clear{display:none;align-items:center;justify-content:center;width:18px;height:18px;border-radius:4px;margin-left:-2px;flex-shrink:0;color:var(--fg-3);cursor:pointer;
+  transition:color .15s var(--ease),background .15s var(--ease)}
+.dd-btn.filtered .dd-clear{display:inline-flex}
+.dd-clear:hover{background:rgba(201,162,39,.18);color:var(--gold)}
+.dd-clear svg{width:10px;height:10px;pointer-events:none}
+
+/* TOGGLE PILL — Hide CEX */
+.toggle-pill{display:inline-flex;align-items:center;gap:10px;height:36px;padding:0 14px 0 10px;background:var(--bg-3);border:1px solid var(--line-2);border-radius:10px;font-size:13px;color:var(--fg-2);cursor:pointer;
+  transition:border-color .2s var(--ease),color .2s var(--ease),background .2s var(--ease)}
 .toggle-pill:hover{border-color:var(--line-3);color:var(--fg-1)}
 .toggle-pill.on{color:var(--fg-1);border-color:var(--gold-line);background:var(--gold-wash)}
-.toggle-pill[data-tooltip]::before,
-.toggle-pill[data-tooltip]::after{
-  position:absolute;z-index:80;left:12px;top:calc(100% + 9px);
-  opacity:0;pointer-events:none;transition:opacity .16s var(--ease),transform .16s var(--ease);
-}
-.toggle-pill[data-tooltip]::before{
-  content:"";width:9px;height:9px;transform:translate(15px,-4px) rotate(45deg);
-  background:rgba(20,20,23,.98);border-left:1px solid var(--line-2);border-top:1px solid var(--line-2);
-}
-.toggle-pill[data-tooltip]::after{
-  content:attr(data-tooltip);width:min(285px,calc(100vw - 36px));transform:translateY(4px);
-  padding:10px 12px;border:1px solid var(--line-2);border-radius:10px;
-  background:rgba(20,20,23,.98);box-shadow:var(--sh-hi);backdrop-filter:blur(14px);
-  color:var(--fg-2);font-size:11px;line-height:1.45;text-align:left;white-space:normal;
-}
-.toggle-pill[data-tooltip]:hover::before,
-.toggle-pill[data-tooltip]:hover::after,
-.toggle-pill[data-tooltip]:focus-visible::before,
-.toggle-pill[data-tooltip]:focus-visible::after{
-  opacity:1;transform:translateY(0);
-}
-.toggle-pill[data-tooltip]:hover::before,
-.toggle-pill[data-tooltip]:focus-visible::before{transform:translate(15px,-4px) rotate(45deg)}
 .toggle-track{width:26px;height:14px;border-radius:999px;background:var(--bg-4);border:1px solid var(--line-2);position:relative;transition:background .2s var(--ease)}
 .toggle-knob{position:absolute;top:1px;left:1px;width:10px;height:10px;border-radius:50%;background:var(--fg-3);transition:transform .22s var(--ease),background .22s var(--ease)}
+.toggle-pill.on .toggle-track{background:var(--gold-wash);border-color:var(--gold-line)}
 .toggle-pill.on .toggle-knob{transform:translateX(12px);background:var(--gold)}
-.flow-summary{
-  display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:14px 24px;border-bottom:1px solid var(--line-1);
-  background:rgba(255,255,255,.01);
-}
-.mini-card{
-  border:1px solid var(--line-1);border-radius:10px;padding:11px 12px;background:rgba(255,255,255,.018);
-}
-.mini-label{font-size:10px;color:var(--fg-3);text-transform:uppercase;letter-spacing:1.2px;font-weight:650;margin-bottom:5px}
-.mini-value{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--fg-1);font-variant-numeric:tabular-nums}
-.mini-value.green{color:var(--profit)}
-.mini-value.red{color:var(--down)}
-.mini-value.gold{color:var(--gold)}
-.flow-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:1px solid var(--line-1)}
-.flow-panel{display:flex;flex-direction:column;min-width:0}
-.flow-panel:first-child{border-right:1px solid var(--line-1)}
-.flow-panel-head{
-  display:flex;align-items:center;justify-content:space-between;gap:12px;
-  padding:14px 18px;border-bottom:1px solid var(--line-1);background:var(--bg-1);
-}
-.flow-panel-title{display:flex;align-items:center;gap:8px;font-size:12px;text-transform:uppercase;letter-spacing:1.2px;font-weight:700;color:var(--fg-2)}
-.flow-panel-title .dot{width:7px;height:7px;border-radius:50%}
-.flow-panel-title.green .dot{background:var(--profit)}
-.flow-panel-title.red .dot{background:var(--down)}
-.flow-panel-total{font-family:var(--mono);font-size:12px;color:var(--fg-3)}
-.tbl-wrap{
-  overflow:auto;scrollbar-color:rgba(201,162,39,.45) rgba(255,255,255,.04);scrollbar-width:thin;
-}
-.tbl-wrap.holders{max-height:660px}
-.tbl-wrap::-webkit-scrollbar{width:10px;height:10px}
-.tbl-wrap::-webkit-scrollbar-track{background:rgba(255,255,255,.035);border-radius:999px}
-.tbl-wrap::-webkit-scrollbar-thumb{background:rgba(201,162,39,.35);border:2px solid var(--bg-2);border-radius:999px}
-.tbl-wrap::-webkit-scrollbar-thumb:hover{background:rgba(201,162,39,.55)}
-.tbl{
-  width:100%;border-collapse:separate;border-spacing:0;font-size:13px;
-}
-.tbl thead th{
-  position:sticky;top:0;z-index:2;font-size:10px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;
-  color:var(--fg-3);text-align:left;padding:12px 16px;background:var(--bg-1);
-  border-bottom:1px solid var(--line-2);white-space:nowrap;user-select:none;cursor:default;
-}
-.tbl thead th[data-sort],.tbl thead th[data-flow-sort]{cursor:pointer}
-.tbl thead th.num{text-align:right}
+
+/* TABLE — affordance: cursor pointer, gold edge on hover, big arrows */
+.tbl-wrap{overflow-x:auto;border-radius:0 0 var(--r-xl) var(--r-xl)}
+.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
+.tbl thead th{position:sticky;top:0;z-index:2;font-size:10px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;color:var(--fg-3);text-align:left;
+  padding:12px 18px;background:var(--bg-1);border-bottom:1px solid var(--line-2);white-space:nowrap;user-select:none;cursor:pointer;transition:color .15s var(--ease)}
+.tbl thead th:hover{color:var(--fg-1)}
+.tbl thead th .sort{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;margin-left:6px;color:var(--fg-4);font-size:10px;line-height:1;transition:color .15s var(--ease)}
+.tbl thead th:hover .sort{color:var(--fg-2)}
 .tbl thead th.sorted{color:var(--gold)}
-.tbl thead th .sort{display:inline-block;margin-left:5px;color:var(--fg-4);font-size:9px}
-.th-chain-label{display:inline-flex;align-items:center;justify-content:flex-end;gap:6px}
-.th-chain-label img{width:15px;height:15px;border-radius:50%;object-fit:cover}
-.tbl tbody td{
-  padding:11px 16px;border-bottom:1px solid var(--line-1);vertical-align:middle;
+.tbl thead th.sorted .sort{color:var(--gold)}
+.tbl thead th.num{text-align:right}
+
+.tbl tbody tr{transition:background .12s var(--ease);cursor:pointer;position:relative}
+.tbl tbody td{padding:12px 18px;border-bottom:1px solid var(--line-1);vertical-align:middle;color:var(--fg-1);font-variant-numeric:tabular-nums;position:relative}
+.tbl tbody td.num{text-align:right;font-family:var(--mono);font-weight:500}
+.tbl tbody tr:hover td{background:var(--bg-3)}
+.tbl tbody tr:hover td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0}
+.tbl tbody tr:last-child td{border-bottom:0}
+
+.rank{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--fg-3);min-width:24px;text-align:right}
+.tbl tbody tr:hover .rank{color:var(--gold)}
+
+/* ADDRESS CELL — affordance: copy icon always visible, hover gold */
+.addr-cell{display:flex;flex-direction:column;gap:4px;align-items:flex-start;min-width:0}
+.addr-line{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
+.addr-line.top{gap:10px}
+.addr-line.bot{gap:8px}
+.addr-name{font-size:13px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px;line-height:1.2}
+/* Generic placeholder for unlabeled wallets — readable but visibly
+   secondary vs real labels (lighter colour, less weight, no italics). */
+.addr-name.addr-generic{color:var(--fg-2);font-weight:500}
+.addr-mono{font-family:var(--mono);font-size:12px;color:var(--fg-3);font-weight:500;letter-spacing:.1px;line-height:1.2}
+.tbl tbody tr:hover .addr-mono{color:var(--fg-2)}
+
+/* type tag chips — colour-coded per address type */
+.type-tag{
+  display:inline-flex;align-items:center;
+  font-size:9.5px;text-transform:uppercase;letter-spacing:.8px;font-weight:600;
+  padding:2px 6px;border-radius:4px;
+  border:1px solid;
+  white-space:nowrap;
+}
+.type-tag.type-eoa{color:var(--fg-3);border-color:var(--line-2);background:var(--bg-3)}
+.type-tag.type-ca{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.type-tag.type-cex{color:var(--down);border-color:rgba(180,121,107,.3);background:rgba(180,121,107,.08)}
+.type-tag.type-mm{color:#9ab7c2;border-color:rgba(154,183,194,.3);background:rgba(154,183,194,.08)}
+.type-tag.type-bot{color:#b4a87a;border-color:rgba(180,168,122,.3);background:rgba(180,168,122,.08)}
+
+/* copy + debank icon buttons (compact, end of address row) */
+.addr-copy,.addr-debank{
+  width:22px;height:22px;border-radius:5px;display:grid;place-items:center;
+  color:var(--fg-4);background:var(--bg-3);border:1px solid var(--line-2);flex-shrink:0;
+  transition:all .15s var(--ease);cursor:pointer;
+}
+.addr-copy:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.addr-copy.copied{color:var(--up);border-color:rgba(138,163,123,.4)}
+.addr-copy svg{width:11px;height:11px;pointer-events:none}
+.addr-debank{padding:0;overflow:hidden}
+.addr-debank img{width:14px;height:14px;border-radius:3px;opacity:.7;transition:opacity .15s var(--ease)}
+.addr-debank:hover{border-color:#fe815f;background:rgba(254,129,95,.08)}
+.addr-debank:hover img{opacity:1}
+.debank-fallback{font-family:var(--mono);font-size:11px;font-weight:700;color:#fe815f}
+
+/* table header chain marker (ETH/BERA columns) */
+.hd-chain{display:inline-flex;align-items:center;gap:5px;justify-content:flex-end}
+.hd-chain .dot{width:6px;height:6px;border-radius:50%;display:inline-block}
+
+/* zero balance placeholder — subtle */
+.bal-zero{color:var(--fg-4);font-family:var(--mono)}
+.bal-val.total{color:var(--fg-1);font-weight:600}
+
+.chain-chip{display:inline-flex;align-items:center;gap:5px;font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--fg-2);padding:3px 7px;border-radius:4px;background:rgba(255,255,255,.04);border:1px solid var(--line-2);font-weight:500}
+.chain-chip .dot{width:6px;height:6px;border-radius:50%}
+.dot-ethereum{background:#8a8a9e}
+.dot-berachain{background:#c9a227}
+
+.bal-cell{display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-variant-numeric:tabular-nums}
+.bal-val{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--fg-1)}
+.bal-chg{font-family:var(--mono);font-size:11px;color:var(--fg-3)}
+.bal-chg.up{color:var(--up)}
+.bal-chg.down{color:var(--down)}
+
+.share-cell{display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+.share-val{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--fg-1);line-height:1.1}
+.share-bar{width:90px;height:4px;border-radius:2px;background:var(--bg-3);overflow:hidden;border:1px solid var(--line-1)}
+.share-bar > span{display:block;height:100%;background:var(--gold);border-radius:1px;transition:width .3s var(--ease)}
+
+/* PAGINATION — info on left, pager centered */
+.tbl-foot{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:14px 24px;border-top:1px solid var(--line-1);gap:12px}
+.tbl-foot-info{font-size:12px;color:var(--fg-3);font-family:var(--mono);text-align:left;grid-column:1}
+.pager{display:inline-flex;align-items:center;gap:4px;grid-column:2;justify-self:center}
+.pg-btn{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;padding:0 8px;border-radius:6px;background:var(--bg-3);border:1px solid var(--line-2);color:var(--fg-2);cursor:pointer;font-family:var(--mono);font-size:12px;
+  transition:all .15s var(--ease)}
+.pg-btn:hover:not(:disabled){background:var(--bg-4);color:var(--fg-1);border-color:var(--line-3)}
+.pg-btn:disabled{opacity:.3;cursor:not-allowed}
+.pg-btn.active{background:var(--gold-wash);border-color:var(--gold-line);color:var(--gold)}
+.pg-btn svg{width:11px;height:11px}
+.pg-current{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:0 14px;height:30px;
+  font-family:var(--mono);font-size:12px;font-weight:600;
   color:var(--fg-1);font-variant-numeric:tabular-nums;
 }
-.tbl tbody td.num{text-align:right;font-family:var(--mono);font-weight:500}
-.tbl tbody tr{transition:background .15s var(--ease)}
-.tbl tbody tr:hover td{background:var(--bg-3)}
-.flow-panel .tbl{table-layout:fixed}
-.flow-panel .tbl-wrap{flex:1 1 auto;min-height:690px}
-.flow-panel .tbl th,.flow-panel .tbl td{padding-left:12px;padding-right:12px}
-.flow-panel .tbl tbody tr,.flow-panel .tbl tbody td{height:65px}
-.flow-panel .tbl th:nth-child(1),.flow-panel .tbl td:nth-child(1){width:42px}
-.flow-panel .tbl th:nth-child(2),.flow-panel .tbl td:nth-child(2){width:44%}
-.flow-panel .tbl th:nth-child(3),.flow-panel .tbl td:nth-child(3){width:25%}
-.flow-panel .tbl th:nth-child(4),.flow-panel .tbl td:nth-child(4){width:31%}
-#holdersCard.chain-eth .holder-chain-col,
-#holdersCard.chain-bera .holder-chain-col{display:none}
-#holdersCard .tbl{table-layout:fixed}
-#holdersCard .tbl th:nth-child(1),#holdersCard .tbl td:nth-child(1){width:46px;padding-right:4px}
-#holdersCard .tbl th:nth-child(2),#holdersCard .tbl td:nth-child(2){width:40%;padding-left:4px}
-#holdersCard .tbl th:nth-child(3),#holdersCard .tbl td:nth-child(3),
-#holdersCard .tbl th:nth-child(4),#holdersCard .tbl td:nth-child(4){width:16%}
-#holdersCard .tbl th:nth-child(5),#holdersCard .tbl td:nth-child(5){width:18%}
-#holdersCard .tbl th:nth-child(6),#holdersCard .tbl td:nth-child(6){width:10%}
-#holdersCard.chain-eth .tbl th:nth-child(2),#holdersCard.chain-eth .tbl td:nth-child(2),
-#holdersCard.chain-bera .tbl th:nth-child(2),#holdersCard.chain-bera .tbl td:nth-child(2){width:62%}
-#holdersCard.chain-eth .tbl th:nth-child(5),#holdersCard.chain-eth .tbl td:nth-child(5),
-#holdersCard.chain-bera .tbl th:nth-child(5),#holdersCard.chain-bera .tbl td:nth-child(5){width:24%}
-#holdersCard.chain-eth .tbl th:nth-child(6),#holdersCard.chain-eth .tbl td:nth-child(6),
-#holdersCard.chain-bera .tbl th:nth-child(6),#holdersCard.chain-bera .tbl td:nth-child(6){width:14%}
-.rank{font-family:var(--mono);color:var(--fg-3);font-size:12px}
-.addr-cell{display:flex;align-items:center;gap:8px;min-width:0}
-.addr-main{display:flex;flex-direction:column;gap:3px;min-width:0}
-.addr-line{display:flex;align-items:center;gap:7px;min-width:0}
-.addr-link{
-  font-family:var(--mono);font-size:12px;font-weight:600;color:var(--fg-1);
-  max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+.pg-current .pg-sep{color:var(--fg-4);font-weight:400}
+
+/* FLOWS — two-column */
+.flows-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid var(--line-1)}
+.flows-col{padding:0;border-left:1px solid var(--line-1)}
+.flows-col:first-child{border-left:0}
+.flows-col-head{display:flex;align-items:center;gap:8px;padding:14px 24px 10px;font-size:11px;text-transform:uppercase;letter-spacing:1.4px;font-weight:600}
+.flows-col-head.acc{color:var(--up)}
+.flows-col-head.out{color:var(--down)}
+.flows-col-head .arrow-icon{width:14px;height:14px}
+.flows-tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px}
+.flows-tbl thead th{font-size:10px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:var(--fg-3);text-align:left;padding:8px 24px;background:transparent;border-bottom:1px solid var(--line-1);user-select:none;cursor:default}
+.flows-tbl thead th.num{text-align:right}
+.flows-tbl thead th[data-flow-sort]{cursor:pointer;transition:color .15s var(--ease)}
+.flows-tbl thead th[data-flow-sort]:hover,
+.flows-tbl thead th.sorted{color:var(--fg-1)}
+.flows-tbl tbody tr{cursor:pointer;transition:background .12s var(--ease)}
+.flows-tbl tbody tr:hover td{background:var(--bg-3)}
+.flows-tbl tbody td{padding:11px 24px;color:var(--fg-1);border-bottom:1px solid var(--line-1);font-variant-numeric:tabular-nums;position:relative;vertical-align:middle}
+.flows-tbl tbody td.num{text-align:right;font-family:var(--mono);font-weight:500}
+.flows-tbl tbody tr:last-child td{border-bottom:0}
+.flows-tbl tbody tr:hover td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px}
+.flows-col.acc .flows-tbl tbody tr:hover td:first-child::before{background:var(--up)}
+.flows-col.out .flows-tbl tbody tr:hover td:first-child::before{background:var(--down)}
+.flows-net.up{color:var(--up)}
+.flows-net.down{color:var(--down)}
+
+/* PROTOCOL INFO */
+.proto{margin-top:24px;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-xl);overflow:hidden;box-shadow:var(--sh-card);position:relative}
+.proto::before{
+  content:"";position:absolute;left:0;right:0;top:0;height:1px;
+  background:linear-gradient(90deg,transparent 0%,var(--gold-line) 30%,var(--gold-line) 70%,transparent 100%);
+  opacity:.6;pointer-events:none;
 }
-.addr-link:hover{color:var(--gold)}
-.wallet-label-line{display:flex;align-items:center;gap:6px;min-width:0;max-width:100%}
-.wallet-label-name{
-  max-width:145px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-  color:var(--fg-2);font-size:11px;font-weight:650;letter-spacing:.15px;line-height:1.25;
-}
-.wallet-type-chip{
-  display:inline-flex;align-items:center;height:16px;padding:0 5px;border-radius:5px;flex-shrink:0;
-  font-size:8px;font-weight:800;letter-spacing:.65px;text-transform:uppercase;
-  border:1px solid var(--line-2);color:var(--fg-3);background:rgba(255,255,255,.025);
-}
-.wallet-type-chip.cex{color:#d9b06d;border-color:rgba(201,162,39,.26);background:rgba(201,162,39,.075)}
-.wallet-type-chip.protocol,.wallet-type-chip.lp{color:#aeb5d8;border-color:rgba(143,152,200,.24);background:rgba(143,152,200,.075)}
-.wallet-type-chip.bot,.wallet-type-chip.liquidator{color:var(--down);border-color:var(--down-line);background:var(--down-wash)}
-.wallet-type-chip.investor{color:var(--profit);border-color:var(--profit-line);background:var(--profit-wash)}
-.addr-sub{display:flex;align-items:center;gap:6px;color:var(--fg-3);font-size:11px}
-.chain-dot{display:inline-flex;align-items:center;gap:4px}
-.chain-dot img{width:13px;height:13px;border-radius:50%;object-fit:cover}
-.copy-btn{
-  width:22px;height:22px;border-radius:6px;display:inline-grid;place-items:center;flex-shrink:0;
-  color:var(--fg-3);background:rgba(255,255,255,.025);border:1px solid var(--line-1);
-  transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease);
-}
-.copy-btn:hover,.copy-btn.copied{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
-.copy-btn svg{width:12px;height:12px}
-.holder-addr-cell{align-items:flex-start;gap:0}
-.holder-addr-main{gap:4px}
-#flowCard .holder-addr-main{min-height:40px;justify-content:center}
-.holder-address-line{gap:6px}
-.holder-address-line .addr-link{max-width:142px}
-.debank-btn{
-  width:22px;height:22px;border-radius:6px;display:inline-grid;place-items:center;flex-shrink:0;
-  color:var(--fg-3);background:rgba(255,255,255,.025);border:1px solid var(--line-1);
-  transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease),box-shadow .15s var(--ease),transform .15s var(--ease);
-}
-.debank-btn:hover,.debank-btn:focus-visible{
-  color:#74ead5;border-color:rgba(116,234,213,.34);background:rgba(116,234,213,.075);
-  box-shadow:0 0 0 3px rgba(116,234,213,.055);transform:translateY(-1px);
-}
-.debank-btn:focus-visible{outline:0}
-.debank-btn img{width:13px;height:13px;border-radius:3px;filter:none;opacity:.96;transition:opacity .15s var(--ease),transform .15s var(--ease)}
-.debank-btn:hover img,.debank-btn:focus-visible img{opacity:1;transform:scale(1.04)}
-.num.green{color:var(--profit)}
-.num.red{color:var(--down)}
-.num.eth{color:var(--eth)}
-.num.bera{color:var(--gold)}
-.muted{color:var(--fg-3)}
-.empty{padding:30px 16px!important;text-align:center;color:var(--fg-3)!important;font-size:13px}
-.footer-line{
-  display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
-  padding:14px 24px;color:var(--fg-3);font-size:11px;border-top:1px solid var(--line-1);
-}
-.pager{display:flex;align-items:center;gap:6px}
-.pager button{
-  min-width:30px;height:28px;border:1px solid var(--line-2);border-radius:8px;background:var(--bg-3);
-  color:var(--fg-2);font-size:12px;transition:border-color .15s var(--ease),color .15s var(--ease),background .15s var(--ease);
-}
-.pager button:hover:not(:disabled){border-color:var(--gold-line);color:var(--fg-1);background:var(--gold-wash)}
-.pager button.active{border-color:var(--gold-line);background:var(--gold);color:var(--bg-0);font-weight:700}
-.pager button:disabled{opacity:.35;cursor:not-allowed}
-.pager .page-info{font-family:var(--mono);font-size:11px;color:var(--fg-3);min-width:62px;text-align:center}
-.flow-panel > .table-pager{
-  justify-content:center;margin-top:auto;padding:12px 14px;border-top:1px solid var(--line-1);
-  background:rgba(255,255,255,.01);
-}
-.table-pager:empty{display:none}
-#holdersCard .footer-line{position:relative;justify-content:center;min-height:57px}
-#holderFooter{position:absolute;left:24px}
-.proto{margin-top:24px;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-xl);overflow:hidden;box-shadow:var(--sh-card)}
 .proto-head{display:flex;flex-direction:column;align-items:flex-start;gap:16px;padding:22px 24px 20px;border-bottom:1px solid var(--line-1)}
 .proto-brand{display:flex;align-items:center;gap:14px}
 .proto-brand-mark{width:40px;height:40px;border-radius:50%;background:var(--bg-3);border:1px solid var(--line-2);display:grid;place-items:center;overflow:hidden;flex-shrink:0}
@@ -440,1064 +407,1224 @@ input{font:inherit}
 .proto-brand-text{display:flex;flex-direction:column;gap:2px}
 .proto-brand-name{font-size:15px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px}
 .proto-brand-sub{font-size:12px;color:var(--fg-3)}
-.proto-links{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.proto-pill{
-  display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;
-  font-size:12px;color:var(--fg-2);background:var(--bg-3);border:1px solid var(--line-2);border-radius:999px;
-  transition:border-color .2s var(--ease),color .2s var(--ease),background .2s var(--ease);
+.proto-links{display:flex;align-items:center;gap:14px;flex-wrap:wrap;row-gap:10px}
+.proto-links-group{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+.proto-links-label{
+  font-size:9.5px;text-transform:uppercase;letter-spacing:1.4px;font-weight:600;
+  color:var(--fg-4);margin-right:4px;
 }
+.proto-links-sep{width:1px;height:18px;background:var(--line-2);flex-shrink:0}
+.proto-pill{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;font-size:12px;color:var(--fg-2);background:var(--bg-3);border:1px solid var(--line-2);border-radius:999px;
+  transition:border-color .2s var(--ease),color .2s var(--ease),background .2s var(--ease)}
 .proto-pill:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
 .proto-pill svg{width:13px;height:13px}
 .proto-body{padding:20px 24px 24px}
-.proto-body-head{font-size:10px;text-transform:uppercase;letter-spacing:1.6px;color:var(--fg-3);font-weight:600;margin-bottom:14px}
-.proto-addrs{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
-.proto-addr{
-  display:flex;align-items:center;justify-content:space-between;gap:14px;
-  padding:12px 14px;background:var(--bg-1);border:1px solid var(--line-2);border-radius:var(--r-md);
-  transition:border-color .2s var(--ease),background .2s var(--ease);cursor:pointer;
+.proto-body-head{
+  font-size:11px;text-transform:uppercase;letter-spacing:1.6px;
+  color:var(--fg-2);font-weight:600;margin-bottom:14px;
+  display:flex;align-items:center;gap:10px;
 }
+.proto-body-head::after{
+  content:"";flex:1;height:1px;background:var(--line-1);
+}
+.proto-addrs{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.proto-addr{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 14px;background:var(--bg-1);border:1px solid var(--line-2);border-radius:var(--r-md);transition:border-color .2s var(--ease),background .2s var(--ease);cursor:pointer}
 .proto-addr:hover{border-color:var(--gold-line);background:rgba(201,162,39,.02)}
 .proto-addr-left{display:flex;align-items:center;gap:12px;min-width:0}
-.proto-token{display:flex;align-items:center;gap:8px;flex-shrink:0}
-.proto-token img{width:22px;height:22px;border-radius:50%;object-fit:cover;background:var(--bg-3);border:1px solid var(--line-2)}
-.proto-token-name{font-size:13px;font-weight:600;color:var(--fg-1)}
-.proto-chain-chip{display:inline-flex;align-items:center;gap:5px;font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--fg-3);padding:2px 7px;border-radius:4px;background:var(--bg-3);border:1px solid var(--line-2);font-weight:500}
-.proto-chain-chip img{width:11px;height:11px;border-radius:50%}
+.proto-token{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.proto-token img{width:28px;height:28px;border-radius:50%;object-fit:cover;background:var(--bg-3);border:1px solid var(--line-2)}
+.proto-token-name{font-size:14px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px}
+.proto-chain-chip{display:inline-flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--fg-2);padding:3px 8px;border-radius:4px;background:var(--bg-3);border:1px solid var(--line-2);font-weight:500}
+.proto-chain-chip .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 .proto-addr-right{display:flex;align-items:center;gap:8px;min-width:0;flex:1;justify-content:flex-end}
 .proto-addr-hex{font-family:var(--mono);font-size:11px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
-.proto-copy{width:26px;height:26px;border-radius:6px;background:var(--bg-3);border:1px solid var(--line-2);display:grid;place-items:center;color:var(--fg-3);flex-shrink:0;transition:color .2s var(--ease),border-color .2s var(--ease)}
-.proto-copy:hover{color:var(--gold);border-color:var(--gold-line)}
-.proto-copy.copied{color:var(--profit);border-color:var(--profit)}
-.proto-copy svg{width:12px;height:12px}
-.error-box{
-  margin:24px 0;padding:18px 20px;border:1px solid var(--down-line);border-radius:var(--r-md);
-  color:var(--down);background:var(--down-wash);font-size:13px;
+.proto-copy,.proto-explore{
+  width:26px;height:26px;border-radius:6px;
+  background:var(--bg-3);border:1px solid var(--line-2);
+  display:grid;place-items:center;color:var(--fg-3);
+  flex-shrink:0;cursor:pointer;
+  transition:color .2s var(--ease),border-color .2s var(--ease),background .2s var(--ease);
 }
-@media (max-width:1050px){
-  .hero-grid,.stats-strip,.flow-summary{grid-template-columns:repeat(2,1fr)}
-  .flow-grid{grid-template-columns:1fr}
-  .flow-panel:first-child{border-right:0;border-bottom:1px solid var(--line-1)}
+.proto-copy:hover,.proto-explore:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.proto-copy.copied{color:var(--up);border-color:var(--up)}
+.proto-copy svg,.proto-explore svg{width:12px;height:12px;pointer-events:none}
+
+.foot{margin-top:24px;text-align:center;font-size:11px;color:var(--fg-3);letter-spacing:.3px}
+
+/* responsive */
+@media (max-width:980px){
+  .hero-stats{grid-template-columns:1fr 1fr;gap:18px 0;border-top:1px solid var(--line-1)}
+  .hero-stat:nth-child(3){border-left:0;padding-left:0}
+  .flows-grid{grid-template-columns:1fr}
+  .flows-col{border-left:0;border-top:1px solid var(--line-1)}
+  .flows-col:first-child{border-top:0}
 }
-@media (max-width:760px){
-  .wrap{padding:24px 14px 70px}
-  .site-nav{width:100%;overflow:auto;justify-content:flex-start}
-  .nav-item{padding:8px 11px;white-space:nowrap}
+@media (max-width:640px){
+  .wrap{padding:24px 16px 48px}
   .hero{padding:22px 18px}
-  .hero-headline{align-items:flex-start}
-  .hero-grid,.stats-strip,.flow-summary{grid-template-columns:1fr}
-  .card-head,.toolbar,.footer-line{padding-left:16px;padding-right:16px}
-  #holdersCard .footer-line{flex-direction:column;gap:10px}
-  #holderFooter{position:static;order:2}
-  #holdersCard .footer-line .pager{order:1}
-  .card-head{align-items:flex-start}
-  .card-head .card-meta{width:100%;justify-content:flex-start;margin-left:32px;margin-top:-6px}
-  .tb-left,.tb-right{width:100%}
+  .hero-stats{grid-template-columns:1fr;gap:14px}
+  .hero-stat{border-left:0;padding-left:0;padding-top:14px;border-top:1px solid var(--line-1)}
+  .hero-stat:first-child{border-top:0;padding-top:0}
+  .hero-token-name{font-size:20px}
+  .hero-meta{margin-left:0;width:100%}
+  .tbl-foot{grid-template-columns:1fr;justify-items:center;gap:10px}
+  .tbl-foot-info{grid-column:1;text-align:center}
+  .pager{grid-column:1}
   .search{width:100%}
-  .pill-switch{max-width:100%;overflow:auto}
-  .tbl{min-width:820px}
-  .flow-panel .tbl{min-width:0}
-  .flow-panel .tbl th:nth-child(1),.flow-panel .tbl td:nth-child(1){width:40px}
-  .flow-panel .tbl th:nth-child(2),.flow-panel .tbl td:nth-child(2){width:48%}
-  .flow-panel .tbl th:nth-child(3),.flow-panel .tbl td:nth-child(3){width:24%}
-  .flow-panel .tbl th:nth-child(4),.flow-panel .tbl td:nth-child(4){width:28%}
+  .tb-left,.tb-right{width:100%}
   .proto-addrs{grid-template-columns:1fr}
-  .proto-addr{flex-direction:column;align-items:stretch;gap:10px}
-  .proto-addr-left,.proto-addr-right{width:100%}
-  .proto-addr-right{justify-content:space-between}
-  .proto-addr-hex{max-width:220px}
-  #holdersCard .tbl{min-width:0;table-layout:fixed}
-  #holdersCard .tbl th:nth-child(3),#holdersCard .tbl td:nth-child(3),
-  #holdersCard .tbl th:nth-child(4),#holdersCard .tbl td:nth-child(4),
-  #holdersCard .tbl th:nth-child(6),#holdersCard .tbl td:nth-child(6){display:none}
-  #holdersCard .tbl th:nth-child(1),#holdersCard .tbl td:nth-child(1){width:40px}
-  #holdersCard .tbl th:nth-child(2),#holdersCard .tbl td:nth-child(2){width:62%}
-  #holdersCard .tbl th:nth-child(5),#holdersCard .tbl td:nth-child(5){width:28%}
+  .proto-addr-hex{max-width:120px}
+  .proto-links-sep{display:none}
+  .proto-links{flex-direction:column;align-items:flex-start;gap:10px}
+  .site-top{gap:10px;margin-bottom:32px}
+  .site-brand{padding:12px 0 0}
+  .site-brand img{max-width:460px}
+  .nav-item{padding:8px 10px;gap:6px;font-size:12px}
+  .nav-item.active::after{display:none}
 }
 </style>
 </head>
 <body>
 <div class="wrap">
+
+  <!-- TOP -->
   <header class="site-top">
-    <a class="site-brand" href="./assets/" aria-label="Dolomite dashboard">
-      <img src="TwojeKrypto dashboard.png" alt="Dolomite dashboard">
-    </a>
+    <div class="site-brand">
+      <img src="TwojeKrypto%20dashboard.png" alt="Dolomite Dashboard · Powered by TwojeKrypto">
+    </div>
     <div class="site-nav-wrap">
-      <nav class="site-nav" aria-label="Dashboard sections">
-        <a class="nav-item" href="./assets/" data-tab="assets">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>
-          Assets
-        </a>
-        <a class="nav-item" href="./tvl/" data-tab="tvl">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-5 5"/></svg>
-          TVL
-        </a>
-        <a class="nav-item active" href="./dolo/" data-tab="dolo">
-          <img src="dolo-logo.svg" alt=""> DOLO
-        </a>
-        <a class="nav-item" href="./odolo/" data-tab="odolo">
-          <img src="odolo-logo-official.svg" alt=""> oDOLO
-        </a>
-        <a class="nav-item" href="./vedolo/" data-tab="vedolo">
-          <img src="vedolo-logo.svg" alt=""> veDOLO
-        </a>
-        <a class="nav-item" href="./earn/" data-tab="earn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6"/></svg>
-          Earn
-        </a>
+      <nav class="site-nav">
+        <a class="nav-item active" href="./dolo/"><img src="dolo-logo.svg" alt="" onerror="this.style.display='none'"><span>DOLO</span></a>
+        <a class="nav-item" href="./#odolo"><img src="odolo-logo-official.svg" alt="" onerror="this.style.display='none'"><span>oDOLO</span></a>
+        <a class="nav-item" href="./#vedolo"><img src="vedolo-logo.svg" alt="" onerror="this.style.display='none'"><span>veDOLO</span></a>
+        <a class="nav-item" href="./#tvl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-6 4 4 5-8"/></svg><span>TVL</span></a>
+        <a class="nav-item" href="./#earn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/></svg><span>Earn</span></a>
+        <a class="nav-item" href="./#assets"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg><span>Assets</span></a>
       </nav>
     </div>
   </header>
 
-  <main id="app" aria-live="polite">
-    <section class="hero">
-      <div class="hero-top"><img src="dolo-logo.svg" alt=""> DOLO Token</div>
-      <div class="hero-headline">
-        <div class="hero-price">
-          <div class="hero-value" id="price">—</div>
-          <div class="change-pill" id="change">— 24h</div>
-        </div>
+  <!-- HERO -->
+  <section class="hero">
+    <!-- Brand row: logo + heading + tagline | chains + live -->
+    <div class="hero-brand">
+      <div class="hero-token-logo">
+        <img src="dolo-logo.svg" alt="DOLO" onerror="this.outerHTML='<span style=&quot;color:var(--gold);font-weight:800;font-size:18px&quot;>◆</span>'">
       </div>
-      <div class="hero-grid">
-        <div class="hero-card">
-          <div class="hc-label">Market Cap</div>
-          <div class="hc-value green" id="marketCap">—</div>
-          <div class="hc-sub">via CoinGecko snapshot</div>
-        </div>
-        <div class="hero-card">
-          <div class="hc-label">Circulating Supply</div>
-          <div class="hc-value" id="circSupply">—</div>
-          <div class="hc-sub">current reported supply</div>
-        </div>
-        <div class="hero-card">
-          <div class="hc-label">Tracked Holders</div>
-          <div class="hc-value gold" id="holdersCount">—</div>
-          <div class="hc-sub">Ethereum + Berachain</div>
-        </div>
-        <div class="hero-card">
-          <div class="hc-label">Tracked Supply</div>
-          <div class="hc-value" id="trackedSupply">—</div>
-          <div class="hc-sub">tracked across both chains</div>
-        </div>
+      <div class="hero-token-text">
+        <div class="hero-token-name">DOLO</div>
+        <div class="hero-token-sub"><b>Native</b> governance token</div>
       </div>
-    </section>
-
-    <div class="grid-main">
-      <section class="card" id="flowCard">
-        <div class="card-head">
-          <div class="card-title">
-            <img src="dolo-logo.svg" alt="">
-            <h2>DOLO Flow</h2>
-            <span class="count-badge" id="flowPeriodLabel">1D</span>
-          </div>
-          <div class="card-meta"><span class="pulse"></span><span id="flowUpdated">Loading...</span></div>
-        </div>
-        <div class="toolbar">
-          <div class="tb-left">
-            <label class="search">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-              <input id="flowSearch" type="search" placeholder="Search address or label">
-            </label>
-            <div class="chain-dd" id="flowChainDropdown">
-              <button class="chain-dd-btn" id="flowChainBtn" type="button" aria-haspopup="listbox" aria-expanded="false">
-                <span class="chain-dd-icon" id="flowChainIcon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20"/><path d="M12 2a15 15 0 0 0 0 20"/></svg>
-                </span>
-                <span class="chain-dd-label" id="flowChainLabel">All Chains</span>
-                <svg class="chain-dd-chev" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 7 5 5 5-5"/></svg>
-              </button>
-              <div class="chain-dd-panel" role="listbox" aria-label="Flow network filter">
-                <div class="chain-dd-panel-head">Network</div>
-                <button class="chain-dd-option active" type="button" role="option" data-chain="all">
-                  <span class="chain-dd-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20"/><path d="M12 2a15 15 0 0 0 0 20"/></svg></span>
-                  All Chains
-                  <span class="chain-dd-check">✓</span>
-                </button>
-                <button class="chain-dd-option" type="button" role="option" data-chain="bera">
-                  <img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" alt="">
-                  Berachain
-                  <span class="chain-dd-check">✓</span>
-                </button>
-                <button class="chain-dd-option" type="button" role="option" data-chain="eth">
-                  <img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" alt="">
-                  Ethereum
-                  <span class="chain-dd-check">✓</span>
-                </button>
-              </div>
-            </div>
-            <button class="toggle-pill" id="flowHideKnown" type="button" aria-pressed="false" data-tooltip="Hides centralized exchanges, smart contracts, protocol wallets, LP pools and bot or liquidator addresses from the DOLO Flow tables.">
-              <span class="toggle-track"><span class="toggle-knob"></span></span>
-              Hide CEX
-            </button>
-          </div>
-          <div class="tb-right">
-            <div class="pill-switch" id="flowPeriodPills" data-state="1d">
-              <span class="slider"></span>
-              <button class="opt active" data-period="1d">1D</button>
-              <button class="opt" data-period="7d">7D</button>
-              <button class="opt" data-period="30d">30D</button>
-              <button class="opt" data-period="90d">90D</button>
-              <button class="opt" data-period="180d">180D</button>
-              <button class="opt" data-period="all">ALL</button>
-            </div>
-          </div>
-        </div>
-        <div class="flow-summary">
-          <div class="mini-card">
-            <div class="mini-label">Net flow</div>
-            <div class="mini-value" id="netFlow">—</div>
-          </div>
-          <div class="mini-card">
-            <div class="mini-label">Accumulated</div>
-            <div class="mini-value green" id="totalAcc">—</div>
-          </div>
-          <div class="mini-card">
-            <div class="mini-label">Outflow</div>
-            <div class="mini-value red" id="totalSell">—</div>
-          </div>
-          <div class="mini-card">
-            <div class="mini-label">Transfers</div>
-            <div class="mini-value gold" id="totalTransfers">—</div>
-          </div>
-        </div>
-        <div class="flow-grid">
-          <div class="flow-panel">
-            <div class="flow-panel-head">
-              <div class="flow-panel-title green"><span class="dot"></span> Top Accumulators</div>
-              <div class="flow-panel-total" id="accCount">—</div>
-            </div>
-            <div class="tbl-wrap">
-              <table class="tbl">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Address</th>
-                    <th class="num" data-flow-table="acc" data-flow-sort="balance">Balance <span class="sort">⇅</span></th>
-                    <th class="num sorted" data-flow-table="acc" data-flow-sort="display_flow">Net DOLO <span class="sort">▼</span></th>
-                  </tr>
-                </thead>
-                <tbody id="accRows"></tbody>
-              </table>
-            </div>
-            <div class="pager table-pager" id="accPager"></div>
-          </div>
-          <div class="flow-panel">
-            <div class="flow-panel-head">
-              <div class="flow-panel-title red"><span class="dot"></span> Top Outflows</div>
-              <div class="flow-panel-total" id="sellCount">—</div>
-            </div>
-            <div class="tbl-wrap">
-              <table class="tbl">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Address</th>
-                    <th class="num" data-flow-table="sell" data-flow-sort="balance">Balance <span class="sort">⇅</span></th>
-                    <th class="num sorted" data-flow-table="sell" data-flow-sort="display_flow">Net DOLO <span class="sort">▼</span></th>
-                  </tr>
-                </thead>
-                <tbody id="sellRows"></tbody>
-              </table>
-            </div>
-            <div class="pager table-pager" id="sellPager"></div>
-          </div>
-        </div>
-      </section>
-
-      <section class="card" id="holdersCard">
-        <div class="card-head">
-          <div class="card-title">
-            <img src="dolo-logo.svg" alt="">
-            <h2>DOLO Holders</h2>
-            <span class="count-badge" id="holderCount">—</span>
-          </div>
-          <div class="card-meta"><span class="pulse"></span><span id="holdersUpdated">Loading...</span></div>
-        </div>
-        <div class="toolbar">
-          <div class="tb-left">
-            <label class="search">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-              <input id="holderSearch" type="search" placeholder="Search address or label">
-            </label>
-            <div class="chain-dd" id="holderChainDropdown">
-              <button class="chain-dd-btn" id="holderChainBtn" type="button" aria-haspopup="listbox" aria-expanded="false">
-                <span class="chain-dd-icon" id="holderChainIcon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20"/><path d="M12 2a15 15 0 0 0 0 20"/></svg>
-                </span>
-                <span class="chain-dd-label" id="holderChainLabel">All Chains</span>
-                <svg class="chain-dd-chev" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 7 5 5 5-5"/></svg>
-              </button>
-              <div class="chain-dd-panel" role="listbox" aria-label="Holder network filter">
-                <div class="chain-dd-panel-head">Network</div>
-                <button class="chain-dd-option active" type="button" role="option" data-chain="all">
-                  <span class="chain-dd-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20"/><path d="M12 2a15 15 0 0 0 0 20"/></svg></span>
-                  All Chains
-                  <span class="chain-dd-check">✓</span>
-                </button>
-                <button class="chain-dd-option" type="button" role="option" data-chain="bera">
-                  <img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" alt="">
-                  Berachain
-                  <span class="chain-dd-check">✓</span>
-                </button>
-                <button class="chain-dd-option" type="button" role="option" data-chain="eth">
-                  <img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" alt="">
-                  Ethereum
-                  <span class="chain-dd-check">✓</span>
-                </button>
-              </div>
-            </div>
-            <button class="toggle-pill" id="holderHideKnown" type="button" aria-pressed="false" data-tooltip="Hides centralized exchanges, smart contracts, protocol wallets, LP pools and bot or liquidator addresses from the DOLO Holders table.">
-              <span class="toggle-track"><span class="toggle-knob"></span></span>
-              Hide CEX
-            </button>
-          </div>
-          <div class="tb-right">
-            <div class="pill-switch" id="holderPeriodPills" data-state="1d">
-              <span class="slider"></span>
-              <button class="opt active" data-period="1d">1D</button>
-              <button class="opt" data-period="7d">7D</button>
-              <button class="opt" data-period="30d">30D</button>
-              <button class="opt" data-period="90d">90D</button>
-              <button class="opt" data-period="180d">180D</button>
-              <button class="opt" data-period="all">ALL</button>
-            </div>
-          </div>
-        </div>
-        <div class="tbl-wrap holders">
-          <table class="tbl">
-            <thead>
-              <tr>
-                <th data-sort="rank" class="sorted"># <span class="sort">▲</span></th>
-                <th data-sort="address">Address <span class="sort">⇅</span></th>
-                <th class="num holder-chain-col" data-sort="balance_eth"><span class="th-chain-label"><img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" alt="">ETH</span> <span class="sort">⇅</span></th>
-                <th class="num holder-chain-col" data-sort="balance_bera"><span class="th-chain-label"><img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" alt="">BERA</span> <span class="sort">⇅</span></th>
-                <th class="num" data-sort="balance"><span id="holderBalanceHeader">Balance</span> <span class="sort">⇅</span></th>
-                <th class="num" data-sort="change">Change <span class="sort">⇅</span></th>
-              </tr>
-            </thead>
-            <tbody id="holderRows"></tbody>
-          </table>
-        </div>
-        <div class="footer-line">
-          <span id="holderFooter">—</span>
-          <div class="pager table-pager" id="holderPager"></div>
-        </div>
-      </section>
+      <div class="hero-meta">
+        <div class="hero-live"><span class="dot"></span>Live · 2m ago</div>
+      </div>
     </div>
 
-    <section class="proto" aria-label="Protocol information">
-      <div class="proto-head">
-        <div class="proto-brand">
-          <div class="proto-brand-mark">
-            <img src="dolo-logo.svg" alt="DOLO" onerror="this.outerHTML='<span style=&quot;color:var(--gold);font-weight:800;font-size:16px&quot;>◆</span>'">
-          </div>
-          <div class="proto-brand-text">
-            <div class="proto-brand-name">Dolomite</div>
-            <div class="proto-brand-sub">Multi-chain lending, margin &amp; DOLO ecosystem</div>
+    <!-- Price + change pill -->
+    <div class="hero-price-row">
+      <div class="hero-price">$1.214</div>
+      <div class="hero-chg up">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+        +3.42%<span class="lbl">24h</span>
+      </div>
+    </div>
+
+    <!-- 4-column stat strip -->
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="lbl">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 5c0-1.66 4-3 9-3s9 1.34 9 3"/></svg>
+          Market Cap
+        </div>
+        <div class="val">$162.4M</div>
+        <div class="sub">rank #283</div>
+      </div>
+
+      <div class="hero-stat">
+        <div class="lbl">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/></svg>
+          Circulating
+        </div>
+        <div class="val">133.8M</div>
+        <div class="sub">13.4% of total</div>
+        <div class="hero-bar"><span style="width:13.4%"></span></div>
+      </div>
+
+      <div class="hero-stat">
+        <div class="lbl">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          Total Supply
+        </div>
+        <div class="val">1.00B</div>
+        <div class="sub">fixed cap</div>
+      </div>
+
+      <div class="hero-stat">
+        <div class="lbl">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+          Holders
+        </div>
+        <div class="val">12,481</div>
+        <div class="sub up">+248 last 7d</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOLDERS CARD -->
+  <section class="card">
+    <div class="card-head">
+      <div class="card-title">
+        <h2>DOLO Holders</h2>
+        <span class="count-badge" id="holders-count">12,481</span>
+      </div>
+      <div class="card-meta"><span class="pulse"></span>Live · updated 2m ago</div>
+    </div>
+
+    <div class="toolbar">
+      <div class="tb-left">
+        <label class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="q-holders" type="text" placeholder="Search address or label…" spellcheck="false" autocomplete="off">
+          <span class="kbd">/</span>
+        </label>
+
+        <div class="dd" id="dd-chain">
+          <button class="dd-btn" data-dd="chain">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <span class="lbl">All Chains</span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dd-panel">
+            <div class="dd-panel-head">Chain</div>
+            <div class="dd-list">
+              <div class="dd-opt active" data-chain="all"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><div class="dd-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div><span class="dd-opt-name">All chains</span></div>
+              <div class="dd-opt" data-chain="ethereum"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Ethereum</span></div>
+              <div class="dd-opt" data-chain="berachain"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Berachain</span></div>
+            </div>
           </div>
         </div>
-        <div class="proto-links">
-          <a class="proto-pill" href="https://dolomite.io" target="_blank" rel="noopener">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
-            Website
-          </a>
-          <a class="proto-pill" href="https://twitter.com/Dolomite_io" target="_blank" rel="noopener">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-            Twitter
-          </a>
-          <a class="proto-pill" href="https://t.me/dolomite_official" target="_blank" rel="noopener">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0a12 12 0 00-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
-            Telegram
-          </a>
-          <a class="proto-pill" href="https://discord.com/invite/uDRzrB2YgP" target="_blank" rel="noopener">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037 19.736 19.736 0 00-4.885 1.515.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028 14.09 14.09 0 001.226-1.994.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.086 2.157 2.419 0 1.334-.955 2.419-2.157 2.419zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.086 2.157 2.419 0 1.334-.946 2.419-2.157 2.419z"/></svg>
-            Discord
-          </a>
-          <a class="proto-pill" href="https://docs.dolomite.io/" target="_blank" rel="noopener">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
-            Docs
-          </a>
-          <a class="proto-pill" href="https://github.com/dolomite-exchange" target="_blank" rel="noopener">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-            GitHub
-          </a>
-          <a class="proto-pill" href="https://docs.dolomite.io/security/audits" target="_blank" rel="noopener">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            Audits
-          </a>
+
+        <div class="dd" id="dd-types">
+          <button class="dd-btn filtered" data-dd="types">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <span class="lbl">All Types</span>
+            <span class="count">5</span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dd-panel dd-panel-types">
+            <div class="dd-panel-head">Show by address type</div>
+            <div class="rw-list">
+              <div class="rw-item active" data-type="eoa" data-tip="Regular user wallet — Externally Owned Account">
+                <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
+                <span class="rw-dot-src eoa"></span>
+                <div class="rw-name">Personal wallets</div>
+              </div>
+              <div class="rw-item active" data-type="ca" data-tip="Protocol contracts, aggregators, vesters">
+                <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
+                <span class="rw-dot-src ca"></span>
+                <div class="rw-name">Smart contracts</div>
+              </div>
+              <div class="rw-item active" data-type="cex" data-tip="Binance, Coinbase, Kraken — custody addresses">
+                <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
+                <span class="rw-dot-src cex"></span>
+                <div class="rw-name">Exchanges</div>
+              </div>
+              <div class="rw-item active" data-type="mm" data-tip="Wintermute, GSR, Jump and similar liquidity providers">
+                <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
+                <span class="rw-dot-src mm"></span>
+                <div class="rw-name">Market makers</div>
+              </div>
+              <div class="rw-item active" data-type="bot" data-tip="Automated MEV / arbitrage / sniping wallets">
+                <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
+                <span class="rw-dot-src bot"></span>
+                <div class="rw-name">Trading bots</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="proto-body">
-        <div class="proto-body-head">Contract Addresses</div>
-        <div class="proto-addrs" id="proto-addrs"></div>
+
+      <div class="tb-right"></div>
+    </div>
+
+    <div class="tbl-wrap">
+      <table class="tbl" id="tbl-holders">
+        <thead>
+          <tr>
+            <th data-sort="rank" style="width:56px">#</th>
+            <th data-sort="addr">Address</th>
+            <th data-sort="balEth" class="num" style="width:140px"><span class="hd-chain"><span class="dot dot-ethereum"></span>ETH</span></th>
+            <th data-sort="balBera" class="num" style="width:140px"><span class="hd-chain"><span class="dot dot-berachain"></span>BERA</span></th>
+            <th data-sort="total" class="num sorted" style="width:140px">Total</th>
+            <th data-sort="share" class="num" style="padding-right:32px;width:140px">Share</th>
+          </tr>
+        </thead>
+        <tbody id="holders-body"></tbody>
+      </table>
+    </div>
+
+    <div class="tbl-foot">
+      <div class="tbl-foot-info" id="holders-info">1–10 of 12,481</div>
+      <div class="pager" id="holders-pager"></div>
+    </div>
+  </section>
+
+  <!-- FLOWS CARD -->
+  <section class="card">
+    <div class="card-head">
+      <div class="card-title">
+        <h2>DOLO Flows</h2>
+        <span class="count-badge">Top accumulators &amp; outflows</span>
       </div>
-    </section>
-  </main>
+      <div class="card-meta"><span class="pulse"></span><span id="flows-meta">Period: 7D</span></div>
+    </div>
+
+    <div class="toolbar">
+      <div class="tb-left">
+        <label class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="q-flows" type="text" placeholder="Filter by address or label…" spellcheck="false" autocomplete="off">
+        </label>
+
+        <!-- Chain filter — single-select All / Ethereum / Berachain -->
+        <div class="dd" id="dd-flows-chain">
+          <button class="dd-btn" data-dd="flows-chain">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <span class="lbl">All Chains</span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dd-panel">
+            <div class="dd-panel-head">Chain</div>
+            <div class="dd-list">
+              <div class="dd-opt active" data-chain="all"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><div class="dd-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div><span class="dd-opt-name">All chains</span></div>
+              <div class="dd-opt" data-chain="ethereum"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Ethereum</span></div>
+              <div class="dd-opt" data-chain="berachain"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Berachain</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tag filter (same UX as Holders) -->
+        <div class="dd" id="dd-flows-types">
+          <button class="dd-btn filtered" data-dd="flows-types">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <span class="lbl">All Types</span>
+            <span class="count">5</span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dd-panel dd-panel-types">
+            <div class="dd-panel-head">Show by address type</div>
+            <div class="rw-list">
+              <div class="rw-item active" data-type="eoa" data-tip="Regular user wallet — Externally Owned Account">
+                <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
+                <span class="rw-dot-src eoa"></span>
+                <div class="rw-name">Personal wallets</div>
+              </div>
+              <div class="rw-item active" data-type="ca" data-tip="Protocol contracts, aggregators, vesters">
+                <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
+                <span class="rw-dot-src ca"></span>
+                <div class="rw-name">Smart contracts</div>
+              </div>
+              <div class="rw-item active" data-type="cex" data-tip="Binance, Coinbase, Kraken — custody addresses">
+                <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
+                <span class="rw-dot-src cex"></span>
+                <div class="rw-name">Exchanges</div>
+              </div>
+              <div class="rw-item active" data-type="mm" data-tip="Wintermute, GSR, Jump and similar liquidity providers">
+                <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
+                <span class="rw-dot-src mm"></span>
+                <div class="rw-name">Market makers</div>
+              </div>
+              <div class="rw-item active" data-type="bot" data-tip="Automated MEV / arbitrage / sniping wallets">
+                <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
+                <span class="rw-dot-src bot"></span>
+                <div class="rw-name">Trading bots</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="tb-right">
+        <!-- Period filter — single-select; lives on the right, always -->
+        <div class="dd" id="dd-flows-period">
+          <button class="dd-btn" data-dd="flows-period">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            <span class="lbl">7D</span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dd-panel" style="left:auto;right:0">
+            <div class="dd-panel-head">Period</div>
+            <div class="dd-list">
+              <div class="dd-opt" data-period="1d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">24 hours</span></div>
+              <div class="dd-opt active" data-period="7d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">7 days</span></div>
+              <div class="dd-opt" data-period="30d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">30 days</span></div>
+              <div class="dd-opt" data-period="90d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">90 days</span></div>
+              <div class="dd-opt" data-period="180d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">180 days</span></div>
+              <div class="dd-opt" data-period="all"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">All time</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flows-grid">
+      <div class="flows-col acc">
+        <div class="flows-col-head acc">
+          <svg class="arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+          Top Accumulators
+        </div>
+        <table class="flows-tbl">
+          <thead>
+            <tr>
+              <th style="width:48px">#</th>
+              <th>Address</th>
+              <th class="num" data-flow-kind="acc" data-flow-sort="balance" style="width:118px">Balance</th>
+              <th class="num sorted" data-flow-kind="acc" data-flow-sort="net" style="padding-right:24px;width:130px">Net DOLO</th>
+            </tr>
+          </thead>
+          <tbody id="flows-acc-body"></tbody>
+        </table>
+      </div>
+      <div class="flows-col out">
+        <div class="flows-col-head out">
+          <svg class="arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+          Top Outflows
+        </div>
+        <table class="flows-tbl">
+          <thead>
+            <tr>
+              <th style="width:48px">#</th>
+              <th>Address</th>
+              <th class="num" data-flow-kind="out" data-flow-sort="balance" style="width:118px">Balance</th>
+              <th class="num sorted" data-flow-kind="out" data-flow-sort="net" style="padding-right:24px;width:130px">Net DOLO</th>
+            </tr>
+          </thead>
+          <tbody id="flows-out-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROTOCOL INFO -->
+  <section class="proto">
+    <div class="proto-head">
+      <div class="proto-brand">
+        <div class="proto-brand-mark">
+          <img src="dolo-logo.svg" alt="DOLO" onerror="this.outerHTML='<span style=&quot;color:var(--gold);font-weight:800;font-size:16px&quot;>◆</span>'">
+        </div>
+        <div class="proto-brand-text">
+          <div class="proto-brand-name">Dolomite</div>
+          <div class="proto-brand-sub">Lending &amp; margin · <b>7 chains</b> · <b>104 markets</b></div>
+        </div>
+      </div>
+      <div class="proto-links">
+        <div class="proto-links-group">
+          <span class="proto-links-label">Community</span>
+          <a class="proto-pill" href="https://twitter.com/Dolomite_io" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>Twitter</a>
+          <a class="proto-pill" href="https://t.me/dolomite_official" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>Telegram</a>
+          <a class="proto-pill" href="https://discord.com/invite/uDRzrB2YgP" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037 19.736 19.736 0 00-4.885 1.515.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028 14.09 14.09 0 001.226-1.994.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.086 2.157 2.419 0 1.334-.955 2.419-2.157 2.419zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.086 2.157 2.419 0 1.334-.946 2.419-2.157 2.419z"/></svg>Discord</a>
+        </div>
+        <span class="proto-links-sep"></span>
+        <div class="proto-links-group">
+          <span class="proto-links-label">Resources</span>
+          <a class="proto-pill" href="https://dolomite.io" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>Website</a>
+          <a class="proto-pill" href="https://docs.dolomite.io/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>Docs</a>
+          <a class="proto-pill" href="https://github.com/dolomite-exchange" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>GitHub</a>
+          <a class="proto-pill" href="https://docs.dolomite.io/security/audits" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Audits</a>
+        </div>
+      </div>
+    </div>
+    <div class="proto-body">
+      <div class="proto-body-head">Contract Addresses</div>
+      <div class="proto-addrs" id="proto-addrs"></div>
+    </div>
+  </section>
+
+  <div class="foot">DOLO dashboard · onchain data pipeline · <span id="now"></span></div>
 </div>
 
 <script>
-const ETH_ICON = "https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg";
-const BERA_ICON = "https://icons.llamao.fi/icons/chains/rsz_berachain.jpg";
-const PERIOD_LABELS = { "1d":"1D", "7d":"7D", "30d":"30D", "90d":"90D", "180d":"180D", all:"ALL" };
-const PROTO_CONTRACTS = [
-  {token:"DOLO", logo:"dolo-logo.svg", chain:"Ethereum", chainIco:ETH_ICON, addr:"0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654", explorer:"https://etherscan.io"},
-  {token:"DOLO", logo:"dolo-logo.svg", chain:"Berachain", chainIco:BERA_ICON, addr:"0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654", explorer:"https://berascan.com"},
-  {token:"oDOLO", logo:"odolo-logo-official.svg", chain:"Berachain", chainIco:BERA_ICON, addr:"0x02E513b5B54eE216Bf836ceb471507488fC89543", explorer:"https://berascan.com"},
-  {token:"veDOLO", logo:"vedolo-logo.svg", chain:"Berachain", chainIco:BERA_ICON, addr:"0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4", explorer:"https://berascan.com"}
+// type: ca = contract address, cex = centralized exchange, mm = market maker,
+//       bot = trading bot, eoa = regular wallet (EOA)
+const HOLDERS = [
+  {addr:"0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654", label:"DOLO Treasury",     type:"ca",  balEth: 80_000_000, balBera: 40_000_000},
+  {addr:"0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4", label:"veDOLO Contract",   type:"ca",  balEth:          0, balBera: 88_500_000},
+  {addr:"0x02E513b5B54eE216Bf836ceb471507488fC89543", label:"oDOLO Contract",    type:"ca",  balEth:          0, balBera: 42_300_000},
+  {addr:"0xd8da6bf26964af9d7eed9e03e53415d37aa96045", label:"vitalik.eth",       type:"eoa", balEth: 12_400_000, balBera:  6_000_000},
+  {addr:"0x28C6c06298d514Db089934071355E5743bf21d60", label:"Binance",           type:"cex", balEth: 12_800_000, balBera:          0},
+  {addr:"0x3e9b9a16743551da49b5e136c716bba7932d2cec", label:"oDOLO Pair Vester", type:"ca",  balEth:          0, balBera: 11_200_000},
+  {addr:"0xa9d1e08c7793af67e9d92fe308d5697fb81d3e43", label:"Coinbase",          type:"cex", balEth:  8_900_000, balBera:          0},
+  {addr:"0xfb6a8b80ac4d65f9b3edcb19b13e85d8a25cd0bc", label:"Wintermute",        type:"mm",  balEth:  3_200_000, balBera:  2_400_000},
+  {addr:"0x4f3a120e72c76c22ae802d129f599bfdbc31cb81", label:"Magic Investor",    type:"eoa", balEth:  4_200_000, balBera:          0},
+  {addr:"0x5c7bcd6e7de5423a257d81b442095a1a6ced35c5", label:null,                 type:"eoa", balEth:          0, balBera:  3_750_000},
+  {addr:"0x6e6f0b8e8e3a2c63a3a3c6e8f0a9b8c7d6e5f4a3", label:"MEV Sniper #07",     type:"bot", balEth:  1_200_000, balBera:  1_920_000},
+  {addr:"0x7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b", label:"Kraken",            type:"cex", balEth:  2_840_000, balBera:          0},
+  {addr:"0x8a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6c", label:null,                 type:"eoa", balEth:  2_540_000, balBera:          0},
+  {addr:"0x9c8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6d", label:"GSR",                type:"mm",  balEth:    980_000, balBera:  1_200_000},
+  {addr:"0xab8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6e", label:null,                 type:"eoa", balEth:          0, balBera:  1_960_000},
+  {addr:"0xbc8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6f", label:"Arb Bot 19",         type:"bot", balEth:  1_780_000, balBera:          0},
 ];
-const DOLO_ADDR_LABELS = {
-  "0x3e9b9a16743551da49b5e136c716bba7932d2cec":{label:"oDOLO Vester",type:"protocol",treasury:true},
-  "0xf977814e90da44bfa03b6295a0616a897441acec":{label:"Binance 8",type:"cex"},
-  "0x28c6c06298d514db089934071355e5743bf21d60":{label:"Binance 14",type:"cex"},
-  "0x21a31ee1afc51d94c2efccaa2092ad1028285549":{label:"Binance 35",type:"cex"},
-  "0xdfd5293d8e347dfe59e90efd55b2956a1343963d":{label:"Binance US",type:"cex"},
-  "0xbe0eb53f46cd790cd13851d5eff43d12404d33e8":{label:"Binance 7",type:"cex"},
-  "0x56eddb7aa87536c09ccc2793473599fd21a8b17f":{label:"Binance 16",type:"cex"},
-  "0x9696f59e4d72e237be84ffd425dcad154bf96976":{label:"Binance 18",type:"cex"},
-  "0xa9d1e08c7793af67e9d92fe308d5697fb81d3e43":{label:"Binance Deposit",type:"cex"},
-  "0xd862cdcfeb856c32b3c4f7563f4811d8ddfd42e2":{label:"CA",type:"protocol"},
-  "0x1103fc560de8b710983e7f3ec09d587f3f848566":{label:"CA",type:"protocol"},
-  "0x035ae7d933dcbfe617ffba194a88af0c2867b90c":{label:"Gate.io",type:"cex"},
-  "0x8782163068c7cd74d2510768a61135c1e4eb07b3":{label:"Gate.io",type:"cex"},
-  "0x0d0707963952f2fba59dd06f2b425ace40b492fe":{label:"Gate.io",type:"cex"},
-  "0xf89d7b9c864f589bbf53a82105107622b35eaa40":{label:"Bybit",type:"cex"},
-  "0xdf3100ac6c20c4a9443ece6c639c4ee91d592062":{label:"Coinbase",type:"cex"},
-  "0xe337c67ee9077e31aab205b25e8593b0e1c00cc4":{label:"Coinbase",type:"cex"},
-  "0x38fc9e8c73ea02f3a7de1da0760e71277f1e5e24":{label:"Coinbase",type:"cex"},
-  "0x305833cadd13a6d7febc6619304a6943a9a1ed22":{label:"Binance",type:"cex"},
-  "0x478271c960137418c9d90082dddbf68aa72e4367":{label:"Gate.io",type:"cex"},
-  "0x43684d03d81d3a4c70da68febdd61029d426f042":{label:"Binance 117",type:"cex"},
-  "0x7a1d00de77c0162d55d84a051bdc6840852b4a60":{label:"CEX or MM",type:"cex"},
-  "0x9642b23ed1e01df1092b92641051881a322f5d4e":{label:"MEXC",type:"cex"},
-  "0x1157a2076b9bb22a85cc2c162f20fab3898f4101":{label:"FalconX",type:"cex"},
-  "0x0529ea5885702715e83923c59746ae8734c553b7":{label:"Bitpanda",type:"cex"},
-  "0xd2dd7b597fd2435b6db61ddf48544fd931e6869f":{label:"Kraken",type:"cex"},
-  "0xfc89c020774524c9d03bd5de48fec149b10bdec3":{label:"CEX or MM",type:"cex"},
-  "0xd5c342acbeedef81ab8e6072323bfda76172d05f":{label:"CEX or MM",type:"cex"},
-  "0x38285671612d6f0ef7c3483f500d39fa71d66a1c":{label:"CEX or MM",type:"cex"},
-  "0x98adef6f2ac8572ec48965509d69a8dd5e8bba9d":{label:"Binance 93",type:"cex"},
-  "0x93ae9fe008636d2d6d7376198a54edb20367968f":{label:"CEX or MM",type:"cex"},
-  "0x753f43cca3dbd2bbe963609f8d25a833433a10c9":{label:"Gate.io",type:"cex"},
-  "0xb8001c3ec9aa1985f6c747e25c28324e4a361ec1":{label:"Cobo Custody",type:"cex"},
-  "0x2b3bf74b29f59fb8dda41cf3d6a8da28cf8e7921":{label:"BingX 29",type:"cex"},
-  "0x003896387666c5c11458eeb3f927b72a11b19783":{label:"Uniswap V3 DOLO/USDC",type:"lp"},
-  "0xd5980e98a89e2d2361b3be657e8a003c6d3514e3":{label:"Kodiak DOLO/WBERA",type:"lp"},
-  "0x8991017b74f9f8070bff5b322802dd26e05e0cc7":{label:"Bulla DOLO/HONEY",type:"lp"},
-  "0xcb86b75ee6133d179a12d550b09fb3cdb1e141d4":{label:"veDOLO",type:"protocol"},
-  "0x89576fce04dd73933f74bbcd4e6f0d9125118542":{label:"Borrow Position Proxy",type:"protocol",treasury:true},
-  "0x003ca23fd5f0ca87d01f6ec6cd14a8ae60c2b97d":{label:"Dolomite Margin",type:"protocol",treasury:true},
-  "0x06265db7ecd9c5724a97bd4909146625d2e2619c":{label:"Operational Wallet",type:"protocol",treasury:true},
-  "0x000000000004444c5dc75cb358380d2e3de08a90":{label:"Permit2",type:"protocol"},
-  "0x2f41d42de3eab9e75f3d417259f24421771fb700":{label:"Dolomite EOA",type:"protocol",treasury:true},
-  "0x6e939bbaceb45159982a2cac3a1fcbf7e93cf682":{label:"Dolomite Main",type:"protocol",treasury:true},
-  "0xa75c21c5be284122a87a37a76cc6c4dd3e55a1d4":{label:"Gnosis Safe Multisig",type:"protocol",treasury:true},
-  "0xcfc30d38a47817363a98a46834acf7040b17d7b0":{label:"Admin Proxy",type:"protocol",treasury:true},
-  "0xd88f473832b0403c7736ef237af5aff8759b99ef":{label:"oDOLO Airdrop",type:"protocol",treasury:true},
-  "0x51b3116ef47073ab8a0353a2751dc533d4238527":{label:"Revenue Proxy",type:"protocol",treasury:true},
-  "0xa3f079292cc35ba64996fe0bce3049928a838bc9":{label:"Treasury Proxy",type:"protocol",treasury:true},
-  "0x185000fb4d98acea1a771db3714a431f7fe51cac":{label:"Core Team 1",type:"protocol",treasury:true},
-  "0x882e6d630a8c70a6a8d29a4d33f960b1267aa3d1":{label:"Core Team 2",type:"protocol",treasury:true},
-  "0x6c97802a1815bc459004c686560244de28a2de75":{label:"Core Team 3",type:"protocol",treasury:true},
-  "0x665b3ce67daeb5b19d4d14bbdb6297da0ffa5bf1":{label:"Core Team 4",type:"protocol",treasury:true},
-  "0x3f1f155949f32fa3e688093d176a1b5a72c488eb":{label:"Core Team 5",type:"protocol",treasury:true},
-  "0xf2b42104b5ac0b3145a5e18b84aa3fd76d0fdeec":{label:"Core Team 6",type:"protocol",treasury:true},
-  "0xb8ba44d5e46562ec011ade12603f353b18089a41":{label:"Core Team 7",type:"protocol",treasury:true},
-  "0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07":{label:"Investor Vesting CA",type:"protocol",treasury:true},
-  "0xbf3c4e55a444ed489736c3d856b0cd0533fc2edd":{label:"Core Team 8",type:"protocol",treasury:true},
-  "0x7efd088ae500598a19a242d6d48b9f7e0d061176":{label:"Early Investor Vesting CA",type:"protocol",treasury:true},
-  "0xb05ba67c11fc0b92a7bcb18e50cba87ce2d15109":{label:"Bot / MM",type:"bot"},
-  "0x5a6f918fcda24e9b5143f3a1b77e63df6de30f74":{label:"Bot / MM",type:"bot"},
-  "0x6a2383cff0d46d2b7d29759f17c26fba726f3ea3":{label:"Bot / MM",type:"bot"},
-  "0x278d858f05b94576c1e6f73285886876ff6ef8d2":{label:"Bot (CA)",type:"bot"},
-  "0x1ff6b8e1192eb0369006bbad76da9068b68961b2":{label:"Liquidator",type:"liquidator"},
-  "0xb7131fc8cdc43060a6210257f537dba5fcae6aed":{label:"MEV / Liquidator Bot",type:"liquidator"},
-  "0x9e7728077f753dfdf53c2236097e27c743890992":{label:"DEX Router",type:"protocol"},
-  "0xb180647d5ad76abeb6be0d363f6e182bd8df46d1":{label:"Coinbase",type:"cex"},
-  "0xd97107064b8c7520aae6c6e6ca75bb2aa73b670d":{label:"CEX Whale",type:"cex"},
-  "0x9cb677f2a8daa9511ae79c2ba56395552b5d030d":{label:"Active Trader/Bot",type:"bot"}
+// total = balEth + balBera; share = total / TOTAL_SUPPLY
+HOLDERS.forEach(h => h.total = h.balEth + h.balBera);
+
+const TYPE_LABELS = {eoa:"EOA", ca:"Contract", cex:"CEX", bot:"Bot", mm:"MM"};
+const TYPE_TIPS = {
+  eoa: "Externally Owned Account — regular wallet",
+  ca:  "Smart contract — protocol or aggregator",
+  cex: "Centralized exchange — custody address",
+  bot: "Automated trading / MEV bot",
+  mm:  "Market maker — liquidity provider",
 };
+// Humanized fallback "name" for unlabeled wallets — fills the top line
+// with a readable identity instead of an em-dash.
+const TYPE_GENERIC = {
+  eoa: "Wallet",
+  ca:  "Smart contract",
+  cex: "Exchange",
+  bot: "Trading bot",
+  mm:  "Market maker",
+};
+let TOTAL_SUPPLY = 1_000_000_000;
+
+// Per-chain flow split — chain filter switches which value drives sort/display.
+// Total chg = chgEth + chgBera; sign of total drives Acc vs Out.
+const FLOWS = [
+  {addr:"0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654", label:"Strategy 1",  type:"ca",  chgEth:+ 700_000, chgBera:+540_000},
+  {addr:"0xfb6a8b80ac4d65f9b3edcb19b13e85d8a25cd0bc", label:"Wintermute",  type:"mm",  chgEth:+ 340_000, chgBera:+500_000},
+  {addr:"0x4f3a120e72c76c22ae802d129f599bfdbc31cb81", label:"Whale 22",    type:"eoa", chgEth:+ 620_000, chgBera:       0},
+  {addr:"0x5c7bcd6e7de5423a257d81b442095a1a6ced35c5", label:null,           type:"eoa", chgEth:       0, chgBera:+410_000},
+  {addr:"0x9c8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6d", label:"GSR",         type:"mm",  chgEth:+ 110_000, chgBera:+170_000},
+  {addr:"0xab8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6e", label:null,           type:"bot", chgEth:       0, chgBera:+165_000},
+
+  {addr:"0xd8da6bf26964af9d7eed9e03e53415d37aa96045", label:"vitalik.eth", type:"eoa", chgEth:- 660_000, chgBera:-330_000},
+  {addr:"0x6e6f0b8e8e3a2c63a3a3c6e8f0a9b8c7d6e5f4a3", label:"MEV Sniper",  type:"bot", chgEth:- 250_000, chgBera:-470_000},
+  {addr:"0xbc8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6f", label:null,           type:"eoa", chgEth:- 445_000, chgBera:       0},
+  {addr:"0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4", label:"veDOLO",      type:"ca",  chgEth:       0, chgBera:-310_000},
+  {addr:"0x28C6c06298d514Db089934071355E5743bf21d60", label:"Binance",     type:"cex", chgEth:- 185_000, chgBera:       0},
+  {addr:"0x3e9b9a16743551da49b5e136c716bba7932d2cec", label:"Vester",      type:"ca",  chgEth:       0, chgBera: -72_000},
+];
 
 const state = {
-  price:null,
-  holders:null,
-  flows:null,
-  flowPeriod:"1d",
-  flowChain:"all",
-  flowSearch:"",
-  flowHideKnown:false,
-  holderChain:"all",
-  holderSearch:"",
-  holderHideKnown:false,
-  holderPeriod:"1d",
-  holderPage:1,
-  holderSort:"rank",
-  holderSortAsc:true,
-  flowSort:{acc:"display_flow",sell:"display_flow"},
-  flowSortAsc:{acc:false,sell:false},
-  flowPage:{acc:1,sell:1}
+  q:"", qFlows:"",
+  chain: "all",                                            // all | ethereum | berachain
+  types: new Set(["eoa","ca","cex","bot","mm"]),           // holders: all enabled
+  flowsPeriod: "7d",                                        // 1d | 7d | 30d | 90d | 180d | all
+  flowsChain: "all",                                        // all | ethereum | berachain
+  flowsTypes: new Set(["eoa","ca","cex","bot","mm"]),       // flows: all enabled
+  flowsSort: {
+    acc: {key:"net", dir:"desc"},
+    out: {key:"net", dir:"desc"},
+  },
+  sort: {key:"total", dir:"desc"},
+  page: 0,
+  pageSize: 10,
 };
-const HOLDER_PER_PAGE = 18;
-const FLOW_LIMIT = 10;
-const $ = (sel, root=document) => root.querySelector(sel);
-const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+const PERIODS = [
+  {key:"1d",   short:"1D",  label:"Last 24 hours"},
+  {key:"7d",   short:"7D",  label:"Last 7 days"},
+  {key:"30d",  short:"30D", label:"Last 30 days"},
+  {key:"90d",  short:"90D", label:"Last 90 days"},
+  {key:"180d", short:"180D",label:"Last 180 days"},
+  {key:"all",  short:"ALL", label:"All time"},
+];
+const CHAIN_LABELS = {ethereum:"Ethereum", berachain:"Berachain"};
 
-function escapeHtml(value){
-  return String(value ?? "").replace(/[&<>"']/g, ch => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-  }[ch]));
-}
-function fmtUsd(value){
-  const n = Number(value) || 0;
-  const sign = n < 0 ? "-" : "";
+const shorten = a => a.slice(0,6) + "…" + a.slice(-4);
+const fmtNum = (n) => {
   const abs = Math.abs(n);
-  if (abs >= 1e9) return `${sign}$${(abs/1e9).toFixed(2)}B`;
-  if (abs >= 1e6) return `${sign}$${(abs/1e6).toFixed(2)}M`;
-  if (abs >= 1e3) return `${sign}$${(abs/1e3).toFixed(1)}K`;
-  return `${sign}$${abs.toFixed(abs >= 10 ? 0 : 2)}`;
+  if(abs >= 1e9) return (n/1e9).toFixed(2) + "B";
+  if(abs >= 1e6) return (n/1e6).toFixed(2) + "M";
+  if(abs >= 1e3) return (n/1e3).toFixed(1) + "K";
+  return n.toFixed(0);
+};
+// Share % — adaptive precision: integer for big stakes, decimals only when needed
+const fmtPct = v => {
+  if(v >= 10) return v.toFixed(0) + "%";
+  if(v >= 1)  return v.toFixed(1) + "%";
+  return v.toFixed(2) + "%";
+};
+
+const COPY_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+const CHECK_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+
+function filterHolders(){
+  const q = state.q.trim().toLowerCase();
+  return HOLDERS.filter(h=>{
+    // Chain filter (single-select): "all" = no filter; otherwise hide
+    // rows that don't have any balance on the chosen chain
+    if(state.chain === "ethereum"  && h.balEth  === 0) return false;
+    if(state.chain === "berachain" && h.balBera === 0) return false;
+    if(!state.types.has(h.type)) return false;
+    if(q && !h.addr.toLowerCase().includes(q) && !(h.label||"").toLowerCase().includes(q)) return false;
+    return true;
+  });
 }
-function fmtToken(value, digits=1){
-  const n = Number(value) || 0;
-  const abs = Math.abs(n);
-  if (abs >= 1e9) return `${(n/1e9).toFixed(2)}B`;
-  if (abs >= 1e6) return `${(n/1e6).toFixed(digits)}M`;
-  if (abs >= 1e3) return `${(n/1e3).toFixed(digits)}K`;
-  return n.toLocaleString("en-US",{maximumFractionDigits:abs >= 100 ? 0 : 2});
+function sortHolders(rows){
+  const {key,dir} = state.sort;
+  return [...rows].sort((a,b)=>{
+    let va,vb;
+    if(key==="rank"||key==="total"||key==="share"){va=a.total;vb=b.total}
+    else if(key==="balEth"){va=a.balEth;vb=b.balEth}
+    else if(key==="balBera"){va=a.balBera;vb=b.balBera}
+    else if(key==="addr"){va=a.label||a.addr;vb=b.label||b.addr}
+    if(typeof va==="string") return dir==="asc"?va.localeCompare(vb):vb.localeCompare(va);
+    return dir==="asc"?va-vb:vb-va;
+  });
 }
-function fmtInt(value){return (Number(value)||0).toLocaleString("en-US",{maximumFractionDigits:0})}
-function shortAddr(addr){return `${addr.slice(0,6)}...${addr.slice(-4)}`}
-function infoFor(addr){return DOLO_ADDR_LABELS[String(addr||"").toLowerCase()] || null}
-function walletTypeLabel(type){
-  return {cex:"CEX",protocol:"Protocol",lp:"LP",bot:"Bot",liquidator:"Liq.",investor:"Investor"}[type] || String(type || "Wallet");
-}
-function isKnownOrContract(row){
-  const info = infoFor(row.address);
-  return Boolean(info && ["cex","protocol","lp","bot","liquidator"].includes(info.type)) || Boolean(row.is_contract);
-}
-function hasChain(row, chain){return Array.isArray(row.chains) && row.chains.includes(chain)}
-function explorerUrl(addr, chain){
-  return chain === "bera" ? `https://berascan.com/address/${addr}` : `https://etherscan.io/address/${addr}`;
-}
-function primaryChain(row){
-  if (hasChain(row,"bera") && !hasChain(row,"eth")) return "bera";
-  if (hasChain(row,"eth") && !hasChain(row,"bera")) return "eth";
-  return "eth";
-}
-function matchesSearch(addr, query){
-  if (!query) return true;
-  const lower = String(addr||"").toLowerCase();
-  if (lower.includes(query)) return true;
-  const info = infoFor(addr);
-  return Boolean(info && (`${info.label} ${info.type}`).toLowerCase().includes(query));
-}
-function changeMap(period){
-  const raw = state.flows?.balance_changes?.[period] || {};
-  return new Map(Object.entries(raw).map(([addr,val]) => [addr.toLowerCase(), Number(val)||0]));
-}
-function copyIcon(){
-  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
-}
-function chainBadges(row, focusChain){
-  const parts = [];
-  if (focusChain === "eth" || focusChain === "bera") {
-    if (!hasChain(row, focusChain)) return `<span class="muted">No ${focusChain.toUpperCase()}</span>`;
-    const icon = focusChain === "eth" ? ETH_ICON : BERA_ICON;
-    const label = focusChain === "eth" ? "ETH" : "BERA";
-    return `<span class="chain-dot"><img src="${icon}" alt="">${label}</span>`;
-  }
-  if (hasChain(row,"eth")) parts.push(`<span class="chain-dot"><img src="${ETH_ICON}" alt="">ETH</span>`);
-  if (hasChain(row,"bera")) parts.push(`<span class="chain-dot"><img src="${BERA_ICON}" alt="">BERA</span>`);
-  if (!parts.length) parts.push(`<span class="muted">No chain</span>`);
-  return parts.join("");
-}
-function holderAddressCell(row, chain){
-  const info = infoFor(row.address);
-  const url = explorerUrl(row.address, chain || primaryChain(row));
-  const debankUrl = `https://debank.com/profile/${row.address}`;
-  const label = info
-    ? `<div class="wallet-label-line" title="${escapeHtml(`${info.label} · ${walletTypeLabel(info.type)}`)}">
-        <span class="wallet-label-name">${escapeHtml(info.label)}</span>
-        <span class="wallet-type-chip ${escapeHtml(info.type)}">${escapeHtml(walletTypeLabel(info.type))}</span>
-      </div>`
-    : "";
-  return `
-    <div class="addr-cell holder-addr-cell">
-      <div class="addr-main holder-addr-main">
-        ${label}
-        <div class="addr-line holder-address-line">
-          <a class="addr-link" href="${url}" target="_blank" rel="noopener" title="${escapeHtml(row.address)}">${shortAddr(row.address)}</a>
-          <button class="copy-btn" type="button" data-copy="${escapeHtml(row.address)}" title="Copy address">${copyIcon()}</button>
-          <a class="debank-btn" href="${debankUrl}" target="_blank" rel="noopener" title="View on DeBank">
-            <img src="https://debank.com/favicon.ico" alt="" onerror="this.parentElement.style.display='none'">
-          </a>
-        </div>
+function renderHolders(){
+  const rows = sortHolders(filterHolders());
+  document.getElementById("holders-count").textContent = "12,481 (showing " + rows.length + " sample)";
+
+  document.querySelectorAll("#tbl-holders thead th").forEach(th=>{
+    const k = th.dataset.sort;
+    th.classList.toggle("sorted", k===state.sort.key);
+    let s = th.querySelector(".sort"); if(s) s.remove();
+    if(k===state.sort.key){
+      const span = document.createElement("span");
+      span.className = "sort";
+      span.textContent = state.sort.dir==="asc" ? "▲" : "▼";
+      th.appendChild(span);
+    }
+  });
+
+  const start = state.page * state.pageSize;
+  const pageRows = rows.slice(start, start + state.pageSize);
+  const tbody = document.getElementById("holders-body");
+  tbody.innerHTML = pageRows.map((h,i)=>{
+    const rank = start + i + 1;
+    const share = h.total / TOTAL_SUPPLY * 100;
+    const typeHtml = `<span class="type-tag type-${h.type}" title="${TYPE_TIPS[h.type]}">${TYPE_LABELS[h.type]}</span>`;
+    const actions = `
+      <button class="addr-copy" data-copy="${h.addr}" title="Copy address" aria-label="Copy address">${COPY_ICO}</button>
+      <a class="addr-debank" href="https://debank.com/profile/${h.addr}" target="_blank" rel="noopener" title="View on DeBank" aria-label="View on DeBank" onclick="event.stopPropagation()">
+        <img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'">
+      </a>`;
+    // Always 2-line layout for uniform row height. Unlabeled wallets show a
+    // humanized type name (e.g. "Smart contract", "Trading bot") so the row
+    // reads naturally instead of feeling empty.
+    const nameCell = h.label
+      ? `<span class="addr-name">${h.label}</span>`
+      : `<span class="addr-name addr-generic">${TYPE_GENERIC[h.type]}</span>`;
+    const cellInner = `<div class="addr-line top">
+        ${nameCell}
+        ${typeHtml}
       </div>
-    </div>
-  `;
-}
-function updatePillSlider(container){
-  const slider = $(".slider", container);
-  const active = $(".opt.active", container);
-  if (!slider || !active) return;
-  const box = container.getBoundingClientRect();
-  const btn = active.getBoundingClientRect();
-  if (!btn.width) return;
-  slider.style.width = `${btn.width}px`;
-  slider.style.transform = `translateX(${btn.left - box.left - 3}px)`;
-}
-function initPills(containerId, attr, callback){
-  const container = $(`#${containerId}`);
-  if (!container) return;
-  $$(".opt", container).forEach(btn => {
-    btn.addEventListener("click", () => {
-      $$(".opt", container).forEach(opt => opt.classList.remove("active"));
-      btn.classList.add("active");
-      container.dataset.state = btn.dataset[attr] || "";
-      updatePillSlider(container);
-      callback(btn.dataset[attr], btn);
-    });
-  });
-  requestAnimationFrame(() => updatePillSlider(container));
-}
-function initToggle(id, prop, render){
-  const btn = $(`#${id}`);
-  btn.addEventListener("click", () => {
-    state[prop] = !state[prop];
-    btn.classList.toggle("on", state[prop]);
-    btn.setAttribute("aria-pressed", String(state[prop]));
-    render();
-  });
-}
-function chainIconHtml(chain){
-  if (chain === "eth") return `<img src="${ETH_ICON}" alt="">`;
-  if (chain === "bera") return `<img src="${BERA_ICON}" alt="">`;
-  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20"/><path d="M12 2a15 15 0 0 0 0 20"/></svg>`;
-}
-function chainLabel(chain){
-  if (chain === "eth") return "Ethereum";
-  if (chain === "bera") return "Berachain";
-  return "All Chains";
-}
-function updateChainDropdown(kind){
-  const dd = $(`#${kind}ChainDropdown`);
-  if (!dd) return;
-  const chain = state[`${kind}Chain`];
-  $(`#${kind}ChainIcon`).innerHTML = chainIconHtml(chain);
-  $(`#${kind}ChainLabel`).textContent = chainLabel(chain);
-  $$(".chain-dd-option", dd).forEach(option => {
-    option.classList.toggle("active", option.dataset.chain === chain);
-    option.setAttribute("aria-selected", String(option.dataset.chain === chain));
-  });
-}
-function initChainDropdown(kind, onChange){
-  const dd = $(`#${kind}ChainDropdown`);
-  const btn = $(`#${kind}ChainBtn`);
-  if (!dd || !btn) return;
-  btn.addEventListener("click", event => {
-    event.stopPropagation();
-    const open = !dd.classList.contains("open");
-    dd.classList.toggle("open", open);
-    btn.setAttribute("aria-expanded", String(open));
-  });
-  $$(".chain-dd-option", dd).forEach(option => {
-    option.addEventListener("click", event => {
-      event.stopPropagation();
-      state[`${kind}Chain`] = option.dataset.chain;
-      dd.classList.remove("open");
-      btn.setAttribute("aria-expanded", "false");
-      updateChainDropdown(kind);
-      onChange();
-    });
-  });
-  document.addEventListener("click", event => {
-    if (!dd.contains(event.target)) {
-      dd.classList.remove("open");
-      btn.setAttribute("aria-expanded", "false");
-    }
-  });
-  updateChainDropdown(kind);
-}
-function initFlowChainDropdown(){
-  initChainDropdown("flow", () => {
-    resetFlowPages();
-    renderFlow();
-  });
-}
-function initHolderChainDropdown(){
-  initChainDropdown("holder", () => {
-    state.holderPage = 1;
-    renderHolders();
-  });
-}
-async function fetchJson(path){
-  const res = await fetch(`${path}?v=${Date.now()}`, {cache:"no-cache"});
-  if (!res.ok) throw new Error(`${path} returned HTTP ${res.status}`);
-  return res.json();
-}
-async function loadDynamicLabels(){
-  try{
-    const data = await fetchJson("vesting_investors.json");
-    if (data && !Array.isArray(data)){
-      for (const addr of data.early_investors || []) DOLO_ADDR_LABELS[addr.toLowerCase()] ||= {label:"Early Investor",type:"investor"};
-      for (const addr of data.investors || []) DOLO_ADDR_LABELS[addr.toLowerCase()] ||= {label:"Investor",type:"investor"};
-      for (const addr of data.team || []) DOLO_ADDR_LABELS[addr.toLowerCase()] ||= {label:"Core Team",type:"protocol",treasury:true};
-    }
-  }catch(_){}
-}
-function renderHero(){
-  const p = state.price || {};
-  $("#price").textContent = p.price ? `$${Number(p.price).toFixed(4)}` : "—";
-  const change = Number(p.change_24h) || 0;
-  const changeEl = $("#change");
-  changeEl.textContent = `${change >= 0 ? "+" : ""}${change.toFixed(2)}% 24h`;
-  changeEl.classList.toggle("up", change >= 0);
-  changeEl.classList.toggle("down", change < 0);
-  $("#marketCap").textContent = fmtUsd(p.market_cap);
-  $("#circSupply").textContent = fmtToken(p.circulating_supply,2);
-  const stats = state.holders?.stats || {};
-  $("#holdersCount").textContent = fmtInt(stats.total_holders);
-  $("#trackedSupply").textContent = `${fmtToken(stats.total_supply_tracked,2)} DOLO`;
-  if (state.price?.last_updated) $("#flowUpdated").textContent = `Price: ${new Date(state.price.last_updated).toLocaleString()}`;
-  if (state.holders?.timestamp) $("#holdersUpdated").textContent = `Updated: ${new Date(state.holders.timestamp).toLocaleString()}`;
-}
-function mergeFlows(kind){
-  const period = state.flows?.periods?.[state.flowPeriod] || {};
-  const chains = state.flowChain === "all" ? ["eth","bera"] : [state.flowChain];
-  const map = new Map();
-  for (const chain of chains){
-    const cd = period[chain] || {};
-    for (const row of cd.accumulators || []){
-      const key = row.address.toLowerCase();
-      const cur = map.get(key) || {address:row.address,net_flow:0,usd_value:0,tx_count:0,balance:0,chains:[],is_contract:false};
-      cur.net_flow += Number(row.net_flow)||0;
-      cur.usd_value += Number(row.usd_value)||0;
-      cur.tx_count += Number(row.tx_count)||0;
-      cur.balance = Math.max(cur.balance, Number(row.balance)||0);
-      if (!cur.chains.includes(chain)) cur.chains.push(chain);
-      map.set(key, cur);
-    }
-    for (const row of cd.sellers || []){
-      const key = row.address.toLowerCase();
-      const cur = map.get(key) || {address:row.address,net_flow:0,usd_value:0,tx_count:0,balance:0,chains:[],is_contract:false};
-      cur.net_flow -= Number(row.net_flow)||0;
-      cur.usd_value += Number(row.usd_value)||0;
-      cur.tx_count += Number(row.tx_count)||0;
-      cur.balance = Math.max(cur.balance, Number(row.balance)||0);
-      if (!cur.chains.includes(chain)) cur.chains.push(chain);
-      map.set(key, cur);
-    }
-  }
-  let rows = Array.from(map.values()).map(row => {
-    const holder = holderByAddress(row.address);
-    if (holder){
-      row.balance = state.flowChain === "eth"
-        ? (holder.balance_eth || row.balance)
-        : state.flowChain === "bera"
-          ? (holder.balance_bera || row.balance)
-          : (holder.balance || row.balance);
-      row.balance_eth = holder.balance_eth || 0;
-      row.balance_bera = holder.balance_bera || 0;
-      row.is_contract = Boolean(holder.is_contract);
-      row.chains = state.flowChain === "all" && holder.chains?.length ? holder.chains : row.chains;
-    }
-    return row;
-  });
-  rows = rows.filter(row => kind === "acc" ? row.net_flow > 0 : row.net_flow < 0);
-  rows = rows.map(row => ({...row, display_flow:Math.abs(row.net_flow)}));
-  if (state.flowSearch) rows = rows.filter(row => matchesSearch(row.address, state.flowSearch));
-  if (state.flowHideKnown) rows = rows.filter(row => !isKnownOrContract(row));
-  return rows;
-}
-function sortFlowRows(rows, type){
-  const sort = state.flowSort[type] || "display_flow";
-  const asc = Boolean(state.flowSortAsc[type]);
-  const direction = asc ? 1 : -1;
-  return rows.sort((a,b) => {
-    const av = Number(a[sort]) || 0;
-    const bv = Number(b[sort]) || 0;
-    if (av < bv) return -1 * direction;
-    if (av > bv) return 1 * direction;
-    return String(a.address).localeCompare(String(b.address));
-  });
-}
-function resetFlowPages(){
-  state.flowPage.acc = 1;
-  state.flowPage.sell = 1;
-}
-function pagerHtml(current, totalPages, scope, table){
-  if (totalPages <= 1) return "";
-  const tableAttr = table ? ` data-page-table="${table}"` : "";
-  return `
-    <button type="button" data-page-scope="${scope}"${tableAttr} data-page="1" ${current === 1 ? "disabled" : ""} aria-label="First page">«</button>
-    <button type="button" data-page-scope="${scope}"${tableAttr} data-page="${current - 1}" ${current === 1 ? "disabled" : ""} aria-label="Previous page">‹</button>
-    <span class="page-info">${fmtInt(current)} / ${fmtInt(totalPages)}</span>
-    <button type="button" data-page-scope="${scope}"${tableAttr} data-page="${current + 1}" ${current === totalPages ? "disabled" : ""} aria-label="Next page">›</button>
-    <button type="button" data-page-scope="${scope}"${tableAttr} data-page="${totalPages}" ${current === totalPages ? "disabled" : ""} aria-label="Last page">»</button>
-  `;
-}
-function renderFlowPager(type, totalRows){
-  const totalPages = Math.max(1, Math.ceil(totalRows / FLOW_LIMIT));
-  state.flowPage[type] = Math.max(1, Math.min(state.flowPage[type] || 1, totalPages));
-  const el = type === "acc" ? $("#accPager") : $("#sellPager");
-  if (!el) return;
-  el.innerHTML = pagerHtml(state.flowPage[type], totalPages, "flow", type);
-}
-function renderHolderPager(totalPages){
-  const el = $("#holderPager");
-  if (!el) return;
-  el.innerHTML = pagerHtml(state.holderPage, totalPages, "holders");
-}
-function periodTransferCount(){
-  const period = state.flows?.periods?.[state.flowPeriod] || {};
-  if (state.flowChain === "all") return (period.eth?.total_transfers || 0) + (period.bera?.total_transfers || 0);
-  return period[state.flowChain]?.total_transfers || 0;
-}
-function holderByAddress(addr){
-  const rows = state.holders?.holders || [];
-  const lower = String(addr||"").toLowerCase();
-  return rows.find(row => row.address.toLowerCase() === lower);
-}
-function renderFlow(){
-  if (!state.flows) return;
-  $("#flowPeriodLabel").textContent = PERIOD_LABELS[state.flowPeriod];
-  if (state.flows.timestamp) $("#flowUpdated").textContent = `Updated: ${new Date(`${state.flows.timestamp}Z`).toLocaleString()}`;
-  const acc = sortFlowRows(mergeFlows("acc"), "acc");
-  const sell = sortFlowRows(mergeFlows("sell"), "sell");
-  const totalAcc = acc.reduce((sum,row) => sum + row.display_flow, 0);
-  const totalSell = sell.reduce((sum,row) => sum + row.display_flow, 0);
-  const net = totalAcc - totalSell;
-  const netEl = $("#netFlow");
-  netEl.textContent = `${net >= 0 ? "+" : "-"}${fmtToken(Math.abs(net),1)} DOLO`;
-  netEl.classList.toggle("green", net >= 0);
-  netEl.classList.toggle("red", net < 0);
-  $("#totalAcc").textContent = `+${fmtToken(totalAcc,1)}`;
-  $("#totalSell").textContent = `-${fmtToken(totalSell,1)}`;
-  $("#totalTransfers").textContent = fmtInt(periodTransferCount());
-  $("#accCount").textContent = `${fmtInt(acc.length)} wallets`;
-  $("#sellCount").textContent = `${fmtInt(sell.length)} wallets`;
-  const accPages = Math.max(1, Math.ceil(acc.length / FLOW_LIMIT));
-  const sellPages = Math.max(1, Math.ceil(sell.length / FLOW_LIMIT));
-  state.flowPage.acc = Math.max(1, Math.min(state.flowPage.acc || 1, accPages));
-  state.flowPage.sell = Math.max(1, Math.min(state.flowPage.sell || 1, sellPages));
-  const accStart = (state.flowPage.acc - 1) * FLOW_LIMIT;
-  const sellStart = (state.flowPage.sell - 1) * FLOW_LIMIT;
-  $("#accRows").innerHTML = renderFlowRows(acc.slice(accStart, accStart + FLOW_LIMIT), true, accStart);
-  $("#sellRows").innerHTML = renderFlowRows(sell.slice(sellStart, sellStart + FLOW_LIMIT), false, sellStart);
-  renderFlowPager("acc", acc.length);
-  renderFlowPager("sell", sell.length);
-  updateFlowSortHeaders();
-}
-function renderFlowRows(rows, isAcc, offset=0){
-  if (!rows.length) return `<tr><td colspan="4" class="empty">No matching flow data</td></tr>`;
-  return rows.map((row,i) => {
-    const chain = state.flowChain === "all" ? primaryChain(row) : state.flowChain;
+      <div class="addr-line bot">
+        <span class="addr-mono">${shorten(h.addr)}</span>
+        ${actions}
+      </div>`;
     return `
-      <tr>
-        <td class="rank">${offset + i + 1}</td>
-        <td>${holderAddressCell(row, chain)}</td>
-        <td class="num">${fmtToken(row.balance,1)}</td>
-        <td class="num ${isAcc ? "green" : "red"}">${isAcc ? "+" : "-"}${fmtToken(row.display_flow,1)}</td>
+      <tr data-addr="${h.addr}">
+        <td class="rank">${rank}</td>
+        <td>
+          <div class="addr-cell">${cellInner}</div>
+        </td>
+        <td class="num">${h.balEth>0 ? `<span class="bal-val">${fmtNum(h.balEth)}</span>` : `<span class="bal-zero">—</span>`}</td>
+        <td class="num">${h.balBera>0 ? `<span class="bal-val">${fmtNum(h.balBera)}</span>` : `<span class="bal-zero">—</span>`}</td>
+        <td class="num"><span class="bal-val total">${fmtNum(h.total)}</span></td>
+        <td class="num" style="padding-right:32px">
+          <div class="share-cell">
+            <span class="share-val">${fmtPct(share)}</span>
+            <div class="share-bar"><span style="width:${Math.min(100, share*5)}%"></span></div>
+          </div>
+        </td>
       </tr>
     `;
   }).join("");
-}
-function filteredHolders(){
-  const q = state.holderSearch;
-  const cm = changeMap(state.holderPeriod);
-  let rows = (state.holders?.holders || []).filter(row => {
-    if (q && !matchesSearch(row.address, q)) return false;
-    if (state.holderHideKnown && isKnownOrContract(row)) return false;
-    if (state.holderChain === "eth") return hasChain(row,"eth");
-    if (state.holderChain === "bera") return hasChain(row,"bera");
-    return true;
-  }).map(row => ({...row, change:cm.get(row.address.toLowerCase()) || 0}));
-  const direction = state.holderSortAsc ? 1 : -1;
-  const key = state.holderSort;
-  rows.sort((a,b) => {
-    let av = key === "address" ? a.address.toLowerCase() : Number(a[key]) || 0;
-    let bv = key === "address" ? b.address.toLowerCase() : Number(b[key]) || 0;
-    if (av < bv) return -1 * direction;
-    if (av > bv) return 1 * direction;
-    return (a.rank || 0) - (b.rank || 0);
-  });
-  return rows;
-}
-function displayBalance(row){
-  if (state.holderChain === "eth") return row.balance_eth || 0;
-  if (state.holderChain === "bera") return row.balance_bera || 0;
-  return row.balance || 0;
-}
-function renderHolders(){
-  const rows = filteredHolders();
-  const pages = Math.max(1, Math.ceil(rows.length / HOLDER_PER_PAGE));
-  state.holderPage = Math.max(1, Math.min(state.holderPage, pages));
-  const start = (state.holderPage - 1) * HOLDER_PER_PAGE;
-  const page = rows.slice(start, start + HOLDER_PER_PAGE);
-  $("#holdersCard").classList.toggle("chain-eth", state.holderChain === "eth");
-  $("#holdersCard").classList.toggle("chain-bera", state.holderChain === "bera");
-  const balanceHeader = $("#holderBalanceHeader");
-  if (balanceHeader) {
-    balanceHeader.innerHTML = state.holderChain === "eth"
-      ? `<span class="th-chain-label"><img src="${ETH_ICON}" alt="">ETH Balance</span>`
-      : state.holderChain === "bera"
-        ? `<span class="th-chain-label"><img src="${BERA_ICON}" alt="">BERA Balance</span>`
-        : "Balance";
-  }
-  $("#holderCount").textContent = fmtInt(rows.length);
-  $("#holderRows").innerHTML = page.length ? page.map(renderHolderRow).join("") : `<tr><td colspan="6" class="empty">No matching holders</td></tr>`;
-  $("#holderFooter").textContent = `Showing ${rows.length ? fmtInt(start + 1) : 0}-${fmtInt(Math.min(start + HOLDER_PER_PAGE, rows.length))} of ${fmtInt(rows.length)} wallets`;
-  renderHolderPager(pages);
-  updateHolderSortHeaders();
-}
-function renderHolderRow(row){
-  const chain = state.holderChain === "eth" || state.holderChain === "bera" ? state.holderChain : primaryChain(row);
-  const change = Number(row.change) || 0;
-  const changeClass = change > 0 ? "green" : change < 0 ? "red" : "muted";
-  const changeText = change ? `${change > 0 ? "+" : "-"}${fmtToken(Math.abs(change),1)}` : "—";
-  return `
-    <tr>
-      <td class="rank">${row.rank || "—"}</td>
-      <td>${holderAddressCell(row, chain)}</td>
-      <td class="num eth holder-chain-col">${row.balance_eth ? fmtToken(row.balance_eth,1) : "—"}</td>
-      <td class="num bera holder-chain-col">${row.balance_bera ? fmtToken(row.balance_bera,1) : "—"}</td>
-      <td class="num">${fmtToken(displayBalance(row),1)}</td>
-      <td class="num ${changeClass}" title="${PERIOD_LABELS[state.holderPeriod]} balance change">${changeText}</td>
-    </tr>
+
+  const total = rows.length;
+  const showStart = total > 0 ? start + 1 : 0;
+  const showEnd = Math.min(start + state.pageSize, total);
+  document.getElementById("holders-info").textContent = `${showStart}–${showEnd} of ${total.toLocaleString()}`;
+  const totalPages = Math.max(1, Math.ceil(total/state.pageSize));
+  const curPage = state.page + 1;
+  const pager = document.getElementById("holders-pager");
+  pager.innerHTML = `
+    <button class="pg-btn" data-page="first" ${curPage===1?"disabled":""} title="First"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg></button>
+    <button class="pg-btn" data-page="prev" ${curPage===1?"disabled":""} title="Previous"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <span class="pg-current">${curPage} <span class="pg-sep">/</span> ${totalPages}</span>
+    <button class="pg-btn" data-page="next" ${curPage===totalPages?"disabled":""} title="Next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button class="pg-btn" data-page="last" ${curPage===totalPages?"disabled":""} title="Last"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></button>
   `;
+  pager.querySelectorAll("[data-page]").forEach(btn => btn.addEventListener("click", ()=>{
+    const a = btn.dataset.page;
+    if(a==="first") state.page = 0;
+    else if(a==="prev") state.page = Math.max(0, state.page-1);
+    else if(a==="next") state.page = Math.min(totalPages-1, state.page+1);
+    else if(a==="last") state.page = totalPages-1;
+    renderHolders();
+  }));
+  tbody.querySelectorAll(".addr-copy").forEach(btn => btn.addEventListener("click", async e=>{
+    e.stopPropagation();
+    try { await navigator.clipboard.writeText(btn.dataset.copy); } catch(_) {}
+    btn.classList.add("copied");
+    btn.innerHTML = CHECK_ICO;
+    setTimeout(()=>{ btn.classList.remove("copied"); btn.innerHTML = COPY_ICO; }, 1400);
+  }));
+  tbody.querySelectorAll("tr").forEach(tr => tr.addEventListener("click", e=>{
+    if(e.target.closest(".addr-copy")) return;
+    window.open(`https://etherscan.io/address/${tr.dataset.addr}`, "_blank", "noopener");
+  }));
 }
-function renderProtocolInfo(){
-  const el = $("#proto-addrs");
-  if (!el) return;
-  el.innerHTML = PROTO_CONTRACTS.map((contract, index) => `
-    <div class="proto-addr" data-contract-index="${index}" role="link" tabindex="0" aria-label="Open ${escapeHtml(contract.token)} on ${escapeHtml(contract.chain)} explorer">
-      <div class="proto-addr-left">
-        <div class="proto-token">
-          <img src="${escapeHtml(contract.logo)}" alt="${escapeHtml(contract.token)}" onerror="this.style.display='none'">
-          <span class="proto-token-name">${escapeHtml(contract.token)}</span>
-        </div>
-        <span class="proto-chain-chip"><img src="${escapeHtml(contract.chainIco)}" alt="">${escapeHtml(contract.chain)}</span>
-      </div>
-      <div class="proto-addr-right">
-        <span class="proto-addr-hex" title="${escapeHtml(contract.addr)}">${shortAddr(contract.addr)}</span>
-        <button class="proto-copy" type="button" data-copy="${escapeHtml(contract.addr)}" aria-label="Copy ${escapeHtml(contract.token)} address">${copyIcon()}</button>
-      </div>
-    </div>
-  `).join("");
-  $$(".proto-addr", el).forEach(row => {
-    const contract = PROTO_CONTRACTS[Number(row.dataset.contractIndex)];
-    const open = () => window.open(`${contract.explorer}/token/${contract.addr}`, "_blank", "noopener");
-    row.addEventListener("click", event => {
-      if (event.target.closest("[data-copy]")) return;
-      open();
-    });
-    row.addEventListener("keydown", event => {
-      if (event.target.closest("[data-copy]")) return;
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
-      open();
-    });
-  });
+
+function effectiveChg(r){
+  if(state.flowsChain === "ethereum")  return r.chgEth;
+  if(state.flowsChain === "berachain") return r.chgBera;
+  return r.chgEth + r.chgBera;
 }
-function updateHolderSortHeaders(){
-  $$("#holdersCard th[data-sort]").forEach(th => {
-    th.classList.toggle("sorted", th.dataset.sort === state.holderSort);
-    const sort = $(".sort", th);
-    if (sort) sort.textContent = th.dataset.sort === state.holderSort ? (state.holderSortAsc ? "▲" : "▼") : "⇅";
-  });
+function effectiveFlowBalance(r){
+  if(Number.isFinite(Number(r.balance))) return Number(r.balance);
+  const holder = HOLDERS.find(h => h.addr.toLowerCase() === r.addr.toLowerCase());
+  return holder ? holder.total : 0;
 }
-function updateFlowSortHeaders(){
-  $$("#flowCard th[data-flow-sort]").forEach(th => {
-    const type = th.dataset.flowTable;
-    const sort = th.dataset.flowSort;
-    const active = state.flowSort[type] === sort;
+function syncFlowSortHeaders(){
+  document.querySelectorAll(".flows-tbl th[data-flow-sort]").forEach(th=>{
+    const kind = th.dataset.flowKind;
+    const sort = state.flowsSort[kind];
+    const active = sort && sort.key === th.dataset.flowSort;
     th.classList.toggle("sorted", active);
-    const icon = $(".sort", th);
-    if (icon) icon.textContent = active ? (state.flowSortAsc[type] ? "▲" : "▼") : "⇅";
+    let marker = th.querySelector(".sort");
+    if(marker) marker.remove();
+    if(active){
+      marker = document.createElement("span");
+      marker.className = "sort";
+      marker.textContent = sort.dir === "asc" ? "▲" : "▼";
+      th.appendChild(marker);
+    }
   });
 }
-function updateAllPillSliders(){
-  $$(".pill-switch").forEach(updatePillSlider);
+function sortFlowRows(rows, kind){
+  const sort = state.flowsSort[kind] || {key:"net", dir:"desc"};
+  const mult = sort.dir === "asc" ? 1 : -1;
+  return [...rows].sort((a,b)=>{
+    const va = sort.key === "balance" ? effectiveFlowBalance(a) : Math.abs(a.chg);
+    const vb = sort.key === "balance" ? effectiveFlowBalance(b) : Math.abs(b.chg);
+    return (va - vb) * mult;
+  });
 }
-function bindEvents(){
-  initPills("flowPeriodPills","period", value => {state.flowPeriod = value; resetFlowPages(); renderFlow();});
-  initFlowChainDropdown();
-  initHolderChainDropdown();
-  initPills("holderPeriodPills","period", value => {state.holderPeriod = value; renderHolders();});
-  initToggle("flowHideKnown","flowHideKnown", () => {resetFlowPages(); renderFlow();});
-  initToggle("holderHideKnown","holderHideKnown", () => {state.holderPage = 1; renderHolders();});
-  $("#flowSearch").addEventListener("input", event => {state.flowSearch = event.target.value.toLowerCase().trim(); resetFlowPages(); renderFlow();});
-  $("#holderSearch").addEventListener("input", event => {state.holderSearch = event.target.value.toLowerCase().trim(); state.holderPage = 1; renderHolders();});
-  $$("#holdersCard th[data-sort]").forEach(th => th.addEventListener("click", () => {
-    const sort = th.dataset.sort;
-    if (state.holderSort === sort) state.holderSortAsc = !state.holderSortAsc;
-    else {
-      state.holderSort = sort;
-      state.holderSortAsc = sort === "rank" || sort === "address";
-    }
-    state.holderPage = 1;
-    renderHolders();
+function renderFlow(target, kind){
+  const q = state.qFlows.trim().toLowerCase();
+  // Compute chg per chain filter, split rows by sign, sort, take top 6
+  let rows = FLOWS
+    .filter(r=>{
+      if(!state.flowsTypes.has(r.type)) return false;
+      if(q && !r.addr.toLowerCase().includes(q) && !(r.label||"").toLowerCase().includes(q)) return false;
+      return true;
+    })
+    .map(r=>({...r, chg: effectiveChg(r)}))
+    .filter(r=> kind==="acc" ? r.chg > 0 : r.chg < 0)
+  rows = sortFlowRows(rows, kind).slice(0, 6);
+  syncFlowSortHeaders();
+  const tbody = document.getElementById(target);
+  tbody.innerHTML = rows.map((r,i)=>{
+    const cls = kind==="acc" ? "up" : "down";
+    const sign = r.chg > 0 ? "+" : "";
+    const balance = effectiveFlowBalance(r);
+    const typeHtml = `<span class="type-tag type-${r.type}" title="${TYPE_TIPS[r.type]}">${TYPE_LABELS[r.type]}</span>`;
+    const actions = `
+      <button class="addr-copy" data-copy="${r.addr}" title="Copy address" aria-label="Copy address">${COPY_ICO}</button>
+      <a class="addr-debank" href="https://debank.com/profile/${r.addr}" target="_blank" rel="noopener" title="View on DeBank" aria-label="View on DeBank" onclick="event.stopPropagation()">
+        <img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'">
+      </a>`;
+    const nameCell = r.label
+      ? `<span class="addr-name">${r.label}</span>`
+      : `<span class="addr-name addr-generic">${TYPE_GENERIC[r.type]}</span>`;
+    return `
+      <tr data-addr="${r.addr}">
+        <td class="rank">${i+1}</td>
+        <td>
+          <div class="addr-cell">
+            <div class="addr-line top">${nameCell}${typeHtml}</div>
+            <div class="addr-line bot">
+              <span class="addr-mono">${shorten(r.addr)}</span>
+              ${actions}
+            </div>
+          </div>
+        </td>
+        <td class="num"><span class="bal-val">${balance>0 ? fmtNum(balance) : "—"}</span></td>
+        <td class="num" style="padding-right:24px"><span class="flows-net ${cls}">${sign}${fmtNum(r.chg)}</span></td>
+      </tr>
+    `;
+  }).join("");
+  tbody.querySelectorAll(".addr-copy").forEach(btn => btn.addEventListener("click", async e=>{
+    e.stopPropagation();
+    try { await navigator.clipboard.writeText(btn.dataset.copy); } catch(_) {}
+    btn.classList.add("copied");
+    btn.innerHTML = CHECK_ICO;
+    setTimeout(()=>{ btn.classList.remove("copied"); btn.innerHTML = COPY_ICO; }, 1400);
   }));
-  $$("#flowCard th[data-flow-sort]").forEach(th => th.addEventListener("click", () => {
-    const type = th.dataset.flowTable;
-    const sort = th.dataset.flowSort;
-    if (state.flowSort[type] === sort) state.flowSortAsc[type] = !state.flowSortAsc[type];
-    else {
-      state.flowSort[type] = sort;
-      state.flowSortAsc[type] = false;
-    }
-    state.flowPage[type] = 1;
-    renderFlow();
+  tbody.querySelectorAll("tr").forEach(tr => tr.addEventListener("click", e=>{
+    if(e.target.closest(".addr-copy") || e.target.closest(".addr-debank")) return;
+    window.open(`https://etherscan.io/address/${tr.dataset.addr}`, "_blank", "noopener");
   }));
-  document.addEventListener("click", event => {
-    const pageBtn = event.target.closest("[data-page]");
-    if (!pageBtn) return;
-    const scope = pageBtn.dataset.pageScope;
-    const page = Number(pageBtn.dataset.page) || 1;
-    if (scope === "flow") {
-      const type = pageBtn.dataset.pageTable;
-      if (type !== "acc" && type !== "sell") return;
-      state.flowPage[type] = page;
-      renderFlow();
-    }
-    if (scope === "holders") {
-      state.holderPage = page;
-      renderHolders();
-    }
-  });
-  document.addEventListener("click", async event => {
-    const btn = event.target.closest("[data-copy]");
-    if (!btn) return;
-    event.preventDefault();
-    event.stopPropagation();
-    try{
-      await navigator.clipboard.writeText(btn.dataset.copy);
-      btn.classList.add("copied");
-      setTimeout(() => btn.classList.remove("copied"), 900);
-    }catch(_){}
-  });
-  window.addEventListener("resize", updateAllPillSliders);
 }
-async function init(){
-  renderProtocolInfo();
-  bindEvents();
-  try{
-    await loadDynamicLabels();
-    const [price, holders, flows] = await Promise.all([
-      fetchJson("dolo_price.json"),
-      fetchJson("dolo_holders.json"),
-      fetchJson("dolo_flows.json")
-    ]);
-    state.price = price;
-    state.holders = holders;
-    state.flows = flows;
-    renderHero();
-    renderFlow();
-    renderHolders();
-    updateAllPillSliders();
-  }catch(error){
-    console.error(error);
-    $("#app").insertAdjacentHTML("afterbegin", `<div class="error-box">Unable to load DOLO data: ${escapeHtml(error.message)}</div>`);
+function renderFlows(){
+  renderFlow("flows-acc-body", "acc");
+  renderFlow("flows-out-body", "out");
+}
+
+document.getElementById("q-holders").addEventListener("input", e=>{state.q=e.target.value;state.page=0;renderHolders()});
+document.getElementById("q-flows").addEventListener("input", e=>{state.qFlows=e.target.value;renderFlows()});
+
+document.addEventListener("keydown", e=>{
+  if(e.key==="/" && document.activeElement.tagName!=="INPUT"){
+    e.preventDefault();
+    document.getElementById("q-holders").focus();
   }
+});
+
+document.querySelectorAll("#tbl-holders thead th").forEach(th=>{
+  th.addEventListener("click", ()=>{
+    const k = th.dataset.sort;
+    if(state.sort.key===k) state.sort.dir = state.sort.dir==="asc"?"desc":"asc";
+    else {state.sort.key=k; state.sort.dir="desc"}
+    renderHolders();
+  });
+});
+
+document.querySelectorAll(".flows-tbl th[data-flow-sort]").forEach(th=>{
+  th.addEventListener("click", ()=>{
+    const kind = th.dataset.flowKind;
+    const key = th.dataset.flowSort;
+    const sort = state.flowsSort[kind];
+    if(sort.key === key) sort.dir = sort.dir === "asc" ? "desc" : "asc";
+    else {
+      sort.key = key;
+      sort.dir = "desc";
+    }
+    renderFlows();
+  });
+});
+
+document.querySelectorAll("[data-dd]").forEach(btn=>{
+  btn.addEventListener("click", e=>{
+    e.stopPropagation();
+    const panel = btn.nextElementSibling;
+    const was = panel.classList.contains("show");
+    document.querySelectorAll(".dd-panel.show").forEach(p=>p.classList.remove("show"));
+    document.querySelectorAll(".dd-btn.open").forEach(b=>b.classList.remove("open"));
+    if(!was){panel.classList.add("show");btn.classList.add("open")}
+  });
+});
+document.addEventListener("click", ()=>{
+  document.querySelectorAll(".dd-panel.show").forEach(p=>p.classList.remove("show"));
+  document.querySelectorAll(".dd-btn.open").forEach(b=>b.classList.remove("open"));
+});
+
+// Holders chain — single-select dropdown (matches Flows chain pattern)
+document.querySelectorAll('#dd-chain .dd-opt').forEach(opt=>{
+  opt.addEventListener("click", e=>{
+    e.stopPropagation();
+    document.querySelectorAll('#dd-chain .dd-opt').forEach(o=>o.classList.remove("active"));
+    opt.classList.add("active");
+    state.chain = opt.dataset.chain;
+    const btn = document.querySelector('#dd-chain .dd-btn');
+    btn.querySelector(".lbl").textContent = opt.querySelector(".dd-opt-name").textContent;
+    btn.classList.toggle("filtered", state.chain !== "all");
+    state.page = 0;
+    renderHolders();
+  });
+});
+
+// Address Type filter — multi-select with hover tooltips
+function syncTypesBtn(){
+  const btn = document.querySelector('#dd-types .dd-btn');
+  const total = 5;  // eoa, ca, cex, mm, bot
+  const lbl = btn.querySelector(".lbl");
+  const cnt = btn.querySelector(".count");
+  // "filtered" = some types are turned off (i.e. not all 5 active)
+  btn.classList.toggle("filtered", state.types.size !== total);
+  if(state.types.size === total){
+    lbl.textContent = "All Types";
+    cnt.textContent = String(total);
+  } else if(state.types.size === 0){
+    lbl.textContent = "No Types";
+    cnt.textContent = "0";
+  } else if(state.types.size === 1){
+    lbl.textContent = TYPE_LABELS[[...state.types][0]];
+    cnt.textContent = "1";
+  } else {
+    lbl.textContent = `${state.types.size} types`;
+    cnt.textContent = String(state.types.size);
+  }
+  document.querySelectorAll('#dd-types .rw-item').forEach(item=>{
+    item.classList.toggle("active", state.types.has(item.dataset.type));
+  });
 }
-init();
+document.querySelectorAll('#dd-types .rw-item').forEach(item=>{
+  item.addEventListener("click", e=>{
+    e.stopPropagation();
+    const t = item.dataset.type;
+    if(state.types.has(t)) state.types.delete(t);
+    else state.types.add(t);
+    syncTypesBtn();
+    state.page=0;
+    renderHolders();
+  });
+});
+syncTypesBtn();
+// Flows chain — single-select dropdown (All / Ethereum / Berachain)
+document.querySelectorAll('#dd-flows-chain .dd-opt').forEach(opt=>{
+  opt.addEventListener("click", e=>{
+    e.stopPropagation();
+    document.querySelectorAll('#dd-flows-chain .dd-opt').forEach(o=>o.classList.remove("active"));
+    opt.classList.add("active");
+    state.flowsChain = opt.dataset.chain;
+    const btn = document.querySelector('#dd-flows-chain .dd-btn');
+    btn.querySelector(".lbl").textContent = opt.querySelector(".dd-opt-name").textContent;
+    btn.classList.toggle("filtered", state.flowsChain !== "all");
+    renderFlows();
+  });
+});
+
+// Flows period — single-select dropdown
+document.querySelectorAll('#dd-flows-period .dd-opt').forEach(opt=>{
+  opt.addEventListener("click", e=>{
+    e.stopPropagation();
+    document.querySelectorAll('#dd-flows-period .dd-opt').forEach(o=>o.classList.remove("active"));
+    opt.classList.add("active");
+    state.flowsPeriod = opt.dataset.period;
+    const meta = PERIODS.find(p=>p.key===state.flowsPeriod);
+    document.querySelector('#dd-flows-period .dd-btn .lbl').textContent = meta ? meta.short : opt.dataset.period.toUpperCase();
+    // Update card meta line
+    const metaEl = document.getElementById("flows-meta");
+    if(metaEl) metaEl.textContent = "Period: " + (meta ? meta.short : state.flowsPeriod);
+    renderFlows();
+  });
+});
+
+// Flows tag filter — multi-select with hover tooltip
+function syncFlowsTypesBtn(){
+  const btn = document.querySelector('#dd-flows-types .dd-btn');
+  const total = 5;
+  const lbl = btn.querySelector(".lbl");
+  const cnt = btn.querySelector(".count");
+  btn.classList.toggle("filtered", state.flowsTypes.size !== total);
+  if(state.flowsTypes.size === total){lbl.textContent="All Types";cnt.textContent=String(total)}
+  else if(state.flowsTypes.size === 0){lbl.textContent="No Types";cnt.textContent="0"}
+  else if(state.flowsTypes.size === 1){lbl.textContent=TYPE_LABELS[[...state.flowsTypes][0]];cnt.textContent="1"}
+  else {lbl.textContent=`${state.flowsTypes.size} types`;cnt.textContent=String(state.flowsTypes.size)}
+  document.querySelectorAll('#dd-flows-types .rw-item').forEach(item=>{
+    item.classList.toggle("active", state.flowsTypes.has(item.dataset.type));
+  });
+}
+document.querySelectorAll('#dd-flows-types .rw-item').forEach(item=>{
+  item.addEventListener("click", e=>{
+    e.stopPropagation();
+    const t = item.dataset.type;
+    if(state.flowsTypes.has(t)) state.flowsTypes.delete(t);
+    else state.flowsTypes.add(t);
+    syncFlowsTypesBtn();
+    renderFlows();
+  });
+});
+syncFlowsTypesBtn();
+
+// One row per (token, chain) pair — explicit even when same address.
+const CONTRACTS = [
+  {token:"DOLO",   logo:"dolo-logo.svg",           chain:"Ethereum",  chainKey:"ethereum",  addr:"0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654", explorer:"https://etherscan.io"},
+  {token:"DOLO",   logo:"dolo-logo.svg",           chain:"Berachain", chainKey:"berachain", addr:"0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654", explorer:"https://berascan.com"},
+  {token:"oDOLO",  logo:"odolo-logo-official.svg", chain:"Berachain", chainKey:"berachain", addr:"0x02E513b5B54eE216Bf836ceb471507488fC89543", explorer:"https://berascan.com"},
+  {token:"veDOLO", logo:"vedolo-logo.svg",         chain:"Berachain", chainKey:"berachain", addr:"0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4", explorer:"https://berascan.com"},
+];
+const EXT_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+
+document.getElementById("proto-addrs").innerHTML = CONTRACTS.map((c,i)=>`
+  <div class="proto-addr" data-idx="${i}">
+    <div class="proto-addr-left">
+      <div class="proto-token">
+        <img src="${c.logo}" alt="${c.token}" onerror="this.style.display='none'">
+        <span class="proto-token-name">${c.token}</span>
+      </div>
+      <span class="proto-chain-chip"><span class="dot dot-${c.chainKey}"></span>${c.chain}</span>
+    </div>
+    <div class="proto-addr-right">
+      <span class="proto-addr-hex" title="${c.addr}">${shorten(c.addr)}</span>
+      <button class="proto-copy" data-copy="${c.addr}" aria-label="Copy address">${COPY_ICO}</button>
+      <button class="proto-explore" data-url="${c.explorer}/token/${c.addr}" aria-label="Open in explorer" title="Open in block explorer">${EXT_ICO}</button>
+    </div>
+  </div>
+`).join("");
+document.querySelectorAll(".proto-addr").forEach(row=>{
+  const idx = +row.dataset.idx;
+  const c = CONTRACTS[idx];
+  row.addEventListener("click", e=>{
+    if(e.target.closest(".proto-copy") || e.target.closest(".proto-explore")) return;
+    window.open(`${c.explorer}/token/${c.addr}`, "_blank", "noopener");
+  });
+});
+document.querySelectorAll(".proto-explore").forEach(btn=>{
+  btn.addEventListener("click", e=>{
+    e.stopPropagation();
+    const url = btn.dataset.url;
+    if(url) window.open(url, "_blank", "noopener");
+  });
+});
+document.querySelectorAll(".proto-copy").forEach(btn=>{
+  btn.addEventListener("click", async e=>{
+    e.stopPropagation();
+    try { await navigator.clipboard.writeText(btn.dataset.copy); } catch(_) {}
+    btn.classList.add("copied");
+    btn.innerHTML = CHECK_ICO;
+    setTimeout(()=>{ btn.classList.remove("copied"); btn.innerHTML = COPY_ICO; }, 1400);
+  });
+});
+
+document.querySelectorAll(".nav-item").forEach(it=>{
+  it.addEventListener("click", e=>{
+    if(it.getAttribute("href") && it.getAttribute("href")!=="#") return;
+    e.preventDefault();
+    document.querySelectorAll(".nav-item").forEach(n=>n.classList.remove("active"));
+    it.classList.add("active");
+  });
+});
+
+document.getElementById("now").textContent = new Date().toLocaleString();
+
+renderHolders();
+renderFlows();
+
+// Live integration layer. The visual prototype above ships with sample rows so
+// it is readable from file://, then this adapter replaces them with the same
+// generated onchain JSON used by the production dashboard.
+(function bootLiveDoloPreview(){
+  const SOURCE_FILES = [
+    "dolo_price.json",
+    "dolo_holders.json",
+    "dolo_flows.json",
+    "vesting_investors.json",
+  ];
+  const ADDR_LABELS = {
+    "0x3e9b9a16743551da49b5e136c716bba7932d2cec": {label:"oDOLO Vester", type:"protocol"},
+    "0xf977814e90da44bfa03b6295a0616a897441acec": {label:"Binance 8", type:"cex"},
+    "0x28c6c06298d514db089934071355e5743bf21d60": {label:"Binance 14", type:"cex"},
+    "0x21a31ee1afc51d94c2efccaa2092ad1028285549": {label:"Binance 35", type:"cex"},
+    "0xdfd5293d8e347dfe59e90efd55b2956a1343963d": {label:"Binance US", type:"cex"},
+    "0xa9d1e08c7793af67e9d92fe308d5697fb81d3e43": {label:"Binance Deposit", type:"cex"},
+    "0x035ae7d933dcbfe617ffba194a88af0c2867b90c": {label:"Gate.io", type:"cex"},
+    "0x8782163068c7cd74d2510768a61135c1e4eb07b3": {label:"Gate.io", type:"cex"},
+    "0x0d0707963952f2fba59dd06f2b425ace40b492fe": {label:"Gate.io", type:"cex"},
+    "0xf89d7b9c864f589bbf53a82105107622b35eaa40": {label:"Bybit", type:"cex"},
+    "0xdf3100ac6c20c4a9443ece6c639c4ee91d592062": {label:"Coinbase", type:"cex"},
+    "0xe337c67ee9077e31aab205b25e8593b0e1c00cc4": {label:"Coinbase", type:"cex"},
+    "0x38fc9e8c73ea02f3a7de1da0760e71277f1e5e24": {label:"Coinbase", type:"cex"},
+    "0x478271c960137418c9d90082dddbf68aa72e4367": {label:"Gate.io", type:"cex"},
+    "0x43684d03d81d3a4c70da68febdd61029d426f042": {label:"Binance 117", type:"cex"},
+    "0x7a1d00de77c0162d55d84a051bdc6840852b4a60": {label:"CEX or MM", type:"mm"},
+    "0x9642b23ed1e01df1092b92641051881a322f5d4e": {label:"MEXC", type:"cex"},
+    "0x1157a2076b9bb22a85cc2c162f20fab3898f4101": {label:"FalconX", type:"cex"},
+    "0xd2dd7b597fd2435b6db61ddf48544fd931e6869f": {label:"Kraken", type:"cex"},
+    "0x003896387666c5c11458eeb3f927b72a11b19783": {label:"Uniswap V3 DOLO/USDC", type:"lp"},
+    "0xd5980e98a89e2d2361b3be657e8a003c6d3514e3": {label:"Kodiak DOLO/WBERA", type:"lp"},
+    "0x8991017b74f9f8070bff5b322802dd26e05e0cc7": {label:"Bulla DOLO/HONEY", type:"lp"},
+    "0xcb86b75ee6133d179a12d550b09fb3cdb1e141d4": {label:"veDOLO", type:"protocol"},
+    "0x89576fce04dd73933f74bbcd4e6f0d9125118542": {label:"Borrow Position Proxy", type:"protocol"},
+    "0x003ca23fd5f0ca87d01f6ec6cd14a8ae60c2b97d": {label:"Dolomite Margin", type:"protocol"},
+    "0x06265db7ecd9c5724a97bd4909146625d2e2619c": {label:"Operational Wallet", type:"protocol"},
+    "0x000000000004444c5dc75cb358380d2e3de08a90": {label:"Permit2", type:"protocol"},
+    "0x2f41d42de3eab9e75f3d417259f24421771fb700": {label:"Dolomite EOA", type:"protocol"},
+    "0x6e939bbaceb45159982a2cac3a1fcbf7e93cf682": {label:"Dolomite Main", type:"protocol"},
+    "0xa75c21c5be284122a87a37a76cc6c4dd3e55a1d4": {label:"Gnosis Safe Multisig", type:"protocol"},
+    "0x185000fb4d98acea1a771db3714a431f7fe51cac": {label:"Core Team 1", type:"protocol"},
+    "0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07": {label:"Investor Vesting CA", type:"protocol"},
+    "0xbf3c4e55a444ed489736c3d856b0cd0533fc2edd": {label:"Core Team 8", type:"protocol"},
+    "0x7efd088ae500598a19a242d6d48b9f7e0d061176": {label:"Early Investor Vesting CA", type:"protocol"},
+    "0xb05ba67c11fc0b92a7bcb18e50cba87ce2d15109": {label:"Bot / MM", type:"bot"},
+    "0x5a6f918fcda24e9b5143f3a1b77e63df6de30f74": {label:"Bot / MM", type:"bot"},
+    "0x6a2383cff0d46d2b7d29759f17c26fba726f3ea3": {label:"Bot / MM", type:"bot"},
+    "0x278d858f05b94576c1e6f73285886876ff6ef8d2": {label:"Bot CA", type:"bot"},
+    "0x1ff6b8e1192eb0369006bbad76da9068b68961b2": {label:"Liquidator", type:"bot"},
+    "0xb7131fc8cdc43060a6210257f537dba5fcae6aed": {label:"MEV / Liquidator Bot", type:"bot"},
+    "0x9e7728077f753dfdf53c2236097e27c743890992": {label:"DEX Router", type:"protocol"},
+    "0x9cb677f2a8daa9511ae79c2ba56395552b5d030d": {label:"Active Trader/Bot", type:"bot"},
+  };
+  let liveTotalSupply = TOTAL_SUPPLY;
+  let liveHolderStats = null;
+  let liveFlowsData = null;
+  let liveFlowTimestamp = null;
+
+  const originalRenderHolders = renderHolders;
+  const originalRenderFlows = renderFlows;
+  const originalFmtNum = fmtNum;
+  const fetchJson = name => fetch(name + (name.includes("?") ? "&" : "?") + Date.now(), {cache:"no-cache"}).then(r=>{
+    if(!r.ok) throw new Error(name + " HTTP " + r.status);
+    return r.json();
+  });
+  const safeNum = v => Number.isFinite(Number(v)) ? Number(v) : 0;
+  const lower = addr => String(addr || "").toLowerCase();
+  const fmtMoney = n => {
+    n = safeNum(n);
+    if(n >= 1e9) return "$" + (n/1e9).toFixed(2) + "B";
+    if(n >= 1e6) return "$" + (n/1e6).toFixed(2) + "M";
+    if(n >= 1e3) return "$" + (n/1e3).toFixed(1) + "K";
+    return "$" + n.toFixed(2);
+  };
+  const ago = iso => {
+    const t = new Date(iso || Date.now()).getTime();
+    const mins = Math.max(0, Math.round((Date.now() - t) / 60000));
+    if(mins < 1) return "now";
+    if(mins < 60) return mins + "m ago";
+    const hrs = Math.round(mins / 60);
+    if(hrs < 48) return hrs + "h ago";
+    return Math.round(hrs / 24) + "d ago";
+  };
+  function mapType(info, holder){
+    const t = (info && info.type) || "";
+    if(t === "cex") return "cex";
+    if(t === "mm") return "mm";
+    if(t === "bot" || t === "liquidator") return "bot";
+    if(t === "protocol" || t === "lp" || holder?.is_contract) return "ca";
+    return "eoa";
+  }
+  function labelFor(addr, holder){
+    const info = ADDR_LABELS[lower(addr)];
+    if(info && info.label) return info.label;
+    if(holder?.is_contract) return "Smart contract";
+    return null;
+  }
+  function syncLiveMeta(timestamp){
+    const label = "Live · " + ago(timestamp);
+    document.querySelectorAll(".hero-live").forEach(el => el.innerHTML = '<span class="dot"></span>' + label);
+    document.querySelectorAll(".card-meta").forEach(el => {
+      if(el.id === "flows-meta") return;
+      if(el.textContent.includes("Live") || el.textContent.includes("updated")) el.innerHTML = '<span class="pulse"></span>' + label;
+    });
+  }
+  function applyPrice(data){
+    if(!data) return;
+    const price = safeNum(data.price);
+    const change = safeNum(data.change_24h);
+    const priceEl = document.querySelector(".hero-price");
+    if(priceEl) priceEl.textContent = "$" + price.toFixed(price >= 1 ? 3 : 4);
+    const chgEl = document.querySelector(".hero-chg");
+    if(chgEl){
+      chgEl.classList.toggle("up", change >= 0);
+      chgEl.classList.toggle("down", change < 0);
+      chgEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="' + (change >= 0 ? "18 15 12 9 6 15" : "6 9 12 15 18 9") + '"/></svg>' + (change >= 0 ? "+" : "") + change.toFixed(2) + '%<span class="lbl">24h</span>';
+    }
+    const stats = document.querySelectorAll(".hero-stat");
+    if(stats[0]){
+      stats[0].querySelector(".val").textContent = fmtMoney(data.market_cap);
+      stats[0].querySelector(".sub").textContent = "via CoinGecko";
+    }
+    if(stats[1]){
+      const circ = safeNum(data.circulating_supply);
+      const pct = safeNum(data.total_supply) ? (circ / safeNum(data.total_supply)) * 100 : 0;
+      stats[1].querySelector(".val").textContent = originalFmtNum(circ);
+      stats[1].querySelector(".sub").textContent = pct.toFixed(1) + "% of total";
+      const bar = stats[1].querySelector(".hero-bar > span");
+      if(bar) bar.style.width = Math.max(0, Math.min(100, pct)).toFixed(1) + "%";
+    }
+    if(stats[2]){
+      stats[2].querySelector(".val").textContent = originalFmtNum(data.total_supply || data.fdv / Math.max(price, 0.000001));
+      stats[2].querySelector(".sub").textContent = data.fdv ? "FDV " + fmtMoney(data.fdv) : "fixed cap";
+    }
+    liveTotalSupply = safeNum(data.total_supply) || liveTotalSupply;
+    TOTAL_SUPPLY = liveTotalSupply;
+    syncLiveMeta(data.last_updated);
+  }
+  function applyHolders(data){
+    if(!data || !Array.isArray(data.holders)) return;
+    liveHolderStats = data.stats || null;
+    HOLDERS.length = 0;
+    data.holders.forEach(h => {
+      const info = ADDR_LABELS[lower(h.address)];
+      const row = {
+        addr: h.address,
+        label: labelFor(h.address, h),
+        type: mapType(info, h),
+        balEth: safeNum(h.balance_eth),
+        balBera: safeNum(h.balance_bera),
+      };
+      row.total = row.balEth + row.balBera;
+      HOLDERS.push(row);
+    });
+    state.page = 0;
+    renderHolders();
+    syncLiveMeta(data.timestamp);
+  }
+  function flowRowsForPeriod(){
+    const periodData = liveFlowsData?.periods?.[state.flowsPeriod];
+    if(!periodData) return;
+    const byAddr = new Map();
+    const ensure = addr => {
+      const key = lower(addr);
+      if(!byAddr.has(key)){
+        const info = ADDR_LABELS[key];
+        byAddr.set(key, {addr, label: labelFor(addr), type: mapType(info), chgEth:0, chgBera:0});
+      }
+      return byAddr.get(key);
+    };
+    [["eth","chgEth"],["bera","chgBera"]].forEach(([chainKey, prop]) => {
+      const cd = periodData[chainKey] || {};
+      (cd.accumulators || []).forEach(item => {
+        const row = ensure(item.address);
+        row[prop] += safeNum(item.net_flow);
+        row.balance = Math.max(safeNum(row.balance), safeNum(item.balance));
+      });
+      (cd.sellers || []).forEach(item => {
+        const row = ensure(item.address);
+        row[prop] -= safeNum(item.net_flow);
+        row.balance = Math.max(safeNum(row.balance), safeNum(item.balance));
+      });
+    });
+    FLOWS.length = 0;
+    byAddr.forEach(row => {
+      if(row.chgEth || row.chgBera) FLOWS.push(row);
+    });
+  }
+  renderFlows = function(){
+    flowRowsForPeriod();
+    originalRenderFlows();
+    const meta = PERIODS.find(p => p.key === state.flowsPeriod);
+    const metaEl = document.getElementById("flows-meta");
+    if(metaEl) metaEl.textContent = "Period: " + (meta ? meta.short : state.flowsPeriod.toUpperCase()) + (liveFlowTimestamp ? " · updated " + ago(liveFlowTimestamp) : "");
+  };
+  renderHolders = function(){
+    originalRenderHolders();
+    const shown = filterHolders().length;
+    const countEl = document.getElementById("holders-count");
+    if(countEl && liveHolderStats) countEl.textContent = liveHolderStats.total_holders.toLocaleString() + " holders · showing " + shown.toLocaleString();
+    const stats = document.querySelectorAll(".hero-stat");
+    if(stats[3] && liveHolderStats){
+      stats[3].querySelector(".val").textContent = liveHolderStats.total_holders.toLocaleString();
+      const sub = stats[3].querySelector(".sub");
+      sub.className = "sub";
+      sub.textContent = liveHolderStats.both_chains.toLocaleString() + " on both chains";
+    }
+  };
+  async function applyVestingLabels(){
+    try{
+      const data = await fetchJson("vesting_investors.json");
+      if(!data || Array.isArray(data)) return;
+      [["early_investors","Early Investor","investor"],["investors","Investor","investor"],["team","Core Team","protocol"]].forEach(([key,label,type]) => {
+        (data[key] || []).forEach(addr => {
+          const k = lower(addr);
+          if(!ADDR_LABELS[k]) ADDR_LABELS[k] = {label, type};
+        });
+      });
+    }catch(_){}
+  }
+  async function boot(){
+    try{
+      await applyVestingLabels();
+      const [price, holders, flows] = await Promise.all([
+        fetchJson("dolo_price.json").catch(() => null),
+        fetchJson("dolo_holders.json").catch(() => null),
+        fetchJson("dolo_flows.json").catch(() => null),
+      ]);
+      applyPrice(price);
+      applyHolders(holders);
+      if(flows){
+        liveFlowsData = flows;
+        liveFlowTimestamp = flows.timestamp;
+        renderFlows();
+      }
+    }catch(err){
+      console.warn("DOLO live preview integration failed; using bundled sample rows.", err, SOURCE_FILES);
+    }
+  }
+  boot();
+})();
 </script>
 </body>
 </html>

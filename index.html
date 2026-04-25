@@ -18903,6 +18903,11 @@
 
         function checkHash() {
             const hash = window.location.hash;
+            const viewFromHash = hash.slice(1).toLowerCase();
+            if (['vedolo', 'odolo', 'dolo', 'earn', 'assets', 'tvl', 'lending'].includes(viewFromHash)) {
+                switchView(viewFromHash);
+                return;
+            }
             if (hash.startsWith('#address=')) {
                 const addr = hash.slice(9);
                 if (addr && HOLDER_DATA.length > 0) showProfile(addr);
