@@ -780,20 +780,26 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
    PROTOCOL INFO CARD (bottom of page)
    ========================================================================= */
 .proto{margin-top:24px;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-xl);overflow:hidden;box-shadow:var(--sh-card);position:relative}
-.proto::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold-line),transparent);opacity:.55}
-.proto-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:22px 24px 20px;border-bottom:1px solid var(--line-1);flex-wrap:wrap}
+.proto::before{
+  content:"";position:absolute;left:0;right:0;top:0;height:1px;
+  background:linear-gradient(90deg,transparent 0%,var(--gold-line) 30%,var(--gold-line) 70%,transparent 100%);
+  opacity:.6;pointer-events:none;
+}
+.proto-head{display:flex;flex-direction:column;align-items:flex-start;gap:16px;padding:22px 24px 20px;border-bottom:1px solid var(--line-1)}
 .proto-brand{display:flex;align-items:center;gap:14px}
-.proto-brand-mark{width:46px;height:46px;border-radius:50%;background:var(--bg-3);border:1px solid var(--line-2);display:grid;place-items:center;overflow:hidden;flex-shrink:0}
-.proto-brand-mark img{width:32px;height:32px;object-fit:contain}
+.proto-brand-mark{width:40px;height:40px;border-radius:50%;background:var(--bg-3);border:1px solid var(--line-2);display:grid;place-items:center;overflow:hidden;flex-shrink:0}
+.proto-brand-mark img{width:28px;height:28px;object-fit:contain}
 .proto-brand-text{display:flex;flex-direction:column;gap:2px}
-.proto-brand-name{font-size:18px;font-weight:800;color:var(--fg-1);letter-spacing:-.4px}
+.proto-brand-name{font-size:15px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px}
 .proto-brand-sub{font-size:12px;color:var(--fg-3)}
-.proto-brand-sub b{color:var(--fg-2);font-weight:500}
 
-.proto-links{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.proto-links-group{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.proto-links-label{font-size:10px;text-transform:uppercase;letter-spacing:1.3px;color:var(--fg-4);font-weight:600;margin-right:2px}
-.proto-links-sep{width:1px;height:20px;background:var(--line-2);margin:0 2px}
+.proto-links{display:flex;align-items:center;gap:14px;flex-wrap:wrap;row-gap:10px}
+.proto-links-group{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+.proto-links-label{
+  font-size:9.5px;text-transform:uppercase;letter-spacing:1.4px;font-weight:600;
+  color:var(--fg-4);margin-right:4px;
+}
+.proto-links-sep{width:1px;height:18px;background:var(--line-2);flex-shrink:0}
 .proto-pill{
   display:inline-flex;align-items:center;gap:7px;
   height:32px;padding:0 12px;
@@ -805,7 +811,14 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .proto-pill svg{width:13px;height:13px}
 
 .proto-body{padding:20px 24px 24px}
-.proto-body-head{font-size:10px;text-transform:uppercase;letter-spacing:1.6px;color:var(--fg-3);font-weight:600;margin-bottom:14px}
+.proto-body-head{
+  font-size:11px;text-transform:uppercase;letter-spacing:1.6px;
+  color:var(--fg-2);font-weight:600;margin-bottom:14px;
+  display:flex;align-items:center;gap:10px;
+}
+.proto-body-head::after{
+  content:"";flex:1;height:1px;background:var(--line-1);
+}
 .proto-addrs{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
 .proto-addr{
   display:flex;align-items:center;justify-content:space-between;gap:14px;
@@ -815,20 +828,19 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 }
 .proto-addr:hover{border-color:var(--gold-line);background:rgba(201,162,39,.02)}
 .proto-addr-left{display:flex;align-items:center;gap:12px;min-width:0}
-.proto-token{display:flex;align-items:center;gap:8px;flex-shrink:0}
-.proto-token img{width:22px;height:22px;border-radius:50%;object-fit:cover;background:var(--bg-3);border:1px solid var(--line-2)}
-.proto-token-name{font-size:13px;font-weight:600;color:var(--fg-1)}
-.proto-chain-chip{display:inline-flex;align-items:center;gap:5px;font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--fg-3);padding:2px 7px;border-radius:4px;background:var(--bg-3);border:1px solid var(--line-2);font-weight:500}
-.proto-chain-chip img{width:11px;height:11px;border-radius:50%}
+.proto-token{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.proto-token img{width:28px;height:28px;border-radius:50%;object-fit:cover;background:var(--bg-3);border:1px solid var(--line-2)}
+.proto-token-name{font-size:14px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px}
+.proto-chain-chip{display:inline-flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--fg-2);padding:3px 8px;border-radius:4px;background:var(--bg-3);border:1px solid var(--line-2);font-weight:500}
+.proto-chain-chip .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 .proto-addr-right{display:flex;align-items:center;gap:8px;min-width:0;flex:1;justify-content:flex-end}
 .proto-addr-hex{font-family:var(--mono);font-size:11px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
-.proto-copy{width:26px;height:26px;border-radius:6px;background:var(--bg-3);border:1px solid var(--line-2);display:grid;place-items:center;color:var(--fg-3);flex-shrink:0;transition:color .2s var(--ease),border-color .2s var(--ease)}
-.proto-copy:hover{color:var(--gold);border-color:var(--gold-line)}
+.proto-copy{width:26px;height:26px;border-radius:6px;background:var(--bg-3);border:1px solid var(--line-2);display:grid;place-items:center;color:var(--fg-3);flex-shrink:0;cursor:pointer;transition:color .2s var(--ease),border-color .2s var(--ease),background .2s var(--ease)}
+.proto-copy:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
 .proto-copy.copied{color:var(--up);border-color:var(--up)}
-.proto-copy svg{width:12px;height:12px}
-.proto-explore{width:26px;height:26px;border-radius:6px;background:var(--bg-3);border:1px solid var(--line-2);display:grid;place-items:center;color:var(--fg-3);flex-shrink:0;transition:color .2s var(--ease),border-color .2s var(--ease)}
-.proto-explore:hover{color:var(--gold);border-color:var(--gold-line)}
-.proto-explore svg{width:12px;height:12px}
+.proto-explore{width:26px;height:26px;border-radius:6px;background:var(--bg-3);border:1px solid var(--line-2);display:grid;place-items:center;color:var(--fg-3);flex-shrink:0;cursor:pointer;transition:color .2s var(--ease),border-color .2s var(--ease),background .2s var(--ease)}
+.proto-explore:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.proto-explore svg,.proto-copy svg{width:12px;height:12px;pointer-events:none}
 
 /* footer small */
 .foot{margin-top:24px;text-align:center;font-size:11px;color:var(--fg-3);letter-spacing:.3px}
@@ -853,6 +865,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   .proto-addrs{grid-template-columns:1fr}
   .proto-addr-hex{max-width:120px}
   .proto-links-sep{display:none}
+  .proto-links{flex-direction:column;align-items:flex-start;gap:10px}
   .site-top{gap:10px;margin-bottom:32px}
   .site-brand{padding:12px 0 0}
   .site-brand img{max-width:460px}
@@ -1100,7 +1113,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
         </div>
         <div class="proto-brand-text">
           <div class="proto-brand-name">Dolomite</div>
-          <div class="proto-brand-sub" id="proto-market-sub"><b>Lending &amp; margin</b> · multi-chain money markets</div>
+          <div class="proto-brand-sub" id="proto-market-sub">Lending &amp; margin · <b>live markets</b> · <b>7 chains</b></div>
         </div>
       </div>
       <div class="proto-links">
@@ -1843,7 +1856,7 @@ function updateHero(){
   const netCount = document.querySelector("#dd-net .dd-btn .count");
   if(netCount && state.nets.size === 0) netCount.textContent = String(CHAIN_COUNT_TOTAL);
   const protoSub = document.getElementById("proto-market-sub");
-  if(protoSub) protoSub.innerHTML = `<b>Lending &amp; margin</b> · ${data.length} live markets · ${allChains.size} chains`;
+  if(protoSub) protoSub.innerHTML = `Lending &amp; margin · <b>${data.length} live markets</b> · <b>${allChains.size} chains</b>`;
 }
 
 /* ==========================================================================
@@ -2360,10 +2373,10 @@ document.getElementById("now").textContent = new Date().toLocaleString();
    PROTOCOL INFO — contract addresses
    ========================================================================== */
 const CONTRACTS = [
-  {token:"DOLO",   logo:"dolo-logo.svg",              chain:"Ethereum",  chainIco:"https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg", addr:"0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654", explorer:"https://etherscan.io"},
-  {token:"DOLO",   logo:"dolo-logo.svg",              chain:"Berachain", chainIco:"https://icons.llamao.fi/icons/chains/rsz_berachain.jpg", addr:"0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654", explorer:"https://berascan.com"},
-  {token:"oDOLO",  logo:"odolo-logo-official.svg",    chain:"Berachain", chainIco:"https://icons.llamao.fi/icons/chains/rsz_berachain.jpg", addr:"0x02E513b5B54eE216Bf836ceb471507488fC89543", explorer:"https://berascan.com"},
-  {token:"veDOLO", logo:"vedolo-logo.svg",            chain:"Berachain", chainIco:"https://icons.llamao.fi/icons/chains/rsz_berachain.jpg", addr:"0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4", explorer:"https://berascan.com"},
+  {token:"DOLO",   logo:"dolo-logo.svg",              chain:"Ethereum",  chainKey:"ethereum",  addr:"0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654", explorer:"https://etherscan.io"},
+  {token:"DOLO",   logo:"dolo-logo.svg",              chain:"Berachain", chainKey:"berachain", addr:"0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654", explorer:"https://berascan.com"},
+  {token:"oDOLO",  logo:"odolo-logo-official.svg",    chain:"Berachain", chainKey:"berachain", addr:"0x02E513b5B54eE216Bf836ceb471507488fC89543", explorer:"https://berascan.com"},
+  {token:"veDOLO", logo:"vedolo-logo.svg",            chain:"Berachain", chainKey:"berachain", addr:"0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4", explorer:"https://berascan.com"},
 ];
 const shorten = (a)=>a.slice(0,6)+"…"+a.slice(-4);
 const COPY_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
@@ -2377,7 +2390,7 @@ document.getElementById("proto-addrs").innerHTML = CONTRACTS.map((c,i)=>`
         <img src="${c.logo}" alt="${c.token}" onerror="this.style.display='none'">
         <span class="proto-token-name">${c.token}</span>
       </div>
-      <span class="proto-chain-chip"><img src="${c.chainIco}" onerror="this.style.display='none'">${c.chain}</span>
+      <span class="proto-chain-chip"><span class="dot dot-${c.chainKey}"></span>${c.chain}</span>
     </div>
     <div class="proto-addr-right">
       <span class="proto-addr-hex" title="${c.addr}">${shorten(c.addr)}</span>
