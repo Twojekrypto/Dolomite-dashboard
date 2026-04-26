@@ -461,6 +461,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dot-mantle{background:#6a7a6e}
 .dot-polygonzkevm{background:#8a6b9a}
 .dot-xlayer{background:#7a7a6b}
+.dot-other{background:#6f7480}
 
 /* PROTOCOL INFO CARD — matches assets sibling */
 .proto{margin-top:24px;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-xl);overflow:hidden;box-shadow:var(--sh-card);position:relative}
@@ -743,7 +744,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     <div class="card-head">
       <div class="card-title">
         <h2>Token Composition</h2>
-        <span class="count-badge" id="tokensCountBadge">Top 20 · all chains</span>
+        <span class="count-badge" id="tokensCountBadge">All assets · Top 20 + Other</span>
       </div>
       <div class="card-meta"><span class="pulse"></span>aggregated by USD value</div>
     </div>
@@ -772,7 +773,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         <div class="donut-wrap">
           <svg class="donut-svg" id="donutSvg" viewBox="0 0 200 200"></svg>
           <div class="donut-center" id="donutCenter">
-            <div class="dc-label">Total · Top 20</div>
+            <div class="dc-label">Total · All Assets</div>
             <div class="dc-value" id="dcValue">$0</div>
             <div class="dc-sub" id="dcSub">across 7 chains</div>
           </div>
@@ -1140,7 +1141,7 @@ function displayTokenSymbol(symbol){
   return TOKEN_DISPLAY_SYMBOLS[raw] || raw;
 }
 
-function buildTopTokens(llamaData, officialData){
+function buildTokenComposition(llamaData, officialData){
   const tokenSource = officialData?.tokensInUsd || llamaData?.tokensInUsd || [];
   const chainTokens = officialData?.chainTokensInUsd || llamaData?.chainTokensInUsd || {};
   const latest = tokenSource[tokenSource.length - 1] || tokenSource[0] || {};
@@ -1168,8 +1169,7 @@ function buildTopTokens(llamaData, officialData){
       };
     })
     .filter(t => Number.isFinite(t.usd) && t.usd > 0)
-    .sort((a,b)=>b.usd-a.usd)
-    .slice(0, 20);
+    .sort((a,b)=>b.usd-a.usd);
 }
 
 function buildChainTokenCompositions(llamaData, officialData){
@@ -1210,7 +1210,7 @@ function buildTvlSnapshot(llamaData, officialData){
   }));
 
   const history = buildHistory(llamaData, supplyLiquidity);
-  const tokens = buildTopTokens(llamaData, officialData);
+  const tokens = buildTokenComposition(llamaData, officialData);
   const tokenCompositionByChain = buildChainTokenCompositions(llamaData, officialData);
 
   return {
@@ -1404,6 +1404,8 @@ const TOKEN_PALETTE = [
   "#c8b178","#a89a6e","#7a96a0","#8a6b9a","#a37b56","#8aa392","#7d8aa3",
   "#a37b8a","#9aa389","#7d96a3","#a39d7d","#8a9ea3","#a3897d"
 ];
+const VISIBLE_TOKEN_LIMIT = 20;
+const OTHER_COLOR = "#6f7480";
 // Multi-select chain filter: a Set of chain keys (empty/full = "all chains")
 let tokenState = { chains: new Set(CHAINS.map(c=>c.key)), focus: null };
 
@@ -1413,10 +1415,34 @@ function tokensForChain(chainKey){
   return TOP_TOKENS.filter(t => t.chain === chainKey);
 }
 
+function sourceTokens(){
+  return isAllChains()
+    ? TOP_TOKENS
+    : [...tokenState.chains]
+        .flatMap(chainKey => tokensForChain(chainKey))
+        .sort((a,b)=>b.usd-a.usd);
+}
+
+function collapseSmallTokens(tokens){
+  if (tokens.length <= VISIBLE_TOKEN_LIMIT) return tokens;
+  const visible = tokens.slice(0, VISIBLE_TOKEN_LIMIT);
+  const hidden = tokens.slice(VISIBLE_TOKEN_LIMIT);
+  const otherUsd = hidden.reduce((sum,t)=>sum+t.usd,0);
+  if (!(otherUsd > 0)) return visible;
+  return visible.concat({
+    sym: "Other",
+    chain: "__other",
+    usd: otherUsd,
+    name: "Other Assets",
+    isOther: true,
+    hiddenCount: hidden.length,
+  });
+}
+
 function chainCounts(){
   const c = {};
   CHAINS.forEach(chain => { c[chain.key] = tokensForChain(chain.key).length; });
-  c.all = TOP_TOKENS.length;
+  c.all = sourceTokens().length;
   return c;
 }
 function isAllChains(){
@@ -1424,13 +1450,12 @@ function isAllChains(){
 }
 
 function visibleTokens(){
-  const ts = isAllChains()
-    ? TOP_TOKENS
-    : [...tokenState.chains]
-        .flatMap(chainKey => tokensForChain(chainKey))
-        .sort((a,b)=>b.usd-a.usd)
-        .slice(0, 20);
-  return ts.map((t,i)=>({...t, _key: `${t.chain}:${t.sym}:${i}`, _color: TOKEN_PALETTE[i % TOKEN_PALETTE.length]}));
+  const ts = collapseSmallTokens(sourceTokens());
+  return ts.map((t,i)=>({
+    ...t,
+    _key: `${t.chain}:${t.sym}:${i}`,
+    _color: t.isOther ? OTHER_COLOR : TOKEN_PALETTE[i % TOKEN_PALETTE.length],
+  }));
 }
 
 /* Multi-select chain filter — checkbox-style rows like the assets page.
@@ -1479,10 +1504,10 @@ function renderChainDropdown(){
   const lbl = document.getElementById("ddChainLbl");
   const cnt = document.getElementById("ddChainCount");
   const btn = document.getElementById("ddChainBtn");
-  const visible = visibleTokens();
+  const source = sourceTokens();
   if (allActive){
     lbl.textContent = "All Chains";
-    cnt.textContent = String(visible.length);
+    cnt.textContent = String(source.length);
     btn.classList.remove("filtered");
   } else {
     const sel = [...tokenState.chains];
@@ -1491,7 +1516,7 @@ function renderChainDropdown(){
     } else {
       lbl.textContent = `${sel.length} chains`;
     }
-    cnt.textContent = String(visible.length);
+    cnt.textContent = String(source.length);
     btn.classList.add("filtered");
   }
 
@@ -1550,16 +1575,20 @@ function initChainDropdown(){
 }
 
 function renderTokens(){
+  const source = sourceTokens();
   const list = visibleTokens();
   const total = list.reduce((s,t)=>s+t.usd,0);
+  const hasOther = list.some(t=>t.isOther);
   // count badge
   const allOn = isAllChains();
   if (allOn) {
-    document.getElementById("tokensCountBadge").textContent = `Top 20 · all chains`;
+    document.getElementById("tokensCountBadge").textContent =
+      `${source.length} assets · ${hasOther ? `Top ${VISIBLE_TOKEN_LIMIT} + Other` : "all chains"}`;
   } else {
     const sel = [...tokenState.chains];
     const lbl = sel.length === 1 ? chainName(sel[0]) : `${sel.length} chains`;
-    document.getElementById("tokensCountBadge").textContent = `${list.length} tokens · ${lbl}`;
+    document.getElementById("tokensCountBadge").textContent =
+      `${source.length} assets · ${lbl}${hasOther ? ` · Top ${VISIBLE_TOKEN_LIMIT} + Other` : ""}`;
   }
 
   // refresh dropdown (counts + active state)
@@ -1572,19 +1601,25 @@ function renderTokens(){
     const initials = t.sym.replace(/[^A-Za-z0-9]/g,"").slice(0,3).toUpperCase();
     const iconUrl  = tokenIcon(t.sym, t);
     const iconClass = tokenIconClass(t.sym);
+    const iconHtml = t.isOther
+      ? initials
+      : `<img class="${iconClass}" src="${iconUrl}" alt="${t.sym}" onerror="this.parentElement.textContent='${initials}'">`;
+    const chainHtml = t.isOther
+      ? `<span class="dot dot-other"></span>${t.hiddenCount} assets`
+      : `<span class="dot dot-${t.chain}"></span>${chainName(t.chain)}`;
     const focused  = tokenState.focus === t._key;
     const dimmed   = tokenState.focus && !focused;
     return `
       <div class="leg-row ${focused?"active":""} ${dimmed?"dim":""}" data-sym="${t.sym}" data-token-key="${t._key}" style="--leg-color:${t._color}">
         <div class="leg-rank">${String(i+1).padStart(2,"0")}</div>
-        <div class="leg-icon"><img class="${iconClass}" src="${iconUrl}" alt="${t.sym}" onerror="this.parentElement.textContent='${initials}'"></div>
+        <div class="leg-icon">${iconHtml}</div>
         <div class="leg-info">
           <div class="leg-top">
             <div class="leg-name" title="${t.name}">${t.sym}</div>
             <div class="leg-val">${fmtUsd(t.usd)}</div>
           </div>
           <div class="leg-bot">
-            <div class="leg-chain"><span class="dot dot-${t.chain}"></span>${chainName(t.chain)}</div>
+            <div class="leg-chain">${chainHtml}</div>
             <div class="leg-bar"><span style="width:${sharePct}%"></span></div>
             <div class="leg-pct">${sharePct.toFixed(1)}%</div>
           </div>
@@ -1631,7 +1666,7 @@ function focus(key){
     center.innerHTML = `
       <div class="dc-label">${centerLabel()}</div>
       <div class="dc-value">${fmtUsd(total)}</div>
-      <div class="dc-sub">${list.length} tokens</div>`;
+      <div class="dc-sub">${sourceTokens().length} assets</div>`;
   } else {
     const list = visibleTokens();
     const total = list.reduce((s,t)=>s+t.usd,0);
@@ -1639,7 +1674,7 @@ function focus(key){
     if (t){
       const pct = total>0 ? (t.usd/total*100) : 0;
       center.innerHTML = `
-        <div class="dc-label">${chainName(t.chain)}</div>
+        <div class="dc-label">${t.isOther ? `${t.hiddenCount} smaller assets` : chainName(t.chain)}</div>
         <div class="dc-token">${t.sym}</div>
         <div class="dc-value" style="color:${t._color}">${fmtUsd(t.usd)}</div>
         <div class="dc-sub">${pct.toFixed(2)}% of view</div>`;
@@ -1684,11 +1719,11 @@ function renderDonut(list, total){
   center.innerHTML = `
     <div class="dc-label">${centerLabel()}</div>
     <div class="dc-value">${fmtUsd(total)}</div>
-    <div class="dc-sub">${list.length} tokens</div>`;
+    <div class="dc-sub">${sourceTokens().length} assets</div>`;
 }
 
 function centerLabel(){
-  if (isAllChains()) return "Total · Top 20";
+  if (isAllChains()) return "Total · All Assets";
   const sel = [...tokenState.chains];
   if (sel.length === 1) return chainName(sel[0]);
   return `${sel.length} chains`;
