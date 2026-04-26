@@ -329,6 +329,13 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .tbl tbody tr.tbl-spacer-row td > *{visibility:hidden}
 .tbl tbody tr.tbl-spacer-row:hover td{background:transparent}
 .tbl tbody tr.tbl-spacer-row:hover td:first-child::before{display:none}
+.tbl tbody tr.ex-row-open td{background:var(--bg-3)}
+.tbl tbody tr.ex-detail-row{cursor:default}
+.tbl tbody tr.ex-detail-row td{
+  padding:0 14px 18px!important;background:var(--bg-1);border-bottom:1px solid var(--line-2);
+}
+.tbl tbody tr.ex-detail-row:hover td{background:var(--bg-1)}
+.tbl tbody tr.ex-detail-row:hover td:first-child::before{display:none}
 
 .rank{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--fg-3);min-width:24px;text-align:right}
 .tbl tbody tr:hover .rank{color:var(--gold)}
@@ -368,6 +375,15 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .addr-debank:hover{border-color:#fe815f;background:rgba(254,129,95,.08)}
 .addr-debank:hover img{opacity:1}
 .debank-fallback{font-family:var(--mono);font-size:11px;font-weight:700;color:#fe815f}
+.ex-toggle{
+  width:22px;height:22px;border-radius:5px;display:grid;place-items:center;flex-shrink:0;
+  color:var(--fg-4);background:var(--bg-3);border:1px solid var(--line-2);cursor:pointer;
+  transition:all .15s var(--ease);
+}
+.ex-toggle svg{width:12px;height:12px;transition:transform .18s var(--ease);pointer-events:none}
+.ex-toggle:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.ex-row-open .ex-toggle{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.ex-row-open .ex-toggle svg{transform:rotate(180deg)}
 
 .bal-zero{color:var(--fg-4);font-family:var(--mono)}
 .bal-val{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--fg-1)}
@@ -387,6 +403,57 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .lock-bar > span.short{background:var(--down)}
 .lock-bar > span.medium{background:var(--gold)}
 .lock-bar > span.long{background:var(--up)}
+
+.ex-detail-panel{
+  margin:0 0 0 44px;border:1px solid var(--line-2);border-top:0;border-radius:0 0 var(--r-lg) var(--r-lg);
+  background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.01));overflow:hidden;
+}
+.ex-detail-head{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:16px 18px;border-bottom:1px solid var(--line-1);
+}
+.ex-detail-title{font-size:13px;font-weight:700;color:var(--fg-1);letter-spacing:-.1px}
+.ex-detail-sub{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:5px;font-size:11px;color:var(--fg-3)}
+.ex-detail-sub .addr-full{font-family:var(--mono);color:var(--fg-2);word-break:break-all}
+.ex-detail-links{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.ex-detail-link{
+  display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:6px;text-decoration:none;
+  color:var(--fg-2);border:1px solid var(--line-2);background:var(--bg-2);font-size:11.5px;font-weight:600;
+  transition:all .15s var(--ease);white-space:nowrap;
+}
+.ex-detail-link:hover{color:var(--fg-1);border-color:var(--line-3);background:var(--bg-3)}
+.ex-detail-link svg{width:13px;height:13px}
+.ex-detail-stats{
+  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1px;background:var(--line-1);border-bottom:1px solid var(--line-1);
+}
+.ex-detail-stat{background:rgba(10,10,12,.62);padding:13px 14px}
+.ex-detail-stat span{display:block;font-size:10px;letter-spacing:1.1px;text-transform:uppercase;color:var(--fg-4);margin-bottom:6px}
+.ex-detail-stat b{display:block;font-family:var(--mono);font-size:14px;color:var(--fg-1);font-weight:700}
+.ex-detail-stat b.gold{color:var(--gold-hi)}
+.ex-detail-stat b.price{color:#9ab7c2}
+.ex-detail-scroll{max-height:320px;overflow:auto}
+#tbl-ex .ex-detail-table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px}
+#tbl-ex .ex-detail-table th{
+  position:sticky;top:0;z-index:1;padding:9px 12px;background:#111113;border-bottom:1px solid var(--line-2);
+  color:var(--fg-3);font-size:9.5px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;text-align:left;white-space:nowrap;
+}
+#tbl-ex .ex-detail-table th.num,#tbl-ex .ex-detail-table td.num{text-align:right}
+#tbl-ex .ex-detail-table th.center,#tbl-ex .ex-detail-table td.center{text-align:center}
+#tbl-ex .ex-detail-table td{padding:10px 12px;border-bottom:1px solid var(--line-1);font-variant-numeric:tabular-nums;color:var(--fg-2)}
+#tbl-ex .ex-detail-table tr:nth-child(even) td{background:rgba(255,255,255,.012)}
+#tbl-ex .ex-detail-table tr:hover td{background:rgba(201,162,39,.035);color:var(--fg-1)}
+#tbl-ex .ex-detail-table tr:hover td:first-child::before{display:none}
+#tbl-ex .ex-detail-table td.mono{font-family:var(--mono)}
+#tbl-ex .ex-detail-table a{font-family:var(--mono);font-size:11px;color:#9ab7c2;text-decoration:none}
+#tbl-ex .ex-detail-table a:hover{color:var(--gold)}
+.ex-detail-empty{padding:18px;color:var(--fg-3);font-size:12px}
+
+@media (max-width:760px){
+  .ex-detail-panel{margin-left:0}
+  .ex-detail-head{flex-direction:column}
+  .ex-detail-links{justify-content:flex-start}
+  .ex-detail-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ex-detail-scroll{max-height:360px}
+}
 
 /* PAGINATION */
 .tbl-foot{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:14px 24px;border-top:1px solid var(--line-1);gap:12px}
@@ -1818,6 +1885,7 @@ const state = {
   exSort: {key:"usdc", dir:"desc"},
   exPage: 0,
   exPageSize: 10,
+  exExpanded: null,
   flowsPeriod: "7d",
   flowsTypes: new Set(["eoa","ca","cex","bot","mm"]),
   flowsSort: {acc:{key:"net",dir:"desc"}, out:{key:"net",dir:"desc"}},
@@ -1836,12 +1904,30 @@ const fmtNum = n => {
   return n.toFixed(0);
 };
 const fmtUsd = n => "$" + fmtNum(n);
+const fmtUsdFull = n => {
+  const v = Number(n);
+  return Number.isFinite(v) && v > 0
+    ? "$" + v.toLocaleString("en-US", { minimumFractionDigits:2, maximumFractionDigits:2 })
+    : "—";
+};
+const fmtTokenFull = n => {
+  const v = Number(n);
+  return Number.isFinite(v) && v > 0
+    ? v.toLocaleString("en-US", { maximumFractionDigits:2 })
+    : "—";
+};
 const avgExercisePrice = r => {
   const usdc = Number(r.usdc);
   const vedolo = Number(r.vedolo);
   return Number.isFinite(usdc) && Number.isFinite(vedolo) && vedolo > 0 ? usdc / vedolo : 0;
 };
 const fmtPrice = n => n > 0 ? "$" + n.toFixed(n >= 1 ? 2 : 4) : "—";
+const fmtDate = value => {
+  if(!value) return "—";
+  const d = new Date(`${value}T00:00:00Z`);
+  if(Number.isNaN(d.getTime())) return value;
+  return d.toLocaleDateString("en-US", { month:"short", day:"2-digit", year:"numeric", timeZone:"UTC" });
+};
 const fmtLock = days => {
   if(days >= 365) return (days/365).toFixed(2) + "y";
   if(days >= 30)  return (days/30).toFixed(1) + "mo";
@@ -1855,6 +1941,8 @@ const lockBucket = days => {
 };
 const COPY_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
 const CHECK_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+const CHEV_DOWN_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+const EXTERNAL_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
 const LIVE = { contract:null, usd:null, lock:null, exercisers:null, flows:null, loaded:false };
 const DATA_VERSION = "odolo-live-20260426";
 const ADDRESS_META = {
@@ -1865,6 +1953,11 @@ const ADDRESS_META = {
   "0x28c6c06298d514db089934071355e5743bf21d60": { label:"Binance hot", type:"cex" },
 };
 
+function esc(value){
+  return String(value ?? "").replace(/[&<>"']/g, ch => ({
+    "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
+  }[ch]));
+}
 async function fetchJson(path){
   const resp = await fetch(`${path}?v=${DATA_VERSION}`, { cache:"no-cache" });
   if(!resp.ok) throw new Error(`${path}: HTTP ${resp.status}`);
@@ -2667,6 +2760,86 @@ function sortExercisers(rows){
     return dir==="asc"?va-vb:vb-va;
   });
 }
+function renderExerciserDetailRow(r, rank){
+  const period = PERIODS.find(p=>p.key===state.exPeriod);
+  const txs = [...(r.txs || [])]
+    .filter(tx => tx && tx.paid_token !== "DOLO")
+    .sort((a,b) => String(b.date || "").localeCompare(String(a.date || "")));
+  const avgPrice = avgExercisePrice(r);
+  const title = r.label || TYPE_GENERIC[r.type] || "Wallet";
+  const rows = txs.map((tx, i) => {
+    const usd = txUsd(tx);
+    const vedolo = txVedolo(tx);
+    const rawPrice = Number(tx.price);
+    const price = Number.isFinite(rawPrice) && rawPrice > 0
+      ? rawPrice
+      : (vedolo > 0 ? usd / vedolo : 0);
+    const hash = tx.hash || "";
+    const hashLabel = hash ? `${hash.slice(0,8)}…${hash.slice(-6)}` : "—";
+    const txLink = hash
+      ? `<a href="https://berascan.com/tx/${esc(hash)}" target="_blank" rel="noopener">${esc(hashLabel)}</a>`
+      : "—";
+    return `
+      <tr>
+        <td class="mono">${i + 1}</td>
+        <td>${esc(fmtDate(tx.date))}</td>
+        <td class="num mono"><span class="bal-val usd">${fmtUsdFull(usd)}</span></td>
+        <td class="num mono">${fmtTokenFull(vedolo)}</td>
+        <td class="num mono"><span class="bal-val price">${fmtPrice(price)}</span></td>
+        <td class="center mono">${fmtLock(Number(tx.lock_days) || 0)}</td>
+        <td>${txLink}</td>
+      </tr>
+    `;
+  }).join("");
+  const txTable = txs.length ? `
+    <div class="ex-detail-scroll">
+      <table class="ex-detail-table">
+        <thead>
+          <tr>
+            <th style="width:44px">#</th>
+            <th>Date</th>
+            <th class="num">USDC Paid</th>
+            <th class="num">veDOLO</th>
+            <th class="num">Price</th>
+            <th class="center">Lock</th>
+            <th>Tx</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  ` : `<div class="ex-detail-empty">No per-transaction exercise history is available for this row.</div>`;
+
+  return `
+    <tr class="ex-detail-row" data-detail-for="${esc(r.addr)}">
+      <td colspan="7">
+        <div class="ex-detail-panel">
+          <div class="ex-detail-head">
+            <div>
+              <div class="ex-detail-title">#${rank} ${esc(title)} exercise history</div>
+              <div class="ex-detail-sub">
+                <span class="addr-full">${esc(r.addr)}</span>
+                <span>${period ? esc(period.label) : "Selected period"}</span>
+              </div>
+            </div>
+            <div class="ex-detail-links">
+              <a class="ex-detail-link" href="https://berascan.com/address/${esc(r.addr)}" target="_blank" rel="noopener">${EXTERNAL_ICO}BeraScan</a>
+              <a class="ex-detail-link" href="https://debank.com/profile/${esc(r.addr)}" target="_blank" rel="noopener">${EXTERNAL_ICO}DeBank</a>
+            </div>
+          </div>
+          <div class="ex-detail-stats">
+            <div class="ex-detail-stat"><span>veDOLO</span><b>${fmtNum(r.vedolo)}</b></div>
+            <div class="ex-detail-stat"><span>USDC Paid</span><b class="gold">${fmtUsd(r.usdc)}</b></div>
+            <div class="ex-detail-stat"><span>Avg Price</span><b class="price">${fmtPrice(avgPrice)}</b></div>
+            <div class="ex-detail-stat"><span>Exercises</span><b>${txs.length ? txs.length.toLocaleString() : r.exercises.toLocaleString()}</b></div>
+            <div class="ex-detail-stat"><span>Avg Lock</span><b>${fmtLock(r.lockDays)}</b></div>
+          </div>
+          ${txTable}
+        </div>
+      </td>
+    </tr>
+  `;
+}
 function renderExercisers(){
   if(LIVE.exercisers) syncLiveExercisersForPeriod();
   const rows = sortExercisers(filterExercisers());
@@ -2696,24 +2869,26 @@ function renderExercisers(){
 
   const rowsHtml = pageRows.map((r,i)=>{
     const rank = rankMap.get(r.addr.toLowerCase()) || (start + i + 1);
-    const typeHtml = `<span class="type-tag type-${r.type}" title="${TYPE_TIPS[r.type]}">${TYPE_LABELS[r.type]}</span>`;
+    const isExpanded = state.exExpanded === r.addr.toLowerCase();
+    const typeHtml = `<span class="type-tag type-${r.type}" title="${esc(TYPE_TIPS[r.type])}">${esc(TYPE_LABELS[r.type])}</span>`;
     const actions = `
-      <button class="addr-copy" data-copy="${r.addr}" title="Copy address" aria-label="Copy address">${COPY_ICO}</button>
-      <a class="addr-debank" href="https://debank.com/profile/${r.addr}" target="_blank" rel="noopener" title="View on DeBank" aria-label="View on DeBank" onclick="event.stopPropagation()">
+      <button class="addr-copy" data-copy="${esc(r.addr)}" title="Copy address" aria-label="Copy address">${COPY_ICO}</button>
+      <a class="addr-debank" href="https://debank.com/profile/${esc(r.addr)}" target="_blank" rel="noopener" title="View on DeBank" aria-label="View on DeBank" onclick="event.stopPropagation()">
         <img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'">
       </a>`;
+    const toggle = `<button class="ex-toggle" type="button" title="${isExpanded ? "Hide exercise history" : "Show exercise history"}" aria-label="${isExpanded ? "Hide exercise history" : "Show exercise history"}" aria-expanded="${isExpanded}">${CHEV_DOWN_ICO}</button>`;
     const nameCell = r.label
-      ? `<span class="addr-name">${r.label}</span>`
-      : `<span class="addr-name addr-generic">${TYPE_GENERIC[r.type]}</span>`;
+      ? `<span class="addr-name">${esc(r.label)}</span>`
+      : `<span class="addr-name addr-generic">${esc(TYPE_GENERIC[r.type])}</span>`;
     const bucket = lockBucket(r.lockDays);
     const avgPrice = avgExercisePrice(r);
     return `
-      <tr data-addr="${r.addr}">
+      <tr class="ex-data-row ${isExpanded ? "ex-row-open" : ""}" data-addr="${esc(r.addr)}">
         <td class="rank">${rank}</td>
         <td>
           <div class="addr-cell">
             <div class="addr-line top">${nameCell}${typeHtml}</div>
-            <div class="addr-line bot"><span class="addr-mono">${shorten(r.addr)}</span>${actions}</div>
+            <div class="addr-line bot"><span class="addr-mono">${esc(shorten(r.addr))}</span>${actions}${toggle}</div>
           </div>
         </td>
         <td class="num"><span class="bal-val">${fmtNum(r.vedolo)}</span></td>
@@ -2727,6 +2902,7 @@ function renderExercisers(){
           </div>
         </td>
       </tr>
+      ${isExpanded ? renderExerciserDetailRow(r, rank) : ""}
     `;
   }).join("");
 
@@ -2742,7 +2918,7 @@ function renderExercisers(){
       </tr>
     `).join("");
   tbody.innerHTML = rowsHtml + spacerRowsHtml;
-  const dataRowEls = [...tbody.querySelectorAll("tr:not(.tbl-spacer-row)")];
+  const dataRowEls = [...tbody.querySelectorAll("tr.ex-data-row")];
   const spacerRowEls = [...tbody.querySelectorAll("tr.tbl-spacer-row")];
   if(!spacerRowEls.length && dataRowEls.length === state.exPageSize){
     exStableBodyHeight = Math.max(exStableBodyHeight, tbody.getBoundingClientRect().height);
@@ -2786,9 +2962,11 @@ function renderExercisers(){
     btn.innerHTML = CHECK_ICO;
     setTimeout(()=>{ btn.classList.remove("copied"); btn.innerHTML = COPY_ICO; }, 1400);
   }));
-  tbody.querySelectorAll("tr:not(.tbl-spacer-row)").forEach(tr => tr.addEventListener("click", e=>{
+  tbody.querySelectorAll("tr.ex-data-row").forEach(tr => tr.addEventListener("click", e=>{
     if(e.target.closest(".addr-copy") || e.target.closest(".addr-debank")) return;
-    window.open(`https://berascan.com/address/${tr.dataset.addr}`, "_blank", "noopener");
+    const addr = tr.dataset.addr.toLowerCase();
+    state.exExpanded = state.exExpanded === addr ? null : addr;
+    renderExercisers();
   }));
 }
 
