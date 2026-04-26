@@ -329,7 +329,14 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .tbl tbody tr.tbl-spacer-row td > *{visibility:hidden}
 .tbl tbody tr.tbl-spacer-row:hover td{background:transparent}
 .tbl tbody tr.tbl-spacer-row:hover td:first-child::before{display:none}
-.tbl tbody tr.ex-row-open td{background:var(--bg-3)}
+#tbl-ex tbody tr.ex-data-row:hover td{
+  background:linear-gradient(90deg,rgba(201,162,39,.055),var(--bg-3) 28%,var(--bg-3));
+}
+#tbl-ex tbody tr.ex-data-row:hover td:first-child::before,
+#tbl-ex tbody tr.ex-row-open td:first-child::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--gold);border-radius:0 2px 2px 0;
+}
+.tbl tbody tr.ex-row-open td{background:linear-gradient(90deg,rgba(201,162,39,.07),var(--bg-3) 30%,var(--bg-3))}
 .tbl tbody tr.ex-detail-row{cursor:default}
 .tbl tbody tr.ex-detail-row td{
   padding:0 14px 18px!important;background:var(--bg-1);border-bottom:1px solid var(--line-2);
@@ -376,13 +383,16 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .addr-debank:hover img{opacity:1}
 .debank-fallback{font-family:var(--mono);font-size:11px;font-weight:700;color:#fe815f}
 .ex-toggle{
-  width:22px;height:22px;border-radius:5px;display:grid;place-items:center;flex-shrink:0;
-  color:var(--fg-4);background:var(--bg-3);border:1px solid var(--line-2);cursor:pointer;
-  transition:all .15s var(--ease);
+  height:24px;min-width:78px;padding:0 8px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;gap:5px;flex-shrink:0;
+  color:var(--gold);background:var(--gold-wash);border:1px solid rgba(201,162,39,.28);cursor:pointer;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 0 0 1px rgba(201,162,39,.035);
+  transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease),box-shadow .15s var(--ease),transform .15s var(--ease);
 }
 .ex-toggle svg{width:12px;height:12px;transition:transform .18s var(--ease);pointer-events:none}
-.ex-toggle:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
-.ex-row-open .ex-toggle{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.ex-toggle span{font-size:9.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;line-height:1;pointer-events:none}
+.ex-toggle:hover,
+#tbl-ex tbody tr.ex-data-row:hover .ex-toggle{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.16);box-shadow:0 0 0 3px rgba(201,162,39,.08);transform:translateY(-1px)}
+.ex-row-open .ex-toggle{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.18);box-shadow:0 0 0 3px rgba(201,162,39,.08)}
 .ex-row-open .ex-toggle svg{transform:rotate(180deg)}
 
 .bal-zero{color:var(--fg-4);font-family:var(--mono)}
@@ -2934,14 +2944,14 @@ function renderExercisers(){
       <a class="addr-debank" href="https://debank.com/profile/${esc(r.addr)}" target="_blank" rel="noopener" title="View on DeBank" aria-label="View on DeBank" onclick="event.stopPropagation()">
         <img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'">
       </a>`;
-    const toggle = `<button class="ex-toggle" type="button" title="${isExpanded ? "Hide exercise history" : "Show exercise history"}" aria-label="${isExpanded ? "Hide exercise history" : "Show exercise history"}" aria-expanded="${isExpanded}">${CHEV_DOWN_ICO}</button>`;
+    const toggle = `<button class="ex-toggle" type="button" title="${isExpanded ? "Hide exercise history" : "Show exercise history"}" aria-label="${isExpanded ? "Hide exercise history" : "Show exercise history"}" aria-expanded="${isExpanded}"><span>${isExpanded ? "Hide" : "Details"}</span>${CHEV_DOWN_ICO}</button>`;
     const nameCell = r.label
       ? `<span class="addr-name">${esc(r.label)}</span>`
       : `<span class="addr-name addr-generic">${esc(TYPE_GENERIC[r.type])}</span>`;
     const bucket = lockBucket(r.lockDays);
     const avgPrice = avgExercisePrice(r);
     return `
-      <tr class="ex-data-row ${isExpanded ? "ex-row-open" : ""}" data-addr="${esc(r.addr)}">
+      <tr class="ex-data-row ${isExpanded ? "ex-row-open" : ""}" data-addr="${esc(r.addr)}" aria-expanded="${isExpanded}">
         <td class="rank">${rank}</td>
         <td>
           <div class="addr-cell">
