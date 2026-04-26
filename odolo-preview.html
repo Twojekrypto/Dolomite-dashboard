@@ -825,6 +825,22 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .cb-tbl tbody td .cb-cell .bar > span.hld{background:#22d3ee}
 .cb-tbl tbody td .cb-cell .bar > span.buy{background:#a78bfa}
 .cb-tbl tbody td .cb-cell .val.zero{color:var(--fg-4)}
+.cb-note{
+  display:grid;grid-template-columns:1fr 1fr;gap:10px;
+  margin:0 22px 16px;
+}
+.cb-note-item{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:11px 13px;border-radius:10px;
+  background:var(--bg-1);border:1px solid var(--line-2);
+  color:var(--fg-2);font-size:12px;line-height:1.45;
+}
+.cb-note-item .dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex:0 0 auto}
+.cb-note-item b{display:block;color:var(--fg-1);font-size:12.5px;margin-bottom:1px}
+.cb-note-item span:last-child{display:block;color:var(--fg-3)}
+.cb-note-item.claim .dot{background:#8aa37b;box-shadow:0 0 8px rgba(138,163,123,.35)}
+.cb-note-item.extra .dot{background:#a78bfa;box-shadow:0 0 8px rgba(167,139,250,.35)}
+@media (max-width:760px){.cb-note{grid-template-columns:1fr;margin-inline:16px}}
 
 /* ====== HOW oDOLO WORKS v3 ====== */
 .how3-body{padding:26px 24px 0}
@@ -1402,7 +1418,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <svg class="donut-svg" id="behav-donut" viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
           <div class="donut-center-v2">
             <div class="v" id="behav-center-v">53.2%</div>
-            <div class="l" id="behav-center-l">Exercised</div>
+            <div class="l" id="behav-center-l">Claim exercised</div>
           </div>
         </div>
         <div class="donut-legend" id="behav-legend"></div>
@@ -1442,7 +1458,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         <h2>oDOLO Claimer Breakdown</h2>
         <span class="count-badge" id="cb-count">2,351 claimers</span>
       </div>
-      <div class="card-meta"><span class="pulse"></span>What each wallet did with claimed oDOLO</div>
+      <div class="card-meta"><span class="pulse"></span>Claimed oDOLO lifecycle; extra exercises stay separate</div>
     </div>
 
     <div class="toolbar">
@@ -1472,6 +1488,23 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
       </div>
     </div>
 
+    <div class="cb-note" role="note" aria-label="Claimer breakdown definitions">
+      <div class="cb-note-item claim">
+        <span class="dot"></span>
+        <div>
+          <b>Claim Exercised</b>
+          <span id="cb-claim-note">Claimed oDOLO used for veDOLO, capped at each wallet's own claim.</span>
+        </div>
+      </div>
+      <div class="cb-note-item extra">
+        <span class="dot"></span>
+        <div>
+          <b>Extra Exercised</b>
+          <span id="cb-extra-note">Bought or received oDOLO exercised above the wallet's claim.</span>
+        </div>
+      </div>
+    </div>
+
     <div class="tbl-wrap">
       <table class="tbl cb-tbl" id="tbl-cb">
         <thead>
@@ -1479,10 +1512,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
             <th data-sort="rank" style="width:56px">#</th>
             <th data-sort="addr">Address</th>
             <th data-sort="claimed" class="num col-clm sorted" style="width:128px">Claimed</th>
-            <th data-sort="exercised" class="num col-exr" style="width:128px">Exercised</th>
+            <th data-sort="exercised" class="num col-exr" style="width:150px" title="Claimed oDOLO used for veDOLO; capped at this wallet's own claim.">Claim Exercised</th>
+            <th data-sort="buy" class="num col-buy" style="width:150px" title="oDOLO exercised above the wallet's own claim, usually bought or received from others.">Extra Exercised</th>
             <th data-sort="outflow" class="num col-out" style="width:128px">Outflow</th>
-            <th data-sort="held" class="num col-hld" style="width:128px">Held</th>
-            <th data-sort="buy" class="num col-buy" style="padding-right:32px;width:140px">Bought Extra</th>
+            <th data-sort="held" class="num col-hld" style="padding-right:32px;width:128px">Held</th>
           </tr>
         </thead>
         <tbody id="cb-body"></tbody>
@@ -2021,10 +2054,10 @@ const DIST_SEGMENTS = [
    CLAIMER BEHAVIOUR DONUT
 ============================================================ */
 const BEHAV_SEGMENTS = [
-  {label:"Exercised → veDOLO", value:53.2, color:"#8aa37b", desc:"Used to redeem at a discount",       fmt:"21.99M oDOLO"},
+  {label:"Claim exercised",    value:53.2, color:"#8aa37b", desc:"Claimed oDOLO used for veDOLO",      fmt:"21.99M oDOLO"},
   {label:"Sold or sent away",  value:23.5, color:"#b4796b", desc:"Moved out without exercising",       fmt:"9.71M oDOLO"},
   {label:"Still holding",      value:23.3, color:"#22d3ee", desc:"Sitting in claimer wallets",         fmt:"9.63M oDOLO"},
-  {label:"Bought extra",       value: 3.5, color:"#a78bfa", desc:"83 wallets accumulating beyond claims", fmt:"+1.45M oDOLO"},
+  {label:"Extra exercised",    value: 3.5, color:"#a78bfa", desc:"Exercised above each wallet's claim", fmt:"+1.45M oDOLO"},
 ];
 
 function renderDonuts(){
@@ -2045,7 +2078,7 @@ function renderDonuts(){
     totalLabel:behaviorPrimary.toFixed(1) + "%",
     centerVId:"behav-center-v",
     centerLId:"behav-center-l",
-    centerLDefault:"Exercised",
+    centerLDefault:"Claim exercised",
     legendId:"behav-legend",
   });
 }
@@ -2477,14 +2510,24 @@ function renderClaimerBreakdown(){
   const start = cbState.page * cbState.pageSize;
   const pageRows = rows.slice(start, start + cbState.pageSize);
   const tbody = document.getElementById("cb-body");
-  const totalClaimers = LIVE.flows?.claimer_behavior?.total_claimers || CLAIMERS.length;
+  const totalClaimers = LIVE.flows?.claimer_periods?.[cbState.period]?.total_claimers
+    || LIVE.flows?.claimer_behavior?.total_claimers
+    || CLAIMERS.length;
   document.getElementById("cb-count").textContent = `${totalClaimers.toLocaleString()} claimers`;
+  const extraRows = CLAIMERS.filter(r => r.buy > 0);
+  const extraTotal = sum(CLAIMERS, r => r.buy);
+  setText("cb-claim-note", "Claimed oDOLO used for veDOLO, capped at each wallet's own claim.");
+  setText(
+    "cb-extra-note",
+    `${extraRows.length.toLocaleString()} wallets exercised +${fmtNum(extraTotal)} oDOLO above their claim in the selected window.`
+  );
 
-  const cellHtml = (val, claimed, kind) => {
+  const cellHtml = (val, claimed, kind, opts = {}) => {
     const pct = claimed > 0 ? Math.min(100, (val/claimed)*100) : 0;
     const cls = val > 0 ? "" : "zero";
+    const display = val > 0 ? `${opts.prefix || ""}${fmtNum(val)}` : "—";
     return `<div class="cb-cell">
-      <span class="val ${cls}">${val>0 ? fmtNum(val) : "—"}</span>
+      <span class="val ${cls}">${display}</span>
       <div class="bar"><span class="${kind}" style="width:${pct}%"></span></div>
     </div>`;
   };
@@ -2508,9 +2551,9 @@ function renderClaimerBreakdown(){
         </td>
         <td class="num">${cellHtml(r.claimed,   r.claimed, "clm")}</td>
         <td class="num">${cellHtml(r.exercised, r.claimed, "exr")}</td>
+        <td class="num">${cellHtml(r.buy, r.claimed, "buy", {prefix:"+"})}</td>
         <td class="num">${cellHtml(r.outflow,   r.claimed, "out")}</td>
-        <td class="num">${cellHtml(r.held,      r.claimed, "hld")}</td>
-        <td class="num" style="padding-right:32px">${cellHtml(r.buy, r.claimed, "buy")}</td>
+        <td class="num" style="padding-right:32px">${cellHtml(r.held, r.claimed, "hld")}</td>
       </tr>
     `;
   }).join("");
@@ -3115,10 +3158,10 @@ function syncLiveBehavior(){
   const claimed = Number(cb.total_claimed) || 0;
   const boughtExtra = sum(cb.all_claimers, r => r.bought_extra);
   applyRows(BEHAV_SEGMENTS, [
-    {label:"Exercised -> veDOLO", value:Number(cb.pct_exercised) || 0, color:"#8aa37b", desc:"Used to redeem at a discount", fmt:fmtNum(claimed * (Number(cb.pct_exercised) || 0) / 100) + " oDOLO"},
+    {label:"Claim exercised", value:Number(cb.pct_exercised) || 0, color:"#8aa37b", desc:"Claimed oDOLO used for veDOLO", fmt:fmtNum(claimed * (Number(cb.pct_exercised) || 0) / 100) + " oDOLO"},
     {label:"Sold or sent away", value:Number(cb.pct_outflow) || 0, color:"#b4796b", desc:"Moved out without exercising", fmt:fmtNum(claimed * (Number(cb.pct_outflow) || 0) / 100) + " oDOLO"},
     {label:"Still holding", value:Number(cb.pct_held) || 0, color:"#22d3ee", desc:"Sitting in claimer wallets", fmt:fmtNum(claimed * (Number(cb.pct_held) || 0) / 100) + " oDOLO"},
-    {label:"Bought extra", value:Number(cb.pct_bought_extra) || 0, color:"#a78bfa", desc:`${Number(cb.count_bought_extra || 0).toLocaleString()} wallets accumulating beyond claims`, fmt:"+" + fmtNum(boughtExtra) + " oDOLO"},
+    {label:"Extra exercised", value:Number(cb.pct_bought_extra) || 0, color:"#a78bfa", desc:`${Number(cb.count_bought_extra || 0).toLocaleString()} wallets exercised above claim`, fmt:"+" + fmtNum(boughtExtra) + " oDOLO"},
   ]);
   setText("behav-count", `${Number(cb.total_claimers || 0).toLocaleString()} claimers`);
   setHtml("behav-meta", `<span class="pulse"></span>${fmtNum(claimed)} oDOLO claimed`);
