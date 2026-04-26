@@ -388,6 +388,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .flows-tbl thead th[data-flow-sort]:hover,
 .flows-tbl thead th.sorted{color:var(--fg-1)}
 .flows-tbl tbody tr{cursor:pointer;transition:background .12s var(--ease)}
+.flows-tbl tbody tr.flow-spacer-row{pointer-events:none;cursor:default}
+.flows-tbl tbody tr.flow-spacer-row td{color:transparent}
+.flows-tbl tbody tr.flow-spacer-row td > *{visibility:hidden}
+.flow-foot{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:14px 24px;border-top:1px solid var(--line-1);gap:12px}
 .flows-tbl tbody tr:hover td{background:var(--bg-3)}
 .flows-tbl tbody td{padding:11px 24px;color:var(--fg-1);border-bottom:1px solid var(--line-1);font-variant-numeric:tabular-nums;position:relative;vertical-align:middle}
 .flows-tbl tbody td.num{text-align:right;font-family:var(--mono);font-weight:500}
@@ -472,7 +476,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .hero-stat:first-child{border-top:0;padding-top:0}
   .hero-token-name{font-size:20px}
   .hero-meta{margin-left:0;width:100%}
-  .tbl-foot{grid-template-columns:1fr;justify-items:center;gap:10px}
+  .tbl-foot,.flow-foot{grid-template-columns:1fr;justify-items:center;gap:10px}
   .tbl-foot-info{grid-column:1;text-align:center}
   .pager{grid-column:1}
   .search{width:100%}
@@ -788,6 +792,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           </thead>
           <tbody id="flows-acc-body"></tbody>
         </table>
+        <div class="flow-foot">
+          <div class="tbl-foot-info" id="flows-acc-info">0–0 of 0</div>
+          <div class="pager" id="flows-acc-pager"></div>
+        </div>
       </div>
       <div class="flows-col out">
         <div class="flows-col-head out">
@@ -805,6 +813,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           </thead>
           <tbody id="flows-out-body"></tbody>
         </table>
+        <div class="flow-foot">
+          <div class="tbl-foot-info" id="flows-out-info">0–0 of 0</div>
+          <div class="pager" id="flows-out-pager"></div>
+        </div>
       </div>
     </div>
   </section>
@@ -919,6 +931,9 @@ const state = {
     acc: {key:"net", dir:"desc"},
     out: {key:"net", dir:"desc"},
   },
+  flowsPage: {acc: 0, out: 0},
+  flowsPageSize: 6,
+  flowsStableBodyHeight: {acc: 0, out: 0},
   sort: {key:"total", dir:"desc"},
   page: 0,
   pageSize: 10,
@@ -1156,24 +1171,69 @@ function sortFlowRows(rows, kind){
     return (va - vb) * mult;
   });
 }
+function renderFlowPager(kind, totalRows){
+  const totalPages = Math.max(1, Math.ceil(totalRows / state.flowsPageSize));
+  state.flowsPage[kind] = Math.max(0, Math.min(state.flowsPage[kind], totalPages - 1));
+  const curPage = state.flowsPage[kind] + 1;
+  const pager = document.getElementById(kind === "acc" ? "flows-acc-pager" : "flows-out-pager");
+  if(!pager) return;
+  pager.innerHTML = `
+    <button class="pg-btn" data-flow-page="first" ${curPage===1?"disabled":""} title="First"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg></button>
+    <button class="pg-btn" data-flow-page="prev" ${curPage===1?"disabled":""} title="Previous"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <span class="pg-current">${curPage} <span class="pg-sep">/</span> ${totalPages}</span>
+    <button class="pg-btn" data-flow-page="next" ${curPage===totalPages?"disabled":""} title="Next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button class="pg-btn" data-flow-page="last" ${curPage===totalPages?"disabled":""} title="Last"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></button>
+  `;
+  pager.querySelectorAll("[data-flow-page]").forEach(btn => btn.addEventListener("click", ()=>{
+    const a = btn.dataset.flowPage;
+    if(a==="first") state.flowsPage[kind] = 0;
+    else if(a==="prev") state.flowsPage[kind] = Math.max(0, state.flowsPage[kind]-1);
+    else if(a==="next") state.flowsPage[kind] = Math.min(totalPages-1, state.flowsPage[kind]+1);
+    else if(a==="last") state.flowsPage[kind] = totalPages-1;
+    renderFlows();
+  }));
+}
+function syncFlowSpacerHeight(tbody, kind, dataRowSelector, spacerSelector, expectedRows){
+  const dataRowEls = [...tbody.querySelectorAll(dataRowSelector)];
+  const spacerRowEls = [...tbody.querySelectorAll(spacerSelector)];
+  if(!spacerRowEls.length && dataRowEls.length === expectedRows){
+    state.flowsStableBodyHeight[kind] = Math.max(state.flowsStableBodyHeight[kind], tbody.getBoundingClientRect().height);
+  }
+  if(spacerRowEls.length){
+    const dataHeight = dataRowEls.reduce((sum, row) => sum + row.getBoundingClientRect().height, 0);
+    const fallbackRowHeight = dataRowEls.length
+      ? Math.max(...dataRowEls.map(row => row.getBoundingClientRect().height))
+      : (state.flowsStableBodyHeight[kind] ? state.flowsStableBodyHeight[kind] / expectedRows : 0);
+    const targetBodyHeight = state.flowsStableBodyHeight[kind] || fallbackRowHeight * expectedRows;
+    const spacerHeight = targetBodyHeight
+      ? Math.max(0, (targetBodyHeight - dataHeight) / spacerRowEls.length)
+      : fallbackRowHeight;
+    spacerRowEls.forEach(row => {
+      row.style.height = `${spacerHeight}px`;
+    });
+  }
+}
 function renderFlow(target, kind){
   const q = state.qFlows.trim().toLowerCase();
-  // Compute chg per chain filter, split rows by sign, sort, take top 6
   let rows = FLOWS
-    .filter(r=>{
-      if(!state.flowsTypes.has(r.type)) return false;
-      if(q && !r.addr.toLowerCase().includes(q) && !(r.label||"").toLowerCase().includes(q)) return false;
-      return true;
-    })
+    .filter(r=>state.flowsTypes.has(r.type))
     .map(r=>({...r, chg: effectiveChg(r)}))
-    .filter(r=> kind==="acc" ? r.chg > 0 : r.chg < 0)
-  rows = sortFlowRows(rows, kind).slice(0, 6);
+    .filter(r=> kind==="acc" ? r.chg > 0 : r.chg < 0);
+  rows = sortFlowRows(rows, kind);
+  const rankMap = new Map(rows.map((r,i)=>[r.addr.toLowerCase(), i + 1]));
+  if(q) rows = rows.filter(r=>r.addr.toLowerCase().includes(q) || (r.label||"").toLowerCase().includes(q));
+  const total = rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / state.flowsPageSize));
+  state.flowsPage[kind] = Math.max(0, Math.min(state.flowsPage[kind], totalPages - 1));
+  const start = state.flowsPage[kind] * state.flowsPageSize;
+  const pageRows = rows.slice(start, start + state.flowsPageSize);
   syncFlowSortHeaders();
   const tbody = document.getElementById(target);
-  tbody.innerHTML = rows.map((r,i)=>{
+  const rowHtml = pageRows.map((r,i)=>{
     const cls = kind==="acc" ? "up" : "down";
     const sign = r.chg > 0 ? "+" : "";
     const balance = effectiveFlowBalance(r);
+    const rank = rankMap.get(r.addr.toLowerCase()) || (start + i + 1);
     const typeHtml = `<span class="type-tag type-${r.type}" title="${TYPE_TIPS[r.type]}">${TYPE_LABELS[r.type]}</span>`;
     const actions = `
       <button class="addr-copy" data-copy="${r.addr}" title="Copy address" aria-label="Copy address">${COPY_ICO}</button>
@@ -1185,7 +1245,7 @@ function renderFlow(target, kind){
       : `<span class="addr-name addr-generic">${TYPE_GENERIC[r.type]}</span>`;
     return `
       <tr data-addr="${r.addr}">
-        <td class="rank">${i+1}</td>
+        <td class="rank">${rank}</td>
         <td>
           <div class="addr-cell">
             <div class="addr-line top">${nameCell}${typeHtml}</div>
@@ -1200,6 +1260,34 @@ function renderFlow(target, kind){
       </tr>
     `;
   }).join("");
+  const spacerRowsHtml = Array.from({length: Math.max(0, state.flowsPageSize - pageRows.length)}, () => `
+      <tr class="flow-spacer-row" aria-hidden="true" tabindex="-1">
+        <td class="rank">0</td>
+        <td>
+          <div class="addr-cell">
+            <div class="addr-line top">
+              <span class="addr-name">Placeholder</span>
+              <span class="type-tag type-eoa">EOA</span>
+            </div>
+            <div class="addr-line bot">
+              <span class="addr-mono">0x0000…0000</span>
+              <span class="addr-act">Copy</span>
+            </div>
+          </div>
+        </td>
+        <td class="num"><span class="bal-val">0</span></td>
+        <td class="num" style="padding-right:24px"><span class="flows-net ${kind==="acc" ? "up" : "down"}">0</span></td>
+      </tr>
+    `).join("");
+  tbody.innerHTML = rowHtml + spacerRowsHtml;
+  syncFlowSpacerHeight(tbody, kind, "tr:not(.flow-spacer-row)", "tr.flow-spacer-row", state.flowsPageSize);
+  const info = document.getElementById(kind === "acc" ? "flows-acc-info" : "flows-out-info");
+  if(info){
+    const showStart = total > 0 ? start + 1 : 0;
+    const showEnd = Math.min(start + state.flowsPageSize, total);
+    info.textContent = `${showStart}–${showEnd} of ${total.toLocaleString()}`;
+  }
+  renderFlowPager(kind, total);
   tbody.querySelectorAll(".addr-copy").forEach(btn => btn.addEventListener("click", async e=>{
     e.stopPropagation();
     try { await navigator.clipboard.writeText(btn.dataset.copy); } catch(_) {}
@@ -1207,7 +1295,7 @@ function renderFlow(target, kind){
     btn.innerHTML = CHECK_ICO;
     setTimeout(()=>{ btn.classList.remove("copied"); btn.innerHTML = COPY_ICO; }, 1400);
   }));
-  tbody.querySelectorAll("tr").forEach(tr => tr.addEventListener("click", e=>{
+  tbody.querySelectorAll("tr:not(.flow-spacer-row)").forEach(tr => tr.addEventListener("click", e=>{
     if(e.target.closest(".addr-copy") || e.target.closest(".addr-debank")) return;
     window.open(`https://etherscan.io/address/${tr.dataset.addr}`, "_blank", "noopener");
   }));
@@ -1218,7 +1306,7 @@ function renderFlows(){
 }
 
 document.getElementById("q-holders").addEventListener("input", e=>{state.q=e.target.value;state.page=0;renderHolders()});
-document.getElementById("q-flows").addEventListener("input", e=>{state.qFlows=e.target.value;renderFlows()});
+document.getElementById("q-flows").addEventListener("input", e=>{state.qFlows=e.target.value;state.flowsPage.acc=0;state.flowsPage.out=0;renderFlows()});
 
 document.addEventListener("keydown", e=>{
   if(e.key==="/" && document.activeElement.tagName!=="INPUT"){
@@ -1246,6 +1334,7 @@ document.querySelectorAll(".flows-tbl th[data-flow-sort]").forEach(th=>{
       sort.key = key;
       sort.dir = "desc";
     }
+    state.flowsPage[kind] = 0;
     renderFlows();
   });
 });
@@ -1327,6 +1416,8 @@ document.querySelectorAll('#dd-flows-chain .dd-opt').forEach(opt=>{
     const btn = document.querySelector('#dd-flows-chain .dd-btn');
     btn.querySelector(".lbl").textContent = opt.querySelector(".dd-opt-name").textContent;
     btn.classList.toggle("filtered", state.flowsChain !== "all");
+    state.flowsPage.acc=0;
+    state.flowsPage.out=0;
     renderFlows();
   });
 });
@@ -1343,6 +1434,8 @@ document.querySelectorAll('#dd-flows-period .dd-opt').forEach(opt=>{
     // Update card meta line
     const metaEl = document.getElementById("flows-meta");
     if(metaEl) metaEl.textContent = "Period: " + (meta ? meta.short : state.flowsPeriod);
+    state.flowsPage.acc=0;
+    state.flowsPage.out=0;
     renderFlows();
   });
 });
@@ -1369,6 +1462,8 @@ document.querySelectorAll('#dd-flows-types .rw-item').forEach(item=>{
     if(state.flowsTypes.has(t)) state.flowsTypes.delete(t);
     else state.flowsTypes.add(t);
     syncFlowsTypesBtn();
+    state.flowsPage.acc=0;
+    state.flowsPage.out=0;
     renderFlows();
   });
 });
