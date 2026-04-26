@@ -1,0 +1,3251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dolomite · oDOLO — Premium Preview</title>
+<link rel="icon" href="dolomite-logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ==========================================================================
+   DESIGN TOKENS — Graphite + Gold (shared with dolo-preview / assets-preview)
+   ========================================================================== */
+:root{
+  --bg-0:#09090b; --bg-1:#0f0f11; --bg-2:#141417; --bg-3:#1a1a1e; --bg-4:#202024;
+  --line-1:rgba(255,255,255,.05);--line-2:rgba(255,255,255,.08);--line-3:rgba(255,255,255,.14);
+  --fg-1:#f4f3ef;--fg-2:#a5a29a;--fg-3:#6b6a66;--fg-4:#48474a;
+  --gold:#c9a227;--gold-hi:#e4c15a;--gold-lo:#8a6e1a;
+  --gold-wash:rgba(201,162,39,.10);--gold-line:rgba(201,162,39,.30);
+  --up:#8aa37b;--down:#b4796b;
+  --r-sm:8px;--r-md:12px;--r-lg:16px;--r-xl:22px;
+  --sh-card:0 1px 0 rgba(255,255,255,.02) inset, 0 1px 2px rgba(0,0,0,.4);
+  --sh-hi:0 8px 28px rgba(0,0,0,.45);
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --ease:cubic-bezier(.2,.7,.2,1);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{background:var(--bg-0);color:var(--fg-1);font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5}
+body{min-height:100vh;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input{font:inherit}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(1000px 600px at 80% -10%,rgba(201,162,39,.04),transparent 60%),
+             radial-gradient(800px 500px at -10% 110%,rgba(255,255,255,.02),transparent 60%);}
+.wrap{max-width:1320px;margin:0 auto;padding:40px 28px 96px}
+
+/* TOP — banner + sticky nav */
+.site-top{display:flex;flex-direction:column;align-items:center;gap:14px;margin-bottom:40px}
+.site-brand{position:relative;display:flex;justify-content:center;align-items:center;width:100%;padding:18px 0 0}
+.site-brand::before{content:"";position:absolute;inset:-6% -12% 12% -12%;z-index:-1;pointer-events:none;filter:blur(20px);
+  background:radial-gradient(55% 55% at 50% 50%,rgba(201,162,39,.14) 0%,transparent 72%),
+             radial-gradient(90% 110% at 50% 100%,rgba(201,162,39,.05) 0%,transparent 65%);}
+.site-brand::after{content:"";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(100%,820px);aspect-ratio:495/195;pointer-events:none;
+  background:radial-gradient(ellipse 78% 82% at center,transparent 42%,rgba(9,9,11,.55) 72%,var(--bg-0) 100%);}
+.site-brand img{max-width:820px;width:100%;height:auto;display:block;filter:saturate(.9) contrast(.97) brightness(.97) hue-rotate(-7deg);
+  -webkit-mask-image:radial-gradient(ellipse 78% 80% at center,#000 38%,rgba(0,0,0,.7) 62%,rgba(0,0,0,.25) 82%,transparent 98%);
+          mask-image:radial-gradient(ellipse 78% 80% at center,#000 38%,rgba(0,0,0,.7) 62%,rgba(0,0,0,.25) 82%,transparent 98%);
+  transition:filter .4s var(--ease),transform .4s var(--ease);}
+.site-brand img:hover{filter:saturate(.98) contrast(1) brightness(1) hue-rotate(-5deg);transform:translateY(-1px)}
+
+.site-nav-wrap{position:sticky;top:12px;z-index:30;display:flex;justify-content:center;pointer-events:none}
+.site-nav{pointer-events:auto;display:inline-flex;align-items:center;gap:2px;background:rgba(16,16,20,.72);
+  backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);
+  border:1px solid var(--line-2);padding:5px;border-radius:12px;
+  box-shadow:0 6px 24px rgba(0,0,0,.45),0 1px 0 rgba(255,255,255,.03) inset;}
+.nav-item{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:8px;font-size:13px;font-weight:500;color:var(--fg-2);cursor:pointer;
+  transition:color .15s var(--ease),background .15s var(--ease);-webkit-tap-highlight-color:transparent;}
+.nav-item img,.nav-item svg{width:15px;height:15px;flex-shrink:0;transition:opacity .15s var(--ease)}
+.nav-item img{border-radius:50%;background:var(--bg-3);object-fit:contain}
+.nav-item svg{color:var(--fg-3);opacity:.85}
+.nav-item:hover{color:var(--fg-1);background:var(--bg-3)}
+.nav-item:hover svg{color:var(--fg-1);opacity:1}
+.nav-item.active{color:var(--fg-1);background:var(--bg-3);box-shadow:inset 0 0 0 1px var(--gold-line)}
+.nav-item.active svg{color:var(--gold);opacity:1}
+.nav-item.active::after{content:"";width:4px;height:4px;border-radius:50%;background:var(--gold);margin-left:2px;box-shadow:0 0 6px var(--gold-line)}
+
+/* HERO — typographic strip, gold edge accent */
+.hero{
+  position:relative;
+  background:linear-gradient(180deg,var(--bg-2),var(--bg-1));
+  border:1px solid var(--line-2);border-radius:var(--r-xl);
+  padding:28px 32px 24px;margin-bottom:24px;overflow:hidden;
+}
+.hero::before{
+  content:"";position:absolute;left:0;right:0;top:0;height:1px;
+  background:linear-gradient(90deg,transparent 0%,var(--gold-line) 30%,var(--gold-line) 70%,transparent 100%);
+  opacity:.6;pointer-events:none;
+}
+.hero::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(720px 320px at 80% -30%,rgba(201,162,39,.08),transparent 65%);
+}
+
+/* Brand row */
+.hero-brand{display:flex;align-items:center;gap:16px;margin-bottom:26px;position:relative;z-index:1;flex-wrap:wrap}
+.hero-token-logo{
+  width:52px;height:52px;border-radius:50%;
+  background:var(--bg-3);border:1px solid var(--line-2);
+  display:grid;place-items:center;overflow:hidden;flex-shrink:0;
+}
+.hero-token-logo img{width:38px;height:38px;object-fit:contain}
+.hero-token-text{display:flex;flex-direction:column;gap:3px;min-width:0}
+.hero-token-name{
+  font-size:24px;font-weight:800;color:var(--fg-1);
+  letter-spacing:-.7px;line-height:1;
+}
+.hero-token-sub{font-size:12.5px;color:var(--fg-3);font-weight:400;line-height:1.3}
+.hero-token-sub b{color:var(--fg-2);font-weight:500}
+.hero-meta{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}
+.hero-live{font-size:11px;color:var(--fg-3);font-family:var(--mono);display:inline-flex;align-items:center;gap:6px}
+.hero-live .dot{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
+
+/* Headline value row — supply + discount pill */
+.hero-price-row{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;padding-bottom:26px;position:relative;z-index:1}
+.hero-price{
+  font-family:var(--mono);font-size:clamp(44px,6vw,62px);font-weight:700;
+  letter-spacing:-2.5px;color:var(--fg-1);font-variant-numeric:tabular-nums;line-height:1;
+}
+.hero-price .unit{font-size:.42em;color:var(--fg-3);letter-spacing:-.5px;margin-left:8px;font-weight:500}
+.hero-chg{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:8px 14px;border-radius:10px;
+  font-family:var(--mono);font-weight:600;font-size:14px;letter-spacing:.2px;
+}
+.hero-chg.gold{color:var(--gold-hi);background:var(--gold-wash);border:1px solid var(--gold-line)}
+.hero-chg svg{width:13px;height:13px}
+.hero-chg .lbl{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;opacity:.75;margin-left:2px}
+
+/* Stats — 4-column strip */
+.hero-stats{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:0;
+  padding-top:22px;border-top:1px solid var(--line-1);
+  position:relative;z-index:1;
+}
+.hero-stat{padding:0 24px;border-left:1px solid var(--line-1);position:relative}
+.hero-stat:first-child{border-left:0;padding-left:0}
+.hero-stat .lbl{
+  font-size:10px;text-transform:uppercase;letter-spacing:1.6px;
+  color:var(--fg-3);font-weight:600;margin-bottom:12px;
+  display:flex;align-items:center;gap:7px;
+}
+.hero-stat .lbl svg{width:11px;height:11px;color:var(--fg-3)}
+.hero-stat .val{
+  font-family:var(--mono);font-size:24px;font-weight:600;letter-spacing:-.6px;
+  color:var(--fg-1);font-variant-numeric:tabular-nums;line-height:1;
+}
+.hero-stat .val.gold{color:var(--gold)}
+.hero-stat .val.up{color:var(--up)}
+.hero-stat .val.down{color:var(--down)}
+.hero-stat .sub{font-size:11px;color:var(--fg-3);margin-top:8px;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.hero-stat .sub.up{color:var(--up)}
+.hero-stat .sub.down{color:var(--down)}
+.hero-bar{margin-top:10px;height:3px;background:var(--bg-3);border-radius:2px;overflow:hidden;border:1px solid var(--line-1)}
+.hero-bar > span{display:block;height:100%;background:var(--gold);border-radius:1px;transition:width .4s var(--ease)}
+
+/* CARD */
+.card{background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-xl);box-shadow:var(--sh-card);overflow:visible;position:relative;margin-bottom:24px}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 18px;border-bottom:1px solid var(--line-1);gap:12px;flex-wrap:wrap}
+.card-title{display:flex;align-items:center;gap:10px}
+.card-title h2{font-size:16px;font-weight:600;letter-spacing:-.1px;color:var(--fg-1)}
+.card-title .count-badge{font-family:var(--mono);font-size:11px;color:var(--fg-2);background:var(--bg-3);border:1px solid var(--line-2);padding:3px 8px;border-radius:999px}
+.card-meta{font-size:11px;color:var(--fg-3);font-family:var(--mono);display:flex;align-items:center;gap:6px}
+.pulse{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
+
+/* ====== oDOLO LIFECYCLE CARD ====== */
+.life-body{padding:22px 24px 24px}
+.life-stack{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.life-cell{
+  position:relative;
+  background:var(--bg-1);border:1px solid var(--line-2);border-radius:var(--r-md);
+  padding:14px 16px 16px;overflow:hidden;
+  transition:border-color .2s var(--ease),background .2s var(--ease);
+}
+.life-cell:hover{border-color:var(--line-3);background:var(--bg-3)}
+.life-cell::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;border-radius:var(--r-md) var(--r-md) 0 0}
+.life-cell.exercised::before{background:linear-gradient(90deg,#8aa37b,#a8c499)}
+.life-cell.vesting::before  {background:linear-gradient(90deg,#a78bfa,#c4b5fd)}
+.life-cell.unclaimed::before{background:linear-gradient(90deg,#22d3ee,#67e8f9)}
+.life-cell.available::before{background:linear-gradient(90deg,var(--gold-lo),var(--gold-hi))}
+.life-icon{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;margin-bottom:10px}
+.life-icon svg{width:15px;height:15px}
+.life-cell.exercised .life-icon{background:rgba(138,163,123,.12);color:#a8c499}
+.life-cell.vesting   .life-icon{background:rgba(167,139,250,.12);color:#c4b5fd}
+.life-cell.unclaimed .life-icon{background:rgba(34,211,238,.12);color:#67e8f9}
+.life-cell.available .life-icon{background:rgba(201,162,39,.12);color:var(--gold-hi)}
+.life-lbl{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:var(--fg-3);font-weight:600;margin-bottom:8px}
+.life-val{font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:-.4px;color:var(--fg-1);font-variant-numeric:tabular-nums;line-height:1.05}
+.life-pct{font-family:var(--mono);font-size:11px;color:var(--fg-3);margin-top:6px}
+.life-cell.exercised .life-pct{color:#a8c499}
+.life-cell.vesting .life-pct{color:#c4b5fd}
+.life-cell.unclaimed .life-pct{color:#67e8f9}
+.life-cell.available .life-pct{color:var(--gold-hi)}
+
+/* horizontal stacked bar showing supply allocation */
+.life-bar{
+  height:14px;border-radius:8px;overflow:hidden;
+  background:var(--bg-1);border:1px solid var(--line-2);
+  display:flex;
+}
+.life-bar > span{display:block;height:100%;transition:width .5s var(--ease)}
+.life-bar > span.exercised{background:linear-gradient(90deg,#8aa37b,#a8c499)}
+.life-bar > span.vesting  {background:linear-gradient(90deg,#a78bfa,#c4b5fd)}
+.life-bar > span.unclaimed{background:linear-gradient(90deg,#22d3ee,#67e8f9)}
+.life-bar > span.available{background:linear-gradient(90deg,var(--gold-lo),var(--gold-hi))}
+.life-legend{display:flex;flex-wrap:wrap;gap:14px 22px;margin-top:14px;font-size:11.5px;color:var(--fg-2);font-family:var(--mono)}
+.life-legend .key{display:inline-flex;align-items:center;gap:8px}
+.life-legend .key .swatch{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.life-legend .key .swatch.exercised{background:#8aa37b}
+.life-legend .key .swatch.vesting  {background:#a78bfa}
+.life-legend .key .swatch.unclaimed{background:#22d3ee}
+.life-legend .key .swatch.available{background:var(--gold-hi)}
+
+/* ====== HOW oDOLO WORKS ====== */
+.how-body{padding:24px}
+.how-steps{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:start;gap:14px}
+.how-step{
+  background:var(--bg-1);border:1px solid var(--line-2);border-radius:var(--r-lg);
+  padding:18px 18px 16px;position:relative;overflow:hidden;
+  transition:border-color .2s var(--ease),background .2s var(--ease);
+}
+.how-step:hover{border-color:var(--gold-line);background:rgba(201,162,39,.025)}
+.how-step::before{content:"";position:absolute;inset:0 auto 0 0;width:2px;background:var(--gold);opacity:.5;border-radius:2px 0 0 2px}
+.how-step .num{
+  width:28px;height:28px;border-radius:50%;
+  display:grid;place-items:center;
+  border:1.5px solid var(--gold-line);background:var(--gold-wash);color:var(--gold-hi);
+  font-family:var(--mono);font-weight:700;font-size:13px;
+  margin-bottom:12px;
+}
+.how-step h3{font-size:14px;font-weight:600;color:var(--fg-1);margin-bottom:6px;letter-spacing:-.1px}
+.how-step p{font-size:12.5px;color:var(--fg-2);line-height:1.55}
+.how-step p b{color:var(--fg-1);font-weight:600}
+.how-arrow{
+  display:grid;place-items:center;color:var(--fg-4);
+  font-family:var(--mono);font-size:16px;letter-spacing:-2px;font-weight:700;
+  align-self:center;
+}
+.how-arrow svg{width:22px;height:22px;color:var(--gold);opacity:.6}
+@media (max-width:880px){
+  .how-steps{grid-template-columns:1fr;gap:10px}
+  .how-arrow{transform:rotate(90deg);justify-self:center}
+}
+
+/* TOOLBAR */
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 24px;background:linear-gradient(180deg,var(--bg-1),var(--bg-2));border-bottom:1px solid var(--line-1);flex-wrap:wrap}
+.tb-left,.tb-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
+.search{position:relative;display:flex;align-items:center;width:280px;background:var(--bg-3);border:1px solid var(--line-2);border-radius:10px;height:36px;padding:0 14px 0 36px;
+  transition:border-color .2s var(--ease),box-shadow .2s var(--ease)}
+.search:focus-within{border-color:var(--gold-line);box-shadow:0 0 0 3px rgba(201,162,39,.06)}
+.search svg{position:absolute;left:12px;width:14px;height:14px;color:var(--fg-3)}
+.search input{flex:1;background:none;border:0;outline:0;color:var(--fg-1);font-size:13px}
+.search input::placeholder{color:var(--fg-3)}
+.search .kbd{font-family:var(--mono);font-size:10px;color:var(--fg-3);border:1px solid var(--line-2);border-radius:4px;padding:1px 5px;background:var(--bg-4)}
+
+/* DROPDOWN */
+.dd{position:relative}
+.dd-btn{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 12px;background:var(--bg-3);border:1px solid var(--line-2);border-radius:10px;font-size:13px;color:var(--fg-1);font-weight:500;
+  transition:border-color .2s var(--ease),background .2s var(--ease)}
+.dd-btn:hover{border-color:var(--line-3)}
+.dd-btn.open{border-color:var(--gold-line);background:var(--bg-4)}
+.dd-btn .icon{width:14px;height:14px;color:var(--fg-2);flex-shrink:0}
+.dd-btn .lbl{flex:1;min-width:0;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dd-btn .count{font-family:var(--mono);font-size:10px;color:var(--fg-3);background:var(--bg-4);padding:2px 6px;border-radius:999px;border:1px solid var(--line-2);flex-shrink:0;transition:all .2s var(--ease)}
+.dd-btn .chev{width:10px;height:10px;color:var(--fg-3);flex-shrink:0;transition:transform .2s var(--ease),color .2s var(--ease)}
+.dd-btn.open .chev{transform:rotate(180deg)}
+.dd-btn.filtered{border-color:var(--gold-line);background:var(--bg-4)}
+.dd-btn.filtered .count{color:var(--gold);border-color:var(--gold-line)}
+.dd-btn.filtered:hover{border-color:var(--gold-line)}
+#dd-types-ex .dd-btn,#dd-flows-types .dd-btn{min-width:170px}
+#dd-flows-period .dd-btn,#dd-ex-period .dd-btn{min-width:90px}
+
+.dd-panel-types{padding:6px;min-width:230px}
+.dd-panel-types .rw-list{display:flex;flex-direction:column}
+.dd-panel-types .rw-item{
+  position:relative;
+  display:flex;align-items:center;gap:10px;
+  padding:9px 10px;border-radius:6px;cursor:pointer;
+  transition:background .15s var(--ease);
+}
+.dd-panel-types .rw-item + .rw-item{border-top:1px solid var(--line-1)}
+.dd-panel-types .rw-item:hover{background:var(--bg-3)}
+.dd-panel-types .rw-check{
+  width:15px;height:15px;border-radius:4px;flex-shrink:0;
+  background:var(--bg-4);border:1.5px solid var(--line-3);
+  display:grid;place-items:center;
+  transition:background .15s var(--ease),border-color .15s var(--ease);
+}
+.dd-panel-types .rw-check svg{width:9px;height:9px;color:var(--bg-0);opacity:0;transition:opacity .15s var(--ease)}
+.dd-panel-types .rw-item.active .rw-check{background:var(--gold);border-color:var(--gold)}
+.dd-panel-types .rw-item.active .rw-check svg{opacity:1}
+.dd-panel-types .rw-dot-src{width:7px;height:7px;border-radius:2px;flex-shrink:0}
+.dd-panel-types .rw-dot-src.eoa{background:var(--fg-2)}
+.dd-panel-types .rw-dot-src.ca{background:var(--gold)}
+.dd-panel-types .rw-dot-src.cex{background:var(--down)}
+.dd-panel-types .rw-dot-src.mm{background:#9ab7c2}
+.dd-panel-types .rw-dot-src.bot{background:#b4a87a}
+.dd-panel-types .rw-name{font-size:13px;font-weight:500;color:var(--fg-2);flex:1;min-width:0}
+.dd-panel-types .rw-item.active .rw-name{color:var(--fg-1)}
+
+.dd-panel{position:absolute;top:calc(100% + 6px);left:0;min-width:220px;max-width:320px;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-md);box-shadow:var(--sh-hi);padding:6px;z-index:40;
+  opacity:0;transform:translateY(-4px);pointer-events:none;transition:opacity .18s var(--ease),transform .18s var(--ease);}
+.dd-panel.show{opacity:1;transform:translateY(0);pointer-events:auto}
+.dd-panel-head{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:var(--fg-3);font-weight:600;padding:8px 10px 6px}
+.dd-list{display:flex;flex-direction:column}
+.dd-opt{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:6px;font-size:13px;color:var(--fg-2);cursor:pointer;transition:background .15s var(--ease),color .15s var(--ease)}
+.dd-opt + .dd-opt{border-top:1px solid var(--line-1)}
+.dd-opt:hover{background:var(--bg-3);color:var(--fg-1)}
+.dd-opt.active{background:rgba(201,162,39,.04);color:var(--fg-1)}
+.dd-opt-name{flex:1;min-width:0}
+.dd-opt-check{width:15px;height:15px;border-radius:4px;flex-shrink:0;background:var(--bg-4);border:1.5px solid var(--line-3);display:grid;place-items:center;transition:background .15s var(--ease),border-color .15s var(--ease)}
+.dd-opt-check svg{width:9px;height:9px;color:var(--bg-0);opacity:0;transition:opacity .15s var(--ease)}
+.dd-opt.active .dd-opt-check{background:var(--gold);border-color:var(--gold)}
+.dd-opt.active .dd-opt-check svg{opacity:1}
+
+/* TABLE */
+.tbl-wrap{overflow-x:auto;border-radius:0 0 var(--r-xl) var(--r-xl)}
+.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
+.tbl thead th{position:sticky;top:0;z-index:2;font-size:10px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;color:var(--fg-3);text-align:left;
+  padding:12px 18px;background:var(--bg-1);border-bottom:1px solid var(--line-2);white-space:nowrap;user-select:none;cursor:pointer;transition:color .15s var(--ease)}
+.tbl thead th:hover{color:var(--fg-1)}
+.tbl thead th .sort{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;margin-left:6px;color:var(--fg-4);font-size:10px;line-height:1;transition:color .15s var(--ease)}
+.tbl thead th:hover .sort{color:var(--fg-2)}
+.tbl thead th.sorted{color:var(--gold)}
+.tbl thead th.sorted .sort{color:var(--gold)}
+.tbl thead th.num{text-align:right}
+
+.tbl tbody tr{transition:background .12s var(--ease);cursor:pointer;position:relative}
+.tbl tbody td{padding:12px 18px;border-bottom:1px solid var(--line-1);vertical-align:middle;color:var(--fg-1);font-variant-numeric:tabular-nums;position:relative}
+.tbl tbody td.num{text-align:right;font-family:var(--mono);font-weight:500}
+.tbl tbody tr:hover td{background:var(--bg-3)}
+.tbl tbody tr:hover td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0}
+.tbl tbody tr:last-child td{border-bottom:0}
+.tbl tbody tr.tbl-spacer-row{pointer-events:none;cursor:default}
+.tbl tbody tr.tbl-spacer-row td{color:transparent}
+.tbl tbody tr.tbl-spacer-row td > *{visibility:hidden}
+.tbl tbody tr.tbl-spacer-row:hover td{background:transparent}
+.tbl tbody tr.tbl-spacer-row:hover td:first-child::before{display:none}
+
+.rank{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--fg-3);min-width:24px;text-align:right}
+.tbl tbody tr:hover .rank{color:var(--gold)}
+
+.addr-cell{display:flex;flex-direction:column;gap:4px;align-items:flex-start;min-width:0}
+.addr-line{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
+.addr-line.top{gap:10px}
+.addr-line.bot{gap:8px}
+.addr-name{font-size:13px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px;line-height:1.2}
+.addr-name.addr-generic{color:var(--fg-2);font-weight:500}
+.addr-mono{font-family:var(--mono);font-size:12px;color:var(--fg-3);font-weight:500;letter-spacing:.1px;line-height:1.2}
+.tbl tbody tr:hover .addr-mono{color:var(--fg-2)}
+
+.type-tag{
+  display:inline-flex;align-items:center;
+  font-size:9.5px;text-transform:uppercase;letter-spacing:.8px;font-weight:600;
+  padding:2px 6px;border-radius:4px;
+  border:1px solid;
+  white-space:nowrap;
+}
+.type-tag.type-eoa{color:var(--fg-3);border-color:var(--line-2);background:var(--bg-3)}
+.type-tag.type-ca{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.type-tag.type-cex{color:var(--down);border-color:rgba(180,121,107,.3);background:rgba(180,121,107,.08)}
+.type-tag.type-mm{color:#9ab7c2;border-color:rgba(154,183,194,.3);background:rgba(154,183,194,.08)}
+.type-tag.type-bot{color:#b4a87a;border-color:rgba(180,168,122,.3);background:rgba(180,168,122,.08)}
+
+.addr-copy,.addr-debank{
+  width:22px;height:22px;border-radius:5px;display:grid;place-items:center;
+  color:var(--fg-4);background:var(--bg-3);border:1px solid var(--line-2);flex-shrink:0;
+  transition:all .15s var(--ease);cursor:pointer;
+}
+.addr-copy:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.addr-copy.copied{color:var(--up);border-color:rgba(138,163,123,.4)}
+.addr-copy svg{width:11px;height:11px;pointer-events:none}
+.addr-debank{padding:0;overflow:hidden}
+.addr-debank img{width:14px;height:14px;border-radius:3px;opacity:.7;transition:opacity .15s var(--ease)}
+.addr-debank:hover{border-color:#fe815f;background:rgba(254,129,95,.08)}
+.addr-debank:hover img{opacity:1}
+.debank-fallback{font-family:var(--mono);font-size:11px;font-weight:700;color:#fe815f}
+
+.bal-zero{color:var(--fg-4);font-family:var(--mono)}
+.bal-val{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--fg-1)}
+.bal-val.usd{color:var(--gold-hi)}
+.bal-val.total{color:var(--fg-1);font-weight:600}
+
+/* lock-duration cell — small chip + bar */
+.lock-cell{display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+.lock-val{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--fg-1);line-height:1.1}
+.lock-val.short{color:var(--down)}
+.lock-val.medium{color:var(--gold)}
+.lock-val.long{color:var(--up)}
+.lock-bar{width:90px;height:4px;border-radius:2px;background:var(--bg-3);overflow:hidden;border:1px solid var(--line-1)}
+.lock-bar > span{display:block;height:100%;border-radius:1px;transition:width .3s var(--ease)}
+.lock-bar > span.short{background:var(--down)}
+.lock-bar > span.medium{background:var(--gold)}
+.lock-bar > span.long{background:var(--up)}
+
+/* PAGINATION */
+.tbl-foot{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:14px 24px;border-top:1px solid var(--line-1);gap:12px}
+.tbl-foot-info{font-size:12px;color:var(--fg-3);font-family:var(--mono);text-align:left;grid-column:1}
+.pager{display:inline-flex;align-items:center;gap:4px;grid-column:2;justify-self:center}
+.pg-btn{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;padding:0 8px;border-radius:6px;background:var(--bg-3);border:1px solid var(--line-2);color:var(--fg-2);cursor:pointer;font-family:var(--mono);font-size:12px;
+  transition:all .15s var(--ease)}
+.pg-btn:hover:not(:disabled){background:var(--bg-4);color:var(--fg-1);border-color:var(--line-3)}
+.pg-btn:disabled{opacity:.3;cursor:not-allowed}
+.pg-btn svg{width:11px;height:11px}
+.pg-current{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:0 14px;height:30px;
+  font-family:var(--mono);font-size:12px;font-weight:600;
+  color:var(--fg-1);font-variant-numeric:tabular-nums;
+}
+.pg-current .pg-sep{color:var(--fg-4);font-weight:400}
+
+/* FLOWS */
+.flows-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid var(--line-1)}
+.flows-col{padding:0;border-left:1px solid var(--line-1)}
+.flows-col:first-child{border-left:0}
+.flows-col-head{display:flex;align-items:center;gap:8px;padding:14px 24px 10px;font-size:11px;text-transform:uppercase;letter-spacing:1.4px;font-weight:600}
+.flows-col-head.acc{color:var(--up)}
+.flows-col-head.out{color:var(--down)}
+.flows-col-head .arrow-icon{width:14px;height:14px}
+.flows-tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px}
+.flows-tbl thead th{font-size:10px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:var(--fg-3);text-align:left;padding:8px 24px;background:transparent;border-bottom:1px solid var(--line-1);user-select:none;cursor:default}
+.flows-tbl thead th.num{text-align:right}
+.flows-tbl thead th[data-flow-sort]{cursor:pointer;transition:color .15s var(--ease)}
+.flows-tbl thead th[data-flow-sort]:hover,
+.flows-tbl thead th.sorted{color:var(--fg-1)}
+.flows-tbl tbody tr{cursor:pointer;transition:background .12s var(--ease)}
+.flows-tbl tbody tr.flow-spacer-row{pointer-events:none;cursor:default}
+.flows-tbl tbody tr.flow-spacer-row td{color:transparent}
+.flows-tbl tbody tr.flow-spacer-row td > *{visibility:hidden}
+.flow-foot{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:14px 24px;border-top:1px solid var(--line-1);gap:12px}
+.flows-tbl tbody tr:hover td{background:var(--bg-3)}
+.flows-tbl tbody td{padding:11px 24px;color:var(--fg-1);border-bottom:1px solid var(--line-1);font-variant-numeric:tabular-nums;position:relative;vertical-align:middle}
+.flows-tbl tbody td.num{text-align:right;font-family:var(--mono);font-weight:500}
+.flows-tbl tbody tr:last-child td{border-bottom:0}
+.flows-tbl tbody tr:hover td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px}
+.flows-col.acc .flows-tbl tbody tr:hover td:first-child::before{background:var(--up)}
+.flows-col.out .flows-tbl tbody tr:hover td:first-child::before{background:var(--down)}
+.flows-net.up{color:var(--up)}
+.flows-net.down{color:var(--down)}
+
+/* CLAIMER BEHAVIOUR DONUT */
+.behav-grid{display:grid;grid-template-columns:300px 1fr;gap:32px;padding:24px;align-items:center}
+.behav-donut{position:relative;width:240px;height:240px;justify-self:center}
+.behav-donut svg{width:100%;height:100%;transform:rotate(-90deg)}
+.behav-center{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+.behav-center .v{font-family:var(--mono);font-size:30px;font-weight:700;color:var(--fg-1);letter-spacing:-.5px;line-height:1}
+.behav-center .l{font-size:10.5px;color:var(--fg-3);letter-spacing:1.5px;text-transform:uppercase;margin-top:6px;font-weight:600}
+.behav-legend{display:flex;flex-direction:column;gap:10px}
+.behav-row{
+  display:grid;grid-template-columns:14px 1fr auto auto;align-items:center;gap:12px;
+  padding:10px 14px;border-radius:10px;
+  background:var(--bg-1);border:1px solid var(--line-2);
+  transition:border-color .2s var(--ease),background .2s var(--ease);cursor:default;
+}
+.behav-row:hover{border-color:var(--line-3);background:var(--bg-3)}
+.behav-row .swatch{width:10px;height:10px;border-radius:3px}
+.behav-row .name{font-size:13px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px}
+.behav-row .name small{display:block;font-size:11px;color:var(--fg-3);font-weight:400;margin-top:2px;letter-spacing:0}
+.behav-row .pct{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--fg-1);font-variant-numeric:tabular-nums}
+.behav-row .amt{font-family:var(--mono);font-size:11.5px;color:var(--fg-3);font-variant-numeric:tabular-nums}
+.behav-row.exer .swatch{background:#8aa37b}
+.behav-row.held .swatch{background:#22d3ee}
+.behav-row.out  .swatch{background:#b4796b}
+.behav-row.buy  .swatch{background:#a78bfa}
+
+/* PROTOCOL INFO */
+.proto{margin-top:24px;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-xl);overflow:hidden;box-shadow:var(--sh-card);position:relative}
+.proto::before{
+  content:"";position:absolute;left:0;right:0;top:0;height:1px;
+  background:linear-gradient(90deg,transparent 0%,var(--gold-line) 30%,var(--gold-line) 70%,transparent 100%);
+  opacity:.6;pointer-events:none;
+}
+.proto-head{display:flex;flex-direction:column;align-items:flex-start;gap:16px;padding:22px 24px 20px;border-bottom:1px solid var(--line-1)}
+.proto-brand{display:flex;align-items:center;gap:14px}
+.proto-brand-mark{width:40px;height:40px;border-radius:50%;background:var(--bg-3);border:1px solid var(--line-2);display:grid;place-items:center;overflow:hidden;flex-shrink:0}
+.proto-brand-mark img{width:28px;height:28px;object-fit:contain}
+.proto-brand-text{display:flex;flex-direction:column;gap:2px}
+.proto-brand-name{font-size:15px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px}
+.proto-brand-sub{font-size:12px;color:var(--fg-3)}
+.proto-links{display:flex;align-items:center;gap:14px;flex-wrap:wrap;row-gap:10px}
+.proto-links-group{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+.proto-links-label{
+  font-size:9.5px;text-transform:uppercase;letter-spacing:1.4px;font-weight:600;
+  color:var(--fg-4);margin-right:4px;
+}
+.proto-links-sep{width:1px;height:18px;background:var(--line-2);flex-shrink:0}
+.proto-pill{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;font-size:12px;color:var(--fg-2);background:var(--bg-3);border:1px solid var(--line-2);border-radius:999px;
+  transition:border-color .2s var(--ease),color .2s var(--ease),background .2s var(--ease)}
+.proto-pill:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.proto-pill svg{width:13px;height:13px}
+.proto-body{padding:20px 24px 24px}
+.proto-body-head{
+  font-size:11px;text-transform:uppercase;letter-spacing:1.6px;
+  color:var(--fg-2);font-weight:600;margin-bottom:14px;
+  display:flex;align-items:center;gap:10px;
+}
+.proto-body-head::after{
+  content:"";flex:1;height:1px;background:var(--line-1);
+}
+.proto-addrs{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.proto-addr{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 14px;background:var(--bg-1);border:1px solid var(--line-2);border-radius:var(--r-md);transition:border-color .2s var(--ease),background .2s var(--ease);cursor:pointer}
+.proto-addr:hover{border-color:var(--gold-line);background:rgba(201,162,39,.02)}
+.proto-addr-left{display:flex;align-items:center;gap:12px;min-width:0}
+.proto-token{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.proto-token img{width:28px;height:28px;border-radius:50%;object-fit:cover;background:var(--bg-3);border:1px solid var(--line-2)}
+.proto-token-name{font-size:14px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px}
+.proto-chain-chip{display:inline-flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--fg-2);padding:3px 8px;border-radius:4px;background:var(--bg-3);border:1px solid var(--line-2);font-weight:500}
+.proto-chain-chip .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.dot-ethereum{background:#8a8a9e}
+.dot-berachain{background:#c9a227}
+.proto-addr-right{display:flex;align-items:center;gap:8px;min-width:0;flex:1;justify-content:flex-end}
+.proto-addr-hex{font-family:var(--mono);font-size:11px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+.proto-copy,.proto-explore{
+  width:26px;height:26px;border-radius:6px;
+  background:var(--bg-3);border:1px solid var(--line-2);
+  display:grid;place-items:center;color:var(--fg-3);
+  flex-shrink:0;cursor:pointer;
+  transition:color .2s var(--ease),border-color .2s var(--ease),background .2s var(--ease);
+}
+.proto-copy:hover,.proto-explore:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.proto-copy.copied{color:var(--up);border-color:var(--up)}
+.proto-copy svg,.proto-explore svg{width:12px;height:12px;pointer-events:none}
+
+.foot{margin-top:24px;text-align:center;font-size:11px;color:var(--fg-3);letter-spacing:.3px}
+
+/* ====== SUPPLY LIFECYCLE v2 — funnel + chunky stacked bar ====== */
+.lc2-body{padding:24px}
+.lc2-headline{
+  display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;
+  margin-bottom:18px;
+}
+.lc2-headline-l{display:flex;flex-direction:column;gap:6px}
+.lc2-supply-lbl{font-size:10px;text-transform:uppercase;letter-spacing:1.6px;color:var(--fg-3);font-weight:600}
+.lc2-supply-val{font-family:var(--mono);font-size:34px;font-weight:700;letter-spacing:-1px;color:var(--fg-1);font-variant-numeric:tabular-nums;line-height:1}
+.lc2-supply-val .unit{font-size:.45em;color:var(--fg-3);margin-left:8px;font-weight:500}
+.lc2-headline-r{
+  display:inline-flex;align-items:center;gap:10px;
+  padding:8px 14px;border-radius:999px;
+  font-size:11px;color:var(--fg-2);font-family:var(--mono);
+  background:var(--bg-1);border:1px solid var(--line-2);
+}
+.lc2-headline-r .pulse{background:var(--gold-hi)}
+
+/* Big stacked bar — segments labeled inline */
+.lc2-bar-wrap{position:relative;margin:6px 0 14px}
+.lc2-bar{
+  display:flex;height:42px;border-radius:10px;overflow:hidden;
+  border:1px solid var(--line-2);background:var(--bg-1);
+}
+.lc2-seg{
+  position:relative;display:flex;flex-direction:column;justify-content:center;
+  padding:0 14px;color:#0a0a0c;
+  transition:transform .25s var(--ease),filter .25s var(--ease);
+  cursor:default;
+  overflow:hidden;
+}
+.lc2-seg:hover{filter:brightness(1.08)}
+.lc2-seg .pct{font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:-.2px;line-height:1;text-shadow:0 1px 0 rgba(255,255,255,.15)}
+.lc2-seg .nm {font-size:10px;letter-spacing:1.2px;text-transform:uppercase;font-weight:600;margin-top:3px;opacity:.85}
+.lc2-seg.exercised{background:linear-gradient(180deg,#a8c499 0%,#7d9a6c 100%)}
+.lc2-seg.vesting  {background:linear-gradient(180deg,#c4b5fd 0%,#9a86dd 100%)}
+.lc2-seg.unclaimed{background:linear-gradient(180deg,#67e8f9 0%,#22b3c8 100%)}
+.lc2-seg.circulating{background:linear-gradient(180deg,#e4c15a 0%,#a48218 100%);color:#1a1306}
+.lc2-bar-ticks{display:flex;justify-content:space-between;margin-top:6px;font-family:var(--mono);font-size:10px;color:var(--fg-4);letter-spacing:.5px}
+
+/* Detail row — 4 cards, each with arrow connector */
+.lc2-cells{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:18px}
+.lc2-cell{
+  position:relative;
+  background:var(--bg-1);border:1px solid var(--line-2);border-radius:var(--r-md);
+  padding:16px 18px 18px;overflow:hidden;
+  transition:border-color .2s var(--ease),transform .2s var(--ease);
+}
+.lc2-cell:hover{border-color:var(--line-3);transform:translateY(-1px)}
+.lc2-cell .swatch{position:absolute;left:14px;top:14px;width:8px;height:8px;border-radius:2px}
+.lc2-cell.exercised .swatch{background:#8aa37b}
+.lc2-cell.vesting   .swatch{background:#a78bfa}
+.lc2-cell.unclaimed .swatch{background:#22d3ee}
+.lc2-cell.circulating .swatch{background:var(--gold-hi)}
+.lc2-cell .lbl{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:var(--fg-3);font-weight:600;padding-left:18px;margin-bottom:14px}
+.lc2-cell .row{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:6px}
+.lc2-cell .val{font-family:var(--mono);font-size:24px;font-weight:600;letter-spacing:-.5px;color:var(--fg-1);font-variant-numeric:tabular-nums;line-height:1}
+.lc2-cell .pct{font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:-.2px;color:var(--fg-3);font-variant-numeric:tabular-nums}
+.lc2-cell.exercised .pct{color:#a8c499}
+.lc2-cell.vesting .pct{color:#c4b5fd}
+.lc2-cell.unclaimed .pct{color:#67e8f9}
+.lc2-cell.circulating .pct{color:var(--gold-hi)}
+.lc2-cell .desc{font-size:11.5px;color:var(--fg-2);line-height:1.5;margin-top:4px}
+.lc2-cell .desc b{color:var(--fg-1);font-weight:600}
+.lc2-cell .delta{font-size:10.5px;font-family:var(--mono);color:var(--fg-3);margin-top:10px;display:inline-flex;align-items:center;gap:6px}
+.lc2-cell .delta.up{color:var(--up)}
+.lc2-cell .delta.down{color:var(--down)}
+.lc2-cell .delta svg{width:10px;height:10px}
+
+/* ====== HOW oDOLO WORKS v2 ====== */
+.how2-body{padding:24px 24px 12px}
+.how2-steps{
+  display:grid;grid-template-columns:1fr auto 1fr auto 1fr;
+  align-items:stretch;gap:14px;
+}
+.how2-step{
+  position:relative;
+  background:linear-gradient(160deg,var(--bg-1) 0%,var(--bg-2) 100%);
+  border:1px solid var(--line-2);border-radius:var(--r-lg);
+  padding:22px 22px 20px;overflow:hidden;
+  transition:border-color .2s var(--ease),transform .2s var(--ease);
+}
+.how2-step:hover{border-color:var(--gold-line);transform:translateY(-2px)}
+.how2-step::before{
+  content:"";position:absolute;left:0;right:0;top:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--gold) 30%,var(--gold) 70%,transparent);
+  opacity:.6;
+}
+.how2-step::after{
+  content:"";position:absolute;inset:auto -40% -40% auto;width:160px;height:160px;
+  background:radial-gradient(circle,var(--gold-wash) 0%,transparent 65%);
+  opacity:.6;pointer-events:none;
+}
+.how2-step .top{display:flex;align-items:center;gap:12px;margin-bottom:14px;position:relative;z-index:1}
+.how2-step .num{
+  width:34px;height:34px;border-radius:50%;flex-shrink:0;
+  display:grid;place-items:center;
+  border:1.5px solid var(--gold-line);background:var(--gold-wash);color:var(--gold-hi);
+  font-family:var(--mono);font-weight:700;font-size:14px;
+}
+.how2-step .iconbox{
+  width:34px;height:34px;border-radius:8px;
+  background:var(--bg-3);border:1px solid var(--line-2);
+  display:grid;place-items:center;color:var(--gold-hi);
+  flex-shrink:0;
+}
+.how2-step .iconbox svg{width:16px;height:16px}
+.how2-step h3{font-size:15px;font-weight:600;color:var(--fg-1);margin-bottom:8px;letter-spacing:-.1px;position:relative;z-index:1}
+.how2-step p{font-size:12.5px;color:var(--fg-2);line-height:1.55;position:relative;z-index:1}
+.how2-step p b{color:var(--fg-1);font-weight:600}
+.how2-step .meta{
+  margin-top:14px;padding-top:12px;border-top:1px dashed var(--line-2);
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.5px;color:var(--fg-3);
+  display:flex;align-items:center;gap:8px;position:relative;z-index:1;
+}
+.how2-step .meta b{color:var(--fg-1);font-weight:600}
+.how2-step .meta .chip{padding:2px 7px;border-radius:4px;background:var(--bg-3);border:1px solid var(--line-2);color:var(--fg-2);font-weight:500}
+.how2-arrow{
+  display:grid;place-items:center;color:var(--gold);opacity:.55;
+  align-self:center;
+}
+.how2-arrow svg{width:24px;height:24px}
+@media (max-width:880px){
+  .how2-steps{grid-template-columns:1fr;gap:10px}
+  .how2-arrow{transform:rotate(90deg);justify-self:center}
+}
+
+/* ===== Discount-tier strip — premium UX ===== */
+.how2-tiers{margin-top:22px;padding:22px 24px 24px;border-top:1px solid var(--line-1);background:linear-gradient(180deg,var(--bg-1) 0%,var(--bg-2) 100%)}
+.how2-tiers-head{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:18px;
+}
+.how2-tiers-h{
+  font-size:13px;text-transform:none;letter-spacing:-.1px;color:var(--fg-1);font-weight:700;
+  display:flex;align-items:center;gap:10px;
+}
+.how2-tiers-h .ico{
+  width:26px;height:26px;border-radius:8px;flex-shrink:0;
+  background:var(--gold-wash);border:1px solid var(--gold-line);
+  display:grid;place-items:center;color:var(--gold-hi);
+}
+.how2-tiers-h .ico svg{width:14px;height:14px}
+.how2-tiers-axis{
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:10.5px;color:var(--fg-3);font-family:var(--mono);
+  font-weight:600;letter-spacing:.5px;
+}
+.how2-tiers-axis .arrow{
+  display:inline-block;width:80px;height:6px;border-radius:3px;
+  background:linear-gradient(90deg,rgba(228,193,90,.15) 0%,#e4c15a 100%);
+  position:relative;
+}
+.how2-tiers-axis .arrow::after{
+  content:"";position:absolute;right:-1px;top:50%;transform:translateY(-50%);
+  width:0;height:0;border-left:7px solid #e4c15a;border-top:5px solid transparent;border-bottom:5px solid transparent;
+}
+.how2-tiers-axis .lhs{color:var(--fg-3)}
+.how2-tiers-axis .rhs{color:var(--gold-hi);font-weight:700}
+
+.how2-tier-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;position:relative}
+.how2-tier{
+  position:relative;
+  background:var(--bg-1);border:1px solid var(--line-2);border-radius:var(--r-md);
+  padding:14px 12px 14px;text-align:center;cursor:default;
+  transition:border-color .2s var(--ease),background .2s var(--ease),transform .2s var(--ease);
+}
+.how2-tier:hover{border-color:var(--gold-line);background:rgba(201,162,39,.04);transform:translateY(-2px)}
+.how2-tier .lock{
+  font-family:var(--mono);font-size:11px;color:var(--fg-2);
+  letter-spacing:.3px;margin-bottom:8px;text-transform:uppercase;font-weight:700;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.how2-tier .lock svg{width:11px;height:11px;color:var(--fg-3)}
+.how2-tier .disc{
+  font-family:var(--mono);font-size:24px;font-weight:800;
+  letter-spacing:-.6px;line-height:1;color:var(--fg-1);
+  font-variant-numeric:tabular-nums;
+}
+/* Color the discount value by intensity — using gold tint that grows */
+.how2-tier:nth-child(1) .disc{color:#7a6a3a}
+.how2-tier:nth-child(2) .disc{color:#9a8438}
+.how2-tier:nth-child(3) .disc{color:#b89a32}
+.how2-tier:nth-child(4) .disc{color:#cca52a}
+.how2-tier:nth-child(5) .disc{color:#e4c15a}
+.how2-tier:nth-child(6) .disc{color:#f0d168}
+.how2-tier .deal{
+  margin-top:5px;font-size:9.5px;color:var(--fg-3);font-family:var(--mono);
+  letter-spacing:.4px;font-weight:600;
+}
+.how2-tier .bar{height:4px;background:var(--bg-3);border-radius:2px;margin-top:11px;overflow:hidden;border:1px solid var(--line-1)}
+.how2-tier .bar > span{display:block;height:100%;background:linear-gradient(90deg,var(--gold-lo),var(--gold-hi));border-radius:2px;transition:width .5s var(--ease)}
+
+/* The "1 year · avg" tile — clearly stands out as the actual market average */
+.how2-tier.is-avg{
+  border-color:var(--gold-line);background:linear-gradient(165deg,rgba(228,193,90,.10) 0%,rgba(201,162,39,.04) 100%);
+  box-shadow:0 4px 16px rgba(201,162,39,.12),0 0 0 1px var(--gold-line);
+}
+.how2-tier.is-avg::before{
+  content:"AVG";position:absolute;top:-7px;left:50%;transform:translateX(-50%);
+  font-family:var(--mono);font-size:9px;font-weight:800;letter-spacing:1.4px;
+  color:#1a1306;background:var(--gold-hi);
+  padding:2px 8px;border-radius:999px;
+  box-shadow:0 2px 8px rgba(228,193,90,.4);
+}
+.how2-tier.is-avg .disc{color:var(--gold-hi)}
+.how2-tier.is-avg .lock{color:var(--gold-hi)}
+.how2-tier.is-avg .deal{color:var(--gold-hi)}
+
+@media (max-width:880px){
+  .how2-tier-grid{grid-template-columns:repeat(3,1fr)}
+  .how2-tier .disc{font-size:21px}
+  .how2-tiers-axis{display:none}
+}
+@media (max-width:520px){
+  .how2-tier-grid{grid-template-columns:repeat(2,1fr)}
+}
+
+/* ====== CHARTS ROW — 2-up Distribution + Claimer Behavior ====== */
+.charts-2up{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px}
+@media (max-width:980px){ .charts-2up{grid-template-columns:1fr} }
+
+.donut-card{
+  background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-xl);
+  box-shadow:var(--sh-card);overflow:hidden;
+}
+.donut-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 22px 14px;border-bottom:1px solid var(--line-1);gap:12px;flex-wrap:wrap;
+}
+.donut-title{display:flex;align-items:center;gap:10px}
+.donut-title h2{font-size:15px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px}
+.donut-title .count-badge{font-family:var(--mono);font-size:11px;color:var(--fg-2);background:var(--bg-3);border:1px solid var(--line-2);padding:3px 8px;border-radius:999px}
+.donut-meta{font-size:11px;color:var(--fg-3);font-family:var(--mono);display:flex;align-items:center;gap:6px}
+.donut-body{display:grid;grid-template-columns:240px 1fr;gap:24px;padding:22px;align-items:center}
+@media (max-width:520px){ .donut-body{grid-template-columns:1fr;gap:14px} .donut-canvas-wrap{margin:0 auto} }
+.donut-canvas-wrap{position:relative;width:240px;height:240px;justify-self:center}
+.donut-canvas{width:100%;height:100%;display:block}
+.donut-center{position:absolute;inset:0;display:grid;place-items:center;text-align:center;pointer-events:none}
+.donut-center .v{font-family:var(--mono);font-size:26px;font-weight:700;color:var(--fg-1);letter-spacing:-.5px;line-height:1}
+.donut-center .l{font-size:10px;color:var(--fg-3);letter-spacing:1.4px;text-transform:uppercase;margin-top:6px;font-weight:600}
+.donut-tooltip{
+  position:fixed;display:none;pointer-events:none;z-index:80;
+  background:var(--bg-1);border:1px solid var(--line-3);border-radius:8px;padding:8px 12px;
+  font-size:12px;color:var(--fg-1);box-shadow:var(--sh-hi);white-space:nowrap;
+}
+.donut-tooltip .ttl{display:flex;align-items:center;gap:8px;font-weight:600;margin-bottom:3px}
+.donut-tooltip .ttl .swatch{width:9px;height:9px;border-radius:2px}
+.donut-tooltip .det{color:var(--fg-3);font-size:11px;font-family:var(--mono)}
+
+.donut-legend{display:flex;flex-direction:column;gap:8px}
+.dleg-row{
+  display:grid;grid-template-columns:10px 1fr auto;gap:10px;align-items:center;
+  padding:9px 12px;border-radius:8px;
+  background:var(--bg-1);border:1px solid var(--line-2);
+  cursor:default;
+  transition:border-color .2s var(--ease),background .2s var(--ease),opacity .2s var(--ease);
+}
+.dleg-row:hover{border-color:var(--line-3);background:var(--bg-3)}
+.dleg-row.dim{opacity:.35}
+.dleg-row.active{border-color:var(--gold-line);background:rgba(201,162,39,.04)}
+.dleg-row .swatch{width:10px;height:10px;border-radius:3px}
+.dleg-row .info{display:flex;flex-direction:column;gap:2px;min-width:0}
+.dleg-row .name{font-size:12.5px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px;line-height:1.2}
+.dleg-row .desc{font-size:11px;color:var(--fg-3);line-height:1.3}
+.dleg-row .right{display:flex;flex-direction:column;align-items:flex-end;gap:1px}
+.dleg-row .pct{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--fg-1);font-variant-numeric:tabular-nums}
+.dleg-row .amt{font-family:var(--mono);font-size:10.5px;color:var(--fg-3);font-variant-numeric:tabular-nums}
+
+/* ====== DISCOUNT CURVE ====== */
+.disc-body{padding:22px 24px 24px}
+.disc-shell{position:relative;height:340px;border:1px solid var(--line-2);border-radius:var(--r-md);background:var(--bg-1);overflow:hidden}
+.disc-canvas{display:block;width:100%;height:100%}
+.disc-tooltip{
+  position:fixed;display:none;pointer-events:none;z-index:80;
+  background:var(--bg-1);border:1px solid var(--line-3);border-radius:8px;padding:8px 12px;
+  font-size:12px;color:var(--fg-1);box-shadow:var(--sh-hi);white-space:nowrap;
+}
+.disc-tooltip .row{display:flex;justify-content:space-between;gap:14px;font-family:var(--mono);font-size:11px;color:var(--fg-3)}
+.disc-tooltip .row b{color:var(--fg-1);font-weight:600}
+.disc-legend{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  margin-top:14px;font-size:11.5px;color:var(--fg-2);font-family:var(--mono);
+}
+.disc-legend .item{
+  display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:999px;
+  background:var(--bg-1);border:1px solid var(--line-2);cursor:pointer;
+  transition:border-color .15s var(--ease),background .15s var(--ease),opacity .15s var(--ease);
+}
+.disc-legend .item:hover{border-color:var(--line-3)}
+.disc-legend .item.off{opacity:.35}
+.disc-legend .item .dot{width:9px;height:9px;border-radius:50%}
+.disc-legend .item .line{width:14px;height:2px;border-top:2px dashed var(--gold-hi)}
+
+/* ====== CLAIMER BREAKDOWN TABLE ====== */
+.cb-tbl thead th.col-clm{color:#bbbbbb}
+.cb-tbl thead th.col-exr{color:#a8c499}
+.cb-tbl thead th.col-out{color:#d99586}
+.cb-tbl thead th.col-hld{color:#67e8f9}
+.cb-tbl thead th.col-buy{color:#c4b5fd}
+.cb-tbl tbody td .cb-cell{display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-variant-numeric:tabular-nums}
+.cb-tbl tbody td .cb-cell .val{font-family:var(--mono);font-size:13px;font-weight:600}
+.cb-tbl tbody td .cb-cell .bar{width:80px;height:3px;background:var(--bg-3);border-radius:2px;border:1px solid var(--line-1);overflow:hidden}
+.cb-tbl tbody td .cb-cell .bar > span{display:block;height:100%;border-radius:2px;transition:width .3s var(--ease)}
+.cb-tbl tbody td .cb-cell .bar > span.clm{background:#bbbbbb}
+.cb-tbl tbody td .cb-cell .bar > span.exr{background:#8aa37b}
+.cb-tbl tbody td .cb-cell .bar > span.out{background:#b4796b}
+.cb-tbl tbody td .cb-cell .bar > span.hld{background:#22d3ee}
+.cb-tbl tbody td .cb-cell .bar > span.buy{background:#a78bfa}
+.cb-tbl tbody td .cb-cell .val.zero{color:var(--fg-4)}
+
+/* ====== HOW oDOLO WORKS v3 ====== */
+.how3-body{padding:26px 24px 0}
+.how3-intro{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:14px 18px;margin-bottom:22px;
+  background:linear-gradient(135deg,rgba(201,162,39,.06) 0%,rgba(201,162,39,.02) 100%);
+  border:1px solid var(--gold-line);border-radius:var(--r-md);
+}
+.how3-intro .ico{
+  width:36px;height:36px;border-radius:10px;flex-shrink:0;
+  background:var(--gold-wash);border:1px solid var(--gold-line);
+  display:grid;place-items:center;color:var(--gold-hi);
+}
+.how3-intro .ico svg{width:18px;height:18px}
+.how3-intro p{font-size:13px;color:var(--fg-1);line-height:1.55;margin:0;flex:1;min-width:200px}
+.how3-intro p b{color:var(--gold-hi);font-weight:600}
+.how3-steps{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:stretch;gap:16px}
+.how3-step{position:relative;background:linear-gradient(165deg,var(--bg-1) 0%,var(--bg-2) 100%);border:1px solid var(--line-2);border-radius:var(--r-lg);padding:24px;overflow:hidden;transition:border-color .25s var(--ease),transform .25s var(--ease),box-shadow .25s var(--ease)}
+.how3-step:hover{border-color:var(--gold-line);transform:translateY(-3px);box-shadow:0 16px 32px rgba(0,0,0,.4)}
+.how3-step::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,var(--gold-lo),var(--gold) 50%,var(--gold-hi));z-index:1}
+.how3-step::after{content:"";position:absolute;width:240px;height:240px;border-radius:50%;filter:blur(50px);opacity:.55;pointer-events:none;background:radial-gradient(circle,var(--gold-wash) 0%,transparent 65%);inset:auto -45% -45% auto}
+.how3-num{position:absolute;top:16px;right:16px;font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:1.6px;color:var(--gold-hi);padding:5px 11px;border-radius:999px;background:var(--gold-wash);border:1px solid var(--gold-line);z-index:2}
+.how3-icon{width:64px;height:64px;border-radius:18px;display:grid;place-items:center;background:linear-gradient(140deg,rgba(228,193,90,.22) 0%,rgba(201,162,39,.06) 100%);border:1px solid var(--gold-line);color:var(--gold-hi);margin-bottom:18px;position:relative;z-index:1;box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 8px 22px rgba(201,162,39,.18)}
+.how3-icon svg{width:30px;height:30px}
+/* Bigger illustration container for the visual SVG infographics */
+.how3-illus{
+  width:100%;height:140px;border-radius:14px;
+  display:grid;place-items:center;
+  background:linear-gradient(140deg,rgba(228,193,90,.10) 0%,rgba(201,162,39,.02) 100%);
+  border:1px solid var(--gold-line);
+  margin-bottom:18px;position:relative;z-index:1;padding:8px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 8px 22px rgba(201,162,39,.10);
+  overflow:hidden;
+}
+.how3-illus svg{width:auto;max-width:100%;height:100%;max-height:120px;display:block}
+.how3-step h3{font-size:17px;font-weight:700;color:var(--fg-1);letter-spacing:-.2px;margin-bottom:10px;position:relative;z-index:1}
+.how3-step p{font-size:13px;color:var(--fg-2);line-height:1.6;position:relative;z-index:1}
+.how3-step p b{color:var(--fg-1);font-weight:600}
+.how3-meta{margin-top:18px;padding-top:14px;border-top:1px dashed var(--line-2);position:relative;z-index:1}
+.how3-meta-h{font-size:9.5px;text-transform:uppercase;letter-spacing:1.6px;color:var(--fg-4);font-weight:700;margin-bottom:8px}
+.how3-chips{display:flex;flex-wrap:wrap;gap:6px}
+.how3-chips .chip{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:500;color:var(--fg-1);background:var(--bg-3);border:1px solid var(--line-2)}
+.how3-chips .chip .dot{width:6px;height:6px;border-radius:50%;background:var(--gold-hi)}
+.how3-arrow{display:grid;place-items:center;align-self:center;color:var(--gold-hi);position:relative;padding:0 4px}
+.how3-arrow svg{width:30px;height:30px;filter:drop-shadow(0 0 8px rgba(228,193,90,.4))}
+@media (max-width:880px){
+  .how3-steps{grid-template-columns:1fr;gap:10px}
+  .how3-arrow{transform:rotate(90deg);justify-self:center}
+}
+
+/* ====== DONUT v3 — SVG (Token Composition style) ====== */
+.donut-body-v2{padding:22px}
+.donut-wrap-v2{position:relative;width:260px;height:260px;margin:0 auto 20px}
+.donut-svg{display:block;width:100%;height:100%;overflow:visible}
+.donut-svg .donut-bg{fill:none;stroke:rgba(255,255,255,.025)}
+.donut-svg .donut-slice{
+  cursor:pointer;
+  transform-origin:130px 130px;
+  transform-box:view-box;
+  transition:opacity .25s var(--ease),filter .25s var(--ease),transform .25s var(--ease);
+  filter:drop-shadow(0 0 0 transparent);
+}
+.donut-svg .donut-slice.active{
+  filter:drop-shadow(0 0 14px currentColor);
+  transform:scale(1.05);
+}
+.donut-svg .donut-slice.dim{opacity:.22}
+.donut-center-v2{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;justify-content:center;align-items:center;
+  text-align:center;pointer-events:none;
+  gap:8px;padding:0 32px;
+  transition:all .25s var(--ease);
+}
+.donut-center-v2 .v{font-family:var(--mono);font-size:30px;font-weight:700;color:var(--fg-1);letter-spacing:-.6px;line-height:1;font-variant-numeric:tabular-nums;margin:0;transition:color .2s var(--ease)}
+.donut-center-v2 .l{font-size:10.5px;color:var(--fg-3);letter-spacing:1.5px;text-transform:uppercase;font-weight:600;line-height:1.15;margin:0;max-width:170px}
+
+/* Donut legend — Token Composition v3 (left bar accent + percentage chip on mini bar) */
+.donut-legend{display:flex;flex-direction:column;gap:1px}
+.dleg-row{
+  display:flex;align-items:flex-start;gap:11px;
+  padding:11px 14px;border-radius:10px;
+  cursor:pointer;
+  border-left:3px solid transparent;
+  transition:background .2s var(--ease),border-color .2s var(--ease),box-shadow .2s var(--ease),opacity .2s var(--ease),transform .2s var(--ease);
+}
+.dleg-row:hover, .dleg-row.active{
+  background:rgba(255,255,255,.06);
+  border-left-color:var(--leg-color);
+  box-shadow:inset 3px 0 12px -4px var(--leg-color), inset 0 0 16px rgba(255,255,255,.03);
+  opacity:1 !important;
+}
+.dleg-row.dim{opacity:.25;transform:scale(.98)}
+.dleg-row .swatch{
+  width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:3px;
+  background:var(--leg-color);box-shadow:0 0 6px var(--leg-color);
+}
+.dleg-row .info{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.dleg-row .top-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.dleg-row .name{font-size:13px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dleg-row .amt{font-family:var(--mono);font-size:12px;color:var(--fg-2);font-weight:500;flex-shrink:0;font-variant-numeric:tabular-nums}
+.dleg-row .desc{font-size:11px;color:var(--fg-3);line-height:1.35}
+.dleg-row .bar-wrap{position:relative;padding-top:14px;margin-top:2px}
+.dleg-row .pct-chip{
+  position:absolute;top:-2px;transform:translateX(-50%);
+  font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.2px;
+  color:var(--leg-color);text-shadow:0 0 8px rgba(0,0,0,.6);white-space:nowrap;
+}
+.dleg-row .bar-track{width:100%;height:4px;background:rgba(255,255,255,.04);border-radius:2px;overflow:hidden}
+.dleg-row .bar-fill{height:100%;border-radius:2px;background:var(--leg-color);transition:width .5s var(--ease)}
+
+/* ====== DISCOUNT CURVE v3 ====== */
+.disc3-body{padding:22px 24px 24px}
+.disc3-shell{
+  position:relative;height:380px;border:1px solid var(--line-2);border-radius:var(--r-md);
+  background:
+    radial-gradient(380px 200px at 95% 10%,rgba(201,162,39,.08),transparent 65%),
+    radial-gradient(280px 160px at 6% 88%,rgba(34,211,238,.04),transparent 60%),
+    linear-gradient(180deg,var(--bg-1) 0%,var(--bg-2) 100%);
+  overflow:hidden;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.02);
+}
+.disc3-canvas{display:block;width:100%;height:100%}
+.disc3-tooltip{
+  position:fixed;display:none;pointer-events:none;z-index:80;min-width:190px;
+  background:linear-gradient(180deg,var(--bg-2) 0%,var(--bg-1) 100%);
+  border:1px solid var(--line-3);border-radius:10px;padding:11px 14px;
+  box-shadow:var(--sh-hi);font-size:12px;color:var(--fg-1);
+}
+.disc3-tooltip .tt-h{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-weight:700;font-size:13px}
+.disc3-tooltip .tt-h .swatch{width:10px;height:10px;border-radius:50%}
+.disc3-tooltip .tt-row{display:flex;justify-content:space-between;gap:14px;font-family:var(--mono);font-size:11px;color:var(--fg-3);padding:2px 0}
+.disc3-tooltip .tt-row b{color:var(--fg-1);font-weight:600}
+.disc3-legend{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;font-size:11.5px;color:var(--fg-2);font-family:var(--mono)}
+.disc3-pill{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;background:var(--bg-1);border:1px solid var(--line-2);cursor:pointer;transition:border-color .15s var(--ease),background .15s var(--ease),opacity .15s var(--ease);user-select:none}
+.disc3-pill:hover{border-color:var(--line-3)}
+.disc3-pill.off{opacity:.4}
+.disc3-pill .dot{width:9px;height:9px;border-radius:50%}
+.disc3-pill.theory .line{width:18px;height:2px;border-top:2px dashed var(--gold-hi)}
+.disc3-help{margin-left:auto;color:var(--fg-3);font-size:11px;letter-spacing:.2px}
+
+/* responsive */
+@media (max-width:980px){
+  .hero-stats{grid-template-columns:1fr 1fr;gap:18px 0;border-top:1px solid var(--line-1)}
+  .hero-stat:nth-child(3){border-left:0;padding-left:0}
+  .life-stack{grid-template-columns:1fr 1fr}
+  .behav-grid{grid-template-columns:1fr}
+  .flows-grid{grid-template-columns:1fr}
+  .flows-col{border-left:0;border-top:1px solid var(--line-1)}
+  .flows-col:first-child{border-top:0}
+}
+@media (max-width:640px){
+  .wrap{padding:24px 16px 48px}
+  .hero{padding:22px 18px}
+  .hero-stats{grid-template-columns:1fr;gap:14px}
+  .hero-stat{border-left:0;padding-left:0;padding-top:14px;border-top:1px solid var(--line-1)}
+  .hero-stat:first-child{border-top:0;padding-top:0}
+  .hero-token-name{font-size:20px}
+  .hero-meta{margin-left:0;width:100%}
+  .life-stack{grid-template-columns:1fr}
+  .tbl-foot,.flow-foot{grid-template-columns:1fr;justify-items:center;gap:10px}
+  .tbl-foot-info{grid-column:1;text-align:center}
+  .pager{grid-column:1}
+  .search{width:100%}
+  .tb-left,.tb-right{width:100%}
+  .proto-addrs{grid-template-columns:1fr}
+  .proto-addr-hex{max-width:120px}
+  .proto-links-sep{display:none}
+  .proto-links{flex-direction:column;align-items:flex-start;gap:10px}
+  .site-top{gap:10px;margin-bottom:32px}
+  .site-brand{padding:12px 0 0}
+  .site-brand img{max-width:460px}
+  .nav-item{padding:8px 10px;gap:6px;font-size:12px}
+  .nav-item.active::after{display:none}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- TOP -->
+  <header class="site-top">
+    <div class="site-brand">
+      <img src="TwojeKrypto%20dashboard.png" alt="Dolomite Dashboard · Powered by TwojeKrypto">
+    </div>
+    <div class="site-nav-wrap">
+      <nav class="site-nav">
+        <a class="nav-item" href="./assets/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg><span>Assets</span></a>
+        <a class="nav-item" href="./tvl/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-6 4 4 5-8"/></svg><span>TVL</span></a>
+        <a class="nav-item" href="./dolo/"><img src="dolo-logo.svg" alt="" onerror="this.style.display='none'"><span>DOLO</span></a>
+        <a class="nav-item active" href="./odolo/"><img src="odolo-logo-official.svg" alt="" onerror="this.style.display='none'"><span>oDOLO</span></a>
+        <a class="nav-item" href="./#vedolo"><img src="vedolo-logo.svg" alt="" onerror="this.style.display='none'"><span>veDOLO</span></a>
+        <a class="nav-item" href="./#earn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/></svg><span>Earn</span></a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-brand">
+      <div class="hero-token-logo">
+        <img src="odolo-logo-official.svg" alt="oDOLO" onerror="this.outerHTML='<span style=&quot;color:var(--gold);font-weight:800;font-size:18px&quot;>◇</span>'">
+      </div>
+      <div class="hero-token-text">
+        <div class="hero-token-name">oDOLO</div>
+        <div class="hero-token-sub"><b>Option</b> token · convert to veDOLO at up to 50% discount</div>
+      </div>
+      <div class="hero-meta">
+        <div class="hero-live" id="hero-live-meta"><span class="dot"></span>Live · loading</div>
+      </div>
+    </div>
+
+    <!-- Big number — Total Supply + discount pill -->
+    <div class="hero-price-row">
+      <div class="hero-price" id="hero-supply">154.53M<span class="unit">oDOLO</span></div>
+      <div class="hero-chg gold" id="hero-discount">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19l14-14"/><circle cx="7.5" cy="6.5" r="2"/><circle cx="16.5" cy="17.5" r="2"/></svg>
+        37.7%<span class="lbl">avg discount</span>
+      </div>
+    </div>
+
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="lbl">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 5c0-1.66 4-3 9-3s9 1.34 9 3"/></svg>
+          Circulating
+        </div>
+        <div class="val" id="hero-circulating">136.40M</div>
+        <div class="sub" id="hero-circulating-sub">88.3% of total</div>
+        <div class="hero-bar"><span id="hero-circulating-bar" style="width:88.3%"></span></div>
+      </div>
+
+      <div class="hero-stat">
+        <div class="lbl">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+          Holders
+        </div>
+        <div class="val" id="hero-holders">1,866</div>
+        <div class="sub up" id="hero-holders-sub">unique wallets</div>
+      </div>
+
+      <div class="hero-stat">
+        <div class="lbl">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8l3 3 5-6"/><path d="M21 12c0 5-4 9-9 9s-9-4-9-9 4-9 9-9c2 0 3.8.7 5.2 1.8"/></svg>
+          Exercised (USDC)
+        </div>
+        <div class="val gold" id="hero-exercised-usd">$1.95M</div>
+        <div class="sub" id="hero-exercised-sub">3,535 exercises</div>
+      </div>
+
+      <div class="hero-stat">
+        <div class="lbl">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M7 7V5a3 3 0 0 1 6 0v2"/><path d="M16 12v4"/></svg>
+          Avg Lock
+        </div>
+        <div class="val" id="hero-avg-lock">17.5<span style="font-size:14px;color:var(--fg-3);margin-left:4px">mo</span></div>
+        <div class="sub" id="hero-avg-lock-sub">532 days · avg lock</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW oDOLO WORKS — moved above charts so the user learns the model first -->
+  <section class="card">
+    <div class="card-head">
+      <div class="card-title">
+        <h2>How oDOLO Works</h2>
+        <span class="count-badge">3 simple steps</span>
+      </div>
+      <div class="card-meta">Earn · lock · earn forever</div>
+    </div>
+
+    <div class="how3-body">
+
+      <!-- Plain-English teaser -->
+      <div class="how3-intro">
+        <div class="ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 7h18l-2 12H5z"/><path d="M8 7V5a4 4 0 0 1 8 0v2"/><path d="M12 12v3"/>
+          </svg>
+        </div>
+        <p><b>Think of oDOLO as a discount coupon.</b> You earn it for using Dolomite, then trade it in for veDOLO at <b>up to 50% off</b> — the longer you lock, the bigger the discount.</p>
+      </div>
+
+      <div class="how3-steps">
+
+        <!-- STEP 01 — Use Dolomite → earn oDOLO (2 big icons with EARN arrow) -->
+        <div class="how3-step">
+          <div class="how3-num">STEP 01</div>
+          <div class="how3-illus">
+            <svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+              <defs>
+                <radialGradient id="g1-glow"><stop offset="0%" stop-color="#e4c15a" stop-opacity=".5"/><stop offset="100%" stop-color="#e4c15a" stop-opacity="0"/></radialGradient>
+                <linearGradient id="g1-coin" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f0d168"/><stop offset="100%" stop-color="#a47e16"/></linearGradient>
+                <linearGradient id="g1-card" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2c2c30"/><stop offset="100%" stop-color="#161618"/></linearGradient>
+              </defs>
+
+              <!-- Glow behind right coin -->
+              <circle cx="155" cy="50" r="48" fill="url(#g1-glow)"/>
+
+              <!-- LEFT: Dolomite shield badge with layered-mountain icon + label -->
+              <g transform="translate(8, 8)">
+                <rect width="76" height="84" rx="12" fill="url(#g1-card)" stroke="#e4c15a" stroke-width="1.6"/>
+                <!-- subtle inner highlight -->
+                <rect x="1" y="1" width="74" height="82" rx="11" fill="none" stroke="rgba(255,255,255,.04)"/>
+                <!-- Layered mountain icon (Dolomite-brand inspired) -->
+                <g transform="translate(38, 30)">
+                  <path d="M -22 16 L -10 -10 L 2 16 Z" fill="#a47e16"/>
+                  <path d="M -8 16 L 4 -18 L 16 16 Z" fill="#e4c15a"/>
+                  <path d="M 8 16 L 18 -4 L 22 16 Z" fill="#f0d168"/>
+                </g>
+                <!-- Wordmark -->
+                <text x="38" y="62" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="10.5" font-weight="800" fill="#e4c15a" letter-spacing="2.2">DOLOMITE</text>
+                <text x="38" y="74" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="7" font-weight="700" fill="#a5a29a" letter-spacing="1.4">USE THE APP</text>
+              </g>
+
+              <!-- MIDDLE: thick EARN arrow -->
+              <g transform="translate(92, 0)">
+                <text x="20" y="40" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="800" fill="#e4c15a" letter-spacing="3">EARN</text>
+                <line x1="0" y1="50" x2="40" y2="50" stroke="#e4c15a" stroke-width="3.5" stroke-linecap="round"/>
+                <polyline points="30 41, 40 50, 30 59" stroke="#e4c15a" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </g>
+
+              <!-- RIGHT: Big oDOLO coin with sparkles -->
+              <g transform="translate(132, 8)">
+                <!-- Sparkles -->
+                <text x="-6" y="14" font-family="Inter, system-ui, sans-serif" font-size="14" font-weight="700" fill="#e4c15a">✦</text>
+                <text x="62" y="10" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="700" fill="#e4c15a">✦</text>
+                <text x="62" y="74" font-family="Inter, system-ui, sans-serif" font-size="13" font-weight="700" fill="#e4c15a">✦</text>
+                <text x="-4" y="80" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="700" fill="#e4c15a">✦</text>
+                <!-- Coin -->
+                <circle cx="34" cy="42" r="34" fill="url(#g1-coin)" stroke="#a47e16" stroke-width="2.5"/>
+                <circle cx="34" cy="42" r="28" fill="none" stroke="#a47e16" stroke-width=".8" opacity=".55"/>
+                <text x="34" y="46" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="14" font-weight="700" fill="#1a1306" letter-spacing="-.5">oDOLO</text>
+              </g>
+            </svg>
+          </div>
+          <h3>Use Dolomite, earn oDOLO</h3>
+          <p>Lend, borrow, or provide liquidity on Dolomite — you start earning oDOLO automatically. Or just buy it on the market.</p>
+        </div>
+
+        <div class="how3-arrow">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/>
+          </svg>
+        </div>
+
+        <!-- STEP 02 — Pair + Lock + Discount (3 big stages with thick arrows) -->
+        <div class="how3-step">
+          <div class="how3-num">STEP 02</div>
+          <div class="how3-illus">
+            <svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+              <defs>
+                <radialGradient id="g2-glow"><stop offset="0%" stop-color="#e4c15a" stop-opacity=".22"/><stop offset="100%" stop-color="#e4c15a" stop-opacity="0"/></radialGradient>
+                <linearGradient id="g2-odolo" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f0d168"/><stop offset="100%" stop-color="#a47e16"/></linearGradient>
+                <linearGradient id="g2-dolo" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#cdb8ff"/><stop offset="100%" stop-color="#7a64c8"/></linearGradient>
+              </defs>
+              <circle cx="100" cy="50" r="60" fill="url(#g2-glow)"/>
+
+              <!-- STAGE 1: PAIR — two coins side by side -->
+              <g transform="translate(2, 6)">
+                <!-- oDOLO -->
+                <circle cx="20" cy="32" r="18" fill="url(#g2-odolo)" stroke="#a47e16" stroke-width="2"/>
+                <text x="20" y="36" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" font-weight="700" fill="#1a1306" letter-spacing="-.4">oDOLO</text>
+                <!-- + -->
+                <text x="46" y="40" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="22" font-weight="800" fill="#a5a29a">+</text>
+                <!-- DOLO -->
+                <circle cx="72" cy="32" r="18" fill="url(#g2-dolo)" stroke="#7a64c8" stroke-width="2"/>
+                <text x="72" y="36" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" font-weight="700" fill="#1a1306" letter-spacing="-.3">DOLO</text>
+                <!-- Label -->
+                <text x="46" y="78" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="800" fill="#a5a29a" letter-spacing="2.5">PAIR 1:1</text>
+              </g>
+
+              <!-- ARROW 1 -->
+              <g transform="translate(98, 38)">
+                <line x1="0" y1="0" x2="14" y2="0" stroke="#e4c15a" stroke-width="3" stroke-linecap="round"/>
+                <polyline points="9 -5, 14 0, 9 5" stroke="#e4c15a" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </g>
+
+              <!-- STAGE 2: LOCK — vault with prominent clock face -->
+              <g transform="translate(118, 4)">
+                <!-- Vault body -->
+                <rect x="0" y="20" width="46" height="44" rx="6" fill="#48474a" stroke="#a5a29a" stroke-width="1.6"/>
+                <!-- Lock shackle -->
+                <path d="M9 20 V12 a14 14 0 0 1 28 0 V20" stroke="#a5a29a" stroke-width="3" fill="none" stroke-linecap="round"/>
+                <!-- Clock face -->
+                <circle cx="23" cy="44" r="13" fill="#1f1f22" stroke="#e4c15a" stroke-width="2"/>
+                <circle cx="23" cy="44" r="1.4" fill="#e4c15a"/>
+                <!-- 12 marker -->
+                <line x1="23" y1="33" x2="23" y2="35" stroke="#e4c15a" stroke-width="1.4"/>
+                <!-- Hour hand pointing roughly up-left -->
+                <line x1="23" y1="44" x2="23" y2="35" stroke="#e4c15a" stroke-width="2.3" stroke-linecap="round"/>
+                <!-- Minute hand pointing right -->
+                <line x1="23" y1="44" x2="31" y2="46" stroke="#e4c15a" stroke-width="1.8" stroke-linecap="round"/>
+                <!-- Label -->
+                <text x="23" y="78" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="800" fill="#a5a29a" letter-spacing="2">LOCK 1w-2y</text>
+              </g>
+
+              <!-- ARROW 2 -->
+              <g transform="translate(166, 38)">
+                <line x1="0" y1="0" x2="14" y2="0" stroke="#e4c15a" stroke-width="3" stroke-linecap="round"/>
+                <polyline points="9 -5, 14 0, 9 5" stroke="#e4c15a" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </g>
+
+              <!-- STAGE 3: DISCOUNT tag (price-tag shape) -->
+              <g transform="translate(184, 4)">
+                <path d="M0 18 L0 48 L7 60 L14 48 L14 18 L7 0 Z" fill="url(#g2-odolo)" stroke="#a47e16" stroke-width="2"/>
+                <circle cx="7" cy="18" r="2.6" fill="#1a1306"/>
+              </g>
+              <!-- Discount value rendered separately for legibility -->
+              <text x="191" y="36" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" font-weight="800" fill="#1a1306" letter-spacing="-.6">5-50%</text>
+              <text x="191" y="48" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="8" font-weight="800" fill="#1a1306" letter-spacing=".4">OFF</text>
+              <text x="191" y="82" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="800" fill="#a5a29a" letter-spacing="2">DISCOUNT</text>
+            </svg>
+          </div>
+          <h3>Pair with DOLO &amp; lock</h3>
+          <p>Combine <b>1 oDOLO + 1 DOLO</b> and pick a lock from 1 week to 2 years. Longer lock = bigger discount.</p>
+        </div>
+
+        <div class="how3-arrow">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/>
+          </svg>
+        </div>
+
+        <!-- STEP 03 — Big veDOLO at top + 3 reward streams visibly fanning out -->
+        <div class="how3-step">
+          <div class="how3-num">STEP 03</div>
+          <div class="how3-illus">
+            <svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+              <defs>
+                <radialGradient id="g3-glow"><stop offset="0%" stop-color="#e4c15a" stop-opacity=".5"/><stop offset="100%" stop-color="#e4c15a" stop-opacity="0"/></radialGradient>
+                <linearGradient id="g3-star" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f0d168"/><stop offset="100%" stop-color="#a47e16"/></linearGradient>
+              </defs>
+              <circle cx="100" cy="26" r="42" fill="url(#g3-glow)"/>
+
+              <!-- BIG veDOLO star/badge at top -->
+              <g transform="translate(64, -4)">
+                <path d="M36 4 L44 26 L68 28 L49 42 L55 66 L36 54 L17 66 L23 42 L4 28 L28 26 Z" fill="url(#g3-star)" stroke="#a47e16" stroke-width="2" stroke-linejoin="round"/>
+                <text x="36" y="38" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#1a1306" letter-spacing="-.5">veDOLO</text>
+              </g>
+
+              <!-- Three thicker branching arrows from veDOLO base to reward icons -->
+              <g stroke="#e4c15a" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.85">
+                <!-- to fees (left-bottom) -->
+                <path d="M82 56 Q 60 65 32 78"/>
+                <polyline points="36 72, 32 78, 39 79" stroke-linejoin="round"/>
+                <!-- to vote (center-bottom) -->
+                <path d="M100 64 L 100 78"/>
+                <polyline points="95 73, 100 78, 105 73" stroke-linejoin="round"/>
+                <!-- to bonus (right-bottom) -->
+                <path d="M118 56 Q 140 65 168 78"/>
+                <polyline points="161 79, 168 78, 164 72" stroke-linejoin="round"/>
+              </g>
+
+              <!-- Reward 1: FEES (%) — bigger -->
+              <g transform="translate(12, 76)">
+                <circle cx="20" cy="14" r="14" fill="#a8c499" stroke="#1a1306" stroke-width="1"/>
+                <text x="20" y="19" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="17" font-weight="800" fill="#1a1306">%</text>
+                <text x="20" y="42" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="800" fill="#a5a29a" letter-spacing="2">FEES</text>
+              </g>
+
+              <!-- Reward 2: VOTE (✓) — bigger -->
+              <g transform="translate(80, 76)">
+                <circle cx="20" cy="14" r="14" fill="#22d3ee" stroke="#1a1306" stroke-width="1"/>
+                <path d="M13.5 14 l4.5 4.5 9 -9" stroke="#1a1306" stroke-width="2.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <text x="20" y="42" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="800" fill="#a5a29a" letter-spacing="2">VOTE</text>
+              </g>
+
+              <!-- Reward 3: BONUS (gift) — bigger -->
+              <g transform="translate(148, 76)">
+                <circle cx="20" cy="14" r="14" fill="#a78bfa" stroke="#1a1306" stroke-width="1"/>
+                <rect x="13" y="10" width="14" height="11" fill="#1a1306" rx="1"/>
+                <line x1="20" y1="7" x2="20" y2="22" stroke="#a78bfa" stroke-width="1.4"/>
+                <line x1="13" y1="14" x2="27" y2="14" stroke="#a78bfa" stroke-width="1"/>
+                <path d="M16 9 q 0 -4 4 -4 q 4 0 4 4" stroke="#1a1306" stroke-width="1" fill="none"/>
+                <text x="20" y="42" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="800" fill="#a5a29a" letter-spacing="2">BONUS</text>
+              </g>
+            </svg>
+          </div>
+          <h3>Receive veDOLO</h3>
+          <p>Get <b>veDOLO</b>, Dolomite's governance token. It pays you a share of <b>protocol fees</b>, gives you <b>voting rights</b>, and earns <b>partner bonuses</b>.</p>
+        </div>
+
+      </div>
+
+      <div class="how2-tiers">
+        <div class="how2-tiers-head">
+          <div class="how2-tiers-h">
+            <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+            Pick your lock — see your discount
+          </div>
+          <div class="how2-tiers-axis">
+            <span class="lhs">Longer lock</span>
+            <span class="arrow"></span>
+            <span class="rhs">Bigger discount</span>
+          </div>
+        </div>
+        <div class="how2-tier-grid">
+          <div class="how2-tier">
+            <div class="lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>1 week</div>
+            <div class="disc">5%</div>
+            <div class="deal">starter</div>
+            <div class="bar"><span style="width:10%"></span></div>
+          </div>
+          <div class="how2-tier">
+            <div class="lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>1 month</div>
+            <div class="disc">10%</div>
+            <div class="deal">small</div>
+            <div class="bar"><span style="width:20%"></span></div>
+          </div>
+          <div class="how2-tier">
+            <div class="lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>3 months</div>
+            <div class="disc">17%</div>
+            <div class="deal">decent</div>
+            <div class="bar"><span style="width:34%"></span></div>
+          </div>
+          <div class="how2-tier">
+            <div class="lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>6 months</div>
+            <div class="disc">25%</div>
+            <div class="deal">solid</div>
+            <div class="bar"><span style="width:50%"></span></div>
+          </div>
+          <div class="how2-tier is-avg">
+            <div class="lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>1 year</div>
+            <div class="disc">37.7%</div>
+            <div class="deal">market avg</div>
+            <div class="bar"><span style="width:75.4%"></span></div>
+          </div>
+          <div class="how2-tier">
+            <div class="lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>2 years</div>
+            <div class="disc">50%</div>
+            <div class="deal">best deal</div>
+            <div class="bar"><span style="width:100%"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHARTS ROW: oDOLO Distribution + Claimer Behaviour -->
+  <div class="charts-2up">
+    <!-- Distribution donut -->
+    <section class="donut-card">
+      <div class="donut-head">
+        <div class="donut-title">
+          <h2>oDOLO Distribution</h2>
+          <span class="count-badge" id="dist-count">154.53M total</span>
+        </div>
+        <div class="donut-meta"><span class="pulse"></span>Live · contract data</div>
+      </div>
+      <div class="donut-body-v2">
+        <div class="donut-wrap-v2">
+          <svg class="donut-svg" id="dist-donut" viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
+          <div class="donut-center-v2">
+            <div class="v" id="dist-center-v">154.53M</div>
+            <div class="l" id="dist-center-l">Total supply</div>
+          </div>
+        </div>
+        <div class="donut-legend" id="dist-legend"></div>
+      </div>
+    </section>
+
+    <!-- Claimer Behavior donut -->
+    <section class="donut-card">
+      <div class="donut-head">
+        <div class="donut-title">
+          <h2>Claimer Behavior</h2>
+          <span class="count-badge" id="behav-count">2,351 claimers</span>
+        </div>
+        <div class="donut-meta" id="behav-meta"><span class="pulse"></span>41.33M oDOLO claimed</div>
+      </div>
+      <div class="donut-body-v2">
+        <div class="donut-wrap-v2">
+          <svg class="donut-svg" id="behav-donut" viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
+          <div class="donut-center-v2">
+            <div class="v" id="behav-center-v">53.2%</div>
+            <div class="l" id="behav-center-l">Exercised</div>
+          </div>
+        </div>
+        <div class="donut-legend" id="behav-legend"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- DISCOUNT CURVE -->
+  <section class="card">
+    <div class="card-head">
+      <div class="card-title">
+        <h2>oDOLO Discount Curve</h2>
+        <span class="count-badge" id="disc-count">3,535 exercises</span>
+      </div>
+      <div class="card-meta"><span class="pulse"></span>Lock days vs realized discount</div>
+    </div>
+    <div class="disc3-body">
+      <div class="disc3-shell">
+        <canvas id="disc-canvas" class="disc3-canvas"></canvas>
+      </div>
+      <div class="disc3-legend" id="disc-legend">
+        <span class="disc3-pill theory" data-key="theory"><span class="line"></span>Theoretical schedule</span>
+        <span class="disc3-pill" data-key="small"><span class="dot" style="background:#67e8f9"></span>&lt; $500</span>
+        <span class="disc3-pill" data-key="medium"><span class="dot" style="background:#a8c499"></span>$500 – $5K</span>
+        <span class="disc3-pill" data-key="large"><span class="dot" style="background:#fb923c"></span>$5K – $25K</span>
+        <span class="disc3-pill" data-key="whale"><span class="dot" style="background:#ec4899;box-shadow:0 0 8px rgba(236,72,153,.55)"></span>&gt; $25K whales</span>
+        <span class="disc3-help">Each dot = one exercise · size = USDC paid</span>
+      </div>
+    </div>
+    <div class="disc3-tooltip" id="disc-tooltip"></div>
+  </section>
+
+  <!-- CLAIMER BREAKDOWN TABLE -->
+  <section class="card">
+    <div class="card-head">
+      <div class="card-title">
+        <h2>oDOLO Claimer Breakdown</h2>
+        <span class="count-badge" id="cb-count">2,351 claimers</span>
+      </div>
+      <div class="card-meta"><span class="pulse"></span>What each wallet did with claimed oDOLO</div>
+    </div>
+
+    <div class="toolbar">
+      <div class="tb-left">
+        <label class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="q-cb" type="text" placeholder="Search address or label…" spellcheck="false" autocomplete="off">
+        </label>
+      </div>
+      <div class="tb-right">
+        <div class="dd" id="dd-cb-period">
+          <button class="dd-btn" data-dd="cb-period">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            <span class="lbl">All-time</span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dd-panel" style="left:auto;right:0">
+            <div class="dd-panel-head">Window</div>
+            <div class="dd-list">
+              <div class="dd-opt" data-period="7d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">7 days</span></div>
+              <div class="dd-opt" data-period="30d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">30 days</span></div>
+              <div class="dd-opt" data-period="90d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">90 days</span></div>
+              <div class="dd-opt active" data-period="all"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">All-time</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tbl-wrap">
+      <table class="tbl cb-tbl" id="tbl-cb">
+        <thead>
+          <tr>
+            <th data-sort="rank" style="width:56px">#</th>
+            <th data-sort="addr">Address</th>
+            <th data-sort="claimed" class="num col-clm sorted" style="width:128px">Claimed</th>
+            <th data-sort="exercised" class="num col-exr" style="width:128px">Exercised</th>
+            <th data-sort="outflow" class="num col-out" style="width:128px">Outflow</th>
+            <th data-sort="held" class="num col-hld" style="width:128px">Held</th>
+            <th data-sort="buy" class="num col-buy" style="padding-right:32px;width:140px">Bought Extra</th>
+          </tr>
+        </thead>
+        <tbody id="cb-body"></tbody>
+      </table>
+    </div>
+
+    <div class="tbl-foot">
+      <div class="tbl-foot-info" id="cb-info">1–10 of 2,351</div>
+      <div class="pager" id="cb-pager"></div>
+    </div>
+  </section>
+
+  <!-- TOP EXERCISERS -->
+  <section class="card">
+    <div class="card-head">
+      <div class="card-title">
+        <h2>Top Exercisers</h2>
+        <span class="count-badge" id="ex-count">673 addresses</span>
+      </div>
+      <div class="card-meta"><span class="pulse"></span>Ranked by USDC.e paid for veDOLO</div>
+    </div>
+
+    <div class="toolbar">
+      <div class="tb-left">
+        <label class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="q-ex" type="text" placeholder="Search address or label…" spellcheck="false" autocomplete="off">
+          <span class="kbd">/</span>
+        </label>
+
+        <div class="dd" id="dd-types-ex">
+          <button class="dd-btn filtered" data-dd="types-ex">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <span class="lbl">All Types</span>
+            <span class="count">5</span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dd-panel dd-panel-types">
+            <div class="dd-panel-head">Show by address type</div>
+            <div class="rw-list">
+              <div class="rw-item active" data-type="eoa"><div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div><span class="rw-dot-src eoa"></span><div class="rw-name">Personal wallets</div></div>
+              <div class="rw-item active" data-type="ca"><div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div><span class="rw-dot-src ca"></span><div class="rw-name">Smart contracts</div></div>
+              <div class="rw-item active" data-type="cex"><div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div><span class="rw-dot-src cex"></span><div class="rw-name">Exchanges</div></div>
+              <div class="rw-item active" data-type="mm"><div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div><span class="rw-dot-src mm"></span><div class="rw-name">Market makers</div></div>
+              <div class="rw-item active" data-type="bot"><div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div><span class="rw-dot-src bot"></span><div class="rw-name">Trading bots</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tb-right">
+        <div class="dd" id="dd-ex-period">
+          <button class="dd-btn" data-dd="ex-period">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            <span class="lbl">ALL</span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dd-panel" style="left:auto;right:0">
+            <div class="dd-panel-head">Period</div>
+            <div class="dd-list">
+              <div class="dd-opt" data-period="1d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">24 hours</span></div>
+              <div class="dd-opt" data-period="7d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">7 days</span></div>
+              <div class="dd-opt" data-period="30d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">30 days</span></div>
+              <div class="dd-opt" data-period="90d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">90 days</span></div>
+              <div class="dd-opt" data-period="180d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">180 days</span></div>
+              <div class="dd-opt active" data-period="all"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">All time</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tbl-wrap">
+      <table class="tbl" id="tbl-ex">
+        <thead>
+          <tr>
+            <th data-sort="rank" style="width:56px">#</th>
+            <th data-sort="addr">Address</th>
+            <th data-sort="usdc" class="num sorted" style="width:140px">USDC paid</th>
+            <th data-sort="vedolo" class="num" style="width:130px">veDOLO</th>
+            <th data-sort="exercises" class="num" style="width:110px">Exercises</th>
+            <th data-sort="lock" class="num" style="padding-right:32px;width:170px">Avg Lock</th>
+          </tr>
+        </thead>
+        <tbody id="ex-body"></tbody>
+      </table>
+    </div>
+
+    <div class="tbl-foot">
+      <div class="tbl-foot-info" id="ex-info">1–10 of 673</div>
+      <div class="pager" id="ex-pager"></div>
+    </div>
+  </section>
+
+  <!-- FLOWS CARD -->
+  <section class="card">
+    <div class="card-head">
+      <div class="card-title">
+        <h2>oDOLO Flows</h2>
+        <span class="count-badge">Top accumulators &amp; outflows</span>
+      </div>
+      <div class="card-meta"><span class="pulse"></span><span id="flows-meta">Period: 7D</span></div>
+    </div>
+
+    <div class="toolbar">
+      <div class="tb-left">
+        <label class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="q-flows" type="text" placeholder="Filter by address or label…" spellcheck="false" autocomplete="off">
+        </label>
+
+        <div class="dd" id="dd-flows-types">
+          <button class="dd-btn filtered" data-dd="flows-types">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <span class="lbl">All Types</span>
+            <span class="count">5</span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dd-panel dd-panel-types">
+            <div class="dd-panel-head">Show by address type</div>
+            <div class="rw-list">
+              <div class="rw-item active" data-type="eoa"><div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div><span class="rw-dot-src eoa"></span><div class="rw-name">Personal wallets</div></div>
+              <div class="rw-item active" data-type="ca"><div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div><span class="rw-dot-src ca"></span><div class="rw-name">Smart contracts</div></div>
+              <div class="rw-item active" data-type="cex"><div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div><span class="rw-dot-src cex"></span><div class="rw-name">Exchanges</div></div>
+              <div class="rw-item active" data-type="mm"><div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div><span class="rw-dot-src mm"></span><div class="rw-name">Market makers</div></div>
+              <div class="rw-item active" data-type="bot"><div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div><span class="rw-dot-src bot"></span><div class="rw-name">Trading bots</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="tb-right">
+        <div class="dd" id="dd-flows-period">
+          <button class="dd-btn" data-dd="flows-period">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            <span class="lbl">7D</span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dd-panel" style="left:auto;right:0">
+            <div class="dd-panel-head">Period</div>
+            <div class="dd-list">
+              <div class="dd-opt" data-period="1d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">24 hours</span></div>
+              <div class="dd-opt active" data-period="7d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">7 days</span></div>
+              <div class="dd-opt" data-period="30d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">30 days</span></div>
+              <div class="dd-opt" data-period="90d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">90 days</span></div>
+              <div class="dd-opt" data-period="180d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">180 days</span></div>
+              <div class="dd-opt" data-period="all"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">All time</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flows-grid">
+      <div class="flows-col acc">
+        <div class="flows-col-head acc">
+          <svg class="arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+          Top Accumulators
+        </div>
+        <table class="flows-tbl">
+          <thead>
+            <tr>
+              <th style="width:48px">#</th>
+              <th>Address</th>
+              <th class="num" data-flow-kind="acc" data-flow-sort="balance" style="width:118px">Balance</th>
+              <th class="num sorted" data-flow-kind="acc" data-flow-sort="net" style="padding-right:24px;width:130px">Net oDOLO</th>
+            </tr>
+          </thead>
+          <tbody id="flows-acc-body"></tbody>
+        </table>
+        <div class="flow-foot">
+          <div class="tbl-foot-info" id="flows-acc-info">0–0 of 0</div>
+          <div class="pager" id="flows-acc-pager"></div>
+        </div>
+      </div>
+      <div class="flows-col out">
+        <div class="flows-col-head out">
+          <svg class="arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+          Top Outflows
+        </div>
+        <table class="flows-tbl">
+          <thead>
+            <tr>
+              <th style="width:48px">#</th>
+              <th>Address</th>
+              <th class="num" data-flow-kind="out" data-flow-sort="balance" style="width:118px">Balance</th>
+              <th class="num sorted" data-flow-kind="out" data-flow-sort="net" style="padding-right:24px;width:130px">Net oDOLO</th>
+            </tr>
+          </thead>
+          <tbody id="flows-out-body"></tbody>
+        </table>
+        <div class="flow-foot">
+          <div class="tbl-foot-info" id="flows-out-info">0–0 of 0</div>
+          <div class="pager" id="flows-out-pager"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROTOCOL INFO -->
+  <section class="proto">
+    <div class="proto-head">
+      <div class="proto-brand">
+        <div class="proto-brand-mark">
+          <img src="dolomite-logo.svg" alt="Dolomite" onerror="this.outerHTML='<span style=&quot;color:var(--gold);font-weight:800;font-size:16px&quot;>◆</span>'">
+        </div>
+        <div class="proto-brand-text">
+          <div class="proto-brand-name">Dolomite</div>
+          <div class="proto-brand-sub">Lending &amp; margin · <b>7 chains</b> · <b>104 markets</b></div>
+        </div>
+      </div>
+      <div class="proto-links">
+        <div class="proto-links-group">
+          <span class="proto-links-label">Community</span>
+          <a class="proto-pill" href="https://twitter.com/Dolomite_io" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>Twitter</a>
+          <a class="proto-pill" href="https://t.me/dolomite_official" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>Telegram</a>
+          <a class="proto-pill" href="https://discord.com/invite/uDRzrB2YgP" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037 19.736 19.736 0 00-4.885 1.515.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028 14.09 14.09 0 001.226-1.994.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.086 2.157 2.419 0 1.334-.955 2.419-2.157 2.419zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.086 2.157 2.419 0 1.334-.946 2.419-2.157 2.419z"/></svg>Discord</a>
+        </div>
+        <span class="proto-links-sep"></span>
+        <div class="proto-links-group">
+          <span class="proto-links-label">Resources</span>
+          <a class="proto-pill" href="https://dolomite.io" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>Website</a>
+          <a class="proto-pill" href="https://docs.dolomite.io/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>Docs</a>
+          <a class="proto-pill" href="https://docs.dolomite.io/protocol/dolomite-tokens/odolo" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/></svg>oDOLO Docs</a>
+          <a class="proto-pill" href="https://docs.dolomite.io/security/audits" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Audits</a>
+        </div>
+      </div>
+    </div>
+    <div class="proto-body">
+      <div class="proto-body-head">Contract Addresses</div>
+      <div class="proto-addrs" id="proto-addrs"></div>
+    </div>
+  </section>
+
+  <div class="foot">oDOLO dashboard · onchain data pipeline · <span id="now"></span></div>
+</div>
+
+<script>
+/* ============================================================
+   STATE + CONSTANTS
+============================================================ */
+const TYPE_LABELS = {eoa:"EOA", ca:"Contract", cex:"CEX", bot:"Bot", mm:"MM"};
+const TYPE_TIPS = {
+  eoa:"Externally Owned Account — regular wallet",
+  ca: "Smart contract — protocol or aggregator",
+  cex:"Centralized exchange — custody address",
+  bot:"Automated trading / MEV bot",
+  mm: "Market maker — liquidity provider",
+};
+const TYPE_GENERIC = {eoa:"Wallet", ca:"Smart contract", cex:"Exchange", bot:"Trading bot", mm:"Market maker"};
+
+const PERIODS = [
+  {key:"1d",   short:"1D",   label:"Last 24 hours"},
+  {key:"7d",   short:"7D",   label:"Last 7 days"},
+  {key:"30d",  short:"30D",  label:"Last 30 days"},
+  {key:"90d",  short:"90D",  label:"Last 90 days"},
+  {key:"180d", short:"180D", label:"Last 180 days"},
+  {key:"all",  short:"ALL",  label:"All time"},
+];
+
+/* Top exercisers (subset) — derived from on-chain exercisers_by_address.json */
+const EXERCISERS = [
+  {addr:"0xbb7a68fe5ebf13cc39773a95a12e7478bb134656", label:"Whale 7s",      type:"eoa", usdc:460481.97, vedolo:11_283_580, exercises:8,   lockDays:7.7},
+  {addr:"0x084caf1bf60e49aec07ec4148a3f1f0f57fd11eb", label:"LM Farmer",     type:"eoa", usdc:191363.28, vedolo: 4_713_412, exercises:22,  lockDays:16.4},
+  {addr:"0x7bfee91193d9df2ac0bfe90191d40f23c773c060", label:null,            type:"eoa", usdc:128557.04, vedolo: 3_169_750, exercises:25,  lockDays:13.1},
+  {addr:"0xc0bb26dce66f9befd500eb75842506025956d584", label:"Long-lock LP",  type:"eoa", usdc:102119.89, vedolo: 2_516_840, exercises:18,  lockDays:326.2},
+  {addr:"0x416a3427414b6c98adab70f48a2a904d1cf3f446", label:"veDOLO Maxi",   type:"eoa", usdc: 92826.12, vedolo: 2_287_145, exercises:43,  lockDays:357.8},
+  {addr:"0x8e49f27740cba1e6d5799d8562cdf580c66d666e", label:"Sniper Bot 12", type:"bot", usdc: 71292.96, vedolo: 1_756_330, exercises:111, lockDays:10.0},
+  {addr:"0x3cbf175ba7c1f5fbc16a52ce15b09fed60dd483c", label:null,            type:"eoa", usdc: 58470.70, vedolo: 1_440_690, exercises:8,   lockDays:365.2},
+  {addr:"0x37d0371d17e5e587b236504515a4baabc08da619", label:"Governance Whale",type:"eoa", usdc:54863.27, vedolo: 1_351_410, exercises:52, lockDays:338.6},
+  {addr:"0xe1ad30971b83c17e2a24c0334cb45f808abebc87", label:null,            type:"eoa", usdc: 51591.93, vedolo: 1_270_810, exercises:2,   lockDays:364.6},
+  {addr:"0x62dfa6eba6a34e55c454894dd9b3e688f88cb09b", label:"Yield DAO",     type:"ca",  usdc: 46236.23, vedolo: 1_138_910, exercises:58,  lockDays:365.9},
+  {addr:"0xd93bdecbed0ba6dfd32edc5b8610591f2533202c", label:null,            type:"eoa", usdc: 37421.44, vedolo:   921_640, exercises:29,  lockDays:352.6},
+  {addr:"0x67d0a091f1f4c9e6a9b50ce4eaf203c9fc488ca3", label:"Quick-flipper", type:"bot", usdc: 32468.97, vedolo:   799_710, exercises: 6,  lockDays:8.8},
+  {addr:"0x54f8a6a355f4c4929e55524afa8671a3cfc960f3", label:null,            type:"eoa", usdc: 29303.32, vedolo:   721_780, exercises: 4,  lockDays:33.1},
+  {addr:"0xd3f41cb0f4c3abda85845d00f10c6b11740509f8", label:"Locker DAO",    type:"ca",  usdc: 27265.69, vedolo:   671_580, exercises:60,  lockDays:342.8},
+  {addr:"0x32cd32b45277bf025c1df7bb4388e6a412b77fe5", label:"MEV Cluster",   type:"bot", usdc: 27222.85, vedolo:   670_540, exercises:967, lockDays:364.7},
+  {addr:"0xfb6a8b80ac4d65f9b3edcb19b13e85d8a25cd0bc", label:"Wintermute",    type:"mm",  usdc: 22480.10, vedolo:   553_700, exercises:14,  lockDays:42.0},
+  {addr:"0x9c8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6d", label:"GSR",           type:"mm",  usdc: 19117.50, vedolo:   470_890, exercises:11,  lockDays:21.0},
+  {addr:"0x28C6c06298d514Db089934071355E5743bf21d60", label:"Binance hot",   type:"cex", usdc: 14460.30, vedolo:   356_080, exercises: 5,  lockDays:7.0},
+  {addr:"0x4f3a120e72c76c22ae802d129f599bfdbc31cb81", label:null,            type:"eoa", usdc: 11804.10, vedolo:   290_700, exercises:13,  lockDays:120.5},
+  {addr:"0x6e6f0b8e8e3a2c63a3a3c6e8f0a9b8c7d6e5f4a3", label:"Arb Bot 19",    type:"bot", usdc: 10120.75, vedolo:   249_220, exercises:33,  lockDays:9.0},
+  {addr:"0xab8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6e", label:null,            type:"eoa", usdc:  8930.40, vedolo:   219_910, exercises: 7,  lockDays:262.0},
+  {addr:"0xbc8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6f", label:"oDOLO Pair Vester", type:"ca", usdc: 7150.00, vedolo: 176_120, exercises:88,  lockDays:730.0},
+];
+
+/* oDOLO flows — sample top accumulators / outflows for current period */
+const FLOWS = [
+  {addr:"0x416a3427414b6c98adab70f48a2a904d1cf3f446", label:"veDOLO Maxi",  type:"eoa", chg:+ 412_800, balance:1_240_500},
+  {addr:"0xfb6a8b80ac4d65f9b3edcb19b13e85d8a25cd0bc", label:"Wintermute",   type:"mm",  chg:+ 280_400, balance:  680_300},
+  {addr:"0xbb7a68fe5ebf13cc39773a95a12e7478bb134656", label:"Whale 7s",     type:"eoa", chg:+ 198_700, balance:1_044_220},
+  {addr:"0x084caf1bf60e49aec07ec4148a3f1f0f57fd11eb", label:"LM Farmer",    type:"eoa", chg:+ 142_500, balance:  511_000},
+  {addr:"0x9c8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6d", label:"GSR",          type:"mm",  chg:+ 96_400,  balance:  302_900},
+  {addr:"0xb216965bfb2c8ea95165f0a1e9a7a64b6c1d94ba", label:null,           type:"eoa", chg:+ 58_300,  balance:  120_400},
+  {addr:"0xc63494be8c1f07c004088706614b6f0b599d3c18", label:null,           type:"eoa", chg:+ 31_200,  balance:   90_280},
+
+  {addr:"0x4aaee20543e118a5f86d626ed5b98e37b9835ebf", label:"Profit-taker", type:"eoa", chg:- 285_600, balance:        0},
+  {addr:"0x32cd32b45277bf025c1df7bb4388e6a412b77fe5", label:"MEV Cluster",  type:"bot", chg:- 211_400, balance:   13_200},
+  {addr:"0x67d0a091f1f4c9e6a9b50ce4eaf203c9fc488ca3", label:"Quick-flipper",type:"bot", chg:- 168_300, balance:    2_500},
+  {addr:"0x6e6f0b8e8e3a2c63a3a3c6e8f0a9b8c7d6e5f4a3", label:"Arb Bot 19",   type:"bot", chg:- 92_500,  balance:        0},
+  {addr:"0x8e49f27740cba1e6d5799d8562cdf580c66d666e", label:"Sniper Bot 12",type:"bot", chg:- 76_800,  balance:    1_440},
+  {addr:"0x3e9b9a16743551da49b5e136c716bba7932d2cec", label:"oDOLO Pair Vester",type:"ca",chg:-540_000,balance:1_010_000},
+  {addr:"0x28c6c06298d514db089934071355e5743bf21d60", label:"Binance hot",  type:"cex", chg:- 41_200,  balance:        0},
+];
+
+const state = {
+  qEx:"", qFlows:"",
+  exTypes: new Set(["eoa","ca","cex","bot","mm"]),
+  exPeriod: "all",
+  exSort: {key:"usdc", dir:"desc"},
+  exPage: 0,
+  exPageSize: 10,
+  flowsPeriod: "7d",
+  flowsTypes: new Set(["eoa","ca","cex","bot","mm"]),
+  flowsSort: {acc:{key:"net",dir:"desc"}, out:{key:"net",dir:"desc"}},
+  flowsPage: {acc:0, out:0},
+  flowsPageSize: 6,
+  flowsStableBodyHeight: {acc:0, out:0},
+};
+let exStableBodyHeight = 0;
+
+const shorten = a => a.slice(0,6) + "…" + a.slice(-4);
+const fmtNum = n => {
+  const abs = Math.abs(n);
+  if(abs >= 1e9) return (n/1e9).toFixed(2) + "B";
+  if(abs >= 1e6) return (n/1e6).toFixed(2) + "M";
+  if(abs >= 1e3) return (n/1e3).toFixed(1) + "K";
+  return n.toFixed(0);
+};
+const fmtUsd = n => "$" + fmtNum(n);
+const fmtLock = days => {
+  if(days >= 365) return (days/365).toFixed(2) + "y";
+  if(days >= 30)  return (days/30).toFixed(1) + "mo";
+  if(days >= 7)   return (days/7).toFixed(1) + "w";
+  return days.toFixed(1) + "d";
+};
+const lockBucket = days => {
+  if(days < 30)  return "short";
+  if(days < 180) return "medium";
+  return "long";
+};
+const COPY_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+const CHECK_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+const LIVE = { contract:null, usd:null, lock:null, exercisers:null, flows:null, loaded:false };
+const DATA_VERSION = "odolo-live-20260426";
+const ADDRESS_META = {
+  "0x3e9b9a16743551da49b5e136c716bba7932d2cec": { label:"oDOLO Pair Vester", type:"ca" },
+  "0x02e513b5b54ee216bf836ceb471507488fc89543": { label:"oDOLO Token", type:"ca" },
+  "0xcb86b75ee6133d179a12d550b09fb3cdb1e141d4": { label:"veDOLO", type:"ca" },
+  "0x0f81001ef0a83ecce5ccebf63eb302c70a39a654": { label:"DOLO", type:"ca" },
+  "0x28c6c06298d514db089934071355e5743bf21d60": { label:"Binance hot", type:"cex" },
+};
+
+async function fetchJson(path){
+  const resp = await fetch(`${path}?v=${DATA_VERSION}`, { cache:"no-cache" });
+  if(!resp.ok) throw new Error(`${path}: HTTP ${resp.status}`);
+  return resp.json();
+}
+function setText(id, value){
+  const el = document.getElementById(id);
+  if(el) el.textContent = value;
+}
+function setHtml(id, value){
+  const el = document.getElementById(id);
+  if(el) el.innerHTML = value;
+}
+function applyRows(target, rows){
+  target.splice(0, target.length, ...rows);
+}
+function addressMeta(addr){
+  const key = (addr || "").toLowerCase();
+  return ADDRESS_META[key] || { label:null, type:"eoa" };
+}
+function periodCutoff(period){
+  const days = { "1d":1, "7d":7, "30d":30, "90d":90, "180d":180 }[period];
+  if(!days) return null;
+  const d = new Date(Date.now() - days * 86400000);
+  return d.toISOString().slice(0, 10);
+}
+function fmtUpdated(ts){
+  if(!ts) return "Live · static snapshot";
+  const d = new Date(ts.endsWith("Z") ? ts : ts + "Z");
+  if(Number.isNaN(+d)) return "Live · static snapshot";
+  return "Live · updated " + d.toLocaleString(undefined, { month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" });
+}
+function sum(arr, pick){
+  return (arr || []).reduce((s, item) => s + (Number(pick(item)) || 0), 0);
+}
+function txUsd(tx){ return tx && tx.paid_token !== "DOLO" ? (Number(tx.usdc) || 0) : 0; }
+function txVedolo(tx){ return tx && tx.paid_token !== "DOLO" ? (Number(tx.vedolo) || 0) : 0; }
+function tierForUsd(usd){
+  if(usd >= 25000) return "whale";
+  if(usd >= 5000) return "large";
+  if(usd >= 500) return "medium";
+  return "small";
+}
+
+/* ============================================================
+   GENERIC SVG DONUT (Token Composition style)
+   - SVG <path> per slice with currentColor + drop-shadow active
+   - bidirectional hover: legend ↔ slice
+   - center text updates on hover
+============================================================ */
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+function drawDonut(opts){
+  const {svgId, segments, totalLabel, centerVId, centerLId, centerLDefault, legendId} = opts;
+  const svg = document.getElementById(svgId);
+  const legend = document.getElementById(legendId);
+  const cv = document.getElementById(centerVId);
+  const cl = centerLId ? document.getElementById(centerLId) : null;
+
+  const size = 260;
+  const cx = size/2, cy = size/2;
+  const outerR = size/2 - 12;
+  const innerR = outerR * 0.62;
+  const gap = 0.018;
+
+  const sum = segments.reduce((s,r)=>s+r.value, 0) || 1;
+  let angle = -Math.PI/2;
+  segments.forEach(s => {
+    const slice = (s.value/sum) * (Math.PI*2 - gap*segments.length);
+    s.startAngle = angle + gap/2;
+    s.endAngle   = angle + slice - gap/2;
+    angle += slice + gap;
+  });
+
+  // Clear + redraw SVG
+  svg.innerHTML = "";
+
+  // Background ring
+  const bg = document.createElementNS(SVG_NS, "circle");
+  bg.setAttribute("cx", cx);
+  bg.setAttribute("cy", cy);
+  bg.setAttribute("r", (outerR + innerR) / 2);
+  bg.setAttribute("class", "donut-bg");
+  bg.setAttribute("stroke-width", outerR - innerR);
+  svg.appendChild(bg);
+
+  segments.forEach((s, i) => {
+    const x1 = cx + outerR * Math.cos(s.startAngle);
+    const y1 = cy + outerR * Math.sin(s.startAngle);
+    const x2 = cx + outerR * Math.cos(s.endAngle);
+    const y2 = cy + outerR * Math.sin(s.endAngle);
+    const ix1 = cx + innerR * Math.cos(s.endAngle);
+    const iy1 = cy + innerR * Math.sin(s.endAngle);
+    const ix2 = cx + innerR * Math.cos(s.startAngle);
+    const iy2 = cy + innerR * Math.sin(s.startAngle);
+    const large = (s.endAngle - s.startAngle) > Math.PI ? 1 : 0;
+
+    const d = `M ${x1.toFixed(2)} ${y1.toFixed(2)} `
+            + `A ${outerR} ${outerR} 0 ${large} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} `
+            + `L ${ix1.toFixed(2)} ${iy1.toFixed(2)} `
+            + `A ${innerR} ${innerR} 0 ${large} 0 ${ix2.toFixed(2)} ${iy2.toFixed(2)} Z`;
+
+    const path = document.createElementNS(SVG_NS, "path");
+    path.setAttribute("d", d);
+    path.setAttribute("fill", s.color);
+    path.setAttribute("class", "donut-slice");
+    path.setAttribute("data-idx", i);
+    path.style.color = s.color; // currentColor → drop-shadow color when active
+    svg.appendChild(path);
+  });
+
+  // Build legend (Token Composition style with mini bar + percentage chip)
+  legend.innerHTML = segments.map((s, i) => {
+    const pct = (s.value/sum) * 100;
+    return `<div class="dleg-row" data-idx="${i}" style="--leg-color:${s.color}">
+      <span class="swatch"></span>
+      <div class="info">
+        <div class="top-row">
+          <span class="name">${s.label}</span>
+          <span class="amt">${s.fmt || fmtNum(s.value)}</span>
+        </div>
+        ${s.desc ? `<div class="desc">${s.desc}</div>` : ""}
+        <div class="bar-wrap">
+          <span class="pct-chip" style="left:${Math.min(pct, 92)}%">${pct.toFixed(1)}%</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+
+  function setHover(idx){
+    // SVG slices
+    svg.querySelectorAll(".donut-slice").forEach((p, i) => {
+      p.classList.toggle("active", i === idx);
+      p.classList.toggle("dim",    idx >= 0 && i !== idx);
+    });
+    // Legend rows
+    legend.querySelectorAll(".dleg-row").forEach((r, i) => {
+      r.classList.toggle("active", i === idx);
+      r.classList.toggle("dim",    idx >= 0 && i !== idx);
+    });
+    // Center text
+    if(cv){
+      if(idx >= 0){
+        const s = segments[idx];
+        const pct = (s.value/sum)*100;
+        cv.textContent = pct.toFixed(1) + "%";
+        cv.style.color = s.color;
+        if(cl) cl.textContent = s.label;
+      } else {
+        cv.textContent = totalLabel;
+        cv.style.color = "";
+        if(cl) cl.textContent = centerLDefault;
+      }
+    }
+  }
+
+  // Wire hover handlers — slices
+  svg.querySelectorAll(".donut-slice").forEach(p => {
+    const i = +p.dataset.idx;
+    p.addEventListener("mouseenter", () => setHover(i));
+    p.addEventListener("mouseleave", () => setHover(-1));
+  });
+  // Wire hover handlers — legend rows
+  legend.querySelectorAll(".dleg-row").forEach(row => {
+    const i = +row.dataset.idx;
+    row.addEventListener("mouseenter", () => setHover(i));
+    row.addEventListener("mouseleave", () => setHover(-1));
+  });
+}
+
+
+/* ============================================================
+   oDOLO DISTRIBUTION DONUT
+============================================================ */
+const DIST_SEGMENTS = [
+  {label:"Emission Reserve", value:118.27e6, color:"#e4c15a", desc:"Locked, released over time as LM rewards", fmt:"118.27M"},
+  {label:"Exercised",        value: 18.13e6, color:"#a8c499", desc:"Burned to mint veDOLO across 3,535 exercises", fmt:"18.13M"},
+  {label:"Awaiting claim",   value: 14.97e6, color:"#22d3ee", desc:"Earned via LM, sitting in vester to claim", fmt:"14.97M"},
+  {label:"Vesting",          value:  3.16e6, color:"#a78bfa", desc:"Paired with DOLO, locked in vester contracts", fmt:"3.16M"},
+];
+
+/* ============================================================
+   CLAIMER BEHAVIOUR DONUT
+============================================================ */
+const BEHAV_SEGMENTS = [
+  {label:"Exercised → veDOLO", value:53.2, color:"#8aa37b", desc:"Used to redeem at a discount",       fmt:"21.99M oDOLO"},
+  {label:"Sold or sent away",  value:23.5, color:"#b4796b", desc:"Moved out without exercising",       fmt:"9.71M oDOLO"},
+  {label:"Still holding",      value:23.3, color:"#22d3ee", desc:"Sitting in claimer wallets",         fmt:"9.63M oDOLO"},
+  {label:"Bought extra",       value: 3.5, color:"#a78bfa", desc:"83 wallets accumulating beyond claims", fmt:"+1.45M oDOLO"},
+];
+
+function renderDonuts(){
+  const distTotal = DIST_SEGMENTS.reduce((s,r)=>s+r.value, 0);
+  const behaviorPrimary = BEHAV_SEGMENTS[0]?.value || 0;
+  drawDonut({
+    svgId:"dist-donut",
+    segments:DIST_SEGMENTS.map(s => ({...s})),
+    totalLabel:fmtNum(distTotal),
+    centerVId:"dist-center-v",
+    centerLId:"dist-center-l",
+    centerLDefault:"Total supply",
+    legendId:"dist-legend",
+  });
+  drawDonut({
+    svgId:"behav-donut",
+    segments:BEHAV_SEGMENTS.map(s => ({...s})),
+    totalLabel:behaviorPrimary.toFixed(1) + "%",
+    centerVId:"behav-center-v",
+    centerLId:"behav-center-l",
+    centerLDefault:"Exercised",
+    legendId:"behav-legend",
+  });
+}
+
+/* ============================================================
+   DISCOUNT CURVE
+============================================================ */
+const DISC_TIP = document.getElementById("disc-tooltip");
+const DISC_TIERS = ["small","medium","large","whale"];
+/* Color tiers — picked so none clashes with the gold theoretical line */
+const DISC_COLOURS = {
+  small:  "#67e8f9", // cyan
+  medium: "#a8c499", // sage green
+  large:  "#fb923c", // orange  (was gold — clashed with theoretical line)
+  whale:  "#ec4899", // hot pink (was salmon — easier to spot)
+};
+const DISC_FILTERS = new Set(["theory", ...DISC_TIERS]);
+
+/* Theoretical: 5% at 7d, linear up to 50% at 730d. */
+function theoreticalDiscount(days){
+  if(days <= 0)   return 0;
+  if(days < 7)    return 5 * (days/7);
+  if(days >= 730) return 50;
+  return 5 + 45 * (days - 7) / (730 - 7);
+}
+
+/* Synthetic exercise sample shaped from real lock-distribution.
+   In the actual oDOLO protocol the realized discount IS a deterministic
+   function of the chosen lock — every exercise lands on the line — so we
+   keep noise extremely tight (±0.4pp) and let the dots ride on top of it. */
+function generateExercises(){
+  const out = [];
+  let seed = 42;
+  const rand = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+
+  function add(days, tier, usd){
+    const expected = theoreticalDiscount(days);
+    const noise = (rand() - 0.5) * 0.4;
+    const actual = Math.max(0, Math.min(55, expected + noise));
+    out.push({ days, discount: actual, usd, tier, expected });
+  }
+  // Weighted lock pick — given a list of (days, weight)
+  function pickWeighted(buckets){
+    const total = buckets.reduce((s,b)=>s+b[1], 0);
+    let r = rand() * total;
+    for(const [d, w] of buckets){
+      r -= w;
+      if(r <= 0){ const jitter = (rand() - 0.5) * Math.max(2, d * 0.18); return Math.max(1, d + jitter); }
+    }
+    return buckets[buckets.length-1][0];
+  }
+
+  // Small ($<500): testers, casual users — mostly short, some long
+  for(let i=0; i<26; i++){
+    const days = pickWeighted([[7,4],[14,3],[30,3],[90,2],[180,1],[365,1],[700,1]]);
+    add(days, "small", 50 + rand()*450);
+  }
+  // Medium ($500–5K): spread, leaning longer
+  for(let i=0; i<22; i++){
+    const days = pickWeighted([[14,1],[30,2],[90,2],[180,2],[365,4],[700,4]]);
+    add(days, "medium", 500 + rand()*4500);
+  }
+  // Large ($5K–25K): mostly longer locks
+  for(let i=0; i<14; i++){
+    const days = pickWeighted([[90,1],[180,1],[365,3],[700,5]]);
+    add(days, "large", 5000 + rand()*20000);
+  }
+  // Whales (>$25K): heavily 1–2y
+  for(let i=0; i<10; i++){
+    const days = pickWeighted([[365,2],[550,3],[700,5]]);
+    add(days, "whale", 25000 + rand()*120000);
+  }
+  return out;
+}
+const DISC_DATA = generateExercises();
+
+const DISC_TIER_LABELS = {
+  small:"<$500", medium:"$500 – $5K", large:"$5K – $25K", whale:"Whale (>$25K)",
+};
+let DISC_HOVER = null;   // current hovered datum
+let DISC_GEOM = null;    // last-rendered geometry (for accurate hit-testing)
+
+function drawDiscountCurve(){
+  const canvas = document.getElementById("disc-canvas");
+  const shell  = canvas.parentElement;
+  const dpr = window.devicePixelRatio || 1;
+  const w = shell.clientWidth;
+  const h = shell.clientHeight;
+  canvas.width  = w * dpr;
+  canvas.height = h * dpr;
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+
+  // Geometry
+  const padL = 64, padR = 24, padT = 32, padB = 46;
+  const plotW = w - padL - padR;
+  const plotH = h - padT - padB;
+  const xMin = 0, xMax = 760;
+  const yMin = 0, yMax = 55;
+  const X = d => padL + ((d - xMin)/(xMax - xMin)) * plotW;
+  const Y = p => padT + (1 - (p - yMin)/(yMax - yMin)) * plotH;
+  const usdToRadius = u => Math.max(3.2, Math.min(15, Math.sqrt(u/35)));
+
+  const visible = DISC_DATA.filter(d => DISC_FILTERS.has(d.tier));
+  const sorted = [...visible].sort((a,b) => a.usd - b.usd);
+
+  // Cache geometry so hover hits are computed against the latest layout
+  DISC_GEOM = { padL, padR, padT, padB, plotW, plotH, X, Y, usdToRadius, sorted, w, h };
+
+  // ── Layer 1: grid + axis labels
+  ctx.font = "10.5px JetBrains Mono, monospace";
+  ctx.textBaseline = "middle";
+  for(let p=yMin; p<=yMax; p+=10){
+    const y = Y(p);
+    ctx.strokeStyle = p===0 ? "rgba(255,255,255,.10)" : "rgba(255,255,255,.04)";
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke();
+    ctx.fillStyle = "rgba(166,162,154,.65)";
+    ctx.textAlign = "right";
+    ctx.fillText(p+"%", padL - 12, y);
+  }
+  const xTicks = [
+    {d:7, lbl:"1w"}, {d:30, lbl:"1mo"}, {d:90, lbl:"3mo"},
+    {d:180, lbl:"6mo"}, {d:365, lbl:"1y"}, {d:730, lbl:"2y"},
+  ];
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  xTicks.forEach(t=>{
+    const x = X(t.d);
+    ctx.strokeStyle = "rgba(255,255,255,.04)";
+    ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, h - padB); ctx.stroke();
+    ctx.fillStyle = "rgba(166,162,154,.7)";
+    ctx.fillText(t.lbl, x, h - padB + 9);
+  });
+  // axis frame (left + bottom)
+  ctx.strokeStyle = "rgba(255,255,255,.10)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padL, padT); ctx.lineTo(padL, h - padB);
+  ctx.lineTo(w - padR, h - padB);
+  ctx.stroke();
+  // axis titles
+  ctx.fillStyle = "rgba(166,162,154,.85)";
+  ctx.font = "10.5px Inter, system-ui, sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText("Realized discount", padL - 50, padT - 16);
+  ctx.textAlign = "right";
+  ctx.fillText("Lock duration", w - padR, h - padB + 28);
+
+  // ── Layer 2: avg-lock vertical guide (532d = 17.5mo)
+  const avgX = X(532);
+  ctx.strokeStyle = "rgba(228,193,90,.32)";
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 4]);
+  ctx.beginPath();
+  ctx.moveTo(avgX, padT); ctx.lineTo(avgX, h - padB);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = "rgba(228,193,90,.95)";
+  ctx.font = "9.5px JetBrains Mono, monospace";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillText("avg lock 17.5mo", avgX, padT - 10);
+
+  // ── Layer 3: theoretical schedule (drawn BEFORE dots so each dot sits ON it)
+  if(DISC_FILTERS.has("theory")){
+    ctx.strokeStyle = "#e4c15a";
+    ctx.lineWidth = 2.6;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.setLineDash([8, 5]);
+    ctx.beginPath();
+    let first = true;
+    for(let d=0; d<=760; d+=2){
+      const p = theoreticalDiscount(d);
+      const x = X(d), y = Y(p);
+      if(first){ ctx.moveTo(x,y); first = false; } else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // ── Layer 4: dots ON TOP of the line — so every dot reads as "on it"
+  sorted.forEach(d=>{
+    const x = X(d.days), y = Y(d.discount);
+    const r = usdToRadius(d.usd);
+    const c = DISC_COLOURS[d.tier];
+
+    // dark backdrop punches a hole through the dashed line so the dot
+    // sits cleanly on top without dash-artifact bleeding through
+    ctx.fillStyle = "#0c0c0e";
+    ctx.beginPath();
+    ctx.arc(x, y, r + 1.6, 0, Math.PI*2);
+    ctx.fill();
+
+    // solid filled circle
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI*2);
+    ctx.fill();
+
+    // tiny inner highlight for crisp 3D feel
+    ctx.fillStyle = "rgba(255,255,255,.32)";
+    ctx.beginPath();
+    ctx.arc(x - r*0.25, y - r*0.25, Math.max(1, r*0.28), 0, Math.PI*2);
+    ctx.fill();
+
+    // whale: prominent white outer ring + soft glow
+    if(d.tier === "whale"){
+      ctx.strokeStyle = "rgba(255,255,255,.85)";
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.arc(x, y, r + 1.2, 0, Math.PI*2);
+      ctx.stroke();
+      // outer pink glow
+      ctx.fillStyle = c + "33";
+      ctx.beginPath();
+      ctx.arc(x, y, r + 5, 0, Math.PI*2);
+      ctx.fill();
+    }
+  });
+
+  // ── Layer 5: hover crosshair + active dot + axis value chips
+  if(DISC_HOVER){
+    const d = DISC_HOVER;
+    const x = X(d.days), y = Y(d.discount);
+    const r = usdToRadius(d.usd);
+    const c = DISC_COLOURS[d.tier];
+
+    // crosshair guides
+    ctx.strokeStyle = "rgba(255,255,255,.18)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 3]);
+    ctx.beginPath();
+    ctx.moveTo(padL, y); ctx.lineTo(x, y);
+    ctx.moveTo(x, h - padB); ctx.lineTo(x, y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // active dot — translucent ring + outer ring + solid core + hot center
+    ctx.fillStyle = c + "33";
+    ctx.beginPath();
+    ctx.arc(x, y, r + 8, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.strokeStyle = c;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x, y, r + 4, 0, Math.PI*2);
+    ctx.stroke();
+
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.fillStyle = "rgba(255,255,255,.55)";
+    ctx.beginPath();
+    ctx.arc(x, y, Math.max(1.5, r * 0.32), 0, Math.PI*2);
+    ctx.fill();
+
+    // y-axis value chip
+    ctx.font = "10px JetBrains Mono, monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const yLbl = d.discount.toFixed(1) + "%";
+    const yChipW = Math.max(40, ctx.measureText(yLbl).width + 14);
+    const yChipH = 18;
+    const yChipX = padL - yChipW - 4;
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(yChipX, y - yChipH/2, yChipW, yChipH, 4) : ctx.rect(yChipX, y - yChipH/2, yChipW, yChipH);
+    ctx.fill();
+    ctx.fillStyle = "#0a0a0c";
+    ctx.fillText(yLbl, yChipX + yChipW/2, y);
+
+    // x-axis value chip
+    const xLbl = fmtLock(d.days);
+    const xChipW = Math.max(46, ctx.measureText(xLbl).width + 14);
+    const xChipH = 18;
+    const xChipY = h - padB + 4;
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(x - xChipW/2, xChipY, xChipW, xChipH, 4) : ctx.rect(x - xChipW/2, xChipY, xChipW, xChipH);
+    ctx.fill();
+    ctx.fillStyle = "#0a0a0c";
+    ctx.fillText(xLbl, x, xChipY + xChipH/2);
+  }
+}
+
+function _discHitTest(mx, my){
+  if(!DISC_GEOM) return null;
+  const { X, Y, usdToRadius, sorted } = DISC_GEOM;
+  let best = null, bestD = 20;
+  sorted.forEach(d=>{
+    const x = X(d.days), y = Y(d.discount);
+    const r = usdToRadius(d.usd);
+    const dist = Math.hypot(mx - x, my - y);
+    // generous hit area (dot radius + buffer) but capped
+    const hit = Math.max(8, r + 6);
+    if(dist < hit && dist < bestD){ bestD = dist; best = d; }
+  });
+  return best;
+}
+
+function _showDiscTip(d, e){
+  const c = DISC_COLOURS[d.tier];
+  const dev = d.discount - d.expected;
+  const devStr = (dev >= 0 ? "+" : "") + dev.toFixed(1) + "%";
+  const devClr = dev >= 0 ? "#a8c499" : "#d99586";
+  DISC_TIP.innerHTML = `
+    <div class="tt-h"><span class="swatch" style="background:${c}"></span>${DISC_TIER_LABELS[d.tier]}</div>
+    <div class="tt-row"><span>Lock</span><b>${fmtLock(d.days)}</b></div>
+    <div class="tt-row"><span>Realized</span><b style="color:${c}">${d.discount.toFixed(1)}%</b></div>
+    <div class="tt-row"><span>Theoretical</span><b>${d.expected.toFixed(1)}%</b></div>
+    <div class="tt-row"><span>Δ vs theory</span><b style="color:${devClr}">${devStr}</b></div>
+    <div class="tt-row"><span>Paid</span><b>${"$" + fmtNum(d.usd)}</b></div>
+  `;
+  DISC_TIP.style.display = "block";
+  // smart placement
+  const tipW = DISC_TIP.offsetWidth || 200;
+  const tipH = DISC_TIP.offsetHeight || 140;
+  let leftPx = e.clientX + 14;
+  let topPx = e.clientY - 18 - tipH/2;
+  if(leftPx + tipW > window.innerWidth - 12) leftPx = e.clientX - tipW - 14;
+  if(topPx < 12) topPx = 12;
+  if(topPx + tipH > window.innerHeight - 12) topPx = window.innerHeight - tipH - 12;
+  DISC_TIP.style.left = leftPx + "px";
+  DISC_TIP.style.top  = topPx  + "px";
+}
+
+(function attachDiscEvents(){
+  const canvas = document.getElementById("disc-canvas");
+  canvas.addEventListener("mousemove", e=>{
+    const rct = canvas.getBoundingClientRect();
+    const mx = e.clientX - rct.left;
+    const my = e.clientY - rct.top;
+    const hit = _discHitTest(mx, my);
+    if(hit !== DISC_HOVER){
+      DISC_HOVER = hit;
+      drawDiscountCurve();
+    }
+    if(hit){
+      _showDiscTip(hit, e);
+      canvas.style.cursor = "pointer";
+    } else {
+      DISC_TIP.style.display = "none";
+      canvas.style.cursor = "default";
+    }
+  });
+  canvas.addEventListener("mouseleave", ()=>{
+    if(DISC_HOVER){ DISC_HOVER = null; drawDiscountCurve(); }
+    DISC_TIP.style.display = "none";
+  });
+})();
+
+/* legend pill toggles */
+document.querySelectorAll("#disc-legend .disc3-pill").forEach(item=>{
+  item.addEventListener("click", ()=>{
+    const k = item.dataset.key;
+    if(DISC_FILTERS.has(k)) DISC_FILTERS.delete(k);
+    else DISC_FILTERS.add(k);
+    item.classList.toggle("off", !DISC_FILTERS.has(k));
+    drawDiscountCurve();
+  });
+});
+window.addEventListener("resize", ()=>{ drawDiscountCurve(); renderDonuts(); });
+
+/* ============================================================
+   CLAIMER BREAKDOWN TABLE
+============================================================ */
+/* Sample claimers — derived from claimer_behavior.all_claimers (top-N).
+   amounts in oDOLO. */
+const CLAIMERS = [
+  {addr:"0x084caf1bf60e49aec07ec4148a3f1f0f57fd11eb", label:"LM Farmer",       claimed:4521561.26, exercised:2936991.32, outflow:0,         held:1584569.94, buy:128_400},
+  {addr:"0x416a3427414b6c98adab70f48a2a904d1cf3f446", label:"veDOLO Maxi",     claimed:2871012.00, exercised:2287145.00, outflow:240_500,   held: 343367.00, buy: 0},
+  {addr:"0xbb7a68fe5ebf13cc39773a95a12e7478bb134656", label:"Whale 7s",        claimed:2438700.00, exercised:1283580.00, outflow:1_120_300, held:  34820.00, buy: 0},
+  {addr:"0x8e49f27740cba1e6d5799d8562cdf580c66d666e", label:"Sniper Bot 12",   claimed:2102540.00, exercised:1756330.00, outflow: 280_000,  held:  66210.00, buy: 0},
+  {addr:"0x7bfee91193d9df2ac0bfe90191d40f23c773c060", label:null,              claimed:1740230.00, exercised: 829100.00, outflow: 612_500,  held: 298630.00, buy: 0},
+  {addr:"0x32cd32b45277bf025c1df7bb4388e6a412b77fe5", label:"MEV Cluster",     claimed:1684200.00, exercised:  44000.00, outflow:1_640_200, held:      0.00, buy: 626_540},
+  {addr:"0x37d0371d17e5e587b236504515a4baabc08da619", label:"Governance Whale",claimed:1521410.00, exercised:1351410.00, outflow:        0, held: 170_000.00, buy: 0},
+  {addr:"0xc0bb26dce66f9befd500eb75842506025956d584", label:"Long-lock LP",    claimed:1442870.00, exercised:1296840.00, outflow:        0, held: 146030.00, buy: 0},
+  {addr:"0x62dfa6eba6a34e55c454894dd9b3e688f88cb09b", label:"Yield DAO",       claimed:1280910.00, exercised:1138910.00, outflow:        0, held:  142000.00, buy: 0},
+  {addr:"0xfb6a8b80ac4d65f9b3edcb19b13e85d8a25cd0bc", label:"Wintermute",     claimed:1110520.00, exercised: 553700.00, outflow: 506_300,  held:   50520.00, buy: 0},
+  {addr:"0x67d0a091f1f4c9e6a9b50ce4eaf203c9fc488ca3", label:"Quick-flipper",   claimed: 968420.00, exercised:  82400.00, outflow: 882_500,  held:    3520.00, buy: 184_300},
+  {addr:"0xe1ad30971b83c17e2a24c0334cb45f808abebc87", label:null,              claimed: 938710.00, exercised: 870810.00, outflow:        0, held:   67900.00, buy: 0},
+  {addr:"0xd93bdecbed0ba6dfd32edc5b8610591f2533202c", label:null,              claimed: 894410.00, exercised: 821640.00, outflow:        0, held:   72770.00, buy: 0},
+  {addr:"0xd3f41cb0f4c3abda85845d00f10c6b11740509f8", label:"Locker DAO",      claimed: 750120.00, exercised: 671580.00, outflow:        0, held:   78540.00, buy: 0},
+  {addr:"0x9c8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6d", label:"GSR",             claimed: 682340.00, exercised: 470890.00, outflow: 195_400,  held:   16050.00, buy: 0},
+  {addr:"0x6e6f0b8e8e3a2c63a3a3c6e8f0a9b8c7d6e5f4a3", label:"Arb Bot 19",      claimed: 561200.00, exercised: 249220.00, outflow: 296_000,  held:   15980.00, buy: 0},
+];
+
+const cbState = {
+  q:"", page:0, pageSize:10,
+  sort:{key:"claimed", dir:"desc"},
+  period:"all",
+};
+
+function renderClaimerBreakdown(){
+  if(LIVE.flows) syncLiveClaimersForPeriod();
+  const q = cbState.q.trim().toLowerCase();
+  const rows = CLAIMERS
+    .filter(r => !q || r.addr.toLowerCase().includes(q) || (r.label||"").toLowerCase().includes(q))
+    .map(r => ({...r}));
+  // sort
+  const {key,dir} = cbState.sort;
+  rows.sort((a,b)=>{
+    let va,vb;
+    if(key==="addr"){ va=a.label||a.addr; vb=b.label||b.addr; }
+    else if(key==="rank") { va=a.claimed; vb=b.claimed; }
+    else { va = a[key]; vb = b[key]; }
+    if(typeof va==="string") return dir==="asc"?va.localeCompare(vb):vb.localeCompare(va);
+    return dir==="asc" ? va-vb : vb-va;
+  });
+  // header sort indicators
+  document.querySelectorAll("#tbl-cb thead th").forEach(th=>{
+    const k = th.dataset.sort;
+    th.classList.toggle("sorted", k===cbState.sort.key);
+    let s = th.querySelector(".sort"); if(s) s.remove();
+    if(k===cbState.sort.key){
+      const span = document.createElement("span");
+      span.className = "sort";
+      span.textContent = cbState.sort.dir==="asc"?"▲":"▼";
+      th.appendChild(span);
+    }
+  });
+
+  const start = cbState.page * cbState.pageSize;
+  const pageRows = rows.slice(start, start + cbState.pageSize);
+  const tbody = document.getElementById("cb-body");
+  const totalClaimers = LIVE.flows?.claimer_behavior?.total_claimers || CLAIMERS.length;
+  document.getElementById("cb-count").textContent = `${totalClaimers.toLocaleString()} claimers`;
+
+  const cellHtml = (val, claimed, kind) => {
+    const pct = claimed > 0 ? Math.min(100, (val/claimed)*100) : 0;
+    const cls = val > 0 ? "" : "zero";
+    return `<div class="cb-cell">
+      <span class="val ${cls}">${val>0 ? fmtNum(val) : "—"}</span>
+      <div class="bar"><span class="${kind}" style="width:${pct}%"></span></div>
+    </div>`;
+  };
+
+  tbody.innerHTML = pageRows.map((r,i)=>{
+    const rank = start + i + 1;
+    const typeChip = r.label ? `<span class="addr-name">${r.label}</span>` : `<span class="addr-name addr-generic">Wallet</span>`;
+    const actions = `
+      <button class="addr-copy" data-copy="${r.addr}" title="Copy address" aria-label="Copy address">${COPY_ICO}</button>
+      <a class="addr-debank" href="https://debank.com/profile/${r.addr}" target="_blank" rel="noopener" title="View on DeBank" aria-label="View on DeBank" onclick="event.stopPropagation()">
+        <img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'">
+      </a>`;
+    return `
+      <tr data-addr="${r.addr}">
+        <td class="rank">${rank}</td>
+        <td>
+          <div class="addr-cell">
+            <div class="addr-line top">${typeChip}</div>
+            <div class="addr-line bot"><span class="addr-mono">${shorten(r.addr)}</span>${actions}</div>
+          </div>
+        </td>
+        <td class="num">${cellHtml(r.claimed,   r.claimed, "clm")}</td>
+        <td class="num">${cellHtml(r.exercised, r.claimed, "exr")}</td>
+        <td class="num">${cellHtml(r.outflow,   r.claimed, "out")}</td>
+        <td class="num">${cellHtml(r.held,      r.claimed, "hld")}</td>
+        <td class="num" style="padding-right:32px">${cellHtml(r.buy, r.claimed, "buy")}</td>
+      </tr>
+    `;
+  }).join("");
+
+  // pager
+  const total = rows.length;
+  const showStart = total>0 ? start+1 : 0;
+  const showEnd = Math.min(start + cbState.pageSize, total);
+  document.getElementById("cb-info").textContent = `${showStart}–${showEnd} of ${total.toLocaleString()}`;
+  const totalPages = Math.max(1, Math.ceil(total/cbState.pageSize));
+  const curPage = cbState.page + 1;
+  const pager = document.getElementById("cb-pager");
+  pager.innerHTML = `
+    <button class="pg-btn" data-page="first" ${curPage===1?"disabled":""} title="First"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg></button>
+    <button class="pg-btn" data-page="prev"  ${curPage===1?"disabled":""} title="Previous"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <span class="pg-current">${curPage} <span class="pg-sep">/</span> ${totalPages}</span>
+    <button class="pg-btn" data-page="next"  ${curPage===totalPages?"disabled":""} title="Next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button class="pg-btn" data-page="last"  ${curPage===totalPages?"disabled":""} title="Last"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></button>
+  `;
+  pager.querySelectorAll("[data-page]").forEach(btn => btn.addEventListener("click", ()=>{
+    const a = btn.dataset.page;
+    if(a==="first") cbState.page = 0;
+    else if(a==="prev") cbState.page = Math.max(0, cbState.page-1);
+    else if(a==="next") cbState.page = Math.min(totalPages-1, cbState.page+1);
+    else if(a==="last") cbState.page = totalPages-1;
+    renderClaimerBreakdown();
+  }));
+  tbody.querySelectorAll(".addr-copy").forEach(btn => btn.addEventListener("click", async e=>{
+    e.stopPropagation();
+    try { await navigator.clipboard.writeText(btn.dataset.copy); } catch(_) {}
+    btn.classList.add("copied");
+    btn.innerHTML = CHECK_ICO;
+    setTimeout(()=>{ btn.classList.remove("copied"); btn.innerHTML = COPY_ICO; }, 1400);
+  }));
+  tbody.querySelectorAll("tr").forEach(tr => tr.addEventListener("click", e=>{
+    if(e.target.closest(".addr-copy") || e.target.closest(".addr-debank")) return;
+    window.open(`https://berascan.com/address/${tr.dataset.addr}`, "_blank", "noopener");
+  }));
+}
+
+document.querySelectorAll("#tbl-cb thead th").forEach(th=>{
+  th.addEventListener("click", ()=>{
+    const k = th.dataset.sort;
+    if(cbState.sort.key === k) cbState.sort.dir = cbState.sort.dir==="asc"?"desc":"asc";
+    else { cbState.sort.key = k; cbState.sort.dir="desc"; }
+    renderClaimerBreakdown();
+  });
+});
+document.getElementById("q-cb").addEventListener("input", e=>{ cbState.q = e.target.value; cbState.page=0; renderClaimerBreakdown(); });
+document.querySelectorAll('#dd-cb-period .dd-opt').forEach(opt=>{
+  opt.addEventListener("click", e=>{
+    e.stopPropagation();
+    document.querySelectorAll('#dd-cb-period .dd-opt').forEach(o=>o.classList.remove("active"));
+    opt.classList.add("active");
+    cbState.period = opt.dataset.period;
+    document.querySelector('#dd-cb-period .dd-btn .lbl').textContent = opt.querySelector(".dd-opt-name").textContent;
+    cbState.page = 0;
+    renderClaimerBreakdown();
+  });
+});
+
+/* ============================================================
+   EXERCISERS TABLE
+============================================================ */
+function filterExercisers({includeSearch=true} = {}){
+  const q = includeSearch ? state.qEx.trim().toLowerCase() : "";
+  return EXERCISERS.filter(r=>{
+    if(!state.exTypes.has(r.type)) return false;
+    if(q && !r.addr.toLowerCase().includes(q) && !(r.label||"").toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+function sortExercisers(rows){
+  const {key,dir} = state.exSort;
+  return [...rows].sort((a,b)=>{
+    let va,vb;
+    if(key==="rank"||key==="usdc"){va=a.usdc;vb=b.usdc}
+    else if(key==="vedolo"){va=a.vedolo;vb=b.vedolo}
+    else if(key==="exercises"){va=a.exercises;vb=b.exercises}
+    else if(key==="lock"){va=a.lockDays;vb=b.lockDays}
+    else if(key==="addr"){va=a.label||a.addr;vb=b.label||b.addr}
+    if(typeof va==="string") return dir==="asc"?va.localeCompare(vb):vb.localeCompare(va);
+    return dir==="asc"?va-vb:vb-va;
+  });
+}
+function renderExercisers(){
+  if(LIVE.exercisers) syncLiveExercisersForPeriod();
+  const rows = sortExercisers(filterExercisers());
+  const rankMap = new Map(
+    sortExercisers(filterExercisers({includeSearch:false}))
+      .map((r,i)=>[r.addr.toLowerCase(), i + 1])
+  );
+  const totalAddresses = LIVE.exercisers?.total_addresses || EXERCISERS.length;
+  document.getElementById("ex-count").textContent = `${totalAddresses.toLocaleString()} addresses`;
+
+  document.querySelectorAll("#tbl-ex thead th").forEach(th=>{
+    const k = th.dataset.sort;
+    th.classList.toggle("sorted", k===state.exSort.key);
+    let s = th.querySelector(".sort"); if(s) s.remove();
+    if(k===state.exSort.key){
+      const span = document.createElement("span");
+      span.className = "sort";
+      span.textContent = state.exSort.dir==="asc" ? "▲" : "▼";
+      th.appendChild(span);
+    }
+  });
+
+  const start = state.exPage * state.exPageSize;
+  const pageRows = rows.slice(start, start + state.exPageSize);
+  const tbody = document.getElementById("ex-body");
+  const lockMaxDays = 730;
+
+  const rowsHtml = pageRows.map((r,i)=>{
+    const rank = rankMap.get(r.addr.toLowerCase()) || (start + i + 1);
+    const typeHtml = `<span class="type-tag type-${r.type}" title="${TYPE_TIPS[r.type]}">${TYPE_LABELS[r.type]}</span>`;
+    const actions = `
+      <button class="addr-copy" data-copy="${r.addr}" title="Copy address" aria-label="Copy address">${COPY_ICO}</button>
+      <a class="addr-debank" href="https://debank.com/profile/${r.addr}" target="_blank" rel="noopener" title="View on DeBank" aria-label="View on DeBank" onclick="event.stopPropagation()">
+        <img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'">
+      </a>`;
+    const nameCell = r.label
+      ? `<span class="addr-name">${r.label}</span>`
+      : `<span class="addr-name addr-generic">${TYPE_GENERIC[r.type]}</span>`;
+    const bucket = lockBucket(r.lockDays);
+    return `
+      <tr data-addr="${r.addr}">
+        <td class="rank">${rank}</td>
+        <td>
+          <div class="addr-cell">
+            <div class="addr-line top">${nameCell}${typeHtml}</div>
+            <div class="addr-line bot"><span class="addr-mono">${shorten(r.addr)}</span>${actions}</div>
+          </div>
+        </td>
+        <td class="num"><span class="bal-val usd">${fmtUsd(r.usdc)}</span></td>
+        <td class="num"><span class="bal-val">${fmtNum(r.vedolo)}</span></td>
+        <td class="num"><span class="bal-val">${r.exercises.toLocaleString()}</span></td>
+        <td class="num" style="padding-right:32px">
+          <div class="lock-cell">
+            <span class="lock-val ${bucket}">${fmtLock(r.lockDays)}</span>
+            <div class="lock-bar"><span class="${bucket}" style="width:${Math.min(100, (r.lockDays/lockMaxDays)*100)}%"></span></div>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  const spacerRowsHtml = Array.from({length: Math.max(0, state.exPageSize - pageRows.length)}, () => `
+      <tr class="tbl-spacer-row" aria-hidden="true" tabindex="-1">
+        <td class="rank">0</td>
+        <td><div class="addr-cell"><div class="addr-line top"><span class="addr-name">Placeholder</span><span class="type-tag type-eoa">EOA</span></div><div class="addr-line bot"><span class="addr-mono">0x0000…0000</span></div></div></td>
+        <td class="num"><span class="bal-val">0</span></td>
+        <td class="num"><span class="bal-val">0</span></td>
+        <td class="num"><span class="bal-val">0</span></td>
+        <td class="num" style="padding-right:32px"><div class="lock-cell"><span class="lock-val short">0d</span><div class="lock-bar"><span class="short" style="width:0%"></span></div></div></td>
+      </tr>
+    `).join("");
+  tbody.innerHTML = rowsHtml + spacerRowsHtml;
+  const dataRowEls = [...tbody.querySelectorAll("tr:not(.tbl-spacer-row)")];
+  const spacerRowEls = [...tbody.querySelectorAll("tr.tbl-spacer-row")];
+  if(!spacerRowEls.length && dataRowEls.length === state.exPageSize){
+    exStableBodyHeight = Math.max(exStableBodyHeight, tbody.getBoundingClientRect().height);
+  }
+  if(spacerRowEls.length){
+    const dataHeight = dataRowEls.reduce((s,row)=>s + row.getBoundingClientRect().height, 0);
+    const fallbackRowHeight = dataRowEls.length
+      ? Math.max(...dataRowEls.map(r => r.getBoundingClientRect().height))
+      : (exStableBodyHeight ? exStableBodyHeight / state.exPageSize : 0);
+    const targetBodyHeight = exStableBodyHeight || fallbackRowHeight * state.exPageSize;
+    const spacerHeight = targetBodyHeight ? Math.max(0, (targetBodyHeight - dataHeight) / spacerRowEls.length) : fallbackRowHeight;
+    spacerRowEls.forEach(row => row.style.height = `${spacerHeight}px`);
+  }
+
+  const total = rows.length;
+  const showStart = total > 0 ? start + 1 : 0;
+  const showEnd = Math.min(start + state.exPageSize, total);
+  document.getElementById("ex-info").textContent = `${showStart}–${showEnd} of ${total.toLocaleString()}`;
+  const totalPages = Math.max(1, Math.ceil(total/state.exPageSize));
+  const curPage = state.exPage + 1;
+  const pager = document.getElementById("ex-pager");
+  pager.innerHTML = `
+    <button class="pg-btn" data-page="first" ${curPage===1?"disabled":""} title="First"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg></button>
+    <button class="pg-btn" data-page="prev"  ${curPage===1?"disabled":""} title="Previous"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <span class="pg-current">${curPage} <span class="pg-sep">/</span> ${totalPages}</span>
+    <button class="pg-btn" data-page="next"  ${curPage===totalPages?"disabled":""} title="Next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button class="pg-btn" data-page="last"  ${curPage===totalPages?"disabled":""} title="Last"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></button>
+  `;
+  pager.querySelectorAll("[data-page]").forEach(btn => btn.addEventListener("click", ()=>{
+    const a = btn.dataset.page;
+    if(a==="first") state.exPage = 0;
+    else if(a==="prev") state.exPage = Math.max(0, state.exPage-1);
+    else if(a==="next") state.exPage = Math.min(totalPages-1, state.exPage+1);
+    else if(a==="last") state.exPage = totalPages-1;
+    renderExercisers();
+  }));
+  tbody.querySelectorAll(".addr-copy").forEach(btn => btn.addEventListener("click", async e=>{
+    e.stopPropagation();
+    try { await navigator.clipboard.writeText(btn.dataset.copy); } catch(_) {}
+    btn.classList.add("copied");
+    btn.innerHTML = CHECK_ICO;
+    setTimeout(()=>{ btn.classList.remove("copied"); btn.innerHTML = COPY_ICO; }, 1400);
+  }));
+  tbody.querySelectorAll("tr:not(.tbl-spacer-row)").forEach(tr => tr.addEventListener("click", e=>{
+    if(e.target.closest(".addr-copy") || e.target.closest(".addr-debank")) return;
+    window.open(`https://berascan.com/address/${tr.dataset.addr}`, "_blank", "noopener");
+  }));
+}
+
+/* ============================================================
+   FLOWS
+============================================================ */
+function syncFlowSortHeaders(){
+  document.querySelectorAll(".flows-tbl th[data-flow-sort]").forEach(th=>{
+    const kind = th.dataset.flowKind;
+    const sort = state.flowsSort[kind];
+    const active = sort && sort.key === th.dataset.flowSort;
+    th.classList.toggle("sorted", active);
+    let marker = th.querySelector(".sort");
+    if(marker) marker.remove();
+    if(active){
+      marker = document.createElement("span");
+      marker.className = "sort";
+      marker.textContent = sort.dir === "asc" ? "▲" : "▼";
+      th.appendChild(marker);
+    }
+  });
+}
+function sortFlowRows(rows, kind){
+  const sort = state.flowsSort[kind] || {key:"net", dir:"desc"};
+  const mult = sort.dir === "asc" ? 1 : -1;
+  return [...rows].sort((a,b)=>{
+    const va = sort.key === "balance" ? (a.balance||0) : Math.abs(a.chg);
+    const vb = sort.key === "balance" ? (b.balance||0) : Math.abs(b.chg);
+    return (va - vb) * mult;
+  });
+}
+function renderFlowPager(kind, totalRows){
+  const totalPages = Math.max(1, Math.ceil(totalRows / state.flowsPageSize));
+  state.flowsPage[kind] = Math.max(0, Math.min(state.flowsPage[kind], totalPages - 1));
+  const curPage = state.flowsPage[kind] + 1;
+  const pager = document.getElementById(kind === "acc" ? "flows-acc-pager" : "flows-out-pager");
+  if(!pager) return;
+  pager.innerHTML = `
+    <button class="pg-btn" data-flow-page="first" ${curPage===1?"disabled":""} title="First"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg></button>
+    <button class="pg-btn" data-flow-page="prev"  ${curPage===1?"disabled":""} title="Previous"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <span class="pg-current">${curPage} <span class="pg-sep">/</span> ${totalPages}</span>
+    <button class="pg-btn" data-flow-page="next"  ${curPage===totalPages?"disabled":""} title="Next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button class="pg-btn" data-flow-page="last"  ${curPage===totalPages?"disabled":""} title="Last"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></button>
+  `;
+  pager.querySelectorAll("[data-flow-page]").forEach(btn => btn.addEventListener("click", ()=>{
+    const a = btn.dataset.flowPage;
+    if(a==="first") state.flowsPage[kind] = 0;
+    else if(a==="prev") state.flowsPage[kind] = Math.max(0, state.flowsPage[kind]-1);
+    else if(a==="next") state.flowsPage[kind] = Math.min(totalPages-1, state.flowsPage[kind]+1);
+    else if(a==="last") state.flowsPage[kind] = totalPages-1;
+    renderFlows();
+  }));
+}
+function syncFlowSpacerHeight(tbody, kind, dataRowSelector, spacerSelector, expectedRows){
+  const dataRowEls = [...tbody.querySelectorAll(dataRowSelector)];
+  const spacerRowEls = [...tbody.querySelectorAll(spacerSelector)];
+  if(!spacerRowEls.length && dataRowEls.length === expectedRows){
+    state.flowsStableBodyHeight[kind] = Math.max(state.flowsStableBodyHeight[kind], tbody.getBoundingClientRect().height);
+  }
+  if(spacerRowEls.length){
+    const dataHeight = dataRowEls.reduce((s,row)=>s + row.getBoundingClientRect().height, 0);
+    const fallbackRowHeight = dataRowEls.length
+      ? Math.max(...dataRowEls.map(r => r.getBoundingClientRect().height))
+      : (state.flowsStableBodyHeight[kind] ? state.flowsStableBodyHeight[kind] / expectedRows : 0);
+    const targetBodyHeight = state.flowsStableBodyHeight[kind] || fallbackRowHeight * expectedRows;
+    const spacerHeight = targetBodyHeight ? Math.max(0, (targetBodyHeight - dataHeight) / spacerRowEls.length) : fallbackRowHeight;
+    spacerRowEls.forEach(row => row.style.height = `${spacerHeight}px`);
+  }
+}
+function renderFlow(target, kind){
+  const q = state.qFlows.trim().toLowerCase();
+  let rows = FLOWS
+    .filter(r=>state.flowsTypes.has(r.type))
+    .filter(r=> kind==="acc" ? r.chg > 0 : r.chg < 0);
+  rows = sortFlowRows(rows, kind);
+  const rankMap = new Map(rows.map((r,i)=>[r.addr.toLowerCase(), i + 1]));
+  if(q) rows = rows.filter(r=>r.addr.toLowerCase().includes(q) || (r.label||"").toLowerCase().includes(q));
+  const total = rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / state.flowsPageSize));
+  state.flowsPage[kind] = Math.max(0, Math.min(state.flowsPage[kind], totalPages - 1));
+  const start = state.flowsPage[kind] * state.flowsPageSize;
+  const pageRows = rows.slice(start, start + state.flowsPageSize);
+  syncFlowSortHeaders();
+  const tbody = document.getElementById(target);
+  const rowHtml = pageRows.map((r,i)=>{
+    const cls = kind==="acc" ? "up" : "down";
+    const sign = r.chg > 0 ? "+" : "";
+    const balance = r.balance || 0;
+    const rank = rankMap.get(r.addr.toLowerCase()) || (start + i + 1);
+    const typeHtml = `<span class="type-tag type-${r.type}" title="${TYPE_TIPS[r.type]}">${TYPE_LABELS[r.type]}</span>`;
+    const actions = `
+      <button class="addr-copy" data-copy="${r.addr}" title="Copy address" aria-label="Copy address">${COPY_ICO}</button>
+      <a class="addr-debank" href="https://debank.com/profile/${r.addr}" target="_blank" rel="noopener" title="View on DeBank" aria-label="View on DeBank" onclick="event.stopPropagation()">
+        <img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'">
+      </a>`;
+    const nameCell = r.label ? `<span class="addr-name">${r.label}</span>` : `<span class="addr-name addr-generic">${TYPE_GENERIC[r.type]}</span>`;
+    return `
+      <tr data-addr="${r.addr}">
+        <td class="rank">${rank}</td>
+        <td>
+          <div class="addr-cell">
+            <div class="addr-line top">${nameCell}${typeHtml}</div>
+            <div class="addr-line bot"><span class="addr-mono">${shorten(r.addr)}</span>${actions}</div>
+          </div>
+        </td>
+        <td class="num"><span class="bal-val">${balance>0 ? fmtNum(balance) : "—"}</span></td>
+        <td class="num" style="padding-right:24px"><span class="flows-net ${cls}">${sign}${fmtNum(r.chg)}</span></td>
+      </tr>
+    `;
+  }).join("");
+  const spacerRowsHtml = Array.from({length: Math.max(0, state.flowsPageSize - pageRows.length)}, () => `
+      <tr class="flow-spacer-row" aria-hidden="true" tabindex="-1">
+        <td class="rank">0</td>
+        <td><div class="addr-cell"><div class="addr-line top"><span class="addr-name">Placeholder</span><span class="type-tag type-eoa">EOA</span></div><div class="addr-line bot"><span class="addr-mono">0x0000…0000</span></div></div></td>
+        <td class="num"><span class="bal-val">0</span></td>
+        <td class="num" style="padding-right:24px"><span class="flows-net ${kind==="acc" ? "up" : "down"}">0</span></td>
+      </tr>
+    `).join("");
+  tbody.innerHTML = rowHtml + spacerRowsHtml;
+  syncFlowSpacerHeight(tbody, kind, "tr:not(.flow-spacer-row)", "tr.flow-spacer-row", state.flowsPageSize);
+  const info = document.getElementById(kind === "acc" ? "flows-acc-info" : "flows-out-info");
+  if(info){
+    const showStart = total > 0 ? start + 1 : 0;
+    const showEnd = Math.min(start + state.flowsPageSize, total);
+    info.textContent = `${showStart}–${showEnd} of ${total.toLocaleString()}`;
+  }
+  renderFlowPager(kind, total);
+  tbody.querySelectorAll(".addr-copy").forEach(btn => btn.addEventListener("click", async e=>{
+    e.stopPropagation();
+    try { await navigator.clipboard.writeText(btn.dataset.copy); } catch(_) {}
+    btn.classList.add("copied");
+    btn.innerHTML = CHECK_ICO;
+    setTimeout(()=>{ btn.classList.remove("copied"); btn.innerHTML = COPY_ICO; }, 1400);
+  }));
+  tbody.querySelectorAll("tr:not(.flow-spacer-row)").forEach(tr => tr.addEventListener("click", e=>{
+    if(e.target.closest(".addr-copy") || e.target.closest(".addr-debank")) return;
+    window.open(`https://berascan.com/address/${tr.dataset.addr}`, "_blank", "noopener");
+  }));
+}
+function renderFlows(){
+  if(LIVE.flows) syncLiveFlowsForPeriod();
+  renderFlow("flows-acc-body", "acc");
+  renderFlow("flows-out-body", "out");
+}
+
+/* ============================================================
+   EVENT WIRING
+============================================================ */
+document.getElementById("q-ex").addEventListener("input", e=>{state.qEx=e.target.value;state.exPage=0;renderExercisers()});
+document.getElementById("q-flows").addEventListener("input", e=>{state.qFlows=e.target.value;state.flowsPage.acc=0;state.flowsPage.out=0;renderFlows()});
+document.addEventListener("keydown", e=>{
+  if(e.key==="/" && document.activeElement.tagName!=="INPUT"){
+    e.preventDefault();
+    document.getElementById("q-ex").focus();
+  }
+});
+document.querySelectorAll("#tbl-ex thead th").forEach(th=>{
+  th.addEventListener("click", ()=>{
+    const k = th.dataset.sort;
+    if(state.exSort.key===k) state.exSort.dir = state.exSort.dir==="asc"?"desc":"asc";
+    else {state.exSort.key=k; state.exSort.dir="desc"}
+    renderExercisers();
+  });
+});
+document.querySelectorAll(".flows-tbl th[data-flow-sort]").forEach(th=>{
+  th.addEventListener("click", ()=>{
+    const kind = th.dataset.flowKind;
+    const key = th.dataset.flowSort;
+    const sort = state.flowsSort[kind];
+    if(sort.key === key) sort.dir = sort.dir === "asc" ? "desc" : "asc";
+    else { sort.key = key; sort.dir = "desc"; }
+    state.flowsPage[kind] = 0;
+    renderFlows();
+  });
+});
+
+/* DROPDOWNS */
+document.querySelectorAll("[data-dd]").forEach(btn=>{
+  btn.addEventListener("click", e=>{
+    e.stopPropagation();
+    const panel = btn.nextElementSibling;
+    const was = panel.classList.contains("show");
+    document.querySelectorAll(".dd-panel.show").forEach(p=>p.classList.remove("show"));
+    document.querySelectorAll(".dd-btn.open").forEach(b=>b.classList.remove("open"));
+    if(!was){panel.classList.add("show");btn.classList.add("open")}
+  });
+});
+document.addEventListener("click", ()=>{
+  document.querySelectorAll(".dd-panel.show").forEach(p=>p.classList.remove("show"));
+  document.querySelectorAll(".dd-btn.open").forEach(b=>b.classList.remove("open"));
+});
+
+/* Exercisers types filter */
+function syncExTypesBtn(){
+  const btn = document.querySelector('#dd-types-ex .dd-btn');
+  const total = 5;
+  const lbl = btn.querySelector(".lbl");
+  const cnt = btn.querySelector(".count");
+  btn.classList.toggle("filtered", state.exTypes.size !== total);
+  if(state.exTypes.size === total){lbl.textContent="All Types";cnt.textContent=String(total)}
+  else if(state.exTypes.size === 0){lbl.textContent="No Types";cnt.textContent="0"}
+  else if(state.exTypes.size === 1){lbl.textContent=TYPE_LABELS[[...state.exTypes][0]];cnt.textContent="1"}
+  else {lbl.textContent=`${state.exTypes.size} types`;cnt.textContent=String(state.exTypes.size)}
+  document.querySelectorAll('#dd-types-ex .rw-item').forEach(item=>{
+    item.classList.toggle("active", state.exTypes.has(item.dataset.type));
+  });
+}
+document.querySelectorAll('#dd-types-ex .rw-item').forEach(item=>{
+  item.addEventListener("click", e=>{
+    e.stopPropagation();
+    const t = item.dataset.type;
+    if(state.exTypes.has(t)) state.exTypes.delete(t);
+    else state.exTypes.add(t);
+    syncExTypesBtn();
+    state.exPage=0;
+    renderExercisers();
+  });
+});
+syncExTypesBtn();
+
+/* Exercisers period — same time frames as DOLO Flows */
+document.querySelectorAll('#dd-ex-period .dd-opt').forEach(opt=>{
+  opt.addEventListener("click", e=>{
+    e.stopPropagation();
+    document.querySelectorAll('#dd-ex-period .dd-opt').forEach(o=>o.classList.remove("active"));
+    opt.classList.add("active");
+    state.exPeriod = opt.dataset.period;
+    const meta = PERIODS.find(p=>p.key===state.exPeriod);
+    document.querySelector('#dd-ex-period .dd-btn .lbl').textContent = meta ? meta.short : opt.dataset.period.toUpperCase();
+    state.exPage=0;
+    renderExercisers();
+  });
+});
+
+/* Flows types */
+function syncFlowsTypesBtn(){
+  const btn = document.querySelector('#dd-flows-types .dd-btn');
+  const total = 5;
+  const lbl = btn.querySelector(".lbl");
+  const cnt = btn.querySelector(".count");
+  btn.classList.toggle("filtered", state.flowsTypes.size !== total);
+  if(state.flowsTypes.size === total){lbl.textContent="All Types";cnt.textContent=String(total)}
+  else if(state.flowsTypes.size === 0){lbl.textContent="No Types";cnt.textContent="0"}
+  else if(state.flowsTypes.size === 1){lbl.textContent=TYPE_LABELS[[...state.flowsTypes][0]];cnt.textContent="1"}
+  else {lbl.textContent=`${state.flowsTypes.size} types`;cnt.textContent=String(state.flowsTypes.size)}
+  document.querySelectorAll('#dd-flows-types .rw-item').forEach(item=>{
+    item.classList.toggle("active", state.flowsTypes.has(item.dataset.type));
+  });
+}
+document.querySelectorAll('#dd-flows-types .rw-item').forEach(item=>{
+  item.addEventListener("click", e=>{
+    e.stopPropagation();
+    const t = item.dataset.type;
+    if(state.flowsTypes.has(t)) state.flowsTypes.delete(t);
+    else state.flowsTypes.add(t);
+    syncFlowsTypesBtn();
+    state.flowsPage.acc=0;
+    state.flowsPage.out=0;
+    renderFlows();
+  });
+});
+syncFlowsTypesBtn();
+
+/* Flows period */
+document.querySelectorAll('#dd-flows-period .dd-opt').forEach(opt=>{
+  opt.addEventListener("click", e=>{
+    e.stopPropagation();
+    document.querySelectorAll('#dd-flows-period .dd-opt').forEach(o=>o.classList.remove("active"));
+    opt.classList.add("active");
+    state.flowsPeriod = opt.dataset.period;
+    const meta = PERIODS.find(p=>p.key===state.flowsPeriod);
+    document.querySelector('#dd-flows-period .dd-btn .lbl').textContent = meta ? meta.short : opt.dataset.period.toUpperCase();
+    const metaEl = document.getElementById("flows-meta");
+    if(metaEl) metaEl.textContent = "Period: " + (meta ? meta.short : state.flowsPeriod);
+    state.flowsPage.acc=0;
+    state.flowsPage.out=0;
+    renderFlows();
+  });
+});
+
+/* PROTOCOL ADDRESSES */
+const CONTRACTS = [
+  {token:"oDOLO",      logo:"odolo-logo-official.svg", chain:"Berachain", chainKey:"berachain", addr:"0x02E513b5B54eE216Bf836ceb471507488fC89543", explorer:"https://berascan.com"},
+  {token:"oDOLO Vester",logo:"odolo-logo-official.svg",chain:"Berachain", chainKey:"berachain", addr:"0x3e9b9a16743551da49b5e136c716bba7932d2cec", explorer:"https://berascan.com"},
+  {token:"DOLO",       logo:"dolo-logo.svg",           chain:"Berachain", chainKey:"berachain", addr:"0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654", explorer:"https://berascan.com"},
+  {token:"veDOLO",     logo:"vedolo-logo.svg",         chain:"Berachain", chainKey:"berachain", addr:"0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4", explorer:"https://berascan.com"},
+];
+const EXT_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+document.getElementById("proto-addrs").innerHTML = CONTRACTS.map((c,i)=>`
+  <div class="proto-addr" data-idx="${i}">
+    <div class="proto-addr-left">
+      <div class="proto-token">
+        <img src="${c.logo}" alt="${c.token}" onerror="this.style.display='none'">
+        <span class="proto-token-name">${c.token}</span>
+      </div>
+      <span class="proto-chain-chip"><span class="dot dot-${c.chainKey}"></span>${c.chain}</span>
+    </div>
+    <div class="proto-addr-right">
+      <span class="proto-addr-hex" title="${c.addr}">${shorten(c.addr)}</span>
+      <button class="proto-copy" data-copy="${c.addr}" aria-label="Copy address">${COPY_ICO}</button>
+      <button class="proto-explore" data-url="${c.explorer}/token/${c.addr}" aria-label="Open in explorer" title="Open in block explorer">${EXT_ICO}</button>
+    </div>
+  </div>
+`).join("");
+document.querySelectorAll(".proto-addr").forEach(row=>{
+  const idx = +row.dataset.idx;
+  const c = CONTRACTS[idx];
+  row.addEventListener("click", e=>{
+    if(e.target.closest(".proto-copy") || e.target.closest(".proto-explore")) return;
+    window.open(`${c.explorer}/token/${c.addr}`, "_blank", "noopener");
+  });
+});
+document.querySelectorAll(".proto-explore").forEach(btn=>{
+  btn.addEventListener("click", e=>{
+    e.stopPropagation();
+    const url = btn.dataset.url;
+    if(url) window.open(url, "_blank", "noopener");
+  });
+});
+document.querySelectorAll(".proto-copy").forEach(btn=>{
+  btn.addEventListener("click", async e=>{
+    e.stopPropagation();
+    try { await navigator.clipboard.writeText(btn.dataset.copy); } catch(_) {}
+    btn.classList.add("copied");
+    btn.innerHTML = CHECK_ICO;
+    setTimeout(()=>{ btn.classList.remove("copied"); btn.innerHTML = COPY_ICO; }, 1400);
+  });
+});
+
+document.querySelectorAll(".nav-item").forEach(it=>{
+  it.addEventListener("click", e=>{
+    if(it.getAttribute("href") && it.getAttribute("href")!=="#") return;
+    e.preventDefault();
+  });
+});
+
+function syncLiveMetrics(){
+  if(!LIVE.contract && !LIVE.usd && !LIVE.lock) return;
+  const data = LIVE.contract || {};
+  const usd = LIVE.usd || {};
+  const lock = LIVE.lock || {};
+  const totalSupply = Number(data.totalSupply) || 0;
+  const available = Number(data.availableTokens) || 0;
+  const promised = Number(data.promisedTokens) || 0;
+  const pushed = Number(data.pushedTokens) || 0;
+  const circulating = Number(data.inCirculation) || Math.max(0, totalSupply - available - promised);
+  const circulatingPct = totalSupply > 0 ? Math.max(0, Math.min(100, circulating / totalSupply * 100)) : 0;
+  const avgDiscount = Number(lock.avg_discount_pct) || 0;
+  const avgMonths = Number(lock.avg_lock_months) || (Number(lock.avg_lock_days) || 0) / 30.44;
+  const avgDays = Number(lock.avg_lock_days) || 0;
+
+  if(totalSupply){
+    setHtml("hero-supply", `${fmtNum(totalSupply)}<span class="unit">oDOLO</span>`);
+    setText("dist-count", `${fmtNum(totalSupply)} total`);
+  }
+  if(avgDiscount){
+    setHtml("hero-discount", `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19l14-14"/><circle cx="7.5" cy="6.5" r="2"/><circle cx="16.5" cy="17.5" r="2"/></svg>${avgDiscount.toFixed(1)}%<span class="lbl">avg discount</span>`);
+  }
+  setText("hero-circulating", circulating ? fmtNum(circulating) : "-");
+  setText("hero-circulating-sub", totalSupply ? `${circulatingPct.toFixed(1)}% of total` : "circulating supply");
+  const bar = document.getElementById("hero-circulating-bar");
+  if(bar) bar.style.width = `${circulatingPct.toFixed(1)}%`;
+  setText("hero-holders", data.holders ? Number(data.holders).toLocaleString() : "-");
+  setText("hero-holders-sub", "unique wallets");
+  setText("hero-exercised-usd", usd.total_usdc ? fmtUsd(Number(usd.total_usdc)) : "-");
+  setText("hero-exercised-sub", usd.total_txs ? `${Number(usd.total_txs).toLocaleString()} exercises` : "exercise volume");
+  if(avgMonths){
+    setHtml("hero-avg-lock", `${avgMonths.toFixed(1)}<span style="font-size:14px;color:var(--fg-3);margin-left:4px">mo</span>`);
+    setText("hero-avg-lock-sub", `${Math.round(avgDays)} days avg lock`);
+  }
+  const latest = [data.last_updated, usd.last_updated, lock.last_updated, LIVE.flows?.timestamp]
+    .filter(Boolean)
+    .sort()
+    .pop();
+  setHtml("hero-live-meta", `<span class="dot"></span>${fmtUpdated(latest || data.last_updated)}`);
+  setText("disc-count", usd.total_txs ? `${Number(usd.total_txs).toLocaleString()} exercises` : `${DISC_DATA.length.toLocaleString()} exercises`);
+}
+
+function syncLiveDistribution(){
+  const data = LIVE.contract;
+  if(!data) return;
+  const totalSupply = Number(data.totalSupply) || 0;
+  const available = Number(data.availableTokens) || 0;
+  const promised = Number(data.promisedTokens) || 0;
+  const pushed = Number(data.pushedTokens) || 0;
+  const reserve = Math.max(0, totalSupply - available - promised - pushed);
+  applyRows(DIST_SEGMENTS, [
+    {label:"Emission Reserve", value:reserve, color:"#e4c15a", desc:"Locked, released over time as LM rewards", fmt:fmtNum(reserve)},
+    {label:"Exercised", value:pushed, color:"#a8c499", desc:"Burned to mint veDOLO", fmt:fmtNum(pushed)},
+    {label:"Awaiting claim", value:available, color:"#22d3ee", desc:"Earned via LM, sitting in vester to claim", fmt:fmtNum(available)},
+    {label:"Vesting", value:promised, color:"#a78bfa", desc:"Paired with DOLO, locked in vester contracts", fmt:fmtNum(promised)},
+  ]);
+}
+
+function syncLiveBehavior(){
+  const cb = LIVE.flows?.claimer_behavior;
+  if(!cb) return;
+  const claimed = Number(cb.total_claimed) || 0;
+  const boughtExtra = sum(cb.all_claimers, r => r.bought_extra);
+  applyRows(BEHAV_SEGMENTS, [
+    {label:"Exercised -> veDOLO", value:Number(cb.pct_exercised) || 0, color:"#8aa37b", desc:"Used to redeem at a discount", fmt:fmtNum(claimed * (Number(cb.pct_exercised) || 0) / 100) + " oDOLO"},
+    {label:"Sold or sent away", value:Number(cb.pct_outflow) || 0, color:"#b4796b", desc:"Moved out without exercising", fmt:fmtNum(claimed * (Number(cb.pct_outflow) || 0) / 100) + " oDOLO"},
+    {label:"Still holding", value:Number(cb.pct_held) || 0, color:"#22d3ee", desc:"Sitting in claimer wallets", fmt:fmtNum(claimed * (Number(cb.pct_held) || 0) / 100) + " oDOLO"},
+    {label:"Bought extra", value:Number(cb.pct_bought_extra) || 0, color:"#a78bfa", desc:`${Number(cb.count_bought_extra || 0).toLocaleString()} wallets accumulating beyond claims`, fmt:"+" + fmtNum(boughtExtra) + " oDOLO"},
+  ]);
+  setText("behav-count", `${Number(cb.total_claimers || 0).toLocaleString()} claimers`);
+  setHtml("behav-meta", `<span class="pulse"></span>${fmtNum(claimed)} oDOLO claimed`);
+}
+
+function syncLiveClaimersForPeriod(){
+  const flows = LIVE.flows;
+  if(!flows) return;
+  const source = flows.claimer_periods?.[cbState.period]?.all_claimers || flows.claimer_behavior?.all_claimers || [];
+  applyRows(CLAIMERS, source.map(row => {
+    const meta = addressMeta(row.address);
+    return {
+      addr: row.address,
+      label: meta.label,
+      type: meta.type,
+      claimed: Number(row.claimed) || 0,
+      exercised: Number(row.exercised) || 0,
+      outflow: Number(row.outflow) || 0,
+      held: Number(row.held) || 0,
+      buy: Number(row.bought_extra) || 0,
+    };
+  }));
+}
+
+function syncLiveExercisersForPeriod(){
+  const json = LIVE.exercisers;
+  if(!json) return;
+  const cutoff = periodCutoff(state.exPeriod);
+  const rows = (json.exercisers || []).map(item => {
+    const meta = addressMeta(item.address);
+    const txs = (item.txs || []).filter(tx => tx.paid_token !== "DOLO" && (!cutoff || (tx.date && tx.date >= cutoff)));
+    if(cutoff && !txs.length) return null;
+    const usdc = cutoff ? sum(txs, txUsd) : (Number(item.total_usdc) || sum(txs, txUsd));
+    const vedolo = sum(txs, txVedolo);
+    const lockDays = txs.length ? sum(txs, tx => Number(tx.lock_days) || 0) / txs.length : (Number(item.avg_lock_days) || 0);
+    return {
+      addr:item.address,
+      label:meta.label,
+      type:meta.type,
+      usdc,
+      vedolo,
+      exercises:txs.length || Number(item.exercises) || 0,
+      lockDays,
+      txs,
+    };
+  }).filter(Boolean).filter(r => r.usdc > 0 || r.vedolo > 0);
+  applyRows(EXERCISERS, rows);
+}
+
+function syncLiveFlowsForPeriod(){
+  const flows = LIVE.flows;
+  if(!flows) return;
+  const periodData = flows.periods?.[state.flowsPeriod];
+  if(!periodData) return;
+  const acc = (periodData.accumulators || []).map(item => {
+    const meta = addressMeta(item.address);
+    return {addr:item.address, label:meta.label, type:meta.type, chg:Number(item.net_flow) || 0, balance:Number(item.balance) || 0};
+  });
+  const out = (periodData.sellers || []).map(item => {
+    const meta = addressMeta(item.address);
+    return {addr:item.address, label:meta.label, type:meta.type, chg:-(Number(item.net_flow) || 0), balance:Number(item.balance) || 0};
+  });
+  applyRows(FLOWS, [...acc, ...out]);
+  const metaEl = document.getElementById("flows-meta");
+  const period = PERIODS.find(p=>p.key===state.flowsPeriod);
+  if(metaEl) metaEl.textContent = `Period: ${period ? period.short : state.flowsPeriod.toUpperCase()}`;
+}
+
+function syncLiveDiscountCurve(){
+  const json = LIVE.exercisers;
+  if(!json) return;
+  const dots = [];
+  (json.exercisers || []).forEach(item => {
+    (item.txs || []).forEach(tx => {
+      const usd = txUsd(tx);
+      const days = Number(tx.lock_days);
+      if(!usd || !days) return;
+      const expected = theoreticalDiscount(days);
+      dots.push({ days, discount: expected, usd, tier:tierForUsd(usd), expected });
+    });
+  });
+  if(dots.length) applyRows(DISC_DATA, dots);
+}
+
+function renderAll(){
+  syncLiveDistribution();
+  syncLiveBehavior();
+  syncLiveDiscountCurve();
+  syncLiveMetrics();
+  renderDonuts();
+  drawDiscountCurve();
+  renderClaimerBreakdown();
+  renderExercisers();
+  renderFlows();
+}
+
+async function initOdoloPage(){
+  renderAll();
+  try{
+    const [contract, usd, lock, exercisers, flows] = await Promise.all([
+      fetchJson("odolo_contract_data.json"),
+      fetchJson("exercised_usd.json"),
+      fetchJson("avg_lock_data.json"),
+      fetchJson("exercisers_by_address.json"),
+      fetchJson("odolo_flows.json"),
+    ]);
+    LIVE.contract = contract;
+    LIVE.usd = usd;
+    LIVE.lock = lock;
+    LIVE.exercisers = exercisers;
+    LIVE.flows = flows;
+    LIVE.loaded = true;
+    state.exPeriod = "all";
+    state.flowsPeriod = "7d";
+    cbState.period = "all";
+    renderAll();
+  } catch(error){
+    console.warn("oDOLO live data unavailable, using preview fallback:", error);
+    setHtml("hero-live-meta", `<span class="dot"></span>Preview fallback`);
+  }
+}
+
+const nowEl = document.getElementById("now");
+if(nowEl) nowEl.textContent = new Date().toLocaleString();
+
+/* INITIAL RENDER */
+initOdoloPage();
+</script>
+</body>
+</html>
