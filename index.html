@@ -4669,6 +4669,19 @@
             border-radius: 12px 12px 0 0;
         }
 
+        #dolo-holder-tbody tr.dolo-holder-spacer-row {
+            pointer-events: none;
+            cursor: default;
+        }
+
+        #dolo-holder-tbody tr.dolo-holder-spacer-row td {
+            color: transparent;
+        }
+
+        #dolo-holder-tbody tr.dolo-holder-spacer-row td > * {
+            visibility: hidden;
+        }
+
         .exerciser-row {
             cursor: pointer;
             transition: transform 0.15s;
@@ -21075,6 +21088,7 @@
         let dolo_holderSortAsc = true;
         let dolo_holderPeriod = 'none';  // period for balance change %
         let dolo_balanceChanges = {};    // from dolo_flows.json
+        let dolo_holderStableBodyHeight = 0;
         const DOLO_HOLDER_PER_PAGE = 15;
 
         const ETH_CHAIN_ICON = `<img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" width="14" height="14" style="border-radius:50%;flex-shrink:0" alt="ETH">`;
@@ -21140,7 +21154,7 @@
             const totalSupply = dolo_holderFiltered.reduce((s, h) => s + dolo_getDisplayBalance(h), 0) || 1;
             const singleChain = (showEth && !showBera) || (!showEth && showBera);
 
-            tbody.innerHTML = page.map((h, idx) => {
+            const holderRowsHtml = page.map((h, idx) => {
                 // Sequential numbering when single chain selected, original rank otherwise
                 const dispRank = singleChain ? (start + idx + 1) : (h.rank || (start + idx + 1));
                 const rc = dispRank <= 3 ? `rank-${dispRank}` : '';
@@ -21221,6 +21235,34 @@
                         <td style="padding:4px 5px;text-align:right" title="${balExact} DOLO"><span style="font-weight:600;font-size:11px;color:#fff">${dolo_fmtBal(dispBal)}</span>${flowCell !== '<span style="opacity:0.3">—</span>' ? '<br>' + flowCell : ''}</td>
                     </tr>`;
             }).join('');
+            const spacerRowsHtml = Array.from({ length: Math.max(0, DOLO_HOLDER_PER_PAGE - page.length) }, () => `
+                <tr class="dolo-holder-spacer-row" aria-hidden="true" tabindex="-1" style="border-bottom:1px solid rgba(255,255,255,0.04)">
+                    <td style="padding:5px 6px;color:rgba(255,255,255,0.3)"><span>&nbsp;</span></td>
+                    <td style="padding:5px 6px"><span>&nbsp;</span></td>
+                    <td style="padding:4px 5px;text-align:right;font-size:11px"><span>&nbsp;</span></td>
+                    <td style="padding:4px 5px;text-align:right;font-size:11px"><span>&nbsp;</span></td>
+                    <td style="padding:4px 5px;text-align:right"><span>&nbsp;</span></td>
+                </tr>
+            `).join('');
+            tbody.innerHTML = holderRowsHtml + spacerRowsHtml;
+            const dataRowEls = [...tbody.querySelectorAll('tr:not(.dolo-holder-spacer-row)')];
+            const spacerRowEls = [...tbody.querySelectorAll('tr.dolo-holder-spacer-row')];
+            if (!spacerRowEls.length && dataRowEls.length === DOLO_HOLDER_PER_PAGE) {
+                dolo_holderStableBodyHeight = Math.max(dolo_holderStableBodyHeight, tbody.getBoundingClientRect().height);
+            }
+            if (spacerRowEls.length) {
+                const dataHeight = dataRowEls.reduce((sum, row) => sum + row.getBoundingClientRect().height, 0);
+                const fallbackRowHeight = dataRowEls.length
+                    ? Math.max(...dataRowEls.map(row => row.getBoundingClientRect().height))
+                    : (dolo_holderStableBodyHeight ? dolo_holderStableBodyHeight / DOLO_HOLDER_PER_PAGE : 0);
+                const targetBodyHeight = dolo_holderStableBodyHeight || fallbackRowHeight * DOLO_HOLDER_PER_PAGE;
+                const spacerHeight = targetBodyHeight
+                    ? Math.max(0, (targetBodyHeight - dataHeight) / spacerRowEls.length)
+                    : fallbackRowHeight;
+                spacerRowEls.forEach(row => {
+                    row.style.height = `${spacerHeight}px`;
+                });
+            }
 
             const countEl = document.getElementById('dolo-holder-count');
             if (countEl) countEl.textContent = `(${dolo_holderFiltered.length.toLocaleString('en-US')})`;

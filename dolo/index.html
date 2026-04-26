@@ -8,7 +8,8 @@
 <script>
 (async () => {
   try {
-    const response = await fetch("../dolo-preview.html", { cache: "no-cache" });
+    const previewVersion = "fixed-table-height-v2-20260426";
+    const response = await fetch(`../dolo-preview.html?v=${previewVersion}`, { cache: "no-cache" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const html = await response.text();
     document.open();

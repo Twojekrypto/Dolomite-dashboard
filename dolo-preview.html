@@ -281,6 +281,11 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .tbl tbody tr:hover td{background:var(--bg-3)}
 .tbl tbody tr:hover td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0}
 .tbl tbody tr:last-child td{border-bottom:0}
+.tbl tbody tr.tbl-spacer-row{pointer-events:none;cursor:default}
+.tbl tbody tr.tbl-spacer-row td{color:transparent}
+.tbl tbody tr.tbl-spacer-row td > *{visibility:hidden}
+.tbl tbody tr.tbl-spacer-row:hover td{background:transparent}
+.tbl tbody tr.tbl-spacer-row:hover td:first-child::before{display:none}
 
 .rank{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--fg-3);min-width:24px;text-align:right}
 .tbl tbody tr:hover .rank{color:var(--gold)}
@@ -918,6 +923,7 @@ const state = {
   page: 0,
   pageSize: 10,
 };
+let holderStableBodyHeight = 0;
 const PERIODS = [
   {key:"1d",   short:"1D",  label:"Last 24 hours"},
   {key:"7d",   short:"7D",  label:"Last 7 days"},
@@ -989,7 +995,7 @@ function renderHolders(){
   const start = state.page * state.pageSize;
   const pageRows = rows.slice(start, start + state.pageSize);
   const tbody = document.getElementById("holders-body");
-  tbody.innerHTML = pageRows.map((h,i)=>{
+  const holderRowsHtml = pageRows.map((h,i)=>{
     const rank = start + i + 1;
     const share = h.total / TOTAL_SUPPLY * 100;
     const typeHtml = `<span class="type-tag type-${h.type}" title="${TYPE_TIPS[h.type]}">${TYPE_LABELS[h.type]}</span>`;
@@ -1030,6 +1036,51 @@ function renderHolders(){
       </tr>
     `;
   }).join("");
+  const spacerRowsHtml = Array.from({length: Math.max(0, state.pageSize - pageRows.length)}, () => `
+      <tr class="tbl-spacer-row" aria-hidden="true" tabindex="-1">
+        <td class="rank">0</td>
+        <td>
+          <div class="addr-cell">
+            <div class="addr-line top">
+              <span class="addr-name">Placeholder</span>
+              <span class="type-tag type-eoa">EOA</span>
+            </div>
+            <div class="addr-line bot">
+              <span class="addr-mono">0x0000…0000</span>
+              <span class="addr-act">Copy</span>
+            </div>
+          </div>
+        </td>
+        <td class="num"><span class="bal-val">0</span></td>
+        <td class="num"><span class="bal-zero">—</span></td>
+        <td class="num"><span class="bal-val total">0</span></td>
+        <td class="num" style="padding-right:32px">
+          <div class="share-cell">
+            <span class="share-val">0.00%</span>
+            <div class="share-bar"><span style="width:0%"></span></div>
+          </div>
+        </td>
+      </tr>
+    `).join("");
+  tbody.innerHTML = holderRowsHtml + spacerRowsHtml;
+  const dataRowEls = [...tbody.querySelectorAll("tr:not(.tbl-spacer-row)")];
+  const spacerRowEls = [...tbody.querySelectorAll("tr.tbl-spacer-row")];
+  if(!spacerRowEls.length && dataRowEls.length === state.pageSize){
+    holderStableBodyHeight = Math.max(holderStableBodyHeight, tbody.getBoundingClientRect().height);
+  }
+  if(spacerRowEls.length){
+    const dataHeight = dataRowEls.reduce((sum, row) => sum + row.getBoundingClientRect().height, 0);
+    const fallbackRowHeight = dataRowEls.length
+      ? Math.max(...dataRowEls.map(row => row.getBoundingClientRect().height))
+      : (holderStableBodyHeight ? holderStableBodyHeight / state.pageSize : 0);
+    const targetBodyHeight = holderStableBodyHeight || fallbackRowHeight * state.pageSize;
+    const spacerHeight = targetBodyHeight
+      ? Math.max(0, (targetBodyHeight - dataHeight) / spacerRowEls.length)
+      : fallbackRowHeight;
+    spacerRowEls.forEach(row => {
+      row.style.height = `${spacerHeight}px`;
+    });
+  }
 
   const total = rows.length;
   const showStart = total > 0 ? start + 1 : 0;
@@ -1060,7 +1111,7 @@ function renderHolders(){
     btn.innerHTML = CHECK_ICO;
     setTimeout(()=>{ btn.classList.remove("copied"); btn.innerHTML = COPY_ICO; }, 1400);
   }));
-  tbody.querySelectorAll("tr").forEach(tr => tr.addEventListener("click", e=>{
+  tbody.querySelectorAll("tr:not(.tbl-spacer-row)").forEach(tr => tr.addEventListener("click", e=>{
     if(e.target.closest(".addr-copy")) return;
     window.open(`https://etherscan.io/address/${tr.dataset.addr}`, "_blank", "noopener");
   }));
