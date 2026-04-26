@@ -1472,16 +1472,18 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         <div class="dd" id="dd-cb-period">
           <button class="dd-btn" data-dd="cb-period">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-            <span class="lbl">All-time</span>
+            <span class="lbl">ALL</span>
             <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div class="dd-panel" style="left:auto;right:0">
-            <div class="dd-panel-head">Window</div>
+            <div class="dd-panel-head">Period</div>
             <div class="dd-list">
+              <div class="dd-opt" data-period="1d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">24 hours</span></div>
               <div class="dd-opt" data-period="7d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">7 days</span></div>
               <div class="dd-opt" data-period="30d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">30 days</span></div>
               <div class="dd-opt" data-period="90d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">90 days</span></div>
-              <div class="dd-opt active" data-period="all"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">All-time</span></div>
+              <div class="dd-opt" data-period="180d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">180 days</span></div>
+              <div class="dd-opt active" data-period="all"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">All time</span></div>
             </div>
           </div>
         </div>
@@ -2610,7 +2612,8 @@ document.querySelectorAll('#dd-cb-period .dd-opt').forEach(opt=>{
     document.querySelectorAll('#dd-cb-period .dd-opt').forEach(o=>o.classList.remove("active"));
     opt.classList.add("active");
     cbState.period = opt.dataset.period;
-    document.querySelector('#dd-cb-period .dd-btn .lbl').textContent = opt.querySelector(".dd-opt-name").textContent;
+    const meta = PERIODS.find(p=>p.key===cbState.period);
+    document.querySelector('#dd-cb-period .dd-btn .lbl').textContent = meta ? meta.short : opt.dataset.period.toUpperCase();
     cbState.page = 0;
     renderClaimerBreakdown();
   });
