@@ -313,7 +313,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   font-size:10px;text-transform:uppercase;letter-spacing:1.4px;
   color:var(--fg-3);font-weight:600;
 }
-.tvl-dd{position:relative;flex:0 0 auto}
+.tvl-dd{position:relative;z-index:80;flex:0 0 auto}
 .tvl-dd-btn{
   display:inline-flex;align-items:center;gap:8px;
   height:34px;padding:0 12px;
@@ -337,7 +337,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   position:absolute;top:calc(100% + 6px);left:0;
   min-width:240px;max-width:300px;
   background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-md);
-  box-shadow:var(--sh-hi);padding:6px;z-index:40;
+  box-shadow:var(--sh-hi);padding:6px;z-index:90;
   opacity:0;transform:translateY(-4px);pointer-events:none;
   transition:opacity .18s var(--ease),transform .18s var(--ease);
 }
@@ -861,6 +861,7 @@ let TOP_TOKENS = [
   {sym:"DOLO",            chain:"berachain", usd:   545952, name:"Dolomite"},
   {sym:"dGLV [WBTC-USDC]",chain:"arbitrum",  usd:   506202, name:"Dolomite GLV WBTC-USDC"},
 ];
+let CHAIN_TOKEN_COMPOSITION = {};
 
 /* Compressed historical TVL series — [unix_seconds, totalLiquidityUSD]  */
 let TVL_HISTORY = [
@@ -1120,6 +1121,25 @@ function buildHistory(llamaData, currentSupply){
   return points;
 }
 
+const TOKEN_DISPLAY_SYMBOLS = {
+  "USDC.E": "USDC.e",
+  "USDT0": "USD₮0",
+  "WEETH": "weETH",
+  "WSTETH": "wstETH",
+  "METH": "mETH",
+  "CMETH": "cmETH",
+  "STBTC": "stBTC",
+  "SRUSD": "srUSD",
+  "SAVUSD": "savUSD",
+  "ORIBGT": "oriBGT",
+  "PBTC": "pBTC",
+};
+
+function displayTokenSymbol(symbol){
+  const raw = String(symbol || "").trim();
+  return TOKEN_DISPLAY_SYMBOLS[raw] || raw;
+}
+
 function buildTopTokens(llamaData, officialData){
   const tokenSource = officialData?.tokensInUsd || llamaData?.tokensInUsd || [];
   const chainTokens = officialData?.chainTokensInUsd || llamaData?.chainTokensInUsd || {};
@@ -1138,15 +1158,35 @@ function buildTopTokens(llamaData, officialData){
   });
 
   return Object.entries(tokenMap)
-    .map(([symbol, value]) => ({
-      sym: symbol,
-      chain: tokenChain[symbol]?.chain || "",
-      usd: Number(value || 0),
-      name: symbol,
-    }))
+    .map(([symbol, value]) => {
+      const sym = displayTokenSymbol(symbol);
+      return {
+        sym,
+        chain: tokenChain[symbol]?.chain || "",
+        usd: Number(value || 0),
+        name: sym,
+      };
+    })
     .filter(t => Number.isFinite(t.usd) && t.usd > 0)
     .sort((a,b)=>b.usd-a.usd)
     .slice(0, 20);
+}
+
+function buildChainTokenCompositions(llamaData, officialData){
+  const chainTokens = officialData?.chainTokensInUsd || llamaData?.chainTokensInUsd || {};
+  const byChain = {};
+  Object.entries(chainTokens).forEach(([chain, tokens]) => {
+    const key = chainKey(chain);
+    const rows = Object.entries(tokens || {})
+      .map(([symbol, value]) => {
+        const sym = displayTokenSymbol(symbol);
+        return { sym, chain: key, usd: Number(value || 0), name: sym };
+      })
+      .filter(t => Number.isFinite(t.usd) && t.usd > 0)
+      .sort((a,b)=>b.usd-a.usd);
+    if (rows.length) byChain[key] = rows;
+  });
+  return byChain;
 }
 
 function buildTvlSnapshot(llamaData, officialData){
@@ -1171,6 +1211,7 @@ function buildTvlSnapshot(llamaData, officialData){
 
   const history = buildHistory(llamaData, supplyLiquidity);
   const tokens = buildTopTokens(llamaData, officialData);
+  const tokenCompositionByChain = buildChainTokenCompositions(llamaData, officialData);
 
   return {
     snapshotTs: officialData?.last_updated || llamaData?.last_updated || SNAPSHOT_TS,
@@ -1179,6 +1220,7 @@ function buildTvlSnapshot(llamaData, officialData){
     totalSupply: supplyLiquidity,
     chains,
     tokens: tokens.length ? tokens : TOP_TOKENS,
+    tokenCompositionByChain,
     history,
   };
 }
@@ -1223,6 +1265,7 @@ function applyTvlSnapshot(snapshot){
   TOTAL_SUPPLY = snapshot.totalSupply;
   CHAINS = snapshot.chains;
   TOP_TOKENS = snapshot.tokens;
+  CHAIN_TOKEN_COMPOSITION = snapshot.tokenCompositionByChain || {};
   TVL_HISTORY = snapshot.history;
 
   const chainCount = CHAINS.length;
@@ -1364,9 +1407,15 @@ const TOKEN_PALETTE = [
 // Multi-select chain filter: a Set of chain keys (empty/full = "all chains")
 let tokenState = { chains: new Set(CHAINS.map(c=>c.key)), focus: null };
 
+function tokensForChain(chainKey){
+  const chainRows = CHAIN_TOKEN_COMPOSITION[chainKey] || [];
+  if (chainRows.length) return chainRows;
+  return TOP_TOKENS.filter(t => t.chain === chainKey);
+}
+
 function chainCounts(){
   const c = {};
-  TOP_TOKENS.forEach(t => { c[t.chain] = (c[t.chain]||0)+1; });
+  CHAINS.forEach(chain => { c[chain.key] = tokensForChain(chain.key).length; });
   c.all = TOP_TOKENS.length;
   return c;
 }
@@ -1377,15 +1426,18 @@ function isAllChains(){
 function visibleTokens(){
   const ts = isAllChains()
     ? TOP_TOKENS
-    : TOP_TOKENS.filter(t => tokenState.chains.has(t.chain));
-  return ts.map((t,i)=>({...t, _color: TOKEN_PALETTE[i % TOKEN_PALETTE.length]}));
+    : [...tokenState.chains]
+        .flatMap(chainKey => tokensForChain(chainKey))
+        .sort((a,b)=>b.usd-a.usd)
+        .slice(0, 20);
+  return ts.map((t,i)=>({...t, _key: `${t.chain}:${t.sym}:${i}`, _color: TOKEN_PALETTE[i % TOKEN_PALETTE.length]}));
 }
 
 /* Multi-select chain filter — checkbox-style rows like the assets page.
    Default: all chains selected. Click toggles individual chain.
-   "All Chains" row toggles select-all / select-none. Chain icons match
-   the rest of the page (icons.llamao.fi). Disabled rows for chains with
-   zero tokens in the current Top-20 (still shown for completeness). */
+   "All Chains" row resets the full selection. Chain icons match
+   the rest of the page (icons.llamao.fi). Per-chain counts come from
+   chainTokensInUsd so small networks remain selectable. */
 const CHECK_SVG = '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg>';
 
 function renderChainDropdown(){
@@ -1449,14 +1501,17 @@ function renderChainDropdown(){
       e.stopPropagation();
       const key = opt.dataset.chain;
       if (key === "__all"){
-        // Toggle select-all / clear
-        if (isAllChains()) tokenState.chains.clear();
-        else { tokenState.chains = new Set(CHAINS.map(c=>c.key)); }
+        tokenState.chains = new Set(CHAINS.map(c=>c.key));
       } else {
         if (opt.dataset.empty === "1") return; // empty rows can't be toggled
-        if (tokenState.chains.has(key)) tokenState.chains.delete(key);
-        else tokenState.chains.add(key);
-        // If user reaches all-checked-individually, treat as "all"
+        if (isAllChains()) {
+          tokenState.chains = new Set([key]);
+        } else if (tokenState.chains.has(key)) {
+          tokenState.chains.delete(key);
+          if (tokenState.chains.size === 0) tokenState.chains = new Set(CHAINS.map(c=>c.key));
+        } else {
+          tokenState.chains.add(key);
+        }
       }
       tokenState.focus = null;
       renderTokens();   // re-renders dropdown via renderChainDropdown()
@@ -1517,10 +1572,10 @@ function renderTokens(){
     const initials = t.sym.replace(/[^A-Za-z0-9]/g,"").slice(0,3).toUpperCase();
     const iconUrl  = tokenIcon(t.sym, t);
     const iconClass = tokenIconClass(t.sym);
-    const focused  = tokenState.focus === t.sym;
+    const focused  = tokenState.focus === t._key;
     const dimmed   = tokenState.focus && !focused;
     return `
-      <div class="leg-row ${focused?"active":""} ${dimmed?"dim":""}" data-sym="${t.sym}" style="--leg-color:${t._color}">
+      <div class="leg-row ${focused?"active":""} ${dimmed?"dim":""}" data-sym="${t.sym}" data-token-key="${t._key}" style="--leg-color:${t._color}">
         <div class="leg-rank">${String(i+1).padStart(2,"0")}</div>
         <div class="leg-icon"><img class="${iconClass}" src="${iconUrl}" alt="${t.sym}" onerror="this.parentElement.textContent='${initials}'"></div>
         <div class="leg-info">
@@ -1538,11 +1593,11 @@ function renderTokens(){
   }).join("");
   // hover/click sync
   legend.querySelectorAll(".leg-row").forEach(row=>{
-    const sym = row.dataset.sym;
-    row.addEventListener("mouseenter", ()=>focus(sym));
+    const key = row.dataset.tokenKey;
+    row.addEventListener("mouseenter", ()=>focus(key));
     row.addEventListener("mouseleave", ()=>focus(null));
     row.addEventListener("click", ()=>{
-      tokenState.focus = (tokenState.focus===sym) ? null : sym;
+      tokenState.focus = (tokenState.focus===key) ? null : key;
       renderTokens();
     });
   });
@@ -1556,21 +1611,21 @@ function chainName(key){
   return c ? c.name : key;
 }
 
-function focus(sym){
+function focus(key){
   // soft highlight without re-rendering full list (faster)
   const center = document.getElementById("donutCenter");
   document.querySelectorAll(".donut-arc").forEach(a=>{
-    if (!sym){ a.classList.remove("dim","active"); return; }
-    if (a.dataset.sym===sym){ a.classList.add("active"); a.classList.remove("dim"); }
+    if (!key){ a.classList.remove("dim","active"); return; }
+    if (a.dataset.tokenKey===key){ a.classList.add("active"); a.classList.remove("dim"); }
     else { a.classList.add("dim"); a.classList.remove("active"); }
   });
   document.querySelectorAll(".leg-row").forEach(r=>{
-    if (!sym){ r.classList.remove("dim","active"); return; }
-    if (r.dataset.sym===sym){ r.classList.add("active"); r.classList.remove("dim"); }
+    if (!key){ r.classList.remove("dim","active"); return; }
+    if (r.dataset.tokenKey===key){ r.classList.add("active"); r.classList.remove("dim"); }
     else { r.classList.add("dim"); r.classList.remove("active"); }
   });
   // Update center label
-  if (!sym){
+  if (!key){
     const list = visibleTokens();
     const total = list.reduce((s,t)=>s+t.usd,0);
     center.innerHTML = `
@@ -1580,7 +1635,7 @@ function focus(sym){
   } else {
     const list = visibleTokens();
     const total = list.reduce((s,t)=>s+t.usd,0);
-    const t = list.find(x=>x.sym===sym);
+    const t = list.find(x=>x._key===key);
     if (t){
       const pct = total>0 ? (t.usd/total*100) : 0;
       center.innerHTML = `
@@ -1606,7 +1661,7 @@ function renderDonut(list, total){
     const frac = t.usd/total;
     const len  = Math.max(0, frac*C - gap);
     const dasharray = `${len} ${C-len}`;
-    html += `<circle class="donut-arc" data-sym="${t.sym}" cx="${cx}" cy="${cy}" r="${r}"
+    html += `<circle class="donut-arc" data-sym="${t.sym}" data-token-key="${t._key}" cx="${cx}" cy="${cy}" r="${r}"
       stroke="${t._color}" stroke-dasharray="${dasharray}" stroke-dashoffset="${-offset}"
       pathLength="${C}"/>`;
     offset += frac*C;
@@ -1615,11 +1670,11 @@ function renderDonut(list, total){
 
   // Hover sync from arc → legend
   svg.querySelectorAll(".donut-arc").forEach(a=>{
-    const sym = a.dataset.sym;
-    a.addEventListener("mouseenter", ()=>focus(sym));
+    const key = a.dataset.tokenKey;
+    a.addEventListener("mouseenter", ()=>focus(key));
     a.addEventListener("mouseleave", ()=>focus(null));
     a.addEventListener("click", ()=>{
-      tokenState.focus = (tokenState.focus===sym) ? null : sym;
+      tokenState.focus = (tokenState.focus===key) ? null : key;
       renderTokens();
     });
   });
