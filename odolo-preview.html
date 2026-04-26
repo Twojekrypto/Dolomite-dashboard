@@ -2481,19 +2481,20 @@ const cbState = {
 function renderClaimerBreakdown(){
   if(LIVE.flows) syncLiveClaimersForPeriod();
   const q = cbState.q.trim().toLowerCase();
-  const rows = CLAIMERS
-    .filter(r => !q || r.addr.toLowerCase().includes(q) || (r.label||"").toLowerCase().includes(q))
-    .map(r => ({...r}));
-  // sort
   const {key,dir} = cbState.sort;
-  rows.sort((a,b)=>{
+
+  const compareClaimers = (a,b)=>{
     let va,vb;
     if(key==="addr"){ va=a.label||a.addr; vb=b.label||b.addr; }
     else if(key==="rank") { va=a.claimed; vb=b.claimed; }
     else { va = a[key]; vb = b[key]; }
     if(typeof va==="string") return dir==="asc"?va.localeCompare(vb):vb.localeCompare(va);
     return dir==="asc" ? va-vb : vb-va;
-  });
+  };
+  const allRows = CLAIMERS.map(r => ({...r})).sort(compareClaimers);
+  const rankMap = new Map(allRows.map((r, i) => [r.addr.toLowerCase(), i + 1]));
+  const rows = allRows.filter(r => !q || r.addr.toLowerCase().includes(q) || (r.label||"").toLowerCase().includes(q));
+
   // header sort indicators
   document.querySelectorAll("#tbl-cb thead th").forEach(th=>{
     const k = th.dataset.sort;
@@ -2533,7 +2534,7 @@ function renderClaimerBreakdown(){
   };
 
   tbody.innerHTML = pageRows.map((r,i)=>{
-    const rank = start + i + 1;
+    const rank = rankMap.get(r.addr.toLowerCase()) || start + i + 1;
     const typeChip = r.label ? `<span class="addr-name">${r.label}</span>` : `<span class="addr-name addr-generic">Wallet</span>`;
     const actions = `
       <button class="addr-copy" data-copy="${r.addr}" title="Copy address" aria-label="Copy address">${COPY_ICO}</button>
