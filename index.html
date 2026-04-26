@@ -22326,6 +22326,35 @@
             });
         }
 
+        function dolo_goFlowPage(type, page) {
+            const pagerInfoId = type === 'acc' ? 'dolo-flow-acc-info' : 'dolo-flow-sell-info';
+            const info = document.getElementById(pagerInfoId);
+            const totalPages = info ? parseInt(info.dataset.pages || '1', 10) : 1;
+            const nextPage = Math.max(0, Math.min(page - 1, totalPages - 1));
+            if (type === 'acc') dolo_flowAccPage = nextPage;
+            else dolo_flowSellPage = nextPage;
+            dolo_renderFlows();
+        }
+
+        function dolo_renderFlowPager(type, totalPages) {
+            const isAcc = type === 'acc';
+            const pager = document.getElementById(isAcc ? 'dolo-flow-acc-pager' : 'dolo-flow-sell-pager');
+            const infoId = isAcc ? 'dolo-flow-acc-info' : 'dolo-flow-sell-info';
+            if (!pager) return;
+            const page = isAcc ? dolo_flowAccPage + 1 : dolo_flowSellPage + 1;
+            if (totalPages <= 1) {
+                pager.style.display = 'none';
+                pager.innerHTML = `<span id="${infoId}" class="flow-pager-info" data-pages="1">1 / 1</span>`;
+                return;
+            }
+            pager.style.display = 'flex';
+            pager.innerHTML = `<button class="flow-pager-btn" onclick="dolo_goFlowPage('${type}',1)" ${page === 1 ? 'disabled' : ''}>«</button>` +
+                `<button class="flow-pager-btn" onclick="dolo_goFlowPage('${type}',${page - 1})" ${page === 1 ? 'disabled' : ''}>‹</button>` +
+                `<span id="${infoId}" class="flow-pager-info" data-pages="${totalPages}">${page} / ${totalPages}</span>` +
+                `<button class="flow-pager-btn" onclick="dolo_goFlowPage('${type}',${page + 1})" ${page === totalPages ? 'disabled' : ''}>›</button>` +
+                `<button class="flow-pager-btn" onclick="dolo_goFlowPage('${type}',${totalPages})" ${page === totalPages ? 'disabled' : ''}>»</button>`;
+        }
+
         function dolo_renderFlows() {
             if (!dolo_flowsData || !dolo_flowsData.periods) return;
             const periodData = dolo_flowsData.periods[dolo_flowPeriod];
@@ -22427,7 +22456,7 @@
             function renderRows(items, isAccumulator, pageOffset, rankMap) {
                 if (!items.length) return '<tr><td colspan="4" style="text-align:center;color:rgba(255,255,255,0.3);padding:20px;font-size:12px">No data</td></tr>';
                 const flowColor = isAccumulator ? '#34d399' : '#f87171';
-                return items.map((item, i) => {
+                const rowsHtml = items.map((item, i) => {
                     const addr = item.address;
                     const rank = rankMap.get(addr.toLowerCase()) || (pageOffset + i + 1);
                     const short = addr.slice(0, 6) + '\u2026' + addr.slice(-4);
@@ -22467,30 +22496,24 @@
                         <td style="padding:4px 5px;text-align:right;color:${flowColor};font-size:11px;font-weight:600">${sign}${flowFmt}</td>
                     </tr>`;
                 }).join('');
+                let padding = '';
+                for (let e = 0; e < DOLO_FLOW_PER_PAGE - items.length; e++) {
+                    padding += `<tr class="dolo-flow-spacer-row" aria-hidden="true" style="border-bottom:1px solid rgba(255,255,255,0.04)">
+                        <td style="padding:4px 5px">&nbsp;</td>
+                        <td style="padding:4px 5px">&nbsp;</td>
+                        <td style="padding:4px 5px">&nbsp;</td>
+                        <td style="padding:4px 5px">&nbsp;</td>
+                    </tr>`;
+                }
+                return rowsHtml + padding;
             }
 
             document.getElementById('dolo-flow-acc-tbody').innerHTML = renderRows(accSlice, true, dolo_flowAccPage * DOLO_FLOW_PER_PAGE, accRankMap);
             document.getElementById('dolo-flow-sell-tbody').innerHTML = renderRows(sellSlice, false, dolo_flowSellPage * DOLO_FLOW_PER_PAGE, sellRankMap);
 
             // Pagination controls
-            const accPager = document.getElementById('dolo-flow-acc-pager');
-            const sellPager = document.getElementById('dolo-flow-sell-pager');
-            if (accPager) {
-                accPager.style.display = accPages > 1 ? 'flex' : 'none';
-                document.getElementById('dolo-flow-acc-info').textContent = `${dolo_flowAccPage + 1} / ${accPages}`;
-                document.getElementById('dolo-flow-acc-first').disabled = dolo_flowAccPage === 0;
-                document.getElementById('dolo-flow-acc-prev').disabled = dolo_flowAccPage === 0;
-                document.getElementById('dolo-flow-acc-next').disabled = dolo_flowAccPage >= accPages - 1;
-                document.getElementById('dolo-flow-acc-last').disabled = dolo_flowAccPage >= accPages - 1;
-            }
-            if (sellPager) {
-                sellPager.style.display = sellPages > 1 ? 'flex' : 'none';
-                document.getElementById('dolo-flow-sell-info').textContent = `${dolo_flowSellPage + 1} / ${sellPages}`;
-                document.getElementById('dolo-flow-sell-first').disabled = dolo_flowSellPage === 0;
-                document.getElementById('dolo-flow-sell-prev').disabled = dolo_flowSellPage === 0;
-                document.getElementById('dolo-flow-sell-next').disabled = dolo_flowSellPage >= sellPages - 1;
-                document.getElementById('dolo-flow-sell-last').disabled = dolo_flowSellPage >= sellPages - 1;
-            }
+            dolo_renderFlowPager('acc', accPages);
+            dolo_renderFlowPager('sell', sellPages);
         }
 
         // Initialize DOLO Flow controls
