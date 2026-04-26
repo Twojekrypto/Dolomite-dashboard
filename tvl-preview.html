@@ -744,7 +744,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     <div class="card-head">
       <div class="card-title">
         <h2>Token Composition</h2>
-        <span class="count-badge" id="tokensCountBadge">All assets · Top 20 + Other</span>
+        <span class="count-badge" id="tokensCountBadge">All assets · Top 19 + Other</span>
       </div>
       <div class="card-meta"><span class="pulse"></span>aggregated by USD value</div>
     </div>
@@ -1405,6 +1405,7 @@ const TOKEN_PALETTE = [
   "#a37b8a","#9aa389","#7d96a3","#a39d7d","#8a9ea3","#a3897d"
 ];
 const VISIBLE_TOKEN_LIMIT = 20;
+const INDIVIDUAL_TOKEN_LIMIT = VISIBLE_TOKEN_LIMIT - 1;
 const OTHER_COLOR = "#6f7480";
 // Multi-select chain filter: a Set of chain keys (empty/full = "all chains")
 let tokenState = { chains: new Set(CHAINS.map(c=>c.key)), focus: null };
@@ -1425,8 +1426,8 @@ function sourceTokens(){
 
 function collapseSmallTokens(tokens){
   if (tokens.length <= VISIBLE_TOKEN_LIMIT) return tokens;
-  const visible = tokens.slice(0, VISIBLE_TOKEN_LIMIT);
-  const hidden = tokens.slice(VISIBLE_TOKEN_LIMIT);
+  const visible = tokens.slice(0, INDIVIDUAL_TOKEN_LIMIT);
+  const hidden = tokens.slice(INDIVIDUAL_TOKEN_LIMIT);
   const otherUsd = hidden.reduce((sum,t)=>sum+t.usd,0);
   if (!(otherUsd > 0)) return visible;
   return visible.concat({
@@ -1583,12 +1584,12 @@ function renderTokens(){
   const allOn = isAllChains();
   if (allOn) {
     document.getElementById("tokensCountBadge").textContent =
-      `${source.length} assets · ${hasOther ? `Top ${VISIBLE_TOKEN_LIMIT} + Other` : "all chains"}`;
+      `${source.length} assets · ${hasOther ? `Top ${INDIVIDUAL_TOKEN_LIMIT} + Other` : "all chains"}`;
   } else {
     const sel = [...tokenState.chains];
     const lbl = sel.length === 1 ? chainName(sel[0]) : `${sel.length} chains`;
     document.getElementById("tokensCountBadge").textContent =
-      `${source.length} assets · ${lbl}${hasOther ? ` · Top ${VISIBLE_TOKEN_LIMIT} + Other` : ""}`;
+      `${source.length} assets · ${lbl}${hasOther ? ` · Top ${INDIVIDUAL_TOKEN_LIMIT} + Other` : ""}`;
   }
 
   // refresh dropdown (counts + active state)
