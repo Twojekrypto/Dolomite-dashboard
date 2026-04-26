@@ -423,6 +423,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   color:var(--gold);font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:-.3px;
 }
 .leg-icon img{width:22px;height:22px;border-radius:50%;object-fit:cover}
+.leg-icon img.grayscale{filter:grayscale(1) brightness(1.5)}
 .leg-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
 .leg-top{display:flex;align-items:center;justify-content:space-between;gap:8px;line-height:1.1}
 .leg-name{font-size:13px;font-weight:600;color:var(--fg-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.1px}
@@ -877,6 +878,221 @@ const CHAIN_ICONS = {
 };
 const NON_CHAIN_KEYS = new Set(["borrowed", "staking", "pool2", "vesting", "offers", "treasury", "cex", "governance"]);
 
+// Official Dolomite app CDN and symbol map, matched to Assets Token Composition.
+const DOLO_CDN = "https://app.dolomite.io/static/media/";
+const SYMBOL_ICONS = {
+  // Stablecoins
+  "USDC": DOLO_CDN + "USDC.5f67b2404ca2e547fb00b70128d132cd.svg",
+  "USDC.e": DOLO_CDN + "USDC.5f67b2404ca2e547fb00b70128d132cd.svg",
+  "USDC.E": DOLO_CDN + "USDC.5f67b2404ca2e547fb00b70128d132cd.svg",
+  "USDT": DOLO_CDN + "USDC.5f67b2404ca2e547fb00b70128d132cd.svg",
+  "USDT0": DOLO_CDN + "USDC.5f67b2404ca2e547fb00b70128d132cd.svg",
+  "USD₮0": DOLO_CDN + "USDC.5f67b2404ca2e547fb00b70128d132cd.svg",
+  "DAI": "icons/dai.svg",
+  "USDM": DOLO_CDN + "USDM.6c74738cd3a3499145fda4386f94cb8f.svg",
+  "wUSDM": DOLO_CDN + "wUSDM.91bedb44039233b7c172ff95ea112192.svg",
+  "USDe": DOLO_CDN + "USDe-alt.ce2f05f4bb09aa83c4dd5886a5a2886f.svg",
+  "sUSDe": DOLO_CDN + "sUSDe.60857af2b2de944764d31ffa3711252c.svg",
+  "USDa": DOLO_CDN + "USDa.d95d6e9683a87b9007323745861f6b74.svg",
+  "USDai": DOLO_CDN + "USDai.8c41c3dde0d91e5e38e1aafb27cf6e55.svg",
+  "sUSDa": DOLO_CDN + "sUSDa.dc563217493f063b521fe276283e0d51.svg",
+  "sUSDai": DOLO_CDN + "sUSDai.5a9e2565db913d6bbd950993cc04bcde.svg",
+  "savUSD": DOLO_CDN + "savUSD.a2df97177abb3f75f4313a7241aa5fb0.svg",
+  "rUSD": DOLO_CDN + "rUSD.9b373643ab772af9dab0807b476b9afb.svg",
+  "srUSD": DOLO_CDN + "srUSD.bef2b101351c2021e25a96dc70122077.svg",
+  "wsrUSD": DOLO_CDN + "srUSD.bef2b101351c2021e25a96dc70122077.svg",
+  "pol-rUSD": DOLO_CDN + "pol-rUSD.315d0412835066838a187ecd29acb7ca.svg",
+  "BYUSD": DOLO_CDN + "BYUSD.8c0a1d051c4192302d739dbae5928286.svg",
+  "NECT": DOLO_CDN + "NECT.61b2d550cd59933e77667c3d75f73f5a.svg",
+  "HONEY": DOLO_CDN + "HONEY.3f0a04d651c47e52fb627fd616a9b92e.svg",
+  "MIM": DOLO_CDN + "MIM.3926602167b2dc6b73725f1cbd641130.svg",
+  "GRAI": DOLO_CDN + "GRAI.34fe5f7729b8c43b63ff0ab77c7b2b51.svg",
+  "eUSD": DOLO_CDN + "eUSD.5785fe83caa38875ac585eda225c0d02.svg",
+  "USDS": DOLO_CDN + "USDs.106fa406e23ae22c8bb6120c2ed861f4.svg",
+  "sUSDS": DOLO_CDN + "sUSDs.788070a4e1bbf5ab8c6130d47bdf8108.svg",
+  "USD0": "icons/usd0.png",
+  "USD0++": "icons/usd0.png",
+  "deUSD": "icons/deusd.png",
+  "sdeUSD": "icons/deusd.png",
+  "USDY": DOLO_CDN + "USDY.56cf7a38e78550dd507090fe52a59b41.svg",
+  "USD1": DOLO_CDN + "USD1.b88613f468d884c0a044350162ec22c2.svg",
+  "cUSD": "icons/stcusd.png",
+  "stcUSD": "icons/stcusd.png",
+  // ETH & LSTs
+  "ETH": DOLO_CDN + "ETH.6a879eb637c89695e6c5f5dc65c8c927.svg",
+  "WETH": DOLO_CDN + "WETH.8f785563e47cbf373160.png",
+  "wstETH": DOLO_CDN + "wstETH.2e97640d284bbe78da3776549d27ec47.svg",
+  "weETH": DOLO_CDN + "weETH.ac3fd68b653520508855e997e756d116.svg",
+  "rETH": DOLO_CDN + "rETH.bab59070c249d5b359fa196fed62e60e.svg",
+  "rsETH": DOLO_CDN + "rsETH.2270aa7836bedfa00c1a1d2967df0c33.svg",
+  "ezETH": DOLO_CDN + "ezETH.23c954d818f85c10660e5c0a476ff398.svg",
+  "mETH": DOLO_CDN + "mETH.589d7c134eea64fa2033e80dced1e34d.svg",
+  "cmETH": DOLO_CDN + "cmETH.8cab59dd270fad4e153b008454f9f54e.svg",
+  "beraETH": DOLO_CDN + "beraETH.661651b3419b7bb331ab2ebcb427b21b.svg",
+  "WOETH": DOLO_CDN + "WOETH.d17df010b680ea8c9c3e74d49b8e2e07.svg",
+  "STONE": DOLO_CDN + "STONE-alt.bf62e30edc6330897c738a4f9f1f5179.svg",
+  "rswETH": DOLO_CDN + "rswETH.fc4bdb76a764bf110676766fd0185dfe.svg",
+  "tETH": DOLO_CDN + "tETH.77b0839567f787ef80a76c3e83b90293.svg",
+  "ETH+": DOLO_CDN + "ETH_plus.58a00bd8aa8caafbc3837b4dcd7a1786.svg",
+  "ETHx": DOLO_CDN + "ETH_plus.58a00bd8aa8caafbc3837b4dcd7a1786.svg",
+  "ylstETH": DOLO_CDN + "ylstETH.8b2fa7c2cee8860ed6acbc0fa174eba5.svg",
+  // BTC
+  "BTC": DOLO_CDN + "BTC.ccaa294316dc68d8ecb092ef90e2c07c.svg",
+  "WBTC": DOLO_CDN + "WBTC.f3c8718835179e7543b5.png",
+  "cbBTC": DOLO_CDN + "CBBTC.fb6f792430a130d980920b6e69857bce.svg",
+  "uniBTC": DOLO_CDN + "uniBTC.bac6fdc858f4d751e79211986782ddd1.svg",
+  "LBTC": DOLO_CDN + "LBTC.095d1662f9a83aea1c899fa1eeb84502.svg",
+  "tBTC": DOLO_CDN + "tBTC.2907801a7fa28c6583322ad3c2931333.svg",
+  "SolvBTC": DOLO_CDN + "solvBTC.326d594ebd54e4317f078b70f72a58b4.svg",
+  "SolvBTC.a": DOLO_CDN + "solvBTC.326d594ebd54e4317f078b70f72a58b4.svg",
+  "xSolvBTC": DOLO_CDN + "xSolvBTC.b2110d70dea973b20c4f1e6a137f2256.svg",
+  "solvBTCbbn": DOLO_CDN + "solvBTCbbn.a4ffbb3feb4a22c2ca5564097b70f35c.svg",
+  "eBTC": DOLO_CDN + "eBTC.e48b2e6a0a78d4ffc09991510cb5792b.svg",
+  "FBTC": DOLO_CDN + "FBTC.f29f5d2839b1b765719121f8094c7f11.svg",
+  "PumpBTC": DOLO_CDN + "PumpBTC.aa48de36289e8439daf0456c4252dd27.svg",
+  "pumpBTC": DOLO_CDN + "PumpBTC.aa48de36289e8439daf0456c4252dd27.svg",
+  "pumpBTC.bera": DOLO_CDN + "PumpBTC.aa48de36289e8439daf0456c4252dd27.svg",
+  "pBTC": DOLO_CDN + "pBTC-2.33f92d1521de41c2fd041b11c9d77c7a.svg",
+  "stBTC": DOLO_CDN + "stBTC.3935aab6a35bd55630f244a1f56631ba.svg",
+  "SBTC": DOLO_CDN + "SBTC.42e2a04abe2a5a21904064d886e10804.svg",
+  "ylPumpBTC": DOLO_CDN + "ylPumpBTC.4ed846397580cd47e2ac1cc59dba2d56.svg",
+  "ylpumpBTC": DOLO_CDN + "ylPumpBTC.4ed846397580cd47e2ac1cc59dba2d56.svg",
+  "ylfBTC": DOLO_CDN + "WBTC.f3c8718835179e7543b5.png",
+  "ylBTCLRT": DOLO_CDN + "ylBTCLRT.de3276def7f8a795b2215806ce3776d6.svg",
+  "ylBTCLST": DOLO_CDN + "ylBTCLRT.de3276def7f8a795b2215806ce3776d6.svg",
+  "STONEBTC": DOLO_CDN + "STONEBTC.4ca9c1ebc2fca809154e406e9afa589b.svg",
+  // Berachain
+  "BERA": DOLO_CDN + "BERA.a24a9b40b3447dde7ea1d2cab4dd59e9.svg",
+  "WBERA": DOLO_CDN + "wBERA.4ca51f80e3cd585d5152483f427d0416.svg",
+  "iBERA": DOLO_CDN + "iBERA.10d1ede095601cbc9bb5bf3bcdcb22a1.svg",
+  "sWBERA": DOLO_CDN + "sWBERA.e2be8febc13f6552990168c4e232d62a.svg",
+  "wgBERA": DOLO_CDN + "wgBERA.e10d0909ba87a40264fe74050034b025.svg",
+  "iBGT": DOLO_CDN + "iBGT.88932437445efa66139716bca4a9c19b.svg",
+  "oriBGT": DOLO_CDN + "oriBGT.7f3393531bde0f56498780c803133999.svg",
+  "diBGT": DOLO_CDN + "iBGT.88932437445efa66139716bca4a9c19b.svg",
+  "BGT": DOLO_CDN + "BGT.59af0fc7aad30ed3de49e3115ee24d04.svg",
+  "PT-iBGT-25DEC2025": DOLO_CDN + "PT-iBGT.45a4b4c47be320270ac8d1ce32439d2a.svg",
+  // DeFi / Governance
+  "DOLO": "dolo-logo.svg",
+  "ARB": DOLO_CDN + "ARB.f8b26a91d3f23a571be6398aa1a1f119.svg",
+  "LINK": DOLO_CDN + "LINK.e6e8d688b54af33e1f99.png",
+  "GMX": DOLO_CDN + "GMX.b836adc14ee095fd9b7671e718878333.svg",
+  "GM": DOLO_CDN + "GMX.b836adc14ee095fd9b7671e718878333.svg",
+  "PENDLE": DOLO_CDN + "PENDLE.e4e3db03c3798bf15a6c384ab5de3fee.svg",
+  "AAVE": DOLO_CDN + "AAVE.a9c152c66f6bed5f3d0865b8d5ea0dba.svg",
+  "UNI": DOLO_CDN + "UNI.fbe3002e628fbf39d75525ae192d3665.svg",
+  "CRV": DOLO_CDN + "CRV.f927723690ec12fcc8381902a361c75e.svg",
+  "DPX": DOLO_CDN + "DPX.ac054aa02be296979160d68dbb594a39.svg",
+  "GRAIL": DOLO_CDN + "GRAIL.13f8e457ed0e3d6868b41f28eb431819.svg",
+  "JONES": DOLO_CDN + "JONES.3ce2e6a8fb1444d9d6439e5781e6c2c1.svg",
+  "PREMIA": DOLO_CDN + "PREMIA.6c5c2339f3179353bb163b4e53d8dfa1.svg",
+  "MAGIC": DOLO_CDN + "MAGIC.e86265b765bebd6be26b2485691ab714.svg",
+  "RDNT": DOLO_CDN + "RDNT.92d507e82611bb1e4353e8b8cae0a73a.svg",
+  "XAI": DOLO_CDN + "XAI.ed6137b5d4b6078ac5061beb0e9b78f5.svg",
+  "WLFI": DOLO_CDN + "WLFI.2c1e57c98e3cad7282c40941b36ee606.svg",
+  "OHM": DOLO_CDN + "OHM.2df913d6b9413f26311c1df9718d1461.svg",
+  "IR": DOLO_CDN + "IR.4f115e858cbe4dbe82da00a8443ab1af.svg",
+  "KDK": DOLO_CDN + "KDK.31acd6ac4abb4a8c30812380c009f685.svg",
+  "HENLO": DOLO_CDN + "HENLO.8d50b084294cb406094f0005d46c2c75.svg",
+  "oUSDT": DOLO_CDN + "USDC.5f67b2404ca2e547fb00b70128d132cd.svg",
+  // Network / L2
+  "MNT": DOLO_CDN + "MNT.7e882ac93f636391a8f7d2e0841cad98.svg",
+  "WMNT": DOLO_CDN + "WMNT.a58988c614392a216cc8937be5ab96db.svg",
+  "OKB": DOLO_CDN + "OKB.dfac9609700af55b3d9ef4e0e5b28f01.svg",
+  "WOKB": DOLO_CDN + "WOKB.4a6ddee6f2dfa841dd0932eab45ae376.svg",
+  "POL": DOLO_CDN + "MATIC.dfc4843b6db6db48662b1db5f752f9f1.svg",
+  "MATIC": DOLO_CDN + "MATIC.dfc4843b6db6db48662b1db5f752f9f1.svg",
+  // Pendle PT tokens
+  "PT-GLP": DOLO_CDN + "PT-GLP.10ed789425b588fe57650640de551bed.svg",
+  "PT-rETH": DOLO_CDN + "PT-rETH.e2b8a22fc3817c3a51225d7ffb5e616b.svg",
+  "PT-wstETH": DOLO_CDN + "PT-wstETH.09d3f15856b64c9b4f64c8de1264db37.svg",
+  "PT-weETH": DOLO_CDN + "PT-weETH.24d74aa18d08440b7f662eba78dcc52c.svg",
+  "PT-eETH": DOLO_CDN + "PT-weETH.24d74aa18d08440b7f662eba78dcc52c.svg",
+  "PT-ezETH": DOLO_CDN + "PT-ezETH.d1ed194653ea88e9f3fe8c029064d654.svg",
+  "PT-rsETH": DOLO_CDN + "PT-rsETH.857e86584fe78053a1044b78df689b4d.svg",
+  "PT-mETH": DOLO_CDN + "PT-mETH.793642f12d4c303ecf771107c77ecfbb.svg",
+  "PT-cmETH": DOLO_CDN + "PT-cmETH.f49c697e967386e0fd082040501e92e0.svg",
+  "PT-USDe": DOLO_CDN + "PT-USDe.b5a8d24289b509fe4e6b4c702a790828.svg",
+  "PT-MNT": DOLO_CDN + "PT-MNT.19aa4a53e3aa4337407a1502ae89fc31.svg",
+  // GMX V2 / GLV market tokens from the official Dolomite Earn app
+  "gmARB-USD": DOLO_CDN + "ARB-GM.50df3ed4a1a52b938992cb5e08efbc36.svg",
+  "gmBTC-USD": DOLO_CDN + "WBTC-GM.6e7f69538bb02b42b881b86aea5c6d6e.svg",
+  "gmETH-USD": DOLO_CDN + "ETH-GM.0b7d447f3c11298af07411c926352c71.svg",
+  "gmLINK-USD": DOLO_CDN + "LINK-GM.7d4b33346ec9822f9dc7c22a393f7698.svg",
+  "gmBTC": DOLO_CDN + "WBTC-GM.6e7f69538bb02b42b881b86aea5c6d6e.svg",
+  "gmETH": DOLO_CDN + "ETH-GM.0b7d447f3c11298af07411c926352c71.svg",
+  "gmUNI-USD": DOLO_CDN + "UNI-GM.8a4dfd0dc79f5b60138039338d28a6c7.svg",
+  "gmAAVE-USD": DOLO_CDN + "gmAAVE.e032a2febd818f511cf782e09b12f212.svg",
+  "gmDOGE-USD": DOLO_CDN + "gmDOGE.36090e2ebcd305890c779e005d41d331.svg",
+  "gmGMX-USD": DOLO_CDN + "gmGMX.2c5cb2e0f1769629b38580607b77ecbc.svg",
+  "gmSOL-USD": DOLO_CDN + "gmSOL.73d56a4a2dcf3d39fc5c946b8c65c631.svg",
+  "gmWstETH-USD": DOLO_CDN + "wstETH.2e97640d284bbe78da3776549d27ec47.svg",
+  "gmGMX": DOLO_CDN + "gmGMX.2c5cb2e0f1769629b38580607b77ecbc.svg",
+  "gmPENDLE-USD": DOLO_CDN + "gmPENDLE.cd8acede00414f70056c0fb9aa2baa7c.svg",
+  "gmPEPE-USD": DOLO_CDN + "gmPEPE.966f4beb1b823729066c29c52921b664.svg",
+  "gmWIF-USD": DOLO_CDN + "gmWIF.8dfcfc27c0c56651a2e523e97c7fdcb4.svg",
+  "GLV-BTC": DOLO_CDN + "GLV-BTC.c576682a1343bbfde84710a572b5a68e.svg",
+  "GLV-ETH": DOLO_CDN + "GLV-ETH.092b4c8a9412efd58d3542d26bc5a522.svg",
+};
+const TOKEN_ICON_OVERRIDES = {
+  "arbitrum:0x2c799166c9f0dbf9efc5004cbce4c5a37fa39329": SYMBOL_ICONS["gmARB-USD"],
+  "arbitrum:0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef": SYMBOL_ICONS["gmBTC-USD"],
+  "arbitrum:0x505582242757f16d72f8c4462a616e388ca1b074": SYMBOL_ICONS["gmETH-USD"],
+  "arbitrum:0x18cb14564fbb015bd3439220d177799355abc0e0": SYMBOL_ICONS["gmLINK-USD"],
+  "arbitrum:0xb15bbbfcff6c411410c66642306d1ffa7ecec4d8": SYMBOL_ICONS["gmBTC"],
+  "arbitrum:0x2d165a76dd3e552df3860789331ab73c5a3d7f92": SYMBOL_ICONS["gmETH"],
+  "arbitrum:0x20d51cb520c4622dcc3d7e35003dbab07d547e7e": SYMBOL_ICONS["gmUNI-USD"],
+  "arbitrum:0x24c9121c75c099b38d40020872b8a0d2c27c614d": SYMBOL_ICONS["gmAAVE-USD"],
+  "arbitrum:0x1beed3b7d1237b7773b5c4c249933e3ca5e027c1": SYMBOL_ICONS["gmDOGE-USD"],
+  "arbitrum:0x5c99f6cf6069698d234d50bf69ebd2f53e45ed1c": SYMBOL_ICONS["gmGMX-USD"],
+  "arbitrum:0x1ebb1c7023addbb2b6e30e6f4c8d4a4440bfd412": SYMBOL_ICONS["gmSOL-USD"],
+  "arbitrum:0xc587646f67b38739006ed0200e2e0a26fdb01c9b": SYMBOL_ICONS["gmWstETH-USD"],
+  "arbitrum:0xcf248baf933c7b1b876b997246f25021a65383b3": SYMBOL_ICONS["gmGMX"],
+  "arbitrum:0xe5d6fe410c69b44c357403a1936b3bfaddbe340b": SYMBOL_ICONS["gmPENDLE-USD"],
+  "arbitrum:0x6586f1db71513daf94b0431156d225a46c00f20b": SYMBOL_ICONS["gmPEPE-USD"],
+  "arbitrum:0xf5063b40fa66ab2fbda2e6807ac5759a41a1b0c3": SYMBOL_ICONS["gmWIF-USD"],
+  "arbitrum:0x7e584529bb40220a2bd5d0c13e3d65abd4a47f0e": SYMBOL_ICONS["GLV-BTC"],
+  "arbitrum:0x11f4532c05fb8ea6320b1dc155bfdc2498a5d8b4": SYMBOL_ICONS["GLV-ETH"],
+  "arbitrum:0x51fc0f6660482ea73330e414efd7808811a57fa2": SYMBOL_ICONS["PREMIA"],
+  "arbitrum:0x894134a25a5fac1c2c26f1d8fbf05111a3cb9487": SYMBOL_ICONS["GRAI"],
+  "arbitrum:0x12275dcb9048680c4be40942ea4d92c74c63b844": SYMBOL_ICONS["eUSD"],
+  "arbitrum:0x18c14c2d707b2212e17d1579789fc06010cfca23": SYMBOL_ICONS["ETH+"],
+  "berachain:0xe946dd7d03f6f5c440f68c84808ca88d26475fc5": SYMBOL_ICONS["ylfBTC"],
+  "berachain:0x1fcca65fb6ae3b2758b9b2b394cb227eae404e1e": SYMBOL_ICONS["pumpBTC.bera"],
+  "berachain:0x91a6af4c8cb1673ab0d776828b6b271ac3da9dcb": SYMBOL_ICONS["USD0"],
+  "berachain:0x30ea2d525ef7c234f8aa6e3a8909b88f71244cb0": SYMBOL_ICONS["USD0++"],
+  "berachain:0x7203fb920421170cc4da001d758fde8f391a0570": SYMBOL_ICONS["deUSD"],
+  "berachain:0xaf51434ac57f05e0bc397739c15cf653dbdbd86d": SYMBOL_ICONS["sdeUSD"],
+};
+const TVL_TOKEN_ICON_ALIASES = {
+  "dGM": SYMBOL_ICONS["GM"],
+  "dGMX": SYMBOL_ICONS["GMX"],
+  "dGLV": SYMBOL_ICONS["GLV-BTC"],
+  "dGLV [WBTC-USDC]": SYMBOL_ICONS["GLV-BTC"],
+  "dGLV [WETH-USDC]": SYMBOL_ICONS["GLV-ETH"],
+};
+const normalizeTvlTokenSymbol = (sym) => {
+  const s = String(sym || "").trim();
+  if (/^dGLV/i.test(s) && /ETH/i.test(s)) return "dGLV [WETH-USDC]";
+  if (/^dGLV/i.test(s) && /(BTC|WBTC)/i.test(s)) return "dGLV [WBTC-USDC]";
+  if (/^dGMX$/i.test(s)) return "dGMX";
+  if (/^dGM$/i.test(s)) return "dGM";
+  return s;
+};
+const tokenIcon = (sym, row={}) => {
+  const addrKey = row.chain && row.addr ? `${row.chain}:${String(row.addr).toLowerCase()}` : "";
+  const s = normalizeTvlTokenSymbol(sym);
+  return TOKEN_ICON_OVERRIDES[addrKey]
+    || row.icon
+    || TVL_TOKEN_ICON_ALIASES[s]
+    || SYMBOL_ICONS[s]
+    || SYMBOL_ICONS[s.toUpperCase()]
+    || SYMBOL_ICONS[s.replace(/-\d{1,2}[A-Z]{3}\d{4}$/i, "")]
+    || "dolomite-logo.svg";
+};
+const GRAYSCALE_SYMBOLS = new Set(["CRV", "USD0", "USD0++", "deUSD", "sdeUSD", "MATIC", "POL", "stcUSD", "cUSD", "USDT", "cbBTC"]);
+const tokenIconClass = (sym) => GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? "grayscale" : "";
+
 function chainKey(name){
   return String(name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 }
@@ -1299,13 +1515,14 @@ function renderTokens(){
   legend.innerHTML = list.map((t,i)=>{
     const sharePct = total>0 ? (t.usd/total*100) : 0;
     const initials = t.sym.replace(/[^A-Za-z0-9]/g,"").slice(0,3).toUpperCase();
-    const iconUrl  = `https://app.dolomite.io/static/media/${t.sym.split(/[\s\[]/)[0]}.svg`;
+    const iconUrl  = tokenIcon(t.sym, t);
+    const iconClass = tokenIconClass(t.sym);
     const focused  = tokenState.focus === t.sym;
     const dimmed   = tokenState.focus && !focused;
     return `
       <div class="leg-row ${focused?"active":""} ${dimmed?"dim":""}" data-sym="${t.sym}" style="--leg-color:${t._color}">
         <div class="leg-rank">${String(i+1).padStart(2,"0")}</div>
-        <div class="leg-icon"><img src="${iconUrl}" alt="${t.sym}" onerror="this.parentElement.textContent='${initials}'"></div>
+        <div class="leg-icon"><img class="${iconClass}" src="${iconUrl}" alt="${t.sym}" onerror="this.parentElement.textContent='${initials}'"></div>
         <div class="leg-info">
           <div class="leg-top">
             <div class="leg-name" title="${t.name}">${t.sym}</div>
