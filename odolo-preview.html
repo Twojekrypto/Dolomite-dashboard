@@ -405,15 +405,23 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .lock-bar > span.long{background:var(--up)}
 
 .ex-detail-panel{
-  margin:0 0 0 44px;border:1px solid var(--line-2);border-top:0;border-radius:0 0 var(--r-lg) var(--r-lg);
-  background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.01));overflow:hidden;
+  margin:0;border:1px solid var(--line-2);border-top:1px solid rgba(201,162,39,.34);border-radius:0 0 var(--r-lg) var(--r-lg);
+  background:linear-gradient(180deg,rgba(201,162,39,.035),rgba(255,255,255,.012) 42%,rgba(255,255,255,.006));overflow:hidden;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
 }
 .ex-detail-head{
-  display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:16px 18px;border-bottom:1px solid var(--line-1);
+  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:16px;padding:16px 18px 14px;border-bottom:1px solid var(--line-1);
 }
-.ex-detail-title{font-size:13px;font-weight:700;color:var(--fg-1);letter-spacing:-.1px}
-.ex-detail-sub{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:5px;font-size:11px;color:var(--fg-3)}
-.ex-detail-sub .addr-full{font-family:var(--mono);color:var(--fg-2);word-break:break-all}
+.ex-detail-title{font-size:14px;font-weight:700;color:var(--fg-1);letter-spacing:-.1px;line-height:1.25}
+.ex-detail-sub{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px;font-size:11px;color:var(--fg-3)}
+.ex-detail-sub .addr-full{
+  font-family:var(--mono);color:var(--fg-2);word-break:break-all;line-height:1.35;
+  padding:3px 6px;border-radius:5px;background:rgba(255,255,255,.025);border:1px solid var(--line-1);
+}
+.ex-detail-pill{
+  display:inline-flex;align-items:center;gap:6px;padding:3px 7px;border-radius:999px;
+  color:var(--gold);background:var(--gold-wash);border:1px solid var(--gold-line);font-family:var(--mono);
+}
 .ex-detail-links{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .ex-detail-link{
   display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:6px;text-decoration:none;
@@ -423,35 +431,53 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .ex-detail-link:hover{color:var(--fg-1);border-color:var(--line-3);background:var(--bg-3)}
 .ex-detail-link svg{width:13px;height:13px}
 .ex-detail-stats{
-  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1px;background:var(--line-1);border-bottom:1px solid var(--line-1);
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:1px;background:var(--line-1);border-bottom:1px solid var(--line-1);
 }
-.ex-detail-stat{background:rgba(10,10,12,.62);padding:13px 14px}
-.ex-detail-stat span{display:block;font-size:10px;letter-spacing:1.1px;text-transform:uppercase;color:var(--fg-4);margin-bottom:6px}
-.ex-detail-stat b{display:block;font-family:var(--mono);font-size:14px;color:var(--fg-1);font-weight:700}
+.ex-detail-stat{background:rgba(10,10,12,.68);padding:12px 14px;min-width:0}
+.ex-detail-stat span{display:block;font-size:9.5px;letter-spacing:1.05px;text-transform:uppercase;color:var(--fg-4);margin-bottom:6px;white-space:nowrap}
+.ex-detail-stat b{display:block;font-family:var(--mono);font-size:14px;color:var(--fg-1);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ex-detail-stat b.gold{color:var(--gold-hi)}
 .ex-detail-stat b.price{color:#9ab7c2}
-.ex-detail-scroll{max-height:320px;overflow:auto}
-#tbl-ex .ex-detail-table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px}
+.ex-detail-scroll{max-height:330px;overflow:auto;background:rgba(0,0,0,.12)}
+#tbl-ex .ex-detail-table{width:100%;min-width:640px;border-collapse:separate;border-spacing:0;font-size:12px}
 #tbl-ex .ex-detail-table th{
-  position:sticky;top:0;z-index:1;padding:9px 12px;background:#111113;border-bottom:1px solid var(--line-2);
+  position:sticky;top:0;z-index:1;padding:9px 10px;background:#111113;border-bottom:1px solid var(--line-2);
   color:var(--fg-3);font-size:9.5px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;text-align:left;white-space:nowrap;
+}
+#tbl-ex .ex-detail-table th[data-ex-detail-sort]{cursor:pointer;user-select:none;transition:color .15s var(--ease),background .15s var(--ease),box-shadow .15s var(--ease)}
+#tbl-ex .ex-detail-table th[data-ex-detail-sort]:hover{color:var(--fg-1);background:#151516}
+#tbl-ex .ex-detail-table th.sorted{color:var(--gold);background:rgba(201,162,39,.08);box-shadow:inset 0 -1px 0 rgba(201,162,39,.22)}
+#tbl-ex .ex-detail-table .detail-sort{
+  display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;margin-left:6px;border-radius:4px;
+  color:currentColor;background:rgba(255,255,255,.035);font-size:9px;line-height:1;
 }
 #tbl-ex .ex-detail-table th.num,#tbl-ex .ex-detail-table td.num{text-align:right}
 #tbl-ex .ex-detail-table th.center,#tbl-ex .ex-detail-table td.center{text-align:center}
-#tbl-ex .ex-detail-table td{padding:10px 12px;border-bottom:1px solid var(--line-1);font-variant-numeric:tabular-nums;color:var(--fg-2)}
+#tbl-ex .ex-detail-table td{padding:10px;border-bottom:1px solid var(--line-1);font-variant-numeric:tabular-nums;color:var(--fg-2);vertical-align:middle;white-space:nowrap}
 #tbl-ex .ex-detail-table tr:nth-child(even) td{background:rgba(255,255,255,.012)}
 #tbl-ex .ex-detail-table tr:hover td{background:rgba(201,162,39,.035);color:var(--fg-1)}
 #tbl-ex .ex-detail-table tr:hover td:first-child::before{display:none}
 #tbl-ex .ex-detail-table td.mono{font-family:var(--mono)}
-#tbl-ex .ex-detail-table a{font-family:var(--mono);font-size:11px;color:#9ab7c2;text-decoration:none}
-#tbl-ex .ex-detail-table a:hover{color:var(--gold)}
+#tbl-ex .ex-detail-table .ex-detail-rank{color:var(--fg-4);font-weight:600}
+#tbl-ex .ex-detail-lock{
+  display:inline-flex;align-items:center;justify-content:center;min-width:42px;padding:4px 7px;border-radius:999px;
+  border:1px solid var(--line-2);background:rgba(255,255,255,.025);font-family:var(--mono);font-size:11px;font-weight:700;
+}
+#tbl-ex .ex-detail-lock.short{color:var(--down);border-color:rgba(180,121,107,.28);background:rgba(180,121,107,.08)}
+#tbl-ex .ex-detail-lock.medium{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+#tbl-ex .ex-detail-lock.long{color:var(--up);border-color:rgba(138,163,123,.32);background:rgba(138,163,123,.08)}
+#tbl-ex .ex-detail-table a{
+  display:inline-flex;align-items:center;justify-content:center;min-width:70px;padding:5px 7px;border-radius:5px;
+  border:1px solid var(--line-2);background:rgba(255,255,255,.018);font-family:var(--mono);font-size:11px;color:#9ab7c2;text-decoration:none;white-space:nowrap;
+}
+#tbl-ex .ex-detail-table a:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
 .ex-detail-empty{padding:18px;color:var(--fg-3);font-size:12px}
 
 @media (max-width:760px){
   .ex-detail-panel{margin-left:0}
-  .ex-detail-head{flex-direction:column}
+  .ex-detail-head{grid-template-columns:1fr}
   .ex-detail-links{justify-content:flex-start}
-  .ex-detail-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ex-detail-stats{grid-template-columns:repeat(auto-fit,minmax(104px,1fr))}
   .ex-detail-scroll{max-height:360px}
 }
 
@@ -1886,6 +1912,7 @@ const state = {
   exPage: 0,
   exPageSize: 10,
   exExpanded: null,
+  exDetailSort: {key:"date", dir:"desc"},
   flowsPeriod: "7d",
   flowsTypes: new Set(["eoa","ca","cex","bot","mm"]),
   flowsSort: {acc:{key:"net",dir:"desc"}, out:{key:"net",dir:"desc"}},
@@ -2760,33 +2787,64 @@ function sortExercisers(rows){
     return dir==="asc"?va-vb:vb-va;
   });
 }
+function exerciseTxPrice(tx){
+  const rawPrice = Number(tx?.price);
+  if(Number.isFinite(rawPrice) && rawPrice > 0) return rawPrice;
+  const usd = txUsd(tx);
+  const vedolo = txVedolo(tx);
+  return vedolo > 0 ? usd / vedolo : 0;
+}
+function exerciseTxSortValue(tx, key){
+  if(key === "date"){
+    const t = Date.parse(`${tx?.date || ""}T00:00:00Z`);
+    return Number.isFinite(t) ? t : 0;
+  }
+  if(key === "usdc") return txUsd(tx);
+  if(key === "vedolo") return txVedolo(tx);
+  if(key === "price") return exerciseTxPrice(tx);
+  if(key === "lock") return Number(tx?.lock_days) || 0;
+  return 0;
+}
+function sortExerciseTxs(txs){
+  const {key, dir} = state.exDetailSort;
+  const mult = dir === "asc" ? 1 : -1;
+  return [...txs].sort((a,b)=>{
+    const diff = exerciseTxSortValue(a, key) - exerciseTxSortValue(b, key);
+    if(diff) return diff * mult;
+    return String(b.date || "").localeCompare(String(a.date || ""));
+  });
+}
+function detailSortHeader(key, label, cls=""){
+  const active = state.exDetailSort.key === key;
+  const className = [cls, active ? "sorted" : ""].filter(Boolean).join(" ");
+  const aria = active ? ` aria-sort="${state.exDetailSort.dir === "asc" ? "ascending" : "descending"}"` : "";
+  const sort = active ? `<span class="detail-sort">${state.exDetailSort.dir === "asc" ? "▲" : "▼"}</span>` : `<span class="detail-sort">⇅</span>`;
+  return `<th class="${className}" data-ex-detail-sort="${key}" title="Sort by ${esc(label)}" aria-label="Sort by ${esc(label)}"${aria}>${label}${sort}</th>`;
+}
 function renderExerciserDetailRow(r, rank){
   const period = PERIODS.find(p=>p.key===state.exPeriod);
-  const txs = [...(r.txs || [])]
-    .filter(tx => tx && tx.paid_token !== "DOLO")
-    .sort((a,b) => String(b.date || "").localeCompare(String(a.date || "")));
+  const txs = sortExerciseTxs((r.txs || []).filter(tx => tx && tx.paid_token !== "DOLO"));
   const avgPrice = avgExercisePrice(r);
   const title = r.label || TYPE_GENERIC[r.type] || "Wallet";
   const rows = txs.map((tx, i) => {
     const usd = txUsd(tx);
     const vedolo = txVedolo(tx);
-    const rawPrice = Number(tx.price);
-    const price = Number.isFinite(rawPrice) && rawPrice > 0
-      ? rawPrice
-      : (vedolo > 0 ? usd / vedolo : 0);
+    const price = exerciseTxPrice(tx);
+    const lockDays = Number(tx.lock_days) || 0;
+    const lockClass = lockBucket(lockDays);
     const hash = tx.hash || "";
-    const hashLabel = hash ? `${hash.slice(0,8)}…${hash.slice(-6)}` : "—";
+    const hashLabel = hash ? `${hash.slice(0,6)}…${hash.slice(-4)}` : "—";
     const txLink = hash
-      ? `<a href="https://berascan.com/tx/${esc(hash)}" target="_blank" rel="noopener">${esc(hashLabel)}</a>`
+      ? `<a href="https://berascan.com/tx/${esc(hash)}" target="_blank" rel="noopener" title="${esc(hash)}">${esc(hashLabel)}</a>`
       : "—";
     return `
       <tr>
-        <td class="mono">${i + 1}</td>
+        <td class="mono ex-detail-rank">${i + 1}</td>
         <td>${esc(fmtDate(tx.date))}</td>
         <td class="num mono"><span class="bal-val usd">${fmtUsdFull(usd)}</span></td>
         <td class="num mono">${fmtTokenFull(vedolo)}</td>
         <td class="num mono"><span class="bal-val price">${fmtPrice(price)}</span></td>
-        <td class="center mono">${fmtLock(Number(tx.lock_days) || 0)}</td>
+        <td class="center mono"><span class="ex-detail-lock ${lockClass}">${fmtLock(lockDays)}</span></td>
         <td>${txLink}</td>
       </tr>
     `;
@@ -2797,11 +2855,11 @@ function renderExerciserDetailRow(r, rank){
         <thead>
           <tr>
             <th style="width:44px">#</th>
-            <th>Date</th>
-            <th class="num">USDC Paid</th>
-            <th class="num">veDOLO</th>
-            <th class="num">Price</th>
-            <th class="center">Lock</th>
+            ${detailSortHeader("date", "Date")}
+            ${detailSortHeader("usdc", "USDC Paid", "num")}
+            ${detailSortHeader("vedolo", "veDOLO", "num")}
+            ${detailSortHeader("price", "Price", "num")}
+            ${detailSortHeader("lock", "Lock", "center")}
             <th>Tx</th>
           </tr>
         </thead>
@@ -2819,7 +2877,7 @@ function renderExerciserDetailRow(r, rank){
               <div class="ex-detail-title">#${rank} ${esc(title)} exercise history</div>
               <div class="ex-detail-sub">
                 <span class="addr-full">${esc(r.addr)}</span>
-                <span>${period ? esc(period.label) : "Selected period"}</span>
+                <span class="ex-detail-pill">${period ? esc(period.short) : "Period"} · ${txs.length.toLocaleString()} txs</span>
               </div>
             </div>
             <div class="ex-detail-links">
@@ -2961,6 +3019,13 @@ function renderExercisers(){
     btn.classList.add("copied");
     btn.innerHTML = CHECK_ICO;
     setTimeout(()=>{ btn.classList.remove("copied"); btn.innerHTML = COPY_ICO; }, 1400);
+  }));
+  tbody.querySelectorAll("[data-ex-detail-sort]").forEach(th => th.addEventListener("click", e=>{
+    e.stopPropagation();
+    const key = th.dataset.exDetailSort;
+    if(state.exDetailSort.key === key) state.exDetailSort.dir = state.exDetailSort.dir === "asc" ? "desc" : "asc";
+    else state.exDetailSort = {key, dir:"desc"};
+    renderExercisers();
   }));
   tbody.querySelectorAll("tr.ex-data-row").forEach(tr => tr.addEventListener("click", e=>{
     if(e.target.closest(".addr-copy") || e.target.closest(".addr-debank")) return;
