@@ -8,7 +8,8 @@
 <script>
 (async () => {
   try {
-    const response = await fetch("../tvl-preview.html", { cache: "no-cache" });
+    const previewVersion = "icons-20260426";
+    const response = await fetch(`../tvl-preview.html?v=${previewVersion}`, { cache: "no-cache" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const html = await response.text();
     document.open();
