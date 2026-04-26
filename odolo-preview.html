@@ -825,22 +825,23 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .cb-tbl tbody td .cb-cell .bar > span.hld{background:#22d3ee}
 .cb-tbl tbody td .cb-cell .bar > span.buy{background:#a78bfa}
 .cb-tbl tbody td .cb-cell .val.zero{color:var(--fg-4)}
-.cb-note{
-  display:grid;grid-template-columns:1fr 1fr;gap:10px;
-  margin:0 22px 16px;
+.cb-tbl thead th.has-help{cursor:pointer}
+.cb-tbl thead th.has-help .th-label{display:inline-flex;align-items:center;justify-content:flex-end;gap:6px}
+.cb-tbl thead th.has-help .th-help{
+  display:inline-grid;place-items:center;width:15px;height:15px;border-radius:50%;
+  border:1px solid currentColor;font-size:9px;line-height:1;letter-spacing:0;text-transform:none;
+  opacity:.55;transition:opacity .15s var(--ease),background .15s var(--ease),box-shadow .15s var(--ease);
 }
-.cb-note-item{
-  display:flex;align-items:flex-start;gap:10px;
-  padding:11px 13px;border-radius:10px;
-  background:var(--bg-1);border:1px solid var(--line-2);
-  color:var(--fg-2);font-size:12px;line-height:1.45;
+.cb-tbl thead th.has-help:hover .th-help{
+  opacity:1;background:rgba(255,255,255,.05);box-shadow:0 0 10px rgba(255,255,255,.08);
 }
-.cb-note-item .dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex:0 0 auto}
-.cb-note-item b{display:block;color:var(--fg-1);font-size:12.5px;margin-bottom:1px}
-.cb-note-item span:last-child{display:block;color:var(--fg-3)}
-.cb-note-item.claim .dot{background:#8aa37b;box-shadow:0 0 8px rgba(138,163,123,.35)}
-.cb-note-item.extra .dot{background:#a78bfa;box-shadow:0 0 8px rgba(167,139,250,.35)}
-@media (max-width:760px){.cb-note{grid-template-columns:1fr;margin-inline:16px}}
+.tbl-help-tooltip{
+  position:fixed;display:none;pointer-events:none;z-index:120;max-width:280px;
+  background:linear-gradient(180deg,var(--bg-2) 0%,var(--bg-1) 100%);
+  border:1px solid var(--line-3);border-radius:10px;padding:10px 12px;
+  box-shadow:var(--sh-hi);font-size:12px;line-height:1.45;color:var(--fg-2);
+}
+.tbl-help-tooltip b{display:block;color:var(--fg-1);font-size:12.5px;margin-bottom:3px}
 
 /* ====== HOW oDOLO WORKS v3 ====== */
 .how3-body{padding:26px 24px 0}
@@ -1490,23 +1491,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
       </div>
     </div>
 
-    <div class="cb-note" role="note" aria-label="Claimer breakdown definitions">
-      <div class="cb-note-item claim">
-        <span class="dot"></span>
-        <div>
-          <b>Claim Exercised</b>
-          <span id="cb-claim-note">Claimed oDOLO used for veDOLO, capped at each wallet's own claim.</span>
-        </div>
-      </div>
-      <div class="cb-note-item extra">
-        <span class="dot"></span>
-        <div>
-          <b>Extra Exercised</b>
-          <span id="cb-extra-note">Bought or received oDOLO exercised above the wallet's claim.</span>
-        </div>
-      </div>
-    </div>
-
     <div class="tbl-wrap">
       <table class="tbl cb-tbl" id="tbl-cb">
         <thead>
@@ -1514,8 +1498,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
             <th data-sort="rank" style="width:56px">#</th>
             <th data-sort="addr">Address</th>
             <th data-sort="claimed" class="num col-clm sorted" style="width:128px">Claimed</th>
-            <th data-sort="exercised" class="num col-exr" style="width:150px" title="Claimed oDOLO used for veDOLO; capped at this wallet's own claim.">Claim Exercised</th>
-            <th data-sort="buy" class="num col-buy" style="width:150px" title="oDOLO exercised above the wallet's own claim, usually bought or received from others.">Extra Exercised</th>
+            <th data-sort="exercised" class="num col-exr has-help" data-help-key="claim" style="width:150px"><span class="th-label">Claim Exercised<span class="th-help">?</span></span></th>
+            <th data-sort="buy" class="num col-buy has-help" data-help-key="extra" style="width:150px"><span class="th-label">Extra Exercised<span class="th-help">?</span></span></th>
             <th data-sort="outflow" class="num col-out" style="width:128px">Outflow</th>
             <th data-sort="held" class="num col-hld" style="padding-right:32px;width:128px">Held</th>
           </tr>
@@ -1523,6 +1507,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         <tbody id="cb-body"></tbody>
       </table>
     </div>
+    <div class="tbl-help-tooltip" id="cb-help-tooltip"></div>
 
     <div class="tbl-foot">
       <div class="tbl-foot-info" id="cb-info">1–10 of 2,351</div>
@@ -2480,6 +2465,19 @@ const cbState = {
   period:"all",
 };
 
+function updateCbHeaderHelp(extraWallets = 0, extraTotal = 0){
+  const claim = document.querySelector('#tbl-cb th[data-help-key="claim"]');
+  const extra = document.querySelector('#tbl-cb th[data-help-key="extra"]');
+  if(claim){
+    claim.dataset.tipTitle = "Claim Exercised";
+    claim.dataset.tipBody = "Claimed oDOLO used for veDOLO, capped at each wallet's own claim.";
+  }
+  if(extra){
+    extra.dataset.tipTitle = "Extra Exercised";
+    extra.dataset.tipBody = `${extraWallets.toLocaleString()} wallets exercised +${fmtNum(extraTotal)} oDOLO above their claim in the selected window.`;
+  }
+}
+
 function renderClaimerBreakdown(){
   if(LIVE.flows) syncLiveClaimersForPeriod();
   const q = cbState.q.trim().toLowerCase();
@@ -2519,11 +2517,7 @@ function renderClaimerBreakdown(){
   document.getElementById("cb-count").textContent = `${totalClaimers.toLocaleString()} claimers`;
   const extraRows = CLAIMERS.filter(r => r.buy > 0);
   const extraTotal = sum(CLAIMERS, r => r.buy);
-  setText("cb-claim-note", "Claimed oDOLO used for veDOLO, capped at each wallet's own claim.");
-  setText(
-    "cb-extra-note",
-    `${extraRows.length.toLocaleString()} wallets exercised +${fmtNum(extraTotal)} oDOLO above their claim in the selected window.`
-  );
+  updateCbHeaderHelp(extraRows.length, extraTotal);
 
   const cellHtml = (val, claimed, kind, opts = {}) => {
     const pct = claimed > 0 ? Math.min(100, (val/claimed)*100) : 0;
@@ -2606,6 +2600,25 @@ document.querySelectorAll("#tbl-cb thead th").forEach(th=>{
   });
 });
 document.getElementById("q-cb").addEventListener("input", e=>{ cbState.q = e.target.value; cbState.page=0; renderClaimerBreakdown(); });
+document.querySelectorAll('#tbl-cb th[data-help-key]').forEach(th=>{
+  const tip = document.getElementById("cb-help-tooltip");
+  const moveTip = e => {
+    if(!tip || tip.style.display !== "block") return;
+    const pad = 14;
+    const left = Math.min(window.innerWidth - tip.offsetWidth - pad, Math.max(pad, e.clientX + 14));
+    const top = Math.max(pad, e.clientY - tip.offsetHeight - 14);
+    tip.style.left = `${left}px`;
+    tip.style.top = `${top}px`;
+  };
+  th.addEventListener("mouseenter", e=>{
+    if(!tip) return;
+    tip.innerHTML = `<b>${th.dataset.tipTitle || ""}</b>${th.dataset.tipBody || ""}`;
+    tip.style.display = "block";
+    moveTip(e);
+  });
+  th.addEventListener("mousemove", moveTip);
+  th.addEventListener("mouseleave", ()=>{ if(tip) tip.style.display = "none"; });
+});
 document.querySelectorAll('#dd-cb-period .dd-opt').forEach(opt=>{
   opt.addEventListener("click", e=>{
     e.stopPropagation();
