@@ -316,6 +316,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .tbl thead th.sorted{color:var(--gold)}
 .tbl thead th.sorted .sort{color:var(--gold)}
 .tbl thead th.num{text-align:right}
+#tbl-ex thead th,#tbl-ex tbody td{padding-left:14px;padding-right:14px}
 
 .tbl tbody tr{transition:background .12s var(--ease);cursor:pointer;position:relative}
 .tbl tbody td{padding:12px 18px;border-bottom:1px solid var(--line-1);vertical-align:middle;color:var(--fg-1);font-variant-numeric:tabular-nums;position:relative}
@@ -371,6 +372,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .bal-zero{color:var(--fg-4);font-family:var(--mono)}
 .bal-val{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--fg-1)}
 .bal-val.usd{color:var(--gold-hi)}
+.bal-val.price{color:#9ab7c2}
 .bal-val.total{color:var(--fg-1);font-weight:600}
 
 /* lock-duration cell — small chip + bar */
@@ -380,6 +382,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .lock-val.medium{color:var(--gold)}
 .lock-val.long{color:var(--up)}
 .lock-bar{width:90px;height:4px;border-radius:2px;background:var(--bg-3);overflow:hidden;border:1px solid var(--line-1)}
+#tbl-ex .lock-bar{width:74px}
 .lock-bar > span{display:block;height:100%;border-radius:1px;transition:width .3s var(--ease)}
 .lock-bar > span.short{background:var(--down)}
 .lock-bar > span.medium{background:var(--gold)}
@@ -1579,12 +1582,13 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
       <table class="tbl" id="tbl-ex">
         <thead>
           <tr>
-            <th data-sort="rank" style="width:56px">#</th>
+            <th data-sort="rank" style="width:44px">#</th>
             <th data-sort="addr">Address</th>
-            <th data-sort="usdc" class="num sorted" style="width:140px">USDC paid</th>
-            <th data-sort="vedolo" class="num" style="width:130px">veDOLO</th>
-            <th data-sort="exercises" class="num" style="width:110px">Exercises</th>
-            <th data-sort="lock" class="num" style="padding-right:32px;width:170px">Avg Lock</th>
+            <th data-sort="vedolo" class="num" style="width:88px">veDOLO</th>
+            <th data-sort="usdc" class="num sorted" style="width:98px">USDC Paid</th>
+            <th data-sort="price" class="num" style="width:102px">Avg Price</th>
+            <th data-sort="exercises" class="num" style="width:96px">Exercises</th>
+            <th data-sort="lock" class="num" style="padding-right:22px;width:118px">Avg Lock</th>
           </tr>
         </thead>
         <tbody id="ex-body"></tbody>
@@ -1832,6 +1836,12 @@ const fmtNum = n => {
   return n.toFixed(0);
 };
 const fmtUsd = n => "$" + fmtNum(n);
+const avgExercisePrice = r => {
+  const usdc = Number(r.usdc);
+  const vedolo = Number(r.vedolo);
+  return Number.isFinite(usdc) && Number.isFinite(vedolo) && vedolo > 0 ? usdc / vedolo : 0;
+};
+const fmtPrice = n => n > 0 ? "$" + n.toFixed(n >= 1 ? 2 : 4) : "—";
 const fmtLock = days => {
   if(days >= 365) return (days/365).toFixed(2) + "y";
   if(days >= 30)  return (days/30).toFixed(1) + "mo";
@@ -2649,6 +2659,7 @@ function sortExercisers(rows){
     let va,vb;
     if(key==="rank"||key==="usdc"){va=a.usdc;vb=b.usdc}
     else if(key==="vedolo"){va=a.vedolo;vb=b.vedolo}
+    else if(key==="price"){va=avgExercisePrice(a);vb=avgExercisePrice(b)}
     else if(key==="exercises"){va=a.exercises;vb=b.exercises}
     else if(key==="lock"){va=a.lockDays;vb=b.lockDays}
     else if(key==="addr"){va=a.label||a.addr;vb=b.label||b.addr}
@@ -2695,6 +2706,7 @@ function renderExercisers(){
       ? `<span class="addr-name">${r.label}</span>`
       : `<span class="addr-name addr-generic">${TYPE_GENERIC[r.type]}</span>`;
     const bucket = lockBucket(r.lockDays);
+    const avgPrice = avgExercisePrice(r);
     return `
       <tr data-addr="${r.addr}">
         <td class="rank">${rank}</td>
@@ -2704,10 +2716,11 @@ function renderExercisers(){
             <div class="addr-line bot"><span class="addr-mono">${shorten(r.addr)}</span>${actions}</div>
           </div>
         </td>
-        <td class="num"><span class="bal-val usd">${fmtUsd(r.usdc)}</span></td>
         <td class="num"><span class="bal-val">${fmtNum(r.vedolo)}</span></td>
+        <td class="num"><span class="bal-val usd">${fmtUsd(r.usdc)}</span></td>
+        <td class="num"><span class="bal-val price">${fmtPrice(avgPrice)}</span></td>
         <td class="num"><span class="bal-val">${r.exercises.toLocaleString()}</span></td>
-        <td class="num" style="padding-right:32px">
+        <td class="num" style="padding-right:22px">
           <div class="lock-cell">
             <span class="lock-val ${bucket}">${fmtLock(r.lockDays)}</span>
             <div class="lock-bar"><span class="${bucket}" style="width:${Math.min(100, (r.lockDays/lockMaxDays)*100)}%"></span></div>
@@ -2724,7 +2737,8 @@ function renderExercisers(){
         <td class="num"><span class="bal-val">0</span></td>
         <td class="num"><span class="bal-val">0</span></td>
         <td class="num"><span class="bal-val">0</span></td>
-        <td class="num" style="padding-right:32px"><div class="lock-cell"><span class="lock-val short">0d</span><div class="lock-bar"><span class="short" style="width:0%"></span></div></div></td>
+        <td class="num"><span class="bal-val">0</span></td>
+        <td class="num" style="padding-right:22px"><div class="lock-cell"><span class="lock-val short">0d</span><div class="lock-bar"><span class="short" style="width:0%"></span></div></div></td>
       </tr>
     `).join("");
   tbody.innerHTML = rowsHtml + spacerRowsHtml;
