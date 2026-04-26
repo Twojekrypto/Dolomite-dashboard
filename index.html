@@ -18099,15 +18099,9 @@
                             const cutoffStr = cutoff.toISOString().slice(0, 10);
                             filtered = filtered.filter(ex => (ex.date || '') >= cutoffStr);
                         }
-                        // Search filter
-                        if (window._exitAddrSearch) {
-                            const q = window._exitAddrSearch;
-                            filtered = filtered.filter(ex => dolo_matchAddressSearch(ex.address, q) || (ex.tx_hash || '').toLowerCase().includes(q));
-                        }
-                        let sorted = [...filtered];
                         const sk = window._exitAddrSortKey;
                         const asc = window._exitAddrSortAsc;
-                        sorted.sort((a, b) => {
+                        const sortExitRows = (rows) => rows.sort((a, b) => {
                             let va, vb;
                             if (sk === 'date') { va = a.date || ''; vb = b.date || ''; return asc ? va.localeCompare(vb) : vb.localeCompare(va); }
                             if (sk === 'original') { va = a.original_locked || 0; vb = b.original_locked || 0; }
@@ -18116,6 +18110,14 @@
                             else { va = a.original_locked || 0; vb = b.original_locked || 0; }
                             return asc ? va - vb : vb - va;
                         });
+                        const sortedAll = sortExitRows([...filtered]);
+                        const rankMap = new Map(sortedAll.map((ex, i) => [(ex.tx_hash || ex.address || '').toLowerCase(), i + 1]));
+                        let sorted = sortedAll;
+                        // Search filter after rank maps are built, so searched rows keep their dashboard position.
+                        if (window._exitAddrSearch) {
+                            const q = window._exitAddrSearch;
+                            sorted = sortedAll.filter(ex => dolo_matchAddressSearch(ex.address, q) || (ex.tx_hash || '').toLowerCase().includes(q));
+                        }
                         const totalPages = Math.ceil(sorted.length / EXIT_ADDR_PER_PAGE);
                         // Dynamic count update
                         const countEl = document.getElementById('exit-addr-count');
@@ -18150,7 +18152,7 @@
 
                         let html = '';
                         pageData.forEach((ex, i) => {
-                            const rank = start + i + 1;
+                            const rank = rankMap.get((ex.tx_hash || ex.address || '').toLowerCase()) || (start + i + 1);
                             const addr = ex.address || '';
                             const shortAddr = addr.slice(0, 6) + '…' + addr.slice(-4);
                             const txHash = ex.tx_hash || '';
@@ -19638,22 +19640,24 @@
             }
             if (!claimers) return;
 
-            // Search filter
-            const searchVal = (document.getElementById('ct-search')?.value || '').trim().toLowerCase();
-            let filtered = claimers;
-            if (searchVal.length > 0) {
-                filtered = claimers.filter(c => dolo_matchAddressSearch(c.address, searchVal));
-                odolo_claimerPage = 1;
-            }
-
             const COPY_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
 
             // Sort
-            const sorted = [...filtered].sort((a, b) => {
+            const sortClaimers = (a, b) => {
                 const av = a[odolo_claimerSortField] || 0;
                 const bv = b[odolo_claimerSortField] || 0;
                 return odolo_claimerSortAsc ? av - bv : bv - av;
-            });
+            };
+            const sortedAll = [...claimers].sort(sortClaimers);
+            const rankMap = new Map(sortedAll.map((c, i) => [c.address.toLowerCase(), i + 1]));
+
+            // Search filter
+            const searchVal = (document.getElementById('ct-search')?.value || '').trim().toLowerCase();
+            let sorted = sortedAll;
+            if (searchVal.length > 0) {
+                sorted = sortedAll.filter(c => dolo_matchAddressSearch(c.address, searchVal));
+                odolo_claimerPage = 1;
+            }
 
             const fmt = v => v >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : v.toFixed(0);
 
@@ -19664,7 +19668,7 @@
             const pageData = sorted.slice(start, start + ODOLO_CLAIMER_PER_PAGE);
 
             container.innerHTML = pageData.map((c, i) => {
-                const rank = start + i + 1;
+                const rank = rankMap.get(c.address.toLowerCase()) || (start + i + 1);
                 const short = c.address.slice(0, 6) + '\u2026' + c.address.slice(-4);
                 const be = c.bought_extra > 0 ? fmt(c.bought_extra) : '—';
                 const beStyle = c.bought_extra > 0 ? 'color:#fbbf24' : 'color:rgba(255,255,255,0.2)';
@@ -20082,15 +20086,8 @@
             if (!tbody) return;
             const COPY_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
 
-            let data = [...RECENT_EX_DATA];
-
-            // Search filter
-            if (recentExSearchTerm) {
-                data = data.filter(tx => dolo_matchAddressSearch(tx.address, recentExSearchTerm) || tx.hash.toLowerCase().includes(recentExSearchTerm));
-            }
-
             // Sort
-            data.sort((a, b) => {
+            const sortRecentExRows = (rows) => rows.sort((a, b) => {
                 let va, vb;
                 if (recentExSortKey === 'rank' || recentExSortKey === 'date') {
                     // Default: newest first
@@ -20105,6 +20102,11 @@
                 if (recentExSortKey === 'address') return recentExSortAsc ? a.address.localeCompare(b.address) : b.address.localeCompare(a.address);
                 return 0;
             });
+            const sortedAll = sortRecentExRows([...RECENT_EX_DATA]);
+            const rankMap = new Map(sortedAll.map((tx, i) => [tx.hash.toLowerCase(), i + 1]));
+            let data = recentExSearchTerm
+                ? sortedAll.filter(tx => dolo_matchAddressSearch(tx.address, recentExSearchTerm) || tx.hash.toLowerCase().includes(recentExSearchTerm))
+                : sortedAll;
 
             const countEl = document.getElementById('recent-ex-count');
             if (countEl) countEl.textContent = data.length + ' exercises (' + (recentExPeriodDays >= 9999 ? 'all time' : 'last ' + recentExPeriodDays + 'd') + ')';
@@ -20120,7 +20122,7 @@
                 html = '<tr><td colspan="7" style="text-align:center;opacity:0.5;padding:2em">No exercises found for selected period</td></tr>';
             }
             pageData.forEach((tx, i) => {
-                const rank = start + i + 1;
+                const rank = rankMap.get(tx.hash.toLowerCase()) || (start + i + 1);
                 const shortHash = tx.hash.slice(0, 6) + '…' + tx.hash.slice(-4);
                 const berascanUrl = 'https://berascan.com/tx/' + tx.hash;
                 const dateLabel = exFmtDate(tx.date);
@@ -20294,15 +20296,8 @@
             const tbody = document.getElementById('recent-claims-tbody');
             if (!tbody) return;
 
-            let data = [...vedolo_filteredClaims];
-
-            // Search filter
-            if (recentClaimsSearchTerm) {
-                data = data.filter(c => dolo_matchAddressSearch(c.address, recentClaimsSearchTerm) || c.txHash.toLowerCase().includes(recentClaimsSearchTerm));
-            }
-
             // Sort
-            data.sort((a, b) => {
+            const sortRecentClaimRows = (rows) => rows.sort((a, b) => {
                 let va, vb;
                 if (vedolo_claimsSortKey === 'rank' || vedolo_claimsSortKey === 'date') {
                     return vedolo_claimsSortAsc ? a.timestamp - b.timestamp : b.timestamp - a.timestamp;
@@ -20312,6 +20307,11 @@
                 if (vedolo_claimsSortKey === 'address') return vedolo_claimsSortAsc ? a.address.localeCompare(b.address) : b.address.localeCompare(a.address);
                 return 0;
             });
+            const sortedAll = sortRecentClaimRows([...vedolo_filteredClaims]);
+            const rankMap = new Map(sortedAll.map((c, i) => [c.txHash.toLowerCase(), i + 1]));
+            let data = recentClaimsSearchTerm
+                ? sortedAll.filter(c => dolo_matchAddressSearch(c.address, recentClaimsSearchTerm) || c.txHash.toLowerCase().includes(recentClaimsSearchTerm))
+                : sortedAll;
 
             // Pagination
             const totalPages = Math.ceil(data.length / VEDOLO_PER_PAGE);
@@ -20325,7 +20325,7 @@
             }
             const COPY_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
             pageData.forEach((c, i) => {
-                const rank = start + i + 1;
+                const rank = rankMap.get(c.txHash.toLowerCase()) || (start + i + 1);
                 const shortHash = c.txHash.slice(0, 8) + '…' + c.txHash.slice(-6);
                 const berascanUrl = 'https://berascan.com/tx/' + c.txHash;
 
@@ -20392,16 +20392,6 @@
 
             let data = [...vedolo_filteredLocks];
 
-            // Search filter
-            if (recentLocksSearchTerm) {
-                data = data.filter(l =>
-                    dolo_matchAddressSearch(l.address, recentLocksSearchTerm) ||
-                    dolo_matchAddressSearch(l.beneficiaryAddress || '', recentLocksSearchTerm) ||
-                    dolo_matchAddressSearch(l.protocolAddress || '', recentLocksSearchTerm) ||
-                    l.txHash.toLowerCase().includes(recentLocksSearchTerm)
-                );
-            }
-
             // Lock type filter
             if (recentLocksTypeFilter === 'odolo') {
                 data = data.filter(l => l.isOdolo);
@@ -20410,7 +20400,7 @@
             }
 
             // Sort
-            data.sort((a, b) => {
+            const sortRecentLockRows = (rows) => rows.sort((a, b) => {
                 if (vedolo_locksSortKey === 'rank' || vedolo_locksSortKey === 'date') {
                     return vedolo_locksSortAsc ? a.timestamp - b.timestamp : b.timestamp - a.timestamp;
                 }
@@ -20420,6 +20410,16 @@
                 if (vedolo_locksSortKey === 'address') return vedolo_locksSortAsc ? a.address.localeCompare(b.address) : b.address.localeCompare(a.address);
                 return 0;
             });
+            const sortedAll = sortRecentLockRows(data);
+            const rankMap = new Map(sortedAll.map((l, i) => [l.txHash.toLowerCase(), i + 1]));
+            data = recentLocksSearchTerm
+                ? sortedAll.filter(l =>
+                    dolo_matchAddressSearch(l.address, recentLocksSearchTerm) ||
+                    dolo_matchAddressSearch(l.beneficiaryAddress || '', recentLocksSearchTerm) ||
+                    dolo_matchAddressSearch(l.protocolAddress || '', recentLocksSearchTerm) ||
+                    l.txHash.toLowerCase().includes(recentLocksSearchTerm)
+                )
+                : sortedAll;
 
             // Pagination
             const totalPages = Math.ceil(data.length / VEDOLO_PER_PAGE);
@@ -20433,7 +20433,7 @@
             }
             const COPY_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
             pageData.forEach((l, i) => {
-                const rank = start + i + 1;
+                const rank = rankMap.get(l.txHash.toLowerCase()) || (start + i + 1);
                 const shortHash = l.txHash.slice(0, 8) + '…' + l.txHash.slice(-6);
                 const berascanUrl = 'https://berascan.com/tx/' + l.txHash;
                 const displayAddr = l.beneficiaryAddress || l.address;
@@ -20478,10 +20478,7 @@
         function renderExercisersTable() {
             const tbody = document.getElementById('exercisers-tbody');
             if (!tbody) return;
-            let data = [...EXERCISER_DATA];
-            if (exerciserSearchTerm) data = data.filter(e => dolo_matchAddressSearch(e.address, exerciserSearchTerm));
-
-            data.sort((a, b) => {
+            const sortExerciserRows = (rows) => rows.sort((a, b) => {
                 let va, vb;
                 if (exerciserSortKey === 'rank' || exerciserSortKey === 'total_usdc') {
                     va = a.total_usdc; vb = b.total_usdc;
@@ -20502,6 +20499,11 @@
                 }
                 return 0;
             });
+            const sortedAll = sortExerciserRows([...EXERCISER_DATA]);
+            const rankMap = new Map(sortedAll.map((e, i) => [e.address.toLowerCase(), i + 1]));
+            let data = exerciserSearchTerm
+                ? sortedAll.filter(e => dolo_matchAddressSearch(e.address, exerciserSearchTerm))
+                : sortedAll;
 
             document.getElementById('exerciser-count').textContent = '';
 
@@ -20513,7 +20515,7 @@
 
             let html = '';
             pageData.forEach((e, i) => {
-                const rank = start + i + 1;
+                const rank = rankMap.get(e.address.toLowerCase()) || (start + i + 1);
                 const avgPrice = getExerciserAvgPrice(e);
 
                 html += '<tr class="exerciser-row" style="border-bottom:1px solid rgba(255,255,255,0.04);transition:transform 0.15s,background 0.15s" onmouseenter="this.style.transform=\'scale(1.01)\';this.style.background=\'rgba(255,255,255,0.03)\'" onmouseleave="this.style.transform=\'\';this.style.background=\'\'" onclick="openExerciserModal(\'' + e.address + '\',' + rank + ')">';
@@ -21136,12 +21138,70 @@
             dolo_applyHolderFilters();
         }
 
+        function dolo_holderPassesFilters(h, includeSearch = true) {
+            const q = includeSearch ? document.getElementById('dolo-holder-search').value.toLowerCase().trim() : '';
+            const showEth = document.getElementById('dolo-filter-eth').checked;
+            const showBera = document.getElementById('dolo-filter-bera').checked;
+            const hideCex = document.getElementById('dolo-holder-hide-cex')?.checked;
+            const lowerAddr = h.address.toLowerCase();
+            let matchedQuery = false;
+            if (q) {
+                if (!dolo_matchAddressSearch(h.address, q)) return false;
+                matchedQuery = true;
+            }
+            if (hideCex && !matchedQuery) {
+                const info = DOLO_ADDR_LABELS[lowerAddr];
+                if (info) return false;
+                if (h.is_contract) return false;
+            }
+            const hasEth = h.chains && h.chains.includes('eth');
+            const hasBera = h.chains && h.chains.includes('bera');
+            if (!showEth && !showBera) return false;
+            if (showEth && showBera) return true;
+            if (showEth && !showBera) return hasEth;
+            if (!showEth && showBera) return hasBera;
+            return true;
+        }
+
+        function dolo_sortHolderRows(rows) {
+            const showEth = document.getElementById('dolo-filter-eth')?.checked ?? true;
+            const showBera = document.getElementById('dolo-filter-bera')?.checked ?? true;
+            const flowKey = (h) => {
+                if (dolo_holderPeriod === 'none' || !dolo_balanceChanges[dolo_holderPeriod]) return 0;
+                return dolo_balanceChanges[dolo_holderPeriod][h.address] || 0;
+            };
+            const balKey = (h) => dolo_getDisplayBalance(h);
+            const ethBalKey = (h) => h.balance_eth || 0;
+            const beraBalKey = (h) => h.balance_bera || 0;
+            const rankKey = (h) => (showEth && showBera && h.rank) ? h.rank : -balKey(h);
+            const key = dolo_holderSortField === 'rank' ? rankKey
+                : dolo_holderSortField === 'balance' ? balKey
+                    : dolo_holderSortField === 'flow' ? flowKey
+                        : dolo_holderSortField === 'eth_balance' ? ethBalKey
+                            : dolo_holderSortField === 'bera_balance' ? beraBalKey
+                                : (h => h[dolo_holderSortField]);
+            rows.sort((a, b) => {
+                let va = key(a), vb = key(b);
+                if (typeof va === 'string') { va = va.toLowerCase(); vb = vb.toLowerCase(); }
+                return va < vb ? (dolo_holderSortAsc ? -1 : 1) : va > vb ? (dolo_holderSortAsc ? 1 : -1) : 0;
+            });
+            return rows;
+        }
+
+        function dolo_getHolderRankMap() {
+            return new Map(
+                dolo_sortHolderRows(dolo_holderData.filter(h => dolo_holderPassesFilters(h, false)))
+                    .map((h, i) => [h.address.toLowerCase(), i + 1])
+            );
+        }
+
         function dolo_renderHoldersTable() {
             const tbody = document.getElementById('dolo-holder-tbody');
             const start = (dolo_holderPage - 1) * DOLO_HOLDER_PER_PAGE;
             const page = dolo_holderFiltered.slice(start, start + DOLO_HOLDER_PER_PAGE);
             const showEth = document.getElementById('dolo-filter-eth')?.checked ?? true;
             const showBera = document.getElementById('dolo-filter-bera')?.checked ?? true;
+            const holderRankMap = dolo_getHolderRankMap();
 
             // Update balance header text
             const balHeader = document.getElementById('dolo-balance-header');
@@ -21152,11 +21212,8 @@
             }
 
             const totalSupply = dolo_holderFiltered.reduce((s, h) => s + dolo_getDisplayBalance(h), 0) || 1;
-            const singleChain = (showEth && !showBera) || (!showEth && showBera);
-
             const holderRowsHtml = page.map((h, idx) => {
-                // Sequential numbering when single chain selected, original rank otherwise
-                const dispRank = singleChain ? (start + idx + 1) : (h.rank || (start + idx + 1));
+                const dispRank = holderRankMap.get(h.address.toLowerCase()) || h.rank || (start + idx + 1);
                 const rc = dispRank <= 3 ? `rank-${dispRank}` : '';
                 const isWhale = dispRank <= 10;
                 const dispBal = dolo_getDisplayBalance(h);
@@ -21305,19 +21362,7 @@
                 th.querySelector('.sort-arrow').textContent = dolo_holderSortAsc ? '▲' : '▼';
             }
 
-            const flowKey = (h) => {
-                if (dolo_holderPeriod === 'none' || !dolo_balanceChanges[dolo_holderPeriod]) return 0;
-                return dolo_balanceChanges[dolo_holderPeriod][h.address] || 0;
-            };
-            const balKey = (h) => dolo_getDisplayBalance(h);
-            const ethBalKey = (h) => h.balance_eth || 0;
-            const beraBalKey = (h) => h.balance_bera || 0;
-            const key = field === 'balance' ? balKey : field === 'flow' ? flowKey : field === 'eth_balance' ? ethBalKey : field === 'bera_balance' ? beraBalKey : (h => h[field]);
-            dolo_holderFiltered.sort((a, b) => {
-                let va = key(a), vb = key(b);
-                if (typeof va === 'string') { va = va.toLowerCase(); vb = vb.toLowerCase(); }
-                return va < vb ? (dolo_holderSortAsc ? -1 : 1) : va > vb ? (dolo_holderSortAsc ? 1 : -1) : 0;
-            });
+            dolo_sortHolderRows(dolo_holderFiltered);
 
             dolo_holderPage = 1;
             dolo_renderHoldersTable();
@@ -21325,39 +21370,11 @@
         }
 
         function dolo_applyHolderFilters() {
-            const q = document.getElementById('dolo-holder-search').value.toLowerCase().trim();
-            const showEth = document.getElementById('dolo-filter-eth').checked;
-            const showBera = document.getElementById('dolo-filter-bera').checked;
-
-            const hideCex = document.getElementById('dolo-holder-hide-cex')?.checked;
-
-            dolo_holderFiltered = dolo_holderData.filter(h => {
-                const lowerAddr = h.address.toLowerCase();
-                let matchedQuery = false;
-                if (q) {
-                    if (!dolo_matchAddressSearch(h.address, q)) return false;
-                    matchedQuery = true;
-                }
-                if (hideCex && !matchedQuery) {
-                    const info = DOLO_ADDR_LABELS[lowerAddr];
-                    if (info) return false; // filter all labeled addresses (CEX, LP, Protocol, CA)
-                    if (h.is_contract) return false; // filter unlabeled contracts too
-                }
-                const hasEth = h.chains && h.chains.includes('eth');
-                const hasBera = h.chains && h.chains.includes('bera');
-                if (!showEth && !showBera) return false;
-                if (showEth && showBera) return true;
-                if (showEth && !showBera) return hasEth;
-                if (!showEth && showBera) return hasBera;
-                return true;
-            });
-
-            // Sort by display balance (chain-specific) descending by default
-            dolo_holderFiltered.sort((a, b) => dolo_getDisplayBalance(b) - dolo_getDisplayBalance(a));
-
             // Reset sort state to rank-like order
             dolo_holderSortField = 'rank';
             dolo_holderSortAsc = true;
+            dolo_holderFiltered = dolo_sortHolderRows(dolo_holderData.filter(h => dolo_holderPassesFilters(h, true)));
+
             const card = document.getElementById('dolo-holders-card');
             card.querySelectorAll('thead th').forEach(h => h.classList.remove('sorted'));
             const rankTh = card.querySelector('th[data-sort="dolo-rank"]');
@@ -22365,25 +22382,24 @@
                 }
             }
 
-            // Apply search filter
+            const sortDoloFlowRows = (items, sortKey, asc) => {
+                const mult = asc ? 1 : -1;
+                if (sortKey === 'net_flow') {
+                    items.sort((a, b) => (a.net_flow - b.net_flow) * mult);
+                } else if (sortKey === 'balance') {
+                    items.sort((a, b) => ((a.balance || 0) - (b.balance || 0)) * mult);
+                }
+                return items;
+            };
+            sortDoloFlowRows(accumulators, dolo_flowAccSort, dolo_flowAccSortAsc);
+            sortDoloFlowRows(sellers, dolo_flowSellSort, dolo_flowSellSortAsc);
+            const accRankMap = new Map(accumulators.map((item, i) => [item.address.toLowerCase(), i + 1]));
+            const sellRankMap = new Map(sellers.map((item, i) => [item.address.toLowerCase(), i + 1]));
+
+            // Apply search filter after rank maps are built, so searched addresses keep their dashboard position.
             if (search) {
                 accumulators = accumulators.filter(a => dolo_matchAddressSearch(a.address, search));
                 sellers = sellers.filter(s => dolo_matchAddressSearch(s.address, search));
-            }
-
-            // Apply Sort
-            const accSortMult = dolo_flowAccSortAsc ? 1 : -1;
-            if (dolo_flowAccSort === 'net_flow') {
-                accumulators.sort((a, b) => (a.net_flow - b.net_flow) * accSortMult);
-            } else if (dolo_flowAccSort === 'balance') {
-                accumulators.sort((a, b) => ((a.balance || 0) - (b.balance || 0)) * accSortMult);
-            }
-
-            const sellSortMult = dolo_flowSellSortAsc ? 1 : -1;
-            if (dolo_flowSellSort === 'net_flow') {
-                sellers.sort((a, b) => (a.net_flow - b.net_flow) * sellSortMult);
-            } else if (dolo_flowSellSort === 'balance') {
-                sellers.sort((a, b) => ((a.balance || 0) - (b.balance || 0)) * sellSortMult);
             }
 
             const explorer = dolo_flowChain === 'bera' ? 'https://berascan.com/address/'
@@ -22408,11 +22424,12 @@
             const accSlice = accumulators.slice(dolo_flowAccPage * DOLO_FLOW_PER_PAGE, (dolo_flowAccPage + 1) * DOLO_FLOW_PER_PAGE);
             const sellSlice = sellers.slice(dolo_flowSellPage * DOLO_FLOW_PER_PAGE, (dolo_flowSellPage + 1) * DOLO_FLOW_PER_PAGE);
 
-            function renderRows(items, isAccumulator, pageOffset) {
+            function renderRows(items, isAccumulator, pageOffset, rankMap) {
                 if (!items.length) return '<tr><td colspan="4" style="text-align:center;color:rgba(255,255,255,0.3);padding:20px;font-size:12px">No data</td></tr>';
                 const flowColor = isAccumulator ? '#34d399' : '#f87171';
                 return items.map((item, i) => {
                     const addr = item.address;
+                    const rank = rankMap.get(addr.toLowerCase()) || (pageOffset + i + 1);
                     const short = addr.slice(0, 6) + '\u2026' + addr.slice(-4);
                     const sign = isAccumulator ? '+' : '-';
                     const flow = Math.abs(item.net_flow);
@@ -22444,7 +22461,7 @@
                     }
 
                     return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);transition:transform 0.15s,background 0.15s" onmouseenter="this.style.transform='scale(1.01)';this.style.background='rgba(255,255,255,0.03)'" onmouseleave="this.style.transform='';this.style.background=''">
-                        <td style="padding:4px 5px;color:rgba(255,255,255,0.3);font-size:11px">${pageOffset + i + 1}</td>
+                        <td style="padding:4px 5px;color:rgba(255,255,255,0.3);font-size:11px">${rank}</td>
                         ${addrCell}
                         <td style="padding:4px 5px;text-align:right;color:#fff;font-size:11px">${balFmt}</td>
                         <td style="padding:4px 5px;text-align:right;color:${flowColor};font-size:11px;font-weight:600">${sign}${flowFmt}</td>
@@ -22452,8 +22469,8 @@
                 }).join('');
             }
 
-            document.getElementById('dolo-flow-acc-tbody').innerHTML = renderRows(accSlice, true, dolo_flowAccPage * DOLO_FLOW_PER_PAGE);
-            document.getElementById('dolo-flow-sell-tbody').innerHTML = renderRows(sellSlice, false, dolo_flowSellPage * DOLO_FLOW_PER_PAGE);
+            document.getElementById('dolo-flow-acc-tbody').innerHTML = renderRows(accSlice, true, dolo_flowAccPage * DOLO_FLOW_PER_PAGE, accRankMap);
+            document.getElementById('dolo-flow-sell-tbody').innerHTML = renderRows(sellSlice, false, dolo_flowSellPage * DOLO_FLOW_PER_PAGE, sellRankMap);
 
             // Pagination controls
             const accPager = document.getElementById('dolo-flow-acc-pager');
@@ -22625,10 +22642,8 @@
 
             const searchEl = document.getElementById('odolo-flow-search');
             const q = searchEl ? searchEl.value.trim().toLowerCase() : '';
-            const filterBySearch = arr => q ? arr.filter(item => dolo_matchAddressSearch(item.address, q)) : arr;
-
-            const accumulators = filterBySearch(periodData.accumulators || []);
-            const sellers = filterBySearch(periodData.sellers || []);
+            let accumulators = [...(periodData.accumulators || [])];
+            let sellers = [...(periodData.sellers || [])];
 
             // Apply Sort for oDOLO Flow
             const accSortMult = odolo_flowAccSortAsc ? 1 : -1;
@@ -22644,13 +22659,20 @@
             } else if (odolo_flowSellSort === 'balance') {
                 sellers.sort((a, b) => ((a.balance || 0) - (b.balance || 0)) * sellSortMult);
             }
+            const accRankMap = new Map(accumulators.map((item, i) => [item.address.toLowerCase(), i + 1]));
+            const sellRankMap = new Map(sellers.map((item, i) => [item.address.toLowerCase(), i + 1]));
+            if (q) {
+                accumulators = accumulators.filter(item => dolo_matchAddressSearch(item.address, q));
+                sellers = sellers.filter(item => dolo_matchAddressSearch(item.address, q));
+            }
             const explorer = 'https://berascan.com/address/';
 
-            function renderRows(items, isAccumulator, pageOffset) {
+            function renderRows(items, isAccumulator, pageOffset, rankMap) {
                 if (!items.length) return '<tr><td colspan="4" style="text-align:center;color:rgba(255,255,255,0.3);padding:20px;font-size:12px">No data</td></tr>';
                 const flowColor = isAccumulator ? '#34d399' : '#f87171';
                 const rows = items.map((item, i) => {
                     const addr = item.address;
+                    const rank = rankMap.get(addr.toLowerCase()) || (pageOffset + i + 1);
                     const short = addr.slice(0, 6) + '\u2026' + addr.slice(-4);
                     const sign = isAccumulator ? '+' : '-';
                     const flow = Math.abs(item.net_flow);
@@ -22659,7 +22681,7 @@
                     const bal = item.balance || 0;
                     const balFmt = bal > 0 ? dolo_fmtBal(bal) : '\u2014';
                     return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);transition:transform 0.15s,background 0.15s" onmouseenter="this.style.transform='scale(1.01)';this.style.background='rgba(255,255,255,0.03)'" onmouseleave="this.style.transform='';this.style.background=''">
-                        <td style="padding:4px 5px;color:rgba(255,255,255,0.3);font-size:11px">${pageOffset + i + 1}</td>
+                        <td style="padding:4px 5px;color:rgba(255,255,255,0.3);font-size:11px">${rank}</td>
                         <td style="padding:4px 5px"><span style="display:inline-flex;align-items:center;gap:4px"><a href="${debankUrl}" target="_blank" class="addr-tooltip-wrap" data-full-addr="${addr}" style="color:#fff;font-family:monospace;font-size:11px;text-decoration:none">${short}</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${addr}',this)" title="Copy address"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span><a href="${debankUrl}" target="_blank" class="debank-icon" style="flex-shrink:0" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a></span></td>
                         <td style="padding:4px 5px;text-align:right;color:#fff;font-size:11px">${balFmt}</td>
                         <td style="padding:4px 5px;text-align:right;color:${flowColor};font-size:11px;font-weight:600">${sign}${flowFmt}</td>
@@ -22685,8 +22707,8 @@
             const accSlice = accumulators.slice(odolo_flowAccPage * ODOLO_FLOW_PER_PAGE, (odolo_flowAccPage + 1) * ODOLO_FLOW_PER_PAGE);
             const sellSlice = sellers.slice(odolo_flowSellPage * ODOLO_FLOW_PER_PAGE, (odolo_flowSellPage + 1) * ODOLO_FLOW_PER_PAGE);
 
-            document.getElementById('odolo-flow-acc-tbody').innerHTML = renderRows(accSlice, true, odolo_flowAccPage * ODOLO_FLOW_PER_PAGE);
-            document.getElementById('odolo-flow-sell-tbody').innerHTML = renderRows(sellSlice, false, odolo_flowSellPage * ODOLO_FLOW_PER_PAGE);
+            document.getElementById('odolo-flow-acc-tbody').innerHTML = renderRows(accSlice, true, odolo_flowAccPage * ODOLO_FLOW_PER_PAGE, accRankMap);
+            document.getElementById('odolo-flow-sell-tbody').innerHTML = renderRows(sellSlice, false, odolo_flowSellPage * ODOLO_FLOW_PER_PAGE, sellRankMap);
 
             // Pagination controls
             const accPager = document.getElementById('odolo-flow-acc-pager');
