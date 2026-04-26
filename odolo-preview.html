@@ -966,27 +966,43 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .how3-intro p{font-size:13px;color:var(--fg-1);line-height:1.55;margin:0;flex:1;min-width:200px}
 .how3-intro p b{color:var(--gold-hi);font-weight:600}
 .how3-steps{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:stretch;gap:16px}
-.how3-step{position:relative;background:linear-gradient(165deg,var(--bg-1) 0%,var(--bg-2) 100%);border:1px solid var(--line-2);border-radius:var(--r-lg);padding:24px;overflow:hidden;transition:border-color .25s var(--ease),transform .25s var(--ease),box-shadow .25s var(--ease)}
-.how3-step:hover{border-color:var(--gold-line);transform:translateY(-3px);box-shadow:0 16px 32px rgba(0,0,0,.4)}
+.how3-step{position:relative;background:linear-gradient(165deg,var(--bg-1) 0%,var(--bg-2) 100%);border:1px solid var(--line-2);border-radius:var(--r-lg);padding:20px;overflow:hidden;transition:border-color .25s var(--ease),transform .25s var(--ease),box-shadow .25s var(--ease)}
+.how3-step:hover{border-color:var(--gold-line);transform:translateY(-2px);box-shadow:0 14px 28px rgba(0,0,0,.34)}
 .how3-step::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,var(--gold-lo),var(--gold) 50%,var(--gold-hi));z-index:1}
-.how3-step::after{content:"";position:absolute;width:240px;height:240px;border-radius:50%;filter:blur(50px);opacity:.55;pointer-events:none;background:radial-gradient(circle,var(--gold-wash) 0%,transparent 65%);inset:auto -45% -45% auto}
+.how3-step::after{display:none}
 .how3-num{position:absolute;top:16px;right:16px;font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:1.6px;color:var(--gold-hi);padding:5px 11px;border-radius:999px;background:var(--gold-wash);border:1px solid var(--gold-line);z-index:2}
-.how3-icon{width:64px;height:64px;border-radius:18px;display:grid;place-items:center;background:linear-gradient(140deg,rgba(228,193,90,.22) 0%,rgba(201,162,39,.06) 100%);border:1px solid var(--gold-line);color:var(--gold-hi);margin-bottom:18px;position:relative;z-index:1;box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 8px 22px rgba(201,162,39,.18)}
-.how3-icon svg{width:30px;height:30px}
-/* Bigger illustration container for the visual SVG infographics */
-.how3-illus{
-  width:100%;height:140px;border-radius:14px;
-  display:grid;place-items:center;
-  background:linear-gradient(140deg,rgba(228,193,90,.10) 0%,rgba(201,162,39,.02) 100%);
-  border:1px solid var(--gold-line);
-  margin-bottom:18px;position:relative;z-index:1;padding:8px;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 8px 22px rgba(201,162,39,.10);
-  overflow:hidden;
-}
-.how3-illus svg{width:auto;max-width:100%;height:100%;max-height:120px;display:block}
 .how3-step h3{font-size:17px;font-weight:700;color:var(--fg-1);letter-spacing:-.2px;margin-bottom:10px;position:relative;z-index:1}
 .how3-step p{font-size:13px;color:var(--fg-2);line-height:1.6;position:relative;z-index:1}
 .how3-step p b{color:var(--fg-1);font-weight:600}
+.how3-explain{
+  min-height:142px;border-radius:14px;padding:16px;margin-bottom:18px;position:relative;z-index:1;
+  background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.012));
+  border:1px solid var(--line-2);display:flex;flex-direction:column;justify-content:center;gap:10px;
+}
+.how3-kicker{font-size:9.5px;text-transform:uppercase;letter-spacing:1.5px;color:var(--fg-4);font-weight:800}
+.how3-state{display:grid;gap:8px}
+.how3-state-row{
+  display:grid;grid-template-columns:76px 1fr;gap:10px;align-items:center;
+  padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.026);border:1px solid rgba(255,255,255,.045);
+}
+.how3-state-row span:first-child{font-size:9.5px;text-transform:uppercase;letter-spacing:1.15px;color:var(--fg-4);font-weight:800}
+.how3-state-row b{font-size:12.5px;color:var(--fg-1);font-weight:700}
+.how3-formula{display:flex;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap}
+.how3-token{
+  display:inline-flex;align-items:center;justify-content:center;min-height:30px;padding:0 10px;border-radius:999px;
+  background:var(--bg-3);border:1px solid var(--line-2);font-family:var(--mono);font-size:11.5px;font-weight:700;color:var(--fg-1);
+}
+.how3-token.gold{color:var(--gold-hi);background:var(--gold-wash);border-color:var(--gold-line)}
+.how3-op{font-family:var(--mono);font-size:13px;color:var(--fg-4);font-weight:800}
+.how3-note{font-size:11.5px;color:var(--fg-3);line-height:1.45;text-align:center}
+.how3-note b{color:var(--fg-1)}
+.how3-outcomes{display:grid;gap:8px}
+.how3-outcome{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.026);border:1px solid rgba(255,255,255,.045);
+}
+.how3-outcome b{font-size:12.5px;color:var(--fg-1)}
+.how3-outcome span{font-size:11.5px;color:var(--fg-3);text-align:right}
 .how3-meta{margin-top:18px;padding-top:14px;border-top:1px dashed var(--line-2);position:relative;z-index:1}
 .how3-meta-h{font-size:9.5px;text-transform:uppercase;letter-spacing:1.6px;color:var(--fg-4);font-weight:700;margin-bottom:8px}
 .how3-chips{display:flex;flex-wrap:wrap;gap:6px}
@@ -997,6 +1013,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 @media (max-width:880px){
   .how3-steps{grid-template-columns:1fr;gap:10px}
   .how3-arrow{transform:rotate(90deg);justify-self:center}
+  .how3-explain{min-height:0}
 }
 
 /* ====== DONUT v3 — SVG (Token Composition style) ====== */
@@ -1217,7 +1234,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         <h2>How oDOLO Works</h2>
         <span class="count-badge">3 simple steps</span>
       </div>
-      <div class="card-meta">Earn · lock · earn forever</div>
+      <div class="card-meta">Earn · exercise · hold veDOLO</div>
     </div>
 
     <div class="how3-body">
@@ -1229,64 +1246,24 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
             <path d="M3 7h18l-2 12H5z"/><path d="M8 7V5a4 4 0 0 1 8 0v2"/><path d="M12 12v3"/>
           </svg>
         </div>
-        <p><b>Think of oDOLO as a discount coupon.</b> You earn it for using Dolomite, then trade it in for veDOLO at <b>up to 50% off</b> — the longer you lock, the bigger the discount.</p>
+        <p><b>oDOLO is an option, not the final reward token.</b> First you collect oDOLO. Then you exercise it by paying USDC and choosing a lock. The output is <b>veDOLO</b>.</p>
       </div>
 
       <div class="how3-steps">
 
-        <!-- STEP 01 — Use Dolomite → earn oDOLO (2 big icons with EARN arrow) -->
+        <!-- STEP 01 — simple wallet state -->
         <div class="how3-step">
           <div class="how3-num">STEP 01</div>
-          <div class="how3-illus">
-            <svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
-              <defs>
-                <radialGradient id="g1-glow"><stop offset="0%" stop-color="#e4c15a" stop-opacity=".5"/><stop offset="100%" stop-color="#e4c15a" stop-opacity="0"/></radialGradient>
-                <linearGradient id="g1-coin" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f0d168"/><stop offset="100%" stop-color="#a47e16"/></linearGradient>
-                <linearGradient id="g1-card" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2c2c30"/><stop offset="100%" stop-color="#161618"/></linearGradient>
-              </defs>
-
-              <!-- Glow behind right coin -->
-              <circle cx="155" cy="50" r="48" fill="url(#g1-glow)"/>
-
-              <!-- LEFT: Dolomite shield badge with layered-mountain icon + label -->
-              <g transform="translate(8, 8)">
-                <rect width="76" height="84" rx="12" fill="url(#g1-card)" stroke="#e4c15a" stroke-width="1.6"/>
-                <!-- subtle inner highlight -->
-                <rect x="1" y="1" width="74" height="82" rx="11" fill="none" stroke="rgba(255,255,255,.04)"/>
-                <!-- Layered mountain icon (Dolomite-brand inspired) -->
-                <g transform="translate(38, 30)">
-                  <path d="M -22 16 L -10 -10 L 2 16 Z" fill="#a47e16"/>
-                  <path d="M -8 16 L 4 -18 L 16 16 Z" fill="#e4c15a"/>
-                  <path d="M 8 16 L 18 -4 L 22 16 Z" fill="#f0d168"/>
-                </g>
-                <!-- Wordmark -->
-                <text x="38" y="62" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="10.5" font-weight="800" fill="#e4c15a" letter-spacing="2.2">DOLOMITE</text>
-                <text x="38" y="74" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="7" font-weight="700" fill="#a5a29a" letter-spacing="1.4">USE THE APP</text>
-              </g>
-
-              <!-- MIDDLE: thick EARN arrow -->
-              <g transform="translate(92, 0)">
-                <text x="20" y="40" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="800" fill="#e4c15a" letter-spacing="3">EARN</text>
-                <line x1="0" y1="50" x2="40" y2="50" stroke="#e4c15a" stroke-width="3.5" stroke-linecap="round"/>
-                <polyline points="30 41, 40 50, 30 59" stroke="#e4c15a" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-              </g>
-
-              <!-- RIGHT: Big oDOLO coin with sparkles -->
-              <g transform="translate(132, 8)">
-                <!-- Sparkles -->
-                <text x="-6" y="14" font-family="Inter, system-ui, sans-serif" font-size="14" font-weight="700" fill="#e4c15a">✦</text>
-                <text x="62" y="10" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="700" fill="#e4c15a">✦</text>
-                <text x="62" y="74" font-family="Inter, system-ui, sans-serif" font-size="13" font-weight="700" fill="#e4c15a">✦</text>
-                <text x="-4" y="80" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="700" fill="#e4c15a">✦</text>
-                <!-- Coin -->
-                <circle cx="34" cy="42" r="34" fill="url(#g1-coin)" stroke="#a47e16" stroke-width="2.5"/>
-                <circle cx="34" cy="42" r="28" fill="none" stroke="#a47e16" stroke-width=".8" opacity=".55"/>
-                <text x="34" y="46" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="14" font-weight="700" fill="#1a1306" letter-spacing="-.5">oDOLO</text>
-              </g>
-            </svg>
+          <div class="how3-explain">
+            <div class="how3-kicker">Wallet state</div>
+            <div class="how3-state">
+              <div class="how3-state-row"><span>Action</span><b>Use Dolomite or buy oDOLO</b></div>
+              <div class="how3-state-row"><span>You have</span><b>oDOLO balance</b></div>
+              <div class="how3-state-row"><span>Not yet</span><b>veDOLO rewards</b></div>
+            </div>
           </div>
           <h3>Use Dolomite, earn oDOLO</h3>
-          <p>Lend, borrow, or provide liquidity on Dolomite — you start earning oDOLO automatically. Or just buy it on the market.</p>
+          <p>oDOLO is the starting asset. You can earn it through Dolomite activity or buy it on the market.</p>
         </div>
 
         <div class="how3-arrow">
@@ -1295,76 +1272,24 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           </svg>
         </div>
 
-        <!-- STEP 02 — Pair + Lock + Discount (3 big stages with thick arrows) -->
+        <!-- STEP 02 — exercise formula -->
         <div class="how3-step">
           <div class="how3-num">STEP 02</div>
-          <div class="how3-illus">
-            <svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
-              <defs>
-                <radialGradient id="g2-glow"><stop offset="0%" stop-color="#e4c15a" stop-opacity=".22"/><stop offset="100%" stop-color="#e4c15a" stop-opacity="0"/></radialGradient>
-                <linearGradient id="g2-odolo" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f0d168"/><stop offset="100%" stop-color="#a47e16"/></linearGradient>
-                <linearGradient id="g2-dolo" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#cdb8ff"/><stop offset="100%" stop-color="#7a64c8"/></linearGradient>
-              </defs>
-              <circle cx="100" cy="50" r="60" fill="url(#g2-glow)"/>
-
-              <!-- STAGE 1: PAIR — two coins side by side -->
-              <g transform="translate(2, 6)">
-                <!-- oDOLO -->
-                <circle cx="20" cy="32" r="18" fill="url(#g2-odolo)" stroke="#a47e16" stroke-width="2"/>
-                <text x="20" y="36" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" font-weight="700" fill="#1a1306" letter-spacing="-.4">oDOLO</text>
-                <!-- + -->
-                <text x="46" y="40" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="22" font-weight="800" fill="#a5a29a">+</text>
-                <!-- DOLO -->
-                <circle cx="72" cy="32" r="18" fill="url(#g2-dolo)" stroke="#7a64c8" stroke-width="2"/>
-                <text x="72" y="36" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" font-weight="700" fill="#1a1306" letter-spacing="-.3">DOLO</text>
-                <!-- Label -->
-                <text x="46" y="78" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="800" fill="#a5a29a" letter-spacing="2.5">PAIR 1:1</text>
-              </g>
-
-              <!-- ARROW 1 -->
-              <g transform="translate(98, 38)">
-                <line x1="0" y1="0" x2="14" y2="0" stroke="#e4c15a" stroke-width="3" stroke-linecap="round"/>
-                <polyline points="9 -5, 14 0, 9 5" stroke="#e4c15a" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-              </g>
-
-              <!-- STAGE 2: LOCK — vault with prominent clock face -->
-              <g transform="translate(118, 4)">
-                <!-- Vault body -->
-                <rect x="0" y="20" width="46" height="44" rx="6" fill="#48474a" stroke="#a5a29a" stroke-width="1.6"/>
-                <!-- Lock shackle -->
-                <path d="M9 20 V12 a14 14 0 0 1 28 0 V20" stroke="#a5a29a" stroke-width="3" fill="none" stroke-linecap="round"/>
-                <!-- Clock face -->
-                <circle cx="23" cy="44" r="13" fill="#1f1f22" stroke="#e4c15a" stroke-width="2"/>
-                <circle cx="23" cy="44" r="1.4" fill="#e4c15a"/>
-                <!-- 12 marker -->
-                <line x1="23" y1="33" x2="23" y2="35" stroke="#e4c15a" stroke-width="1.4"/>
-                <!-- Hour hand pointing roughly up-left -->
-                <line x1="23" y1="44" x2="23" y2="35" stroke="#e4c15a" stroke-width="2.3" stroke-linecap="round"/>
-                <!-- Minute hand pointing right -->
-                <line x1="23" y1="44" x2="31" y2="46" stroke="#e4c15a" stroke-width="1.8" stroke-linecap="round"/>
-                <!-- Label -->
-                <text x="23" y="78" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="800" fill="#a5a29a" letter-spacing="2">LOCK 1w-2y</text>
-              </g>
-
-              <!-- ARROW 2 -->
-              <g transform="translate(166, 38)">
-                <line x1="0" y1="0" x2="14" y2="0" stroke="#e4c15a" stroke-width="3" stroke-linecap="round"/>
-                <polyline points="9 -5, 14 0, 9 5" stroke="#e4c15a" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-              </g>
-
-              <!-- STAGE 3: DISCOUNT tag (price-tag shape) -->
-              <g transform="translate(184, 4)">
-                <path d="M0 18 L0 48 L7 60 L14 48 L14 18 L7 0 Z" fill="url(#g2-odolo)" stroke="#a47e16" stroke-width="2"/>
-                <circle cx="7" cy="18" r="2.6" fill="#1a1306"/>
-              </g>
-              <!-- Discount value rendered separately for legibility -->
-              <text x="191" y="36" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" font-weight="800" fill="#1a1306" letter-spacing="-.6">5-50%</text>
-              <text x="191" y="48" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="8" font-weight="800" fill="#1a1306" letter-spacing=".4">OFF</text>
-              <text x="191" y="82" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="800" fill="#a5a29a" letter-spacing="2">DISCOUNT</text>
-            </svg>
+          <div class="how3-explain">
+            <div class="how3-kicker">Exercise formula</div>
+            <div class="how3-formula">
+              <span class="how3-token gold">oDOLO</span>
+              <span class="how3-op">+</span>
+              <span class="how3-token">USDC</span>
+              <span class="how3-op">+</span>
+              <span class="how3-token">Lock</span>
+              <span class="how3-op">=</span>
+              <span class="how3-token gold">veDOLO</span>
+            </div>
+            <div class="how3-note"><b>Longer lock = lower effective price.</b> The lock table below shows the discount range.</div>
           </div>
-          <h3>Pair with DOLO &amp; lock</h3>
-          <p>Combine <b>1 oDOLO + 1 DOLO</b> and pick a lock from 1 week to 2 years. Longer lock = bigger discount.</p>
+          <h3>Exercise oDOLO into veDOLO</h3>
+          <p>You pay USDC and choose a lock from 1 week to 2 years. Longer locks receive the better discount.</p>
         </div>
 
         <div class="how3-arrow">
@@ -1373,63 +1298,19 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           </svg>
         </div>
 
-        <!-- STEP 03 — Big veDOLO at top + 3 reward streams visibly fanning out -->
+        <!-- STEP 03 — veDOLO outcomes -->
         <div class="how3-step">
           <div class="how3-num">STEP 03</div>
-          <div class="how3-illus">
-            <svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
-              <defs>
-                <radialGradient id="g3-glow"><stop offset="0%" stop-color="#e4c15a" stop-opacity=".5"/><stop offset="100%" stop-color="#e4c15a" stop-opacity="0"/></radialGradient>
-                <linearGradient id="g3-star" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f0d168"/><stop offset="100%" stop-color="#a47e16"/></linearGradient>
-              </defs>
-              <circle cx="100" cy="26" r="42" fill="url(#g3-glow)"/>
-
-              <!-- BIG veDOLO star/badge at top -->
-              <g transform="translate(64, -4)">
-                <path d="M36 4 L44 26 L68 28 L49 42 L55 66 L36 54 L17 66 L23 42 L4 28 L28 26 Z" fill="url(#g3-star)" stroke="#a47e16" stroke-width="2" stroke-linejoin="round"/>
-                <text x="36" y="38" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#1a1306" letter-spacing="-.5">veDOLO</text>
-              </g>
-
-              <!-- Three thicker branching arrows from veDOLO base to reward icons -->
-              <g stroke="#e4c15a" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.85">
-                <!-- to fees (left-bottom) -->
-                <path d="M82 56 Q 60 65 32 78"/>
-                <polyline points="36 72, 32 78, 39 79" stroke-linejoin="round"/>
-                <!-- to vote (center-bottom) -->
-                <path d="M100 64 L 100 78"/>
-                <polyline points="95 73, 100 78, 105 73" stroke-linejoin="round"/>
-                <!-- to bonus (right-bottom) -->
-                <path d="M118 56 Q 140 65 168 78"/>
-                <polyline points="161 79, 168 78, 164 72" stroke-linejoin="round"/>
-              </g>
-
-              <!-- Reward 1: FEES (%) — bigger -->
-              <g transform="translate(12, 76)">
-                <circle cx="20" cy="14" r="14" fill="#a8c499" stroke="#1a1306" stroke-width="1"/>
-                <text x="20" y="19" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="17" font-weight="800" fill="#1a1306">%</text>
-                <text x="20" y="42" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="800" fill="#a5a29a" letter-spacing="2">FEES</text>
-              </g>
-
-              <!-- Reward 2: VOTE (✓) — bigger -->
-              <g transform="translate(80, 76)">
-                <circle cx="20" cy="14" r="14" fill="#22d3ee" stroke="#1a1306" stroke-width="1"/>
-                <path d="M13.5 14 l4.5 4.5 9 -9" stroke="#1a1306" stroke-width="2.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-                <text x="20" y="42" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="800" fill="#a5a29a" letter-spacing="2">VOTE</text>
-              </g>
-
-              <!-- Reward 3: BONUS (gift) — bigger -->
-              <g transform="translate(148, 76)">
-                <circle cx="20" cy="14" r="14" fill="#a78bfa" stroke="#1a1306" stroke-width="1"/>
-                <rect x="13" y="10" width="14" height="11" fill="#1a1306" rx="1"/>
-                <line x1="20" y1="7" x2="20" y2="22" stroke="#a78bfa" stroke-width="1.4"/>
-                <line x1="13" y1="14" x2="27" y2="14" stroke="#a78bfa" stroke-width="1"/>
-                <path d="M16 9 q 0 -4 4 -4 q 4 0 4 4" stroke="#1a1306" stroke-width="1" fill="none"/>
-                <text x="20" y="42" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="800" fill="#a5a29a" letter-spacing="2">BONUS</text>
-              </g>
-            </svg>
+          <div class="how3-explain">
+            <div class="how3-kicker">What veDOLO does</div>
+            <div class="how3-outcomes">
+              <div class="how3-outcome"><b>Protocol fees</b><span>earn while locked</span></div>
+              <div class="how3-outcome"><b>Voting power</b><span>govern Dolomite</span></div>
+              <div class="how3-outcome"><b>Partner bonuses</b><span>extra rewards</span></div>
+            </div>
           </div>
           <h3>Receive veDOLO</h3>
-          <p>Get <b>veDOLO</b>, Dolomite's governance token. It pays you a share of <b>protocol fees</b>, gives you <b>voting rights</b>, and earns <b>partner bonuses</b>.</p>
+          <p>After exercise, you hold <b>veDOLO</b>. That is the token that earns fees, votes, and receives bonus incentives.</p>
         </div>
 
       </div>
