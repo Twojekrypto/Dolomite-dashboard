@@ -952,8 +952,8 @@ const fmtPct = v => {
 const COPY_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
 const CHECK_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
 
-function filterHolders(){
-  const q = state.q.trim().toLowerCase();
+function filterHolders({includeSearch = true} = {}){
+  const q = includeSearch ? state.q.trim().toLowerCase() : "";
   return HOLDERS.filter(h=>{
     // Chain filter (single-select): "all" = no filter; otherwise hide
     // rows that don't have any balance on the chosen chain
@@ -978,6 +978,10 @@ function sortHolders(rows){
 }
 function renderHolders(){
   const rows = sortHolders(filterHolders());
+  const rankMap = new Map(
+    sortHolders(filterHolders({includeSearch:false}))
+      .map((h,i)=>[h.addr.toLowerCase(), i + 1])
+  );
   document.getElementById("holders-count").textContent = "12,481 (showing " + rows.length + " sample)";
 
   document.querySelectorAll("#tbl-holders thead th").forEach(th=>{
@@ -996,7 +1000,7 @@ function renderHolders(){
   const pageRows = rows.slice(start, start + state.pageSize);
   const tbody = document.getElementById("holders-body");
   const holderRowsHtml = pageRows.map((h,i)=>{
-    const rank = start + i + 1;
+    const rank = rankMap.get(h.addr.toLowerCase()) || (start + i + 1);
     const share = h.total / TOTAL_SUPPLY * 100;
     const typeHtml = `<span class="type-tag type-${h.type}" title="${TYPE_TIPS[h.type]}">${TYPE_LABELS[h.type]}</span>`;
     const actions = `
@@ -1581,6 +1585,7 @@ renderFlows();
       const info = ADDR_LABELS[lower(h.address)];
       const row = {
         addr: h.address,
+        rank: safeNum(h.rank),
         label: labelFor(h.address, h),
         type: mapType(info, h),
         balEth: safeNum(h.balance_eth),
