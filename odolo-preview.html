@@ -329,14 +329,12 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .tbl tbody tr.tbl-spacer-row td > *{visibility:hidden}
 .tbl tbody tr.tbl-spacer-row:hover td{background:transparent}
 .tbl tbody tr.tbl-spacer-row:hover td:first-child::before{display:none}
-#tbl-ex tbody tr.ex-data-row:hover td{
-  background:linear-gradient(90deg,rgba(201,162,39,.055),var(--bg-3) 28%,var(--bg-3));
-}
-#tbl-ex tbody tr.ex-data-row:hover td:first-child::before,
+#tbl-ex tbody tr.ex-data-row:hover td{background:var(--bg-3)}
+#tbl-ex tbody tr.ex-row-open td{background:rgba(201,162,39,.035);border-bottom-color:transparent}
+#tbl-ex tbody tr.ex-row-open:hover td{background:var(--bg-3)}
 #tbl-ex tbody tr.ex-row-open td:first-child::before{
-  content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--gold);border-radius:0 2px 2px 0;
+  content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0;
 }
-.tbl tbody tr.ex-row-open td{background:linear-gradient(90deg,rgba(201,162,39,.07),var(--bg-3) 30%,var(--bg-3))}
 .tbl tbody tr.ex-detail-row{cursor:default}
 .tbl tbody tr.ex-detail-row td{
   padding:0 14px 18px!important;background:var(--bg-1);border-bottom:1px solid var(--line-2);
@@ -390,8 +388,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 }
 .ex-toggle svg{width:12px;height:12px;transition:transform .18s var(--ease);pointer-events:none}
 .ex-toggle span{font-size:9.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;line-height:1;pointer-events:none}
-.ex-toggle:hover,
-#tbl-ex tbody tr.ex-data-row:hover .ex-toggle{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.16);box-shadow:0 0 0 3px rgba(201,162,39,.08);transform:translateY(-1px)}
+.ex-toggle:hover{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.16);box-shadow:0 0 0 3px rgba(201,162,39,.08);transform:translateY(-1px)}
 .ex-row-open .ex-toggle{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.18);box-shadow:0 0 0 3px rgba(201,162,39,.08)}
 .ex-row-open .ex-toggle svg{transform:rotate(180deg)}
 
@@ -407,6 +404,11 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .lock-val.short{color:var(--down)}
 .lock-val.medium{color:var(--gold)}
 .lock-val.long{color:var(--up)}
+#tbl-ex tbody tr.ex-data-row .bal-val.usd,
+#tbl-ex tbody tr.ex-data-row .bal-val.price,
+#tbl-ex tbody tr.ex-data-row .lock-val.short,
+#tbl-ex tbody tr.ex-data-row .lock-val.medium,
+#tbl-ex tbody tr.ex-data-row .lock-val.long{color:var(--fg-1)}
 .lock-bar{width:90px;height:4px;border-radius:2px;background:var(--bg-3);overflow:hidden;border:1px solid var(--line-1)}
 #tbl-ex .lock-bar{width:74px}
 .lock-bar > span{display:block;height:100%;border-radius:1px;transition:width .3s var(--ease)}
@@ -1694,7 +1696,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     <div class="proto-head">
       <div class="proto-brand">
         <div class="proto-brand-mark">
-          <img src="dolomite-logo.svg" alt="Dolomite" onerror="this.outerHTML='<span style=&quot;color:var(--gold);font-weight:800;font-size:16px&quot;>◆</span>'">
+          <img src="dolo-logo.svg" alt="DOLO" onerror="this.outerHTML='<span style=&quot;color:var(--gold);font-weight:800;font-size:16px&quot;>◆</span>'">
         </div>
         <div class="proto-brand-text">
           <div class="proto-brand-name">Dolomite</div>
@@ -1713,7 +1715,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <span class="proto-links-label">Resources</span>
           <a class="proto-pill" href="https://dolomite.io" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>Website</a>
           <a class="proto-pill" href="https://docs.dolomite.io/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>Docs</a>
-          <a class="proto-pill" href="https://docs.dolomite.io/protocol/dolomite-tokens/odolo" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/></svg>oDOLO Docs</a>
+          <a class="proto-pill" href="https://github.com/dolomite-exchange" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>GitHub</a>
           <a class="proto-pill" href="https://docs.dolomite.io/security/audits" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Audits</a>
         </div>
       </div>
@@ -3205,10 +3207,10 @@ document.querySelectorAll('#dd-flows-period .dd-opt').forEach(opt=>{
 
 /* PROTOCOL ADDRESSES */
 const CONTRACTS = [
-  {token:"oDOLO",      logo:"odolo-logo-official.svg", chain:"Berachain", chainKey:"berachain", addr:"0x02E513b5B54eE216Bf836ceb471507488fC89543", explorer:"https://berascan.com"},
-  {token:"oDOLO Vester",logo:"odolo-logo-official.svg",chain:"Berachain", chainKey:"berachain", addr:"0x3e9b9a16743551da49b5e136c716bba7932d2cec", explorer:"https://berascan.com"},
-  {token:"DOLO",       logo:"dolo-logo.svg",           chain:"Berachain", chainKey:"berachain", addr:"0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654", explorer:"https://berascan.com"},
-  {token:"veDOLO",     logo:"vedolo-logo.svg",         chain:"Berachain", chainKey:"berachain", addr:"0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4", explorer:"https://berascan.com"},
+  {token:"DOLO",   logo:"dolo-logo.svg",           chain:"Ethereum",  chainKey:"ethereum",  addr:"0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654", explorer:"https://etherscan.io"},
+  {token:"DOLO",   logo:"dolo-logo.svg",           chain:"Berachain", chainKey:"berachain", addr:"0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654", explorer:"https://berascan.com"},
+  {token:"oDOLO",  logo:"odolo-logo-official.svg", chain:"Berachain", chainKey:"berachain", addr:"0x02E513b5B54eE216Bf836ceb471507488fC89543", explorer:"https://berascan.com"},
+  {token:"veDOLO", logo:"vedolo-logo.svg",         chain:"Berachain", chainKey:"berachain", addr:"0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4", explorer:"https://berascan.com"},
 ];
 const EXT_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
 document.getElementById("proto-addrs").innerHTML = CONTRACTS.map((c,i)=>`
