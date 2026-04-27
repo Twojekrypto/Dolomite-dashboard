@@ -559,6 +559,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .chart-svg{height:240px}
 }
 </style>
+<script src="count-up.js?v=20260427-countup"></script>
 </head>
 <body>
 <div class="wrap">
@@ -1251,6 +1252,12 @@ function setText(id, value){
   const el = document.getElementById(id);
   if (el) el.textContent = value;
 }
+function setMetricText(id, value){
+  const el = document.getElementById(id);
+  if(!el) return;
+  if(window.CountUpMetric) CountUpMetric.text(el, value);
+  else el.textContent = value;
+}
 
 function setBar(id, pct){
   const el = document.getElementById(id);
@@ -1274,11 +1281,11 @@ function applyTvlSnapshot(snapshot){
   const netPct = TOTAL_SUPPLY > 0 ? TOTAL_TVL / TOTAL_SUPPLY * 100 : 0;
   const change7d = computeWindowChange(TVL_HISTORY, 7);
 
-  setText("heroSupply", fmtUsd(TOTAL_SUPPLY));
-  setText("heroBorrowed", fmtUsd(TOTAL_BORROW));
-  setText("heroNetTvl", fmtUsd(TOTAL_TVL));
-  setText("heroUtilization", `${utilPct.toFixed(1)}%`);
-  setText("heroChainCount", String(chainCount));
+  setMetricText("heroSupply", fmtUsd(TOTAL_SUPPLY));
+  setMetricText("heroBorrowed", fmtUsd(TOTAL_BORROW));
+  setMetricText("heroNetTvl", fmtUsd(TOTAL_TVL));
+  setMetricText("heroUtilization", `${utilPct.toFixed(1)}%`);
+  setMetricText("heroChainCount", String(chainCount));
   setText("heroMarketCount", `${marketCount} token markets`);
   setText("chainCountBadge", `${chainCount} chains`);
   setText("summarySupply", fmtUsd(TOTAL_SUPPLY));
@@ -1299,8 +1306,10 @@ function applyTvlSnapshot(snapshot){
     heroChg.className = `hero-chg ${isUp ? "up" : "down"}`;
     heroChg.innerHTML = `
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="${isUp ? "6 14 12 8 18 14" : "6 10 12 16 18 10"}"/></svg>
-      <span>${fmtPct(change7d)}</span>
+      <span data-count-up></span>
       <span class="lbl">7d</span>`;
+    if(window.CountUpMetric) CountUpMetric.text(heroChg.querySelector("[data-count-up]"), fmtPct(change7d));
+    else heroChg.querySelector("[data-count-up]").textContent = fmtPct(change7d);
   }
 }
 

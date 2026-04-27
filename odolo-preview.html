@@ -898,6 +898,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .nav-item.active::after{display:none}
 }
 </style>
+<script src="count-up.js?v=20260427-countup"></script>
 </head>
 <body>
 <div class="wrap">
@@ -1502,6 +1503,22 @@ function setText(id, value){
 function setHtml(id, value){
   const el = document.getElementById(id);
   if(el) el.innerHTML = value;
+}
+function setMetricText(id, value){
+  const el = document.getElementById(id);
+  if(!el) return;
+  if(window.CountUpMetric) CountUpMetric.text(el, value);
+  else el.textContent = value;
+}
+function setMetricHtml(id, value, beforeHtml = "", afterHtml = ""){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const previous = el.querySelector("[data-count-up-part]")?.dataset.countValue;
+  el.innerHTML = `${beforeHtml}<span data-count-up-part></span>${afterHtml}`;
+  const part = el.querySelector("[data-count-up-part]");
+  if(previous) part.dataset.countValue = previous;
+  if(window.CountUpMetric) CountUpMetric.text(part, value);
+  else part.textContent = value;
 }
 function applyRows(target, rows){
   target.splice(0, target.length, ...rows);
@@ -2889,22 +2906,22 @@ function syncLiveMetrics(){
   const avgDays = Number(lock.avg_lock_days) || 0;
 
   if(totalSupply){
-    setHtml("hero-supply", `${fmtNum(totalSupply)}<span class="unit">oDOLO</span>`);
-    setText("dist-count", `${fmtNum(totalSupply)} total`);
+    setMetricHtml("hero-supply", fmtNum(totalSupply), "", `<span class="unit">oDOLO</span>`);
+    setMetricText("dist-count", `${fmtNum(totalSupply)} total`);
   }
   if(avgDiscount){
-    setHtml("hero-discount", `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19l14-14"/><circle cx="7.5" cy="6.5" r="2"/><circle cx="16.5" cy="17.5" r="2"/></svg>${avgDiscount.toFixed(1)}%<span class="lbl">avg discount</span>`);
+    setMetricHtml("hero-discount", `${avgDiscount.toFixed(1)}%`, `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19l14-14"/><circle cx="7.5" cy="6.5" r="2"/><circle cx="16.5" cy="17.5" r="2"/></svg>`, `<span class="lbl">avg discount</span>`);
   }
-  setText("hero-circulating", circulating ? fmtNum(circulating) : "-");
+  setMetricText("hero-circulating", circulating ? fmtNum(circulating) : "-");
   setText("hero-circulating-sub", totalSupply ? `${circulatingPct.toFixed(1)}% of total` : "circulating supply");
   const bar = document.getElementById("hero-circulating-bar");
   if(bar) bar.style.width = `${circulatingPct.toFixed(1)}%`;
-  setText("hero-holders", data.holders ? Number(data.holders).toLocaleString() : "-");
+  setMetricText("hero-holders", data.holders ? Number(data.holders).toLocaleString() : "-");
   setText("hero-holders-sub", "unique wallets");
-  setText("hero-exercised-usd", usd.total_usdc ? fmtUsd(Number(usd.total_usdc)) : "-");
+  setMetricText("hero-exercised-usd", usd.total_usdc ? fmtUsd(Number(usd.total_usdc)) : "-");
   setText("hero-exercised-sub", usd.total_txs ? `${Number(usd.total_txs).toLocaleString()} exercises` : "exercise volume");
   if(avgMonths){
-    setHtml("hero-avg-lock", `${avgMonths.toFixed(1)}<span style="font-size:14px;color:var(--fg-3);margin-left:4px">mo</span>`);
+    setMetricHtml("hero-avg-lock", avgMonths.toFixed(1), "", `<span style="font-size:14px;color:var(--fg-3);margin-left:4px">mo</span>`);
     setText("hero-avg-lock-sub", `${Math.round(avgDays)} days avg lock`);
   }
   const latest = [data.last_updated, usd.last_updated, lock.last_updated, LIVE.flows?.timestamp]
@@ -2912,7 +2929,7 @@ function syncLiveMetrics(){
     .sort()
     .pop();
   setHtml("hero-live-meta", `<span class="dot"></span>${fmtUpdated(latest || data.last_updated)}`);
-  setText("disc-count", usd.total_txs ? `${Number(usd.total_txs).toLocaleString()} exercises` : `${DISC_DATA.length.toLocaleString()} exercises`);
+  setMetricText("disc-count", usd.total_txs ? `${Number(usd.total_txs).toLocaleString()} exercises` : `${DISC_DATA.length.toLocaleString()} exercises`);
 }
 
 function syncLiveDistribution(){

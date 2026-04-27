@@ -940,6 +940,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   .nav-item.active::after{display:none}
 }
 </style>
+<script src="count-up.js?v=20260427-countup"></script>
 </head>
 <body class="assets-loading">
 <div class="wrap">
@@ -1354,6 +1355,8 @@ const CHAIN_LABELS = {
   polygonzkevm:"Polygon zkEVM", xlayer:"X Layer"
 };
 let CHAIN_COUNT_TOTAL = 7;
+const ASSETS_CACHE_KEY = "dolomite-assets-live-rows-v2";
+const ASSETS_CACHE_MAX_AGE_MS = 5 * 60 * 1000;
 
 /* ==========================================================================
    HELPERS
@@ -1768,6 +1771,53 @@ function setLiveStatus(ok, count){
   if(foot) foot.textContent = `${count} markets · ${new Date().toLocaleString("en-US",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}`;
 }
 
+function setCachedLiveStatus(count, savedAt, failed=false){
+  const mins = savedAt ? Math.max(0, Math.round((Date.now() - savedAt) / 60000)) : 0;
+  const suffix = failed ? "refresh failed" : "refreshing";
+  const label = `Cached official data · ${suffix}`;
+  const el = document.querySelector(".card-meta");
+  if(el) el.innerHTML = `<span class="pulse"></span>${label}`;
+  const heroLive = document.querySelector(".hero-live");
+  if(heroLive) heroLive.innerHTML = `<span class="dot"></span>${count} cached markets · ${suffix}`;
+  const foot = document.getElementById("now");
+  if(foot) foot.textContent = `${count} markets · cached ${mins}m ago`;
+}
+
+function readLiveAssetsCache(){
+  try{
+    const raw = localStorage.getItem(ASSETS_CACHE_KEY);
+    if(!raw) return null;
+    const cached = JSON.parse(raw);
+    if(!cached || cached.version !== 2 || !Array.isArray(cached.rows) || !cached.savedAt) return null;
+    if(Date.now() - cached.savedAt > ASSETS_CACHE_MAX_AGE_MS) return null;
+    return cached;
+  }catch(_){
+    return null;
+  }
+}
+
+function writeLiveAssetsCache(rows){
+  try{
+    localStorage.setItem(ASSETS_CACHE_KEY, JSON.stringify({
+      version: 2,
+      savedAt: Date.now(),
+      rows
+    }));
+  }catch(_){}
+}
+
+function applyAssetRows(rows){
+  ASSETS = rows;
+  state.loading = false;
+  state.fallback = false;
+  document.body.classList.remove("assets-loading","assets-fallback");
+  state.expanded.clear();
+  state.calc.clear();
+  CHAIN_COUNT_TOTAL = new Set(ASSETS.map(r=>r.chain)).size || CHAIN_COUNT_TOTAL;
+  syncNetDropdown();
+  render();
+}
+
 /* ==========================================================================
    SIMULATE — kink interest-rate model
    ==========================================================================
@@ -1880,6 +1930,11 @@ function activeSupply(row){
   return s;
 }
 
+function setMetric(el, value){
+  if(window.CountUpMetric) CountUpMetric.text(el, value);
+  else if(el) el.textContent = value;
+}
+
 function updateHero(){
   let data = ASSETS.map(r=>({...r,_supply:activeSupply(r)})).filter(r=>!r.dust);
   if(data.length === 0) data = ASSETS.map(r=>({...r,_supply:activeSupply(r)}));
@@ -1892,7 +1947,7 @@ function updateHero(){
   const chains = new Set(data.map(r=>r.chain));
   const allChains = new Set(ASSETS.map(r=>r.chain));
   const heroValue = document.querySelector(".hero-value .pct");
-  if(heroValue) heroValue.textContent = rateForMode(topSupply._supply).toFixed(2);
+  setMetric(heroValue, rateForMode(topSupply._supply).toFixed(2));
   const heroLive = document.querySelector(".hero-live");
   if(heroLive) heroLive.innerHTML = `<span class="dot"></span>${data.length} live markets · ${allChains.size} chains`;
   const heroToken = document.querySelector(".hero-token");
@@ -1906,19 +1961,19 @@ function updateHero(){
   const cards = document.querySelectorAll(".hero-card");
   if(cards[0]){
     cards[0].querySelector(".hc-label").lastChild.textContent = ` Avg Supply ${state.mode}`;
-    cards[0].querySelector(".hc-value").textContent = fmtRate(avgSupply);
+    setMetric(cards[0].querySelector(".hc-value"), fmtRate(avgSupply));
     cards[0].querySelector(".hc-sub").textContent = `across ${data.length} markets`;
   }
   if(cards[1]){
-    cards[1].querySelector(".hc-value").textContent = avgOdolo > 0 ? "+" + fmtRate(avgOdolo) : "—";
+    setMetric(cards[1].querySelector(".hc-value"), avgOdolo > 0 ? "+" + fmtRate(avgOdolo) : "—");
     cards[1].querySelector(".hc-sub").textContent = odoloRows.length ? `${odoloRows.length} boosted markets` : "no active boosts";
   }
   if(cards[2]){
-    cards[2].querySelector(".hc-value").textContent = String(ASSETS.length);
+    setMetric(cards[2].querySelector(".hc-value"), String(ASSETS.length));
     cards[2].querySelector(".hc-sub").textContent = `listed assets · ${allChains.size} chains`;
   }
   if(cards[3]){
-    cards[3].querySelector(".hc-value").textContent = fmtRate(topBorrow.borrow);
+    setMetric(cards[3].querySelector(".hc-value"), fmtRate(topBorrow.borrow));
     cards[3].querySelector(".hc-sub").textContent = `${topBorrow.sym} · ${chainMeta(topBorrow.chain).name}`;
   }
   CHAIN_COUNT_TOTAL = new Set(ASSETS.map(r=>r.chain)).size || CHAIN_COUNT_TOTAL;
@@ -2539,24 +2594,26 @@ async function initAssetsPreview(){
   state.loading = true;
   state.fallback = false;
   renderLoading();
+  const cached = readLiveAssetsCache();
+  if(cached){
+    applyAssetRows(cached.rows);
+    setCachedLiveStatus(ASSETS.length, cached.savedAt);
+  }
   try{
     const liveRows = await loadLiveAssets();
     if(liveRows.length > 0){
-      ASSETS = liveRows;
-      state.loading = false;
-      state.fallback = false;
-      document.body.classList.remove("assets-loading","assets-fallback");
-      state.expanded.clear();
-      state.calc.clear();
-      CHAIN_COUNT_TOTAL = new Set(ASSETS.map(r=>r.chain)).size;
-      syncNetDropdown();
-      render();
+      writeLiveAssetsCache(liveRows);
+      applyAssetRows(liveRows);
       setLiveStatus(true, ASSETS.length);
       return;
     }
     throw new Error("No live asset rows returned");
   }catch(e){
     console.warn("Live asset data failed; using static fallback", e);
+    if(cached){
+      setCachedLiveStatus(ASSETS.length, cached.savedAt, true);
+      return;
+    }
     state.loading = false;
     state.fallback = true;
     document.body.classList.remove("assets-loading");
