@@ -1210,7 +1210,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 
     <div class="toolbar">
       <div class="tb-left">
-        <div class="card-meta"><span class="pulse"></span>Who is exercising oDOLO right now</div>
+        <label class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="q-latest" type="text" placeholder="Search address or label…" spellcheck="false" autocomplete="off">
+        </label>
       </div>
       <div class="tb-right">
         <div class="dd" id="dd-latest-period">
@@ -1550,7 +1553,7 @@ const FLOWS = [
 ];
 
 const state = {
-  qEx:"", qFlows:"",
+  qEx:"", qFlows:"", qLatest:"",
   exTypes: new Set(ADDRESS_TYPES),
   exPeriod: "all",
   exSort: {key:"usdc", dir:"desc"},
@@ -2548,11 +2551,14 @@ function detailSortHeader(key, label, cls=""){
 function getLatestExerciseRows(){
   const source = LIVE.exercisers?.exercisers || [];
   const cutoff = periodCutoff(state.latestPeriod);
+  const q = state.qLatest.trim().toLowerCase();
   const rows = [];
   source.forEach(item => {
     const addr = item.address || item.addr || "";
     if(!addr) return;
     const meta = addressMeta(addr);
+    const label = item.label || meta.label || "";
+    if(q && !addr.toLowerCase().includes(q) && !label.toLowerCase().includes(q)) return;
     (item.txs || []).forEach(tx => {
       if(!tx || tx.paid_token === "DOLO" || !tx.date) return;
       if(cutoff && tx.date < cutoff) return;
@@ -2561,7 +2567,7 @@ function getLatestExerciseRows(){
       if(!usdc && !vedolo) return;
       rows.push({
         addr,
-        label:item.label || meta.label,
+        label,
         type:meta.type,
         hash:tx.hash || "",
         date:tx.date,
@@ -2612,7 +2618,10 @@ function renderLatestExercises(){
     return;
   }
   if(!visibleRows.length){
-    tbody.innerHTML = `<tr><td colspan="7"><div class="latest-empty">No oDOLO exercises recorded for ${esc(period ? period.label.toLowerCase() : periodLabel)}.</div></td></tr>`;
+    const emptyLabel = state.qLatest.trim()
+      ? `No oDOLO exercises match "${esc(state.qLatest.trim())}" for ${esc(period ? period.label.toLowerCase() : periodLabel)}.`
+      : `No oDOLO exercises recorded for ${esc(period ? period.label.toLowerCase() : periodLabel)}.`;
+    tbody.innerHTML = `<tr><td colspan="7"><div class="latest-empty">${emptyLabel}</div></td></tr>`;
     return;
   }
 
@@ -3025,6 +3034,7 @@ function renderFlows(){
    EVENT WIRING
 ============================================================ */
 document.getElementById("q-ex").addEventListener("input", e=>{state.qEx=e.target.value;state.exPage=0;renderExercisers()});
+document.getElementById("q-latest").addEventListener("input", e=>{state.qLatest=e.target.value;renderLatestExercises()});
 document.getElementById("q-flows").addEventListener("input", e=>{state.qFlows=e.target.value;state.flowsPage.acc=0;state.flowsPage.out=0;renderFlows()});
 document.addEventListener("keydown", e=>{
   if(e.key==="/" && document.activeElement.tagName!=="INPUT"){
