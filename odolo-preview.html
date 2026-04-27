@@ -315,11 +315,11 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0;
 }
 .tbl tbody tr.ex-detail-row{cursor:default}
-.tbl tbody tr.ex-detail-row td{
+.tbl tbody tr.ex-detail-row > td{
   padding:0 14px 18px!important;background:var(--bg-1);border-bottom:1px solid var(--line-2);
 }
-.tbl tbody tr.ex-detail-row:hover td{background:var(--bg-1)}
-.tbl tbody tr.ex-detail-row:hover td:first-child::before{display:none}
+.tbl tbody tr.ex-detail-row:hover > td{background:var(--bg-1)}
+.tbl tbody tr.ex-detail-row:hover > td:first-child::before{display:none}
 
 .rank{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--fg-3);min-width:24px;text-align:right}
 .tbl tbody tr:hover .rank{color:var(--gold)}
@@ -469,6 +469,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 #tbl-ex .ex-detail-table th.num,#tbl-ex .ex-detail-table td.num{text-align:right}
 #tbl-ex .ex-detail-table th.center,#tbl-ex .ex-detail-table td.center{text-align:center}
 #tbl-ex .ex-detail-table td{padding:11px 12px;border-bottom:1px solid var(--line-1);font-variant-numeric:tabular-nums;color:var(--fg-2);vertical-align:middle;white-space:nowrap}
+#tbl-ex .ex-detail-table tr.ex-detail-gap td{height:8px;padding:0;border-bottom:0;background:rgba(0,0,0,.16);font-size:0;line-height:0}
+#tbl-ex .ex-detail-table tr.ex-detail-gap:hover td{background:rgba(0,0,0,.16)}
 #tbl-ex .ex-detail-table tr:nth-child(even) td{background:rgba(255,255,255,.01)}
 #tbl-ex .ex-detail-table tr:hover td{background:rgba(255,255,255,.026);color:var(--fg-1)}
 #tbl-ex .ex-detail-table tr:hover td:first-child::before{display:none}
@@ -504,6 +506,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     margin:0 12px 10px;padding:12px 14px;border:1px solid var(--line-1);border-radius:8px;
     background:linear-gradient(180deg,rgba(255,255,255,.024),rgba(255,255,255,.01));
   }
+  #tbl-ex .ex-detail-table tr.ex-detail-gap{display:none}
   #tbl-ex .ex-detail-table tr:last-child{margin-bottom:0}
   #tbl-ex .ex-detail-table td{
     display:grid;grid-template-columns:88px minmax(0,1fr);align-items:center;gap:12px;
@@ -2715,7 +2718,7 @@ function renderExerciserDetailRow(r, rank){
             <th>Tx</th>
           </tr>
         </thead>
-        <tbody>${rows}</tbody>
+        <tbody><tr class="ex-detail-gap" aria-hidden="true"><td colspan="7"></td></tr>${rows}</tbody>
       </table>
     </div>
   ` : `<div class="ex-detail-empty">No per-transaction exercise history is available for this row.</div>`;
