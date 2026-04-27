@@ -34,7 +34,17 @@ input{font:inherit}
 body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   background:radial-gradient(1000px 600px at 80% -10%,rgba(201,162,39,.04),transparent 60%),
              radial-gradient(800px 500px at -10% 110%,rgba(255,255,255,.02),transparent 60%);}
-.wrap{max-width:1320px;margin:0 auto;padding:40px 28px 96px}
+.wrap{max-width:1320px;margin:0 auto;padding:40px 28px 96px;display:flex;flex-direction:column}
+.site-top{order:10}
+.hero{order:20}
+#odolo-discount-section{order:30}
+#latest-exercises-section{order:40}
+#exercisers-section{order:50}
+#claimer-breakdown-section{order:60}
+#odolo-market-structure{order:70}
+#flows-section{order:80}
+#protocol-info-section{order:90}
+#odolo-foot{order:100}
 
 /* TOP — banner + sticky nav */
 .site-top{display:flex;flex-direction:column;align-items:center;gap:14px;margin-bottom:40px}
@@ -361,6 +371,26 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .ex-row-open .ex-toggle{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.18);box-shadow:0 0 0 3px rgba(201,162,39,.08)}
 .ex-row-open .ex-toggle svg{transform:rotate(180deg)}
 
+.latest-ex-tbl{min-width:840px}
+.latest-ex-tbl thead th{cursor:default}
+.latest-ex-tbl tbody tr:hover td{background:rgba(255,255,255,.026)}
+.latest-ex-tbl tbody tr:hover td:first-child::before{display:none}
+.latest-date{
+  display:flex;flex-direction:column;gap:3px;align-items:flex-start;
+  font-family:var(--mono);font-size:12px;color:var(--fg-2);white-space:nowrap;
+}
+.latest-date small{font-size:10px;color:var(--fg-4);letter-spacing:.2px}
+.latest-wallet{display:flex;flex-direction:column;gap:5px;min-width:0}
+.latest-wallet-top{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
+.latest-wallet-bottom{display:flex;align-items:center;gap:7px;min-width:0;flex-wrap:wrap}
+.latest-tx{
+  display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11px;color:#9ab7c2;text-decoration:none;
+  padding:3px 6px;border-radius:5px;border:1px solid var(--line-1);background:rgba(255,255,255,.014);
+}
+.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(255,255,255,.04)}
+.latest-tx svg{width:11px;height:11px}
+.latest-empty{padding:22px;color:var(--fg-3);text-align:center;font-size:12px}
+
 .bal-zero{color:var(--fg-4);font-family:var(--mono)}
 .bal-val{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--fg-1)}
 .bal-val.usd{color:var(--gold-hi)}
@@ -444,13 +474,13 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 #tbl-ex .ex-detail-table tr:hover td:first-child::before{display:none}
 #tbl-ex .ex-detail-table td.mono{font-family:var(--mono)}
 #tbl-ex .ex-detail-table .ex-detail-rank{color:var(--fg-4);font-weight:600}
-#tbl-ex .ex-detail-lock{
+#tbl-ex .ex-detail-lock,.latest-ex-tbl .ex-detail-lock{
   display:inline-flex;align-items:center;justify-content:center;min-width:42px;padding:4px 7px;border-radius:999px;
   border:1px solid var(--line-2);background:rgba(255,255,255,.025);font-family:var(--mono);font-size:11px;font-weight:700;
 }
-#tbl-ex .ex-detail-lock.short{color:var(--down);border-color:rgba(180,121,107,.28);background:rgba(180,121,107,.08)}
-#tbl-ex .ex-detail-lock.medium{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
-#tbl-ex .ex-detail-lock.long{color:var(--up);border-color:rgba(138,163,123,.32);background:rgba(138,163,123,.08)}
+#tbl-ex .ex-detail-lock.short,.latest-ex-tbl .ex-detail-lock.short{color:var(--down);border-color:rgba(180,121,107,.28);background:rgba(180,121,107,.08)}
+#tbl-ex .ex-detail-lock.medium,.latest-ex-tbl .ex-detail-lock.medium{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+#tbl-ex .ex-detail-lock.long,.latest-ex-tbl .ex-detail-lock.long{color:var(--up);border-color:rgba(138,163,123,.32);background:rgba(138,163,123,.08)}
 #tbl-ex .ex-detail-table a{
   display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:70px;padding:5px 7px;border-radius:5px;
   border:1px solid var(--line-2);background:rgba(255,255,255,.018);font-family:var(--mono);font-size:11px;color:#9ab7c2;text-decoration:none;white-space:nowrap;
@@ -484,6 +514,31 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     text-align:left;
   }
   #tbl-ex .ex-detail-table td > *{justify-self:end}
+  .latest-ex-tbl{min-width:0}
+  .latest-ex-tbl thead{display:none}
+  .latest-ex-tbl,
+  .latest-ex-tbl tbody,
+  .latest-ex-tbl tr{display:block}
+  .latest-ex-tbl tr{
+    margin:0 12px 10px;padding:12px 14px;border:1px solid var(--line-1);border-radius:8px;
+    background:linear-gradient(180deg,rgba(255,255,255,.024),rgba(255,255,255,.01));
+  }
+  .latest-ex-tbl tr:last-child{margin-bottom:0}
+  .latest-ex-tbl td{
+    display:grid;grid-template-columns:88px minmax(0,1fr);align-items:center;gap:12px;
+    padding:6px 0!important;border-bottom:0!important;background:transparent!important;white-space:normal;text-align:right;
+  }
+  .latest-ex-tbl td::before{
+    content:attr(data-label);font-size:9px;letter-spacing:1.15px;text-transform:uppercase;color:var(--fg-4);font-family:var(--sans);font-weight:700;
+    text-align:left;
+  }
+  .latest-ex-tbl td[data-label="Wallet / Tx"]{display:block;text-align:left}
+  .latest-ex-tbl td[data-label="Wallet / Tx"]::before{display:block;margin-bottom:8px}
+  .latest-ex-tbl td[data-label="Details"]{display:flex;justify-content:flex-end}
+  .latest-ex-tbl td[data-label="Details"]::before{display:none}
+  .latest-ex-tbl td > *{justify-self:end}
+  .latest-ex-tbl .latest-date{align-items:flex-end}
+  .latest-ex-tbl .latest-wallet{align-items:flex-start}
 }
 
 /* PAGINATION */
@@ -1009,7 +1064,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   </section>
 
   <!-- CHARTS ROW: oDOLO Distribution + Claimer Behaviour -->
-  <div class="charts-2up">
+  <div class="charts-2up" id="odolo-market-structure">
     <!-- Distribution donut -->
     <section class="donut-card">
       <div class="donut-head">
@@ -1054,7 +1109,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   </div>
 
   <!-- DISCOUNT CURVE -->
-  <section class="card">
+  <section class="card" id="odolo-discount-section">
     <div class="card-head">
       <div class="card-title">
         <h2>oDOLO Discount Curve</h2>
@@ -1079,7 +1134,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   </section>
 
   <!-- CLAIMER BREAKDOWN TABLE -->
-  <section class="card">
+  <section class="card" id="claimer-breakdown-section">
     <div class="card-head">
       <div class="card-title">
         <h2>oDOLO Claimer Breakdown</h2>
@@ -1141,8 +1196,62 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     </div>
   </section>
 
+  <!-- LATEST EXERCISES -->
+  <section class="card" id="latest-exercises-section">
+    <div class="card-head">
+      <div class="card-title">
+        <h2>Latest oDOLO Exercises</h2>
+        <span class="count-badge" id="latest-ex-count">Loading</span>
+      </div>
+      <div class="card-meta" id="latest-ex-meta"><span class="pulse"></span>Newest recorded exercises</div>
+    </div>
+
+    <div class="toolbar">
+      <div class="tb-left">
+        <div class="card-meta"><span class="pulse"></span>Who is exercising oDOLO right now</div>
+      </div>
+      <div class="tb-right">
+        <div class="dd" id="dd-latest-period">
+          <button class="dd-btn" data-dd="latest-period">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            <span class="lbl">7D</span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dd-panel" style="left:auto;right:0">
+            <div class="dd-panel-head">Period</div>
+            <div class="dd-list">
+              <div class="dd-opt" data-period="1d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">24 hours</span></div>
+              <div class="dd-opt active" data-period="7d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">7 days</span></div>
+              <div class="dd-opt" data-period="30d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">30 days</span></div>
+              <div class="dd-opt" data-period="90d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">90 days</span></div>
+              <div class="dd-opt" data-period="180d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">180 days</span></div>
+              <div class="dd-opt" data-period="all"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">All time</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tbl-wrap">
+      <table class="tbl latest-ex-tbl" id="tbl-latest-ex">
+        <thead>
+          <tr>
+            <th style="width:104px">Date</th>
+            <th>Wallet / Tx</th>
+            <th class="num" style="width:116px">veDOLO</th>
+            <th class="num" style="width:118px">USDC Paid</th>
+            <th class="num" style="width:96px">Price</th>
+            <th class="num" style="width:88px">Lock</th>
+            <th style="width:96px"></th>
+          </tr>
+        </thead>
+        <tbody id="latest-ex-body"></tbody>
+      </table>
+    </div>
+  </section>
+
   <!-- TOP EXERCISERS -->
-  <section class="card">
+  <section class="card" id="exercisers-section">
     <div class="card-head">
       <div class="card-title">
         <h2>Top Exercisers</h2>
@@ -1225,7 +1334,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   </section>
 
   <!-- FLOWS CARD -->
-  <section class="card">
+  <section class="card" id="flows-section">
     <div class="card-head">
       <div class="card-title">
         <h2>oDOLO Flows</h2>
@@ -1329,7 +1438,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   </section>
 
   <!-- PROTOCOL INFO -->
-  <section class="proto">
+  <section class="proto" id="protocol-info-section">
     <div class="proto-head">
       <div class="proto-brand">
         <div class="proto-brand-mark">
@@ -1363,7 +1472,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     </div>
   </section>
 
-  <div class="foot">oDOLO dashboard · onchain data pipeline · <span id="now"></span></div>
+  <div class="foot" id="odolo-foot">oDOLO dashboard · onchain data pipeline · <span id="now"></span></div>
 </div>
 
 <script>
@@ -1443,6 +1552,8 @@ const state = {
   exPageSize: 10,
   exExpanded: null,
   exDetailSort: {key:"date", dir:"desc"},
+  latestPeriod: "7d",
+  latestPageSize: 8,
   flowsPeriod: "7d",
   flowsTypes: new Set(["eoa","ca","cex","bot","mm"]),
   flowsSort: {acc:{key:"net",dir:"desc"}, out:{key:"net",dir:"desc"}},
@@ -2371,6 +2482,123 @@ function detailSortHeader(key, label, cls=""){
   const sort = active ? `<span class="detail-sort">${state.exDetailSort.dir === "asc" ? "▲" : "▼"}</span>` : `<span class="detail-sort">⇅</span>`;
   return `<th class="${className}" data-ex-detail-sort="${key}" title="Sort by ${esc(label)}" aria-label="Sort by ${esc(label)}"${aria}>${label}${sort}</th>`;
 }
+function getLatestExerciseRows(){
+  const source = LIVE.exercisers?.exercisers || [];
+  const cutoff = periodCutoff(state.latestPeriod);
+  const rows = [];
+  source.forEach(item => {
+    const addr = item.address || item.addr || "";
+    if(!addr) return;
+    const meta = addressMeta(addr);
+    (item.txs || []).forEach(tx => {
+      if(!tx || tx.paid_token === "DOLO" || !tx.date) return;
+      if(cutoff && tx.date < cutoff) return;
+      const usdc = txUsd(tx);
+      const vedolo = txVedolo(tx);
+      if(!usdc && !vedolo) return;
+      rows.push({
+        addr,
+        label:item.label || meta.label,
+        type:meta.type,
+        hash:tx.hash || "",
+        date:tx.date,
+        usdc,
+        vedolo,
+        price:exerciseTxPrice(tx),
+        lockDays:Number(tx.lock_days) || 0,
+      });
+    });
+  });
+  return rows.sort((a,b)=>
+    String(b.date || "").localeCompare(String(a.date || "")) ||
+    b.usdc - a.usdc ||
+    String(b.hash || "").localeCompare(String(a.hash || ""))
+  );
+}
+function focusExerciserFromLatest(addr){
+  const key = (addr || "").toLowerCase();
+  if(!key) return;
+  state.qEx = addr;
+  state.exPeriod = "all";
+  state.exPage = 0;
+  state.exExpanded = key;
+  state.exTypes = new Set(["eoa","ca","cex","bot","mm"]);
+  const input = document.getElementById("q-ex");
+  if(input) input.value = addr;
+  document.querySelectorAll('#dd-ex-period .dd-opt').forEach(opt=>opt.classList.toggle("active", opt.dataset.period === "all"));
+  const exLbl = document.querySelector('#dd-ex-period .dd-btn .lbl');
+  if(exLbl) exLbl.textContent = "ALL";
+  syncExTypesBtn();
+  renderExercisers();
+  document.getElementById("exercisers-section")?.scrollIntoView({behavior:"smooth", block:"start"});
+}
+function renderLatestExercises(){
+  const tbody = document.getElementById("latest-ex-body");
+  if(!tbody) return;
+  const countEl = document.getElementById("latest-ex-count");
+  const metaEl = document.getElementById("latest-ex-meta");
+  const period = PERIODS.find(p=>p.key===state.latestPeriod);
+  const periodLabel = period ? period.short : state.latestPeriod.toUpperCase();
+  const rows = getLatestExerciseRows();
+  const visibleRows = rows.slice(0, state.latestPageSize);
+  if(countEl) countEl.textContent = LIVE.exercisers ? `${rows.length.toLocaleString()} · ${periodLabel}` : "Loading";
+  if(metaEl) metaEl.innerHTML = `<span class="pulse"></span>${LIVE.exercisers ? "Newest recorded exercises" : "Loading latest exercises"}`;
+
+  if(!LIVE.exercisers){
+    tbody.innerHTML = `<tr><td colspan="7"><div class="latest-empty">Loading latest oDOLO exercises…</div></td></tr>`;
+    return;
+  }
+  if(!visibleRows.length){
+    tbody.innerHTML = `<tr><td colspan="7"><div class="latest-empty">No oDOLO exercises recorded for ${esc(period ? period.label.toLowerCase() : periodLabel)}.</div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = visibleRows.map(tx => {
+    const title = tx.label || TYPE_GENERIC[tx.type] || "Wallet";
+    const typeHtml = `<span class="type-tag type-${tx.type}" title="${esc(TYPE_TIPS[tx.type])}">${esc(TYPE_LABELS[tx.type])}</span>`;
+    const hashLabel = tx.hash ? `${tx.hash.slice(0,6)}…${tx.hash.slice(-4)}` : "—";
+    const txLink = tx.hash
+      ? `<a class="latest-tx" href="https://berascan.com/tx/${esc(tx.hash)}" target="_blank" rel="noopener" title="${esc(tx.hash)}">${EXTERNAL_ICO}<span>${esc(hashLabel)}</span></a>`
+      : `<span class="latest-tx">—</span>`;
+    return `
+      <tr class="latest-ex-row" data-addr="${esc(tx.addr)}">
+        <td data-label="Date">
+          <div class="latest-date"><span>${esc(fmtDate(tx.date))}</span><small>${esc(periodLabel)}</small></div>
+        </td>
+        <td data-label="Wallet / Tx">
+          <div class="latest-wallet">
+            <div class="latest-wallet-top"><span class="addr-name ${tx.label ? "" : "addr-generic"}">${esc(title)}</span>${typeHtml}</div>
+            <div class="latest-wallet-bottom">
+              <span class="addr-mono">${esc(shorten(tx.addr))}</span>
+              <button class="addr-copy" data-copy="${esc(tx.addr)}" title="Copy address" aria-label="Copy address">${COPY_ICO}</button>
+              <a class="addr-debank" href="https://debank.com/profile/${esc(tx.addr)}" target="_blank" rel="noopener" title="View on DeBank" aria-label="View on DeBank" onclick="event.stopPropagation()">
+                <img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'">
+              </a>
+              ${txLink}
+            </div>
+          </div>
+        </td>
+        <td class="num" data-label="veDOLO"><span class="bal-val">${fmtTokenFull(tx.vedolo)}</span></td>
+        <td class="num" data-label="USDC Paid"><span class="bal-val usd">${fmtUsdFull(tx.usdc)}</span></td>
+        <td class="num" data-label="Price"><span class="bal-val price">${fmtPrice(tx.price)}</span></td>
+        <td class="num" data-label="Lock"><span class="ex-detail-lock ${lockBucket(tx.lockDays)}">${fmtLock(tx.lockDays)}</span></td>
+        <td data-label="Details"><button class="ex-toggle latest-detail" type="button" data-addr="${esc(tx.addr)}" title="Show wallet history" aria-label="Show wallet history"><span>Details</span>${CHEV_DOWN_ICO}</button></td>
+      </tr>
+    `;
+  }).join("");
+
+  tbody.querySelectorAll(".addr-copy").forEach(btn => btn.addEventListener("click", async e=>{
+    e.stopPropagation();
+    try { await navigator.clipboard.writeText(btn.dataset.copy); } catch(_) {}
+    btn.classList.add("copied");
+    btn.innerHTML = CHECK_ICO;
+    setTimeout(()=>{ btn.classList.remove("copied"); btn.innerHTML = COPY_ICO; }, 1400);
+  }));
+  tbody.querySelectorAll(".latest-detail").forEach(btn => btn.addEventListener("click", e=>{
+    e.stopPropagation();
+    focusExerciserFromLatest(btn.dataset.addr);
+  }));
+}
 function renderExerciserDetailRow(r, rank){
   const period = PERIODS.find(p=>p.key===state.exPeriod);
   const txs = sortExerciseTxs((r.txs || []).filter(tx => tx && tx.paid_token !== "DOLO"));
@@ -2819,6 +3047,18 @@ document.querySelectorAll('#dd-ex-period .dd-opt').forEach(opt=>{
   });
 });
 
+document.querySelectorAll('#dd-latest-period .dd-opt').forEach(opt=>{
+  opt.addEventListener("click", e=>{
+    e.stopPropagation();
+    document.querySelectorAll('#dd-latest-period .dd-opt').forEach(o=>o.classList.remove("active"));
+    opt.classList.add("active");
+    state.latestPeriod = opt.dataset.period;
+    const meta = PERIODS.find(p=>p.key===state.latestPeriod);
+    document.querySelector('#dd-latest-period .dd-btn .lbl').textContent = meta ? meta.short : opt.dataset.period.toUpperCase();
+    renderLatestExercises();
+  });
+});
+
 /* Flows types */
 function syncFlowsTypesBtn(){
   const btn = document.querySelector('#dd-flows-types .dd-btn');
@@ -3081,6 +3321,7 @@ function renderAll(){
   renderDonuts();
   drawDiscountCurve();
   renderClaimerBreakdown();
+  renderLatestExercises();
   renderExercisers();
   renderFlows();
 }
