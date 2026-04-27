@@ -615,10 +615,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     </div>
 
     <div class="hero-headline">
-      <div class="hero-value" id="heroSupply">$831.32M</div>
+      <div class="hero-value" id="heroSupply" data-count-value="0">$0.000</div>
       <div class="hero-chg up" id="heroChg">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 14 12 8 18 14"/></svg>
-        <span>+4.21%</span>
+        <span>+0.000%</span>
         <span class="lbl">7d</span>
       </div>
     </div>
@@ -629,7 +629,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
           Total Borrowed
         </div>
-        <div class="hc-value down" id="heroBorrowed">$312.43M</div>
+        <div class="hc-value down" id="heroBorrowed" data-count-value="0">$0.000</div>
         <div class="hc-sub">across all markets</div>
         <div class="hero-bar"><span id="heroBorrowedBar" style="width:37.6%;background:var(--down)"></span></div>
       </div>
@@ -638,7 +638,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg>
           Net TVL
         </div>
-        <div class="hc-value gold" id="heroNetTvl">$518.89M</div>
+        <div class="hc-value gold" id="heroNetTvl" data-count-value="0">$0.000</div>
         <div class="hc-sub">supply − borrow</div>
         <div class="hero-bar"><span id="heroNetBar" style="width:62.4%"></span></div>
       </div>
@@ -647,7 +647,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1018 0 9 9 0 00-18 0z"/><path d="M12 7v5l3 2"/></svg>
           Utilization
         </div>
-        <div class="hc-value" id="heroUtilization">37.6%</div>
+        <div class="hc-value" id="heroUtilization" data-count-value="0">0.000%</div>
         <div class="hc-sub">borrow ÷ supply</div>
         <div class="hero-bar"><span id="heroUtilBar" style="width:37.6%"></span></div>
       </div>
@@ -656,7 +656,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
           Active Chains
         </div>
-        <div class="hc-value" id="heroChainCount">7</div>
+        <div class="hc-value" id="heroChainCount" data-count-value="0">0</div>
         <div class="hc-sub" id="heroMarketCount">142 token markets</div>
       </div>
     </div>
@@ -726,11 +726,11 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
       <div class="card-meta"><span class="pulse"></span>onchain breakdown</div>
     </div>
     <div class="chains-summary">
-      <div class="stat"><span class="dot-bar supply"></span><span class="lbl">Total Supply</span><span class="val gold" id="summarySupply">$831.32M</span></div>
+      <div class="stat"><span class="dot-bar supply"></span><span class="lbl">Total Supply</span><span class="val gold" id="summarySupply">$0.000</span></div>
       <span class="sep"></span>
-      <div class="stat"><span class="dot-bar borrow"></span><span class="lbl">Borrowed</span><span class="val down" id="summaryBorrowed">$312.43M</span></div>
+      <div class="stat"><span class="dot-bar borrow"></span><span class="lbl">Borrowed</span><span class="val down" id="summaryBorrowed">$0.000</span></div>
       <span class="sep"></span>
-      <div class="stat"><span class="lbl">Net TVL</span><span class="val" id="summaryNetTvl">$518.89M</span></div>
+      <div class="stat"><span class="lbl">Net TVL</span><span class="val" id="summaryNetTvl">$0.000</span></div>
     </div>
     <div class="chains-list" id="chainsListTop"></div>
     <div class="chains-expand" id="chainsExpand"></div>
@@ -1308,8 +1308,11 @@ function applyTvlSnapshot(snapshot){
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="${isUp ? "6 14 12 8 18 14" : "6 10 12 16 18 10"}"/></svg>
       <span data-count-up></span>
       <span class="lbl">7d</span>`;
-    if(window.CountUpMetric) CountUpMetric.text(heroChg.querySelector("[data-count-up]"), fmtPct(change7d));
-    else heroChg.querySelector("[data-count-up]").textContent = fmtPct(change7d);
+    const changePart = heroChg.querySelector("[data-count-up]");
+    changePart.dataset.countValue = "0";
+    changePart.textContent = `${isUp ? "+" : ""}0.000%`;
+    if(window.CountUpMetric) CountUpMetric.text(changePart, fmtPct(change7d));
+    else changePart.textContent = fmtPct(change7d);
   }
 }
 
