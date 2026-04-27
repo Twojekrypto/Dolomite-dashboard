@@ -80,6 +80,52 @@ body::before{
     radial-gradient(800px 500px at -10% 110%,rgba(255,255,255,.02),transparent 60%);
 }
 
+@keyframes assetSkeletonShimmer{
+  0%{background-position:120% 0}
+  100%{background-position:-120% 0}
+}
+.skel{
+  display:block;
+  border-radius:8px;
+  background:linear-gradient(90deg,rgba(255,255,255,.045) 0%,rgba(255,255,255,.10) 42%,rgba(255,255,255,.045) 78%);
+  background-size:220% 100%;
+  animation:assetSkeletonShimmer 1.45s var(--ease) infinite;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.025);
+}
+.assets-loading .hero-value,
+.assets-loading .hero-token,
+.assets-loading .hero-card .hc-value,
+.assets-loading .hero-card .hc-sub,
+.assets-loading .count-badge,
+.assets-loading .card-meta{
+  position:relative;
+  color:transparent!important;
+  overflow:hidden;
+  border-radius:8px;
+}
+.assets-loading .hero-value .pct,
+.assets-loading .hero-value .pct-symbol{color:transparent!important}
+.assets-loading .hero-token>*{visibility:hidden}
+.assets-loading .hero-value::after,
+.assets-loading .hero-token::after,
+.assets-loading .hero-card .hc-value::after,
+.assets-loading .hero-card .hc-sub::after,
+.assets-loading .count-badge::after,
+.assets-loading .card-meta::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  background:linear-gradient(90deg,rgba(255,255,255,.045) 0%,rgba(255,255,255,.10) 42%,rgba(255,255,255,.045) 78%);
+  background-size:220% 100%;
+  animation:assetSkeletonShimmer 1.45s var(--ease) infinite;
+}
+.assets-loading .hero-value::after{inset:8px 0 5px;width:min(220px,100%)}
+.assets-loading .hero-card .hc-value::after{height:24px;width:min(112px,100%)}
+.assets-loading .hero-card .hc-sub::after{height:12px;width:min(150px,100%)}
+.assets-loading .count-badge::after{inset:0}
+.assets-loading .card-meta .pulse{background:var(--line-3);box-shadow:none}
+
 .wrap{max-width:1320px;margin:0 auto;padding:40px 28px 96px}
 
 /* =========================================================================
@@ -562,6 +608,16 @@ body::before{
 .tbl tbody td.num{text-align:right;font-family:var(--mono);font-weight:500}
 .tbl tbody tr:hover td{background:var(--bg-3)}
 .tbl tbody tr.expanded td{background:rgba(201,162,39,.035);border-bottom-color:transparent}
+.tbl tbody tr.loading-row{cursor:default}
+.tbl tbody tr.loading-row:hover td{background:transparent}
+.loading-asset{display:flex;align-items:center;gap:14px}
+.skel-avatar{width:30px;height:30px;border-radius:50%;flex-shrink:0}
+.skel-stack{display:flex;flex-direction:column;gap:8px;min-width:180px}
+.skel-line{height:12px}
+.skel-line.name{width:112px}
+.skel-line.meta{width:180px;height:10px}
+.skel-num{height:16px;width:86px;margin-left:auto}
+.skel-num.wide{width:116px}
 
 /* asset cell */
 .asset-cell{display:flex;align-items:center;gap:14px;min-width:0}
@@ -885,7 +941,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 }
 </style>
 </head>
-<body>
+<body class="assets-loading">
 <div class="wrap">
 
   <!-- TOP -->
@@ -1285,6 +1341,8 @@ const state = {
   rw:{odolo:true,yield:true,lending:true},
   dust:false,
   mode:"APR",
+  loading:true,
+  fallback:false,
   expanded:new Set(),
   calc:new Map()      // per-row calculator state {action, amount}
 };
@@ -1873,7 +1931,44 @@ function updateHero(){
 /* ==========================================================================
    RENDER
    ========================================================================== */
+function renderLoading(){
+  document.body.classList.add("assets-loading");
+  document.body.classList.remove("assets-fallback");
+  const tb = document.getElementById("tbody");
+  const badge = document.getElementById("count-badge");
+  const meta = document.querySelector(".card-meta");
+  const heroLive = document.querySelector(".hero-live");
+  const protoSub = document.getElementById("proto-market-sub");
+  const foot = document.getElementById("now");
+  if(badge) badge.textContent = "Loading markets";
+  if(meta) meta.innerHTML = `<span class="pulse"></span>Loading official rates`;
+  if(heroLive) heroLive.innerHTML = `<span class="dot"></span>Syncing live markets`;
+  if(protoSub) protoSub.innerHTML = `Lending &amp; margin · <b>loading live markets</b>`;
+  if(foot) foot.textContent = "loading official markets";
+  if(!tb) return;
+  tb.innerHTML = Array.from({length:8}, (_, i)=>`
+    <tr class="loading-row" aria-hidden="true">
+      <td style="padding-left:32px">
+        <div class="loading-asset">
+          <span class="skel skel-avatar"></span>
+          <span class="skel-stack">
+            <span class="skel skel-line name" style="width:${i % 3 === 0 ? 138 : 104}px"></span>
+            <span class="skel skel-line meta" style="width:${i % 2 === 0 ? 188 : 148}px"></span>
+          </span>
+        </div>
+      </td>
+      <td class="num"><span class="skel skel-num"></span></td>
+      <td class="num"><span class="skel skel-num wide"></span></td>
+      <td class="num" style="padding-right:32px"><span class="skel skel-num"></span></td>
+    </tr>
+  `).join("");
+}
+
 function render(){
+  if(state.loading){
+    renderLoading();
+    return;
+  }
   const tb = document.getElementById("tbody");
   const q = state.q.trim().toLowerCase();
   let rows = ASSETS.filter(r=>{
@@ -2441,11 +2536,16 @@ document.querySelectorAll(".proto-copy").forEach(btn=>{
 });
 
 async function initAssetsPreview(){
-  render();
+  state.loading = true;
+  state.fallback = false;
+  renderLoading();
   try{
     const liveRows = await loadLiveAssets();
     if(liveRows.length > 0){
       ASSETS = liveRows;
+      state.loading = false;
+      state.fallback = false;
+      document.body.classList.remove("assets-loading","assets-fallback");
       state.expanded.clear();
       state.calc.clear();
       CHAIN_COUNT_TOTAL = new Set(ASSETS.map(r=>r.chain)).size;
@@ -2454,9 +2554,18 @@ async function initAssetsPreview(){
       setLiveStatus(true, ASSETS.length);
       return;
     }
-    setLiveStatus(false, ASSETS.length);
+    throw new Error("No live asset rows returned");
   }catch(e){
     console.warn("Live asset data failed; using static fallback", e);
+    state.loading = false;
+    state.fallback = true;
+    document.body.classList.remove("assets-loading");
+    document.body.classList.add("assets-fallback");
+    state.expanded.clear();
+    state.calc.clear();
+    CHAIN_COUNT_TOTAL = new Set(ASSETS.map(r=>r.chain)).size || CHAIN_COUNT_TOTAL;
+    syncNetDropdown();
+    render();
     setLiveStatus(false, ASSETS.length);
   }
 }
