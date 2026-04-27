@@ -422,20 +422,16 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .ex-detail-stat b{display:block;font-family:var(--mono);font-size:14px;color:var(--fg-1);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ex-detail-stat b.gold{color:var(--gold-hi)}
 .ex-detail-stat b.price{color:#9ab7c2}
-.ex-detail-activity{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:end;padding:13px 20px;border-bottom:1px solid var(--line-1);background:rgba(0,0,0,.12)}
-.ex-detail-activity-title{font-size:9.5px;letter-spacing:1.25px;text-transform:uppercase;color:var(--fg-4);font-weight:700;margin-bottom:8px}
-.ex-detail-bars{height:32px;display:flex;align-items:flex-end;gap:4px;min-width:0}
-.ex-detail-bar{flex:1;min-width:4px;max-width:16px;height:var(--h);border-radius:3px 3px 1px 1px;background:linear-gradient(180deg,rgba(240,213,129,.88),rgba(201,162,39,.62));opacity:.66;border:1px solid rgba(201,162,39,.16)}
-.ex-detail-activity-note{font-family:var(--mono);font-size:11px;color:var(--fg-3);white-space:nowrap}
 .ex-detail-scroll{max-height:330px;overflow:auto;background:rgba(0,0,0,.16)}
 #tbl-ex .ex-detail-table{width:100%;min-width:700px;border-collapse:separate;border-spacing:0;font-size:12px}
 #tbl-ex .ex-detail-table th{
-  position:sticky;top:0;z-index:1;padding:9px 12px;background:rgba(14,14,16,.98);border-bottom:1px solid var(--line-2);
+  position:sticky;top:0;z-index:2;padding:9px 12px;background:#101012;border-bottom:1px solid var(--line-2);
   color:var(--fg-3);font-size:9.5px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;text-align:left;white-space:nowrap;
+  box-shadow:0 1px 0 var(--line-2),0 8px 16px rgba(0,0,0,.38);
 }
 #tbl-ex .ex-detail-table th[data-ex-detail-sort]{cursor:pointer;user-select:none;transition:color .15s var(--ease),background .15s var(--ease),box-shadow .15s var(--ease)}
-#tbl-ex .ex-detail-table th[data-ex-detail-sort]:hover{color:var(--fg-1);background:rgba(255,255,255,.04)}
-#tbl-ex .ex-detail-table th.sorted{color:var(--gold-hi);background:rgba(201,162,39,.055);box-shadow:inset 0 -1px 0 rgba(201,162,39,.2)}
+#tbl-ex .ex-detail-table th[data-ex-detail-sort]:hover{color:var(--fg-1);background:#171719}
+#tbl-ex .ex-detail-table th.sorted{color:var(--gold-hi);background:#17140c;box-shadow:inset 0 -1px 0 rgba(201,162,39,.32),0 8px 16px rgba(0,0,0,.42)}
 #tbl-ex .ex-detail-table .detail-sort{
   display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;margin-left:6px;border-radius:4px;
   color:currentColor;background:rgba(255,255,255,.035);font-size:9px;line-height:1;
@@ -468,8 +464,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .ex-detail-head{grid-template-columns:1fr}
   .ex-detail-links{justify-content:flex-start}
   .ex-detail-stats{grid-template-columns:repeat(auto-fit,minmax(104px,1fr))}
-  .ex-detail-activity{grid-template-columns:1fr}
-  .ex-detail-activity-note{white-space:normal}
   .ex-detail-scroll{max-height:420px;padding:12px 0}
   #tbl-ex .ex-detail-table{min-width:0}
   #tbl-ex .ex-detail-table thead{display:none}
@@ -2377,30 +2371,6 @@ function detailSortHeader(key, label, cls=""){
   const sort = active ? `<span class="detail-sort">${state.exDetailSort.dir === "asc" ? "▲" : "▼"}</span>` : `<span class="detail-sort">⇅</span>`;
   return `<th class="${className}" data-ex-detail-sort="${key}" title="Sort by ${esc(label)}" aria-label="Sort by ${esc(label)}"${aria}>${label}${sort}</th>`;
 }
-function renderExerciseActivity(txs){
-  const ordered = [...txs]
-    .filter(tx => tx && tx.date)
-    .sort((a,b)=>String(a.date).localeCompare(String(b.date)))
-    .slice(-18);
-  if(!ordered.length) return "";
-  const maxUsd = Math.max(...ordered.map(tx => txUsd(tx)), 1);
-  const bars = ordered.map(tx => {
-    const usd = txUsd(tx);
-    const height = Math.max(7, Math.round((usd / maxUsd) * 32));
-    return `<span class="ex-detail-bar" style="--h:${height}px" title="${esc(fmtDate(tx.date))} · ${esc(fmtUsdFull(usd))}"></span>`;
-  }).join("");
-  const first = ordered[0]?.date ? fmtDate(ordered[0].date) : "—";
-  const last = ordered[ordered.length - 1]?.date ? fmtDate(ordered[ordered.length - 1].date) : "—";
-  return `
-    <div class="ex-detail-activity">
-      <div>
-        <div class="ex-detail-activity-title">Exercise activity</div>
-        <div class="ex-detail-bars" aria-label="Exercise activity by transaction">${bars}</div>
-      </div>
-      <div class="ex-detail-activity-note">${ordered.length.toLocaleString()} shown · ${esc(first)} → ${esc(last)}</div>
-    </div>
-  `;
-}
 function renderExerciserDetailRow(r, rank){
   const period = PERIODS.find(p=>p.key===state.exPeriod);
   const txs = sortExerciseTxs((r.txs || []).filter(tx => tx && tx.paid_token !== "DOLO"));
@@ -2475,7 +2445,6 @@ function renderExerciserDetailRow(r, rank){
             <div class="ex-detail-stat"><span>Exercises</span><b>${txs.length ? txs.length.toLocaleString() : r.exercises.toLocaleString()}</b></div>
             <div class="ex-detail-stat"><span>Avg Lock</span><b>${fmtLock(r.lockDays)}</b></div>
           </div>
-          ${renderExerciseActivity(txs)}
           ${txTable}
         </div>
       </td>
