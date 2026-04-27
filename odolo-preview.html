@@ -454,16 +454,16 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .ex-detail-stat b{display:block;font-family:var(--mono);font-size:14px;color:var(--fg-1);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ex-detail-stat b.gold{color:var(--gold-hi)}
 .ex-detail-stat b.price{color:#9ab7c2}
-.ex-detail-scroll{max-height:330px;overflow:auto;background:rgba(0,0,0,.16)}
+.ex-detail-scroll{max-height:330px;overflow:auto;background:rgba(0,0,0,.16);position:relative}
 #tbl-ex .ex-detail-table{width:100%;min-width:700px;border-collapse:separate;border-spacing:0;font-size:12px}
 #tbl-ex .ex-detail-table th{
-  position:sticky;top:0;z-index:2;padding:9px 12px;background:#101012;border-bottom:1px solid var(--line-2);
+  position:static;z-index:auto;padding:9px 12px;background:#101012;border-bottom:1px solid var(--line-2);
   color:var(--fg-3);font-size:9.5px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;text-align:left;white-space:nowrap;
-  box-shadow:0 1px 0 var(--line-2),0 8px 16px rgba(0,0,0,.38);
+  box-shadow:inset 0 -1px 0 var(--line-2);
 }
 #tbl-ex .ex-detail-table th[data-ex-detail-sort]{cursor:pointer;user-select:none;transition:color .15s var(--ease),background .15s var(--ease),box-shadow .15s var(--ease)}
 #tbl-ex .ex-detail-table th[data-ex-detail-sort]:hover{color:var(--fg-1);background:#171719}
-#tbl-ex .ex-detail-table th.sorted{color:var(--gold-hi);background:#17140c;box-shadow:inset 0 -1px 0 rgba(201,162,39,.32),0 8px 16px rgba(0,0,0,.42)}
+#tbl-ex .ex-detail-table th.sorted{color:var(--gold-hi);background:#17140c;box-shadow:inset 0 -1px 0 rgba(201,162,39,.32)}
 #tbl-ex .ex-detail-table .detail-sort{
   display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;margin-left:6px;border-radius:4px;
   color:currentColor;background:rgba(255,255,255,.035);font-size:9px;line-height:1;
@@ -1253,6 +1253,11 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         <tbody id="latest-ex-body"></tbody>
       </table>
     </div>
+
+    <div class="tbl-foot">
+      <div class="tbl-foot-info" id="latest-ex-info">Loading</div>
+      <div class="pager" id="latest-ex-pager"></div>
+    </div>
   </section>
 
   <!-- TOP EXERCISERS -->
@@ -1562,6 +1567,7 @@ const state = {
   exExpanded: null,
   exDetailSort: {key:"date", dir:"desc"},
   latestPeriod: "7d",
+  latestPage: 0,
   latestPageSize: 8,
   flowsPeriod: "7d",
   flowsTypes: new Set(ADDRESS_TYPES),
@@ -2606,15 +2612,26 @@ function renderLatestExercises(){
   if(!tbody) return;
   const countEl = document.getElementById("latest-ex-count");
   const metaEl = document.getElementById("latest-ex-meta");
+  const infoEl = document.getElementById("latest-ex-info");
+  const pager = document.getElementById("latest-ex-pager");
   const period = PERIODS.find(p=>p.key===state.latestPeriod);
   const periodLabel = period ? period.short : state.latestPeriod.toUpperCase();
   const rows = getLatestExerciseRows();
-  const visibleRows = rows.slice(0, state.latestPageSize);
+  const total = rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / state.latestPageSize));
+  state.latestPage = Math.max(0, Math.min(state.latestPage, totalPages - 1));
+  const start = state.latestPage * state.latestPageSize;
+  const visibleRows = rows.slice(start, start + state.latestPageSize);
+  const showStart = total > 0 ? start + 1 : 0;
+  const showEnd = Math.min(start + state.latestPageSize, total);
+
   if(countEl) countEl.textContent = LIVE.exercisers ? `${rows.length.toLocaleString()} · ${periodLabel}` : "Loading";
   if(metaEl) metaEl.innerHTML = `<span class="pulse"></span>${LIVE.exercisers ? "Newest recorded exercises" : "Loading latest exercises"}`;
+  if(infoEl) infoEl.textContent = LIVE.exercisers ? `${showStart}–${showEnd} of ${total.toLocaleString()}` : "Loading";
 
   if(!LIVE.exercisers){
     tbody.innerHTML = `<tr><td colspan="7"><div class="latest-empty">Loading latest oDOLO exercises…</div></td></tr>`;
+    if(pager) pager.innerHTML = "";
     return;
   }
   if(!visibleRows.length){
@@ -2622,6 +2639,7 @@ function renderLatestExercises(){
       ? `No oDOLO exercises match "${esc(state.qLatest.trim())}" for ${esc(period ? period.label.toLowerCase() : periodLabel)}.`
       : `No oDOLO exercises recorded for ${esc(period ? period.label.toLowerCase() : periodLabel)}.`;
     tbody.innerHTML = `<tr><td colspan="7"><div class="latest-empty">${emptyLabel}</div></td></tr>`;
+    if(pager) pager.innerHTML = "";
     return;
   }
 
@@ -2658,6 +2676,25 @@ function renderLatestExercises(){
       </tr>
     `;
   }).join("");
+
+  const curPage = state.latestPage + 1;
+  if(pager){
+    pager.innerHTML = `
+      <button class="pg-btn" data-latest-page="first" ${curPage===1?"disabled":""} title="First"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg></button>
+      <button class="pg-btn" data-latest-page="prev"  ${curPage===1?"disabled":""} title="Previous"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <span class="pg-current">${curPage} <span class="pg-sep">/</span> ${totalPages}</span>
+      <button class="pg-btn" data-latest-page="next"  ${curPage===totalPages?"disabled":""} title="Next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+      <button class="pg-btn" data-latest-page="last"  ${curPage===totalPages?"disabled":""} title="Last"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></button>
+    `;
+    pager.querySelectorAll("[data-latest-page]").forEach(btn => btn.addEventListener("click", ()=>{
+      const action = btn.dataset.latestPage;
+      if(action === "first") state.latestPage = 0;
+      else if(action === "prev") state.latestPage = Math.max(0, state.latestPage - 1);
+      else if(action === "next") state.latestPage = Math.min(totalPages - 1, state.latestPage + 1);
+      else if(action === "last") state.latestPage = totalPages - 1;
+      renderLatestExercises();
+    }));
+  }
 
   tbody.querySelectorAll(".addr-copy").forEach(btn => btn.addEventListener("click", async e=>{
     e.stopPropagation();
@@ -3034,7 +3071,7 @@ function renderFlows(){
    EVENT WIRING
 ============================================================ */
 document.getElementById("q-ex").addEventListener("input", e=>{state.qEx=e.target.value;state.exPage=0;renderExercisers()});
-document.getElementById("q-latest").addEventListener("input", e=>{state.qLatest=e.target.value;renderLatestExercises()});
+document.getElementById("q-latest").addEventListener("input", e=>{state.qLatest=e.target.value;state.latestPage=0;renderLatestExercises()});
 document.getElementById("q-flows").addEventListener("input", e=>{state.qFlows=e.target.value;state.flowsPage.acc=0;state.flowsPage.out=0;renderFlows()});
 document.addEventListener("keydown", e=>{
   if(e.key==="/" && document.activeElement.tagName!=="INPUT"){
@@ -3128,6 +3165,7 @@ document.querySelectorAll('#dd-latest-period .dd-opt').forEach(opt=>{
     state.latestPeriod = opt.dataset.period;
     const meta = PERIODS.find(p=>p.key===state.latestPeriod);
     document.querySelector('#dd-latest-period .dd-btn .lbl').textContent = meta ? meta.short : opt.dataset.period.toUpperCase();
+    state.latestPage = 0;
     renderLatestExercises();
   });
 });
