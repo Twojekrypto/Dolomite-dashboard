@@ -370,9 +370,20 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .ex-toggle:hover{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.16);box-shadow:0 0 0 3px rgba(201,162,39,.08);transform:translateY(-1px)}
 .ex-row-open .ex-toggle{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.18);box-shadow:0 0 0 3px rgba(201,162,39,.08)}
 .ex-row-open .ex-toggle svg{transform:rotate(180deg)}
+#tbl-ex tbody tr.ex-row-jump > td{
+  animation:exRowJump 1.7s var(--ease) both;
+}
+@keyframes exRowJump{
+  0%{background:rgba(201,162,39,.18);box-shadow:inset 0 0 0 1px rgba(201,162,39,.34)}
+  72%{background:rgba(201,162,39,.08);box-shadow:inset 0 0 0 1px rgba(201,162,39,.2)}
+  100%{background:rgba(201,162,39,.035);box-shadow:inset 0 0 0 0 rgba(201,162,39,0)}
+}
 
 .latest-ex-tbl{min-width:840px}
 .latest-ex-tbl thead th{cursor:default}
+.latest-ex-tbl thead th[data-latest-sort]{cursor:pointer;transition:color .15s var(--ease)}
+.latest-ex-tbl thead th[data-latest-sort]:hover{color:var(--fg-1)}
+.latest-detail{min-width:88px}
 .latest-ex-tbl tbody tr:hover td{background:rgba(255,255,255,.026)}
 .latest-ex-tbl tbody tr:hover td:first-child::before{display:none}
 .latest-date{
@@ -537,8 +548,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   }
   .latest-ex-tbl td[data-label="Wallet / Tx"]{display:block;text-align:left}
   .latest-ex-tbl td[data-label="Wallet / Tx"]::before{display:block;margin-bottom:8px}
-  .latest-ex-tbl td[data-label="Details"]{display:flex;justify-content:flex-end}
-  .latest-ex-tbl td[data-label="Details"]::before{display:none}
+  .latest-ex-tbl td[data-label="Analyze"]{display:flex;justify-content:flex-end}
+  .latest-ex-tbl td[data-label="Analyze"]::before{display:none}
   .latest-ex-tbl td > *{justify-self:end}
   .latest-ex-tbl .latest-date{align-items:flex-end}
   .latest-ex-tbl .latest-wallet{align-items:flex-start}
@@ -1094,9 +1105,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
       <div class="donut-head">
         <div class="donut-title">
           <h2>Claimer Behavior</h2>
-          <span class="count-badge" id="behav-count">2,351 claimers</span>
+          <span class="count-badge" id="behav-count">2,357 claimers</span>
         </div>
-        <div class="donut-meta" id="behav-meta"><span class="pulse"></span>41.33M oDOLO claimed</div>
+        <div class="donut-meta" id="behav-meta"><span class="pulse"></span>41.46M oDOLO claimed</div>
       </div>
       <div class="donut-body-v2">
         <div class="donut-wrap-v2">
@@ -1141,7 +1152,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     <div class="card-head">
       <div class="card-title">
         <h2>oDOLO Claimer Breakdown</h2>
-        <span class="count-badge" id="cb-count">2,351 claimers</span>
+        <span class="count-badge" id="cb-count">2,357 claimers</span>
       </div>
       <div class="card-meta"><span class="pulse"></span>Claimed oDOLO lifecycle; extra exercises stay separate</div>
     </div>
@@ -1194,7 +1205,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     <div class="tbl-help-tooltip" id="cb-help-tooltip"></div>
 
     <div class="tbl-foot">
-      <div class="tbl-foot-info" id="cb-info">1–10 of 2,351</div>
+      <div class="tbl-foot-info" id="cb-info">1–10 of 2,357</div>
       <div class="pager" id="cb-pager"></div>
     </div>
   </section>
@@ -1242,12 +1253,12 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
       <table class="tbl latest-ex-tbl" id="tbl-latest-ex">
         <thead>
           <tr>
-            <th style="width:104px">Date</th>
-            <th>Wallet / Tx</th>
-            <th class="num" style="width:116px">veDOLO</th>
-            <th class="num" style="width:118px">USDC Paid</th>
-            <th class="num" style="width:96px">Price</th>
-            <th class="num" style="width:88px">Lock</th>
+            <th data-latest-sort="date" style="width:104px">Date</th>
+            <th data-latest-sort="wallet">Wallet / Tx</th>
+            <th data-latest-sort="vedolo" class="num" style="width:116px">veDOLO</th>
+            <th data-latest-sort="usdc" class="num" style="width:118px">USDC Paid</th>
+            <th data-latest-sort="price" class="num" style="width:96px">Price</th>
+            <th data-latest-sort="lock" class="num" style="width:88px">Lock</th>
             <th style="width:96px"></th>
           </tr>
         </thead>
@@ -1567,6 +1578,7 @@ const state = {
   latestPeriod: "7d",
   latestPage: 0,
   latestPageSize: 8,
+  latestSort: {key:"date", dir:"desc"},
   flowsPeriod: "7d",
   flowsTypes: new Set(ADDRESS_TYPES),
   flowsSort: {acc:{key:"net",dir:"desc"}, out:{key:"net",dir:"desc"}},
@@ -1872,10 +1884,10 @@ const DIST_SEGMENTS = [
    CLAIMER BEHAVIOUR DONUT
 ============================================================ */
 const BEHAV_SEGMENTS = [
-  {label:"Claim exercised",    value:53.2, color:"#8aa37b", desc:"Claimed oDOLO used for veDOLO",      fmt:"21.99M oDOLO"},
-  {label:"Sold or sent away",  value:23.5, color:"#b4796b", desc:"Moved out without exercising",       fmt:"9.71M oDOLO"},
-  {label:"Still holding",      value:23.3, color:"#22d3ee", desc:"Sitting in claimer wallets",         fmt:"9.63M oDOLO"},
-  {label:"Extra exercised",    value: 3.5, color:"#a78bfa", desc:"Exercised above each wallet's claim", fmt:"+1.45M oDOLO"},
+  {label:"Claim exercised",    value:53.1, color:"#8aa37b", desc:"Claimed oDOLO used for veDOLO",      fmt:"22.01M oDOLO"},
+  {label:"Sold or sent away",  value:23.4, color:"#b4796b", desc:"Moved out without exercising",       fmt:"9.71M oDOLO"},
+  {label:"Still holding",      value:23.5, color:"#22d3ee", desc:"Sitting in claimer wallets",         fmt:"9.74M oDOLO"},
+  {label:"Extra exercised",    value: 3.5, color:"#a78bfa", desc:"Exercised above each wallet's claim", fmt:"+12.32M oDOLO"},
 ];
 
 function renderDonuts(){
@@ -2272,22 +2284,22 @@ window.addEventListener("resize", ()=>{ drawDiscountCurve(); renderDonuts(); });
 /* Sample claimers — derived from claimer_behavior.all_claimers (top-N).
    amounts in oDOLO. */
 const CLAIMERS = [
-  {addr:"0x084caf1bf60e49aec07ec4148a3f1f0f57fd11eb", label:"LM Farmer",       claimed:4521561.26, exercised:2936991.32, outflow:0,         held:1584569.94, buy:128_400},
-  {addr:"0x416a3427414b6c98adab70f48a2a904d1cf3f446", label:"veDOLO Maxi",     claimed:2871012.00, exercised:2287145.00, outflow:240_500,   held: 343367.00, buy: 0},
-  {addr:"0xbb7a68fe5ebf13cc39773a95a12e7478bb134656", label:"Whale 7s",        claimed:2438700.00, exercised:1283580.00, outflow:1_120_300, held:  34820.00, buy: 0},
-  {addr:"0x8e49f27740cba1e6d5799d8562cdf580c66d666e", label:"Sniper Bot 12",   claimed:2102540.00, exercised:1756330.00, outflow: 280_000,  held:  66210.00, buy: 0},
-  {addr:"0x7bfee91193d9df2ac0bfe90191d40f23c773c060", label:null,              claimed:1740230.00, exercised: 829100.00, outflow: 612_500,  held: 298630.00, buy: 0},
-  {addr:"0x32cd32b45277bf025c1df7bb4388e6a412b77fe5", label:"MEV Cluster",     claimed:1684200.00, exercised:  44000.00, outflow:1_640_200, held:      0.00, buy: 626_540},
-  {addr:"0x37d0371d17e5e587b236504515a4baabc08da619", label:"Governance Whale",claimed:1521410.00, exercised:1351410.00, outflow:        0, held: 170_000.00, buy: 0},
-  {addr:"0xc0bb26dce66f9befd500eb75842506025956d584", label:"Long-lock LP",    claimed:1442870.00, exercised:1296840.00, outflow:        0, held: 146030.00, buy: 0},
-  {addr:"0x62dfa6eba6a34e55c454894dd9b3e688f88cb09b", label:"Yield DAO",       claimed:1280910.00, exercised:1138910.00, outflow:        0, held:  142000.00, buy: 0},
-  {addr:"0xfb6a8b80ac4d65f9b3edcb19b13e85d8a25cd0bc", label:"Wintermute",     claimed:1110520.00, exercised: 553700.00, outflow: 506_300,  held:   50520.00, buy: 0},
-  {addr:"0x67d0a091f1f4c9e6a9b50ce4eaf203c9fc488ca3", label:"Quick-flipper",   claimed: 968420.00, exercised:  82400.00, outflow: 882_500,  held:    3520.00, buy: 184_300},
-  {addr:"0xe1ad30971b83c17e2a24c0334cb45f808abebc87", label:null,              claimed: 938710.00, exercised: 870810.00, outflow:        0, held:   67900.00, buy: 0},
-  {addr:"0xd93bdecbed0ba6dfd32edc5b8610591f2533202c", label:null,              claimed: 894410.00, exercised: 821640.00, outflow:        0, held:   72770.00, buy: 0},
-  {addr:"0xd3f41cb0f4c3abda85845d00f10c6b11740509f8", label:"Locker DAO",      claimed: 750120.00, exercised: 671580.00, outflow:        0, held:   78540.00, buy: 0},
-  {addr:"0x9c8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6d", label:"GSR",             claimed: 682340.00, exercised: 470890.00, outflow: 195_400,  held:   16050.00, buy: 0},
-  {addr:"0x6e6f0b8e8e3a2c63a3a3c6e8f0a9b8c7d6e5f4a3", label:"Arb Bot 19",      claimed: 561200.00, exercised: 249220.00, outflow: 296_000,  held:   15980.00, buy: 0},
+  {addr:"0x084caf1bf60e49aec07ec4148a3f1f0f57fd11eb", label:null, claimed:4521561.26, exercised:2936991.32, outflow:0.00, held:1584569.94, buy:0.00},
+  {addr:"0xc0bb26dce66f9befd500eb75842506025956d584", label:null, claimed:3125144.21, exercised:3125144.21, outflow:0.00, held:0.00, buy:0.00},
+  {addr:"0x3cbf175ba7c1f5fbc16a52ce15b09fed60dd483c", label:null, claimed:2032785.07, exercised:2032785.07, outflow:0.00, held:0.00, buy:0.00},
+  {addr:"0xe1ad30971b83c17e2a24c0334cb45f808abebc87", label:null, claimed:1242133.17, exercised:1242133.17, outflow:0.00, held:0.00, buy:0.00},
+  {addr:"0xbb7a68fe5ebf13cc39773a95a12e7478bb134656", label:null, claimed:1221418.67, exercised:1221418.67, outflow:0.00, held:0.00, buy:3600000.00},
+  {addr:"0xe7cd2fa44cce16e70867338f7b9fd60ad3b9d4b5", label:null, claimed:996797.54, exercised:0.00, outflow:996797.54, held:0.00, buy:0.00},
+  {addr:"0x7bfee91193d9df2ac0bfe90191d40f23c773c060", label:null, claimed:920479.63, exercised:920479.63, outflow:0.00, held:0.00, buy:3921.72},
+  {addr:"0xec382865df43ea39a7590bdc0e03240f858d8c5f", label:null, claimed:758137.35, exercised:0.00, outflow:758137.35, held:0.00, buy:0.00},
+  {addr:"0x3f3e305c4ad49271ebda489dd43d2c8f027d2d41", label:null, claimed:720523.66, exercised:0.00, outflow:0.00, held:720523.66, buy:0.00},
+  {addr:"0x1955fb36e0f92b2518584b3ad31e59c2e8c7fcf7", label:null, claimed:715077.14, exercised:715077.14, outflow:0.00, held:0.00, buy:0.00},
+  {addr:"0xbec69dfce4c1fa8b7843fee1ca85788d84a86b06", label:null, claimed:708464.68, exercised:149939.84, outflow:0.00, held:558524.84, buy:0.00},
+  {addr:"0x24a6a6b5bcbc9c118f5aa1ed3f692099fb19d6a6", label:null, claimed:649786.20, exercised:97586.15, outflow:0.00, held:552200.06, buy:0.00},
+  {addr:"0xd47f5a2bf688999017163f4da7f39159650d7133", label:null, claimed:573597.37, exercised:0.00, outflow:0.00, held:573597.37, buy:0.00},
+  {addr:"0x8c39b7cb82b9d791adcc9387098944b635c17b32", label:null, claimed:561440.34, exercised:561440.34, outflow:0.00, held:0.00, buy:37540.98},
+  {addr:"0x37d0371d17e5e587b236504515a4baabc08da619", label:null, claimed:543882.69, exercised:543882.69, outflow:0.00, held:0.00, buy:695082.35},
+  {addr:"0x1fafb618033fb07d3a99704a47451971976cb586", label:null, claimed:499920.28, exercised:461254.45, outflow:0.00, held:38665.83, buy:0.00},
 ];
 
 const cbState = {
@@ -2552,11 +2564,35 @@ function getLatestExerciseRows(){
       });
     });
   });
-  return rows.sort((a,b)=>
-    String(b.date || "").localeCompare(String(a.date || "")) ||
-    b.usdc - a.usdc ||
-    String(b.hash || "").localeCompare(String(a.hash || ""))
-  );
+  return sortLatestExerciseRows(rows);
+}
+function latestSortValue(row, key){
+  if(key === "date"){
+    const t = Date.parse(`${row?.date || ""}T00:00:00Z`);
+    return Number.isFinite(t) ? t : 0;
+  }
+  if(key === "wallet") return row.label || row.addr || "";
+  if(key === "vedolo") return row.vedolo || 0;
+  if(key === "usdc") return row.usdc || 0;
+  if(key === "price") return row.price || 0;
+  if(key === "lock") return row.lockDays || 0;
+  return 0;
+}
+function sortLatestExerciseRows(rows){
+  const {key, dir} = state.latestSort;
+  const mult = dir === "asc" ? 1 : -1;
+  return [...rows].sort((a,b)=>{
+    const va = latestSortValue(a, key);
+    const vb = latestSortValue(b, key);
+    if(typeof va === "string"){
+      const cmp = va.localeCompare(vb);
+      if(cmp) return cmp * mult;
+    } else {
+      const diff = va - vb;
+      if(diff) return diff * mult;
+    }
+    return String(b.date || "").localeCompare(String(a.date || "")) || b.usdc - a.usdc || String(b.hash || "").localeCompare(String(a.hash || ""));
+  });
 }
 function focusExerciserFromLatest(addr){
   const key = (addr || "").toLowerCase();
@@ -2573,6 +2609,11 @@ function focusExerciserFromLatest(addr){
   if(exLbl) exLbl.textContent = "ALL";
   syncExTypesBtn();
   renderExercisers();
+  const targetRow = [...document.querySelectorAll("#ex-body tr.ex-data-row")].find(row => row.dataset.addr === key);
+  if(targetRow){
+    targetRow.classList.add("ex-row-jump");
+    setTimeout(()=>targetRow.classList.remove("ex-row-jump"), 1800);
+  }
   document.getElementById("exercisers-section")?.scrollIntoView({behavior:"smooth", block:"start"});
 }
 function renderLatestExercises(){
@@ -2585,6 +2626,17 @@ function renderLatestExercises(){
   const period = PERIODS.find(p=>p.key===state.latestPeriod);
   const periodLabel = period ? period.short : state.latestPeriod.toUpperCase();
   const rows = getLatestExerciseRows();
+  document.querySelectorAll("#tbl-latest-ex thead th[data-latest-sort]").forEach(th=>{
+    const k = th.dataset.latestSort;
+    th.classList.toggle("sorted", k === state.latestSort.key);
+    let s = th.querySelector(".sort"); if(s) s.remove();
+    if(k === state.latestSort.key){
+      const span = document.createElement("span");
+      span.className = "sort";
+      span.textContent = state.latestSort.dir === "asc" ? "▲" : "▼";
+      th.appendChild(span);
+    }
+  });
   const total = rows.length;
   const totalPages = Math.max(1, Math.ceil(total / state.latestPageSize));
   state.latestPage = Math.max(0, Math.min(state.latestPage, totalPages - 1));
@@ -2640,7 +2692,7 @@ function renderLatestExercises(){
         <td class="num" data-label="USDC Paid"><span class="bal-val usd">${fmtUsdFull(tx.usdc)}</span></td>
         <td class="num" data-label="Price"><span class="bal-val price">${fmtPrice(tx.price)}</span></td>
         <td class="num" data-label="Lock"><span class="ex-detail-lock ${lockBucket(tx.lockDays)}">${fmtLock(tx.lockDays)}</span></td>
-        <td data-label="Details"><button class="ex-toggle latest-detail" type="button" data-addr="${esc(tx.addr)}" title="Show wallet history" aria-label="Show wallet history"><span>Details</span>${CHEV_DOWN_ICO}</button></td>
+        <td data-label="Analyze"><button class="ex-toggle latest-detail" type="button" data-addr="${esc(tx.addr)}" title="Analyze wallet in Top Exercisers" aria-label="Analyze wallet in Top Exercisers"><span>Analyze</span>${CHEV_DOWN_ICO}</button></td>
       </tr>
     `;
   }).join("");
@@ -3053,6 +3105,15 @@ document.querySelectorAll("#tbl-ex thead th").forEach(th=>{
     if(state.exSort.key===k) state.exSort.dir = state.exSort.dir==="asc"?"desc":"asc";
     else {state.exSort.key=k; state.exSort.dir="desc"}
     renderExercisers();
+  });
+});
+document.querySelectorAll("#tbl-latest-ex thead th[data-latest-sort]").forEach(th=>{
+  th.addEventListener("click", ()=>{
+    const key = th.dataset.latestSort;
+    if(state.latestSort.key === key) state.latestSort.dir = state.latestSort.dir === "asc" ? "desc" : "asc";
+    else state.latestSort = {key, dir:"desc"};
+    state.latestPage = 0;
+    renderLatestExercises();
   });
 });
 document.querySelectorAll(".flows-tbl th[data-flow-sort]").forEach(th=>{
