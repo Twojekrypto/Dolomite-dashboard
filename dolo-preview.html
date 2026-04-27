@@ -493,6 +493,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .nav-item.active::after{display:none}
 }
 </style>
+<script src="count-up.js?v=20260427-countup"></script>
 </head>
 <body>
 <div class="wrap">
@@ -1602,6 +1603,11 @@ renderFlows();
   });
   const safeNum = v => Number.isFinite(Number(v)) ? Number(v) : 0;
   const lower = addr => String(addr || "").toLowerCase();
+  function setMetricElement(el, value){
+    if(!el) return;
+    if(window.CountUpMetric) CountUpMetric.text(el, value);
+    else el.textContent = value;
+  }
   const fmtMoney = n => {
     n = safeNum(n);
     if(n >= 1e9) return "$" + (n/1e9).toFixed(2) + "B";
@@ -1645,28 +1651,29 @@ renderFlows();
     const price = safeNum(data.price);
     const change = safeNum(data.change_24h);
     const priceEl = document.querySelector(".hero-price");
-    if(priceEl) priceEl.textContent = "$" + price.toFixed(price >= 1 ? 3 : 4);
+    setMetricElement(priceEl, "$" + price.toFixed(price >= 1 ? 3 : 4));
     const chgEl = document.querySelector(".hero-chg");
     if(chgEl){
       chgEl.classList.toggle("up", change >= 0);
       chgEl.classList.toggle("down", change < 0);
-      chgEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="' + (change >= 0 ? "18 15 12 9 6 15" : "6 9 12 15 18 9") + '"/></svg>' + (change >= 0 ? "+" : "") + change.toFixed(2) + '%<span class="lbl">24h</span>';
+      chgEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="' + (change >= 0 ? "18 15 12 9 6 15" : "6 9 12 15 18 9") + '"/></svg><span data-count-up></span><span class="lbl">24h</span>';
+      setMetricElement(chgEl.querySelector("[data-count-up]"), (change >= 0 ? "+" : "") + change.toFixed(2) + "%");
     }
     const stats = document.querySelectorAll(".hero-stat");
     if(stats[0]){
-      stats[0].querySelector(".val").textContent = fmtMoney(data.market_cap);
+      setMetricElement(stats[0].querySelector(".val"), fmtMoney(data.market_cap));
       stats[0].querySelector(".sub").textContent = "via CoinGecko";
     }
     if(stats[1]){
       const circ = safeNum(data.circulating_supply);
       const pct = safeNum(data.total_supply) ? (circ / safeNum(data.total_supply)) * 100 : 0;
-      stats[1].querySelector(".val").textContent = originalFmtNum(circ);
+      setMetricElement(stats[1].querySelector(".val"), originalFmtNum(circ));
       stats[1].querySelector(".sub").textContent = pct.toFixed(1) + "% of total";
       const bar = stats[1].querySelector(".hero-bar > span");
       if(bar) bar.style.width = Math.max(0, Math.min(100, pct)).toFixed(1) + "%";
     }
     if(stats[2]){
-      stats[2].querySelector(".val").textContent = originalFmtNum(data.total_supply || data.fdv / Math.max(price, 0.000001));
+      setMetricElement(stats[2].querySelector(".val"), originalFmtNum(data.total_supply || data.fdv / Math.max(price, 0.000001)));
       stats[2].querySelector(".sub").textContent = data.fdv ? "FDV " + fmtMoney(data.fdv) : "fixed cap";
     }
     liveTotalSupply = safeNum(data.total_supply) || liveTotalSupply;
@@ -1738,7 +1745,7 @@ renderFlows();
     if(countEl && liveHolderStats) countEl.textContent = liveHolderStats.total_holders.toLocaleString() + " holders · showing " + shown.toLocaleString();
     const stats = document.querySelectorAll(".hero-stat");
     if(stats[3] && liveHolderStats){
-      stats[3].querySelector(".val").textContent = liveHolderStats.total_holders.toLocaleString();
+      setMetricElement(stats[3].querySelector(".val"), liveHolderStats.total_holders.toLocaleString());
       const sub = stats[3].querySelector(".sub");
       sub.className = "sub";
       sub.textContent = liveHolderStats.both_chains.toLocaleString() + " on both chains";
