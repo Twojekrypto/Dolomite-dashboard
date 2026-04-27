@@ -304,6 +304,76 @@ def get_top(flows, tx_counts, n, mode="accumulator", excluded=None):
     return result
 
 
+def fetch_odolo_balances(addresses):
+    """Fetch current oDOLO balanceOf(address) values with batch RPC fallback."""
+    unique = sorted({addr.lower() for addr in addresses if addr})
+    balances = {}
+    if not unique:
+        return balances
+
+    bal_selector = "0x70a08231"  # balanceOf(address)
+
+    def call_payload(addr, idx):
+        padded = addr.replace("0x", "").lower().zfill(64)
+        return {
+            "jsonrpc": "2.0",
+            "method": "eth_call",
+            "params": [{"to": ODOLO_CONTRACT, "data": bal_selector + padded}, "latest"],
+            "id": idx,
+        }
+
+    batch_size = 100
+    for start in range(0, len(unique), batch_size):
+        batch = unique[start:start + batch_size]
+        success = False
+        for rpc in RPC_URLS:
+            try:
+                payload = [call_payload(addr, start + i) for i, addr in enumerate(batch)]
+                resp = requests.post(rpc, json=payload, timeout=20, headers={"Content-Type": "application/json"})
+                data = resp.json()
+                if not isinstance(data, list):
+                    raise ValueError("batch RPC response was not a list")
+                by_id = {item.get("id"): item for item in data if isinstance(item, dict)}
+                for i, addr in enumerate(batch):
+                    result = by_id.get(start + i, {}).get("result", "0x0")
+                    bal = int(result, 16) / (10 ** 18) if result and result != "0x" else 0
+                    balances[addr] = round(bal, 2)
+                success = True
+                break
+            except Exception:
+                time.sleep(0.5)
+
+        if not success:
+            for addr in batch:
+                for rpc in RPC_URLS:
+                    try:
+                        resp = requests.post(rpc, json=call_payload(addr, 1), timeout=5, headers={"Content-Type": "application/json"})
+                        result = resp.json().get("result", "0x0")
+                        bal = int(result, 16) / (10 ** 18) if result and result != "0x" else 0
+                        balances[addr] = round(bal, 2)
+                        break
+                    except Exception:
+                        time.sleep(0.3)
+                time.sleep(0.03)
+
+        print(f"    balances: {min(start + batch_size, len(unique)):,}/{len(unique):,}", flush=True)
+        time.sleep(0.05)
+
+    return balances
+
+
+def calculate_balances_from_transfers(transfers, addresses):
+    """Fallback balance reconstruction from the cached Transfer ledger."""
+    wanted = {addr.lower() for addr in addresses if addr}
+    balances = {addr: 0 for addr in wanted}
+    for from_addr, to_addr, value_wei, _ in transfers:
+        if from_addr in balances:
+            balances[from_addr] -= value_wei
+        if to_addr in balances:
+            balances[to_addr] += value_wei
+    return {addr: round(max(0, value_wei) / (10 ** 18), 2) for addr, value_wei in balances.items()}
+
+
 def main():
     print("=" * 60)
     print("🔄 oDOLO Token Flows — Top Accumulators & Sellers")
@@ -425,31 +495,23 @@ def main():
         for entry in period_data["accumulators"] + period_data["sellers"]:
             all_addrs.add(entry["address"])
 
-    # Fetch oDOLO balances for all addresses
-    print(f"\n💰 Fetching oDOLO balances for {len(all_addrs)} addresses...")
-    balances = {}
-    bal_selector = "0x70a08231"  # balanceOf(address)
-    for addr in all_addrs:
-        padded = addr.replace("0x", "").lower().zfill(64)
-        for rpc in RPC_URLS:
-            try:
-                resp = requests.post(rpc, json={
-                    "jsonrpc": "2.0", "method": "eth_call",
-                    "params": [{"to": ODOLO_CONTRACT, "data": bal_selector + padded}, "latest"],
-                    "id": 1
-                }, timeout=5, headers={"Content-Type": "application/json"})
-                result = resp.json().get("result", "0x0")
-                bal = int(result, 16) / (10 ** 18) if result and result != "0x" else 0
-                balances[addr] = round(bal, 2)
-                break
-            except Exception:
-                time.sleep(0.3)
-        time.sleep(0.05)
+    # Fetch current oDOLO balances for flow addresses and every claimer.
+    # Claimer Breakdown "Held" is intended to mean the wallet's current balance,
+    # not the residual amount inferred from claim/exercise/outflow history.
+    balance_addrs = all_addrs | claimer_addrs
+    print(f"\n💰 Fetching current oDOLO balances for {len(balance_addrs)} addresses...")
+    ledger_balances = calculate_balances_from_transfers(all_transfers, balance_addrs)
+    balances = fetch_odolo_balances(balance_addrs)
+    missing_balances = [addr for addr in balance_addrs if addr.lower() not in balances]
+    if missing_balances:
+        print(f"  ⚠️ RPC missed {len(missing_balances)} balances; using Transfer-ledger fallback")
+        for addr in missing_balances:
+            balances[addr.lower()] = ledger_balances.get(addr.lower(), 0)
 
     # Add balances to all entries
     for period_data in output_periods.values():
         for entry in period_data["accumulators"] + period_data["sellers"]:
-            entry["balance"] = balances.get(entry["address"], 0)
+            entry["balance"] = balances.get(entry["address"].lower(), 0)
 
     # Checksum addresses
     try:
@@ -488,17 +550,20 @@ def main():
                     exercised += val
                 elif to_addr not in SKIP_ADDRS and to_addr != REWARDS_CONTRACT:
                     outflow += val
-        # Cap at claimed amount — don't count extra purchased oDOLO
-        # Priority: exercised first, then outflow, remainder = held
+        # Cap claimed lifecycle amounts — don't count extra purchased oDOLO.
+        # Priority: exercised first, then outflow, remainder = claim_remaining.
+        # Held is the wallet's current live oDOLO balance fetched via balanceOf().
         exercised_capped = min(exercised, claimed)
         remaining = claimed - exercised_capped
         outflow_capped = min(outflow, remaining)
-        held = max(0, remaining - outflow_capped)
+        claim_remaining = max(0, remaining - outflow_capped)
+        held = balances.get(wallet.lower(), ledger_balances.get(wallet.lower(), 0))
         claimer_stats[wallet] = {
             "claimed": round(claimed, 2),
             "exercised": round(exercised_capped, 2),
             "outflow": round(outflow_capped, 2),
             "held": round(held, 2),
+            "claim_remaining": round(claim_remaining, 2),
             "bought_extra": round(max(0, exercised - claimed), 2),
         }
 
@@ -507,6 +572,7 @@ def main():
     total_exercised = sum(s["exercised"] for s in claimer_stats.values())
     total_outflow = sum(s["outflow"] for s in claimer_stats.values())
     total_held = sum(s["held"] for s in claimer_stats.values())
+    total_claim_remaining = sum(s["claim_remaining"] for s in claimer_stats.values())
 
     # Count wallets that bought extra oDOLO and exercised
     bought_extra_count = sum(1 for s in claimer_stats.values() if s["bought_extra"] > 0)
@@ -523,14 +589,17 @@ def main():
         "pct_exercised": round(total_exercised / max(total_claimed, 1) * 100, 1),
         "pct_outflow": round(total_outflow / max(total_claimed, 1) * 100, 1),
         "pct_held": round(total_held / max(total_claimed, 1) * 100, 1),
+        "pct_claim_remaining": round(total_claim_remaining / max(total_claimed, 1) * 100, 1),
         "pct_bought_extra": round(bought_extra_count / max(len(claimer_stats), 1) * 100, 1),
         "count_bought_extra": bought_extra_count,
+        "held_source": "balanceOf(wallet)",
         "all_claimers": all_claimers_list,
     }
     print(f"  Claimers: {len(claimer_stats)}, Claimed: {total_claimed:,.0f}")
     print(f"  Exercised: {total_exercised:,.0f} ({claimer_behavior['pct_exercised']}%)")
     print(f"  Outflow: {total_outflow:,.0f} ({claimer_behavior['pct_outflow']}%)")
-    print(f"  Held: {total_held:,.0f} ({claimer_behavior['pct_held']}%)")
+    print(f"  Held now: {total_held:,.0f} ({claimer_behavior['pct_held']}%)")
+    print(f"  Claim remaining by flow: {total_claim_remaining:,.0f} ({claimer_behavior['pct_claim_remaining']}%)")
 
     # ── Per-period claimer breakdown (for date range filtering) ──
     print("\n📊 Generating per-period claimer breakdown...")
@@ -558,13 +627,15 @@ def main():
             ex_cap = min(exercised, claimed)
             rem = claimed - ex_cap
             out_cap = min(outflow, rem)
-            held = max(0, rem - out_cap)
+            claim_remaining = max(0, rem - out_cap)
+            held = balances.get(wallet.lower(), ledger_balances.get(wallet.lower(), 0))
             p_all.append({
                 "address": wallet,
                 "claimed": round(claimed, 2),
                 "exercised": round(ex_cap, 2),
                 "outflow": round(out_cap, 2),
                 "held": round(held, 2),
+                "claim_remaining": round(claim_remaining, 2),
                 "bought_extra": round(max(0, exercised - claimed), 2),
             })
 

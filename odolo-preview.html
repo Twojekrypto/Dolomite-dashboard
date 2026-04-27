@@ -1154,7 +1154,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         <h2>oDOLO Claimer Breakdown</h2>
         <span class="count-badge" id="cb-count">2,357 claimers</span>
       </div>
-      <div class="card-meta"><span class="pulse"></span>Claimed oDOLO lifecycle; extra exercises stay separate</div>
+      <div class="card-meta"><span class="pulse"></span>Claims, exercise flow, and current wallet oDOLO balance</div>
     </div>
 
     <div class="toolbar">
@@ -1196,7 +1196,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
             <th data-sort="exercised" class="num col-exr has-help" data-help-key="claim" style="width:150px"><span class="th-label">Claim Exercised<span class="th-help">?</span></span></th>
             <th data-sort="buy" class="num col-buy has-help" data-help-key="extra" style="width:150px"><span class="th-label">Extra Exercised<span class="th-help">?</span></span></th>
             <th data-sort="outflow" class="num col-out" style="width:128px">Outflow</th>
-            <th data-sort="held" class="num col-hld" style="padding-right:32px;width:128px">Held</th>
+            <th data-sort="held" class="num col-hld has-help" data-help-key="held" style="padding-right:32px;width:128px"><span class="th-label">Held<span class="th-help">?</span></span></th>
           </tr>
         </thead>
         <tbody id="cb-body"></tbody>
@@ -1886,7 +1886,7 @@ const DIST_SEGMENTS = [
 const BEHAV_SEGMENTS = [
   {label:"Claim exercised",    value:53.1, color:"#8aa37b", desc:"Claimed oDOLO used for veDOLO",      fmt:"22.01M oDOLO"},
   {label:"Sold or sent away",  value:23.4, color:"#b4796b", desc:"Moved out without exercising",       fmt:"9.71M oDOLO"},
-  {label:"Still holding",      value:23.5, color:"#22d3ee", desc:"Sitting in claimer wallets",         fmt:"9.74M oDOLO"},
+  {label:"Still holding",      value:31.4, color:"#22d3ee", desc:"Current oDOLO balance in claimer wallets", fmt:"13.03M oDOLO"},
   {label:"Extra exercised",    value: 3.5, color:"#a78bfa", desc:"Exercised above each wallet's claim", fmt:"+12.32M oDOLO"},
 ];
 
@@ -2294,7 +2294,7 @@ const CLAIMERS = [
   {addr:"0xec382865df43ea39a7590bdc0e03240f858d8c5f", label:null, claimed:758137.35, exercised:0.00, outflow:758137.35, held:0.00, buy:0.00},
   {addr:"0x3f3e305c4ad49271ebda489dd43d2c8f027d2d41", label:null, claimed:720523.66, exercised:0.00, outflow:0.00, held:720523.66, buy:0.00},
   {addr:"0x1955fb36e0f92b2518584b3ad31e59c2e8c7fcf7", label:null, claimed:715077.14, exercised:715077.14, outflow:0.00, held:0.00, buy:0.00},
-  {addr:"0xbec69dfce4c1fa8b7843fee1ca85788d84a86b06", label:null, claimed:708464.68, exercised:149939.84, outflow:0.00, held:558524.84, buy:0.00},
+  {addr:"0xbec69dfce4c1fa8b7843fee1ca85788d84a86b06", label:null, claimed:708464.68, exercised:151689.84, outflow:0.00, held:598402.41, buy:0.00},
   {addr:"0x24a6a6b5bcbc9c118f5aa1ed3f692099fb19d6a6", label:null, claimed:649786.20, exercised:97586.15, outflow:0.00, held:552200.06, buy:0.00},
   {addr:"0xd47f5a2bf688999017163f4da7f39159650d7133", label:null, claimed:573597.37, exercised:0.00, outflow:0.00, held:573597.37, buy:0.00},
   {addr:"0x8c39b7cb82b9d791adcc9387098944b635c17b32", label:null, claimed:561440.34, exercised:561440.34, outflow:0.00, held:0.00, buy:37540.98},
@@ -2311,6 +2311,7 @@ const cbState = {
 function updateCbHeaderHelp(extraWallets = 0, extraTotal = 0){
   const claim = document.querySelector('#tbl-cb th[data-help-key="claim"]');
   const extra = document.querySelector('#tbl-cb th[data-help-key="extra"]');
+  const held = document.querySelector('#tbl-cb th[data-help-key="held"]');
   if(claim){
     claim.dataset.tipTitle = "Claim Exercised";
     claim.dataset.tipBody = "Claimed oDOLO used for veDOLO, capped at each wallet's own claim.";
@@ -2318,6 +2319,10 @@ function updateCbHeaderHelp(extraWallets = 0, extraTotal = 0){
   if(extra){
     extra.dataset.tipTitle = "Extra Exercised";
     extra.dataset.tipBody = `${extraWallets.toLocaleString()} wallets exercised +${fmtNum(extraTotal)} oDOLO above their claim in the selected window.`;
+  }
+  if(held){
+    held.dataset.tipTitle = "Held";
+    held.dataset.tipBody = "Current oDOLO balance in this wallet from balanceOf(wallet). Date filters change claim/exercise/outflow; Held stays the latest wallet balance.";
   }
 }
 
@@ -3367,7 +3372,7 @@ function syncLiveBehavior(){
   applyRows(BEHAV_SEGMENTS, [
     {label:"Claim exercised", value:Number(cb.pct_exercised) || 0, color:"#8aa37b", desc:"Claimed oDOLO used for veDOLO", fmt:fmtNum(claimed * (Number(cb.pct_exercised) || 0) / 100) + " oDOLO"},
     {label:"Sold or sent away", value:Number(cb.pct_outflow) || 0, color:"#b4796b", desc:"Moved out without exercising", fmt:fmtNum(claimed * (Number(cb.pct_outflow) || 0) / 100) + " oDOLO"},
-    {label:"Still holding", value:Number(cb.pct_held) || 0, color:"#22d3ee", desc:"Sitting in claimer wallets", fmt:fmtNum(claimed * (Number(cb.pct_held) || 0) / 100) + " oDOLO"},
+    {label:"Still holding", value:Number(cb.pct_held) || 0, color:"#22d3ee", desc:"Current oDOLO balance in claimer wallets", fmt:fmtNum(claimed * (Number(cb.pct_held) || 0) / 100) + " oDOLO"},
     {label:"Extra exercised", value:Number(cb.pct_bought_extra) || 0, color:"#a78bfa", desc:`${Number(cb.count_bought_extra || 0).toLocaleString()} wallets exercised above claim`, fmt:"+" + fmtNum(boughtExtra) + " oDOLO"},
   ]);
   setText("behav-count", `${Number(cb.total_claimers || 0).toLocaleString()} claimers`);
@@ -3388,6 +3393,7 @@ function syncLiveClaimersForPeriod(){
       exercised: Number(row.exercised) || 0,
       outflow: Number(row.outflow) || 0,
       held: Number(row.held) || 0,
+      claimRemaining: Number(row.claim_remaining) || 0,
       buy: Number(row.bought_extra) || 0,
     };
   }));
