@@ -937,10 +937,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 
     <!-- Big number — Total Supply + discount pill -->
     <div class="hero-price-row">
-      <div class="hero-price" id="hero-supply">154.53M<span class="unit">oDOLO</span></div>
-      <div class="hero-chg gold" id="hero-discount">
+      <div class="hero-price" id="hero-supply" data-count-value="0">0.000<span class="unit">oDOLO</span></div>
+      <div class="hero-chg gold" id="hero-discount" data-count-value="0">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19l14-14"/><circle cx="7.5" cy="6.5" r="2"/><circle cx="16.5" cy="17.5" r="2"/></svg>
-        37.7%<span class="lbl">avg discount</span>
+        0.000%<span class="lbl">avg discount</span>
       </div>
     </div>
 
@@ -950,7 +950,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 5c0-1.66 4-3 9-3s9 1.34 9 3"/></svg>
           Circulating
         </div>
-        <div class="val" id="hero-circulating">136.40M</div>
+        <div class="val" id="hero-circulating" data-count-value="0">0.000</div>
         <div class="sub" id="hero-circulating-sub">88.3% of total</div>
         <div class="hero-bar"><span id="hero-circulating-bar" style="width:88.3%"></span></div>
       </div>
@@ -960,7 +960,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
           Holders
         </div>
-        <div class="val" id="hero-holders">1,866</div>
+        <div class="val" id="hero-holders" data-count-value="0">0</div>
         <div class="sub up" id="hero-holders-sub">unique wallets</div>
       </div>
 
@@ -969,7 +969,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8l3 3 5-6"/><path d="M21 12c0 5-4 9-9 9s-9-4-9-9 4-9 9-9c2 0 3.8.7 5.2 1.8"/></svg>
           Exercised (USDC)
         </div>
-        <div class="val gold" id="hero-exercised-usd">$1.95M</div>
+        <div class="val gold" id="hero-exercised-usd" data-count-value="0">$0.000</div>
         <div class="sub" id="hero-exercised-sub">3,535 exercises</div>
       </div>
 
@@ -978,7 +978,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M7 7V5a3 3 0 0 1 6 0v2"/><path d="M16 12v4"/></svg>
           Avg Lock
         </div>
-        <div class="val" id="hero-avg-lock">17.5<span style="font-size:14px;color:var(--fg-3);margin-left:4px">mo</span></div>
+        <div class="val" id="hero-avg-lock" data-count-value="0">0.000<span style="font-size:14px;color:var(--fg-3);margin-left:4px">mo</span></div>
         <div class="sub" id="hero-avg-lock-sub">532 days · avg lock</div>
       </div>
     </div>
@@ -1513,10 +1513,14 @@ function setMetricText(id, value){
 function setMetricHtml(id, value, beforeHtml = "", afterHtml = ""){
   const el = document.getElementById(id);
   if(!el) return;
-  const previous = el.querySelector("[data-count-up-part]")?.dataset.countValue;
+  const previous = el.querySelector("[data-count-up-part]")?.dataset.countValue || el.dataset.countValue;
   el.innerHTML = `${beforeHtml}<span data-count-up-part></span>${afterHtml}`;
   const part = el.querySelector("[data-count-up-part]");
   if(previous) part.dataset.countValue = previous;
+  if(Number(previous) === 0){
+    const target = String(value ?? "");
+    part.textContent = `${target.startsWith("+") ? "+" : ""}0.000${target.endsWith("%") ? "%" : ""}`;
+  }
   if(window.CountUpMetric) CountUpMetric.text(part, value);
   else part.textContent = value;
 }

@@ -533,10 +533,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 
     <!-- Price + change pill -->
     <div class="hero-price-row">
-      <div class="hero-price">$1.214</div>
+      <div class="hero-price" data-count-value="0">$0.00000</div>
       <div class="hero-chg up">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-        +3.42%<span class="lbl">24h</span>
+        +0.000%<span class="lbl">24h</span>
       </div>
     </div>
 
@@ -547,7 +547,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 5c0-1.66 4-3 9-3s9 1.34 9 3"/></svg>
           Market Cap
         </div>
-        <div class="val">$162.4M</div>
+        <div class="val" data-count-value="0">$0.000</div>
         <div class="sub">rank #283</div>
       </div>
 
@@ -556,7 +556,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/></svg>
           Circulating
         </div>
-        <div class="val">133.8M</div>
+        <div class="val" data-count-value="0">0.000</div>
         <div class="sub">13.4% of total</div>
         <div class="hero-bar"><span style="width:13.4%"></span></div>
       </div>
@@ -566,7 +566,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
           Total Supply
         </div>
-        <div class="val">1.00B</div>
+        <div class="val" data-count-value="0">0.000</div>
         <div class="sub">fixed cap</div>
       </div>
 
@@ -575,7 +575,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
           Holders
         </div>
-        <div class="val">12,481</div>
+        <div class="val" data-count-value="0">0</div>
         <div class="sub up">+248 last 7d</div>
       </div>
     </div>
@@ -1651,13 +1651,16 @@ renderFlows();
     const price = safeNum(data.price);
     const change = safeNum(data.change_24h);
     const priceEl = document.querySelector(".hero-price");
-    setMetricElement(priceEl, "$" + price.toFixed(price >= 1 ? 3 : 4));
+    setMetricElement(priceEl, "$" + price.toFixed(price >= 1 ? 3 : 5));
     const chgEl = document.querySelector(".hero-chg");
     if(chgEl){
       chgEl.classList.toggle("up", change >= 0);
       chgEl.classList.toggle("down", change < 0);
       chgEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="' + (change >= 0 ? "18 15 12 9 6 15" : "6 9 12 15 18 9") + '"/></svg><span data-count-up></span><span class="lbl">24h</span>';
-      setMetricElement(chgEl.querySelector("[data-count-up]"), (change >= 0 ? "+" : "") + change.toFixed(2) + "%");
+      const changePart = chgEl.querySelector("[data-count-up]");
+      changePart.dataset.countValue = "0";
+      changePart.textContent = (change >= 0 ? "+" : "") + "0.000%";
+      setMetricElement(changePart, (change >= 0 ? "+" : "") + change.toFixed(2) + "%");
     }
     const stats = document.querySelectorAll(".hero-stat");
     if(stats[0]){

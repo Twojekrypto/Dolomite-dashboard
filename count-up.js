@@ -69,6 +69,7 @@
 
     const duration = Math.max(240, Number(opts?.duration) || DURATION);
     const started = performance.now();
+    el.textContent = formatMetric(start, spec);
     const tick = now => {
       const t = Math.min(1, (now - started) / duration);
       const valueNow = start + (end - start) * easeOutCubic(t);
