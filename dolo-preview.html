@@ -207,6 +207,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dd-panel-types .rw-dot-src.eoa{background:var(--fg-2)}
 .dd-panel-types .rw-dot-src.ca{background:var(--gold)}
 .dd-panel-types .rw-dot-src.cex{background:var(--down)}
+.dd-panel-types .rw-dot-src.watch{background:#c69a5b}
 .dd-panel-types .rw-dot-src.mm{background:#9ab7c2}
 .dd-panel-types .rw-dot-src.bot{background:#b4a87a}
 .dd-panel-types .rw-name{font-size:13px;font-weight:500;color:var(--fg-2);flex:1;min-width:0}
@@ -314,6 +315,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .type-tag.type-eoa{color:var(--fg-3);border-color:var(--line-2);background:var(--bg-3)}
 .type-tag.type-ca{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
 .type-tag.type-cex{color:var(--down);border-color:rgba(180,121,107,.3);background:rgba(180,121,107,.08)}
+.type-tag.type-watch{color:#c69a5b;border-color:rgba(198,154,91,.34);background:rgba(198,154,91,.09)}
 .type-tag.type-mm{color:#9ab7c2;border-color:rgba(154,183,194,.3);background:rgba(154,183,194,.08)}
 .type-tag.type-bot{color:#b4a87a;border-color:rgba(180,168,122,.3);background:rgba(180,168,122,.08)}
 
@@ -619,7 +621,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <button class="dd-btn filtered" data-dd="types">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
             <span class="lbl">All Types</span>
-            <span class="count">5</span>
+            <span class="count">6</span>
             <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div class="dd-panel dd-panel-types">
@@ -639,6 +641,11 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-dot-src cex"></span>
                 <div class="rw-name">Exchanges</div>
+              </div>
+              <div class="rw-item active" data-type="watch" data-tip="Potential CEX / market maker — detected by custody-like flow pattern, not verified">
+                <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
+                <span class="rw-dot-src watch"></span>
+                <div class="rw-name">Potential CEX/MM</div>
               </div>
               <div class="rw-item active" data-type="mm" data-tip="Wintermute, GSR, Jump and similar liquidity providers">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
@@ -719,7 +726,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <button class="dd-btn filtered" data-dd="flows-types">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
             <span class="lbl">All Types</span>
-            <span class="count">5</span>
+            <span class="count">6</span>
             <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div class="dd-panel dd-panel-types">
@@ -739,6 +746,11 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-dot-src cex"></span>
                 <div class="rw-name">Exchanges</div>
+              </div>
+              <div class="rw-item active" data-type="watch" data-tip="Potential CEX / market maker — detected by custody-like flow pattern, not verified">
+                <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
+                <span class="rw-dot-src watch"></span>
+                <div class="rw-name">Potential CEX/MM</div>
               </div>
               <div class="rw-item active" data-type="mm" data-tip="Wintermute, GSR, Jump and similar liquidity providers">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
@@ -885,11 +897,13 @@ const HOLDERS = [
 // total = balEth + balBera; share = total / TOTAL_SUPPLY
 HOLDERS.forEach(h => h.total = h.balEth + h.balBera);
 
-const TYPE_LABELS = {eoa:"EOA", ca:"Contract", cex:"CEX", bot:"Bot", mm:"MM"};
+const TYPE_LABELS = {eoa:"EOA", ca:"Contract", cex:"CEX", watch:"Potential", bot:"Bot", mm:"MM"};
+const ADDRESS_TYPES = Object.keys(TYPE_LABELS);
 const TYPE_TIPS = {
   eoa: "Externally Owned Account — regular wallet",
   ca:  "Smart contract — protocol or aggregator",
-  cex: "Centralized exchange — custody address",
+  cex: "Verified centralized exchange custody address",
+  watch: "Potential CEX / market maker — detected by custody-like behavior, not verified",
   bot: "Automated trading / MEV bot",
   mm:  "Market maker — liquidity provider",
 };
@@ -899,6 +913,7 @@ const TYPE_GENERIC = {
   eoa: "Wallet",
   ca:  "Smart contract",
   cex: "Exchange",
+  watch: "Potential CEX/MM",
   bot: "Trading bot",
   mm:  "Market maker",
 };
@@ -925,10 +940,10 @@ const FLOWS = [
 const state = {
   q:"", qFlows:"",
   chain: "all",                                            // all | ethereum | berachain
-  types: new Set(["eoa","ca","cex","bot","mm"]),           // holders: all enabled
+  types: new Set(ADDRESS_TYPES),                            // holders: all enabled
   flowsPeriod: "7d",                                        // 1d | 7d | 30d | 90d | 180d | all
   flowsChain: "all",                                        // all | ethereum | berachain
-  flowsTypes: new Set(["eoa","ca","cex","bot","mm"]),       // flows: all enabled
+  flowsTypes: new Set(ADDRESS_TYPES),                       // flows: all enabled
   flowsSort: {
     acc: {key:"net", dir:"desc"},
     out: {key:"net", dir:"desc"},
@@ -1374,10 +1389,10 @@ document.querySelectorAll('#dd-chain .dd-opt').forEach(opt=>{
 // Address Type filter — multi-select with hover tooltips
 function syncTypesBtn(){
   const btn = document.querySelector('#dd-types .dd-btn');
-  const total = 5;  // eoa, ca, cex, mm, bot
+  const total = ADDRESS_TYPES.length;
   const lbl = btn.querySelector(".lbl");
   const cnt = btn.querySelector(".count");
-  // "filtered" = some types are turned off (i.e. not all 5 active)
+  // "filtered" = some types are turned off.
   btn.classList.toggle("filtered", state.types.size !== total);
   if(state.types.size === total){
     lbl.textContent = "All Types";
@@ -1445,7 +1460,7 @@ document.querySelectorAll('#dd-flows-period .dd-opt').forEach(opt=>{
 // Flows tag filter — multi-select with hover tooltip
 function syncFlowsTypesBtn(){
   const btn = document.querySelector('#dd-flows-types .dd-btn');
-  const total = 5;
+  const total = ADDRESS_TYPES.length;
   const lbl = btn.querySelector(".lbl");
   const cnt = btn.querySelector(".count");
   btn.classList.toggle("filtered", state.flowsTypes.size !== total);
@@ -1550,11 +1565,14 @@ renderFlows();
     "0xf977814e90da44bfa03b6295a0616a897441acec": {label:"Binance 8", type:"cex"},
     "0x28c6c06298d514db089934071355e5743bf21d60": {label:"Binance 14", type:"cex"},
     "0x21a31ee1afc51d94c2efccaa2092ad1028285549": {label:"Binance 35", type:"cex"},
+    "0xbe0eb53f46cd790cd13851d5eff43d12404d33e8": {label:"Binance 7", type:"cex"},
+    "0x56eddb7aa87536c09ccc2793473599fd21a8b17f": {label:"Binance 16", type:"cex"},
+    "0x9696f59e4d72e237be84ffd425dcad154bf96976": {label:"Binance 18", type:"cex"},
     "0x305833cadd13a6d7febc6619304a6943a9a1ed22": {label:"Binance Deposit", type:"cex"},
     "0xdfd5293d8e347dfe59e90efd55b2956a1343963d": {label:"Binance US", type:"cex"},
     "0xa9d1e08c7793af67e9d92fe308d5697fb81d3e43": {label:"Binance Deposit", type:"cex"},
     "0xd97107064b8c7520aae6c6e6ca75bb2aa73b670d": {label:"BingX-linked", type:"cex"},
-    "0x38285671612d6f0ef7c3483f500d39fa71d66a1c": {label:"CEX distributor", type:"cex"},
+    "0x38285671612d6f0ef7c3483f500d39fa71d66a1c": {label:"CEX distributor", type:"watch"},
     "0x035ae7d933dcbfe617ffba194a88af0c2867b90c": {label:"Gate.io", type:"cex"},
     "0x8782163068c7cd74d2510768a61135c1e4eb07b3": {label:"Gate.io", type:"cex"},
     "0x0d0707963952f2fba59dd06f2b425ace40b492fe": {label:"Gate.io", type:"cex"},
@@ -1563,11 +1581,20 @@ renderFlows();
     "0xe337c67ee9077e31aab205b25e8593b0e1c00cc4": {label:"Coinbase", type:"cex"},
     "0x38fc9e8c73ea02f3a7de1da0760e71277f1e5e24": {label:"Coinbase", type:"cex"},
     "0x478271c960137418c9d90082dddbf68aa72e4367": {label:"Gate.io", type:"cex"},
+    "0x753f43cca3dbd2bbe963609f8d25a833433a10c9": {label:"Gate.io", type:"cex"},
     "0x43684d03d81d3a4c70da68febdd61029d426f042": {label:"Binance 117", type:"cex"},
-    "0x7a1d00de77c0162d55d84a051bdc6840852b4a60": {label:"CEX or MM", type:"mm"},
+    "0x98adef6f2ac8572ec48965509d69a8dd5e8bba9d": {label:"Binance 93", type:"cex"},
+    "0x7a1d00de77c0162d55d84a051bdc6840852b4a60": {label:"Potential CEX/MM", type:"watch"},
     "0x9642b23ed1e01df1092b92641051881a322f5d4e": {label:"MEXC", type:"cex"},
     "0x1157a2076b9bb22a85cc2c162f20fab3898f4101": {label:"FalconX", type:"cex"},
+    "0x0529ea5885702715e83923c59746ae8734c553b7": {label:"Bitpanda", type:"cex"},
     "0xd2dd7b597fd2435b6db61ddf48544fd931e6869f": {label:"Kraken", type:"cex"},
+    "0xb8001c3ec9aa1985f6c747e25c28324e4a361ec1": {label:"Cobo Custody", type:"cex"},
+    "0x2b3bf74b29f59fb8dda41cf3d6a8da28cf8e7921": {label:"BingX 29", type:"cex"},
+    "0xb180647d5ad76abeb6be0d363f6e182bd8df46d1": {label:"Coinbase", type:"cex"},
+    "0xfc89c020774524c9d03bd5de48fec149b10bdec3": {label:"Potential CEX/MM", type:"watch"},
+    "0xd5c342acbeedef81ab8e6072323bfda76172d05f": {label:"Potential CEX/MM", type:"watch"},
+    "0x93ae9fe008636d2d6d7376198a54edb20367968f": {label:"Potential CEX/MM", type:"watch"},
     "0x003896387666c5c11458eeb3f927b72a11b19783": {label:"Uniswap V3 DOLO/USDC", type:"lp"},
     "0xd5980e98a89e2d2361b3be657e8a003c6d3514e3": {label:"Kodiak DOLO/WBERA", type:"lp"},
     "0x8991017b74f9f8070bff5b322802dd26e05e0cc7": {label:"Bulla DOLO/HONEY", type:"lp"},
@@ -1631,6 +1658,7 @@ renderFlows();
   function mapType(info, holder){
     const t = (info && info.type) || "";
     if(t === "cex") return "cex";
+    if(t === "watch") return "watch";
     if(t === "mm") return "mm";
     if(t === "bot" || t === "liquidator") return "bot";
     if(t === "protocol" || t === "lp" || holder?.is_contract) return "ca";
@@ -1651,29 +1679,35 @@ renderFlows();
     if(holder?.is_contract) return "Smart contract";
     return null;
   }
-  function learnAutoCexLabels(flows){
+  function learnAutoCexLabels(flows, holdersData){
     const signals = {};
-    const touch = item => {
+    const contractAddresses = new Set(
+      (holdersData?.holders || [])
+        .filter(holder => holder?.is_contract)
+        .map(holder => lower(holder.address))
+    );
+    const touch = (item, role) => {
       const key = lower(item?.address);
-      if(!key || ADDR_LABELS[key]) return;
-      const s = signals[key] || (signals[key] = {tx:0, balance:0, flow:0});
+      if(!key || ADDR_LABELS[key] || contractAddresses.has(key)) return;
+      const s = signals[key] || (signals[key] = {tx:0, balance:0, flow:0, roles:new Set()});
       s.tx = Math.max(s.tx, safeNum(item.tx_count));
       s.balance = Math.max(s.balance, safeNum(item.balance));
       s.flow = Math.max(s.flow, Math.abs(safeNum(item.net_flow)));
+      s.roles.add(role);
     };
     Object.values(flows?.periods || {}).forEach(period => {
       ["eth", "bera"].forEach(chain => {
         const data = period?.[chain] || {};
-        (data.accumulators || []).forEach(touch);
-        (data.sellers || []).forEach(touch);
+        (data.accumulators || []).forEach(item => touch(item, "acc"));
+        (data.sellers || []).forEach(item => touch(item, "out"));
       });
     });
     Object.entries(signals).forEach(([key, s]) => {
-      const highTraffic = s.tx >= 80 && s.flow >= 50_000;
-      const largeDistributor = s.tx >= 3 && s.balance >= 2_500_000;
-      const activeCustody = s.tx >= 20 && s.balance >= 1_000_000;
-      if(highTraffic || largeDistributor || activeCustody){
-        AUTO_CEX_LABELS[key] = {label:"CEX candidate", type:"cex"};
+      const hotWithdrawalWallet = s.roles.has("out") && s.tx >= 250 && s.flow >= 250_000 && s.balance <= 150_000;
+      const largeCustodyLike = s.tx >= 3 && s.balance >= 2_500_000 && s.flow >= 250_000;
+      const activeCustodyLike = s.roles.has("acc") && s.tx >= 100 && s.balance >= 500_000 && s.flow >= 100_000;
+      if(hotWithdrawalWallet || largeCustodyLike || activeCustodyLike){
+        AUTO_CEX_LABELS[key] = {label:"Potential CEX/MM", type:"watch"};
       }
     });
   }
@@ -1814,7 +1848,7 @@ renderFlows();
         fetchJson("dolo_flows.json").catch(() => null),
       ]);
       applyPrice(price);
-      if(flows) learnAutoCexLabels(flows);
+      if(flows) learnAutoCexLabels(flows, holders);
       applyHolders(holders);
       if(flows){
         liveFlowsData = flows;
