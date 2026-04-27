@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Dolomite · oDOLO — Premium Preview</title>
-<link rel="icon" href="dolo-logo.svg" type="image/svg+xml">
+<link rel="shortcut icon" href="favicon.ico" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -386,57 +386,65 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .lock-bar > span.long{background:var(--up)}
 
 .ex-detail-panel{
-  margin:0;border:1px solid var(--line-2);border-top:1px solid rgba(201,162,39,.34);border-radius:0 0 var(--r-lg) var(--r-lg);
-  background:linear-gradient(180deg,rgba(201,162,39,.035),rgba(255,255,255,.012) 42%,rgba(255,255,255,.006));overflow:hidden;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
+  margin:0;border:1px solid var(--line-2);border-top:1px solid rgba(201,162,39,.26);border-radius:0 0 var(--r-lg) var(--r-lg);
+  background:linear-gradient(180deg,rgba(18,18,20,.98),rgba(12,12,14,.98));overflow:hidden;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 18px 44px rgba(0,0,0,.22);
 }
 .ex-detail-head{
-  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:16px;padding:16px 18px 14px;border-bottom:1px solid var(--line-1);
+  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:18px;padding:18px 20px 16px;border-bottom:1px solid var(--line-1);
+  background:linear-gradient(180deg,rgba(255,255,255,.026),rgba(255,255,255,0));
 }
-.ex-detail-title{font-size:14px;font-weight:700;color:var(--fg-1);letter-spacing:-.1px;line-height:1.25}
-.ex-detail-sub{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px;font-size:11px;color:var(--fg-3)}
+.ex-detail-title{font-size:15px;font-weight:700;color:var(--fg-1);letter-spacing:0;line-height:1.25}
+.ex-detail-eyebrow{font-size:9.5px;letter-spacing:1.45px;text-transform:uppercase;color:var(--fg-4);font-weight:700;margin-bottom:6px}
+.ex-detail-sub{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:8px;font-size:11px;color:var(--fg-3)}
 .ex-detail-sub .addr-full{
   font-family:var(--mono);color:var(--fg-2);word-break:break-all;line-height:1.35;
-  padding:3px 6px;border-radius:5px;background:rgba(255,255,255,.025);border:1px solid var(--line-1);
+  padding:4px 7px;border-radius:6px;background:rgba(255,255,255,.024);border:1px solid var(--line-1);
 }
 .ex-detail-pill{
-  display:inline-flex;align-items:center;gap:6px;padding:3px 7px;border-radius:999px;
-  color:var(--gold);background:var(--gold-wash);border:1px solid var(--gold-line);font-family:var(--mono);
+  display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;
+  color:var(--fg-2);background:rgba(255,255,255,.024);border:1px solid var(--line-2);font-family:var(--mono);
 }
+.ex-detail-pill.gold{color:var(--gold-hi);background:var(--gold-wash);border-color:var(--gold-line)}
 .ex-detail-links{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .ex-detail-link{
   display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:6px;text-decoration:none;
-  color:var(--fg-2);border:1px solid var(--line-2);background:var(--bg-2);font-size:11.5px;font-weight:600;
+  color:var(--fg-2);border:1px solid var(--line-2);background:rgba(255,255,255,.022);font-size:11.5px;font-weight:600;
   transition:all .15s var(--ease);white-space:nowrap;
 }
-.ex-detail-link:hover{color:var(--fg-1);border-color:var(--line-3);background:var(--bg-3)}
+.ex-detail-link:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(255,255,255,.044)}
 .ex-detail-link svg{width:13px;height:13px}
 .ex-detail-stats{
-  display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:1px;background:var(--line-1);border-bottom:1px solid var(--line-1);
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(124px,1fr));gap:1px;background:var(--line-1);border-bottom:1px solid var(--line-1);
 }
-.ex-detail-stat{background:rgba(10,10,12,.68);padding:12px 14px;min-width:0}
+.ex-detail-stat{background:linear-gradient(180deg,rgba(255,255,255,.026),rgba(255,255,255,.012));padding:13px 16px;min-width:0}
 .ex-detail-stat span{display:block;font-size:9.5px;letter-spacing:1.05px;text-transform:uppercase;color:var(--fg-4);margin-bottom:6px;white-space:nowrap}
 .ex-detail-stat b{display:block;font-family:var(--mono);font-size:14px;color:var(--fg-1);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ex-detail-stat b.gold{color:var(--gold-hi)}
 .ex-detail-stat b.price{color:#9ab7c2}
-.ex-detail-scroll{max-height:330px;overflow:auto;background:rgba(0,0,0,.12)}
-#tbl-ex .ex-detail-table{width:100%;min-width:640px;border-collapse:separate;border-spacing:0;font-size:12px}
+.ex-detail-activity{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:end;padding:13px 20px;border-bottom:1px solid var(--line-1);background:rgba(0,0,0,.12)}
+.ex-detail-activity-title{font-size:9.5px;letter-spacing:1.25px;text-transform:uppercase;color:var(--fg-4);font-weight:700;margin-bottom:8px}
+.ex-detail-bars{height:32px;display:flex;align-items:flex-end;gap:4px;min-width:0}
+.ex-detail-bar{flex:1;min-width:4px;max-width:16px;height:var(--h);border-radius:3px 3px 1px 1px;background:linear-gradient(180deg,rgba(240,213,129,.88),rgba(201,162,39,.62));opacity:.66;border:1px solid rgba(201,162,39,.16)}
+.ex-detail-activity-note{font-family:var(--mono);font-size:11px;color:var(--fg-3);white-space:nowrap}
+.ex-detail-scroll{max-height:330px;overflow:auto;background:rgba(0,0,0,.16)}
+#tbl-ex .ex-detail-table{width:100%;min-width:700px;border-collapse:separate;border-spacing:0;font-size:12px}
 #tbl-ex .ex-detail-table th{
-  position:sticky;top:0;z-index:1;padding:9px 10px;background:#111113;border-bottom:1px solid var(--line-2);
+  position:sticky;top:0;z-index:1;padding:9px 12px;background:rgba(14,14,16,.98);border-bottom:1px solid var(--line-2);
   color:var(--fg-3);font-size:9.5px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;text-align:left;white-space:nowrap;
 }
 #tbl-ex .ex-detail-table th[data-ex-detail-sort]{cursor:pointer;user-select:none;transition:color .15s var(--ease),background .15s var(--ease),box-shadow .15s var(--ease)}
-#tbl-ex .ex-detail-table th[data-ex-detail-sort]:hover{color:var(--fg-1);background:#151516}
-#tbl-ex .ex-detail-table th.sorted{color:var(--gold);background:rgba(201,162,39,.08);box-shadow:inset 0 -1px 0 rgba(201,162,39,.22)}
+#tbl-ex .ex-detail-table th[data-ex-detail-sort]:hover{color:var(--fg-1);background:rgba(255,255,255,.04)}
+#tbl-ex .ex-detail-table th.sorted{color:var(--gold-hi);background:rgba(201,162,39,.055);box-shadow:inset 0 -1px 0 rgba(201,162,39,.2)}
 #tbl-ex .ex-detail-table .detail-sort{
   display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;margin-left:6px;border-radius:4px;
   color:currentColor;background:rgba(255,255,255,.035);font-size:9px;line-height:1;
 }
 #tbl-ex .ex-detail-table th.num,#tbl-ex .ex-detail-table td.num{text-align:right}
 #tbl-ex .ex-detail-table th.center,#tbl-ex .ex-detail-table td.center{text-align:center}
-#tbl-ex .ex-detail-table td{padding:10px;border-bottom:1px solid var(--line-1);font-variant-numeric:tabular-nums;color:var(--fg-2);vertical-align:middle;white-space:nowrap}
-#tbl-ex .ex-detail-table tr:nth-child(even) td{background:rgba(255,255,255,.012)}
-#tbl-ex .ex-detail-table tr:hover td{background:rgba(201,162,39,.035);color:var(--fg-1)}
+#tbl-ex .ex-detail-table td{padding:11px 12px;border-bottom:1px solid var(--line-1);font-variant-numeric:tabular-nums;color:var(--fg-2);vertical-align:middle;white-space:nowrap}
+#tbl-ex .ex-detail-table tr:nth-child(even) td{background:rgba(255,255,255,.01)}
+#tbl-ex .ex-detail-table tr:hover td{background:rgba(255,255,255,.026);color:var(--fg-1)}
 #tbl-ex .ex-detail-table tr:hover td:first-child::before{display:none}
 #tbl-ex .ex-detail-table td.mono{font-family:var(--mono)}
 #tbl-ex .ex-detail-table .ex-detail-rank{color:var(--fg-4);font-weight:600}
@@ -448,10 +456,11 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 #tbl-ex .ex-detail-lock.medium{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
 #tbl-ex .ex-detail-lock.long{color:var(--up);border-color:rgba(138,163,123,.32);background:rgba(138,163,123,.08)}
 #tbl-ex .ex-detail-table a{
-  display:inline-flex;align-items:center;justify-content:center;min-width:70px;padding:5px 7px;border-radius:5px;
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:70px;padding:5px 7px;border-radius:5px;
   border:1px solid var(--line-2);background:rgba(255,255,255,.018);font-family:var(--mono);font-size:11px;color:#9ab7c2;text-decoration:none;white-space:nowrap;
 }
-#tbl-ex .ex-detail-table a:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+#tbl-ex .ex-detail-table a svg{width:12px;height:12px}
+#tbl-ex .ex-detail-table a:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(255,255,255,.04)}
 .ex-detail-empty{padding:18px;color:var(--fg-3);font-size:12px}
 
 @media (max-width:760px){
@@ -459,7 +468,28 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .ex-detail-head{grid-template-columns:1fr}
   .ex-detail-links{justify-content:flex-start}
   .ex-detail-stats{grid-template-columns:repeat(auto-fit,minmax(104px,1fr))}
-  .ex-detail-scroll{max-height:360px}
+  .ex-detail-activity{grid-template-columns:1fr}
+  .ex-detail-activity-note{white-space:normal}
+  .ex-detail-scroll{max-height:420px;padding:12px 0}
+  #tbl-ex .ex-detail-table{min-width:0}
+  #tbl-ex .ex-detail-table thead{display:none}
+  #tbl-ex .ex-detail-table,
+  #tbl-ex .ex-detail-table tbody,
+  #tbl-ex .ex-detail-table tr{display:block}
+  #tbl-ex .ex-detail-table tr{
+    margin:0 12px 10px;padding:12px 14px;border:1px solid var(--line-1);border-radius:8px;
+    background:linear-gradient(180deg,rgba(255,255,255,.024),rgba(255,255,255,.01));
+  }
+  #tbl-ex .ex-detail-table tr:last-child{margin-bottom:0}
+  #tbl-ex .ex-detail-table td{
+    display:grid;grid-template-columns:88px minmax(0,1fr);align-items:center;gap:12px;
+    padding:5px 0!important;border-bottom:0!important;background:transparent!important;white-space:normal;text-align:right;
+  }
+  #tbl-ex .ex-detail-table td::before{
+    content:attr(data-label);font-size:9px;letter-spacing:1.15px;text-transform:uppercase;color:var(--fg-4);font-family:var(--sans);font-weight:700;
+    text-align:left;
+  }
+  #tbl-ex .ex-detail-table td > *{justify-self:end}
 }
 
 /* PAGINATION */
@@ -2347,6 +2377,30 @@ function detailSortHeader(key, label, cls=""){
   const sort = active ? `<span class="detail-sort">${state.exDetailSort.dir === "asc" ? "▲" : "▼"}</span>` : `<span class="detail-sort">⇅</span>`;
   return `<th class="${className}" data-ex-detail-sort="${key}" title="Sort by ${esc(label)}" aria-label="Sort by ${esc(label)}"${aria}>${label}${sort}</th>`;
 }
+function renderExerciseActivity(txs){
+  const ordered = [...txs]
+    .filter(tx => tx && tx.date)
+    .sort((a,b)=>String(a.date).localeCompare(String(b.date)))
+    .slice(-18);
+  if(!ordered.length) return "";
+  const maxUsd = Math.max(...ordered.map(tx => txUsd(tx)), 1);
+  const bars = ordered.map(tx => {
+    const usd = txUsd(tx);
+    const height = Math.max(7, Math.round((usd / maxUsd) * 32));
+    return `<span class="ex-detail-bar" style="--h:${height}px" title="${esc(fmtDate(tx.date))} · ${esc(fmtUsdFull(usd))}"></span>`;
+  }).join("");
+  const first = ordered[0]?.date ? fmtDate(ordered[0].date) : "—";
+  const last = ordered[ordered.length - 1]?.date ? fmtDate(ordered[ordered.length - 1].date) : "—";
+  return `
+    <div class="ex-detail-activity">
+      <div>
+        <div class="ex-detail-activity-title">Exercise activity</div>
+        <div class="ex-detail-bars" aria-label="Exercise activity by transaction">${bars}</div>
+      </div>
+      <div class="ex-detail-activity-note">${ordered.length.toLocaleString()} shown · ${esc(first)} → ${esc(last)}</div>
+    </div>
+  `;
+}
 function renderExerciserDetailRow(r, rank){
   const period = PERIODS.find(p=>p.key===state.exPeriod);
   const txs = sortExerciseTxs((r.txs || []).filter(tx => tx && tx.paid_token !== "DOLO"));
@@ -2361,17 +2415,17 @@ function renderExerciserDetailRow(r, rank){
     const hash = tx.hash || "";
     const hashLabel = hash ? `${hash.slice(0,6)}…${hash.slice(-4)}` : "—";
     const txLink = hash
-      ? `<a href="https://berascan.com/tx/${esc(hash)}" target="_blank" rel="noopener" title="${esc(hash)}">${esc(hashLabel)}</a>`
+      ? `<a href="https://berascan.com/tx/${esc(hash)}" target="_blank" rel="noopener" title="${esc(hash)}">${EXTERNAL_ICO}<span>${esc(hashLabel)}</span></a>`
       : "—";
     return `
       <tr>
-        <td class="mono ex-detail-rank">${i + 1}</td>
-        <td>${esc(fmtDate(tx.date))}</td>
-        <td class="num mono"><span class="bal-val usd">${fmtUsdFull(usd)}</span></td>
-        <td class="num mono">${fmtTokenFull(vedolo)}</td>
-        <td class="num mono"><span class="bal-val price">${fmtPrice(price)}</span></td>
-        <td class="center mono"><span class="ex-detail-lock ${lockClass}">${fmtLock(lockDays)}</span></td>
-        <td>${txLink}</td>
+        <td class="mono ex-detail-rank" data-label="#">${i + 1}</td>
+        <td data-label="Date">${esc(fmtDate(tx.date))}</td>
+        <td class="num mono" data-label="USDC Paid"><span class="bal-val usd">${fmtUsdFull(usd)}</span></td>
+        <td class="num mono" data-label="veDOLO">${fmtTokenFull(vedolo)}</td>
+        <td class="num mono" data-label="Price"><span class="bal-val price">${fmtPrice(price)}</span></td>
+        <td class="center mono" data-label="Lock"><span class="ex-detail-lock ${lockClass}">${fmtLock(lockDays)}</span></td>
+        <td data-label="Tx">${txLink}</td>
       </tr>
     `;
   }).join("");
@@ -2400,9 +2454,12 @@ function renderExerciserDetailRow(r, rank){
         <div class="ex-detail-panel">
           <div class="ex-detail-head">
             <div>
-              <div class="ex-detail-title">#${rank} ${esc(title)} exercise history</div>
+              <div class="ex-detail-eyebrow">Wallet exercise history</div>
+              <div class="ex-detail-title">${esc(title)}</div>
               <div class="ex-detail-sub">
                 <span class="addr-full">${esc(r.addr)}</span>
+                <span class="ex-detail-pill gold">Rank #${rank}</span>
+                <span class="type-tag type-${r.type}" title="${esc(TYPE_TIPS[r.type])}">${esc(TYPE_LABELS[r.type])}</span>
                 <span class="ex-detail-pill">${period ? esc(period.short) : "Period"} · ${txs.length.toLocaleString()} txs</span>
               </div>
             </div>
@@ -2418,6 +2475,7 @@ function renderExerciserDetailRow(r, rank){
             <div class="ex-detail-stat"><span>Exercises</span><b>${txs.length ? txs.length.toLocaleString() : r.exercises.toLocaleString()}</b></div>
             <div class="ex-detail-stat"><span>Avg Lock</span><b>${fmtLock(r.lockDays)}</b></div>
           </div>
+          ${renderExerciseActivity(txs)}
           ${txTable}
         </div>
       </td>
