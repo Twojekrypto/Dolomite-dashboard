@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Dolomite · Assets — Premium Preview</title>
-<link rel="icon" href="dolomite-logo.svg" type="image/svg+xml">
+<link rel="icon" href="dolo-logo.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -600,6 +600,17 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .token-ca-copy:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
 .token-ca-copy.copied{color:var(--up);border-color:var(--up)}
 .token-ca-copy svg{width:11px;height:11px}
+.asset-toggle{
+  height:24px;min-width:78px;padding:0 8px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;gap:5px;flex-shrink:0;
+  color:var(--gold);background:var(--gold-wash);border:1px solid rgba(201,162,39,.28);cursor:pointer;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 0 0 1px rgba(201,162,39,.035);
+  transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease),box-shadow .15s var(--ease),transform .15s var(--ease);
+}
+.asset-toggle svg{width:12px;height:12px;transition:transform .18s var(--ease);pointer-events:none}
+.asset-toggle span{font-size:9.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;line-height:1;pointer-events:none}
+.asset-toggle:hover{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.16);box-shadow:0 0 0 3px rgba(201,162,39,.08);transform:translateY(-1px)}
+.tbl tbody tr.expanded .asset-toggle{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.18);box-shadow:0 0 0 3px rgba(201,162,39,.08)}
+.tbl tbody tr.expanded .asset-toggle svg{transform:rotate(180deg)}
 
 /* chain dot colors — restrained */
 .dot-berachain{background:#c9a227}
@@ -1931,11 +1942,11 @@ function render(){
     const expanded = state.expanded.has(keyId);
     const calc = state.calc.get(keyId) || {action:"deposit",amount:10000};
     state.calc.set(keyId, calc);
+    const toggleHTML = `<button class="asset-toggle" type="button" title="${expanded ? "Hide asset details" : "Show asset details"}" aria-label="${expanded ? "Hide asset details" : "Show asset details"}" aria-expanded="${expanded}"><span>${expanded ? "Hide" : "Details"}</span>${CHEV_DOWN_ICO}</button>`;
     const row = `
       <tr class="data ${expanded?"expanded":""}" data-key="${keyId}">
         <td style="padding-left:32px">
           <div class="asset-cell">
-            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             <div class="tok-ico">
               <img class="${tokenIconClass(r.sym)}" src="${tokIcon(r.sym, r)}" onerror="this.style.display='none'" alt="">
             </div>
@@ -1944,6 +1955,7 @@ function render(){
               <div class="tok-tags">
                 <span class="tag chain"><img src="${chain.icon}" onerror="this.style.display='none'" alt="">${chain.name}</span>
                 ${caHTML}
+                ${toggleHTML}
               </div>
             </div>
           </div>
@@ -2381,6 +2393,7 @@ const CONTRACTS = [
 const shorten = (a)=>a.slice(0,6)+"…"+a.slice(-4);
 const COPY_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
 const CHECK_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+const CHEV_DOWN_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
 const EXT_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
 
 document.getElementById("proto-addrs").innerHTML = CONTRACTS.map((c,i)=>`
