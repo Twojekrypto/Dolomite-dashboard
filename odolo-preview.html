@@ -1613,12 +1613,16 @@ const CHEV_DOWN_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor
 const EXTERNAL_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
 const LIVE = { contract:null, usd:null, lock:null, exercisers:null, flows:null, loaded:false };
 const DATA_VERSION = "odolo-live-20260426";
+const AUTO_CEX_META = {};
 const ADDRESS_META = {
   "0x3e9b9a16743551da49b5e136c716bba7932d2cec": { label:"oDOLO Pair Vester", type:"ca" },
   "0x02e513b5b54ee216bf836ceb471507488fc89543": { label:"oDOLO Token", type:"ca" },
   "0xcb86b75ee6133d179a12d550b09fb3cdb1e141d4": { label:"veDOLO", type:"ca" },
   "0x0f81001ef0a83ecce5ccebf63eb302c70a39a654": { label:"DOLO", type:"ca" },
   "0x28c6c06298d514db089934071355e5743bf21d60": { label:"Binance hot", type:"cex" },
+  "0x305833cadd13a6d7febc6619304a6943a9a1ed22": { label:"Binance Deposit", type:"cex" },
+  "0xd97107064b8c7520aae6c6e6ca75bb2aa73b670d": { label:"BingX-linked", type:"cex" },
+  "0x38285671612d6f0ef7c3483f500d39fa71d66a1c": { label:"CEX distributor", type:"cex" },
 };
 
 function esc(value){
@@ -1662,9 +1666,33 @@ function setMetricHtml(id, value, beforeHtml = "", afterHtml = ""){
 function applyRows(target, rows){
   target.splice(0, target.length, ...rows);
 }
+function learnAutoCexMeta(flows){
+  const signals = {};
+  const touch = item => {
+    const key = (item?.address || "").toLowerCase();
+    if(!key || ADDRESS_META[key]) return;
+    const s = signals[key] || (signals[key] = {tx:0, balance:0, flow:0});
+    s.tx = Math.max(s.tx, Number(item.tx_count) || 0);
+    s.balance = Math.max(s.balance, Number(item.balance) || 0);
+    s.flow = Math.max(s.flow, Math.abs(Number(item.net_flow) || 0));
+  };
+  Object.values(flows?.periods || {}).forEach(period => {
+    (period?.accumulators || []).forEach(touch);
+    (period?.sellers || []).forEach(touch);
+    (period?.claimer_sellers || []).forEach(touch);
+  });
+  Object.entries(signals).forEach(([key, s]) => {
+    const highTraffic = s.tx >= 80 && s.flow >= 50_000;
+    const largeDistributor = s.tx >= 3 && s.balance >= 2_500_000;
+    const activeCustody = s.tx >= 20 && s.balance >= 1_000_000;
+    if(highTraffic || largeDistributor || activeCustody){
+      AUTO_CEX_META[key] = { label:"CEX candidate", type:"cex" };
+    }
+  });
+}
 function addressMeta(addr){
   const key = (addr || "").toLowerCase();
-  return ADDRESS_META[key] || { label:null, type:"eoa" };
+  return ADDRESS_META[key] || AUTO_CEX_META[key] || { label:null, type:"eoa" };
 }
 function periodCutoff(period){
   const days = { "1d":1, "7d":7, "30d":30, "90d":90, "180d":180 }[period];
@@ -3341,6 +3369,7 @@ async function initOdoloPage(){
     LIVE.lock = lock;
     LIVE.exercisers = exercisers;
     LIVE.flows = flows;
+    learnAutoCexMeta(flows);
     LIVE.loaded = true;
     state.exPeriod = "all";
     state.flowsPeriod = "7d";

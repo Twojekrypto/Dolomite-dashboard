@@ -1550,8 +1550,11 @@ renderFlows();
     "0xf977814e90da44bfa03b6295a0616a897441acec": {label:"Binance 8", type:"cex"},
     "0x28c6c06298d514db089934071355e5743bf21d60": {label:"Binance 14", type:"cex"},
     "0x21a31ee1afc51d94c2efccaa2092ad1028285549": {label:"Binance 35", type:"cex"},
+    "0x305833cadd13a6d7febc6619304a6943a9a1ed22": {label:"Binance Deposit", type:"cex"},
     "0xdfd5293d8e347dfe59e90efd55b2956a1343963d": {label:"Binance US", type:"cex"},
     "0xa9d1e08c7793af67e9d92fe308d5697fb81d3e43": {label:"Binance Deposit", type:"cex"},
+    "0xd97107064b8c7520aae6c6e6ca75bb2aa73b670d": {label:"BingX-linked", type:"cex"},
+    "0x38285671612d6f0ef7c3483f500d39fa71d66a1c": {label:"CEX distributor", type:"cex"},
     "0x035ae7d933dcbfe617ffba194a88af0c2867b90c": {label:"Gate.io", type:"cex"},
     "0x8782163068c7cd74d2510768a61135c1e4eb07b3": {label:"Gate.io", type:"cex"},
     "0x0d0707963952f2fba59dd06f2b425ace40b492fe": {label:"Gate.io", type:"cex"},
@@ -1593,6 +1596,7 @@ renderFlows();
   let liveHolderStats = null;
   let liveFlowsData = null;
   let liveFlowTimestamp = null;
+  const AUTO_CEX_LABELS = {};
 
   const originalRenderHolders = renderHolders;
   const originalRenderFlows = renderFlows;
@@ -1632,11 +1636,46 @@ renderFlows();
     if(t === "protocol" || t === "lp" || holder?.is_contract) return "ca";
     return "eoa";
   }
+  function autoCexInfo(addr, holder){
+    const key = lower(addr);
+    if(ADDR_LABELS[key] || holder?.is_contract) return null;
+    return AUTO_CEX_LABELS[key] || null;
+  }
+  function addressInfo(addr, holder){
+    const key = lower(addr);
+    return ADDR_LABELS[key] || autoCexInfo(addr, holder);
+  }
   function labelFor(addr, holder){
-    const info = ADDR_LABELS[lower(addr)];
+    const info = addressInfo(addr, holder);
     if(info && info.label) return info.label;
     if(holder?.is_contract) return "Smart contract";
     return null;
+  }
+  function learnAutoCexLabels(flows){
+    const signals = {};
+    const touch = item => {
+      const key = lower(item?.address);
+      if(!key || ADDR_LABELS[key]) return;
+      const s = signals[key] || (signals[key] = {tx:0, balance:0, flow:0});
+      s.tx = Math.max(s.tx, safeNum(item.tx_count));
+      s.balance = Math.max(s.balance, safeNum(item.balance));
+      s.flow = Math.max(s.flow, Math.abs(safeNum(item.net_flow)));
+    };
+    Object.values(flows?.periods || {}).forEach(period => {
+      ["eth", "bera"].forEach(chain => {
+        const data = period?.[chain] || {};
+        (data.accumulators || []).forEach(touch);
+        (data.sellers || []).forEach(touch);
+      });
+    });
+    Object.entries(signals).forEach(([key, s]) => {
+      const highTraffic = s.tx >= 80 && s.flow >= 50_000;
+      const largeDistributor = s.tx >= 3 && s.balance >= 2_500_000;
+      const activeCustody = s.tx >= 20 && s.balance >= 1_000_000;
+      if(highTraffic || largeDistributor || activeCustody){
+        AUTO_CEX_LABELS[key] = {label:"CEX candidate", type:"cex"};
+      }
+    });
   }
   function syncLiveMeta(timestamp){
     const label = "Live · " + ago(timestamp);
@@ -1688,7 +1727,7 @@ renderFlows();
     liveHolderStats = data.stats || null;
     HOLDERS.length = 0;
     data.holders.forEach(h => {
-      const info = ADDR_LABELS[lower(h.address)];
+      const info = addressInfo(h.address, h);
       const row = {
         addr: h.address,
         rank: safeNum(h.rank),
@@ -1711,7 +1750,7 @@ renderFlows();
     const ensure = addr => {
       const key = lower(addr);
       if(!byAddr.has(key)){
-        const info = ADDR_LABELS[key];
+        const info = addressInfo(addr);
         byAddr.set(key, {addr, label: labelFor(addr), type: mapType(info), chgEth:0, chgBera:0});
       }
       return byAddr.get(key);
@@ -1775,6 +1814,7 @@ renderFlows();
         fetchJson("dolo_flows.json").catch(() => null),
       ]);
       applyPrice(price);
+      if(flows) learnAutoCexLabels(flows);
       applyHolders(holders);
       if(flows){
         liveFlowsData = flows;
