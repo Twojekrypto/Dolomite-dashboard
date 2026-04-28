@@ -313,6 +313,15 @@ def fetch_odolo_balances(addresses):
 
     bal_selector = "0x70a08231"  # balanceOf(address)
 
+    def decode_balance_result(result):
+        if not isinstance(result, str) or not result.startswith("0x"):
+            raise ValueError("missing balanceOf result")
+        # balanceOf(address) returns an ABI-encoded uint256 (32 bytes). Short
+        # values like 0x0/0x usually mean the batch item failed or was omitted.
+        if len(result) < 66:
+            raise ValueError(f"invalid balanceOf result length: {result}")
+        return round(int(result, 16) / (10 ** 18), 2)
+
     def call_payload(addr, idx):
         padded = addr.replace("0x", "").lower().zfill(64)
         return {
@@ -325,7 +334,7 @@ def fetch_odolo_balances(addresses):
     batch_size = 100
     for start in range(0, len(unique), batch_size):
         batch = unique[start:start + batch_size]
-        success = False
+        pending = list(batch)
         for rpc in RPC_URLS:
             try:
                 payload = [call_payload(addr, start + i) for i, addr in enumerate(batch)]
@@ -333,26 +342,35 @@ def fetch_odolo_balances(addresses):
                 data = resp.json()
                 if not isinstance(data, list):
                     raise ValueError("batch RPC response was not a list")
-                by_id = {item.get("id"): item for item in data if isinstance(item, dict)}
+                by_id = {str(item.get("id")): item for item in data if isinstance(item, dict)}
+                failed = []
                 for i, addr in enumerate(batch):
-                    result = by_id.get(start + i, {}).get("result", "0x0")
-                    bal = int(result, 16) / (10 ** 18) if result and result != "0x" else 0
-                    balances[addr] = round(bal, 2)
-                success = True
+                    item = by_id.get(str(start + i))
+                    if not isinstance(item, dict) or item.get("error") or "result" not in item:
+                        failed.append(addr)
+                        continue
+                    try:
+                        balances[addr] = decode_balance_result(item.get("result"))
+                    except ValueError:
+                        failed.append(addr)
+                pending = failed
                 break
-            except Exception:
+            except (requests.RequestException, ValueError, TypeError):
                 time.sleep(0.5)
 
-        if not success:
-            for addr in batch:
+        if pending:
+            if len(pending) < len(batch):
+                print(f"    retrying {len(pending)} incomplete balanceOf calls", flush=True)
+            for addr in pending:
                 for rpc in RPC_URLS:
                     try:
                         resp = requests.post(rpc, json=call_payload(addr, 1), timeout=5, headers={"Content-Type": "application/json"})
-                        result = resp.json().get("result", "0x0")
-                        bal = int(result, 16) / (10 ** 18) if result and result != "0x" else 0
-                        balances[addr] = round(bal, 2)
+                        data = resp.json()
+                        if not isinstance(data, dict) or data.get("error") or "result" not in data:
+                            raise ValueError("single RPC balanceOf failed")
+                        balances[addr] = decode_balance_result(data.get("result"))
                         break
-                    except Exception:
+                    except (requests.RequestException, ValueError, TypeError):
                         time.sleep(0.3)
                 time.sleep(0.03)
 
