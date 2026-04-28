@@ -400,7 +400,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .latest-ex-tbl td.latest-tx-cell{text-align:center}
 .latest-detail{min-width:88px}
 .latest-ex-tbl tbody tr:hover td{background:rgba(255,255,255,.026)}
-.latest-ex-tbl tbody tr:hover td:first-child::before{display:none}
+.latest-ex-tbl tbody tr:not(.latest-ex-row):hover td:first-child::before{display:none}
+.latest-ex-tbl tbody tr.latest-ex-row:hover td:first-child::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0;display:block;
+}
 .latest-date{
   display:flex;flex-direction:column;gap:3px;align-items:flex-start;
   font-family:var(--mono);font-size:12px;color:var(--fg-2);white-space:nowrap;
@@ -503,12 +506,15 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
 #tbl-ex .ex-detail-table th:first-child{text-align:right}
 #tbl-ex .ex-detail-table th.num,#tbl-ex .ex-detail-table td.num{text-align:right}
 #tbl-ex .ex-detail-table th.center,#tbl-ex .ex-detail-table td.center{text-align:center}
-#tbl-ex .ex-detail-table td{padding:11px 12px;border-bottom:1px solid var(--line-1);font-variant-numeric:tabular-nums;color:var(--fg-2);vertical-align:middle;white-space:nowrap}
+#tbl-ex .ex-detail-table td{padding:11px 12px;border-bottom:1px solid var(--line-1);font-variant-numeric:tabular-nums;color:var(--fg-2);vertical-align:middle;white-space:nowrap;position:relative}
 #tbl-ex .ex-detail-table tr.ex-detail-gap td{height:8px;padding:0;border-bottom:0;background:rgba(0,0,0,.16);font-size:0;line-height:0}
 #tbl-ex .ex-detail-table tr.ex-detail-gap:hover td{background:rgba(0,0,0,.16)}
+#tbl-ex .ex-detail-table tr.ex-detail-gap:hover td:first-child::before{display:none}
 #tbl-ex .ex-detail-table tr:nth-child(even) td{background:rgba(255,255,255,.01)}
 #tbl-ex .ex-detail-table tr:hover td{background:rgba(255,255,255,.026);color:var(--fg-1)}
-#tbl-ex .ex-detail-table tr:hover td:first-child::before{display:none}
+#tbl-ex .ex-detail-table tr:not(.ex-detail-gap):hover td:first-child::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0;display:block;
+}
 #tbl-ex .ex-detail-table td.mono{font-family:var(--mono)}
 #tbl-ex .ex-detail-table .ex-detail-rank{color:var(--fg-4);font-weight:600;text-align:right}
 #tbl-ex .ex-detail-lock,.latest-ex-tbl .ex-detail-lock{
