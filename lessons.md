@@ -13,6 +13,7 @@
 ## CSS & Layout
 - **`text-align: center` on `<td>`**: Affects ALL child content including flex containers and breakdown text. When centering some columns, target them individually (`:nth-child(2)`, `:nth-child(3)`, etc.) rather than using ranges like `:nth-child(n+2)`.
 - **Column alignment independence**: Supply APR column with breakdowns should stay `text-align: left` while other data columns can be centered.
+- **New UX search bars require quick clear**: Every gold/new-design search bar for addresses, labels, tokens, or tx hashes must include a small visible `X` clear control when it has input. The clear control should reset the value, dispatch the normal `input` event so filters rerender, and keep focus in the search field. Do not spend time retrofitting the old design unless explicitly requested.
 
 ## Data Display
 - **Non-oDOLO rewards bug**: Some tokens (e.g., USD1) have rewards from external protocols (WLFI) that aren't oDOLO. These must be captured as yield sources and controlled by the Yield toggle, not ignored.
