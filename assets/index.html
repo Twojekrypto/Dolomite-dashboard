@@ -8,7 +8,8 @@
 <script>
 (async () => {
   try {
-    const response = await fetch("../assets-preview.html", { cache: "no-cache" });
+    const previewVersion = "assets-search-clear-20260428";
+    const response = await fetch(`../assets-preview.html?v=${previewVersion}`, { cache: "no-cache" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const html = await response.text();
     document.open();

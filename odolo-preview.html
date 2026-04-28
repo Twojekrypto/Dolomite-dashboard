@@ -220,9 +220,18 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   transition:border-color .2s var(--ease),box-shadow .2s var(--ease)}
 .search:focus-within{border-color:var(--gold-line);box-shadow:0 0 0 3px rgba(201,162,39,.06)}
 .search svg{position:absolute;left:12px;width:14px;height:14px;color:var(--fg-3)}
-.search input{flex:1;background:none;border:0;outline:0;color:var(--fg-1);font-size:13px}
+.search input{flex:1;min-width:0;background:none;border:0;outline:0;color:var(--fg-1);font-size:13px}
 .search input::placeholder{color:var(--fg-3)}
 .search .kbd{font-family:var(--mono);font-size:10px;color:var(--fg-3);border:1px solid var(--line-2);border-radius:4px;padding:1px 5px;background:var(--bg-4)}
+.search-clear{
+  display:none;align-items:center;justify-content:center;flex:0 0 20px;width:20px;height:20px;margin-left:6px;padding:0;
+  border:1px solid var(--line-2);border-radius:6px;background:rgba(255,255,255,.018);color:var(--fg-3);cursor:pointer;
+  transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease);
+}
+.search.has-value .search-clear{display:inline-flex}
+.search.has-value .kbd{display:none}
+.search-clear:hover{color:var(--fg-1);border-color:var(--gold-line);background:var(--gold-wash)}
+.search-clear svg{position:static;width:11px;height:11px;color:currentColor}
 
 /* DROPDOWN */
 .dd{position:relative}
@@ -297,32 +306,32 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .tbl thead th.num{text-align:right}
 #tbl-ex thead th,#tbl-ex tbody td{padding-left:14px;padding-right:14px}
 
-.tbl tbody tr{transition:background .12s var(--ease);cursor:pointer;position:relative}
-.tbl tbody td{padding:12px 18px;border-bottom:1px solid var(--line-1);vertical-align:middle;color:var(--fg-1);font-variant-numeric:tabular-nums;position:relative}
-.tbl tbody td.num{text-align:right;font-family:var(--mono);font-weight:500}
-.tbl tbody tr:hover td{background:var(--bg-3)}
-.tbl tbody tr:hover td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0}
-.tbl tbody tr:last-child td{border-bottom:0}
-.tbl tbody tr.tbl-spacer-row{pointer-events:none;cursor:default}
-.tbl tbody tr.tbl-spacer-row td{color:transparent}
-.tbl tbody tr.tbl-spacer-row td > *{visibility:hidden}
-.tbl tbody tr.tbl-spacer-row:hover td{background:transparent}
-.tbl tbody tr.tbl-spacer-row:hover td:first-child::before{display:none}
-#tbl-ex tbody tr.ex-data-row:hover td{background:var(--bg-3)}
-#tbl-ex tbody tr.ex-row-open td{background:rgba(201,162,39,.035);border-bottom-color:transparent}
-#tbl-ex tbody tr.ex-row-open:hover td{background:var(--bg-3)}
-#tbl-ex tbody tr.ex-row-open td:first-child::before{
+.tbl > tbody > tr{transition:background .12s var(--ease);cursor:pointer;position:relative}
+.tbl > tbody > tr > td{padding:12px 18px;border-bottom:1px solid var(--line-1);vertical-align:middle;color:var(--fg-1);font-variant-numeric:tabular-nums;position:relative}
+.tbl > tbody > tr > td.num{text-align:right;font-family:var(--mono);font-weight:500}
+.tbl > tbody > tr:hover > td{background:var(--bg-3)}
+.tbl > tbody > tr:hover > td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0}
+.tbl > tbody > tr:last-child > td{border-bottom:0}
+.tbl > tbody > tr.tbl-spacer-row{pointer-events:none;cursor:default}
+.tbl > tbody > tr.tbl-spacer-row > td{color:transparent}
+.tbl > tbody > tr.tbl-spacer-row > td > *{visibility:hidden}
+.tbl > tbody > tr.tbl-spacer-row:hover > td{background:transparent}
+.tbl > tbody > tr.tbl-spacer-row:hover > td:first-child::before{display:none}
+#tbl-ex > tbody > tr.ex-data-row:hover > td{background:var(--bg-3)}
+#tbl-ex > tbody > tr.ex-row-open > td{background:rgba(201,162,39,.035);border-bottom-color:transparent}
+#tbl-ex > tbody > tr.ex-row-open:hover > td{background:var(--bg-3)}
+#tbl-ex > tbody > tr.ex-row-open > td:first-child::before{
   content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0;
 }
-.tbl tbody tr.ex-detail-row{cursor:default}
-.tbl tbody tr.ex-detail-row > td{
+.tbl > tbody > tr.ex-detail-row{cursor:default}
+.tbl > tbody > tr.ex-detail-row > td{
   padding:0 14px 18px!important;background:var(--bg-1);border-bottom:1px solid var(--line-2);
 }
-.tbl tbody tr.ex-detail-row:hover > td{background:var(--bg-1)}
-.tbl tbody tr.ex-detail-row:hover > td:first-child::before{display:none}
+.tbl > tbody > tr.ex-detail-row:hover > td{background:var(--bg-1)}
+.tbl > tbody > tr.ex-detail-row:hover > td:first-child::before{display:none}
 
 .rank{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--fg-3);min-width:24px;text-align:right}
-.tbl tbody tr:hover .rank{color:var(--gold)}
+.tbl > tbody > tr:hover .rank{color:var(--gold)}
 
 .addr-cell{display:flex;flex-direction:column;gap:4px;align-items:flex-start;min-width:0}
 .addr-line{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
@@ -331,7 +340,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .addr-name{font-size:13px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px;line-height:1.2}
 .addr-name.addr-generic{color:var(--fg-2);font-weight:500}
 .addr-mono{font-family:var(--mono);font-size:12px;color:var(--fg-3);font-weight:500;letter-spacing:.1px;line-height:1.2}
-.tbl tbody tr:hover .addr-mono{color:var(--fg-2)}
+.tbl > tbody > tr:hover .addr-mono{color:var(--fg-2)}
 
 .type-tag{
   display:inline-flex;align-items:center;
@@ -1177,6 +1186,7 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
         <label class="search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input id="q-cb" type="text" placeholder="Search address or label…" spellcheck="false" autocomplete="off">
+          <button class="search-clear" type="button" title="Clear search" aria-label="Clear search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
         </label>
       </div>
       <div class="tb-right">
@@ -1240,6 +1250,7 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
         <label class="search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input id="q-latest" type="text" placeholder="Search address or label…" spellcheck="false" autocomplete="off">
+          <button class="search-clear" type="button" title="Clear search" aria-label="Clear search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
         </label>
       </div>
       <div class="tb-right">
@@ -1302,6 +1313,7 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
         <label class="search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input id="q-ex" type="text" placeholder="Search address or label…" spellcheck="false" autocomplete="off">
+          <button class="search-clear" type="button" title="Clear search" aria-label="Clear search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
           <span class="kbd">/</span>
         </label>
 
@@ -1385,6 +1397,7 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
         <label class="search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input id="q-flows" type="text" placeholder="Filter by address or label…" spellcheck="false" autocomplete="off">
+          <button class="search-clear" type="button" title="Clear search" aria-label="Clear search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
         </label>
 
         <div class="dd" id="dd-flows-types">
@@ -2623,7 +2636,10 @@ function focusExerciserFromLatest(addr){
   state.exExpanded = key;
   state.exTypes = new Set(ADDRESS_TYPES);
   const input = document.getElementById("q-ex");
-  if(input) input.value = addr;
+  if(input){
+    input.value = addr;
+    syncSearchClear(input);
+  }
   document.querySelectorAll('#dd-ex-period .dd-opt').forEach(opt=>opt.classList.toggle("active", opt.dataset.period === "all"));
   const exLbl = document.querySelector('#dd-ex-period .dd-btn .lbl');
   if(exLbl) exLbl.textContent = "ALL";
@@ -3122,6 +3138,30 @@ function renderFlows(){
 document.getElementById("q-ex").addEventListener("input", e=>{state.qEx=e.target.value;state.exPage=0;renderExercisers()});
 document.getElementById("q-latest").addEventListener("input", e=>{state.qLatest=e.target.value;state.latestPage=0;renderLatestExercises()});
 document.getElementById("q-flows").addEventListener("input", e=>{state.qFlows=e.target.value;state.flowsPage.acc=0;state.flowsPage.out=0;renderFlows()});
+
+function syncSearchClear(input){
+  const search = input && input.closest(".search");
+  if(search) search.classList.toggle("has-value", input.value.length > 0);
+}
+function wireSearchClears(){
+  document.querySelectorAll(".search").forEach(search=>{
+    const input = search.querySelector("input");
+    const clear = search.querySelector(".search-clear");
+    if(!input || !clear) return;
+    input.addEventListener("input",()=>syncSearchClear(input));
+    clear.addEventListener("click", e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      input.value = "";
+      input.dispatchEvent(new Event("input", {bubbles:true}));
+      input.focus();
+      syncSearchClear(input);
+    });
+    syncSearchClear(input);
+  });
+}
+wireSearchClears();
+
 document.addEventListener("keydown", e=>{
   if(e.key==="/" && document.activeElement.tagName!=="INPUT"){
     e.preventDefault();
