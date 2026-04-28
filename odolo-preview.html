@@ -400,7 +400,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .latest-ex-tbl thead th[data-latest-sort]:hover{color:var(--fg-1)}
 .latest-ex-tbl th.latest-tx-th,
 .latest-ex-tbl td.latest-tx-cell{text-align:center}
-.latest-detail{min-width:88px}
 .latest-ex-tbl tbody tr:hover td{background:rgba(255,255,255,.026)}
 .latest-ex-tbl tbody tr:not(.latest-ex-row):hover td:first-child::before{display:none}
 .latest-ex-tbl tbody tr.latest-ex-row:hover td:first-child::before{
@@ -2626,31 +2625,6 @@ function sortLatestExerciseRows(rows){
     return String(b.date || "").localeCompare(String(a.date || "")) || b.usdc - a.usdc || String(b.hash || "").localeCompare(String(a.hash || ""));
   });
 }
-function focusExerciserFromLatest(addr){
-  const key = (addr || "").toLowerCase();
-  if(!key) return;
-  state.qEx = addr;
-  state.exPeriod = "all";
-  state.exPage = 0;
-  state.exExpanded = key;
-  state.exTypes = new Set(ADDRESS_TYPES);
-  const input = document.getElementById("q-ex");
-  if(input){
-    input.value = addr;
-    syncSearchClear(input);
-  }
-  document.querySelectorAll('#dd-ex-period .dd-opt').forEach(opt=>opt.classList.toggle("active", opt.dataset.period === "all"));
-  const exLbl = document.querySelector('#dd-ex-period .dd-btn .lbl');
-  if(exLbl) exLbl.textContent = "ALL";
-  syncExTypesBtn();
-  renderExercisers();
-  const targetRow = [...document.querySelectorAll("#ex-body tr.ex-data-row")].find(row => row.dataset.addr === key);
-  if(targetRow){
-    targetRow.classList.add("ex-row-jump");
-    setTimeout(()=>targetRow.classList.remove("ex-row-jump"), 1800);
-  }
-  document.getElementById("exercisers-section")?.scrollIntoView({behavior:"smooth", block:"start"});
-}
 function renderLatestExercises(){
   const tbody = document.getElementById("latest-ex-body");
   if(!tbody) return;
@@ -2719,7 +2693,6 @@ function renderLatestExercises(){
               <a class="addr-debank" href="https://debank.com/profile/${esc(tx.addr)}" target="_blank" rel="noopener" title="View on DeBank" aria-label="View on DeBank" onclick="event.stopPropagation()">
                 <img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'">
               </a>
-              <button class="ex-toggle latest-detail" type="button" data-addr="${esc(tx.addr)}" title="Show wallet exercise history" aria-label="Show wallet exercise history"><span>History</span>${CHEV_DOWN_ICO}</button>
             </div>
           </div>
         </td>
@@ -2757,10 +2730,6 @@ function renderLatestExercises(){
     btn.classList.add("copied");
     btn.innerHTML = CHECK_ICO;
     setTimeout(()=>{ btn.classList.remove("copied"); btn.innerHTML = COPY_ICO; }, 1400);
-  }));
-  tbody.querySelectorAll(".latest-detail").forEach(btn => btn.addEventListener("click", e=>{
-    e.stopPropagation();
-    focusExerciserFromLatest(btn.dataset.addr);
   }));
 }
 function renderExerciserDetailRow(r){
