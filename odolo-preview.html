@@ -309,6 +309,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .tbl thead th.sorted .sort{color:var(--gold)}
 .tbl thead th.num{text-align:right}
 #tbl-ex thead th,#tbl-ex tbody td{padding-left:14px;padding-right:14px}
+#tbl-ex thead th.ex-actions-head{width:92px;text-align:center;cursor:default}
+#tbl-ex thead th.ex-actions-head:hover{color:var(--fg-3)}
 
 .tbl > tbody > tr{transition:background .12s var(--ease);cursor:pointer;position:relative}
 .tbl > tbody > tr > td{padding:12px 18px;border-bottom:1px solid var(--line-1);vertical-align:middle;color:var(--fg-1);font-variant-numeric:tabular-nums;position:relative}
@@ -385,6 +387,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .ex-toggle:hover{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.16);box-shadow:0 0 0 3px rgba(201,162,39,.08);transform:translateY(-1px)}
 .ex-row-open .ex-toggle{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.18);box-shadow:0 0 0 3px rgba(201,162,39,.08)}
 .ex-row-open .ex-toggle svg{transform:rotate(180deg)}
+#tbl-ex td.ex-actions{text-align:center}
+#tbl-ex td.ex-actions .ex-toggle{margin:0 auto}
 #tbl-ex tbody tr.ex-row-jump > td{
   animation:exRowJump 1.7s var(--ease) both;
 }
@@ -1368,6 +1372,7 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
             <th data-sort="price" class="num" style="width:102px">Avg Price</th>
             <th data-sort="exercises" class="num" style="width:96px">Exercises</th>
             <th data-sort="lock" class="num" style="padding-right:22px;width:118px">Avg Lock</th>
+            <th class="ex-actions-head">Details</th>
           </tr>
         </thead>
         <tbody id="ex-body"></tbody>
@@ -2787,7 +2792,7 @@ function renderExerciserDetailRow(r){
 
   return `
     <tr class="ex-detail-row" data-detail-for="${esc(r.addr)}">
-      <td colspan="7">
+      <td colspan="8">
         <div class="ex-detail-panel">
           <div class="ex-detail-history-head">
             <div>
@@ -2811,7 +2816,7 @@ function renderExercisers(){
   const totalAddresses = LIVE.exercisers?.total_addresses || EXERCISERS.length;
   document.getElementById("ex-count").textContent = `${totalAddresses.toLocaleString()} addresses`;
 
-  document.querySelectorAll("#tbl-ex thead th").forEach(th=>{
+  document.querySelectorAll("#tbl-ex thead th[data-sort]").forEach(th=>{
     const k = th.dataset.sort;
     th.classList.toggle("sorted", k===state.exSort.key);
     let s = th.querySelector(".sort"); if(s) s.remove();
@@ -2849,7 +2854,7 @@ function renderExercisers(){
         <td>
           <div class="addr-cell">
             <div class="addr-line top">${nameCell}${typeHtml}</div>
-            <div class="addr-line bot"><span class="addr-mono">${esc(shorten(r.addr))}</span>${actions}${toggle}</div>
+            <div class="addr-line bot"><span class="addr-mono">${esc(shorten(r.addr))}</span>${actions}</div>
           </div>
         </td>
         <td class="num"><span class="bal-val">${fmtNum(r.vedolo)}</span></td>
@@ -2862,6 +2867,7 @@ function renderExercisers(){
             <div class="lock-bar"><span class="${bucket}" style="width:${Math.min(100, (r.lockDays/lockMaxDays)*100)}%"></span></div>
           </div>
         </td>
+        <td class="ex-actions">${toggle}</td>
       </tr>
       ${isExpanded ? renderExerciserDetailRow(r) : ""}
     `;
@@ -2876,6 +2882,7 @@ function renderExercisers(){
         <td class="num"><span class="bal-val">0</span></td>
         <td class="num"><span class="bal-val">0</span></td>
         <td class="num" style="padding-right:22px"><div class="lock-cell"><span class="lock-val short">0d</span><div class="lock-bar"><span class="short" style="width:0%"></span></div></div></td>
+        <td class="ex-actions"><button class="ex-toggle" type="button"><span>Details</span>${CHEV_DOWN_ICO}</button></td>
       </tr>
     `).join("");
   tbody.innerHTML = rowsHtml + spacerRowsHtml;
@@ -3116,7 +3123,7 @@ document.addEventListener("keydown", e=>{
     document.getElementById("q-ex").focus();
   }
 });
-document.querySelectorAll("#tbl-ex thead th").forEach(th=>{
+document.querySelectorAll("#tbl-ex thead th[data-sort]").forEach(th=>{
   th.addEventListener("click", ()=>{
     const k = th.dataset.sort;
     if(state.exSort.key===k) state.exSort.dir = state.exSort.dir==="asc"?"desc":"asc";
