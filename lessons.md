@@ -30,6 +30,8 @@
 ## Table Column Restructuring
 - **Check CSS `nth-child` rules**: When removing/adding table columns, CSS `nth-child` selectors silently override inline styles. Always audit ALL `nth-child` references after changing column count.
 - **`data-col` on th**: If a th contains interactive elements (search input, dropdowns), remove `data-col` to prevent sort triggers from accidental clicks.
+- **Expanded detail tables need explicit column contracts**: For nested/detail tables like oDOLO `Wallet exercise history`, use `table-layout:fixed` plus a `<colgroup>` with widths matching the main table's numeric/action columns. Leave only the text/date column flexible. Without this, the browser distributes extra width across every column and numeric data drifts away from the right-side table rhythm.
+- **Verify detail table alignment at real desktop width**: After changing nested table columns, measure header and first-row `getBoundingClientRect()` values in a served page. Compare numeric/action columns against the related main table, and also check mobile because media rules often change nested tables to block/card layouts.
 
 ## CI/CD & Data Pipelines
 - **Always cache API receipts**: Scripts that fetch on-chain tx receipts grow linearly slower over time. Always use a cache file + GH Actions `actions/cache@v4` for incremental syncing.
