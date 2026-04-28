@@ -141,7 +141,11 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   color:var(--fg-3);font-weight:600;margin-bottom:12px;
   display:flex;align-items:center;gap:7px;
 }
-.hero-stat .lbl svg{width:11px;height:11px;color:var(--fg-3)}
+.hero-stat .lbl svg{
+  width:12px;height:12px;flex:0 0 12px;display:block;
+  color:var(--fg-3);overflow:visible;
+  stroke-linecap:round;stroke-linejoin:round;
+}
 .hero-stat .val{
   font-family:var(--mono);font-size:24px;font-weight:600;letter-spacing:-.6px;
   color:var(--fg-1);font-variant-numeric:tabular-nums;line-height:1;
@@ -1083,7 +1087,7 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
 
       <div class="hero-stat">
         <div class="lbl">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8l3 3 5-6"/><path d="M21 12c0 5-4 9-9 9s-9-4-9-9 4-9 9-9c2 0 3.8.7 5.2 1.8"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 6v12"/><path d="M16 9.5A4 4 0 0 0 12.5 8H11a2 2 0 0 0 0 4h2a2 2 0 0 1 0 4h-1.5A4 4 0 0 1 8 14.5"/></svg>
           Exercised (USDC)
         </div>
         <div class="val gold" id="hero-exercised-usd" data-count-value="0">$0.000</div>
