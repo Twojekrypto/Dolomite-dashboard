@@ -18,8 +18,10 @@ DEPOSIT_TOPIC = "0xff04ccafc360e16b67d682d17bd9503c4c6b9a131f6be6325762dc9ffc7de
 
 # oDOLO Vester — locks via oDOLO exercise go through this contract
 ODOLO_VESTER = "0x3e9b9a16743551da49b5e136c716bba7932d2cec".lower()
-# oDOLO Exercise topic (ExerciseVe event from Vester)
+# ERC-20/ERC-721 Transfer topic; useful for finding the real veDOLO NFT recipient.
 ODOLO_EXERCISE_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
+ZERO_TOPIC = "0x" + ("0" * 64)
 
 RPC_URLS = [
     *([] if not ALCHEMY_BERA_RPC else [ALCHEMY_BERA_RPC]),
@@ -78,22 +80,71 @@ def load_odolo_exerciser_lookup():
     return lookup
 
 
+def normalize_address(value):
+    address = str(value or "").strip().lower()
+    if address.startswith("0x") and len(address) == 42:
+        return address
+    return ""
+
+
+def address_from_topic(topic):
+    topic = str(topic or "").strip().lower()
+    if topic.startswith("0x") and len(topic) == 66:
+        return "0x" + topic[-40:]
+    return ""
+
+
+def extract_odolo_receipt_beneficiary(receipt):
+    """Extract the end-user wallet from Vester/veDOLO receipt logs."""
+    if not receipt or not receipt.get("logs"):
+        return None
+
+    for log in receipt["logs"]:
+        if normalize_address(log.get("address")) != ODOLO_VESTER:
+            continue
+        for topic in log.get("topics", [])[1:]:
+            address = address_from_topic(topic)
+            if address and address not in {ZERO_ADDRESS, ODOLO_VESTER}:
+                return address
+
+    vedolo_lower = VEDOLO_CONTRACT.lower()
+    for log in receipt["logs"]:
+        if normalize_address(log.get("address")) != vedolo_lower:
+            continue
+        topics = log.get("topics", [])
+        if len(topics) < 3 or str(topics[0]).lower() != ODOLO_EXERCISE_TOPIC:
+            continue
+        if str(topics[1]).lower() != ZERO_TOPIC:
+            continue
+        address = address_from_topic(topics[2])
+        if address and address not in {ZERO_ADDRESS, ODOLO_VESTER}:
+            return address
+
+    return None
+
+
 def remap_odolo_lock_beneficiaries(locks, exerciser_lookup):
     """Use oDOLO exercise metadata to attribute protocol-routed locks to users."""
     resolved = 0
     unresolved = 0
 
     for lock in locks:
-        if not lock.get("isOdolo"):
-            continue
         tx_hash = str(lock.get("txHash") or "").strip().lower()
-        original_address = str(lock.get("address") or ODOLO_VESTER).strip().lower() or ODOLO_VESTER
-        lock["protocolAddress"] = original_address
-        beneficiary = exerciser_lookup.get(tx_hash)
+        original_address = normalize_address(lock.get("address")) or ODOLO_VESTER
+        protocol_address = normalize_address(lock.get("protocolAddress"))
+        is_vester_provider = original_address == ODOLO_VESTER or protocol_address == ODOLO_VESTER
+        lookup_beneficiary = exerciser_lookup.get(tx_hash)
+        receipt_beneficiary = normalize_address(lock.get("beneficiaryAddress"))
+        beneficiary = lookup_beneficiary or receipt_beneficiary
+        if not lock.get("isOdolo") and not is_vester_provider and not beneficiary:
+            continue
+
+        lock["isOdolo"] = True
+        lock["protocolAddress"] = ODOLO_VESTER
         if beneficiary:
             lock["address"] = beneficiary
             lock["beneficiaryAddress"] = beneficiary
-            lock["addressSource"] = "odolo-exerciser"
+            lock["addressSource"] = "odolo-exerciser" if lookup_beneficiary else "odolo-receipt"
             resolved += 1
         else:
             lock["address"] = ODOLO_VESTER
@@ -237,7 +288,7 @@ def get_tx_receipt(tx_hash):
 
 def check_odolo_exercise_batch(tx_hashes):
     """Check which tx hashes involve oDOLO exercise (transfer from Vester)."""
-    exercise_txs = set()
+    exercise_txs = {}
     total = len(tx_hashes)
 
     for i, tx_hash in enumerate(tx_hashes):
@@ -247,7 +298,7 @@ def check_odolo_exercise_batch(tx_hashes):
                 # Check if any log is from the oDOLO Vester contract
                 log_addr = log.get("address", "").lower()
                 if log_addr == ODOLO_VESTER:
-                    exercise_txs.add(tx_hash.lower())
+                    exercise_txs[tx_hash.lower()] = extract_odolo_receipt_beneficiary(receipt)
                     break
 
         if (i + 1) % 50 == 0:
@@ -255,6 +306,29 @@ def check_odolo_exercise_batch(tx_hashes):
         time.sleep(0.03)
 
     return exercise_txs
+
+
+def resolve_receipt_fallback_beneficiaries(locks):
+    """Resolve Vester fallback rows from on-chain receipts when exerciser cache missed them."""
+    resolved = 0
+    fallback_locks = [
+        lock for lock in locks
+        if lock.get("addressSource") == "odolo-vester-fallback" and lock.get("txHash")
+    ]
+
+    for lock in fallback_locks:
+        receipt = get_tx_receipt(lock["txHash"])
+        beneficiary = extract_odolo_receipt_beneficiary(receipt)
+        if beneficiary:
+            lock["address"] = beneficiary
+            lock["beneficiaryAddress"] = beneficiary
+            lock["addressSource"] = "odolo-receipt"
+            lock["isOdolo"] = True
+            lock["protocolAddress"] = ODOLO_VESTER
+            resolved += 1
+        time.sleep(0.03)
+
+    return resolved
 
 
 def decode_withdraw(log):
@@ -370,15 +444,28 @@ def main():
 
         # Tag new locks
         for lock in new_locks:
-            lock["isOdolo"] = lock["txHash"].lower() in exercise_txs
+            tx_hash = lock["txHash"].lower()
+            lock["isOdolo"] = tx_hash in exercise_txs
+            beneficiary = exercise_txs.get(tx_hash)
+            if beneficiary:
+                lock["beneficiaryAddress"] = beneficiary
+                lock["addressSource"] = "odolo-receipt"
+                lock["protocolAddress"] = ODOLO_VESTER
 
     exerciser_lookup = load_odolo_exerciser_lookup()
     resolved_odolo, unresolved_odolo = remap_odolo_lock_beneficiaries(all_locks, exerciser_lookup)
+    receipt_resolved_odolo = 0
+    if unresolved_odolo:
+        receipt_resolved_odolo = resolve_receipt_fallback_beneficiaries(all_locks)
+        resolved_odolo += receipt_resolved_odolo
+        unresolved_odolo = max(0, unresolved_odolo - receipt_resolved_odolo)
     if resolved_odolo or unresolved_odolo:
         print(
             f"  Remapped {resolved_odolo:,} oDOLO-routed locks to end-user wallets"
             f" ({unresolved_odolo:,} still routed through protocol fallback)"
         )
+    if receipt_resolved_odolo:
+        print(f"  Resolved {receipt_resolved_odolo:,} fallback locks from transaction receipts")
 
     # Sort by timestamp desc
     all_unlocks.sort(key=lambda x: x["timestamp"], reverse=True)
