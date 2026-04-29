@@ -489,7 +489,13 @@ body::before{
 .dd-opt.active .dd-ico{border-color:var(--gold-line)}
 .dd-opt .dd-ico svg{width:11px;height:11px;color:var(--fg-3)}
 .dd-opt.active .dd-ico svg{color:var(--gold)}
+.dd-opt.select-all .dd-ico svg{width:14px;height:14px;color:var(--fg-2)}
 .dd-opt-name{flex:1;min-width:0}
+.dd-opt.select-all{
+  background:linear-gradient(180deg,var(--bg-3),var(--bg-2));
+  border:1px solid var(--line-2);margin-bottom:4px;
+}
+.dd-opt.select-all .dd-opt-name{font-weight:600;color:var(--fg-1)}
 /* Checkbox indicator on LEFT — mirrors Rewards filter */
 .dd-opt-check{
   width:15px;height:15px;border-radius:4px;flex-shrink:0;
@@ -1099,7 +1105,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
           <div class="dd-panel">
             <div class="dd-panel-head">Chain</div>
             <div class="dd-list">
-              <div class="dd-opt active" data-net="all"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><div class="dd-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg></div><span class="dd-opt-name">All Chains</span></div>
+              <div class="dd-opt select-all active" data-net="all"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><div class="dd-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div><span class="dd-opt-name">All Chains</span></div>
               <div class="dd-opt" data-net="berachain"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Berachain</span></div>
               <div class="dd-opt" data-net="arbitrum"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Arbitrum</span></div>
               <div class="dd-opt" data-net="ethereum"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Ethereum</span></div>
