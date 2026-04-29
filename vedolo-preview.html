@@ -122,7 +122,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .dd-opt.active .dd-opt-check{background:var(--gold);border-color:var(--gold)}
 .dd-opt.active .dd-opt-check svg{opacity:1}
 #dd-exit-period .dd-btn,#dd-flow-period .dd-btn{min-width:96px}
-#dd-holder-bucket .dd-btn{min-width:152px}
 .seg{display:inline-flex;align-items:center;gap:2px;background:var(--bg-3);border:1px solid var(--line-2);padding:4px;border-radius:11px}
 .seg button{height:28px;padding:0 10px;border-radius:8px;font-size:12px;font-weight:600;color:var(--fg-3);transition:background .15s var(--ease),color .15s var(--ease),box-shadow .15s var(--ease)}
 .seg button:hover{color:var(--fg-1)}
@@ -135,8 +134,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .tbl th.sorted{color:var(--gold)}
 .tbl td{padding:13px 14px;border-bottom:1px solid var(--line-1);vertical-align:middle;color:var(--fg-2)}
 .tbl tbody tr{transition:background .15s var(--ease);position:relative}
-.tbl tbody tr:hover{background:var(--bg-3)}
-.tbl tbody tr:hover td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0}
+.tbl > tbody > tr:hover > td{background:var(--bg-3)}
+.tbl > tbody > tr:hover > td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0}
 .tbl .num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono)}
 .tbl th .th-content{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;max-width:100%}
 .tbl th.num .th-content{justify-content:flex-end;width:100%}
@@ -159,6 +158,14 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .tag.down{color:var(--down);background:var(--down-wash);border-color:var(--down-line)}
 .tag.gold{color:var(--gold);background:var(--gold-wash);border-color:var(--gold-line)}
 .tag.cyan{color:var(--cyan);background:rgba(143,183,200,.09);border-color:var(--cyan-line)}
+.flow-source-tag{cursor:help;outline:0;transition:border-color .15s var(--ease),background .15s var(--ease),color .15s var(--ease),box-shadow .15s var(--ease)}
+.flow-source-tag:hover,.flow-source-tag:focus-visible{box-shadow:0 0 0 3px rgba(201,162,39,.07)}
+.flow-source-tooltip{position:fixed;left:0;top:0;z-index:140;pointer-events:none;width:min(270px,calc(100vw - 28px));padding:10px 12px;border:1px solid rgba(201,162,39,.24);border-radius:10px;background:linear-gradient(180deg,rgba(18,18,20,.98),rgba(10,10,12,.98));box-shadow:0 18px 44px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.04);opacity:0;transform:translate(-50%,calc(-100% - 8px));transition:opacity .12s ease,transform .12s ease;color:var(--fg-2)}
+.flow-source-tooltip.show{opacity:1;transform:translate(-50%,calc(-100% - 12px))}
+.flow-source-tooltip.below{transform:translate(-50%,8px)}
+.flow-source-tooltip.below.show{transform:translate(-50%,12px)}
+.flow-source-tooltip b{display:block;margin-bottom:4px;font-size:11px;letter-spacing:.9px;text-transform:uppercase;color:var(--fg-1)}
+.flow-source-tooltip span{display:block;font-size:11.5px;line-height:1.45;color:var(--fg-3)}
 .tbl-foot{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:14px 24px;border-top:1px solid var(--line-1);gap:12px}
 .tbl-foot-info{font-size:12px;color:var(--fg-3);font-family:var(--mono);text-align:left;grid-column:1}
 .pager{display:inline-flex;align-items:center;gap:4px;grid-column:2;justify-self:center}
@@ -172,7 +179,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .metric-table td{padding:13px 0;border-bottom:1px solid var(--line-1);color:var(--fg-2);font-size:13px;vertical-align:top}
 .metric-table td.num{text-align:right;font-family:var(--mono);color:var(--fg-1)}
 .metric-table .metric-desc{display:block;margin-top:3px;color:var(--fg-3);font-size:11px;line-height:1.45;max-width:620px}
-.holders-card .toolbar .tb-right{margin-left:auto}
 #holders-table{table-layout:fixed;min-width:860px}
 #holders-table col.holder-rank-col{width:56px}
 #holders-table col.holder-dolo-col{width:140px}
@@ -237,8 +243,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 #holders-table .holder-detail-table td{padding:12px;border-bottom:1px solid rgba(255,255,255,.055);font-variant-numeric:tabular-nums;color:var(--fg-2);vertical-align:middle;white-space:nowrap;position:relative;background:transparent}
 #holders-table .holder-detail-table tr:nth-child(even) td{background:rgba(255,255,255,.014)}
 #holders-table .holder-detail-table tr:last-child td{border-bottom:0}
-#holders-table .holder-detail-table tr:hover td{background:rgba(255,255,255,.026);color:var(--fg-1)}
-#holders-table .holder-detail-table tr:hover td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0;display:block}
+#holders-table .holder-detail-table > tbody > tr:hover > td{background:rgba(255,255,255,.026);color:var(--fg-1)}
+#holders-table .holder-detail-table > tbody > tr:hover > td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0;display:block}
 #holders-table .holder-detail-table td.mono{font-family:var(--mono)}
 #holders-table .holder-detail-rank{color:var(--fg-4);font-weight:600;text-align:right}
 #holders-table .holder-position-id{display:inline-flex;align-items:center;justify-content:center;min-width:54px;padding:4px 7px;border-radius:999px;border:1px solid var(--gold-line);background:var(--gold-wash);font-family:var(--mono);font-size:11px;font-weight:700;color:var(--gold)}
@@ -304,8 +310,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .exit-suite .tbl-wrap{background:rgba(10,8,8,.16)}
 .exit-suite .tbl th{background:rgba(18,12,12,.72)}
 .exit-suite .tbl th.sorted{color:#d58a7c}
-.exit-suite .tbl tbody tr:hover{background:rgba(180,121,107,.035)}
-.exit-suite .tbl tbody tr:hover td:first-child::before{background:var(--down)}
+.exit-suite .tbl > tbody > tr:hover > td{background:rgba(180,121,107,.035)}
+.exit-suite .tbl > tbody > tr:hover > td:first-child::before{background:var(--down)}
 .exit-suite .tbl-foot{background:rgba(12,10,10,.24);border-top-color:rgba(180,121,107,.14)}
 #exits-table{table-layout:fixed;min-width:680px}
 #exits-table th{font-size:10px;letter-spacing:1.25px}
@@ -396,9 +402,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .flow-col .tbl{min-width:520px;table-layout:fixed;font-size:12.5px}
 .flow-col .tbl th{padding:11px 12px;background:rgba(9,9,11,.38);font-size:9.5px;letter-spacing:1.05px}
 .flow-col .tbl td{padding:12px 12px;height:58px}
-.flow-col .tbl tbody tr:hover{background:rgba(255,255,255,.026)}
-.flow-col-lock .tbl tbody tr:hover td:first-child::before{background:var(--up)}
-.flow-col-unlock .tbl tbody tr:hover td:first-child::before{background:var(--down)}
+.flow-col .tbl > tbody > tr:hover > td{background:rgba(255,255,255,.026)}
+.flow-col-lock .tbl > tbody > tr:hover > td:first-child::before{background:var(--up)}
+.flow-col-unlock .tbl > tbody > tr:hover > td:first-child::before{background:var(--down)}
 .flow-col .tbl-foot{padding:12px 14px;background:rgba(9,9,11,.16)}
 .flow-col .pager span{padding:0 8px}
 #locks-table col.flow-rank,#unlocks-table col.flow-rank{width:44px}
@@ -524,10 +530,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   .exit-suite #dd-exit-period .dd-btn{width:auto;min-width:96px}
   .exit-suite #dd-exit-period .dd-panel{left:auto;right:0}
   .holders-card .toolbar .tb-left{width:auto;flex:1 1 220px;min-width:200px}
-  .holders-card .toolbar .tb-right{width:auto;margin-left:auto}
-  .holders-card #dd-holder-bucket{width:auto}
-  .holders-card #dd-holder-bucket .dd-btn{width:auto;min-width:152px}
-  .holders-card #dd-holder-bucket .dd-panel{left:auto;right:0}
   #holders-table .holder-detail-head{padding:15px 16px}
   #holders-table .holder-detail-scroll{max-height:420px;margin:0 10px 14px 12px;padding:12px 0}
   #holders-table .holder-detail-table{min-width:0}
@@ -582,10 +584,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   .proto-links{flex-direction:column;align-items:flex-start;gap:10px}
 }
 @media (max-width:560px){
-  .holders-card .toolbar .tb-left,.holders-card .toolbar .tb-right{width:100%}
-  .holders-card #dd-holder-bucket{width:100%}
-  .holders-card #dd-holder-bucket .dd-btn{width:100%}
-  .holders-card #dd-holder-bucket .dd-panel{left:0;right:auto}
+  .holders-card .toolbar .tb-left{width:100%}
   .expiry-chart{display:block;overflow-x:auto;padding-bottom:2px}
   .expiry-axis{display:none}
   .expiry-card .expiry-bars{min-width:520px}
@@ -770,24 +769,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
       <div class="tb-left">
         <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="q-holders" type="text" placeholder="Search address or position ID" autocomplete="off" spellcheck="false"><button class="search-clear" type="button" title="Clear search" aria-label="Clear search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button></label>
       </div>
-      <div class="tb-right">
-        <div class="dd" id="dd-holder-bucket">
-          <button class="dd-btn" type="button" data-dd="holder-bucket" aria-expanded="false"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg><span class="lbl">All Positions</span><span class="count">All</span><svg class="chev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4.5 6 7.5l3-3"/></svg></button>
-          <div class="dd-panel" role="menu" aria-label="Holder position count">
-            <div class="dd-panel-head">Position Count</div>
-            <div class="dd-list">
-              <div class="dd-opt active" data-value="all" data-count="All"><span class="dd-opt-name">All Positions</span><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span></div>
-              <div class="dd-opt" data-value="100+" data-count="100+"><span class="dd-opt-name">100+ Positions</span><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span></div>
-              <div class="dd-opt" data-value="50-100" data-count="50-100"><span class="dd-opt-name">50-100 Positions</span><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span></div>
-              <div class="dd-opt" data-value="26-50" data-count="26-50"><span class="dd-opt-name">26-50 Positions</span><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span></div>
-              <div class="dd-opt" data-value="11-25" data-count="11-25"><span class="dd-opt-name">11-25 Positions</span><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span></div>
-              <div class="dd-opt" data-value="6-10" data-count="6-10"><span class="dd-opt-name">6-10 Positions</span><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span></div>
-              <div class="dd-opt" data-value="2-5" data-count="2-5"><span class="dd-opt-name">2-5 Positions</span><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span></div>
-              <div class="dd-opt" data-value="1" data-count="1"><span class="dd-opt-name">1 Position</span><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span></div>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
     <div class="tbl-wrap">
       <table class="tbl" id="holders-table">
@@ -928,11 +909,12 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 
   <div class="foot">veDOLO dashboard - <span id="now"></span></div>
 </div>
+<div class="flow-source-tooltip" id="flow-source-tooltip" aria-hidden="true"></div>
 
 <script>
 const state = {
   stats:{}, holders:[], exits:[], locks:[], unlocks:[], expiry:null, price:null,
-  holder:{q:"",bucket:"all",sort:"rank",asc:true,page:1,perPage:12,expanded:null,detailSort:"dolo",detailAsc:false},
+  holder:{q:"",sort:"rank",asc:true,page:1,perPage:12,expanded:null,detailSort:"dolo",detailAsc:false},
   exitsUi:{q:"",period:"30",sort:"date",asc:false,page:1,perPage:10},
   flows:{q:"",period:"7",source:"all",locksSort:"rank",locksAsc:true,unlocksSort:"rank",unlocksAsc:true,locksPage:1,unlocksPage:1,perPage:8},
   durationMode:"dolo",
@@ -941,15 +923,6 @@ const state = {
 };
 const LIVE_DATA_BASE = "https://twojekrypto.github.io/vedolo-dashboard/";
 
-const POSITION_BUCKETS = [
-  {key:"1",label:"1 Position",min:1,max:1,color:"#8fb7c8"},
-  {key:"2-5",label:"2-5 Positions",min:2,max:5,color:"#9f93c9"},
-  {key:"6-10",label:"6-10 Positions",min:6,max:10,color:"#75b87b"},
-  {key:"11-25",label:"11-25 Positions",min:11,max:25,color:"#c9a227"},
-  {key:"26-50",label:"26-50 Positions",min:26,max:50,color:"#c9866f"},
-  {key:"50-100",label:"50-100 Positions",min:50,max:100,color:"#b4796b"},
-  {key:"100+",label:"100+ Positions",min:101,max:Infinity,color:"#e4c15a"}
-];
 const DURATION_BUCKETS = [
   {label:"<1M",min:0,max:30},
   {label:"1-3M",min:30,max:90},
@@ -1041,6 +1014,30 @@ function txIconCell(txHash){
   const tx = txHash || "";
   if(!tx) return '<span class="subline">--</span>';
   return `<a class="ext-link tx-only-link" href="https://berascan.com/tx/${esc(tx)}" target="_blank" rel="noopener" title="View transaction" aria-label="View transaction">${extSvg}</a>`;
+}
+const FLOW_SOURCE_META = {
+  direct:{
+    label:"Direct",
+    cls:"up",
+    title:"Direct Lock",
+    body:"Wallet locked DOLO directly into veDOLO. No oDOLO exercise route was detected for this transaction."
+  },
+  odolo:{
+    label:"via oDOLO",
+    cls:"cyan",
+    title:"via oDOLO",
+    body:"Lock came from an oDOLO exercise and was attributed to the exercising wallet from oDOLO metadata."
+  },
+  protocol:{
+    label:"Protocol",
+    cls:"gold",
+    title:"Protocol Route",
+    body:"oDOLO-routed lock where the wallet could not be resolved from exercise metadata yet, so it is shown under the protocol contract route."
+  }
+};
+function flowSourceTag(kind){
+  const meta = FLOW_SOURCE_META[kind] || FLOW_SOURCE_META.direct;
+  return `<span class="tag flow-source-tag ${esc(meta.cls)}" tabindex="0" data-source-title="${esc(meta.title)}" data-source-body="${esc(meta.body)}" aria-label="${esc(`${meta.title}: ${meta.body}`)}">${esc(meta.label)}</span>`;
 }
 function flowAddressCell(addr, date, tagHtml=""){
   const displayAddr = addr || "";
@@ -1543,15 +1540,10 @@ function renderDuration(){
 }
 function getFilteredHolders(){
   const q = state.holder.q.toLowerCase();
-  const bucket = state.holder.bucket;
   let rows = state.holders.filter(h => {
     if(q){
       const tokens = (h.token_ids || []).join(" ");
       if(!String(h.address || "").toLowerCase().includes(q) && !tokens.includes(q)) return false;
-    }
-    if(bucket !== "all"){
-      const b = POSITION_BUCKETS.find(x => x.key === bucket);
-      if(b && !(num(h.nft_count) >= b.min && num(h.nft_count) <= b.max)) return false;
     }
     return true;
   });
@@ -1688,7 +1680,8 @@ function renderLocks(){
   const pageRows = rows.slice(start,start+st.perPage);
   qs("#locks-body").innerHTML = pageRows.length ? pageRows.map((l,i) => {
     const displayAddr = l.beneficiaryAddress || l.address;
-    const tag = l.isOdolo ? `<span class="tag ${l.addressSource === "odolo-vester-fallback" ? "gold" : "cyan"}" title="${l.addressSource === "odolo-vester-fallback" ? "Protocol route" : "via oDOLO"}">${l.addressSource === "odolo-vester-fallback" ? "Protocol" : "via oDOLO"}</span>` : '<span class="tag up">Direct</span>';
+    const sourceKey = l.isOdolo ? (l.addressSource === "odolo-vester-fallback" ? "protocol" : "odolo") : "direct";
+    const tag = flowSourceTag(sourceKey);
     return `<tr><td><span class="rank">${fmtInt(start+i+1)}</span></td><td>${flowAddressCell(displayAddr, l.date, tag)}</td><td class="num" style="color:var(--up)">${fmtDolo(l.dolo)}</td><td class="num">${fmtLock(l.lockDays)}</td><td class="tx-action-cell">${txIconCell(l.txHash)}</td></tr>`;
   }).join("") : '<tr class="loading-row"><td colspan="5">No locks in this period.</td></tr>';
   setText("locks-count", rows.length === state.locks.length ? fmtInt(rows.length) : `${fmtInt(rows.length)} / ${fmtInt(state.locks.length)}`);
@@ -1795,11 +1788,6 @@ function emitQaReport(){
     const holderDetailsButton = qs("#holders-body tr:first-child .holder-toggle");
     const holderDetailRow = qs("#holders-body tr.holder-detail-row");
     const holderDetailTable = qs("#holders-body .holder-detail-table");
-    const holderSearch = qs(".holders-card #q-holders")?.closest(".search");
-    const holderBucket = qs(".holders-card #dd-holder-bucket");
-    const holderSearchRect = holderSearch?.getBoundingClientRect();
-    const holderBucketRect = holderBucket?.getBoundingClientRect();
-    const holderBucketSameRow = !!(holderSearchRect && holderBucketRect && Math.abs(holderSearchRect.top - holderBucketRect.top) < 6);
     const ddBtn = qs(".dd-btn");
     const pager = qs(".pager");
     const pagerBtn = qs(".pager button");
@@ -1833,6 +1821,8 @@ function emitQaReport(){
     const locksTxLink = qs("#locks-body tr:first-child td:last-child a");
     const unlocksTxLink = qs("#unlocks-body tr:first-child td:last-child a");
     const flowTxLinks = qsa(".flow-col .tx-only-link");
+    const flowSourceTags = qsa("#locks-body .flow-source-tag");
+    const flowSourceTooltip = qs("#flow-source-tooltip");
     const exitSuite = qs(".exit-suite");
     const exitCards = qsa(".exit-suite");
     const exitSummary = qs(".exit-summary");
@@ -1980,11 +1970,13 @@ function emitQaReport(){
       holderDetailRowExists: !!holderDetailRow,
       holderDetailTableMinWidth: holderDetailTable ? getComputedStyle(holderDetailTable).minWidth : "",
       holderSearchHasClear: !!qs(".holders-card #q-holders + .search-clear"),
-      holderBucketParentClass: holderBucket?.parentElement?.className || "",
-      holderBucketSameRow,
-      holderBucketOnRight: holderBucketSameRow && holderSearchRect && holderBucketRect ? holderBucketRect.left >= holderSearchRect.right : true,
+      holderPositionFilterExists: !!qs(".holders-card .toolbar .dd"),
       locksTableHeaders: qsa("#locks-table thead th").map(th => th.textContent.trim().replace(/\s+/g," ")),
       unlocksTableHeaders: qsa("#unlocks-table thead th").map(th => th.textContent.trim().replace(/\s+/g," ")),
+      flowSourceTooltipExists: !!flowSourceTooltip,
+      flowSourceTagCount: flowSourceTags.length,
+      flowSourceTagLabels: flowSourceTags.map(tag => tag.textContent.trim()),
+      flowSourceTagHasCustomCopy: flowSourceTags.every(tag => !!tag.dataset.sourceTitle && !!tag.dataset.sourceBody),
       inactiveSortGlyphCount: inactiveSortGlyphs.length,
       exitFirstRowCellCount: exitFirstRowCells.length,
       exitDateFirstCellText: firstExitDateNode ? (firstExitDateNode.getAttribute("aria-label") || firstExitDateNode.textContent.trim().replace(/\s+/g," ")) : "",
@@ -2065,14 +2057,9 @@ function bindUi(){
       e.stopPropagation();
       const root = opt.closest(".dd");
       const value = opt.dataset.value;
-      setDropdown(root.id, value, root.id === "dd-holder-bucket" ? "all" : undefined);
+      setDropdown(root.id, value);
       closeDropdowns();
-      if(root.id === "dd-holder-bucket"){
-        state.holder.bucket = value;
-        state.holder.page = 1;
-        renderHolders();
-        wireCopyButtons();
-      } else if(root.id === "dd-exit-period"){
+      if(root.id === "dd-exit-period"){
         state.exitsUi.period = value;
         state.exitsUi.page = 1;
         renderExits();
@@ -2151,8 +2138,63 @@ function wireSearchClears(){
     syncSearchClear(input);
   });
 }
+function hideFlowSourceTooltip(){
+  const tip = qs("#flow-source-tooltip");
+  if(!tip) return;
+  tip.classList.remove("show","below");
+  tip.setAttribute("aria-hidden","true");
+}
+function showFlowSourceTooltip(target){
+  const tip = qs("#flow-source-tooltip");
+  if(!tip || !target) return;
+  const title = target.dataset.sourceTitle || "";
+  const body = target.dataset.sourceBody || "";
+  tip.innerHTML = `<b>${esc(title)}</b><span>${esc(body)}</span>`;
+  tip.classList.add("show");
+  tip.setAttribute("aria-hidden","false");
+  const rect = target.getBoundingClientRect();
+  const tipRect = tip.getBoundingClientRect();
+  const minLeft = 14 + tipRect.width / 2;
+  const maxLeft = window.innerWidth - 14 - tipRect.width / 2;
+  const left = Math.min(Math.max(rect.left + rect.width / 2, minLeft), Math.max(minLeft, maxLeft));
+  const below = rect.top < tipRect.height + 22;
+  tip.classList.toggle("below", below);
+  tip.style.left = `${Math.round(left)}px`;
+  tip.style.top = `${Math.round(below ? rect.bottom : rect.top)}px`;
+}
+function flowSourceEventTag(event){
+  const target = event.target;
+  return target && target.nodeType === 1 ? target.closest(".flow-source-tag") : null;
+}
+function bindFlowSourceTooltips(){
+  document.addEventListener("mouseover", e => {
+    const tag = flowSourceEventTag(e);
+    if(tag) showFlowSourceTooltip(tag);
+  });
+  document.addEventListener("mouseout", e => {
+    const tag = flowSourceEventTag(e);
+    if(tag && !tag.contains(e.relatedTarget)) hideFlowSourceTooltip();
+  });
+  document.addEventListener("focusin", e => {
+    const tag = flowSourceEventTag(e);
+    if(tag) showFlowSourceTooltip(tag);
+  });
+  document.addEventListener("focusout", e => {
+    if(flowSourceEventTag(e)) hideFlowSourceTooltip();
+  });
+  document.addEventListener("click", e => {
+    const tag = flowSourceEventTag(e);
+    if(!tag) return;
+    e.preventDefault();
+    e.stopPropagation();
+    showFlowSourceTooltip(tag);
+  });
+  window.addEventListener("scroll", hideFlowSourceTooltip, true);
+  window.addEventListener("resize", hideFlowSourceTooltip);
+}
 async function boot(){
   bindUi();
+  bindFlowSourceTooltips();
   renderProtocolInfo();
   setText("now", new Date().toLocaleString());
   try{
