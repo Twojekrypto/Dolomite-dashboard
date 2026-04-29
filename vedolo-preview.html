@@ -271,8 +271,29 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .exit-kpis .mini-kpi .val{font-size:20px;color:#f0d8d3}
 .exit-kpis .mini-kpi:nth-child(2){border-color:rgba(180,121,107,.34);background:linear-gradient(180deg,rgba(180,121,107,.11),rgba(26,18,17,.68))}
 .exit-kpis .mini-kpi:nth-child(2) .val{color:#d58a7c}
-.exit-bars{padding:0 16px 16px}
-.exit-bars .bar-fill{background:linear-gradient(90deg,#7e4039,#c9866f)}
+.exit-behavior-shell{padding:0 16px 16px;display:grid;gap:12px}
+.exit-behavior-focus{padding:13px 15px;border:1px solid rgba(180,121,107,.22);border-radius:10px;background:linear-gradient(180deg,rgba(180,121,107,.075),rgba(255,255,255,.012));box-shadow:inset 0 1px 0 rgba(255,255,255,.035)}
+.exit-behavior-focus-kicker{font-size:9.5px;text-transform:uppercase;letter-spacing:1.35px;font-weight:700;color:rgba(242,214,209,.54);margin-bottom:7px}
+.exit-behavior-focus-value{font-family:var(--mono);font-size:22px;line-height:1;font-weight:700;color:#f0d8d3;letter-spacing:0;font-variant-numeric:tabular-nums;white-space:nowrap}
+.exit-behavior-focus-label{font-size:11.5px;color:var(--fg-3);line-height:1.35;margin-top:7px}
+.exit-behavior-bars{display:flex;flex-direction:column;gap:10px}
+.exit-behavior-row{appearance:none;width:100%;display:grid;grid-template-columns:104px minmax(0,1fr) 112px;align-items:center;gap:14px;border:1px solid transparent;border-radius:10px;padding:10px 11px;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background .16s var(--ease),border-color .16s var(--ease),box-shadow .16s var(--ease),opacity .16s var(--ease),transform .16s var(--ease)}
+.exit-behavior-row:hover,.exit-behavior-row.active{border-color:rgba(180,121,107,.4);background:rgba(180,121,107,.07)}
+.exit-behavior-row.active{box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 12px 30px rgba(0,0,0,.16)}
+.exit-behavior-row:focus-visible{outline:1px solid #d58a7c;outline-offset:3px;border-color:rgba(213,138,124,.5)}
+.exit-behavior-bars.has-active .exit-behavior-row:not(.active){opacity:.62}
+.exit-behavior-label{min-width:0}
+.exit-behavior-label-main{display:block;font-family:var(--mono);font-size:12px;line-height:1;font-weight:700;color:#e6b5ad;white-space:nowrap}
+.exit-behavior-label-sub{display:block;margin-top:4px;font-size:10.5px;line-height:1;color:var(--fg-4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.exit-behavior-row.active .exit-behavior-label-main,.exit-behavior-row:hover .exit-behavior-label-main{color:#f2d6d1}
+.exit-behavior-bar-track{height:12px;border-radius:999px;background:rgba(255,255,255,.026);border:1px solid rgba(180,121,107,.16);overflow:hidden;box-shadow:inset 0 1px 3px rgba(0,0,0,.22)}
+.exit-behavior-bar-fill{display:block;height:100%;min-width:2px;border-radius:999px;background:linear-gradient(90deg,#7e4039,#c9866f);box-shadow:0 0 18px rgba(180,121,107,.14);transition:width .18s ease,filter .18s ease,box-shadow .18s ease}
+.exit-behavior-row[data-exit-behavior-key="penalty"] .exit-behavior-bar-fill{background:linear-gradient(90deg,#c9866f,#d5a095,#c9a227)}
+.exit-behavior-row.active .exit-behavior-bar-fill{filter:saturate(1.16);box-shadow:0 0 22px rgba(180,121,107,.26)}
+.exit-behavior-value{text-align:right;min-width:0}
+.exit-behavior-value b{display:block;font-family:var(--mono);font-size:12.5px;line-height:1;font-weight:700;color:#f0d8d3;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.exit-behavior-value small{display:block;margin-top:4px;font-family:var(--mono);font-size:10.5px;line-height:1;color:var(--fg-4);white-space:nowrap}
+.exit-behavior-empty{padding:16px;border:1px solid rgba(180,121,107,.16);border-radius:10px;background:rgba(255,255,255,.016);font-size:12px;color:var(--fg-3);text-align:center}
 .exit-table-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding:18px 24px 14px;border-bottom:1px solid rgba(180,121,107,.12)}
 .exit-table-title{display:flex;flex-direction:column;gap:4px;min-width:0}
 .exit-title-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
@@ -325,7 +346,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .bar-row{display:grid;grid-template-columns:92px minmax(0,1fr) 112px;align-items:center;gap:14px}
 .bar-row .label{font-size:12px;color:var(--fg-2);font-weight:600;white-space:nowrap}
 .bar-track{height:9px;border-radius:999px;background:var(--bg-3);border:1px solid var(--line-1);overflow:hidden}
-.bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--gold-lo),var(--gold-hi));min-width:2px}
+.bar-fill{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--gold-lo),var(--gold-hi));min-width:2px}
 .bar-val{text-align:right;font-family:var(--mono);font-size:12px;color:var(--fg-2);white-space:nowrap}
 .duration-card .card-body{padding-top:18px}
 .duration-shell{display:grid;gap:16px}
@@ -491,7 +512,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   .seg{max-width:100%;overflow:auto}
   .exit-summary,.exit-table-head{padding-left:16px;padding-right:16px}
   .exit-kpis{grid-template-columns:1fr;padding:14px}
-  .exit-bars{padding:0 14px 14px}
+  .exit-behavior-shell{padding:0 14px 14px}
   .exit-table-head{align-items:flex-start;flex-direction:column}
   .dd{width:100%}
   .dd-btn{width:100%;justify-content:flex-start}
@@ -543,6 +564,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   .expiry-card .expiry-bars{gap:10px;padding-left:10px;padding-right:10px}
   .expiry-bar-wrap{min-width:34px}
   .bar-row{grid-template-columns:74px minmax(0,1fr) 86px;gap:10px}
+  .exit-behavior-row{grid-template-columns:82px minmax(0,1fr) 90px;gap:10px;padding:10px 8px}
+  .exit-behavior-label-sub{display:none}
+  .exit-behavior-value b{font-size:11.5px}
+  .exit-behavior-value small{font-size:10px}
   .duration-focus{padding:13px 14px}
   .duration-row{grid-template-columns:76px minmax(0,1fr) 96px;gap:10px;padding:10px 8px}
   .duration-label-sub{display:none}
@@ -653,9 +678,13 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
           <div class="mini-kpi"><div class="lbl">Avg Penalty</div><div class="val" id="kpi-penalty">--</div><div class="sub">max roughly 55%</div></div>
           <div class="mini-kpi"><div class="lbl">Normal Exits</div><div class="val" id="kpi-normal">--</div><div class="sub">withdrawn after lock expiry</div></div>
         </div>
-        <div class="bar-list exit-bars">
-          <div class="bar-row"><span class="label">Early exits</span><span class="bar-track"><span class="bar-fill" id="exit-ratio-bar" style="width:0%"></span></span><span class="bar-val" id="exit-ratio-val">--</span></div>
-          <div class="bar-row"><span class="label">Penalty avg</span><span class="bar-track"><span class="bar-fill" id="penalty-ratio-bar" style="width:0%"></span></span><span class="bar-val" id="penalty-ratio-val">--</span></div>
+        <div class="exit-behavior-shell" id="exit-behavior-chart">
+          <div class="exit-behavior-focus" id="exit-behavior-focus">
+            <div class="exit-behavior-focus-kicker" id="exit-behavior-focus-title">Withdrawal Behavior</div>
+            <div class="exit-behavior-focus-value" id="exit-behavior-focus-value">--</div>
+            <div class="exit-behavior-focus-label" id="exit-behavior-focus-label">--</div>
+          </div>
+          <div class="exit-behavior-bars" id="exit-behavior-bars"></div>
         </div>
       </div>
     </div>
@@ -907,7 +936,8 @@ const state = {
   exitsUi:{q:"",period:"30",sort:"date",asc:false,page:1,perPage:10},
   flows:{q:"",period:"7",source:"all",locksSort:"rank",locksAsc:true,unlocksSort:"rank",unlocksAsc:true,locksPage:1,unlocksPage:1,perPage:8},
   durationMode:"dolo",
-  durationFocus:-1
+  durationFocus:-1,
+  exitBehaviorFocus:-1
 };
 const LIVE_DATA_BASE = "https://twojekrypto.github.io/vedolo-dashboard/";
 
@@ -1244,12 +1274,88 @@ function renderRevenue(){
   setText("kpi-early-sub", s.total_withdrawals ? `${pct(num(s.total_early_exits)/num(s.total_withdrawals)*100)} of ${fmtInt(s.total_withdrawals)} withdrawals` : "--");
   setText("kpi-penalty", s.avg_penalty_pct ? pct(s.avg_penalty_pct) : "--");
   setText("kpi-normal", fmtInt(s.total_normal_exits));
+  renderExitBehavior(s, { original, penalty });
+}
+function renderExitBehavior(s, totals){
+  const bars = qs("#exit-behavior-bars");
+  if(!bars) return;
+  const withdrawals = num(s.total_withdrawals);
+  const early = num(s.total_early_exits);
+  const normal = num(s.total_normal_exits);
+  const avgPenalty = num(s.avg_penalty_pct);
+  const maxPenalty = 55;
   const exitRatio = s.total_withdrawals ? num(s.total_early_exits)/num(s.total_withdrawals)*100 : 0;
-  setText("exit-ratio-val", pct(exitRatio));
-  qs("#exit-ratio-bar").style.width = Math.min(100,exitRatio).toFixed(1) + "%";
   const penaltyRatio = Math.min(100, num(s.avg_penalty_pct)/55*100);
-  setText("penalty-ratio-val", s.avg_penalty_pct ? `${pct(s.avg_penalty_pct)} avg` : "--");
-  qs("#penalty-ratio-bar").style.width = penaltyRatio.toFixed(1) + "%";
+  const metrics = [
+    {
+      key:"early",
+      label:"Early exits",
+      sub: withdrawals ? `${fmtInt(early)} exits` : "waiting for withdrawals",
+      value: withdrawals ? pct(exitRatio) : "--",
+      small: withdrawals ? "of withdrawals" : "",
+      fill: Math.min(100, exitRatio),
+      fillId:"exit-ratio-bar",
+      valueId:"exit-ratio-val",
+      focusTitle:"Early Exits",
+      focusValue: withdrawals ? pct(exitRatio) : "--",
+      focusLabel: withdrawals ? `${fmtInt(early)} of ${fmtInt(withdrawals)} withdrawals exited before maturity` : "Withdrawal data has not loaded yet"
+    },
+    {
+      key:"penalty",
+      label:"Penalty avg",
+      sub: avgPenalty ? `vs ~${fmtInt(maxPenalty)}% max` : "waiting for penalties",
+      value: avgPenalty ? `${pct(avgPenalty)} avg` : "--",
+      small: avgPenalty ? `${pct(penaltyRatio)} of max` : "",
+      fill: avgPenalty ? penaltyRatio : 0,
+      fillId:"penalty-ratio-bar",
+      valueId:"penalty-ratio-val",
+      focusTitle:"Average Penalty",
+      focusValue: avgPenalty ? pct(avgPenalty) : "--",
+      focusLabel: avgPenalty ? `${fmtCompact(totals.penalty)} DOLO penalty from ${fmtCompact(totals.original)} originally locked` : "Penalty data has not loaded yet"
+    }
+  ];
+  if(!metrics.length){
+    bars.innerHTML = '<div class="exit-behavior-empty">No withdrawal behavior data.</div>';
+    setText("exit-behavior-focus-title", "Withdrawal Behavior");
+    setText("exit-behavior-focus-value", "--");
+    setText("exit-behavior-focus-label", "--");
+    return;
+  }
+  bars.innerHTML = metrics.map((m,idx) => `<button class="exit-behavior-row" type="button" data-exit-behavior-idx="${idx}" data-exit-behavior-key="${esc(m.key)}" aria-pressed="false" aria-label="${esc(`${m.label} ${m.value}`)}">
+    <span class="exit-behavior-label"><span class="exit-behavior-label-main">${esc(m.label)}</span><span class="exit-behavior-label-sub">${esc(m.sub)}</span></span>
+    <span class="exit-behavior-bar-track"><span class="exit-behavior-bar-fill" id="${esc(m.fillId)}" style="width:${Math.max(0, Math.min(100, m.fill)).toFixed(1)}%"></span></span>
+    <span class="exit-behavior-value"><b id="${esc(m.valueId)}">${esc(m.value)}</b><small>${esc(m.small)}</small></span>
+  </button>`).join("");
+
+  const rowEls = [...bars.querySelectorAll(".exit-behavior-row")];
+  const currentFocus = Number(state.exitBehaviorFocus);
+  state.exitBehaviorFocus = Number.isInteger(currentFocus) ? Math.min(Math.max(currentFocus, -1), metrics.length - 1) : -1;
+
+  function setExitBehaviorFocus(idx, persist){
+    if(persist) state.exitBehaviorFocus = idx;
+    const active = idx >= 0 ? metrics[idx] : null;
+    bars.classList.toggle("has-active", !!active);
+    rowEls.forEach((row,i) => {
+      row.classList.toggle("active", i === idx);
+      row.setAttribute("aria-pressed", String(i === state.exitBehaviorFocus));
+    });
+    setText("exit-behavior-focus-title", active ? active.focusTitle : "Withdrawal Behavior");
+    setText("exit-behavior-focus-value", active ? active.focusValue : (withdrawals ? fmtInt(withdrawals) : "--"));
+    setText("exit-behavior-focus-label", active ? active.focusLabel : (withdrawals ? `${fmtInt(early)} early exits / ${fmtInt(normal)} normal exits` : "Waiting for withdrawal data"));
+  }
+
+  rowEls.forEach(row => {
+    const idx = Number(row.dataset.exitBehaviorIdx);
+    row.addEventListener("mouseenter", () => setExitBehaviorFocus(idx, false));
+    row.addEventListener("focus", () => setExitBehaviorFocus(idx, false));
+    row.addEventListener("mouseleave", () => setExitBehaviorFocus(state.exitBehaviorFocus, false));
+    row.addEventListener("blur", () => setExitBehaviorFocus(state.exitBehaviorFocus, false));
+    row.addEventListener("click", () => {
+      const next = state.exitBehaviorFocus === idx ? -1 : idx;
+      setExitBehaviorFocus(next, true);
+    });
+  });
+  setExitBehaviorFocus(state.exitBehaviorFocus, false);
 }
 function renderExpiry(){
   const buckets = state.expiry?.buckets || [];
@@ -1710,6 +1816,12 @@ function emitQaReport(){
     const durationFocus = qs("#duration-focus");
     const durationFirstRow = qs("#duration-bars .duration-row");
     const durationActiveRows = qsa("#duration-bars .duration-row.active");
+    const exitBehaviorFocus = qs("#exit-behavior-focus");
+    const exitBehaviorBars = qs("#exit-behavior-bars");
+    const exitBehaviorFirstRow = qs("#exit-behavior-bars .exit-behavior-row");
+    const exitBehaviorActiveRows = qsa("#exit-behavior-bars .exit-behavior-row.active");
+    const exitRatioFill = qs("#exit-ratio-bar");
+    const penaltyRatioFill = qs("#penalty-ratio-bar");
     const flowGrid = qs(".flow-grid");
     const locksWrap = qs("#locks-table")?.closest(".tbl-wrap");
     const unlocksWrap = qs("#unlocks-table")?.closest(".tbl-wrap");
@@ -1803,6 +1915,21 @@ function emitQaReport(){
       durationFillWidth: qs("#duration-bars .duration-bar-fill") ? Math.round(qs("#duration-bars .duration-bar-fill").getBoundingClientRect().width) : 0,
       durationBarsClientWidth: durationBars ? durationBars.clientWidth : 0,
       durationBarsScrollWidth: durationBars ? durationBars.scrollWidth : 0,
+      exitBehaviorFocusExists: !!exitBehaviorFocus,
+      exitBehaviorFocusText: exitBehaviorFocus ? exitBehaviorFocus.textContent.trim().replace(/\s+/g," ") : "",
+      exitBehaviorInteractiveRowCount: qsa("#exit-behavior-bars .exit-behavior-row[data-exit-behavior-idx]").length,
+      exitBehaviorActiveRowCount: exitBehaviorActiveRows.length,
+      exitBehaviorRowCursor: exitBehaviorFirstRow ? getComputedStyle(exitBehaviorFirstRow).cursor : "",
+      exitBehaviorRowGrid: exitBehaviorFirstRow ? getComputedStyle(exitBehaviorFirstRow).gridTemplateColumns : "",
+      exitBehaviorValueFontSize: qs("#exit-behavior-bars .exit-behavior-value b") ? getComputedStyle(qs("#exit-behavior-bars .exit-behavior-value b")).fontSize : "",
+      exitRatioText: qs("#exit-ratio-val")?.textContent || "",
+      penaltyRatioText: qs("#penalty-ratio-val")?.textContent || "",
+      exitRatioFillDisplay: exitRatioFill ? getComputedStyle(exitRatioFill).display : "",
+      penaltyRatioFillDisplay: penaltyRatioFill ? getComputedStyle(penaltyRatioFill).display : "",
+      exitRatioFillWidth: exitRatioFill ? Math.round(exitRatioFill.getBoundingClientRect().width) : 0,
+      penaltyRatioFillWidth: penaltyRatioFill ? Math.round(penaltyRatioFill.getBoundingClientRect().width) : 0,
+      exitBehaviorBarsClientWidth: exitBehaviorBars ? exitBehaviorBars.clientWidth : 0,
+      exitBehaviorBarsScrollWidth: exitBehaviorBars ? exitBehaviorBars.scrollWidth : 0,
       flowGridColumns: flowGrid ? getComputedStyle(flowGrid).gridTemplateColumns : "",
       locksTableMinWidth: locksTable ? getComputedStyle(locksTable).minWidth : "",
       unlocksTableMinWidth: unlocksTable ? getComputedStyle(unlocksTable).minWidth : "",
