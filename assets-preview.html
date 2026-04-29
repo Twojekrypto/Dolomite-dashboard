@@ -726,16 +726,50 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 /* borrow cell */
 .bw-val{font-family:var(--mono);font-size:14px;font-weight:500;color:var(--down)}
 
-/* expanded row */
-.exp-row td{padding:0;background:var(--bg-1);border-bottom:1px solid var(--line-2)}
+.exp-row{cursor:default}
+.exp-row > td{
+  padding:0 14px 18px!important;
+  background:linear-gradient(90deg,rgba(201,162,39,.06),var(--bg-1) 38px);
+  border-bottom:1px solid rgba(201,162,39,.18);
+}
+.exp-row:hover > td{background:linear-gradient(90deg,rgba(201,162,39,.06),var(--bg-1) 38px)}
+.asset-detail-panel{
+  margin:0;border:1px solid rgba(201,162,39,.2);border-top:1px solid rgba(201,162,39,.48);border-radius:0 0 var(--r-lg) var(--r-lg);
+  background:linear-gradient(180deg,rgba(18,18,20,.985),rgba(12,12,14,.985));
+  overflow:hidden;position:relative;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 0 0 1px rgba(201,162,39,.055),0 18px 44px rgba(0,0,0,.22);
+}
+.asset-detail-panel::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:linear-gradient(180deg,var(--gold),rgba(201,162,39,.18));
+  box-shadow:0 0 18px rgba(201,162,39,.28);pointer-events:none;
+}
+.asset-detail-head{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px 22px 12px;
+}
+.asset-detail-eyebrow{font-size:9.5px;letter-spacing:1.45px;text-transform:uppercase;color:var(--gold);font-weight:700;margin-bottom:6px}
+.asset-detail-title{font-size:15px;font-weight:700;color:var(--fg-1);letter-spacing:0;line-height:1.25}
+.asset-detail-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.asset-detail-pill{
+  display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;
+  border:1px solid var(--line-2);background:rgba(255,255,255,.025);
+  color:var(--fg-2);font-family:var(--mono);font-size:10.5px;font-weight:600;white-space:nowrap;
+}
+.asset-detail-pill.gold{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.asset-detail-pill img{width:12px;height:12px;border-radius:50%;object-fit:cover}
+.asset-detail-content{
+  position:relative;margin:0 12px 14px 14px;border:1px solid rgba(201,162,39,.14);border-radius:8px;
+  background:rgba(0,0,0,.16);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 1px 0 rgba(255,255,255,.025);
+}
 .exp-body{
   display:flex;flex-direction:column;gap:22px;
-  padding:22px 32px 26px 62px;
-  background:linear-gradient(180deg,var(--bg-1) 0%,var(--bg-2) 100%);
+  padding:16px 18px 18px;
+  background:transparent;
 }
-.exp-stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
-.exp-stat{border-left:1px solid var(--line-2);padding-left:16px}
-.exp-stat:first-child{border-left:0;padding-left:0}
+.exp-stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid var(--line-1);border-radius:8px;background:rgba(255,255,255,.012);overflow:hidden}
+.exp-stat{padding:14px 16px;border-left:1px solid rgba(255,255,255,.055)}
+.exp-stat:first-child{border-left:0}
 .exp-stat .lbl{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:var(--fg-3);font-weight:600;margin-bottom:8px}
 .exp-stat .val{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--fg-1);letter-spacing:-.3px}
 .exp-stat .val.accent{color:var(--profit)}
@@ -746,9 +780,9 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 
 /* ========== YIELD CALCULATOR ========== */
 .calc{
-  background:linear-gradient(180deg,rgba(201,162,39,.025),rgba(201,162,39,.008));
-  border:1px solid var(--line-2);
-  border-radius:var(--r-md);
+  background:linear-gradient(180deg,rgba(255,255,255,.018),rgba(255,255,255,.006));
+  border:1px solid rgba(201,162,39,.14);
+  border-radius:8px;
   padding:18px 20px;
 }
 .calc-head{display:flex;flex-direction:column;align-items:flex-start;gap:12px;margin-bottom:14px}
@@ -941,8 +975,13 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   .hero-meta{margin-left:0;width:100%}
   .search{width:100%}
   .tb-left,.tb-right{width:100%}
-  .exp-body{padding:18px 20px 20px 24px}
+  .asset-detail-head{padding:15px 16px;align-items:flex-start;flex-direction:column}
+  .asset-detail-meta{justify-content:flex-start}
+  .asset-detail-content{margin:0 10px 14px 12px}
+  .exp-body{padding:14px 12px 16px}
   .exp-stats-row{grid-template-columns:1fr}
+  .exp-stat{border-left:0;border-top:1px solid rgba(255,255,255,.055)}
+  .exp-stat:first-child{border-top:0}
   .proto-addrs{grid-template-columns:1fr}
   .proto-addr-hex{max-width:120px}
   .proto-links-sep{display:none}
@@ -2133,34 +2172,46 @@ function render(){
     const exp = expanded ? `
       <tr class="exp-row" data-key="${keyId}">
         <td colspan="5">
-          <div class="exp-body">
-
-            <!-- STATS ROW -->
-            <div class="exp-stats-row">
-              <div class="exp-stat">
-                <div class="lbl">TVL</div>
-                <div class="val">${fmtCmp(r.tvl)}</div>
-                <div class="sub">market size</div>
+          <div class="asset-detail-panel">
+            <div class="asset-detail-head">
+              <div>
+                <div class="asset-detail-eyebrow">Asset Details</div>
+                <div class="asset-detail-title">${r.sym} market profile</div>
               </div>
-              <div class="exp-stat">
-                <div class="lbl">Utilization</div>
-                <div class="val">${r.util.toFixed(1)}%</div>
-                <div class="exp-bar"><span style="width:${Math.max(0, Math.min(100, r.util))}%"></span></div>
-              </div>
-              <div class="exp-stat">
-                <div class="lbl">Supply ${state.mode}</div>
-                <div class="val ${r._supply < 0 ? "down" : "accent"}">${fmtRate(r._supply)}</div>
-                <div class="sub">${state.rw.lending?`Lending ${fmtRate(r.lending)}`:""}${state.rw.yield && r.yield!==0?` · Yield ${fmtRate(r.yield)}`:""}${state.rw.odolo && r.odolo!==0?` · oDOLO ${fmtRate(r.odolo)}`:""}</div>
-              </div>
-              <div class="exp-stat">
-                <div class="lbl">Net Spread</div>
-                <div class="val ${displaySpread < 0 ? 'down' : ''}">${fmtPct(displaySpread)}</div>
-                <div class="sub">borrow − supply</div>
+              <div class="asset-detail-meta">
+                <span class="asset-detail-pill"><img src="${chain.icon}" onerror="this.style.display='none'" alt="">${chain.name}</span>
+                <span class="asset-detail-pill gold">${fmtPrice(r.price)}</span>
               </div>
             </div>
+            <div class="asset-detail-content">
+              <div class="exp-body">
 
-            <!-- CALCULATOR -->
-            <div class="calc" data-key="${keyId}">
+                <!-- STATS ROW -->
+                <div class="exp-stats-row">
+                  <div class="exp-stat">
+                    <div class="lbl">TVL</div>
+                    <div class="val">${fmtCmp(r.tvl)}</div>
+                    <div class="sub">market size</div>
+                  </div>
+                  <div class="exp-stat">
+                    <div class="lbl">Utilization</div>
+                    <div class="val">${r.util.toFixed(1)}%</div>
+                    <div class="exp-bar"><span style="width:${Math.max(0, Math.min(100, r.util))}%"></span></div>
+                  </div>
+                  <div class="exp-stat">
+                    <div class="lbl">Supply ${state.mode}</div>
+                    <div class="val ${r._supply < 0 ? "down" : "accent"}">${fmtRate(r._supply)}</div>
+                    <div class="sub">${state.rw.lending?`Lending ${fmtRate(r.lending)}`:""}${state.rw.yield && r.yield!==0?` · Yield ${fmtRate(r.yield)}`:""}${state.rw.odolo && r.odolo!==0?` · oDOLO ${fmtRate(r.odolo)}`:""}</div>
+                  </div>
+                  <div class="exp-stat">
+                    <div class="lbl">Net Spread</div>
+                    <div class="val ${displaySpread < 0 ? 'down' : ''}">${fmtPct(displaySpread)}</div>
+                    <div class="sub">borrow − supply</div>
+                  </div>
+                </div>
+
+                <!-- CALCULATOR -->
+                <div class="calc" data-key="${keyId}">
               <div class="calc-head">
                 <div class="calc-title">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="13" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="10" y2="18"/><line x1="13" y1="18" x2="16" y2="18"/></svg>
@@ -2226,8 +2277,10 @@ function render(){
                 </div>
               </div>
 
-            </div>
+                </div>
 
+              </div>
+            </div>
           </div>
         </td>
       </tr>` : "";
@@ -2239,8 +2292,13 @@ function render(){
   tb.querySelectorAll("tr.data").forEach(tr=>{
     tr.addEventListener("click",()=>{
       const s=tr.dataset.key;
+      const willOpen = !state.expanded.has(s);
       if(state.expanded.has(s)) state.expanded.delete(s); else state.expanded.add(s);
       render();
+      if(willOpen) requestAnimationFrame(()=>{
+        const wrap = document.querySelector(".tbl-wrap");
+        if(wrap) wrap.scrollLeft = 0;
+      });
     });
   });
   // expanded row: keep clicks inside from collapsing
