@@ -2249,7 +2249,7 @@ function render(){
       </tr>
     `;
     const sim = expanded ? simulate(r, calc) : null;
-    const displaySpread = rateForMode(r.borrow) - rateForMode(r._supply);
+    const displaySpread = rateForMode(r.borrow) - rateForMode(r.lending);
     const exp = expanded ? `
       <tr class="exp-row" data-key="${keyId}">
         <td colspan="5">
@@ -2287,7 +2287,7 @@ function render(){
                   <div class="exp-stat">
                     <div class="lbl">Net Spread</div>
                     <div class="val ${displaySpread < 0 ? 'down' : ''}">${fmtPct(displaySpread)}</div>
-                    <div class="sub">borrow − supply</div>
+                    <div class="sub">borrow − native lending</div>
                   </div>
                 </div>
 
