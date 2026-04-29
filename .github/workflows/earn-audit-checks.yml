@@ -3,6 +3,7 @@ name: Earn Audit Checks
 on:
   pull_request:
     paths:
+      - '.github/workflows/earn-audit-checks.yml'
       - 'audit_earn_asset.py'
       - 'earn_live_config.py'
       - 'run_earn_chain_live_rerun.py'
@@ -16,6 +17,7 @@ on:
       - main
       - master
     paths:
+      - '.github/workflows/earn-audit-checks.yml'
       - 'audit_earn_asset.py'
       - 'earn_live_config.py'
       - 'run_earn_chain_live_rerun.py'
@@ -37,6 +39,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: python3 -m pip install --upgrade pip requests
 
       - name: Set up Node
         uses: actions/setup-node@v4
