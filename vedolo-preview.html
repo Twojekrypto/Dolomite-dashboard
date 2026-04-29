@@ -180,6 +180,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .metric-table td.num{text-align:right;font-family:var(--mono);color:var(--fg-1)}
 .metric-table .metric-desc{display:block;margin-top:3px;color:var(--fg-3);font-size:11px;line-height:1.45;max-width:620px}
 #holders-table{table-layout:fixed;min-width:860px}
+#holders-table{--stable-row-height:70px}
 #holders-table col.holder-rank-col{width:56px}
 #holders-table col.holder-dolo-col{width:140px}
 #holders-table col.holder-vote-col{width:150px}
@@ -314,6 +315,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .exit-suite .tbl > tbody > tr:hover > td:first-child::before{background:var(--down)}
 .exit-suite .tbl-foot{background:rgba(12,10,10,.24);border-top-color:rgba(180,121,107,.14)}
 #exits-table{table-layout:fixed;min-width:680px}
+#exits-table{--stable-row-height:70px}
 #exits-table th{font-size:10px;letter-spacing:1.25px}
 #exits-table td{font-size:13px}
 #exits-table .exit-date{display:flex;flex-direction:column;gap:3px;align-items:flex-start;font-family:var(--mono);font-size:12px;color:var(--fg-2);white-space:nowrap;line-height:1.2}
@@ -399,9 +401,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .flow-col-unlock .flow-head-title{color:var(--down)}
 .flow-head-count{font-size:11px;font-family:var(--mono);font-weight:500;color:var(--fg-3);white-space:nowrap}
 .flow-col .tbl-wrap{border-radius:0;background:rgba(9,9,11,.12);flex:1}
-.flow-col .tbl{min-width:520px;table-layout:fixed;font-size:12.5px}
+.flow-col .tbl{min-width:520px;table-layout:fixed;font-size:12.5px;--stable-row-height:71px}
 .flow-col .tbl th{padding:11px 12px;background:rgba(9,9,11,.38);font-size:9.5px;letter-spacing:1.05px}
-.flow-col .tbl td{padding:12px 12px;height:58px}
+.flow-col .tbl td{padding:12px 12px;height:var(--stable-row-height,58px)}
 .flow-col .tbl > tbody > tr:hover > td{background:rgba(255,255,255,.026)}
 .flow-col-lock .tbl > tbody > tr:hover > td:first-child::before{background:var(--up)}
 .flow-col-unlock .tbl > tbody > tr:hover > td:first-child::before{background:var(--down)}
@@ -453,6 +455,12 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .expiry-tooltip.left{transform:translate(calc(-100% - 10px),-50%)}
 .expiry-tooltip.above{transform:translate(-50%,calc(-100% - 10px))}
 .loading-row td{height:54px;color:var(--fg-3)!important;text-align:center!important}
+.stable-data-row > td,.table-spacer-row > td{height:var(--stable-row-height,54px)}
+.table-spacer-row{pointer-events:none}
+.table-spacer-row > td{padding:0 14px!important;color:transparent!important;background:transparent!important}
+.tbl > tbody > tr.table-spacer-row:hover > td{background:transparent}
+.tbl > tbody > tr.table-spacer-row:hover > td:first-child::before{display:none}
+.table-empty-row > td{height:var(--stable-row-height,54px)}
 .dot-ethereum{background:#8a8a9e}
 .dot-berachain{background:#c9a227}
 .proto{margin-top:24px;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-xl);overflow:hidden;box-shadow:var(--sh-card);position:relative}
@@ -555,6 +563,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   .subline{font-size:10px}
   .tag{padding:2px 5px;font-size:9px}
   .flow-col .tbl{min-width:500px}
+  #holders-table{--stable-row-height:64px}
+  #exits-table{--stable-row-height:64px}
+  .flow-col .tbl{--stable-row-height:70.25px}
   #locks-table col.flow-rank,#unlocks-table col.flow-rank{width:42px}
   #locks-table col.flow-amount,#unlocks-table col.flow-amount{width:104px}
   #locks-table col.flow-lock{width:58px}
@@ -1014,6 +1025,11 @@ function txIconCell(txHash){
   const tx = txHash || "";
   if(!tx) return '<span class="subline">--</span>';
   return `<a class="ext-link tx-only-link" href="https://berascan.com/tx/${esc(tx)}" target="_blank" rel="noopener" title="View transaction" aria-label="View transaction">${extSvg}</a>`;
+}
+function tableSpacerRows(count, colSpan){
+  const safeCount = Math.max(0, Number(count) || 0);
+  if(!safeCount) return "";
+  return Array.from({length:safeCount}, () => `<tr class="table-spacer-row" aria-hidden="true"><td colspan="${colSpan}"></td></tr>`).join("");
 }
 const FLOW_SOURCE_META = {
   direct:{
@@ -1564,11 +1580,11 @@ function renderHolders(){
   if(st.page > pages) st.page = pages;
   const start = (st.page - 1) * st.perPage;
   const pageRows = rows.slice(start, start + st.perPage);
-  qs("#holders-body").innerHTML = pageRows.length ? pageRows.map(h => {
+  const holderRows = pageRows.length ? pageRows.map(h => {
     const addrKey = String(h.address || "").toLowerCase();
     const isExpanded = st.expanded === addrKey;
     const toggle = `<button class="holder-toggle" type="button" title="${isExpanded ? "Hide position details" : "Show position details"}" aria-label="${isExpanded ? "Hide position details" : "Show position details"}" aria-expanded="${isExpanded}"><span>${isExpanded ? "Hide" : "Details"}</span>${chevDownSvg}</button>`;
-    return `<tr class="holder-data-row ${isExpanded ? "holder-row-open" : ""}" data-holder-addr="${esc(h.address || "")}" aria-expanded="${isExpanded}">
+    return `<tr class="holder-data-row stable-data-row ${isExpanded ? "holder-row-open" : ""}" data-holder-addr="${esc(h.address || "")}" aria-expanded="${isExpanded}">
     <td><span class="rank">${fmtInt(h.rank || start + 1)}</span></td>
     <td>${holderCell(h)}</td>
     <td class="num"><span class="holder-value">${fmtDolo(h.total_dolo)}</span></td>
@@ -1576,7 +1592,8 @@ function renderHolders(){
     <td class="num"><span class="holder-position-count">${fmtInt(h.nft_count)}</span></td>
     <td class="holder-actions">${toggle}</td>
   </tr>${isExpanded ? renderHolderDetailRow(h) : ""}`;
-  }).join("") : '<tr class="loading-row"><td colspan="6">No holders match the current filters.</td></tr>';
+  }).join("") : '<tr class="loading-row table-empty-row"><td colspan="6">No holders match the current filters.</td></tr>';
+  qs("#holders-body").innerHTML = holderRows + tableSpacerRows(st.perPage - Math.max(pageRows.length, 1), 6);
   setText("holders-count", rows.length === state.holders.length ? fmtInt(rows.length) : `${fmtInt(rows.length)} / ${fmtInt(state.holders.length)}`);
   setText("holders-info", rows.length ? `${fmtInt(start+1)}-${fmtInt(Math.min(start+st.perPage,rows.length))} of ${fmtInt(rows.length)}` : "0 of 0");
   updatePager("holders", rows.length, st.page, st.perPage);
@@ -1631,14 +1648,15 @@ function renderExits(){
   if(st.page > pages) st.page = pages;
   const start = (st.page - 1) * st.perPage;
   const pageRows = rows.slice(start, start + st.perPage);
-  qs("#exits-body").innerHTML = pageRows.length ? pageRows.map((ex,i) => `<tr>
+  const exitRows = pageRows.length ? pageRows.map((ex,i) => `<tr class="stable-data-row">
     <td>${exitDateCell(ex.date)}</td>
     <td>${exitAddressCell(ex.address)}</td>
     <td class="num"><span class="exit-value">${fmtDolo(ex.original_locked)}</span></td>
     <td class="num"><span class="exit-value penalty">${fmtDolo(ex.total_penalty)}</span></td>
     <td class="num"><span class="exit-loss-pill">${pct(ex.penalty_pct)}</span></td>
     <td class="tx-action-cell">${txIconCell(ex.tx_hash)}</td>
-  </tr>`).join("") : '<tr class="loading-row"><td colspan="6">No early exits in this period.</td></tr>';
+  </tr>`).join("") : '<tr class="loading-row table-empty-row"><td colspan="6">No early exits in this period.</td></tr>';
+  qs("#exits-body").innerHTML = exitRows + tableSpacerRows(st.perPage - Math.max(pageRows.length, 1), 6);
   setText("exits-count", rows.length === state.exits.length ? fmtInt(rows.length) : `${fmtInt(rows.length)} / ${fmtInt(state.exits.length)}`);
   setText("exits-info", rows.length ? `${fmtInt(start+1)}-${fmtInt(Math.min(start+st.perPage,rows.length))} of ${fmtInt(rows.length)}` : "0 of 0");
   updatePager("exits", rows.length, st.page, st.perPage);
@@ -1678,12 +1696,13 @@ function renderLocks(){
   if(st.locksPage > pages) st.locksPage = pages;
   const start = (st.locksPage-1)*st.perPage;
   const pageRows = rows.slice(start,start+st.perPage);
-  qs("#locks-body").innerHTML = pageRows.length ? pageRows.map((l,i) => {
+  const lockRows = pageRows.length ? pageRows.map((l,i) => {
     const displayAddr = l.beneficiaryAddress || l.address;
     const sourceKey = l.isOdolo ? (l.addressSource === "odolo-vester-fallback" ? "protocol" : "odolo") : "direct";
     const tag = flowSourceTag(sourceKey);
-    return `<tr><td><span class="rank">${fmtInt(start+i+1)}</span></td><td>${flowAddressCell(displayAddr, l.date, tag)}</td><td class="num" style="color:var(--up)">${fmtDolo(l.dolo)}</td><td class="num">${fmtLock(l.lockDays)}</td><td class="tx-action-cell">${txIconCell(l.txHash)}</td></tr>`;
-  }).join("") : '<tr class="loading-row"><td colspan="5">No locks in this period.</td></tr>';
+    return `<tr class="stable-data-row"><td><span class="rank">${fmtInt(start+i+1)}</span></td><td>${flowAddressCell(displayAddr, l.date, tag)}</td><td class="num" style="color:var(--up)">${fmtDolo(l.dolo)}</td><td class="num">${fmtLock(l.lockDays)}</td><td class="tx-action-cell">${txIconCell(l.txHash)}</td></tr>`;
+  }).join("") : '<tr class="loading-row table-empty-row"><td colspan="5">No locks in this period.</td></tr>';
+  qs("#locks-body").innerHTML = lockRows + tableSpacerRows(st.perPage - Math.max(pageRows.length, 1), 5);
   setText("locks-count", rows.length === state.locks.length ? fmtInt(rows.length) : `${fmtInt(rows.length)} / ${fmtInt(state.locks.length)}`);
   setText("locks-info", rows.length ? `${fmtInt(start+1)}-${fmtInt(Math.min(start+st.perPage,rows.length))} of ${fmtInt(rows.length)}` : "0 of 0");
   updatePager("locks", rows.length, st.locksPage, st.perPage);
@@ -1696,7 +1715,8 @@ function renderUnlocks(){
   if(st.unlocksPage > pages) st.unlocksPage = pages;
   const start = (st.unlocksPage-1)*st.perPage;
   const pageRows = rows.slice(start,start+st.perPage);
-  qs("#unlocks-body").innerHTML = pageRows.length ? pageRows.map((u,i) => `<tr><td><span class="rank">${fmtInt(start+i+1)}</span></td><td>${flowAddressCell(u.address, u.date)}</td><td class="num" style="color:var(--down)">${fmtDolo(u.dolo)}</td><td class="tx-action-cell">${txIconCell(u.txHash)}</td></tr>`).join("") : '<tr class="loading-row"><td colspan="4">No unlocks in this period.</td></tr>';
+  const unlockRows = pageRows.length ? pageRows.map((u,i) => `<tr class="stable-data-row"><td><span class="rank">${fmtInt(start+i+1)}</span></td><td>${flowAddressCell(u.address, u.date)}</td><td class="num" style="color:var(--down)">${fmtDolo(u.dolo)}</td><td class="tx-action-cell">${txIconCell(u.txHash)}</td></tr>`).join("") : '<tr class="loading-row table-empty-row"><td colspan="4">No unlocks in this period.</td></tr>';
+  qs("#unlocks-body").innerHTML = unlockRows + tableSpacerRows(st.perPage - Math.max(pageRows.length, 1), 4);
   setText("unlocks-count", rows.length === state.unlocks.length ? fmtInt(rows.length) : `${fmtInt(rows.length)} / ${fmtInt(state.unlocks.length)}`);
   setText("unlocks-info", rows.length ? `${fmtInt(start+1)}-${fmtInt(Math.min(start+st.perPage,rows.length))} of ${fmtInt(rows.length)}` : "0 of 0");
   updatePager("unlocks", rows.length, st.unlocksPage, st.perPage);
