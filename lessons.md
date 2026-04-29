@@ -15,6 +15,7 @@
 - **Column alignment independence**: Supply APR column with breakdowns should stay `text-align: left` while other data columns can be centered.
 - **New UX search bars require quick clear**: Every gold/new-design search bar for addresses, labels, tokens, or tx hashes must include a small visible `X` clear control when it has input. The clear control should reset the value, dispatch the normal `input` event so filters rerender, and keep focus in the search field. Do not spend time retrofitting the old design unless explicitly requested.
 - **Tables must not resize on search/filter**: In the new UX dashboard, visible table shells must keep stable width and height when filters, searches, or periods reduce result counts. Use fixed table layout/colgroups and fill short pages with inert spacer rows (or equivalent fixed body height), then verify with browser `getBoundingClientRect()` before shipping.
+- **Assets table viewport**: Dolomite Assets should show a stable 10-row table viewport, then scroll inside the table body/wrap. Do not let the table shell grow to the full asset count or shrink after filters.
 - **All Chains filter icon contract**: The `All Chains` dropdown option must mirror the trigger button's full globe icon (circle, horizontal line, and curved vertical meridian). The TVL Token Composition filter is the reference for the select-all row styling and icon treatment; reuse that pattern in Assets.
 
 ## Data Display
