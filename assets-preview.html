@@ -874,12 +874,61 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 }
 .calc-max:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
 
-.calc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:4px}
+.calc-grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:4px}
 .calc-row{
   display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;
   padding:10px 14px;border-radius:8px;background:rgba(255,255,255,.015);
   border:1px solid var(--line-1);
 }
+.calc-row.metric-focus{
+  grid-column:1/-1;position:relative;overflow:hidden;
+  grid-template-columns:minmax(0,1fr) minmax(128px,auto) minmax(0,1fr);
+  padding:15px 18px 15px 20px;
+  background:linear-gradient(180deg,rgba(255,255,255,.026),rgba(255,255,255,.006));
+  border-color:rgba(var(--metric-rgb),.28);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.052),inset 0 -1px 0 rgba(0,0,0,.24),0 10px 22px rgba(0,0,0,.13);
+}
+.calc-row.metric-focus::before{
+  content:"";position:absolute;left:0;right:0;top:0;height:2px;
+  background:linear-gradient(90deg,rgba(var(--metric-rgb),.82),rgba(var(--metric-rgb),.24),transparent 88%);
+  opacity:.82;pointer-events:none;
+}
+.calc-row.metric-focus::after{
+  content:"";position:absolute;left:0;top:2px;bottom:0;width:3px;
+  background:linear-gradient(180deg,rgba(var(--metric-rgb),.78),rgba(var(--metric-rgb),.22));
+  opacity:.84;pointer-events:none;
+}
+.calc-row.metric-focus .calc-side{gap:5px}
+.calc-row.metric-focus .calc-side-lbl{font-size:10px;color:var(--metric-label)}
+.calc-row.metric-focus .calc-side-val{
+  font-size:24px;line-height:1.05;font-weight:700;letter-spacing:-.7px;
+  color:var(--metric-value);text-shadow:0 0 16px rgba(var(--metric-rgb),.12);
+}
+.calc-row.metric-focus .calc-side:first-child .calc-side-lbl{color:rgba(var(--metric-rgb),.62)}
+.calc-row.metric-focus .calc-side:first-child .calc-side-val{
+  font-size:22px;font-weight:650;color:rgba(var(--metric-rgb),.72);text-shadow:none;
+}
+.calc-row.metric-focus .calc-side:last-child .calc-side-lbl{color:var(--metric-label);font-weight:700}
+.calc-row.metric-focus .calc-side:last-child .calc-side-val{
+  font-size:26px;font-weight:760;color:var(--metric-value);text-shadow:0 0 18px rgba(var(--metric-rgb),.16);
+}
+.calc-row.metric-focus .calc-arrow{width:26px;height:16px;opacity:.9}
+.calc-row.lending-focus{order:-3;--metric-rgb:117,184,123;--metric-label:rgba(159,206,161,.86);--metric-value:var(--profit-hi)}
+.calc-row.borrow-focus{order:-2;--metric-rgb:180,121,107;--metric-label:rgba(210,150,137,.88);--metric-value:#d29689}
+.calc-row.util-focus{order:-1;--metric-rgb:201,162,39;--metric-label:rgba(228,193,90,.86);--metric-value:var(--gold-hi)}
+.calc-impact{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-width:120px}
+.calc-impact-label{font-size:8.5px;line-height:1;text-transform:uppercase;letter-spacing:1px;color:var(--fg-3);font-weight:700;white-space:nowrap}
+.calc-delta{
+  display:inline-flex;align-items:center;justify-content:center;min-width:72px;
+  padding:5px 10px;border-radius:999px;
+  font-family:var(--mono);font-size:12px;font-weight:700;line-height:1;
+  color:var(--fg-1);background:rgba(255,255,255,.045);border:1px solid var(--line-2);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
+}
+.calc-impact.is-up .calc-delta{color:var(--profit);background:rgba(255,255,255,.026);border-color:rgba(46,204,113,.3)}
+.calc-impact.is-down .calc-delta{color:var(--down);background:rgba(255,255,255,.026);border-color:rgba(255,92,92,.3)}
+.calc-impact.is-flat .calc-delta{color:var(--fg-2);background:rgba(255,255,255,.026);border-color:var(--line-2)}
+.calc-impact.is-neutral .calc-delta{color:var(--gold-hi);background:rgba(255,255,255,.026);border-color:rgba(201,162,39,.3)}
 .calc-side{display:flex;flex-direction:column;gap:2px;min-width:0}
 .calc-side-lbl{font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--fg-3);font-weight:600}
 .calc-side-val{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--fg-1);font-variant-numeric:tabular-nums}
@@ -982,6 +1031,15 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   .exp-stats-row{grid-template-columns:1fr}
   .exp-stat{border-left:0;border-top:1px solid rgba(255,255,255,.055)}
   .exp-stat:first-child{border-top:0}
+  .calc-row.metric-focus{grid-template-columns:minmax(0,1fr) 104px minmax(0,1fr);padding:14px 14px 14px 16px}
+  .calc-row.metric-focus .calc-side-lbl{font-size:8.5px;letter-spacing:1px}
+  .calc-row.metric-focus .calc-side-val{font-size:20px}
+  .calc-row.metric-focus .calc-side:first-child .calc-side-val{font-size:19px}
+  .calc-row.metric-focus .calc-side:last-child .calc-side-val{font-size:21px}
+  .calc-row.metric-focus .calc-arrow{width:20px;height:13px}
+  .calc-impact{min-width:104px;gap:4px}
+  .calc-impact-label{font-size:7.5px;letter-spacing:.8px}
+  .calc-delta{min-width:62px;padding:5px 8px;font-size:11px}
   .proto-addrs{grid-template-columns:1fr}
   .proto-addr-hex{max-width:120px}
   .proto-links-sep{display:none}
@@ -1614,6 +1672,28 @@ const fmtPrice = (v)=>{
 };
 const fmtChg = (v)=>(v>=0?"+":"")+v.toFixed(2)+"%";
 const fmtPct = (v)=>v.toFixed(2)+"%";
+function deltaClass(next, prev, invert=false){
+  const delta = next - prev;
+  if(Math.abs(delta) <= 0.005) return "is-flat";
+  return invert ? (delta < 0 ? "is-up" : "is-down") : (delta > 0 ? "is-up" : "is-down");
+}
+function lendingDeltaClass(sim){
+  return deltaClass(sim.newLending, sim.oldLending);
+}
+function borrowDeltaClass(sim){
+  return deltaClass(sim.newBorrow, sim.oldBorrow, true);
+}
+function utilDeltaClass(sim){
+  return Math.abs(sim.newUtil - sim.oldUtil) <= 0.005 ? "is-flat" : "is-neutral";
+}
+function fmtPpDelta(next, prev){
+  const delta = next - prev;
+  if(Math.abs(delta) < 0.005) return "0.00 pp";
+  return (delta > 0 ? "+" : "-") + Math.abs(delta).toFixed(2) + " pp";
+}
+function impactLabel(action){
+  return action==="withdraw" ? "Withdraw impact" : "Deposit impact";
+}
 const fmtCmp = (v)=>{
   if(v>=1e9) return "$"+(v/1e9).toFixed(2)+"B";
   if(v>=1e6) return "$"+(v/1e6).toFixed(1)+"M";
@@ -1930,6 +2010,7 @@ function simulate(row, calc){
       newUtil: row.util,
       newBorrow: oldBorrow,
       newLending: oldLending,
+      oldUtil: row.util,
       oldBorrow,
       oldLending,
       requested,
@@ -1957,7 +2038,7 @@ function simulate(row, calc){
   const oldLending = state.mode==="APY" ? aprToApy(oldLendingApr) : oldLendingApr;
 
   return {
-    newUtil, newBorrow, newLending, oldBorrow, oldLending, requested, effectiveAmount,
+    newUtil, newBorrow, newLending, oldUtil: row.util, oldBorrow, oldLending, requested, effectiveAmount,
     utilDir:     newUtil>row.util       ? "up-dir" : newUtil<row.util       ? "down-dir" : "",
     lendingDir:  newLending>oldLending  ? "up-dir" : newLending<oldLending  ? "down-dir" : "",
     borrowDir:   newBorrow>oldBorrow    ? "up-dir" : newBorrow<oldBorrow    ? "down-dir" : ""
@@ -2242,34 +2323,46 @@ function render(){
               </div>
 
               <div class="calc-grid">
-                <div class="calc-row">
+                <div class="calc-row metric-focus util-focus">
                   <div class="calc-side">
                     <div class="calc-side-lbl">Utilization · now</div>
                     <div class="calc-side-val">${r.util.toFixed(2)}%</div>
                   </div>
-                  <svg class="calc-arrow ${sim.utilDir}" viewBox="0 0 16 10"><path d="M0 5 L12 5 M9 2 L12 5 L9 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <div class="calc-impact ${utilDeltaClass(sim)}" title="${impactLabel(calc.action)}: utilization changes by ${fmtPpDelta(sim.newUtil, sim.oldUtil)}">
+                    <span class="calc-impact-label">Utilization change</span>
+                    <span class="calc-delta">${fmtPpDelta(sim.newUtil, sim.oldUtil)}</span>
+                    <svg class="calc-arrow ${sim.utilDir}" viewBox="0 0 16 10"><path d="M0 5 L12 5 M9 2 L12 5 L9 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </div>
                   <div class="calc-side">
                     <div class="calc-side-lbl" style="text-align:right">Utilization · after</div>
                     <div class="calc-side-val right">${sim.newUtil.toFixed(2)}%</div>
                   </div>
                 </div>
-                <div class="calc-row">
+                <div class="calc-row metric-focus lending-focus">
                   <div class="calc-side">
                     <div class="calc-side-lbl">Native Lending ${state.mode} · now</div>
                     <div class="calc-side-val profit">${fmtPct(sim.oldLending)}</div>
                   </div>
-                  <svg class="calc-arrow ${sim.lendingDir}" viewBox="0 0 16 10"><path d="M0 5 L12 5 M9 2 L12 5 L9 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <div class="calc-impact ${lendingDeltaClass(sim)}" title="${impactLabel(calc.action)}: native lending ${state.mode} changes by ${fmtPpDelta(sim.newLending, sim.oldLending)}">
+                    <span class="calc-impact-label">Yield change</span>
+                    <span class="calc-delta">${fmtPpDelta(sim.newLending, sim.oldLending)}</span>
+                    <svg class="calc-arrow ${sim.lendingDir}" viewBox="0 0 16 10"><path d="M0 5 L12 5 M9 2 L12 5 L9 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </div>
                   <div class="calc-side">
                     <div class="calc-side-lbl" style="text-align:right">Native Lending ${state.mode} · after</div>
                     <div class="calc-side-val right profit">${fmtPct(sim.newLending)}</div>
                   </div>
                 </div>
-                <div class="calc-row">
+                <div class="calc-row metric-focus borrow-focus">
                   <div class="calc-side">
                     <div class="calc-side-lbl">Borrow ${state.mode} · now</div>
                     <div class="calc-side-val down">${fmtPct(sim.oldBorrow)}</div>
                   </div>
-                  <svg class="calc-arrow ${sim.borrowDir}" viewBox="0 0 16 10"><path d="M0 5 L12 5 M9 2 L12 5 L9 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <div class="calc-impact ${borrowDeltaClass(sim)}" title="${impactLabel(calc.action)}: borrow ${state.mode} changes by ${fmtPpDelta(sim.newBorrow, sim.oldBorrow)}">
+                    <span class="calc-impact-label">Cost change</span>
+                    <span class="calc-delta">${fmtPpDelta(sim.newBorrow, sim.oldBorrow)}</span>
+                    <svg class="calc-arrow ${sim.borrowDir}" viewBox="0 0 16 10"><path d="M0 5 L12 5 M9 2 L12 5 L9 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </div>
                   <div class="calc-side">
                     <div class="calc-side-lbl" style="text-align:right">Borrow ${state.mode} · after</div>
                     <div class="calc-side-val right down">${fmtPct(sim.newBorrow)}</div>
@@ -2421,17 +2514,48 @@ function updateCalc(key){
   if(!sel) return;
   const rows = sel.querySelectorAll(".calc-row");
   // Utilization row
+  rows[0].querySelectorAll(".calc-side-val")[0].textContent = sim.oldUtil.toFixed(2)+"%";
   rows[0].querySelectorAll(".calc-side-val")[1].textContent = sim.newUtil.toFixed(2)+"%";
+  const utilImpact = rows[0].querySelector(".calc-impact");
+  if(utilImpact){
+    utilImpact.classList.remove("is-up","is-down","is-flat","is-neutral");
+    utilImpact.classList.add(utilDeltaClass(sim));
+    utilImpact.title = `${impactLabel(calc.action)}: utilization changes by ${fmtPpDelta(sim.newUtil, sim.oldUtil)}`;
+    const impactLbl = utilImpact.querySelector(".calc-impact-label");
+    const deltaLbl = utilImpact.querySelector(".calc-delta");
+    if(impactLbl) impactLbl.textContent = "Utilization change";
+    if(deltaLbl) deltaLbl.textContent = fmtPpDelta(sim.newUtil, sim.oldUtil);
+  }
   const ar0 = rows[0].querySelector(".calc-arrow");
   ar0.classList.remove("up-dir","down-dir"); if(sim.utilDir) ar0.classList.add(sim.utilDir);
   // Native Lending row
   rows[1].querySelectorAll(".calc-side-val")[0].textContent = fmtPct(sim.oldLending);
   rows[1].querySelectorAll(".calc-side-val")[1].textContent = fmtPct(sim.newLending);
+  const impact = rows[1].querySelector(".calc-impact");
+  if(impact){
+    impact.classList.remove("is-up","is-down","is-flat");
+    impact.classList.add(lendingDeltaClass(sim));
+    impact.title = `${impactLabel(calc.action)}: native lending ${state.mode} changes by ${fmtPpDelta(sim.newLending, sim.oldLending)}`;
+    const impactLbl = impact.querySelector(".calc-impact-label");
+    const deltaLbl = impact.querySelector(".calc-delta");
+    if(impactLbl) impactLbl.textContent = "Yield change";
+    if(deltaLbl) deltaLbl.textContent = fmtPpDelta(sim.newLending, sim.oldLending);
+  }
   const ar1 = rows[1].querySelector(".calc-arrow");
   ar1.classList.remove("up-dir","down-dir"); if(sim.lendingDir) ar1.classList.add(sim.lendingDir);
   // Borrow row
   rows[2].querySelectorAll(".calc-side-val")[0].textContent = fmtPct(sim.oldBorrow);
   rows[2].querySelectorAll(".calc-side-val")[1].textContent = fmtPct(sim.newBorrow);
+  const borrowImpact = rows[2].querySelector(".calc-impact");
+  if(borrowImpact){
+    borrowImpact.classList.remove("is-up","is-down","is-flat");
+    borrowImpact.classList.add(borrowDeltaClass(sim));
+    borrowImpact.title = `${impactLabel(calc.action)}: borrow ${state.mode} changes by ${fmtPpDelta(sim.newBorrow, sim.oldBorrow)}`;
+    const impactLbl = borrowImpact.querySelector(".calc-impact-label");
+    const deltaLbl = borrowImpact.querySelector(".calc-delta");
+    if(impactLbl) impactLbl.textContent = "Cost change";
+    if(deltaLbl) deltaLbl.textContent = fmtPpDelta(sim.newBorrow, sim.oldBorrow);
+  }
   const ar2 = rows[2].querySelector(".calc-arrow");
   ar2.classList.remove("up-dir","down-dir"); if(sim.borrowDir) ar2.classList.add(sim.borrowDir);
 }
