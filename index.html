@@ -12977,14 +12977,14 @@
             </div>
             <nav class="header-nav-bar">
                 <div class="nav-tabs">
-                    <button class="nav-tab" id="tab-assets" onclick="switchView('assets')">
+                    <a class="nav-tab" id="tab-assets" href="./assets/">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                             stroke-linecap="round" stroke-linejoin="round">
                             <path d="M3 3v18h18" />
                             <path d="M7 16l4-8 4 4 4-6" />
                         </svg>
                         ASSETS
-                    </button>
+                    </a>
                     <a class="nav-tab" id="tab-tvl" href="./tvl/">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                             stroke-linecap="round" stroke-linejoin="round">
@@ -12993,25 +12993,25 @@
                         </svg>
                         TVL
                     </a>
-                    <button class="nav-tab active" id="tab-dolo" onclick="switchView('dolo')">
+                    <a class="nav-tab active" id="tab-dolo" href="./dolo/">
                         <img src="dolo-logo.svg" alt="DOLO">
                         DOLO
-                    </button>
-                    <button class="nav-tab" id="tab-odolo" onclick="switchView('odolo')">
+                    </a>
+                    <a class="nav-tab" id="tab-odolo" href="./odolo/">
                         <img src="odolo-logo-official.svg" alt="oDOLO">
                         oDOLO
-                    </button>
+                    </a>
                     <a class="nav-tab" id="tab-vedolo" href="./vedolo/">
                         <img src="vedolo-logo.svg" alt="veDOLO">
                         veDOLO
                     </a>
-                    <button class="nav-tab" id="tab-earn" onclick="switchView('earn')">
+                    <a class="nav-tab" id="tab-earn" href="./earn/">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                             stroke-linecap="round" stroke-linejoin="round">
                             <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                         </svg>
                         EARN
-                    </button>
+                    </a>
                     <button class="nav-tab" id="tab-lending" onclick="switchView('lending')" style="display:none">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                             stroke-linecap="round" stroke-linejoin="round">
@@ -19046,6 +19046,18 @@
         }
 
         function switchView(view) {
+            const routedViews = {
+                assets: 'assets/',
+                tvl: 'tvl/',
+                dolo: 'dolo/',
+                odolo: 'odolo/',
+                vedolo: 'vedolo/',
+                earn: 'earn/',
+            };
+            if (routedViews[view] && !document.body.classList.contains('earn-draft-route')) {
+                window.location.href = new URL(routedViews[view], document.baseURI || window.location.href).href;
+                return;
+            }
             if (view === currentView) return;
             currentView = view;
 
