@@ -8,8 +8,8 @@
 <script>
 (async () => {
   try {
-    const draftVersion = "earn-home-dolo-route-20260430";
-    const response = await fetch(`../dashboard-core.html?v=${draftVersion}`, { cache: "no-cache" });
+    const draftVersion = "earn-verified-summary-20260430";
+    const response = await fetch(`../dashboard-core.html?v=${draftVersion}-${Date.now()}`, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const html = await response.text();
     const headInject = [
