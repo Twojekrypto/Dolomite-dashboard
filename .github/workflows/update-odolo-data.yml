@@ -2,7 +2,7 @@ name: Update oDOLO Data
 
 on:
   schedule:
-    - cron: '15 */6 * * *'  # Every 6 hours at :15 (staggered from Flows at :00)
+    - cron: '37 */6 * * *'  # Every 6 hours, staggered from oDOLO flows
   workflow_dispatch:  # Allow manual trigger
 
 concurrency:
@@ -90,4 +90,3 @@ jobs:
             echo "⚠️ Push attempt $i failed, retrying..."
             sleep 5
           done
-

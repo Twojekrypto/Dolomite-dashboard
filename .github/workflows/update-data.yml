@@ -2,7 +2,7 @@ name: Update veDOLO Data
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # Every 6 hours
+    - cron: '17 */6 * * *'  # Every 6 hours, staggered
   workflow_dispatch:  # Allow manual trigger
 
 permissions:
@@ -67,4 +67,3 @@ jobs:
             echo "⚠️ Push attempt $i failed, retrying..."
             sleep 5
           done
-
