@@ -53,6 +53,7 @@ DEFAULT_OUTPUT_DIR = ROOT / "data" / "earn-subaccount-history"
 LEGACY_UNKNOWN_ACCOUNT = "legacy-unknown"
 ADDRESS_TOPIC_CHUNK = 100
 SUBACCOUNT_HISTORY_VERSION = 1
+DEFAULT_ADDRESS_SCAN_BLOCK_CHUNK = BLOCK_CHUNK
 
 EVENT_META = {
     LOG_DEPOSIT: ("deposit", "d"),
@@ -412,9 +413,10 @@ def build_history_for_addresses_in_block_range(
 
     current = start_block
     total_logs = 0
+    block_chunk = max(1, int(os.environ.get("EARN_SUBACCOUNT_HISTORY_BLOCK_CHUNK") or DEFAULT_ADDRESS_SCAN_BLOCK_CHUNK))
 
     while current <= end_block:
-        chunk_end = min(current + BLOCK_CHUNK - 1, end_block)
+        chunk_end = min(current + block_chunk - 1, end_block)
         logs = _fetch_logs_for_addresses(rpcs, rpc_idx, contract, addresses, current, chunk_end)
         total_logs += len(logs)
 
@@ -430,7 +432,7 @@ def build_history_for_addresses_in_block_range(
         processed = chunk_end - start_block
         total_range = max(1, end_block - start_block)
         pct = (processed / total_range) * 100
-        if logs or processed % 500_000 < BLOCK_CHUNK:
+        if logs or processed % 500_000 < block_chunk:
             print(f"[{chain}] [{pct:5.1f}%] block {chunk_end:,} logs={len(logs)} total_logs={total_logs}")
         current = chunk_end + 1
 

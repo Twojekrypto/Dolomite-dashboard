@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shlex
 import subprocess
 import time
 from collections import Counter
@@ -924,6 +925,27 @@ def run_next_market(plan: dict) -> dict:
     return {}
 
 
+def _is_python_launcher(arg: str) -> bool:
+    name = Path(str(arg)).name
+    return name == "python" or name.startswith("python")
+
+
+def _is_live_audit_invocation(argv: Sequence[str]) -> bool:
+    if not argv:
+        return False
+    launcher = Path(str(argv[0])).name
+    for index, arg in enumerate(argv):
+        if Path(str(arg)).name != "audit_earn_asset.py":
+            continue
+        if len(argv) <= index + 1 or argv[index + 1] != "live":
+            continue
+        if index == 0 or _is_python_launcher(argv[0]):
+            return True
+        if launcher == "env" and any(_is_python_launcher(prior) for prior in argv[1:index]):
+            return True
+    return False
+
+
 def detect_external_live_audits() -> List[dict]:
     try:
         proc = subprocess.run(
@@ -943,14 +965,20 @@ def detect_external_live_audits() -> List[dict]:
     rows = []
     for line in proc.stdout.splitlines():
         text = str(line).strip()
-        if not text or "audit_earn_asset.py live" not in text:
+        if not text or "audit_earn_asset.py" not in text:
             continue
         pid_text, _, command = text.partition(" ")
         try:
             pid = int(pid_text.strip())
-        except Exception:
+        except ValueError:
             continue
         if pid == current_pid:
+            continue
+        try:
+            argv = shlex.split(command)
+        except ValueError:
+            argv = command.split()
+        if not _is_live_audit_invocation(argv):
             continue
         rows.append({"pid": pid, "command": command.strip()})
     return rows
