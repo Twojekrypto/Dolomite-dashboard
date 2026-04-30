@@ -2,8 +2,10 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
-from run_earn_chain_live_rerun import build_live_plan
+from run_earn_chain_live_rerun import build_live_plan, detect_external_live_audits
 
 
 class RunEarnChainLiveRerunTest(unittest.TestCase):
@@ -202,6 +204,29 @@ class RunEarnChainLiveRerunTest(unittest.TestCase):
             payload = json.loads(filtered_input_path.read_text(encoding="utf-8"))
             self.assertEqual(payload["inputCount"], 1)
             self.assertEqual([row["wallet"] for row in payload["unresolved"]], ["0xkeep"])
+
+    def test_detect_external_live_audits_requires_real_live_invocation(self):
+        ps_output = "\n".join(
+            [
+                "100 /usr/bin/python3 /repo/audit_earn_asset.py live --chain arbitrum",
+                "101 rg -n audit_earn_asset.py live .",
+                "102 /usr/bin/python3 /repo/audit_earn_asset.py static --chain arbitrum",
+                "103 /usr/bin/python3 run_earn_chain_live_rerun.py status --note 'audit_earn_asset.py live'",
+                "104 /usr/bin/python3 /repo/audit_earn_asset.py extract-live --results out.json",
+                "200 /usr/bin/python3 /repo/audit_earn_asset.py live --chain arbitrum",
+            ]
+        )
+        fake_proc = SimpleNamespace(returncode=0, stdout=ps_output)
+
+        with (
+            patch("run_earn_chain_live_rerun.os.getpid", return_value=200),
+            patch("run_earn_chain_live_rerun.subprocess.run", return_value=fake_proc),
+        ):
+            rows = detect_external_live_audits()
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["pid"], 100)
+        self.assertIn("audit_earn_asset.py live", rows[0]["command"])
 
 
 if __name__ == "__main__":
