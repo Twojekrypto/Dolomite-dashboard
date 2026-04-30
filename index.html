@@ -30663,7 +30663,7 @@
         let earn_replayCurrentIndexMap = {}; // { marketId: { supplyIndex, borrowIndex } } for replay summary rebuilds
 
         const EARN_DATA_BASE = ((window.location.protocol === 'http:' || window.location.protocol === 'https:')
-            ? new URL('data/', window.location.href).href.replace(/\/$/, '')
+            ? new URL('data/', document.baseURI || window.location.href).href.replace(/\/$/, '')
             : 'https://twojekrypto.github.io/vedolo-dashboard/data');
         const SNAPSHOT_BASE = `${EARN_DATA_BASE}/earn-snapshots`;
         const NETFLOW_BASE = `${EARN_DATA_BASE}/earn-netflow`;
@@ -30784,19 +30784,37 @@
             }
 
             const canonicalHistoryCoverageStatus = earn_getCanonicalSubaccountHistoryCoverageStatus();
-            const hasBorrowRoutedExposure = (earn_collateralPositionData || []).length > 0
+            const hasCurrentBorrowRoutedExposure = (earn_collateralPositionData || []).length > 0
                 || (earn_borrowPositionData || []).length > 0
-                || (earn_replayBorrowAccountsOverride && earn_replayBorrowAccountsOverride.size > 0);
+                || (earn_lendingPositions || []).length > 0
+                || (earn_cachedAssets || []).some(position => earn_positionRequiresCanonicalBorrowRouting(position));
+            const hasCoverageIncompleteYield = Object.values(earn_resolvedTotalYieldData || {}).some(entry => {
+                if (!entry || typeof entry !== 'object') return false;
+                return [
+                    entry.resolvedVerificationStatus,
+                    entry.verificationStatus,
+                    entry.strictStatus,
+                    entry.status,
+                ].some(status => String(status || '').trim().toLowerCase() === 'coverage_incomplete');
+            });
+            const hasBorrowRoutedExposure = hasCurrentBorrowRoutedExposure
+                || (!!(earn_replayBorrowAccountsOverride && earn_replayBorrowAccountsOverride.size > 0) && hasCoverageIncompleteYield);
             const hasBorrowOnlyContext = earn_hasBorrowOnlyEarnContext();
             if (hasBorrowRoutedExposure && canonicalHistoryCoverageStatus !== 'fresh' && !hasBorrowOnlyContext) {
                 const coverageLabel = canonicalHistoryCoverageStatus === 'missing' ? 'missing' : 'stale';
                 const blockText = earn_canonicalSubaccountHistoryLastScannedBlock === null
                     ? 'none'
                     : String(earn_canonicalSubaccountHistoryLastScannedBlock);
+                const replayBlockText = earn_replayBlockTag
+                    ? String(earn_parseBlockNumberLike(earn_replayBlockTag) || '')
+                    : '';
+                const blockDetail = replayBlockText
+                    ? ` Local history is ${coverageLabel}: last scanned block ${blockText}; lookup block ${replayBlockText}.`
+                    : ` Local history is ${coverageLabel}: last scanned block ${blockText}.`;
                 notices.push({
                     tone: 'info',
-                    title: 'Replay Confidence Is Limited For This Lookup',
-                    body: `Visible balances are still shown normally. The only thing missing is fresh local history for hidden-collateral / borrow-route replay, so strict verification stays coverage-incomplete for this lookup until that history catches up (coverage: ${coverageLabel}, last scanned block: ${blockText}).`,
+                    title: 'Borrow Route Verification Is Catching Up',
+                    body: `This wallet has borrow-route / hidden-collateral activity, so strict verification waits for fresh local subaccount history. Visible balances and verified market rows are still shown normally.${blockDetail}`,
                 });
             }
 

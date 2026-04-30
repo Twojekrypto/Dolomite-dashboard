@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dolomite · Earn</title>
+<link rel="shortcut icon" href="../favicon.ico" type="image/png">
+<script>
+(async () => {
+  try {
+    const draftVersion = "earn-premium-draft-20260430";
+    const response = await fetch(`../index.html?v=${draftVersion}`, { cache: "no-cache" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const html = await response.text();
+    const headInject = [
+      '<base href="../">',
+      '<link rel="stylesheet" href="earn/earn-draft.css?v=' + draftVersion + '">',
+      '<script defer src="earn/earn-draft.js?v=' + draftVersion + '"><\/script>'
+    ].join("");
+    document.open();
+    document.write(html.replace("<head>", "<head>" + headInject));
+    document.close();
+  } catch (error) {
+    document.body.innerHTML = "<p style=\"font-family:system-ui,sans-serif;padding:24px;color:#f4f3ef;background:#09090b\">Unable to load Earn draft.</p>";
+    console.error("Earn draft route failed", error);
+  }
+})();
+</script>
+</head>
+<body></body>
+</html>

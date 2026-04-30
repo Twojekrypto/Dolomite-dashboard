@@ -26,6 +26,9 @@ CHAINS = {
     "arbitrum": {
         "margin": "0x6bd780e7fDf01D77e4d475c821f1e7AE05409072",
         "rpcs": [
+            *([] if not os.environ.get("ALCHEMY_ARBITRUM_RPC") else [os.environ["ALCHEMY_ARBITRUM_RPC"]]),
+            *([] if not os.environ.get("ALCHEMY_ARBITRUM_RPC_2") else [os.environ["ALCHEMY_ARBITRUM_RPC_2"]]),
+            *([] if not os.environ.get("ALCHEMY_ARBITRUM_RPC_3") else [os.environ["ALCHEMY_ARBITRUM_RPC_3"]]),
             "https://arbitrum-one-rpc.publicnode.com/",
             "https://1rpc.io/arb",
             "https://arb1.arbitrum.io/rpc",
