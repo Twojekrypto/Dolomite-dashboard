@@ -66,44 +66,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .nav-item.active svg{color:var(--gold);opacity:1}
 .nav-item.active::after{content:"";width:4px;height:4px;border-radius:50%;background:var(--gold);margin-left:2px;box-shadow:0 0 6px var(--gold-line)}
 
-/* Root-only home layer. The DOLO route keeps the direct token view. */
-.home-entry{display:none}
-.home-route .site-top{margin-bottom:22px}
-.home-route .home-entry{
-  display:grid;grid-template-columns:minmax(0,1.15fr) minmax(320px,.85fr);align-items:stretch;gap:20px;
-  margin:0 0 22px;padding:22px 24px;
-  background:linear-gradient(180deg,rgba(20,20,23,.88),rgba(15,15,17,.92));
-  border:1px solid var(--line-2);border-radius:var(--r-xl);box-shadow:var(--sh-card);
-  position:relative;overflow:hidden;
-}
-.home-entry::before{
-  content:"";position:absolute;left:0;right:0;top:0;height:1px;
-  background:linear-gradient(90deg,transparent 0%,var(--gold-line) 24%,rgba(255,255,255,.16) 50%,var(--gold-line) 76%,transparent 100%);
-  opacity:.8;pointer-events:none;
-}
-.home-entry::after{
-  content:"";position:absolute;inset:0;pointer-events:none;
-  background:radial-gradient(560px 240px at 86% -30%,rgba(201,162,39,.09),transparent 70%);
-}
-.home-entry-main,.home-entry-map{position:relative;z-index:1}
-.home-entry-main{display:flex;flex-direction:column;justify-content:center;gap:14px;min-width:0}
-.home-entry-title{font-size:clamp(28px,3.2vw,44px);font-weight:800;letter-spacing:-1.2px;line-height:.98;color:var(--fg-1)}
-.home-entry-lead{max-width:650px;color:var(--fg-2);font-size:14px;line-height:1.55}
-.home-entry-status{display:flex;align-items:center;gap:8px;color:var(--fg-3);font-family:var(--mono);font-size:11px;letter-spacing:.2px}
-.home-entry-status b{color:var(--gold);font-weight:600}
-.home-entry-status .dot{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
-.home-entry-map{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-content:center}
-.home-entry-link{
-  min-height:44px;display:flex;align-items:center;gap:9px;padding:10px 12px;border-radius:10px;
-  background:rgba(255,255,255,.018);border:1px solid var(--line-2);
-  color:var(--fg-2);font-size:12px;font-weight:500;transition:color .15s var(--ease),background .15s var(--ease),border-color .15s var(--ease);
-}
-.home-entry-link:hover{color:var(--fg-1);background:var(--bg-3);border-color:var(--line-3)}
-.home-entry-link.is-active{color:var(--fg-1);background:var(--gold-wash);border-color:var(--gold-line)}
-.home-entry-link svg,.home-entry-link img{width:15px;height:15px;flex:0 0 15px}
-.home-entry-link img{border-radius:50%;background:var(--bg-3);object-fit:contain}
-.home-entry-link svg{color:currentColor;opacity:.9}
-
 /* HERO — typographic strip (no per-stat cards), gold edge accent */
 .hero{
   position:relative;
@@ -526,12 +488,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .hero-stat:first-child{border-top:0;padding-top:0}
   .hero-token-name{font-size:20px}
   .hero-meta{margin-left:0;width:100%}
-  .home-route .site-top{margin-bottom:18px}
-  .home-route .home-entry{grid-template-columns:1fr;padding:20px 18px;gap:18px;margin-bottom:18px}
-  .home-entry-title{font-size:30px;letter-spacing:-.8px}
-  .home-entry-lead{font-size:13px}
-  .home-entry-map{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .home-entry-link{min-height:40px;padding:9px 10px;font-size:12px}
   .tbl-foot,.flow-foot{grid-template-columns:1fr;justify-items:center;gap:10px}
   .tbl-foot-info{grid-column:1;text-align:center}
   .pager{grid-column:1}
@@ -575,22 +531,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
       </nav>
     </div>
   </header>
-
-  <section class="home-entry" aria-label="Dolomite dashboard home">
-    <div class="home-entry-main">
-      <div class="home-entry-title">Dolomite Dashboard</div>
-      <p class="home-entry-lead">Live protocol analytics across token flows, TVL, market assets and verified Earn balances.</p>
-      <div class="home-entry-status" aria-label="Home view DOLO"><span class="dot"></span><span>Home view</span><b>DOLO</b></div>
-    </div>
-    <div class="home-entry-map" aria-label="Dashboard sections">
-      <a class="home-entry-link" href="./assets/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg><span>Assets</span></a>
-      <a class="home-entry-link" href="./tvl/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-6 4 4 5-8"/></svg><span>TVL</span></a>
-      <a class="home-entry-link is-active" href="./dolo/"><img src="dolo-logo.svg" alt="" onerror="this.style.display='none'"><span>DOLO</span></a>
-      <a class="home-entry-link" href="./odolo/"><img src="odolo-logo-official.svg" alt="" onerror="this.style.display='none'"><span>oDOLO</span></a>
-      <a class="home-entry-link" href="./vedolo/"><img src="vedolo-logo.svg" alt="" onerror="this.style.display='none'"><span>veDOLO</span></a>
-      <a class="home-entry-link" href="./earn/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/></svg><span>Earn</span></a>
-    </div>
-  </section>
 
   <!-- HERO -->
   <section class="hero">
