@@ -488,6 +488,14 @@ def build_incremental_status(plan: dict, chain: str, *, history_dir: Path) -> di
     }
 
 
+def _should_build_fresh_plan(*, status: dict, refresh_plan: bool) -> bool:
+    if refresh_plan:
+        return True
+    if status.get("complete"):
+        return False
+    return False
+
+
 def _ensure_scan_running(plan: dict, chain: str) -> dict:
     tasks = plan.get("scanTasks") or []
     launch_path = _launch_path(plan, "scan")
@@ -704,7 +712,7 @@ def main() -> int:
             _print_status(status)
         return 0
 
-    if status["complete"] or bool(args.refresh_plan):
+    if _should_build_fresh_plan(status=status, refresh_plan=bool(args.refresh_plan)):
         plan = _build_fresh_plan(
             chain,
             events_dir=events_dir,
