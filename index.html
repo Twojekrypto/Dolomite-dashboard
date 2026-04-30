@@ -17419,7 +17419,7 @@
                         </svg>
                         <span
                             style="font-size:12px;color:#fff;text-transform:uppercase;letter-spacing:1.8px;font-weight:600">Best
-                            Yield Opportunity</span>
+                            Supply Opportunity</span>
                     </div>
 
                     <!-- Main value -->
@@ -17626,7 +17626,7 @@
                             <div class="assets-settings-wrap" id="assets-settings-wrap">
                                 <button class="assets-settings-btn" id="assets-settings-btn" onclick="assets_toggleSettings(event)">
                                     <svg class="settings-gear-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-                                    <span class="assets-network-btn-label">Rewards</span>
+                                    <span class="assets-network-btn-label">APR Sources</span>
                                     <div class="settings-status-dots">
                                         <div class="settings-status-dot active odolo" id="settings-dot-odolo"></div>
                                         <div class="settings-status-dot active yield" id="settings-dot-yield"></div>
@@ -17635,7 +17635,7 @@
                                     <svg class="settings-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
                                 </button>
                                 <div class="assets-settings-dropdown" id="assets-settings-dropdown">
-                                    <div class="assets-settings-dropdown-header">Supply APR Sources</div>
+                                    <div class="assets-settings-dropdown-header">APR Sources</div>
                                     <div class="assets-settings-grid">
                                         <div class="assets-reward-row checked" data-reward="odolo" id="settings-row-odolo">
                                             <div class="assets-reward-dot-icon">
@@ -17647,7 +17647,7 @@
                                             <div class="assets-reward-dot-icon">
                                                 <div class="reward-dot-inner"></div>
                                             </div>
-                                            <span class="assets-reward-label">External Yield</span>
+                                            <span class="assets-reward-label">External Rewards &amp; Yield</span>
                                         </div>
                                         <div class="assets-reward-row checked" data-reward="lending" id="settings-row-lending">
                                             <div class="assets-reward-dot-icon">
@@ -24193,11 +24193,11 @@
                     iconHtml = `<div class="assets-token-icon-wrap"><div class="assets-token-icon">${(d.symbol || '?').slice(0, 2)}</div><img class="assets-chain-overlay" src="${d.chainIcon}" alt="${d.chainShort}"></div>`;
                 }
 
-                // Supply APR breakdown: lending + yield sources + oDOLO
+                // Supply APR breakdown: lending interest + yield sources + oDOLO
                 let breakdownLines = [];
                 // Dolomite lending yield (from borrowers)
                 if (d.lendingApr > 0.01 && !assets_excludeLending) {
-                    breakdownLines.push({ label: 'Lending', rate: d.lendingApr, cls: 'lending-part', tooltip: 'Interest earned from borrowers on Dolomite' });
+                    breakdownLines.push({ label: 'Lending Interest', rate: d.lendingApr, cls: 'lending-part', tooltip: 'Interest earned from borrowers on Dolomite' });
                 }
                 // External yield sources (staking, restaking, etc.)
                 if (d.yieldSources && d.yieldSources.length > 0 && !assets_excludeYield) {
@@ -24220,7 +24220,7 @@
                 }
                 // oDOLO rewards
                 if (d.rewards > 0 && !assets_excludeOdolo) {
-                    breakdownLines.push({ label: 'oDOLO', rate: d.rewards, cls: 'odolo-part', tooltip: 'oDOLO incentive rewards distributed to suppliers' });
+                    breakdownLines.push({ label: 'oDOLO Rewards', rate: d.rewards, cls: 'odolo-part', tooltip: 'oDOLO incentive rewards distributed to suppliers' });
                 }
                 let breakdownHtml = '';
                 if (breakdownLines.length > 0) {
@@ -24501,16 +24501,16 @@
             const lines = [];
             if (!parts) return lines;
             if (!assets_excludeLending && (parts.lendingApr || 0) > 0.0001) {
-                lines.push({ label: 'Lending', value: assets_fmtRateForView(parts.lendingApr || 0) });
+                lines.push({ label: 'Lending Interest', value: assets_fmtRateForView(parts.lendingApr || 0) });
             }
             if (!assets_excludeOdolo && (parts.odoloApr || 0) > 0.0001) {
-                lines.push({ label: 'oDOLO incentives', value: assets_fmtRateForView(parts.odoloApr || 0) });
+                lines.push({ label: 'oDOLO Rewards', value: assets_fmtRateForView(parts.odoloApr || 0) });
             }
             if (!assets_excludeYield && (parts.rewardYieldApr || 0) > 0.0001) {
-                lines.push({ label: 'External rewards', value: assets_fmtRateForView(parts.rewardYieldApr || 0) });
+                lines.push({ label: 'External Rewards', value: assets_fmtRateForView(parts.rewardYieldApr || 0) });
             }
             if (!assets_excludeYield && (parts.staticYieldApr || 0) > 0.0001) {
-                lines.push({ label: 'Native / protocol yield', value: assets_fmtRateForView(parts.staticYieldApr || 0) });
+                lines.push({ label: 'Native / Protocol Yield', value: assets_fmtRateForView(parts.staticYieldApr || 0) });
             }
             return lines;
         }
@@ -24553,10 +24553,10 @@
             const nextDisplayRate = assets_showApy && nextLendingApr > 0 ? aprToApy(nextLendingApr) : nextLendingApr;
             const deltaDisplayRate = nextDisplayRate - currentDisplayRate;
 
-            let statusText = 'Live lending estimate';
+            let statusText = 'Live supply estimate';
             let statusTone = 'info';
             if (!model.borrowCurveActive) {
-                statusText = 'Static lending market';
+                statusText = 'Static supply market';
             }
             if (requestedUsd <= 0) {
                 statusText = 'Enter an amount';
@@ -24628,7 +24628,7 @@
                         <div class="assets-sim-rate-card is-current">
                             <div class="assets-sim-rate-label">Current</div>
                             <div class="assets-sim-rate-value current-color">${assets_fmtDisplayedPercent(snapshot.currentDisplayRate)}</div>
-                            <div class="assets-sim-rate-sub">Lending ${assets_getRateViewLabel()}</div>
+                            <div class="assets-sim-rate-sub">Lending Interest ${assets_getRateViewLabel()}</div>
                         </div>
                         <div class="assets-sim-flow-arrow">${arrowSvg}</div>
                         <div class="assets-sim-rate-card is-projected ${afterDir}">
@@ -24748,7 +24748,7 @@
                         <div class="assets-sim-header-left">
                             <div class="assets-sim-header-icon">${simIcon}</div>
                             <div class="assets-sim-header-copy">
-                                <span>Yield Simulator</span>
+                                <span>Supply Simulator</span>
                                 <small>Waiting for a live USD price for ${earn_escapeHtml(d.symbol || d.name || 'this market')}.</small>
                             </div>
                         </div>
@@ -24780,11 +24780,11 @@
                         <div class="assets-sim-header-left">
                             <div class="assets-sim-header-icon">${simIcon}</div>
                             <div class="assets-sim-header-copy">
-                                <span>Yield Simulator</span>
-                                <small>Simulate how your ${earn_escapeHtml(model.symbol)} lending rate changes.</small>
+                                <span>Supply Simulator</span>
+                                <small>Simulate how your ${earn_escapeHtml(model.symbol)} supply rate changes.</small>
                             </div>
                         </div>
-                        <span id="${rowId}-sim-status" class="assets-sim-status${snapshot && snapshot.statusTone === 'warn' ? ' warn' : ''}">${earn_escapeHtml(snapshot ? snapshot.statusText : 'Live lending estimate')}</span>
+                        <span id="${rowId}-sim-status" class="assets-sim-status${snapshot && snapshot.statusTone === 'warn' ? ' warn' : ''}">${earn_escapeHtml(snapshot ? snapshot.statusText : 'Live supply estimate')}</span>
                     </div>
                     <div class="assets-sim-body">
                         <div class="assets-sim-controls-row">
