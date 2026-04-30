@@ -28529,31 +28529,37 @@
 
         function earn_buildResolvedTotalYieldEntry(marketId, yieldCalc) {
             const hist = earn_totalYieldData ? earn_totalYieldData[String(marketId)] : null;
-            if (!hist) return null;
+            if (!hist && (!yieldCalc || !yieldCalc.hasData)) return null;
 
-            const rawSource = String(hist.rawSource !== undefined ? hist.rawSource : (hist.source || ''));
-            const rawMethod = String(hist.rawMethod !== undefined ? hist.rawMethod : (hist.method || ''));
-            const rawVerificationStatus = String(hist.rawVerificationStatus !== undefined ? hist.rawVerificationStatus : (hist.verificationStatus || ''));
-            const rawCumulativeYield = String(hist.rawCumulativeYield !== undefined ? hist.rawCumulativeYield : (hist.cumulativeYield || '0'));
+            const rawSource = hist ? String(hist.rawSource !== undefined ? hist.rawSource : (hist.source || '')) : '';
+            const rawMethod = hist ? String(hist.rawMethod !== undefined ? hist.rawMethod : (hist.method || '')) : '';
+            const rawVerificationStatus = hist ? String(hist.rawVerificationStatus !== undefined ? hist.rawVerificationStatus : (hist.verificationStatus || '')) : '';
+            const rawCumulativeYield = hist ? String(hist.rawCumulativeYield !== undefined ? hist.rawCumulativeYield : (hist.cumulativeYield || '0')) : '0';
 
-            let resolvedSource = String(hist.resolvedSource !== undefined ? hist.resolvedSource : rawSource);
-            let resolvedMethod = String(hist.resolvedMethod !== undefined ? hist.resolvedMethod : rawMethod);
-            let resolvedVerificationStatus = String(hist.resolvedVerificationStatus !== undefined ? hist.resolvedVerificationStatus : rawVerificationStatus);
-            let resolvedCumulativeYield = String(hist.resolvedCumulativeYield !== undefined ? hist.resolvedCumulativeYield : rawCumulativeYield);
-            let resolvedTrustedForTotal = !!hist.resolvedTrustedForTotal;
+            let resolvedSource = hist ? String(hist.resolvedSource !== undefined ? hist.resolvedSource : rawSource) : rawSource;
+            let resolvedMethod = hist ? String(hist.resolvedMethod !== undefined ? hist.resolvedMethod : rawMethod) : rawMethod;
+            let resolvedVerificationStatus = hist ? String(hist.resolvedVerificationStatus !== undefined ? hist.resolvedVerificationStatus : rawVerificationStatus) : rawVerificationStatus;
+            let resolvedCumulativeYield = hist ? String(hist.resolvedCumulativeYield !== undefined ? hist.resolvedCumulativeYield : rawCumulativeYield) : rawCumulativeYield;
+            let resolvedTrustedForTotal = hist ? !!hist.resolvedTrustedForTotal : false;
             let resolvedCanonicalHistoryCoverageStatus = String(
-                hist.resolvedCanonicalHistoryCoverageStatus !== undefined
-                    ? hist.resolvedCanonicalHistoryCoverageStatus
-                    : (hist.canonicalHistoryCoverageStatus || '')
+                hist
+                    ? (hist.resolvedCanonicalHistoryCoverageStatus !== undefined
+                        ? hist.resolvedCanonicalHistoryCoverageStatus
+                        : (hist.canonicalHistoryCoverageStatus || ''))
+                    : ''
             );
             let resolvedCanonicalHistoryLastScannedBlock =
-                hist.resolvedCanonicalHistoryLastScannedBlock !== undefined
-                    ? hist.resolvedCanonicalHistoryLastScannedBlock
-                    : (hist.canonicalHistoryLastScannedBlock !== undefined ? hist.canonicalHistoryLastScannedBlock : null);
+                hist
+                    ? (hist.resolvedCanonicalHistoryLastScannedBlock !== undefined
+                        ? hist.resolvedCanonicalHistoryLastScannedBlock
+                        : (hist.canonicalHistoryLastScannedBlock !== undefined ? hist.canonicalHistoryLastScannedBlock : null))
+                    : null;
             let resolvedCanonicalHistoryFreshForBorrowRouting =
-                hist.resolvedCanonicalHistoryFreshForBorrowRouting !== undefined
-                    ? !!hist.resolvedCanonicalHistoryFreshForBorrowRouting
-                    : !!hist.canonicalHistoryFreshForBorrowRouting;
+                hist
+                    ? (hist.resolvedCanonicalHistoryFreshForBorrowRouting !== undefined
+                        ? !!hist.resolvedCanonicalHistoryFreshForBorrowRouting
+                        : !!hist.canonicalHistoryFreshForBorrowRouting)
+                    : false;
 
             if (yieldCalc && yieldCalc.hasData) {
                 resolvedMethod = String(yieldCalc.method || resolvedMethod);
@@ -28578,7 +28584,7 @@
             }
 
             return {
-                ...hist,
+                ...(hist || {}),
                 rawSource,
                 rawMethod,
                 rawVerificationStatus,
@@ -28636,7 +28642,7 @@
             (earn_historyData || []).forEach(item => {
                 if (!item) return;
                 const mid = String(item.marketId);
-                if (activeMarketIds.has(mid) || !nextResolved[mid]) return;
+                if (activeMarketIds.has(mid)) return;
                 const resolved = earn_buildResolvedTotalYieldEntry(mid, earn_calculateYield({
                     marketId: item.marketId,
                     tokenAddr: item.tokenAddr,
