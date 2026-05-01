@@ -140,8 +140,8 @@ class EarnLiveConfigTest(unittest.TestCase):
         self.assertEqual(
             parse_endpoint_values(rerun_defaults["localhostUrl"]),
             [
-                "http://127.0.0.1:8921/index.html?cb=earn_chain_live_dual_a",
-                "http://127.0.0.1:8921/index.html?cb=earn_chain_live_dual_b",
+                "http://127.0.0.1:8921/earn/?cb=earn_chain_live_dual_a",
+                "http://127.0.0.1:8921/earn/?cb=earn_chain_live_dual_b",
             ],
         )
 
