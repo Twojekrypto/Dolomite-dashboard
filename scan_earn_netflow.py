@@ -115,6 +115,7 @@ SECOND_OWNER_EVENTS = [
 ]
 
 BLOCK_CHUNK = 49999  # blocks per getLogs request (RPC max is typically 50k)
+MIN_BLOCK_CHUNK = 500
 ADDRESS_FILTER_CHUNK = 500000
 MAX_RETRIES = 3
 OUTPUT_DIR = Path(__file__).parent / "data" / "earn-netflow"
@@ -127,6 +128,7 @@ rpc_id = 1
 def rpc_call(rpcs, method, params, rpc_idx_ref):
     """Make an RPC call with failover across multiple endpoints."""
     global rpc_id
+    recent_errors = []
     for attempt in range(MAX_RETRIES * len(rpcs)):
         idx = rpc_idx_ref[0] % len(rpcs)
         rpc_url = rpcs[idx]
@@ -146,16 +148,22 @@ def rpc_call(rpcs, method, params, rpc_idx_ref):
             with urlopen(req, timeout=30) as response:
                 data = json.loads(response.read())
                 if "error" in data:
-                    print(f"  RPC error from {rpc_url}: {data['error']}")
+                    message = f"RPC error from {rpc_url}: {data['error']}"
+                    recent_errors.append(message)
+                    print(f"  {message}")
                     rpc_idx_ref[0] += 1
                     time.sleep(0.5)
                     continue
                 return data.get("result")
         except (URLError, HTTPError, TimeoutError, OSError) as e:
-            print(f"  RPC failed ({rpc_url}): {e}")
+            message = f"RPC failed ({rpc_url}): {e}"
+            recent_errors.append(message)
+            print(f"  {message}")
             rpc_idx_ref[0] += 1
             time.sleep(1)
-    raise Exception(f"All RPCs failed after {MAX_RETRIES * len(rpcs)} attempts")
+    error_tail = " | ".join(recent_errors[-len(rpcs):])
+    detail = f"; recent errors: {error_tail}" if error_tail else ""
+    raise Exception(f"All RPCs failed after {MAX_RETRIES * len(rpcs)} attempts{detail}")
 
 
 def get_block_number(rpcs, rpc_idx):
@@ -645,10 +653,44 @@ def save_progress(chain_id, progress):
         json.dump(progress, f)
 
 
-def scan_chain(chain_id, chain_config, only_chains=None, target_addresses=None):
+def _progress_payload_for_state(last_block, netflows, cycle_account_state, cycle_market_state, cycle_state_enabled):
+    return (
+        _build_progress_payload(
+            last_block,
+            netflows,
+            cycle_account_state,
+            cycle_market_state,
+        )
+        if cycle_state_enabled
+        else _build_legacy_progress_payload(last_block, netflows)
+    )
+
+
+def _is_chunk_too_large_error(error_msg):
+    lowered = str(error_msg).lower()
+    return any(
+        marker in lowered
+        for marker in (
+            "413",
+            "entity too large",
+            "request too large",
+            "payload too large",
+            "response too large",
+            "range",
+            "10000",
+            "exceed",
+        )
+    )
+
+
+def _reduced_chunk_size(chunk_size):
+    return max(MIN_BLOCK_CHUNK, chunk_size // 2)
+
+
+def scan_chain(chain_id, chain_config, only_chains=None, target_addresses=None, soft_deadline=None):
     """Scan a single chain for deposit/withdraw events."""
     if only_chains and chain_id not in only_chains:
-        return
+        return {"completed": True, "skipped": True}
     
     print(f"\n{'='*60}")
     print(f"Scanning {chain_id.upper()}")
@@ -672,14 +714,14 @@ def scan_chain(chain_id, chain_config, only_chains=None, target_addresses=None):
         with open(output_file, "w") as f:
             json.dump(output_data, f, separators=(",", ":"))
         print(f"  ✓ No events on chain — wrote empty file")
-        return
+        return {"completed": True}
     
     # Get latest block
     try:
         latest_block = get_block_number(rpcs, rpc_idx)
     except Exception as e:
         print(f"  ✗ Cannot get block number: {e}")
-        return
+        return {"completed": False, "reason": "block_number_failed"}
     
     print(f"  Latest block: {latest_block:,}")
     
@@ -725,6 +767,21 @@ def scan_chain(chain_id, chain_config, only_chains=None, target_addresses=None):
     chunk_size = ADDRESS_FILTER_CHUNK if target_addresses else BLOCK_CHUNK
     
     while current <= latest_block:
+        if soft_deadline is not None and time.monotonic() >= soft_deadline:
+            if not target_addresses:
+                save_progress(
+                    chain_id,
+                    _progress_payload_for_state(
+                        current,
+                        netflows,
+                        cycle_account_state,
+                        cycle_market_state,
+                        cycle_state_enabled,
+                    ),
+                )
+            print(f"  ⏱ Soft runtime limit reached at block {current:,}; saved progress for next run")
+            return {"completed": False, "reason": "soft_runtime_limit", "lastBlock": current}
+
         to_block = min(current + chunk_size - 1, latest_block)
         
         try:
@@ -823,15 +880,12 @@ def scan_chain(chain_id, chain_config, only_chains=None, target_addresses=None):
             
             # Save progress periodically
             if not target_addresses and (to_block - start_block) % (chunk_size * 10) < chunk_size:
-                payload = (
-                    _build_progress_payload(
-                        to_block + 1,
-                        netflows,
-                        cycle_account_state,
-                        cycle_market_state,
-                    )
-                    if cycle_state_enabled
-                    else _build_legacy_progress_payload(to_block + 1, netflows)
+                payload = _progress_payload_for_state(
+                    to_block + 1,
+                    netflows,
+                    cycle_account_state,
+                    cycle_market_state,
+                    cycle_state_enabled,
                 )
                 save_progress(chain_id, payload)
             
@@ -850,11 +904,18 @@ def scan_chain(chain_id, chain_config, only_chains=None, target_addresses=None):
                 print(f"  ⚠ Rate limited, waiting 5s...")
                 time.sleep(5)
                 continue
-            elif "range" in error_msg.lower() or "10000" in error_msg or "exceed" in error_msg.lower():
-                chunk_size = max(500, chunk_size // 2)
+            elif _is_chunk_too_large_error(error_msg):
+                chunk_size = _reduced_chunk_size(chunk_size)
                 print(f"  ⚠ Block range too large, reducing to {chunk_size}")
                 continue
             else:
+                reduced_chunk_size = _reduced_chunk_size(chunk_size)
+                if reduced_chunk_size < chunk_size:
+                    chunk_size = reduced_chunk_size
+                    print(f"  ⚠ RPC failed at block {current}; reducing chunk size to {chunk_size}")
+                    time.sleep(2)
+                    rpc_idx[0] += 1
+                    continue
                 print(f"  ✗ Error at block {current}: {e}")
                 time.sleep(2)
                 rpc_idx[0] += 1
@@ -862,15 +923,12 @@ def scan_chain(chain_id, chain_config, only_chains=None, target_addresses=None):
     
     # Final save
     if not target_addresses:
-        payload = (
-            _build_progress_payload(
-                latest_block + 1,
-                netflows,
-                cycle_account_state,
-                cycle_market_state,
-            )
-            if cycle_state_enabled
-            else _build_legacy_progress_payload(latest_block + 1, netflows)
+        payload = _progress_payload_for_state(
+            latest_block + 1,
+            netflows,
+            cycle_account_state,
+            cycle_market_state,
+            cycle_state_enabled,
         )
         save_progress(chain_id, payload)
 
@@ -915,12 +973,19 @@ def scan_chain(chain_id, chain_config, only_chains=None, target_addresses=None):
     file_size = output_file.stat().st_size
     print(f"\n  ✓ {chain_id}: {len(netflows)} addresses, {total_events} events")
     print(f"  ✓ Output: {output_file} ({file_size/1024:.1f} KB)")
+    return {"completed": True, "lastBlock": latest_block}
 
 
 def main():
     parser = argparse.ArgumentParser(description="Scan DolomiteMargin balance-changing events into netflow files")
     parser.add_argument("chains", nargs="?", default="", help="Comma-separated chain ids, e.g. arbitrum,ethereum")
     parser.add_argument("--address", action="append", default=[], help="Targeted owner address to rebuild from genesis")
+    parser.add_argument(
+        "--max-runtime-seconds",
+        type=int,
+        default=int(os.environ.get("EARN_NETFLOW_MAX_RUNTIME_SECONDS") or 0),
+        help="Stop cleanly after this many seconds so GitHub Actions can save cache/progress.",
+    )
     args = parser.parse_args()
 
     only_chains = None
@@ -931,9 +996,23 @@ def main():
     target_addresses = [a.strip().lower() for a in args.address if str(a).strip()]
     if target_addresses:
         print(f"Target addresses: {', '.join(target_addresses)}")
+
+    soft_deadline = None
+    if args.max_runtime_seconds and args.max_runtime_seconds > 0:
+        soft_deadline = time.monotonic() + args.max_runtime_seconds
+        print(f"Soft runtime limit: {args.max_runtime_seconds}s")
     
     for chain_id, config in CHAINS.items():
-        scan_chain(chain_id, config, only_chains, target_addresses=target_addresses)
+        result = scan_chain(
+            chain_id,
+            config,
+            only_chains,
+            target_addresses=target_addresses,
+            soft_deadline=soft_deadline,
+        )
+        if isinstance(result, dict) and result.get("reason") == "soft_runtime_limit":
+            print("Soft runtime limit reached; stopping remaining chains until next scheduled run")
+            break
     
     print(f"\n{'='*60}")
     print("Done! Files written to data/earn-netflow/")
