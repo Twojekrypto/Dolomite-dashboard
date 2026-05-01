@@ -5,6 +5,7 @@ from generate_vedolo_flows import (
     ODOLO_VESTER,
     VEDOLO_CONTRACT,
     ZERO_TOPIC,
+    check_odolo_exercise_batch,
     extract_odolo_receipt_beneficiary,
     remap_odolo_lock_beneficiaries,
 )
@@ -150,6 +151,36 @@ class GenerateVedoloFlowsTests(unittest.TestCase):
         }
 
         self.assertEqual(extract_odolo_receipt_beneficiary(receipt), beneficiary)
+
+    def test_check_odolo_exercise_batch_uses_lookup_without_rpc(self):
+        tx_hash = "0x" + "a" * 64
+        beneficiary = "0x" + "1" * 40
+
+        exercise_txs, complete = check_odolo_exercise_batch(
+            [tx_hash],
+            exerciser_lookup={tx_hash: beneficiary},
+            receipt_checks={},
+        )
+
+        self.assertTrue(complete)
+        self.assertEqual(exercise_txs, {tx_hash: beneficiary})
+
+    def test_check_odolo_exercise_batch_uses_cached_receipts(self):
+        tx_hash = "0x" + "b" * 64
+        beneficiary = "0x" + "2" * 40
+
+        exercise_txs, complete = check_odolo_exercise_batch(
+            [tx_hash],
+            receipt_checks={
+                tx_hash: {
+                    "isOdolo": True,
+                    "beneficiary": beneficiary,
+                },
+            },
+        )
+
+        self.assertTrue(complete)
+        self.assertEqual(exercise_txs, {tx_hash: beneficiary})
 
 
 if __name__ == "__main__":

@@ -15,7 +15,7 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
         with:
@@ -39,17 +39,31 @@ jobs:
             vedolo-flows-state-
 
       - name: Generate veDOLO flows
+        id: generate
         env:
           PYTHONUNBUFFERED: '1'
           ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
           ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
           ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}
-        run: python generate_vedolo_flows.py
+        run: |
+          python generate_vedolo_flows.py --max-runtime-seconds 12600
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          from pathlib import Path
+
+          status_path = Path("vedolo_flows_run_status.json")
+          completed = True
+          if status_path.exists():
+              completed = bool(json.loads(status_path.read_text()).get("completed", True))
+          print(f"completed={str(completed).lower()}")
+          PY
 
       - name: Validate generated data
+        if: steps.generate.outputs.completed == 'true'
         run: python3 validate_data.py vedolo_flows.json
 
       - name: Commit and push
+        if: steps.generate.outputs.completed == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
