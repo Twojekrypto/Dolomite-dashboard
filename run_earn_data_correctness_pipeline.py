@@ -49,6 +49,26 @@ def _write_json(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
 
 
+def _read_address_file(path: Optional[Path]) -> List[str]:
+    if path is None:
+        return []
+    resolved = path if path.is_absolute() else ROOT / path
+    if not resolved.exists():
+        raise FileNotFoundError(f"Address selection file not found: {path}")
+    addresses: List[str] = []
+    seen = set()
+    for raw in resolved.read_text(encoding="utf-8").splitlines():
+        address = raw.strip().lower()
+        if not address or address.startswith("#"):
+            continue
+        if not address.startswith("0x") or len(address) != 42:
+            raise ValueError(f"Invalid address in {path}: {raw}")
+        if address not in seen:
+            seen.add(address)
+            addresses.append(address)
+    return addresses
+
+
 def _is_pid_alive(pid: Optional[int]) -> bool:
     if not pid:
         return False
@@ -235,16 +255,20 @@ def _ensure_plan(
     history_dir: Path,
     max_scan_workers: Optional[int],
     max_materialize_workers: Optional[int],
+    selection_address_file: Optional[Path],
     refresh: bool,
 ) -> dict:
     path = _plan_path(events_dir, chain)
     locked_target_block = _discover_locked_target_block(events_dir, history_dir, chain)
     if path.exists() and not refresh:
         payload = _read_json(path, {})
+        expected_selection = str(selection_address_file) if selection_address_file else None
+        plan_selection = payload.get("selectionAddressFile")
         if (
             payload
             and payload.get("scanTasks")
             and payload.get("materializeTasks")
+            and str(plan_selection or "") == str(expected_selection or "")
             and _task_lists_match_target(payload, locked_target_block)
         ):
             if locked_target_block is not None:
@@ -257,6 +281,7 @@ def _ensure_plan(
         to_block=locked_target_block,
         max_scan_workers=max_scan_workers,
         max_materialize_workers=max_materialize_workers,
+        selection_address_file=selection_address_file,
     )
     _write_json(path, payload)
     if locked_target_block is not None:
@@ -287,12 +312,18 @@ def _start_task(argv: List[str], *, cwd: Path, log_path: Path) -> int:
 
 
 def _scan_task_argv(task: dict) -> List[str]:
-    return [
+    argv = [
         "python3",
         "scan_earn_subaccount_history_events.py",
         "--chain",
         str(task["chain"]),
-        "--all-known-addresses",
+    ]
+    address_file = task.get("addressFile")
+    if address_file:
+        argv.extend(["--address-file", str(address_file)])
+    else:
+        argv.append("--all-known-addresses")
+    argv.extend([
         "--from-block",
         str(task["fromBlock"]),
         "--to-block",
@@ -301,7 +332,8 @@ def _scan_task_argv(task: dict) -> List[str]:
         str(task["progressKey"]),
         "--output-dir",
         str(task["outputDir"]),
-    ]
+    ])
+    return argv
 
 
 def _materialize_task_argv(task: dict) -> List[str]:
@@ -326,11 +358,11 @@ def _materialize_task_argv(task: dict) -> List[str]:
     else:
         argv.extend([
             "--all-known-addresses",
-            "--start-index",
-            str(task["startIndex"]),
-            "--end-index",
-            str(task["endIndex"]),
         ])
+    if task.get("startIndex") is not None:
+        argv.extend(["--start-index", str(task["startIndex"])])
+    if task.get("endIndex") is not None:
+        argv.extend(["--end-index", str(task["endIndex"])])
     return argv
 
 
@@ -523,8 +555,15 @@ def _repair_stage_complete(chain: str, *, history_dir: Path, repair_plan: dict) 
     )
 
 
-def _selected_addresses_for_repair(chain: str, *, limit: Optional[int], start_index: int, end_index: Optional[int]) -> List[str]:
-    addresses = _load_known_addresses(chain)
+def _selected_addresses_for_repair(
+    chain: str,
+    *,
+    selection_address_file: Optional[Path],
+    limit: Optional[int],
+    start_index: int,
+    end_index: Optional[int],
+) -> List[str]:
+    addresses = _read_address_file(selection_address_file) if selection_address_file else _load_known_addresses(chain)
     start = max(0, int(start_index))
     stop = len(addresses) if end_index is None else max(start, int(end_index))
     selected = addresses[start:stop]
@@ -541,12 +580,14 @@ def _build_runner_repair_plan(
     repair_plan_dir: Path,
     max_materialize_workers: int,
     target_block: Optional[int],
+    selection_address_file: Optional[Path] = None,
     limit: Optional[int] = None,
     start_index: int = 0,
     end_index: Optional[int] = None,
 ) -> dict:
     selected_addresses = _selected_addresses_for_repair(
         chain,
+        selection_address_file=selection_address_file,
         limit=limit,
         start_index=start_index,
         end_index=end_index,
@@ -614,6 +655,7 @@ def main() -> int:
     common.add_argument("--repair-limit", type=int, default=None)
     common.add_argument("--repair-start-index", type=int, default=0)
     common.add_argument("--repair-end-index", type=int, default=None)
+    common.add_argument("--selection-address-file", default=None)
 
     start_scan = subparsers.add_parser("start-scan", parents=[common], help="Create/load plan and start missing scan workers")
     start_scan.add_argument("--refresh-plan", action="store_true")
@@ -664,6 +706,7 @@ def main() -> int:
             repair_plan_dir=repair_plan_dir,
             max_materialize_workers=args.max_materialize_workers,
             target_block=args.target_block,
+            selection_address_file=Path(args.selection_address_file) if args.selection_address_file else None,
             limit=args.limit,
             start_index=args.start_index,
             end_index=args.end_index,
@@ -680,6 +723,7 @@ def main() -> int:
         history_dir=history_dir,
         max_scan_workers=args.max_scan_workers,
         max_materialize_workers=args.max_materialize_workers,
+        selection_address_file=Path(args.selection_address_file) if args.selection_address_file else None,
         refresh=bool(getattr(args, "refresh_plan", False)),
     )
 
@@ -733,6 +777,7 @@ def main() -> int:
                     repair_plan_dir=repair_plan_dir,
                     max_materialize_workers=args.max_materialize_workers,
                     target_block=plan.get("targetBlock"),
+                    selection_address_file=Path(args.selection_address_file) if args.selection_address_file else None,
                     limit=args.repair_limit,
                     start_index=args.repair_start_index,
                     end_index=args.repair_end_index,
@@ -774,6 +819,7 @@ def main() -> int:
             repair_plan_dir=repair_plan_dir,
             max_materialize_workers=args.max_materialize_workers,
             target_block=args.target_block,
+            selection_address_file=Path(args.selection_address_file) if args.selection_address_file else None,
             limit=args.limit,
             start_index=args.start_index,
             end_index=args.end_index,
