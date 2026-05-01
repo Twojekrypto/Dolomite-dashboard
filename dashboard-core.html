@@ -7865,10 +7865,10 @@
             border-bottom-color: transparent;
         }
         .earn-lending-table tbody tr.earn-lend-row.open td:first-child {
-            border-radius: 16px 0 0 0;
+            border-radius: 0;
         }
         .earn-lending-table tbody tr.earn-lend-row.open td:last-child {
-            border-radius: 0 16px 0 0;
+            border-radius: 0;
         }
         .earn-lending-table tbody tr.earn-lend-row:last-of-type td {
             border-bottom: none;
@@ -9220,11 +9220,11 @@
             border-bottom-color: transparent;
         }
         .earn-past-table tbody tr.earn-data-row.expanded td:first-child {
-            border-radius: 16px 0 0 0;
+            border-radius: 0;
             box-shadow: inset 3px 0 0 #34d399;
         }
         .earn-past-table tbody tr.earn-data-row.expanded td:last-child {
-            border-radius: 0 16px 0 0;
+            border-radius: 0;
         }
         .earn-past-table .earn-detail-row td {
             padding: 0 18px 16px 18px !important;
@@ -34705,17 +34705,40 @@
 
         function earn_formatUSD(n) {
             if (n === null || n === undefined) return '—';
-            if (n >= 1_000_000) return '$' + (n / 1_000_000).toFixed(2) + 'M';
-            if (n >= 1_000) return '$' + (n / 1_000).toFixed(2) + 'K';
-            return '$' + n.toFixed(2);
+            const value = Number(n);
+            if (!Number.isFinite(value)) return '—';
+            const sign = value < 0 ? '-' : '';
+            const abs = Math.abs(value);
+            if (abs >= 999_500_000) return sign + '$' + (abs / 1_000_000_000).toFixed(2) + 'B';
+            if (abs >= 999_500) return sign + '$' + (abs / 1_000_000).toFixed(2) + 'M';
+            if (abs >= 1_000) return sign + '$' + (abs / 1_000).toFixed(2) + 'K';
+            return sign + '$' + abs.toFixed(abs >= 1 ? 2 : 4);
+        }
+
+        function earn_formatUSDExact(n) {
+            if (n === null || n === undefined) return '—';
+            const value = Number(n);
+            if (!Number.isFinite(value)) return '—';
+            const sign = value < 0 ? '-' : '';
+            const abs = Math.abs(value);
+            const digits = abs >= 1 ? 2 : 4;
+            return sign + '$' + abs.toLocaleString('en-US', {
+                minimumFractionDigits: digits,
+                maximumFractionDigits: digits
+            });
         }
 
         function earn_formatUSDCompact(n) {
             if (n === null || n === undefined) return '';
-            if (n >= 1_000_000) return '$' + (n / 1_000_000).toFixed(1) + 'M';
-            if (n >= 1_000) return '$' + (n / 1_000).toFixed(1) + 'K';
-            if (n >= 1) return '$' + n.toFixed(0);
-            return '$' + n.toFixed(2);
+            const value = Number(n);
+            if (!Number.isFinite(value)) return '';
+            const sign = value < 0 ? '-' : '';
+            const abs = Math.abs(value);
+            if (abs >= 999_500_000) return sign + '$' + (abs / 1_000_000_000).toFixed(1) + 'B';
+            if (abs >= 999_500) return sign + '$' + (abs / 1_000_000).toFixed(1) + 'M';
+            if (abs >= 1_000) return sign + '$' + (abs / 1_000).toFixed(1) + 'K';
+            if (abs >= 1) return sign + '$' + abs.toFixed(0);
+            return sign + '$' + abs.toFixed(2);
         }
 
         function earn_renderTokenPills(tokens) {
@@ -35346,13 +35369,13 @@
             }, 0);
 
             const portfolioVal = totalSupplyUsd + totalCollateral - totalDebt;
-            const fmtUsd = v => v >= 1000 ? '$' + (v / 1000).toFixed(2) + 'K' : '$' + v.toFixed(2);
             const portfolioValueEl = document.getElementById('earn-summary-portfolio-value');
             const portfolioSubEl = document.getElementById('earn-summary-portfolio-sub');
             const supplyChipEl = document.getElementById('earn-summary-supply-chip');
             const borrowChipEl = document.getElementById('earn-summary-borrow-chip');
             if (portfolioValueEl) {
-                portfolioValueEl.textContent = fmtUsd(portfolioVal);
+                portfolioValueEl.textContent = earn_formatUSD(portfolioVal);
+                portfolioValueEl.title = earn_formatUSDExact(portfolioVal);
                 portfolioValueEl.className = 'earn-summary-value ' + (portfolioVal > 0 ? 'neutral' : 'negative');
             }
             if (portfolioSubEl) {
@@ -35985,7 +36008,7 @@
                     </td>
                     <td>
                         <span class="earn-amount earn-amount-primary">${weiFmt}<span class="earn-amount-sym">${a.symbol}</span></span>
-                        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">≈ $${a.usdValue >= 1000 ? (a.usdValue / 1000).toFixed(2) + 'K' : a.usdValue >= 1 ? a.usdValue.toFixed(2) : a.usdValue.toFixed(4)}</div>
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:2px" title="${earn_escapeHtml(earn_formatUSDExact(a.usdValue))}">≈ ${earn_formatUSD(a.usdValue)}</div>
                     </td>
                     <td>
                         ${yieldCellHtml}
@@ -36099,7 +36122,7 @@
                             ${(() => {
                             const chainId = document.getElementById('earn-chain').value;
                             const balUsd = Math.abs(earn_scaledUsdToNumber(earn_getTokenUsdScaled(item.currentWei, item.decimals, item.symbol, item.tokenAddr, chainId)));
-                            return balUsd >= 0.01 ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">≈ $${balUsd >= 1000 ? (balUsd / 1000).toFixed(2) + 'K' : balUsd >= 1 ? balUsd.toFixed(2) : balUsd.toFixed(4)}</div>` : '';
+                            return balUsd >= 0.01 ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px" title="${earn_escapeHtml(earn_formatUSDExact(balUsd))}">≈ ${earn_formatUSD(balUsd)}</div>` : '';
                         })()}
                         </td>
                         <td>
@@ -36203,7 +36226,8 @@
 
                     const totalYieldUsd = earn_scaledUsdToNumber(totalYieldUsdScaled);
                     const bestYieldUsd = earn_scaledUsdToNumber(bestYieldUsdScaled);
-                    const fmtUsd = v => v >= 1000 ? '$' + (v / 1000).toFixed(2) + 'K' : '$' + v.toFixed(2);
+                    const portfolioValueTitle = earn_escapeHtml(earn_formatUSDExact(totalUsd));
+                    const totalYieldTitle = earn_escapeHtml(earn_formatUSDExact(totalYieldUsd));
                     const yieldClass = totalYieldUsd >= 0 ? 'positive' : 'negative';
                     const yieldSign = totalYieldUsd >= 0 ? '+' : '-';
                     const bestYieldSign = bestYieldUsd > 0 ? '+' : bestYieldUsd < 0 ? '-' : '';
@@ -36368,7 +36392,7 @@
                                     </div>
                                     <div class="earn-summary-context-pill">${summaryContextText}</div>
                                 </div>
-                                <div class="earn-summary-value neutral" id="earn-summary-portfolio-value">${fmtUsd(totalUsd)}</div>
+                                <div class="earn-summary-value neutral" id="earn-summary-portfolio-value" title="${portfolioValueTitle}">${earn_formatUSD(totalUsd)}</div>
                                 <div class="earn-summary-sub" id="earn-summary-portfolio-sub">${portfolioSub}</div>
                                 <div class="earn-summary-chip-row">
                                     <span class="earn-summary-chip" id="earn-summary-supply-chip">${activeCount} supply asset${activeCount !== 1 ? 's' : ''}</span>
@@ -36381,7 +36405,7 @@
                             <div class="earn-summary-primary-grid">
                                 <div class="earn-summary-stat kpi-primary">
                                     <div class="earn-summary-label">Total Yield Earned</div>
-                                    <div class="earn-summary-value ${isTotalYieldLoading ? 'neutral' : yieldClass}">${isTotalYieldLoading ? 'Loading...' : `${yieldSign}${fmtUsd(Math.abs(totalYieldUsd))}`}</div>
+                                    <div class="earn-summary-value ${isTotalYieldLoading ? 'neutral' : yieldClass}" title="${totalYieldTitle}">${isTotalYieldLoading ? 'Loading...' : `${yieldSign}${earn_formatUSD(Math.abs(totalYieldUsd))}`}</div>
                                     <div class="earn-summary-sub">${totalYieldSub}</div>
                                 </div>
                                 <div class="earn-summary-stat kpi-primary">
