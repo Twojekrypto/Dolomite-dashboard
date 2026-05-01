@@ -59,6 +59,26 @@ def _write_json(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
 
 
+def _read_address_file(path: Optional[Path]) -> List[str]:
+    if path is None:
+        return []
+    resolved = path if path.is_absolute() else Path.cwd() / path
+    if not resolved.exists():
+        raise FileNotFoundError(f"Address selection file not found: {path}")
+    addresses: List[str] = []
+    seen = set()
+    for raw in resolved.read_text(encoding="utf-8").splitlines():
+        address = raw.strip().lower()
+        if not address or address.startswith("#"):
+            continue
+        if not address.startswith("0x") or len(address) != 42:
+            raise ValueError(f"Invalid address in {path}: {raw}")
+        if address not in seen:
+            seen.add(address)
+            addresses.append(address)
+    return addresses
+
+
 def _read_progress_files(output_dir: Path, chain: str) -> List[dict]:
     progress_dir = output_dir / ".progress"
     if not progress_dir.exists():
@@ -337,8 +357,14 @@ def _build_one_pass_scan_tasks(
     target_block: int,
     worker_count: int,
     events_dir: Path,
+    selection_address_file: Optional[Path],
 ) -> List[dict]:
     tasks = []
+    selection_arg = (
+        f"--address-file {shlex.quote(str(selection_address_file))}"
+        if selection_address_file
+        else "--all-known-addresses"
+    )
     for idx, (block_start, block_end) in enumerate(_split_block_ranges(start_block, target_block, worker_count), start=1):
         progress_key = f"s{idx}of{worker_count}"
         tasks.append({
@@ -346,10 +372,11 @@ def _build_one_pass_scan_tasks(
             "toBlock": int(block_end),
             "progressKey": progress_key,
             "outputDir": str(events_dir),
+            "addressFile": str(selection_address_file) if selection_address_file else None,
             "command": " ".join([
                 "python3 scan_earn_subaccount_history_events.py",
                 f"--chain {shlex.quote(chain)}",
-                "--all-known-addresses",
+                selection_arg,
                 f"--from-block {block_start}",
                 f"--to-block {block_end}",
                 f"--progress-key {shlex.quote(progress_key)}",
@@ -366,9 +393,15 @@ def _build_one_pass_materialize_tasks(
     worker_count: int,
     events_dir: Path,
     history_output_dir: Path,
+    selection_address_file: Optional[Path],
 ) -> List[dict]:
     tasks = []
     shard_size = math.ceil(total_addresses / max(1, worker_count))
+    selection_arg = (
+        f"--address-file {shlex.quote(str(selection_address_file))}"
+        if selection_address_file
+        else "--all-known-addresses"
+    )
     for idx in range(worker_count):
         start_index = idx * shard_size
         end_index = min(total_addresses, start_index + shard_size)
@@ -381,10 +414,11 @@ def _build_one_pass_materialize_tasks(
             "progressKey": progress_key,
             "eventsDir": str(events_dir),
             "outputDir": str(history_output_dir),
+            "addressFile": str(selection_address_file) if selection_address_file else None,
             "command": " ".join([
                 "python3 materialize_earn_subaccount_history.py",
                 f"--chain {shlex.quote(chain)}",
-                "--all-known-addresses",
+                selection_arg,
                 f"--start-index {start_index}",
                 f"--end-index {end_index}",
                 f"--progress-key {shlex.quote(progress_key)}",
@@ -403,10 +437,11 @@ def _run_one_pass_plan(
     to_block: Optional[int],
     max_scan_workers: Optional[int],
     max_materialize_workers: Optional[int],
+    selection_address_file: Optional[Path] = None,
 ) -> dict:
     target_block = _resolve_target_block(chain, to_block)
     start_block = int(CHAINS[chain]["start_block"])
-    selected_addresses = _load_known_addresses(chain)
+    selected_addresses = _read_address_file(selection_address_file) if selection_address_file else _load_known_addresses(chain)
     scan_workers = _worker_counts(max_scan_workers)[-1]
     materialize_workers = _worker_counts(max_materialize_workers)[-1]
     scan_tasks = _build_one_pass_scan_tasks(
@@ -415,6 +450,7 @@ def _run_one_pass_plan(
         target_block=target_block,
         worker_count=scan_workers,
         events_dir=events_dir,
+        selection_address_file=selection_address_file,
     )
     materialize_tasks = _build_one_pass_materialize_tasks(
         chain,
@@ -422,12 +458,14 @@ def _run_one_pass_plan(
         worker_count=materialize_workers,
         events_dir=events_dir,
         history_output_dir=history_output_dir,
+        selection_address_file=selection_address_file,
     )
     return {
         "chain": chain,
         "targetBlock": target_block,
         "startBlock": start_block,
         "selectedAddressCount": len(selected_addresses),
+        "selectionAddressFile": str(selection_address_file) if selection_address_file else None,
         "scanWorkers": scan_workers,
         "materializeWorkers": materialize_workers,
         "scanTasks": scan_tasks,
@@ -488,6 +526,7 @@ def main() -> int:
     one_pass_parser.add_argument("--max-materialize-workers", type=int, default=None)
     one_pass_parser.add_argument("--events-dir", default=str(DEFAULT_EVENTS_DIR))
     one_pass_parser.add_argument("--history-output-dir", default=str(DEFAULT_OUTPUT_DIR))
+    one_pass_parser.add_argument("--selection-address-file", default=None)
     one_pass_parser.add_argument("--json", action="store_true")
 
     args = parser.parse_args()
@@ -540,6 +579,7 @@ def main() -> int:
             to_block=args.to_block,
             max_scan_workers=args.max_scan_workers,
             max_materialize_workers=args.max_materialize_workers,
+            selection_address_file=Path(args.selection_address_file) if args.selection_address_file else None,
         )
         if args.json:
             print(json.dumps(payload, ensure_ascii=True, indent=2))

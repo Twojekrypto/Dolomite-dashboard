@@ -1,0 +1,150 @@
+name: Refresh Secondary Canonical EARN History
+
+on:
+  schedule:
+    - cron: '37 */2 * * *'  # Every 2 hours, staggered from Ethereum/Berachain/Arbitrum
+  workflow_dispatch:
+
+concurrency:
+  group: earn-secondary-canonical-history-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - chain: mantle
+            label: Mantle
+            hot_limit: 1000
+            scan_workers: 6
+            materialize_workers: 6
+            incremental_scan_workers: 6
+            incremental_apply_workers: 6
+          - chain: polygonzkevm
+            label: Polygon zkEVM
+            hot_limit: 500
+            scan_workers: 4
+            materialize_workers: 4
+            incremental_scan_workers: 4
+            incremental_apply_workers: 4
+          - chain: xlayer
+            label: X Layer
+            hot_limit: 500
+            scan_workers: 4
+            materialize_workers: 4
+            incremental_scan_workers: 4
+            incremental_apply_workers: 4
+    env:
+      PYTHONUNBUFFERED: '1'
+      CHAIN: ${{ matrix.chain }}
+      CHAIN_LABEL: ${{ matrix.label }}
+      HOT_LIMIT: ${{ matrix.hot_limit }}
+      SCAN_WORKERS: ${{ matrix.scan_workers }}
+      MATERIALIZE_WORKERS: ${{ matrix.materialize_workers }}
+      INCREMENTAL_SCAN_WORKERS: ${{ matrix.incremental_scan_workers }}
+      INCREMENTAL_APPLY_WORKERS: ${{ matrix.incremental_apply_workers }}
+      ALCHEMY_MANTLE_RPC: ${{ secrets.ALCHEMY_MANTLE_RPC }}
+      ALCHEMY_MANTLE_RPC_2: ${{ secrets.ALCHEMY_MANTLE_RPC_2 }}
+      ALCHEMY_MANTLE_RPC_3: ${{ secrets.ALCHEMY_MANTLE_RPC_3 }}
+      POLYGONZKEVM_RPC: ${{ secrets.POLYGONZKEVM_RPC }}
+      POLYGONZKEVM_RPC_2: ${{ secrets.POLYGONZKEVM_RPC_2 }}
+      XLAYER_RPC: ${{ secrets.XLAYER_RPC }}
+      XLAYER_RPC_2: ${{ secrets.XLAYER_RPC_2 }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: python3 -m pip install --upgrade pip requests
+
+      - name: Restore canonical runtime cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            data/earn-subaccount-history-events
+            data/earn-subaccount-history/.progress
+            data/earn-subaccount-history/.repair-plans
+            data/earn-subaccount-history/.incremental-plans
+            data/earn-subaccount-history/${{ matrix.chain }}
+          key: earn-canonical-runtime-${{ matrix.chain }}-${{ github.run_id }}
+          restore-keys: |
+            earn-canonical-runtime-${{ matrix.chain }}-
+
+      - name: Select hot wallets
+        run: |
+          set -euo pipefail
+          python3 select_earn_canonical_hot_addresses.py \
+            --chain "$CHAIN" \
+            --limit "$HOT_LIMIT" \
+            --priority-address-file config/earn_canonical_priority_addresses.txt \
+            --include-priority-even-if-unknown \
+            --output "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt" \
+            --metadata-output "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
+          cat "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
+
+      - name: Refresh canonical history
+        run: |
+          set -euo pipefail
+          python3 run_earn_canonical_history_refresh.py \
+            --chain "$CHAIN" \
+            --selection-address-file "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt" \
+            --max-scan-workers "$SCAN_WORKERS" \
+            --max-materialize-workers "$MATERIALIZE_WORKERS" \
+            --max-incremental-scan-workers "$INCREMENTAL_SCAN_WORKERS" \
+            --max-incremental-apply-workers "$INCREMENTAL_APPLY_WORKERS" \
+            --max-new-backfill-workers 4 \
+            --max-steps 720 \
+            --sleep-seconds 20 \
+            --allow-empty \
+            --skip-unsupported-start-block
+
+      - name: Save canonical runtime cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            data/earn-subaccount-history-events
+            data/earn-subaccount-history/.progress
+            data/earn-subaccount-history/.repair-plans
+            data/earn-subaccount-history/.incremental-plans
+            data/earn-subaccount-history/${{ matrix.chain }}
+          key: earn-canonical-runtime-${{ matrix.chain }}-${{ github.run_id }}
+
+      - name: Run EARN audit checks
+        run: python3 run_earn_audit_checks.py
+
+      - name: Commit and push refreshed canonical history
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f data/earn-subaccount-history/manifest.json
+          if [ -d "data/earn-subaccount-history/${CHAIN}" ]; then
+            git add -f "data/earn-subaccount-history/${CHAIN}"
+          fi
+          if git diff --staged --quiet; then
+            echo "No canonical history changes to commit"
+            exit 0
+          fi
+          git commit -m "Refresh ${CHAIN_LABEL} canonical EARN history - $(date -u '+%Y-%m-%d %H:%M UTC')"
+          for i in 1 2 3; do
+            git pull --rebase -X theirs origin master && git push && break
+            echo "Push attempt $i failed, retrying..."
+            sleep 5
+          done

@@ -52,6 +52,7 @@ CHAINS = {
         "rpcs": [
             *([] if not os.environ.get("ALCHEMY_BERACHAIN_RPC") else [os.environ["ALCHEMY_BERACHAIN_RPC"]]),
             *([] if not os.environ.get("ALCHEMY_BERACHAIN_RPC_2") else [os.environ["ALCHEMY_BERACHAIN_RPC_2"]]),
+            *([] if not os.environ.get("ALCHEMY_BERACHAIN_RPC_3") else [os.environ["ALCHEMY_BERACHAIN_RPC_3"]]),
             "https://rpc.berachain.com/",
             "https://berachain-rpc.publicnode.com/",
             "https://1rpc.io/berachain",
@@ -61,6 +62,9 @@ CHAINS = {
     "mantle": {
         "margin": "0xe6ef4f0b2455bab92ce7cc78e35324ab58917de8",
         "rpcs": [
+            *([] if not os.environ.get("ALCHEMY_MANTLE_RPC") else [os.environ["ALCHEMY_MANTLE_RPC"]]),
+            *([] if not os.environ.get("ALCHEMY_MANTLE_RPC_2") else [os.environ["ALCHEMY_MANTLE_RPC_2"]]),
+            *([] if not os.environ.get("ALCHEMY_MANTLE_RPC_3") else [os.environ["ALCHEMY_MANTLE_RPC_3"]]),
             "https://rpc.mantle.xyz/",
             "https://mantle-rpc.publicnode.com/",
             "https://1rpc.io/mantle",
@@ -70,6 +74,8 @@ CHAINS = {
     "polygonzkevm": {
         "margin": "0x836b557cf9ef29fcf49c776841191782df34e4e5",
         "rpcs": [
+            *([] if not os.environ.get("POLYGONZKEVM_RPC") else [os.environ["POLYGONZKEVM_RPC"]]),
+            *([] if not os.environ.get("POLYGONZKEVM_RPC_2") else [os.environ["POLYGONZKEVM_RPC_2"]]),
             "https://zkevm-rpc.com/",
             "https://polygon-zkevm-rpc.publicnode.com/",
         ],
@@ -78,6 +84,8 @@ CHAINS = {
     "xlayer": {
         "margin": "0x836b557cf9ef29fcf49c776841191782df34e4e5",
         "rpcs": [
+            *([] if not os.environ.get("XLAYER_RPC") else [os.environ["XLAYER_RPC"]]),
+            *([] if not os.environ.get("XLAYER_RPC_2") else [os.environ["XLAYER_RPC_2"]]),
             "https://rpc.xlayer.tech/",
             "https://xlayer-mainnet.public.blastapi.io/",
         ],
