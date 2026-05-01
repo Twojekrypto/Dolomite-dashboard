@@ -131,6 +131,7 @@ def _resolve_current_plan(
     max_scan_workers: Optional[int],
     max_apply_workers: Optional[int],
     max_new_backfill_workers: Optional[int],
+    selection_address_file: Optional[Path],
     refresh: bool,
 ) -> dict:
     if not refresh:
@@ -149,6 +150,7 @@ def _resolve_current_plan(
         max_scan_workers=max_scan_workers,
         max_apply_workers=max_apply_workers,
         max_new_backfill_workers=max_new_backfill_workers,
+        selection_address_file=selection_address_file,
     )
     _persist_plan_state(plan_dir, chain, payload)
     return payload
@@ -164,6 +166,7 @@ def _build_fresh_plan(
     max_scan_workers: Optional[int],
     max_apply_workers: Optional[int],
     max_new_backfill_workers: Optional[int],
+    selection_address_file: Optional[Path],
 ) -> dict:
     payload = build_incremental_plan(
         chain,
@@ -174,6 +177,7 @@ def _build_fresh_plan(
         max_scan_workers=max_scan_workers,
         max_apply_workers=max_apply_workers,
         max_new_backfill_workers=max_new_backfill_workers,
+        selection_address_file=selection_address_file,
     )
     _persist_plan_state(plan_dir, chain, payload)
     return payload
@@ -435,7 +439,8 @@ def _apply_stage_status(plan: dict, chain: str, *, history_dir: Path) -> dict:
 
 
 def _coverage_status(plan: dict, chain: str, *, history_dir: Path) -> dict:
-    addresses = _load_known_addresses(chain)
+    selection_file = plan.get("selectionAddressFile")
+    addresses = _read_address_file(Path(selection_file)) if selection_file else _load_known_addresses(chain)
     if not addresses:
         return {
             "selectedAddressCount": 0,
@@ -651,6 +656,7 @@ def main() -> int:
     common.add_argument("--max-scan-workers", type=int, default=12)
     common.add_argument("--max-apply-workers", type=int, default=12)
     common.add_argument("--max-new-backfill-workers", type=int, default=12)
+    common.add_argument("--selection-address-file", default=None)
 
     plan_cmd = subparsers.add_parser("plan", parents=[common], help="Build and persist a fresh incremental cycle plan")
     plan_cmd.add_argument("--json", action="store_true")
@@ -678,6 +684,7 @@ def main() -> int:
             max_scan_workers=args.max_scan_workers,
             max_apply_workers=args.max_apply_workers,
             max_new_backfill_workers=args.max_new_backfill_workers,
+            selection_address_file=Path(args.selection_address_file) if args.selection_address_file else None,
         )
         if args.json:
             print(json.dumps(plan, ensure_ascii=True, indent=2))
@@ -701,6 +708,7 @@ def main() -> int:
         max_scan_workers=args.max_scan_workers,
         max_apply_workers=args.max_apply_workers,
         max_new_backfill_workers=args.max_new_backfill_workers,
+        selection_address_file=Path(args.selection_address_file) if args.selection_address_file else None,
         refresh=False,
     )
     status = build_incremental_status(plan, chain, history_dir=history_dir)
@@ -722,6 +730,7 @@ def main() -> int:
             max_scan_workers=args.max_scan_workers,
             max_apply_workers=args.max_apply_workers,
             max_new_backfill_workers=args.max_new_backfill_workers,
+            selection_address_file=Path(args.selection_address_file) if args.selection_address_file else None,
         )
         status = build_incremental_status(plan, chain, history_dir=history_dir)
 

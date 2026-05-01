@@ -2,7 +2,7 @@ name: Refresh Arbitrum Canonical EARN History
 
 on:
   schedule:
-    - cron: '18 * * * *'  # Hourly, staggered for single-RPC headroom
+    - cron: '18 */6 * * *'  # Every 6 hours; Arbitrum canonical refresh is heavier than Ethereum
   workflow_dispatch:
 
 concurrency:
@@ -43,6 +43,7 @@ jobs:
           python3 run_earn_subaccount_history_incremental.py continue \
             --chain arbitrum \
             --refresh-plan \
+            --selection-address-file config/earn_arbitrum_canonical_hot_addresses.txt \
             --max-scan-workers 12 \
             --max-apply-workers 12 \
             --max-new-backfill-workers 6
@@ -50,6 +51,7 @@ jobs:
           for i in $(seq 1 720); do
             python3 run_earn_subaccount_history_incremental.py continue \
               --chain arbitrum \
+              --selection-address-file config/earn_arbitrum_canonical_hot_addresses.txt \
               --max-scan-workers 12 \
               --max-apply-workers 12 \
               --max-new-backfill-workers 6 \
@@ -97,7 +99,10 @@ jobs:
             sleep 20
           done
 
-          python3 run_earn_subaccount_history_incremental.py status --chain arbitrum --json > /tmp/earn-arbitrum-status.json
+          python3 run_earn_subaccount_history_incremental.py status \
+            --chain arbitrum \
+            --selection-address-file config/earn_arbitrum_canonical_hot_addresses.txt \
+            --json > /tmp/earn-arbitrum-status.json
           python3 - <<'PY'
           import json
           from pathlib import Path

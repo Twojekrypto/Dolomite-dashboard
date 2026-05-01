@@ -42,6 +42,26 @@ def _history_addresses(history_dir: Path, chain: str) -> List[str]:
     )
 
 
+def _read_address_file(path: Optional[Path]) -> List[str]:
+    if path is None:
+        return []
+    resolved = path if path.is_absolute() else ROOT / path
+    if not resolved.exists():
+        raise FileNotFoundError(f"Address selection file not found: {path}")
+    addresses: List[str] = []
+    seen = set()
+    for raw in resolved.read_text(encoding="utf-8").splitlines():
+        address = raw.strip().lower()
+        if not address or address.startswith("#"):
+            continue
+        if not address.startswith("0x") or len(address) != 42:
+            raise ValueError(f"Invalid address in {path}: {raw}")
+        if address not in seen:
+            seen.add(address)
+            addresses.append(address)
+    return addresses
+
+
 def _history_last_block(path: Path) -> int:
     payload = _read_json(path, None)
     if not isinstance(payload, dict):
@@ -98,9 +118,18 @@ def build_incremental_plan(
     max_scan_workers: Optional[int],
     max_apply_workers: Optional[int],
     max_new_backfill_workers: Optional[int],
+    selection_address_file: Optional[Path] = None,
 ) -> dict:
-    current_known = sorted(set(_load_known_addresses(chain)))
+    known_addresses = sorted(set(_load_known_addresses(chain)))
+    selected_addresses = _read_address_file(selection_address_file)
+    if selected_addresses:
+        current_known = sorted(set(selected_addresses))
+    else:
+        current_known = known_addresses
+    selected_set = set(current_known)
     existing_addresses = _history_addresses(history_dir, chain)
+    if selected_addresses:
+        existing_addresses = [address for address in existing_addresses if address in selected_set]
     existing_set = set(existing_addresses)
     base_target = _base_target_block(history_dir, chain)
     target_block = _resolve_target_block(chain, to_block)
@@ -224,6 +253,8 @@ def build_incremental_plan(
         "cycleRoot": str(cycle_root),
         "deltaEventsDir": str(delta_events_dir),
         "trackedAddressFile": str(tracked_address_file),
+        "selectionAddressFile": str(selection_address_file) if selection_address_file else None,
+        "selectionAddressCount": len(current_known),
         "scanTasks": scan_tasks,
         "newAddressTasks": new_address_tasks,
         "applyTasks": apply_tasks,
@@ -271,6 +302,7 @@ def main() -> int:
     parser.add_argument("--max-scan-workers", type=int, default=None)
     parser.add_argument("--max-apply-workers", type=int, default=None)
     parser.add_argument("--max-new-backfill-workers", type=int, default=None)
+    parser.add_argument("--selection-address-file", default=None)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
@@ -283,6 +315,7 @@ def main() -> int:
         max_scan_workers=args.max_scan_workers,
         max_apply_workers=args.max_apply_workers,
         max_new_backfill_workers=args.max_new_backfill_workers,
+        selection_address_file=Path(args.selection_address_file) if args.selection_address_file else None,
     )
     if args.json:
         print(json.dumps(payload, ensure_ascii=True, indent=2))
