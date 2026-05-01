@@ -1311,6 +1311,57 @@
             width: auto;
         }
 
+        /* Earn route tooltip skin — same body-level glass pattern as oDOLO Claimer Breakdown */
+        #unified-tooltip.earn-tooltip {
+            width: 260px;
+            max-width: min(260px, calc(100vw - 24px));
+            background: rgba(15, 15, 17, .97);
+            border: 1px solid rgba(201, 162, 39, .28);
+            border-radius: 10px;
+            padding: 11px 15px;
+            color: rgba(244, 243, 239, .78);
+            font-family: 'Inter', system-ui, sans-serif;
+            font-size: 12px;
+            font-weight: 400;
+            line-height: 1.55;
+            box-shadow: 0 10px 34px rgba(0, 0, 0, .58), 0 0 0 1px rgba(255, 255, 255, .035), inset 0 1px 0 rgba(255, 255, 255, .035);
+            backdrop-filter: blur(16px) saturate(140%);
+            -webkit-backdrop-filter: blur(16px) saturate(140%);
+        }
+
+        #unified-tooltip.earn-tooltip::after {
+            background: rgba(15, 15, 17, .97);
+            border-right-color: rgba(201, 162, 39, .28);
+            border-bottom-color: rgba(201, 162, 39, .28);
+        }
+
+        #unified-tooltip.earn-tooltip.arrow-up::after {
+            border-left-color: rgba(201, 162, 39, .28);
+            border-top-color: rgba(201, 162, 39, .28);
+        }
+
+        #unified-tooltip.earn-tooltip .utip-title {
+            display: none !important;
+        }
+
+        #unified-tooltip.earn-tooltip .utip-desc {
+            color: rgba(244, 243, 239, .78);
+            font-size: 12px;
+            line-height: 1.55;
+        }
+
+        #unified-tooltip.earn-tooltip.utip-mono {
+            width: auto;
+            max-width: calc(100vw - 24px);
+        }
+
+        #unified-tooltip.earn-tooltip.utip-mono .utip-desc {
+            color: rgba(244, 243, 239, .82);
+            font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 11px;
+            letter-spacing: 0;
+        }
+
         /* Dust toggle: DEPRECATED — replaced by .dust-pill */
         .dust-toggle-wrap { display: none !important; }
 
@@ -36807,7 +36858,10 @@
                 }
 
                 descEl.textContent = desc;
-                tip.className = isMono ? 'utip-mono' : '';
+                const classes = [];
+                if (isMono) classes.push('utip-mono');
+                if (el && el.closest && el.closest('#view-earn')) classes.push('earn-tooltip');
+                tip.className = classes.join(' ');
                 tip.id = 'unified-tooltip';
                 tip.style.display = 'block';
                 tip.style.opacity = '0';
