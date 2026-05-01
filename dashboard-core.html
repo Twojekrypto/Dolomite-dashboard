@@ -31451,6 +31451,7 @@
             const suppressRender = !!opts.suppressRender;
             const runId = opts.runId;
             const activeMarketIds = Array.isArray(opts.activeMarketIds) ? opts.activeMarketIds : [];
+            const allowSnapshotFallback = opts.allowSnapshotFallback !== false;
             if (!earn_isLookupRunCurrent(runId)) return false;
             earn_totalYieldStatus = 'loading';
             earn_renderNotices();
@@ -31495,6 +31496,28 @@
                     if (!earn_canUseVerifiedLedgerMarketEntry(m)) {
                         if (neededMarkets.has(String(mid))) {
                             deferredLedgerMarkets++;
+                            nextTotalYieldData[String(mid)] = {
+                                cumulativeYield: String(m.cumulativeYield || '0'),
+                                days: Number(m.days || 0),
+                                firstDate: m.firstDate || '',
+                                firstPar: String(m.firstPar || '0'),
+                                firstWei: String(m.firstWei || '0'),
+                                lastDate: m.lastDate || '',
+                                lastPar: String(m.lastPar || '0'),
+                                lastWei: String(m.lastWei || '0'),
+                                hasStaticParWindow: !!m.hasStaticParWindow,
+                                verificationStatus: String(m.strictStatus || m.status || 'unverified'),
+                                rawVerificationStatus: String(m.status || ''),
+                                isLatestSnapshot: m.isLatestSnapshot !== false,
+                                source: 'verified-ledger-deferred',
+                                method: String(m.strictMethod || m.method || ''),
+                                rawMethod: String(m.method || ''),
+                                snapshotCount: (m.firstDate && m.lastDate && m.firstDate !== m.lastDate) ? 2 : 1,
+                                canonicalHistoryCoverageStatus: String(m.canonicalHistoryCoverageStatus || ''),
+                                canonicalHistoryLastScannedBlock: m.canonicalHistoryLastScannedBlock == null ? null : String(m.canonicalHistoryLastScannedBlock),
+                                canonicalHistoryFreshForBorrowRouting: String(m.canonicalHistoryCoverageStatus || '').toLowerCase() === 'fresh',
+                            };
+                            nextTotalYieldDays = Math.max(nextTotalYieldDays, Number(m.days || 0));
                             deferredLedgerMetaByMarket[String(mid)] = {
                                 verificationStatus: String(m.strictStatus || m.status || 'unverified'),
                                 rawVerificationStatus: String(m.status || ''),
@@ -31557,6 +31580,33 @@
                 }
                 earn_renderNotices();
                 return true;
+            }
+
+            if (!allowSnapshotFallback) {
+                if (!earn_isLookupRunCurrent(runId)) return false;
+                earn_totalYieldData = nextTotalYieldData;
+                earn_totalYieldDays = nextTotalYieldDays;
+                earn_totalYieldStatus = 'ready';
+                if (yieldHeader) {
+                    yieldHeader.textContent = trustedLedgerMarkets > 0
+                        ? 'Total Yield Earned ✓ Historical'
+                        : 'Total Yield Earned';
+                }
+                earn_refreshHistoryYieldData();
+                if (!suppressRender) {
+                    earn_renderHistory(earn_historyData || []);
+                    earn_renderWithdrawnAssets();
+                    if (earn_cachedAssets) earn_renderResults(earn_cachedAssets, { skipSummary: true });
+                }
+                if (marketsToCompute.size > 0) {
+                    console.log(
+                        'Total yield: fast ledger/replay path deferred snapshot fallback for',
+                        marketsToCompute.size,
+                        'markets'
+                    );
+                }
+                earn_renderNotices();
+                return Object.keys(nextTotalYieldData).length > 0;
             }
 
             // Load snapshots concurrently so Total Yield does not wait on a long
@@ -34335,6 +34385,7 @@
                     suppressRender: true,
                     runId: lookupRunId,
                     activeMarketIds: activeMarketIdsForYield,
+                    allowSnapshotFallback: false,
                 })
                     .then(result => {
                         if (!isCurrentLookup()) return result;
@@ -34380,6 +34431,7 @@
                             suppressRender: true,
                             runId: lookupRunId,
                             activeMarketIds: activeMarketIdsForYield,
+                            allowSnapshotFallback: false,
                         });
                     })
                     .then(result => {

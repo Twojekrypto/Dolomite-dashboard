@@ -53,12 +53,10 @@ jobs:
 
       - name: Build local verified ledger cache
         run: |
+          rm -f data/earn-verified-ledger/manifest.json
           python3 build_earn_verified_ledger.py \
-            --chain arbitrum \
-            --chain berachain \
             --chain ethereum \
-            --chain mantle \
-            --existing-addresses
+            --all-addresses
         env:
           PYTHONUNBUFFERED: '1'
 
@@ -70,6 +68,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/earn-snapshots/
+          git add -f data/earn-verified-ledger/manifest.json data/earn-verified-ledger/ethereum/
           if git diff --staged --quiet; then
             echo "No changes to commit"
             exit 0

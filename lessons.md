@@ -227,3 +227,7 @@
 ### Earn final reveal guard
 **Wzorzec błędu:** Finalny render Earn może rzucić wyjątek po pierwszym częściowym renderze, np. przez helper formatowania istniejący w innej zakładce (`fmtUsd`), ale nie w scope Earn. Jeśli exception wydarzy się przed `earn_finishLookupLoadingUi`, użytkownik widzi wieczną kartę ładowania mimo że dane są już policzone.
 **Reguła na przyszłość:** Finalny etap lookupu Earn musi mieć `try/finally`, które zawsze zdejmuje `loading-gate` dla aktualnego `runId`. Po zmianach w karcie podsumowania trzeba testować adres z borrow route i verified yield w przeglądarce oraz sprawdzić konsolę na `ReferenceError`/`TypeError`, nie tylko `node --check`.
+
+### Earn verified ledger cache
+**Wzorzec błędu:** Jeśli `data/earn-verified-ledger` jest ignorowany i workflow buduje tylko `--existing-addresses`, publiczny cache pozostaje pusty. Runtime wtedy wraca do pobierania dziesiątek dużych snapshotów EARN, co na Ethereum potrafi zamienić lookup w minutowe ładowanie.
+**Reguła na przyszłość:** Dla chainów, które mają przyspieszać UX, workflow musi robić pierwszy seed przez `build_earn_verified_ledger.py --all-addresses` i commitować wybrany katalog przez `git add -f`. W lookupu Earn finalny ekran nie powinien czekać na snapshot fallback; używaj ledger/replay jako fast-path, a snapshoty traktuj jako opcjonalne tło diagnostyczne.
