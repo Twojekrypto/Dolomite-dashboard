@@ -2,7 +2,7 @@ name: Refresh Arbitrum Canonical EARN History
 
 on:
   schedule:
-    - cron: '18 */6 * * *'  # Every 6 hours; Arbitrum canonical refresh is heavier than Ethereum
+    - cron: '18 */2 * * *'  # Every 2 hours, staggered inside the 3h UI freshness window
   workflow_dispatch:
 
 concurrency:
@@ -15,9 +15,11 @@ permissions:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 360
     env:
       PYTHONUNBUFFERED: '1'
+      CHAIN: arbitrum
+      HOT_LIMIT: '500'
       ALCHEMY_ARBITRUM_RPC: ${{ secrets.ALCHEMY_ARBITRUM_RPC || secrets.ARBITRUM_RPC_URL || secrets.ARBITRUM_RPC || secrets.ARB_RPC_URL || secrets.ARB_RPC }}
       ALCHEMY_ARBITRUM_RPC_2: ${{ secrets.ALCHEMY_ARBITRUM_RPC_2 || secrets.ARBITRUM_RPC_URL_2 || secrets.ARBITRUM_RPC_2 || secrets.ARB_RPC_URL_2 || secrets.ARB_RPC_2 }}
       ALCHEMY_ARBITRUM_RPC_3: ${{ secrets.ALCHEMY_ARBITRUM_RPC_3 || secrets.ARBITRUM_RPC_URL_3 || secrets.ARBITRUM_RPC_3 || secrets.ARB_RPC_URL_3 || secrets.ARB_RPC_3 }}
@@ -37,21 +39,47 @@ jobs:
       - name: Install Python dependencies
         run: python3 -m pip install --upgrade pip requests
 
+      - name: Restore Arbitrum canonical runtime cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            data/earn-subaccount-history-events
+            data/earn-subaccount-history/.progress
+            data/earn-subaccount-history/.repair-plans
+            data/earn-subaccount-history/.incremental-plans
+            data/earn-subaccount-history/arbitrum
+          key: earn-canonical-runtime-arbitrum-${{ github.run_id }}
+          restore-keys: |
+            earn-canonical-runtime-arbitrum-
+
+      - name: Select Arbitrum hot wallets
+        run: |
+          set -euo pipefail
+          python3 select_earn_canonical_hot_addresses.py \
+            --chain "$CHAIN" \
+            --limit "$HOT_LIMIT" \
+            --priority-address-file config/earn_canonical_priority_addresses.txt \
+            --priority-address-file config/earn_arbitrum_canonical_hot_addresses.txt \
+            --include-priority-even-if-unknown \
+            --output "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt" \
+            --metadata-output "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
+          cat "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
+
       - name: Refresh Arbitrum canonical history incrementally
         run: |
           set -euo pipefail
           python3 run_earn_subaccount_history_incremental.py continue \
-            --chain arbitrum \
+            --chain "$CHAIN" \
             --refresh-plan \
-            --selection-address-file config/earn_arbitrum_canonical_hot_addresses.txt \
+            --selection-address-file "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt" \
             --max-scan-workers 12 \
             --max-apply-workers 12 \
             --max-new-backfill-workers 6
 
           for i in $(seq 1 720); do
             python3 run_earn_subaccount_history_incremental.py continue \
-              --chain arbitrum \
-              --selection-address-file config/earn_arbitrum_canonical_hot_addresses.txt \
+              --chain "$CHAIN" \
+              --selection-address-file "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt" \
               --max-scan-workers 12 \
               --max-apply-workers 12 \
               --max-new-backfill-workers 6 \
@@ -100,8 +128,8 @@ jobs:
           done
 
           python3 run_earn_subaccount_history_incremental.py status \
-            --chain arbitrum \
-            --selection-address-file config/earn_arbitrum_canonical_hot_addresses.txt \
+            --chain "$CHAIN" \
+            --selection-address-file "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt" \
             --json > /tmp/earn-arbitrum-status.json
           python3 - <<'PY'
           import json
@@ -130,14 +158,40 @@ jobs:
           )
           PY
 
+      - name: Build Arbitrum verified ledger cache
+        run: |
+          set -euo pipefail
+          python3 build_earn_verified_ledger.py \
+            --chain "$CHAIN" \
+            --address-file "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt"
+        env:
+          PYTHONUNBUFFERED: '1'
+
+      - name: Save Arbitrum canonical runtime cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            data/earn-subaccount-history-events
+            data/earn-subaccount-history/.progress
+            data/earn-subaccount-history/.repair-plans
+            data/earn-subaccount-history/.incremental-plans
+            data/earn-subaccount-history/arbitrum
+          key: earn-canonical-runtime-arbitrum-${{ github.run_id }}
+
       - name: Run EARN audit checks
         run: python3 run_earn_audit_checks.py
 
       - name: Commit and push refreshed canonical history
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -f data/earn-subaccount-history/manifest.json data/earn-subaccount-history/arbitrum
+          git add -f data/earn-verified-ledger/manifest.json
+          if [ -d "data/earn-verified-ledger/${CHAIN}" ]; then
+            git add -f "data/earn-verified-ledger/${CHAIN}"
+          fi
           if git diff --staged --quiet; then
             echo "No canonical history changes to commit"
             exit 0

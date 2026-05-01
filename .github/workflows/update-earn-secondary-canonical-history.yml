@@ -114,6 +114,15 @@ jobs:
             --allow-empty \
             --skip-unsupported-start-block
 
+      - name: Build verified ledger cache
+        run: |
+          set -euo pipefail
+          python3 build_earn_verified_ledger.py \
+            --chain "$CHAIN" \
+            --address-file "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt"
+        env:
+          PYTHONUNBUFFERED: '1'
+
       - name: Save canonical runtime cache
         if: always()
         uses: actions/cache/save@v4
@@ -137,6 +146,10 @@ jobs:
           git add -f data/earn-subaccount-history/manifest.json
           if [ -d "data/earn-subaccount-history/${CHAIN}" ]; then
             git add -f "data/earn-subaccount-history/${CHAIN}"
+          fi
+          git add -f data/earn-verified-ledger/manifest.json
+          if [ -d "data/earn-verified-ledger/${CHAIN}" ]; then
+            git add -f "data/earn-verified-ledger/${CHAIN}"
           fi
           if git diff --staged --quiet; then
             echo "No canonical history changes to commit"

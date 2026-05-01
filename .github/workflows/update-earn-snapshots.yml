@@ -51,9 +51,8 @@ jobs:
           print(f"Validated earn snapshots for {today}: {sorted(snapshot_chains)}")
           PY
 
-      - name: Build local verified ledger cache
+      - name: Build Ethereum verified ledger cache
         run: |
-          rm -f data/earn-verified-ledger/manifest.json
           python3 build_earn_verified_ledger.py \
             --chain ethereum \
             --all-addresses
