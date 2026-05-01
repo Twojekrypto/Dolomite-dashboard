@@ -1243,50 +1243,58 @@
             display: none;
             position: fixed;
             z-index: 999999;
-            background: rgba(12, 16, 28, 0.97);
-            border: 1px solid rgba(99, 102, 241, 0.25);
+            width: 260px;
+            background: rgba(10, 15, 30, .98);
+            border: 1px solid rgba(99, 102, 241, .3);
             border-radius: 10px;
-            padding: 8px 12px;
-            min-width: 160px;
-            max-width: 240px;
+            padding: 11px 15px;
+            min-width: 0;
+            max-width: min(260px, calc(100vw - 24px));
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, .55), 0 0 0 1px rgba(255, 255, 255, .04);
             pointer-events: none;
             transition: opacity 0.15s ease;
             white-space: normal;
+            color: #cbd5e1;
         }
 
         #unified-tooltip::after {
             content: '';
             position: absolute;
-            top: 100%;
+            bottom: -6px;
             left: var(--arrow-left, 50%);
-            transform: translateX(-50%);
-            border: 5px solid transparent;
-            border-top-color: rgba(99, 102, 241, 0.25);
+            width: 10px;
+            height: 10px;
+            background: rgba(10, 15, 30, .98);
+            border-right: 1px solid rgba(99, 102, 241, .3);
+            border-bottom: 1px solid rgba(99, 102, 241, .3);
+            transform: translateX(-50%) rotate(45deg);
         }
 
         #unified-tooltip.arrow-up::after {
-            top: auto;
-            bottom: 100%;
-            border-top-color: transparent;
-            border-bottom-color: rgba(99, 102, 241, 0.25);
+            bottom: auto;
+            top: -6px;
+            border-right: none;
+            border-bottom: none;
+            border-left: 1px solid rgba(99, 102, 241, .3);
+            border-top: 1px solid rgba(99, 102, 241, .3);
         }
 
         #unified-tooltip .utip-title {
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 700;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.08em;
             text-transform: uppercase;
-            margin-bottom: 4px;
-            color: rgba(99, 102, 241, 0.85);
+            margin-bottom: 6px;
+            color: rgba(226, 232, 240, 0.86);
         }
 
         #unified-tooltip .utip-desc {
-            font-size: 11px;
-            color: rgba(255, 255, 255, 0.6);
-            line-height: 1.4;
+            font-size: 12px;
+            font-weight: 400;
+            color: #cbd5e1;
+            line-height: 1.55;
         }
 
         /* Monospace mode for address tooltips */
@@ -2505,7 +2513,7 @@
         }
 
         .assets-apy-breakdown .breakdown-item {
-            cursor: default;
+            cursor: help;
         }
 
         .assets-apy-breakdown .odolo-part {
@@ -16535,7 +16543,7 @@
                         <span class="earn-supply-count earn-section-count" id="earn-supply-count"></span>
                         <span class="earn-live-refresh-badge" id="earn-live-refresh-badge" aria-hidden="true"></span>
                         <div class="earn-supply-controls">
-                            <div class="dust-pill" id="earn-dust-toggle" onclick="earn_toggleDust()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();earn_toggleDust();}" tabindex="0" role="switch" aria-checked="false" title="Hide dust positions (< $1 balance & yield)">
+                            <div class="dust-pill" id="earn-dust-toggle" onclick="earn_toggleDust()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();earn_toggleDust();}" tabindex="0" role="switch" aria-checked="false" data-tip="Hide dust positions (< $1 balance & yield)">
                                 <div class="dust-switch-track"><div class="dust-switch-knob"></div></div>
                                 <span class="dust-pill-label">Hide Dust</span>
                             </div>
@@ -22125,7 +22133,7 @@
                     </div>
                     <div class="protocol-addr-value">
                         <a href="${url}" target="_blank" onclick="event.stopPropagation()">${addr}</a>
-                        <button class="protocol-addr-copy" onclick="event.stopPropagation();copyAddr('${addr}',this)" title="Copy address">${COPY_SVG}</button>
+                        <button class="protocol-addr-copy" onclick="event.stopPropagation();copyAddr('${addr}',this)" data-tip="Copy address">${COPY_SVG}</button>
                     </div>
                 </div>`;
             }
@@ -27792,7 +27800,7 @@
 
                 let yieldHtml;
                 if (isClosedIsolation) {
-                    yieldHtml = `<span class="earn-amount" style="color:var(--text-muted);font-size:13px" title="This was an isolation mode wrapper token used as collateral. The position has been fully closed.">Position Closed</span>`;
+                    yieldHtml = `<span class="earn-amount" style="color:var(--text-muted);font-size:13px" data-tip="This was an isolation mode wrapper token used as collateral. The position has been fully closed.">Position Closed</span>`;
                 } else {
                     const yieldUsdFmt = item.yieldUsd !== 0
                         ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${item.yieldUsd > 0 ? '+' : item.yieldUsd < 0 ? '-' : ''}$${Math.abs(item.yieldUsd).toFixed(2)}</div>`
@@ -27808,7 +27816,7 @@
 
                 // Subtitle: show full token name for isolation tokens
                 const subtitle = item.isIsolation && item.tokenName !== item.symbol
-                    ? `<div style="font-size:10px;color:var(--text-muted);margin-top:1px;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${item.tokenName}">${item.tokenName.replace('Dolomite Isolation: ', '').replace('Dolomite: Fee + Staked ', '')}</div>`
+                    ? `<div style="font-size:10px;color:var(--text-muted);margin-top:1px;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" data-tip="${earn_escapeHtml(item.tokenName)}">${earn_escapeHtml(item.tokenName.replace('Dolomite Isolation: ', '').replace('Dolomite: Fee + Staked ', ''))}</div>`
                     : '';
 
                 html += `<tr class="earn-data-row" id="${rowId}" style="animation-delay:${delay}s">
@@ -29806,14 +29814,14 @@
                 : '';
 
             const metaChips = [];
-            metaChips.push(`<span class="earn-detail-chip ${methodMeta.cls}" title="${earn_escapeHtml(methodMeta.title)}">${earn_escapeHtml(methodMeta.label)}</span>`);
+            metaChips.push(`<span class="earn-detail-chip ${methodMeta.cls}" data-tip="${earn_escapeHtml(methodMeta.title)}">${earn_escapeHtml(methodMeta.label)}</span>`);
 
             const copySvg = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>';
             const detailAddress = tokenAddr
                 ? `<div class="earn-ca-line">
                         <a href="${earn_escapeHtml(explorerUrl)}" target="_blank" rel="noopener" class="earn-ca-addr addr-tooltip-wrap" data-full-addr="${earn_escapeHtml(tokenAddr)}" onclick="event.stopPropagation()">${earn_escapeHtml(vedolo_shortAddr(tokenAddr))}</a>
-                        <span class="copy-addr-icon" onclick="event.stopPropagation();earn_copyAddr('${earn_escapeHtml(tokenAddr)}',this)" title="Copy address">${copySvg}</span>
-                        <a href="${earn_escapeHtml(explorerUrl)}" target="_blank" rel="noopener" class="earn-ca-explorer" onclick="event.stopPropagation()" title="View on explorer">
+                        <span class="copy-addr-icon" onclick="event.stopPropagation();earn_copyAddr('${earn_escapeHtml(tokenAddr)}',this)" data-tip="Copy address">${copySvg}</span>
+                        <a href="${earn_escapeHtml(explorerUrl)}" target="_blank" rel="noopener" class="earn-ca-explorer" onclick="event.stopPropagation()" data-tip="View on explorer">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                         </a>
                     </div>`
@@ -35168,7 +35176,7 @@
 
                     // E-Mode inline with HF
                     const emodeBadge = p.eMode
-                        ? `<span class="earn-hf-emode-inline" title="E-Mode — correlated assets use tighter liquidation ratios">${FLAME_SVG}E</span>`
+                        ? `<span class="earn-hf-emode-inline" data-tip="E-Mode — correlated assets use tighter liquidation ratios">${FLAME_SVG}E</span>`
                         : '';
 
                     const collateralDisplay = p.collateralUSD < 0.01 ? '$0.00' : earn_formatUSD(p.collateralUSD);
@@ -35375,7 +35383,8 @@
             const borrowChipEl = document.getElementById('earn-summary-borrow-chip');
             if (portfolioValueEl) {
                 portfolioValueEl.textContent = earn_formatUSD(portfolioVal);
-                portfolioValueEl.title = earn_formatUSDExact(portfolioVal);
+                portfolioValueEl.setAttribute('data-tip', earn_formatUSDExact(portfolioVal));
+                portfolioValueEl.removeAttribute('title');
                 portfolioValueEl.className = 'earn-summary-value ' + (portfolioVal > 0 ? 'neutral' : 'negative');
             }
             if (portfolioSubEl) {
@@ -35683,7 +35692,7 @@
                     : '—';
 
                 const emodeBadge = p.eMode
-                    ? `<span class="earn-hf-emode-inline" title="E-Mode — correlated assets use tighter liquidation ratios">${FLAME_SVG}E</span>`
+                    ? `<span class="earn-hf-emode-inline" data-tip="E-Mode — correlated assets use tighter liquidation ratios">${FLAME_SVG}E</span>`
                     : '';
 
                 const collateralDisplay = p.collateralUSD < 0.01 ? '$0.00' : earn_formatUSD(p.collateralUSD);
@@ -36008,7 +36017,7 @@
                     </td>
                     <td>
                         <span class="earn-amount earn-amount-primary">${weiFmt}<span class="earn-amount-sym">${a.symbol}</span></span>
-                        <div style="font-size:11px;color:var(--text-muted);margin-top:2px" title="${earn_escapeHtml(earn_formatUSDExact(a.usdValue))}">≈ ${earn_formatUSD(a.usdValue)}</div>
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:2px" data-tip="${earn_escapeHtml(earn_formatUSDExact(a.usdValue))}">≈ ${earn_formatUSD(a.usdValue)}</div>
                     </td>
                     <td>
                         ${yieldCellHtml}
@@ -36122,7 +36131,7 @@
                             ${(() => {
                             const chainId = document.getElementById('earn-chain').value;
                             const balUsd = Math.abs(earn_scaledUsdToNumber(earn_getTokenUsdScaled(item.currentWei, item.decimals, item.symbol, item.tokenAddr, chainId)));
-                            return balUsd >= 0.01 ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px" title="${earn_escapeHtml(earn_formatUSDExact(balUsd))}">≈ ${earn_formatUSD(balUsd)}</div>` : '';
+                            return balUsd >= 0.01 ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px" data-tip="${earn_escapeHtml(earn_formatUSDExact(balUsd))}">≈ ${earn_formatUSD(balUsd)}</div>` : '';
                         })()}
                         </td>
                         <td>
@@ -36392,7 +36401,7 @@
                                     </div>
                                     <div class="earn-summary-context-pill">${summaryContextText}</div>
                                 </div>
-                                <div class="earn-summary-value neutral" id="earn-summary-portfolio-value" title="${portfolioValueTitle}">${earn_formatUSD(totalUsd)}</div>
+                                <div class="earn-summary-value neutral" id="earn-summary-portfolio-value" data-tip="${portfolioValueTitle}">${earn_formatUSD(totalUsd)}</div>
                                 <div class="earn-summary-sub" id="earn-summary-portfolio-sub">${portfolioSub}</div>
                                 <div class="earn-summary-chip-row">
                                     <span class="earn-summary-chip" id="earn-summary-supply-chip">${activeCount} supply asset${activeCount !== 1 ? 's' : ''}</span>
@@ -36405,7 +36414,7 @@
                             <div class="earn-summary-primary-grid">
                                 <div class="earn-summary-stat kpi-primary">
                                     <div class="earn-summary-label">Total Yield Earned</div>
-                                    <div class="earn-summary-value ${isTotalYieldLoading ? 'neutral' : yieldClass}" title="${totalYieldTitle}">${isTotalYieldLoading ? 'Loading...' : `${yieldSign}${earn_formatUSD(Math.abs(totalYieldUsd))}`}</div>
+                                    <div class="earn-summary-value ${isTotalYieldLoading ? 'neutral' : yieldClass}" data-tip="${totalYieldTitle}">${isTotalYieldLoading ? 'Loading...' : `${yieldSign}${earn_formatUSD(Math.abs(totalYieldUsd))}`}</div>
                                     <div class="earn-summary-sub">${totalYieldSub}</div>
                                 </div>
                                 <div class="earn-summary-stat kpi-primary">
