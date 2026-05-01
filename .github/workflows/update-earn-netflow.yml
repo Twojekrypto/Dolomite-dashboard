@@ -51,9 +51,9 @@ jobs:
       - name: Scan earn netflow events
         run: |
           if [ -n "${{ github.event.inputs.reset_chain }}" ]; then
-            python3 scan_earn_netflow.py "${{ github.event.inputs.reset_chain }}"
+            python3 scan_earn_netflow.py "${{ github.event.inputs.reset_chain }}" --max-runtime-seconds 19800
           else
-            python3 scan_earn_netflow.py
+            python3 scan_earn_netflow.py --max-runtime-seconds 19800
           fi
         env:
           PYTHONUNBUFFERED: '1'
