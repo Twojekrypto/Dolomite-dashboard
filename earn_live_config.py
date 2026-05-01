@@ -21,7 +21,7 @@ DEFAULT_CONFIG_PATH = ROOT / "config" / "earn_live_defaults.json"
 DEFAULT_CONFIG: Dict[str, Any] = {
     "auditEarnAsset": {
         "liveDefaults": {
-            "localhostUrl": "http://127.0.0.1:8902/index.html?cb=earn_audit",
+            "localhostUrl": "http://127.0.0.1:8902/earn/?cb=earn_audit",
             "debugJsonUrl": "http://127.0.0.1:9555/json",
             "workers": 6,
         },
@@ -40,7 +40,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         },
     },
     "runEarnChainLiveRerun": {
-        "localhostUrl": "http://127.0.0.1:8921/index.html?cb=earn_chain_live_rerun",
+        "localhostUrl": "http://127.0.0.1:8921/earn/?cb=earn_chain_live_rerun",
         "debugJsonUrl": "http://127.0.0.1:9555/json",
         "workersPerMarket": 6,
         "retryWorkersPerMarket": 8,
@@ -63,8 +63,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
             "auditEarnAsset": {
                 "liveDefaults": {
                     "localhostUrl": (
-                        "http://127.0.0.1:8921/index.html?cb=earn_audit_dual_a,"
-                        "http://127.0.0.1:8921/index.html?cb=earn_audit_dual_b"
+                        "http://127.0.0.1:8921/earn/?cb=earn_audit_dual_a,"
+                        "http://127.0.0.1:8921/earn/?cb=earn_audit_dual_b"
                     ),
                     "debugJsonUrl": "http://127.0.0.1:9555/json,http://127.0.0.1:9666/json",
                     "workers": 12,
@@ -72,8 +72,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
             },
             "runEarnChainLiveRerun": {
                 "localhostUrl": (
-                    "http://127.0.0.1:8921/index.html?cb=earn_chain_live_dual_a,"
-                    "http://127.0.0.1:8921/index.html?cb=earn_chain_live_dual_b"
+                    "http://127.0.0.1:8921/earn/?cb=earn_chain_live_dual_a,"
+                    "http://127.0.0.1:8921/earn/?cb=earn_chain_live_dual_b"
                 ),
                 "debugJsonUrl": "http://127.0.0.1:9555/json,http://127.0.0.1:9666/json",
                 "workersPerMarket": 12,
