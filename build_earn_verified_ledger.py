@@ -629,6 +629,19 @@ def _discover_existing_addresses(output_dir, chain):
     return out
 
 
+def _read_address_file(path):
+    addresses = set()
+    with Path(path).open("r", encoding="utf-8") as f:
+        for line_number, raw_line in enumerate(f, start=1):
+            address = raw_line.split("#", 1)[0].strip().lower()
+            if not address:
+                continue
+            if not (address.startswith("0x") and len(address) == 42):
+                raise SystemExit(f"Invalid address in {path}:{line_number}: {address}")
+            addresses.add(address)
+    return addresses
+
+
 def _update_manifest(output_dir, chain_meta):
     manifest_path = output_dir / "manifest.json"
     manifest = {"version": 2, "generatedAt": "", "chains": {}}
@@ -652,6 +665,8 @@ def main():
                         help="Chain id (repeatable), e.g. --chain arbitrum --chain ethereum")
     parser.add_argument("--address", action="append", default=[],
                         help="Address to generate (repeatable). If omitted, use --all-addresses.")
+    parser.add_argument("--address-file", action="append", default=[],
+                        help="File with one wallet address per line (repeatable).")
     parser.add_argument("--all-addresses", action="store_true",
                         help="Generate files for all addresses seen in latest snapshot or netflow")
     parser.add_argument("--existing-addresses", action="store_true",
@@ -664,8 +679,10 @@ def main():
     manifest = _read_json(SNAPSHOT_DIR / "manifest.json")
 
     requested_addresses = {a.lower() for a in args.address if a}
+    for address_file in args.address_file:
+        requested_addresses.update(_read_address_file(address_file))
     if not requested_addresses and not args.all_addresses and not args.existing_addresses:
-        raise SystemExit("Provide --address ..., --existing-addresses, or use --all-addresses")
+        raise SystemExit("Provide --address ..., --address-file ..., --existing-addresses, or use --all-addresses")
 
     chain_meta = {}
     for chain in sorted({c.lower() for c in args.chain}):
