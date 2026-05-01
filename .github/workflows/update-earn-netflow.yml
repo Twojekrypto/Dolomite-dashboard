@@ -118,10 +118,13 @@ jobs:
           # Keep staged earn-netflow changes intact while hiding runner-local cache files.
           git stash push --keep-index --include-untracked --message "netflow-progress" -- data/.netflow-progress || true
           git commit -m "📊 Earn netflow update: $(date -u '+%Y-%m-%d %H:%M UTC')"
-          if ! git pull --rebase origin master; then
-            echo "⚠️ Rebase conflict — resolving with our data..."
-            git rebase --abort
-            git pull -X ours origin master
-          fi
-          git push
+          for i in 1 2 3; do
+            if git pull --rebase -X theirs origin master && git push; then
+              git stash pop || true
+              exit 0
+            fi
+            echo "Push attempt $i failed, retrying after remote moved..."
+            sleep 5
+          done
           git stash pop || true
+          exit 1
