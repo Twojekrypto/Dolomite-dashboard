@@ -11,8 +11,9 @@ Output data:
   - data/earn-verified-ledger/manifest.json
 
 The generated ledger stores per-market cumulative yield plus verification
-metadata comparing snapshot-derived yield vs netflow-derived yield.
-Generated files are intended for local/private use and should not be committed.
+metadata comparing snapshot-derived yield vs netflow-derived yield. The repo
+keeps the output ignored by default; workflow-managed public caches are added
+explicitly for chains where the runtime needs a fast per-wallet lookup.
 """
 
 import argparse
