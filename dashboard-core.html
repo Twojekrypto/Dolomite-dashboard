@@ -30983,7 +30983,15 @@
 
 
         const EARN_SNAPSHOT_TIMEOUT_MS = 12000;
-        const EARN_CANONICAL_LOOKUP_BLOCK_LAG_TOLERANCE = 64n;
+        const EARN_CANONICAL_LOOKUP_BLOCK_LAG_TOLERANCE_BY_CHAIN = {
+            ethereum: 900n, // ~3h at 12s blocks
+            berachain: 5400n, // ~3h at 2s blocks
+            arbitrum: 43200n, // ~3h at ~0.25s blocks
+            mantle: 5400n,
+            polygonzkevm: 5400n,
+            xlayer: 3600n,
+            default: 64n,
+        };
 
         async function earn_fetchSnapshot(dateStr) {
             if (earn_snapshotCache[dateStr]) return earn_snapshotCache[dateStr];
@@ -31052,6 +31060,12 @@
         function earn_formatBlockTagFromBigInt(value) {
             if (typeof value !== 'bigint' || value < 0n) return null;
             return '0x' + value.toString(16);
+        }
+
+        function earn_getCanonicalLookupBlockLagTolerance(chainId) {
+            const key = String(chainId || document.getElementById('earn-chain')?.value || '').trim().toLowerCase();
+            return EARN_CANONICAL_LOOKUP_BLOCK_LAG_TOLERANCE_BY_CHAIN[key]
+                || EARN_CANONICAL_LOOKUP_BLOCK_LAG_TOLERANCE_BY_CHAIN.default;
         }
 
         function earn_resetCanonicalSubaccountHistoryState() {
@@ -33881,7 +33895,8 @@
                     const historyBlock = earn_parseBlockNumberLike(canonicalHistory && canonicalHistory.lastScannedBlock);
                     if (headBlock !== null && historyBlock !== null && headBlock >= historyBlock) {
                         const lag = headBlock - historyBlock;
-                        if (lag > 0n && lag <= EARN_CANONICAL_LOOKUP_BLOCK_LAG_TOLERANCE) {
+                        const lagTolerance = earn_getCanonicalLookupBlockLagTolerance(chainId);
+                        if (lag > 0n && lag <= lagTolerance) {
                             preferredBlockTag = earn_formatBlockTagFromBigInt(historyBlock) || headBlockTag;
                         }
                     }
