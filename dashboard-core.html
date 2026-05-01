@@ -34475,29 +34475,46 @@
                     historyPromise,
                     lendingPromise,
                 ]).then(() => {
-                    if (!isCurrentLookup()) return Promise.allSettled([lendingPromise]);
+                    if (!isCurrentLookup()) return;
                     earn_lookupLoading = false;
                     earn_lookupUsingCachedSnapshot = false;
                     earn_setResultsRefreshing(false);
-                    earn_updateLookupLoadingUi(lookupRunId, {
-                        stageIndex: 3,
-                        progress: 0.99,
-                        headline: 'Finalizing verified Earn dashboard',
-                        detail: 'All critical data is loaded. Rendering the final stable view now.',
-                    });
-                    const tblRef = document.querySelector('.earn-asset-table');
-                    if (tblRef) tblRef.classList.add('no-animate');
-                    earn_renderResults(enriched, { skipSummary: false, softRefresh: true });
-                    return Promise.allSettled([lendingPromise]).then(() => {
-                        if (!isCurrentLookup()) return;
+                    try {
+                        earn_updateLookupLoadingUi(lookupRunId, {
+                            stageIndex: 3,
+                            progress: 0.99,
+                            headline: 'Finalizing verified Earn dashboard',
+                            detail: 'All critical data is loaded. Rendering the final stable view now.',
+                        });
+                        const tblRef = document.querySelector('.earn-asset-table');
+                        if (tblRef) tblRef.classList.add('no-animate');
+                        earn_renderResults(enriched, { skipSummary: false, softRefresh: true });
                         earn_markLookupProfile(lookupProfile, 'complete');
                         earn_logLookupProfile(lookupProfile, 'complete');
                         earn_saveLookupCache(chainId, addr);
-                        earn_finishLookupLoadingUi({
-                            runId: lookupRunId,
-                            chainId,
-                            durationMs: lookupProfile.marks.complete,
-                        });
+                    } catch (finalRenderErr) {
+                        console.warn('Final Earn reveal after first render:', finalRenderErr);
+                        earn_markLookupProfile(lookupProfile, 'complete');
+                    } finally {
+                        if (isCurrentLookup()) {
+                            earn_finishLookupLoadingUi({
+                                runId: lookupRunId,
+                                chainId,
+                                durationMs: lookupProfile.marks.complete || (earn_nowMs() - lookupProfile.startedAt),
+                            });
+                        }
+                    }
+                }).catch(finalRevealErr => {
+                    if (!isCurrentLookup()) return;
+                    console.warn('Final Earn reveal failed:', finalRevealErr);
+                    earn_lookupLoading = false;
+                    earn_lookupUsingCachedSnapshot = false;
+                    earn_setResultsRefreshing(false);
+                    earn_markLookupProfile(lookupProfile, 'complete');
+                    earn_finishLookupLoadingUi({
+                        runId: lookupRunId,
+                        chainId,
+                        durationMs: lookupProfile.marks.complete || (earn_nowMs() - lookupProfile.startedAt),
                     });
                 });
             } catch (e) {
@@ -36443,7 +36460,7 @@
                                 <div class="earn-summary-stat kpi-secondary earn-best-performer-stat${bestPerformerMutedClass}">
                                     <div class="earn-summary-label">Best Performer</div>
                                     <div class="earn-summary-value ${bestPerformerValueClass}">${bestIconHtml}${bestSymbol || '—'}</div>
-                                    <div class="earn-summary-sub">${bestYieldUsd > 0 ? '<span class="sub-highlight">' + bestYieldSign + fmtUsd(Math.abs(bestYieldUsd)) + '</span> current value' : 'No yield data'}</div>
+                                    <div class="earn-summary-sub">${bestYieldUsd > 0 ? '<span class="sub-highlight">' + bestYieldSign + earn_formatUSD(Math.abs(bestYieldUsd)) + '</span> current value' : 'No yield data'}</div>
                                 </div>
                                 <div class="earn-summary-stat kpi-secondary earn-borrow-route-stat${hasBorrowContext ? '' : ' is-muted'}">
                                     <div class="earn-summary-label">Borrow Route</div>
