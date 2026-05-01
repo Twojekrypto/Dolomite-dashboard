@@ -4,12 +4,14 @@ veDOLO Events Pipeline — Deposit (Lock) & Withdraw (Unlock) events
 Scans on-chain events from veDOLO contract deployment, outputs JSON for frontend.
 Uses incremental sync — first run scans all, subsequent runs fetch only new blocks.
 """
+import argparse
 import json, time, os, sys
 import requests
 from datetime import datetime, timezone
 
 ALCHEMY_BERA_RPC = os.environ.get("ALCHEMY_BERACHAIN_RPC", "")
 ALCHEMY_BERA_RPC_2 = os.environ.get("ALCHEMY_BERACHAIN_RPC_2", "")
+ALCHEMY_BERA_RPC_3 = os.environ.get("ALCHEMY_BERACHAIN_RPC_3", "")
 
 # ===== CONFIG =====
 VEDOLO_CONTRACT = "0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4"
@@ -26,6 +28,7 @@ ZERO_TOPIC = "0x" + ("0" * 64)
 RPC_URLS = [
     *([] if not ALCHEMY_BERA_RPC else [ALCHEMY_BERA_RPC]),
     *([] if not ALCHEMY_BERA_RPC_2 else [ALCHEMY_BERA_RPC_2]),
+    *([] if not ALCHEMY_BERA_RPC_3 else [ALCHEMY_BERA_RPC_3]),
     "https://berachain-rpc.publicnode.com/",
     "https://berachain.drpc.org/",
     "https://rpc.berachain.com/",
@@ -38,7 +41,19 @@ BLOCK_TIME = 2  # ~2 seconds per block on Berachain
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_JSON = os.path.join(DATA_DIR, "vedolo_flows.json")
 STATE_FILE = os.path.join(DATA_DIR, "vedolo_flows_state.json")
+RUN_STATUS_FILE = os.path.join(DATA_DIR, "vedolo_flows_run_status.json")
 EXERCISERS_BY_ADDRESS_FILE = os.path.join(DATA_DIR, "exercisers_by_address.json")
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Generate veDOLO lock/unlock flow data")
+    parser.add_argument(
+        "--max-runtime-seconds",
+        type=int,
+        default=int(os.environ.get("VEDOLO_FLOWS_MAX_RUNTIME_SECONDS") or 0),
+        help="Exit cleanly after this many seconds, saving resumable state first.",
+    )
+    return parser.parse_args()
 
 
 def load_state():
@@ -56,6 +71,51 @@ def save_state(state):
     with open(tmp, "w") as f:
         json.dump(state, f)
     os.replace(tmp, STATE_FILE)
+
+
+def save_run_status(completed, **extra):
+    payload = {
+        "completed": bool(completed),
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        **extra,
+    }
+    tmp = RUN_STATUS_FILE + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(payload, f, separators=(",", ":"))
+    os.replace(tmp, RUN_STATUS_FILE)
+
+
+def save_pending_sync(state, target_block, unlocks, locks, tx_hashes):
+    state["pending_vedolo_sync"] = {
+        "target_block": target_block,
+        "unlocks": unlocks,
+        "locks": locks,
+        "tx_hashes": sorted(tx_hashes),
+        "updated": datetime.utcnow().isoformat() + "Z",
+    }
+    save_state(state)
+
+
+def load_pending_sync(state):
+    pending = state.get("pending_vedolo_sync")
+    if not isinstance(pending, dict):
+        return None
+
+    target_block = int(pending.get("target_block") or 0)
+    locks = pending.get("locks")
+    unlocks = pending.get("unlocks")
+    tx_hashes = pending.get("tx_hashes")
+    if target_block <= 0 or not isinstance(locks, list) or not isinstance(unlocks, list):
+        return None
+    if not isinstance(tx_hashes, list):
+        tx_hashes = []
+
+    return {
+        "target_block": target_block,
+        "locks": locks,
+        "unlocks": unlocks,
+        "tx_hashes": [str(tx).lower() for tx in tx_hashes],
+    }
 
 
 def load_odolo_exerciser_lookup():
@@ -286,26 +346,83 @@ def get_tx_receipt(tx_hash):
     return None
 
 
-def check_odolo_exercise_batch(tx_hashes):
-    """Check which tx hashes involve oDOLO exercise (transfer from Vester)."""
-    exercise_txs = {}
-    total = len(tx_hashes)
+def _checkpoint_receipt_checks(state, receipt_checks, pending_sync=None):
+    if state is None:
+        return
+    state["odolo_receipt_checks"] = receipt_checks
+    if pending_sync:
+        state["pending_vedolo_sync"] = {
+            **pending_sync,
+            "updated": datetime.utcnow().isoformat() + "Z",
+        }
+    save_state(state)
 
-    for i, tx_hash in enumerate(tx_hashes):
+
+def check_odolo_exercise_batch(
+    tx_hashes,
+    exerciser_lookup=None,
+    receipt_checks=None,
+    state=None,
+    pending_sync=None,
+    soft_deadline=None,
+):
+    """Check which tx hashes involve oDOLO exercise (transfer from Vester)."""
+    exerciser_lookup = exerciser_lookup or {}
+    receipt_checks = receipt_checks if isinstance(receipt_checks, dict) else {}
+    exercise_txs = {}
+    normalized_txs = [str(tx_hash or "").strip().lower() for tx_hash in tx_hashes]
+    normalized_txs = [tx_hash for tx_hash in normalized_txs if tx_hash.startswith("0x") and len(tx_hash) == 66]
+    total = len(normalized_txs)
+    rpc_checks = 0
+
+    for i, tx_hash in enumerate(normalized_txs):
+        lookup_beneficiary = exerciser_lookup.get(tx_hash)
+        if lookup_beneficiary:
+            exercise_txs[tx_hash] = lookup_beneficiary
+            continue
+
+        if tx_hash in receipt_checks:
+            cached = receipt_checks[tx_hash]
+            if isinstance(cached, dict) and cached.get("isOdolo"):
+                exercise_txs[tx_hash] = normalize_address(cached.get("beneficiary"))
+            continue
+
+        if soft_deadline is not None and time.monotonic() >= soft_deadline:
+            _checkpoint_receipt_checks(state, receipt_checks, pending_sync)
+            print(
+                f"    ⏸️ Soft runtime limit reached while checking oDOLO receipts "
+                f"({i}/{total}). Progress saved.",
+                flush=True,
+            )
+            return exercise_txs, False
+
         receipt = get_tx_receipt(tx_hash)
+        beneficiary = None
+        is_odolo = False
         if receipt and receipt.get("logs"):
             for log in receipt["logs"]:
                 # Check if any log is from the oDOLO Vester contract
                 log_addr = log.get("address", "").lower()
                 if log_addr == ODOLO_VESTER:
-                    exercise_txs[tx_hash.lower()] = extract_odolo_receipt_beneficiary(receipt)
+                    beneficiary = extract_odolo_receipt_beneficiary(receipt)
+                    exercise_txs[tx_hash] = beneficiary
+                    is_odolo = True
                     break
 
+        receipt_checks[tx_hash] = {
+            "isOdolo": is_odolo,
+            "beneficiary": beneficiary,
+        }
+        rpc_checks += 1
+
         if (i + 1) % 50 == 0:
-            print(f"    Checking oDOLO exercises: {i+1}/{total}", flush=True)
+            print(f"    Checking oDOLO exercises: {i+1}/{total} ({rpc_checks} RPC receipts)", flush=True)
+        if rpc_checks and rpc_checks % 250 == 0:
+            _checkpoint_receipt_checks(state, receipt_checks, pending_sync)
         time.sleep(0.03)
 
-    return exercise_txs
+    _checkpoint_receipt_checks(state, receipt_checks, pending_sync)
+    return exercise_txs, True
 
 
 def resolve_receipt_fallback_beneficiaries(locks):
@@ -378,6 +495,11 @@ def decode_deposit(log):
 
 
 def main():
+    args = parse_args()
+    soft_deadline = None
+    if args.max_runtime_seconds > 0:
+        soft_deadline = time.monotonic() + args.max_runtime_seconds
+
     print("=" * 60)
     print("🔄 veDOLO Events Pipeline — Locks & Unlocks")
     print(f"   {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
@@ -391,60 +513,97 @@ def main():
     else:
         print("🆕 No previous state — running full sync (first run)")
 
-    # Get current block
-    print("\n📡 Getting current block number...")
-    current_block = get_current_block()
-    print(f"  Berachain: block {current_block:,}")
-
-    if current_block == 0:
-        print("❌ Could not get current block. Aborting.")
-        sys.exit(1)
-
-    # Determine scan range
-    last_block = state.get("last_block", 0)
-    cached_unlocks = state.get("unlocks", [])
-    cached_locks = state.get("locks", [])
-
-    if is_incremental and last_block > 0:
-        fetch_start = last_block + 1
-        if fetch_start >= current_block:
-            print(f"  Already up to date (block {last_block:,})")
-            new_withdraw_logs = []
-            new_deposit_logs = []
-        else:
-            print(f"\n📡 Fetching Withdraw events (unlocks)...")
-            new_withdraw_logs = fetch_event_logs(fetch_start, current_block, WITHDRAW_TOPIC)
-            print(f"\n📡 Fetching Deposit events (locks)...")
-            new_deposit_logs = fetch_event_logs(fetch_start, current_block, DEPOSIT_TOPIC)
+    pending_sync = load_pending_sync(state)
+    exerciser_lookup = load_odolo_exerciser_lookup()
+    if pending_sync:
+        print(
+            "📦 Found unfinished veDOLO sync — resuming receipt checks "
+            f"for target block {pending_sync['target_block']:,}"
+        )
+        current_block = pending_sync["target_block"]
+        all_unlocks = pending_sync["unlocks"]
+        all_locks = pending_sync["locks"]
+        pending_tx_hashes = pending_sync["tx_hashes"]
+        print(f"  Resumed: {len(all_unlocks)} unlocks, {len(all_locks)} locks")
     else:
-        print(f"\n📡 Fetching ALL Withdraw events (unlocks) from block {DEPLOY_BLOCK:,}...")
-        new_withdraw_logs = fetch_event_logs(DEPLOY_BLOCK, current_block, WITHDRAW_TOPIC)
-        print(f"\n📡 Fetching ALL Deposit events (locks) from block {DEPLOY_BLOCK:,}...")
-        new_deposit_logs = fetch_event_logs(DEPLOY_BLOCK, current_block, DEPOSIT_TOPIC)
-        cached_unlocks = []
-        cached_locks = []
+        # Get current block
+        print("\n📡 Getting current block number...")
+        current_block = get_current_block()
+        print(f"  Berachain: block {current_block:,}")
 
-    # Decode new events
-    print(f"\n🔧 Decoding events...")
-    new_unlocks = [decode_withdraw(log) for log in new_withdraw_logs]
-    new_locks = [decode_deposit(log) for log in new_deposit_logs]
-    print(f"  New: {len(new_unlocks)} unlocks, {len(new_locks)} locks")
+        if current_block == 0:
+            print("❌ Could not get current block. Aborting.")
+            sys.exit(1)
 
-    # Merge with cached
-    all_unlocks = cached_unlocks + new_unlocks
-    all_locks = cached_locks + new_locks
-    print(f"  Total: {len(all_unlocks)} unlocks, {len(all_locks)} locks")
+        # Determine scan range
+        last_block = state.get("last_block", 0)
+        cached_unlocks = state.get("unlocks", [])
+        cached_locks = state.get("locks", [])
+
+        if is_incremental and last_block > 0:
+            fetch_start = last_block + 1
+            if fetch_start >= current_block:
+                print(f"  Already up to date (block {last_block:,})")
+                new_withdraw_logs = []
+                new_deposit_logs = []
+            else:
+                print(f"\n📡 Fetching Withdraw events (unlocks)...")
+                new_withdraw_logs = fetch_event_logs(fetch_start, current_block, WITHDRAW_TOPIC)
+                print(f"\n📡 Fetching Deposit events (locks)...")
+                new_deposit_logs = fetch_event_logs(fetch_start, current_block, DEPOSIT_TOPIC)
+        else:
+            print(f"\n📡 Fetching ALL Withdraw events (unlocks) from block {DEPLOY_BLOCK:,}...")
+            new_withdraw_logs = fetch_event_logs(DEPLOY_BLOCK, current_block, WITHDRAW_TOPIC)
+            print(f"\n📡 Fetching ALL Deposit events (locks) from block {DEPLOY_BLOCK:,}...")
+            new_deposit_logs = fetch_event_logs(DEPLOY_BLOCK, current_block, DEPOSIT_TOPIC)
+            cached_unlocks = []
+            cached_locks = []
+
+        # Decode new events
+        print(f"\n🔧 Decoding events...")
+        new_unlocks = [decode_withdraw(log) for log in new_withdraw_logs]
+        new_locks = [decode_deposit(log) for log in new_deposit_logs]
+        print(f"  New: {len(new_unlocks)} unlocks, {len(new_locks)} locks")
+
+        # Merge with cached
+        all_unlocks = cached_unlocks + new_unlocks
+        all_locks = cached_locks + new_locks
+        print(f"  Total: {len(all_unlocks)} unlocks, {len(all_locks)} locks")
+        pending_tx_hashes = list(set(l["txHash"].lower() for l in new_locks))
+        if pending_tx_hashes:
+            save_pending_sync(state, current_block, all_unlocks, all_locks, pending_tx_hashes)
 
     # Check oDOLO exercise status for new lock events
-    if new_locks:
-        print(f"\n🔍 Checking oDOLO exercise status for {len(new_locks)} new locks...")
-        new_lock_txs = list(set(l["txHash"] for l in new_locks))
-        exercise_txs = check_odolo_exercise_batch(new_lock_txs)
+    if pending_tx_hashes:
+        print(f"\n🔍 Checking oDOLO exercise status for {len(pending_tx_hashes)} new locks...")
+        receipt_checks = state.get("odolo_receipt_checks", {})
+        exercise_txs, exercise_complete = check_odolo_exercise_batch(
+            pending_tx_hashes,
+            exerciser_lookup=exerciser_lookup,
+            receipt_checks=receipt_checks,
+            state=state,
+            pending_sync=state.get("pending_vedolo_sync"),
+            soft_deadline=soft_deadline,
+        )
+        if not exercise_complete:
+            save_pending_sync(state, current_block, all_unlocks, all_locks, pending_tx_hashes)
+            save_run_status(
+                False,
+                reason="soft_runtime_limit",
+                target_block=current_block,
+                checked_receipts=len(state.get("odolo_receipt_checks", {})),
+                total_lock_txs=len(pending_tx_hashes),
+            )
+            print("⏸️ veDOLO sync paused before timeout. State cached for the next workflow run.")
+            return
         print(f"  Found {len(exercise_txs)} locks via oDOLO exercise")
 
         # Tag new locks
-        for lock in new_locks:
+        pending_tx_hash_set = set(pending_tx_hashes)
+        for lock in all_locks:
             tx_hash = lock["txHash"].lower()
+            if tx_hash not in pending_tx_hash_set:
+                continue
             lock["isOdolo"] = tx_hash in exercise_txs
             beneficiary = exercise_txs.get(tx_hash)
             if beneficiary:
@@ -452,7 +611,6 @@ def main():
                 lock["addressSource"] = "odolo-receipt"
                 lock["protocolAddress"] = ODOLO_VESTER
 
-    exerciser_lookup = load_odolo_exerciser_lookup()
     resolved_odolo, unresolved_odolo = remap_odolo_lock_beneficiaries(all_locks, exerciser_lookup)
     receipt_resolved_odolo = 0
     if unresolved_odolo:
@@ -503,7 +661,9 @@ def main():
     state["last_block"] = current_block
     state["unlocks"] = all_unlocks
     state["locks"] = all_locks
+    state.pop("pending_vedolo_sync", None)
     save_state(state)
+    save_run_status(True, target_block=current_block)
 
     print(f"\n💾 Saved: {OUTPUT_JSON}")
     print(f"   {len(all_unlocks)} unlocks, {len(all_locks)} locks")
