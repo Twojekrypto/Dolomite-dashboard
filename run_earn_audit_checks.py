@@ -22,6 +22,7 @@ PYTHON_FILES = [
     ROOT / "audit_earn_asset.py",
     ROOT / "build_earn_subaccount_history.py",
     ROOT / "earn_live_config.py",
+    ROOT / "plan_earn_subaccount_history_incremental.py",
     ROOT / "run_earn_chain_live_rerun.py",
     ROOT / "run_earn_data_correctness_pipeline.py",
     ROOT / "run_earn_subaccount_history_incremental.py",

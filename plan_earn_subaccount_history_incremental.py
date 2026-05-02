@@ -193,12 +193,13 @@ def build_incremental_plan(
             })
             current_start = shard_end + 1
 
+    backfill_addresses = sorted(set(new_addresses) | set(stale_existing))
     new_address_tasks = []
-    if new_addresses:
-        for idx, (start_index, end_index) in enumerate(_split_ranges(len(new_addresses), new_backfill_workers), start=1):
+    if backfill_addresses:
+        for idx, (start_index, end_index) in enumerate(_split_ranges(len(backfill_addresses), new_backfill_workers), start=1):
             progress_key = f"n{idx}of{new_backfill_workers}"
             address_file = address_dir / f"new-addresses-{progress_key}.txt"
-            shard_addresses = new_addresses[start_index:end_index]
+            shard_addresses = backfill_addresses[start_index:end_index]
             _write_lines(address_file, shard_addresses)
             new_address_tasks.append({
                 "progressKey": progress_key,
@@ -248,6 +249,7 @@ def build_incremental_plan(
         "freshTrackedAddressCount": len(fresh_existing),
         "staleTrackedAddressCount": len(stale_existing),
         "newAddressCount": len(new_addresses),
+        "backfillAddressCount": len(backfill_addresses),
         "orphanedHistoryCount": len(orphaned_histories),
         "cycleId": cycle_id,
         "cycleRoot": str(cycle_root),
@@ -277,10 +279,11 @@ def _print_human_plan(payload: dict) -> None:
     print(f"Fresh tracked histories: {payload['freshTrackedAddressCount']}")
     print(f"Stale tracked histories: {payload['staleTrackedAddressCount']}")
     print(f"New known addresses: {payload['newAddressCount']}")
+    print(f"Backfill addresses: {payload['backfillAddressCount']}")
     print(f"Orphaned histories: {payload['orphanedHistoryCount']}")
     print(f"Cycle root: {payload['cycleRoot']}")
     if payload["staleTrackedAddressCount"]:
-        print("Stale tracked addresses detected; fix baseline freshness before relying on incremental apply.")
+        print("Stale tracked histories will be fully backfilled to the target block.")
     print("Delta scan commands:")
     for task in payload["scanTasks"]:
         print(f"  {task['command']}")
