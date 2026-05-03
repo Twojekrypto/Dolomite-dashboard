@@ -5,7 +5,12 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from run_earn_chain_live_rerun import build_live_plan, detect_external_live_audits, live_audit_command
+from run_earn_chain_live_rerun import (
+    build_live_plan,
+    detect_external_live_audits,
+    live_audit_command,
+    live_phase_payload_is_complete,
+)
 
 
 class RunEarnChainLiveRerunTest(unittest.TestCase):
@@ -124,6 +129,27 @@ class RunEarnChainLiveRerunTest(unittest.TestCase):
 
         preset_index = cmd.index("--live-preset")
         self.assertEqual(cmd[preset_index + 1], "targeted-slow-retry")
+
+    def test_live_phase_payload_is_not_complete_when_output_is_partial(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            input_path = root / "input.json"
+            input_path.write_text(
+                json.dumps(
+                    {
+                        "inputCount": 3,
+                        "unresolved": [
+                            {"wallet": "0x1"},
+                            {"wallet": "0x2"},
+                            {"wallet": "0x3"},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            self.assertFalse(live_phase_payload_is_complete({"completed": 2, "results": [{}, {}]}, input_path))
+            self.assertTrue(live_phase_payload_is_complete({"completed": 3, "results": [{}, {}, {}]}, input_path))
 
     def test_build_live_plan_filters_known_missing_wallets_from_previous_live_results(self):
         with tempfile.TemporaryDirectory() as tmpdir:
