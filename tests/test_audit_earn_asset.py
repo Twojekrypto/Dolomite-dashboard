@@ -61,6 +61,28 @@ class AuditEarnAssetTest(unittest.TestCase):
         }
         self.assertEqual(normalize_live_row_category(row), "timeout_other")
 
+    def test_normalize_live_row_category_trusts_verified_market_row_when_position_missing(self):
+        row = {
+            "positionKind": "missing",
+            "timedOut": False,
+            "marketRow": {"verifyLabel": "VERIFIED", "sourceLabel": "", "yieldCell": "+$10.00"},
+            "focusMarket": None,
+        }
+        self.assertEqual(normalize_live_row_category(row), "verified_nonstandard")
+
+    def test_normalize_live_row_category_treats_replay_timeout_error_as_timeout(self):
+        row = {
+            "positionKind": "visible_supply",
+            "timedOut": False,
+            "lastReplayError": "Subgraph replay timed out after 12000ms",
+            "marketRow": {"verifyLabel": "", "sourceLabel": "", "balanceCell": "≈ $12.11K", "yieldCell": "—"},
+            "focusMarket": {
+                "calc": {"hasData": False, "verificationStatus": "unverified"},
+                "verificationData": None,
+            },
+        }
+        self.assertEqual(normalize_live_row_category(row), "timeout_other")
+
     def test_parse_live_row_pattern_detects_exact_match_non_strict_inferred(self):
         row = {
             "positionKind": "visible_supply",

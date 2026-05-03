@@ -535,6 +535,8 @@ function buildAuditSource(address, chain) {
       if (!snap) return timedOut ? 'timeout_no_snapshot' : 'missing_snapshot';
       const verifyLabel = String((snap.marketRow && snap.marketRow.verifyLabel) || '');
       const sourceLabel = String((snap.marketRow && snap.marketRow.sourceLabel) || '');
+      const lastReplayError = String(snap.lastReplayError || '');
+      const timedOutLike = timedOut || /timed?\s*out|timeout/i.test(lastReplayError);
       const balanceCell = String((snap.marketRow && snap.marketRow.balanceCell) || '');
       const balanceMatch = balanceCell.match(/≈\s*\$([0-9][0-9,]*(?:\.[0-9]+)?)(K|M|B)?/);
       const balanceMult = balanceMatch
@@ -566,8 +568,12 @@ function buildAuditSource(address, chain) {
         (calc && calc.verificationStatus === 'verified');
 
       if (effectivePositionKind === 'missing') {
+        if (verifyLabel === 'VERIFIED') {
+          if (resolvedSource === 'replay-ledger') return 'replay_verified';
+          return 'verified_nonstandard';
+        }
         if (replayTrusted || exactVerified) return 'replay_verified';
-        if (timedOut) return 'timeout_other';
+        if (timedOutLike) return 'timeout_other';
         return 'missing_position';
       }
       if (effectivePositionKind === 'borrow_only') {
@@ -580,7 +586,7 @@ function buildAuditSource(address, chain) {
         if (replayTrusted || exactVerified) {
           return 'hidden_collateral_verified';
         }
-        return timedOut ? 'timeout_hidden_collateral' : 'hidden_collateral_other';
+        return timedOutLike ? 'timeout_hidden_collateral' : 'hidden_collateral_other';
       }
       if (verifyLabel === 'VERIFIED') {
         if (resolvedSource === 'replay-ledger') return 'replay_verified';
@@ -590,13 +596,13 @@ function buildAuditSource(address, chain) {
           resolvedMethod.startsWith('snapshot') ||
           resolvedSource === 'snapshot-series' ||
           sourceLabel.includes('Snapshot')) {
-        return timedOut ? 'timeout_snapshot_only' : 'snapshot_only';
+        return timedOutLike ? 'timeout_snapshot_only' : 'snapshot_only';
       }
       if (verifyLabel === 'PENDING' || resolvedStatus === 'pending' || (calc && calc.verificationStatus === 'pending')) {
-        return timedOut ? 'timeout_pending' : 'pending';
+        return timedOutLike ? 'timeout_pending' : 'pending';
       }
       if (verify && verify.status === 'verified') return 'replay_verified';
-      if (timedOut) return 'timeout_other';
+      if (timedOutLike) return 'timeout_other';
       return calc && calc.hasData ? 'has_data_other' : 'no_data';
     };
 
@@ -1438,7 +1444,9 @@ def normalize_live_row_category(row: dict) -> str:
     resolved_status = str(focus.get("resolvedVerificationStatus") or "")
     calc = focus.get("calc") or {}
     verify = focus.get("verificationData") or {}
-    timed_out = bool(row.get("timedOut"))
+    last_replay_error = str(row.get("lastReplayError") or "")
+    replay_timeout_error = "timed out" in last_replay_error.lower() or "timeout" in last_replay_error.lower()
+    timed_out = bool(row.get("timedOut")) or replay_timeout_error
 
     replay_trusted = (
         resolved_source == "replay-ledger"
@@ -1469,6 +1477,10 @@ def normalize_live_row_category(row: dict) -> str:
     if position_kind == "missing":
         # Prefer the final verified replay snapshot over an earlier missing-position
         # capture so late-settling rows do not fall into a false missing tail.
+        if verify_label == "VERIFIED":
+            if resolved_source == "replay-ledger":
+                return "replay_verified"
+            return "verified_nonstandard"
         if replay_trusted or exact_verified or (calc_trusted and exact_verify_match):
             return "replay_verified"
         if timed_out:
