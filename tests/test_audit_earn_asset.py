@@ -1,7 +1,9 @@
 import unittest
+from argparse import Namespace
 
 from audit_earn_asset import (
     build_live_audit_js,
+    build_live_js_defaults_for_args,
     normalize_live_row_category,
     parse_live_row_pattern,
     summarize_live_results,
@@ -290,6 +292,22 @@ class AuditEarnAssetTest(unittest.TestCase):
         self.assertIn("globalThis.__EARN_SNAPSHOT_FETCH_TIMEOUT_OVERRIDE__ = ${SNAPSHOT_FETCH_TIMEOUT_MS};", js)
         self.assertIn("usedLateReplayGrace = true;", js)
         self.assertIn("if (replayTrusted || exactVerified) return 'replay_verified';", js)
+
+    def test_build_live_js_defaults_for_args_applies_preset_and_cli_overrides(self):
+        live_js_defaults = build_live_js_defaults_for_args(
+            Namespace(
+                _live_js_defaults={
+                    "maxWaitMs": 240000,
+                    "lateReplayGraceMs": 120000,
+                    "snapshotFetchTimeoutMs": 30000,
+                },
+                max_wait_ms=360000,
+                late_replay_grace_ms=None,
+            )
+        )
+        self.assertEqual(live_js_defaults["maxWaitMs"], 360000)
+        self.assertEqual(live_js_defaults["lateReplayGraceMs"], 120000)
+        self.assertEqual(live_js_defaults["snapshotFetchTimeoutMs"], 30000)
 
     def test_build_live_audit_js_guards_target_creation_loop(self):
         js = build_live_audit_js()

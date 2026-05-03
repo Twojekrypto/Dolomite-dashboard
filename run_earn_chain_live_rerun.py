@@ -624,10 +624,15 @@ def live_audit_command(
         for index, pair in enumerate(endpoint_pairs)
     ]
     debug_json_urls = [str(pair["debugJsonUrl"]) for pair in endpoint_pairs]
-    return [
+    cmd = [
         "python3",
         str(ROOT / "audit_earn_asset.py"),
         "live",
+    ]
+    live_preset = str(plan.get("livePreset") or "").strip()
+    if live_preset:
+        cmd.extend(["--live-preset", live_preset])
+    cmd.extend([
         "--input",
         str(input_path),
         "--chain",
@@ -646,7 +651,8 @@ def live_audit_command(
         str(plan["canonicalTargetBlock"]),
         "--output",
         str(output_path),
-    ]
+    ])
+    return cmd
 
 
 def load_required_payload(path: Path, *, label: str) -> dict:

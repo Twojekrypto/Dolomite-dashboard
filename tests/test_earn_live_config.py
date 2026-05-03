@@ -145,6 +145,18 @@ class EarnLiveConfigTest(unittest.TestCase):
             ],
         )
 
+    def test_targeted_slow_retry_preset_extends_live_js_timeouts(self):
+        self.assertIn("targeted-slow-retry", get_live_preset_names())
+        audit_defaults = get_audit_earn_asset_defaults("targeted-slow-retry")
+        rerun_defaults = get_chain_live_rerun_defaults("targeted-slow-retry")
+
+        self.assertEqual(audit_defaults["liveDefaults"]["workers"], 2)
+        self.assertEqual(audit_defaults["liveJs"]["maxWaitMs"], 240000)
+        self.assertEqual(audit_defaults["liveJs"]["lateReplayGraceMs"], 120000)
+        self.assertEqual(audit_defaults["liveJs"]["snapshotFetchTimeoutMs"], 30000)
+        self.assertEqual(rerun_defaults["workersPerMarket"], 2)
+        self.assertEqual(rerun_defaults["retryWorkersPerMarket"], 2)
+
 
 if __name__ == "__main__":
     unittest.main()

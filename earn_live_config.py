@@ -80,6 +80,24 @@ DEFAULT_CONFIG: Dict[str, Any] = {
                 "retryWorkersPerMarket": 12,
             },
         },
+        "targeted-slow-retry": {
+            "auditEarnAsset": {
+                "liveDefaults": {
+                    "localhostUrl": "http://127.0.0.1:8921/earn/?cb=earn_audit_slow_retry",
+                    "debugJsonUrl": "http://127.0.0.1:9555/json",
+                    "workers": 2,
+                },
+                "liveJs": {
+                    "maxWaitMs": 240000,
+                    "lateReplayGraceMs": 120000,
+                    "snapshotFetchTimeoutMs": 30000,
+                },
+            },
+            "runEarnChainLiveRerun": {
+                "workersPerMarket": 2,
+                "retryWorkersPerMarket": 2,
+            },
+        },
     },
 }
 
