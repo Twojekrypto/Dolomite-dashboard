@@ -6,7 +6,9 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from run_earn_chain_live_rerun import (
+    build_combined_market_report,
     build_live_plan,
+    build_run_summary,
     detect_external_live_audits,
     live_audit_command,
     live_phase_payload_is_complete,
@@ -278,6 +280,109 @@ class RunEarnChainLiveRerunTest(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["pid"], 100)
         self.assertIn("audit_earn_asset.py live", rows[0]["command"])
+
+    def test_build_run_summary_separates_raw_diagnostics_from_final_verdict(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            summary_path = root / "summary.json"
+            report_path = root / "report.json"
+            summary_path.write_text(
+                json.dumps(
+                    {
+                        "completed": 4,
+                        "timeouts": 1,
+                        "missingPosition": 1,
+                        "counts": {
+                            "verified_nonstandard": 10,
+                            "eval_timeout": 1,
+                            "missing_position": 1,
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            report_path.write_text(
+                json.dumps(
+                    {
+                        "finalBlockingTailCount": 0,
+                        "finalInformationalTailCount": 0,
+                        "timeoutRetryInputCount": 2,
+                        "timeoutRetryCompletedCount": 2,
+                        "tailLikelyCauseCounts": {},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            plan = {
+                "runId": "example-run",
+                "chain": "berachain",
+                "canonicalTargetBlock": 123,
+                "sourceSummaryPath": str(root / "source-summary.json"),
+                "sourceSnapshotDate": "2026-05-03",
+                "markets": [
+                    {
+                        "marketId": "0",
+                        "symbol": "WETH",
+                        "unresolvedCount": 4,
+                        "sourceUnresolvedCount": 4,
+                        "skippedKnownMissingCount": 0,
+                        "status": "completed",
+                        "stage": "completed",
+                        "outputPath": str(root / "merged.json"),
+                        "summaryPath": str(summary_path),
+                        "reportPath": str(report_path),
+                    }
+                ],
+            }
+
+            result = build_run_summary(plan)
+
+            self.assertEqual(result["auditVerdict"]["status"], "pass")
+            self.assertEqual(result["finalTailTotals"]["finalBlockingTailCount"], 0)
+            self.assertEqual(result["finalTailTotals"]["timeoutRetryCompletedCount"], 2)
+            self.assertEqual(result["rawDiagnosticCounts"], {"eval_timeout": 1, "missing_position": 1})
+            self.assertEqual(result["aggregateCounts"]["verified_nonstandard"], 10)
+            market = result["markets"][0]
+            self.assertEqual(market["auditVerdict"]["status"], "pass")
+            self.assertEqual(market["rawDiagnostics"]["total"], 2)
+            self.assertFalse(market["rawDiagnostics"]["blocking"])
+
+    def test_combined_market_report_includes_audit_verdict_and_raw_diagnostics(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            timeout_input = root / "timeout-input.json"
+            timeout_input.write_text(json.dumps({"inputCount": 2}), encoding="utf-8")
+            plan = {
+                "chain": "berachain",
+                "canonicalTargetBlock": 123,
+                "sourceSnapshotDate": "2026-05-03",
+            }
+            market = {
+                "marketId": "0",
+                "symbol": "WETH",
+                "timeoutRetryInputPath": str(timeout_input),
+                "forensicPath": str(root / "forensic.json"),
+                "tailExplainPath": str(root / "tail.json"),
+                "fullOutputPath": str(root / "full.json"),
+                "timeoutRetryOutputPath": str(root / "retry.json"),
+                "outputPath": str(root / "merged.json"),
+            }
+
+            report = build_combined_market_report(
+                plan,
+                market=market,
+                static_report={"holderCount": 4, "resolvedCount": 2, "unresolvedCount": 2},
+                full_summary={"counts": {"eval_timeout": 2}},
+                timeout_retry_summary={"completed": 2},
+                merged_summary={"counts": {"verified_nonstandard": 5, "eval_timeout": 1, "no_data": 1}},
+                forensic_report={"blockingRows": [], "informationalRows": []},
+                tail_report={"likelyCauseCounts": {}},
+            )
+
+            self.assertEqual(report["auditVerdict"]["status"], "pass")
+            self.assertEqual(report["rawDiagnostics"]["counts"], {"eval_timeout": 1, "no_data": 1})
+            self.assertEqual(report["timeoutRetryInputCount"], 2)
+            self.assertEqual(report["timeoutRetryCompletedCount"], 2)
 
 
 if __name__ == "__main__":

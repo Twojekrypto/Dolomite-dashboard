@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Set
 
 from audit_earn_asset import (
+    TIMEOUT_CATEGORIES,
     build_extracted_live_payload,
     build_forensic_live_report,
     merge_live_payloads,
@@ -64,6 +65,64 @@ NON_BLOCKING_PATTERNS = {
     "exact_hidden_collateral_non_strict_inferred",
     "exact_hidden_collateral_non_strict_fallback",
 }
+RAW_DIAGNOSTIC_CATEGORIES = set(TIMEOUT_CATEGORIES) | {"missing_position", "no_data"}
+
+
+def safe_int(value: object) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def raw_diagnostic_counts(counts: Optional[dict]) -> dict:
+    if not isinstance(counts, dict):
+        return {}
+    return {
+        category: value
+        for category, value in sorted((category, safe_int(counts.get(category))) for category in RAW_DIAGNOSTIC_CATEGORIES)
+        if value
+    }
+
+
+def build_raw_diagnostics(counts: Optional[dict]) -> dict:
+    diagnostics = raw_diagnostic_counts(counts)
+    return {
+        "total": sum(diagnostics.values()),
+        "counts": diagnostics,
+        "blocking": False,
+        "scope": "raw-live-phase",
+    }
+
+
+def build_audit_verdict(
+    *,
+    completed: bool,
+    failed_count: int = 0,
+    final_blocking_count: int = 0,
+    final_informational_count: int = 0,
+) -> dict:
+    if failed_count > 0:
+        status = "fail"
+        reason = "failed_markets"
+    elif final_blocking_count > 0:
+        status = "fail"
+        reason = "final_blocking_tail"
+    elif final_informational_count > 0:
+        status = "warn"
+        reason = "final_informational_tail"
+    elif not completed:
+        status = "pending"
+        reason = "awaiting_final_report"
+    else:
+        status = "pass"
+        reason = "final_combined_report_clean"
+    return {
+        "status": status,
+        "reason": reason,
+        "finalBlockingTailCount": int(final_blocking_count),
+        "finalInformationalTailCount": int(final_informational_count),
+    }
 
 
 def utc_now_iso() -> str:
@@ -508,6 +567,11 @@ def build_run_summary(plan: dict) -> dict:
     aggregate_tail_causes: Counter = Counter()
     completed_count = 0
     failed_count = 0
+    final_blocking_total = 0
+    final_informational_total = 0
+    timeout_retry_input_total = 0
+    timeout_retry_completed_total = 0
+    combined_report_count = 0
     for market in plan.get("markets") or []:
         entry = {
             "marketId": market.get("marketId"),
@@ -538,20 +602,41 @@ def build_run_summary(plan: dict) -> dict:
                 "missingPosition": summary_payload.get("missingPosition"),
                 "counts": summary_payload.get("counts") or {},
             }
+            entry["rawDiagnostics"] = build_raw_diagnostics(summary_payload.get("counts") or {})
             aggregate_counts.update(summary_payload.get("counts") or {})
+        final_blocking_count = 0
+        final_informational_count = 0
         if isinstance(report_payload, dict):
+            combined_report_count += 1
+            final_blocking_count = safe_int(report_payload.get("finalBlockingTailCount"))
+            final_informational_count = safe_int(report_payload.get("finalInformationalTailCount"))
+            timeout_retry_input_count = safe_int(report_payload.get("timeoutRetryInputCount"))
+            timeout_retry_completed_count = safe_int(report_payload.get("timeoutRetryCompletedCount"))
             entry["combinedReport"] = {
-                "finalBlockingTailCount": report_payload.get("finalBlockingTailCount"),
-                "finalInformationalTailCount": report_payload.get("finalInformationalTailCount"),
-                "timeoutRetryInputCount": report_payload.get("timeoutRetryInputCount"),
-                "timeoutRetryCompletedCount": report_payload.get("timeoutRetryCompletedCount"),
+                "finalBlockingTailCount": final_blocking_count,
+                "finalInformationalTailCount": final_informational_count,
+                "timeoutRetryInputCount": timeout_retry_input_count,
+                "timeoutRetryCompletedCount": timeout_retry_completed_count,
                 "tailLikelyCauseCounts": report_payload.get("tailLikelyCauseCounts") or {},
             }
             aggregate_tail_causes.update(report_payload.get("tailLikelyCauseCounts") or {})
+            final_blocking_total += final_blocking_count
+            final_informational_total += final_informational_count
+            timeout_retry_input_total += timeout_retry_input_count
+            timeout_retry_completed_total += timeout_retry_completed_count
         if market.get("status") == "failed":
             failed_count += 1
             entry["error"] = market.get("error")
+        entry["auditVerdict"] = build_audit_verdict(
+            completed=market.get("status") == "completed" and isinstance(report_payload, dict),
+            failed_count=1 if market.get("status") == "failed" else 0,
+            final_blocking_count=final_blocking_count,
+            final_informational_count=final_informational_count,
+        )
         market_rows.append(entry)
+    market_count = len(plan.get("markets") or [])
+    complete = all(str(row.get("status") or "") == "completed" for row in (plan.get("markets") or []))
+    diagnostic_counts = raw_diagnostic_counts(dict(aggregate_counts))
     return {
         "generatedAt": utc_now_iso(),
         "runId": plan.get("runId"),
@@ -559,10 +644,31 @@ def build_run_summary(plan: dict) -> dict:
         "canonicalTargetBlock": plan.get("canonicalTargetBlock"),
         "sourceSummaryPath": plan.get("sourceSummaryPath"),
         "sourceSnapshotDate": plan.get("sourceSnapshotDate"),
-        "marketCount": len(plan.get("markets") or []),
+        "marketCount": market_count,
         "completedMarketCount": completed_count,
         "failedMarketCount": failed_count,
-        "complete": all(str(row.get("status") or "") == "completed" for row in (plan.get("markets") or [])),
+        "combinedReportCount": combined_report_count,
+        "complete": complete,
+        "auditVerdict": build_audit_verdict(
+            completed=complete and completed_count == market_count and combined_report_count == market_count,
+            failed_count=failed_count,
+            final_blocking_count=final_blocking_total,
+            final_informational_count=final_informational_total,
+        ),
+        "finalTailTotals": {
+            "finalBlockingTailCount": final_blocking_total,
+            "finalInformationalTailCount": final_informational_total,
+            "timeoutRetryInputCount": timeout_retry_input_total,
+            "timeoutRetryCompletedCount": timeout_retry_completed_total,
+            "tailLikelyCauseCounts": dict(aggregate_tail_causes),
+        },
+        "rawDiagnosticCounts": diagnostic_counts,
+        "rawDiagnosticTotal": sum(diagnostic_counts.values()),
+        "countSemantics": {
+            "aggregateCounts": "Raw live-phase categories across full/merged pass results; diagnostic counts are not release blockers by themselves.",
+            "finalTailTotals": "Final combined-report tail after timeout retry, forensic filtering, and true-tail explanation.",
+            "auditVerdict": "Release readiness should be judged from final combined reports, not raw live-phase diagnostic counts.",
+        },
         "aggregateCounts": dict(aggregate_counts),
         "aggregateTailLikelyCauseCounts": dict(aggregate_tail_causes),
         "markets": market_rows,
@@ -766,6 +872,10 @@ def build_combined_market_report(
     forensic_report: dict,
     tail_report: dict,
 ) -> dict:
+    final_blocking_count = len(forensic_report.get("blockingRows") or [])
+    final_informational_count = len(forensic_report.get("informationalRows") or [])
+    timeout_retry_input_count = safe_int(read_json(Path(market["timeoutRetryInputPath"]), {}).get("inputCount"))
+    timeout_retry_completed_count = safe_int((timeout_retry_summary or {}).get("completed"))
     return {
         "generatedAt": utc_now_iso(),
         "chain": plan["chain"],
@@ -782,12 +892,18 @@ def build_combined_market_report(
             "rootCauseCounts": static_report.get("rootCauseCounts") or {},
         },
         "liveFullPass": full_summary,
-        "timeoutRetryInputCount": int(read_json(Path(market["timeoutRetryInputPath"]), {}).get("inputCount") or 0),
-        "timeoutRetryCompletedCount": int((timeout_retry_summary or {}).get("completed") or 0),
+        "timeoutRetryInputCount": timeout_retry_input_count,
+        "timeoutRetryCompletedCount": timeout_retry_completed_count,
         "liveTimeoutRetry": timeout_retry_summary,
         "liveMerged": merged_summary,
-        "finalBlockingTailCount": len(forensic_report.get("blockingRows") or []),
-        "finalInformationalTailCount": len(forensic_report.get("informationalRows") or []),
+        "finalBlockingTailCount": final_blocking_count,
+        "finalInformationalTailCount": final_informational_count,
+        "auditVerdict": build_audit_verdict(
+            completed=True,
+            final_blocking_count=final_blocking_count,
+            final_informational_count=final_informational_count,
+        ),
+        "rawDiagnostics": build_raw_diagnostics((merged_summary or {}).get("counts") or {}),
         "tailLikelyCauseCounts": tail_report.get("likelyCauseCounts") or {},
         "forensicPath": market["forensicPath"],
         "tailExplainPath": market["tailExplainPath"],
