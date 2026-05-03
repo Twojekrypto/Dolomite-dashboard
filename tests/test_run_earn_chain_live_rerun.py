@@ -5,7 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from run_earn_chain_live_rerun import build_live_plan, detect_external_live_audits
+from run_earn_chain_live_rerun import build_live_plan, detect_external_live_audits, live_audit_command
 
 
 class RunEarnChainLiveRerunTest(unittest.TestCase):
@@ -99,6 +99,31 @@ class RunEarnChainLiveRerunTest(unittest.TestCase):
             self.assertEqual(plan["localhostUrl"], "http://127.0.0.1:8921/index.html?cb=a")
             self.assertEqual(plan["debugJsonUrl"], "http://127.0.0.1:9555/json")
             self.assertEqual(plan["livePreset"], "dual-sharded")
+
+    def test_live_audit_command_passes_plan_preset_to_asset_auditor(self):
+        plan = {
+            "chain": "arbitrum",
+            "canonicalTargetBlock": 123,
+            "livePreset": "targeted-slow-retry",
+            "endpointPairs": [
+                {
+                    "localhostUrl": "http://127.0.0.1:8921/earn/",
+                    "debugJsonUrl": "http://127.0.0.1:9555/json",
+                }
+            ],
+        }
+        market = {"marketId": "0", "symbol": "WETH"}
+
+        cmd = live_audit_command(
+            plan,
+            market,
+            input_path=Path("/tmp/weth-input.json"),
+            output_path=Path("/tmp/weth-output.json"),
+            phase="timeout-retry",
+        )
+
+        preset_index = cmd.index("--live-preset")
+        self.assertEqual(cmd[preset_index + 1], "targeted-slow-retry")
 
     def test_build_live_plan_filters_known_missing_wallets_from_previous_live_results(self):
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -894,6 +894,34 @@ def build_live_audit_js(live_defaults: Optional[dict] = None, live_js_defaults: 
     return js
 
 
+def _coerce_positive_int(value: object, default: int) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return int(default)
+    return parsed if parsed > 0 else int(default)
+
+
+def build_live_js_defaults_for_args(args: argparse.Namespace) -> dict:
+    live_js_defaults = dict(AUDIT_LIVE_JS_DEFAULTS)
+    preset_live_js = getattr(args, "_live_js_defaults", None)
+    if isinstance(preset_live_js, dict):
+        live_js_defaults.update(preset_live_js)
+
+    max_wait_ms = getattr(args, "max_wait_ms", None)
+    if max_wait_ms is not None:
+        live_js_defaults["maxWaitMs"] = _coerce_positive_int(max_wait_ms, live_js_defaults["maxWaitMs"])
+
+    late_replay_grace_ms = getattr(args, "late_replay_grace_ms", None)
+    if late_replay_grace_ms is not None:
+        live_js_defaults["lateReplayGraceMs"] = _coerce_positive_int(
+            late_replay_grace_ms,
+            live_js_defaults["lateReplayGraceMs"],
+        )
+
+    return live_js_defaults
+
+
 LIVE_AUDIT_JS = build_live_audit_js()
 
 
@@ -1259,9 +1287,12 @@ def run_live_command(args: argparse.Namespace) -> int:
     endpoint_pairs = build_endpoint_pairs(args.localhost_url, args.debug_json_url)
     localhost_urls = [pair["localhostUrl"] for pair in endpoint_pairs]
     debug_json_urls = [pair["debugJsonUrl"] for pair in endpoint_pairs]
+    live_defaults = dict(AUDIT_LIVE_DEFAULTS)
+    live_defaults["workers"] = int(args.workers)
+    live_js_defaults = build_live_js_defaults_for_args(args)
 
     with tempfile.NamedTemporaryFile("w", suffix="_earn_live_audit.js", delete=False, encoding="utf-8") as tmp:
-        tmp.write(build_live_audit_js())
+        tmp.write(build_live_audit_js(live_defaults=live_defaults, live_js_defaults=live_js_defaults))
         js_path = Path(tmp.name)
 
     cmd = [
@@ -1298,6 +1329,7 @@ def apply_live_preset_overrides(args: argparse.Namespace) -> argparse.Namespace:
 
     preset = get_audit_earn_asset_defaults(preset_name)
     preset_live = preset["liveDefaults"]
+    args._live_js_defaults = preset.get("liveJs") or {}
     if args.localhost_url == AUDIT_LIVE_DEFAULTS["localhostUrl"]:
         args.localhost_url = preset_live["localhostUrl"]
     if args.debug_json_url == AUDIT_LIVE_DEFAULTS["debugJsonUrl"]:
@@ -1982,6 +2014,8 @@ def build_parser() -> argparse.ArgumentParser:
     live_parser.add_argument("--localhost-url", default=AUDIT_LIVE_DEFAULTS["localhostUrl"], help="Local dashboard URL or comma-separated list of dashboard URLs")
     live_parser.add_argument("--debug-json-url", default=AUDIT_LIVE_DEFAULTS["debugJsonUrl"], help="Chrome remote debugger /json endpoint or comma-separated list of endpoints")
     live_parser.add_argument("--workers", type=int, default=int(AUDIT_LIVE_DEFAULTS["workers"]), help="Parallel browser workers")
+    live_parser.add_argument("--max-wait-ms", type=int, help="Override per-wallet live replay wait budget")
+    live_parser.add_argument("--late-replay-grace-ms", type=int, help="Override extra wait budget when replay is still catching up")
     live_parser.add_argument("--block-tag", help="Optional fixed replay block tag to match canonical history freshness")
     live_parser.add_argument("--output", help="Where to write live audit results (default: /tmp)")
     live_parser.set_defaults(func=run_live_command)
