@@ -273,9 +273,10 @@ async function evaluateWithTimeout(cdp, source, timeoutMs, address) {
   }
 }
 
-function buildAuditSource(address) {
+function buildAuditSource(address, chain) {
   return `
     const address = ${JSON.stringify(address)};
+    const chain = ${JSON.stringify(chain || 'arbitrum')};
     const marketId = ${JSON.stringify(MARKET_ID)};
     const symbol = ${JSON.stringify(SYMBOL)};
     const pinnedBlockTag = ${JSON.stringify(PINNED_BLOCK_TAG)};
@@ -615,7 +616,7 @@ function buildAuditSource(address) {
       globalThis.__EARN_SNAPSHOT_FETCH_TIMEOUT_OVERRIDE__ = ${SNAPSHOT_FETCH_TIMEOUT_MS};
       resetState();
       switchView('earn');
-      earnChainSelect('arbitrum');
+      earnChainSelect(chain);
       document.getElementById('earn-address').value = address;
 
       const startedAt = performance.now();
@@ -823,7 +824,7 @@ async function main() {
       if (worker.runs > 0 && worker.runs % 25 === 0) {
         await initPage(worker.cdp, worker.baseUrl);
       }
-      const row = await evaluateWithTimeout(worker.cdp, buildAuditSource(address), EVALUATION_TIMEOUT_MS, address);
+      const row = await evaluateWithTimeout(worker.cdp, buildAuditSource(address, CHAIN), EVALUATION_TIMEOUT_MS, address);
       if (row && row.category === 'eval_timeout') {
         await initPage(worker.cdp, worker.baseUrl);
       }

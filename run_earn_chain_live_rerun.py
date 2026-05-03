@@ -797,6 +797,13 @@ def build_combined_market_report(
     }
 
 
+def live_phase_payload_is_complete(payload: dict, input_path: Path) -> bool:
+    input_payload = read_json(input_path, {})
+    expected = int(input_payload.get("inputCount") or len(input_payload.get("unresolved") or []))
+    completed = int(payload.get("completed") or len(payload.get("results") or []))
+    return expected <= 0 or completed >= expected
+
+
 def ensure_live_phase_payload(
     plan: dict,
     *,
@@ -806,7 +813,7 @@ def ensure_live_phase_payload(
     output_path: Path,
 ) -> dict:
     payload = read_json(output_path, None)
-    if isinstance(payload, dict):
+    if isinstance(payload, dict) and live_phase_payload_is_complete(payload, input_path):
         return payload
     cmd = live_audit_command(plan, market, input_path=input_path, output_path=output_path, phase=phase)
     proc = subprocess.run(cmd, cwd=str(ROOT), check=False)
