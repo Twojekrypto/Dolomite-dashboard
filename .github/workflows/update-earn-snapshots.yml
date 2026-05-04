@@ -11,7 +11,7 @@ permissions:
 jobs:
   update-snapshots:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
@@ -37,7 +37,7 @@ jobs:
           root = Path("data/earn-snapshots")
           manifest = json.load((root / "manifest.json").open())
           today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-          chains = {"arbitrum", "berachain", "ethereum", "mantle"}
+          chains = {"arbitrum", "berachain", "ethereum", "mantle", "botanix"}
 
           assert today in manifest.get("dates", []), f"Today's snapshot date missing from manifest: {today}"
           manifest_chains = set(manifest.get("chains", {}).get(today, []))
