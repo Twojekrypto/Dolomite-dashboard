@@ -25,6 +25,7 @@
 - **Stablecoin formatting**: Stablecoins should show fewer decimals (1) since their values are close to $1. Volatile tokens need more precision (6 decimals).
 - **Earn routed collateral is not withdrawn**: In Earn, assets parked inside a borrow subaccount as collateral must not be labeled `WITHDRAWN`. Use `BORROW COLLATERAL` / routed language and keep true `WITHDRAWN` only for assets that are no longer active supply/collateral/borrow-route positions.
 - **Open borrow collateral yield is not normal closed yield**: If Earn replay shows yield on collateral still routed inside an open borrow position (for example WETH marked `BORROW COLLATERAL`), show it as open/borrow-route collateral yield and keep it separated from ordinary `Total Yield Earned`. It can become normal realized/closed-route yield only after the route is closed or the collateral leaves the borrow route.
+- **Borrow-position collateral yield must use replay ledger**: In Borrow Positions details, never calculate routed collateral yield from `par * supplyIndex - par`. That is market-index math and can overstate a specific user's open route. Use the per-account replay `liveYield` / open-collateral yield so Borrow Positions and Past & Routed show the same wallet-level basis.
 
 ## Browser Subagent Tips
 - **Give explicit wait times**: Subagents need clear wait durations for data-loading pages. "Wait 8 seconds" works better than "wait for data".
@@ -141,6 +142,7 @@
 - **User rejected risk labels**: Status labels (STRONG/GOOD/DANGER) next to HF badge were explicitly rejected — user felt they could scare people or be distracting. Keep HF as numeric-only with color-coded dot/badge.
 - **Inline Net P&L**: Showing realized P&L directly in the collapsed row (4th column) is better UX than hiding it in the expandable detail panel — users see the most important info without clicking.
 - **Borrow row alignment contract**: In Borrow Positions, the Collateral/Debt merged columns must stay left-aligned like Supply Assets and Past & Routed rows; only Net P&L is right-aligned. Broad table text-align rules must explicitly exempt or override `.earn-merged-col`, `.earn-merged-tokens`, and `.earn-merged-token`, otherwise token names drift toward the center and the table stops matching the Earn UX.
+- **Earn section title alignment**: Supply Assets, Borrow Positions, and Past & Routed Assets headers must share the same fixed icon shell width and icon-to-title gap. Browser-verify `.earn-section-title.getBoundingClientRect().left` across all three headers after any Earn header CSS change.
 - **Ratio bar under HF**: 3px thin gradient bar showing debt/collateral utilization ratio provides visual context without being alarming. Color follows the existing risk class system.
 - **E-Mode inline**: When reducing columns, move secondary badges (E-Mode) inline with HF instead of giving them a whole column — saves horizontal space.
 - **Data flow tracing**: When mapping protocol logic (like oDOLO Vester 7-day delays), ensure data pipelines match real user-flow outcomes (ERC721 Transfers vs initial Deposits) rather than stopping at the intermediate contract locking step.
