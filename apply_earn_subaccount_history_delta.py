@@ -182,11 +182,11 @@ def apply_delta_histories(
     missing_existing: List[str] = []
     stale_existing: List[str] = []
     already_fresh: List[str] = []
-    touched_selected_count = 0
-    stamped_count = 0
+    appended_addresses = set()
     appended_count = 0
     event_count = 0
     shard_count = 0
+    previous_last_blocks: Dict[str, int] = {}
 
     for address in selected_addresses:
         history_path = _history_path(history_dir, chain, address)
@@ -201,10 +201,11 @@ def apply_delta_histories(
         if last_scanned_block >= delta_target_block:
             already_fresh.append(address)
             continue
-        if last_scanned_block != delta_from_block - 1:
+        if last_scanned_block < delta_from_block - 1:
             stale_existing.append(address)
             continue
 
+        previous_last_blocks[address] = last_scanned_block
         history["lastScannedBlock"] = int(delta_target_block)
         history["generatedAt"] = _utc_now_iso()
         scan_range = history.setdefault("scanRange", {})
@@ -215,10 +216,6 @@ def apply_delta_histories(
         source_meta["latestSnapshotDate"] = source_snapshot_date
         source_meta["lastNetflowBlock"] = source_netflow_last_block
         updated_histories[address] = history
-        if address in touched_addresses:
-            touched_selected_count += 1
-        else:
-            stamped_count += 1
 
     if not updated_histories:
         payload = {
@@ -264,12 +261,24 @@ def apply_delta_histories(
             owner_events = owners.get(address) or []
             if not owner_events:
                 continue
-            appended_count += 1
+            min_event_block = int(previous_last_blocks.get(address, delta_from_block - 1)) + 1
+            relevant_events = []
             for event in owner_events:
                 if not isinstance(event, dict):
                     continue
+                try:
+                    block_number = int(event.get("blockNumber") or 0)
+                except Exception:
+                    block_number = 0
+                if min_event_block <= block_number <= delta_target_block:
+                    relevant_events.append(event)
+            if not relevant_events:
+                continue
+            appended_addresses.add(address)
+            for event in relevant_events:
                 _append_normalized_event(updated_histories[address], event)
                 event_count += 1
+            appended_count = len(appended_addresses)
         shard_count += 1
         progress_payload = {
             "chain": chain,
@@ -277,8 +286,8 @@ def apply_delta_histories(
             "targetBlock": delta_target_block,
             "selectedAddressCount": len(selected_addresses),
             "updatedAddressCount": len(updated_histories),
-            "touchedSelectedAddressCount": touched_selected_count,
-            "stampedAddressCount": stamped_count,
+            "touchedSelectedAddressCount": len(appended_addresses),
+            "stampedAddressCount": len(updated_histories) - len(appended_addresses),
             "appendedAddressCount": appended_count,
             "missingExistingCount": len(missing_existing),
             "staleExistingCount": len(stale_existing),
@@ -309,8 +318,8 @@ def apply_delta_histories(
         "targetBlock": delta_target_block,
         "selectedAddressCount": len(selected_addresses),
         "updatedAddressCount": len(finalized),
-        "touchedSelectedAddressCount": touched_selected_count,
-        "stampedAddressCount": stamped_count,
+        "touchedSelectedAddressCount": len(appended_addresses),
+        "stampedAddressCount": len(finalized) - len(appended_addresses),
         "appendedAddressCount": appended_count,
         "missingExistingCount": len(missing_existing),
         "staleExistingCount": len(stale_existing),

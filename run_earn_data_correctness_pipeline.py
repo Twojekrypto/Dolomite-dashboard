@@ -32,6 +32,20 @@ SCAN_LOG_SUBDIR = ".logs"
 PROGRESS_SUBDIR = ".progress"
 
 
+def _runner_session_id() -> str:
+    explicit = os.environ.get("EARN_RUNNER_SESSION_ID")
+    if explicit:
+        return explicit
+    github_run_id = os.environ.get("GITHUB_RUN_ID")
+    if github_run_id:
+        attempt = os.environ.get("GITHUB_RUN_ATTEMPT") or "1"
+        return f"github-{github_run_id}-{attempt}"
+    return "local"
+
+
+RUNNER_SESSION_ID = _runner_session_id()
+
+
 def _utc_now_iso() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
@@ -77,6 +91,19 @@ def _is_pid_alive(pid: Optional[int]) -> bool:
         return True
     except OSError:
         return False
+
+
+def _launch_run_belongs_to_session(run: dict) -> bool:
+    session_id = str(run.get("runnerSessionId") or "")
+    if session_id:
+        return session_id == RUNNER_SESSION_ID
+    return not os.environ.get("GITHUB_ACTIONS")
+
+
+def _is_launch_run_alive(run: object) -> bool:
+    if not isinstance(run, dict) or not _launch_run_belongs_to_session(run):
+        return False
+    return _is_pid_alive(run.get("pid"))
 
 
 def _progress_dir(base_dir: Path) -> Path:
@@ -359,15 +386,27 @@ def _materialize_task_argv(task: dict) -> List[str]:
         argv.extend([
             "--all-known-addresses",
         ])
-    if task.get("startIndex") is not None:
+    if not address_file and task.get("startIndex") is not None:
         argv.extend(["--start-index", str(task["startIndex"])])
-    if task.get("endIndex") is not None:
+    if not address_file and task.get("endIndex") is not None:
         argv.extend(["--end-index", str(task["endIndex"])])
     return argv
 
 
 def _with_chain(task_list: Iterable[dict], chain: str) -> List[dict]:
     return [{**task, "chain": chain} for task in task_list]
+
+
+def _progress_satisfies_task(progress: object, task: dict) -> bool:
+    if not isinstance(progress, dict) or str(progress.get("status") or "") != "completed":
+        return False
+    expected_target = task.get("targetBlock")
+    if expected_target is None:
+        return True
+    try:
+        return int(progress.get("targetBlock") or 0) >= int(expected_target)
+    except Exception:
+        return False
 
 
 def _ensure_scan_tasks_running(chain: str, *, plan: dict, events_dir: Path) -> dict:
@@ -384,7 +423,7 @@ def _ensure_scan_tasks_running(chain: str, *, plan: dict, events_dir: Path) -> d
             skipped.append({"progressKey": key, "reason": "completed"})
             continue
         existing = runs.get(key)
-        if existing and _is_pid_alive(existing.get("pid")):
+        if existing and _is_launch_run_alive(existing):
             skipped.append({"progressKey": key, "reason": "already_running", "pid": existing.get("pid")})
             continue
         log_path = _log_dir(events_dir) / f"{key}.log"
@@ -395,6 +434,7 @@ def _ensure_scan_tasks_running(chain: str, *, plan: dict, events_dir: Path) -> d
             "logPath": str(log_path),
             "argv": _scan_task_argv(task),
             "startedAt": _utc_now_iso(),
+            "runnerSessionId": RUNNER_SESSION_ID,
         }
         runs[key] = run_payload
         started.append({"progressKey": key, "pid": pid})
@@ -405,6 +445,7 @@ def _ensure_scan_tasks_running(chain: str, *, plan: dict, events_dir: Path) -> d
         "targetBlock": plan.get("targetBlock"),
         "scanWorkers": plan.get("scanWorkers"),
         "materializeWorkers": plan.get("materializeWorkers"),
+        "runnerSessionId": RUNNER_SESSION_ID,
         "runs": list(runs.values()),
     }
     _save_launch(launch_path, launch_payload)
@@ -447,11 +488,11 @@ def _ensure_task_set_running(chain: str, *, tasks: List[dict], history_dir: Path
     for task in tasks:
         key = str(task["progressKey"])
         progress = _read_json(_materialize_progress_path(history_dir, chain, key), None)
-        if isinstance(progress, dict) and str(progress.get("status") or "") == "completed":
+        if _progress_satisfies_task(progress, task):
             skipped.append({"progressKey": key, "reason": "completed"})
             continue
         existing = runs.get(key)
-        if existing and _is_pid_alive(existing.get("pid")):
+        if existing and _is_launch_run_alive(existing):
             skipped.append({"progressKey": key, "reason": "already_running", "pid": existing.get("pid")})
             continue
         log_path = _log_dir(history_dir) / f"{key}.log"
@@ -462,6 +503,7 @@ def _ensure_task_set_running(chain: str, *, tasks: List[dict], history_dir: Path
             "logPath": str(log_path),
             "argv": _materialize_task_argv(task),
             "startedAt": _utc_now_iso(),
+            "runnerSessionId": RUNNER_SESSION_ID,
         }
         runs[key] = run_payload
         started.append({"progressKey": key, "pid": pid})
@@ -470,6 +512,7 @@ def _ensure_task_set_running(chain: str, *, tasks: List[dict], history_dir: Path
         "updatedAt": _utc_now_iso(),
         "chain": chain,
         "targetBlock": _max_positive_int([task.get("targetBlock") for task in tasks]) or launch.get("targetBlock"),
+        "runnerSessionId": RUNNER_SESSION_ID,
         "runs": list(runs.values()),
     }
     _save_launch(launch_path, launch_payload)
@@ -487,7 +530,7 @@ def _stage_status(base_dir: Path, chain: str, stage: str) -> dict:
         runs.append({
             "progressKey": run.get("progressKey"),
             "pid": run.get("pid"),
-            "alive": _is_pid_alive(run.get("pid")),
+            "alive": _is_launch_run_alive(run),
             "logPath": run.get("logPath"),
             "startedAt": run.get("startedAt"),
         })
@@ -514,6 +557,7 @@ def _progress_summary_for_prefix(history_dir: Path, chain: str, *, prefix: Optio
         workers.append({
             "progressKey": progress_key,
             "status": status,
+            "targetBlock": payload.get("targetBlock"),
             "materializedAddressCount": payload.get("materializedAddressCount"),
             "pendingAddressCount": payload.get("pendingAddressCount"),
             "path": payload.get("_path"),
@@ -534,25 +578,29 @@ def _repair_progress_summary(history_dir: Path, chain: str) -> dict:
 
 
 def _materialize_stage_complete(chain: str, *, history_dir: Path, plan: dict) -> bool:
-    expected_workers = len(plan.get("materializeTasks") or [])
-    progress = _materialize_progress_summary(history_dir, chain)
-    if expected_workers == 0:
+    tasks = _with_chain(plan.get("materializeTasks") or [], chain)
+    for task in tasks:
+        task["targetBlock"] = plan.get("targetBlock")
+    if not tasks:
         return True
-    return bool(
-        progress.get("workerCount") == expected_workers
-        and progress.get("completedWorkerCount") == expected_workers
-    )
+    progress_by_key = {
+        str(payload.get("progressKey") or ""): payload
+        for payload in _materialize_progress_payloads(history_dir, chain)
+    }
+    return all(_progress_satisfies_task(progress_by_key.get(str(task.get("progressKey") or "")), task) for task in tasks)
 
 
 def _repair_stage_complete(chain: str, *, history_dir: Path, repair_plan: dict) -> bool:
-    expected_workers = len(repair_plan.get("tasks") or [])
-    progress = _repair_progress_summary(history_dir, chain)
-    if expected_workers == 0:
+    tasks = _with_chain(repair_plan.get("tasks") or [], chain)
+    for task in tasks:
+        task["targetBlock"] = repair_plan.get("targetBlock")
+    if not tasks:
         return True
-    return bool(
-        progress.get("workerCount") == expected_workers
-        and progress.get("completedWorkerCount") == expected_workers
-    )
+    progress_by_key = {
+        str(payload.get("progressKey") or ""): payload
+        for payload in _materialize_progress_payloads(history_dir, chain)
+    }
+    return all(_progress_satisfies_task(progress_by_key.get(str(task.get("progressKey") or "")), task) for task in tasks)
 
 
 def _selected_addresses_for_repair(

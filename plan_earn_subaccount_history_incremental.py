@@ -127,9 +127,9 @@ def build_incremental_plan(
     else:
         current_known = known_addresses
     selected_set = set(current_known)
-    existing_addresses = _history_addresses(history_dir, chain)
-    if selected_addresses:
-        existing_addresses = [address for address in existing_addresses if address in selected_set]
+    all_existing_addresses = _history_addresses(history_dir, chain)
+    all_existing_set = set(all_existing_addresses)
+    existing_addresses = [address for address in all_existing_addresses if address in selected_set]
     existing_set = set(existing_addresses)
     base_target = _base_target_block(history_dir, chain)
     target_block = _resolve_target_block(chain, to_block)
@@ -149,7 +149,7 @@ def build_incremental_plan(
             stale_existing.append(address)
 
     new_addresses = sorted(set(current_known) - existing_set)
-    orphaned_histories = sorted(existing_set - set(current_known))
+    orphaned_histories = sorted(all_existing_set - set(current_known))
     delta_required = target_block > base_target
     delta_from_block = base_target + 1
 

@@ -19,11 +19,15 @@ from audit_earn_asset import ROOT, build_live_audit_js
 
 
 PYTHON_FILES = [
+    ROOT / "apply_earn_subaccount_history_delta.py",
     ROOT / "audit_earn_asset.py",
     ROOT / "build_earn_subaccount_history.py",
     ROOT / "earn_live_config.py",
+    ROOT / "materialize_earn_subaccount_history.py",
     ROOT / "plan_earn_subaccount_history_incremental.py",
+    ROOT / "plan_earn_subaccount_history_repairs.py",
     ROOT / "run_earn_chain_live_rerun.py",
+    ROOT / "run_earn_canonical_history_refresh.py",
     ROOT / "run_earn_data_correctness_pipeline.py",
     ROOT / "run_earn_subaccount_history_incremental.py",
 ]
