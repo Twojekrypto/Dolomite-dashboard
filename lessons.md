@@ -124,6 +124,7 @@
 - **Selected tokens at top**: In `renderList()`, split the `sorted` array into `selectedItems` and `unselectedItems`, then concatenate `[...selectedItems, ...unselectedItems]`. Add a visual separator (thin cyan line) between sections.
 - **Clear X buttons**: Add `.col-filter-clear` button next to each `.col-filter-btn`. Use CSS sibling selector `.col-filter-btn.has-active ~ .col-filter-clear { display: inline-flex; }` to show only when filter is active.
 - **Protocol Info card**: Can be reused across pages by putting the rendering logic in an IIFE and using standalone class names (`.liq-proto-links`, `.liq-proto-contracts`) instead of sharing the same class as index.html.
+- **Shared Protocol Info UX**: Keep `.protocol-info-card` visually shared across dashboard tabs (DOLO, assets, EARN, etc.). Do not add tab-specific skins for the shared card unless the same design change is made globally.
 - **Table container clipping**: When table has few rows (e.g., after dpglv filter), popovers can appear clipped. Add `min-height: 350px` to `.table-container` as a safety net. The `position: fixed` + `positionPopoverFixed()` pattern already handles viewport clamping.
 
 ## Earn Tab — Hide Dust Toggle
