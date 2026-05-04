@@ -816,6 +816,49 @@ body.earn-draft-route .earn-lending-count {
   font-family: var(--earn-mono);
 }
 
+body.earn-draft-route .earn-section-collapse-button {
+  width: 30px !important;
+  height: 30px !important;
+  margin-left: auto !important;
+  padding: 0 !important;
+  flex: 0 0 30px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(var(--earn-section-rgb), .22) !important;
+  background: rgba(var(--earn-section-rgb), .08) !important;
+  color: var(--earn-section-accent) !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+  transition: border-color .15s var(--earn-ease), background .15s var(--earn-ease), color .15s var(--earn-ease) !important;
+}
+
+body.earn-draft-route .earn-supply-controls + .earn-section-collapse-button {
+  margin-left: 10px !important;
+}
+
+body.earn-draft-route .earn-section-collapse-button:hover,
+body.earn-draft-route .earn-section-collapse-button:focus-visible {
+  border-color: rgba(var(--earn-section-rgb), .34) !important;
+  background: rgba(var(--earn-section-rgb), .13) !important;
+  color: var(--earn-fg-1) !important;
+  outline: none !important;
+}
+
+body.earn-draft-route .earn-section-chevron,
+body.earn-draft-route .earn-past-chevron {
+  width: 16px !important;
+  height: 16px !important;
+  transition: transform .28s var(--earn-ease) !important;
+}
+
+body.earn-draft-route #earn-supply-section.open .earn-section-chevron,
+body.earn-draft-route #earn-lending-section.open .earn-section-chevron,
+body.earn-draft-route .earn-past-header.open .earn-past-chevron {
+  transform: rotate(180deg) !important;
+}
+
 body.earn-draft-route .earn-section-table-shell:not(.earn-past-body),
 body.earn-draft-route .earn-table-scroll {
   --earn-table-head-h: 40px;
@@ -830,6 +873,29 @@ body.earn-draft-route .earn-table-scroll {
   box-shadow: none !important;
   scrollbar-color: rgba(201, 162, 39, .45) rgba(255, 255, 255, .04);
   scrollbar-width: thin;
+}
+
+body.earn-draft-route .earn-collapsible-body {
+  transition: max-height .4s var(--earn-ease), opacity .2s var(--earn-ease) !important;
+  opacity: 1 !important;
+}
+
+body.earn-draft-route #earn-supply-section:not(.open) .earn-collapsible-body,
+body.earn-draft-route #earn-lending-section:not(.open) .earn-collapsible-body {
+  max-height: 0 !important;
+  overflow: hidden !important;
+  opacity: 0 !important;
+}
+
+body.earn-draft-route #earn-supply-section:not(.open) .earn-supply-empty-state {
+  display: none !important;
+}
+
+body.earn-draft-route #earn-supply-section:not(.open) .earn-supply-header,
+body.earn-draft-route #earn-lending-section:not(.open) .earn-lending-header,
+body.earn-draft-route #earn-past-section .earn-past-header:not(.open) {
+  border-radius: 22px !important;
+  border-bottom-color: transparent !important;
 }
 
 body.earn-draft-route .earn-past-body {
@@ -1070,6 +1136,49 @@ body.earn-draft-route .earn-detail-chip.routed {
   color: var(--earn-gold-hi) !important;
   border-color: var(--earn-gold-line) !important;
   background: var(--earn-gold-wash) !important;
+}
+
+body.earn-draft-route .earn-hist-badge,
+body.earn-draft-route .earn-verify-badge,
+body.earn-draft-route .earn-debug-badge {
+  height: 20px !important;
+  min-height: 20px !important;
+  padding: 0 7px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  border-radius: 999px !important;
+  font-family: 'Inter', system-ui, sans-serif !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  letter-spacing: .1px !important;
+  text-transform: none !important;
+  white-space: nowrap !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035) !important;
+}
+
+body.earn-draft-route .earn-hist-badge .earn-status-dot,
+body.earn-draft-route .earn-verify-badge .earn-status-dot,
+body.earn-draft-route .earn-debug-badge .earn-status-dot {
+  width: 4px !important;
+  height: 4px !important;
+  flex: 0 0 4px !important;
+  border-radius: 999px !important;
+  box-shadow: 0 0 6px currentColor !important;
+}
+
+body.earn-draft-route .earn-hist-badge.routed,
+body.earn-draft-route .earn-debug-badge.routed {
+  color: var(--earn-gold-hi) !important;
+  border-color: rgba(201, 162, 39, .26) !important;
+  background: rgba(201, 162, 39, .09) !important;
+}
+
+body.earn-draft-route .earn-verify-badge.verified {
+  color: var(--earn-up) !important;
+  border-color: rgba(117, 184, 123, .26) !important;
+  background: rgba(117, 184, 123, .09) !important;
 }
 
 body.earn-draft-route .earn-lending-table .earn-merged-col {
@@ -2016,6 +2125,10 @@ body.earn-draft-route .earn-dolo-proto-explore svg {
     width: 100%;
     justify-content: flex-start;
     flex-wrap: wrap;
+    margin-left: 0 !important;
+  }
+
+  body.earn-draft-route .earn-section-collapse-button {
     margin-left: 0 !important;
   }
 
