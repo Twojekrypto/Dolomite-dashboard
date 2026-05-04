@@ -30021,12 +30021,17 @@
             const isOpenBorrowRouteYield = !!opts.openBorrowRouteYield;
             const yieldPanelLabel = isOpenBorrowRouteYield ? 'Borrow Route Yield' : 'Yield Performance';
             const yieldHeroLabel = isOpenBorrowRouteYield ? 'Open Borrow Collateral Yield' : 'Total Net Yield';
-
-            const yieldClass = !yieldCalc || !yieldCalc.hasData
+            const heroYield = yieldCalc && yieldCalc.hasData
+                ? (isOpenBorrowRouteYield ? BigInt(yieldCalc.openCollateralYield || '0') : BigInt(yieldCalc.totalYield || '0'))
+                : 0n;
+            const heroYieldAbs = heroYield < 0n ? -heroYield : heroYield;
+            const heroYieldClass = !yieldCalc || !yieldCalc.hasData
                 ? ''
-                : yieldCalc.yieldPositive
+                : heroYield >= 0n
                     ? 'positive'
                     : 'negative';
+            const heroYieldSign = heroYield > 0n ? '+' : heroYield < 0n ? '-' : '';
+            const heroYieldFmt = earn_formatAmount(heroYieldAbs, decimals, symbol);
             const liveEarnClass = (yieldCalc && yieldCalc.hasData)
                 ? (yieldCalc.openSupplyYield >= 0n ? 'positive' : 'negative')
                 : '';
@@ -30040,6 +30045,8 @@
             const metaChips = [];
             if (isOpenBorrowRouteYield) {
                 metaChips.push(`<span class="earn-detail-chip routed" data-tip="${earn_escapeHtml('This yield is still inside an open borrow route and is not treated as free/closed Total Yield Earned until collateral leaves the route.')}">Open Route</span>`);
+            } else if (yieldCalc && yieldCalc.openBorrowRouteYieldExcluded) {
+                metaChips.push(`<span class="earn-detail-chip routed" data-tip="${earn_escapeHtml('Open borrow-route collateral yield is separated from Total Yield Earned while the route remains open.')}">Route Separated</span>`);
             }
             metaChips.push(`<span class="earn-detail-chip ${methodMeta.cls}" data-tip="${earn_escapeHtml(methodMeta.title)}">${earn_escapeHtml(methodMeta.label)}</span>`);
 
@@ -30102,7 +30109,7 @@
 
                                 <div class="earn-detail-hero">
                                     <div class="earn-detail-hero-label">${yieldHeroLabel}</div>
-                                    <div class="earn-detail-hero-value ${yieldClass}">${yieldCalc && yieldCalc.hasData ? `${yieldCalc.yieldSign}${yieldCalc.yieldFmt} <span style="font-size:12px;color:currentColor;opacity:0.72;font-weight:600">${symbol}</span>` : '—'}</div>
+                                    <div class="earn-detail-hero-value ${heroYieldClass}">${yieldCalc && yieldCalc.hasData ? `${heroYieldSign}${heroYieldFmt} <span style="font-size:12px;color:currentColor;opacity:0.72;font-weight:600">${symbol}</span>` : '—'}</div>
                                 </div>
 
                                 <div class="earn-detail-rowline">
@@ -30562,9 +30569,24 @@
                 openBorrowYield += alignedReplayWeiDrift.borrowYieldCorrection;
             }
 
+            const rawTotalYield = totalYield;
+            const replayMethodHasOpenRouteBuckets = (
+                method === 'interest-ledger'
+                || method === 'interest-ledger-override'
+                || method === 'interest-ledger-live-balance-adjusted'
+            );
+            const openBorrowRouteYieldExcluded = replayMethodHasOpenRouteBuckets && openCollateralYield !== 0n;
+            if (openBorrowRouteYieldExcluded) {
+                totalYield -= openCollateralYield;
+            }
+
             const price = earn_getUsdPrice(symbol, tokenAddr, chainId);
             const yieldUsdScaled = earn_getUsdValueScaled(totalYield, decimals, price);
+            const rawYieldUsdScaled = earn_getUsdValueScaled(rawTotalYield, decimals, price);
+            const openCollateralYieldUsdScaled = earn_getUsdValueScaled(openCollateralYield, decimals, price);
             const yieldUsd = earn_scaledUsdToNumber(yieldUsdScaled);
+            const rawYieldUsd = earn_scaledUsdToNumber(rawYieldUsdScaled);
+            const openCollateralYieldUsd = earn_scaledUsdToNumber(openCollateralYieldUsdScaled);
             const absYield = totalYield < 0n ? -totalYield : totalYield;
             const canonicalHistoryCoverageStatus = earn_getCanonicalSubaccountHistoryCoverageStatus();
             const requiresCanonicalHistoryForReplay = (
@@ -30595,13 +30617,22 @@
                 hasData: true,
                 method,
                 totalYield,
+                rawTotalYield,
                 absYield,
                 yieldUsdScaled,
+                rawYieldUsdScaled,
                 yieldUsd,
+                rawYieldUsd,
                 settledYield,
                 openSupplyYield,
                 openCollateralYield,
+                openCollateralYieldUsdScaled,
+                openCollateralYieldUsd,
                 openBorrowYield,
+                countableYield: totalYield,
+                countableYieldUsdScaled: yieldUsdScaled,
+                countableYieldUsd: yieldUsd,
+                openBorrowRouteYieldExcluded,
                 yieldPositive: totalYield >= 0n,
                 yieldSign: totalYield > 0n ? '+' : totalYield < 0n ? '-' : '',
                 yieldColor: totalYield >= 0n ? 'earn-yield-positive' : 'earn-yield-negative',
@@ -30636,12 +30667,21 @@
                     currentWei: item.currentWei,
                     currentPar: item.currentPar,
                 }, { applyHistoryGuards: true });
+                const displayYieldWei = item.isCollateralized && calc.openCollateralYield !== undefined
+                    ? BigInt(calc.openCollateralYield || '0')
+                    : BigInt(calc.totalYield || '0');
+                const displayYieldUsdScaled = item.isCollateralized && calc.openCollateralYieldUsdScaled !== undefined
+                    ? BigInt(calc.openCollateralYieldUsdScaled || '0')
+                    : BigInt(calc.yieldUsdScaled || '0');
 
                 item.hasYieldData = calc.hasData;
                 item.yieldMethod = calc.method;
-                item.yieldWei = calc.totalYield;
-                item.yieldUsdScaled = calc.yieldUsdScaled;
-                item.yieldUsd = calc.yieldUsd;
+                item.yieldWei = calc.hasData ? displayYieldWei : 0n;
+                item.yieldUsdScaled = calc.hasData ? displayYieldUsdScaled : 0n;
+                item.yieldUsd = calc.hasData ? earn_scaledUsdToNumber(displayYieldUsdScaled) : 0;
+                item.countableYieldWei = calc.countableYield !== undefined ? calc.countableYield : calc.totalYield;
+                item.rawTotalYieldWei = calc.rawTotalYield !== undefined ? calc.rawTotalYield : calc.totalYield;
+                item.openCollateralYieldWei = calc.openCollateralYield !== undefined ? calc.openCollateralYield : 0n;
             });
 
             earn_historyData.sort((a, b) => earn_compareBigInt(b.yieldUsdScaled || 0n, a.yieldUsdScaled || 0n));
@@ -36534,9 +36574,15 @@
                         }
                         if (verifiedYieldCalc.hasData && verifiedYieldCalc.trustedForTotal) {
                             trustedYieldAssetCount++;
-                            totalYieldUsdScaled += BigInt(verifiedYieldCalc.yieldUsdScaled || 0n);
-                            if ((verifiedYieldCalc.yieldUsdScaled || 0n) > bestYieldUsdScaled) {
-                                bestYieldUsdScaled = verifiedYieldCalc.yieldUsdScaled || 0n;
+                            const countableYieldUsdScaled = BigInt(verifiedYieldCalc.yieldUsdScaled || 0n);
+                            const routeYieldUsdScaled = BigInt(verifiedYieldCalc.openCollateralYieldUsdScaled || 0n);
+                            totalYieldUsdScaled += countableYieldUsdScaled;
+                            if (routeYieldUsdScaled !== 0n) {
+                                openRouteYieldUsdScaled += routeYieldUsdScaled;
+                                openRouteYieldAssetCount++;
+                            }
+                            if (countableYieldUsdScaled > bestYieldUsdScaled) {
+                                bestYieldUsdScaled = countableYieldUsdScaled;
                                 bestSymbol = a.symbol;
                             }
                             return;
