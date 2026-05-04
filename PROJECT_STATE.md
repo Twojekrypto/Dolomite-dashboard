@@ -1,8 +1,9 @@
 # Dolomite Dashboard — Project State
 
-> **Ostatnia aktualizacja:** 2026-03-15
-> **Live:** https://twojekrypto.github.io/dolomite-dashboard/
-> **Repo:** GitHub Pages (branch `master`)
+> **Ostatnia aktualizacja:** 2026-05-04
+> **Live:** https://twojekrypto.github.io/Dolomite-dashboard/
+> **Repo:** `Twojekrypto/Dolomite-dashboard` GitHub Pages (branch `master`)
+> **Legacy:** `Twojekrypto/vedolo-dashboard` jest wygaszany i nie jest miejscem na nowe zmiany dashboardu.
 
 ---
 
@@ -59,7 +60,7 @@ Dolomite website/
 
 - **Hosting:** GitHub Pages z branch `master`
 - **CI/CD:** 7 GitHub Actions workflows (cron-based, co 6-24h)
-- **WAŻNE:** Push na **oba** branche: `git push origin main && git push origin main:master`
+- **WAŻNE:** Nowe zmiany dashboardu pushujemy do remote `dolomite-dashboard` na branch `master`
 - **Cache:** `fetch_early_exits.py` używa `early_exits_cache.json` (GH Actions cache)
 
 ## ⚠️ Kluczowe Reguły

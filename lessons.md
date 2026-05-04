@@ -30,7 +30,8 @@
 - **Layout Alignment Checks**: After making layout/flexbox changes to the UI, always spawn a browser subagent instructed to navigate to the specific component and visually verify alignment (left vs right, vertical centering) vs the design requirement *before* committing. Do not blindly assume your HTML injected correctly.
 
 ## GitHub Pages Deployment
-- **Always push to `master`**: This repo's GitHub Pages serves from `master` branch, not `main`. Always push to both: `git push origin main && git push origin main:master`.
+- **Active production repo is `Twojekrypto/Dolomite-dashboard`**: Treat `vedolo-dashboard` as legacy/retiring. In this local checkout, `dolomite-dashboard` is the remote for production pushes; do not deploy new dashboard changes to old `origin` unless explicitly requested.
+- **Always push production to `master`**: The Dolomite Dashboard GitHub Pages site serves from `master`. When pushing from this checkout, use the `dolomite-dashboard` remote, e.g. `git push dolomite-dashboard master`.
 - **macOS Keychain blocks background `git push`**: When deploying from a headless AI agent background process, macOS security (`securityd`) blocks the Keychain prompt and causes a hanging password loop. Never run `git push` via `run_command` if it triggers a credential prompt; always instruct the user to run it explicitly in their physical Terminal.
 
 ## Table Column Restructuring
@@ -56,6 +57,7 @@
 - **git pull --rebase -X theirs**: For automated JSON data commits, use `-X theirs` to auto-resolve merge conflicts (our freshly generated data is always newer/correct).
 - **Timeout headroom**: Set `timeout-minutes` to at least 2× expected runtime to account for RPC slowness and data growth.
 - **⚠️ GitHub Actions 15-minute timeout destroys cache**: If a data sync job (like `update-odolo-flows.yml`) relies on `actions/cache@v4` to save state at the end, a harsh timeout (e.g. `timeout-minutes: 15`) will CAUSE the cache to NEVER SAVE if the initial full-sync takes longer than 15m! The job enters a death-loop: runs 15m → cancels → drops state → next run starts from scratch. Always set a very generous `timeout-minutes` (e.g., `120`) for pipelines doing bulk historical block fetching via RPC, so they can finish the full sync once and save their structural cache.
+- **Long canonical-history workflows should checkpoint, not fail**: Baseline refreshes for Berachain, Mantle, and selected Arbitrum hot wallets can exceed one polling window. The workflow should save runtime cache and mark the refresh incomplete without running ledger/audit/commit steps; the next scheduled run continues from cache instead of showing a red failure and restarting work.
 
 ## UI Overflow & Dropdowns
 - **`overflow:hidden` clips dropdowns**: Parent containers with `overflow:hidden` will clip absolutely-positioned child elements (like dropdown menus). Use `overflow:visible` instead when the container has interactive dropdowns.

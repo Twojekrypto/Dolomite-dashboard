@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import signal
 import subprocess
 import time
 from pathlib import Path
@@ -22,6 +24,15 @@ from scan_earn_netflow import CHAINS
 ROOT = Path(__file__).resolve().parent
 DEFAULT_HISTORY_DIR = ROOT / "data" / "earn-subaccount-history"
 DEFAULT_EVENTS_DIR = ROOT / "data" / "earn-subaccount-history-events"
+
+
+class RefreshIncomplete(Exception):
+    def __init__(self, *, chain: str, phase: str, max_steps: int, payload: Optional[dict]):
+        super().__init__(f"{phase} did not complete for {chain} after {max_steps} polling step(s)")
+        self.chain = chain
+        self.phase = phase
+        self.max_steps = max_steps
+        self.payload = payload if isinstance(payload, dict) else {}
 
 
 def _read_address_file(path: Path) -> List[str]:
@@ -39,6 +50,21 @@ def _read_address_file(path: Path) -> List[str]:
             seen.add(address)
             addresses.append(address)
     return addresses
+
+
+def _write_json(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+
+
+def _is_pid_alive(pid: Optional[int]) -> bool:
+    if not pid:
+        return False
+    try:
+        os.kill(int(pid), 0)
+        return True
+    except OSError:
+        return False
 
 
 def _run_json(argv: List[str]) -> dict:
@@ -59,6 +85,135 @@ def _run_json(argv: List[str]) -> dict:
         return json.loads(proc.stdout)
     except json.JSONDecodeError as exc:
         raise RuntimeError(f"Command did not return JSON: {' '.join(argv)}") from exc
+
+
+def _safe_int(value: object) -> int:
+    try:
+        return int(value or 0)
+    except Exception:
+        return 0
+
+
+def _stage_counts(payload: object) -> dict:
+    if not isinstance(payload, dict):
+        return {}
+    return {
+        "complete": bool(payload.get("complete")),
+        "completedWorkerCount": _safe_int(payload.get("completedWorkerCount")),
+        "workerCount": _safe_int(payload.get("workerCount")),
+    }
+
+
+def _summarize_progress(payload: Optional[dict]) -> dict:
+    if not isinstance(payload, dict):
+        return {}
+    status = payload.get("status")
+    if isinstance(status, dict):
+        return {
+            "cycleId": status.get("cycleId"),
+            "targetBlock": status.get("targetBlock"),
+            "complete": bool(status.get("complete")),
+            "scan": _stage_counts(status.get("scan")),
+            "newAddressBackfill": _stage_counts(status.get("newAddressBackfill")),
+            "apply": _stage_counts(status.get("apply")),
+            "coverage": status.get("coverage"),
+        }
+    return {
+        "lockedTargetBlock": payload.get("lockedTargetBlock"),
+        "scanComplete": bool(payload.get("scanComplete")),
+        "materializeComplete": bool(payload.get("materializeComplete")),
+        "repairComplete": bool(payload.get("repairComplete")),
+    }
+
+
+def _status_payload(
+    *,
+    chain: str,
+    phase: str,
+    complete: bool,
+    selected_addresses: List[str],
+    validation: Optional[dict] = None,
+    incomplete: Optional[RefreshIncomplete] = None,
+) -> dict:
+    payload = {
+        "chain": chain,
+        "phase": phase,
+        "complete": bool(complete),
+        "selectedAddressCount": len(selected_addresses),
+    }
+    if validation is not None:
+        payload["validation"] = validation
+    if incomplete is not None:
+        payload.update({
+            "maxSteps": incomplete.max_steps,
+            "message": str(incomplete),
+            "progress": _summarize_progress(incomplete.payload),
+        })
+    return payload
+
+
+def _write_status_output(path: Optional[Path], payload: dict) -> None:
+    if path is None:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+
+
+def _terminate_launch_processes(path: Path) -> List[dict]:
+    launch = _read_json(path, None)
+    if not isinstance(launch, dict):
+        return []
+    terminated = []
+    changed = False
+    for run in launch.get("runs") or []:
+        if not isinstance(run, dict):
+            continue
+        pid = _safe_int(run.get("pid"))
+        if pid <= 0:
+            continue
+        if not _is_pid_alive(pid):
+            continue
+        argv = run.get("argv") or []
+        script = str(argv[1] if isinstance(argv, list) and len(argv) > 1 else "")
+        if script and not script.endswith(".py"):
+            continue
+        try:
+            os.killpg(pid, signal.SIGTERM)
+        except OSError:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except OSError:
+                continue
+        run["terminatedAt"] = _utc_now_iso()
+        terminated.append({"pid": pid, "progressKey": run.get("progressKey"), "launchPath": str(path)})
+        changed = True
+    if changed:
+        _write_json(path, launch)
+    return terminated
+
+
+def _stop_checkpoint_workers(args: argparse.Namespace) -> List[dict]:
+    paths = [
+        args.events_dir / ".progress" / f"{args.chain}-scan-launch.json",
+        args.history_dir / ".progress" / f"{args.chain}-materialize-launch.json",
+        args.history_dir / ".progress" / f"{args.chain}-repair-materialize-launch.json",
+    ]
+    state = _read_json(args.history_dir / ".incremental-plans" / f"{args.chain}-runner-state.json", {})
+    plan_path = state.get("planPath") if isinstance(state, dict) else None
+    if plan_path:
+        cycle_root = Path(str(plan_path)).parent
+        paths.extend([
+            cycle_root / ".progress" / "scan-launch.json",
+            cycle_root / ".progress" / "new-address-launch.json",
+            cycle_root / ".progress" / "apply-launch.json",
+        ])
+    terminated: List[dict] = []
+    for path in paths:
+        terminated.extend(_terminate_launch_processes(path))
+    if terminated:
+        time.sleep(2)
+        print(f"Stopped {len(terminated)} background worker(s) before checkpoint cache save", flush=True)
+    return terminated
 
 
 def _manifest_last_block(history_dir: Path, chain: str) -> int:
@@ -160,8 +315,15 @@ def _bootstrap_baseline(args: argparse.Namespace, selected_addresses: List[str])
             break
         time.sleep(max(1, int(args.sleep_seconds)))
     if not complete:
-        raise TimeoutError(f"Bootstrap did not complete for {args.chain} after {args.max_steps} polling step(s)")
-    return _validate_selected_histories(args.history_dir, args.chain, selected_addresses)
+        raise RefreshIncomplete(chain=args.chain, phase="bootstrap", max_steps=args.max_steps, payload=payload)
+    validation = _validate_selected_histories(args.history_dir, args.chain, selected_addresses)
+    return _status_payload(
+        chain=args.chain,
+        phase="bootstrap",
+        complete=True,
+        selected_addresses=selected_addresses,
+        validation=validation,
+    )
 
 
 def _incremental_refresh(args: argparse.Namespace, selected_addresses: List[str]) -> dict:
@@ -197,8 +359,15 @@ def _incremental_refresh(args: argparse.Namespace, selected_addresses: List[str]
             break
         time.sleep(max(1, int(args.sleep_seconds)))
     if not complete:
-        raise TimeoutError(f"Incremental refresh did not complete for {args.chain} after {args.max_steps} polling step(s)")
-    return _validate_selected_histories(args.history_dir, args.chain, selected_addresses)
+        raise RefreshIncomplete(chain=args.chain, phase="incremental", max_steps=args.max_steps, payload=payload)
+    validation = _validate_selected_histories(args.history_dir, args.chain, selected_addresses)
+    return _status_payload(
+        chain=args.chain,
+        phase="incremental",
+        complete=True,
+        selected_addresses=selected_addresses,
+        validation=validation,
+    )
 
 
 def main() -> int:
@@ -217,6 +386,8 @@ def main() -> int:
     parser.add_argument("--min-fresh-ratio", type=float, default=1.0)
     parser.add_argument("--allow-empty", action="store_true")
     parser.add_argument("--skip-unsupported-start-block", action="store_true")
+    parser.add_argument("--allow-checkpoint-incomplete", action="store_true")
+    parser.add_argument("--status-output", type=Path, default=None)
     args = parser.parse_args()
 
     start_block = int(CHAINS[args.chain].get("start_block") or 0)
@@ -224,6 +395,13 @@ def main() -> int:
         message = f"{args.chain} canonical history skipped: start_block is not configured ({start_block})"
         if args.skip_unsupported_start_block:
             print(message)
+            _write_status_output(args.status_output, {
+                "chain": args.chain,
+                "phase": "skipped",
+                "complete": True,
+                "skipped": True,
+                "message": message,
+            })
             return 0
         raise SystemExit(message)
 
@@ -232,15 +410,41 @@ def main() -> int:
         message = f"{args.chain} canonical history skipped: selection is empty"
         if args.allow_empty:
             print(message)
+            _write_status_output(args.status_output, {
+                "chain": args.chain,
+                "phase": "skipped",
+                "complete": True,
+                "skipped": True,
+                "message": message,
+            })
             return 0
         raise SystemExit(message)
 
-    if _has_complete_baseline(args.history_dir, args.chain, selected_addresses):
-        print(f"[{args.chain}] baseline found; running incremental refresh", flush=True)
-        _incremental_refresh(args, selected_addresses)
-    else:
-        print(f"[{args.chain}] no baseline found; bootstrapping selected canonical history", flush=True)
-        _bootstrap_baseline(args, selected_addresses)
+    try:
+        if _has_complete_baseline(args.history_dir, args.chain, selected_addresses):
+            print(f"[{args.chain}] baseline found; running incremental refresh", flush=True)
+            payload = _incremental_refresh(args, selected_addresses)
+        else:
+            print(f"[{args.chain}] no baseline found; bootstrapping selected canonical history", flush=True)
+            payload = _bootstrap_baseline(args, selected_addresses)
+    except RefreshIncomplete as exc:
+        payload = _status_payload(
+            chain=args.chain,
+            phase=exc.phase,
+            complete=False,
+            selected_addresses=selected_addresses,
+            incomplete=exc,
+        )
+        if args.allow_checkpoint_incomplete:
+            payload["terminatedWorkers"] = _stop_checkpoint_workers(args)
+            _write_status_output(args.status_output, payload)
+            print(json.dumps(payload, ensure_ascii=True, indent=2), flush=True)
+            return 0
+        _write_status_output(args.status_output, payload)
+        raise TimeoutError(str(exc)) from exc
+
+    _write_status_output(args.status_output, payload)
+    print(json.dumps(payload, ensure_ascii=True, indent=2), flush=True)
 
     return 0
 
