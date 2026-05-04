@@ -1,12 +1,12 @@
-name: Refresh Berachain Priority EARN History
+name: Refresh Berachain Borrow-Route EARN History
 
 on:
   schedule:
-    - cron: '17 * * * *'  # Hourly priority-pin refresh for user-reported Berachain wallets
+    - cron: '17 */2 * * *'  # Full known-wallet scan, publishes only wallets that need borrow-route verification
   workflow_dispatch:
 
 concurrency:
-  group: earn-berachain-priority-canonical-history
+  group: earn-berachain-borrow-route-history
   cancel-in-progress: false
 
 permissions:
@@ -15,11 +15,10 @@ permissions:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 360
     env:
       PYTHONUNBUFFERED: '1'
       CHAIN: berachain
-      PRIORITY_ADDRESS_FILE: config/earn_canonical_priority_addresses.txt
       ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
       ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
       ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}
@@ -39,7 +38,7 @@ jobs:
       - name: Install Python dependencies
         run: python3 -m pip install --upgrade pip requests
 
-      - name: Restore Berachain priority runtime cache
+      - name: Restore Berachain global runtime cache
         uses: actions/cache@v4
         with:
           path: |
@@ -48,52 +47,42 @@ jobs:
             data/earn-subaccount-history/.repair-plans
             data/earn-subaccount-history/.incremental-plans
             data/earn-subaccount-history/berachain
-          key: earn-canonical-priority-runtime-berachain-${{ github.run_id }}
+          key: earn-canonical-global-runtime-berachain-${{ github.run_id }}
           restore-keys: |
-            earn-canonical-priority-runtime-berachain-
+            earn-canonical-global-runtime-berachain-
             earn-canonical-runtime-berachain-
 
-      - name: Normalize priority address file
+      - name: Select all known Berachain EARN wallets
         run: |
           set -euo pipefail
-          python3 - "$PRIORITY_ADDRESS_FILE" /tmp/earn-${CHAIN}-priority-addresses.txt <<'PY'
+          python3 - /tmp/earn-${CHAIN}-all-known-addresses.txt <<'PY'
           import sys
-          src, dst = sys.argv[1], sys.argv[2]
-          seen = set()
-          out = []
-          with open(src, "r", encoding="utf-8") as handle:
-            for raw in handle:
-              address = raw.split("#", 1)[0].strip().lower()
-              if not address:
-                continue
-              if not address.startswith("0x") or len(address) != 42:
-                raise SystemExit(f"Invalid priority address: {raw.strip()}")
-              if address in seen:
-                continue
-              seen.add(address)
-              out.append(address)
-          if not out:
-            raise SystemExit("Priority address file is empty")
-          with open(dst, "w", encoding="utf-8") as handle:
-            handle.write("\n".join(out) + "\n")
-          print(f"priorityAddressCount={len(out)}")
+          from pathlib import Path
+          from build_earn_subaccount_history import _load_known_addresses
+
+          output = Path(sys.argv[1])
+          addresses = _load_known_addresses("berachain")
+          if not addresses:
+            raise SystemExit("No known Berachain EARN addresses found")
+          output.write_text("".join(f"{address}\n" for address in addresses), encoding="utf-8")
+          print(f"knownAddressCount={len(addresses)}")
           PY
 
-      - name: Refresh priority canonical history
+      - name: Refresh all known canonical history
         id: refresh
         run: |
           set -euo pipefail
-          status_path="/tmp/earn-${CHAIN}-priority-refresh.json"
+          status_path="/tmp/earn-${CHAIN}-global-refresh.json"
           python3 run_earn_canonical_history_refresh.py \
             --chain "$CHAIN" \
-            --selection-address-file "/tmp/earn-${CHAIN}-priority-addresses.txt" \
-            --max-scan-workers 2 \
-            --max-materialize-workers 2 \
-            --max-incremental-scan-workers 4 \
-            --max-incremental-apply-workers 4 \
-            --max-new-backfill-workers 1 \
-            --max-steps 90 \
-            --sleep-seconds 10 \
+            --selection-address-file "/tmp/earn-${CHAIN}-all-known-addresses.txt" \
+            --max-scan-workers 8 \
+            --max-materialize-workers 8 \
+            --max-incremental-scan-workers 10 \
+            --max-incremental-apply-workers 10 \
+            --max-new-backfill-workers 4 \
+            --max-steps 720 \
+            --sleep-seconds 20 \
             --allow-empty \
             --skip-unsupported-start-block \
             --allow-checkpoint-incomplete \
@@ -115,16 +104,33 @@ jobs:
           )"
           echo "complete=${complete}" >> "$GITHUB_OUTPUT"
           echo "skipped=${skipped}" >> "$GITHUB_OUTPUT"
+          if [ "$complete" != "true" ]; then
+            echo "Global canonical history checkpoint saved; later scheduled runs will continue from cache."
+          fi
 
-      - name: Build priority verified ledger cache
+      - name: Select borrow-route wallets for publication
         if: steps.refresh.outputs.complete == 'true' && steps.refresh.outputs.skipped != 'true'
         run: |
           set -euo pipefail
+          python3 select_earn_borrow_route_history_addresses.py \
+            --chain "$CHAIN" \
+            --output "/tmp/earn-${CHAIN}-borrow-route-addresses.txt" \
+            --metadata-output "/tmp/earn-${CHAIN}-borrow-route-addresses.json"
+          cat "/tmp/earn-${CHAIN}-borrow-route-addresses.json"
+
+      - name: Build borrow-route verified ledger cache
+        if: steps.refresh.outputs.complete == 'true' && steps.refresh.outputs.skipped != 'true'
+        run: |
+          set -euo pipefail
+          if [ ! -s "/tmp/earn-${CHAIN}-borrow-route-addresses.txt" ]; then
+            echo "No borrow-route wallets to publish"
+            exit 0
+          fi
           python3 build_earn_verified_ledger.py \
             --chain "$CHAIN" \
-            --address-file "/tmp/earn-${CHAIN}-priority-addresses.txt"
+            --address-file "/tmp/earn-${CHAIN}-borrow-route-addresses.txt"
 
-      - name: Save Berachain priority runtime cache
+      - name: Save Berachain global runtime cache
         if: always()
         uses: actions/cache/save@v4
         with:
@@ -134,28 +140,30 @@ jobs:
             data/earn-subaccount-history/.repair-plans
             data/earn-subaccount-history/.incremental-plans
             data/earn-subaccount-history/berachain
-          key: earn-canonical-priority-runtime-berachain-${{ github.run_id }}
+          key: earn-canonical-global-runtime-berachain-${{ github.run_id }}
 
-      - name: Commit and push priority canonical history
+      - name: Commit and push borrow-route public history
         if: steps.refresh.outputs.complete == 'true' && steps.refresh.outputs.skipped != 'true'
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -f data/earn-subaccount-history/manifest.json
-          git add -f data/earn-verified-ledger/manifest.json
+          if [ ! -s "/tmp/earn-${CHAIN}-borrow-route-addresses.txt" ]; then
+            echo "No borrow-route wallets to publish"
+            exit 0
+          fi
           while IFS= read -r address; do
             [ -n "$address" ] || continue
             history_path="data/earn-subaccount-history/${CHAIN}/${address}.json"
             ledger_path="data/earn-verified-ledger/${CHAIN}/${address}.json"
             [ -f "$history_path" ] && git add -f "$history_path"
             [ -f "$ledger_path" ] && git add -f "$ledger_path"
-          done < "/tmp/earn-${CHAIN}-priority-addresses.txt"
+          done < "/tmp/earn-${CHAIN}-borrow-route-addresses.txt"
           if git diff --staged --quiet; then
-            echo "No priority canonical history changes to commit"
+            echo "No borrow-route history changes to commit"
             exit 0
           fi
-          git commit -m "Refresh Berachain priority EARN history - $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git commit -m "Refresh Berachain borrow-route EARN history - $(date -u '+%Y-%m-%d %H:%M UTC')"
           for i in 1 2 3; do
             git pull --rebase -X theirs origin master && git push && break
             echo "Push attempt $i failed, retrying..."
