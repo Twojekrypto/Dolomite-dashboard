@@ -34328,6 +34328,15 @@
                                 return result;
                             })
                             .catch(e => console.warn('Lending load:', e));
+                        const replaySyncedLendingPromise = replayPromise.then(async ok => {
+                            if (!isCurrentLookup() || !ok) return null;
+                            try {
+                                return await earn_fetchAndRenderLendingPositions({ runId: lookupRunId });
+                            } catch (e) {
+                                console.warn('Lending replay refresh:', e);
+                                return null;
+                            }
+                        });
 
                         // After first render, suppress slide-in on re-renders
                         const tblNoSupply = document.querySelector('.earn-asset-table');
@@ -34337,14 +34346,14 @@
 
                         // Also auto-load history for withdrawn assets
                         earn_lookupHistory({ runId: lookupRunId, allowReplayRetry: false }).then(ok => {
-                            if (!isCurrentLookup()) return Promise.allSettled([lendingPromise]);
+                            if (!isCurrentLookup()) return Promise.allSettled([lendingPromise, replaySyncedLendingPromise]);
                             if (ok) {
                                 earn_markLookupProfile(lookupProfile, 'history');
                                 const tblRef = document.querySelector('.earn-asset-table');
                                 if (tblRef) tblRef.classList.add('no-animate');
                                 if (earn_cachedAssets) earn_renderResults(earn_cachedAssets, { skipSummary: false, softRefresh: true });
                             }
-                            return Promise.allSettled([lendingPromise]).then(() => {
+                            return Promise.allSettled([lendingPromise, replaySyncedLendingPromise]).then(() => {
                                 if (!isCurrentLookup()) return;
                                 earn_markLookupProfile(lookupProfile, 'complete');
                                 earn_logLookupProfile(lookupProfile, 'complete');
@@ -34356,9 +34365,9 @@
                                 });
                             });
                         }).catch(e => {
-                            if (!isCurrentLookup()) return Promise.allSettled([lendingPromise]);
+                            if (!isCurrentLookup()) return Promise.allSettled([lendingPromise, replaySyncedLendingPromise]);
                             console.warn('History load:', e);
-                            return Promise.allSettled([lendingPromise]).then(() => {
+                            return Promise.allSettled([lendingPromise, replaySyncedLendingPromise]).then(() => {
                                 if (!isCurrentLookup()) return;
                                 earn_markLookupProfile(lookupProfile, 'complete');
                                 earn_logLookupProfile(lookupProfile, 'complete');
@@ -34760,6 +34769,15 @@
                         earn_refreshReplayVerificationFromCachedPositions();
                         return true;
                     }),
+                    replayPromise.then(async ok => {
+                        if (!isCurrentLookup() || !ok) return null;
+                        try {
+                            return await earn_fetchAndRenderLendingPositions({ runId: lookupRunId });
+                        } catch (e) {
+                            console.warn('Lending replay refresh:', e);
+                            return null;
+                        }
+                    }),
                     historyPromise,
                     lendingPromise,
                 ]).then(() => {
@@ -35147,6 +35165,17 @@
             }];
         }
 
+        function earn_getOpenRouteYieldForAccount(accountNumber, marketId) {
+            const account = String(accountNumber === undefined || accountNumber === null ? '0' : accountNumber);
+            const mid = earn_normalizeMarketId(marketId);
+            if (!mid || !earn_replayAccountStateData) return null;
+            const state = earn_replayAccountStateData[`${account}|${mid}`];
+            if (!state) return null;
+            const par = BigInt(state.par || '0');
+            if (par <= 0n) return null;
+            return BigInt(state.liveYield || '0');
+        }
+
         async function earn_fetchAndRenderLendingPositions(opts) {
             opts = opts || {};
             const runId = opts.runId;
@@ -35327,15 +35356,23 @@
                                 const price = earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[symbol] || 0;
 
                                 if (par > 0) {
-                                    // Collateral: actual = par * supplyIndex
+                                    // Collateral yield should match the replay ledger for this
+                                    // account/market. The raw index delta is market-level math and
+                                    // can overstate user yield for routed collateral.
                                     const actualTokens = par * idx.supplyIdx;
-                                    const accruedTokens = actualTokens - par; // yield earned
+                                    const replayOpenYieldWei = earn_getOpenRouteYieldForAccount(p.accountNumber, amt.token.marketId);
+                                    const accruedTokens = replayOpenYieldWei !== null
+                                        ? earn_bigIntToDecimalNumber(replayOpenYieldWei, decimals)
+                                        : 0;
                                     const accruedUSD = accruedTokens * price;
-                                    p.accruedCollateral.push({
-                                        symbol, accruedTokens, accruedUSD,
-                                        parTokens: par, actualTokens, decimals, price, index: idx.supplyIdx,
-                                        tokenAddr: tokenAddr,
-                                    });
+                                    if (replayOpenYieldWei !== null && Math.abs(accruedUSD) > 0.0001) {
+                                        p.accruedCollateral.push({
+                                            symbol, accruedTokens, accruedUSD,
+                                            parTokens: par, actualTokens, decimals, price, index: idx.supplyIdx,
+                                            tokenAddr: tokenAddr,
+                                            source: 'replay-ledger',
+                                        });
+                                    }
 
                                     const shouldAllocateTokenRewards = !seenRewardTokens.has(tokenAddr);
                                     if (shouldAllocateTokenRewards) seenRewardTokens.add(tokenAddr);
@@ -35569,14 +35606,16 @@
                         <td colspan="5">
                             <div class="earn-lend-detail-inner">
                                 <div class="earn-lend-section">
-                                    <div class="earn-lend-section-title earn">Collateral Earnings</div>
+                                    <div class="earn-lend-section-title earn">Collateral Yield</div>
                                     ${collateralRows || '<div style="color:var(--text-muted);font-size:11px">No collateral</div>'}
                                     ${(p.accruedCollateral && p.accruedCollateral.length > 0) ? `<div style="border-top:1px solid rgba(52,211,153,0.1);margin-top:8px;padding-top:8px">
-                                        <div class="earn-accrued-label">Accrued Interest</div>
+                                        <div class="earn-accrued-label">Open Route Yield</div>
                                         ${p.accruedCollateral.map(c => {
                         const icon = SYMBOL_ICONS[c.symbol] || SYMBOL_ICONS[(c.symbol || '').toUpperCase()];
                         const iconHtml = icon ? `<img src="${icon}" alt="${c.symbol}" onerror="this.style.display='none'">` : '';
-                        return `<div class="earn-lend-token-row"><span class="earn-lend-token-left">${iconHtml}${c.symbol} <span style="color:rgba(52,211,153,0.5)">earned</span></span><span class="earn-lend-token-apr supply">+${earn_formatUSD(c.accruedUSD)}</span></div>`;
+                        const routeYieldSign = c.accruedUSD >= 0 ? '+' : '-';
+                        const routeYieldClass = c.accruedUSD >= 0 ? 'supply' : 'borrow';
+                        return `<div class="earn-lend-token-row"><span class="earn-lend-token-left">${iconHtml}${c.symbol} <span style="color:rgba(52,211,153,0.5)">open route</span></span><span class="earn-lend-token-apr ${routeYieldClass}">${routeYieldSign}${earn_formatUSD(Math.abs(c.accruedUSD))}</span></div>`;
                     }).join('')}
                                     </div>` : ''}
                                 </div>
@@ -35608,7 +35647,7 @@
                                     ${(p.netAccrued !== undefined) ? `
                                         <div class="earn-lend-section-title net">Accrued P&L</div>
                                         <div class="earn-lend-net-value ${p.netAccrued >= 0 ? 'positive' : 'negative'}">${p.netAccrued >= 0 ? '+' : '-'}${earn_formatUSD(Math.abs(p.netAccrued))}<span style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.4)"> total</span></div>
-                                        <div class="earn-lend-net-sub">Collateral ${earn_formatUSD(p.totalAccruedYield || 0)}${p.totalExternalRewardsUSD > 0.01 ? ' + <span style="color:#fbbf24">Rewards ' + earn_formatUSD(p.totalExternalRewardsUSD) + '</span>' : ''} − Borrow ${earn_formatUSD(p.totalAccruedCost || 0)}</div>
+                                        <div class="earn-lend-net-sub">Open route ${earn_formatUSD(p.totalAccruedYield || 0)}${p.totalExternalRewardsUSD > 0.01 ? ' + <span style="color:#fbbf24">Rewards ' + earn_formatUSD(p.totalExternalRewardsUSD) + '</span>' : ''} − Borrow ${earn_formatUSD(p.totalAccruedCost || 0)}</div>
                                         ${p.openTimestamp ? `<div class="earn-lend-net-sub" style="margin-top:4px">Opened ${earn_formatAge(p.openTimestamp)}</div>` : ''}
                                         <div style="border-top:1px solid rgba(255,255,255,0.05);margin-top:8px;padding-top:6px">
                                             <div class="earn-lend-net-sub" style="margin-bottom:2px">Est. annual at current rates:</div>
@@ -36084,14 +36123,16 @@
                     <td colspan="5">
                         <div class="earn-lend-detail-inner">
                             <div class="earn-lend-section">
-                                <div class="earn-lend-section-title earn">Collateral Earnings</div>
+                                <div class="earn-lend-section-title earn">Collateral Yield</div>
                                 ${collateralRows || '<div style="color:var(--text-muted);font-size:11px">No collateral</div>'}
                                 ${(p.accruedCollateral && p.accruedCollateral.length > 0) ? `<div style="border-top:1px solid rgba(52,211,153,0.1);margin-top:8px;padding-top:8px">
-                                    <div class="earn-accrued-label">Accrued Interest</div>
+                                    <div class="earn-accrued-label">Open Route Yield</div>
                                     ${p.accruedCollateral.map(c => {
                     const icon = SYMBOL_ICONS[c.symbol] || SYMBOL_ICONS[(c.symbol || '').toUpperCase()];
                     const iconHtml = icon ? `<img src="${icon}" alt="${c.symbol}" onerror="this.style.display='none'">` : '';
-                    return `<div class="earn-lend-token-row"><span class="earn-lend-token-left">${iconHtml}${c.symbol} <span style="color:rgba(52,211,153,0.5)">earned</span></span><span class="earn-lend-token-apr supply">+${earn_formatUSD(c.accruedUSD)}</span></div>`;
+                    const routeYieldSign = c.accruedUSD >= 0 ? '+' : '-';
+                    const routeYieldClass = c.accruedUSD >= 0 ? 'supply' : 'borrow';
+                    return `<div class="earn-lend-token-row"><span class="earn-lend-token-left">${iconHtml}${c.symbol} <span style="color:rgba(52,211,153,0.5)">open route</span></span><span class="earn-lend-token-apr ${routeYieldClass}">${routeYieldSign}${earn_formatUSD(Math.abs(c.accruedUSD))}</span></div>`;
                 }).join('')}
                                 </div>` : ''}
                             </div>
@@ -36123,7 +36164,7 @@
                                 ${(p.netAccrued !== undefined) ? `
                                     <div class="earn-lend-section-title net">Accrued P&L</div>
                                     <div class="earn-lend-net-value ${p.netAccrued >= 0 ? 'positive' : 'negative'}">${p.netAccrued >= 0 ? '+' : '-'}${earn_formatUSD(Math.abs(p.netAccrued))}<span style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.4)"> total</span></div>
-                                    <div class="earn-lend-net-sub">Collateral ${earn_formatUSD(p.totalAccruedYield || 0)}${p.totalExternalRewardsUSD > 0.01 ? ' + <span style="color:#fbbf24">Rewards ' + earn_formatUSD(p.totalExternalRewardsUSD) + '</span>' : ''} − Borrow ${earn_formatUSD(p.totalAccruedCost || 0)}</div>
+                                    <div class="earn-lend-net-sub">Open route ${earn_formatUSD(p.totalAccruedYield || 0)}${p.totalExternalRewardsUSD > 0.01 ? ' + <span style="color:#fbbf24">Rewards ' + earn_formatUSD(p.totalExternalRewardsUSD) + '</span>' : ''} − Borrow ${earn_formatUSD(p.totalAccruedCost || 0)}</div>
                                     ${p.openTimestamp ? `<div class="earn-lend-net-sub" style="margin-top:4px">Opened ${earn_formatAge(p.openTimestamp)}</div>` : ''}
                                     <div style="border-top:1px solid rgba(255,255,255,0.05);margin-top:8px;padding-top:6px">
                                         <div class="earn-lend-net-sub" style="margin-bottom:2px">Est. annual at current rates:</div>
