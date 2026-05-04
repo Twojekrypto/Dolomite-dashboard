@@ -7955,24 +7955,6 @@
             border-radius: 0 0 0 14px;
         }
 
-        /* Chevron */
-        .earn-lend-chevron {
-            display: inline-block;
-            width: 14px;
-            height: 14px;
-            margin-left: 6px;
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            vertical-align: middle;
-            opacity: 0.35;
-            color: rgba(255, 255, 255, 0.4);
-        }
-        .earn-lend-row:hover .earn-lend-chevron { opacity: 0.7; }
-        .earn-lend-row.open .earn-lend-chevron {
-            transform: rotate(180deg);
-            opacity: 1;
-            color: #38bdf8;
-        }
-
         /* Detail wrapper — animated slide open */
         .earn-lend-detail {
             display: none;
@@ -11765,26 +11747,6 @@
             font-size: 11px;
             color: var(--text-muted);
             opacity: 0.6;
-        }
-
-        /* Chevron indicator on main row */
-        .earn-row-chevron {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            margin-left: 4px;
-            vertical-align: middle;
-            opacity: 0.3;
-            transition: all 0.25s ease;
-        }
-
-        .earn-data-row:hover .earn-row-chevron {
-            opacity: 0.7;
-        }
-
-        .earn-data-row.expanded .earn-row-chevron {
-            opacity: 1;
-            transform: rotate(180deg);
         }
 
         /* Expandable detail row */
@@ -28019,9 +27981,6 @@
                 }
                 const verifyBadge = earn_renderVerificationBadge(item.marketId, item.symbol, item.decimals);
 
-                // Chevron SVG
-                const chevron = `<svg class="earn-row-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
-
                 // Deposit/Withdraw amounts
                 let depFmt, wdFmt;
                 if (item.hasBreakdown) {
@@ -28079,7 +28038,7 @@
                             <div class="earn-token-left">
                                 ${iconHtml}
                                 <div class="earn-token-info">
-                                    <div class="earn-token-name">${item.symbol} ${chevron}</div>
+                                    <div class="earn-token-name">${item.symbol}</div>
                                     ${subtitle}
                                     <div style="margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">${badge}${verifyBadge}</div>
                                 </div>
@@ -35622,8 +35581,6 @@
 
                 const FLAME_SVG = '<svg class="earn-emode-flame" viewBox="0 0 24 24" fill="none"><path d="M12 2c0 4-4 6-4 10a4 4 0 0 0 8 0c0-4-4-6-4-10z" fill="#fb923c" opacity="0.9"/><path d="M12 8c0 2.5-2 3.5-2 6a2 2 0 0 0 4 0c0-2.5-2-3.5-2-6z" fill="#fbbf24"/></svg>';
 
-                const chevronSvg = '<svg class="earn-lend-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
-
                 tbody.innerHTML = positions.map((p, i) => {
                     const riskClass = earn_getRiskClass(p);
                     const hfDecimals = ['good', 'strong', 'balanced'].includes(riskClass) ? 2 : 4;
@@ -35708,7 +35665,7 @@
 
                     const dataRow = `<tr class="earn-lend-row risk-${riskClass}" data-idx="${i}" onclick="earn_toggleLendDetail(${i})" style="animation-delay:${i * 0.08}s">
                         <td>
-                            <span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span>${emodeBadge}${ageBadge}${chevronSvg}
+                            <span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span>${emodeBadge}${ageBadge}
                             ${ratioBar}
                         </td>
                         <td><div class="earn-merged-col"><span class="earn-usd-collateral">${collateralDisplay}</span>${renderMergedTokens(p.collateralTokens)}</div></td>
@@ -35993,7 +35950,6 @@
                     : '';
                 const verifyBadge = earn_renderVerificationBadge(item.marketId, item.symbol, item.decimals, yieldCalc);
                 const sourceBadge = earn_renderYieldSourceBadge(yieldCalc, { openBorrowRouteYield: !!item.isCollateralized });
-                const chevron = `<svg class="earn-row-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
                 const rowId = `earn-past-row-${i}`;
                 const explorerUrl = `${explorerBase}/address/${item.tokenAddr}`;
                 const balanceUsdScaled = earn_getTokenUsdScaled(item.currentWei, item.decimals, item.symbol, item.tokenAddr, chainId);
@@ -36023,7 +35979,7 @@
                             <div class="earn-token-left">
                                 ${iconHtml}
                                 <div class="earn-token-info">
-                                        <div class="earn-token-name">${item.symbol} ${chevron}</div>
+                                        <div class="earn-token-name">${item.symbol}</div>
                                         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:3px">
                                         <span class="earn-hist-badge earn-position-badge ${item.isCollateralized ? 'routed' : 'withdrawn'}"${item.isCollateralized ? ' data-tip="Asset is routed into a borrow subaccount as collateral, so it is not a withdrawn supply asset"' : ''}><span class="earn-status-dot"></span>${item.isCollateralized ? 'In Borrow Route' : 'Exited Position'}</span>
                                         ${verifyBadge}
@@ -36188,8 +36144,6 @@
 
             const positions = earn_lendingPositions;
             const FLAME_SVG = '<svg class="earn-emode-flame" viewBox="0 0 24 24" fill="none"><path d="M12 2c0 4-4 6-4 10a4 4 0 0 0 8 0c0-4-4-6-4-10z" fill="#fb923c" opacity="0.9"/><path d="M12 8c0 2.5-2 3.5-2 6a2 2 0 0 0 4 0c0-2.5-2-3.5-2-6z" fill="#fbbf24"/></svg>';
-            const chevronSvg = '<svg class="earn-lend-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
-
             const useApy = typeof earn_showApy !== 'undefined' && earn_showApy;
             const rateLabel = useApy ? 'APY' : 'APR';
 
@@ -36268,7 +36222,7 @@
 
                 const dataRow = `<tr class="earn-lend-row risk-${riskClass}" data-idx="${i}" onclick="earn_toggleLendDetail(${i})" style="animation-delay:${i * 0.08}s">
                     <td>
-                        <span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span>${emodeBadge}${ageBadge}${chevronSvg}
+                        <span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span>${emodeBadge}${ageBadge}
                         ${ratioBar}
                     </td>
                     <td><div class="earn-merged-col"><span class="earn-usd-collateral">${collateralDisplay}</span>${renderMergedTokens(p.collateralTokens)}</div></td>
@@ -36445,9 +36399,6 @@
                     iconHtml = `<div class="earn-token-icon">${a.symbol.slice(0, 2)}</div>`;
                 }
 
-                // Chevron SVG
-                const chevron = `<svg class="earn-row-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
-
                 // Staggered animation delay
                 const delay = idx * 0.08;
 
@@ -36507,7 +36458,7 @@
                             <div class="earn-token-left">
                                 ${iconHtml}
                                 <div class="earn-token-info">
-                                    <div class="earn-token-name">${a.symbol} ${chevron}</div>
+                                    <div class="earn-token-name">${a.symbol}</div>
                                     <div style="display:flex;gap:6px;flex-wrap:wrap">
                                         ${verifyBadge}
                                         ${sourceBadge}
@@ -36617,7 +36568,6 @@
                         : '';
 
                     const balFmt = earn_formatAmount(item.currentWei, item.decimals, item.symbol);
-                    const chevron = `<svg class="earn-row-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
                     const explorerUrl = `${explorerBase}/address/${item.tokenAddr}`;
 
                     withdrawnHtml += `<tr class="earn-data-row earn-row-inactive" id="earn-row-${ii}" style="animation-delay:${delay}s">
