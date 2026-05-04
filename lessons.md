@@ -125,6 +125,7 @@
 - **Clear X buttons**: Add `.col-filter-clear` button next to each `.col-filter-btn`. Use CSS sibling selector `.col-filter-btn.has-active ~ .col-filter-clear { display: inline-flex; }` to show only when filter is active.
 - **Protocol Info card**: Can be reused across pages by putting the rendering logic in an IIFE and using standalone class names (`.liq-proto-links`, `.liq-proto-contracts`) instead of sharing the same class as index.html.
 - **Shared Protocol Info UX**: Keep `.protocol-info-card` visually shared across dashboard tabs (DOLO, assets, EARN, etc.). Do not add tab-specific skins for the shared card unless the same design change is made globally.
+- **Earn Protocol Info route parity**: The live `/dolo/` route uses the newer `dolo-preview.html` `.proto` component, while `/earn/` loads `dashboard-core.html`. When aligning Earn with DOLO, compare against the live `/dolo/` route component, not the old dashboard-core `.protocol-info-card`.
 - **Table container clipping**: When table has few rows (e.g., after dpglv filter), popovers can appear clipped. Add `min-height: 350px` to `.table-container` as a safety net. The `position: fixed` + `positionPopoverFixed()` pattern already handles viewport clamping.
 
 ## Earn Tab — Hide Dust Toggle
