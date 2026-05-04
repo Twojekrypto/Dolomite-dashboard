@@ -9046,6 +9046,20 @@
             box-shadow: 0 0 6px rgba(248, 113, 113, 0.35);
         }
 
+        .earn-hist-badge.routed {
+            background: rgba(59, 130, 246, 0.08);
+            color: #93c5fd;
+            border-color: rgba(96, 165, 250, 0.22);
+        }
+
+        .earn-hist-badge.routed .earn-status-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: #60a5fa;
+            box-shadow: 0 0 6px rgba(96, 165, 250, 0.35);
+        }
+
         .earn-verify-badge .earn-status-dot {
             width: 5px;
             height: 5px;
@@ -16639,7 +16653,7 @@
                     <div class="earn-supply-empty-state" id="earn-supply-empty-state" style="display:none"></div>
                 </div>
 
-                <!-- Withdrawn section — OUTSIDE the scrollable table, always visible -->
+                <!-- Historical/routed section — outside the scrollable table, always visible -->
                 <!-- Lending Positions (Borrow) section -->
                 <div id="earn-lending-section" class="earn-section-card" style="display:none;margin-top:16px">
                     <div class="earn-lending-header">
@@ -16685,7 +16699,7 @@
                         </table>
                     </div>
                 </div>
-                <!-- Withdrawn Assets — same UX as Earn supply rows -->
+                <!-- Past & routed assets — same UX as Earn supply rows -->
                 <div id="earn-past-section" class="earn-section-card" style="display:none;margin-top:8px">
                     <div class="earn-past-header" id="earn-past-toggle" onclick="earn_togglePastPositions()">
                         <span class="earn-section-icon-shell">
@@ -16694,7 +16708,7 @@
                                 <polyline points="12 6 12 12 16 14"/>
                             </svg>
                         </span>
-                        <span class="earn-past-title earn-section-title">Withdrawn Assets</span>
+                        <span class="earn-past-title earn-section-title">Past &amp; Routed Assets</span>
                         <span class="earn-past-count earn-section-count" id="earn-past-count">0</span>
                         <svg class="earn-past-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="6 9 12 15 18 9"/>
@@ -27558,7 +27572,7 @@
             if (btn) {
                 btn.classList.toggle('active', earn_showInactive);
                 const label = btn.querySelector('.earn-filter-label');
-                if (label) label.textContent = earn_showInactive ? 'Withdrawn' : 'Withdrawn';
+                if (label) label.textContent = 'Past & Routed';
             }
             // Suppress row animations on toggle re-render
             const tbl = document.querySelector('.earn-asset-table');
@@ -27791,7 +27805,7 @@
                     <div class="earn-hist-total-value" style="color:var(--text-primary)">${items.length}</div>
                 </div>
                 <div class="earn-hist-total-item">
-                    <div class="earn-hist-total-label">Active / Withdrawn</div>
+                    <div class="earn-hist-total-label">Active / Past</div>
                     <div class="earn-hist-total-value" style="color:var(--text-primary);font-size:18px">${totalActive} / ${totalWithdrawn}</div>
                 </div>
             `;
@@ -27823,7 +27837,7 @@
                 if (item.isIsolation && !item.isActive) {
                     badge = '<span class="earn-hist-badge isolation" data-tip="Dolomite Isolation Mode — internal wrapper token used as collateral in borrow positions">🔒 ISOLATION</span>';
                 } else if (item.isCollateralized) {
-                    badge = '<span class="earn-hist-badge withdrawn" data-tip="Supply balance is currently parked as collateral inside an open borrow account"><span class="earn-status-dot"></span>BORROW</span>';
+                    badge = '<span class="earn-hist-badge routed" data-tip="Asset is routed into a borrow subaccount as collateral, so it is not a withdrawn supply asset"><span class="earn-status-dot"></span>BORROW COLLATERAL</span>';
                 } else if (item.isActive) {
                     badge = '';
                 } else {
@@ -29642,7 +29656,7 @@
                 case 'interest-ledger-live-balance-adjusted':
                     return { label: 'Replay Adjusted', cls: 'unverified', title: 'Yield source: replay ledger adjusted to live onchain balance drift. Useful diagnostically, but not treated as strict verification.' };
                 case 'interest-ledger-override':
-                    return { label: 'Using Replay', cls: 'replay', title: 'Yield source: onchain replay ledger used because the older snapshot for this market was stale or mismatched.' };
+                    return { label: 'Replay Verified', cls: 'replay', title: 'Yield source: strict replay ledger was used because the snapshot/netflow path was stale or mismatched.' };
                 case 'interest-ledger-pending':
                     return { label: 'Checking Replay', cls: 'unverified', title: 'Yield source: replay ledger found, but final reconciliation is still in progress.' };
                 case 'interest-ledger-unverified':
@@ -34230,7 +34244,7 @@
                                     btn.classList.add('active');
                                     const label = btn.querySelector('.earn-withdrawn-label');
                                     const icon = btn.querySelector('.earn-withdrawn-icon');
-                                    if (label) label.textContent = 'Hide Withdrawn';
+                                    if (label) label.textContent = 'Hide Past';
                                     if (icon) icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
                                 }
                                 // Load history and render in unified view
@@ -35593,7 +35607,7 @@
         }
 
         // Format a Unix timestamp as relative age (e.g. "42 days ago")
-        // ═══════ Withdrawn Assets — renders earn_historyData inactive items in Earn-row UX ═══════
+        // ═══════ Past & routed assets — renders earn_historyData inactive items in Earn-row UX ═══════
         function earn_renderWithdrawnAssets() {
             const section = document.getElementById('earn-past-section');
             const tbody = document.getElementById('earn-past-tbody');
@@ -35706,7 +35720,7 @@
                                 <div class="earn-token-info">
                                         <div class="earn-token-name">${item.symbol} ${chevron}</div>
                                         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:3px">
-                                        <span class="earn-hist-badge withdrawn"${item.isCollateralized ? ' data-tip="Supply balance is currently parked as collateral inside an open borrow account"' : ''}><span class="earn-status-dot"></span>${item.isCollateralized ? 'BORROW' : 'WITHDRAWN'}</span>
+                                        <span class="earn-hist-badge ${item.isCollateralized ? 'routed' : 'withdrawn'}"${item.isCollateralized ? ' data-tip="Asset is routed into a borrow subaccount as collateral, so it is not a withdrawn supply asset"' : ''}><span class="earn-status-dot"></span>${item.isCollateralized ? 'BORROW COLLATERAL' : 'WITHDRAWN'}</span>
                                         ${verifyBadge}
                                         ${sourceBadge}
                                     </div>
@@ -36174,7 +36188,7 @@
                 supplyEmptyHint = hasBorrowContext
                     ? 'Borrow positions are shown below, and the Earn filters stay available here.'
                     : hasHistoricalEarnContext
-                        ? 'Withdrawn assets are shown below, and you can still use Hide Dust and APR/APY here.'
+                        ? 'Past and routed assets are shown below, and you can still use Hide Dust and APR/APY here.'
                         : 'Use the controls above to adjust the current Earn view.';
             }
 
@@ -36256,7 +36270,7 @@
                                     ${iconHtml}
                                     <div class="earn-token-info">
                                         <div class="earn-token-name">${item.symbol}</div>
-                                        <span class="earn-hist-badge withdrawn"${item.isCollateralized ? ' data-tip="Supply balance is currently parked as collateral inside an open borrow account"' : ''}><span class="earn-status-dot"></span>${item.isCollateralized ? 'BORROW' : 'WITHDRAWN'}</span>
+                                        <span class="earn-hist-badge ${item.isCollateralized ? 'routed' : 'withdrawn'}"${item.isCollateralized ? ' data-tip="Asset is routed into a borrow subaccount as collateral, so it is not a withdrawn supply asset"' : ''}><span class="earn-status-dot"></span>${item.isCollateralized ? 'BORROW COLLATERAL' : 'WITHDRAWN'}</span>
                                     </div>
                                 </div>
                             </div>
