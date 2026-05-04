@@ -30522,6 +30522,15 @@
             return entry.rates;
         }
 
+        function earn_cleanSupplyAprLabel(label) {
+            return String(label || '')
+                .replace(/\s*\(APR\)\s*/g, '')
+                .replace(/\s+APR$/i, '')
+                .replace(/\s+APY$/i, '')
+                .replace(/\s+\([^)]*\)$/g, '')
+                .trim();
+        }
+
         function earn_buildMarketRatesMap(chainId, json) {
             const rates = {};
             if (!json || !json.interestRates) return rates;
@@ -30538,7 +30547,7 @@
                     } else if (p.category === 'rewards' && p.interestRate) {
                         const yr = parseFloat(p.interestRate) || 0;
                         if (yr > 0) {
-                            yieldSources.push({ label: p.label.replace(/ \\(.*\\)$/, ''), rate: yr * 100 });
+                            yieldSources.push({ label: earn_cleanSupplyAprLabel(p.label), rate: yr * 100 });
                             rewardParts.push({
                                 label: p.label,
                                 apr: yr,
@@ -30550,7 +30559,7 @@
                         }
                     } else if (p.category === 'nativeYield' && p.interestRate) {
                         const yr = parseFloat(p.interestRate) || 0;
-                        if (yr > 0) yieldSources.push({ label: p.label, rate: yr * 100 });
+                        if (yr > 0) yieldSources.push({ label: earn_cleanSupplyAprLabel(p.label), rate: yr * 100 });
                     }
                 });
                 let extYieldApr = 0;
@@ -36095,33 +36104,25 @@
                     // Build breakdown lines
                     let bLines = [];
                     if ((rateData.lendingApr || 0) > 0.01 && !earn_excludeLending) {
-                        bLines.push({ label: 'Lending', rate: rateData.lendingApr, cls: 'lending-part', tooltip: 'Interest earned from borrowers on Dolomite' });
+                        bLines.push({ label: 'Lending Interest', rate: rateData.lendingApr, cls: 'lending-part' });
                     }
                     if (rateData.yieldSources && rateData.yieldSources.length > 0 && !earn_excludeYield) {
                         rateData.yieldSources.forEach(ys => {
                             const isGm = (ys.label || '').includes('Price Implied') || (ys.label || '').includes('GM ');
-                            let displayLabel = ys.label;
-                            let tooltip = 'External yield from the underlying protocol';
-                            displayLabel = displayLabel.replace(/\s*\(APR\)\s*/g, '').replace(/\s+APR$/i, '').replace(/\s+APY$/i, '');
-                            if (isGm) { displayLabel = 'GM Performance'; tooltip = 'Annualized return from GM token price change over the past 30 days'; }
-                            else if (displayLabel.includes('Staking')) { tooltip = 'Yield from native ETH staking (validator rewards)'; }
-                            else if (displayLabel.includes('Sky') || displayLabel.includes('Savings Rate')) { tooltip = 'Yield from Sky (formerly Maker) Savings Rate'; }
-                            bLines.push({ label: displayLabel, rate: ys.rate, cls: isGm ? 'gm-part' : 'yield-part', tooltip });
+                            let displayLabel = earn_cleanSupplyAprLabel(ys.label);
+                            if (isGm) displayLabel = 'GM Performance';
+                            bLines.push({ label: displayLabel, rate: ys.rate, cls: isGm ? 'gm-part' : 'yield-part' });
                         });
                     }
                     if ((rateData.rewards || 0) > 0 && !earn_excludeOdolo) {
-                        bLines.push({ label: 'oDOLO', rate: rateData.rewards, cls: 'odolo-part', tooltip: 'oDOLO incentive rewards distributed to suppliers' });
+                        bLines.push({ label: 'oDOLO Rewards', rate: rateData.rewards, cls: 'odolo-part' });
                     }
                     let bHtml = '';
                     if (bLines.length > 0) {
-                        bHtml = '<div class="assets-apy-breakdown">' +
+                        bHtml = '<div class="assets-apy-breakdown earn-supply-apr-breakdown">' +
                             bLines.map(l => {
                                 const displayRate = earn_showApy ? aprToApy(l.rate) : l.rate;
-                                if (l.tooltip) {
-                                    return `<span class="${l.cls} breakdown-item" data-tip="${l.tooltip}">+ ${displayRate.toFixed(2)}% ${l.label}</span>`;
-                                } else {
-                                    return `<span class="${l.cls}">+ ${displayRate.toFixed(2)}% ${l.label}</span>`;
-                                }
+                                return `<span class="${l.cls}">+ ${displayRate.toFixed(2)}% ${l.label}</span>`;
                             }).join('') +
                             '</div>';
                     }
