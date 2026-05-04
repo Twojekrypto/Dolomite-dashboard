@@ -9081,6 +9081,39 @@
             box-shadow: 0 0 6px rgba(96, 165, 250, 0.35);
         }
 
+        .earn-position-badge {
+            border-radius: 6px;
+            padding: 2px 7px 2px 6px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 8.5px;
+            letter-spacing: 0.58px;
+            text-transform: uppercase;
+            box-shadow: none;
+        }
+
+        .earn-position-badge .earn-status-dot {
+            width: 2px;
+            height: 11px;
+            border-radius: 999px;
+            box-shadow: none;
+        }
+
+        .earn-position-badge.routed {
+            background: rgba(59, 130, 246, 0.1);
+            color: #93c5fd;
+            border-color: rgba(96, 165, 250, 0.28);
+        }
+
+        .earn-position-badge.withdrawn {
+            background: rgba(148, 163, 184, 0.08);
+            color: #cbd5e1;
+            border-color: rgba(148, 163, 184, 0.18);
+        }
+
+        .earn-position-badge.withdrawn .earn-status-dot {
+            background: rgba(203, 213, 225, 0.72);
+        }
+
         .earn-verify-badge .earn-status-dot {
             width: 5px;
             height: 5px;
@@ -27978,11 +28011,11 @@
                 if (item.isIsolation && !item.isActive) {
                     badge = '<span class="earn-hist-badge isolation" data-tip="Dolomite Isolation Mode — internal wrapper token used as collateral in borrow positions">Isolation</span>';
                 } else if (item.isCollateralized) {
-                    badge = '<span class="earn-hist-badge routed" data-tip="Asset is routed into a borrow subaccount as collateral, so it is not a withdrawn supply asset"><span class="earn-status-dot"></span>Borrow Collateral</span>';
+                    badge = '<span class="earn-hist-badge earn-position-badge routed" data-tip="Asset is routed into a borrow subaccount as collateral, so it is not a withdrawn supply asset"><span class="earn-status-dot"></span>In Borrow Route</span>';
                 } else if (item.isActive) {
                     badge = '';
                 } else {
-                    badge = '<span class="earn-hist-badge withdrawn">Withdrawn</span>';
+                    badge = '<span class="earn-hist-badge earn-position-badge withdrawn"><span class="earn-status-dot"></span>Exited Position</span>';
                 }
                 const verifyBadge = earn_renderVerificationBadge(item.marketId, item.symbol, item.decimals);
 
@@ -35992,7 +36025,7 @@
                                 <div class="earn-token-info">
                                         <div class="earn-token-name">${item.symbol} ${chevron}</div>
                                         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:3px">
-                                        <span class="earn-hist-badge ${item.isCollateralized ? 'routed' : 'withdrawn'}"${item.isCollateralized ? ' data-tip="Asset is routed into a borrow subaccount as collateral, so it is not a withdrawn supply asset"' : ''}><span class="earn-status-dot"></span>${item.isCollateralized ? 'Borrow Collateral' : 'Withdrawn'}</span>
+                                        <span class="earn-hist-badge earn-position-badge ${item.isCollateralized ? 'routed' : 'withdrawn'}"${item.isCollateralized ? ' data-tip="Asset is routed into a borrow subaccount as collateral, so it is not a withdrawn supply asset"' : ''}><span class="earn-status-dot"></span>${item.isCollateralized ? 'In Borrow Route' : 'Exited Position'}</span>
                                         ${verifyBadge}
                                         ${sourceBadge}
                                     </div>
@@ -36594,7 +36627,7 @@
                                     ${iconHtml}
                                     <div class="earn-token-info">
                                         <div class="earn-token-name">${item.symbol}</div>
-                                        <span class="earn-hist-badge ${item.isCollateralized ? 'routed' : 'withdrawn'}"${item.isCollateralized ? ' data-tip="Asset is routed into a borrow subaccount as collateral, so it is not a withdrawn supply asset"' : ''}><span class="earn-status-dot"></span>${item.isCollateralized ? 'Borrow Collateral' : 'Withdrawn'}</span>
+                                        <span class="earn-hist-badge earn-position-badge ${item.isCollateralized ? 'routed' : 'withdrawn'}"${item.isCollateralized ? ' data-tip="Asset is routed into a borrow subaccount as collateral, so it is not a withdrawn supply asset"' : ''}><span class="earn-status-dot"></span>${item.isCollateralized ? 'In Borrow Route' : 'Exited Position'}</span>
                                     </div>
                                 </div>
                             </div>
