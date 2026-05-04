@@ -23,6 +23,7 @@
 ## Data Display
 - **Non-oDOLO rewards bug**: Some tokens (e.g., USD1) have rewards from external protocols (WLFI) that aren't oDOLO. These must be captured as yield sources and controlled by the Yield toggle, not ignored.
 - **Stablecoin formatting**: Stablecoins should show fewer decimals (1) since their values are close to $1. Volatile tokens need more precision (6 decimals).
+- **Earn routed collateral is not withdrawn**: In Earn, assets parked inside a borrow subaccount as collateral must not be labeled `WITHDRAWN`. Use `BORROW COLLATERAL` / routed language and keep true `WITHDRAWN` only for assets that are no longer active supply/collateral/borrow-route positions.
 
 ## Browser Subagent Tips
 - **Give explicit wait times**: Subagents need clear wait durations for data-loading pages. "Wait 8 seconds" works better than "wait for data".
