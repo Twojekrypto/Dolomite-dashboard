@@ -36488,7 +36488,7 @@
                     </td>
                     <td>
                         <span class="earn-amount earn-amount-primary">${weiFmt}<span class="earn-amount-sym">${a.symbol}</span></span>
-                        <div style="font-size:11px;color:var(--text-muted);margin-top:2px" data-tip="${earn_escapeHtml(earn_formatUSDExact(a.usdValue))}">≈ ${earn_formatUSD(a.usdValue)}</div>
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">≈ ${earn_formatUSD(a.usdValue)}</div>
                     </td>
                     <td>
                         ${yieldCellHtml}
@@ -36605,7 +36605,7 @@
                             ${(() => {
                             const chainId = document.getElementById('earn-chain').value;
                             const balUsd = Math.abs(earn_scaledUsdToNumber(earn_getTokenUsdScaled(item.currentWei, item.decimals, item.symbol, item.tokenAddr, chainId)));
-                            return balUsd >= 0.01 ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px" data-tip="${earn_escapeHtml(earn_formatUSDExact(balUsd))}">≈ ${earn_formatUSD(balUsd)}</div>` : '';
+                            return balUsd >= 0.01 ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">≈ ${earn_formatUSD(balUsd)}</div>` : '';
                         })()}
                         </td>
                         <td>
