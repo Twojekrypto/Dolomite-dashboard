@@ -1293,6 +1293,329 @@ body.earn-draft-route #view-earn > .protocol-info-card {
   display: block !important;
 }
 
+body.earn-draft-route .earn-dolo-proto {
+  margin-top: 24px;
+  background: var(--earn-bg-2);
+  border: 1px solid var(--earn-line-2);
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .02) inset, 0 1px 2px rgba(0, 0, 0, .4);
+  position: relative;
+}
+
+body.earn-draft-route .earn-dolo-proto::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, var(--earn-gold-line) 30%, var(--earn-gold-line) 70%, transparent 100%);
+  opacity: .6;
+  pointer-events: none;
+}
+
+body.earn-draft-route .earn-dolo-proto-head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 22px 24px 20px;
+  border-bottom: 1px solid var(--earn-line-1);
+}
+
+body.earn-draft-route .earn-dolo-proto-brand,
+body.earn-draft-route .earn-dolo-proto-links,
+body.earn-draft-route .earn-dolo-proto-links-group,
+body.earn-draft-route .earn-dolo-proto-pill,
+body.earn-draft-route .earn-dolo-proto-addr-left,
+body.earn-draft-route .earn-dolo-proto-token,
+body.earn-draft-route .earn-dolo-proto-chain-chip,
+body.earn-draft-route .earn-dolo-proto-addr-right {
+  display: flex;
+  align-items: center;
+}
+
+body.earn-draft-route .earn-dolo-proto-brand {
+  gap: 14px;
+}
+
+body.earn-draft-route .earn-dolo-proto-brand-mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--earn-bg-3);
+  border: 1px solid var(--earn-line-2);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+body.earn-draft-route .earn-dolo-proto-brand-mark img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
+body.earn-draft-route .earn-dolo-proto-brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+body.earn-draft-route .earn-dolo-proto-brand-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--earn-fg-1);
+  letter-spacing: -.1px;
+}
+
+body.earn-draft-route .earn-dolo-proto-brand-sub {
+  font-size: 12px;
+  color: var(--earn-fg-3);
+}
+
+body.earn-draft-route .earn-dolo-proto-brand-sub b {
+  color: var(--earn-fg-2);
+  font-weight: 600;
+}
+
+body.earn-draft-route .earn-dolo-proto-links {
+  gap: 14px;
+  flex-wrap: wrap;
+  row-gap: 10px;
+}
+
+body.earn-draft-route .earn-dolo-proto-links-group {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+body.earn-draft-route .earn-dolo-proto-links-label {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+  font-weight: 600;
+  color: #48474a;
+  margin-right: 4px;
+}
+
+body.earn-draft-route .earn-dolo-proto-links-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--earn-line-2);
+  flex-shrink: 0;
+}
+
+body.earn-draft-route .earn-dolo-proto-pill {
+  gap: 7px;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
+  color: var(--earn-fg-2);
+  background: var(--earn-bg-3);
+  border: 1px solid var(--earn-line-2);
+  border-radius: 999px;
+  text-decoration: none;
+  transition: border-color .2s var(--earn-ease), color .2s var(--earn-ease), background .2s var(--earn-ease);
+}
+
+body.earn-draft-route .earn-dolo-proto-pill:hover {
+  color: var(--earn-gold);
+  border-color: var(--earn-gold-line);
+  background: var(--earn-gold-wash);
+}
+
+body.earn-draft-route .earn-dolo-proto-pill svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+
+body.earn-draft-route .earn-dolo-proto-body {
+  padding: 20px 24px 24px;
+}
+
+body.earn-draft-route .earn-dolo-proto-body-head {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.6px;
+  color: var(--earn-fg-2);
+  font-weight: 600;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+body.earn-draft-route .earn-dolo-proto-body-head::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--earn-line-1);
+}
+
+body.earn-draft-route .earn-dolo-proto-addrs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+body.earn-draft-route .earn-dolo-proto-addr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  background: var(--earn-bg-1);
+  border: 1px solid var(--earn-line-2);
+  border-radius: 12px;
+  transition: border-color .2s var(--earn-ease), background .2s var(--earn-ease);
+  cursor: pointer;
+}
+
+body.earn-draft-route .earn-dolo-proto-addr:hover {
+  border-color: var(--earn-gold-line);
+  background: rgba(201, 162, 39, .02);
+}
+
+body.earn-draft-route .earn-dolo-proto-addr-left {
+  gap: 12px;
+  min-width: 0;
+}
+
+body.earn-draft-route .earn-dolo-proto-token {
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+body.earn-draft-route .earn-dolo-proto-token img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--earn-bg-3);
+  border: 1px solid var(--earn-line-2);
+}
+
+body.earn-draft-route .earn-dolo-proto-token-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--earn-fg-1);
+  letter-spacing: -.1px;
+}
+
+body.earn-draft-route .earn-dolo-proto-chain-chip {
+  gap: 6px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  color: var(--earn-fg-2);
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--earn-bg-3);
+  border: 1px solid var(--earn-line-2);
+  font-weight: 500;
+}
+
+body.earn-draft-route .earn-dolo-proto-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+body.earn-draft-route .earn-dolo-proto-dot-ethereum {
+  background: #8a8a9e;
+}
+
+body.earn-draft-route .earn-dolo-proto-dot-berachain {
+  background: var(--earn-gold);
+}
+
+body.earn-draft-route .earn-dolo-proto-addr-right {
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+body.earn-draft-route .earn-dolo-proto-addr-hex {
+  font-family: var(--earn-mono);
+  font-size: 11px;
+  color: var(--earn-fg-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+body.earn-draft-route .earn-dolo-proto-copy,
+body.earn-draft-route .earn-dolo-proto-explore {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: var(--earn-bg-3);
+  border: 1px solid var(--earn-line-2);
+  display: grid;
+  place-items: center;
+  color: var(--earn-fg-3);
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: color .2s var(--earn-ease), border-color .2s var(--earn-ease), background .2s var(--earn-ease);
+}
+
+body.earn-draft-route .earn-dolo-proto-copy:hover,
+body.earn-draft-route .earn-dolo-proto-explore:hover {
+  color: var(--earn-gold);
+  border-color: var(--earn-gold-line);
+  background: var(--earn-gold-wash);
+}
+
+body.earn-draft-route .earn-dolo-proto-copy.copied {
+  color: var(--earn-up);
+  border-color: var(--earn-up);
+}
+
+body.earn-draft-route .earn-dolo-proto-copy svg,
+body.earn-draft-route .earn-dolo-proto-explore svg {
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  body.earn-draft-route .earn-dolo-proto-addrs {
+    grid-template-columns: 1fr;
+  }
+
+  body.earn-draft-route .earn-dolo-proto-links-sep {
+    display: none;
+  }
+
+  body.earn-draft-route .earn-dolo-proto-links {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  body.earn-draft-route .earn-dolo-proto-addr {
+    width: 100%;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  body.earn-draft-route .earn-dolo-proto-addr-right {
+    min-width: 0;
+  }
+
+  body.earn-draft-route .earn-dolo-proto-addr-hex {
+    max-width: 96px;
+  }
+}
+
 @media (max-width: 900px) {
   .earn-premium-top {
     padding: 28px 16px 0;
@@ -1487,5 +1810,34 @@ body.earn-draft-route #view-earn > .protocol-info-card {
   body.earn-draft-route .earn-past-header,
   body.earn-draft-route .earn-lending-header {
     padding: 18px 16px !important;
+  }
+
+  body.earn-draft-route .earn-dolo-proto-addrs {
+    grid-template-columns: 1fr;
+  }
+
+  body.earn-draft-route .earn-dolo-proto-links-sep {
+    display: none;
+  }
+
+  body.earn-draft-route .earn-dolo-proto-links {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  body.earn-draft-route .earn-dolo-proto-addr {
+    width: 100%;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  body.earn-draft-route .earn-dolo-proto-addr-right {
+    min-width: 0;
+  }
+
+  body.earn-draft-route .earn-dolo-proto-addr-hex {
+    max-width: 96px;
   }
 }
