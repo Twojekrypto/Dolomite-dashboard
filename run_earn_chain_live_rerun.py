@@ -66,6 +66,8 @@ NON_BLOCKING_PATTERNS = {
     "exact_hidden_collateral_non_strict_fallback",
 }
 RAW_DIAGNOSTIC_CATEGORIES = set(TIMEOUT_CATEGORIES) | {"missing_position", "no_data"}
+INFORMATIONAL_TAIL_RETRY_PRESET = "targeted-slow-retry"
+INFORMATIONAL_TAIL_RETRY_WORKERS = 2
 
 
 def safe_int(value: object) -> int:
@@ -497,6 +499,9 @@ def build_live_plan(
             "timeoutRetryInputPath": str(paths["retryInputs"] / f"{base}__timeout.json"),
             "timeoutRetryOutputPath": str(paths["results"] / f"{base}__timeout-retry.json"),
             "timeoutRetrySummaryPath": str(paths["summaries"] / f"{base}__timeout-retry.json"),
+            "informationalRetryInputPath": str(paths["retryInputs"] / f"{base}__informational.json"),
+            "informationalRetryOutputPath": str(paths["results"] / f"{base}__informational-retry.json"),
+            "informationalRetrySummaryPath": str(paths["summaries"] / f"{base}__informational-retry.json"),
             "outputPath": str(paths["results"] / f"{base}__merged.json"),
             "summaryPath": str(paths["summaries"] / f"{base}__merged.json"),
             "forensicPath": str(paths["forensic"] / f"{base}.json"),
@@ -534,6 +539,8 @@ def build_live_plan(
         "endpointPairs": endpoint_pairs,
         "workersPerMarket": int(workers_per_market),
         "retryWorkersPerMarket": int(retry_workers_per_market),
+        "informationalRetryPreset": INFORMATIONAL_TAIL_RETRY_PRESET,
+        "informationalRetryWorkersPerMarket": INFORMATIONAL_TAIL_RETRY_WORKERS,
         "markets": markets,
     }
     save_plan(run_root / "live-rerun-plan.json", plan)
@@ -554,6 +561,9 @@ def plan_has_full_cycle_fields(plan: dict) -> bool:
         "timeoutRetryInputPath",
         "timeoutRetryOutputPath",
         "timeoutRetrySummaryPath",
+        "informationalRetryInputPath",
+        "informationalRetryOutputPath",
+        "informationalRetrySummaryPath",
         "forensicPath",
         "tailExplainPath",
         "reportPath",
@@ -571,6 +581,8 @@ def build_run_summary(plan: dict) -> dict:
     final_informational_total = 0
     timeout_retry_input_total = 0
     timeout_retry_completed_total = 0
+    informational_retry_input_total = 0
+    informational_retry_completed_total = 0
     combined_report_count = 0
     for market in plan.get("markets") or []:
         entry = {
@@ -612,11 +624,15 @@ def build_run_summary(plan: dict) -> dict:
             final_informational_count = safe_int(report_payload.get("finalInformationalTailCount"))
             timeout_retry_input_count = safe_int(report_payload.get("timeoutRetryInputCount"))
             timeout_retry_completed_count = safe_int(report_payload.get("timeoutRetryCompletedCount"))
+            informational_retry_input_count = safe_int(report_payload.get("informationalRetryInputCount"))
+            informational_retry_completed_count = safe_int(report_payload.get("informationalRetryCompletedCount"))
             entry["combinedReport"] = {
                 "finalBlockingTailCount": final_blocking_count,
                 "finalInformationalTailCount": final_informational_count,
                 "timeoutRetryInputCount": timeout_retry_input_count,
                 "timeoutRetryCompletedCount": timeout_retry_completed_count,
+                "informationalRetryInputCount": informational_retry_input_count,
+                "informationalRetryCompletedCount": informational_retry_completed_count,
                 "tailLikelyCauseCounts": report_payload.get("tailLikelyCauseCounts") or {},
             }
             aggregate_tail_causes.update(report_payload.get("tailLikelyCauseCounts") or {})
@@ -624,6 +640,8 @@ def build_run_summary(plan: dict) -> dict:
             final_informational_total += final_informational_count
             timeout_retry_input_total += timeout_retry_input_count
             timeout_retry_completed_total += timeout_retry_completed_count
+            informational_retry_input_total += informational_retry_input_count
+            informational_retry_completed_total += informational_retry_completed_count
         if market.get("status") == "failed":
             failed_count += 1
             entry["error"] = market.get("error")
@@ -660,6 +678,8 @@ def build_run_summary(plan: dict) -> dict:
             "finalInformationalTailCount": final_informational_total,
             "timeoutRetryInputCount": timeout_retry_input_total,
             "timeoutRetryCompletedCount": timeout_retry_completed_total,
+            "informationalRetryInputCount": informational_retry_input_total,
+            "informationalRetryCompletedCount": informational_retry_completed_total,
             "tailLikelyCauseCounts": dict(aggregate_tail_causes),
         },
         "rawDiagnosticCounts": diagnostic_counts,
@@ -713,11 +733,16 @@ def live_audit_command(
     output_path: Path,
     phase: str,
 ) -> List[str]:
-    worker_count = (
-        int(plan.get("retryWorkersPerMarket") or plan.get("workersPerMarket") or 1)
-        if phase == "timeout-retry"
-        else int(plan.get("workersPerMarket") or 1)
-    )
+    if phase == "informational-retry":
+        worker_count = int(plan.get("informationalRetryWorkersPerMarket") or INFORMATIONAL_TAIL_RETRY_WORKERS)
+        live_preset = str(plan.get("informationalRetryPreset") or INFORMATIONAL_TAIL_RETRY_PRESET)
+    else:
+        worker_count = (
+            int(plan.get("retryWorkersPerMarket") or plan.get("workersPerMarket") or 1)
+            if phase == "timeout-retry"
+            else int(plan.get("workersPerMarket") or 1)
+        )
+        live_preset = str(plan.get("livePreset") or "").strip()
     endpoint_pairs = plan.get("endpointPairs") or build_endpoint_pairs(
         plan.get("localhostUrls") or plan.get("localhostUrl"),
         plan.get("debugJsonUrls") or plan.get("debugJsonUrl"),
@@ -735,7 +760,6 @@ def live_audit_command(
         str(ROOT / "audit_earn_asset.py"),
         "live",
     ]
-    live_preset = str(plan.get("livePreset") or "").strip()
     if live_preset:
         cmd.extend(["--live-preset", live_preset])
     cmd.extend([
@@ -785,6 +809,24 @@ def write_live_summary(path: Path, payload: dict, *, plan: dict, market: dict, p
 def build_timeout_retry_payload(payload: dict) -> dict:
     rows = select_live_rows(payload, "timeouts")
     return build_extracted_live_payload(payload, rows)
+
+
+def build_informational_retry_payload(payload: dict) -> dict:
+    rows = select_live_rows(payload, "informational")
+    return build_extracted_live_payload(payload, rows)
+
+
+def ensure_market_informational_retry_paths(plan: dict, market: dict) -> None:
+    base = f"{market['marketId']}_{market['symbol']}"
+    run_root = Path(str(plan["runRoot"]))
+    retry_inputs = run_root / "retry-inputs"
+    results = run_root / "results"
+    summaries = run_root / "summaries"
+    for directory in (retry_inputs, results, summaries):
+        directory.mkdir(parents=True, exist_ok=True)
+    market.setdefault("informationalRetryInputPath", str(retry_inputs / f"{base}__informational.json"))
+    market.setdefault("informationalRetryOutputPath", str(results / f"{base}__informational-retry.json"))
+    market.setdefault("informationalRetrySummaryPath", str(summaries / f"{base}__informational-retry.json"))
 
 
 def build_tail_diff_report(
@@ -871,11 +913,19 @@ def build_combined_market_report(
     merged_summary: dict,
     forensic_report: dict,
     tail_report: dict,
+    informational_retry_summary: Optional[dict] = None,
 ) -> dict:
     final_blocking_count = len(forensic_report.get("blockingRows") or [])
     final_informational_count = len(forensic_report.get("informationalRows") or [])
     timeout_retry_input_count = safe_int(read_json(Path(market["timeoutRetryInputPath"]), {}).get("inputCount"))
     timeout_retry_completed_count = safe_int((timeout_retry_summary or {}).get("completed"))
+    informational_retry_input_path = str(market.get("informationalRetryInputPath") or "").strip()
+    informational_retry_input_count = (
+        safe_int(read_json(Path(informational_retry_input_path), {}).get("inputCount"))
+        if informational_retry_input_path
+        else 0
+    )
+    informational_retry_completed_count = safe_int((informational_retry_summary or {}).get("completed"))
     return {
         "generatedAt": utc_now_iso(),
         "chain": plan["chain"],
@@ -895,6 +945,9 @@ def build_combined_market_report(
         "timeoutRetryInputCount": timeout_retry_input_count,
         "timeoutRetryCompletedCount": timeout_retry_completed_count,
         "liveTimeoutRetry": timeout_retry_summary,
+        "informationalRetryInputCount": informational_retry_input_count,
+        "informationalRetryCompletedCount": informational_retry_completed_count,
+        "liveInformationalRetry": informational_retry_summary,
         "liveMerged": merged_summary,
         "finalBlockingTailCount": final_blocking_count,
         "finalInformationalTailCount": final_informational_count,
@@ -909,6 +962,7 @@ def build_combined_market_report(
         "tailExplainPath": market["tailExplainPath"],
         "fullOutputPath": market["fullOutputPath"],
         "timeoutRetryOutputPath": market["timeoutRetryOutputPath"],
+        "informationalRetryOutputPath": market.get("informationalRetryOutputPath"),
         "mergedOutputPath": market["outputPath"],
     }
 
@@ -1017,6 +1071,47 @@ def run_market_cycle(plan: dict, market: dict) -> dict:
     forensic_report = build_forensic_live_report(merged_payload)
     write_json(Path(market["forensicPath"]), forensic_report)
 
+    informational_retry_summary = None
+    if not forensic_report.get("blockingRows") and forensic_report.get("informationalRows"):
+        ensure_market_informational_retry_paths(plan, market)
+        informational_retry_input = build_informational_retry_payload(merged_payload)
+        write_json(Path(market["informationalRetryInputPath"]), informational_retry_input)
+        informational_retry_count = int(informational_retry_input.get("inputCount") or 0)
+        if informational_retry_count > 0:
+            informational_retry_output = Path(market["informationalRetryOutputPath"])
+            informational_retry_summary_path = Path(market["informationalRetrySummaryPath"])
+            informational_retry_payload = ensure_live_phase_payload(
+                plan,
+                market=market,
+                phase="informational-retry",
+                input_path=Path(market["informationalRetryInputPath"]),
+                output_path=informational_retry_output,
+            )
+            informational_retry_summary = write_live_summary(
+                informational_retry_summary_path,
+                informational_retry_payload,
+                plan=plan,
+                market=market,
+                phase="informational-retry",
+            )
+            market["stage"] = "informational_retry_completed"
+            refresh_plan_summary(plan)
+
+            merged_payload = merge_live_payloads([merged_output, informational_retry_output])
+            write_json(merged_output, merged_payload)
+            merged_summary = write_live_summary(
+                merged_summary_path,
+                merged_payload,
+                plan=plan,
+                market=market,
+                phase="merged",
+            )
+            market["stage"] = "merged_completed"
+            refresh_plan_summary(plan)
+
+            forensic_report = build_forensic_live_report(merged_payload)
+            write_json(Path(market["forensicPath"]), forensic_report)
+
     tail_report = build_tail_diff_report(plan, market=market, forensic_report=forensic_report)
     write_json(Path(market["tailExplainPath"]), tail_report)
 
@@ -1027,6 +1122,7 @@ def run_market_cycle(plan: dict, market: dict) -> dict:
         static_report=static_report,
         full_summary=full_summary,
         timeout_retry_summary=timeout_retry_summary,
+        informational_retry_summary=informational_retry_summary,
         merged_summary=merged_summary,
         forensic_report=forensic_report,
         tail_report=tail_report,
