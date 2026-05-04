@@ -101,7 +101,7 @@
             <span class="earn-dolo-proto-chain-chip"><span class="earn-dolo-proto-dot earn-dolo-proto-dot-${contract.chainKey}"></span>${contract.chain}</span>
           </div>
           <div class="earn-dolo-proto-addr-right">
-            <span class="earn-dolo-proto-addr-hex" title="${contract.addr}">${shortenAddress(contract.addr)}</span>
+            <span class="earn-dolo-proto-addr-hex addr-tooltip-wrap" data-full-addr="${contract.addr}">${shortenAddress(contract.addr)}</span>
             <button class="earn-dolo-proto-copy" type="button" data-copy="${contract.addr}" aria-label="Copy address">${copyIcon}</button>
             <button class="earn-dolo-proto-explore" type="button" data-url="${url}" aria-label="Open in explorer">${externalIcon}</button>
           </div>
