@@ -65,100 +65,46 @@ jobs:
             --metadata-output "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
           cat "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
 
-      - name: Refresh Arbitrum canonical history incrementally
+      - name: Refresh Arbitrum canonical history
+        id: refresh
         run: |
           set -euo pipefail
-          python3 run_earn_subaccount_history_incremental.py continue \
+          status_path="/tmp/earn-${CHAIN}-canonical-refresh.json"
+          python3 run_earn_canonical_history_refresh.py \
             --chain "$CHAIN" \
-            --refresh-plan \
             --selection-address-file "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt" \
             --max-scan-workers 12 \
-            --max-apply-workers 12 \
-            --max-new-backfill-workers 6
-
-          for i in $(seq 1 720); do
-            python3 run_earn_subaccount_history_incremental.py continue \
-              --chain "$CHAIN" \
-              --selection-address-file "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt" \
-              --max-scan-workers 12 \
-              --max-apply-workers 12 \
-              --max-new-backfill-workers 6 \
-              --json > /tmp/earn-arbitrum-step.json
-            if python3 - <<'PY'
-          import json, sys
-          from pathlib import Path
-
-          payload = json.load(open('/tmp/earn-arbitrum-step.json'))
-          status = payload.get('status') or {}
-          coverage = status.get('coverage') or {}
-          ratio = float(coverage.get('freshCoverageRatio') or 0)
-          selected = int(coverage.get('selectedAddressCount') or 0)
-          fresh = int(coverage.get('freshWalletCount') or 0)
-          missing = int(coverage.get('missingWalletCount') or 0)
-          target_block = int(status.get('targetBlock') or 0)
-
-          print(
-              f"Cycle {status.get('cycleId')} | "
-              f"target={target_block} | "
-              f"scan={status.get('scan', {}).get('completedWorkerCount')}/"
-              f"{status.get('scan', {}).get('workerCount')} | "
-              f"apply={status.get('apply', {}).get('completedWorkerCount')}/"
-              f"{status.get('apply', {}).get('workerCount')} | "
-              f"coverage={fresh}/{selected} missing={missing}"
-          )
-
-          target = Path('data/earn-subaccount-history/arbitrum/0x28da3dde285d8f1f87b2d858f89961bb8b9af180.json')
-          target_fresh = False
-          if target.exists() and target_block:
-              wallet = json.load(target.open())
-              target_fresh = int(wallet.get('lastScannedBlock') or 0) >= target_block
-
-          stages_complete = (
-              status.get('scan', {}).get('complete')
-              and status.get('newAddressBackfill', {}).get('complete')
-              and status.get('apply', {}).get('complete')
-          )
-          coverage_good = selected > 0 and ratio >= 0.999 and missing <= max(10, int(selected * 0.001))
-          sys.exit(0 if stages_complete and coverage_good and target_fresh else 1)
-          PY
-            then
-              break
-            fi
-            sleep 20
-          done
-
-          python3 run_earn_subaccount_history_incremental.py status \
-            --chain "$CHAIN" \
-            --selection-address-file "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt" \
-            --json > /tmp/earn-arbitrum-status.json
-          python3 - <<'PY'
+            --max-materialize-workers 12 \
+            --max-incremental-scan-workers 12 \
+            --max-incremental-apply-workers 12 \
+            --max-new-backfill-workers 6 \
+            --max-steps 720 \
+            --sleep-seconds 20 \
+            --allow-checkpoint-incomplete \
+            --status-output "$status_path"
+          cat "$status_path"
+          complete="$(python3 - "$status_path" <<'PY'
           import json
-          from pathlib import Path
-
-          status = json.load(open('/tmp/earn-arbitrum-status.json'))
-          coverage = status.get('coverage') or {}
-          ratio = float(coverage.get('freshCoverageRatio') or 0)
-          selected = int(coverage.get('selectedAddressCount') or 0)
-          missing = int(coverage.get('missingWalletCount') or 0)
-          assert selected > 0, f"No selected addresses in coverage: {coverage}"
-          assert ratio >= 0.999, f"Coverage too low: {coverage}"
-          assert missing <= max(10, int(selected * 0.001)), f"Too many missing wallets: {coverage}"
-
-          target_block = int(status.get('targetBlock') or 0)
-          target = Path('data/earn-subaccount-history/arbitrum/0x28da3dde285d8f1f87b2d858f89961bb8b9af180.json')
-          assert target.exists(), f"Expected address history missing: {target}"
-          payload = json.load(target.open())
-          last_scanned = int(payload.get('lastScannedBlock') or 0)
-          assert target_block > 0, f"Invalid target block: {status}"
-          assert last_scanned >= target_block, f"Target wallet history stale: {last_scanned} < {target_block}"
-          print(
-              f"Validated Arbitrum canonical history: "
-              f"{coverage.get('freshWalletCount')}/{selected} wallets fresh, "
-              f"target wallet at block {last_scanned}"
-          )
+          import sys
+          payload = json.load(open(sys.argv[1]))
+          print("true" if payload.get("complete") else "false")
           PY
+          )"
+          skipped="$(python3 - "$status_path" <<'PY'
+          import json
+          import sys
+          payload = json.load(open(sys.argv[1]))
+          print("true" if payload.get("skipped") else "false")
+          PY
+          )"
+          echo "complete=${complete}" >> "$GITHUB_OUTPUT"
+          echo "skipped=${skipped}" >> "$GITHUB_OUTPUT"
+          if [ "$complete" != "true" ]; then
+            echo "Canonical history checkpoint saved; later scheduled runs will continue from cache."
+          fi
 
       - name: Build Arbitrum verified ledger cache
+        if: steps.refresh.outputs.complete == 'true' && steps.refresh.outputs.skipped != 'true'
         run: |
           set -euo pipefail
           python3 build_earn_verified_ledger.py \
@@ -180,9 +126,11 @@ jobs:
           key: earn-canonical-runtime-arbitrum-${{ github.run_id }}
 
       - name: Run EARN audit checks
+        if: steps.refresh.outputs.complete == 'true' && steps.refresh.outputs.skipped != 'true'
         run: python3 run_earn_audit_checks.py
 
       - name: Commit and push refreshed canonical history
+        if: steps.refresh.outputs.complete == 'true' && steps.refresh.outputs.skipped != 'true'
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"

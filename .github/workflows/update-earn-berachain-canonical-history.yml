@@ -65,8 +65,10 @@ jobs:
           cat "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
 
       - name: Refresh Berachain canonical history
+        id: refresh
         run: |
           set -euo pipefail
+          status_path="/tmp/earn-${CHAIN}-canonical-refresh.json"
           python3 run_earn_canonical_history_refresh.py \
             --chain "$CHAIN" \
             --selection-address-file "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt" \
@@ -78,9 +80,32 @@ jobs:
             --max-steps 720 \
             --sleep-seconds 20 \
             --allow-empty \
-            --skip-unsupported-start-block
+            --skip-unsupported-start-block \
+            --allow-checkpoint-incomplete \
+            --status-output "$status_path"
+          cat "$status_path"
+          complete="$(python3 - "$status_path" <<'PY'
+          import json
+          import sys
+          payload = json.load(open(sys.argv[1]))
+          print("true" if payload.get("complete") else "false")
+          PY
+          )"
+          skipped="$(python3 - "$status_path" <<'PY'
+          import json
+          import sys
+          payload = json.load(open(sys.argv[1]))
+          print("true" if payload.get("skipped") else "false")
+          PY
+          )"
+          echo "complete=${complete}" >> "$GITHUB_OUTPUT"
+          echo "skipped=${skipped}" >> "$GITHUB_OUTPUT"
+          if [ "$complete" != "true" ]; then
+            echo "Canonical history checkpoint saved; later scheduled runs will continue from cache."
+          fi
 
       - name: Build Berachain verified ledger cache
+        if: steps.refresh.outputs.complete == 'true' && steps.refresh.outputs.skipped != 'true'
         run: |
           set -euo pipefail
           python3 build_earn_verified_ledger.py \
@@ -102,9 +127,11 @@ jobs:
           key: earn-canonical-runtime-berachain-${{ github.run_id }}
 
       - name: Run EARN audit checks
+        if: steps.refresh.outputs.complete == 'true' && steps.refresh.outputs.skipped != 'true'
         run: python3 run_earn_audit_checks.py
 
       - name: Commit and push refreshed canonical history
+        if: steps.refresh.outputs.complete == 'true' && steps.refresh.outputs.skipped != 'true'
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
