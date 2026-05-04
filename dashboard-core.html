@@ -7573,7 +7573,9 @@
         .earn-lending-header {
             display: flex;
             align-items: center;
+            justify-content: flex-start;
             gap: 8px;
+            text-align: left;
             font-size: 13px;
             font-weight: 600;
             color: #38bdf8;
@@ -7677,6 +7679,16 @@
         .earn-lending-table thead th:last-child,
         .earn-lending-table tbody td:last-child {
             padding-right: 24px;
+        }
+
+        .earn-lending-table thead th:nth-child(4),
+        .earn-lending-table tbody td:nth-child(4) {
+            text-align: right;
+        }
+
+        .earn-lending-table thead th.earn-details-th,
+        .earn-lending-table tbody td.earn-details-cell {
+            text-align: center;
         }
 
         /* Alternating row tint */
@@ -8367,6 +8379,15 @@
                 color: rgba(167, 139, 250, 0.5);
                 font-weight: 600;
                 margin-bottom: 3px;
+            }
+            .earn-lending-table tbody tr.earn-lend-row td:nth-child(5) {
+                grid-column: 1 / -1;
+                justify-self: flex-end;
+                padding: 2px 0 0;
+                border-top: none;
+            }
+            .earn-lending-table tbody tr.earn-lend-row td:nth-child(5)::before {
+                content: none;
             }
             /* Detail panel — single column */
             .earn-lend-detail-inner {
@@ -9224,8 +9245,9 @@
             table-layout: fixed;
             margin-top: 0;
         }
-        .earn-past-table colgroup col:nth-child(1) { width: 74%; }
+        .earn-past-table colgroup col:nth-child(1) { width: 62%; }
         .earn-past-table colgroup col:nth-child(2) { width: 26%; }
+        .earn-past-table colgroup col:nth-child(3) { width: 12%; }
         .earn-past-table th {
             font-size: 10px;
             text-transform: uppercase;
@@ -9249,9 +9271,14 @@
             padding-left: 14px !important;
             text-align: left !important;
         }
-        .earn-past-table th:last-child {
+        .earn-past-table th:nth-child(2) {
             text-align: right;
-            padding-right: 28px;
+            padding-right: 20px;
+        }
+        .earn-past-table th.earn-details-th {
+            cursor: default;
+            text-align: center;
+            padding-right: 18px;
         }
         .earn-past-table td {
             font-size: 13px;
@@ -9263,9 +9290,13 @@
         .earn-past-table td:first-child {
             padding-left: 14px;
         }
-        .earn-past-table td:last-child {
+        .earn-past-table td:nth-child(2) {
             text-align: right;
-            padding-right: 28px;
+            padding-right: 20px;
+        }
+        .earn-past-table td.earn-details-cell {
+            text-align: center;
+            padding-right: 18px;
         }
         .earn-past-table tbody tr.earn-data-row:nth-child(even) td {
             background: rgba(255, 255, 255, 0.012);
@@ -10690,10 +10721,11 @@
             border-spacing: 0;
             table-layout: fixed;
         }
-        .earn-asset-table colgroup col:nth-child(1) { width: 47.6%; }
-        .earn-asset-table colgroup col:nth-child(2) { width: 23.3%; }
-        .earn-asset-table colgroup col:nth-child(3) { width: 15.7%; }
-        .earn-asset-table colgroup col:nth-child(4) { width: 13.4%; }
+        .earn-asset-table colgroup col:nth-child(1) { width: 36%; }
+        .earn-asset-table colgroup col:nth-child(2) { width: 21%; }
+        .earn-asset-table colgroup col:nth-child(3) { width: 16%; }
+        .earn-asset-table colgroup col:nth-child(4) { width: 15%; }
+        .earn-asset-table colgroup col:nth-child(5) { width: 12%; }
 
         .earn-asset-table thead th {
             background: rgba(52, 211, 153, 0.03);
@@ -10776,15 +10808,19 @@
             transform: none;
         }
 
-        .earn-asset-table thead th:last-child {
-            border-radius: 0;
-            text-align: right;
-            padding-right: 28px;
-        }
-
         .earn-asset-table thead th:nth-child(3),
         .earn-asset-table thead th:nth-child(4) {
             text-align: right;
+        }
+
+        .earn-asset-table thead th:nth-child(4) {
+            padding-right: 20px;
+        }
+
+        .earn-asset-table thead th.earn-details-th {
+            cursor: default;
+            text-align: center;
+            padding-right: 18px;
         }
 
         .earn-asset-table thead th[data-sort] {
@@ -10824,14 +10860,18 @@
             padding-left: 14px;
         }
 
-        .earn-asset-table tbody td:last-child {
-            text-align: right;
-            padding-right: 28px;
-        }
-
         .earn-asset-table tbody td:nth-child(3),
         .earn-asset-table tbody td:nth-child(4) {
             text-align: right;
+        }
+
+        .earn-asset-table tbody td:nth-child(4) {
+            padding-right: 20px;
+        }
+
+        .earn-asset-table tbody td.earn-details-cell {
+            text-align: center;
+            padding-right: 18px;
         }
 
         .earn-asset-table tbody tr.earn-data-row {
@@ -11609,9 +11649,10 @@
         .earn-asset-table.no-yield thead th:nth-child(4),
         .earn-asset-table.no-yield tbody td:nth-child(4),
         .earn-asset-table.no-yield tfoot td:nth-child(4) { display: none; }
-        .earn-asset-table.no-yield colgroup col:nth-child(1) { width: 35% !important; }
-        .earn-asset-table.no-yield colgroup col:nth-child(2) { width: 30% !important; }
-        .earn-asset-table.no-yield colgroup col:nth-child(3) { width: 35% !important; }
+        .earn-asset-table.no-yield colgroup col:nth-child(1) { width: 36% !important; }
+        .earn-asset-table.no-yield colgroup col:nth-child(2) { width: 27% !important; }
+        .earn-asset-table.no-yield colgroup col:nth-child(3) { width: 25% !important; }
+        .earn-asset-table.no-yield colgroup col:nth-child(5) { width: 12% !important; }
 
         @keyframes earnRowSlideIn {
             from {
@@ -11914,6 +11955,86 @@
             border-radius: 999px;
             background: currentColor;
             box-shadow: 0 0 10px currentColor;
+        }
+
+        .earn-detail-chip.routed,
+        .earn-debug-badge.routed {
+            color: #fbbf24;
+            border-color: rgba(251, 191, 36, 0.26);
+            background: rgba(251, 191, 36, 0.09);
+        }
+
+        .earn-details-cell {
+            white-space: nowrap;
+        }
+
+        .earn-row-details-button {
+            height: 24px;
+            min-width: 78px;
+            padding: 0 8px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            flex-shrink: 0;
+            color: #fbbf24;
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.24);
+            cursor: pointer;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 0 1px rgba(251, 191, 36, 0.03);
+            transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+        }
+
+        .earn-row-details-button span {
+            font-size: 9.5px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            line-height: 1;
+            pointer-events: none;
+        }
+
+        .earn-row-details-button svg {
+            width: 12px;
+            height: 12px;
+            pointer-events: none;
+            transition: transform 0.18s ease;
+        }
+
+        .earn-row-details-button:hover {
+            color: #fff;
+            border-color: rgba(251, 191, 36, 0.58);
+            background: rgba(251, 191, 36, 0.14);
+            box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .earn-row-details-button .earn-details-label-hide {
+            display: none;
+        }
+
+        .earn-data-row.expanded .earn-row-details-button,
+        .earn-lend-row.open .earn-row-details-button {
+            color: #fff;
+            border-color: rgba(251, 191, 36, 0.58);
+            background: rgba(251, 191, 36, 0.16);
+            box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.08);
+        }
+
+        .earn-data-row.expanded .earn-row-details-button svg,
+        .earn-lend-row.open .earn-row-details-button svg {
+            transform: rotate(180deg);
+        }
+
+        .earn-data-row.expanded .earn-row-details-button .earn-details-label-show,
+        .earn-lend-row.open .earn-row-details-button .earn-details-label-show {
+            display: none;
+        }
+
+        .earn-data-row.expanded .earn-row-details-button .earn-details-label-hide,
+        .earn-lend-row.open .earn-row-details-button .earn-details-label-hide {
+            display: inline;
         }
 
         .earn-table-spacer td {
@@ -12307,6 +12428,10 @@
         .earn-asset-table tfoot td:nth-child(3),
         .earn-asset-table tfoot td:nth-child(4) {
             text-align: right;
+        }
+
+        .earn-asset-table tfoot td:nth-child(5) {
+            text-align: center;
         }
 
         /* Table wrapper card */
@@ -16626,6 +16751,7 @@
                                 <col>
                                 <col>
                                 <col>
+                                <col>
                             </colgroup>
                             <thead>
                                 <tr>
@@ -16644,6 +16770,7 @@
                                         <span>Total Yield Earned</span>
                                         <span class="earn-sort-arrow">▼</span>
                                     </th>
+                                    <th class="earn-details-th">Details</th>
                                 </tr>
                             </thead>
                             <tbody id="earn-table-body"></tbody>
@@ -16670,10 +16797,11 @@
                     <div class="earn-table-scroll earn-section-table-shell" style="overflow-x:auto">
                         <table class="earn-data-table earn-lending-table">
                             <colgroup>
-                                <col style="width:24%">
-                                <col style="width:28%">
-                                <col style="width:28%">
                                 <col style="width:20%">
+                                <col style="width:25%">
+                                <col style="width:25%">
+                                <col style="width:18%">
+                                <col style="width:12%">
                             </colgroup>
                             <thead>
                                 <tr>
@@ -16693,6 +16821,7 @@
                                         style="cursor:pointer;user-select:none;text-align:right">
                                         Net P&amp;L <span class="earn-sort-arrow">▼</span>
                                     </th>
+                                    <th class="earn-details-th">Details</th>
                                 </tr>
                             </thead>
                             <tbody id="earn-lending-tbody"></tbody>
@@ -16719,6 +16848,7 @@
                             <colgroup>
                                 <col>
                                 <col>
+                                <col>
                             </colgroup>
                             <thead>
                                 <tr>
@@ -16732,6 +16862,7 @@
                                         style="text-align:right">
                                         Total Yield Earned <span class="earn-sort-arrow">▼</span>
                                     </th>
+                                    <th class="earn-details-th">Details</th>
                                 </tr>
                             </thead>
                             <tbody id="earn-past-tbody"></tbody>
@@ -29685,11 +29816,21 @@
             }
         }
 
-        function earn_renderYieldSourceBadge(yieldCalc) {
+        function earn_renderYieldSourceBadge(yieldCalc, opts) {
+            opts = opts || {};
             if (!yieldCalc || !yieldCalc.hasData) return '';
+            if (opts.openBorrowRouteYield) {
+                const title = 'This yield is accrued inside an open borrow route because the asset is being used as collateral. It is shown separately from normal earned yield until the route is closed or collateral is withdrawn.';
+                return `<span class="earn-debug-badge routed" data-tip="${earn_escapeHtml(title)}"><span class="earn-status-dot"></span>Open Route Yield</span>`;
+            }
             if (yieldCalc.method === 'interest-ledger' || yieldCalc.method === 'interest-ledger-live-balance-adjusted') return '';
             const meta = earn_getYieldMethodMeta(yieldCalc.method);
             return `<span class="earn-debug-badge ${meta.cls}" data-tip="${earn_escapeHtml(meta.title)}"><span class="earn-status-dot"></span>${earn_escapeHtml(meta.label)}</span>`;
+        }
+
+        function earn_renderDetailsButton(toggleExpression) {
+            const chevron = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+            return `<button type="button" class="earn-row-details-button" onclick="event.stopPropagation();${toggleExpression}" aria-label="Toggle details"><span class="earn-details-label-show">Details</span><span class="earn-details-label-hide">Hide</span>${chevron}</button>`;
         }
 
         function earn_formatDebugDelta(value, decimals, symbol) {
@@ -29876,7 +30017,10 @@
             const methodMeta = earn_getYieldMethodMeta(yieldCalc && yieldCalc.method);
             const rewardsCardHtml = opts.includeRewards === false ? '' : earn_buildSupplyRewardsCard(position);
             const detailId = `${opts.idPrefix || 'earn'}-detail-${idx}`;
-            const colSpan = Number(opts.colSpan || 4);
+            const colSpan = Number(opts.colSpan || 5);
+            const isOpenBorrowRouteYield = !!opts.openBorrowRouteYield;
+            const yieldPanelLabel = isOpenBorrowRouteYield ? 'Borrow Route Yield' : 'Yield Performance';
+            const yieldHeroLabel = isOpenBorrowRouteYield ? 'Open Borrow Collateral Yield' : 'Total Net Yield';
 
             const yieldClass = !yieldCalc || !yieldCalc.hasData
                 ? ''
@@ -29894,6 +30038,9 @@
                 : '';
 
             const metaChips = [];
+            if (isOpenBorrowRouteYield) {
+                metaChips.push(`<span class="earn-detail-chip routed" data-tip="${earn_escapeHtml('This yield is still inside an open borrow route and is not treated as free/closed Total Yield Earned until collateral leaves the route.')}">Open Route</span>`);
+            }
             metaChips.push(`<span class="earn-detail-chip ${methodMeta.cls}" data-tip="${earn_escapeHtml(methodMeta.title)}">${earn_escapeHtml(methodMeta.label)}</span>`);
 
             const copySvg = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>';
@@ -29948,13 +30095,13 @@
                                         <div class="earn-detail-panel-icon">
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
                                         </div>
-                                        <div class="earn-detail-panel-label">Yield Performance</div>
+                                        <div class="earn-detail-panel-label">${yieldPanelLabel}</div>
                                     </div>
                                     <div class="earn-detail-meta">${metaChips.join('')}</div>
                                 </div>
 
                                 <div class="earn-detail-hero">
-                                    <div class="earn-detail-hero-label">Total Net Yield</div>
+                                    <div class="earn-detail-hero-label">${yieldHeroLabel}</div>
                                     <div class="earn-detail-hero-value ${yieldClass}">${yieldCalc && yieldCalc.hasData ? `${yieldCalc.yieldSign}${yieldCalc.yieldFmt} <span style="font-size:12px;color:currentColor;opacity:0.72;font-weight:600">${symbol}</span>` : '—'}</div>
                                 </div>
 
@@ -29967,7 +30114,7 @@
                                     <span class="earn-detail-rowline-value ${liveEarnClass}">${yieldCalc && yieldCalc.hasData ? `${yieldCalc.openSupplyYield > 0n ? '+' : yieldCalc.openSupplyYield < 0n ? '-' : ''}${earn_formatAmount(earn_absBigInt(yieldCalc.openSupplyYield), decimals, symbol)} ${symbol}` : '—'}</span>
                                 </div>
                                 <div class="earn-detail-rowline">
-                                    <span class="earn-detail-rowline-label" style="color:rgba(255,255,255,0.5)">Live parked in borrow</span>
+                                    <span class="earn-detail-rowline-label" style="color:rgba(255,255,255,0.5)">Open borrow collateral yield</span>
                                     <span class="earn-detail-rowline-value ${parkedBorrowClass}">${yieldCalc && yieldCalc.hasData ? `${yieldCalc.openCollateralYield > 0n ? '+' : yieldCalc.openCollateralYield < 0n ? '-' : ''}${earn_formatAmount(earn_absBigInt(yieldCalc.openCollateralYield), decimals, symbol)} ${symbol}` : '—'}</span>
                                 </div>
                             </div>
@@ -35415,10 +35562,11 @@
                         <td><div class="earn-merged-col"><span class="earn-usd-collateral">${collateralDisplay}</span>${renderMergedTokens(p.collateralTokens)}</div></td>
                         <td><div class="earn-merged-col"><span class="earn-usd-debt">${earn_formatUSD(p.debtUSD)}</span>${renderMergedTokens(p.debtTokens)}</div></td>
                         <td><div class="earn-net-inline ${pnlClass}">${pnlDisplay}</div>${annualDisplay}</td>
+                        <td class="earn-details-cell">${earn_renderDetailsButton(`earn_toggleLendDetail(${i})`)}</td>
                     </tr>`;
 
                     const detailRow = `<tr class="earn-lend-detail" id="earn-lend-detail-${i}">
-                        <td colspan="4">
+                        <td colspan="5">
                             <div class="earn-lend-detail-inner">
                                 <div class="earn-lend-section">
                                     <div class="earn-lend-section-title earn">Collateral Earnings</div>
@@ -35561,12 +35709,15 @@
             const routeVal = document.getElementById('earn-summary-borrow-route-value');
             const routeSub = document.getElementById('earn-summary-borrow-route-sub');
             if (borrowRouteStat && routeVal && routeSub) {
-                borrowRouteStat.classList.toggle('is-muted', !hasBorrowPositions);
-                routeVal.textContent = hasBorrowPositions ? String(positions.length) : 'None';
-                routeVal.className = 'earn-summary-value ' + (hasBorrowPositions ? 'neutral' : 'neutral');
-                routeSub.textContent = hasBorrowPositions
-                    ? `${positions.length} borrow route${positions.length !== 1 ? 's' : ''} active`
-                    : 'No open borrow route';
+                const keepsOpenRouteYield = routeVal.dataset.openRouteYield === 'true';
+                borrowRouteStat.classList.toggle('is-muted', !hasBorrowPositions && !keepsOpenRouteYield);
+                if (!keepsOpenRouteYield) {
+                    routeVal.textContent = hasBorrowPositions ? String(positions.length) : 'None';
+                    routeVal.className = 'earn-summary-value neutral';
+                    routeSub.textContent = hasBorrowPositions
+                        ? `${positions.length} borrow route${positions.length !== 1 ? 's' : ''} active`
+                        : 'No open borrow route';
+                }
             }
 
             const debtStat = summaryEl.querySelector('.earn-debt-stat');
@@ -35687,7 +35838,7 @@
                     ? `<div class="earn-usd-sub" style="color:${yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">${yieldUsdSign}$${Math.abs(item.yieldUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>`
                     : '';
                 const verifyBadge = earn_renderVerificationBadge(item.marketId, item.symbol, item.decimals, yieldCalc);
-                const sourceBadge = earn_renderYieldSourceBadge(yieldCalc);
+                const sourceBadge = earn_renderYieldSourceBadge(yieldCalc, { openBorrowRouteYield: !!item.isCollateralized });
                 const chevron = `<svg class="earn-row-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
                 const rowId = `earn-past-row-${i}`;
                 const explorerUrl = `${explorerBase}/address/${item.tokenAddr}`;
@@ -35731,7 +35882,10 @@
                     <td style="text-align:right">
                         ${yieldCellHtml}
                     </td>
-                </tr>${earn_buildSupplyDetailRow(i, detailPosition, yieldCalc, explorerUrl, { idPrefix: 'earn-past', colSpan: 2, includeRewards: false })}`;
+                    <td class="earn-details-cell">
+                        ${earn_renderDetailsButton(`earn_togglePastDetail(${i})`)}
+                    </td>
+                </tr>${earn_buildSupplyDetailRow(i, detailPosition, yieldCalc, explorerUrl, { idPrefix: 'earn-past', colSpan: 3, includeRewards: false, openBorrowRouteYield: !!item.isCollateralized })}`;
             }).join('');
         }
 
@@ -35923,10 +36077,11 @@
                     <td><div class="earn-merged-col"><span class="earn-usd-collateral">${collateralDisplay}</span>${renderMergedTokens(p.collateralTokens)}</div></td>
                     <td><div class="earn-merged-col"><span class="earn-usd-debt">${earn_formatUSD(p.debtUSD)}</span>${renderMergedTokens(p.debtTokens)}</div></td>
                     <td><div class="earn-net-inline ${pnlClass}">${pnlDisplay}</div>${annualDisplay}</td>
+                    <td class="earn-details-cell">${earn_renderDetailsButton(`earn_toggleLendDetail(${i})`)}</td>
                 </tr>`;
 
                 const detailRow = `<tr class="earn-lend-detail" id="earn-lend-detail-${i}">
-                    <td colspan="4">
+                    <td colspan="5">
                         <div class="earn-lend-detail-inner">
                             <div class="earn-lend-section">
                                 <div class="earn-lend-section-title earn">Collateral Earnings</div>
@@ -36172,6 +36327,9 @@
                     <td>
                         ${yieldCellHtml}
                     </td>
+                    <td class="earn-details-cell">
+                        ${earn_renderDetailsButton(`earn_toggleDetail(${idx})`)}
+                    </td>
                 </tr>`;
                 html += earn_buildSupplyDetailRow(idx, a, yieldCalc, explorerUrl);
             });
@@ -36193,7 +36351,7 @@
             }
 
             if (supplyAssets.length > 0) {
-                html += '<tr class="earn-table-spacer" aria-hidden="true"><td colspan="4"></td></tr>';
+                html += '<tr class="earn-table-spacer" aria-hidden="true"><td colspan="5"></td></tr>';
             }
 
             if (supplyTableShell) {
@@ -36312,6 +36470,8 @@
                 if (summaryEl) {
                     let totalUsd = 0;
                     let totalYieldUsdScaled = 0n;
+                    let openRouteYieldUsdScaled = 0n;
+                    let openRouteYieldAssetCount = 0;
                     let pendingYieldAssetCount = 0;
                     let trustedYieldAssetCount = 0;
                     let bestSymbol = '';
@@ -36360,6 +36520,22 @@
                             const chainId = document.getElementById('earn-chain').value;
                             const balanceUsdScaled = earn_getTokenUsdScaled(item.currentWei, item.decimals, item.symbol, item.tokenAddr, chainId);
                             if (!earn_showDust && earn_isSubDollarYieldPair(balanceUsdScaled, item.yieldUsdScaled || 0n)) return;
+                            const itemYieldCalc = earn_calculateYield({
+                                marketId: item.marketId,
+                                tokenAddr: item.tokenAddr,
+                                symbol: item.symbol,
+                                decimals: item.decimals,
+                                currentWei: item.currentWei,
+                                currentPar: item.currentPar,
+                            }, { applyHistoryGuards: true });
+                            const calcMethod = String(itemYieldCalc && itemYieldCalc.method || '');
+                            const calcTrusted = !!(
+                                itemYieldCalc
+                                && itemYieldCalc.hasData
+                                && itemYieldCalc.trustedForTotal
+                                && String(itemYieldCalc.verificationStatus || '') === 'verified'
+                                && trustedHistoryMethods.has(calcMethod)
+                            );
                             const histMeta = earn_getResolvedTotalYieldEntry(item.marketId);
                             const histStatus = histMeta
                                 ? String(histMeta.resolvedVerificationStatus || histMeta.verificationStatus || '')
@@ -36370,25 +36546,39 @@
                                 : String(item.yieldMethod || '');
                             const histUsesReplay = histMethod === 'interest-ledger' || histMethod === 'interest-ledger-override';
                             const histStatusTrusted = histUsesReplay && histStatus === 'verified';
-                            if (!trustedHistoryMethods.has(histMethod) || !histStatusTrusted || !histIsLatest) {
+                            const histTrusted = trustedHistoryMethods.has(histMethod) && histStatusTrusted && histIsLatest;
+                            if (!calcTrusted && !histTrusted) {
                                 if ((item.yieldUsdScaled || 0n) !== 0n) pendingYieldAssetCount++;
                                 return;
                             }
+                            const effectiveYieldUsdScaled = calcTrusted
+                                ? BigInt(itemYieldCalc.yieldUsdScaled || 0n)
+                                : BigInt(item.yieldUsdScaled || 0n);
                             trustedYieldAssetCount++;
-                            totalYieldUsdScaled += BigInt(item.yieldUsdScaled || 0n);
-                            if ((item.yieldUsdScaled || 0n) > bestYieldUsdScaled) {
-                                bestYieldUsdScaled = item.yieldUsdScaled || 0n;
+                            if (item.isCollateralized) {
+                                openRouteYieldUsdScaled += effectiveYieldUsdScaled;
+                                if (effectiveYieldUsdScaled !== 0n) openRouteYieldAssetCount++;
+                                return;
+                            }
+                            totalYieldUsdScaled += effectiveYieldUsdScaled;
+                            if (effectiveYieldUsdScaled > bestYieldUsdScaled) {
+                                bestYieldUsdScaled = effectiveYieldUsdScaled;
                                 bestSymbol = item.symbol;
                             }
                         });
                     }
 
                     const totalYieldUsd = earn_scaledUsdToNumber(totalYieldUsdScaled);
+                    const openRouteYieldUsd = earn_scaledUsdToNumber(openRouteYieldUsdScaled);
                     const bestYieldUsd = earn_scaledUsdToNumber(bestYieldUsdScaled);
                     const portfolioValueTitle = earn_escapeHtml(earn_formatUSDExact(totalUsd));
-                    const totalYieldTitle = earn_escapeHtml(earn_formatUSDExact(totalYieldUsd));
+                    const totalYieldTitle = earn_escapeHtml(openRouteYieldAssetCount > 0
+                        ? `${earn_formatUSDExact(totalYieldUsd)} supply/closed-route yield. Open borrow-route collateral yield is shown separately: ${earn_formatUSDExact(openRouteYieldUsd)}.`
+                        : earn_formatUSDExact(totalYieldUsd));
                     const yieldClass = totalYieldUsd >= 0 ? 'positive' : 'negative';
                     const yieldSign = totalYieldUsd >= 0 ? '+' : '-';
+                    const openRouteYieldClass = openRouteYieldUsd >= 0 ? 'positive' : 'negative';
+                    const openRouteYieldSign = openRouteYieldUsd >= 0 ? '+' : '-';
                     const bestYieldSign = bestYieldUsd > 0 ? '+' : bestYieldUsd < 0 ? '-' : '';
                     const isTotalYieldLoading = earn_totalYieldStatus === 'loading' && trustedYieldAssetCount === 0;
                     const isTotalYieldRefreshing = earn_totalYieldStatus === 'loading' && trustedYieldAssetCount > 0;
@@ -36398,7 +36588,9 @@
                             ? 'Refreshing verified yield'
                             : pendingYieldAssetCount > 0
                                 ? `Verified yield · ${pendingYieldAssetCount} pending`
-                                : 'Verified lifetime yield';
+                                : openRouteYieldAssetCount > 0
+                                    ? 'Verified supply / closed-route yield'
+                                    : 'Verified lifetime yield';
                     const provisionalVerifyTotal = trustedYieldAssetCount + pendingYieldAssetCount;
                     const hasProvisionalVerifySummary = !earn_replayVerificationReady && provisionalVerifyTotal > 0;
                     const verifySummary = visibleVerifySummary.total > 0
@@ -36463,11 +36655,19 @@
                     const borrowRouteValue = borrowRouteCount > 0
                         ? String(borrowRouteCount)
                         : (hasBorrowContext ? 'Detected' : 'None');
-                    const borrowRouteSub = borrowRouteCount > 0
-                        ? `${borrowRouteCount} borrow route${borrowRouteCount !== 1 ? 's' : ''} active`
-                        : hasBorrowContext
-                            ? 'Collateral is parked inside an open borrow route'
-                            : 'No open borrow route';
+                    const borrowRouteYieldValue = openRouteYieldAssetCount > 0
+                        ? `${openRouteYieldSign}${earn_formatUSD(Math.abs(openRouteYieldUsd))}`
+                        : borrowRouteValue;
+                    const borrowRouteYieldClass = openRouteYieldAssetCount > 0
+                        ? openRouteYieldClass
+                        : 'neutral';
+                    const borrowRouteSub = openRouteYieldAssetCount > 0
+                        ? `${openRouteYieldAssetCount} collateral asset${openRouteYieldAssetCount !== 1 ? 's' : ''} accruing inside open borrow route`
+                        : borrowRouteCount > 0
+                            ? `${borrowRouteCount} borrow route${borrowRouteCount !== 1 ? 's' : ''} active`
+                            : hasBorrowContext
+                                ? 'Collateral is parked inside an open borrow route'
+                                : 'No open borrow route';
 
                     // Count active non-dust supply assets
                     const activeCount = (earn_cachedAssets || []).filter(a => !a.isBorrow && !a.isCollateral && a.usdValue >= dustThreshold).length;
@@ -36596,8 +36796,8 @@
                                     <div class="earn-summary-sub">${bestYieldUsd > 0 ? '<span class="sub-highlight">' + bestYieldSign + earn_formatUSD(Math.abs(bestYieldUsd)) + '</span> current value' : 'No yield data'}</div>
                                 </div>
                                 <div class="earn-summary-stat kpi-secondary earn-borrow-route-stat${hasBorrowContext ? '' : ' is-muted'}">
-                                    <div class="earn-summary-label">Borrow Route</div>
-                                    <div class="earn-summary-value neutral" id="earn-summary-borrow-route-value">${borrowRouteValue}</div>
+                                    <div class="earn-summary-label">Borrow Route Yield</div>
+                                    <div class="earn-summary-value ${borrowRouteYieldClass}" id="earn-summary-borrow-route-value" data-open-route-yield="${openRouteYieldAssetCount > 0 ? 'true' : 'false'}" data-tip="${earn_escapeHtml('Accrued collateral yield that remains inside an open borrow route. It is separated from Total Yield Earned until the route closes or collateral is withdrawn.')}">${borrowRouteYieldValue}</div>
                                     <div class="earn-summary-sub" id="earn-summary-borrow-route-sub">${borrowRouteSub}</div>
                                 </div>
                             </div>

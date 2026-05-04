@@ -762,6 +762,10 @@ body.earn-draft-route #earn-lending-section::before {
 body.earn-draft-route .earn-supply-header,
 body.earn-draft-route .earn-past-header,
 body.earn-draft-route .earn-lending-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
   padding: 20px 24px 18px !important;
   min-height: 72px;
   border-radius: 22px 22px 0 0 !important;
@@ -793,6 +797,8 @@ body.earn-draft-route .earn-section-title {
   font-size: 16px !important;
   font-weight: 600 !important;
   letter-spacing: -.1px !important;
+  text-align: left !important;
+  flex: 0 0 auto !important;
 }
 
 body.earn-draft-route .earn-section-count,
@@ -870,9 +876,42 @@ body.earn-draft-route .earn-lending-table tbody td {
   text-align: left !important;
 }
 
-body.earn-draft-route .earn-lending-table thead th:last-child,
-body.earn-draft-route .earn-lending-table tbody td:last-child {
+body.earn-draft-route .earn-lending-table thead th:nth-child(4),
+body.earn-draft-route .earn-lending-table tbody td:nth-child(4) {
   text-align: right !important;
+}
+
+body.earn-draft-route .earn-asset-table thead th.earn-details-th,
+body.earn-draft-route .earn-past-table thead th.earn-details-th,
+body.earn-draft-route .earn-lending-table thead th.earn-details-th,
+body.earn-draft-route .earn-asset-table tbody td.earn-details-cell,
+body.earn-draft-route .earn-past-table tbody td.earn-details-cell,
+body.earn-draft-route .earn-lending-table tbody td.earn-details-cell {
+  text-align: center !important;
+}
+
+body.earn-draft-route .earn-row-details-button {
+  min-width: 78px !important;
+  color: var(--earn-gold-hi) !important;
+  background: var(--earn-gold-wash) !important;
+  border: 1px solid var(--earn-gold-line) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 0 0 1px rgba(201, 162, 39, .035) !important;
+}
+
+body.earn-draft-route .earn-row-details-button:hover,
+body.earn-draft-route .earn-data-row.expanded .earn-row-details-button,
+body.earn-draft-route .earn-lend-row.open .earn-row-details-button {
+  color: var(--earn-fg-1) !important;
+  border-color: var(--earn-gold) !important;
+  background: rgba(201, 162, 39, .16) !important;
+  box-shadow: 0 0 0 3px rgba(201, 162, 39, .08) !important;
+}
+
+body.earn-draft-route .earn-debug-badge.routed,
+body.earn-draft-route .earn-detail-chip.routed {
+  color: var(--earn-gold-hi) !important;
+  border-color: var(--earn-gold-line) !important;
+  background: var(--earn-gold-wash) !important;
 }
 
 body.earn-draft-route .earn-lending-table .earn-merged-col {
@@ -1827,7 +1866,7 @@ body.earn-draft-route .earn-dolo-proto-explore svg {
 
   body.earn-draft-route .earn-asset-table,
   body.earn-draft-route .earn-lending-table {
-    min-width: 680px !important;
+    min-width: 760px !important;
   }
 
   body.earn-draft-route .earn-supply-header,
