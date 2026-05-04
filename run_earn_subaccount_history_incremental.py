@@ -38,6 +38,20 @@ PROGRESS_SUBDIR = ".progress"
 LOG_SUBDIR = ".logs"
 
 
+def _runner_session_id() -> str:
+    explicit = os.environ.get("EARN_RUNNER_SESSION_ID")
+    if explicit:
+        return explicit
+    github_run_id = os.environ.get("GITHUB_RUN_ID")
+    if github_run_id:
+        attempt = os.environ.get("GITHUB_RUN_ATTEMPT") or "1"
+        return f"github-{github_run_id}-{attempt}"
+    return "local"
+
+
+RUNNER_SESSION_ID = _runner_session_id()
+
+
 def _utc_now_iso() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
@@ -55,6 +69,19 @@ def _is_pid_alive(pid: Optional[int]) -> bool:
         return True
     except OSError:
         return False
+
+
+def _launch_run_belongs_to_session(run: dict) -> bool:
+    session_id = str(run.get("runnerSessionId") or "")
+    if session_id:
+        return session_id == RUNNER_SESSION_ID
+    return not os.environ.get("GITHUB_ACTIONS")
+
+
+def _is_launch_run_alive(run: object) -> bool:
+    if not isinstance(run, dict) or not _launch_run_belongs_to_session(run):
+        return False
+    return _is_pid_alive(run.get("pid"))
 
 
 def _start_task(argv: List[str], *, cwd: Path, log_path: Path) -> int:
@@ -300,6 +327,7 @@ def _task_run_payload(progress_key: str, pid: int, argv: List[str], log_path: Pa
         "argv": argv,
         "logPath": str(log_path),
         "startedAt": _utc_now_iso(),
+        "runnerSessionId": RUNNER_SESSION_ID,
     }
 
 
@@ -310,7 +338,7 @@ def _stage_launch_status(plan: dict, stage: str) -> dict:
         runs.append({
             "progressKey": run.get("progressKey"),
             "pid": run.get("pid"),
-            "alive": _is_pid_alive(run.get("pid")),
+            "alive": _is_launch_run_alive(run),
             "logPath": run.get("logPath"),
             "startedAt": run.get("startedAt"),
         })
@@ -337,7 +365,7 @@ def _scan_stage_status(plan: dict, chain: str) -> dict:
         worker_rows.append({
             "progressKey": key,
             "status": status,
-            "alive": _is_pid_alive((run or {}).get("pid")),
+            "alive": _is_launch_run_alive(run),
             "fromBlock": task.get("fromBlock"),
             "toBlock": task.get("toBlock"),
             "eventCount": (progress or {}).get("eventCount"),
@@ -386,7 +414,7 @@ def _new_address_stage_status(plan: dict, chain: str, *, history_dir: Path) -> d
     for task in tasks:
         row = _new_address_task_status(task, history_dir=history_dir, chain=chain, target_block=target_block)
         run = runs.get(row["progressKey"])
-        row["alive"] = _is_pid_alive((run or {}).get("pid"))
+        row["alive"] = _is_launch_run_alive(run)
         if row["complete"]:
             completed += 1
         worker_rows.append(row)
@@ -414,11 +442,13 @@ def _apply_stage_status(plan: dict, chain: str, *, history_dir: Path) -> dict:
             progress_target = int((progress or {}).get("targetBlock") or 0)
         except Exception:
             progress_target = 0
-        done = raw_status == "completed" and progress_target == target_block
+        missing_count = int((progress or {}).get("missingExistingCount") or 0)
+        stale_count = int((progress or {}).get("staleExistingCount") or 0)
+        done = raw_status == "completed" and progress_target == target_block and missing_count == 0 and stale_count == 0
         if done:
             completed += 1
         run = runs.get(key)
-        alive = _is_pid_alive((run or {}).get("pid"))
+        alive = _is_launch_run_alive(run)
         status = raw_status
         if raw_status == "completed" and progress_target and progress_target != target_block:
             status = "running" if alive else "completed_for_previous_target"
@@ -515,7 +545,7 @@ def _ensure_scan_running(plan: dict, chain: str) -> dict:
             skipped.append({"progressKey": key, "reason": "completed"})
             continue
         existing = runs.get(key)
-        if existing and _is_pid_alive(existing.get("pid")):
+        if existing and _is_launch_run_alive(existing):
             skipped.append({"progressKey": key, "reason": "already_running", "pid": existing.get("pid")})
             continue
         log_path = _cycle_log_dir(plan) / f"scan-{key}.log"
@@ -528,6 +558,7 @@ def _ensure_scan_running(plan: dict, chain: str) -> dict:
         "cycleId": plan.get("cycleId"),
         "targetBlock": plan.get("targetBlock"),
         "updatedAt": _utc_now_iso(),
+        "runnerSessionId": RUNNER_SESSION_ID,
         "runs": list(runs.values()),
     })
     return {"started": started, "skipped": skipped, "launchPath": str(launch_path)}
@@ -548,7 +579,7 @@ def _ensure_new_address_running(plan: dict, chain: str, *, history_dir: Path) ->
             skipped.append({"progressKey": key, "reason": "completed"})
             continue
         existing = runs.get(key)
-        if existing and _is_pid_alive(existing.get("pid")):
+        if existing and _is_launch_run_alive(existing):
             skipped.append({"progressKey": key, "reason": "already_running", "pid": existing.get("pid")})
             continue
         log_path = _cycle_log_dir(plan) / f"new-address-{key}.log"
@@ -572,6 +603,7 @@ def _ensure_new_address_running(plan: dict, chain: str, *, history_dir: Path) ->
         "cycleId": plan.get("cycleId"),
         "targetBlock": plan.get("targetBlock"),
         "updatedAt": _utc_now_iso(),
+        "runnerSessionId": RUNNER_SESSION_ID,
         "runs": list(runs.values()),
     })
     return {"started": started, "skipped": skipped, "launchPath": str(launch_path)}
@@ -593,11 +625,19 @@ def _ensure_apply_running(plan: dict, chain: str, *, history_dir: Path) -> dict:
             progress_target = int((progress or {}).get("targetBlock") or 0)
         except Exception:
             progress_target = 0
-        if isinstance(progress, dict) and str(progress.get("status") or "") == "completed" and progress_target == target_block:
+        missing_count = int((progress or {}).get("missingExistingCount") or 0)
+        stale_count = int((progress or {}).get("staleExistingCount") or 0)
+        if (
+            isinstance(progress, dict)
+            and str(progress.get("status") or "") == "completed"
+            and progress_target == target_block
+            and missing_count == 0
+            and stale_count == 0
+        ):
             skipped.append({"progressKey": key, "reason": "completed"})
             continue
         existing = runs.get(key)
-        if existing and _is_pid_alive(existing.get("pid")):
+        if existing and _is_launch_run_alive(existing):
             skipped.append({"progressKey": key, "reason": "already_running", "pid": existing.get("pid")})
             continue
         log_path = _cycle_log_dir(plan) / f"apply-{key}.log"
@@ -610,6 +650,7 @@ def _ensure_apply_running(plan: dict, chain: str, *, history_dir: Path) -> dict:
         "cycleId": plan.get("cycleId"),
         "targetBlock": plan.get("targetBlock"),
         "updatedAt": _utc_now_iso(),
+        "runnerSessionId": RUNNER_SESSION_ID,
         "runs": list(runs.values()),
     })
     return {"started": started, "skipped": skipped, "launchPath": str(launch_path)}

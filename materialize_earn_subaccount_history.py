@@ -143,8 +143,29 @@ def _infer_scan_bounds(events_dir: Path, chain: str) -> Tuple[int, int]:
     shard_ranges = list(_iter_shard_paths(events_dir, chain))
     if not shard_ranges:
         raise ValueError(f"No event shards found for {chain} in {events_dir}")
+    manifest = _chain_manifest(events_dir, chain)
+    scan_ranges = [row for row in (manifest.get("scanRanges") or []) if isinstance(row, dict)]
     start_block = min(item[0] for item in shard_ranges)
     target_block = max(item[1] for item in shard_ranges)
+    if scan_ranges:
+        try:
+            start_block = min(start_block, min(int(row.get("fromBlock") or 0) for row in scan_ranges if row.get("fromBlock") is not None))
+        except Exception:
+            pass
+        try:
+            target_block = max(target_block, max(int(row.get("toBlock") or 0) for row in scan_ranges if row.get("toBlock") is not None))
+        except Exception:
+            pass
+    try:
+        target_block = max(target_block, int(manifest.get("globalToBlock") or 0))
+    except Exception:
+        pass
+    try:
+        manifest_start = int(manifest.get("globalFromBlock") or 0)
+        if manifest_start > 0:
+            start_block = min(start_block, manifest_start)
+    except Exception:
+        pass
     return start_block, target_block
 
 

@@ -120,7 +120,7 @@ def build_repair_plan(
             if start_index >= end_index:
                 continue
             worker_addresses = repair_addresses[start_index:end_index]
-            progress_key = f"repair-t{resolved_target_block}-m{worker_idx + 1}of{worker_count}"
+            progress_key = f"repair-t{resolved_target_block}-{len(repair_addresses)}a-m{worker_idx + 1}of{worker_count}"
             address_file = plan_root / f"{progress_key}.txt"
             _write_address_file(address_file, worker_addresses)
             command = (

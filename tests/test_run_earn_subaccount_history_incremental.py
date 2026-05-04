@@ -68,6 +68,52 @@ class RunEarnSubaccountHistoryIncrementalTest(unittest.TestCase):
         self.assertEqual(len(plan["scanTasks"]), 3)
         self.assertEqual(len(plan["applyTasks"]), 1)
 
+    def test_orphaned_histories_do_not_block_incremental_cycle(self):
+        active = "0x1111111111111111111111111111111111111111"
+        orphan = "0x2222222222222222222222222222222222222222"
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            history_dir = root / "history"
+            chain_dir = history_dir / "arbitrum"
+            chain_dir.mkdir(parents=True)
+            (history_dir / "manifest.json").write_text(
+                '{"chains":{"arbitrum":{"lastBlock":100}}}',
+                encoding="utf-8",
+            )
+            (chain_dir / f"{active}.json").write_text(
+                '{"lastScannedBlock":100}',
+                encoding="utf-8",
+            )
+            (chain_dir / f"{orphan}.json").write_text(
+                '{"lastScannedBlock":90}',
+                encoding="utf-8",
+            )
+
+            with patch(
+                "plan_earn_subaccount_history_incremental._load_known_addresses",
+                return_value=[active],
+            ), patch(
+                "plan_earn_subaccount_history_incremental._resolve_target_block",
+                return_value=105,
+            ):
+                plan = build_incremental_plan(
+                    "arbitrum",
+                    events_dir=root / "events",
+                    history_dir=history_dir,
+                    plan_dir=root / "plans",
+                    to_block=None,
+                    max_scan_workers=4,
+                    max_apply_workers=4,
+                    max_new_backfill_workers=4,
+                    selection_address_file=None,
+                )
+
+        self.assertEqual(plan["trackedAddressCount"], 1)
+        self.assertEqual(plan["orphanedHistoryCount"], 1)
+        self.assertEqual(plan["staleTrackedAddressCount"], 0)
+        self.assertEqual(plan["backfillAddressCount"], 0)
+        self.assertEqual(len(plan["newAddressTasks"]), 0)
+
     def test_stale_selected_histories_are_backfilled_to_target(self):
         selected = "0x1111111111111111111111111111111111111111"
         with TemporaryDirectory() as tmpdir:

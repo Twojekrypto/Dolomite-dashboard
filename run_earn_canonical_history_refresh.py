@@ -26,6 +26,24 @@ DEFAULT_HISTORY_DIR = ROOT / "data" / "earn-subaccount-history"
 DEFAULT_EVENTS_DIR = ROOT / "data" / "earn-subaccount-history-events"
 
 
+def _utc_now_iso() -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def _runner_session_id() -> str:
+    explicit = os.environ.get("EARN_RUNNER_SESSION_ID")
+    if explicit:
+        return explicit
+    github_run_id = os.environ.get("GITHUB_RUN_ID")
+    if github_run_id:
+        attempt = os.environ.get("GITHUB_RUN_ATTEMPT") or "1"
+        return f"github-{github_run_id}-{attempt}"
+    return "local"
+
+
+RUNNER_SESSION_ID = _runner_session_id()
+
+
 class RefreshIncomplete(Exception):
     def __init__(self, *, chain: str, phase: str, max_steps: int, payload: Optional[dict]):
         super().__init__(f"{phase} did not complete for {chain} after {max_steps} polling step(s)")
@@ -65,6 +83,19 @@ def _is_pid_alive(pid: Optional[int]) -> bool:
         return True
     except OSError:
         return False
+
+
+def _launch_run_belongs_to_session(run: dict) -> bool:
+    session_id = str(run.get("runnerSessionId") or "")
+    if session_id:
+        return session_id == RUNNER_SESSION_ID
+    return not os.environ.get("GITHUB_ACTIONS")
+
+
+def _is_launch_run_alive(run: dict) -> bool:
+    if not isinstance(run, dict) or not _launch_run_belongs_to_session(run):
+        return False
+    return _is_pid_alive(run.get("pid"))
 
 
 def _run_json(argv: List[str]) -> dict:
@@ -171,7 +202,7 @@ def _terminate_launch_processes(path: Path) -> List[dict]:
         pid = _safe_int(run.get("pid"))
         if pid <= 0:
             continue
-        if not _is_pid_alive(pid):
+        if not _is_launch_run_alive(run):
             continue
         argv = run.get("argv") or []
         script = str(argv[1] if isinstance(argv, list) and len(argv) > 1 else "")
@@ -436,7 +467,14 @@ def main() -> int:
             incomplete=exc,
         )
         if args.allow_checkpoint_incomplete:
-            payload["terminatedWorkers"] = _stop_checkpoint_workers(args)
+            try:
+                payload["terminatedWorkers"] = _stop_checkpoint_workers(args)
+            except Exception as cleanup_exc:
+                payload["checkpointCleanupError"] = f"{type(cleanup_exc).__name__}: {cleanup_exc}"
+                print(
+                    f"Warning: checkpoint worker cleanup failed, preserving checkpoint status anyway: {cleanup_exc}",
+                    flush=True,
+                )
             _write_status_output(args.status_output, payload)
             print(json.dumps(payload, ensure_ascii=True, indent=2), flush=True)
             return 0
