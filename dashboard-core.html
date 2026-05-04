@@ -29793,15 +29793,15 @@
         function earn_getYieldMethodMeta(method) {
             switch (method) {
                 case 'interest-ledger':
-                    return { label: 'Replay', cls: 'replay', title: 'Yield source: onchain replay ledger.' };
+                    return { label: 'History replay', cls: 'replay', title: 'Verification method: local subaccount history was replayed and reconciled with current onchain balances.' };
                 case 'interest-ledger-live-balance-adjusted':
-                    return { label: 'Replay Adjusted', cls: 'unverified', title: 'Yield source: replay ledger adjusted to live onchain balance drift. Useful diagnostically, but not treated as strict verification.' };
+                    return { label: 'Replay adjusted', cls: 'unverified', title: 'Verification method: replay ledger adjusted to live onchain balance drift. Useful diagnostically, but not treated as strict verification.' };
                 case 'interest-ledger-override':
-                    return { label: 'Replay Verified', cls: 'replay', title: 'Yield source: strict replay ledger was used because the snapshot/netflow path was stale or mismatched.' };
+                    return { label: 'History replay', cls: 'replay', title: 'Verification method: strict local history replay was used because the snapshot/netflow path was stale or mismatched.' };
                 case 'interest-ledger-pending':
-                    return { label: 'Checking Replay', cls: 'unverified', title: 'Yield source: replay ledger found, but final reconciliation is still in progress.' };
+                    return { label: 'History replay pending', cls: 'unverified', title: 'Verification method: local history replay is available, but final reconciliation is still in progress.' };
                 case 'interest-ledger-unverified':
-                    return { label: 'Replay Pending', cls: 'unverified', title: 'Yield source: replay ledger available, but market is not fully verified yet.' };
+                    return { label: 'History replay pending', cls: 'unverified', title: 'Verification method: local history replay is available, but this market is not fully verified yet.' };
                 case 'snapshot':
                     return { label: 'Snapshot', cls: 'snapshot', title: 'Yield source: snapshot history plus current live balance adjustment. Not treated as strict verification.' };
                 case 'snapshot-partial':
@@ -29826,6 +29826,16 @@
             }
         }
 
+        function earn_isReplayYieldMethod(method) {
+            return [
+                'interest-ledger',
+                'interest-ledger-live-balance-adjusted',
+                'interest-ledger-override',
+                'interest-ledger-pending',
+                'interest-ledger-unverified',
+            ].includes(String(method || ''));
+        }
+
         function earn_renderYieldSourceBadge(yieldCalc, opts) {
             opts = opts || {};
             if (!yieldCalc || !yieldCalc.hasData) return '';
@@ -29833,7 +29843,7 @@
                 const title = 'This yield is accrued inside an open borrow route because the asset is being used as collateral. It is shown separately from normal earned yield until the route is closed or collateral is withdrawn.';
                 return `<span class="earn-debug-badge routed" data-tip="${earn_escapeHtml(title)}"><span class="earn-status-dot"></span>Open Route Yield</span>`;
             }
-            if (yieldCalc.method === 'interest-ledger' || yieldCalc.method === 'interest-ledger-live-balance-adjusted') return '';
+            if (earn_isReplayYieldMethod(yieldCalc.method)) return '';
             const meta = earn_getYieldMethodMeta(yieldCalc.method);
             return `<span class="earn-debug-badge ${meta.cls}" data-tip="${earn_escapeHtml(meta.title)}"><span class="earn-status-dot"></span>${earn_escapeHtml(meta.label)}</span>`;
         }
@@ -30025,6 +30035,18 @@
             const marketId = String(position.marketId);
             const tokenAddr = String(position.tokenAddr || '');
             const methodMeta = earn_getYieldMethodMeta(yieldCalc && yieldCalc.method);
+            const verificationPresentation = earn_replayVerificationReady
+                ? earn_getVerificationPresentation(marketId, yieldCalc, symbol, decimals)
+                : null;
+            const verificationStatusLabel = verificationPresentation && verificationPresentation.counted
+                ? verificationPresentation.label
+                : 'Not checked';
+            const verificationStatusClass = verificationPresentation && verificationPresentation.counted
+                ? verificationPresentation.status
+                : 'unverified';
+            const verificationStatusTip = verificationPresentation && verificationPresentation.counted
+                ? verificationPresentation.title
+                : 'Strict replay verification was not available for this detail row.';
             const rewardsCardHtml = opts.includeRewards === false ? '' : earn_buildSupplyRewardsCard(position);
             const detailId = `${opts.idPrefix || 'earn'}-detail-${idx}`;
             const colSpan = Number(opts.colSpan || 5);
@@ -30058,7 +30080,9 @@
             } else if (yieldCalc && yieldCalc.openBorrowRouteYieldExcluded) {
                 metaChips.push(`<span class="earn-detail-chip routed" data-tip="${earn_escapeHtml('Open borrow-route collateral yield is separated from Total Yield Earned while the route remains open.')}">Route Separated</span>`);
             }
-            metaChips.push(`<span class="earn-detail-chip ${methodMeta.cls}" data-tip="${earn_escapeHtml(methodMeta.title)}">${earn_escapeHtml(methodMeta.label)}</span>`);
+            if (verificationPresentation && verificationPresentation.counted) {
+                metaChips.push(`<span class="earn-detail-chip ${verificationStatusClass}" data-tip="${earn_escapeHtml(verificationStatusTip)}">${earn_escapeHtml(verificationStatusLabel)}</span>`);
+            }
 
             const copySvg = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>';
             const detailAddress = tokenAddr
@@ -30102,6 +30126,14 @@
                                 <div class="earn-detail-rowline">
                                     <span class="earn-detail-rowline-label">Current Usd value</span>
                                     <span class="earn-detail-rowline-value" style="color:rgba(255,255,255,0.72);font-weight:500;">≈ $${Number(position.usdValue || 0).toLocaleString('en-US', { minimumFractionDigits: Number(position.usdValue || 0) >= 1 ? 2 : 4, maximumFractionDigits: Number(position.usdValue || 0) >= 1 ? 2 : 4 })}</span>
+                                </div>
+                                <div class="earn-detail-rowline">
+                                    <span class="earn-detail-rowline-label">Verification status</span>
+                                    <span class="earn-detail-rowline-value ${verificationStatusClass}" data-tip="${earn_escapeHtml(verificationStatusTip)}">${earn_escapeHtml(verificationStatusLabel)}</span>
+                                </div>
+                                <div class="earn-detail-rowline">
+                                    <span class="earn-detail-rowline-label">Verification method</span>
+                                    <span class="earn-detail-rowline-value" data-tip="${earn_escapeHtml(methodMeta.title)}">${yieldCalc && yieldCalc.hasData ? earn_escapeHtml(methodMeta.label) : 'Unavailable'}</span>
                                 </div>
                             </div>
 
