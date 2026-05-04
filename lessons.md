@@ -246,6 +246,7 @@
 ### Earn final reveal guard
 **Wzorzec błędu:** Finalny render Earn może rzucić wyjątek po pierwszym częściowym renderze, np. przez helper formatowania istniejący w innej zakładce (`fmtUsd`), ale nie w scope Earn. Jeśli exception wydarzy się przed `earn_finishLookupLoadingUi`, użytkownik widzi wieczną kartę ładowania mimo że dane są już policzone.
 **Reguła na przyszłość:** Finalny etap lookupu Earn musi mieć `try/finally`, które zawsze zdejmuje `loading-gate` dla aktualnego `runId`. Po zmianach w karcie podsumowania trzeba testować adres z borrow route i verified yield w przeglądarce oraz sprawdzić konsolę na `ReferenceError`/`TypeError`, nie tylko `node --check`.
+**Reguła na przyszłość:** Jeśli ten sam market jest jednocześnie widoczną supply pozycją i collateralem w otwartej borrow route, `interestMeta.earnYield` zawiera także live `openCollateralYield`. `Total Yield Earned` musi odejmować ten open-collateral yield i pokazywać go osobno jako `Borrow Route Yield`; do totalu wraca dopiero po zamknięciu trasy albo wyjściu collateral.
 
 ### Earn verified ledger cache
 **Wzorzec błędu:** Jeśli `data/earn-verified-ledger` jest ignorowany i workflow buduje tylko `--existing-addresses`, publiczny cache pozostaje pusty. Runtime wtedy wraca do pobierania dziesiątek dużych snapshotów EARN, co na Ethereum potrafi zamienić lookup w minutowe ładowanie.
