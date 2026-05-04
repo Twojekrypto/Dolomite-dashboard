@@ -16720,8 +16720,8 @@
                 <!-- Controls bar between summary card and table -->
                 <!-- Controls now inline in Supply Assets header -->
 
-                <div class="table-section earn-section-card" id="earn-supply-section">
-                    <div class="earn-supply-header">
+                <div class="table-section earn-section-card open" id="earn-supply-section">
+                    <div class="earn-supply-header open">
                         <span class="earn-section-icon-shell">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2"
                                 stroke-linecap="round" stroke-linejoin="round">
@@ -16743,8 +16743,13 @@
                                 <span class="apr-pill-opt" id="earn-apy-opt">APY</span>
                             </div>
                         </div>
+                        <button type="button" class="earn-section-collapse-button" id="earn-supply-collapse" aria-label="Toggle Supply Assets" aria-controls="earn-supply-body" aria-expanded="true" onclick="earn_toggleEarnSection('supply')">
+                            <svg class="earn-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                        </button>
                     </div>
-                    <div class="table-scroll earn-section-table-shell">
+                    <div class="table-scroll earn-section-table-shell earn-collapsible-body open" id="earn-supply-body">
                         <table class="earn-asset-table">
                             <colgroup>
                                 <col>
@@ -16782,8 +16787,8 @@
 
                 <!-- Historical/routed section — outside the scrollable table, always visible -->
                 <!-- Lending Positions (Borrow) section -->
-                <div id="earn-lending-section" class="earn-section-card" style="display:none;margin-top:16px">
-                    <div class="earn-lending-header">
+                <div id="earn-lending-section" class="earn-section-card open" style="display:none;margin-top:16px">
+                    <div class="earn-lending-header open">
                         <span class="earn-section-icon-shell">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"
                                 stroke-linecap="round" stroke-linejoin="round">
@@ -16793,8 +16798,13 @@
                         </span>
                         <span class="earn-section-title">Borrow Positions</span>
                         <span class="earn-lending-count earn-section-count" id="earn-lending-count"></span>
+                        <button type="button" class="earn-section-collapse-button" id="earn-lending-collapse" aria-label="Toggle Borrow Positions" aria-controls="earn-lending-body" aria-expanded="true" onclick="earn_toggleEarnSection('lending')">
+                            <svg class="earn-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                        </button>
                     </div>
-                    <div class="earn-table-scroll earn-section-table-shell" style="overflow-x:auto">
+                    <div class="earn-table-scroll earn-section-table-shell earn-collapsible-body open" id="earn-lending-body" style="overflow-x:auto">
                         <table class="earn-data-table earn-lending-table">
                             <colgroup>
                                 <col style="width:20%">
@@ -27966,13 +27976,13 @@
                 // Status badge
                 let badge;
                 if (item.isIsolation && !item.isActive) {
-                    badge = '<span class="earn-hist-badge isolation" data-tip="Dolomite Isolation Mode — internal wrapper token used as collateral in borrow positions">🔒 ISOLATION</span>';
+                    badge = '<span class="earn-hist-badge isolation" data-tip="Dolomite Isolation Mode — internal wrapper token used as collateral in borrow positions">Isolation</span>';
                 } else if (item.isCollateralized) {
-                    badge = '<span class="earn-hist-badge routed" data-tip="Asset is routed into a borrow subaccount as collateral, so it is not a withdrawn supply asset"><span class="earn-status-dot"></span>BORROW COLLATERAL</span>';
+                    badge = '<span class="earn-hist-badge routed" data-tip="Asset is routed into a borrow subaccount as collateral, so it is not a withdrawn supply asset"><span class="earn-status-dot"></span>Borrow Collateral</span>';
                 } else if (item.isActive) {
                     badge = '';
                 } else {
-                    badge = '<span class="earn-hist-badge withdrawn">WITHDRAWN</span>';
+                    badge = '<span class="earn-hist-badge withdrawn">Withdrawn</span>';
                 }
                 const verifyBadge = earn_renderVerificationBadge(item.marketId, item.symbol, item.decimals);
 
@@ -28408,7 +28418,7 @@
                     return {
                         counted: true,
                         status: 'verified',
-                        label: 'VERIFIED',
+                        label: 'Verified',
                         title: 'Public netflow reconciles cleanly with historical snapshot data and fresh canonical subaccount history for this market.',
                         rawStatus: inferred.status,
                         rawLabel: 'Verified',
@@ -28420,7 +28430,7 @@
                 return {
                     counted: true,
                     status: 'inferred',
-                    label: inferred.status === 'pre_snapshot_carry' ? 'INFERRED CARRY' : 'INFERRED',
+                    label: inferred.status === 'pre_snapshot_carry' ? 'Inferred Carry' : 'Inferred',
                     title: inferred.status === 'pre_snapshot_carry'
                         ? 'This market can be inferred from public netflow plus snapshot history, but it is not treated as strict verification because part of the carry predates local coverage.'
                         : 'This market can be inferred from public netflow plus snapshot history, but it is not treated as strict verification.',
@@ -28438,7 +28448,7 @@
                 return {
                     counted: true,
                     status: 'inferred',
-                    label: 'INFERRED CARRY',
+                    label: 'Inferred Carry',
                     title: rawStatus === 'pre_snapshot_carry'
                         ? 'Historical snapshot data suggests older carry existed before local coverage began. This is useful evidence, but not strict replay verification.'
                         : 'Historical snapshot data is available for this market, but it is not treated as strict replay verification.',
@@ -28455,7 +28465,7 @@
                 return {
                     counted: true,
                     status: 'coverage_incomplete',
-                    label: 'COVERAGE INCOMPLETE',
+                    label: 'Coverage Incomplete',
                     title: 'Historical ledger data exists, but canonical subaccount history is not fresh enough for strict replay-grade verification at this block.',
                     rawStatus: rawStatus || status,
                     rawLabel: 'Coverage Incomplete',
@@ -29691,14 +29701,14 @@
                 ? 'unverified'
                 : (entry.strictStatus || entry.status || 'unverified');
             const fallbackLabel = !entry || !entry.counted
-                ? 'UNVERIFIED'
+                ? 'Unverified'
                 : fallbackStatus === 'verified'
-                    ? 'VERIFIED'
+                    ? 'Verified'
                     : fallbackStatus === 'mismatch'
-                        ? 'MISMATCH'
+                        ? 'Mismatch'
                         : fallbackStatus === 'coverage_incomplete'
-                            ? 'INCOMPLETE'
-                            : 'UNVERIFIED';
+                            ? 'Incomplete'
+                            : 'Unverified';
 
             if (snapshotLedgerPresentation) {
                 return snapshotLedgerPresentation;
@@ -29712,10 +29722,10 @@
                     (yieldCalc && fallbackMethods.has(String(yieldCalc.method || '')))
                 );
                 const label = entry.snapshotIncomplete || fallbackStatus === 'coverage_incomplete'
-                    ? 'PENDING'
+                    ? 'Pending'
                     : usesFallbackSource
-                        ? 'FALLBACK'
-                        : 'CHECKING';
+                        ? 'Fallback'
+                        : 'Checking';
                 const status = entry.snapshotIncomplete || fallbackStatus === 'coverage_incomplete'
                     ? 'coverage_incomplete'
                     : usesFallbackSource
@@ -29751,11 +29761,11 @@
                 label: fallbackLabel,
                 title: fallbackTitle,
                 rawStatus: entry ? (entry.strictStatus || entry.status || 'unverified') : 'unverified',
-                rawLabel: fallbackLabel === 'UNVERIFIED'
+                rawLabel: fallbackLabel === 'Unverified'
                     ? 'Unverified'
-                    : fallbackLabel === 'VERIFIED'
+                    : fallbackLabel === 'Verified'
                         ? 'Verified'
-                        : fallbackLabel === 'INCOMPLETE'
+                        : fallbackLabel === 'Incomplete'
                             ? 'Incomplete'
                             : 'Mismatch',
                 rawTitle: fallbackTitle,
@@ -35950,7 +35960,7 @@
                                 <div class="earn-token-info">
                                         <div class="earn-token-name">${item.symbol} ${chevron}</div>
                                         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:3px">
-                                        <span class="earn-hist-badge ${item.isCollateralized ? 'routed' : 'withdrawn'}"${item.isCollateralized ? ' data-tip="Asset is routed into a borrow subaccount as collateral, so it is not a withdrawn supply asset"' : ''}><span class="earn-status-dot"></span>${item.isCollateralized ? 'BORROW COLLATERAL' : 'WITHDRAWN'}</span>
+                                        <span class="earn-hist-badge ${item.isCollateralized ? 'routed' : 'withdrawn'}"${item.isCollateralized ? ' data-tip="Asset is routed into a borrow subaccount as collateral, so it is not a withdrawn supply asset"' : ''}><span class="earn-status-dot"></span>${item.isCollateralized ? 'Borrow Collateral' : 'Withdrawn'}</span>
                                         ${verifyBadge}
                                         ${sourceBadge}
                                     </div>
@@ -35974,6 +35984,36 @@
             if (!header || !body) return;
             header.classList.toggle('open');
             body.classList.toggle('open');
+        }
+
+        function earn_toggleEarnSection(sectionKey) {
+            const config = {
+                supply: {
+                    sectionId: 'earn-supply-section',
+                    headerSelector: '.earn-supply-header',
+                    bodyId: 'earn-supply-body',
+                    buttonId: 'earn-supply-collapse'
+                },
+                lending: {
+                    sectionId: 'earn-lending-section',
+                    headerSelector: '.earn-lending-header',
+                    bodyId: 'earn-lending-body',
+                    buttonId: 'earn-lending-collapse'
+                }
+            }[sectionKey];
+            if (!config) return;
+
+            const section = document.getElementById(config.sectionId);
+            const header = section ? section.querySelector(config.headerSelector) : null;
+            const body = document.getElementById(config.bodyId);
+            const button = document.getElementById(config.buttonId);
+            if (!section || !header || !body) return;
+
+            const nextOpen = !section.classList.contains('open');
+            section.classList.toggle('open', nextOpen);
+            header.classList.toggle('open', nextOpen);
+            body.classList.toggle('open', nextOpen);
+            if (button) button.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
         }
 
         function earn_formatAge(timestamp) {
@@ -36509,7 +36549,7 @@
                                     ${iconHtml}
                                     <div class="earn-token-info">
                                         <div class="earn-token-name">${item.symbol}</div>
-                                        <span class="earn-hist-badge ${item.isCollateralized ? 'routed' : 'withdrawn'}"${item.isCollateralized ? ' data-tip="Asset is routed into a borrow subaccount as collateral, so it is not a withdrawn supply asset"' : ''}><span class="earn-status-dot"></span>${item.isCollateralized ? 'BORROW COLLATERAL' : 'WITHDRAWN'}</span>
+                                        <span class="earn-hist-badge ${item.isCollateralized ? 'routed' : 'withdrawn'}"${item.isCollateralized ? ' data-tip="Asset is routed into a borrow subaccount as collateral, so it is not a withdrawn supply asset"' : ''}><span class="earn-status-dot"></span>${item.isCollateralized ? 'Borrow Collateral' : 'Withdrawn'}</span>
                                     </div>
                                 </div>
                             </div>
