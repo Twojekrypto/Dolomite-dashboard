@@ -28,6 +28,13 @@ jobs:
             materialize_workers: 6
             incremental_scan_workers: 6
             incremental_apply_workers: 6
+          - chain: botanix
+            label: Botanix
+            hot_limit: 500
+            scan_workers: 4
+            materialize_workers: 4
+            incremental_scan_workers: 4
+            incremental_apply_workers: 4
           - chain: polygonzkevm
             label: Polygon zkEVM
             hot_limit: 500
@@ -54,6 +61,9 @@ jobs:
       ALCHEMY_MANTLE_RPC: ${{ secrets.ALCHEMY_MANTLE_RPC }}
       ALCHEMY_MANTLE_RPC_2: ${{ secrets.ALCHEMY_MANTLE_RPC_2 }}
       ALCHEMY_MANTLE_RPC_3: ${{ secrets.ALCHEMY_MANTLE_RPC_3 }}
+      BOTANIX_RPC: ${{ secrets.BOTANIX_RPC }}
+      BOTANIX_RPC_2: ${{ secrets.BOTANIX_RPC_2 }}
+      BOTANIX_RPC_3: ${{ secrets.BOTANIX_RPC_3 }}
       POLYGONZKEVM_RPC: ${{ secrets.POLYGONZKEVM_RPC }}
       POLYGONZKEVM_RPC_2: ${{ secrets.POLYGONZKEVM_RPC_2 }}
       XLAYER_RPC: ${{ secrets.XLAYER_RPC }}

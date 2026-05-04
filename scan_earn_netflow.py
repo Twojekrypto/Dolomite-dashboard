@@ -71,6 +71,17 @@ CHAINS = {
         ],
         "start_block": 64_046_000,
     },
+    "botanix": {
+        "margin": "0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D",
+        "rpcs": [
+            *([] if not os.environ.get("BOTANIX_RPC") else [os.environ["BOTANIX_RPC"]]),
+            *([] if not os.environ.get("BOTANIX_RPC_2") else [os.environ["BOTANIX_RPC_2"]]),
+            *([] if not os.environ.get("BOTANIX_RPC_3") else [os.environ["BOTANIX_RPC_3"]]),
+            "https://rpc.botanixlabs.com",
+            "https://rpc.ankr.com/botanix_mainnet",
+        ],
+        "start_block": 690_000,
+    },
     "polygonzkevm": {
         "margin": "0x836b557cf9ef29fcf49c776841191782df34e4e5",
         "rpcs": [
