@@ -16840,7 +16840,7 @@
                 </div>
                 <!-- Past & routed assets — same UX as Earn supply rows -->
                 <div id="earn-past-section" class="earn-section-card" style="display:none;margin-top:8px">
-                    <div class="earn-past-header" id="earn-past-toggle">
+                    <div class="earn-past-header" id="earn-past-toggle" role="button" tabindex="0" aria-label="Toggle Past & Routed Assets" aria-controls="earn-past-body" aria-expanded="false" onclick="earn_togglePastPositions()" onkeydown="earn_handlePastHeaderKey(event)">
                         <span class="earn-section-icon-shell">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="12" cy="12" r="10"/>
@@ -16849,11 +16849,9 @@
                         </span>
                         <span class="earn-past-title earn-section-title">Past &amp; Routed Assets</span>
                         <span class="earn-past-count earn-section-count" id="earn-past-count">0</span>
-                        <button type="button" class="earn-section-collapse-button" id="earn-past-collapse" aria-label="Toggle Past & Routed Assets" aria-controls="earn-past-body" aria-expanded="false" onclick="earn_togglePastPositions()">
-                            <svg class="earn-section-chevron earn-past-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="6 9 12 15 18 9"/>
-                            </svg>
-                        </button>
+                        <svg class="earn-section-chevron earn-past-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
                     </div>
                     <div class="earn-past-body earn-section-table-shell" id="earn-past-body">
                         <table class="earn-asset-table earn-past-table">
@@ -35984,13 +35982,21 @@
             const header = document.getElementById('earn-past-toggle');
             const body = document.getElementById('earn-past-body');
             const section = document.getElementById('earn-past-section');
-            const button = document.getElementById('earn-past-collapse');
             if (!header || !body) return;
             const nextOpen = !body.classList.contains('open');
             header.classList.toggle('open', nextOpen);
             body.classList.toggle('open', nextOpen);
             if (section) section.classList.toggle('open', nextOpen);
-            if (button) button.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
+            header.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
+        }
+
+        function earn_handlePastHeaderKey(event) {
+            if (!event) return;
+            const key = event.key || event.code;
+            if (key === 'Enter' || key === ' ' || key === 'Spacebar') {
+                event.preventDefault();
+                earn_togglePastPositions();
+            }
         }
 
         function earn_toggleEarnSection(sectionKey) {
