@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dolomite · Supply</title>
+<link rel="shortcut icon" href="../favicon.ico" type="image/png">
+<script>
+(async () => {
+  try {
+    const previewVersion = "borrow-route-20260505";
+    const response = await fetch(`../liquidation-preview.html?v=${previewVersion}`, { cache: "no-cache" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const html = await response.text();
+    document.open();
+    document.write(html.replace("<head>", '<head><base href="../"><script>window.__DOLO_ROUTE="supply";<\/script>'));
+    document.close();
+  } catch (error) {
+    document.body.innerHTML = "<p style=\"font-family:system-ui,sans-serif;padding:24px;color:#f4f3ef;background:#09090b\">Unable to load Supply.</p>";
+    console.error("Supply route failed", error);
+  }
+})();
+</script>
+</head>
+<body></body>
+</html>
