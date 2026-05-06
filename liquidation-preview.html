@@ -4602,14 +4602,55 @@
             background: transparent !important;
         }
         .table-card-outer.liquidation-table-surface .table-container {
-            min-height: 628px;
-            max-height: 74vh;
+            min-height: 0;
+            max-height: none;
+            overflow-y: visible;
         }
         .positions-table thead th {
             line-height: 1.2;
         }
         .positions-table tbody td {
             height: 38px;
+        }
+        body.route-liquidation .liquidation-table-container {
+            border-bottom: 0 !important;
+            border-radius: 0 !important;
+        }
+        body.route-liquidation #table-footer {
+            display: flex;
+            min-height: 58px;
+            background: var(--bg-1) !important;
+            border-top: 1px solid var(--line-1) !important;
+            border-radius: 0 0 var(--r-lg) var(--r-lg) !important;
+            color: var(--fg-3) !important;
+        }
+        body.route-liquidation #table-footer[style*="display: none"] {
+            display: none !important;
+        }
+        body.route-liquidation #table-footer .flow-pager-info {
+            color: var(--fg-1) !important;
+            font-family: var(--mono) !important;
+            font-size: 12px !important;
+            font-weight: 600 !important;
+        }
+        body.route-liquidation #table-footer .flow-pager-total {
+            color: var(--fg-3) !important;
+            border-left-color: var(--line-2) !important;
+            font-family: var(--mono) !important;
+            font-size: 11px !important;
+        }
+        body.route-liquidation #positions-table thead th.sorted,
+        body.route-liquidation #positions-table thead th.sorted .sort-arrow {
+            color: var(--gold) !important;
+        }
+        body.route-liquidation #positions-table tbody tr:hover td:first-child {
+            box-shadow: inset 2px 0 0 var(--gold) !important;
+        }
+        body.route-liquidation #positions-table tbody tr.critical-row:hover td:first-child {
+            box-shadow: inset 2px 0 0 #b4796b !important;
+        }
+        body.route-liquidation #positions-table tbody tr.danger-row:hover td:first-child {
+            box-shadow: inset 2px 0 0 #c9a227 !important;
         }
 
         /* Assets-compatible interaction layer: filters, popovers, hover explanations */
@@ -5202,7 +5243,7 @@
         @media (max-width: 720px) {
             .liquidation-intel-shell { padding: 18px !important; }
             .liquidation-command-frame { margin: 0 12px 12px !important; }
-            .table-card-outer.liquidation-table-surface .table-container { min-height: 590px; }
+            .table-card-outer.liquidation-table-surface .table-container { min-height: 0; }
             .premium-supply-frame > div {
                 flex: 1 1 100% !important;
                 width: 100% !important;
@@ -7313,8 +7354,8 @@
                 <div>No positions match your filters</div>
             </div>
 
-            <div class="table-footer" id="table-footer" style="display: none;"></div>
         </div>
+            <div class="table-footer" id="table-footer" style="display: none;"></div>
             </div>
         </div>
         </div> <!-- End of tab-liquidations -->
@@ -9034,7 +9075,7 @@
         let allPositions = [];
         let filteredPositions = [];
         let currentPage = 1;
-        const PAGE_SIZE = 15;
+        const PAGE_SIZE = 10;
         let sortField = 'collateral';
         let sortDirection = 'desc';
         let availableChainCount = 0;

@@ -193,7 +193,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 #holders-table .holder-wallet-top{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
 #holders-table .holder-wallet-bottom{display:flex;align-items:center;gap:7px;min-width:0;flex-wrap:wrap}
 #holders-table .addr-name{font-size:13px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px;line-height:1.2}
-#holders-table .addr-name.addr-generic{color:var(--fg-2);font-weight:500}
+#holders-table .addr-name.addr-generic{color:var(--fg-1);font-weight:600}
 #holders-table .addr-mono{font-family:var(--mono);font-size:12px;color:var(--fg-3);font-weight:500;letter-spacing:.1px;line-height:1.2}
 #holders-table tbody tr:hover .addr-mono{color:var(--fg-2)}
 #holders-table .addr-copy,#holders-table .addr-debank{width:22px;height:22px;border-radius:5px;display:grid;place-items:center;color:var(--fg-4);background:var(--bg-3);border:1px solid var(--line-2);flex-shrink:0;transition:all .15s var(--ease);cursor:pointer}
@@ -324,7 +324,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 #exits-table .exit-wallet-top{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
 #exits-table .exit-wallet-bottom{display:flex;align-items:center;gap:7px;min-width:0;flex-wrap:wrap}
 #exits-table .addr-name{font-size:13px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px;line-height:1.2}
-#exits-table .addr-name.addr-generic{color:var(--fg-2);font-weight:500}
+#exits-table .addr-name.addr-generic{color:var(--fg-1);font-weight:600}
 #exits-table .addr-mono{font-family:var(--mono);font-size:12px;color:var(--fg-3);font-weight:500;letter-spacing:.1px;line-height:1.2}
 #exits-table tbody tr:hover .addr-mono{color:var(--fg-2)}
 #exits-table .addr-copy,#exits-table .addr-debank{width:22px;height:22px;border-radius:5px;display:grid;place-items:center;color:var(--fg-4);background:var(--bg-3);border:1px solid var(--line-2);flex-shrink:0;transition:all .15s var(--ease);cursor:pointer}
@@ -1006,9 +1006,11 @@ function matchesText(row, q, fields){
   return fields.some(f => String(row[f] || "").toLowerCase().includes(q));
 }
 function exitDateCell(date){
-  const label = dateLabel(date);
-  const parts = label.split(", ");
-  return `<div class="exit-date" aria-label="${esc(label)}"><span>${esc(parts[0] || label)}</span><small>${esc(parts[1] || "")}</small></div>`;
+  const dt = new Date(String(date || "").includes("T") ? date : date + "T00:00:00Z");
+  const label = Number.isNaN(dt.getTime())
+    ? dateLabel(date)
+    : dt.toLocaleDateString("en-GB", {day:"numeric",month:"short",year:"numeric",timeZone:"UTC"});
+  return `<div class="exit-date" aria-label="${esc(label)}"><span>${esc(label)}</span></div>`;
 }
 function exitAddressCell(addr, tagHtml=""){
   const displayAddr = addr || "";
