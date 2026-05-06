@@ -415,7 +415,14 @@
 
       const valueWrap = amountCell.querySelector('div');
       const amountText = valueWrap?.querySelector('span');
-      if (valueWrap) valueWrap.classList.add('supply-token-value');
+      if (valueWrap) {
+        const amountTip = valueWrap.dataset.tooltip || amountCell.dataset.tooltip || amountCell.getAttribute('title');
+        valueWrap.classList.add('supply-token-value');
+        valueWrap.dataset.tooltipCursor = 'true';
+        if (amountTip) valueWrap.dataset.tooltip = amountTip;
+        amountCell.removeAttribute('title');
+        amountCell.removeAttribute('data-tooltip');
+      }
       if (amountText) amountText.classList.add('supply-token-amount');
     });
   }
@@ -446,6 +453,15 @@
       row.querySelectorAll('.addr-tooltip-wrap').forEach(link => {
         link.classList.add('addr-mono');
         link.removeAttribute('style');
+      });
+      row.querySelectorAll('.supply-activity-wallet-meta').forEach(meta => {
+        meta.remove();
+      });
+      row.querySelectorAll('.supply-activity-amount-sub').forEach(sub => {
+        sub.remove();
+      });
+      row.querySelectorAll('.supply-activity-token-value').forEach(value => {
+        value.dataset.tooltipCursor = 'true';
       });
     });
   }

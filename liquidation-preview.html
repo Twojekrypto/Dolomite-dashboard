@@ -11514,6 +11514,25 @@
                 }
             }
 
+            function usesCursorTooltip(targetEl) {
+                return !!(targetEl && targetEl.closest && targetEl.closest('[data-tooltip-cursor="true"]'));
+            }
+
+            function positionTipAtPointer(event) {
+                tip.style.display = 'block';
+                var tw = tip.offsetWidth;
+                var th = tip.offsetHeight || 28;
+                var left = event.clientX + 12;
+                var top = event.clientY + 14;
+                if (left + tw > window.innerWidth - 8) left = event.clientX - tw - 12;
+                if (top + th > window.innerHeight - 8) top = event.clientY - th - 12;
+                if (left < 4) left = 4;
+                if (top < 4) top = 4;
+                tip.style.left = left + 'px';
+                tip.style.top = top + 'px';
+                arrow.style.opacity = '0';
+            }
+
             document.addEventListener('mouseover', function(e) {
                 var target = getTarget(e.target);
                 if (!target) return;
@@ -11521,8 +11540,22 @@
                 if (!text) return;
                 tip.textContent = text;
                 tip.style.opacity = '1';
-                arrow.style.opacity = '1';
-                positionTip(target);
+                if (usesCursorTooltip(target)) {
+                    positionTipAtPointer(e);
+                } else {
+                    arrow.style.opacity = '1';
+                    positionTip(target);
+                }
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                var target = getTarget(e.target);
+                if (!target || !usesCursorTooltip(target)) return;
+                var text = getTooltipText(e.target);
+                if (!text) return;
+                tip.textContent = text;
+                tip.style.opacity = '1';
+                positionTipAtPointer(e);
             });
 
             document.addEventListener('mouseout', function(e) {
@@ -13823,6 +13856,9 @@
                 const activityAmount = supplyEscapeHtml(supplyFormatTokenCompact(row.amount));
                 const safeActivityTokenSymbol = supplyEscapeHtml(activityTokenSymbol);
                 const safeActivityTokenIcon = supplyEscapeHtml(activityTokenIcon);
+                const safeActivityAmountTip = supplyEscapeHtml(activityTokenSymbol
+                    ? `${supplyFormatTokenPrecise(row.amount)} ${activityTokenSymbol}`
+                    : supplyFormatTokenPrecise(row.amount));
                 return `
                     <tr>
                         <td>
@@ -13838,28 +13874,16 @@
                         </td>
 	                        <td>
 	                            <div class="supply-activity-wallet">
-                                <div class="supply-activity-wallet-block">
-                                    <div class="supply-activity-wallet-meta">
-                                        <span class="supply-activity-wallet-role">${supplyEscapeHtml(row.primaryLabel)}</span>
-                                        <span class="supply-activity-wallet-note">${supplyEscapeHtml(row.note)}</span>
-                                    </div>
-                                    ${primaryLink}
-                                </div>
-                                ${secondaryLink ? `<div class="supply-activity-wallet-block secondary">
-                                    <div class="supply-activity-wallet-meta">
-                                        <span class="supply-activity-wallet-role">${supplyEscapeHtml(row.secondaryLabel)}</span>
-                                    </div>
-                                    ${secondaryLink}
-                                </div>` : ''}
+                                <div class="supply-activity-wallet-block">${primaryLink}</div>
+                                ${secondaryLink ? `<div class="supply-activity-wallet-block secondary">${secondaryLink}</div>` : ''}
 	                            </div>
 	                        </td>
 	                        <td><span class="supply-activity-type ${meta.cls}">${meta.label}</span></td>
 	                        <td class="supply-activity-amount">
-                            <div class="supply-activity-token-value">
+                            <div class="supply-activity-token-value" data-tooltip="${safeActivityAmountTip}" data-tooltip-cursor="true">
                                 <span>${activityAmount}</span>
                                 ${activityTokenSymbol ? `<img src="${safeActivityTokenIcon}" width="16" height="16" alt="${safeActivityTokenSymbol}" onerror="this.src='dolomite-logo.svg'">` : ''}
                             </div>
-                            <div class="supply-activity-amount-sub">${safeActivityTokenSymbol}</div>
                         </td>
                         <td class="supply-activity-amount">${formatUSDCompact(row.usd)}</td>
                     </tr>
@@ -14013,6 +14037,7 @@
                 const sym = tokenObj.symbol;
                 const iconUrl = SYMBOL_ICONS[sym] || `https://icons.llamao.fi/icons/tokens/${sym.toLowerCase()}`;
                 const exactAmt = s.amount.toLocaleString('en-US', {maximumFractionDigits: 4});
+                const exactAmountTip = supplyEscapeHtml(`${exactAmt} ${sym}`);
                 const exactUsd = s.usd.toLocaleString('en-US', {style:'currency', currency:'USD'});
 
                 tr.innerHTML = `
@@ -14024,8 +14049,8 @@
                             <a href="${debankUrl}" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a>
                         </div>
                     </td>
-                    <td style="text-align: right; font-weight:600; font-family:'JetBrains Mono',monospace;" title="${exactAmt} ${sym}">
-                        <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
+                    <td style="text-align: right; font-weight:600; font-family:'JetBrains Mono',monospace;">
+                        <div class="supply-token-value" style="display:flex;align-items:center;gap:6px;justify-content:flex-end" data-tooltip="${exactAmountTip}" data-tooltip-cursor="true">
                             <span style="color:#fff; font-size:12px;">${fmtS(s.amount)}</span>
                             <img src="${iconUrl}" width="16" height="16" style="border-radius:50%" alt="${sym}" onerror="this.src='dolomite-logo.svg'">
                         </div>
