@@ -11462,10 +11462,70 @@
         // One tooltip for all: address, HF badge, E-Mode ⚡
         // Same style everywhere: bg, font, size, padding, border
         (function() {
+            var actionTooltipSelector = [
+                '.copy-addr-icon',
+                '.addr-copy',
+                '.addr-debank',
+                '.debank-icon',
+                '.latest-tx',
+                '.tx-ext-icon',
+                '.proto-copy',
+                '.proto-explore',
+                '.search-clear',
+                '.dd-clear',
+                '.trigger-clear',
+                '.col-filter-clear',
+                '.col-filter-btn',
+                '.pg-btn',
+                '.flow-pager-btn',
+                '.token-ca-copy',
+                '.asset-toggle',
+                '.holder-toggle',
+                '.ex-toggle',
+                '.modal-close',
+                '.supply-activity-link',
+                '[data-page]',
+                '[data-flow-page]',
+                '[data-latest-page]'
+            ].join(',');
+
+            function cleanTooltipText(value) {
+                return String(value || '').replace(/\s+/g, ' ').trim();
+            }
+
+            function isAddressTooltipText(value) {
+                return /^0x[a-f0-9]{40}$/i.test(cleanTooltipText(value));
+            }
+
+            function isActionTooltip(el, value) {
+                var text = cleanTooltipText(value).toLowerCase();
+                if (!text) return false;
+                if (el.closest && el.closest(actionTooltipSelector)) return true;
+                return /^(copy address|copy ca|view on|open in|open transaction|clear( search| filter| chain filter| category filter| hf filter| collateral filter| debt filter| collateral token filter| debt token filter)?|first|previous|next|last|show asset details|hide asset details|show exercise history|hide exercise history|show position details|hide position details|sort by\b)/i.test(text);
+            }
+
+            function forEachTooltipMatch(root, selector, callback) {
+                var scope = root && root.nodeType === 1 ? root : document;
+                if (scope.matches && scope.matches(selector)) callback(scope);
+                scope.querySelectorAll(selector).forEach(callback);
+            }
+
             function convertNativeTitles(root) {
-                (root || document).querySelectorAll('[title]').forEach(el => {
-                    if (!el.dataset.tooltip) el.dataset.tooltip = el.getAttribute('title');
+                forEachTooltipMatch(root, '[title]', el => {
+                    var text = el.getAttribute('title');
+                    if (isActionTooltip(el, text)) {
+                        el.removeAttribute('title');
+                        return;
+                    }
+                    if (!el.dataset.tooltip) el.dataset.tooltip = text;
+                    if (isAddressTooltipText(text)) el.dataset.tooltipMono = 'true';
                     el.removeAttribute('title');
+                });
+                forEachTooltipMatch(root, '[data-tooltip], [data-tip]', el => {
+                    var text = el.getAttribute('data-tooltip') || el.getAttribute('data-tip');
+                    if (!isActionTooltip(el, text)) return;
+                    el.removeAttribute('data-tooltip');
+                    el.removeAttribute('data-tip');
                 });
             }
             convertNativeTitles(document);
@@ -11617,9 +11677,15 @@
             document.addEventListener('mousemove', function(e) {
                 lastTooltipPointer = { x: e.clientX, y: e.clientY };
                 var target = getTarget(e.target);
-                if (!target) return;
+                if (!target) {
+                    if (activeTooltipTarget) scheduleTooltipHide();
+                    return;
+                }
                 var text = getTooltipText(e.target);
-                if (!text) return;
+                if (!text) {
+                    if (activeTooltipTarget) scheduleTooltipHide();
+                    return;
+                }
                 if (usesCursorTooltip(target)) showTooltipForEvent(e, target, text);
                 else if (target !== activeTooltipTarget) showTooltipForEvent(e, target, text);
             });
