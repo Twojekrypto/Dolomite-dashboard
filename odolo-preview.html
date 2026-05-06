@@ -575,8 +575,8 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
     content:attr(data-label);font-size:9px;letter-spacing:1.15px;text-transform:uppercase;color:var(--fg-4);font-family:var(--sans);font-weight:700;
     text-align:left;
   }
-  .latest-ex-tbl td[data-label="Wallet"]{display:block;text-align:left}
-  .latest-ex-tbl td[data-label="Wallet"]::before{display:block;margin-bottom:8px}
+  .latest-ex-tbl td[data-label="Address"]{display:block;text-align:left}
+  .latest-ex-tbl td[data-label="Address"]::before{display:block;margin-bottom:8px}
   .latest-ex-tbl td > *{justify-self:end}
   .latest-ex-tbl .latest-date{align-items:flex-end}
   .latest-ex-tbl .latest-wallet{align-items:flex-start}
@@ -1291,7 +1291,7 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
         <thead>
           <tr>
             <th data-latest-sort="date" style="width:104px">Date</th>
-            <th data-latest-sort="wallet">Wallet</th>
+            <th data-latest-sort="wallet">Address</th>
             <th data-latest-sort="vedolo" class="num" style="width:116px">veDOLO</th>
             <th data-latest-sort="usdc" class="num" style="width:118px">USDC Paid</th>
             <th data-latest-sort="price" class="num" style="width:96px">Price</th>
@@ -2698,7 +2698,7 @@ function renderLatestExercises(){
         <td data-label="Date">
           <div class="latest-date"><span>${esc(fmtDate(tx.date))}</span><small>${esc(periodLabel)}</small></div>
         </td>
-        <td data-label="Wallet">
+        <td data-label="Address">
           <div class="latest-wallet">
             <div class="latest-wallet-top"><span class="addr-name ${tx.label ? "" : "addr-generic"}">${esc(title)}</span>${typeHtml}</div>
             <div class="latest-wallet-bottom">
