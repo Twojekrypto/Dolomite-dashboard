@@ -342,9 +342,9 @@
 
     const labels = {
       rank: '#',
-      address: 'Wallet',
+      address: 'Address',
       amount: 'Supply Amount',
-      usd: 'Value USD',
+      usd: 'USD',
     };
     table.querySelectorAll('thead th[data-sort]').forEach(th => {
       const key = th.dataset.sort;
