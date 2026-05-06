@@ -1243,20 +1243,21 @@
             display: none;
             position: fixed;
             z-index: 999999;
-            width: 260px;
-            background: rgba(10, 15, 30, .98);
-            border: 1px solid rgba(99, 102, 241, .3);
-            border-radius: 10px;
-            padding: 11px 15px;
+            width: auto;
+            background: rgba(20, 20, 23, .97);
+            border: 1px solid rgba(201, 162, 39, .30);
+            border-radius: 8px;
+            padding: 7px 10px;
             min-width: 0;
-            max-width: min(260px, calc(100vw - 24px));
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, .55), 0 0 0 1px rgba(255, 255, 255, .04);
+            max-width: min(420px, calc(100vw - 24px));
+            box-shadow: 0 8px 28px rgba(0, 0, 0, .45);
             pointer-events: none;
             transition: opacity 0.15s ease;
             white-space: normal;
-            color: #cbd5e1;
+            color: var(--fg-1, #f4f3ef);
+            font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 11px;
+            line-height: 1.45;
         }
 
         #unified-tooltip::after {
@@ -1266,9 +1267,9 @@
             left: var(--arrow-left, 50%);
             width: 10px;
             height: 10px;
-            background: rgba(10, 15, 30, .98);
-            border-right: 1px solid rgba(99, 102, 241, .3);
-            border-bottom: 1px solid rgba(99, 102, 241, .3);
+            background: rgba(20, 20, 23, .97);
+            border-right: 1px solid rgba(201, 162, 39, .30);
+            border-bottom: 1px solid rgba(201, 162, 39, .30);
             transform: translateX(-50%) rotate(45deg);
         }
 
@@ -1277,8 +1278,8 @@
             top: -6px;
             border-right: none;
             border-bottom: none;
-            border-left: 1px solid rgba(99, 102, 241, .3);
-            border-top: 1px solid rgba(99, 102, 241, .3);
+            border-left: 1px solid rgba(201, 162, 39, .30);
+            border-top: 1px solid rgba(201, 162, 39, .30);
         }
 
         #unified-tooltip .utip-title {
@@ -1293,8 +1294,8 @@
         #unified-tooltip .utip-desc {
             font-size: 12px;
             font-weight: 400;
-            color: #cbd5e1;
-            line-height: 1.55;
+            color: var(--fg-1, #f4f3ef);
+            line-height: 1.45;
         }
 
         /* Monospace mode for address tooltips */
@@ -1313,31 +1314,29 @@
 
         /* Earn route tooltip skin — same body-level glass pattern as oDOLO Claimer Breakdown */
         #unified-tooltip.earn-tooltip {
-            width: 260px;
-            max-width: min(260px, calc(100vw - 24px));
-            background: rgba(15, 15, 17, .97);
-            border: 1px solid rgba(201, 162, 39, .28);
-            border-radius: 10px;
-            padding: 11px 15px;
-            color: rgba(244, 243, 239, .78);
-            font-family: 'Inter', system-ui, sans-serif;
-            font-size: 12px;
+            width: auto;
+            max-width: min(420px, calc(100vw - 24px));
+            background: rgba(20, 20, 23, .97);
+            border: 1px solid rgba(201, 162, 39, .30);
+            border-radius: 8px;
+            padding: 7px 10px;
+            color: var(--fg-1, #f4f3ef);
+            font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 11px;
             font-weight: 400;
-            line-height: 1.55;
-            box-shadow: 0 10px 34px rgba(0, 0, 0, .58), 0 0 0 1px rgba(255, 255, 255, .035), inset 0 1px 0 rgba(255, 255, 255, .035);
-            backdrop-filter: blur(16px) saturate(140%);
-            -webkit-backdrop-filter: blur(16px) saturate(140%);
+            line-height: 1.45;
+            box-shadow: 0 8px 28px rgba(0, 0, 0, .45);
         }
 
         #unified-tooltip.earn-tooltip::after {
-            background: rgba(15, 15, 17, .97);
-            border-right-color: rgba(201, 162, 39, .28);
-            border-bottom-color: rgba(201, 162, 39, .28);
+            background: rgba(20, 20, 23, .97);
+            border-right-color: rgba(201, 162, 39, .30);
+            border-bottom-color: rgba(201, 162, 39, .30);
         }
 
         #unified-tooltip.earn-tooltip.arrow-up::after {
-            border-left-color: rgba(201, 162, 39, .28);
-            border-top-color: rgba(201, 162, 39, .28);
+            border-left-color: rgba(201, 162, 39, .30);
+            border-top-color: rgba(201, 162, 39, .30);
         }
 
         #unified-tooltip.earn-tooltip .utip-title {
@@ -1345,9 +1344,9 @@
         }
 
         #unified-tooltip.earn-tooltip .utip-desc {
-            color: rgba(244, 243, 239, .78);
-            font-size: 12px;
-            line-height: 1.55;
+            color: var(--fg-1, #f4f3ef);
+            font-size: 11px;
+            line-height: 1.45;
         }
 
         #unified-tooltip.earn-tooltip.utip-mono {
@@ -1691,8 +1690,8 @@
 
         .odolo-toggle-wrap[data-tip]:hover::before,
         .odolo-toggle-wrap[data-tip]:hover::after {
-            opacity: 1;
-            visibility: visible;
+            opacity: 0;
+            visibility: hidden;
         }
 
         .odolo-toggle-icon {
@@ -1855,8 +1854,8 @@
         }
 
         .yield-help-icon:hover {
-            border-color: var(--accent-indigo);
-            color: var(--accent-indigo);
+            border-color: rgba(201, 162, 39, .45);
+            color: #e4c15a;
         }
 
         .yield-help-icon .tooltip-bubble {
@@ -1898,7 +1897,7 @@
         }
 
         .yield-help-icon:hover .tooltip-bubble {
-            display: block;
+            display: none;
         }
 
         .assets-table {
@@ -3421,7 +3420,7 @@
 
         .tooltip-icon:hover .tooltip-bubble,
         .tooltip-wrap:hover .tooltip-bubble {
-            display: block;
+            display: none;
         }
 
         .metric-value.accent-green {
@@ -6629,7 +6628,7 @@
         }
 
         .odolo-analytics-row .tooltip-icon:hover .tooltip-bubble {
-            display: block;
+            display: none;
         }
 
         /* Left card: tooltip aligns left */
@@ -15726,19 +15725,19 @@
                 #float-tip {
                     display: none;
                     position: fixed;
-                    width: 260px;
-                    background: rgba(10, 15, 30, .98);
-                    border: 1px solid rgba(99, 102, 241, .3);
-                    border-radius: 10px;
-                    padding: 11px 15px;
-                    font-size: 12px;
+                    width: auto;
+                    max-width: min(420px, calc(100vw - 24px));
+                    background: rgba(20, 20, 23, .97);
+                    border: 1px solid rgba(201, 162, 39, .30);
+                    border-radius: 8px;
+                    padding: 7px 10px;
+                    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+                    font-size: 11px;
                     font-weight: 400;
-                    color: #cbd5e1;
-                    line-height: 1.55;
+                    color: var(--fg-1, #f4f3ef);
+                    line-height: 1.45;
                     z-index: 99999;
-                    backdrop-filter: blur(16px);
-                    -webkit-backdrop-filter: blur(16px);
-                    box-shadow: 0 8px 32px rgba(0, 0, 0, .55), 0 0 0 1px rgba(255, 255, 255, .04);
+                    box-shadow: 0 8px 28px rgba(0, 0, 0, .45);
                     pointer-events: none;
                     word-wrap: break-word;
                     white-space: normal;
@@ -15752,9 +15751,9 @@
                     left: 24px;
                     width: 10px;
                     height: 10px;
-                    background: rgba(10, 15, 30, .98);
-                    border-right: 1px solid rgba(99, 102, 241, .3);
-                    border-bottom: 1px solid rgba(99, 102, 241, .3);
+                    background: rgba(20, 20, 23, .97);
+                    border-right: 1px solid rgba(201, 162, 39, .30);
+                    border-bottom: 1px solid rgba(201, 162, 39, .30);
                     transform: rotate(45deg);
                 }
 
@@ -15764,8 +15763,8 @@
                     top: -6px;
                     border-right: none;
                     border-bottom: none;
-                    border-left: 1px solid rgba(99, 102, 241, .3);
-                    border-top: 1px solid rgba(99, 102, 241, .3);
+                    border-left: 1px solid rgba(201, 162, 39, .30);
+                    border-top: 1px solid rgba(201, 162, 39, .30);
                 }
 
                 .tvl-metric-value {
@@ -37223,9 +37222,12 @@
 
             let _activeEl = null;
             let _hideRAF = null;
+            let _hideTimer = null;
+            let _lastPointer = { x: 0, y: 0 };
 
             function showTip(el, title, desc, isMono) {
                 if (_hideRAF) { cancelAnimationFrame(_hideRAF); _hideRAF = null; }
+                if (_hideTimer) { clearTimeout(_hideTimer); _hideTimer = null; }
                 _activeEl = el;
                 const titleEl = tip.querySelector('.utip-title');
                 const descEl = tip.querySelector('.utip-desc');
@@ -37290,8 +37292,18 @@
                 _activeEl = null;
             }
 
+            function scheduleHideTip() {
+                if (_hideTimer) clearTimeout(_hideTimer);
+                _hideTimer = setTimeout(function () {
+                    const el = document.elementFromPoint(_lastPointer.x, _lastPointer.y);
+                    if (_activeEl && el && _activeEl.contains(el)) return;
+                    hideTip();
+                }, 80);
+            }
+
             // --- Unified mouseover handler ---
             document.addEventListener('mouseover', function (e) {
+                _lastPointer = { x: e.clientX, y: e.clientY };
                 // 1. Depth badges (DUST / LOW)
                 const badge = e.target.closest('.assets-depth-badge');
                 if (badge) {
@@ -37304,7 +37316,7 @@
                 }
 
                 // 2. Breakdown items (oDOLO, Lending, GM Performance, etc.)
-                const breakdown = e.target.closest('.breakdown-item[data-tip], .breakdown-help-icon');
+                const breakdown = e.target.closest('.breakdown-item[data-tip], .breakdown-help-icon, .yield-help-icon, .tooltip-icon, .tooltip-wrap');
                 if (breakdown) {
                     const text = breakdown.getAttribute('data-tip') ||
                         (breakdown.querySelector('.tooltip-bubble') ? breakdown.querySelector('.tooltip-bubble').textContent : '');
@@ -37338,8 +37350,13 @@
                 }
             });
 
+            document.addEventListener('mousemove', function (e) {
+                _lastPointer = { x: e.clientX, y: e.clientY };
+            });
+
             // --- Unified mouseout handler ---
             document.addEventListener('mouseout', function (e) {
+                _lastPointer = { x: e.clientX, y: e.clientY };
                 if (!_activeEl) return;
                 const related = e.relatedTarget;
                 if (related && _activeEl.contains(related)) return;
@@ -37347,13 +37364,13 @@
                 // Check if we're leaving the active element
                 const leaving =
                     e.target.closest('.assets-depth-badge') === _activeEl ||
-                    e.target.closest('.breakdown-item, .breakdown-help-icon') === _activeEl ||
+                    e.target.closest('.breakdown-item, .breakdown-help-icon, .yield-help-icon, .tooltip-icon, .tooltip-wrap') === _activeEl ||
                     e.target.closest('.addr-tooltip-wrap') === _activeEl ||
                     e.target.closest('.badge-tooltip-wrap') === _activeEl ||
                     e.target.closest('[data-tip]') === _activeEl ||
                     e.target === _activeEl;
 
-                if (leaving) hideTip();
+                if (leaving) scheduleHideTip();
             });
 
             // Hide on scroll
@@ -38464,13 +38481,14 @@
                     tip.style.display = 'block';
                     /* Position above the label */
                     var tipH = tip.offsetHeight;
+                    var tipW = tip.offsetWidth || 260;
                     var top = r.top - tipH - 10;
                     var left = r.left;
                     var flipped = false;
                     /* Flip below if above viewport */
                     if (top < 8) { top = r.bottom + 10; flipped = true; }
                     /* Keep within right edge */
-                    if (left + 260 > window.innerWidth - 12) { left = window.innerWidth - 272; }
+                    if (left + tipW > window.innerWidth - 12) { left = window.innerWidth - tipW - 12; }
                     if (left < 8) left = 8;
                     tip.style.top = top + 'px';
                     tip.style.left = left + 'px';

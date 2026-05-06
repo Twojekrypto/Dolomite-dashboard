@@ -8,6 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared-hover-tooltips.css?v=20260506b">
+<script defer src="shared-hover-tooltips.js?v=20260506b"></script>
 <style>
 /* ==========================================================================
    DESIGN TOKENS — Graphite + Gold (shared with dolo / assets previews)
@@ -2021,7 +2023,7 @@ function renderProto(){
         <span class="proto-chain-chip"><span class="dot dot-${c.chainKey}"></span>${c.chain}</span>
       </div>
       <div class="proto-addr-right">
-        <span class="proto-addr-hex" title="${c.addr}">${shorten(c.addr)}</span>
+        <span class="proto-addr-hex addr-tooltip-wrap" data-full-addr="${c.addr}">${shorten(c.addr)}</span>
         <button class="proto-copy" data-copy="${c.addr}" aria-label="Copy address">${COPY_ICO}</button>
         <button class="proto-explore" data-url="${c.explorer}/token/${c.addr}" aria-label="Open in explorer" title="Open in block explorer">${EXT_ICO}</button>
       </div>

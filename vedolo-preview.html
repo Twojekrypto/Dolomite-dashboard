@@ -8,6 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared-hover-tooltips.css?v=20260506b">
+<script defer src="shared-hover-tooltips.js?v=20260506b"></script>
 <style>
 :root{
   --bg-0:#09090b;--bg-1:#0f0f11;--bg-2:#141417;--bg-3:#1a1a1e;--bg-4:#202024;
@@ -1017,7 +1019,7 @@ function exitAddressCell(addr, tagHtml=""){
   return `<div class="exit-wallet">
     <div class="exit-wallet-top"><span class="addr-name addr-generic">Wallet</span>${tagHtml}</div>
     <div class="exit-wallet-bottom">
-      <span class="addr-mono">${esc(shortAddr(displayAddr))}</span>
+      <span class="addr-mono addr-tooltip-wrap" data-full-addr="${esc(displayAddr)}">${esc(shortAddr(displayAddr))}</span>
       <button class="copy-btn addr-copy" data-copy="${esc(displayAddr)}" title="Copy address" aria-label="Copy address">${copySvg}</button>
       <a class="addr-debank" href="https://debank.com/profile/${esc(displayAddr)}" target="_blank" rel="noopener" title="View on DeBank" aria-label="View on DeBank" onclick="event.stopPropagation()">
         <img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'">
@@ -1057,13 +1059,13 @@ const FLOW_SOURCE_META = {
 };
 function flowSourceTag(kind){
   const meta = FLOW_SOURCE_META[kind] || FLOW_SOURCE_META.direct;
-  return `<span class="tag flow-source-tag ${esc(meta.cls)}" tabindex="0" data-source-title="${esc(meta.title)}" data-source-body="${esc(meta.body)}" aria-label="${esc(`${meta.title}: ${meta.body}`)}">${esc(meta.label)}</span>`;
+  return `<span class="tag flow-source-tag ${esc(meta.cls)}" tabindex="0" data-tooltip="${esc(`${meta.title}: ${meta.body}`)}" aria-label="${esc(`${meta.title}: ${meta.body}`)}">${esc(meta.label)}</span>`;
 }
 function flowAddressCell(addr, date, tagHtml=""){
   const displayAddr = addr || "";
   return `<div class="flow-tx flow-address-cell">
     <div class="flow-tx-line flow-address-main">
-      <a class="addr" href="https://debank.com/profile/${esc(displayAddr)}" target="_blank" rel="noopener">${esc(shortAddr(displayAddr))}</a>
+      <a class="addr addr-tooltip-wrap" href="https://debank.com/profile/${esc(displayAddr)}" target="_blank" rel="noopener" data-full-addr="${esc(displayAddr)}">${esc(shortAddr(displayAddr))}</a>
       <button class="copy-btn" data-copy="${esc(displayAddr)}" title="Copy address">${copySvg}</button>
       ${tagHtml}
     </div>
@@ -1077,7 +1079,7 @@ function holderCell(h){
   return `<div class="holder-wallet">
     <div class="holder-wallet-top"><span class="addr-name addr-generic">Wallet</span></div>
     <div class="holder-wallet-bottom">
-      <span class="addr-mono">${esc(shortAddr(displayAddr))}</span>
+      <span class="addr-mono addr-tooltip-wrap" data-full-addr="${esc(displayAddr)}">${esc(shortAddr(displayAddr))}</span>
       <button class="copy-btn addr-copy" data-copy="${esc(displayAddr)}" title="Copy address" aria-label="Copy address">${copySvg}</button>
       <a class="addr-debank" href="https://debank.com/profile/${esc(displayAddr)}" target="_blank" rel="noopener" title="View on DeBank" aria-label="View on DeBank" onclick="event.stopPropagation()"><img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'"></a>
     </div>
@@ -1771,7 +1773,7 @@ function renderProtocolInfo(){
         <span class="proto-chain-chip"><span class="dot dot-${esc(c.chainKey)}"></span>${esc(c.chain)}</span>
       </div>
       <div class="proto-addr-right">
-        <span class="proto-addr-hex" title="${esc(c.addr)}">${esc(shortAddr(c.addr))}</span>
+        <span class="proto-addr-hex addr-tooltip-wrap" data-full-addr="${esc(c.addr)}">${esc(shortAddr(c.addr))}</span>
         <button class="proto-copy" data-copy="${esc(c.addr)}" aria-label="Copy address" title="Copy address">${copySvg}</button>
         <button class="proto-explore" data-url="${esc(c.explorer)}/token/${esc(c.addr)}" aria-label="Open in explorer" title="Open in block explorer">${extSvg}</button>
       </div>
@@ -2191,30 +2193,12 @@ function flowSourceEventTag(event){
   return target && target.nodeType === 1 ? target.closest(".flow-source-tag") : null;
 }
 function bindFlowSourceTooltips(){
-  document.addEventListener("mouseover", e => {
-    const tag = flowSourceEventTag(e);
-    if(tag) showFlowSourceTooltip(tag);
-  });
-  document.addEventListener("mouseout", e => {
-    const tag = flowSourceEventTag(e);
-    if(tag && !tag.contains(e.relatedTarget)) hideFlowSourceTooltip();
-  });
-  document.addEventListener("focusin", e => {
-    const tag = flowSourceEventTag(e);
-    if(tag) showFlowSourceTooltip(tag);
-  });
-  document.addEventListener("focusout", e => {
-    if(flowSourceEventTag(e)) hideFlowSourceTooltip();
-  });
   document.addEventListener("click", e => {
     const tag = flowSourceEventTag(e);
     if(!tag) return;
     e.preventDefault();
     e.stopPropagation();
-    showFlowSourceTooltip(tag);
   });
-  window.addEventListener("scroll", hideFlowSourceTooltip, true);
-  window.addEventListener("resize", hideFlowSourceTooltip);
 }
 async function boot(){
   bindUi();
