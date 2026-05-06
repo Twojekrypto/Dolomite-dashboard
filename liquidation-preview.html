@@ -8516,6 +8516,26 @@
                     color: #f8fafc;
                     font-weight: 600;
                 }
+                .supply-activity-date-cell .supply-activity-time-top {
+                    gap: 6px;
+                }
+                .supply-activity-date-cell strong {
+                    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+                    font-size: 11px;
+                    letter-spacing: 0;
+                }
+                .supply-activity-date-cell span {
+                    color: rgba(255,255,255,0.34);
+                    font-size: 10.5px;
+                }
+                .supply-activity-date-cell .supply-activity-time-link {
+                    width: 18px;
+                    height: 18px;
+                    border: 0;
+                    background: transparent;
+                    color: rgba(255,255,255,0.48);
+                    opacity: 0.45;
+                }
                 .supply-activity-wallet {
                     display: flex;
                     flex-direction: column;
@@ -8748,11 +8768,11 @@
                             <img id="supply-intel-asset-icon" class="supply-intel-title-icon" src="dolomite-logo.svg" alt="">
                             <div class="supply-intel-copy">
                                 <div class="supply-intel-title" id="supply-intel-title">Choose an asset</div>
-                                <div class="supply-intel-subtitle" id="supply-intel-subtitle">Live liquidity, caps, supplier breadth, and full activity.</div>
+                                <div class="supply-intel-subtitle" id="supply-intel-subtitle">Liquidity, caps, supplier breadth, and market activity.</div>
                             </div>
                         </div>
                     </div>
-                    <div class="supply-intel-asof" id="supply-intel-asof">Live from Dolomite subgraph</div>
+                    <div class="supply-intel-asof" id="supply-intel-asof"></div>
                 </div>
                 <div id="supply-intel-stats" class="supply-intel-stats"></div>
                 <div class="supply-history-card">
@@ -8879,11 +8899,11 @@
                                 <tr>
                                     <th style="cursor:pointer; user-select:none; position:relative; overflow:visible;" data-sort="time" class="sorted" onclick="supplyActivitySort('time')">
                                         <span class="col-header-group">
-                                            Time
-                                            <button type="button" class="col-filter-btn" id="supply-activity-time-filter-trigger" title="Filter by time range">
+                                            DATE
+                                            <button type="button" class="col-filter-btn" id="supply-activity-time-filter-trigger">
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
                                             </button>
-                                            <button type="button" class="col-filter-clear" id="supply-activity-time-filter-clear" title="Clear time filter">✕</button>
+                                            <button type="button" class="col-filter-clear" id="supply-activity-time-filter-clear">✕</button>
                                             <span class="sort-arrow">▼</span>
                                         </span>
                                         <div class="col-filter-popover">
@@ -8905,10 +8925,10 @@
                                     <th style="text-align:right; cursor:pointer; user-select:none; position:relative; overflow:visible;" data-sort="amount" onclick="supplyActivitySort('amount')">
                                         <span class="col-header-group">
                                             Amount
-                                            <button type="button" class="col-filter-btn" id="supply-activity-amount-filter-trigger" title="Filter by amount range">
+                                            <button type="button" class="col-filter-btn" id="supply-activity-amount-filter-trigger">
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
                                             </button>
-                                            <button type="button" class="col-filter-clear" id="supply-activity-amount-filter-clear" title="Clear amount filter">✕</button>
+                                            <button type="button" class="col-filter-clear" id="supply-activity-amount-filter-clear">✕</button>
                                             <span class="sort-arrow"></span>
                                         </span>
                                         <div class="col-filter-popover">
@@ -8928,10 +8948,10 @@
                                     <th style="text-align:right; cursor:pointer; user-select:none; position:relative; overflow:visible;" data-sort="usd" onclick="supplyActivitySort('usd')">
                                         <span class="col-header-group">
                                             USD
-                                            <button type="button" class="col-filter-btn" id="supply-activity-usd-filter-trigger" title="Filter by USD range">
+                                            <button type="button" class="col-filter-btn" id="supply-activity-usd-filter-trigger">
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
                                             </button>
-                                            <button type="button" class="col-filter-clear" id="supply-activity-usd-filter-clear" title="Clear USD filter">✕</button>
+                                            <button type="button" class="col-filter-clear" id="supply-activity-usd-filter-clear">✕</button>
                                             <span class="sort-arrow"></span>
                                         </span>
                                         <div class="col-filter-popover">
@@ -11911,6 +11931,25 @@
             }).format(new Date(ts * 1000));
         }
 
+        function supplyFormatActivityDate(timestamp) {
+            const ts = Number(timestamp || 0);
+            if (!Number.isFinite(ts) || ts <= 0) return '—';
+            return new Intl.DateTimeFormat('en-GB', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+            }).format(new Date(ts * 1000));
+        }
+
+        function supplyFormatActivityTime(timestamp) {
+            const ts = Number(timestamp || 0);
+            if (!Number.isFinite(ts) || ts <= 0) return '—';
+            return new Intl.DateTimeFormat('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+            }).format(new Date(ts * 1000));
+        }
+
         function supplyFormatFullDate(timestamp) {
             const ts = Number(timestamp || 0);
             if (!Number.isFinite(ts) || ts <= 0) return '—';
@@ -13244,7 +13283,7 @@
                 : (supplierStage === 'partial'
                     ? `Market #${info.token.marketId} · top suppliers are ready while the broader supplier map is still loading · ${info.borrowingDisabled ? 'borrowing disabled' : 'borrowing enabled'}`
                     : `Market #${info.token.marketId} · supplier breadth is still loading · ${info.borrowingDisabled ? 'borrowing disabled' : 'borrowing enabled'}`);
-            if (asof) asof.textContent = `Live market snapshot + official Dolomite chart history · ${supplyFormatRelativeTime(Math.floor(Date.now() / 1000))}`;
+            if (asof) asof.textContent = '';
 
             const supplyCapPct = info.supplyCap > 0 ? Math.min(100, (info.supply / info.supplyCap) * 100) : 0;
             const borrowCapPct = info.borrowCap > 0 ? Math.min(100, (info.borrow / info.borrowCap) * 100) : 0;
@@ -13270,7 +13309,7 @@
                         <div class="supply-intel-stat-label">Supply / Cap</div>
                         <div class="supply-intel-stat-value">${supplyFormatTokenCompact(info.supply)}</div>
                     </div>
-                    <div class="supply-intel-stat-sub">${info.supplyCap > 0 ? `${supplyFormatTokenCompact(info.supplyCap)} cap · ${formatUSDCompact(info.supplyUsd)} live` : `${formatUSDCompact(info.supplyUsd)} live · no supply cap`}</div>
+                    <div class="supply-intel-stat-sub">${info.supplyCap > 0 ? `${supplyFormatTokenCompact(info.supplyCap)} cap · ${formatUSDCompact(info.supplyUsd)} supplied` : `${formatUSDCompact(info.supplyUsd)} supplied · no supply cap`}</div>
                     <div class="supply-intel-progress"><div class="supply-intel-progress-fill${supplyCapPct > 80 ? ' warn' : ''}" style="width:${info.supplyCap > 0 ? supplyCapPct.toFixed(2) : 18}%"></div></div>
                 </div>
                 <div class="supply-intel-stat">
@@ -13673,7 +13712,7 @@
                     ? `${supplyFormatSignedCompact(summary.netToken, supplyFormatTokenCompact)} ${tokenSymbol}`
                     : supplyFormatSignedCompact(summary.netToken, supplyFormatTokenCompact);
                 const netShareText = liveSupply > 0
-                    ? ` · ${supplyFormatSignedPercent((summary.netToken / liveSupply) * 100)} of live supply`
+                    ? ` · ${supplyFormatSignedPercent((summary.netToken / liveSupply) * 100)} of selected supply`
                     : '';
                 return `
                     <div class="supply-activity-summary-card">
@@ -13751,19 +13790,19 @@
 
             tbody.innerHTML = pageRows.map(row => {
                 const meta = SUPPLY_ACTIVITY_META[row.type];
-                const primaryLink = row.primaryAddress ? `<a href="${addrBase}${row.primaryAddress}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${supplyEscapeHtml(row.primaryAddress)}">${supplyEscapeHtml(supplyShortAddr(row.primaryAddress))}</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${supplyEscapeHtml(row.primaryAddress)}',this)" title="Copy address">${COPY_SVG}</span>` : '—';
-                const secondaryLink = row.secondaryAddress ? `<a href="${addrBase}${row.secondaryAddress}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${supplyEscapeHtml(row.secondaryAddress)}">${supplyEscapeHtml(supplyShortAddr(row.secondaryAddress))}</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${supplyEscapeHtml(row.secondaryAddress)}',this)" title="Copy address">${COPY_SVG}</span>` : '';
+                const primaryLink = row.primaryAddress ? `<a href="${addrBase}${row.primaryAddress}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${supplyEscapeHtml(row.primaryAddress)}">${supplyEscapeHtml(supplyShortAddr(row.primaryAddress))}</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${supplyEscapeHtml(row.primaryAddress)}',this)">${COPY_SVG}</span>` : '—';
+                const secondaryLink = row.secondaryAddress ? `<a href="${addrBase}${row.secondaryAddress}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${supplyEscapeHtml(row.secondaryAddress)}">${supplyEscapeHtml(supplyShortAddr(row.secondaryAddress))}</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${supplyEscapeHtml(row.secondaryAddress)}',this)">${COPY_SVG}</span>` : '';
                 return `
                     <tr>
                         <td>
-                            <div class="supply-activity-time">
+                            <div class="supply-activity-time supply-activity-date-cell">
                                 <div class="supply-activity-time-top">
-                                    <strong>${supplyEscapeHtml(supplyFormatRelativeTime(row.timestamp))}</strong>
-                                    ${row.txHash ? `<a class="supply-activity-link supply-activity-time-link" href="${txBase}${row.txHash}" target="_blank" rel="noopener" title="Open transaction">
+                                    <strong>${supplyEscapeHtml(supplyFormatActivityDate(row.timestamp))}</strong>
+                                    ${row.txHash ? `<a class="supply-activity-link supply-activity-time-link" href="${txBase}${row.txHash}" target="_blank" rel="noopener">
                                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
                                     </a>` : ''}
                                 </div>
-                                <span>${supplyEscapeHtml(supplyFormatDateTime(row.timestamp))}</span>
+                                <span>${supplyEscapeHtml(supplyFormatRelativeTime(row.timestamp))} · ${supplyEscapeHtml(supplyFormatActivityTime(row.timestamp))}</span>
                             </div>
                         </td>
                         <td><span class="supply-activity-type ${meta.cls}">${meta.label}</span></td>
@@ -14377,6 +14416,7 @@
 
             const applyBundleToUi = (bundle, options = {}) => {
                 const { allowAutoSelect = true } = options;
+                const requireManualAssetSelection = !!window.__DOLO_SUPPLY_REQUIRE_ASSET_SELECTION;
                 if (requestId !== supplyChainRequestId) return;
                 if (!bundle || !bundle.tokens || !bundle.tokens.length) throw new Error('No tokens returned');
                 applySupplyChainBundle(bundle);
@@ -14386,9 +14426,13 @@
                 const selectedValue = document.getElementById('supply-asset-select').value;
                 if (selectedValue && currentSupplyTokensMap[selectedValue]) {
                     updateSelectedSupplyAssetUi(currentSupplyTokensMap[selectedValue]);
-                } else if (allowAutoSelect) {
+                } else if (allowAutoSelect && !requireManualAssetSelection) {
                     const defaultOpt = getSupplyDefaultAsset(currentSupplyTokensList);
                     if (defaultOpt) selectSupplyAsset(defaultOpt.id);
+                } else {
+                    document.getElementById('supply-asset-select').value = '';
+                    assetText.textContent = currentSupplyTokensList.length ? 'Select asset' : 'No markets';
+                    assetIcon.style.display = 'none';
                 }
 
                 scheduleSupplyChainPrefetch(chain, currentSupplyTokensList, document.getElementById('supply-asset-select').value);
