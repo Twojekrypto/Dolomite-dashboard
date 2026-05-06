@@ -8,6 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared-hover-tooltips.css?v=20260506b">
+<script defer src="shared-hover-tooltips.js?v=20260506b"></script>
 <style>
 /* ==========================================================================
    DESIGN TOKENS — Graphite + Gold (shared with dolo-preview / assets-preview)
@@ -398,7 +400,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   100%{background:rgba(201,162,39,.035);box-shadow:inset 0 0 0 0 rgba(201,162,39,0)}
 }
 
-.latest-ex-tbl{min-width:820px}
+.latest-ex-tbl{min-width:780px}
 .latest-ex-tbl thead th{cursor:default}
 .latest-ex-tbl thead th[data-latest-sort]{cursor:pointer;transition:color .15s var(--ease)}
 .latest-ex-tbl thead th[data-latest-sort]:hover{color:var(--fg-1)}
@@ -413,8 +415,12 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   display:flex;flex-direction:column;gap:3px;align-items:flex-start;
   font-family:var(--mono);font-size:12px;color:var(--fg-2);white-space:nowrap;
 }
-.latest-date span{color:var(--fg-1);font-weight:600}
-.latest-date small{font-size:10px;color:var(--fg-4);letter-spacing:.2px}
+.latest-date-top{display:flex;align-items:center;gap:6px}
+.latest-date strong{color:var(--fg-1);font-weight:600;font-size:11px;letter-spacing:0}
+.latest-date > span{font-size:10.5px;color:rgba(255,255,255,.34);letter-spacing:0}
+.latest-date .latest-tx{width:18px;height:18px;border:0;background:transparent;color:rgba(255,255,255,.48);opacity:.45;border-radius:5px}
+.latest-date .latest-tx:hover{opacity:.82;color:var(--fg-1);background:rgba(255,255,255,.035);transform:none}
+.latest-date .latest-tx svg{width:13px;height:13px}
 .latest-wallet{display:flex;flex-direction:column;gap:5px;min-width:0}
 .latest-wallet-top{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
 .latest-wallet-bottom{display:flex;align-items:center;gap:7px;min-width:0;flex-wrap:wrap}
@@ -891,6 +897,7 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
   box-shadow:var(--sh-hi);font-size:12px;line-height:1.45;color:var(--fg-2);
 }
 .tbl-help-tooltip b{display:block;color:var(--fg-1);font-size:12.5px;margin-bottom:3px}
+#cb-help-tooltip{display:none!important}
 
 /* ====== DONUT v3 — SVG (Token Composition style) ====== */
 .donut-body-v2{padding:22px}
@@ -1290,13 +1297,12 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
       <table class="tbl latest-ex-tbl" id="tbl-latest-ex">
         <thead>
           <tr>
-            <th data-latest-sort="date" style="width:104px">Date</th>
+            <th data-latest-sort="date" style="width:136px">Date</th>
             <th data-latest-sort="wallet">Address</th>
             <th data-latest-sort="vedolo" class="num" style="width:116px">veDOLO</th>
             <th data-latest-sort="usdc" class="num" style="width:118px">USDC Paid</th>
             <th data-latest-sort="price" class="num" style="width:96px">Price</th>
             <th data-latest-sort="lock" class="num" style="width:88px">Lock</th>
-            <th class="latest-tx-th" style="width:52px">Tx</th>
           </tr>
         </thead>
         <tbody id="latest-ex-body"></tbody>
@@ -1660,6 +1666,36 @@ const fmtDate = value => {
   const d = new Date(`${value}T00:00:00Z`);
   if(Number.isNaN(d.getTime())) return value;
   return d.toLocaleDateString("en-GB", { day:"numeric", month:"short", year:"numeric", timeZone:"UTC" });
+};
+const exerciseTimeMs = tx => {
+  const raw = tx?.timestamp ?? tx?.block_timestamp ?? tx?.blockTimestamp ?? tx?.time ?? tx?.datetime ?? tx?.date_time;
+  if(raw != null && raw !== ""){
+    const num = Number(raw);
+    if(Number.isFinite(num)) return num > 1e12 ? num : num * 1000;
+    const parsed = Date.parse(String(raw));
+    if(Number.isFinite(parsed)) return parsed;
+  }
+  if(tx?.date){
+    const parsed = Date.parse(`${tx.date}T00:00:00Z`);
+    if(Number.isFinite(parsed)) return parsed;
+  }
+  return 0;
+};
+const fmtRelativeTime = ms => {
+  if(!Number.isFinite(ms) || ms <= 0) return "—";
+  const diff = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+  if(diff < 60) return "just now";
+  if(diff < 3600) return Math.floor(diff / 60) + "m ago";
+  if(diff < 86400) return Math.floor(diff / 3600) + "h ago";
+  if(diff < 86400 * 7) return Math.floor(diff / 86400) + "d ago";
+  return Math.floor(diff / 604800) + "w ago";
+};
+const fmtClockTime = ms => {
+  if(!Number.isFinite(ms) || ms <= 0) return "—";
+  return new Intl.DateTimeFormat("en-US", {
+    hour:"2-digit",
+    minute:"2-digit",
+  }).format(new Date(ms));
 };
 const fmtLock = days => {
   if(days >= 365) return (days/365).toFixed(2) + "y";
@@ -2355,14 +2391,17 @@ function updateCbHeaderHelp(extraWallets = 0, extraTotal = 0){
   if(claim){
     claim.dataset.tipTitle = "Claim Exercised";
     claim.dataset.tipBody = "Claimed oDOLO used for veDOLO, capped at each wallet's own claim.";
+    claim.dataset.tooltip = `${claim.dataset.tipTitle}: ${claim.dataset.tipBody}`;
   }
   if(extra){
     extra.dataset.tipTitle = "Extra Exercised";
     extra.dataset.tipBody = `${extraWallets.toLocaleString()} wallets exercised +${fmtNum(extraTotal)} oDOLO above their claim in the selected window.`;
+    extra.dataset.tooltip = `${extra.dataset.tipTitle}: ${extra.dataset.tipBody}`;
   }
   if(held){
     held.dataset.tipTitle = "Held";
     held.dataset.tipBody = "Current oDOLO balance in this wallet from balanceOf(wallet). Date filters change claim/exercise/outflow; Held stays the latest wallet balance.";
+    held.dataset.tooltip = `${held.dataset.tipTitle}: ${held.dataset.tipBody}`;
   }
 }
 
@@ -2431,7 +2470,7 @@ function renderClaimerBreakdown(){
         <td>
           <div class="addr-cell">
             <div class="addr-line top">${typeChip}</div>
-            <div class="addr-line bot"><span class="addr-mono">${shorten(r.addr)}</span>${actions}</div>
+            <div class="addr-line bot"><span class="addr-mono addr-tooltip-wrap" data-full-addr="${esc(r.addr)}">${shorten(r.addr)}</span>${actions}</div>
           </div>
         </td>
         <td class="num">${cellHtml(r.claimed,   r.claimed, "clm")}</td>
@@ -2602,6 +2641,7 @@ function getLatestExerciseRows(){
         type:meta.type,
         hash:tx.hash || "",
         date:tx.date,
+        timestamp:exerciseTimeMs(tx),
         usdc,
         vedolo,
         price:exerciseTxPrice(tx),
@@ -2613,7 +2653,7 @@ function getLatestExerciseRows(){
 }
 function latestSortValue(row, key){
   if(key === "date"){
-    const t = Date.parse(`${row?.date || ""}T00:00:00Z`);
+    const t = Number(row?.timestamp || 0) || Date.parse(`${row?.date || ""}T00:00:00Z`);
     return Number.isFinite(t) ? t : 0;
   }
   if(key === "wallet") return row.label || row.addr || "";
@@ -2673,7 +2713,7 @@ function renderLatestExercises(){
   if(infoEl) infoEl.textContent = LIVE.exercisers ? `${showStart}–${showEnd} of ${total.toLocaleString()}` : "Loading";
 
   if(!LIVE.exercisers){
-    tbody.innerHTML = `<tr><td colspan="7"><div class="latest-empty">Loading latest oDOLO exercises…</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6"><div class="latest-empty">Loading latest oDOLO exercises…</div></td></tr>`;
     if(pager) pager.innerHTML = "";
     return;
   }
@@ -2681,28 +2721,32 @@ function renderLatestExercises(){
     const emptyLabel = state.qLatest.trim()
       ? `No oDOLO exercises match "${esc(state.qLatest.trim())}" for ${esc(period ? period.label.toLowerCase() : periodLabel)}.`
       : `No oDOLO exercises recorded for ${esc(period ? period.label.toLowerCase() : periodLabel)}.`;
-    tbody.innerHTML = `<tr><td colspan="7"><div class="latest-empty">${emptyLabel}</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6"><div class="latest-empty">${emptyLabel}</div></td></tr>`;
     if(pager) pager.innerHTML = "";
     return;
   }
 
   tbody.innerHTML = visibleRows.map(tx => {
     const title = tx.label || TYPE_GENERIC[tx.type] || "Wallet";
-    const typeHtml = `<span class="type-tag type-${tx.type}" title="${esc(TYPE_TIPS[tx.type])}">${esc(TYPE_LABELS[tx.type])}</span>`;
+    const typeHtml = `<span class="type-tag type-${tx.type}" data-tooltip="${esc(TYPE_TIPS[tx.type])}">${esc(TYPE_LABELS[tx.type])}</span>`;
     const hashLabel = tx.hash ? `${tx.hash.slice(0,6)}…${tx.hash.slice(-4)}` : "—";
     const txLink = tx.hash
-      ? `<a class="latest-tx" href="https://berascan.com/tx/${esc(tx.hash)}" target="_blank" rel="noopener" title="Open transaction on Berascan: ${esc(hashLabel)}" aria-label="Open transaction on Berascan">${EXTERNAL_ICO}</a>`
+      ? `<a class="latest-tx" href="https://berascan.com/tx/${esc(tx.hash)}" target="_blank" rel="noopener" aria-label="Open transaction ${esc(hashLabel)}">${EXTERNAL_ICO}</a>`
       : `<span class="latest-tx latest-tx-empty" aria-label="No transaction">—</span>`;
+    const timestamp = Number(tx.timestamp || 0);
     return `
       <tr class="latest-ex-row" data-addr="${esc(tx.addr)}">
         <td data-label="Date">
-          <div class="latest-date"><span>${esc(fmtDate(tx.date))}</span><small>${esc(periodLabel)}</small></div>
+          <div class="latest-date">
+            <div class="latest-date-top"><strong>${esc(fmtDate(tx.date))}</strong>${txLink}</div>
+            <span>${esc(fmtRelativeTime(timestamp))} · ${esc(fmtClockTime(timestamp))}</span>
+          </div>
         </td>
         <td data-label="Address">
           <div class="latest-wallet">
             <div class="latest-wallet-top"><span class="addr-name ${tx.label ? "" : "addr-generic"}">${esc(title)}</span>${typeHtml}</div>
             <div class="latest-wallet-bottom">
-              <span class="addr-mono">${esc(shorten(tx.addr))}</span>
+              <span class="addr-mono addr-tooltip-wrap" data-full-addr="${esc(tx.addr)}">${esc(shorten(tx.addr))}</span>
               <button class="addr-copy" data-copy="${esc(tx.addr)}" title="Copy address" aria-label="Copy address">${COPY_ICO}</button>
               <a class="addr-debank" href="https://debank.com/profile/${esc(tx.addr)}" target="_blank" rel="noopener" title="View on DeBank" aria-label="View on DeBank" onclick="event.stopPropagation()">
                 <img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'">
@@ -2714,7 +2758,6 @@ function renderLatestExercises(){
         <td class="num" data-label="USDC Paid"><span class="bal-val usd">${fmtUsdFull(tx.usdc)}</span></td>
         <td class="num" data-label="Price"><span class="bal-val price">${fmtPrice(tx.price)}</span></td>
         <td class="num" data-label="Lock"><span class="ex-detail-lock ${lockBucket(tx.lockDays)}">${fmtLock(tx.lockDays)}</span></td>
-        <td class="latest-tx-cell" data-label="Tx">${txLink}</td>
       </tr>
     `;
   }).join("");
@@ -2845,7 +2888,7 @@ function renderExercisers(){
   const rowsHtml = pageRows.map((r,i)=>{
     const rank = rankMap.get(r.addr.toLowerCase()) || (start + i + 1);
     const isExpanded = state.exExpanded === r.addr.toLowerCase();
-    const typeHtml = `<span class="type-tag type-${r.type}" title="${esc(TYPE_TIPS[r.type])}">${esc(TYPE_LABELS[r.type])}</span>`;
+    const typeHtml = `<span class="type-tag type-${r.type}" data-tooltip="${esc(TYPE_TIPS[r.type])}">${esc(TYPE_LABELS[r.type])}</span>`;
     const actions = `
       <button class="addr-copy" data-copy="${esc(r.addr)}" title="Copy address" aria-label="Copy address">${COPY_ICO}</button>
       <a class="addr-debank" href="https://debank.com/profile/${esc(r.addr)}" target="_blank" rel="noopener" title="View on DeBank" aria-label="View on DeBank" onclick="event.stopPropagation()">
@@ -2863,7 +2906,7 @@ function renderExercisers(){
         <td>
           <div class="addr-cell">
             <div class="addr-line top">${nameCell}${typeHtml}</div>
-            <div class="addr-line bot"><span class="addr-mono">${esc(shorten(r.addr))}</span>${actions}</div>
+            <div class="addr-line bot"><span class="addr-mono addr-tooltip-wrap" data-full-addr="${esc(r.addr)}">${esc(shorten(r.addr))}</span>${actions}</div>
           </div>
         </td>
         <td class="num"><span class="bal-val">${fmtNum(r.vedolo)}</span></td>
@@ -3040,7 +3083,7 @@ function renderFlow(target, kind){
     const sign = r.chg > 0 ? "+" : "";
     const balance = r.balance || 0;
     const rank = rankMap.get(r.addr.toLowerCase()) || (start + i + 1);
-    const typeHtml = `<span class="type-tag type-${r.type}" title="${TYPE_TIPS[r.type]}">${TYPE_LABELS[r.type]}</span>`;
+    const typeHtml = `<span class="type-tag type-${r.type}" data-tooltip="${esc(TYPE_TIPS[r.type])}">${TYPE_LABELS[r.type]}</span>`;
     const actions = `
       <button class="addr-copy" data-copy="${r.addr}" title="Copy address" aria-label="Copy address">${COPY_ICO}</button>
       <a class="addr-debank" href="https://debank.com/profile/${r.addr}" target="_blank" rel="noopener" title="View on DeBank" aria-label="View on DeBank" onclick="event.stopPropagation()">
@@ -3053,7 +3096,7 @@ function renderFlow(target, kind){
         <td>
           <div class="addr-cell">
             <div class="addr-line top">${nameCell}${typeHtml}</div>
-            <div class="addr-line bot"><span class="addr-mono">${shorten(r.addr)}</span>${actions}</div>
+            <div class="addr-line bot"><span class="addr-mono addr-tooltip-wrap" data-full-addr="${esc(r.addr)}">${shorten(r.addr)}</span>${actions}</div>
           </div>
         </td>
         <td class="num"><span class="bal-val">${balance>0 ? fmtNum(balance) : "—"}</span></td>
@@ -3296,7 +3339,7 @@ document.getElementById("proto-addrs").innerHTML = CONTRACTS.map((c,i)=>`
       <span class="proto-chain-chip"><span class="dot dot-${c.chainKey}"></span>${c.chain}</span>
     </div>
     <div class="proto-addr-right">
-      <span class="proto-addr-hex" title="${c.addr}">${shorten(c.addr)}</span>
+      <span class="proto-addr-hex addr-tooltip-wrap" data-full-addr="${esc(c.addr)}">${shorten(c.addr)}</span>
       <button class="proto-copy" data-copy="${c.addr}" aria-label="Copy address">${COPY_ICO}</button>
       <button class="proto-explore" data-url="${c.explorer}/token/${c.addr}" aria-label="Open in explorer" title="Open in block explorer">${EXT_ICO}</button>
     </div>

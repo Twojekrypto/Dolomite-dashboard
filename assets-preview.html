@@ -8,6 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared-hover-tooltips.css?v=20260506b">
+<script defer src="shared-hover-tooltips.js?v=20260506b"></script>
 <style>
 /* ==========================================================================
    DESIGN TOKENS — Graphite + Gold (premium, restrained)
@@ -815,7 +817,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   border:6px solid transparent;border-top-color:rgba(15,15,17,.98);
 }
 .calc-help:hover .calc-help-tip,
-.calc-help:focus-visible .calc-help-tip{opacity:1;transform:translateX(-50%) translateY(0)}
+.calc-help:focus-visible .calc-help-tip{opacity:0;display:none}
 
 .calc-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%}
 .calc-tabs{display:inline-flex;background:var(--bg-3);border:1px solid var(--line-2);border-radius:8px;padding:3px;position:relative}
@@ -2305,7 +2307,7 @@ function render(){
                 <div class="calc-title">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="13" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="10" y2="18"/><line x1="13" y1="18" x2="16" y2="18"/></svg>
                   Yield Calculator
-                  <span class="calc-help" tabindex="0" aria-label="Yield calculator note">?
+                  <span class="calc-help" tabindex="0" aria-label="Yield calculator note" data-tooltip="Only the native lending portion of APR reacts to utilization changes. Any oDOLO rewards${r.yield>0?" and external yield":""} apply on top and don't depend on your deposit.">?
                     <span class="calc-help-tip">Only the native lending portion of APR reacts to utilization changes. Any oDOLO rewards${r.yield>0?" and external yield":""} apply on top and don't depend on your deposit.</span>
                   </span>
                 </div>
@@ -2336,7 +2338,7 @@ function render(){
                     <div class="calc-side-lbl">Utilization · now</div>
                     <div class="calc-side-val">${r.util.toFixed(2)}%</div>
                   </div>
-                  <div class="calc-impact ${utilDeltaClass(sim)}" title="${impactLabel(calc.action)}: utilization changes by ${fmtPpDelta(sim.newUtil, sim.oldUtil)}">
+                  <div class="calc-impact ${utilDeltaClass(sim)}" data-tooltip="${impactLabel(calc.action)}: utilization changes by ${fmtPpDelta(sim.newUtil, sim.oldUtil)}">
                     <span class="calc-impact-label">Utilization change</span>
                     <span class="calc-delta">${fmtPpDelta(sim.newUtil, sim.oldUtil)}</span>
                     <svg class="calc-arrow ${sim.utilDir}" viewBox="0 0 16 10"><path d="M0 5 L12 5 M9 2 L12 5 L9 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -2351,7 +2353,7 @@ function render(){
                     <div class="calc-side-lbl">Native Lending ${state.mode} · now</div>
                     <div class="calc-side-val profit">${fmtPct(sim.oldLending)}</div>
                   </div>
-                  <div class="calc-impact ${lendingDeltaClass(sim)}" title="${impactLabel(calc.action)}: native lending ${state.mode} changes by ${fmtPpDelta(sim.newLending, sim.oldLending)}">
+                  <div class="calc-impact ${lendingDeltaClass(sim)}" data-tooltip="${impactLabel(calc.action)}: native lending ${state.mode} changes by ${fmtPpDelta(sim.newLending, sim.oldLending)}">
                     <span class="calc-impact-label">Yield change</span>
                     <span class="calc-delta">${fmtPpDelta(sim.newLending, sim.oldLending)}</span>
                     <svg class="calc-arrow ${sim.lendingDir}" viewBox="0 0 16 10"><path d="M0 5 L12 5 M9 2 L12 5 L9 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -2366,7 +2368,7 @@ function render(){
                     <div class="calc-side-lbl">Borrow ${state.mode} · now</div>
                     <div class="calc-side-val down">${fmtPct(sim.oldBorrow)}</div>
                   </div>
-                  <div class="calc-impact ${borrowDeltaClass(sim)}" title="${impactLabel(calc.action)}: borrow ${state.mode} changes by ${fmtPpDelta(sim.newBorrow, sim.oldBorrow)}">
+                  <div class="calc-impact ${borrowDeltaClass(sim)}" data-tooltip="${impactLabel(calc.action)}: borrow ${state.mode} changes by ${fmtPpDelta(sim.newBorrow, sim.oldBorrow)}">
                     <span class="calc-impact-label">Cost change</span>
                     <span class="calc-delta">${fmtPpDelta(sim.newBorrow, sim.oldBorrow)}</span>
                     <svg class="calc-arrow ${sim.borrowDir}" viewBox="0 0 16 10"><path d="M0 5 L12 5 M9 2 L12 5 L9 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -2528,7 +2530,8 @@ function updateCalc(key){
   if(utilImpact){
     utilImpact.classList.remove("is-up","is-down","is-flat","is-neutral");
     utilImpact.classList.add(utilDeltaClass(sim));
-    utilImpact.title = `${impactLabel(calc.action)}: utilization changes by ${fmtPpDelta(sim.newUtil, sim.oldUtil)}`;
+    utilImpact.dataset.tooltip = `${impactLabel(calc.action)}: utilization changes by ${fmtPpDelta(sim.newUtil, sim.oldUtil)}`;
+    utilImpact.removeAttribute("title");
     const impactLbl = utilImpact.querySelector(".calc-impact-label");
     const deltaLbl = utilImpact.querySelector(".calc-delta");
     if(impactLbl) impactLbl.textContent = "Utilization change";
@@ -2543,7 +2546,8 @@ function updateCalc(key){
   if(impact){
     impact.classList.remove("is-up","is-down","is-flat");
     impact.classList.add(lendingDeltaClass(sim));
-    impact.title = `${impactLabel(calc.action)}: native lending ${state.mode} changes by ${fmtPpDelta(sim.newLending, sim.oldLending)}`;
+    impact.dataset.tooltip = `${impactLabel(calc.action)}: native lending ${state.mode} changes by ${fmtPpDelta(sim.newLending, sim.oldLending)}`;
+    impact.removeAttribute("title");
     const impactLbl = impact.querySelector(".calc-impact-label");
     const deltaLbl = impact.querySelector(".calc-delta");
     if(impactLbl) impactLbl.textContent = "Yield change";
@@ -2558,7 +2562,8 @@ function updateCalc(key){
   if(borrowImpact){
     borrowImpact.classList.remove("is-up","is-down","is-flat");
     borrowImpact.classList.add(borrowDeltaClass(sim));
-    borrowImpact.title = `${impactLabel(calc.action)}: borrow ${state.mode} changes by ${fmtPpDelta(sim.newBorrow, sim.oldBorrow)}`;
+    borrowImpact.dataset.tooltip = `${impactLabel(calc.action)}: borrow ${state.mode} changes by ${fmtPpDelta(sim.newBorrow, sim.oldBorrow)}`;
+    borrowImpact.removeAttribute("title");
     const impactLbl = borrowImpact.querySelector(".calc-impact-label");
     const deltaLbl = borrowImpact.querySelector(".calc-delta");
     if(impactLbl) impactLbl.textContent = "Cost change";
@@ -2768,7 +2773,7 @@ document.getElementById("proto-addrs").innerHTML = CONTRACTS.map((c,i)=>`
       <span class="proto-chain-chip"><span class="dot dot-${c.chainKey}"></span>${c.chain}</span>
     </div>
     <div class="proto-addr-right">
-      <span class="proto-addr-hex" title="${c.addr}">${shorten(c.addr)}</span>
+      <span class="proto-addr-hex addr-tooltip-wrap" data-full-addr="${c.addr}">${shorten(c.addr)}</span>
       <button class="proto-copy" data-copy="${c.addr}" aria-label="Copy address">${COPY_ICO}</button>
       <button class="proto-explore" data-url="${c.explorer}/token/${c.addr}" aria-label="Open in explorer" title="Open in block explorer">${EXT_ICO}</button>
     </div>

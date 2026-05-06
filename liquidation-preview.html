@@ -3636,8 +3636,8 @@
         }
         .toggle-btn[data-tip]:hover::before,
         .toggle-btn[data-tip]:hover::after {
-            opacity: 1;
-            visibility: visible;
+            opacity: 0;
+            visibility: hidden;
         }
 
         /* Debt range dropdown — mirrors risk-dropdown pattern */
@@ -11525,11 +11525,13 @@
                 if (rp) return rp.getAttribute('data-tooltip');
                 var generic = el.closest('[data-tooltip]');
                 if (generic) return generic.getAttribute('data-tooltip');
+                var genericTip = el.closest('[data-tip]');
+                if (genericTip) return genericTip.getAttribute('data-tip');
                 return null;
             }
 
             function getTarget(el) {
-                return el.closest('.addr-tooltip-wrap') || el.closest('.emode-tooltip-wrap') || el.closest('.emode-badge[data-tooltip]') || el.closest('.hf-badge[data-tooltip]') || el.closest('.token-pill[data-tooltip]') || el.closest('.plvglp-badge[data-tooltip]') || el.closest('.debank-icon[data-tooltip]') || el.closest('.tg-icon[data-tooltip]') || el.closest('.alert-btn[data-tooltip]') || el.closest('.set-alert-header-btn[data-tooltip]') || el.closest('.no-soft-liq-badge[data-tooltip]') || el.closest('.risk-pill[data-tooltip]') || el.closest('[data-tooltip]');
+                return el.closest('.addr-tooltip-wrap') || el.closest('.emode-tooltip-wrap') || el.closest('.emode-badge[data-tooltip]') || el.closest('.hf-badge[data-tooltip]') || el.closest('.token-pill[data-tooltip]') || el.closest('.plvglp-badge[data-tooltip]') || el.closest('.debank-icon[data-tooltip]') || el.closest('.tg-icon[data-tooltip]') || el.closest('.alert-btn[data-tooltip]') || el.closest('.set-alert-header-btn[data-tooltip]') || el.closest('.no-soft-liq-badge[data-tooltip]') || el.closest('.risk-pill[data-tooltip]') || el.closest('[data-tooltip]') || el.closest('[data-tip]');
             }
 
             function positionTip(targetEl) {
@@ -11574,11 +11576,15 @@
                 arrow.style.opacity = '0';
             }
 
-            document.addEventListener('mouseover', function(e) {
-                var target = getTarget(e.target);
-                if (!target) return;
-                var text = getTooltipText(e.target);
-                if (!text) return;
+            var activeTooltipTarget = null;
+            var lastTooltipPointer = { x: 0, y: 0 };
+            var tooltipHideTimer = null;
+            function showTooltipForEvent(e, target, text) {
+                if (tooltipHideTimer) {
+                    clearTimeout(tooltipHideTimer);
+                    tooltipHideTimer = null;
+                }
+                activeTooltipTarget = target;
                 tip.textContent = text;
                 tip.style.opacity = '1';
                 if (usesCursorTooltip(target)) {
@@ -11587,23 +11593,42 @@
                     arrow.style.opacity = '1';
                     positionTip(target);
                 }
+            }
+            function scheduleTooltipHide() {
+                if (tooltipHideTimer) clearTimeout(tooltipHideTimer);
+                tooltipHideTimer = setTimeout(function() {
+                    var el = document.elementFromPoint(lastTooltipPointer.x, lastTooltipPointer.y);
+                    if (activeTooltipTarget && el && activeTooltipTarget.contains(el)) return;
+                    tip.style.opacity = '0';
+                    arrow.style.opacity = '0';
+                    activeTooltipTarget = null;
+                }, 80);
+            }
+
+            document.addEventListener('mouseover', function(e) {
+                lastTooltipPointer = { x: e.clientX, y: e.clientY };
+                var target = getTarget(e.target);
+                if (!target) return;
+                var text = getTooltipText(e.target);
+                if (!text) return;
+                showTooltipForEvent(e, target, text);
             });
 
             document.addEventListener('mousemove', function(e) {
+                lastTooltipPointer = { x: e.clientX, y: e.clientY };
                 var target = getTarget(e.target);
-                if (!target || !usesCursorTooltip(target)) return;
+                if (!target) return;
                 var text = getTooltipText(e.target);
                 if (!text) return;
-                tip.textContent = text;
-                tip.style.opacity = '1';
-                positionTipAtPointer(e);
+                if (usesCursorTooltip(target)) showTooltipForEvent(e, target, text);
+                else if (target !== activeTooltipTarget) showTooltipForEvent(e, target, text);
             });
 
             document.addEventListener('mouseout', function(e) {
+                lastTooltipPointer = { x: e.clientX, y: e.clientY };
                 var target = getTarget(e.target);
                 if (!target) return;
-                tip.style.opacity = '0';
-                arrow.style.opacity = '0';
+                scheduleTooltipHide();
             });
 
             // Hide tooltip on scroll (prevents floating tooltip when scrolling without moving mouse)
@@ -11714,7 +11739,7 @@
                         <span class="proto-chain-chip"><span class="dot dot-${c.chainKey}"></span>${c.chain}</span>
                     </div>
                     <div class="proto-addr-right">
-                        <span class="proto-addr-hex" title="${c.addr}">${short(c.addr)}</span>
+                        <span class="proto-addr-hex addr-tooltip-wrap" data-full-addr="${c.addr}">${short(c.addr)}</span>
                         <button class="proto-copy" data-copy="${c.addr}" aria-label="Copy address">${PROTO_COPY_SVG}</button>
                         <button class="proto-explore" data-url="${c.explorer}/token/${c.addr}" aria-label="Open in explorer" title="Open in block explorer">${PROTO_EXT_SVG}</button>
                     </div>
@@ -13888,8 +13913,11 @@
                         <a href="${debankUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="debank-icon supply-activity-debank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a>
                     </div>`;
                 };
-                const primaryLink = renderActivityAddressTools(row.primaryAddress);
-                const secondaryLink = renderActivityAddressTools(row.secondaryAddress);
+                const primaryAddress = String(row.primaryAddress || '');
+                const secondaryAddress = String(row.secondaryAddress || '');
+                const secondaryIsDistinct = secondaryAddress && secondaryAddress.toLowerCase() !== primaryAddress.toLowerCase();
+                const primaryLink = renderActivityAddressTools(primaryAddress);
+                const secondaryLink = secondaryIsDistinct ? renderActivityAddressTools(secondaryAddress) : '';
                 const activityTokenSymbol = currentSupplyOverview?.token?.symbol || '';
                 const activityTokenIcon = activityTokenSymbol
                     ? (getTokenIcon(truncateTokenName(activityTokenSymbol)) || SYMBOL_ICONS[activityTokenSymbol] || `https://icons.llamao.fi/icons/tokens/${activityTokenSymbol.toLowerCase()}`)
