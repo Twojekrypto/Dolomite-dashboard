@@ -8,12 +8,18 @@
 <script>
 (async () => {
   try {
-    const previewVersion = "borrow-route-20260505";
-    const response = await fetch(`../liquidation-preview.html?v=${previewVersion}`, { cache: "no-cache" });
+    const draftVersion = "supply-draft-20260506-date-column";
+    const response = await fetch(`../liquidation-preview.html?v=${draftVersion}-${Date.now()}`, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const html = await response.text();
+    const headInject = [
+      '<base href="../">',
+      '<script>window.__DOLO_ROUTE="supply";window.__DOLO_SUPPLY_REQUIRE_ASSET_SELECTION=false;window.__DOLO_SUPPLY_DEFAULT_ASSET="USD1";<\/script>',
+      '<link rel="stylesheet" href="supply/supply-draft.css?v=' + draftVersion + '">',
+      '<script defer src="supply/supply-draft.js?v=' + draftVersion + '"><\/script>'
+    ].join("");
     document.open();
-    document.write(html.replace("<head>", '<head><base href="../"><script>window.__DOLO_ROUTE="supply";<\/script>'));
+    document.write(html.replace("<head>", "<head>" + headInject));
     document.close();
   } catch (error) {
     document.body.innerHTML = "<p style=\"font-family:system-ui,sans-serif;padding:24px;color:#f4f3ef;background:#09090b\">Unable to load Supply.</p>";
