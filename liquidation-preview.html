@@ -8559,6 +8559,20 @@
                     color: #f8fafc;
                     font-family: 'JetBrains Mono', monospace;
                 }
+                .supply-activity-token-value {
+                    display: flex;
+                    align-items: center;
+                    justify-content: flex-end;
+                    gap: 7px;
+                    min-width: 0;
+                }
+                .supply-activity-token-value img {
+                    width: 16px;
+                    height: 16px;
+                    border-radius: 50%;
+                    object-fit: cover;
+                    flex: 0 0 16px;
+                }
                 .supply-activity-amount-sub {
                     margin-top: 3px;
                     font-size: 11px;
@@ -8887,14 +8901,14 @@
                             <div class="loading-spinner"></div>
                             <div style="margin-top:12px; color:var(--text-muted); font-size:13px;">Syncing the latest market flow...</div>
                         </div>
-                        <table class="positions-table" id="supply-activity-table" style="display:none;">
-                            <colgroup>
-                                <col style="width: 19%;">
-                                <col style="width: 14%;">
-                                <col style="width: 37%;">
-                                <col style="width: 16%;">
-                                <col style="width: 14%;">
-                            </colgroup>
+	                        <table class="positions-table" id="supply-activity-table" style="display:none;">
+	                            <colgroup>
+	                                <col style="width: 16%;">
+	                                <col style="width: 43%;">
+	                                <col style="width: 12%;">
+	                                <col style="width: 15%;">
+	                                <col style="width: 14%;">
+	                            </colgroup>
                             <thead>
                                 <tr>
                                     <th style="cursor:pointer; user-select:none; position:relative; overflow:visible;" data-sort="time" class="sorted" onclick="supplyActivitySort('time')">
@@ -8920,9 +8934,9 @@
                                             </div>
                                         </div>
                                     </th>
-                                    <th>Type</th>
-                                    <th>Wallets</th>
-                                    <th style="text-align:right; cursor:pointer; user-select:none; position:relative; overflow:visible;" data-sort="amount" onclick="supplyActivitySort('amount')">
+	                                    <th>Wallets</th>
+	                                    <th>Type</th>
+	                                    <th style="text-align:right; cursor:pointer; user-select:none; position:relative; overflow:visible;" data-sort="amount" onclick="supplyActivitySort('amount')">
                                         <span class="col-header-group">
                                             Amount
                                             <button type="button" class="col-filter-btn" id="supply-activity-amount-filter-trigger">
@@ -13790,8 +13804,25 @@
 
             tbody.innerHTML = pageRows.map(row => {
                 const meta = SUPPLY_ACTIVITY_META[row.type];
-                const primaryLink = row.primaryAddress ? `<a href="${addrBase}${row.primaryAddress}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${supplyEscapeHtml(row.primaryAddress)}">${supplyEscapeHtml(supplyShortAddr(row.primaryAddress))}</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${supplyEscapeHtml(row.primaryAddress)}',this)">${COPY_SVG}</span>` : '—';
-                const secondaryLink = row.secondaryAddress ? `<a href="${addrBase}${row.secondaryAddress}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${supplyEscapeHtml(row.secondaryAddress)}">${supplyEscapeHtml(supplyShortAddr(row.secondaryAddress))}</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${supplyEscapeHtml(row.secondaryAddress)}',this)">${COPY_SVG}</span>` : '';
+                const renderActivityAddressTools = address => {
+                    if (!address) return '';
+                    const safeAddress = supplyEscapeHtml(address);
+                    const debankUrl = `https://debank.com/profile/${safeAddress}`;
+                    return `<div class="supply-activity-address-tools">
+                        <a href="${debankUrl}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${safeAddress}" onclick="event.stopPropagation()">${supplyEscapeHtml(supplyShortAddr(address))}</a>
+                        <span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${safeAddress}',this)">${COPY_SVG}</span>
+                        <a href="${debankUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="debank-icon supply-activity-debank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a>
+                    </div>`;
+                };
+                const primaryLink = renderActivityAddressTools(row.primaryAddress);
+                const secondaryLink = renderActivityAddressTools(row.secondaryAddress);
+                const activityTokenSymbol = currentSupplyOverview?.token?.symbol || '';
+                const activityTokenIcon = activityTokenSymbol
+                    ? (getTokenIcon(truncateTokenName(activityTokenSymbol)) || SYMBOL_ICONS[activityTokenSymbol] || `https://icons.llamao.fi/icons/tokens/${activityTokenSymbol.toLowerCase()}`)
+                    : 'dolomite-logo.svg';
+                const activityAmount = supplyEscapeHtml(supplyFormatTokenCompact(row.amount));
+                const safeActivityTokenSymbol = supplyEscapeHtml(activityTokenSymbol);
+                const safeActivityTokenIcon = supplyEscapeHtml(activityTokenIcon);
                 return `
                     <tr>
                         <td>
@@ -13805,16 +13836,30 @@
                                 <span>${supplyEscapeHtml(supplyFormatRelativeTime(row.timestamp))} · ${supplyEscapeHtml(supplyFormatActivityTime(row.timestamp))}</span>
                             </div>
                         </td>
-                        <td><span class="supply-activity-type ${meta.cls}">${meta.label}</span></td>
-                        <td>
-                            <div class="supply-activity-wallet">
-                                <div class="supply-activity-wallet-line"><span style="color:rgba(148,163,184,0.72); min-width:62px;">${supplyEscapeHtml(row.primaryLabel)}</span>${primaryLink}</div>
-                                ${secondaryLink ? `<div class="supply-activity-wallet-line"><span style="color:rgba(148,163,184,0.72); min-width:62px;">${supplyEscapeHtml(row.secondaryLabel)}</span>${secondaryLink}</div>` : ''}
-                                <div class="supply-activity-wallet-line" style="color:rgba(226,232,240,0.48)">${supplyEscapeHtml(row.note)}</div>
+	                        <td>
+	                            <div class="supply-activity-wallet">
+                                <div class="supply-activity-wallet-block">
+                                    <div class="supply-activity-wallet-meta">
+                                        <span class="supply-activity-wallet-role">${supplyEscapeHtml(row.primaryLabel)}</span>
+                                        <span class="supply-activity-wallet-note">${supplyEscapeHtml(row.note)}</span>
+                                    </div>
+                                    ${primaryLink}
+                                </div>
+                                ${secondaryLink ? `<div class="supply-activity-wallet-block secondary">
+                                    <div class="supply-activity-wallet-meta">
+                                        <span class="supply-activity-wallet-role">${supplyEscapeHtml(row.secondaryLabel)}</span>
+                                    </div>
+                                    ${secondaryLink}
+                                </div>` : ''}
+	                            </div>
+	                        </td>
+	                        <td><span class="supply-activity-type ${meta.cls}">${meta.label}</span></td>
+	                        <td class="supply-activity-amount">
+                            <div class="supply-activity-token-value">
+                                <span>${activityAmount}</span>
+                                ${activityTokenSymbol ? `<img src="${safeActivityTokenIcon}" width="16" height="16" alt="${safeActivityTokenSymbol}" onerror="this.src='dolomite-logo.svg'">` : ''}
                             </div>
-                        </td>
-                        <td class="supply-activity-amount">${supplyEscapeHtml(supplyFormatTokenCompact(row.amount))}
-                            <div class="supply-activity-amount-sub">${supplyEscapeHtml(currentSupplyOverview?.token?.symbol || '')}</div>
+                            <div class="supply-activity-amount-sub">${safeActivityTokenSymbol}</div>
                         </td>
                         <td class="supply-activity-amount">${formatUSDCompact(row.usd)}</td>
                     </tr>

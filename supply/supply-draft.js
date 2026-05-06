@@ -438,6 +438,11 @@
         link.removeAttribute('data-tooltip');
         link.setAttribute('aria-label', 'Open transaction');
       });
+      row.querySelectorAll('.debank-icon').forEach(link => {
+        link.removeAttribute('title');
+        link.removeAttribute('data-tooltip');
+        link.setAttribute('aria-label', 'Open DeBank profile');
+      });
       row.querySelectorAll('.addr-tooltip-wrap').forEach(link => {
         link.classList.add('addr-mono');
         link.removeAttribute('style');
@@ -454,8 +459,8 @@
       colgroup.dataset.supplyDraftCols = 'true';
       colgroup.innerHTML = `
         <col class="activity-time-col">
-        <col class="activity-type-col">
         <col class="activity-wallet-col">
+        <col class="activity-type-col">
         <col class="activity-amount-col">
         <col class="activity-usd-col">
       `;
@@ -541,7 +546,10 @@
         <div class="supply-activity-type-menu" role="menu">
           ${activityTypeOptions.map(option => `
             <button type="button" class="supply-activity-type-option" data-type="${option.type}" role="menuitemcheckbox" aria-checked="true">
-              <span>${option.label}</span>
+              <span class="supply-activity-type-check" aria-hidden="true">
+                <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg>
+              </span>
+              <span class="supply-activity-type-option-label">${option.label}</span>
             </button>
           `).join('')}
         </div>
