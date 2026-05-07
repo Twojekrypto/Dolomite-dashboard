@@ -1451,8 +1451,9 @@ const CHAIN_LABELS = {
   polygonzkevm:"Polygon zkEVM", xlayer:"X Layer"
 };
 let CHAIN_COUNT_TOTAL = 7;
-const ASSETS_CACHE_KEY = "dolomite-assets-live-rows-v2";
-const ASSETS_CACHE_MAX_AGE_MS = 5 * 60 * 1000;
+const ASSETS_CACHE_KEY = "dolomite-assets-live-rows-v3";
+const ASSETS_SNAPSHOT_URL = "assets_live.json";
+const ASSETS_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 /* ==========================================================================
    HELPERS
@@ -1771,6 +1772,64 @@ function parseYieldParts(parts){
   return {odolo, external, sources};
 }
 
+function assetAgeLabel(value){
+  const ts = typeof value === "number" ? value : Date.parse(value || "");
+  if(!Number.isFinite(ts)) return "just now";
+  const mins = Math.max(0, Math.round((Date.now() - ts) / 60000));
+  if(mins < 1) return "just now";
+  if(mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if(hours < 48) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+}
+
+function normalizeAssetRows(rows){
+  const numericFields = [
+    "price","odolo","yield","lending","borrow","supplyApr","lowerOptimalApr","upperOptimalApr",
+    "optimalUtilizationRate","tvl","util","supplied","borrowed","availableLiquidity","supplyCap",
+    "borrowCap","borrowedUsd"
+  ];
+  return (rows || []).map(row=>{
+    const chain = row.chain || "";
+    const meta = chainMeta(chain);
+    const addr = String(row.addr || "").toLowerCase();
+    const sym = row.sym || row.symbol || "UNKNOWN";
+    const normalized = {
+      ...row,
+      key: row.key || `${chain}:${addr || String(row.marketId || sym).toLowerCase()}`,
+      sym,
+      name: row.name || sym,
+      addr,
+      cat: row.cat || classifyAsset(sym),
+      chain,
+      chainName: row.chainName || meta.name || CHAIN_LABELS[chain] || chain,
+      icon: tokenIcon(sym, {...row, chain, addr}),
+      yieldSources: Array.isArray(row.yieldSources) ? row.yieldSources : [],
+      borrowDisabled: row.borrowDisabled === true,
+      depthReady: row.depthReady === true
+    };
+    numericFields.forEach(field=>{
+      const value = Number(row[field]);
+      normalized[field] = Number.isFinite(value) ? value : 0;
+    });
+    normalized.dust = row.dust === true || (normalized.depthReady && normalized.tvl < 10000);
+    return normalized;
+  }).filter(row=>row.chain && row.sym);
+}
+
+async function loadPrebuiltAssets(){
+  const resp = await fetch(`${ASSETS_SNAPSHOT_URL}?v=${Date.now()}`, {cache:"no-cache"});
+  if(!resp.ok) throw new Error(`Snapshot HTTP ${resp.status}`);
+  const payload = await resp.json();
+  const rows = normalizeAssetRows(Array.isArray(payload) ? payload : payload.rows);
+  if(!rows.length) throw new Error("No prebuilt asset rows returned");
+  return {
+    rows,
+    generatedAt: payload.generatedAt || payload.timestamp || null,
+    source: payload.source || "assets_live.json"
+  };
+}
+
 async function fetchMarketDepth(){
   const QUERY = `{
     totalPars(first: 1000) { id supplyPar borrowPar token { id } }
@@ -1885,13 +1944,28 @@ async function loadLiveAssets(){
 
 function setLiveStatus(ok, count){
   const el = document.querySelector(".card-meta");
-  if(el) el.innerHTML = `<span class="pulse"></span>${ok ? "Live · official rates" : "Fallback · static snapshot"}`;
+  if(el) el.innerHTML = `<span class="pulse"></span>${ok ? "Direct fetch · official rates" : "Fallback · static snapshot"}`;
+  const heroLive = document.querySelector(".hero-live");
+  if(heroLive) heroLive.innerHTML = `<span class="dot"></span>${count} markets · ${ok ? "direct refresh" : "static fallback"}`;
   const foot = document.getElementById("now");
   if(foot) foot.textContent = `${count} markets · ${new Date().toLocaleString("en-US",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}`;
 }
 
-function setCachedLiveStatus(count, savedAt, failed=false){
-  const mins = savedAt ? Math.max(0, Math.round((Date.now() - savedAt) / 60000)) : 0;
+function setSnapshotStatus(count, generatedAt){
+  const age = assetAgeLabel(generatedAt);
+  const el = document.querySelector(".card-meta");
+  if(el) el.innerHTML = `<span class="pulse"></span>Official data · updated ${age}`;
+  const heroLive = document.querySelector(".hero-live");
+  if(heroLive) heroLive.innerHTML = `<span class="dot"></span>${count} markets · updated ${age}`;
+  const foot = document.getElementById("now");
+  const ts = Date.parse(generatedAt || "");
+  if(foot) foot.textContent = Number.isFinite(ts)
+    ? `${count} markets · ${new Date(ts).toLocaleString("en-US",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}`
+    : `${count} markets · official snapshot`;
+}
+
+function setCachedLiveStatus(count, savedAt, failed=false, generatedAt=null){
+  const age = assetAgeLabel(generatedAt || savedAt);
   const suffix = failed ? "refresh failed" : "refreshing";
   const label = `Cached official data · ${suffix}`;
   const el = document.querySelector(".card-meta");
@@ -1899,7 +1973,7 @@ function setCachedLiveStatus(count, savedAt, failed=false){
   const heroLive = document.querySelector(".hero-live");
   if(heroLive) heroLive.innerHTML = `<span class="dot"></span>${count} cached markets · ${suffix}`;
   const foot = document.getElementById("now");
-  if(foot) foot.textContent = `${count} markets · cached ${mins}m ago`;
+  if(foot) foot.textContent = `${count} markets · cached ${age}`;
 }
 
 function readLiveAssetsCache(){
@@ -1907,19 +1981,22 @@ function readLiveAssetsCache(){
     const raw = localStorage.getItem(ASSETS_CACHE_KEY);
     if(!raw) return null;
     const cached = JSON.parse(raw);
-    if(!cached || cached.version !== 2 || !Array.isArray(cached.rows) || !cached.savedAt) return null;
+    if(!cached || cached.version !== 3 || !Array.isArray(cached.rows) || !cached.savedAt) return null;
     if(Date.now() - cached.savedAt > ASSETS_CACHE_MAX_AGE_MS) return null;
+    cached.rows = normalizeAssetRows(cached.rows);
     return cached;
   }catch(_){
     return null;
   }
 }
 
-function writeLiveAssetsCache(rows){
+function writeLiveAssetsCache(rows, meta={}){
   try{
     localStorage.setItem(ASSETS_CACHE_KEY, JSON.stringify({
-      version: 2,
+      version: 3,
       savedAt: Date.now(),
+      generatedAt: meta.generatedAt || null,
+      source: meta.source || "direct",
       rows
     }));
   }catch(_){}
@@ -2801,21 +2878,31 @@ async function initAssetsPreview(){
   const cached = readLiveAssetsCache();
   if(cached){
     applyAssetRows(cached.rows);
-    setCachedLiveStatus(ASSETS.length, cached.savedAt);
+    setCachedLiveStatus(ASSETS.length, cached.savedAt, false, cached.generatedAt);
+  }
+  try{
+    const snapshot = await loadPrebuiltAssets();
+    writeLiveAssetsCache(snapshot.rows, {generatedAt:snapshot.generatedAt, source:snapshot.source});
+    applyAssetRows(snapshot.rows);
+    setSnapshotStatus(ASSETS.length, snapshot.generatedAt);
+    return;
+  }catch(e){
+    console.warn("Assets snapshot failed; trying direct Dolomite fetch", e);
   }
   try{
     const liveRows = await loadLiveAssets();
     if(liveRows.length > 0){
-      writeLiveAssetsCache(liveRows);
-      applyAssetRows(liveRows);
+      const normalized = normalizeAssetRows(liveRows);
+      writeLiveAssetsCache(normalized, {generatedAt:new Date().toISOString(), source:"direct"});
+      applyAssetRows(normalized);
       setLiveStatus(true, ASSETS.length);
       return;
     }
     throw new Error("No live asset rows returned");
   }catch(e){
-    console.warn("Live asset data failed; using static fallback", e);
+    console.warn("Official asset data failed; using static fallback", e);
     if(cached){
-      setCachedLiveStatus(ASSETS.length, cached.savedAt, true);
+      setCachedLiveStatus(ASSETS.length, cached.savedAt, true, cached.generatedAt);
       return;
     }
     state.loading = false;
