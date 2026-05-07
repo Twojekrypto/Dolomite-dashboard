@@ -616,6 +616,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   .duration-row{grid-template-columns:64px minmax(0,1fr) 86px}
 }
 </style>
+<script src="count-up.js?v=20260427-countup"></script>
 </head>
 <body>
 <div class="wrap">
@@ -649,29 +650,29 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
       </div>
     </div>
     <div class="hero-headline">
-      <div class="hero-value" id="hero-locked">--</div>
-      <div class="hero-chip"><span id="hero-usd">--</span><span class="lbl">locked value</span></div>
+      <div class="hero-value" id="hero-locked" data-count-value="0">--</div>
+      <div class="hero-chip"><span id="hero-usd" data-count-value="0">--</span><span class="lbl">locked value</span></div>
     </div>
     <div class="hero-stats">
       <div class="hero-stat">
         <div class="lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>Unique Holders</div>
-        <div class="val" id="hero-holders">--</div>
+        <div class="val" id="hero-holders" data-count-value="0">--</div>
         <div class="sub">wallets with active veDOLO</div>
       </div>
       <div class="hero-stat">
         <div class="lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8M8 12h8"/></svg>Active Positions</div>
-        <div class="val" id="hero-active">--</div>
+        <div class="val" id="hero-active" data-count-value="0">--</div>
         <div class="sub" id="hero-minted">minted minus burned</div>
         <div class="hero-bar"><span id="hero-active-bar" style="width:0%"></span></div>
       </div>
       <div class="hero-stat">
         <div class="lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.9 6 6.6.9-4.8 4.7 1.2 6.6L12 17.1l-5.9 3.1 1.2-6.6-4.8-4.7 6.6-.9L12 2z"/></svg>Vote Weight</div>
-        <div class="val gold" id="hero-vote">--</div>
+        <div class="val gold" id="hero-vote" data-count-value="0">--</div>
         <div class="sub">total veDOLO power</div>
       </div>
       <div class="hero-stat">
         <div class="lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-4 4 2 5-8"/></svg>Avg Weight</div>
-        <div class="val" id="hero-avg-weight">--</div>
+        <div class="val" id="hero-avg-weight" data-count-value="0">--</div>
         <div class="sub">vote weight per locked DOLO</div>
       </div>
     </div>
@@ -1031,6 +1032,12 @@ const CONTRACTS = [
 ];
 
 function setText(id, value){ const el = document.getElementById(id); if(el) el.textContent = value; }
+function setMetricText(id, value){
+  const el = document.getElementById(id);
+  if(!el) return;
+  if(window.CountUpMetric) CountUpMetric.text(el, value);
+  else el.textContent = value;
+}
 async function fetchJson(name){
   const stamp = Date.now();
   try{
@@ -1303,12 +1310,12 @@ function renderHero(){
   const s = state.stats || {};
   const locked = num(s.total_locked_dolo);
   const price = num(state.price?.price);
-  setText("hero-locked", fmtDolo(locked));
-  setText("hero-usd", price ? fmtMoney(locked * price) : "--");
-  setText("hero-holders", fmtInt(s.unique_holders));
-  setText("hero-active", fmtInt(s.active_nfts));
-  setText("hero-vote", fmtCompact(s.total_vote_weight));
-  setText("hero-avg-weight", locked ? (num(s.total_vote_weight)/locked).toFixed(3) + "x" : "--");
+  setMetricText("hero-locked", fmtDolo(locked));
+  setMetricText("hero-usd", price ? fmtMoney(locked * price) : "--");
+  setMetricText("hero-holders", fmtInt(s.unique_holders));
+  setMetricText("hero-active", fmtInt(s.active_nfts));
+  setMetricText("hero-vote", fmtCompact(s.total_vote_weight));
+  setMetricText("hero-avg-weight", locked ? (num(s.total_vote_weight)/locked).toFixed(3) + "x" : "--");
   setText("hero-minted", `${fmtInt(s.total_minted)} minted / ${fmtInt(s.total_burned)} burned`);
   const activePct = s.total_minted ? Math.min(100, num(s.active_nfts)/num(s.total_minted)*100) : 0;
   qs("#hero-active-bar").style.width = activePct.toFixed(1) + "%";
