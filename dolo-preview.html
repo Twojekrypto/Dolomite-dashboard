@@ -193,6 +193,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 #dd-chain .dd-btn,#dd-flows-chain .dd-btn{min-width:160px}
 #dd-types .dd-btn,#dd-flows-types .dd-btn{min-width:160px}
 #dd-flows-period .dd-btn{min-width:90px}
+#dd-flows-period .dd-panel{min-width:148px;max-width:148px;width:148px}
+#dd-flows-period .dd-opt{gap:9px;padding:8px 9px}
+#dd-flows-period .dd-opt-name{white-space:nowrap}
 
 /* TAG / TYPE FILTER dropdown — checkbox rows */
 .dd-panel-types{padding:6px;min-width:230px}
@@ -974,7 +977,7 @@ const state = {
 };
 let holderStableBodyHeight = 0;
 const PERIODS = [
-  {key:"1d",   short:"1D",  label:"Last 24 hours"},
+  {key:"1d",   short:"24H", label:"Last 24 hours"},
   {key:"7d",   short:"7D",  label:"Last 7 days"},
   {key:"30d",  short:"30D", label:"Last 30 days"},
   {key:"90d",  short:"90D", label:"Last 90 days"},
