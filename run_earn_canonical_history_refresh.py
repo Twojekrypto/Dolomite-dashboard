@@ -105,9 +105,11 @@ def _run_json(argv: List[str]) -> dict:
         cwd=str(ROOT),
         text=True,
         stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
+        stderr=subprocess.PIPE,
         check=False,
     )
+    if proc.stderr:
+        print(proc.stderr, end="" if proc.stderr.endswith("\n") else "\n", flush=True)
     if proc.stdout:
         print(proc.stdout, end="" if proc.stdout.endswith("\n") else "\n", flush=True)
     if proc.returncode != 0:

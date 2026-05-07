@@ -2,7 +2,7 @@ name: Refresh Ethereum Canonical EARN History
 
 on:
   schedule:
-    - cron: '42 * * * *'  # Hourly, staggered for single-RPC headroom
+    - cron: '12,42 * * * *'  # Every 30 minutes; keeps Ethereum EARN history within the ~1h freshness target
   workflow_dispatch:
 
 concurrency:
@@ -95,6 +95,12 @@ jobs:
           print(f"Validated Ethereum canonical history freshness for {coverage.get('freshWalletCount')} wallets")
           PY
 
+      - name: Build Ethereum verified ledger cache
+        run: |
+          python3 build_earn_verified_ledger.py \
+            --chain ethereum \
+            --all-addresses
+
       - name: Run EARN audit checks
         run: python3 run_earn_audit_checks.py
 
@@ -103,6 +109,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -f data/earn-subaccount-history/manifest.json data/earn-subaccount-history/ethereum
+          git add -f data/earn-verified-ledger/manifest.json data/earn-verified-ledger/ethereum
           if git diff --staged --quiet; then
             echo "No canonical history changes to commit"
             exit 0
