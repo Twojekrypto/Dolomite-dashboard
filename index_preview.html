@@ -18061,8 +18061,11 @@
         let earn_totalYieldData = null; // oldest snapshot data for total yield (never changes after initial load)
         let earn_totalYieldDays = 0; // number of days the total yield spans
 
-        const SNAPSHOT_BASE = 'https://twojekrypto.github.io/vedolo-dashboard/data/earn-snapshots';
-        const NETFLOW_BASE = 'https://twojekrypto.github.io/vedolo-dashboard/data/earn-netflow';
+        const EARN_DATA_BASE = ((window.location.protocol === 'http:' || window.location.protocol === 'https:')
+            ? new URL('data/', document.baseURI || window.location.href).href.replace(/\/$/, '')
+            : 'https://twojekrypto.github.io/Dolomite-dashboard/data');
+        const SNAPSHOT_BASE = `${EARN_DATA_BASE}/earn-snapshots`;
+        const NETFLOW_BASE = `${EARN_DATA_BASE}/earn-netflow`;
         let earn_netflowData = null; // { marketId: netFlowWei (string) } for current address+chain
         let earn_subgraphTokens = {}; // { marketId: { symbol, decimals, name } } — token metadata from subgraph
 

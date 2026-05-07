@@ -1,9 +1,8 @@
 # Dolomite Dashboard — Project State
 
-> **Ostatnia aktualizacja:** 2026-05-04
+> **Ostatnia aktualizacja:** 2026-05-07
 > **Live:** https://twojekrypto.github.io/Dolomite-dashboard/
 > **Repo:** `Twojekrypto/Dolomite-dashboard` GitHub Pages (branch `master`)
-> **Legacy:** `Twojekrypto/vedolo-dashboard` jest wygaszany i nie jest miejscem na nowe zmiany dashboardu.
 
 ---
 

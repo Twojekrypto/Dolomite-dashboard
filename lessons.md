@@ -38,7 +38,7 @@
 - **Layout Alignment Checks**: After making layout/flexbox changes to the UI, always spawn a browser subagent instructed to navigate to the specific component and visually verify alignment (left vs right, vertical centering) vs the design requirement *before* committing. Do not blindly assume your HTML injected correctly.
 
 ## GitHub Pages Deployment
-- **Active production repo is `Twojekrypto/Dolomite-dashboard`**: Treat `vedolo-dashboard` as legacy/retiring. In this local checkout, `dolomite-dashboard` is the remote for production pushes; do not deploy new dashboard changes to old `origin` unless explicitly requested.
+- **Active production repo is `Twojekrypto/Dolomite-dashboard`**: In this local checkout, `dolomite-dashboard` is the remote for production pushes.
 - **Always push production to `master`**: The Dolomite Dashboard GitHub Pages site serves from `master`. When pushing from this checkout, use the `dolomite-dashboard` remote, e.g. `git push dolomite-dashboard master`.
 - **macOS Keychain blocks background `git push`**: When deploying from a headless AI agent background process, macOS security (`securityd`) blocks the Keychain prompt and causes a hanging password loop. Never run `git push` via `run_command` if it triggers a credential prompt; always instruct the user to run it explicitly in their physical Terminal.
 
