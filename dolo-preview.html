@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="shared-hover-tooltips.css?v=20260506c">
-<script defer src="shared-hover-tooltips.js?v=20260506c"></script>
+<link rel="stylesheet" href="shared-hover-tooltips.css?v=20260507u">
+<script defer src="shared-hover-tooltips.js?v=20260507u"></script>
 <style>
 /* ==========================================================================
    DESIGN TOKENS — Graphite + Gold (shared with assets-preview)
@@ -194,7 +194,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 #dd-types .dd-btn,#dd-flows-types .dd-btn{min-width:160px}
 #dd-flows-period .dd-btn{min-width:90px}
 
-/* TAG / TYPE FILTER dropdown — checkbox rows with hover tooltip */
+/* TAG / TYPE FILTER dropdown — checkbox rows */
 .dd-panel-types{padding:6px;min-width:230px}
 .dd-panel-types .rw-list{display:flex;flex-direction:column}
 .dd-panel-types .rw-item{
@@ -224,28 +224,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dd-panel-types .rw-name{font-size:13px;font-weight:500;color:var(--fg-2);flex:1;min-width:0}
 .dd-panel-types .rw-item.active .rw-name{color:var(--fg-1)}
 
-/* Hover tooltip on each filter row — explains what the type means */
-.dd-panel-types .rw-item[data-tip]:hover::after{
-  content: attr(data-tip);
-  position:absolute;
-  left:calc(100% + 8px);top:50%;transform:translateY(-50%);
-  background:var(--bg-1);border:1px solid var(--line-2);
-  padding:7px 10px;border-radius:6px;
-  font-size:11px;color:var(--fg-2);font-weight:400;line-height:1.4;
-  white-space:nowrap;
-  box-shadow:var(--sh-hi);
-  z-index:50;
-  pointer-events:none;
-}
-.dd-panel-types .rw-item[data-tip]:hover::before{
-  content:"";position:absolute;
-  left:100%;top:50%;transform:translateY(-50%);
-  border:6px solid transparent;
-  border-right-color:var(--line-2);
-  z-index:50;pointer-events:none;
-}
-.dd-panel-types .rw-item[data-tip]:hover::after,
-.dd-panel-types .rw-item[data-tip]:hover::before{display:none}
 .dd-panel{position:absolute;top:calc(100% + 6px);left:0;min-width:220px;max-width:320px;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-md);box-shadow:var(--sh-hi);padding:6px;z-index:40;
   opacity:0;transform:translateY(-4px);pointer-events:none;transition:opacity .18s var(--ease),transform .18s var(--ease);}
 .dd-panel.show{opacity:1;transform:translateY(0);pointer-events:auto}
@@ -619,7 +597,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         <label class="search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input id="q-holders" type="text" placeholder="Search address or label…" spellcheck="false" autocomplete="off">
-          <button class="search-clear" type="button" title="Clear search" aria-label="Clear search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
+          <button class="search-clear" type="button" aria-label="Clear search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
           <span class="kbd">/</span>
         </label>
 
@@ -644,7 +622,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
             <span class="lbl">All Types</span>
             <span class="count">6</span>
-            <span class="dd-clear" data-clear="types" role="button" aria-label="Clear type filter" title="Clear filter">
+            <span class="dd-clear" data-clear="types" role="button" aria-label="Clear type filter">
               <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg>
             </span>
             <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
@@ -652,32 +630,32 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <div class="dd-panel dd-panel-types">
             <div class="dd-panel-head">Show by address type</div>
             <div class="rw-list">
-              <div class="rw-item active" data-type="eoa" data-tip="Regular user wallet — Externally Owned Account">
+              <div class="rw-item active" data-type="eoa">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-dot-src eoa"></span>
                 <div class="rw-name">Personal wallets</div>
               </div>
-              <div class="rw-item active" data-type="ca" data-tip="Protocol contracts, aggregators, vesters">
+              <div class="rw-item active" data-type="ca">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-dot-src ca"></span>
                 <div class="rw-name">Smart contracts</div>
               </div>
-              <div class="rw-item active" data-type="cex" data-tip="Binance, Coinbase, Kraken — custody addresses">
+              <div class="rw-item active" data-type="cex">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-dot-src cex"></span>
                 <div class="rw-name">Exchanges</div>
               </div>
-              <div class="rw-item active" data-type="watch" data-tip="Potential CEX / market maker — detected by custody-like flow pattern, not verified">
+              <div class="rw-item active" data-type="watch">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-dot-src watch"></span>
                 <div class="rw-name">Potential CEX/MM</div>
               </div>
-              <div class="rw-item active" data-type="mm" data-tip="Wintermute, GSR, Jump and similar liquidity providers">
+              <div class="rw-item active" data-type="mm">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-dot-src mm"></span>
                 <div class="rw-name">Market makers</div>
               </div>
-              <div class="rw-item active" data-type="bot" data-tip="Automated MEV / arbitrage / sniping wallets">
+              <div class="rw-item active" data-type="bot">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-dot-src bot"></span>
                 <div class="rw-name">Trading bots</div>
@@ -727,7 +705,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         <label class="search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input id="q-flows" type="text" placeholder="Search address or label…" spellcheck="false" autocomplete="off">
-          <button class="search-clear" type="button" title="Clear search" aria-label="Clear search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
+          <button class="search-clear" type="button" aria-label="Clear search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
         </label>
 
         <!-- Chain filter — single-select All / Ethereum / Berachain -->
@@ -753,7 +731,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
             <span class="lbl">All Types</span>
             <span class="count">6</span>
-            <span class="dd-clear" data-clear="flows-types" role="button" aria-label="Clear flow type filter" title="Clear filter">
+            <span class="dd-clear" data-clear="flows-types" role="button" aria-label="Clear flow type filter">
               <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg>
             </span>
             <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
@@ -761,32 +739,32 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <div class="dd-panel dd-panel-types">
             <div class="dd-panel-head">Show by address type</div>
             <div class="rw-list">
-              <div class="rw-item active" data-type="eoa" data-tip="Regular user wallet — Externally Owned Account">
+              <div class="rw-item active" data-type="eoa">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-dot-src eoa"></span>
                 <div class="rw-name">Personal wallets</div>
               </div>
-              <div class="rw-item active" data-type="ca" data-tip="Protocol contracts, aggregators, vesters">
+              <div class="rw-item active" data-type="ca">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-dot-src ca"></span>
                 <div class="rw-name">Smart contracts</div>
               </div>
-              <div class="rw-item active" data-type="cex" data-tip="Binance, Coinbase, Kraken — custody addresses">
+              <div class="rw-item active" data-type="cex">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-dot-src cex"></span>
                 <div class="rw-name">Exchanges</div>
               </div>
-              <div class="rw-item active" data-type="watch" data-tip="Potential CEX / market maker — detected by custody-like flow pattern, not verified">
+              <div class="rw-item active" data-type="watch">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-dot-src watch"></span>
                 <div class="rw-name">Potential CEX/MM</div>
               </div>
-              <div class="rw-item active" data-type="mm" data-tip="Wintermute, GSR, Jump and similar liquidity providers">
+              <div class="rw-item active" data-type="mm">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-dot-src mm"></span>
                 <div class="rw-name">Market makers</div>
               </div>
-              <div class="rw-item active" data-type="bot" data-tip="Automated MEV / arbitrage / sniping wallets">
+              <div class="rw-item active" data-type="bot">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-dot-src bot"></span>
                 <div class="rw-name">Trading bots</div>
@@ -991,7 +969,7 @@ const PERIODS = [
   {key:"30d",  short:"30D", label:"Last 30 days"},
   {key:"90d",  short:"90D", label:"Last 90 days"},
   {key:"180d", short:"180D",label:"Last 180 days"},
-  {key:"all",  short:"ALL", label:"All time"},
+  {key:"all",  short:"All", label:"All time"},
 ];
 const CHAIN_LABELS = {ethereum:"Ethereum", berachain:"Berachain"};
 
@@ -1065,8 +1043,8 @@ function renderHolders(){
     const share = h.total / TOTAL_SUPPLY * 100;
     const typeHtml = `<span class="type-tag type-${h.type}" data-tooltip="${TYPE_TIPS[h.type]}">${TYPE_LABELS[h.type]}</span>`;
     const actions = `
-      <button class="addr-copy" data-copy="${h.addr}" title="Copy address" aria-label="Copy address">${COPY_ICO}</button>
-      <a class="addr-debank" href="https://debank.com/profile/${h.addr}" target="_blank" rel="noopener" title="View on DeBank" aria-label="View on DeBank" onclick="event.stopPropagation()">
+      <button class="addr-copy" data-copy="${h.addr}" aria-label="Copy address">${COPY_ICO}</button>
+      <a class="addr-debank" href="https://debank.com/profile/${h.addr}" target="_blank" rel="noopener" aria-label="View on DeBank" onclick="event.stopPropagation()">
         <img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'">
       </a>`;
     // Always 2-line layout for uniform row height. Unlabeled wallets show a
@@ -1155,11 +1133,11 @@ function renderHolders(){
   const curPage = state.page + 1;
   const pager = document.getElementById("holders-pager");
   pager.innerHTML = `
-    <button class="pg-btn" data-page="first" ${curPage===1?"disabled":""} title="First"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg></button>
-    <button class="pg-btn" data-page="prev" ${curPage===1?"disabled":""} title="Previous"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <button class="pg-btn" data-page="first" ${curPage===1?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg></button>
+    <button class="pg-btn" data-page="prev" ${curPage===1?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
     <span class="pg-current">${curPage} <span class="pg-sep">/</span> ${totalPages}</span>
-    <button class="pg-btn" data-page="next" ${curPage===totalPages?"disabled":""} title="Next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
-    <button class="pg-btn" data-page="last" ${curPage===totalPages?"disabled":""} title="Last"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></button>
+    <button class="pg-btn" data-page="next" ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button class="pg-btn" data-page="last" ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></button>
   `;
   pager.querySelectorAll("[data-page]").forEach(btn => btn.addEventListener("click", ()=>{
     const a = btn.dataset.page;
@@ -1224,11 +1202,11 @@ function renderFlowPager(kind, totalRows){
   const pager = document.getElementById(kind === "acc" ? "flows-acc-pager" : "flows-out-pager");
   if(!pager) return;
   pager.innerHTML = `
-    <button class="pg-btn" data-flow-page="first" ${curPage===1?"disabled":""} title="First"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg></button>
-    <button class="pg-btn" data-flow-page="prev" ${curPage===1?"disabled":""} title="Previous"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <button class="pg-btn" data-flow-page="first" ${curPage===1?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg></button>
+    <button class="pg-btn" data-flow-page="prev" ${curPage===1?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
     <span class="pg-current">${curPage} <span class="pg-sep">/</span> ${totalPages}</span>
-    <button class="pg-btn" data-flow-page="next" ${curPage===totalPages?"disabled":""} title="Next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
-    <button class="pg-btn" data-flow-page="last" ${curPage===totalPages?"disabled":""} title="Last"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></button>
+    <button class="pg-btn" data-flow-page="next" ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button class="pg-btn" data-flow-page="last" ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></button>
   `;
   pager.querySelectorAll("[data-flow-page]").forEach(btn => btn.addEventListener("click", ()=>{
     const a = btn.dataset.flowPage;
@@ -1282,8 +1260,8 @@ function renderFlow(target, kind){
     const rank = rankMap.get(r.addr.toLowerCase()) || (start + i + 1);
     const typeHtml = `<span class="type-tag type-${r.type}" data-tooltip="${TYPE_TIPS[r.type]}">${TYPE_LABELS[r.type]}</span>`;
     const actions = `
-      <button class="addr-copy" data-copy="${r.addr}" title="Copy address" aria-label="Copy address">${COPY_ICO}</button>
-      <a class="addr-debank" href="https://debank.com/profile/${r.addr}" target="_blank" rel="noopener" title="View on DeBank" aria-label="View on DeBank" onclick="event.stopPropagation()">
+      <button class="addr-copy" data-copy="${r.addr}" aria-label="Copy address">${COPY_ICO}</button>
+      <a class="addr-debank" href="https://debank.com/profile/${r.addr}" target="_blank" rel="noopener" aria-label="View on DeBank" onclick="event.stopPropagation()">
         <img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'">
       </a>`;
     const nameCell = r.label
@@ -1572,7 +1550,7 @@ document.getElementById("proto-addrs").innerHTML = CONTRACTS.map((c,i)=>`
     <div class="proto-addr-right">
       <span class="proto-addr-hex addr-tooltip-wrap" data-full-addr="${c.addr}">${shorten(c.addr)}</span>
       <button class="proto-copy" data-copy="${c.addr}" aria-label="Copy address">${COPY_ICO}</button>
-      <button class="proto-explore" data-url="${c.explorer}/token/${c.addr}" aria-label="Open in explorer" title="Open in block explorer">${EXT_ICO}</button>
+      <button class="proto-explore" data-url="${c.explorer}/token/${c.addr}" aria-label="Open in explorer">${EXT_ICO}</button>
     </div>
   </div>
 `).join("");

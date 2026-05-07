@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="shared-hover-tooltips.css?v=20260506c">
-<script defer src="shared-hover-tooltips.js?v=20260506c"></script>
+<link rel="stylesheet" href="shared-hover-tooltips.css?v=20260507u">
+<script defer src="shared-hover-tooltips.js?v=20260507u"></script>
 <style>
 /* ==========================================================================
    DESIGN TOKENS — Graphite + Gold (premium, restrained)
@@ -1159,7 +1159,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
         <label class="search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input id="q" type="text" placeholder="Search token or paste address…" spellcheck="false" autocomplete="off">
-          <button class="search-clear" type="button" title="Clear search" aria-label="Clear search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
+          <button class="search-clear" type="button" aria-label="Clear search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
           <span class="kbd">/</span>
         </label>
 
@@ -1169,7 +1169,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
             <span class="lbl">All Assets</span>
             <span class="count">3/3</span>
-            <span class="dd-clear" data-clear="cat" role="button" aria-label="Clear category filter" title="Clear filter">
+            <span class="dd-clear" data-clear="cat" role="button" aria-label="Clear category filter">
               <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg>
             </span>
             <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
@@ -1191,7 +1191,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
             <span class="lbl">All Chains</span>
             <span class="count">7/7</span>
-            <span class="dd-clear" data-clear="net" role="button" aria-label="Clear chain filter" title="Clear filter">
+            <span class="dd-clear" data-clear="net" role="button" aria-label="Clear chain filter">
               <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg>
             </span>
             <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
@@ -2194,10 +2194,10 @@ function render(){
     const keyId = marketKey(r);
     const addrUrl = explorerUrl(r);
     const caHTML = r.addr ? `
-                  <a class="token-ca" href="${addrUrl || "#"}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="${r.addr}">
+                  <a class="token-ca addr-tooltip-wrap" href="${addrUrl || "#"}" target="_blank" rel="noopener" onclick="event.stopPropagation()" data-full-addr="${r.addr}">
                     <span class="token-ca-label">CA</span><span>${shortAddr(r.addr)}</span>
                   </a>
-                  <button class="token-ca-copy" data-copy="${r.addr}" aria-label="Copy ${r.sym} contract address" title="Copy CA">${COPY_ICO}</button>` : "";
+                  <button class="token-ca-copy" data-copy="${r.addr}" aria-label="Copy ${r.sym} contract address">${COPY_ICO}</button>` : "";
 
     // vertical breakdown shown under the big Supply value
     // order: Lending (native, always top) → oDOLO → External Yield
@@ -2212,7 +2212,7 @@ function render(){
     const expanded = state.expanded.has(keyId);
     const calc = state.calc.get(keyId) || {action:"deposit",amount:10000};
     state.calc.set(keyId, calc);
-    const toggleHTML = `<button class="asset-toggle" type="button" title="${expanded ? "Hide asset details" : "Show asset details"}" aria-label="${expanded ? "Hide asset details" : "Show asset details"}" aria-expanded="${expanded}"><span>${expanded ? "Hide" : "Details"}</span>${CHEV_DOWN_ICO}</button>`;
+    const toggleHTML = `<button class="asset-toggle" type="button" aria-label="${expanded ? "Hide asset details" : "Show asset details"}" aria-expanded="${expanded}"><span>${expanded ? "Hide" : "Details"}</span>${CHEV_DOWN_ICO}</button>`;
     const row = `
       <tr class="data ${expanded?"expanded":""}" data-key="${keyId}">
         <td style="padding-left:32px">
@@ -2762,7 +2762,7 @@ document.getElementById("proto-addrs").innerHTML = CONTRACTS.map((c,i)=>`
     <div class="proto-addr-right">
       <span class="proto-addr-hex addr-tooltip-wrap" data-full-addr="${c.addr}">${shorten(c.addr)}</span>
       <button class="proto-copy" data-copy="${c.addr}" aria-label="Copy address">${COPY_ICO}</button>
-      <button class="proto-explore" data-url="${c.explorer}/token/${c.addr}" aria-label="Open in explorer" title="Open in block explorer">${EXT_ICO}</button>
+      <button class="proto-explore" data-url="${c.explorer}/token/${c.addr}" aria-label="Open in explorer">${EXT_ICO}</button>
     </div>
   </div>
 `).join("");
