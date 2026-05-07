@@ -908,25 +908,11 @@
     input.dataset.supplyDraftClear = 'true';
     const shell = input.parentElement;
     if (!shell) return;
-    shell.classList.add('supply-asset-search-shell');
-
-    const clear = document.createElement('button');
-    clear.type = 'button';
-    clear.className = 'supply-asset-search-clear';
-    clear.setAttribute('aria-label', 'Clear asset search');
-    clear.textContent = '×';
-    shell.appendChild(clear);
+    shell.classList.add('supply-asset-search-shell', 'no-clear');
+    shell.querySelector('.supply-asset-search-clear')?.remove();
 
     const sync = () => shell.classList.toggle('has-value', input.value.trim().length > 0);
     input.addEventListener('input', sync);
-    clear.addEventListener('click', event => {
-      event.preventDefault();
-      event.stopPropagation();
-      input.value = '';
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      input.focus();
-      sync();
-    });
     sync();
   }
 

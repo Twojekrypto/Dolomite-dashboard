@@ -156,10 +156,11 @@ body.supply-draft-route .premium-supply-frame > div:not(.supply-draft-copy) {
 .supply-draft-control-deck {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) 160px 142px;
+  grid-template-columns: minmax(220px, 260px) 158px 134px;
   align-items: stretch;
   gap: 0;
-  width: min(100%, 820px);
+  width: fit-content;
+  max-width: 100%;
   min-width: 0;
   min-height: 56px;
   padding: 0;
@@ -369,7 +370,7 @@ body.supply-draft-route .premium-supply-dropdown-menu {
 }
 
 body.supply-draft-route #custom-asset-dropdown {
-  width: 100% !important;
+  width: 320px !important;
   min-width: 100% !important;
   max-height: min(420px, calc(100vh - 180px)) !important;
   overflow: hidden !important;
@@ -459,26 +460,13 @@ body.supply-draft-route #asset-options-container .premium-supply-dropdown-item.a
 
 body.supply-draft-route #asset-search-input {
   height: 38px;
-  padding: 0 36px 0 12px !important;
+  padding: 0 12px !important;
   font-family: var(--supply-mono) !important;
   font-size: 12px !important;
 }
 
 .supply-asset-search-clear {
-  position: absolute;
-  top: 50%;
-  right: 8px;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border: 1px solid var(--supply-line-2);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, .018);
-  color: var(--supply-fg-3);
-  transform: translateY(-50%);
-  cursor: pointer;
+  display: none !important;
 }
 
 .supply-asset-search-shell.has-value .supply-asset-search-clear {
@@ -2280,7 +2268,7 @@ body.supply-draft-route #supply-pagination .flow-pager-info {
   }
 
   body.supply-draft-route .supply-draft-control-deck {
-    grid-template-columns: minmax(240px, 1fr) 160px 142px;
+    grid-template-columns: minmax(220px, 260px) 158px 134px;
   }
 
   .supply-draft-apply-container {
