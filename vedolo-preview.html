@@ -271,9 +271,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .exit-metric-table td:first-child{font-weight:600;color:#ddd0cd}
 .exit-metric-table td.num{font-size:12px;font-weight:600;letter-spacing:0;color:#f0e4e1}
 .exit-metric-table .metric-desc{font-size:10.5px;line-height:1.35;margin-top:4px;color:rgba(255,255,255,.34);font-weight:400}
-.exit-metric-table .metric-share{display:inline-flex;flex-direction:column;align-items:flex-end;gap:3px;line-height:1.08}
-.exit-metric-table .metric-share-main{font-family:var(--mono);font-size:12px;font-weight:700;color:inherit;white-space:nowrap}
-.exit-metric-table .metric-share-sub{font-family:var(--mono);font-size:9.5px;font-weight:500;color:rgba(255,255,255,.34);white-space:nowrap}
 .exit-metric-table .penalty-total-row td{border-bottom-color:rgba(180,121,107,.18)}
 .exit-metric-table .penalty-split-row td{padding-top:9px;padding-bottom:9px;background:rgba(180,121,107,.026)}
 .exit-metric-table .penalty-split-row td:first-child{padding-left:12px}
@@ -286,9 +283,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .revenue-impact-panel .exit-metric-table{flex:1 1 auto;margin-bottom:16px;height:100%}
 .revenue-impact-panel .exit-metric-table tbody tr{height:20%}
 .revenue-impact-panel .exit-metric-table td{vertical-align:middle}
-#rev-penalty,#rev-penalty-pct,#rev-burned,#rev-burned-pct{color:#d58a7c}
+#rev-penalty,#rev-penalty-pct,#rev-burned,#rev-burned-penalty-pct{color:#d58a7c}
 #rev-burned-penalty-pct{color:#d58a7c}
-#rev-recouped,#rev-recouped-pct,#rev-recouped-penalty-pct{color:#c9a227}
+#rev-recouped,#rev-recouped-penalty-pct{color:#c9a227}
 .exit-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:16px}
 .exit-kpis .mini-kpi{border-color:rgba(180,121,107,.20);background:linear-gradient(180deg,rgba(180,121,107,.075),rgba(26,18,17,.58));border-radius:12px;padding:14px 14px 13px}
 .exit-kpis .mini-kpi .val{font-size:20px;color:#f0d8d3}
@@ -693,9 +690,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
           <tbody>
             <tr><td>Locked Total<span class="metric-desc">DOLO originally locked by users who performed early exits.</span></td><td class="num" id="rev-original">--</td><td class="num">100%</td></tr>
             <tr><td>Received<span class="metric-desc">DOLO returned to users after early exit penalty deduction.</span></td><td class="num" id="rev-received">--</td><td class="num" id="rev-received-pct">--</td></tr>
-            <tr class="penalty-total-row"><td>Total Penalty<span class="metric-desc">Total DOLO deducted from early exiters.</span></td><td class="num" id="rev-penalty">--</td><td class="num"><span class="metric-share"><span class="metric-share-main" id="rev-penalty-pct">--</span><span class="metric-share-sub">of locked</span></span></td></tr>
-            <tr class="penalty-split-row burned"><td><span class="penalty-split-label"><span><span class="penalty-split-title">Burned<span class="penalty-split-chip">from penalty</span></span><span class="metric-desc">DOLO permanently removed from circulating supply.</span></span></span></td><td class="num" id="rev-burned">--</td><td class="num"><span class="metric-share"><span class="metric-share-main" id="rev-burned-penalty-pct">--</span><span class="metric-share-sub"><span id="rev-burned-pct">--</span> of locked</span></span></td></tr>
-            <tr class="penalty-split-row recouped"><td><span class="penalty-split-label"><span><span class="penalty-split-title">Treasury<span class="penalty-split-chip">from penalty</span></span><span class="metric-desc">DOLO returned to the protocol recoup pool.</span></span></span></td><td class="num" id="rev-recouped">--</td><td class="num"><span class="metric-share"><span class="metric-share-main" id="rev-recouped-penalty-pct">--</span><span class="metric-share-sub"><span id="rev-recouped-pct">--</span> of locked</span></span></td></tr>
+            <tr class="penalty-total-row"><td>Total Penalty<span class="metric-desc">Total DOLO deducted from early exiters.</span></td><td class="num" id="rev-penalty">--</td><td class="num" id="rev-penalty-pct">--</td></tr>
+            <tr class="penalty-split-row burned"><td><span class="penalty-split-label"><span><span class="penalty-split-title">Burned<span class="penalty-split-chip">from penalty</span></span><span class="metric-desc">DOLO permanently removed from circulating supply.</span></span></span></td><td class="num" id="rev-burned">--</td><td class="num" id="rev-burned-penalty-pct">--</td></tr>
+            <tr class="penalty-split-row recouped"><td><span class="penalty-split-label"><span><span class="penalty-split-title">Treasury<span class="penalty-split-chip">from penalty</span></span><span class="metric-desc">DOLO returned to the protocol recoup pool.</span></span></span></td><td class="num" id="rev-recouped">--</td><td class="num" id="rev-recouped-penalty-pct">--</td></tr>
           </tbody>
         </table>
       </div>
@@ -1337,10 +1334,8 @@ function renderRevenue(){
   const recoupedPenaltyPct = penaltyBase ? recouped/penaltyBase*100 : 0;
   setText("rev-burned", fmtCompact(burned));
   setText("rev-burned-penalty-pct", penaltyBase ? pct(burnedPenaltyPct) : "--");
-  setText("rev-burned-pct", original ? pct(burned/original*100) : "--");
   setText("rev-recouped", fmtCompact(recouped));
   setText("rev-recouped-penalty-pct", penaltyBase ? pct(recoupedPenaltyPct) : "--");
-  setText("rev-recouped-pct", original ? pct(recouped/original*100) : "--");
   setText("kpi-early", fmtInt(s.total_early_exits));
   setText("kpi-early-sub", s.total_withdrawals ? `${pct(num(s.total_early_exits)/num(s.total_withdrawals)*100)} of ${fmtInt(s.total_withdrawals)} withdrawals` : "--");
   setText("kpi-penalty", s.avg_penalty_pct ? pct(s.avg_penalty_pct) : "--");
