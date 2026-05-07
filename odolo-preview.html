@@ -1236,10 +1236,10 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
             <th data-sort="rank" style="width:56px">#</th>
             <th data-sort="addr">Address</th>
             <th data-sort="claimed" class="num col-clm sorted" style="width:128px">Claimed</th>
-            <th data-sort="exercised" class="num col-exr has-help" data-help-key="claim" style="width:150px"><span class="th-label">Claim Exercised<span class="th-help">?</span></span></th>
-            <th data-sort="buy" class="num col-buy has-help" data-help-key="extra" style="width:150px"><span class="th-label">Extra Exercised<span class="th-help">?</span></span></th>
+            <th data-sort="exercised" class="num col-exr" style="width:150px">Claim Used</th>
+            <th data-sort="buy" class="num col-buy" style="width:150px">Extra Used</th>
             <th data-sort="outflow" class="num col-out" style="width:128px">Outflow</th>
-            <th data-sort="held" class="num col-hld has-help" data-help-key="held" style="padding-right:32px;width:128px"><span class="th-label">Held<span class="th-help">?</span></span></th>
+            <th data-sort="held" class="num col-hld" style="padding-right:32px;width:128px">Held</th>
           </tr>
         </thead>
         <tbody id="cb-body"></tbody>
@@ -1297,7 +1297,7 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
       <table class="tbl latest-ex-tbl" id="tbl-latest-ex">
         <thead>
           <tr>
-            <th data-latest-sort="date" style="width:136px">Date</th>
+            <th data-latest-sort="date" style="width:136px">DATE</th>
             <th data-latest-sort="wallet">Address</th>
             <th data-latest-sort="vedolo" class="num" style="width:116px">veDOLO</th>
             <th data-latest-sort="usdc" class="num" style="width:118px">USDC Paid</th>
@@ -1414,7 +1414,7 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
       <div class="tb-left">
         <label class="search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input id="q-flows" type="text" placeholder="Filter by address or label…" spellcheck="false" autocomplete="off">
+          <input id="q-flows" type="text" placeholder="Search address or label…" spellcheck="false" autocomplete="off">
           <button class="search-clear" type="button" title="Clear search" aria-label="Clear search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
         </label>
 
@@ -2389,12 +2389,12 @@ function updateCbHeaderHelp(extraWallets = 0, extraTotal = 0){
   const extra = document.querySelector('#tbl-cb th[data-help-key="extra"]');
   const held = document.querySelector('#tbl-cb th[data-help-key="held"]');
   if(claim){
-    claim.dataset.tipTitle = "Claim Exercised";
+    claim.dataset.tipTitle = "Claim Used";
     claim.dataset.tipBody = "Claimed oDOLO used for veDOLO, capped at each wallet's own claim.";
     claim.dataset.tooltip = `${claim.dataset.tipTitle}: ${claim.dataset.tipBody}`;
   }
   if(extra){
-    extra.dataset.tipTitle = "Extra Exercised";
+    extra.dataset.tipTitle = "Extra Used";
     extra.dataset.tipBody = `${extraWallets.toLocaleString()} wallets exercised +${fmtNum(extraTotal)} oDOLO above their claim in the selected window.`;
     extra.dataset.tooltip = `${extra.dataset.tipTitle}: ${extra.dataset.tipBody}`;
   }
@@ -2736,7 +2736,7 @@ function renderLatestExercises(){
     const timestamp = Number(tx.timestamp || 0);
     return `
       <tr class="latest-ex-row" data-addr="${esc(tx.addr)}">
-        <td data-label="Date">
+        <td data-label="DATE">
           <div class="latest-date">
             <div class="latest-date-top"><strong>${esc(fmtDate(tx.date))}</strong>${txLink}</div>
             <span>${esc(fmtRelativeTime(timestamp))} · ${esc(fmtClockTime(timestamp))}</span>
@@ -2805,7 +2805,7 @@ function renderExerciserDetailRow(r){
     return `
       <tr>
         <td class="mono ex-detail-rank" data-label="#">${i + 1}</td>
-        <td data-label="Date">${esc(fmtDate(tx.date))}</td>
+        <td data-label="DATE">${esc(fmtDate(tx.date))}</td>
         <td class="num mono" data-label="veDOLO">${fmtTokenFull(vedolo)}</td>
         <td class="num mono" data-label="USDC Paid"><span class="bal-val usd">${fmtUsdFull(usd)}</span></td>
         <td class="num mono" data-label="Price"><span class="bal-val price">${fmtPrice(price)}</span></td>
@@ -2829,7 +2829,7 @@ function renderExerciserDetailRow(r){
         <thead>
           <tr>
             <th>#</th>
-            ${detailSortHeader("date", "Date")}
+            ${detailSortHeader("date", "DATE")}
             ${detailSortHeader("vedolo", "veDOLO", "num")}
             ${detailSortHeader("usdc", "USDC Paid", "num")}
             ${detailSortHeader("price", "Price", "num")}

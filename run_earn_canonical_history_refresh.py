@@ -183,6 +183,19 @@ def _status_payload(
     return payload
 
 
+def _validation_incomplete(
+    *, args: argparse.Namespace, phase: str, payload: Optional[dict], exc: AssertionError
+) -> RefreshIncomplete:
+    validation_payload = dict(payload or {})
+    validation_payload["validationError"] = str(exc)
+    return RefreshIncomplete(
+        chain=args.chain,
+        phase=phase,
+        max_steps=args.max_steps,
+        payload=validation_payload,
+    )
+
+
 def _write_status_output(path: Optional[Path], payload: dict) -> None:
     if path is None:
         return
@@ -347,7 +360,10 @@ def _bootstrap_baseline(args: argparse.Namespace, selected_addresses: List[str])
         time.sleep(max(1, int(args.sleep_seconds)))
     if not complete:
         raise RefreshIncomplete(chain=args.chain, phase="bootstrap", max_steps=args.max_steps, payload=payload)
-    validation = _validate_selected_histories(args.history_dir, args.chain, selected_addresses)
+    try:
+        validation = _validate_selected_histories(args.history_dir, args.chain, selected_addresses)
+    except AssertionError as exc:
+        raise _validation_incomplete(args=args, phase="bootstrap-validation", payload=payload, exc=exc) from exc
     return _status_payload(
         chain=args.chain,
         phase="bootstrap",
@@ -391,7 +407,10 @@ def _incremental_refresh(args: argparse.Namespace, selected_addresses: List[str]
         time.sleep(max(1, int(args.sleep_seconds)))
     if not complete:
         raise RefreshIncomplete(chain=args.chain, phase="incremental", max_steps=args.max_steps, payload=payload)
-    validation = _validate_selected_histories(args.history_dir, args.chain, selected_addresses)
+    try:
+        validation = _validate_selected_histories(args.history_dir, args.chain, selected_addresses)
+    except AssertionError as exc:
+        raise _validation_incomplete(args=args, phase="incremental-validation", payload=payload, exc=exc) from exc
     return _status_payload(
         chain=args.chain,
         phase="incremental",
