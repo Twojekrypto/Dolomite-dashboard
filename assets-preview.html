@@ -1730,9 +1730,9 @@ const LIVE_CHAINS = {
   berachain: {id:80094, name:"Berachain", short:"BERA", icon:chainIcon("berachain"), explorer:"https://berascan.com/address/", subgraph:"https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-berachain-mainnet/latest/gn"},
   arbitrum: {id:42161, name:"Arbitrum", short:"ARB", icon:chainIcon("arbitrum"), explorer:"https://arbiscan.io/address/", subgraph:"https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-arbitrum/latest/gn"},
   ethereum: {id:1, name:"Ethereum", short:"ETH", icon:chainIcon("ethereum"), explorer:"https://etherscan.io/address/", subgraph:"https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-ethereum/latest/gn"},
-  botanix: {id:3637, name:"Botanix", short:"BOT", icon:chainIcon("botanix"), explorer:"https://explorer.botanixlabs.dev/address/", subgraph:"https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-botanix/latest/gn"},
+  botanix: {id:3637, name:"Botanix", short:"BOT", icon:chainIcon("botanix"), explorer:"https://botanixscan.io/address/", tokenExplorer:"https://botanixscan.io/token/", subgraph:"https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-botanix/latest/gn"},
   mantle: {id:5000, name:"Mantle", short:"MNT", icon:chainIcon("mantle"), explorer:"https://mantlescan.xyz/address/", subgraph:"https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-mantle/latest/gn"},
-  polygonzkevm: {id:1101, name:"Polygon zkEVM", short:"zkEVM", icon:chainIcon("polygonzkevm"), explorer:"https://zkevm.polygonscan.com/address/", subgraph:"https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-polygon-zkevm/latest/gn"},
+  polygonzkevm: {id:1101, name:"Polygon zkEVM", short:"zkEVM", icon:chainIcon("polygonzkevm"), explorer:"https://zkevm.polygonscan.com/address/", tokenExplorer:"https://zkevm.polygonscan.com/token/", subgraph:"https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-polygon-zkevm/latest/gn"},
   xlayer: {id:196, name:"X Layer", short:"XLAY", icon:chainIcon("xlayer"), explorer:"https://www.okx.com/web3/explorer/xlayer/address/", subgraph:"https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-x-layer/latest/gn"}
 };
 const STABLE_SYMBOLS = new Set(["USDC","USDT","USDT0","USD₮0","DAI","USDC.E","USDC.e","HONEY","USDE","sUSDe","SUSDE","NECT","RUSD","rUSD","SRUSD","srUSD","WSRUSD","wsrUSD","BYUSD","MIM","USDS","sUSDS","SUSDS","USDA","USDa","SAVUSD","savUSD","USD1","USDY","CUSD","cUSD","STCUSD","stcUSD"]);
@@ -1758,7 +1758,8 @@ function isExpiredMarket(sym, name=""){
 }
 const shortAddr = (a)=>String(a || "").slice(0,6)+"…"+String(a || "").slice(-4);
 const explorerUrl = (row)=>{
-  const base = chainMeta(row.chain).explorer || "";
+  const meta = chainMeta(row.chain);
+  const base = meta.tokenExplorer || meta.explorer || "";
   return row.addr && base ? base + row.addr : "";
 };
 const isWrappedMarketName = (row)=>/^(GM|GLV):\s*/i.test(String(row.name || "")) || /^gm[A-Z0-9].*/.test(String(row.sym || "")) || /^GLV-/i.test(String(row.sym || ""));
