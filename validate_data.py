@@ -16,6 +16,14 @@ from datetime import datetime, timezone
 # ── Validation Rules ─────────────────────────────────────────────────────────
 # Each file has: required top-level keys, optional nested checks, and min-size thresholds.
 
+def _is_iso_datetime(value):
+    try:
+        datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return True
+    except (TypeError, ValueError):
+        return False
+
+
 RULES = {
     "dolo_flows.json": {
         "required_keys": ["timestamp", "dolo_price", "periods"],
@@ -113,6 +121,16 @@ RULES = {
         "required_keys": ["avg_lock_days", "total_exercises"],
         "checks": [],
         "min_bytes": 50,
+    },
+    "assets_live.json": {
+        "required_keys": ["version", "generatedAt", "source", "rowCount", "chainCount", "chains", "rows"],
+        "checks": [
+            ("generatedAt must be ISO datetime", lambda d: _is_iso_datetime(d.get("generatedAt"))),
+            ("rows must have entries", lambda d: len(d.get("rows", [])) >= 50),
+            ("rowCount must match rows", lambda d: d.get("rowCount") == len(d.get("rows", []))),
+            ("all configured chains must be present", lambda d: d.get("chainCount") >= 7 and len(d.get("chains", [])) >= 7),
+        ],
+        "min_bytes": 10_000,
     },
 }
 
