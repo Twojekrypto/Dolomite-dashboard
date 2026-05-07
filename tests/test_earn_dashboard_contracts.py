@@ -9,6 +9,7 @@ ARBITRUM_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-arbi
 EARN_COVERAGE_REPORT = ROOT / "report_earn_subaccount_history_coverage.py"
 CANONICAL_REFRESH_RUNNER = ROOT / "run_earn_canonical_history_refresh.py"
 NETFLOW_SCANNER = ROOT / "scan_earn_netflow.py"
+LIQUIDATION_PREVIEW = ROOT / "liquidation-preview.html"
 
 
 class EarnDashboardContractsTest(unittest.TestCase):
@@ -72,6 +73,23 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertNotIn("stderr=subprocess.STDOUT", runner)
         scanner = NETFLOW_SCANNER.read_text(encoding="utf-8")
         self.assertIn("file=sys.stderr", scanner)
+
+    def test_lending_toolbar_filters_always_open_downward(self):
+        source = LIQUIDATION_PREVIEW.read_text(encoding="utf-8")
+        start = source.index("function positionLendingToolbarMenu")
+        end = source.index("function clearChainFilterOnly", start)
+        helper = source[start:end]
+        self.assertIn("const top = rect.bottom + 6", helper)
+        self.assertIn("max-height", helper)
+        self.assertIn("overflow-y", helper)
+        self.assertNotIn("aboveTop", helper)
+        self.assertNotIn("rect.top -", helper)
+        start = source.index("function positionPopoverFixed")
+        end = source.index("function initColFilterPopover", start)
+        popover_helper = source[start:end]
+        self.assertIn("const top = rect.bottom + 6", popover_helper)
+        self.assertIn("availableBelow", popover_helper)
+        self.assertNotIn("preferAbove", popover_helper)
 
 
 if __name__ == "__main__":

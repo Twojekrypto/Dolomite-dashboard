@@ -10527,18 +10527,15 @@
             const rect = triggerEl.getBoundingClientRect();
             const width = Math.max(rect.width, 220);
             const left = Math.min(Math.max(8, rect.left), Math.max(8, window.innerWidth - width - 8));
+            const top = rect.bottom + 6;
+            const availableBelow = Math.max(96, window.innerHeight - top - 8);
             menuEl.style.setProperty('position', 'fixed', 'important');
             menuEl.style.setProperty('left', `${left}px`, 'important');
-            menuEl.style.setProperty('top', `${rect.bottom + 6}px`, 'important');
+            menuEl.style.setProperty('top', `${top}px`, 'important');
             menuEl.style.setProperty('min-width', `${width}px`, 'important');
+            menuEl.style.setProperty('max-height', `${Math.min(420, availableBelow)}px`, 'important');
+            menuEl.style.setProperty('overflow-y', 'auto', 'important');
             menuEl.style.setProperty('z-index', '10050', 'important');
-            requestAnimationFrame(() => {
-                const menuRect = menuEl.getBoundingClientRect();
-                if (menuRect.bottom > window.innerHeight - 8) {
-                    const aboveTop = Math.max(8, rect.top - menuRect.height - 6);
-                    menuEl.style.setProperty('top', `${aboveTop}px`, 'important');
-                }
-            });
         }
 
         function clearChainFilterOnly() {
@@ -11398,7 +11395,7 @@
 
         // ─── Column Filter Popovers (range: HF, Collateral, Debt) ────────
         // Position a popover using position:fixed relative to a trigger element
-        function positionPopoverFixed(triggerEl, popoverEl, preferAbove) {
+        function positionPopoverFixed(triggerEl, popoverEl) {
             const rect = triggerEl.getBoundingClientRect();
             // Temporarily show to measure dimensions
             popoverEl.style.display = 'block';
@@ -11408,8 +11405,12 @@
             // Clamp to viewport bounds
             if (left < 8) left = 8;
             if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+            const top = rect.bottom + 6;
+            const availableBelow = Math.max(96, window.innerHeight - top - 8);
             popoverEl.style.left = left + 'px';
-            popoverEl.style.top = (rect.bottom + 6) + 'px';
+            popoverEl.style.top = top + 'px';
+            popoverEl.style.maxHeight = Math.min(420, availableBelow) + 'px';
+            popoverEl.style.overflowY = 'auto';
         }
 
         function initColFilterPopover(opts) {
