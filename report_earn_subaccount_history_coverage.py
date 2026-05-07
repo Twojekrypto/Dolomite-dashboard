@@ -15,6 +15,7 @@ import json
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence
 
+from scan_earn_netflow import CHAINS, get_block_number
 from build_earn_subaccount_history import _load_known_addresses, _read_json
 from materialize_earn_subaccount_history import _chain_manifest
 
@@ -71,9 +72,25 @@ def _active_scan_progress_target(events_dir: Path, chain: str) -> Optional[int]:
     return max(targets) if targets else None
 
 
+def _resolve_live_chain_block(chain: str) -> Optional[int]:
+    config = CHAINS.get(chain)
+    if not config:
+        return None
+    try:
+        return int(get_block_number(config["rpcs"], [0]))
+    except Exception as exc:
+        raise ValueError(f"Could not resolve live target block for {chain}: {exc}") from exc
+
+
 def _resolve_target_block(events_dir: Path, chain: str, target_block: Optional[int]) -> int:
     if target_block is not None:
         return int(target_block)
+    try:
+        live_target = _resolve_live_chain_block(chain)
+        if live_target is not None:
+            return live_target
+    except ValueError:
+        pass
     progress_target = _active_scan_progress_target(events_dir, chain)
     if progress_target is not None:
         return progress_target

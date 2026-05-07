@@ -2,7 +2,7 @@ name: Refresh Arbitrum Canonical EARN History
 
 on:
   schedule:
-    - cron: '18 */2 * * *'  # Every 2 hours, staggered inside the 3h UI freshness window
+    - cron: '18,48 * * * *'  # Every 30 minutes; keeps Arbitrum EARN history within the ~1h freshness target
   workflow_dispatch:
 
 concurrency:

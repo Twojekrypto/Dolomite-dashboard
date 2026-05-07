@@ -9383,40 +9383,41 @@
         .earn-supply-empty-state {
             position: relative;
             z-index: 1;
-            padding: 22px 22px 24px;
-            border-top: 1px solid rgba(52, 211, 153, 0.08);
+            padding: 14px 18px 16px;
+            border-top: 1px solid rgba(148, 163, 184, 0.08);
             background:
-                linear-gradient(180deg, rgba(10, 15, 28, 0.56), rgba(10, 20, 30, 0.72));
+                linear-gradient(180deg, rgba(8, 13, 22, 0.96), rgba(7, 11, 19, 0.98));
         }
 
         .earn-supply-empty-panel {
-            display: flex;
-            flex-direction: column;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
             align-items: center;
             justify-content: center;
-            gap: 8px;
-            min-height: 120px;
-            padding: 20px 18px;
-            border-radius: 16px;
-            border: 1px dashed rgba(52, 211, 153, 0.18);
+            gap: 5px;
+            min-height: 72px;
+            padding: 16px 18px;
+            border-radius: 10px;
+            border: 1px solid rgba(148, 163, 184, 0.12);
             background:
-                radial-gradient(circle at top center, rgba(52, 211, 153, 0.06), transparent 62%),
-                rgba(8, 12, 24, 0.44);
+                linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.015)),
+                rgba(8, 13, 22, 0.72);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.035);
             text-align: center;
         }
 
         .earn-supply-empty-title {
-            font-size: 13px;
-            font-weight: 600;
-            color: rgba(255, 255, 255, 0.8);
-            letter-spacing: 0.15px;
+            font-size: 12px;
+            font-weight: 700;
+            color: rgba(248, 250, 252, 0.9);
+            letter-spacing: 0.2px;
         }
 
         .earn-supply-empty-hint {
             max-width: 520px;
             font-size: 11px;
-            line-height: 1.55;
-            color: rgba(148, 163, 184, 0.88);
+            line-height: 1.45;
+            color: rgba(148, 163, 184, 0.86);
         }
 
         .earn-past-token {
@@ -9856,6 +9857,11 @@
             text-shadow: 0 0 16px rgba(241, 245, 249, 0.08);
         }
 
+        .earn-summary-value.warn {
+            color: #fbbf24;
+            text-shadow: 0 0 14px rgba(251, 191, 36, 0.12);
+        }
+
         .earn-summary-value .best-icon {
             width: 28px;
             height: 28px;
@@ -9994,6 +10000,21 @@
         .earn-summary-stat.is-muted .earn-summary-mini-pill .token,
         .earn-summary-stat.is-muted .earn-summary-mini-pill .amount {
             color: inherit;
+        }
+
+        .earn-summary-mini-pill.is-warning {
+            border-color: rgba(251, 191, 36, 0.2);
+            background: rgba(251, 191, 36, 0.08);
+        }
+
+        .earn-summary-mini-pill.is-warning .earn-summary-mini-pill-icon-fallback {
+            border-color: rgba(251, 191, 36, 0.22);
+            background: rgba(251, 191, 36, 0.1);
+            color: #fcd34d;
+        }
+
+        .earn-summary-mini-pill.is-warning .amount {
+            color: #fcd34d;
         }
 
         .earn-summary-hero {
@@ -28368,11 +28389,11 @@
                 if (inferred.status === 'verified') {
                     return {
                         counted: true,
-                        status: 'verified',
-                        label: 'Verified',
-                        title: 'Public netflow reconciles cleanly with historical snapshot data and fresh canonical subaccount history for this market.',
+                        status: 'inferred',
+                        label: 'Inferred',
+                        title: 'Public netflow reconciles cleanly with historical snapshot data and fresh canonical subaccount history for this market. This is strong historical evidence, but not strict replay verification.',
                         rawStatus: inferred.status,
-                        rawLabel: 'Verified',
+                        rawLabel: 'Netflow Match',
                         rawTitle: 'Public netflow and snapshot history reconcile exactly for this market.',
                         overridden: true,
                         entry: null,
@@ -29665,6 +29686,11 @@
                 return snapshotLedgerPresentation;
             }
 
+            if (fallbackStatus === 'verified') {
+                const yieldQualityPresentation = earn_getYieldQualityPresentation(yieldCalc);
+                if (yieldQualityPresentation) return yieldQualityPresentation;
+            }
+
             if (entry && entry.counted && (fallbackStatus === 'unverified' || fallbackStatus === 'coverage_incomplete')) {
                 const fallbackMethods = new Set(['snapshot', 'snapshot-partial', 'acct0-netflow', 'all-netflow', 'all-netflow-guarded', 'recent-cycle']);
                 const usesFallbackSource = !!(
@@ -29723,6 +29749,88 @@
                 overridden: false,
                 entry,
             };
+        }
+
+        function earn_getYieldQualityPresentation(yieldCalc) {
+            if (!yieldCalc || !yieldCalc.hasData) return null;
+            if (yieldCalc.trustedForTotal && String(yieldCalc.verificationStatus || '') === 'verified') return null;
+
+            const method = String(yieldCalc.method || '');
+            const status = String(yieldCalc.verificationStatus || '').toLowerCase();
+
+            if (method === 'all-netflow-verified' || method === 'recent-cycle-verified' || method === 'all-netflow-pre-snapshot-carry' || method === 'recent-cycle-pre-snapshot-carry' || status === 'inferred') {
+                return {
+                    counted: true,
+                    status: 'inferred',
+                    label: (method === 'all-netflow-pre-snapshot-carry' || method === 'recent-cycle-pre-snapshot-carry') ? 'Inferred Carry' : 'Inferred',
+                    title: (method === 'all-netflow-pre-snapshot-carry' || method === 'recent-cycle-pre-snapshot-carry')
+                        ? 'This yield can be inferred from public netflow plus snapshot history, but it is not strict replay verification because part of the carry predates local coverage.'
+                        : 'This yield reconciles through public netflow plus snapshot history, but it is not strict replay verification.',
+                    rawStatus: status || 'inferred',
+                    rawLabel: (method === 'all-netflow-pre-snapshot-carry' || method === 'recent-cycle-pre-snapshot-carry') ? 'Inferred Carry' : 'Inferred',
+                    rawTitle: 'Useful historical evidence, but not strict replay verification.',
+                    overridden: true,
+                    entry: null,
+                };
+            }
+
+            if (method === 'snapshot' || method === 'snapshot-partial') {
+                return {
+                    counted: true,
+                    status: 'snapshot',
+                    label: method === 'snapshot-partial' ? 'Snapshot Partial' : 'Snapshot',
+                    title: 'Yield is derived from snapshot history instead of strict replay verification.',
+                    rawStatus: status || 'snapshot',
+                    rawLabel: 'Snapshot',
+                    rawTitle: 'Snapshot-backed yield is useful, but not strict replay verification.',
+                    overridden: true,
+                    entry: null,
+                };
+            }
+
+            if (method === 'acct0-netflow' || method === 'all-netflow' || method === 'all-netflow-guarded' || method === 'recent-cycle') {
+                return {
+                    counted: true,
+                    status: 'fallback',
+                    label: 'Fallback',
+                    title: 'This market is using a guarded fallback yield source because strict replay verification is unavailable.',
+                    rawStatus: status || 'fallback',
+                    rawLabel: 'Fallback',
+                    rawTitle: 'Fallback yield source.',
+                    overridden: true,
+                    entry: null,
+                };
+            }
+
+            if (status === 'coverage_incomplete' || status === 'pending' || method === 'interest-ledger-pending') {
+                return {
+                    counted: true,
+                    status: 'coverage_incomplete',
+                    label: 'Pending',
+                    title: 'Strict replay verification is still waiting for complete canonical subaccount history or final replay reconciliation.',
+                    rawStatus: status || 'coverage_incomplete',
+                    rawLabel: 'Pending',
+                    rawTitle: 'Strict replay verification is not complete yet.',
+                    overridden: true,
+                    entry: null,
+                };
+            }
+
+            if (method === 'interest-ledger-live-balance-adjusted' || method === 'interest-ledger-unverified') {
+                return {
+                    counted: true,
+                    status: 'coverage_incomplete',
+                    label: 'Adjusted',
+                    title: 'Replay data was adjusted or is not fully verified yet, so this yield is not treated as strict verification.',
+                    rawStatus: status || 'coverage_incomplete',
+                    rawLabel: 'Adjusted',
+                    rawTitle: 'Replay yield is not strict verified.',
+                    overridden: true,
+                    entry: null,
+                };
+            }
+
+            return null;
         }
 
         function earn_renderVerificationBadge(marketId, symbol, decimals, yieldCalc) {
@@ -30596,7 +30704,7 @@
                     : publicLedgerInference
                         ? (
                             publicLedgerInference.status === 'verified'
-                                ? (canonicalHistoryCoverageIncomplete ? 'coverage_incomplete' : 'verified')
+                                ? (canonicalHistoryCoverageIncomplete ? 'coverage_incomplete' : 'inferred')
                                 : 'inferred'
                         )
                         : (method === 'snapshot' || method === 'snapshot-partial')
@@ -35161,8 +35269,9 @@
                 const openBorrowRaw = calc && calc.openBorrowYield !== undefined
                     ? BigInt(calc.openBorrowYield || 0)
                     : 0n;
+                const openBorrowCostRaw = openBorrowRaw < 0n ? -openBorrowRaw : openBorrowRaw;
                 const accruedUsd = earn_scaledUsdToNumber(
-                    earn_getTokenUsdScaled(openBorrowRaw, item.decimals, item.symbol, item.tokenAddr, chainId)
+                    earn_getTokenUsdScaled(openBorrowCostRaw, item.decimals, item.symbol, item.tokenAddr, chainId)
                 );
                 if (Math.abs(accruedUsd) > 0.0001) {
                     accruedDebt.push({
@@ -35206,6 +35315,17 @@
             if (!state) return null;
             const par = BigInt(state.par || '0');
             if (par <= 0n) return null;
+            return BigInt(state.liveYield || '0');
+        }
+
+        function earn_getOpenDebtYieldForAccount(accountNumber, marketId) {
+            const account = String(accountNumber === undefined || accountNumber === null ? '0' : accountNumber);
+            const mid = earn_normalizeMarketId(marketId);
+            if (!mid || !earn_replayAccountStateData) return null;
+            const state = earn_replayAccountStateData[`${account}|${mid}`];
+            if (!state) return null;
+            const par = BigInt(state.par || '0');
+            if (par >= 0n) return null;
             return BigInt(state.liveYield || '0');
         }
 
@@ -35504,15 +35624,23 @@
                                         }
                                     }
                                 } else {
-                                    // Borrow: actual = |par| * borrowIndex
                                     const absPar = Math.abs(par);
                                     const actualTokens = absPar * idx.borrowIdx;
-                                    const accruedTokens = actualTokens - absPar; // cost accrued
+                                    const replayOpenDebtYieldWei = earn_getOpenDebtYieldForAccount(p.accountNumber, amt.token.marketId);
+                                    const replayDebtCostWei = replayOpenDebtYieldWei === null
+                                        ? null
+                                        : (replayOpenDebtYieldWei < 0n ? -replayOpenDebtYieldWei : replayOpenDebtYieldWei);
+                                    const accruedTokens = replayDebtCostWei !== null
+                                        ? earn_bigIntToDecimalNumber(replayDebtCostWei, decimals)
+                                        : Math.max(0, actualTokens - absPar);
                                     const accruedUSD = accruedTokens * price;
-                                    p.accruedDebt.push({
-                                        symbol, accruedTokens, accruedUSD,
-                                        parTokens: absPar, actualTokens, decimals, price, index: idx.borrowIdx
-                                    });
+                                    if (Math.abs(accruedUSD) > 0.0001) {
+                                        p.accruedDebt.push({
+                                            symbol, accruedTokens, accruedUSD,
+                                            parTokens: absPar, actualTokens, decimals, price, index: idx.borrowIdx,
+                                            source: replayDebtCostWei !== null ? 'replay-ledger' : 'index-estimate',
+                                        });
+                                    }
                                 }
                             }
 
@@ -36933,6 +37061,7 @@
                         odoloUnclaimed: earn_odoloUnclaimed || 0,
                         wlfiAccumulated: null,
                         wlfiUnclaimed: null,
+                        merklUnavailable: false,
                         extraParts: [],
                     };
                     const formatRewardAmount = value => value >= 1000 ? (value / 1000).toFixed(2) + 'K' : value.toFixed(2);
@@ -36980,19 +37109,27 @@
                             if (!part || !part.amountLabel || !part.symbol) return;
                             parts.push({ symbol: part.symbol, amountLabel: part.amountLabel });
                         });
+                        const merklWarningPill = rewardsState.merklUnavailable
+                            ? `<span class="earn-summary-mini-pill is-warning" aria-label="WLFI rewards unavailable">
+                                <span class="earn-summary-mini-pill-main">
+                                    <span class="earn-summary-mini-pill-icon-fallback">WL</span>
+                                </span>
+                                <span class="amount">Unavailable</span>
+                            </span>`
+                            : '';
 
                         if (parts.length === 0) {
-                            rewardsValueEl.textContent = '0';
-                            rewardsValueEl.className = 'earn-summary-value neutral';
-                            rewardsSubEl.textContent = 'No active reward streams';
-                            rewardsListEl.innerHTML = '';
-                            if (rewardsCardEl) rewardsCardEl.classList.add('is-muted');
+                            rewardsValueEl.textContent = rewardsState.merklUnavailable ? 'Unavailable' : '0';
+                            rewardsValueEl.className = 'earn-summary-value ' + (rewardsState.merklUnavailable ? 'warn' : 'neutral');
+                            rewardsSubEl.textContent = rewardsState.merklUnavailable ? 'WLFI source did not respond' : 'No active reward streams';
+                            rewardsListEl.innerHTML = merklWarningPill;
+                            if (rewardsCardEl) rewardsCardEl.classList.toggle('is-muted', !rewardsState.merklUnavailable);
                             return;
                         }
                         if (rewardsCardEl) rewardsCardEl.classList.remove('is-muted');
                         rewardsValueEl.textContent = `${parts.length} reward${parts.length !== 1 ? 's' : ''}`;
                         rewardsValueEl.className = 'earn-summary-value positive';
-                        rewardsSubEl.textContent = formatRewardSummary(parts.length);
+                        rewardsSubEl.textContent = rewardsState.merklUnavailable ? 'Partial reward data' : formatRewardSummary(parts.length);
                         rewardsListEl.innerHTML = parts.map(part => (
                             (() => {
                                 const icon = getRewardIcon(part.symbol);
@@ -37011,7 +37148,7 @@
                                 <span class="amount">${earn_escapeHtml(part.amountLabel)}</span>
                             </span>`;
                             })()
-                        )).join('');
+                        )).join('') + merklWarningPill;
                     };
 
                     // Fetch oDOLO claimed asynchronously
@@ -37029,11 +37166,16 @@
                         if (!isSummaryRenderCurrent()) return;
                         earn_merklRewards = merklData || {};
                         earn_merklRewardsLoaded = true;
+                        rewardsState.merklUnavailable = earn_merklFetchStatus === 'error';
                         const wlfiData = merklData['WLFI'];
                         rewardsState.wlfiAccumulated = wlfiData ? (wlfiData.accumulated || 0) : 0;
                         rewardsState.wlfiUnclaimed = wlfiData ? (wlfiData.unclaimed || 0) : 0;
                         renderRewardsOverview();
-                    }).catch(e => console.warn('WLFI summary card fetch:', e));
+                    }).catch(e => {
+                        rewardsState.merklUnavailable = true;
+                        renderRewardsOverview();
+                        console.warn('WLFI summary card fetch:', e);
+                    });
 
                     // Fetch iBGT staking rewards (Berachain only)
                     if (earnChainId === 'berachain') {
