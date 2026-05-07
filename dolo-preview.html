@@ -367,16 +367,21 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 }
 .pg-current .pg-sep{color:var(--fg-4);font-weight:400}
 
-/* FLOWS — two-column */
-.flows-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid var(--line-1)}
-.flows-col{padding:0;border-left:1px solid var(--line-1)}
-.flows-col:first-child{border-left:0}
-.flows-col-head{display:flex;align-items:center;gap:8px;padding:14px 24px 10px;font-size:11px;text-transform:uppercase;letter-spacing:1.4px;font-weight:600}
+/* FLOWS — paired visual shell */
+.flows-card{background:linear-gradient(180deg,var(--bg-2),rgba(16,16,18,.98))}
+.flows-card .toolbar{background:linear-gradient(180deg,rgba(20,20,23,.96),rgba(14,14,17,.98))}
+.flows-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;padding:18px 20px 22px;border-top:1px solid var(--line-1);background:linear-gradient(90deg,rgba(117,184,123,.018),rgba(180,121,107,.022))}
+.flows-col{border:1px solid var(--line-2);border-radius:var(--r-lg);overflow:hidden;background:var(--bg-1);min-width:0;display:flex;flex-direction:column;box-shadow:0 1px 0 rgba(255,255,255,.02) inset}
+.flows-col.acc{background:linear-gradient(180deg,rgba(117,184,123,.055),rgba(15,17,15,.82));border-color:rgba(117,184,123,.18)}
+.flows-col.out{background:linear-gradient(180deg,rgba(180,121,107,.08),rgba(20,14,13,.82));border-color:rgba(180,121,107,.28);box-shadow:0 1px 0 rgba(255,255,255,.02) inset,0 0 0 1px rgba(180,121,107,.055)}
+.flows-col-head{display:flex;align-items:center;gap:8px;padding:15px 16px 13px;border-bottom:1px solid var(--line-1);font-size:13px;line-height:1;font-weight:700;color:var(--fg-1)}
 .flows-col-head.acc{color:var(--up)}
 .flows-col-head.out{color:var(--down)}
-.flows-col-head .arrow-icon{width:14px;height:14px}
-.flows-tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px}
-.flows-tbl thead th{font-size:10px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:var(--fg-3);text-align:left;padding:8px 24px;background:transparent;border-bottom:1px solid var(--line-1);user-select:none;cursor:default}
+.flows-dot{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 10px currentColor;flex-shrink:0}
+.flows-col-head .arrow-icon{display:none}
+.flows-wrap{border-radius:0;background:rgba(9,9,11,.12);flex:1;max-width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
+.flows-tbl{width:100%;min-width:520px;border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:12.5px;--stable-row-height:71px}
+.flows-tbl thead th{font-size:9.5px;font-weight:600;letter-spacing:1.05px;text-transform:uppercase;color:var(--fg-3);text-align:left;padding:11px 12px;background:rgba(9,9,11,.38);border-bottom:1px solid var(--line-1);user-select:none;cursor:default}
 .flows-tbl thead th.num{text-align:right}
 .flows-tbl thead th[data-flow-sort]{cursor:pointer;transition:color .15s var(--ease)}
 .flows-tbl thead th[data-flow-sort]:hover,
@@ -385,12 +390,12 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .flows-tbl tbody tr.flow-spacer-row{pointer-events:none;cursor:default}
 .flows-tbl tbody tr.flow-spacer-row td{color:transparent}
 .flows-tbl tbody tr.flow-spacer-row td > *{visibility:hidden}
-.flow-foot{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:14px 24px;border-top:1px solid var(--line-1);gap:12px}
-.flows-tbl tbody tr:hover td{background:var(--bg-3)}
-.flows-tbl tbody td{padding:11px 24px;color:var(--fg-1);border-bottom:1px solid var(--line-1);font-variant-numeric:tabular-nums;position:relative;vertical-align:middle}
+.flow-foot{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:12px 14px;border-top:1px solid var(--line-1);gap:12px;background:rgba(9,9,11,.16)}
+.flows-tbl tbody tr:hover td{background:rgba(255,255,255,.026)}
+.flows-tbl tbody td{padding:12px;color:var(--fg-1);border-bottom:1px solid var(--line-1);font-variant-numeric:tabular-nums;position:relative;vertical-align:middle;height:var(--stable-row-height,58px)}
 .flows-tbl tbody td.num{text-align:right;font-family:var(--mono);font-weight:500}
 .flows-tbl tbody tr:last-child td{border-bottom:0}
-.flows-tbl tbody tr:hover td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px}
+.flows-tbl tbody tr:hover td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;border-radius:0 2px 2px 0}
 .flows-col.acc .flows-tbl tbody tr:hover td:first-child::before{background:var(--up)}
 .flows-col.out .flows-tbl tbody tr:hover td:first-child::before{background:var(--down)}
 .flows-net.up{color:var(--up)}
@@ -459,8 +464,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .hero-stats{grid-template-columns:1fr 1fr;gap:18px 0;border-top:1px solid var(--line-1)}
   .hero-stat:nth-child(3){border-left:0;padding-left:0}
   .flows-grid{grid-template-columns:1fr}
-  .flows-col{border-left:0;border-top:1px solid var(--line-1)}
-  .flows-col:first-child{border-top:0}
+  .flows-tbl{min-width:500px}
 }
 @media (max-width:640px){
   .wrap{padding:24px 16px 48px}
@@ -691,7 +695,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   </section>
 
   <!-- FLOWS CARD -->
-  <section class="card">
+  <section class="card flows-card">
     <div class="card-head">
       <div class="card-title">
         <h2>DOLO Flows</h2>
@@ -799,20 +803,23 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     <div class="flows-grid">
       <div class="flows-col acc">
         <div class="flows-col-head acc">
+          <span class="flows-dot"></span>
           <svg class="arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
           Top Accumulators
         </div>
-        <table class="flows-tbl">
-          <thead>
-            <tr>
-              <th style="width:48px">#</th>
-              <th>Address</th>
-              <th class="num" data-flow-kind="acc" data-flow-sort="balance" style="width:118px">Balance</th>
-              <th class="num sorted" data-flow-kind="acc" data-flow-sort="net" style="padding-right:24px;width:130px">Net DOLO</th>
-            </tr>
-          </thead>
-          <tbody id="flows-acc-body"></tbody>
-        </table>
+        <div class="flows-wrap">
+          <table class="flows-tbl">
+            <thead>
+              <tr>
+                <th style="width:48px">#</th>
+                <th>Address</th>
+                <th class="num" data-flow-kind="acc" data-flow-sort="balance" style="width:118px">Balance</th>
+                <th class="num sorted" data-flow-kind="acc" data-flow-sort="net" style="width:130px">Net DOLO</th>
+              </tr>
+            </thead>
+            <tbody id="flows-acc-body"></tbody>
+          </table>
+        </div>
         <div class="flow-foot">
           <div class="tbl-foot-info" id="flows-acc-info">0–0 of 0</div>
           <div class="pager" id="flows-acc-pager"></div>
@@ -820,20 +827,23 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
       </div>
       <div class="flows-col out">
         <div class="flows-col-head out">
+          <span class="flows-dot"></span>
           <svg class="arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
           Top Outflows
         </div>
-        <table class="flows-tbl">
-          <thead>
-            <tr>
-              <th style="width:48px">#</th>
-              <th>Address</th>
-              <th class="num" data-flow-kind="out" data-flow-sort="balance" style="width:118px">Balance</th>
-              <th class="num sorted" data-flow-kind="out" data-flow-sort="net" style="padding-right:24px;width:130px">Net DOLO</th>
-            </tr>
-          </thead>
-          <tbody id="flows-out-body"></tbody>
-        </table>
+        <div class="flows-wrap">
+          <table class="flows-tbl">
+            <thead>
+              <tr>
+                <th style="width:48px">#</th>
+                <th>Address</th>
+                <th class="num" data-flow-kind="out" data-flow-sort="balance" style="width:118px">Balance</th>
+                <th class="num sorted" data-flow-kind="out" data-flow-sort="net" style="width:130px">Net DOLO</th>
+              </tr>
+            </thead>
+            <tbody id="flows-out-body"></tbody>
+          </table>
+        </div>
         <div class="flow-foot">
           <div class="tbl-foot-info" id="flows-out-info">0–0 of 0</div>
           <div class="pager" id="flows-out-pager"></div>
@@ -1280,7 +1290,7 @@ function renderFlow(target, kind){
           </div>
         </td>
         <td class="num"><span class="bal-val">${balance>0 ? fmtNum(balance) : "—"}</span></td>
-        <td class="num" style="padding-right:24px"><span class="flows-net ${cls}">${sign}${fmtNum(r.chg)}</span></td>
+        <td class="num"><span class="flows-net ${cls}">${sign}${fmtNum(r.chg)}</span></td>
       </tr>
     `;
   }).join("");
@@ -1300,7 +1310,7 @@ function renderFlow(target, kind){
           </div>
         </td>
         <td class="num"><span class="bal-val">0</span></td>
-        <td class="num" style="padding-right:24px"><span class="flows-net ${kind==="acc" ? "up" : "down"}">0</span></td>
+        <td class="num"><span class="flows-net ${kind==="acc" ? "up" : "down"}">0</span></td>
       </tr>
     `).join("");
   tbody.innerHTML = rowHtml + spacerRowsHtml;

@@ -396,7 +396,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .flow-col-unlock .flow-head-title{color:var(--down)}
 .flow-head-count{font-size:11px;font-family:var(--mono);font-weight:500;color:var(--fg-3);white-space:nowrap}
 .flow-col .tbl-wrap{border-radius:0;background:rgba(9,9,11,.12);flex:1}
-.flow-col .tbl{min-width:520px;table-layout:fixed;font-size:12.5px;--stable-row-height:71px}
+.flow-col .tbl{min-width:480px;table-layout:fixed;font-size:12.5px;--stable-row-height:71px}
+#unlocks-table{min-width:380px}
 .flow-col .tbl th{padding:11px 12px;background:rgba(9,9,11,.38);font-size:9.5px;letter-spacing:1.05px}
 .flow-col .tbl td{padding:12px 12px;height:var(--stable-row-height,58px)}
 .flow-col .tbl > tbody > tr:hover > td{background:rgba(255,255,255,.026)}
@@ -405,23 +406,23 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .flow-col .tbl-foot{padding:12px 14px;background:rgba(9,9,11,.16)}
 .flow-col .pager span{padding:0 8px}
 #locks-table col.flow-rank,#unlocks-table col.flow-rank{width:44px}
-#locks-table col.flow-date,#unlocks-table col.flow-date{width:108px}
+#locks-table col.flow-source{width:92px}
 #locks-table col.flow-amount,#unlocks-table col.flow-amount{width:120px}
 #locks-table col.flow-lock{width:66px}
 .flow-tx{display:flex;flex-direction:column;gap:5px;min-width:0}
 .flow-tx-line{display:flex;align-items:center;gap:6px;min-width:0}
 .flow-address-main{flex-wrap:nowrap}
 .flow-address-main .addr{min-width:0;overflow:hidden;text-overflow:ellipsis}
-.flow-date-cell{display:flex;flex-direction:column;align-items:flex-start;gap:3px;font-family:var(--mono);white-space:nowrap;line-height:1.2;color:var(--fg-2)}
-.flow-date-top{display:flex;align-items:center;gap:6px;min-width:0}
-.flow-date-cell strong{font-size:11px;font-weight:600;color:var(--fg-1);letter-spacing:0}
-.flow-date-cell small{font-size:10px;color:var(--fg-4);letter-spacing:.1px}
+.flow-address-meta{display:flex;align-items:center;gap:6px;min-width:0;font-family:var(--mono);font-size:10.5px;line-height:1.2;color:var(--fg-3);white-space:nowrap}
+.flow-address-meta span{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .flow-col .tx-only-link{width:18px;height:18px;border-radius:5px;margin:0;background:transparent;border-color:transparent;color:var(--fg-3);opacity:.5}
 .flow-col-lock .tx-only-link{color:#9bcf9f}
 .flow-col-unlock .tx-only-link{color:#d5a095}
 .flow-col .tx-only-link:hover{color:var(--gold);background:var(--gold-wash);border-color:var(--gold-line)}
 .flow-col .addr{font-size:12px}
 .flow-col .tag{max-width:96px;overflow:hidden;text-overflow:ellipsis;font-size:9px;padding:2px 6px;letter-spacing:.25px;flex-shrink:0}
+.flow-route-head,.flow-route-cell{text-align:center}
+.flow-route-cell .flow-source-tag{justify-content:center;max-width:100%}
 .chart-card{min-height:340px}
 .expiry-card .card-body{padding-top:18px}
 .expiry-focus{display:block;margin:0 0 18px;padding:14px 16px;border:1px solid var(--line-1);border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,.036),rgba(255,255,255,.014));box-shadow:inset 0 1px 0 rgba(255,255,255,.035)}
@@ -551,16 +552,17 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   .addr{font-size:11px}
   .subline{font-size:10px}
   .tag{padding:2px 5px;font-size:9px}
-  .flow-col .tbl{min-width:500px}
+  .flow-col .tbl{min-width:480px}
+  #unlocks-table{min-width:360px}
   #holders-table{--stable-row-height:64px}
   #exits-table{--stable-row-height:64px}
   .flow-col .tbl{--stable-row-height:70.25px}
   #locks-table col.flow-rank,#unlocks-table col.flow-rank{width:42px}
-  #locks-table col.flow-date,#unlocks-table col.flow-date{width:98px}
+  #locks-table col.flow-source{width:82px}
   #locks-table col.flow-amount,#unlocks-table col.flow-amount{width:104px}
   #locks-table col.flow-lock{width:58px}
   .flow-col .tbl th,.flow-col .tbl td{padding-left:8px;padding-right:8px}
-  .flow-date-cell small{font-size:9.5px}
+  .flow-address-meta{font-size:10px}
   .expiry-chart{grid-template-columns:56px minmax(0,1fr);gap:10px}
   .expiry-axis{font-size:9.5px}
   .expiry-card .expiry-bars{gap:10px;padding-left:10px;padding-right:10px}
@@ -818,11 +820,11 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
         <div class="flow-head"><div class="flow-head-title"><span class="flow-dot"></span>Recent DOLO Locks</div><span class="flow-head-count" id="locks-count">--</span></div>
         <div class="tbl-wrap">
           <table class="tbl" id="locks-table">
-            <colgroup><col class="flow-rank"><col class="flow-date"><col><col class="flow-amount"><col class="flow-lock"></colgroup>
+            <colgroup><col class="flow-rank"><col><col class="flow-source"><col class="flow-amount"><col class="flow-lock"></colgroup>
             <thead><tr>
               <th class="sortable sorted" data-sort="rank"><span class="th-content"># <span class="sort-arrow"></span></span></th>
-              <th>DATE</th>
               <th>Address</th>
+              <th class="flow-route-head">Route</th>
               <th class="num sortable" data-sort="dolo"><span class="th-content">DOLO <span class="sort-arrow"></span></span></th>
               <th class="num sortable" data-sort="lock"><span class="th-content">Lock <span class="sort-arrow"></span></span></th>
             </tr></thead>
@@ -835,14 +837,13 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
         <div class="flow-head"><div class="flow-head-title"><span class="flow-dot"></span>Recent veDOLO Unlocks</div><span class="flow-head-count" id="unlocks-count">--</span></div>
         <div class="tbl-wrap">
           <table class="tbl" id="unlocks-table">
-            <colgroup><col class="flow-rank"><col class="flow-date"><col><col class="flow-amount"></colgroup>
+            <colgroup><col class="flow-rank"><col><col class="flow-amount"></colgroup>
             <thead><tr>
               <th class="sortable sorted" data-sort="rank"><span class="th-content"># <span class="sort-arrow"></span></span></th>
-              <th>DATE</th>
               <th>Address</th>
               <th class="num sortable" data-sort="dolo"><span class="th-content">DOLO <span class="sort-arrow"></span></span></th>
             </tr></thead>
-            <tbody id="unlocks-body"><tr class="loading-row"><td colspan="4">Loading unlocks...</td></tr></tbody>
+            <tbody id="unlocks-body"><tr class="loading-row"><td colspan="3">Loading unlocks...</td></tr></tbody>
           </table>
         </div>
         <div class="tbl-foot"><div class="tbl-foot-info" id="unlocks-info">--</div><div class="pager" id="unlocks-pager"></div></div>
@@ -1078,22 +1079,18 @@ function flowSourceTag(kind){
   const meta = FLOW_SOURCE_META[kind] || FLOW_SOURCE_META.direct;
   return `<span class="tag flow-source-tag ${esc(meta.cls)}" tabindex="0" data-tooltip="${esc(`${meta.title}: ${meta.body}`)}" aria-label="${esc(`${meta.title}: ${meta.body}`)}">${esc(meta.label)}</span>`;
 }
-function flowDateCell(date, txHash, timestamp){
+function flowDateLine(date, txHash, timestamp){
   const label = eventDateLabel(date, timestamp);
-  const timeLine = eventTimeLine(date, timestamp);
-  return `<div class="flow-date-cell" aria-label="${esc(label)}">
-    <div class="flow-date-top"><strong>${esc(label)}</strong>${txIconCell(txHash)}</div>
-    ${timeLine ? `<small>${esc(timeLine)}</small>` : ""}
-  </div>`;
+  return `<div class="flow-address-meta" aria-label="${esc(label)}"><span>${esc(label)}</span>${txIconCell(txHash)}</div>`;
 }
-function flowAddressCell(addr, tagHtml=""){
+function flowAddressCell(addr, date, txHash, timestamp){
   const displayAddr = addr || "";
   return `<div class="flow-tx flow-address-cell">
     <div class="flow-tx-line flow-address-main">
       <a class="addr addr-tooltip-wrap" href="https://debank.com/profile/${esc(displayAddr)}" target="_blank" rel="noopener" data-full-addr="${esc(displayAddr)}">${esc(shortAddr(displayAddr))}</a>
       <button class="copy-btn" data-copy="${esc(displayAddr)}">${copySvg}</button>
-      ${tagHtml}
     </div>
+    ${flowDateLine(date, txHash, timestamp)}
   </div>`;
 }
 function holderCell(h){
@@ -1698,7 +1695,7 @@ function renderLocks(){
     const displayAddr = l.beneficiaryAddress || l.address;
     const sourceKey = l.isOdolo ? (l.addressSource === "odolo-vester-fallback" ? "protocol" : "odolo") : "direct";
     const tag = flowSourceTag(sourceKey);
-    return `<tr class="stable-data-row"><td><span class="rank">${fmtInt(start+i+1)}</span></td><td>${flowDateCell(l.date, l.txHash, l.timestamp)}</td><td>${flowAddressCell(displayAddr, tag)}</td><td class="num" style="color:var(--up)">${fmtDolo(l.dolo)}</td><td class="num">${fmtLock(l.lockDays)}</td></tr>`;
+    return `<tr class="stable-data-row"><td><span class="rank">${fmtInt(start+i+1)}</span></td><td>${flowAddressCell(displayAddr, l.date, l.txHash, l.timestamp)}</td><td class="flow-route-cell">${tag}</td><td class="num" style="color:var(--up)">${fmtDolo(l.dolo)}</td><td class="num">${fmtLock(l.lockDays)}</td></tr>`;
   }).join("") : '<tr class="loading-row table-empty-row"><td colspan="5">No locks in this period.</td></tr>';
   qs("#locks-body").innerHTML = lockRows + tableSpacerRows(st.perPage - Math.max(pageRows.length, 1), 5);
   setText("locks-count", rows.length === state.locks.length ? fmtInt(rows.length) : `${fmtInt(rows.length)} / ${fmtInt(state.locks.length)}`);
@@ -1713,8 +1710,8 @@ function renderUnlocks(){
   if(st.unlocksPage > pages) st.unlocksPage = pages;
   const start = (st.unlocksPage-1)*st.perPage;
   const pageRows = rows.slice(start,start+st.perPage);
-  const unlockRows = pageRows.length ? pageRows.map((u,i) => `<tr class="stable-data-row"><td><span class="rank">${fmtInt(start+i+1)}</span></td><td>${flowDateCell(u.date, u.txHash, u.timestamp)}</td><td>${flowAddressCell(u.address)}</td><td class="num" style="color:var(--down)">${fmtDolo(u.dolo)}</td></tr>`).join("") : '<tr class="loading-row table-empty-row"><td colspan="4">No unlocks in this period.</td></tr>';
-  qs("#unlocks-body").innerHTML = unlockRows + tableSpacerRows(st.perPage - Math.max(pageRows.length, 1), 4);
+  const unlockRows = pageRows.length ? pageRows.map((u,i) => `<tr class="stable-data-row"><td><span class="rank">${fmtInt(start+i+1)}</span></td><td>${flowAddressCell(u.address, u.date, u.txHash, u.timestamp)}</td><td class="num" style="color:var(--down)">${fmtDolo(u.dolo)}</td></tr>`).join("") : '<tr class="loading-row table-empty-row"><td colspan="3">No unlocks in this period.</td></tr>';
+  qs("#unlocks-body").innerHTML = unlockRows + tableSpacerRows(st.perPage - Math.max(pageRows.length, 1), 3);
   setText("unlocks-count", rows.length === state.unlocks.length ? fmtInt(rows.length) : `${fmtInt(rows.length)} / ${fmtInt(state.unlocks.length)}`);
   setText("unlocks-info", rows.length ? `${fmtInt(start+1)}-${fmtInt(Math.min(start+st.perPage,rows.length))} of ${fmtInt(rows.length)}` : "0 of 0");
   updatePager("unlocks", rows.length, st.unlocksPage, st.perPage);
@@ -1835,8 +1832,8 @@ function emitQaReport(){
     const unlockCol = qs(".flow-col-unlock");
     const locksFirstRowCells = qsa("#locks-body tr:first-child td");
     const unlocksFirstRowCells = qsa("#unlocks-body tr:first-child td");
-    const locksTxLink = qs("#locks-body tr:first-child td:last-child a");
-    const unlocksTxLink = qs("#unlocks-body tr:first-child td:last-child a");
+    const locksTxLink = qs("#locks-body tr:first-child .flow-address-meta a");
+    const unlocksTxLink = qs("#unlocks-body tr:first-child .flow-address-meta a");
     const flowTxLinks = qsa(".flow-col .tx-only-link");
     const flowSourceTags = qsa("#locks-body .flow-source-tag");
     const exitSuite = qs(".exit-suite");
@@ -1944,14 +1941,14 @@ function emitQaReport(){
       unlocksWrapScrollWidth: unlocksWrap ? unlocksWrap.scrollWidth : 0,
       locksFirstRowCellCount: locksFirstRowCells.length,
       unlocksFirstRowCellCount: unlocksFirstRowCells.length,
-      locksTxLastCellHasOnlyIcon: !!(locksTxLink && !(locksTxLink.textContent || "").trim()),
-      unlocksTxLastCellHasOnlyIcon: !!(unlocksTxLink && !(unlocksTxLink.textContent || "").trim()),
+      locksAddressDateTxHasOnlyIcon: !!(locksTxLink && !(locksTxLink.textContent || "").trim()),
+      unlocksAddressDateTxHasOnlyIcon: !!(unlocksTxLink && !(unlocksTxLink.textContent || "").trim()),
       flowTxIconCount: flowTxLinks.length,
       flowTxIconSizes: flowTxLinks.slice(0,4).map(el => {
         const rect = el.getBoundingClientRect();
         return `${Math.round(rect.width)}x${Math.round(rect.height)}`;
       }),
-      flowDateOverflow: qsa(".flow-date").some(el => el.scrollWidth > el.clientWidth + 1),
+      flowAddressDateOverflow: qsa(".flow-address-meta span").some(el => el.scrollWidth > el.clientWidth + 1),
       unlockBorderColor: unlockCol ? getComputedStyle(unlockCol).borderColor : "",
       unlockBackground: unlockCol ? getComputedStyle(unlockCol).backgroundImage : "",
       exitSuiteExists: !!exitSuite,
