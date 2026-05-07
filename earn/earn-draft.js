@@ -179,15 +179,56 @@
     });
   }
 
+  let earnTooltipCleanupObserver = null;
+  const EARN_ACTION_TIP_RE = /^(copy address|copy ca|view on|open in|open transaction|clear(?: search| filter| chain filter| category filter| hf filter| collateral filter| debt filter)?|hide dust positions|show asset details|hide asset details|show position details|hide position details|sort by\b)/i;
+
+  function isEarnActionTip(el, value) {
+    const text = String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
+    if (!text) return false;
+    const isActionEl = el.matches("button,a,[role='button'],[onclick],.copy-addr-icon,.debank-icon,.search-clear,.earn-row-details-button,.earn-section-collapse-button,.dust-pill");
+    return isActionEl || EARN_ACTION_TIP_RE.test(text);
+  }
+
+  function cleanEarnActionTooltips(root = document) {
+    const view = document.getElementById("view-earn");
+    if (!view) return;
+    const scope = root.nodeType === 1 ? root : document;
+    const scanRoot = scope === document ? view : scope;
+    const nodes = scanRoot.matches && scanRoot.matches("[title], [data-tip]") ? [scanRoot] : [];
+    scanRoot.querySelectorAll?.("[title], [data-tip]").forEach(node => nodes.push(node));
+    nodes.forEach(el => {
+      if (!view.contains(el)) return;
+      const title = el.getAttribute("title");
+      if (title && isEarnActionTip(el, title)) el.removeAttribute("title");
+      const tip = el.getAttribute("data-tip");
+      if (tip && isEarnActionTip(el, tip)) el.removeAttribute("data-tip");
+    });
+  }
+
+  function installEarnTooltipCleanup() {
+    cleanEarnActionTooltips();
+    if (earnTooltipCleanupObserver) return;
+    earnTooltipCleanupObserver = new MutationObserver(records => {
+      records.forEach(record => {
+        record.addedNodes.forEach(node => {
+          if (node.nodeType === 1) cleanEarnActionTooltips(node);
+        });
+      });
+    });
+    earnTooltipCleanupObserver.observe(document.body, { childList: true, subtree: true });
+  }
+
   function boot() {
     document.body.classList.add("earn-draft-route");
     addPremiumHeader();
     tuneHeroMarkup();
     installDoloProtocolInfo();
+    installEarnTooltipCleanup();
     forceEarnView();
     setTimeout(forceEarnView, 250);
     setTimeout(tuneHeroMarkup, 250);
     setTimeout(installDoloProtocolInfo, 250);
+    setTimeout(cleanEarnActionTooltips, 250);
   }
 
   if (document.readyState === "loading") {
