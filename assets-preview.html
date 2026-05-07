@@ -801,24 +801,6 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease);
 }
 .calc-help:hover,.calc-help:focus-visible{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash);outline:0}
-.calc-help-tip{
-  position:absolute;left:50%;bottom:calc(100% + 9px);z-index:5;
-  width:min(320px,calc(100vw - 56px));
-  transform:translateX(-50%) translateY(4px);
-  opacity:0;pointer-events:none;
-  padding:10px 12px;border-radius:8px;
-  color:var(--fg-2);background:rgba(15,15,17,.98);
-  border:1px solid var(--line-3);box-shadow:var(--sh-hi);
-  font-family:'Inter',system-ui,sans-serif;font-size:11px;font-weight:500;letter-spacing:0;text-transform:none;line-height:1.45;
-  transition:opacity .15s var(--ease),transform .15s var(--ease);
-}
-.calc-help-tip::after{
-  content:"";position:absolute;left:50%;top:100%;transform:translateX(-50%);
-  border:6px solid transparent;border-top-color:rgba(15,15,17,.98);
-}
-.calc-help:hover .calc-help-tip,
-.calc-help:focus-visible .calc-help-tip{opacity:0;display:none}
-
 .calc-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%}
 .calc-tabs{display:inline-flex;background:var(--bg-3);border:1px solid var(--line-2);border-radius:8px;padding:3px;position:relative}
 .calc-tab{padding:6px 14px;font-size:11px;font-weight:600;letter-spacing:.4px;color:var(--fg-3);border-radius:6px;cursor:pointer;transition:color .2s var(--ease),background .2s var(--ease)}
@@ -2116,7 +2098,7 @@ function updateHero(){
   }
   CHAIN_COUNT_TOTAL = new Set(ASSETS.map(r=>r.chain)).size || CHAIN_COUNT_TOTAL;
   const netCount = document.querySelector("#dd-net .dd-btn .count");
-  if(netCount && state.nets.size === 0) netCount.textContent = String(CHAIN_COUNT_TOTAL);
+  if(netCount && state.nets.size === 0) netCount.textContent = `${CHAIN_COUNT_TOTAL}/${CHAIN_COUNT_TOTAL}`;
   const protoSub = document.getElementById("proto-market-sub");
   if(protoSub) protoSub.innerHTML = `Lending &amp; margin · <b>${data.length} live markets</b> · <b>${allChains.size} chains</b>`;
 }
@@ -2310,7 +2292,6 @@ function render(){
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="13" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="10" y2="18"/><line x1="13" y1="18" x2="16" y2="18"/></svg>
                   Yield Calculator
                   <span class="calc-help" tabindex="0" aria-label="Yield calculator note" data-tooltip="Only the native lending portion of APR reacts to utilization changes. Any oDOLO rewards${r.yield>0?" and external yield":""} apply on top and don't depend on your deposit.">?
-                    <span class="calc-help-tip">Only the native lending portion of APR reacts to utilization changes. Any oDOLO rewards${r.yield>0?" and external yield":""} apply on top and don't depend on your deposit.</span>
                   </span>
                 </div>
                 <div class="calc-controls">

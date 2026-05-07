@@ -497,7 +497,6 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
 #tbl-ex .ex-detail-table .detail-col-usdc{width:118px}
 #tbl-ex .ex-detail-table .detail-col-price{width:96px}
 #tbl-ex .ex-detail-table .detail-col-lock{width:88px}
-#tbl-ex .ex-detail-table .detail-col-tx{width:64px}
 #tbl-ex .ex-detail-table th{
   position:sticky;top:0;z-index:4;padding:10px 12px;background:#101012;border-bottom:1px solid var(--line-2);
   color:var(--fg-3);font-size:9.5px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;text-align:left;white-space:nowrap;
@@ -509,7 +508,7 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
   color:var(--gold);background:#101012;box-shadow:0 10px 18px rgba(0,0,0,.18);
 }
 #tbl-ex .ex-detail-table .detail-sort{
-  display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;margin-left:6px;border-radius:4px;
+  display:inline-flex;align-items:center;justify-content:center;min-width:0;height:16px;margin-left:6px;border-radius:4px;
   color:currentColor;background:transparent;font-size:9px;line-height:1;vertical-align:middle;
 }
 #tbl-ex .ex-detail-table th:first-child{text-align:right}
@@ -540,8 +539,6 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
 }
 #tbl-ex .ex-detail-table a svg{width:12px;height:12px}
 #tbl-ex .ex-detail-table a:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(255,255,255,.04)}
-#tbl-ex .ex-detail-table th.detail-tx-head,
-#tbl-ex .ex-detail-table td.detail-tx-cell{text-align:center}
 #tbl-ex .ex-detail-table a.latest-tx{
   width:28px;min-width:28px;height:28px;padding:0;gap:0;border-radius:6px;
 }
@@ -2630,8 +2627,8 @@ function detailSortHeader(key, label, cls=""){
   const active = state.exDetailSort.key === key;
   const className = [cls, active ? "sorted" : ""].filter(Boolean).join(" ");
   const aria = active ? ` aria-sort="${state.exDetailSort.dir === "asc" ? "ascending" : "descending"}"` : "";
-  const sort = active ? `<span class="detail-sort">${state.exDetailSort.dir === "asc" ? "▲" : "▼"}</span>` : `<span class="detail-sort">⇅</span>`;
-  return `<th class="${className}" data-ex-detail-sort="${key}" title="Sort by ${esc(label)}" aria-label="Sort by ${esc(label)}"${aria}>${label}${sort}</th>`;
+  const sort = active ? `<span class="detail-sort">${state.exDetailSort.dir === "asc" ? "▲" : "▼"}</span>` : "";
+  return `<th class="${className}" data-ex-detail-sort="${key}" aria-label="Sort by ${esc(label)}"${aria}>${label}${sort}</th>`;
 }
 function getLatestExerciseRows(){
   const source = LIVE.exercisers?.exercisers || [];
@@ -2815,17 +2812,22 @@ function renderExerciserDetailRow(r){
     const hash = tx.hash || "";
     const hashLabel = hash ? `${hash.slice(0,6)}…${hash.slice(-4)}` : "—";
     const txLink = hash
-      ? `<a class="latest-tx" href="https://berascan.com/tx/${esc(hash)}" target="_blank" rel="noopener" title="Open transaction on Berascan: ${esc(hashLabel)}" aria-label="Open transaction on Berascan">${EXTERNAL_ICO}</a>`
+      ? `<a class="latest-tx" href="https://berascan.com/tx/${esc(hash)}" target="_blank" rel="noopener" aria-label="Open transaction ${esc(hashLabel)}">${EXTERNAL_ICO}</a>`
       : `<span class="latest-tx latest-tx-empty" aria-label="No transaction">—</span>`;
+    const timestamp = exerciseTimeMs(tx);
     return `
       <tr>
         <td class="mono ex-detail-rank" data-label="#">${i + 1}</td>
-        <td data-label="DATE">${esc(fmtDate(tx.date))}</td>
+        <td data-label="DATE">
+          <div class="latest-date">
+            <div class="latest-date-top"><strong>${esc(fmtDate(tx.date))}</strong>${txLink}</div>
+            <span>${esc(fmtRelativeTime(timestamp))} · ${esc(fmtClockTime(timestamp))}</span>
+          </div>
+        </td>
         <td class="num mono" data-label="veDOLO">${fmtTokenFull(vedolo)}</td>
         <td class="num mono" data-label="USDC Paid"><span class="bal-val usd">${fmtUsdFull(usd)}</span></td>
         <td class="num mono" data-label="Price"><span class="bal-val price">${fmtPrice(price)}</span></td>
         <td class="num mono" data-label="Lock"><span class="ex-detail-lock ${lockClass}">${fmtLock(lockDays)}</span></td>
-        <td class="detail-tx-cell" data-label="Tx">${txLink}</td>
       </tr>
     `;
   }).join("");
@@ -2839,7 +2841,6 @@ function renderExerciserDetailRow(r){
           <col class="detail-col-usdc">
           <col class="detail-col-price">
           <col class="detail-col-lock">
-          <col class="detail-col-tx">
         </colgroup>
         <thead>
           <tr>
@@ -2849,7 +2850,6 @@ function renderExerciserDetailRow(r){
             ${detailSortHeader("usdc", "USDC Paid", "num")}
             ${detailSortHeader("price", "Price", "num")}
             ${detailSortHeader("lock", "Lock", "num")}
-            <th class="detail-tx-head">Tx</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>

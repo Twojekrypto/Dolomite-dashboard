@@ -162,12 +162,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .tag.cyan{color:var(--cyan);background:rgba(143,183,200,.09);border-color:var(--cyan-line)}
 .flow-source-tag{cursor:help;outline:0;transition:border-color .15s var(--ease),background .15s var(--ease),color .15s var(--ease),box-shadow .15s var(--ease)}
 .flow-source-tag:hover,.flow-source-tag:focus-visible{box-shadow:0 0 0 3px rgba(201,162,39,.07)}
-.flow-source-tooltip{position:fixed;left:0;top:0;z-index:140;pointer-events:none;width:min(270px,calc(100vw - 28px));padding:10px 12px;border:1px solid rgba(201,162,39,.24);border-radius:10px;background:linear-gradient(180deg,rgba(18,18,20,.98),rgba(10,10,12,.98));box-shadow:0 18px 44px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.04);opacity:0;transform:translate(-50%,calc(-100% - 8px));transition:opacity .12s ease,transform .12s ease;color:var(--fg-2)}
-.flow-source-tooltip.show{opacity:1;transform:translate(-50%,calc(-100% - 12px))}
-.flow-source-tooltip.below{transform:translate(-50%,8px)}
-.flow-source-tooltip.below.show{transform:translate(-50%,12px)}
-.flow-source-tooltip b{display:block;margin-bottom:4px;font-size:11px;letter-spacing:.9px;text-transform:uppercase;color:var(--fg-1)}
-.flow-source-tooltip span{display:block;font-size:11.5px;line-height:1.45;color:var(--fg-3)}
 .tbl-foot{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:14px 24px;border-top:1px solid var(--line-1);gap:12px}
 .tbl-foot-info{font-size:12px;color:var(--fg-3);font-family:var(--mono);text-align:left;grid-column:1}
 .pager{display:inline-flex;align-items:center;gap:4px;grid-column:2;justify-self:center}
@@ -449,10 +443,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .expiry-bar:focus-visible{outline:1px solid var(--gold);outline-offset:3px;transform:scaleX(1.08)}
 .expiry-bar-wrap.active .expiry-label{color:var(--fg-1)}
 .expiry-label{font-size:11px;color:var(--fg-3);font-family:var(--mono);white-space:nowrap}
-.expiry-tooltip{position:absolute;left:0;top:0;z-index:7;pointer-events:none;transform:translate(10px,-50%);white-space:nowrap;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));border:1px solid var(--gold-line);border-radius:8px;padding:8px 10px;font-family:var(--mono);font-size:12px;font-weight:700;line-height:1;color:var(--fg-1);box-shadow:0 14px 34px rgba(0,0,0,.38);opacity:0;transition:opacity .12s ease,transform .12s ease}
-.expiry-tooltip.show{opacity:1}
-.expiry-tooltip.left{transform:translate(calc(-100% - 10px),-50%)}
-.expiry-tooltip.above{transform:translate(-50%,calc(-100% - 10px))}
 .loading-row td{height:54px;color:var(--fg-3)!important;text-align:center!important}
 .stable-data-row > td,.table-spacer-row > td{height:var(--stable-row-height,54px)}
 .table-spacer-row{pointer-events:none}
@@ -765,7 +755,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
       <div class="expiry-chart" id="expiry-chart">
         <div class="expiry-axis" aria-hidden="true"><span id="expiry-axis-max">--</span><span id="expiry-axis-mid">--</span><span>0</span></div>
         <div class="expiry-bars" id="expiry-bars"></div>
-        <div class="expiry-tooltip" id="expiry-tooltip" aria-hidden="true"></div>
       </div>
     </div>
   </section>
@@ -919,8 +908,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 
   <div class="foot">veDOLO dashboard - <span id="now"></span></div>
 </div>
-<div class="flow-source-tooltip" id="flow-source-tooltip" aria-hidden="true"></div>
-
 <script>
 const state = {
   stats:{}, holders:[], exits:[], locks:[], unlocks:[], expiry:null, price:null,
@@ -1162,7 +1149,7 @@ function holderDetailSortHeader(key, label, cls=""){
   const className = [cls, active ? "sorted" : ""].filter(Boolean).join(" ");
   const aria = active ? ` aria-sort="${state.holder.detailAsc ? "ascending" : "descending"}"` : "";
   const sort = active ? `<span class="detail-sort">${state.holder.detailAsc ? "▲" : "▼"}</span>` : "";
-  return `<th class="${className}" data-holder-detail-sort="${key}" title="Sort by ${esc(label)}" aria-label="Sort by ${esc(label)}"${aria}>${esc(label)}${sort}</th>`;
+  return `<th class="${className}" data-holder-detail-sort="${key}" aria-label="Sort by ${esc(label)}"${aria}>${esc(label)}${sort}</th>`;
 }
 function renderHolderDetailRow(h){
   const rows = sortedHolderPositions(h).map((p,i) => {
@@ -1423,7 +1410,6 @@ function renderExpiry(){
   const focusLabel = qs("#expiry-focus-label");
   const axisMax = qs("#expiry-axis-max");
   const axisMid = qs("#expiry-axis-mid");
-  const tooltip = qs("#expiry-tooltip");
   const segments = buckets.map((b,idx) => {
     const dolo = num(b.dolo);
     const share = total ? dolo/total*100 : 0;
@@ -1451,39 +1437,12 @@ function renderExpiry(){
   if(axisMid) axisMid.textContent = fmtDolo(max/2);
   bars.innerHTML = segments.map(s => {
     const label = `${s.label}: ${fmtDolo(s.dolo)}`;
-    return `<div class="expiry-bar-wrap" data-expiry-idx="${s.idx}"><button class="expiry-bar ${s.cls}" type="button" data-expiry-idx="${s.idx}" style="height:${s.height}%" aria-label="${esc(label)}" aria-pressed="false"></button><div class="expiry-label">${esc(s.label)}</div></div>`;
+    return `<div class="expiry-bar-wrap" data-expiry-idx="${s.idx}"><button class="expiry-bar ${s.cls}" type="button" data-expiry-idx="${s.idx}" style="height:${s.height}%" aria-label="${esc(label)}" aria-pressed="false" data-tooltip="${esc(label)}" data-tooltip-mono="true"></button><div class="expiry-label">${esc(s.label)}</div></div>`;
   }).join("");
 
   const wraps = [...bars.querySelectorAll(".expiry-bar-wrap")];
   const buttons = [...bars.querySelectorAll(".expiry-bar")];
   let pinned = -1;
-
-  function positionExpiryTooltip(target, segment){
-    if(!tooltip || !target || !segment) return;
-    const rect = target.getBoundingClientRect();
-    const parent = (chart || bars).getBoundingClientRect();
-    tooltip.textContent = fmtDolo(segment.dolo);
-    tooltip.classList.add("show");
-    tooltip.setAttribute("aria-hidden","false");
-    const tipWidth = tooltip.getBoundingClientRect().width;
-    const barCenterY = rect.top + rect.height/2 - parent.top;
-    const rightX = rect.right - parent.left;
-    const leftX = rect.left - parent.left;
-    const centerX = rect.left + rect.width/2 - parent.left;
-    const placeAbove = rect.height < 36;
-    const placeLeft = rightX + tipWidth + 18 > parent.width && leftX > tipWidth + 18;
-    tooltip.classList.toggle("above", placeAbove);
-    tooltip.classList.toggle("left", !placeAbove && placeLeft);
-    if(placeAbove){
-      const minLeft = tipWidth/2 + 8;
-      const maxLeft = Math.max(minLeft, parent.width - tipWidth/2 - 8);
-      tooltip.style.left = `${Math.min(Math.max(centerX,minLeft),maxLeft)}px`;
-      tooltip.style.top = `${Math.max(24, rect.top - parent.top)}px`;
-      return;
-    }
-    tooltip.style.left = `${placeLeft ? leftX : rightX}px`;
-    tooltip.style.top = `${Math.min(Math.max(barCenterY,18),parent.height - 18)}px`;
-  }
 
   function setExpiryFocus(idx, target){
     const active = idx >= 0 ? segments[idx] : null;
@@ -1497,18 +1456,11 @@ function renderExpiry(){
       if(focusTitle) focusTitle.textContent = `${active.label} expiry`;
       if(focusValue) focusValue.textContent = fmtDolo(active.dolo);
       if(focusLabel) focusLabel.textContent = "Selected expiry bucket";
-      positionExpiryTooltip(target || buttons[idx], active);
       return;
     }
     if(focusTitle) focusTitle.textContent = "All expiry buckets";
     if(focusValue) focusValue.textContent = fmtDolo(total);
     if(focusLabel) focusLabel.textContent = `${fmtInt(segments.length)} expiry buckets; largest bucket is ${peakBucket ? peakBucket.label : "--"}`;
-    if(tooltip){
-      tooltip.classList.remove("show");
-      tooltip.classList.remove("left");
-      tooltip.classList.remove("above");
-      tooltip.setAttribute("aria-hidden","true");
-    }
   }
 
   buttons.forEach(btn => {
@@ -1864,7 +1816,6 @@ function emitQaReport(){
     const expiryBars = qs("#expiry-bars");
     const expiryFocus = qs("#expiry-focus");
     const expiryFirstBar = qs("#expiry-bars .expiry-bar");
-    const expiryTooltip = qs("#expiry-tooltip");
     const durationCard = qs(".duration-card");
     const durationBars = qs("#duration-bars");
     const durationFocus = qs("#duration-focus");
@@ -1888,7 +1839,6 @@ function emitQaReport(){
     const unlocksTxLink = qs("#unlocks-body tr:first-child td:last-child a");
     const flowTxLinks = qsa(".flow-col .tx-only-link");
     const flowSourceTags = qsa("#locks-body .flow-source-tag");
-    const flowSourceTooltip = qs("#flow-source-tooltip");
     const exitSuite = qs(".exit-suite");
     const exitCards = qsa(".exit-suite");
     const exitSummary = qs(".exit-summary");
@@ -1953,8 +1903,7 @@ function emitQaReport(){
       expiryLegendText: qs(".expiry-legend") ? qs(".expiry-legend").textContent.trim().replace(/\s+/g," ") : "",
       expiryFocusStatCount: qsa(".expiry-focus-stat").length,
       expiryInteractiveBarCount: qsa("#expiry-bars .expiry-bar[data-expiry-idx]").length,
-      expiryTooltipExists: !!expiryTooltip,
-      expiryTooltipWidth: expiryTooltip ? Math.round(expiryTooltip.getBoundingClientRect().width) : 0,
+      expiryTooltipMode: "shared",
       expiryBarCursor: expiryFirstBar ? getComputedStyle(expiryFirstBar).cursor : "",
       expiryBarTransition: expiryFirstBar ? getComputedStyle(expiryFirstBar).transitionProperty : "",
       durationCardWidth: durationCard ? Math.round(durationCard.getBoundingClientRect().width) : 0,
@@ -2039,10 +1988,10 @@ function emitQaReport(){
       holderPositionFilterExists: !!qs(".holders-card .toolbar .dd"),
       locksTableHeaders: qsa("#locks-table thead th").map(th => th.textContent.trim().replace(/\s+/g," ")),
       unlocksTableHeaders: qsa("#unlocks-table thead th").map(th => th.textContent.trim().replace(/\s+/g," ")),
-      flowSourceTooltipExists: !!flowSourceTooltip,
+      flowSourceTooltipMode: "shared",
       flowSourceTagCount: flowSourceTags.length,
       flowSourceTagLabels: flowSourceTags.map(tag => tag.textContent.trim()),
-      flowSourceTagHasCustomCopy: flowSourceTags.every(tag => !!tag.dataset.sourceTitle && !!tag.dataset.sourceBody),
+      flowSourceTagHasSharedTooltip: flowSourceTags.every(tag => !!tag.dataset.tooltip),
       inactiveSortGlyphCount: inactiveSortGlyphs.length,
       exitFirstRowCellCount: exitFirstRowCells.length,
       exitDateFirstCellText: firstExitDateNode ? (firstExitDateNode.getAttribute("aria-label") || firstExitDateNode.textContent.trim().replace(/\s+/g," ")) : "",
@@ -2203,30 +2152,6 @@ function wireSearchClears(){
     });
     syncSearchClear(input);
   });
-}
-function hideFlowSourceTooltip(){
-  const tip = qs("#flow-source-tooltip");
-  if(!tip) return;
-  tip.classList.remove("show","below");
-  tip.setAttribute("aria-hidden","true");
-}
-function showFlowSourceTooltip(target){
-  const tip = qs("#flow-source-tooltip");
-  if(!tip || !target) return;
-  const title = target.dataset.sourceTitle || "";
-  const body = target.dataset.sourceBody || "";
-  tip.innerHTML = `<b>${esc(title)}</b><span>${esc(body)}</span>`;
-  tip.classList.add("show");
-  tip.setAttribute("aria-hidden","false");
-  const rect = target.getBoundingClientRect();
-  const tipRect = tip.getBoundingClientRect();
-  const minLeft = 14 + tipRect.width / 2;
-  const maxLeft = window.innerWidth - 14 - tipRect.width / 2;
-  const left = Math.min(Math.max(rect.left + rect.width / 2, minLeft), Math.max(minLeft, maxLeft));
-  const below = rect.top < tipRect.height + 22;
-  tip.classList.toggle("below", below);
-  tip.style.left = `${Math.round(left)}px`;
-  tip.style.top = `${Math.round(below ? rect.bottom : rect.top)}px`;
 }
 function flowSourceEventTag(event){
   const target = event.target;
