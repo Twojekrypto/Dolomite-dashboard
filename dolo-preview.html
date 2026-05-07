@@ -645,7 +645,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
               <div class="rw-item active" data-type="ca">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-dot-src ca"></span>
-                <div class="rw-name">Smart contracts</div>
+                <div class="rw-name">Smart contracts / CA</div>
               </div>
               <div class="rw-item active" data-type="cex">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
@@ -754,7 +754,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
               <div class="rw-item active" data-type="ca">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-dot-src ca"></span>
-                <div class="rw-name">Smart contracts</div>
+                <div class="rw-name">Smart contracts / CA</div>
               </div>
               <div class="rw-item active" data-type="cex">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
@@ -917,11 +917,11 @@ const HOLDERS = [
 // total = balEth + balBera; share = total / TOTAL_SUPPLY
 HOLDERS.forEach(h => h.total = h.balEth + h.balBera);
 
-const TYPE_LABELS = {eoa:"EOA", ca:"Contract", cex:"CEX", watch:"Potential", bot:"Bot", mm:"MM"};
+const TYPE_LABELS = {eoa:"EOA", ca:"CA", cex:"CEX", watch:"Potential", bot:"Bot", mm:"MM"};
 const ADDRESS_TYPES = Object.keys(TYPE_LABELS);
 const TYPE_TIPS = {
   eoa: "Externally Owned Account — regular wallet",
-  ca:  "Smart contract — protocol or aggregator",
+  ca:  "Contract address (CA) — smart contract, protocol, LP, or aggregator",
   cex: "Verified centralized exchange custody address",
   watch: "Potential CEX / market maker — detected by custody-like behavior, not verified",
   bot: "Automated trading / MEV bot",
@@ -931,7 +931,7 @@ const TYPE_TIPS = {
 // with a readable identity instead of an em-dash.
 const TYPE_GENERIC = {
   eoa: "Wallet",
-  ca:  "Smart contract",
+  ca:  "Smart Contract / CA",
   cex: "Exchange",
   watch: "Potential CEX/MM",
   bot: "Trading bot",
@@ -1662,6 +1662,7 @@ renderFlows();
     "0x2f41d42de3eab9e75f3d417259f24421771fb700": {label:"Dolomite EOA", type:"protocol"},
     "0x6e939bbaceb45159982a2cac3a1fcbf7e93cf682": {label:"Dolomite Main", type:"protocol"},
     "0xa75c21c5be284122a87a37a76cc6c4dd3e55a1d4": {label:"Gnosis Safe Multisig", type:"protocol"},
+    "0xcfc30d38a47817363a98a46834acf7040b17d7b0": {label:"Admin Proxy", type:"protocol"},
     "0x185000fb4d98acea1a771db3714a431f7fe51cac": {label:"Core Team 1", type:"protocol"},
     "0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07": {label:"Investor Vesting CA", type:"protocol"},
     "0xbf3c4e55a444ed489736c3d856b0cd0533fc2edd": {label:"Core Team 8", type:"protocol"},
@@ -1669,6 +1670,7 @@ renderFlows();
     "0xb05ba67c11fc0b92a7bcb18e50cba87ce2d15109": {label:"Bot / MM", type:"bot"},
     "0x5a6f918fcda24e9b5143f3a1b77e63df6de30f74": {label:"Bot / MM", type:"bot"},
     "0x6a2383cff0d46d2b7d29759f17c26fba726f3ea3": {label:"Bot / MM", type:"bot"},
+    "0x601d9ad1b431577e3635a23b7eb3bcc46bcc648b": {label:"Bot / MM", type:"bot"},
     "0x278d858f05b94576c1e6f73285886876ff6ef8d2": {label:"Bot CA", type:"bot"},
     "0x1ff6b8e1192eb0369006bbad76da9068b68961b2": {label:"Liquidator", type:"bot"},
     "0xb7131fc8cdc43060a6210257f537dba5fcae6aed": {label:"MEV / Liquidator Bot", type:"bot"},
@@ -1717,7 +1719,7 @@ renderFlows();
     if(t === "watch") return "watch";
     if(t === "mm") return "mm";
     if(t === "bot" || t === "liquidator") return "bot";
-    if(t === "protocol" || t === "lp" || holder?.is_contract) return "ca";
+    if(t === "protocol" || t === "lp" || holder?.is_contract || holder?.type === "ca") return "ca";
     return "eoa";
   }
   function autoCexInfo(addr, holder){
@@ -1732,7 +1734,7 @@ renderFlows();
   function labelFor(addr, holder){
     const info = addressInfo(addr, holder);
     if(info && info.label) return info.label;
-    if(holder?.is_contract) return "Smart contract";
+    if(holder?.is_contract || holder?.type === "ca") return "Smart Contract / CA";
     return null;
   }
   function learnAutoCexLabels(flows, holdersData){
@@ -1823,6 +1825,7 @@ renderFlows();
         rank: safeNum(h.rank),
         label: labelFor(h.address, h),
         type: mapType(info, h),
+        is_contract: !!h.is_contract,
         balEth: safeNum(h.balance_eth),
         balBera: safeNum(h.balance_bera),
       };
@@ -1837,11 +1840,13 @@ renderFlows();
     const periodData = liveFlowsData?.periods?.[state.flowsPeriod];
     if(!periodData) return;
     const byAddr = new Map();
+    const holderByAddr = new Map(HOLDERS.map(holder => [lower(holder.addr), holder]));
     const ensure = addr => {
       const key = lower(addr);
       if(!byAddr.has(key)){
-        const info = addressInfo(addr);
-        byAddr.set(key, {addr, label: labelFor(addr), type: mapType(info), chgEth:0, chgBera:0});
+        const holder = holderByAddr.get(key);
+        const info = addressInfo(addr, holder);
+        byAddr.set(key, {addr, label: labelFor(addr, holder), type: mapType(info, holder), chgEth:0, chgBera:0});
       }
       return byAddr.get(key);
     };
