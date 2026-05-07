@@ -3349,6 +3349,96 @@
 
         .address-cell a:hover { color: #22d3ee; }
 
+        .known-address-cell {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 2px;
+            min-width: 0;
+            line-height: 1.15;
+        }
+
+        .known-address-main,
+        .known-address-sub {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            min-width: 0;
+            max-width: 100%;
+        }
+
+        .known-address-label {
+            color: #fff !important;
+            font-family: 'Inter', sans-serif !important;
+            font-size: 11.5px !important;
+            font-weight: 700 !important;
+            letter-spacing: 0 !important;
+            max-width: 126px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .known-address-sub a.addr-tooltip-wrap {
+            color: rgba(226, 232, 240, 0.62) !important;
+            font-family: 'JetBrains Mono', monospace !important;
+            font-size: 10.5px !important;
+            font-weight: 500 !important;
+            line-height: 1;
+        }
+
+        .known-address-sub a.addr-tooltip-wrap:hover,
+        .known-address-label:hover {
+            color: #fff !important;
+        }
+
+        .addr-label-mini {
+            display: inline-flex;
+            align-items: center;
+            height: 15px;
+            padding: 0 5px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.035);
+            color: rgba(226, 232, 240, 0.72);
+            font-size: 7.5px;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            line-height: 1;
+            white-space: nowrap;
+        }
+
+        .addr-label-mini.cex {
+            color: #fbbf24;
+            border-color: rgba(251, 191, 36, 0.26);
+            background: rgba(251, 191, 36, 0.11);
+        }
+
+        .addr-label-mini.lp {
+            color: #60a5fa;
+            border-color: rgba(96, 165, 250, 0.25);
+            background: rgba(96, 165, 250, 0.11);
+        }
+
+        .addr-label-mini.protocol {
+            color: #a78bfa;
+            border-color: rgba(167, 139, 250, 0.25);
+            background: rgba(167, 139, 250, 0.11);
+        }
+
+        .addr-label-mini.bot,
+        .addr-label-mini.liquidator {
+            color: #f87171;
+            border-color: rgba(248, 113, 113, 0.25);
+            background: rgba(248, 113, 113, 0.10);
+        }
+
+        .addr-label-mini.investor {
+            color: #34d399;
+            border-color: rgba(52, 211, 153, 0.25);
+            background: rgba(52, 211, 153, 0.10);
+        }
+
         .addr-tooltip-wrap {
             position: relative;
             display: inline-flex;
@@ -9126,6 +9216,8 @@
         let debtRangeKey = 'all';
         let hfRangeMin = null;
         let hfRangeMax = null;
+        const chainFilterSelection = new Set();
+        const riskFilterSelection = new Set();
 
         // ─── Watchlist ───────────────────────────────────────────────────
         const watchlist = new Set(JSON.parse(localStorage.getItem('liq_watchlist') || '[]'));
@@ -10194,6 +10286,145 @@
             'polygon_zkevm': 'pzkevm'
         };
 
+        const DOLO_ADDR_LABELS = window.DOLO_ADDR_LABELS || {
+            '0x3e9b9a16743551da49b5e136c716bba7932d2cec': { label: 'oDOLO Vester', type: 'protocol', treasury: true },
+            '0xf977814e90da44bfa03b6295a0616a897441acec': { label: 'Binance 8', type: 'cex' },
+            '0x28c6c06298d514db089934071355e5743bf21d60': { label: 'Binance 14', type: 'cex' },
+            '0x21a31ee1afc51d94c2efccaa2092ad1028285549': { label: 'Binance 35', type: 'cex' },
+            '0xdfd5293d8e347dfe59e90efd55b2956a1343963d': { label: 'Binance US', type: 'cex' },
+            '0xbe0eb53f46cd790cd13851d5eff43d12404d33e8': { label: 'Binance 7', type: 'cex' },
+            '0x56eddb7aa87536c09ccc2793473599fd21a8b17f': { label: 'Binance 16', type: 'cex' },
+            '0x9696f59e4d72e237be84ffd425dcad154bf96976': { label: 'Binance 18', type: 'cex' },
+            '0xa9d1e08c7793af67e9d92fe308d5697fb81d3e43': { label: 'Binance Deposit', type: 'cex' },
+            '0xd862cdcfeb856c32b3c4f7563f4811d8ddfd42e2': { label: 'CA', type: 'protocol' },
+            '0x1103fc560de8b710983e7f3ec09d587f3f848566': { label: 'CA', type: 'protocol' },
+            '0x035ae7d933dcbfe617ffba194a88af0c2867b90c': { label: 'Gate.io', type: 'cex' },
+            '0x8782163068c7cd74d2510768a61135c1e4eb07b3': { label: 'Gate.io', type: 'cex' },
+            '0x0d0707963952f2fba59dd06f2b425ace40b492fe': { label: 'Gate.io', type: 'cex' },
+            '0xf89d7b9c864f589bbf53a82105107622b35eaa40': { label: 'Bybit', type: 'cex' },
+            '0xdf3100ac6c20c4a9443ece6c639c4ee91d592062': { label: 'Coinbase', type: 'cex' },
+            '0xe337c67ee9077e31aab205b25e8593b0e1c00cc4': { label: 'Coinbase', type: 'cex' },
+            '0x38fc9e8c73ea02f3a7de1da0760e71277f1e5e24': { label: 'Coinbase', type: 'cex' },
+            '0x305833cadd13a6d7febc6619304a6943a9a1ed22': { label: 'Binance', type: 'cex' },
+            '0x478271c960137418c9d90082dddbf68aa72e4367': { label: 'Gate.io', type: 'cex' },
+            '0x43684d03d81d3a4c70da68febdd61029d426f042': { label: 'Binance 117', type: 'cex' },
+            '0x7a1d00de77c0162d55d84a051bdc6840852b4a60': { label: 'CEX or MM', type: 'cex' },
+            '0x9642b23ed1e01df1092b92641051881a322f5d4e': { label: 'MEXC', type: 'cex' },
+            '0x1157a2076b9bb22a85cc2c162f20fab3898f4101': { label: 'FalconX', type: 'cex' },
+            '0x0529ea5885702715e83923c59746ae8734c553b7': { label: 'Bitpanda', type: 'cex' },
+            '0xd2dd7b597fd2435b6db61ddf48544fd931e6869f': { label: 'Kraken', type: 'cex' },
+            '0xfc89c020774524c9d03bd5de48fec149b10bdec3': { label: 'CEX or MM', type: 'cex' },
+            '0xd5c342acbeedef81ab8e6072323bfda76172d05f': { label: 'CEX or MM', type: 'cex' },
+            '0x38285671612d6f0ef7c3483f500d39fa71d66a1c': { label: 'CEX or MM', type: 'cex' },
+            '0x98adef6f2ac8572ec48965509d69a8dd5e8bba9d': { label: 'Binance 93', type: 'cex' },
+            '0x93ae9fe008636d2d6d7376198a54edb20367968f': { label: 'CEX or MM', type: 'cex' },
+            '0x753f43cca3dbd2bbe963609f8d25a833433a10c9': { label: 'Gate.io', type: 'cex' },
+            '0xb8001c3ec9aa1985f6c747e25c28324e4a361ec1': { label: 'Cobo Custody', type: 'cex' },
+            '0x2b3bf74b29f59fb8dda41cf3d6a8da28cf8e7921': { label: 'BingX 29', type: 'cex' },
+            '0x003896387666c5c11458eeb3f927b72a11b19783': { label: 'Uniswap V3 DOLO/USDC', type: 'lp' },
+            '0xd5980e98a89e2d2361b3be657e8a003c6d3514e3': { label: 'Kodiak DOLO/WBERA', type: 'lp' },
+            '0x8991017b74f9f8070bff5b322802dd26e05e0cc7': { label: 'Bulla DOLO/HONEY', type: 'lp' },
+            '0xcb86b75ee6133d179a12d550b09fb3cdb1e141d4': { label: 'veDOLO', type: 'protocol' },
+            '0x89576fce04dd73933f74bbcd4e6f0d9125118542': { label: 'Borrow Position Proxy', type: 'protocol', treasury: true },
+            '0x003ca23fd5f0ca87d01f6ec6cd14a8ae60c2b97d': { label: 'Dolomite Margin', type: 'protocol', treasury: true },
+            '0x06265db7ecd9c5724a97bd4909146625d2e2619c': { label: 'Operational Wallet', type: 'protocol', treasury: true },
+            '0x000000000004444c5dc75cb358380d2e3de08a90': { label: 'Permit2', type: 'protocol' },
+            '0x2f41d42de3eab9e75f3d417259f24421771fb700': { label: 'Dolomite EOA', type: 'protocol', treasury: true },
+            '0x6e939bbaceb45159982a2cac3a1fcbf7e93cf682': { label: 'Dolomite Main', type: 'protocol', treasury: true },
+            '0xa75c21c5be284122a87a37a76cc6c4dd3e55a1d4': { label: 'Gnosis Safe Multisig', type: 'protocol', treasury: true },
+            '0xcfc30d38a47817363a98a46834acf7040b17d7b0': { label: 'Admin Proxy', type: 'protocol', treasury: true },
+            '0xd88f473832b0403c7736ef237af5aff8759b99ef': { label: 'oDOLO Airdrop', type: 'protocol', treasury: true },
+            '0x51b3116ef47073ab8a0353a2751dc533d4238527': { label: 'Revenue Proxy', type: 'protocol', treasury: true },
+            '0xa3f079292cc35ba64996fe0bce3049928a838bc9': { label: 'Treasury Proxy', type: 'protocol', treasury: true },
+            '0x185000fb4d98acea1a771db3714a431f7fe51cac': { label: 'Core Team 1', type: 'protocol', treasury: true },
+            '0x882e6d630a8c70a6a8d29a4d33f960b1267aa3d1': { label: 'Core Team 2', type: 'protocol', treasury: true },
+            '0x6c97802a1815bc459004c686560244de28a2de75': { label: 'Core Team 3', type: 'protocol', treasury: true },
+            '0x665b3ce67daeb5b19d4d14bbdb6297da0ffa5bf1': { label: 'Core Team 4', type: 'protocol', treasury: true },
+            '0x3f1f155949f32fa3e688093d176a1b5a72c488eb': { label: 'Core Team 5', type: 'protocol', treasury: true },
+            '0xf2b42104b5ac0b3145a5e18b84aa3fd76d0fdeec': { label: 'Core Team 6', type: 'protocol', treasury: true },
+            '0xb8ba44d5e46562ec011ade12603f353b18089a41': { label: 'Core Team 7', type: 'protocol', treasury: true },
+            '0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07': { label: 'Investor Vesting CA', type: 'protocol', treasury: true },
+            '0xbf3c4e55a444ed489736c3d856b0cd0533fc2edd': { label: 'Core Team 8', type: 'protocol', treasury: true },
+            '0x7efd088ae500598a19a242d6d48b9f7e0d061176': { label: 'Early Investor Vesting CA', type: 'protocol', treasury: true },
+            '0xb05ba67c11fc0b92a7bcb18e50cba87ce2d15109': { label: 'Bot / MM', type: 'bot' },
+            '0x5a6f918fcda24e9b5143f3a1b77e63df6de30f74': { label: 'Bot / MM', type: 'bot' },
+            '0x6a2383cff0d46d2b7d29759f17c26fba726f3ea3': { label: 'Bot / MM', type: 'bot' },
+            '0x278d858f05b94576c1e6f73285886876ff6ef8d2': { label: 'Bot (CA)', type: 'bot' },
+            '0x1ff6b8e1192eb0369006bbad76da9068b68961b2': { label: 'Liquidator', type: 'liquidator' },
+            '0xb7131fc8cdc43060a6210257f537dba5fcae6aed': { label: 'MEV / Liquidator Bot', type: 'liquidator' },
+            '0x9e7728077f753dfdf53c2236097e27c743890992': { label: 'DEX Router', type: 'protocol' },
+            '0xb180647d5ad76abeb6be0d363f6e182bd8df46d1': { label: 'Coinbase', type: 'cex' },
+            '0xd97107064b8c7520aae6c6e6ca75bb2aa73b670d': { label: 'CEX Whale', type: 'cex' },
+            '0x9cb677f2a8daa9511ae79c2ba56395552b5d030d': { label: 'Active Trader/Bot', type: 'bot' }
+        };
+        window.DOLO_ADDR_LABELS = DOLO_ADDR_LABELS;
+
+        fetch('vesting_investors.json').then(r => r.json()).then(data => {
+            if (Array.isArray(data)) return;
+            let changed = false;
+            const addGroup = (items, label, type = 'investor', extra = {}) => {
+                (items || []).forEach(addr => {
+                    const lower = String(addr || '').toLowerCase();
+                    if (!lower || DOLO_ADDR_LABELS[lower]) return;
+                    DOLO_ADDR_LABELS[lower] = { label, type, ...extra };
+                    changed = true;
+                });
+            };
+            addGroup(data.early_investors, 'Early Investor');
+            addGroup(data.investors, 'Investor');
+            addGroup(data.team, 'Core Team', 'protocol', { treasury: true });
+            if (changed) {
+                applyFilters();
+                if (typeof renderSupplyActivityTable === 'function') renderSupplyActivityTable();
+            }
+        }).catch(() => {});
+
+        function getDoloAddressInfo(address) {
+            const lower = String(address || '').toLowerCase();
+            return lower ? DOLO_ADDR_LABELS[lower] || null : null;
+        }
+
+        function getDoloAddressSearchText(address) {
+            const info = getDoloAddressInfo(address);
+            return `${String(address || '')} ${info?.label || ''} ${info?.type || ''}`.toLowerCase();
+        }
+
+        function shortDoloAddress(address) {
+            const value = String(address || '');
+            return value.length > 12 ? `${value.slice(0, 6)}...${value.slice(-4)}` : value;
+        }
+
+        function renderDoloAddressTools(address, href, options = {}) {
+            if (!address) return '';
+            const safeAddress = supplyEscapeHtml(address);
+            const safeHref = supplyEscapeHtml(href || `https://debank.com/profile/${address}`);
+            const debankUrl = supplyEscapeHtml(options.debankUrl || `https://debank.com/profile/${address}`);
+            const shortAddr = supplyEscapeHtml(options.short || shortDoloAddress(address));
+            const info = getDoloAddressInfo(address);
+            const debankClass = options.debankClass ? ` ${supplyEscapeHtml(options.debankClass)}` : '';
+            const toolsHtml = `
+                <span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${safeAddress}',this)">${COPY_SVG}</span>
+                <a href="${debankUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="debank-icon${debankClass}"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a>
+            `;
+
+            if (!info) {
+                return `<a href="${safeHref}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${safeAddress}" onclick="event.stopPropagation()">${shortAddr}</a>${toolsHtml}`;
+            }
+
+            const label = supplyEscapeHtml(info.label || 'Wallet');
+            const type = supplyEscapeHtml(info.type || 'label');
+            return `<div class="known-address-cell">
+                <div class="known-address-main">
+                    <a href="${safeHref}" target="_blank" rel="noopener" class="known-address-label addr-tooltip-wrap" data-full-addr="${safeAddress}" onclick="event.stopPropagation()">${label}</a>
+                    <span class="addr-label-mini ${type}">${type.toUpperCase()}</span>
+                </div>
+                <div class="known-address-sub">
+                    <a href="${safeHref}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${safeAddress}" onclick="event.stopPropagation()">${shortAddr}</a>
+                    ${toolsHtml}
+                </div>
+            </div>`;
+        }
+
 
         function copyAddr(addr, el) {
             navigator.clipboard.writeText(addr).then(() => {
@@ -10212,15 +10443,31 @@
             if (tableContainer) tableContainer.scrollTop = 0;
         }
 
+        function syncChainFilterAlias() {
+            const selected = Array.from(chainFilterSelection);
+            chainFilter = selected.length === 0 ? 'all' : selected.length === 1 ? selected[0] : 'multi';
+        }
+
+        function syncChainMenuSelectionState() {
+            document.querySelectorAll('.chain-option').forEach(option => {
+                const chain = option.dataset.chain;
+                const active = chain === 'all'
+                    ? chainFilterSelection.size === 0
+                    : chainFilterSelection.has(chain);
+                option.classList.toggle('active', active);
+            });
+        }
+
         function renderChainButtons(data) {
             const menu = document.getElementById('chain-menu');
             const chains = Object.keys(data.chainStats || {});
             availableChainCount = chains.length;
-            setChainTriggerState(chainFilter);
+            syncChainFilterAlias();
+            setChainTriggerState();
             const GLOBE_SVG = `<svg class="opt-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: rgba(255,255,255,0.5); width:20px; height:20px;"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
 
             // "All Chains" option first
-            let html = `<div class="chain-option${chainFilter === 'all' ? ' active' : ''}" data-chain="all" data-tooltip="Show all monitored chains">
+            let html = `<div class="chain-option${chainFilterSelection.size === 0 ? ' active' : ''}" data-chain="all" data-tooltip="Show all monitored chains">
                 ${GLOBE_SVG}
                 All Chains
                 <span class="opt-count">${allPositions.length.toLocaleString()}</span>
@@ -10237,7 +10484,7 @@
                 const stats = data.chainStats[chain] || {};
                 const displayName = CHAIN_DISPLAY_NAMES[chain] || chain;
                 const icon = CHAIN_ICONS[chain] || 'dolomite-logo.svg';
-                html += `<div class="chain-option${chainFilter === chain ? ' active' : ''}" data-chain="${chain}" data-tooltip="Filter positions on ${displayName}">
+                html += `<div class="chain-option${chainFilterSelection.has(chain) ? ' active' : ''}" data-chain="${chain}" data-tooltip="Filter positions on ${displayName}">
                     <img class="opt-icon" src="${icon}" alt="${displayName}">
                     ${displayName}
                     <span class="opt-count">${(stats.total || 0).toLocaleString()}</span>
@@ -10247,26 +10494,33 @@
             menu.innerHTML = html;
         }
 
-        function setChainTriggerState(chain) {
-            const label = chain === 'all' ? 'All Chains' : CHAIN_DISPLAY_NAMES[chain] || chain;
+        function setChainTriggerState() {
+            const selected = Array.from(chainFilterSelection);
+            const singleChain = selected.length === 1 ? selected[0] : null;
+            const label = selected.length === 0
+                ? 'All Chains'
+                : selected.length === 1
+                    ? CHAIN_DISPLAY_NAMES[singleChain] || singleChain
+                    : `${selected.length} Chains`;
             document.getElementById('chain-trigger-label').textContent = label;
             const chainCount = document.getElementById('chain-trigger-count');
             if (chainCount) {
-                chainCount.textContent = chain === 'all' ? String(availableChainCount || '0') : '1';
+                chainCount.textContent = selected.length === 0 ? String(availableChainCount || '0') : String(selected.length);
             }
             const triggerIcon = document.querySelector('#chain-trigger .trigger-icon');
             if (!triggerIcon) return;
-            if (chain === 'all') {
+            if (!singleChain) {
                 triggerIcon.outerHTML = `<svg class="trigger-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: rgba(255,255,255,0.6)"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
             } else {
-                triggerIcon.outerHTML = `<img class="trigger-icon" src="${CHAIN_ICONS[chain] || ''}" alt="">`;
+                triggerIcon.outerHTML = `<img class="trigger-icon" src="${CHAIN_ICONS[singleChain] || ''}" alt="">`;
             }
         }
 
         function clearChainFilterOnly() {
-            chainFilter = 'all';
-            setChainTriggerState('all');
-            document.querySelectorAll('.chain-option').forEach(o => o.classList.toggle('active', o.dataset.chain === 'all'));
+            chainFilterSelection.clear();
+            syncChainFilterAlias();
+            setChainTriggerState();
+            syncChainMenuSelectionState();
             document.getElementById('chain-filter')?.classList.remove('open');
             applyFilters();
         }
@@ -10295,16 +10549,21 @@
             const opt = e.target.closest('.chain-option');
             if (!opt) return;
             const chain = opt.dataset.chain;
-            chainFilter = chain;
+            if (chain === 'all') {
+                chainFilterSelection.clear();
+            } else if (chainFilterSelection.has(chain)) {
+                chainFilterSelection.delete(chain);
+            } else {
+                chainFilterSelection.add(chain);
+            }
+            syncChainFilterAlias();
 
             // Update trigger label & icon
-            setChainTriggerState(chain);
+            setChainTriggerState();
 
             // Update active class
-            document.querySelectorAll('.chain-option').forEach(o => o.classList.toggle('active', o.dataset.chain === chain));
+            syncChainMenuSelectionState();
 
-            // Close & filter
-            document.getElementById('chain-filter').classList.remove('open');
             // Reset token filters
             collateralTokenFilter.clear();
             debtTokenFilter.clear();
@@ -10316,10 +10575,10 @@
             const chainDropdown = document.getElementById('chain-filter');
             const riskDropdown = document.getElementById('risk-dropdown');
             if (chainDropdown) {
-                chainDropdown.classList.toggle('active-filter', chainFilter !== 'all');
+                chainDropdown.classList.toggle('active-filter', chainFilterSelection.size > 0);
             }
             if (riskDropdown) {
-                riskDropdown.classList.toggle('active-filter', riskFilter !== 'all');
+                riskDropdown.classList.toggle('active-filter', riskFilterSelection.size > 0);
             }
         }
 
@@ -10373,14 +10632,10 @@
         // ─── Filtering & Sorting ────────────────────────────────────────────
         function applyFilters() {
             filteredPositions = allPositions.filter(p => {
-                if (chainFilter !== 'all' && p.chain !== chainFilter) return false;
+                if (chainFilterSelection.size > 0 && !chainFilterSelection.has(p.chain)) return false;
                 const rc = getRiskClass(p);
-                if (riskFilter === 'liquidation' && !['full-liq','partial-liq'].includes(rc)) return false;
-                if (riskFilter === 'danger' && rc !== 'danger') return false;
-                if (riskFilter === 'baddebt' && rc !== 'baddebt') return false;
-                if (riskFilter === 'healthy' && ['baddebt','full-liq','partial-liq','danger'].includes(rc)) return false;
-                if (riskFilter !== 'all' && riskFilter !== 'liquidation' && riskFilter !== 'danger' && riskFilter !== 'baddebt' && riskFilter !== 'healthy' && riskFilter !== 'custom') return false;
-                if (searchQuery && !p.address.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+                if (!matchesSelectedRiskClass(rc)) return false;
+                if (searchQuery && !getDoloAddressSearchText(p.address).includes(searchQuery.toLowerCase())) return false;
                 // Hide dust: positions with collateral + debt < $10
                 if (hideDust && (p.collateralUSD + p.debtUSD) < 10) return false;
                 // Watchlist filter
@@ -10447,8 +10702,8 @@
             if (!btn) return;
             // Only show for chain/risk/debt/search/HF/emode filters — NOT for hide-dust
             const hasCustomFilters =
-                chainFilter !== 'all' ||
-                riskFilter !== 'all' ||
+                chainFilterSelection.size > 0 ||
+                riskFilterSelection.size > 0 ||
                 searchQuery !== '' ||
                 debtRangeKey !== 'all' ||
                 debtRangeMin !== null ||
@@ -10467,6 +10722,8 @@
             // Reset state
             chainFilter = 'all';
             riskFilter = 'all';
+            chainFilterSelection.clear();
+            riskFilterSelection.clear();
             searchQuery = '';
             hideDust = true;
             emodeOnly = false;
@@ -10487,7 +10744,7 @@
             // Reset UI elements
             document.getElementById('search-input').value = '';
             document.getElementById('search-wrap').classList.remove('has-value');
-            setChainTriggerState('all');
+            setChainTriggerState();
             renderRiskMenu();
             updateToolbarFilterHighlights();
             const dustBtn = document.getElementById('hide-dust-btn');
@@ -10519,7 +10776,7 @@
             });
 
             // Reset dropdowns active classes
-            document.querySelectorAll('.chain-option').forEach(o => o.classList.toggle('active', o.dataset.chain === 'all'));
+            syncChainMenuSelectionState();
             document.querySelectorAll('.risk-option').forEach(o => o.classList.toggle('active', o.dataset.risk === 'all'));
 
             applyFilters();
@@ -10587,6 +10844,7 @@
                 const acctLabel = (p.accountNumber && p.accountNumber !== '0') ? ` #${p.accountNumber.length > 6 ? p.accountNumber.slice(0,4) + '…' : p.accountNumber}` : '';
                 const debankChain = CHAIN_DEBANK_IDS[p.chain] || 'bera';
                 const debankUrl = `https://debank.com/profile/${p.address}?chain=${debankChain}`;
+                const addressTools = renderDoloAddressTools(p.address, p.explorer, { debankUrl, short: shortAddr });
 
                 const collateralClass = p.collateralUSD < 0.01 ? 'zero' : '';
                 const debtClass = p.debtUSD < 0.01 ? 'zero' : '';
@@ -10606,7 +10864,7 @@
                     <td><span class="chain-badge ${p.chain}"><img class="chain-icon" src="${chainIcon}" alt="">${chainLabel}</span></td>
                     <td><div class="address-cell">
                         <span class="watchlist-star${watchlist.has(p.address) ? ' starred' : ''}" data-addr="${p.address}" onclick="event.stopPropagation();toggleStar('${p.address}',this)"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>
-                        <a href="${p.explorer}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${p.address}">${shortAddr}</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${p.address}',this)">${COPY_SVG}</span><a href="${debankUrl}" target="_blank" onclick="event.stopPropagation()" class="debank-icon"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a>
+                        ${addressTools}
                     </div></td>
                     <td><div class="hf-gauge"><span class="hf-badge ${riskClass}"><span class="hf-dot ${riskClass}"></span>${hfText}</span></div></td>
                     <td style="text-align:center">${emodeCell}</td>
@@ -10925,6 +11183,30 @@
             { key: 'healthy', label: 'Healthy', color: '#75b87b', tip: 'HF > 1.003 — safe positions with sufficient buffer' },
         ];
 
+        function syncRiskFilterAlias() {
+            const selected = Array.from(riskFilterSelection);
+            riskFilter = selected.length === 0 ? 'all' : selected.length === 1 ? selected[0] : 'multi';
+        }
+
+        function riskOptionMatchesClass(key, riskClass) {
+            if (key === 'all') return true;
+            if (key === 'liquidation') return ['full-liq','partial-liq'].includes(riskClass);
+            if (key === 'danger') return riskClass === 'danger';
+            if (key === 'baddebt') return riskClass === 'baddebt';
+            if (key === 'healthy') return !['baddebt','full-liq','partial-liq','danger'].includes(riskClass);
+            return false;
+        }
+
+        function matchesSelectedRiskClass(riskClass) {
+            if (riskFilterSelection.size === 0) return true;
+            return Array.from(riskFilterSelection).some(key => riskOptionMatchesClass(key, riskClass));
+        }
+
+        function countRiskOption(base, key) {
+            if (key === 'all') return base.length;
+            return base.filter(p => riskOptionMatchesClass(key, getRiskClass(p))).length;
+        }
+
         function renderRiskMenu() {
             const menu = document.getElementById('risk-menu');
             const triggerDot = document.getElementById('risk-trigger-dot');
@@ -10934,26 +11216,27 @@
             const base = hideDust ? allPositions.filter(p => !((p.collateralUSD + p.debtUSD) < 10)) : allPositions;
 
             // Update trigger with current selection
-            const current = RISK_OPTIONS.find(o => o.key === riskFilter) || RISK_OPTIONS[0];
-            const currentCount = current.key === 'all' ? base.length :
-                current.key === 'liquidation' ? base.filter(p => ['full-liq','partial-liq'].includes(getRiskClass(p))).length :
-                current.key === 'danger' ? base.filter(p => getRiskClass(p) === 'danger').length :
-                current.key === 'healthy' ? base.filter(p => !['baddebt','full-liq','partial-liq','danger'].includes(getRiskClass(p))).length :
-                base.filter(p => getRiskClass(p) === current.key).length;
+            syncRiskFilterAlias();
+            const selected = Array.from(riskFilterSelection);
+            const current = selected.length === 1
+                ? RISK_OPTIONS.find(o => o.key === selected[0]) || RISK_OPTIONS[0]
+                : RISK_OPTIONS[0];
+            const currentCount = selected.length === 0
+                ? base.length
+                : selected.length === 1
+                    ? countRiskOption(base, current.key)
+                    : base.filter(p => matchesSelectedRiskClass(getRiskClass(p))).length;
             const currentSwatch = current.swatch || current.color;
-            triggerDot.style.setProperty('--risk-trigger-color', currentSwatch);
-            triggerDot.style.background = currentSwatch;
-            triggerLabel.textContent = current.label;
+            const triggerSwatch = selected.length > 1 ? '#c9a227' : currentSwatch;
+            triggerDot.style.setProperty('--risk-trigger-color', triggerSwatch);
+            triggerDot.style.background = triggerSwatch;
+            triggerLabel.textContent = selected.length > 1 ? `${selected.length} Health` : current.label;
             triggerCount.textContent = currentCount.toLocaleString();
 
             // Render menu options
             let html = RISK_OPTIONS.map(opt => {
-                const active = opt.key === riskFilter ? ' active' : '';
-                const count = opt.key === 'all' ? base.length :
-                    opt.key === 'liquidation' ? base.filter(p => ['full-liq','partial-liq'].includes(getRiskClass(p))).length :
-                    opt.key === 'danger' ? base.filter(p => getRiskClass(p) === 'danger').length :
-                    opt.key === 'healthy' ? base.filter(p => !['baddebt','full-liq','partial-liq','danger'].includes(getRiskClass(p))).length :
-                    base.filter(p => getRiskClass(p) === opt.key).length;
+                const active = (opt.key === 'all' ? selected.length === 0 : riskFilterSelection.has(opt.key)) ? ' active' : '';
+                const count = countRiskOption(base, opt.key);
                 const swatch = opt.swatch || opt.color;
                 return `<div class="risk-option${active}" data-risk="${opt.key}">
                     <span class="opt-dot" style="--risk-dot-color: ${swatch}; background: ${swatch}"></span>
@@ -10965,11 +11248,23 @@
 
             // Option clicks
             menu.querySelectorAll('.risk-option[data-risk]').forEach(opt => {
-                opt.addEventListener('click', () => {
-                    riskFilter = opt.dataset.risk;
+                opt.addEventListener('click', event => {
+                    event.stopPropagation();
+                    const key = opt.dataset.risk;
+                    if (key === 'all') {
+                        riskFilterSelection.clear();
+                    } else if (riskFilterSelection.has(key)) {
+                        riskFilterSelection.delete(key);
+                    } else {
+                        riskFilterSelection.add(key);
+                    }
+                    syncRiskFilterAlias();
                     hfRangeMin = null;
                     hfRangeMax = null;
-                    document.getElementById('risk-dropdown').classList.remove('open');
+                    const hfMinInput = document.getElementById('hf-custom-min');
+                    const hfMaxInput = document.getElementById('hf-custom-max');
+                    if (hfMinInput) hfMinInput.value = '';
+                    if (hfMaxInput) hfMaxInput.value = '';
                     renderRiskMenu();
                     applyFilters();
                 });
@@ -10977,7 +11272,8 @@
         }
 
         function clearRiskFilterOnly() {
-            riskFilter = 'all';
+            riskFilterSelection.clear();
+            syncRiskFilterAlias();
             document.getElementById('risk-dropdown')?.classList.remove('open');
             renderRiskMenu();
             applyFilters();
@@ -11235,7 +11531,9 @@
 
             function renderList() {
                 const searchText = searchInput.value.toLowerCase();
-                const scoped = chainFilter === 'all' ? allPositions : allPositions.filter(p => p.chain === chainFilter);
+                const scoped = chainFilterSelection.size === 0
+                    ? allPositions
+                    : allPositions.filter(p => chainFilterSelection.has(p.chain));
                 const tokenCounts = {};
                 scoped.forEach(p => {
                     const tokens = opts.getTokens(p);
@@ -13798,8 +14096,8 @@
                 .filter(row => supplyActivityFilters.has(row.type))
                 .filter(row => {
                     if (!activitySearchNeedle) return true;
-                    const primary = String(row.primaryAddress || '').toLowerCase();
-                    const secondary = String(row.secondaryAddress || '').toLowerCase();
+                    const primary = getDoloAddressSearchText(row.primaryAddress);
+                    const secondary = getDoloAddressSearchText(row.secondaryAddress);
                     return primary.includes(activitySearchNeedle) || secondary.includes(activitySearchNeedle);
                 })
                 .filter(row => supplyActivityTimeMin == null || Number(row.timestamp || 0) >= supplyActivityTimeMin)
@@ -13974,9 +14272,7 @@
                     const safeAddress = supplyEscapeHtml(address);
                     const debankUrl = `https://debank.com/profile/${safeAddress}`;
                     return `<div class="supply-activity-address-tools">
-                        <a href="${debankUrl}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${safeAddress}" onclick="event.stopPropagation()">${supplyEscapeHtml(supplyShortAddr(address))}</a>
-                        <span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${safeAddress}',this)">${COPY_SVG}</span>
-                        <a href="${debankUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="debank-icon supply-activity-debank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a>
+                        ${renderDoloAddressTools(address, debankUrl, { debankUrl, short: supplyShortAddr(address), debankClass: 'supply-activity-debank' })}
                     </div>`;
                 };
                 const primaryAddress = String(row.primaryAddress || '');
@@ -14095,7 +14391,8 @@
 
             let filtered = [...currentSupplyData];
             if (searchQuery) {
-                filtered = filtered.filter(s => s.address.toLowerCase().includes(searchQuery.toLowerCase()));
+                const supplyNeedle = searchQuery.toLowerCase();
+                filtered = filtered.filter(s => getDoloAddressSearchText(s.address).includes(supplyNeedle));
             }
 
             filtered.sort((a,b) => {
@@ -14146,6 +14443,7 @@
 
                 const debankUrl = `https://debank.com/profile/${s.address}`;
                 const shortAddr = s.address.substring(0, 6) + '...' + s.address.substring(s.address.length - 4);
+                const supplierAddressTools = renderDoloAddressTools(s.address, `${blockExplorer}${s.address}`, { debankUrl, short: shortAddr });
 
                 tr.style.cursor = 'pointer';
                 tr.style.transition = 'transform 0.15s, background 0.15s';
@@ -14179,9 +14477,7 @@
                     <td style="color:rgba(255,255,255,0.3); font-size:12px;">${rank}</td>
                     <td class="font-mono">
                         <div class="address-cell" style="display:inline-flex;align-items:center;gap:6px">
-                            <a href="${blockExplorer}${s.address}" target="_blank" style="color:var(--text-primary); text-decoration:none; font-size:12px;" class="addr-tooltip-wrap" data-full-addr="${s.address}">${shortAddr}</a>
-                            <span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${s.address}',this)" title="Copy address">${COPY_SVG}</span>
-                            <a href="${debankUrl}" target="_blank" onclick="event.stopPropagation()" class="debank-icon" title="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a>
+                            ${supplierAddressTools}
                         </div>
                     </td>
                     <td style="text-align: right; font-weight:600; font-family:'JetBrains Mono',monospace;">
