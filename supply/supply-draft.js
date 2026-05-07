@@ -574,7 +574,7 @@
         <button type="button" class="supply-activity-type-trigger" aria-haspopup="menu" aria-expanded="false">
           <span class="supply-activity-type-label">All activity</span>
           <span class="supply-activity-type-count">4/4</span>
-          <span class="supply-activity-type-clear" role="button" aria-label="Clear activity filter" title="Clear filter">${clearIcon}</span>
+          <span class="supply-activity-type-clear" role="button" aria-label="Clear activity filter">${clearIcon}</span>
           ${chevronIcon}
         </button>
         <div class="supply-activity-type-menu" role="menu">

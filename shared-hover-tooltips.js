@@ -6,8 +6,10 @@
     '.debank-icon',
     '.latest-tx',
     '.tx-ext-icon',
+    '.tx-only-link',
     '.proto-copy',
     '.proto-explore',
+    '.assets-ext-link',
     '.search-clear',
     '.dd-clear',
     '.trigger-clear',
@@ -20,6 +22,9 @@
     '.holder-toggle',
     '.ex-toggle',
     '.modal-close',
+    '.supply-activity-type-clear',
+    '.earn-dolo-proto-copy',
+    '.earn-dolo-proto-explore',
     '[data-page]',
     '[data-flow-page]',
     '[data-latest-page]'
@@ -53,7 +58,7 @@
     var text = cleanText(value).toLowerCase();
     if (!text) return false;
     if (target.closest && target.closest(ACTION_TOOLTIP_SELECTOR)) return true;
-    return /^(copy address|copy ca|view on|open in|open transaction|clear( search| filter| chain filter| category filter| hf filter| collateral filter| debt filter| collateral token filter| debt token filter)?|first|previous|next|last|show asset details|hide asset details|show exercise history|hide exercise history|show position details|hide position details|sort by\b)/i.test(text);
+    return /^(copy address|copy ca|view on|open in|open transaction|close|clear( search| filter| chain filter| category filter| hf filter| collateral filter| debt filter| collateral token filter| debt token filter| activity filter)?|first|previous|next|last|show asset details|hide asset details|show exercise history|hide exercise history|show position details|hide position details|sort by\b)/i.test(text);
   }
 
   function forEachMatch(root, selector, callback) {
@@ -193,11 +198,15 @@
   normalizeTooltipAttributes(document);
   new MutationObserver(function (records) {
     records.forEach(function (record) {
-      record.addedNodes.forEach(function (node) {
-        if (node.nodeType === 1) normalizeTooltipAttributes(node);
-      });
+      if (record.type === 'childList') {
+        record.addedNodes.forEach(function (node) {
+          if (node.nodeType === 1) normalizeTooltipAttributes(node);
+        });
+      } else if (record.type === 'attributes' && record.target && record.target.nodeType === 1) {
+        normalizeTooltipAttributes(record.target);
+      }
     });
-  }).observe(document.documentElement, { childList: true, subtree: true });
+  }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['title', 'data-tip', 'data-tooltip'] });
 
   window.addEventListener('scroll', hide, true);
   window.addEventListener('resize', hide);
