@@ -124,6 +124,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .dd-opt.active .dd-opt-check{background:var(--gold);border-color:var(--gold)}
 .dd-opt.active .dd-opt-check svg{opacity:1}
 #dd-exit-period .dd-btn,#dd-flow-period .dd-btn{min-width:96px}
+#dd-exit-period .dd-panel,#dd-flow-period .dd-panel{min-width:148px;max-width:148px;width:148px}
+#dd-exit-period .dd-opt,#dd-flow-period .dd-opt{gap:9px;padding:8px 9px}
+#dd-exit-period .dd-opt-name,#dd-flow-period .dd-opt-name{white-space:nowrap}
 .seg{display:inline-flex;align-items:center;gap:2px;background:var(--bg-3);border:1px solid var(--line-2);padding:4px;border-radius:11px}
 .seg button{height:28px;padding:0 10px;border-radius:8px;font-size:12px;font-weight:600;color:var(--fg-3);transition:background .15s var(--ease),color .15s var(--ease),box-shadow .15s var(--ease)}
 .seg button:hover{color:var(--fg-1)}
@@ -709,12 +712,12 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
           <div class="dd-panel" role="menu" aria-label="Early exit period">
             <div class="dd-panel-head">Period</div>
             <div class="dd-list">
-              <div class="dd-opt" data-value="1"><span class="dd-opt-name">1D</span><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span></div>
-              <div class="dd-opt" data-value="7"><span class="dd-opt-name">7D</span><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span></div>
-              <div class="dd-opt active" data-value="30"><span class="dd-opt-name">30D</span><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span></div>
-              <div class="dd-opt" data-value="90"><span class="dd-opt-name">90D</span><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span></div>
-              <div class="dd-opt" data-value="180"><span class="dd-opt-name">180D</span><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span></div>
-              <div class="dd-opt" data-value="all"><span class="dd-opt-name">All</span><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span></div>
+              <div class="dd-opt" data-value="1" data-short="24H"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-name">24 hours</span></div>
+              <div class="dd-opt" data-value="7" data-short="7D"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-name">7 days</span></div>
+              <div class="dd-opt active" data-value="30" data-short="30D"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-name">30 days</span></div>
+              <div class="dd-opt" data-value="90" data-short="90D"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-name">90 days</span></div>
+              <div class="dd-opt" data-value="180" data-short="180D"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-name">180 days</span></div>
+              <div class="dd-opt" data-value="all" data-short="All"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-name">All time</span></div>
             </div>
           </div>
         </div>
@@ -804,12 +807,12 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
           <div class="dd-panel" role="menu" aria-label="Flow period">
             <div class="dd-panel-head">Period</div>
             <div class="dd-list">
-              <div class="dd-opt" data-value="1"><span class="dd-opt-name">1D</span><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span></div>
-              <div class="dd-opt active" data-value="7"><span class="dd-opt-name">7D</span><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span></div>
-              <div class="dd-opt" data-value="30"><span class="dd-opt-name">30D</span><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span></div>
-              <div class="dd-opt" data-value="90"><span class="dd-opt-name">90D</span><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span></div>
-              <div class="dd-opt" data-value="180"><span class="dd-opt-name">180D</span><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span></div>
-              <div class="dd-opt" data-value="all"><span class="dd-opt-name">All</span><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span></div>
+              <div class="dd-opt" data-value="1" data-short="24H"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-name">24 hours</span></div>
+              <div class="dd-opt active" data-value="7" data-short="7D"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-name">7 days</span></div>
+              <div class="dd-opt" data-value="30" data-short="30D"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-name">30 days</span></div>
+              <div class="dd-opt" data-value="90" data-short="90D"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-name">90 days</span></div>
+              <div class="dd-opt" data-value="180" data-short="180D"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-name">180 days</span></div>
+              <div class="dd-opt" data-value="all" data-short="All"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-name">All time</span></div>
             </div>
           </div>
         </div>
@@ -1267,7 +1270,7 @@ function setDropdown(rootId, value, filteredValue){
   if(!opt) return;
   root.querySelectorAll(".dd-opt").forEach(item => item.classList.toggle("active", item === opt));
   const btn = root.querySelector(".dd-btn");
-  const label = opt.querySelector(".dd-opt-name")?.textContent || value;
+  const label = opt.dataset.short || opt.querySelector(".dd-opt-name")?.textContent || value;
   const count = opt.dataset.count || "";
   btn.querySelector(".lbl").textContent = label;
   const countNode = btn.querySelector(".count");
