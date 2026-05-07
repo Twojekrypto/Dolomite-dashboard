@@ -1186,6 +1186,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
           <button class="dd-btn" data-dd="cat">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
             <span class="lbl">All Assets</span>
+            <span class="count">3/3</span>
             <span class="dd-clear" data-clear="cat" role="button" aria-label="Clear category filter" title="Clear filter">
               <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg>
             </span>
@@ -1207,7 +1208,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
           <button class="dd-btn" data-dd="net">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
             <span class="lbl">All Chains</span>
-            <span class="count">7</span>
+            <span class="count">7/7</span>
             <span class="dd-clear" data-clear="net" role="button" aria-label="Clear chain filter" title="Clear filter">
               <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg>
             </span>
@@ -2640,9 +2641,12 @@ function syncCatDropdown(){
   const btn = document.querySelector('#dd-cat .dd-btn');
   btn.classList.toggle("filtered", state.cats.size > 0);
   const lbl = btn.querySelector(".lbl");
+  const count = btn.querySelector(".count");
+  const total = Object.keys(CAT_LABELS).length;
   if(state.cats.size === 0) lbl.textContent = "All Assets";
   else if(state.cats.size === 1) lbl.textContent = CAT_LABELS[[...state.cats][0]] || [...state.cats][0];
   else lbl.textContent = `${state.cats.size} categories`;
+  if(count) count.textContent = `${state.cats.size || total}/${total}`;
 }
 document.querySelectorAll("#dd-cat .dd-opt").forEach(opt=>{
   opt.addEventListener("click",e=>{
@@ -2672,15 +2676,16 @@ function syncNetDropdown(){
   btn.classList.toggle("filtered", state.nets.size > 0);
   const lbl = btn.querySelector(".lbl");
   const count = btn.querySelector(".count");
+  const total = CHAIN_COUNT_TOTAL || document.querySelectorAll('#dd-net .dd-opt[data-net]:not([data-net="all"])').length;
   if(state.nets.size === 0){
     lbl.textContent = "All Chains";
-    if(count) count.textContent = String(CHAIN_COUNT_TOTAL);
+    if(count) count.textContent = `${total}/${total}`;
   } else if(state.nets.size === 1){
     lbl.textContent = CHAIN_LABELS[[...state.nets][0]] || [...state.nets][0];
-    if(count) count.textContent = "1";
+    if(count) count.textContent = `1/${total}`;
   } else {
     lbl.textContent = `${state.nets.size} chains`;
-    if(count) count.textContent = state.nets.size;
+    if(count) count.textContent = `${state.nets.size}/${total}`;
   }
 }
 document.querySelectorAll("#dd-net .dd-opt").forEach(opt=>{

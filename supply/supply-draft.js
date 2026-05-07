@@ -531,6 +531,23 @@
     });
   }
 
+  function resetActivityTypeDropdown() {
+    const allTypes = activityTypeOptions.map(option => option.type);
+    try {
+      if (typeof supplyActivityFilters !== 'undefined' && supplyActivityFilters instanceof Set) {
+        supplyActivityFilters = new Set(allTypes);
+      }
+    } catch (error) {}
+    document.querySelectorAll('.supply-filter-pill').forEach(btn => {
+      btn.classList.toggle('active', allTypes.includes(btn.dataset.type));
+    });
+    try {
+      if (typeof supplyGoActivityPage === 'function') supplyGoActivityPage(1);
+      else if (typeof renderSupplyActivityTable === 'function') renderSupplyActivityTable();
+    } catch (error) {}
+    syncActivityTypeDropdown();
+  }
+
   function installActivityTypeDropdown() {
     const toolbar = document.querySelector('.supply-activity-toolbar');
     const main = document.querySelector('.supply-activity-toolbar-main');
@@ -557,6 +574,7 @@
         <button type="button" class="supply-activity-type-trigger" aria-haspopup="menu" aria-expanded="false">
           <span class="supply-activity-type-label">All activity</span>
           <span class="supply-activity-type-count">4/4</span>
+          <span class="supply-activity-type-clear" role="button" aria-label="Clear activity filter" title="Clear filter">${clearIcon}</span>
           ${chevronIcon}
         </button>
         <div class="supply-activity-type-menu" role="menu">
@@ -573,9 +591,15 @@
 
       const trigger = dropdown.querySelector('.supply-activity-type-trigger');
       trigger?.addEventListener('click', event => {
+        if (event.target.closest('.supply-activity-type-clear')) return;
         event.stopPropagation();
         const isOpen = dropdown.classList.toggle('open');
         trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      });
+      dropdown.querySelector('.supply-activity-type-clear')?.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        resetActivityTypeDropdown();
       });
 
       dropdown.querySelectorAll('.supply-activity-type-option').forEach(option => {

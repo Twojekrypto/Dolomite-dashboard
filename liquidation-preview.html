@@ -10492,6 +10492,9 @@
             });
 
             menu.innerHTML = html;
+            menu.querySelectorAll('.chain-option').forEach(option => {
+                option.addEventListener('click', event => handleChainOptionSelection(event, option));
+            });
         }
 
         function setChainTriggerState() {
@@ -10505,7 +10508,9 @@
             document.getElementById('chain-trigger-label').textContent = label;
             const chainCount = document.getElementById('chain-trigger-count');
             if (chainCount) {
-                chainCount.textContent = selected.length === 0 ? String(availableChainCount || '0') : String(selected.length);
+                const total = availableChainCount || selected.length || 0;
+                const selectedCount = selected.length === 0 ? total : selected.length;
+                chainCount.textContent = `${selectedCount}/${total}`;
             }
             const triggerIcon = document.querySelector('#chain-trigger .trigger-icon');
             if (!triggerIcon) return;
@@ -10514,6 +10519,25 @@
             } else {
                 triggerIcon.outerHTML = `<img class="trigger-icon" src="${CHAIN_ICONS[singleChain] || ''}" alt="">`;
             }
+        }
+
+        function positionLendingToolbarMenu(triggerEl, menuEl) {
+            if (!triggerEl || !menuEl) return;
+            const rect = triggerEl.getBoundingClientRect();
+            const width = Math.max(rect.width, 220);
+            const left = Math.min(Math.max(8, rect.left), Math.max(8, window.innerWidth - width - 8));
+            menuEl.style.setProperty('position', 'fixed', 'important');
+            menuEl.style.setProperty('left', `${left}px`, 'important');
+            menuEl.style.setProperty('top', `${rect.bottom + 6}px`, 'important');
+            menuEl.style.setProperty('min-width', `${width}px`, 'important');
+            menuEl.style.setProperty('z-index', '10050', 'important');
+            requestAnimationFrame(() => {
+                const menuRect = menuEl.getBoundingClientRect();
+                if (menuRect.bottom > window.innerHeight - 8) {
+                    const aboveTop = Math.max(8, rect.top - menuRect.height - 6);
+                    menuEl.style.setProperty('top', `${aboveTop}px`, 'important');
+                }
+            });
         }
 
         function clearChainFilterOnly() {
@@ -10530,6 +10554,7 @@
             const wasOpen = document.getElementById('chain-filter').classList.contains('open');
             closeFloatingMenus({ keepChain: true });
             document.getElementById('chain-filter').classList.toggle('open', !wasOpen);
+            if (!wasOpen) positionLendingToolbarMenu(document.getElementById('chain-trigger'), document.getElementById('chain-menu'));
         });
 
         document.getElementById('chain-trigger-clear')?.addEventListener('click', (e) => {
@@ -10544,10 +10569,9 @@
             if (!dd.contains(e.target)) dd.classList.remove('open');
         });
 
-        // Chain option selection
-        document.getElementById('chain-menu').addEventListener('click', (e) => {
-            const opt = e.target.closest('.chain-option');
+        function handleChainOptionSelection(e, opt) {
             if (!opt) return;
+            e.stopPropagation();
             const chain = opt.dataset.chain;
             if (chain === 'all') {
                 chainFilterSelection.clear();
@@ -10569,6 +10593,12 @@
             debtTokenFilter.clear();
             tokenFilter.clear();
             applyFilters();
+        }
+
+        // Chain option selection
+        document.getElementById('chain-menu').addEventListener('click', (e) => {
+            const opt = e.target.closest('.chain-option');
+            handleChainOptionSelection(e, opt);
         });
 
         function updateToolbarFilterHighlights() {
@@ -11221,17 +11251,14 @@
             const current = selected.length === 1
                 ? RISK_OPTIONS.find(o => o.key === selected[0]) || RISK_OPTIONS[0]
                 : RISK_OPTIONS[0];
-            const currentCount = selected.length === 0
-                ? base.length
-                : selected.length === 1
-                    ? countRiskOption(base, current.key)
-                    : base.filter(p => matchesSelectedRiskClass(getRiskClass(p))).length;
+            const totalRiskOptions = RISK_OPTIONS.filter(option => option.key !== 'all').length;
+            const selectedRiskCount = selected.length === 0 ? totalRiskOptions : selected.length;
             const currentSwatch = current.swatch || current.color;
             const triggerSwatch = selected.length > 1 ? '#c9a227' : currentSwatch;
             triggerDot.style.setProperty('--risk-trigger-color', triggerSwatch);
             triggerDot.style.background = triggerSwatch;
-            triggerLabel.textContent = selected.length > 1 ? `${selected.length} Health` : current.label;
-            triggerCount.textContent = currentCount.toLocaleString();
+            triggerLabel.textContent = selected.length === 0 ? 'All Health' : selected.length > 1 ? `${selected.length} Health` : current.label;
+            triggerCount.textContent = `${selectedRiskCount}/${totalRiskOptions}`;
 
             // Render menu options
             let html = RISK_OPTIONS.map(opt => {
@@ -11292,6 +11319,7 @@
             const wasOpen = dd.classList.contains('open');
             closeFloatingMenus({ keepRisk: true });
             dd.classList.toggle('open', !wasOpen);
+            if (!wasOpen) positionLendingToolbarMenu(document.getElementById('risk-trigger'), document.getElementById('risk-menu'));
         });
 
         // Close risk dropdown on outside click

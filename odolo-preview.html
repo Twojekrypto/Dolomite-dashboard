@@ -255,6 +255,15 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dd-btn.filtered:hover{border-color:var(--gold-line)}
 #dd-types-ex .dd-btn,#dd-flows-types .dd-btn{min-width:170px}
 #dd-flows-period .dd-btn,#dd-ex-period .dd-btn{min-width:90px}
+.dd-clear{
+  display:none;align-items:center;justify-content:center;
+  width:18px;height:18px;border-radius:4px;margin-left:-2px;
+  flex-shrink:0;color:var(--fg-3);cursor:pointer;
+  transition:color .15s var(--ease),background .15s var(--ease);
+}
+.dd-btn.filtered .dd-clear{display:inline-flex}
+.dd-clear:hover{background:rgba(201,162,39,.18);color:var(--gold)}
+.dd-clear svg{width:10px;height:10px;pointer-events:none}
 
 .dd-panel-types{padding:6px;min-width:230px}
 .dd-panel-types .rw-list{display:flex;flex-direction:column}
@@ -1339,6 +1348,9 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
             <span class="lbl">All Types</span>
             <span class="count">5</span>
+            <span class="dd-clear" data-clear="types-ex" role="button" aria-label="Clear type filter" title="Clear filter">
+              <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg>
+            </span>
             <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div class="dd-panel dd-panel-types">
@@ -1423,6 +1435,9 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
             <span class="lbl">All Types</span>
             <span class="count">5</span>
+            <span class="dd-clear" data-clear="flows-types" role="button" aria-label="Clear flow type filter" title="Clear filter">
+              <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg>
+            </span>
             <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div class="dd-panel dd-panel-types">
@@ -3227,10 +3242,11 @@ function syncExTypesBtn(){
   const lbl = btn.querySelector(".lbl");
   const cnt = btn.querySelector(".count");
   btn.classList.toggle("filtered", state.exTypes.size !== total);
-  if(state.exTypes.size === total){lbl.textContent="All Types";cnt.textContent=String(total)}
-  else if(state.exTypes.size === 0){lbl.textContent="No Types";cnt.textContent="0"}
-  else if(state.exTypes.size === 1){lbl.textContent=TYPE_LABELS[[...state.exTypes][0]];cnt.textContent="1"}
-  else {lbl.textContent=`${state.exTypes.size} types`;cnt.textContent=String(state.exTypes.size)}
+  cnt.textContent = `${state.exTypes.size}/${total}`;
+  if(state.exTypes.size === total){lbl.textContent="All Types"}
+  else if(state.exTypes.size === 0){lbl.textContent="No Types"}
+  else if(state.exTypes.size === 1){lbl.textContent=TYPE_LABELS[[...state.exTypes][0]]}
+  else {lbl.textContent=`${state.exTypes.size} types`}
   document.querySelectorAll('#dd-types-ex .rw-item').forEach(item=>{
     item.classList.toggle("active", state.exTypes.has(item.dataset.type));
   });
@@ -3247,6 +3263,13 @@ document.querySelectorAll('#dd-types-ex .rw-item').forEach(item=>{
   });
 });
 syncExTypesBtn();
+document.querySelector('#dd-types-ex .dd-clear')?.addEventListener("click", e=>{
+  e.stopPropagation();
+  state.exTypes = new Set(ADDRESS_TYPES);
+  syncExTypesBtn();
+  state.exPage=0;
+  renderExercisers();
+});
 
 /* Exercisers period — same time frames as DOLO Flows */
 document.querySelectorAll('#dd-ex-period .dd-opt').forEach(opt=>{
@@ -3282,10 +3305,11 @@ function syncFlowsTypesBtn(){
   const lbl = btn.querySelector(".lbl");
   const cnt = btn.querySelector(".count");
   btn.classList.toggle("filtered", state.flowsTypes.size !== total);
-  if(state.flowsTypes.size === total){lbl.textContent="All Types";cnt.textContent=String(total)}
-  else if(state.flowsTypes.size === 0){lbl.textContent="No Types";cnt.textContent="0"}
-  else if(state.flowsTypes.size === 1){lbl.textContent=TYPE_LABELS[[...state.flowsTypes][0]];cnt.textContent="1"}
-  else {lbl.textContent=`${state.flowsTypes.size} types`;cnt.textContent=String(state.flowsTypes.size)}
+  cnt.textContent = `${state.flowsTypes.size}/${total}`;
+  if(state.flowsTypes.size === total){lbl.textContent="All Types"}
+  else if(state.flowsTypes.size === 0){lbl.textContent="No Types"}
+  else if(state.flowsTypes.size === 1){lbl.textContent=TYPE_LABELS[[...state.flowsTypes][0]]}
+  else {lbl.textContent=`${state.flowsTypes.size} types`}
   document.querySelectorAll('#dd-flows-types .rw-item').forEach(item=>{
     item.classList.toggle("active", state.flowsTypes.has(item.dataset.type));
   });
@@ -3303,6 +3327,14 @@ document.querySelectorAll('#dd-flows-types .rw-item').forEach(item=>{
   });
 });
 syncFlowsTypesBtn();
+document.querySelector('#dd-flows-types .dd-clear')?.addEventListener("click", e=>{
+  e.stopPropagation();
+  state.flowsTypes = new Set(ADDRESS_TYPES);
+  syncFlowsTypesBtn();
+  state.flowsPage.acc=0;
+  state.flowsPage.out=0;
+  renderFlows();
+});
 
 /* Flows period */
 document.querySelectorAll('#dd-flows-period .dd-opt').forEach(opt=>{
