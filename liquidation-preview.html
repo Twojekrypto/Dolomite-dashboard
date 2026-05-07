@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dolomite · Borrow</title>
-    <meta name="description" content="Monitor Dolomite lending positions at risk of liquidation across all chains.">
+    <meta name="description" content="Track Dolomite borrow positions and account health across all chains.">
     <link rel="shortcut icon" href="favicon.ico" type="image/png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -6986,8 +6986,8 @@
             <div class="header-left">
                 <img src="dolomite-logo.svg" alt="Dolomite">
                 <div>
-                    <div class="header-title">Liquidation Risk Monitor</div>
-                    <div class="header-subtitle">Real-time lending position health across all chains</div>
+                    <div class="header-title">Borrow Positions</div>
+                    <div class="header-subtitle">Lending position health across all chains</div>
                 </div>
             </div>
             <a href="index.html" class="back-link">
@@ -6999,7 +6999,7 @@
         <div class="monitor-tabs">
             <button class="monitor-tab active" data-tab="liquidations" onclick="switchMonitorTab('liquidations')">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:text-bottom"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                Liquidation Risk
+                Borrow Positions
             </button>
             <button class="monitor-tab" data-tab="supply" onclick="switchMonitorTab('supply')">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:text-bottom"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
@@ -7007,20 +7007,20 @@
             </button>
         </div>
 
-        <!-- TAB CONTENT: Liquidation Risk -->
+        <!-- TAB CONTENT: Borrow Positions -->
         <div id="tab-liquidations" class="tab-content active">
 
         <div class="liquidation-intel-shell">
             <div class="liquidation-intel-header">
                 <div class="liquidation-intel-copy">
-                    <div class="liquidation-intel-eyebrow">Risk Overview</div>
+                    <div class="liquidation-intel-eyebrow">Borrow Overview</div>
                     <div class="liquidation-intel-title-row">
                         <div class="liquidation-intel-title-icon">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fb7185" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
                         </div>
                         <div>
-                            <div class="liquidation-intel-title">Liquidation Risk</div>
-                            <div class="liquidation-intel-subtitle">Live watchlist for positions drifting toward liquidation.</div>
+                            <div class="liquidation-intel-title">Borrow Positions</div>
+                            <div class="liquidation-intel-subtitle">Active borrow positions with health, collateral, and debt context.</div>
                         </div>
                     </div>
                 </div>
@@ -9132,7 +9132,7 @@
                     </div>
                     <div class="proto-brand-text">
                         <div class="proto-brand-name">Dolomite</div>
-                        <div class="proto-brand-sub">Lending &amp; margin · <b>7 chains</b> · <b>liquidation risk</b></div>
+                        <div class="proto-brand-sub">Lending &amp; margin · <b>7 chains</b> · <b>borrow analytics</b></div>
                     </div>
                 </div>
                 <div class="proto-links">
@@ -9195,7 +9195,7 @@
             if (protoSub) {
                 protoSub.innerHTML = isSupply
                     ? 'Lending &amp; margin · <b>7 chains</b> · <b>supply analytics</b>'
-                    : 'Lending &amp; margin · <b>7 chains</b> · <b>liquidation risk</b>';
+                    : 'Lending &amp; margin · <b>7 chains</b> · <b>borrow analytics</b>';
             }
             setMonitorTabState(isSupply ? 'supply' : 'liquidations');
         }
