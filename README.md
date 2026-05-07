@@ -1,8 +1,8 @@
-# 📊 veDOLO Dashboard
+# 📊 Dolomite Dashboard
 
 Real-time analytics dashboard for the [Dolomite](https://dolomite.io) protocol — tracking DOLO token, veDOLO governance, oDOLO options, and DeFi earnings across Berachain, Ethereum, Arbitrum, and more.
 
-**🔗 [Live Dashboard](https://twojekrypto.github.io/vedolo-dashboard/)**
+**🔗 [Live Dashboard](https://twojekrypto.github.io/Dolomite-dashboard/)**
 
 ![Dashboard Preview](preview.png)
 
@@ -439,8 +439,8 @@ Data is auto-updated via **GitHub Actions** workflows:
 
 ```bash
 # Clone the repo
-git clone https://github.com/Twojekrypto/vedolo-dashboard.git
-cd vedolo-dashboard
+git clone https://github.com/Twojekrypto/Dolomite-dashboard.git
+cd Dolomite-dashboard
 
 # Serve locally
 python3 -m http.server 8080

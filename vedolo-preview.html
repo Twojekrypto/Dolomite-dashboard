@@ -942,8 +942,6 @@ const state = {
   durationFocus:-1,
   exitBehaviorFocus:-1
 };
-const LIVE_DATA_BASE = "https://twojekrypto.github.io/vedolo-dashboard/";
-
 const DURATION_BUCKETS = [
   {label:"<1M",min:0,max:30},
   {label:"1-3M",min:30,max:90},
@@ -1040,10 +1038,6 @@ function setMetricText(id, value){
 }
 async function fetchJson(name){
   const stamp = Date.now();
-  try{
-    const live = await fetch(`${LIVE_DATA_BASE}${name}?v=${stamp}`, {cache:"no-cache"});
-    if(live.ok) return live.json();
-  }catch(err){}
   const res = await fetch(`${name}?v=${stamp}`, {cache:"no-cache"});
   if(!res.ok) throw new Error(`${name} HTTP ${res.status}`);
   return res.json();
@@ -2203,16 +2197,21 @@ async function boot(){
   renderProtocolInfo();
   setText("now", new Date().toLocaleString());
   try{
-    const [stats, holders, early, flows, expiry, price] = await Promise.all([
-      fetchJson("vedolo_stats.json").catch(() => null),
-      fetchJson("vedolo_holders.json").catch(() => null),
-      fetchJson("early_exits.json").catch(() => null),
-      fetchJson("vedolo_flows.json").catch(() => null),
-      fetchJson("vedolo_expiry.json").catch(() => null),
-      fetchJson("dolo_price.json").catch(() => null)
-    ]);
-    state.stats = stats?.stats || holders?.stats || {};
+    const statsPromise = fetchJson("vedolo_stats.json").catch(() => null);
+    const pricePromise = fetchJson("dolo_price.json").catch(() => null);
+    const holdersPromise = fetchJson("vedolo_holders.json").catch(() => null);
+    const earlyPromise = fetchJson("early_exits.json").catch(() => null);
+    const flowsPromise = fetchJson("vedolo_flows.json").catch(() => null);
+    const expiryPromise = fetchJson("vedolo_expiry.json").catch(() => null);
+
+    const [stats, price] = await Promise.all([statsPromise, pricePromise]);
+    state.stats = stats?.stats || {};
     state.statsTimestamp = stats?.timestamp;
+    state.price = price;
+    renderHero();
+
+    const [holders, early, flows, expiry] = await Promise.all([holdersPromise, earlyPromise, flowsPromise, expiryPromise]);
+    if(!stats?.stats) state.stats = holders?.stats || {};
     state.holders = holders?.holders || [];
     state.holdersTimestamp = holders?.timestamp;
     state.earlyStats = early?.stats || {};
@@ -2220,7 +2219,6 @@ async function boot(){
     state.locks = (flows?.locks || []).sort((a,b) => num(b.timestamp)-num(a.timestamp));
     state.unlocks = (flows?.unlocks || []).sort((a,b) => num(b.timestamp)-num(a.timestamp));
     state.expiry = expiry;
-    state.price = price;
     renderStatic();
     renderAllTables();
     emitQaReport();
