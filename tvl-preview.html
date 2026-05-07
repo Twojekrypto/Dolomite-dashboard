@@ -1527,10 +1527,11 @@ function renderChainDropdown(){
   const lbl = document.getElementById("ddChainLbl");
   const cnt = document.getElementById("ddChainCount");
   const btn = document.getElementById("ddChainBtn");
-  const source = sourceTokens();
+  const totalChains = CHAINS.length;
+  const selectedChains = allActive ? totalChains : tokenState.chains.size;
   if (allActive){
     lbl.textContent = "All Chains";
-    cnt.textContent = String(source.length);
+    cnt.textContent = `${totalChains}/${totalChains}`;
     btn.classList.remove("filtered");
   } else {
     const sel = [...tokenState.chains];
@@ -1539,7 +1540,7 @@ function renderChainDropdown(){
     } else {
       lbl.textContent = `${sel.length} chains`;
     }
-    cnt.textContent = String(source.length);
+    cnt.textContent = `${selectedChains}/${totalChains}`;
     btn.classList.add("filtered");
   }
 

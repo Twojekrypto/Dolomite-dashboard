@@ -644,6 +644,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
             <span class="lbl">All Types</span>
             <span class="count">6</span>
+            <span class="dd-clear" data-clear="types" role="button" aria-label="Clear type filter" title="Clear filter">
+              <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg>
+            </span>
             <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div class="dd-panel dd-panel-types">
@@ -750,6 +753,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
             <span class="lbl">All Types</span>
             <span class="count">6</span>
+            <span class="dd-clear" data-clear="flows-types" role="button" aria-label="Clear flow type filter" title="Clear filter">
+              <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg>
+            </span>
             <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div class="dd-panel dd-panel-types">
@@ -1440,18 +1446,15 @@ function syncTypesBtn(){
   const cnt = btn.querySelector(".count");
   // "filtered" = some types are turned off.
   btn.classList.toggle("filtered", state.types.size !== total);
+  cnt.textContent = `${state.types.size}/${total}`;
   if(state.types.size === total){
     lbl.textContent = "All Types";
-    cnt.textContent = String(total);
   } else if(state.types.size === 0){
     lbl.textContent = "No Types";
-    cnt.textContent = "0";
   } else if(state.types.size === 1){
     lbl.textContent = TYPE_LABELS[[...state.types][0]];
-    cnt.textContent = "1";
   } else {
     lbl.textContent = `${state.types.size} types`;
-    cnt.textContent = String(state.types.size);
   }
   document.querySelectorAll('#dd-types .rw-item').forEach(item=>{
     item.classList.toggle("active", state.types.has(item.dataset.type));
@@ -1469,6 +1472,13 @@ document.querySelectorAll('#dd-types .rw-item').forEach(item=>{
   });
 });
 syncTypesBtn();
+document.querySelector('#dd-types .dd-clear')?.addEventListener("click", e=>{
+  e.stopPropagation();
+  state.types = new Set(ADDRESS_TYPES);
+  syncTypesBtn();
+  state.page = 0;
+  renderHolders();
+});
 // Flows chain — single-select dropdown (All / Ethereum / Berachain)
 document.querySelectorAll('#dd-flows-chain .dd-opt').forEach(opt=>{
   opt.addEventListener("click", e=>{
@@ -1510,10 +1520,11 @@ function syncFlowsTypesBtn(){
   const lbl = btn.querySelector(".lbl");
   const cnt = btn.querySelector(".count");
   btn.classList.toggle("filtered", state.flowsTypes.size !== total);
-  if(state.flowsTypes.size === total){lbl.textContent="All Types";cnt.textContent=String(total)}
-  else if(state.flowsTypes.size === 0){lbl.textContent="No Types";cnt.textContent="0"}
-  else if(state.flowsTypes.size === 1){lbl.textContent=TYPE_LABELS[[...state.flowsTypes][0]];cnt.textContent="1"}
-  else {lbl.textContent=`${state.flowsTypes.size} types`;cnt.textContent=String(state.flowsTypes.size)}
+  cnt.textContent = `${state.flowsTypes.size}/${total}`;
+  if(state.flowsTypes.size === total){lbl.textContent="All Types"}
+  else if(state.flowsTypes.size === 0){lbl.textContent="No Types"}
+  else if(state.flowsTypes.size === 1){lbl.textContent=TYPE_LABELS[[...state.flowsTypes][0]]}
+  else {lbl.textContent=`${state.flowsTypes.size} types`}
   document.querySelectorAll('#dd-flows-types .rw-item').forEach(item=>{
     item.classList.toggle("active", state.flowsTypes.has(item.dataset.type));
   });
@@ -1531,6 +1542,14 @@ document.querySelectorAll('#dd-flows-types .rw-item').forEach(item=>{
   });
 });
 syncFlowsTypesBtn();
+document.querySelector('#dd-flows-types .dd-clear')?.addEventListener("click", e=>{
+  e.stopPropagation();
+  state.flowsTypes = new Set(ADDRESS_TYPES);
+  syncFlowsTypesBtn();
+  state.flowsPage.acc=0;
+  state.flowsPage.out=0;
+  renderFlows();
+});
 
 // One row per (token, chain) pair — explicit even when same address.
 const CONTRACTS = [
