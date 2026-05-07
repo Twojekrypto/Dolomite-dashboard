@@ -261,6 +261,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .exit-analytics-card .exit-summary{border-bottom:0}
 .exit-summary{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(320px,.9fr);gap:14px;padding:20px 24px;border-bottom:1px solid rgba(180,121,107,.16);background:linear-gradient(90deg,rgba(180,121,107,.045),rgba(201,162,39,.018))}
 .exit-panel{border:1px solid rgba(180,121,107,.24);border-radius:var(--r-lg);background:linear-gradient(180deg,rgba(180,121,107,.055),rgba(13,13,15,.78));overflow:hidden;box-shadow:0 1px 0 rgba(255,255,255,.02) inset}
+.exit-panel.revenue-impact-panel{display:flex;flex-direction:column}
 .exit-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid rgba(180,121,107,.15);font-size:13px;font-weight:700;color:#e6b5ad}
 .exit-panel-head span{font-family:var(--mono);font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:1.2px;color:var(--fg-3);white-space:nowrap}
 .exit-metric-table{margin:0 16px 6px;width:calc(100% - 32px)}
@@ -282,6 +283,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .exit-metric-table .penalty-split-row.recouped .penalty-split-label::before{background:rgba(201,162,39,.55);box-shadow:0 0 16px rgba(201,162,39,.12)}
 .exit-metric-table .penalty-split-title{display:flex;align-items:center;gap:7px;min-width:0}
 .exit-metric-table .penalty-split-chip{display:inline-flex;align-items:center;height:17px;padding:0 6px;border-radius:999px;border:1px solid rgba(180,121,107,.22);background:rgba(180,121,107,.06);font-family:var(--mono);font-size:8.5px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:rgba(242,214,209,.54);white-space:nowrap}
+.revenue-impact-panel .exit-metric-table{flex:1 1 auto;margin-bottom:16px;height:100%}
+.revenue-impact-panel .exit-metric-table tbody tr{height:20%}
+.revenue-impact-panel .exit-metric-table td{vertical-align:middle}
 #rev-penalty,#rev-penalty-pct,#rev-burned,#rev-burned-pct{color:#d58a7c}
 #rev-burned-penalty-pct{color:#d58a7c}
 #rev-recouped,#rev-recouped-pct,#rev-recouped-penalty-pct{color:#c9a227}
@@ -682,7 +686,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
       <div class="card-meta"><span class="dot-live"></span><span id="exit-updated">loading</span></div>
     </div>
     <div class="exit-summary">
-      <div class="exit-panel">
+      <div class="exit-panel revenue-impact-panel">
         <div class="exit-panel-head">Revenue Impact <span>penalty split</span></div>
         <table class="metric-table exit-metric-table">
           <thead><tr><th>Metric</th><th class="num">DOLO</th><th class="num">Share</th></tr></thead>
@@ -1329,11 +1333,13 @@ function renderRevenue(){
   const burned = num(s.total_burn_fee_dolo);
   const recouped = num(s.total_recoup_fee_dolo);
   const penaltyBase = penalty || burned + recouped;
+  const burnedPenaltyPct = penaltyBase ? burned/penaltyBase*100 : 0;
+  const recoupedPenaltyPct = penaltyBase ? recouped/penaltyBase*100 : 0;
   setText("rev-burned", fmtCompact(burned));
-  setText("rev-burned-penalty-pct", penaltyBase ? pct(burned/penaltyBase*100) : "--");
+  setText("rev-burned-penalty-pct", penaltyBase ? pct(burnedPenaltyPct) : "--");
   setText("rev-burned-pct", original ? pct(burned/original*100) : "--");
   setText("rev-recouped", fmtCompact(recouped));
-  setText("rev-recouped-penalty-pct", penaltyBase ? pct(recouped/penaltyBase*100) : "--");
+  setText("rev-recouped-penalty-pct", penaltyBase ? pct(recoupedPenaltyPct) : "--");
   setText("rev-recouped-pct", original ? pct(recouped/original*100) : "--");
   setText("kpi-early", fmtInt(s.total_early_exits));
   setText("kpi-early-sub", s.total_withdrawals ? `${pct(num(s.total_early_exits)/num(s.total_withdrawals)*100)} of ${fmtInt(s.total_withdrawals)} withdrawals` : "--");
