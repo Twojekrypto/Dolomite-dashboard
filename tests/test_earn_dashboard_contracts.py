@@ -62,6 +62,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
     def test_arbitrum_canonical_workflow_targets_one_hour_freshness(self):
         workflow = ARBITRUM_CANONICAL_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("cron: '18,48 * * * *'", workflow)
+        self.assertIn("secrets.ALCHEMY_ARBITRUM_RPC_ZEN", workflow)
         self.assertIn("Build Arbitrum verified ledger cache", workflow)
         self.assertIn("build_earn_verified_ledger.py", workflow)
 
