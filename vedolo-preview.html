@@ -422,6 +422,11 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .flow-col-lock .tx-only-link{color:#9bcf9f}
 .flow-col-unlock .tx-only-link{color:#d5a095}
 .flow-col .tx-only-link:hover{color:var(--gold);background:var(--gold-wash);border-color:var(--gold-line)}
+.flow-col .addr-debank{width:20px;height:20px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;color:var(--fg-3);border:1px solid transparent;flex-shrink:0;transition:color .15s var(--ease),background .15s var(--ease),border-color .15s var(--ease);padding:0;overflow:hidden}
+.flow-col .addr-debank img{width:14px;height:14px;border-radius:3px;opacity:.7;transition:opacity .15s var(--ease)}
+.flow-col .addr-debank:hover{border-color:#fe815f;background:rgba(254,129,95,.08)}
+.flow-col .addr-debank:hover img{opacity:1}
+.flow-col .debank-fallback{font-family:var(--mono);font-size:11px;font-weight:700;color:#fe815f}
 .flow-col .addr{font-size:12px}
 .flow-col .tag{max-width:96px;overflow:hidden;text-overflow:ellipsis;font-size:9px;padding:2px 6px;letter-spacing:.25px;flex-shrink:0}
 .flow-route-head,.flow-route-cell{text-align:center}
@@ -1092,6 +1097,7 @@ function flowAddressCell(addr, date, txHash, timestamp){
     <div class="flow-tx-line flow-address-main">
       <a class="addr addr-tooltip-wrap" href="https://debank.com/profile/${esc(displayAddr)}" target="_blank" rel="noopener" data-full-addr="${esc(displayAddr)}">${esc(shortAddr(displayAddr))}</a>
       <button class="copy-btn" data-copy="${esc(displayAddr)}">${copySvg}</button>
+      <a class="addr-debank" href="https://debank.com/profile/${esc(displayAddr)}" target="_blank" rel="noopener" aria-label="View on DeBank" onclick="event.stopPropagation()"><img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'"></a>
     </div>
     ${flowDateLine(date, txHash, timestamp)}
   </div>`;
