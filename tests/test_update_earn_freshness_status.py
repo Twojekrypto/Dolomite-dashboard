@@ -93,6 +93,10 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         self.assertFalse(status["summary"]["catchupRefreshRecommended"])
         self.assertIn("update-earn-arbitrum-canonical-history.yml", status["summary"]["refreshWorkflows"])
         self.assertIn(NETFLOW_WORKFLOW, status["summary"]["refreshWorkflows"])
+        self.assertIn(
+            {"workflow": NETFLOW_WORKFLOW, "inputs": {"chain": "arbitrum"}},
+            status["summary"]["refreshJobs"],
+        )
         report = {entry["chain"]: entry for entry in status["chainReport"]}
         self.assertEqual(report["arbitrum"]["supportMode"], "canonical-ledger")
         self.assertEqual(report["arbitrum"]["canonicalLagMinutes"], 180.0)
@@ -199,10 +203,63 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         self.assertEqual(status["chains"]["xlayer"]["supportMode"], "snapshot-first")
         self.assertEqual(status["summary"]["limitedChains"], ["xlayer"])
         self.assertIn(NETFLOW_WORKFLOW, status["summary"]["refreshWorkflows"])
+        self.assertIn(
+            {"workflow": NETFLOW_WORKFLOW, "inputs": {"chain": "polygonzkevm"}},
+            status["summary"]["refreshJobs"],
+        )
         self.assertNotIn("update-earn-secondary-canonical-history.yml", status["summary"]["refreshWorkflows"])
         report = {entry["chain"]: entry for entry in status["chainReport"]}
         self.assertEqual(report["polygonzkevm"]["weakPoint"], "netflow missing")
         self.assertIn("snapshot-first coverage", report["xlayer"]["weakPoint"])
+
+    def test_generic_netflow_refresh_jobs_stay_chain_specific(self):
+        now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_json(
+                root,
+                "earn-subaccount-history/manifest.json",
+                {
+                    "chains": {
+                        "arbitrum": {"lastBlock": 1_000_000, "updatedAt": "2026-05-08T11:59:00Z"},
+                        "ethereum": {"lastBlock": 1_000_000, "updatedAt": "2026-05-08T11:59:00Z"},
+                    }
+                },
+            )
+            for chain in ("arbitrum", "ethereum"):
+                self._write_json(
+                    root,
+                    f"earn-netflow/{chain}.json",
+                    {
+                        "chain": chain,
+                        "lastBlock": 1_000_000,
+                        "updatedAt": "2026-05-08T10:00:00Z",
+                        "addressCount": 1,
+                    },
+                )
+            self._write_json(root, "earn-snapshots/manifest.json", {"dates": [], "chains": {}})
+
+            status = build_status(
+                data_dir=root,
+                live_blocks={
+                    "arbitrum": 1_100_000,
+                    "ethereum": 1_002_000,
+                    "berachain": None,
+                    "botanix": None,
+                    "mantle": None,
+                    "polygonzkevm": None,
+                    "xlayer": None,
+                },
+                now=now,
+            )
+
+        netflow_jobs = [
+            job for job in status["summary"]["refreshJobs"]
+            if job["workflow"] == NETFLOW_WORKFLOW
+        ]
+        self.assertIn({"workflow": NETFLOW_WORKFLOW, "inputs": {"chain": "arbitrum"}}, netflow_jobs)
+        self.assertIn({"workflow": NETFLOW_WORKFLOW, "inputs": {"chain": "ethereum"}}, netflow_jobs)
+        self.assertNotIn({"workflow": NETFLOW_WORKFLOW, "inputs": {"chain": "all"}}, netflow_jobs)
 
     def test_actions_output_contains_refresh_plan(self):
         with tempfile.TemporaryDirectory() as tmp:

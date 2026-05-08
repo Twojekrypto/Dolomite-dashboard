@@ -679,6 +679,47 @@ def save_progress(chain_id, progress):
         json.dump(progress, f)
 
 
+def apply_cycle_metadata(netflows, cycle_market_state):
+    """Attach cycle-aware active position metadata to the public netflow map."""
+    for (owner, mid), state in cycle_market_state.items():
+        if owner not in netflows or mid not in netflows[owner]:
+            continue
+        storage_entry = netflows[owner][mid]
+        storage_entry["endingPar"] = str(state["endingPar"])
+        if state["endingPar"] <= 0 or state["peakPar"] <= 0:
+            continue
+
+        reset_threshold = state["endingPar"] // 5
+        reset_candidate = None
+        for candidate in reversed(state["suffixCandidates"]):
+            if candidate["balance"] <= 0:
+                continue
+            if candidate["balance"] <= reset_threshold:
+                reset_candidate = candidate
+                break
+        if reset_candidate is None:
+            continue
+        recent_netflow = state["totalWei"] - reset_candidate["prefixWei"]
+        storage_entry["recentNetFlow"] = str(recent_netflow)
+        storage_entry["resetPar"] = str(reset_candidate["balance"])
+
+
+def write_netflow_output(chain_id, last_block, netflows):
+    """Write the public chain netflow file for the data scanned so far."""
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    output_file = OUTPUT_DIR / f"{chain_id}.json"
+    output_data = {
+        "chain": chain_id,
+        "lastBlock": int(last_block),
+        "updatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "addressCount": len(netflows),
+        "netflows": netflows,
+    }
+    with open(output_file, "w") as f:
+        json.dump(output_data, f, separators=(",", ":"))
+    return output_file
+
+
 def _progress_payload_for_state(last_block, netflows, cycle_account_state, cycle_market_state, cycle_state_enabled):
     return (
         _build_progress_payload(
@@ -804,8 +845,14 @@ def scan_chain(chain_id, chain_config, only_chains=None, target_addresses=None, 
                         cycle_market_state,
                         cycle_state_enabled,
                     ),
-                )
+            )
             print(f"  ⏱ Soft runtime limit reached at block {current:,}; saved progress for next run")
+            if not target_addresses and current > start_block:
+                scanned_block = max(0, current - 1)
+                apply_cycle_metadata(netflows, cycle_market_state)
+                output_file = write_netflow_output(chain_id, scanned_block, netflows)
+                file_size = output_file.stat().st_size
+                print(f"  ✓ Partial output: {output_file} through block {scanned_block:,} ({file_size/1024:.1f} KB)")
             return {"completed": False, "reason": "soft_runtime_limit", "lastBlock": current}
 
         to_block = min(current + chunk_size - 1, latest_block)
@@ -958,43 +1005,10 @@ def scan_chain(chain_id, chain_config, only_chains=None, target_addresses=None, 
         )
         save_progress(chain_id, payload)
 
-    for (owner, mid), state in cycle_market_state.items():
-        storage = filtered_netflows if target_addresses and owner in filtered_netflows else netflows
-        if owner not in storage or mid not in storage[owner]:
-            continue
-        storage_entry = storage[owner][mid]
-        storage_entry["endingPar"] = str(state["endingPar"])
-        if state["endingPar"] <= 0 or state["peakPar"] <= 0:
-            continue
-
-        reset_threshold = state["endingPar"] // 5
-        reset_candidate = None
-        for candidate in reversed(state["suffixCandidates"]):
-            if candidate["balance"] <= 0:
-                continue
-            if candidate["balance"] <= reset_threshold:
-                reset_candidate = candidate
-                break
-        if reset_candidate is None:
-            continue
-        recent_netflow = state["totalWei"] - reset_candidate["prefixWei"]
-        storage_entry["recentNetFlow"] = str(recent_netflow)
-        storage_entry["resetPar"] = str(reset_candidate["balance"])
-
-    # Write output
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     if target_addresses:
         netflows.update(filtered_netflows)
-    output_data = {
-        "chain": chain_id,
-        "lastBlock": latest_block,
-        "updatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "addressCount": len(netflows),
-        "netflows": netflows,
-    }
-    
-    with open(output_file, "w") as f:
-        json.dump(output_data, f, separators=(",", ":"))
+    apply_cycle_metadata(netflows, cycle_market_state)
+    output_file = write_netflow_output(chain_id, latest_block, netflows)
     
     file_size = output_file.stat().st_size
     print(f"\n  ✓ {chain_id}: {len(netflows)} addresses, {total_events} events")
