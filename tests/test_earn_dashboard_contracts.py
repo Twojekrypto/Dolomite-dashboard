@@ -7,6 +7,7 @@ DASHBOARD_CORE = ROOT / "dashboard-core.html"
 ETHEREUM_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-ethereum-canonical-history.yml"
 ARBITRUM_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-arbitrum-canonical-history.yml"
 BERACHAIN_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-berachain-canonical-history.yml"
+SECONDARY_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-secondary-canonical-history.yml"
 BERACHAIN_NETFLOW_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-berachain-netflow.yml"
 BERACHAIN_BORROW_ROUTE_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-berachain-borrow-route-history.yml"
 EARN_FRESHNESS_WORKFLOW = ROOT / ".github" / "workflows" / "monitor-earn-freshness.yml"
@@ -106,6 +107,20 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("0x66322a0f0ef69afb3f9d41b4f6ea657592578330", addresses)
         self.assertIn("0xdac2c5d760ff866bc796ddb88dffec3d9a90b7e5", addresses)
 
+    def test_secondary_canonical_workflow_targets_mantle_and_botanix_only(self):
+        workflow = SECONDARY_CANONICAL_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("cron: '23,53 * * * *'", workflow)
+        self.assertIn("cron: '28,58 * * * *'", workflow)
+        self.assertIn("type: choice", workflow)
+        self.assertIn("          - mantle", workflow)
+        self.assertIn("          - botanix", workflow)
+        self.assertIn("timeout-minutes: 120", workflow)
+        self.assertIn("--max-steps 360", workflow)
+        self.assertIn("Resolve selected chain", workflow)
+        self.assertIn("Skipping $CHAIN for this trigger.", workflow)
+        self.assertNotIn("chain: polygonzkevm", workflow)
+        self.assertNotIn("chain: xlayer", workflow)
+
     def test_berachain_netflow_workflow_runs_frequent_chain_only_scan(self):
         workflow = BERACHAIN_NETFLOW_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("cron: '27,57 * * * *'", workflow)
@@ -150,8 +165,17 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("actions: write", workflow)
         self.assertIn("update_earn_freshness_status.py", workflow)
         self.assertIn("data/earn-freshness/status.json", workflow)
+        self.assertIn("refreshJobs", workflow)
         self.assertIn("gh workflow run", workflow)
-        self.assertIn("earn-refresh-workflows.txt", workflow)
+        self.assertIn("earn-refresh-jobs.tsv", workflow)
+        self.assertIn('-f "chain=$chain"', workflow)
+
+    def test_freshness_routes_secondary_refreshes_with_chain_inputs(self):
+        source = EARN_FRESHNESS_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('"canonicalWorkflowInputs": {"chain": "mantle"}', source)
+        self.assertIn('"canonicalWorkflowInputs": {"chain": "botanix"}', source)
+        self.assertIn('"refreshJobs"', source)
+        self.assertIn('merged_inputs["chain"] = "all"', source)
 
     def test_canonical_refresh_runner_keeps_json_stdout_clean(self):
         runner = CANONICAL_REFRESH_RUNNER.read_text(encoding="utf-8")

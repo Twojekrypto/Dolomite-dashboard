@@ -85,20 +85,29 @@ jobs:
       - name: Trigger stale EARN refresh workflows
         run: |
           set -euo pipefail
-          python3 - /tmp/earn-freshness-actions.json > /tmp/earn-refresh-workflows.txt <<'PY'
+          python3 - /tmp/earn-freshness-actions.json > /tmp/earn-refresh-jobs.tsv <<'PY'
           import json
           import sys
           payload = json.load(open(sys.argv[1]))
-          for workflow in payload.get("refreshWorkflows") or []:
-              print(workflow)
+          jobs = payload.get("refreshJobs") or [
+              {"workflow": workflow, "inputs": {}}
+              for workflow in payload.get("refreshWorkflows") or []
+          ]
+          for job in jobs:
+              workflow = str(job.get("workflow") or "").strip()
+              if not workflow:
+                  continue
+              inputs = job.get("inputs") or {}
+              chain = str(inputs.get("chain") or "").strip()
+              print(f"{workflow}\t{chain}")
           PY
 
-          if [ ! -s /tmp/earn-refresh-workflows.txt ]; then
+          if [ ! -s /tmp/earn-refresh-jobs.tsv ]; then
             echo "No EARN refresh workflows needed."
             exit 0
           fi
 
-          while IFS= read -r workflow; do
+          while IFS=$'\t' read -r workflow chain; do
             if [ -z "$workflow" ]; then
               continue
             fi
@@ -109,6 +118,11 @@ jobs:
               echo "Skipping $workflow because $active run(s) are already queued/running."
               continue
             fi
-            echo "Triggering $workflow because EARN freshness drifted past the retry threshold."
-            gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref master
-          done < /tmp/earn-refresh-workflows.txt
+            if [ -n "${chain:-}" ]; then
+              echo "Triggering $workflow for $chain because EARN freshness drifted past the retry threshold."
+              gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref master -f "chain=$chain"
+            else
+              echo "Triggering $workflow because EARN freshness drifted past the retry threshold."
+              gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref master
+            fi
+          done < /tmp/earn-refresh-jobs.tsv

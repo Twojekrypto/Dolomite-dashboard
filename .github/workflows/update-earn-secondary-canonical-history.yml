@@ -2,11 +2,22 @@ name: Refresh Secondary Canonical EARN History
 
 on:
   schedule:
-    - cron: '37 */2 * * *'  # Every 2 hours, staggered from Ethereum/Berachain/Arbitrum
+    - cron: '23,53 * * * *'  # Mantle only, staggered from primary chains
+    - cron: '28,58 * * * *'  # Botanix only, staggered from Mantle
   workflow_dispatch:
+    inputs:
+      chain:
+        description: 'Secondary chain to refresh.'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - mantle
+          - botanix
 
 concurrency:
-  group: earn-secondary-canonical-history-${{ github.ref }}
+  group: earn-secondary-canonical-history-${{ github.event.inputs.chain || github.event.schedule || github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -15,7 +26,7 @@ permissions:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       max-parallel: 1
@@ -30,20 +41,6 @@ jobs:
             incremental_apply_workers: 6
           - chain: botanix
             label: Botanix
-            hot_limit: 500
-            scan_workers: 4
-            materialize_workers: 4
-            incremental_scan_workers: 4
-            incremental_apply_workers: 4
-          - chain: polygonzkevm
-            label: Polygon zkEVM
-            hot_limit: 500
-            scan_workers: 4
-            materialize_workers: 4
-            incremental_scan_workers: 4
-            incremental_apply_workers: 4
-          - chain: xlayer
-            label: X Layer
             hot_limit: 500
             scan_workers: 4
             materialize_workers: 4
@@ -70,21 +67,47 @@ jobs:
       XLAYER_RPC_2: ${{ secrets.XLAYER_RPC_2 }}
 
     steps:
+      - name: Resolve selected chain
+        id: selected
+        run: |
+          set -euo pipefail
+          selected=false
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            dispatch_chain="${{ github.event.inputs.chain || 'all' }}"
+            if [ "$dispatch_chain" = "all" ] || [ "$dispatch_chain" = "$CHAIN" ]; then
+              selected=true
+            fi
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            schedule="${{ github.event.schedule }}"
+            if { [ "$schedule" = "23,53 * * * *" ] && [ "$CHAIN" = "mantle" ]; } || \
+               { [ "$schedule" = "28,58 * * * *" ] && [ "$CHAIN" = "botanix" ]; }; then
+              selected=true
+            fi
+          fi
+          echo "selected=$selected" >> "$GITHUB_OUTPUT"
+          if [ "$selected" != "true" ]; then
+            echo "Skipping $CHAIN for this trigger."
+          fi
+
       - name: Checkout
+        if: steps.selected.outputs.selected == 'true'
         uses: actions/checkout@v6
         with:
           ref: master
           fetch-depth: 0
 
       - name: Set up Python
+        if: steps.selected.outputs.selected == 'true'
         uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
       - name: Install Python dependencies
+        if: steps.selected.outputs.selected == 'true'
         run: python3 -m pip install --upgrade pip requests
 
       - name: Restore canonical runtime cache
+        if: steps.selected.outputs.selected == 'true'
         uses: actions/cache@v5
         with:
           path: |
@@ -98,6 +121,7 @@ jobs:
             earn-canonical-runtime-${{ matrix.chain }}-
 
       - name: Select hot wallets
+        if: steps.selected.outputs.selected == 'true'
         run: |
           set -euo pipefail
           python3 select_earn_canonical_hot_addresses.py \
@@ -110,6 +134,7 @@ jobs:
           cat "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
 
       - name: Refresh canonical history
+        if: steps.selected.outputs.selected == 'true'
         id: refresh
         run: |
           set -euo pipefail
@@ -122,7 +147,7 @@ jobs:
             --max-incremental-scan-workers "$INCREMENTAL_SCAN_WORKERS" \
             --max-incremental-apply-workers "$INCREMENTAL_APPLY_WORKERS" \
             --max-new-backfill-workers 4 \
-            --max-steps 720 \
+            --max-steps 360 \
             --sleep-seconds 20 \
             --allow-empty \
             --skip-unsupported-start-block \
@@ -160,7 +185,7 @@ jobs:
           PYTHONUNBUFFERED: '1'
 
       - name: Save canonical runtime cache
-        if: always()
+        if: always() && steps.selected.outputs.selected == 'true'
         uses: actions/cache/save@v5
         with:
           path: |
