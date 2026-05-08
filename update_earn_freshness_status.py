@@ -54,6 +54,7 @@ CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
         "blockTimeSeconds": 6.0,
         "verifiedBlockLag": 1800,
         "canonicalWorkflow": "update-earn-secondary-canonical-history.yml",
+        "canonicalWorkflowInputs": {"chain": "botanix"},
         "canonicalSupported": True,
     },
     "mantle": {
@@ -61,6 +62,7 @@ CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
         "blockTimeSeconds": 2.0,
         "verifiedBlockLag": 5400,
         "canonicalWorkflow": "update-earn-secondary-canonical-history.yml",
+        "canonicalWorkflowInputs": {"chain": "mantle"},
         "canonicalSupported": True,
     },
     "polygonzkevm": {
@@ -210,6 +212,34 @@ def _live_blocks(chains: Iterable[str]) -> Dict[str, Optional[int]]:
     return blocks
 
 
+def _register_refresh_job(
+    refresh_jobs_by_workflow: Dict[str, Dict[str, Any]],
+    *,
+    workflow: str,
+    inputs: Optional[Dict[str, Any]] = None,
+) -> None:
+    normalized_inputs = {
+        str(key): str(value)
+        for key, value in (inputs or {}).items()
+        if value is not None and str(value) != ""
+    }
+    existing = refresh_jobs_by_workflow.get(workflow)
+    if existing is None:
+        refresh_jobs_by_workflow[workflow] = {
+            "workflow": workflow,
+            "inputs": normalized_inputs,
+        }
+        return
+    if existing.get("inputs") != normalized_inputs:
+        merged_inputs: Dict[str, str] = {}
+        if "chain" in (existing.get("inputs") or {}) or "chain" in normalized_inputs:
+            merged_inputs["chain"] = "all"
+        refresh_jobs_by_workflow[workflow] = {
+            "workflow": workflow,
+            "inputs": merged_inputs,
+        }
+
+
 def build_status(
     *,
     data_dir: Path,
@@ -225,6 +255,7 @@ def build_status(
 
     chains: Dict[str, Any] = {}
     refresh_workflows = set()
+    refresh_jobs_by_workflow: Dict[str, Dict[str, Any]] = {}
     refresh_reasons = []
 
     for chain, policy in CHAIN_POLICIES.items():
@@ -261,12 +292,20 @@ def build_status(
         )
 
         if canonical.get("refreshRecommended") and canonical_supported:
-            refresh_workflows.add(str(policy["canonicalWorkflow"]))
+            workflow = str(policy["canonicalWorkflow"])
+            refresh_workflows.add(workflow)
+            _register_refresh_job(
+                refresh_jobs_by_workflow,
+                workflow=workflow,
+                inputs=policy.get("canonicalWorkflowInputs"),
+            )
             refresh_reasons.append(
                 f"{chain}: canonical {canonical['status']} ({_format_lag_reason_minutes(canonical.get('estimatedLagMinutes'))})"
             )
         if netflow.get("refreshRecommended") and netflow_supported:
-            refresh_workflows.add(str(policy.get("netflowWorkflow") or NETFLOW_WORKFLOW))
+            workflow = str(policy.get("netflowWorkflow") or NETFLOW_WORKFLOW)
+            refresh_workflows.add(workflow)
+            _register_refresh_job(refresh_jobs_by_workflow, workflow=workflow)
             refresh_reasons.append(
                 f"{chain}: netflow {netflow['status']} ({_format_lag_reason_minutes(netflow.get('estimatedLagMinutes'))})"
             )
@@ -318,6 +357,10 @@ def build_status(
             "status": overall,
             "refreshRecommended": bool(refresh_workflows),
             "refreshWorkflows": sorted(refresh_workflows),
+            "refreshJobs": sorted(
+                refresh_jobs_by_workflow.values(),
+                key=lambda job: (job["workflow"], sorted((job.get("inputs") or {}).items())),
+            ),
             "refreshReasons": refresh_reasons,
         },
         "chains": chains,
@@ -328,6 +371,7 @@ def write_actions_output(status: Dict[str, Any], path: Path) -> None:
     payload = {
         "refreshRecommended": bool(status.get("summary", {}).get("refreshRecommended")),
         "refreshWorkflows": status.get("summary", {}).get("refreshWorkflows") or [],
+        "refreshJobs": status.get("summary", {}).get("refreshJobs") or [],
         "refreshReasons": status.get("summary", {}).get("refreshReasons") or [],
     }
     path.parent.mkdir(parents=True, exist_ok=True)
