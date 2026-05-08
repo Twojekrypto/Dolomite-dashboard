@@ -12,7 +12,7 @@
     const response = await fetch(`../tvl-preview.html?v=${previewVersion}`, { cache: "no-cache" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const html = await response.text();
-    const mobileNavAssets = '<link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260508"><script defer src="mobile-nav.js?v=mobile-nav-20260508"><\/script>';
+    const mobileNavAssets = '<link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260508"><link rel="stylesheet" href="mobile-polish.css?v=mobile-polish-20260508"><script defer src="mobile-nav.js?v=mobile-nav-20260508"><\/script><script defer src="mobile-polish.js?v=mobile-polish-20260508"><\/script>';
     document.open();
     document.write(html.replace("<head>", '<head><base href="../">').replace("</head>", mobileNavAssets + "</head>"));
     document.close();
