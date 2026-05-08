@@ -236,9 +236,13 @@ def _register_refresh_job(
         for key, value in (inputs or {}).items()
         if value is not None and str(value) != ""
     }
-    existing = refresh_jobs_by_workflow.get(workflow)
+    job_key = workflow
+    if workflow == NETFLOW_WORKFLOW and normalized_inputs.get("chain") not in {"", None, "all"}:
+        job_key = f"{workflow}:chain={normalized_inputs['chain']}"
+
+    existing = refresh_jobs_by_workflow.get(job_key)
     if existing is None:
-        refresh_jobs_by_workflow[workflow] = {
+        refresh_jobs_by_workflow[job_key] = {
             "workflow": workflow,
             "inputs": normalized_inputs,
         }
@@ -247,7 +251,7 @@ def _register_refresh_job(
         merged_inputs: Dict[str, str] = {}
         if "chain" in (existing.get("inputs") or {}) or "chain" in normalized_inputs:
             merged_inputs["chain"] = "all"
-        refresh_jobs_by_workflow[workflow] = {
+        refresh_jobs_by_workflow[job_key] = {
             "workflow": workflow,
             "inputs": merged_inputs,
         }
@@ -376,8 +380,15 @@ def build_status(
             )
         if netflow.get("refreshRecommended") and netflow_supported:
             workflow = str(policy.get("netflowWorkflow") or NETFLOW_WORKFLOW)
+            workflow_inputs = policy.get("netflowWorkflowInputs")
+            if workflow_inputs is None and workflow == NETFLOW_WORKFLOW:
+                workflow_inputs = {"chain": chain}
             refresh_workflows.add(workflow)
-            _register_refresh_job(refresh_jobs_by_workflow, workflow=workflow)
+            _register_refresh_job(
+                refresh_jobs_by_workflow,
+                workflow=workflow,
+                inputs=workflow_inputs,
+            )
             refresh_reasons.append(
                 f"{chain}: netflow {netflow['refreshMode']} refresh ({netflow['status']}, {_format_lag_reason_minutes(netflow.get('estimatedLagMinutes'))})"
             )
