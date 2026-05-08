@@ -1319,21 +1319,52 @@
         }
         .positions-table tbody tr:hover .ext-icon { opacity: 1; }
 
-        .debank-icon {
-            display: inline-flex;
-            align-items: center;
-            opacity: 0.5;
-            transition: opacity 0.2s, transform 0.2s;
+        .debank-icon,
+        .copy-addr-icon {
+            display: inline-grid;
+            place-items: center;
+            width: 22px;
+            height: 22px;
+            flex: 0 0 22px;
+            padding: 0;
+            border: 1px solid var(--line-2, var(--border-default));
+            border-radius: 5px;
+            background: var(--bg-3, rgba(255,255,255,.04));
+            color: var(--fg-4, var(--text-muted));
+            opacity: 1;
             vertical-align: middle;
+            line-height: 1;
+            text-decoration: none;
+            transform: none;
+            transition: color .15s var(--ease, ease), border-color .15s var(--ease, ease), background .15s var(--ease, ease), opacity .15s var(--ease, ease);
         }
 
-        .debank-icon:hover {
+        .debank-icon {
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .debank-icon:hover,
+        .debank-icon:focus-visible {
             opacity: 1;
-            transform: scale(1.6);
+            border-color: #fe815f;
+            background: rgba(254,129,95,.08);
+            transform: none;
+            outline: none;
         }
 
         .debank-icon img {
+            width: 14px;
+            height: 14px;
             border-radius: 3px;
+            opacity: .72;
+            pointer-events: none;
+            transition: opacity .15s var(--ease, ease);
+        }
+
+        .debank-icon:hover img,
+        .debank-icon:focus-visible img {
+            opacity: 1;
         }
 
         .tg-icon {
@@ -1417,25 +1448,31 @@
         }
 
         .copy-addr-icon {
-            display: inline-flex;
-            align-items: center;
             cursor: pointer;
-            opacity: 0.35;
-            color: #9ca3af;
-            transition: opacity 0.2s, transform 0.2s, color 0.2s;
-            vertical-align: middle;
         }
 
-        .copy-addr-icon:hover {
+        .copy-addr-icon:hover,
+        .copy-addr-icon:focus-visible {
             opacity: 1;
-            color: #ffffff;
-            transform: scale(1.4);
+            color: var(--gold, var(--accent-amber));
+            border-color: var(--gold-line, rgba(251,191,36,.30));
+            background: var(--gold-wash, rgba(251,191,36,.10));
+            transform: none;
+            outline: none;
         }
 
         .copy-addr-icon.copied {
             opacity: 1;
-            color: #34d399;
-            transform: scale(1.4);
+            color: var(--up, var(--accent-green));
+            border-color: var(--profit-line, rgba(52,211,153,.30));
+            background: var(--profit-wash, rgba(52,211,153,.10));
+            transform: none;
+        }
+
+        .copy-addr-icon svg {
+            width: 11px;
+            height: 11px;
+            pointer-events: none;
         }
 
         .acct-num {
@@ -1586,6 +1623,10 @@
         }
 
         .address-cell a:hover { color: #22d3ee; }
+
+        .address-cell a.debank-icon,
+        .address-cell a.debank-icon:hover,
+        .address-cell a.debank-icon:focus-visible { color: var(--fg-4, var(--text-muted)); }
 
         .addr-tooltip-wrap {
             position: relative;
@@ -3732,15 +3773,21 @@
 
 
         function copyAddr(addr, el) {
-            navigator.clipboard.writeText(addr).then(() => {
+            const origSvg = el ? el.innerHTML : '';
+            const showCopied = () => {
+                if (!el) return;
                 el.classList.add('copied');
-                const origSvg = el.innerHTML;
                 el.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
                 setTimeout(() => {
                     el.innerHTML = origSvg;
                     el.classList.remove('copied');
                 }, 1500);
-            });
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(addr).then(showCopied).catch(showCopied);
+            } else {
+                showCopied();
+            }
         }
 
         function renderChainButtons(data) {
@@ -4058,7 +4105,7 @@
                     <td><span class="chain-badge ${p.chain}" title="${chainFull}"><img class="chain-icon" src="${chainIcon}" alt="">${chainLabel}</span></td>
                     <td><div class="address-cell">
                         <span class="watchlist-star${watchlist.has(p.address) ? ' starred' : ''}" data-addr="${p.address}" onclick="event.stopPropagation();toggleStar('${p.address}',this)" title="Add to watchlist"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>
-                        <a href="${p.explorer}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${p.address}">${shortAddr}</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${p.address}',this)" title="Copy address">${COPY_SVG}</span><a href="${debankUrl}" target="_blank" onclick="event.stopPropagation()" class="debank-icon" data-tooltip="View on DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a>
+                        <a href="${p.explorer}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${p.address}">${shortAddr}</a><span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${p.address}',this)">${COPY_SVG}</span><a href="${debankUrl}" target="_blank" onclick="event.stopPropagation()" class="debank-icon"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a>
                     </div></td>
                     <td><div class="hf-gauge"><span class="hf-badge ${riskClass}" data-tooltip="${tooltip}"><span class="hf-dot ${riskClass}"></span>${hfText}</span></div></td>
                     <td style="text-align:center">${emodeCell}</td>

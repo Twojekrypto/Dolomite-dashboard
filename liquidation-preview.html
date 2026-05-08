@@ -3081,21 +3081,52 @@
         }
         .positions-table tbody tr:hover .ext-icon { opacity: 1; }
 
-        .debank-icon {
-            display: inline-flex;
-            align-items: center;
-            opacity: 0.5;
-            transition: opacity 0.2s, transform 0.2s;
+        .debank-icon,
+        .copy-addr-icon {
+            display: inline-grid;
+            place-items: center;
+            width: 22px;
+            height: 22px;
+            flex: 0 0 22px;
+            padding: 0;
+            border: 1px solid var(--line-2, var(--border-default));
+            border-radius: 5px;
+            background: var(--bg-3, rgba(255,255,255,.04));
+            color: var(--fg-4, var(--text-muted));
+            opacity: 1;
             vertical-align: middle;
+            line-height: 1;
+            text-decoration: none;
+            transform: none;
+            transition: color .15s var(--ease, ease), border-color .15s var(--ease, ease), background .15s var(--ease, ease), opacity .15s var(--ease, ease);
         }
 
-        .debank-icon:hover {
+        .debank-icon {
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .debank-icon:hover,
+        .debank-icon:focus-visible {
             opacity: 1;
-            transform: scale(1.6);
+            border-color: #fe815f;
+            background: rgba(254,129,95,.08);
+            transform: none;
+            outline: none;
         }
 
         .debank-icon img {
+            width: 14px;
+            height: 14px;
             border-radius: 3px;
+            opacity: .72;
+            pointer-events: none;
+            transition: opacity .15s var(--ease, ease);
+        }
+
+        .debank-icon:hover img,
+        .debank-icon:focus-visible img {
+            opacity: 1;
         }
 
         .tg-icon {
@@ -3179,25 +3210,31 @@
         }
 
         .copy-addr-icon {
-            display: inline-flex;
-            align-items: center;
             cursor: pointer;
-            opacity: 0.35;
-            color: #9ca3af;
-            transition: opacity 0.2s, transform 0.2s, color 0.2s;
-            vertical-align: middle;
         }
 
-        .copy-addr-icon:hover {
+        .copy-addr-icon:hover,
+        .copy-addr-icon:focus-visible {
             opacity: 1;
-            color: #ffffff;
-            transform: scale(1.4);
+            color: var(--gold, var(--accent-amber));
+            border-color: var(--gold-line, rgba(251,191,36,.30));
+            background: var(--gold-wash, rgba(251,191,36,.10));
+            transform: none;
+            outline: none;
         }
 
         .copy-addr-icon.copied {
             opacity: 1;
-            color: #34d399;
-            transform: scale(1.4);
+            color: var(--up, var(--accent-green));
+            border-color: var(--profit-line, rgba(52,211,153,.30));
+            background: var(--profit-wash, rgba(52,211,153,.10));
+            transform: none;
+        }
+
+        .copy-addr-icon svg {
+            width: 11px;
+            height: 11px;
+            pointer-events: none;
         }
 
         .acct-num {
@@ -3348,6 +3385,10 @@
         }
 
         .address-cell a:hover { color: #22d3ee; }
+
+        .address-cell a.debank-icon,
+        .address-cell a.debank-icon:hover,
+        .address-cell a.debank-icon:focus-visible { color: var(--fg-4, var(--text-muted)); }
 
         .known-address-cell {
             display: inline-flex;
@@ -10428,15 +10469,21 @@
 
 
         function copyAddr(addr, el) {
-            navigator.clipboard.writeText(addr).then(() => {
+            const origSvg = el ? el.innerHTML : '';
+            const showCopied = () => {
+                if (!el) return;
                 el.classList.add('copied');
-                const origSvg = el.innerHTML;
                 el.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
                 setTimeout(() => {
                     el.innerHTML = origSvg;
                     el.classList.remove('copied');
                 }, 1500);
-            });
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(addr).then(showCopied).catch(showCopied);
+            } else {
+                showCopied();
+            }
         }
 
         function resetLendingTableScroll() {
