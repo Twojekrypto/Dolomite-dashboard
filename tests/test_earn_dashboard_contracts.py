@@ -67,6 +67,17 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("Build Arbitrum verified ledger cache", workflow)
         self.assertIn("build_earn_verified_ledger.py", workflow)
 
+    def test_earn_canonical_lookup_verified_window_matches_three_hours_by_chain(self):
+        self.assertIn("ethereum: 900n, // ~3h at 12s blocks", self.source)
+        self.assertIn("berachain: 5400n, // ~3h at 2s blocks", self.source)
+        self.assertIn("arbitrum: 43200n, // ~3h at ~0.25s blocks", self.source)
+        self.assertIn("botanix: 1800n, // ~3h at 6s blocks", self.source)
+        self.assertIn("mantle: 5400n, // ~3h at 2s blocks", self.source)
+        self.assertIn("polygonzkevm: 3400n, // ~3h at ~3.2s blocks", self.source)
+        self.assertIn("xlayer: 10800n, // ~3h at 1s blocks", self.source)
+        self.assertNotIn("polygonzkevm: 5400n", self.source)
+        self.assertNotIn("xlayer: 3600n", self.source)
+
     def test_canonical_refresh_runner_keeps_json_stdout_clean(self):
         runner = CANONICAL_REFRESH_RUNNER.read_text(encoding="utf-8")
         self.assertIn("stderr=subprocess.PIPE", runner)
