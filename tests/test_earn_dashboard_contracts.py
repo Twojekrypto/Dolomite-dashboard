@@ -74,10 +74,10 @@ class EarnDashboardContractsTest(unittest.TestCase):
     def test_berachain_canonical_workflow_runs_in_checkpointed_chunks(self):
         workflow = BERACHAIN_CANONICAL_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("cron: '7,37 * * * *'", workflow)
-        self.assertIn("timeout-minutes: 75", workflow)
+        self.assertIn("timeout-minutes: 90", workflow)
         self.assertIn("BOOTSTRAP_HOT_LIMIT: '500'", workflow)
-        self.assertIn("STEADY_HOT_LIMIT: '1200'", workflow)
-        self.assertIn("CHECKPOINT_STEPS: '90'", workflow)
+        self.assertIn("STEADY_HOT_LIMIT: '500'", workflow)
+        self.assertIn("CHECKPOINT_STEPS: '150'", workflow)
         self.assertIn("CHECKPOINT_SLEEP_SECONDS: '20'", workflow)
         self.assertIn("has_public_baseline", workflow)
         self.assertIn("--allow-checkpoint-incomplete", workflow)
