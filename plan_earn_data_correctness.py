@@ -212,7 +212,9 @@ def _run_benchmark(
 
 def _worker_counts(max_workers: Optional[int]) -> List[int]:
     cpu = max(1, os.cpu_count() or 1)
-    cap = min(cpu, max_workers) if max_workers else cpu
+    # These runners are mostly RPC/network bound. When a workflow passes an
+    # explicit cap, honor it even if GitHub exposes fewer CPU cores.
+    cap = max(1, int(max_workers)) if max_workers else cpu
     candidates = [1, 2, 3, 4, 6, 8, 10, 12]
     unique = sorted({count for count in candidates if count <= cap})
     if cap not in unique:

@@ -473,8 +473,8 @@ def main() -> int:
         raise SystemExit(message)
 
     try:
-        if _has_complete_baseline(args.history_dir, args.chain, selected_addresses):
-            print(f"[{args.chain}] baseline found; running incremental refresh", flush=True)
+        if _manifest_last_block(args.history_dir, args.chain) > 0:
+            print(f"[{args.chain}] public baseline found; running incremental refresh", flush=True)
             payload = _incremental_refresh(args, selected_addresses)
         else:
             print(f"[{args.chain}] no baseline found; bootstrapping selected canonical history", flush=True)
