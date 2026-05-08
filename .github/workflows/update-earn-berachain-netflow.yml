@@ -1,0 +1,104 @@
+name: Update Berachain Earn Netflow Data
+
+on:
+  schedule:
+    - cron: '27,57 * * * *'  # Berachain-only netflow, staggered between canonical checkpoints
+  workflow_dispatch:
+    inputs:
+      reset_progress:
+        description: 'Reset Berachain netflow progress before scanning.'
+        required: false
+        default: 'false'
+
+concurrency:
+  group: earn-netflow-data
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  update-berachain-netflow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Restore Berachain netflow progress cache
+        if: ${{ github.event.inputs.reset_progress != 'true' }}
+        uses: actions/cache@v4
+        with:
+          path: data/.netflow-progress
+          key: netflow-progress-berachain-${{ github.run_id }}
+          restore-keys: |
+            netflow-progress-berachain-
+            netflow-progress-
+
+      - name: Reset Berachain progress
+        if: ${{ github.event.inputs.reset_progress == 'true' }}
+        run: |
+          set -euo pipefail
+          mkdir -p data/.netflow-progress
+          echo '{"version": 2, "last_block": 0, "netflows": {}, "cycleAccountState": {}, "cycleMarketState": {}}' > data/.netflow-progress/berachain.json
+
+      - name: Scan Berachain earn netflow events
+        run: python3 scan_earn_netflow.py berachain --max-runtime-seconds 3300
+        env:
+          PYTHONUNBUFFERED: '1'
+          ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
+          ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
+          ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}
+
+      - name: Save Berachain netflow progress cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/.netflow-progress
+          key: netflow-progress-berachain-${{ github.run_id }}
+
+      - name: Validate Berachain earn netflow data
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("data/earn-netflow/berachain.json")
+          payload = json.loads(path.read_text())
+          assert payload.get("chain") == "berachain", payload.get("chain")
+          assert int(payload.get("lastBlock") or 0) > 0, "missing lastBlock"
+          print(f"Validated Berachain netflow at block {payload['lastBlock']}")
+          PY
+
+      - name: Commit & push Berachain netflow changes
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/earn-netflow/berachain.json
+          if git diff --staged --quiet; then
+            echo "No Berachain netflow changes to commit"
+            exit 0
+          fi
+          git stash push --keep-index --include-untracked --message "berachain-netflow-progress" -- data/.netflow-progress || true
+          git commit -m "📊 Berachain earn netflow update: $(date -u '+%Y-%m-%d %H:%M UTC')"
+          for i in 1 2 3; do
+            if git pull --rebase -X theirs origin master && git push; then
+              git stash pop || true
+              exit 0
+            fi
+            echo "Push attempt $i failed, retrying after remote moved..."
+            sleep 5
+          done
+          git stash pop || true
+          exit 1
