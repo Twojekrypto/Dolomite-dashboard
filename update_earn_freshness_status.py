@@ -71,6 +71,7 @@ CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
         "verifiedBlockLag": 3400,
         "canonicalWorkflow": "update-earn-secondary-canonical-history.yml",
         "canonicalSupported": False,
+        "supportMode": "snapshot-first",
     },
     "xlayer": {
         "label": "X Layer",
@@ -78,6 +79,7 @@ CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
         "verifiedBlockLag": 10800,
         "canonicalWorkflow": "update-earn-secondary-canonical-history.yml",
         "canonicalSupported": False,
+        "supportMode": "snapshot-first",
     },
 }
 
@@ -139,6 +141,14 @@ def _format_lag_reason_minutes(value: Any) -> str:
     return f"{value}m lag"
 
 
+def _refresh_mode(status: str, refresh_recommended: bool) -> str:
+    if not refresh_recommended:
+        return "none"
+    if status in {"verified", "ahead"}:
+        return "background"
+    return "catchup"
+
+
 def _component_status(
     *,
     chain: str,
@@ -160,6 +170,7 @@ def _component_status(
             "updatedAt": updated_at or None,
             "updatedAgeMinutes": None,
             "refreshRecommended": False,
+            "refreshMode": "none",
             "reason": f"{component} is not supported for {chain}",
         }
 
@@ -178,6 +189,8 @@ def _component_status(
         status = "unknown"
         refresh_recommended = False
 
+    refresh_mode = _refresh_mode(status, refresh_recommended)
+
     return {
         "status": status,
         "lastBlock": last_block,
@@ -193,6 +206,7 @@ def _component_status(
         "verifiedBlockLag": int(policy["verifiedBlockLag"]),
         "staleBlockLag": _threshold_blocks(policy, STALE_AFTER_HOURS * 60),
         "refreshRecommended": refresh_recommended,
+        "refreshMode": refresh_mode,
     }
 
 
@@ -240,6 +254,59 @@ def _register_refresh_job(
         }
 
 
+def _latest_timestamp(*values: Any) -> Optional[str]:
+    timestamps = [parsed for value in values if (parsed := _parse_timestamp(value)) is not None]
+    if not timestamps:
+        return None
+    return max(timestamps).isoformat().replace("+00:00", "Z")
+
+
+def _chain_refresh_mode(*components: Dict[str, Any]) -> str:
+    modes = {str(component.get("refreshMode") or "none") for component in components}
+    if "catchup" in modes:
+        return "catchup"
+    if "background" in modes:
+        return "background"
+    return "none"
+
+
+def _support_mode(
+    *,
+    policy: Dict[str, Any],
+    canonical_supported: bool,
+    netflow_supported: bool,
+) -> str:
+    if policy.get("supportMode"):
+        return str(policy["supportMode"])
+    if canonical_supported and netflow_supported:
+        return "canonical-ledger"
+    if canonical_supported:
+        return "canonical-only"
+    if netflow_supported:
+        return "netflow-only"
+    return "snapshot-first"
+
+
+def _weak_point(
+    *,
+    support_mode: str,
+    canonical: Dict[str, Any],
+    netflow: Dict[str, Any],
+    snapshot_available: bool,
+) -> str:
+    if support_mode == "snapshot-first":
+        if snapshot_available:
+            return "snapshot-first coverage; canonical and netflow event ledgers are not enabled"
+        return "snapshot-first coverage; snapshot is currently missing"
+    for name, component in (("canonical", canonical), ("netflow", netflow)):
+        if component.get("status") in {"missing", "syncing", "stale", "unknown"}:
+            return f"{name} {component['status']}"
+    for name, component in (("canonical", canonical), ("netflow", netflow)):
+        if component.get("refreshMode") == "background":
+            return f"{name} background refresh due"
+    return "none"
+
+
 def build_status(
     *,
     data_dir: Path,
@@ -254,6 +321,7 @@ def build_status(
     snapshot_manifest = _read_json(data_dir / "earn-snapshots" / "manifest.json", {})
 
     chains: Dict[str, Any] = {}
+    chain_report = []
     refresh_workflows = set()
     refresh_jobs_by_workflow: Dict[str, Dict[str, Any]] = {}
     refresh_reasons = []
@@ -280,6 +348,11 @@ def build_status(
             now=now,
         )
         netflow_supported = (CHAINS.get(chain) or {}).get("start_block", 0) >= 0
+        support_mode = _support_mode(
+            policy=policy,
+            canonical_supported=canonical_supported,
+            netflow_supported=netflow_supported,
+        )
         netflow = _component_status(
             chain=chain,
             component="netflow",
@@ -300,18 +373,21 @@ def build_status(
                 inputs=policy.get("canonicalWorkflowInputs"),
             )
             refresh_reasons.append(
-                f"{chain}: canonical {canonical['status']} ({_format_lag_reason_minutes(canonical.get('estimatedLagMinutes'))})"
+                f"{chain}: canonical {canonical['refreshMode']} refresh ({canonical['status']}, {_format_lag_reason_minutes(canonical.get('estimatedLagMinutes'))})"
             )
         if netflow.get("refreshRecommended") and netflow_supported:
             workflow = str(policy.get("netflowWorkflow") or NETFLOW_WORKFLOW)
             refresh_workflows.add(workflow)
             _register_refresh_job(refresh_jobs_by_workflow, workflow=workflow)
             refresh_reasons.append(
-                f"{chain}: netflow {netflow['status']} ({_format_lag_reason_minutes(netflow.get('estimatedLagMinutes'))})"
+                f"{chain}: netflow {netflow['refreshMode']} refresh ({netflow['status']}, {_format_lag_reason_minutes(netflow.get('estimatedLagMinutes'))})"
             )
 
+        chain_refresh_mode = _chain_refresh_mode(canonical, netflow)
         chain_statuses = [canonical["status"], netflow["status"]]
-        if all(status == "unsupported" for status in chain_statuses):
+        if support_mode == "snapshot-first":
+            chain_status = "limited"
+        elif all(status == "unsupported" for status in chain_statuses):
             chain_status = "unsupported"
         elif "stale" in chain_statuses:
             chain_status = "stale"
@@ -325,6 +401,8 @@ def build_status(
         chains[chain] = {
             "label": policy["label"],
             "status": chain_status,
+            "supportMode": support_mode,
+            "refreshMode": chain_refresh_mode,
             "blockTimeSeconds": policy["blockTimeSeconds"],
             "canonical": canonical,
             "netflow": netflow,
@@ -333,8 +411,30 @@ def build_status(
                 "available": bool(latest_snapshot),
             },
         }
+        chain_report.append(
+            {
+                "chain": chain,
+                "label": policy["label"],
+                "status": chain_status,
+                "supportMode": support_mode,
+                "refreshMode": chain_refresh_mode,
+                "canonicalLagMinutes": canonical.get("estimatedLagMinutes"),
+                "netflowLagMinutes": netflow.get("estimatedLagMinutes"),
+                "lastRefreshAt": _latest_timestamp(canonical.get("updatedAt"), netflow.get("updatedAt")),
+                "weakPoint": _weak_point(
+                    support_mode=support_mode,
+                    canonical=canonical,
+                    netflow=netflow,
+                    snapshot_available=bool(latest_snapshot),
+                ),
+            }
+        )
 
-    statuses = [payload["status"] for payload in chains.values() if payload["status"] != "unsupported"]
+    statuses = [
+        payload["status"]
+        for payload in chains.values()
+        if payload["status"] not in {"unsupported", "limited"}
+    ]
     if "stale" in statuses:
         overall = "stale"
     elif "syncing" in statuses:
@@ -343,6 +443,8 @@ def build_status(
         overall = "unknown"
     else:
         overall = "verified"
+
+    refresh_modes = {payload["refreshMode"] for payload in chains.values()}
 
     return {
         "version": 1,
@@ -356,14 +458,20 @@ def build_status(
         "summary": {
             "status": overall,
             "refreshRecommended": bool(refresh_workflows),
+            "backgroundRefreshRecommended": "background" in refresh_modes,
+            "catchupRefreshRecommended": "catchup" in refresh_modes,
             "refreshWorkflows": sorted(refresh_workflows),
             "refreshJobs": sorted(
                 refresh_jobs_by_workflow.values(),
                 key=lambda job: (job["workflow"], sorted((job.get("inputs") or {}).items())),
             ),
             "refreshReasons": refresh_reasons,
+            "limitedChains": sorted(
+                chain for chain, payload in chains.items() if payload["status"] == "limited"
+            ),
         },
         "chains": chains,
+        "chainReport": chain_report,
     }
 
 
@@ -373,6 +481,7 @@ def write_actions_output(status: Dict[str, Any], path: Path) -> None:
         "refreshWorkflows": status.get("summary", {}).get("refreshWorkflows") or [],
         "refreshJobs": status.get("summary", {}).get("refreshJobs") or [],
         "refreshReasons": status.get("summary", {}).get("refreshReasons") or [],
+        "chainReport": status.get("chainReport") or [],
     }
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")

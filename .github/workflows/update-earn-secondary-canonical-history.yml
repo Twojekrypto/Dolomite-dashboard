@@ -1,4 +1,5 @@
 name: Refresh Secondary Canonical EARN History
+run-name: Refresh Secondary Canonical EARN History [${{ github.event.inputs.chain || (github.event.schedule == '23,53 * * * *' && 'mantle') || (github.event.schedule == '28,58 * * * *' && 'botanix') || 'all' }}]
 
 on:
   schedule:

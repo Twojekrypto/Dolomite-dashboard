@@ -111,11 +111,70 @@ jobs:
             if [ -z "$workflow" ]; then
               continue
             fi
-            queued="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$workflow" --status queued --json databaseId --jq 'length' || echo 0)"
-            running="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$workflow" --status in_progress --json databaseId --jq 'length' || echo 0)"
-            active=$((queued + running))
+            active="$(python3 - "$workflow" "${chain:-}" <<'PY'
+          import json
+          import os
+          import subprocess
+          import sys
+
+          workflow = sys.argv[1]
+          chain = (sys.argv[2] if len(sys.argv) > 2 else "").strip().lower()
+          repo = os.environ["GITHUB_REPOSITORY"]
+
+          def active_runs(status):
+              try:
+                  output = subprocess.check_output(
+                      [
+                          "gh",
+                          "run",
+                          "list",
+                          "--repo",
+                          repo,
+                          "--workflow",
+                          workflow,
+                          "--status",
+                          status,
+                          "--limit",
+                          "50",
+                          "--json",
+                          "databaseId,displayTitle,name,status",
+                      ],
+                      text=True,
+                  )
+              except subprocess.CalledProcessError as exc:
+                  print(f"gh run list failed for {workflow}/{status}: {exc}", file=sys.stderr)
+                  return []
+              return json.loads(output or "[]")
+
+          def covers_requested_chain(run):
+              if not chain:
+                  return True
+              title = str(run.get("displayTitle") or run.get("name") or "").lower()
+              if f"[{chain}]" in title or "[all]" in title:
+                  return True
+              # Old active runs may not have a chain-aware run-name yet; be conservative.
+              return "[" not in title
+
+          matches = [
+              run
+              for status in ("queued", "in_progress")
+              for run in active_runs(status)
+              if covers_requested_chain(run)
+          ]
+          for run in matches:
+              print(
+                  f"Active matching run: {run.get('databaseId')} {run.get('status')} {run.get('displayTitle')}",
+                  file=sys.stderr,
+              )
+          print(len(matches))
+          PY
+          )"
             if [ "$active" -gt 0 ]; then
-              echo "Skipping $workflow because $active run(s) are already queued/running."
+              if [ -n "${chain:-}" ]; then
+                echo "Skipping $workflow for $chain because $active matching run(s) are already queued/running."
+              else
+                echo "Skipping $workflow because $active run(s) are already queued/running."
+              fi
               continue
             fi
             if [ -n "${chain:-}" ]; then
