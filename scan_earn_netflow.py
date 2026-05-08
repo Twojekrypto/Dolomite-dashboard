@@ -686,6 +686,8 @@ def apply_cycle_metadata(netflows, cycle_market_state):
             continue
         storage_entry = netflows[owner][mid]
         storage_entry["endingPar"] = str(state["endingPar"])
+        storage_entry.pop("recentNetFlow", None)
+        storage_entry.pop("resetPar", None)
         if state["endingPar"] <= 0 or state["peakPar"] <= 0:
             continue
 
@@ -704,7 +706,7 @@ def apply_cycle_metadata(netflows, cycle_market_state):
         storage_entry["resetPar"] = str(reset_candidate["balance"])
 
 
-def write_netflow_output(chain_id, last_block, netflows):
+def write_netflow_output(chain_id, last_block, netflows, *, scan_complete=True, scan_status="complete"):
     """Write the public chain netflow file for the data scanned so far."""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     output_file = OUTPUT_DIR / f"{chain_id}.json"
@@ -712,6 +714,8 @@ def write_netflow_output(chain_id, last_block, netflows):
         "chain": chain_id,
         "lastBlock": int(last_block),
         "updatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "scanComplete": bool(scan_complete),
+        "scanStatus": scan_status,
         "addressCount": len(netflows),
         "netflows": netflows,
     }
@@ -754,7 +758,14 @@ def _reduced_chunk_size(chunk_size):
     return max(MIN_BLOCK_CHUNK, chunk_size // 2)
 
 
-def scan_chain(chain_id, chain_config, only_chains=None, target_addresses=None, soft_deadline=None):
+def scan_chain(
+    chain_id,
+    chain_config,
+    only_chains=None,
+    target_addresses=None,
+    soft_deadline=None,
+    partial_output_interval_seconds=0,
+):
     """Scan a single chain for deposit/withdraw events."""
     if only_chains and chain_id not in only_chains:
         return {"completed": True, "skipped": True}
@@ -832,6 +843,27 @@ def scan_chain(chain_id, chain_config, only_chains=None, target_addresses=None, 
     current = start_block
     total_events = 0
     chunk_size = ADDRESS_FILTER_CHUNK if target_addresses else BLOCK_CHUNK
+    last_partial_output_at = time.monotonic()
+
+    def maybe_write_partial_output(scanned_block, *, force=False):
+        nonlocal last_partial_output_at
+        if target_addresses or scanned_block < start_block:
+            return None
+        if partial_output_interval_seconds <= 0 and not force:
+            return None
+        now = time.monotonic()
+        if not force and now - last_partial_output_at < partial_output_interval_seconds:
+            return None
+        apply_cycle_metadata(netflows, cycle_market_state)
+        output_path = write_netflow_output(
+            chain_id,
+            scanned_block,
+            netflows,
+            scan_complete=False,
+            scan_status="partial",
+        )
+        last_partial_output_at = now
+        return output_path
     
     while current <= latest_block:
         if soft_deadline is not None and time.monotonic() >= soft_deadline:
@@ -849,8 +881,7 @@ def scan_chain(chain_id, chain_config, only_chains=None, target_addresses=None, 
             print(f"  ⏱ Soft runtime limit reached at block {current:,}; saved progress for next run")
             if not target_addresses and current > start_block:
                 scanned_block = max(0, current - 1)
-                apply_cycle_metadata(netflows, cycle_market_state)
-                output_file = write_netflow_output(chain_id, scanned_block, netflows)
+                output_file = maybe_write_partial_output(scanned_block, force=True)
                 file_size = output_file.stat().st_size
                 print(f"  ✓ Partial output: {output_file} through block {scanned_block:,} ({file_size/1024:.1f} KB)")
             return {"completed": False, "reason": "soft_runtime_limit", "lastBlock": current}
@@ -961,6 +992,11 @@ def scan_chain(chain_id, chain_config, only_chains=None, target_addresses=None, 
                     cycle_state_enabled,
                 )
                 save_progress(chain_id, payload)
+
+            partial_output = maybe_write_partial_output(to_block)
+            if partial_output:
+                file_size = partial_output.stat().st_size
+                print(f"  ✓ Partial public output through block {to_block:,} ({file_size/1024:.1f} KB)")
             
             # If we get too many logs, reduce chunk size
             if events_in_chunk > 5000:
@@ -1026,6 +1062,12 @@ def main():
         default=int(os.environ.get("EARN_NETFLOW_MAX_RUNTIME_SECONDS") or 0),
         help="Stop cleanly after this many seconds so GitHub Actions can save cache/progress.",
     )
+    parser.add_argument(
+        "--partial-output-interval-seconds",
+        type=int,
+        default=int(os.environ.get("EARN_NETFLOW_PARTIAL_OUTPUT_INTERVAL_SECONDS") or 0),
+        help="Write a public partial netflow JSON at this cadence while a long scan is still catching up.",
+    )
     args = parser.parse_args()
 
     only_chains = None
@@ -1049,6 +1091,7 @@ def main():
             only_chains,
             target_addresses=target_addresses,
             soft_deadline=soft_deadline,
+            partial_output_interval_seconds=args.partial_output_interval_seconds,
         )
         if isinstance(result, dict) and result.get("reason") == "soft_runtime_limit":
             print("Soft runtime limit reached; stopping remaining chains until next scheduled run")

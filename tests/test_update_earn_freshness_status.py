@@ -212,6 +212,51 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         self.assertEqual(report["polygonzkevm"]["weakPoint"], "netflow missing")
         self.assertIn("snapshot-first coverage", report["xlayer"]["weakPoint"])
 
+    def test_recent_partial_netflow_is_reported_as_catching_up(self):
+        now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_json(root, "earn-subaccount-history/manifest.json", {"chains": {}})
+            self._write_json(
+                root,
+                "earn-netflow/polygonzkevm.json",
+                {
+                    "chain": "polygonzkevm",
+                    "lastBlock": 100,
+                    "updatedAt": "2026-05-08T11:55:00Z",
+                    "scanComplete": False,
+                    "scanStatus": "partial",
+                    "addressCount": 5,
+                },
+            )
+            self._write_json(root, "earn-snapshots/manifest.json", {"dates": [], "chains": {}})
+
+            status = build_status(
+                data_dir=root,
+                live_blocks={
+                    "arbitrum": None,
+                    "ethereum": None,
+                    "berachain": None,
+                    "botanix": None,
+                    "mantle": None,
+                    "polygonzkevm": 10_000,
+                    "xlayer": None,
+                },
+                now=now,
+            )
+
+        polygon = status["chains"]["polygonzkevm"]
+        self.assertEqual(polygon["netflow"]["status"], "catching_up")
+        self.assertEqual(polygon["netflow"]["refreshMode"], "catchup")
+        self.assertEqual(polygon["status"], "syncing")
+        self.assertTrue(status["summary"]["catchupRefreshRecommended"])
+        self.assertIn(
+            {"workflow": NETFLOW_WORKFLOW, "inputs": {"chain": "polygonzkevm"}},
+            status["summary"]["refreshJobs"],
+        )
+        report = {entry["chain"]: entry for entry in status["chainReport"]}
+        self.assertEqual(report["polygonzkevm"]["weakPoint"], "netflow catching_up")
+
     def test_generic_netflow_refresh_jobs_stay_chain_specific(self):
         now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)
         with tempfile.TemporaryDirectory() as tmp:
