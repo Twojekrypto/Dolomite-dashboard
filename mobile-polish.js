@@ -17,6 +17,7 @@
         ".dd-panel.show",
         ".dropdown-panel.show",
         ".custom-dropdown-menu.show",
+        ".premium-supply-dropdown-menu",
         ".premium-supply-dropdown-menu.show",
         ".filter-menu.show"
     ].join(",");
@@ -66,8 +67,16 @@
         const edge = 8;
         const maxRight = window.innerWidth - edge;
         document.querySelectorAll(DROPDOWN_PANEL_SELECTOR).forEach(panel => {
+            const style = window.getComputedStyle(panel);
+            if (style.display === "none" || style.visibility === "hidden") return;
             panel.style.setProperty("--mobile-panel-shift", "0px");
-            const rect = panel.getBoundingClientRect();
+            panel.style.removeProperty("max-height");
+            let rect = panel.getBoundingClientRect();
+            const availableBelow = window.innerHeight - rect.top - edge;
+            if (availableBelow > 120) {
+                panel.style.setProperty("max-height", `${Math.floor(availableBelow)}px`, "important");
+                rect = panel.getBoundingClientRect();
+            }
             let shift = 0;
             if (rect.left < edge) shift = edge - rect.left;
             if (rect.right + shift > maxRight) shift += maxRight - (rect.right + shift);
@@ -91,6 +100,7 @@
         window.addEventListener("resize", scheduleUpdate, { passive: true });
         window.addEventListener("orientationchange", scheduleUpdate, { passive: true });
         window.addEventListener("load", scheduleUpdate, { once: true });
+        document.addEventListener("click", scheduleUpdate, true);
 
         const observer = new MutationObserver(scheduleUpdate);
         observer.observe(document.documentElement, {

@@ -169,8 +169,9 @@
         top: calc(100% + 7px) !important;
         bottom: auto !important;
         max-width: calc(100vw - 28px) !important;
-        max-height: min(58vh, 360px);
-        overflow-y: auto;
+        max-height: min(58vh, 360px) !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
         -webkit-overflow-scrolling: touch;
         transform-origin: top center !important;
     }
@@ -178,6 +179,7 @@
     body.mobile-polished .dd-panel.show,
     body.mobile-polished .dropdown-panel.show,
     body.mobile-polished .custom-dropdown-menu.show,
+    body.mobile-polished .premium-supply-dropdown-menu,
     body.mobile-polished .premium-supply-dropdown-menu.show,
     body.mobile-polished .filter-menu.show {
         transform: translate(var(--mobile-panel-shift, 0px), 0) !important;
@@ -193,10 +195,14 @@
     body.mobile-polished .dd-panel:not(.show),
     body.mobile-polished .dropdown-panel:not(.show),
     body.mobile-polished .custom-dropdown-menu:not(.show),
-    body.mobile-polished .premium-supply-dropdown-menu:not(.show),
     body.mobile-polished .filter-menu:not(.show) {
         display: none !important;
         pointer-events: none;
+    }
+
+    body.mobile-polished.supply-draft-route #custom-asset-dropdown {
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
     }
 
     body.mobile-polished .tbl-wrap,
