@@ -1252,7 +1252,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
     </div>
 
     <!-- TABLE -->
-    <div class="tbl-wrap">
+    <div class="tbl-wrap assets-table-wrap">
       <table class="tbl" id="tbl">
         <thead>
           <tr>
@@ -2219,6 +2219,7 @@ function renderLoading(){
 
 function render(){
   if(state.loading){
+    document.body.classList.remove("assets-detail-open");
     renderLoading();
     return;
   }
@@ -2246,6 +2247,7 @@ function render(){
     if(typeof va==="string") return dir==="asc"?va.localeCompare(vb):vb.localeCompare(va);
     return dir==="asc"?va-vb:vb-va;
   });
+  document.body.classList.toggle("assets-detail-open", rows.some(r => state.expanded.has(marketKey(r))));
 
   // count
   document.getElementById("count-badge").textContent = rows.length + " markets";
