@@ -17,8 +17,9 @@
       '<link rel="stylesheet" href="earn/earn-draft.css?v=' + draftVersion + '">',
       '<script defer src="earn/earn-draft.js?v=' + draftVersion + '"><\/script>'
     ].join("");
+    const mobileNavAssets = '<link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260508"><script defer src="mobile-nav.js?v=mobile-nav-20260508"><\/script>';
     document.open();
-    document.write(html.replace("<head>", "<head>" + headInject));
+    document.write(html.replace("<head>", "<head>" + headInject).replace("</head>", mobileNavAssets + "</head>"));
     document.close();
   } catch (error) {
     document.body.innerHTML = "<p style=\"font-family:system-ui,sans-serif;padding:24px;color:#f4f3ef;background:#09090b\">Unable to load Earn draft.</p>";

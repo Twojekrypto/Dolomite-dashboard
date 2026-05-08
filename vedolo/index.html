@@ -12,8 +12,9 @@
     const response = await fetch(`../vedolo-preview.html?v=${previewVersion}`, { cache: "no-cache" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const html = await response.text();
+    const mobileNavAssets = '<link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260508"><script defer src="mobile-nav.js?v=mobile-nav-20260508"><\/script>';
     document.open();
-    document.write(html.replace("<head>", '<head><base href="../">'));
+    document.write(html.replace("<head>", '<head><base href="../">').replace("</head>", mobileNavAssets + "</head>"));
     document.close();
   } catch (error) {
     document.body.innerHTML = "<p style=\"font-family:system-ui,sans-serif;padding:24px;color:#f4f3ef;background:#09090b\">Unable to load veDOLO.</p>";
