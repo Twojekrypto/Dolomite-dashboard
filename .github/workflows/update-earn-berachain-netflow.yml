@@ -34,6 +34,24 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Check Berachain RPC redundancy
+        run: |
+          set -euo pipefail
+          configured=0
+          for name in ALCHEMY_BERACHAIN_RPC ALCHEMY_BERACHAIN_RPC_2 ALCHEMY_BERACHAIN_RPC_3; do
+            if [ -n "${!name:-}" ]; then
+              configured=$((configured + 1))
+            fi
+          done
+          echo "Configured Berachain RPC secrets: ${configured}/3"
+          if [ "$configured" -eq 0 ]; then
+            echo "::error title=Berachain RPC missing::Set at least ALCHEMY_BERACHAIN_RPC in repository secrets."
+            exit 1
+          fi
+          if [ "$configured" -lt 2 ]; then
+            echo "::warning title=Berachain RPC redundancy::Only ${configured} Berachain RPC secret is configured. Add ALCHEMY_BERACHAIN_RPC_2 or _3 for better failover."
+          fi
+
       - name: Restore Berachain netflow progress cache
         if: ${{ github.event.inputs.reset_progress != 'true' }}
         uses: actions/cache@v4

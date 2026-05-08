@@ -8,7 +8,10 @@ ETHEREUM_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-ethe
 ARBITRUM_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-arbitrum-canonical-history.yml"
 BERACHAIN_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-berachain-canonical-history.yml"
 BERACHAIN_NETFLOW_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-berachain-netflow.yml"
+BERACHAIN_BORROW_ROUTE_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-berachain-borrow-route-history.yml"
 EARN_FRESHNESS_WORKFLOW = ROOT / ".github" / "workflows" / "monitor-earn-freshness.yml"
+EARN_FRESHNESS_SCRIPT = ROOT / "update_earn_freshness_status.py"
+BERACHAIN_PRIORITY_ADDRESSES = ROOT / "config" / "earn_berachain_canonical_hot_addresses.txt"
 EARN_COVERAGE_REPORT = ROOT / "report_earn_subaccount_history_coverage.py"
 CANONICAL_REFRESH_RUNNER = ROOT / "run_earn_canonical_history_refresh.py"
 NETFLOW_SCANNER = ROOT / "scan_earn_netflow.py"
@@ -80,18 +83,46 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("CHECKPOINT_STEPS: '150'", workflow)
         self.assertIn("CHECKPOINT_SLEEP_SECONDS: '20'", workflow)
         self.assertIn("has_public_baseline", workflow)
+        self.assertIn("config/earn_berachain_canonical_hot_addresses.txt", workflow)
+        self.assertIn("Check Berachain RPC redundancy", workflow)
         self.assertIn("--allow-checkpoint-incomplete", workflow)
         self.assertIn("Build Berachain verified ledger cache", workflow)
         self.assertIn("build_earn_verified_ledger.py", workflow)
+
+    def test_berachain_canonical_priority_file_pins_valid_hot_wallets(self):
+        addresses = [
+            raw.strip()
+            for raw in BERACHAIN_PRIORITY_ADDRESSES.read_text(encoding="utf-8").splitlines()
+            if raw.strip() and not raw.strip().startswith("#")
+        ]
+        self.assertGreaterEqual(len(addresses), 20)
+        self.assertEqual(len(addresses), len(set(addresses)))
+        for address in addresses:
+            self.assertTrue(address.startswith("0x"), address)
+            self.assertEqual(42, len(address), address)
+        self.assertIn("0x66322a0f0ef69afb3f9d41b4f6ea657592578330", addresses)
+        self.assertIn("0xdac2c5d760ff866bc796ddb88dffec3d9a90b7e5", addresses)
 
     def test_berachain_netflow_workflow_runs_frequent_chain_only_scan(self):
         workflow = BERACHAIN_NETFLOW_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("cron: '27,57 * * * *'", workflow)
         self.assertIn("group: earn-netflow-data", workflow)
         self.assertIn("timeout-minutes: 75", workflow)
+        self.assertIn("Check Berachain RPC redundancy", workflow)
         self.assertIn("scan_earn_netflow.py berachain --max-runtime-seconds 3300", workflow)
         self.assertIn("data/earn-netflow/berachain.json", workflow)
         self.assertIn("ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}", workflow)
+
+    def test_berachain_borrow_route_workflow_checks_rpc_redundancy(self):
+        workflow = BERACHAIN_BORROW_ROUTE_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("Check Berachain RPC redundancy", workflow)
+        self.assertIn("ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}", workflow)
+
+    def test_berachain_watchdog_refreshes_after_one_hour(self):
+        source = EARN_FRESHNESS_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('"refreshAfterMinutes": 60', source)
+        self.assertIn('policy.get("refreshAfterMinutes", REFRESH_AFTER_MINUTES)', source)
+        self.assertIn('"netflowWorkflow": "update-earn-berachain-netflow.yml"', source)
 
     def test_earn_canonical_lookup_verified_window_matches_three_hours_by_chain(self):
         self.assertIn("ethereum: 900n, // ~3h at 12s blocks", self.source)
