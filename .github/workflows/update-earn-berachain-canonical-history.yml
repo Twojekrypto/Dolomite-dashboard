@@ -2,7 +2,7 @@ name: Refresh Berachain Canonical EARN History
 
 on:
   schedule:
-    - cron: '7 */2 * * *'  # Every 2 hours, staggered before the 3h UI freshness window
+    - cron: '7,37 * * * *'  # Checkpointed 30m chunks; keeps Berachain moving without multi-hour lockups
   workflow_dispatch:
 
 concurrency:
@@ -15,11 +15,13 @@ permissions:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 75
     env:
       PYTHONUNBUFFERED: '1'
       CHAIN: berachain
       HOT_LIMIT: '1200'
+      CHECKPOINT_STEPS: '90'
+      CHECKPOINT_SLEEP_SECONDS: '20'
       ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
       ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
       ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}
@@ -64,7 +66,7 @@ jobs:
             --metadata-output "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
           cat "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
 
-      - name: Refresh Berachain canonical history
+      - name: Refresh Berachain canonical history checkpoint
         id: refresh
         run: |
           set -euo pipefail
@@ -77,8 +79,8 @@ jobs:
             --max-incremental-scan-workers 10 \
             --max-incremental-apply-workers 10 \
             --max-new-backfill-workers 4 \
-            --max-steps 720 \
-            --sleep-seconds 20 \
+            --max-steps "$CHECKPOINT_STEPS" \
+            --sleep-seconds "$CHECKPOINT_SLEEP_SECONDS" \
             --allow-empty \
             --skip-unsupported-start-block \
             --allow-checkpoint-incomplete \

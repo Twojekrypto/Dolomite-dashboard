@@ -6,6 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DASHBOARD_CORE = ROOT / "dashboard-core.html"
 ETHEREUM_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-ethereum-canonical-history.yml"
 ARBITRUM_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-arbitrum-canonical-history.yml"
+BERACHAIN_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-berachain-canonical-history.yml"
 EARN_FRESHNESS_WORKFLOW = ROOT / ".github" / "workflows" / "monitor-earn-freshness.yml"
 EARN_COVERAGE_REPORT = ROOT / "report_earn_subaccount_history_coverage.py"
 CANONICAL_REFRESH_RUNNER = ROOT / "run_earn_canonical_history_refresh.py"
@@ -67,6 +68,16 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("cron: '18,48 * * * *'", workflow)
         self.assertIn("secrets.ALCHEMY_ARBITRUM_RPC_ZEN", workflow)
         self.assertIn("Build Arbitrum verified ledger cache", workflow)
+        self.assertIn("build_earn_verified_ledger.py", workflow)
+
+    def test_berachain_canonical_workflow_runs_in_checkpointed_chunks(self):
+        workflow = BERACHAIN_CANONICAL_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("cron: '7,37 * * * *'", workflow)
+        self.assertIn("timeout-minutes: 75", workflow)
+        self.assertIn("CHECKPOINT_STEPS: '90'", workflow)
+        self.assertIn("CHECKPOINT_SLEEP_SECONDS: '20'", workflow)
+        self.assertIn("--allow-checkpoint-incomplete", workflow)
+        self.assertIn("Build Berachain verified ledger cache", workflow)
         self.assertIn("build_earn_verified_ledger.py", workflow)
 
     def test_earn_canonical_lookup_verified_window_matches_three_hours_by_chain(self):
