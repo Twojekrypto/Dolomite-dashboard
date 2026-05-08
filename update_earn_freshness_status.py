@@ -38,6 +38,7 @@ CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
         "blockTimeSeconds": 2.0,
         "verifiedBlockLag": 5400,
         "canonicalWorkflow": "update-earn-berachain-canonical-history.yml",
+        "netflowWorkflow": "update-earn-berachain-netflow.yml",
         "canonicalSupported": True,
     },
     "arbitrum": {
@@ -206,7 +207,12 @@ def _live_blocks(chains: Iterable[str]) -> Dict[str, Optional[int]]:
     return blocks
 
 
-def build_status(*, data_dir: Path, live_blocks: Optional[Dict[str, int]] = None, now: Optional[datetime] = None) -> Dict[str, Any]:
+def build_status(
+    *,
+    data_dir: Path,
+    live_blocks: Optional[Dict[str, Optional[int]]] = None,
+    now: Optional[datetime] = None,
+) -> Dict[str, Any]:
     now = now or datetime.now(timezone.utc)
     live_blocks = dict(live_blocks) if live_blocks is not None else _live_blocks(CHAIN_POLICIES.keys())
 
@@ -257,7 +263,7 @@ def build_status(*, data_dir: Path, live_blocks: Optional[Dict[str, int]] = None
                 f"{chain}: canonical {canonical['status']} ({_format_lag_reason_minutes(canonical.get('estimatedLagMinutes'))})"
             )
         if netflow.get("refreshRecommended") and netflow_supported:
-            refresh_workflows.add(NETFLOW_WORKFLOW)
+            refresh_workflows.add(str(policy.get("netflowWorkflow") or NETFLOW_WORKFLOW))
             refresh_reasons.append(
                 f"{chain}: netflow {netflow['status']} ({_format_lag_reason_minutes(netflow.get('estimatedLagMinutes'))})"
             )

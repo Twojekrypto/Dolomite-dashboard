@@ -19,7 +19,8 @@ jobs:
     env:
       PYTHONUNBUFFERED: '1'
       CHAIN: berachain
-      HOT_LIMIT: '1200'
+      BOOTSTRAP_HOT_LIMIT: '500'
+      STEADY_HOT_LIMIT: '1200'
       CHECKPOINT_STEPS: '90'
       CHECKPOINT_SLEEP_SECONDS: '20'
       ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
@@ -57,9 +58,28 @@ jobs:
       - name: Select Berachain hot wallets
         run: |
           set -euo pipefail
+          hot_limit="$(python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          manifest_path = Path("data/earn-subaccount-history/manifest.json")
+          try:
+              manifest = json.loads(manifest_path.read_text())
+          except Exception:
+              manifest = {}
+          chain = (manifest.get("chains") or {}).get("berachain") or {}
+          try:
+              has_public_baseline = int(chain.get("lastBlock") or 0) > 0
+          except Exception:
+              has_public_baseline = False
+          print(os.environ["STEADY_HOT_LIMIT"] if has_public_baseline else os.environ["BOOTSTRAP_HOT_LIMIT"])
+          PY
+          )"
+          echo "Berachain hot wallet limit: ${hot_limit}"
           python3 select_earn_canonical_hot_addresses.py \
             --chain "$CHAIN" \
-            --limit "$HOT_LIMIT" \
+            --limit "$hot_limit" \
             --priority-address-file config/earn_canonical_priority_addresses.txt \
             --include-priority-even-if-unknown \
             --output "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt" \

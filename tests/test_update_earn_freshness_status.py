@@ -103,6 +103,47 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         self.assertEqual(status["chains"]["berachain"]["canonical"]["status"], "missing")
         self.assertIn("update-earn-berachain-canonical-history.yml", status["summary"]["refreshWorkflows"])
 
+    def test_berachain_netflow_uses_chain_specific_refresh_workflow(self):
+        now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_json(
+                root,
+                "earn-subaccount-history/manifest.json",
+                {
+                    "chains": {
+                        "berachain": {
+                            "lastBlock": 100,
+                            "updatedAt": "2026-05-08T11:59:00Z",
+                        }
+                    }
+                },
+            )
+            self._write_json(
+                root,
+                "earn-netflow/berachain.json",
+                {"chain": "berachain", "lastBlock": 4_400, "updatedAt": "2026-05-08T10:30:00Z"},
+            )
+            self._write_json(root, "earn-snapshots/manifest.json", {"dates": [], "chains": {}})
+
+            status = build_status(
+                data_dir=root,
+                live_blocks={
+                    "arbitrum": None,
+                    "ethereum": None,
+                    "berachain": 10_000,
+                    "botanix": None,
+                    "mantle": None,
+                    "polygonzkevm": None,
+                    "xlayer": None,
+                },
+                now=now,
+            )
+
+        self.assertEqual(status["chains"]["berachain"]["netflow"]["status"], "syncing")
+        self.assertIn("update-earn-berachain-netflow.yml", status["summary"]["refreshWorkflows"])
+        self.assertNotIn(NETFLOW_WORKFLOW, status["summary"]["refreshWorkflows"])
+
     def test_unsupported_no_event_chains_do_not_loop_watchdog_refreshes(self):
         now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)
         with tempfile.TemporaryDirectory() as tmp:

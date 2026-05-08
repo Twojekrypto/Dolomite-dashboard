@@ -7,6 +7,7 @@ DASHBOARD_CORE = ROOT / "dashboard-core.html"
 ETHEREUM_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-ethereum-canonical-history.yml"
 ARBITRUM_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-arbitrum-canonical-history.yml"
 BERACHAIN_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-berachain-canonical-history.yml"
+BERACHAIN_NETFLOW_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-berachain-netflow.yml"
 EARN_FRESHNESS_WORKFLOW = ROOT / ".github" / "workflows" / "monitor-earn-freshness.yml"
 EARN_COVERAGE_REPORT = ROOT / "report_earn_subaccount_history_coverage.py"
 CANONICAL_REFRESH_RUNNER = ROOT / "run_earn_canonical_history_refresh.py"
@@ -74,11 +75,23 @@ class EarnDashboardContractsTest(unittest.TestCase):
         workflow = BERACHAIN_CANONICAL_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("cron: '7,37 * * * *'", workflow)
         self.assertIn("timeout-minutes: 75", workflow)
+        self.assertIn("BOOTSTRAP_HOT_LIMIT: '500'", workflow)
+        self.assertIn("STEADY_HOT_LIMIT: '1200'", workflow)
         self.assertIn("CHECKPOINT_STEPS: '90'", workflow)
         self.assertIn("CHECKPOINT_SLEEP_SECONDS: '20'", workflow)
+        self.assertIn("has_public_baseline", workflow)
         self.assertIn("--allow-checkpoint-incomplete", workflow)
         self.assertIn("Build Berachain verified ledger cache", workflow)
         self.assertIn("build_earn_verified_ledger.py", workflow)
+
+    def test_berachain_netflow_workflow_runs_frequent_chain_only_scan(self):
+        workflow = BERACHAIN_NETFLOW_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("cron: '27,57 * * * *'", workflow)
+        self.assertIn("group: earn-netflow-data", workflow)
+        self.assertIn("timeout-minutes: 75", workflow)
+        self.assertIn("scan_earn_netflow.py berachain --max-runtime-seconds 3300", workflow)
+        self.assertIn("data/earn-netflow/berachain.json", workflow)
+        self.assertIn("ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}", workflow)
 
     def test_earn_canonical_lookup_verified_window_matches_three_hours_by_chain(self):
         self.assertIn("ethereum: 900n, // ~3h at 12s blocks", self.source)
