@@ -19,7 +19,13 @@
         ".custom-dropdown-menu.show",
         ".premium-supply-dropdown-menu",
         ".premium-supply-dropdown-menu.show",
-        ".filter-menu.show"
+        ".filter-menu.show",
+        ".earn-chain-dropdown.open .earn-chain-menu",
+        ".tvl-dd-panel.show",
+        ".supply-activity-type-filter.open .supply-activity-type-menu",
+        ".chain-filter.open .chain-menu",
+        ".risk-dropdown.open .risk-menu",
+        ".liquidation-sim-dropdown.open .sim-asset-popover"
     ].join(",");
 
     let scheduled = false;
@@ -50,6 +56,7 @@
     function updateTables() {
         if (!document.body) return;
         setBodyState();
+        updateExpiryLabels();
         if (!MOBILE_QUERY.matches) return;
 
         document.querySelectorAll(SCROLL_SHELL_SELECTOR).forEach(prepareShell);
@@ -63,6 +70,19 @@
         updateDropdownPanels();
     }
 
+    function updateExpiryLabels() {
+        document.querySelectorAll(".expiry-label").forEach(label => {
+            if (!label.dataset.mobilePolishFullLabel) {
+                label.dataset.mobilePolishFullLabel = label.textContent.trim();
+            }
+            if (!MOBILE_QUERY.matches) {
+                label.textContent = label.dataset.mobilePolishFullLabel;
+                return;
+            }
+            label.textContent = label.dataset.mobilePolishFullLabel.replace(/\b(Q[1-4])\s+20(\d{2})\b/g, "$1\n'$2");
+        });
+    }
+
     function updateDropdownPanels() {
         const edge = 8;
         const maxRight = window.innerWidth - edge;
@@ -72,8 +92,16 @@
             panel.style.setProperty("--mobile-panel-shift", "0px");
             panel.style.removeProperty("max-height");
             let rect = panel.getBoundingClientRect();
+            const bottomOverflow = rect.bottom - window.innerHeight + edge;
+            if (bottomOverflow > 0 && style.position !== "fixed") {
+                window.__mobilePolishDropdownScroll = true;
+                window.__mobilePolishDropdownScrollUntil = Date.now() + 300;
+                window.scrollBy(0, Math.ceil(bottomOverflow));
+                window.setTimeout(() => { window.__mobilePolishDropdownScroll = false; }, 300);
+                rect = panel.getBoundingClientRect();
+            }
             const availableBelow = window.innerHeight - rect.top - edge;
-            if (availableBelow > 120) {
+            if (availableBelow > 72) {
                 panel.style.setProperty("max-height", `${Math.floor(availableBelow)}px`, "important");
                 rect = panel.getBoundingClientRect();
             }

@@ -165,7 +165,13 @@
     body.mobile-polished .dropdown-panel,
     body.mobile-polished .custom-dropdown-menu,
     body.mobile-polished .premium-supply-dropdown-menu,
-    body.mobile-polished .filter-menu {
+    body.mobile-polished .filter-menu,
+    body.mobile-polished .earn-chain-menu,
+    body.mobile-polished .tvl-dd-panel,
+    body.mobile-polished .supply-activity-type-menu,
+    body.mobile-polished .chain-menu,
+    body.mobile-polished .risk-menu,
+    body.mobile-polished .sim-asset-popover {
         top: calc(100% + 7px) !important;
         bottom: auto !important;
         max-width: calc(100vw - 28px) !important;
@@ -181,7 +187,13 @@
     body.mobile-polished .custom-dropdown-menu.show,
     body.mobile-polished .premium-supply-dropdown-menu,
     body.mobile-polished .premium-supply-dropdown-menu.show,
-    body.mobile-polished .filter-menu.show {
+    body.mobile-polished .filter-menu.show,
+    body.mobile-polished .earn-chain-dropdown.open .earn-chain-menu,
+    body.mobile-polished .tvl-dd-panel.show,
+    body.mobile-polished .supply-activity-type-filter.open .supply-activity-type-menu,
+    body.mobile-polished .chain-filter.open .chain-menu,
+    body.mobile-polished .risk-dropdown.open .risk-menu,
+    body.mobile-polished .liquidation-sim-dropdown.open .sim-asset-popover {
         transform: translate(var(--mobile-panel-shift, 0px), 0) !important;
     }
 
@@ -297,6 +309,58 @@
         flex-wrap: wrap;
         justify-content: center;
     }
+
+    body.mobile-polished .expiry-chart {
+        display: block !important;
+        overflow-x: clip !important;
+        padding-bottom: 0 !important;
+    }
+
+    body.mobile-polished .expiry-axis {
+        display: none !important;
+    }
+
+    body.mobile-polished .expiry-card .expiry-bars,
+    body.mobile-polished .expiry-bars {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        height: 238px !important;
+        gap: clamp(4px, 1.45vw, 8px) !important;
+        padding: 16px 6px 25px !important;
+        overflow: hidden !important;
+    }
+
+    body.mobile-polished .expiry-bar-wrap {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+        gap: 7px !important;
+    }
+
+    body.mobile-polished .expiry-card .expiry-bar,
+    body.mobile-polished .expiry-bar {
+        width: min(28px, 72%) !important;
+        border-radius: 6px 6px 2px 2px !important;
+    }
+
+    body.mobile-polished .expiry-label {
+        width: 100%;
+        max-width: none;
+        overflow: visible;
+        white-space: pre-line !important;
+        text-align: center;
+        font-size: 9px !important;
+        line-height: 1.02;
+        letter-spacing: 0;
+    }
+
+    body.mobile-polished.route-liquidation .liquidation-hero-main #stat-total {
+        line-height: 1.14 !important;
+        min-height: 60px;
+        display: flex;
+        align-items: center;
+        padding-bottom: 0;
+    }
 }
 
 @media (max-width: 480px) {
@@ -332,5 +396,16 @@
     body.mobile-polished .table-toolbar,
     body.mobile-polished .toolbar {
         gap: 10px;
+    }
+
+    body.mobile-polished .expiry-card .expiry-bars,
+    body.mobile-polished .expiry-bars {
+        height: 220px !important;
+        padding-left: 5px !important;
+        padding-right: 5px !important;
+    }
+
+    body.mobile-polished .expiry-label {
+        font-size: 8.4px !important;
     }
 }
