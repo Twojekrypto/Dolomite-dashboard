@@ -1,0 +1,330 @@
+/* Shared mobile polish for every routed dashboard tab. Desktop layout is untouched. */
+@media (max-width: 760px) {
+    html,
+    body {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: clip !important;
+    }
+
+    body.mobile-polished {
+        min-width: 0 !important;
+    }
+
+    body.mobile-polished *,
+    body.mobile-polished *::before,
+    body.mobile-polished *::after {
+        box-sizing: border-box;
+    }
+
+    body.mobile-polished .wrap,
+    body.mobile-polished .page-wrapper,
+    body.mobile-polished .dashboard-shell,
+    body.mobile-polished .earn-premium-page,
+    body.mobile-polished .liquidation-page,
+    body.mobile-polished .supply-page {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    body.mobile-polished .wrap,
+    body.mobile-polished .page-wrapper,
+    body.mobile-polished .dashboard-shell,
+    body.mobile-polished .earn-premium-page,
+    body.mobile-polished .liquidation-page,
+    body.mobile-polished .supply-page {
+        padding-left: 14px !important;
+        padding-right: 14px !important;
+    }
+
+    body.mobile-polished img,
+    body.mobile-polished canvas,
+    body.mobile-polished video {
+        max-width: 100%;
+    }
+
+    body.mobile-polished .site-top,
+    body.mobile-polished .earn-premium-top,
+    body.mobile-polished .dashboard-header,
+    body.mobile-polished .hero,
+    body.mobile-polished .hero-grid,
+    body.mobile-polished .card,
+    body.mobile-polished .proto,
+    body.mobile-polished .table-card,
+    body.mobile-polished .holders-card,
+    body.mobile-polished .flow-card,
+    body.mobile-polished .flows-card,
+    body.mobile-polished .exit-suite,
+    body.mobile-polished .liquidation-intel-card,
+    body.mobile-polished .supply-intel-card,
+    body.mobile-polished .earn-card,
+    body.mobile-polished .earn-section-card,
+    body.mobile-polished .supply-panel,
+    body.mobile-polished .market-card,
+    body.mobile-polished .chart-card {
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    body.mobile-polished .hero-grid,
+    body.mobile-polished .hero-stats,
+    body.mobile-polished .stats-grid,
+    body.mobile-polished .metrics-grid,
+    body.mobile-polished .cards-grid,
+    body.mobile-polished .analytics-grid,
+    body.mobile-polished .summary-grid,
+    body.mobile-polished .kpi-grid,
+    body.mobile-polished .market-grid,
+    body.mobile-polished .flow-grid,
+    body.mobile-polished .flows-grid,
+    body.mobile-polished .proto-addrs,
+    body.mobile-polished .protocol-contracts,
+    body.mobile-polished .charts-2up,
+    body.mobile-polished .odolo-grid,
+    body.mobile-polished .dolo-grid,
+    body.mobile-polished .assets-sim-breakdown,
+    body.mobile-polished .assets-sim-earnings,
+    body.mobile-polished .earn-summary-grid,
+    body.mobile-polished .earn-positions-grid,
+    body.mobile-polished .supply-summary-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    body.mobile-polished .toolbar,
+    body.mobile-polished .tb-left,
+    body.mobile-polished .tb-right,
+    body.mobile-polished .card-head,
+    body.mobile-polished .section-head,
+    body.mobile-polished .table-head,
+    body.mobile-polished .table-toolbar,
+    body.mobile-polished .liquidation-table-header,
+    body.mobile-polished .supply-table-toolbar,
+    body.mobile-polished .supply-activity-toolbar,
+    body.mobile-polished .earn-supply-header,
+    body.mobile-polished .earn-lending-header,
+    body.mobile-polished .earn-past-header,
+    body.mobile-polished .earn-controls,
+    body.mobile-polished .filters-row {
+        max-width: 100%;
+        min-width: 0;
+        flex-wrap: wrap !important;
+    }
+
+    body.mobile-polished .tb-left,
+    body.mobile-polished .tb-right,
+    body.mobile-polished .search,
+    body.mobile-polished .search-wrap,
+    body.mobile-polished .premium-search,
+    body.mobile-polished .earn-search,
+    body.mobile-polished .supply-search,
+    body.mobile-polished .filter-row {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    body.mobile-polished input,
+    body.mobile-polished select,
+    body.mobile-polished textarea,
+    body.mobile-polished button {
+        max-width: 100%;
+    }
+
+    body.mobile-polished input[type="search"],
+    body.mobile-polished input[type="text"],
+    body.mobile-polished .search input,
+    body.mobile-polished .search-wrap input,
+    body.mobile-polished .premium-search input,
+    body.mobile-polished .earn-search input,
+    body.mobile-polished .supply-search input {
+        min-width: 0 !important;
+        width: 100%;
+    }
+
+    body.mobile-polished .dd,
+    body.mobile-polished .dropdown,
+    body.mobile-polished .custom-dropdown,
+    body.mobile-polished .premium-supply-dropdown,
+    body.mobile-polished .filter-dropdown {
+        max-width: 100%;
+        min-width: 0;
+        position: relative;
+    }
+
+    body.mobile-polished .dd-btn,
+    body.mobile-polished .dropdown-btn,
+    body.mobile-polished .custom-dropdown-trigger,
+    body.mobile-polished .premium-supply-dropdown-trigger,
+    body.mobile-polished .filter-trigger {
+        min-height: 38px;
+        max-width: 100%;
+        justify-content: center;
+    }
+
+    body.mobile-polished .dd-panel,
+    body.mobile-polished .dropdown-panel,
+    body.mobile-polished .custom-dropdown-menu,
+    body.mobile-polished .premium-supply-dropdown-menu,
+    body.mobile-polished .filter-menu {
+        top: calc(100% + 7px) !important;
+        bottom: auto !important;
+        max-width: calc(100vw - 28px) !important;
+        max-height: min(58vh, 360px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        transform-origin: top center !important;
+    }
+
+    body.mobile-polished .dd-panel.show,
+    body.mobile-polished .dropdown-panel.show,
+    body.mobile-polished .custom-dropdown-menu.show,
+    body.mobile-polished .premium-supply-dropdown-menu.show,
+    body.mobile-polished .filter-menu.show {
+        transform: translate(var(--mobile-panel-shift, 0px), 0) !important;
+    }
+
+    body.mobile-polished .tb-right .dd-panel,
+    body.mobile-polished .toolbar-actions .dd-panel,
+    body.mobile-polished .filters-right .dd-panel {
+        left: auto !important;
+        right: 0 !important;
+    }
+
+    body.mobile-polished .dd-panel:not(.show),
+    body.mobile-polished .dropdown-panel:not(.show),
+    body.mobile-polished .custom-dropdown-menu:not(.show),
+    body.mobile-polished .premium-supply-dropdown-menu:not(.show),
+    body.mobile-polished .filter-menu:not(.show) {
+        display: none !important;
+        pointer-events: none;
+    }
+
+    body.mobile-polished .tbl-wrap,
+    body.mobile-polished .flows-wrap,
+    body.mobile-polished .table-scroll,
+    body.mobile-polished .table-container,
+    body.mobile-polished .table-shell,
+    body.mobile-polished .liquidation-table-container,
+    body.mobile-polished .earn-table-scroll,
+    body.mobile-polished .earn-section-table-shell,
+    body.mobile-polished .earn-past-body,
+    body.mobile-polished .supply-table-scroll,
+    body.mobile-polished .supply-table-shell,
+    body.mobile-polished .mobile-scroll-shell {
+        width: 100%;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        overflow-x: auto !important;
+        overscroll-behavior-x: contain;
+        contain: inline-size;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+    }
+
+    body.mobile-polished .tbl-wrap > table,
+    body.mobile-polished .flows-wrap > table,
+    body.mobile-polished .table-scroll > table,
+    body.mobile-polished .table-container > table,
+    body.mobile-polished .table-shell > table,
+    body.mobile-polished .liquidation-table-container > table,
+    body.mobile-polished .earn-table-scroll > table,
+    body.mobile-polished .earn-section-table-shell > table,
+    body.mobile-polished .earn-past-body > table,
+    body.mobile-polished .supply-table-scroll > table,
+    body.mobile-polished .supply-table-shell > table,
+    body.mobile-polished .mobile-scroll-shell > table {
+        max-width: none;
+    }
+
+    body.mobile-polished .tbl-wrap > table,
+    body.mobile-polished .flows-wrap > table,
+    body.mobile-polished .mobile-scroll-shell > table {
+        width: max-content;
+        min-width: 100%;
+    }
+
+    body.mobile-polished .tbl-wrap:focus-visible,
+    body.mobile-polished .flows-wrap:focus-visible,
+    body.mobile-polished .table-scroll:focus-visible,
+    body.mobile-polished .table-container:focus-visible,
+    body.mobile-polished .liquidation-table-container:focus-visible,
+    body.mobile-polished .earn-table-scroll:focus-visible,
+    body.mobile-polished .earn-section-table-shell:focus-visible,
+    body.mobile-polished .supply-table-scroll:focus-visible,
+    body.mobile-polished .supply-table-shell:focus-visible,
+    body.mobile-polished .mobile-scroll-shell:focus-visible {
+        outline: 1px solid rgba(214, 164, 47, 0.42);
+        outline-offset: 2px;
+    }
+
+    body.mobile-polished table {
+        border-collapse: collapse;
+    }
+
+    body.mobile-polished th,
+    body.mobile-polished td {
+        white-space: nowrap;
+    }
+
+    body.mobile-polished td .label,
+    body.mobile-polished td .muted,
+    body.mobile-polished td .sub,
+    body.mobile-polished td .wallet-meta,
+    body.mobile-polished td .addr {
+        white-space: normal;
+    }
+
+    body.mobile-polished .tbl-foot,
+    body.mobile-polished .flow-foot,
+    body.mobile-polished .table-footer,
+    body.mobile-polished .pager-row,
+    body.mobile-polished .pagination-row {
+        grid-template-columns: minmax(0, 1fr) !important;
+        justify-items: center;
+        gap: 10px;
+    }
+
+    body.mobile-polished .pager,
+    body.mobile-polished .pagination,
+    body.mobile-polished .table-pagination {
+        max-width: 100%;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    body.mobile-polished .wrap,
+    body.mobile-polished .page-wrapper,
+    body.mobile-polished .dashboard-shell,
+    body.mobile-polished .earn-premium-page,
+    body.mobile-polished .liquidation-page,
+    body.mobile-polished .supply-page {
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+    }
+
+    body.mobile-polished .card,
+    body.mobile-polished .proto,
+    body.mobile-polished .table-card,
+    body.mobile-polished .holders-card,
+    body.mobile-polished .flow-card,
+    body.mobile-polished .flows-card,
+    body.mobile-polished .exit-suite,
+    body.mobile-polished .liquidation-intel-card,
+    body.mobile-polished .supply-intel-card,
+    body.mobile-polished .earn-card,
+    body.mobile-polished .earn-section-card,
+    body.mobile-polished .market-card,
+    body.mobile-polished .chart-card {
+        border-radius: 14px;
+    }
+
+    body.mobile-polished .card-head,
+    body.mobile-polished .section-head,
+    body.mobile-polished .table-head,
+    body.mobile-polished .table-toolbar,
+    body.mobile-polished .toolbar {
+        gap: 10px;
+    }
+}
