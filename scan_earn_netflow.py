@@ -53,6 +53,7 @@ CHAINS = {
         "rpcs": [
             *([] if not os.environ.get("ALCHEMY_BERACHAIN_RPC") else [os.environ["ALCHEMY_BERACHAIN_RPC"]]),
             *([] if not os.environ.get("QUICKNODE_BERACHAIN_RPC_2") else [os.environ["QUICKNODE_BERACHAIN_RPC_2"]]),
+            *([] if not os.environ.get("DRPC_BERACHAIN_RPC_ZEN") else [os.environ["DRPC_BERACHAIN_RPC_ZEN"]]),
             *([] if not os.environ.get("ALCHEMY_BERACHAIN_RPC_2") else [os.environ["ALCHEMY_BERACHAIN_RPC_2"]]),
             *([] if not os.environ.get("ALCHEMY_BERACHAIN_RPC_3") else [os.environ["ALCHEMY_BERACHAIN_RPC_3"]]),
             "https://rpc.berachain.com/",
