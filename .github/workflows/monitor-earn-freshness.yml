@@ -1,0 +1,112 @@
+name: Monitor EARN Freshness
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: earn-freshness-watchdog
+  cancel-in-progress: false
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONUNBUFFERED: '1'
+      GH_TOKEN: ${{ github.token }}
+      ALCHEMY_ARBITRUM_RPC: ${{ secrets.ALCHEMY_ARBITRUM_RPC }}
+      ALCHEMY_ARBITRUM_RPC_2: ${{ secrets.ALCHEMY_ARBITRUM_RPC_2 }}
+      ALCHEMY_ARBITRUM_RPC_ZEN: ${{ secrets.ALCHEMY_ARBITRUM_RPC_ZEN }}
+      ALCHEMY_ARBITRUM_RPC_3: ${{ secrets.ALCHEMY_ARBITRUM_RPC_3 }}
+      ALCHEMY_ETHEREUM_RPC: ${{ secrets.ALCHEMY_ETHEREUM_RPC }}
+      ALCHEMY_ETHEREUM_RPC_2: ${{ secrets.ALCHEMY_ETHEREUM_RPC_2 }}
+      ALCHEMY_ETHEREUM_RPC_3: ${{ secrets.ALCHEMY_ETHEREUM_RPC_3 }}
+      ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
+      ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
+      ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}
+      ALCHEMY_MANTLE_RPC: ${{ secrets.ALCHEMY_MANTLE_RPC }}
+      ALCHEMY_MANTLE_RPC_2: ${{ secrets.ALCHEMY_MANTLE_RPC_2 }}
+      ALCHEMY_MANTLE_RPC_3: ${{ secrets.ALCHEMY_MANTLE_RPC_3 }}
+      BOTANIX_RPC: ${{ secrets.BOTANIX_RPC }}
+      BOTANIX_RPC_2: ${{ secrets.BOTANIX_RPC_2 }}
+      BOTANIX_RPC_3: ${{ secrets.BOTANIX_RPC_3 }}
+      POLYGONZKEVM_RPC: ${{ secrets.POLYGONZKEVM_RPC }}
+      POLYGONZKEVM_RPC_2: ${{ secrets.POLYGONZKEVM_RPC_2 }}
+      XLAYER_RPC: ${{ secrets.XLAYER_RPC }}
+      XLAYER_RPC_2: ${{ secrets.XLAYER_RPC_2 }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build freshness status
+        run: |
+          set -euo pipefail
+          mkdir -p data/earn-freshness
+          python3 update_earn_freshness_status.py \
+            --output data/earn-freshness/status.json \
+            --actions-output /tmp/earn-freshness-actions.json
+          cat data/earn-freshness/status.json
+          cat /tmp/earn-freshness-actions.json
+
+      - name: Commit freshness status
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/earn-freshness/status.json
+          if git diff --staged --quiet; then
+            echo "No freshness status changes to commit"
+            exit 0
+          fi
+          git commit -m "Update EARN freshness status - $(date -u '+%Y-%m-%d %H:%M UTC')"
+          for i in 1 2 3; do
+            git pull --rebase -X theirs origin master && git push && break
+            echo "Freshness status push attempt $i failed, retrying..."
+            sleep 5
+          done
+
+      - name: Trigger stale EARN refresh workflows
+        run: |
+          set -euo pipefail
+          python3 - /tmp/earn-freshness-actions.json > /tmp/earn-refresh-workflows.txt <<'PY'
+          import json
+          import sys
+          payload = json.load(open(sys.argv[1]))
+          for workflow in payload.get("refreshWorkflows") or []:
+              print(workflow)
+          PY
+
+          if [ ! -s /tmp/earn-refresh-workflows.txt ]; then
+            echo "No EARN refresh workflows needed."
+            exit 0
+          fi
+
+          while IFS= read -r workflow; do
+            if [ -z "$workflow" ]; then
+              continue
+            fi
+            queued="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$workflow" --status queued --json databaseId --jq 'length' || echo 0)"
+            running="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$workflow" --status in_progress --json databaseId --jq 'length' || echo 0)"
+            active=$((queued + running))
+            if [ "$active" -gt 0 ]; then
+              echo "Skipping $workflow because $active run(s) are already queued/running."
+              continue
+            fi
+            echo "Triggering $workflow because EARN freshness drifted past the retry threshold."
+            gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref master
+          done < /tmp/earn-refresh-workflows.txt

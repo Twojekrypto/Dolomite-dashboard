@@ -30,6 +30,7 @@ PYTHON_FILES = [
     ROOT / "run_earn_canonical_history_refresh.py",
     ROOT / "run_earn_data_correctness_pipeline.py",
     ROOT / "run_earn_subaccount_history_incremental.py",
+    ROOT / "update_earn_freshness_status.py",
 ]
 
 
