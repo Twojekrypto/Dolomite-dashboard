@@ -30,10 +30,25 @@ class EarnFreshnessStatusTest(unittest.TestCase):
                         "arbitrum": {
                             "lastBlock": 1_000_000,
                             "updatedAt": "2026-05-08T11:00:00Z",
-                        }
+                        },
+                        "ethereum": {"lastBlock": 0, "updatedAt": "2026-05-08T11:59:00Z"},
+                        "berachain": {"lastBlock": 0, "updatedAt": "2026-05-08T11:59:00Z"},
+                        "botanix": {"lastBlock": 0, "updatedAt": "2026-05-08T11:59:00Z"},
+                        "mantle": {"lastBlock": 0, "updatedAt": "2026-05-08T11:59:00Z"},
                     }
                 },
             )
+            for chain in ("ethereum", "berachain", "botanix", "mantle"):
+                self._write_json(
+                    root,
+                    f"earn-netflow/{chain}.json",
+                    {
+                        "chain": chain,
+                        "lastBlock": 0,
+                        "updatedAt": "2026-05-08T11:59:00Z",
+                        "addressCount": 0,
+                    },
+                )
             self._write_json(
                 root,
                 "earn-netflow/arbitrum.json",
@@ -71,8 +86,17 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         self.assertEqual(arbitrum["canonical"]["status"], "verified")
         self.assertEqual(arbitrum["canonical"]["estimatedLagMinutes"], 180.0)
         self.assertTrue(arbitrum["canonical"]["refreshRecommended"])
+        self.assertEqual(arbitrum["canonical"]["refreshMode"], "background")
+        self.assertEqual(arbitrum["status"], "verified")
+        self.assertEqual(arbitrum["refreshMode"], "background")
+        self.assertTrue(status["summary"]["backgroundRefreshRecommended"])
+        self.assertFalse(status["summary"]["catchupRefreshRecommended"])
         self.assertIn("update-earn-arbitrum-canonical-history.yml", status["summary"]["refreshWorkflows"])
         self.assertIn(NETFLOW_WORKFLOW, status["summary"]["refreshWorkflows"])
+        report = {entry["chain"]: entry for entry in status["chainReport"]}
+        self.assertEqual(report["arbitrum"]["supportMode"], "canonical-ledger")
+        self.assertEqual(report["arbitrum"]["canonicalLagMinutes"], 180.0)
+        self.assertEqual(report["arbitrum"]["weakPoint"], "canonical background refresh due")
 
     def test_missing_supported_canonical_history_triggers_refresh(self):
         now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)
@@ -173,8 +197,12 @@ class EarnFreshnessStatusTest(unittest.TestCase):
                 now=now,
             )
 
-        self.assertEqual(status["chains"]["polygonzkevm"]["status"], "unsupported")
+        self.assertEqual(status["chains"]["polygonzkevm"]["status"], "limited")
+        self.assertEqual(status["chains"]["polygonzkevm"]["supportMode"], "snapshot-first")
+        self.assertEqual(status["summary"]["limitedChains"], ["polygonzkevm", "xlayer"])
         self.assertNotIn("update-earn-secondary-canonical-history.yml", status["summary"]["refreshWorkflows"])
+        report = {entry["chain"]: entry for entry in status["chainReport"]}
+        self.assertIn("snapshot-first coverage", report["polygonzkevm"]["weakPoint"])
 
     def test_actions_output_contains_refresh_plan(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -185,7 +213,8 @@ class EarnFreshnessStatusTest(unittest.TestCase):
                         "refreshRecommended": True,
                         "refreshWorkflows": ["update-earn-netflow.yml"],
                         "refreshReasons": ["arbitrum: netflow stale"],
-                    }
+                    },
+                    "chainReport": [{"chain": "arbitrum", "status": "syncing"}],
                 },
                 path,
             )
@@ -194,6 +223,7 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         self.assertTrue(payload["refreshRecommended"])
         self.assertEqual(payload["refreshWorkflows"], ["update-earn-netflow.yml"])
         self.assertEqual(payload["refreshReasons"], ["arbitrum: netflow stale"])
+        self.assertEqual(payload["chainReport"], [{"chain": "arbitrum", "status": "syncing"}])
 
 
 if __name__ == "__main__":
