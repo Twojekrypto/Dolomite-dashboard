@@ -109,7 +109,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
     def test_berachain_netflow_workflow_runs_frequent_chain_only_scan(self):
         workflow = BERACHAIN_NETFLOW_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("cron: '27,57 * * * *'", workflow)
-        self.assertIn("group: earn-netflow-data", workflow)
+        self.assertIn("group: earn-berachain-netflow-data", workflow)
         self.assertIn("timeout-minutes: 75", workflow)
         self.assertIn("Check Berachain RPC redundancy", workflow)
         self.assertIn("scan_earn_netflow.py berachain --max-runtime-seconds 3300", workflow)
