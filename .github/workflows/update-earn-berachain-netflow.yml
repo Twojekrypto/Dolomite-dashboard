@@ -24,13 +24,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: master
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -60,7 +60,7 @@ jobs:
 
       - name: Restore Berachain netflow progress cache
         if: ${{ github.event.inputs.reset_progress != 'true' }}
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: data/.netflow-progress
           key: netflow-progress-berachain-${{ github.run_id }}
@@ -87,7 +87,7 @@ jobs:
 
       - name: Save Berachain netflow progress cache
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: data/.netflow-progress
           key: netflow-progress-berachain-${{ github.run_id }}
