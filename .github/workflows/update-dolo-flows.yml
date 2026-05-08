@@ -14,12 +14,12 @@ jobs:
     timeout-minutes: 350
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: master
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -27,7 +27,7 @@ jobs:
         run: pip install requests web3
 
       - name: Restore holders sync state
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: dolo_holders_state.json
           key: dolo-holders-state-${{ github.run_number }}
@@ -35,7 +35,7 @@ jobs:
             dolo-holders-state-
 
       - name: Restore flows sync state
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: dolo_flows_state.json
           key: dolo-flows-state-${{ github.run_number }}
@@ -63,14 +63,14 @@ jobs:
 
       - name: Save flows state cache (even on timeout)
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: dolo_flows_state.json
           key: dolo-flows-state-${{ github.run_number }}
 
       - name: Save holders state cache (even on timeout)
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: dolo_holders_state.json
           key: dolo-holders-state-${{ github.run_number }}
