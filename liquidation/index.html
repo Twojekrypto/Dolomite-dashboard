@@ -8,11 +8,11 @@
 <script>
 (async () => {
   try {
-    const previewVersion = "borrow-copy-debank-ux-20260508";
+    const previewVersion = "borrow-mobile-sim-20260508";
     const response = await fetch(`../liquidation-preview.html?v=${previewVersion}`, { cache: "no-cache" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const html = await response.text();
-    const mobileNavAssets = '<link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260508"><link rel="stylesheet" href="mobile-polish.css?v=mobile-polish-20260508"><script defer src="mobile-nav.js?v=mobile-nav-20260508"><\/script><script defer src="mobile-polish.js?v=mobile-polish-20260508"><\/script>';
+    const mobileNavAssets = '<link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260508"><link rel="stylesheet" href="mobile-polish.css?v=mobile-polish-20260508b"><script defer src="mobile-nav.js?v=mobile-nav-20260508"><\/script><script defer src="mobile-polish.js?v=mobile-polish-20260508b"><\/script>';
     document.open();
     document.write(html.replace("<head>", '<head><base href="../"><script>window.__DOLO_ROUTE="liquidations";<\/script>').replace("</head>", mobileNavAssets + "</head>"));
     document.close();

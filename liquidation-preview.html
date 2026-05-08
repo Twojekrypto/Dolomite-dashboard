@@ -7164,7 +7164,7 @@
 
                     <div id="sim-simple-controls" class="liquidation-sim-toolbar">
                         <div id="sim-asset-mode" class="liquidation-sim-dropdown">
-                            <button type="button" id="sim-asset-trigger" class="liquidation-sim-trigger sim-asset-trigger" aria-haspopup="listbox" aria-expanded="false">
+                            <button type="button" id="sim-asset-trigger" class="liquidation-sim-trigger sim-asset-trigger" aria-haspopup="listbox" aria-expanded="false" onclick="window.toggleSimAssetPopover && window.toggleSimAssetPopover(event)">
                                 <span id="sim-asset-icon" class="sim-asset-icon-badge">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                         <path d="M5 9.5h14"></path>
@@ -9666,19 +9666,37 @@
             if (simAssetList) renderSimAssetList('');
             if (simAssetSearch) simAssetSearch.addEventListener('input', () => renderSimAssetList(simAssetSearch.value));
             // Toggle popover
-            if (simAssetTrigger) {
-                simAssetTrigger.addEventListener('click', (e) => {
+            window.toggleSimAssetPopover = function(e) {
+                if (e) {
+                    e.preventDefault();
                     e.stopPropagation();
-                    const isOpen = simAssetMode ? simAssetMode.classList.contains('open') : false;
-                    if (!isOpen) {
-                        closeFloatingMenus({ keepSimAsset: true });
-                        // Sync pending to current
-                        window._simAssetPending = new Set(window._simAssets);
+                }
+                const modeEl = document.getElementById('sim-asset-mode');
+                const popoverEl = document.getElementById('sim-asset-popover');
+                const triggerEl = document.getElementById('sim-asset-trigger');
+                const searchEl = document.getElementById('sim-asset-search');
+                const isOpen = modeEl ? modeEl.classList.contains('open') : false;
+                if (!isOpen) {
+                    window.__mobilePolishDropdownScroll = true;
+                    window.__mobilePolishDropdownScrollUntil = Date.now() + 300;
+                    closeFloatingMenus({ keepSimAsset: true });
+                    // Sync pending to current
+                    window._simAssetPending = new Set(window._simAssets);
+                    window.setTimeout(() => { window.__mobilePolishDropdownScroll = false; }, 300);
+                }
+                if (popoverEl) popoverEl.style.display = !isOpen ? 'flex' : 'none';
+                if (modeEl) modeEl.classList.toggle('open', !isOpen);
+                if (triggerEl) triggerEl.setAttribute('aria-expanded', !isOpen ? 'true' : 'false');
+                if (!isOpen && searchEl) {
+                    searchEl.value = '';
+                    renderSimAssetList('');
+                    try {
+                        searchEl.focus({ preventScroll: true });
+                    } catch (error) {
+                        searchEl.focus();
                     }
-                    setSimAssetPopoverOpen(!isOpen);
-                    if (!isOpen) { simAssetSearch.value = ''; renderSimAssetList(''); simAssetSearch.focus(); }
-                });
-            }
+                }
+            };
             // Close on outside click
             document.addEventListener('click', (e) => {
                 if (simAssetPopover && !document.getElementById('sim-asset-mode').contains(e.target)) {
@@ -10571,7 +10589,16 @@
 
         function positionLendingToolbarMenu(triggerEl, menuEl) {
             if (!triggerEl || !menuEl) return;
-            const rect = triggerEl.getBoundingClientRect();
+            let rect = triggerEl.getBoundingClientRect();
+            const minimumMobileRoom = 128;
+            const neededMobileRoom = rect.bottom + 6 + minimumMobileRoom - window.innerHeight + 8;
+            if (window.innerWidth <= 760 && neededMobileRoom > 0) {
+                window.__mobilePolishDropdownScroll = true;
+                window.__mobilePolishDropdownScrollUntil = Date.now() + 300;
+                window.scrollBy(0, Math.ceil(neededMobileRoom));
+                window.setTimeout(() => { window.__mobilePolishDropdownScroll = false; }, 300);
+                rect = triggerEl.getBoundingClientRect();
+            }
             const width = Math.max(rect.width, 220);
             const left = Math.min(Math.max(8, rect.left), Math.max(8, window.innerWidth - width - 8));
             const top = rect.bottom + 6;
@@ -10700,6 +10727,7 @@
         }
 
         window.addEventListener('scroll', (event) => {
+            if (window.__mobilePolishDropdownScroll || Date.now() < (window.__mobilePolishDropdownScrollUntil || 0)) return;
             if (isScrollInsideOpenFloatingMenu(event.target)) return;
             closeFloatingMenus();
         }, true);
