@@ -195,14 +195,22 @@ class EarnDashboardContractsTest(unittest.TestCase):
 
     def test_netflow_workflow_passes_secondary_arbitrum_rpc_secret(self):
         workflow = NETFLOW_WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("scan_earn_netflow.py arbitrum,ethereum,mantle,botanix --max-runtime-seconds 19800", workflow)
+        self.assertIn("scan_earn_netflow.py arbitrum,ethereum,mantle,botanix,polygonzkevm --max-runtime-seconds 19800", workflow)
         self.assertNotIn("scan_earn_netflow.py arbitrum,ethereum,mantle,botanix,polygonzkevm,xlayer", workflow)
         self.assertIn("ALCHEMY_ARBITRUM_RPC_ZEN: ${{ secrets.ALCHEMY_ARBITRUM_RPC_ZEN }}", workflow)
         self.assertIn("QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}", workflow)
         self.assertIn("DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}", workflow)
+        self.assertIn("ALCHEMY_POLYGONZKEVM_RPC_ZEN: ${{ secrets.ALCHEMY_POLYGONZKEVM_RPC_ZEN }}", workflow)
+        self.assertIn("DRP_POLYGONZKEVM_RPC_TWO: ${{ secrets.DRP_POLYGONZKEVM_RPC_TWO }}", workflow)
+        self.assertIn("ALCHEMY_XLAYER_RPC_ZEN: ${{ secrets.ALCHEMY_XLAYER_RPC_ZEN }}", workflow)
+        self.assertIn("DRP_XLAYER_RPC_TWO: ${{ secrets.DRP_XLAYER_RPC_TWO }}", workflow)
         scanner = NETFLOW_SCANNER.read_text(encoding="utf-8")
         self.assertIn('os.environ.get("QUICKNODE_BERACHAIN_RPC_2")', scanner)
         self.assertIn('os.environ.get("DRPC_BERACHAIN_RPC_ZEN")', scanner)
+        self.assertIn('os.environ.get("ALCHEMY_POLYGONZKEVM_RPC_ZEN")', scanner)
+        self.assertIn('os.environ.get("DRP_POLYGONZKEVM_RPC_TWO")', scanner)
+        self.assertIn('os.environ.get("ALCHEMY_XLAYER_RPC_ZEN")', scanner)
+        self.assertIn('os.environ.get("DRP_XLAYER_RPC_TWO")', scanner)
 
     def test_lending_toolbar_filters_always_open_downward(self):
         source = LIQUIDATION_PREVIEW.read_text(encoding="utf-8")
