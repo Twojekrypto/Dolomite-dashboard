@@ -180,7 +180,14 @@ def _component_status(
     status = _status_for_lag(block_lag, policy)
     refresh_after_minutes = float(policy.get("refreshAfterMinutes", REFRESH_AFTER_MINUTES))
     refresh_after_blocks = _threshold_blocks(policy, refresh_after_minutes)
-    refresh_recommended = status in {"missing", "syncing", "stale"} or (
+    updated_age_minutes = _age_minutes(updated_at, now)
+    if (
+        status == "stale"
+        and updated_age_minutes is not None
+        and updated_age_minutes <= refresh_after_minutes
+    ):
+        status = "catching_up"
+    refresh_recommended = status in {"missing", "syncing", "stale", "catching_up"} or (
         block_lag is not None and block_lag >= refresh_after_blocks
     )
 
@@ -197,9 +204,7 @@ def _component_status(
         "blockLag": block_lag,
         "estimatedLagMinutes": _estimated_minutes(block_lag, policy),
         "updatedAt": updated_at or None,
-        "updatedAgeMinutes": (
-            round(value, 1) if (value := _age_minutes(updated_at, now)) is not None else None
-        ),
+        "updatedAgeMinutes": round(updated_age_minutes, 1) if updated_age_minutes is not None else None,
         "refreshAfterMinutes": refresh_after_minutes,
         "refreshAfterBlockLag": refresh_after_blocks,
         "verifiedBlockLag": int(policy["verifiedBlockLag"]),
@@ -302,7 +307,7 @@ def _weak_point(
             return "snapshot-first coverage; canonical and netflow event ledgers are not enabled"
         return "snapshot-first coverage; snapshot is currently missing"
     for name, component in (("canonical", canonical), ("netflow", netflow)):
-        if component.get("status") in {"missing", "syncing", "stale", "unknown"}:
+        if component.get("status") in {"missing", "syncing", "stale", "catching_up", "unknown"}:
             return f"{name} {component['status']}"
     for name, component in (("canonical", canonical), ("netflow", netflow)):
         if component.get("refreshMode") == "background":
@@ -401,7 +406,7 @@ def build_status(
             chain_status = "unsupported"
         elif "stale" in chain_statuses:
             chain_status = "stale"
-        elif "syncing" in chain_statuses or "missing" in chain_statuses:
+        elif "syncing" in chain_statuses or "catching_up" in chain_statuses or "missing" in chain_statuses:
             chain_status = "syncing"
         elif "unknown" in chain_statuses:
             chain_status = "unknown"
