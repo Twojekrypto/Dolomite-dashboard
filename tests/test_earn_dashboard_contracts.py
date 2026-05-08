@@ -85,7 +85,8 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("has_public_baseline", workflow)
         self.assertIn("config/earn_berachain_canonical_hot_addresses.txt", workflow)
         self.assertIn("QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}", workflow)
-        self.assertIn("QUICKNODE_BERACHAIN_RPC_2 ALCHEMY_BERACHAIN_RPC_2", workflow)
+        self.assertIn("DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}", workflow)
+        self.assertIn("QUICKNODE_BERACHAIN_RPC_2 DRPC_BERACHAIN_RPC_ZEN ALCHEMY_BERACHAIN_RPC_2", workflow)
         self.assertIn("Check Berachain RPC redundancy", workflow)
         self.assertIn("--allow-checkpoint-incomplete", workflow)
         self.assertIn("Build Berachain verified ledger cache", workflow)
@@ -114,12 +115,14 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("scan_earn_netflow.py berachain --max-runtime-seconds 3300", workflow)
         self.assertIn("data/earn-netflow/berachain.json", workflow)
         self.assertIn("QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}", workflow)
+        self.assertIn("DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}", workflow)
         self.assertIn("ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}", workflow)
 
     def test_berachain_borrow_route_workflow_checks_rpc_redundancy(self):
         workflow = BERACHAIN_BORROW_ROUTE_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("Check Berachain RPC redundancy", workflow)
         self.assertIn("QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}", workflow)
+        self.assertIn("DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}", workflow)
         self.assertIn("ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}", workflow)
 
     def test_berachain_watchdog_refreshes_after_one_hour(self):
@@ -159,8 +162,10 @@ class EarnDashboardContractsTest(unittest.TestCase):
         workflow = NETFLOW_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("ALCHEMY_ARBITRUM_RPC_ZEN: ${{ secrets.ALCHEMY_ARBITRUM_RPC_ZEN }}", workflow)
         self.assertIn("QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}", workflow)
+        self.assertIn("DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}", workflow)
         scanner = NETFLOW_SCANNER.read_text(encoding="utf-8")
         self.assertIn('os.environ.get("QUICKNODE_BERACHAIN_RPC_2")', scanner)
+        self.assertIn('os.environ.get("DRPC_BERACHAIN_RPC_ZEN")', scanner)
 
     def test_lending_toolbar_filters_always_open_downward(self):
         source = LIQUIDATION_PREVIEW.read_text(encoding="utf-8")
