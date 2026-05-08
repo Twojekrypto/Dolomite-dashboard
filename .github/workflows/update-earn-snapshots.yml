@@ -37,7 +37,7 @@ jobs:
           root = Path("data/earn-snapshots")
           manifest = json.load((root / "manifest.json").open())
           today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-          chains = {"arbitrum", "berachain", "ethereum", "mantle", "botanix"}
+          chains = {"arbitrum", "berachain", "ethereum", "mantle", "botanix", "polygonzkevm", "xlayer"}
 
           assert today in manifest.get("dates", []), f"Today's snapshot date missing from manifest: {today}"
           manifest_chains = set(manifest.get("chains", {}).get(today, []))

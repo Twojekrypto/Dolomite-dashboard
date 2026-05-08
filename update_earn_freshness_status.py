@@ -71,7 +71,6 @@ CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
         "verifiedBlockLag": 3400,
         "canonicalWorkflow": "update-earn-secondary-canonical-history.yml",
         "canonicalSupported": False,
-        "supportMode": "snapshot-first",
     },
     "xlayer": {
         "label": "X Layer",

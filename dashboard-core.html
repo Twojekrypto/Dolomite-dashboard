@@ -25236,6 +25236,7 @@
                 margin: '0x836b557cf9ef29fcf49c776841191782df34e4e5',
                 rpcs: ['https://zkevm-rpc.com/', 'https://polygon-zkevm.drpc.org/'],
                 rpcIdx: 0,
+                logStartBlock: 9860000,
             },
             mantle: {
                 name: 'Mantle',
@@ -26222,6 +26223,9 @@
             const cid = String(chainId || '').trim().toLowerCase();
             if (cid === 'arbitrum') {
                 return { subgraphMs: 35000, onchainMs: 90000, softOnchainMs: 15000 };
+            }
+            if (cid === 'polygonzkevm' || cid === 'xlayer') {
+                return { subgraphMs: 20000, onchainMs: 30000, softOnchainMs: 2000 };
             }
             return { subgraphMs: 12000, onchainMs: 15000, softOnchainMs: 0 };
         }

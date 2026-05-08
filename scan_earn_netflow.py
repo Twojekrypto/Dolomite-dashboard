@@ -88,22 +88,26 @@ CHAINS = {
     "polygonzkevm": {
         "margin": "0x836b557cf9ef29fcf49c776841191782df34e4e5",
         "rpcs": [
+            *([] if not os.environ.get("ALCHEMY_POLYGONZKEVM_RPC_ZEN") else [os.environ["ALCHEMY_POLYGONZKEVM_RPC_ZEN"]]),
+            *([] if not os.environ.get("DRP_POLYGONZKEVM_RPC_TWO") else [os.environ["DRP_POLYGONZKEVM_RPC_TWO"]]),
             *([] if not os.environ.get("POLYGONZKEVM_RPC") else [os.environ["POLYGONZKEVM_RPC"]]),
             *([] if not os.environ.get("POLYGONZKEVM_RPC_2") else [os.environ["POLYGONZKEVM_RPC_2"]]),
             "https://zkevm-rpc.com/",
             "https://polygon-zkevm-rpc.publicnode.com/",
         ],
-        "start_block": -1,  # No events found
+        "start_block": 9_860_000,
     },
     "xlayer": {
         "margin": "0x836b557cf9ef29fcf49c776841191782df34e4e5",
         "rpcs": [
+            *([] if not os.environ.get("ALCHEMY_XLAYER_RPC_ZEN") else [os.environ["ALCHEMY_XLAYER_RPC_ZEN"]]),
+            *([] if not os.environ.get("DRP_XLAYER_RPC_TWO") else [os.environ["DRP_XLAYER_RPC_TWO"]]),
             *([] if not os.environ.get("XLAYER_RPC") else [os.environ["XLAYER_RPC"]]),
             *([] if not os.environ.get("XLAYER_RPC_2") else [os.environ["XLAYER_RPC_2"]]),
             "https://rpc.xlayer.tech/",
             "https://xlayer-mainnet.public.blastapi.io/",
         ],
-        "start_block": -1,  # No events found
+        "start_block": -1,  # Requires validated private RPC getLogs range before global scanning.
     },
 }
 

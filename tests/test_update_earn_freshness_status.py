@@ -38,7 +38,7 @@ class EarnFreshnessStatusTest(unittest.TestCase):
                     }
                 },
             )
-            for chain in ("ethereum", "berachain", "botanix", "mantle"):
+            for chain in ("ethereum", "berachain", "botanix", "mantle", "polygonzkevm"):
                 self._write_json(
                     root,
                     f"earn-netflow/{chain}.json",
@@ -168,7 +168,7 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         self.assertIn("update-earn-berachain-netflow.yml", status["summary"]["refreshWorkflows"])
         self.assertNotIn(NETFLOW_WORKFLOW, status["summary"]["refreshWorkflows"])
 
-    def test_unsupported_no_event_chains_do_not_loop_watchdog_refreshes(self):
+    def test_snapshot_first_chain_does_not_loop_watchdog_refreshes(self):
         now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -184,11 +184,6 @@ class EarnFreshnessStatusTest(unittest.TestCase):
                     f"earn-netflow/{chain}.json",
                     {"chain": chain, "lastBlock": 123, "updatedAt": "2026-05-08T11:59:00Z"},
                 )
-            self._write_json(
-                root,
-                "earn-netflow/polygonzkevm.json",
-                {"chain": "polygonzkevm", "lastBlock": 0, "updatedAt": "2026-05-08T11:59:00Z"},
-            )
             self._write_json(root, "earn-snapshots/manifest.json", {"dates": [], "chains": {}})
 
             status = build_status(
@@ -197,12 +192,17 @@ class EarnFreshnessStatusTest(unittest.TestCase):
                 now=now,
             )
 
-        self.assertEqual(status["chains"]["polygonzkevm"]["status"], "limited")
-        self.assertEqual(status["chains"]["polygonzkevm"]["supportMode"], "snapshot-first")
-        self.assertEqual(status["summary"]["limitedChains"], ["polygonzkevm", "xlayer"])
+        self.assertEqual(status["chains"]["polygonzkevm"]["status"], "syncing")
+        self.assertEqual(status["chains"]["polygonzkevm"]["netflow"]["status"], "missing")
+        self.assertEqual(status["chains"]["polygonzkevm"]["supportMode"], "netflow-only")
+        self.assertEqual(status["chains"]["xlayer"]["status"], "limited")
+        self.assertEqual(status["chains"]["xlayer"]["supportMode"], "snapshot-first")
+        self.assertEqual(status["summary"]["limitedChains"], ["xlayer"])
+        self.assertIn(NETFLOW_WORKFLOW, status["summary"]["refreshWorkflows"])
         self.assertNotIn("update-earn-secondary-canonical-history.yml", status["summary"]["refreshWorkflows"])
         report = {entry["chain"]: entry for entry in status["chainReport"]}
-        self.assertIn("snapshot-first coverage", report["polygonzkevm"]["weakPoint"])
+        self.assertEqual(report["polygonzkevm"]["weakPoint"], "netflow missing")
+        self.assertIn("snapshot-first coverage", report["xlayer"]["weakPoint"])
 
     def test_actions_output_contains_refresh_plan(self):
         with tempfile.TemporaryDirectory() as tmp:
