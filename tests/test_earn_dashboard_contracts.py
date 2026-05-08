@@ -6,9 +6,11 @@ ROOT = Path(__file__).resolve().parents[1]
 DASHBOARD_CORE = ROOT / "dashboard-core.html"
 ETHEREUM_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-ethereum-canonical-history.yml"
 ARBITRUM_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-arbitrum-canonical-history.yml"
+EARN_FRESHNESS_WORKFLOW = ROOT / ".github" / "workflows" / "monitor-earn-freshness.yml"
 EARN_COVERAGE_REPORT = ROOT / "report_earn_subaccount_history_coverage.py"
 CANONICAL_REFRESH_RUNNER = ROOT / "run_earn_canonical_history_refresh.py"
 NETFLOW_SCANNER = ROOT / "scan_earn_netflow.py"
+NETFLOW_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-netflow.yml"
 LIQUIDATION_PREVIEW = ROOT / "liquidation-preview.html"
 
 
@@ -78,12 +80,25 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertNotIn("polygonzkevm: 5400n", self.source)
         self.assertNotIn("xlayer: 3600n", self.source)
 
+    def test_earn_freshness_watchdog_runs_and_can_dispatch_refreshes(self):
+        workflow = EARN_FRESHNESS_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("cron: '*/15 * * * *'", workflow)
+        self.assertIn("actions: write", workflow)
+        self.assertIn("update_earn_freshness_status.py", workflow)
+        self.assertIn("data/earn-freshness/status.json", workflow)
+        self.assertIn("gh workflow run", workflow)
+        self.assertIn("earn-refresh-workflows.txt", workflow)
+
     def test_canonical_refresh_runner_keeps_json_stdout_clean(self):
         runner = CANONICAL_REFRESH_RUNNER.read_text(encoding="utf-8")
         self.assertIn("stderr=subprocess.PIPE", runner)
         self.assertNotIn("stderr=subprocess.STDOUT", runner)
         scanner = NETFLOW_SCANNER.read_text(encoding="utf-8")
         self.assertIn("file=sys.stderr", scanner)
+
+    def test_netflow_workflow_passes_secondary_arbitrum_rpc_secret(self):
+        workflow = NETFLOW_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("ALCHEMY_ARBITRUM_RPC_ZEN: ${{ secrets.ALCHEMY_ARBITRUM_RPC_ZEN }}", workflow)
 
     def test_lending_toolbar_filters_always_open_downward(self):
         source = LIQUIDATION_PREVIEW.read_text(encoding="utf-8")
