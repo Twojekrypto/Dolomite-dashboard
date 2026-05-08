@@ -59,13 +59,19 @@
         updateExpiryLabels();
         if (!MOBILE_QUERY.matches) return;
 
-        document.querySelectorAll(SCROLL_SHELL_SELECTOR).forEach(prepareShell);
+        document.querySelectorAll(SCROLL_SHELL_SELECTOR).forEach(shell => {
+            prepareShell(shell);
+            shell.classList.remove("mobile-scrollable");
+        });
         document.querySelectorAll("table").forEach(table => {
             const shell = shellForTable(table);
             if (!shell) return;
             const shellWidth = shell.clientWidth || shell.getBoundingClientRect().width;
             const tableWidth = table.scrollWidth || table.getBoundingClientRect().width;
-            if (tableWidth > shellWidth + 2) prepareShell(shell);
+            if (tableWidth > shellWidth + 2) {
+                prepareShell(shell);
+                shell.classList.add("mobile-scrollable");
+            }
         });
         updateDropdownPanels();
     }
