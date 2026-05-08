@@ -7785,7 +7785,7 @@
 
         /* Staggered fadeInUp animation */
         .earn-lending-table tbody tr.earn-lend-row {
-            animation: earnLendFadeIn 0.45s ease both;
+            animation: earnLendFadeIn 0.45s ease;
         }
         @keyframes earnLendFadeIn {
             0% { opacity: 0; transform: translateY(8px); }
@@ -10826,17 +10826,49 @@
             background-repeat: no-repeat;
         }
 
-        /* EARN tables should scroll naturally with the page.
-           Keep the visual header styling, but do not pin column labels. */
+        /* EARN table headers stay pinned inside their scroll shells and use an
+           opaque skin so row content never bleeds through while scrolling. */
         #earn-supply-section .earn-asset-table thead,
-        #earn-supply-section .earn-asset-table thead th,
         #earn-past-section .earn-past-table thead,
+        #earn-lending-section .earn-lending-table thead {
+            position: sticky;
+            top: 0;
+            z-index: 70;
+            isolation: isolate;
+            background: #090e18;
+            box-shadow: 0 -28px 0 0 #090e18;
+        }
+
+        #earn-supply-section .earn-asset-table thead tr,
+        #earn-past-section .earn-past-table thead tr,
+        #earn-lending-section .earn-lending-table thead tr {
+            background: #090e18;
+        }
+
+        #earn-supply-section .earn-asset-table thead th,
         #earn-past-section .earn-past-table thead th,
-        #earn-lending-section .earn-lending-table thead,
         #earn-lending-section .earn-lending-table thead th {
-            position: static;
-            top: auto;
-            z-index: auto;
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 80 !important;
+            background:
+                linear-gradient(135deg, rgba(var(--earn-section-rgb), 0.10), rgba(var(--earn-section-rgb), 0.025)),
+                linear-gradient(180deg, #090e18 0%, #0d121d 100%) !important;
+            background-color: #090e18 !important;
+            background-clip: border-box;
+            -webkit-backdrop-filter: none;
+            backdrop-filter: none;
+            box-shadow:
+                0 -18px 0 0 #090e18,
+                inset 0 -1px 0 rgba(var(--earn-section-rgb), 0.18),
+                0 10px 18px rgba(2, 6, 23, 0.38);
+        }
+
+        #earn-supply-section .earn-asset-table tbody tr.earn-data-row,
+        #earn-past-section .earn-past-table tbody tr.earn-data-row,
+        #earn-lending-section .earn-lending-table tbody tr.earn-lend-row {
+            position: relative;
+            z-index: 0;
         }
 
         .earn-asset-table thead th:first-child {
@@ -11047,7 +11079,7 @@
 
         /* Staggered row entrance */
         .earn-asset-table tbody tr.earn-data-row {
-            animation: earnLendFadeIn 0.45s ease both;
+            animation: earnLendFadeIn 0.45s ease;
         }
 
         .earn-asset-table.no-animate tbody tr.earn-data-row {
