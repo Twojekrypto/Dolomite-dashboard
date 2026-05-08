@@ -120,6 +120,8 @@ class EarnDashboardContractsTest(unittest.TestCase):
 
     def test_berachain_borrow_route_workflow_checks_rpc_redundancy(self):
         workflow = BERACHAIN_BORROW_ROUTE_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("timeout-minutes: 150", workflow)
+        self.assertIn("--max-steps 240", workflow)
         self.assertIn("Check Berachain RPC redundancy", workflow)
         self.assertIn("QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}", workflow)
         self.assertIn("DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}", workflow)
@@ -160,6 +162,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
 
     def test_netflow_workflow_passes_secondary_arbitrum_rpc_secret(self):
         workflow = NETFLOW_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("scan_earn_netflow.py arbitrum,ethereum,mantle,botanix,polygonzkevm,xlayer --max-runtime-seconds 19800", workflow)
         self.assertIn("ALCHEMY_ARBITRUM_RPC_ZEN: ${{ secrets.ALCHEMY_ARBITRUM_RPC_ZEN }}", workflow)
         self.assertIn("QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}", workflow)
         self.assertIn("DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}", workflow)
