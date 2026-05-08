@@ -37,6 +37,7 @@ CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
         "label": "Berachain",
         "blockTimeSeconds": 2.0,
         "verifiedBlockLag": 5400,
+        "refreshAfterMinutes": 60,
         "canonicalWorkflow": "update-earn-berachain-canonical-history.yml",
         "netflowWorkflow": "update-earn-berachain-netflow.yml",
         "canonicalSupported": True,
@@ -165,7 +166,8 @@ def _component_status(
         block_lag = int(live_block) - int(last_block)
 
     status = _status_for_lag(block_lag, policy)
-    refresh_after_blocks = _threshold_blocks(policy, REFRESH_AFTER_MINUTES)
+    refresh_after_minutes = float(policy.get("refreshAfterMinutes", REFRESH_AFTER_MINUTES))
+    refresh_after_blocks = _threshold_blocks(policy, refresh_after_minutes)
     refresh_recommended = status in {"missing", "syncing", "stale"} or (
         block_lag is not None and block_lag >= refresh_after_blocks
     )
@@ -184,6 +186,7 @@ def _component_status(
         "updatedAgeMinutes": (
             round(value, 1) if (value := _age_minutes(updated_at, now)) is not None else None
         ),
+        "refreshAfterMinutes": refresh_after_minutes,
         "refreshAfterBlockLag": refresh_after_blocks,
         "verifiedBlockLag": int(policy["verifiedBlockLag"]),
         "staleBlockLag": _threshold_blocks(policy, STALE_AFTER_HOURS * 60),
