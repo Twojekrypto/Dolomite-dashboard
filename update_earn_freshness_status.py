@@ -21,7 +21,7 @@ from scan_earn_netflow import CHAINS, get_block_number
 ROOT = Path(__file__).resolve().parent
 DEFAULT_OUTPUT = ROOT / "data" / "earn-freshness" / "status.json"
 
-REFRESH_AFTER_MINUTES = 90
+REFRESH_AFTER_MINUTES = 60
 VERIFIED_AFTER_HOURS = 3
 STALE_AFTER_HOURS = 4
 

@@ -78,7 +78,7 @@ jobs:
       - name: Select Berachain hot wallets
         run: |
           set -euo pipefail
-          hot_limit="$(python3 - <<'PY'
+          read -r has_public_baseline hot_limit <<< "$(python3 - <<'PY'
           import json
           import os
           from pathlib import Path
@@ -93,18 +93,25 @@ jobs:
               has_public_baseline = int(chain.get("lastBlock") or 0) > 0
           except Exception:
               has_public_baseline = False
-          print(os.environ["STEADY_HOT_LIMIT"] if has_public_baseline else os.environ["BOOTSTRAP_HOT_LIMIT"])
+          hot_limit = os.environ["STEADY_HOT_LIMIT"] if has_public_baseline else os.environ["BOOTSTRAP_HOT_LIMIT"]
+          print("true" if has_public_baseline else "false", hot_limit)
           PY
           )"
           echo "Berachain hot wallet limit: ${hot_limit}"
-          python3 select_earn_canonical_hot_addresses.py \
-            --chain "$CHAIN" \
-            --limit "$hot_limit" \
-            --priority-address-file config/earn_canonical_priority_addresses.txt \
-            --priority-address-file config/earn_berachain_canonical_hot_addresses.txt \
-            --include-priority-even-if-unknown \
-            --output "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt" \
+          selector_args=(
+            python3 select_earn_canonical_hot_addresses.py
+            --chain "$CHAIN"
+            --limit "$hot_limit"
+            --priority-address-file config/earn_canonical_priority_addresses.txt
+            --priority-address-file config/earn_berachain_canonical_hot_addresses.txt
+            --include-priority-even-if-unknown
+            --output "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt"
             --metadata-output "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
+          )
+          if [ "$has_public_baseline" = "true" ]; then
+            selector_args+=(--existing-history-only --history-dir data/earn-subaccount-history)
+          fi
+          "${selector_args[@]}"
           cat "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
 
       - name: Refresh Berachain canonical history checkpoint
