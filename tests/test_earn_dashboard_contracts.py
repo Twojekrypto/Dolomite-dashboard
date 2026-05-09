@@ -139,7 +139,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("Plan selected secondary chains", workflow)
         self.assertIn("needs: plan-secondary-canonical", workflow)
         self.assertIn("matrix: ${{ fromJson(needs.plan-secondary-canonical.outputs.matrix) }}", workflow)
-        self.assertIn("group: earn-secondary-canonical-history-${{ matrix.chain }}", workflow)
+        self.assertIn("group: earn-secondary-canonical-history", workflow)
         self.assertIn('"polygonzkevm": {', workflow)
         self.assertIn('"xlayer": {', workflow)
         self.assertIn('"hot_limit": 1000', workflow)
