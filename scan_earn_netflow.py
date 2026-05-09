@@ -65,14 +65,21 @@ CHAINS = {
     "mantle": {
         "margin": "0xe6ef4f0b2455bab92ce7cc78e35324ab58917de8",
         "rpcs": [
+            *([] if not os.environ.get("MANTLE_RPC") else [os.environ["MANTLE_RPC"]]),
+            *([] if not os.environ.get("MANTLE_RPC_2") else [os.environ["MANTLE_RPC_2"]]),
+            *([] if not os.environ.get("QUICKNODE_MANTLE_RPC") else [os.environ["QUICKNODE_MANTLE_RPC"]]),
+            *([] if not os.environ.get("DRPC_MANTLE_RPC_ZEN") else [os.environ["DRPC_MANTLE_RPC_ZEN"]]),
+            *([] if not os.environ.get("ALCHEMY_MANTLE_RPC_ZEN") else [os.environ["ALCHEMY_MANTLE_RPC_ZEN"]]),
             *([] if not os.environ.get("ALCHEMY_MANTLE_RPC") else [os.environ["ALCHEMY_MANTLE_RPC"]]),
             *([] if not os.environ.get("ALCHEMY_MANTLE_RPC_2") else [os.environ["ALCHEMY_MANTLE_RPC_2"]]),
             *([] if not os.environ.get("ALCHEMY_MANTLE_RPC_3") else [os.environ["ALCHEMY_MANTLE_RPC_3"]]),
+            "https://mantle.api.onfinality.io/public",
             "https://rpc.mantle.xyz/",
             "https://mantle-rpc.publicnode.com/",
             "https://1rpc.io/mantle",
         ],
         "start_block": 64_046_000,
+        "max_block_chunk": 1_800,
     },
     "botanix": {
         "margin": "0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D",
@@ -1123,7 +1130,8 @@ def main():
     print(f"\n{'='*60}")
     print("Done! Files written to data/earn-netflow/")
     print(f"{'='*60}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

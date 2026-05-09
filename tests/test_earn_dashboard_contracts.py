@@ -17,6 +17,8 @@ BERACHAIN_PRIORITY_ADDRESSES = ROOT / "config" / "earn_berachain_canonical_hot_a
 EARN_COVERAGE_REPORT = ROOT / "report_earn_subaccount_history_coverage.py"
 CANONICAL_REFRESH_RUNNER = ROOT / "run_earn_canonical_history_refresh.py"
 NETFLOW_SCANNER = ROOT / "scan_earn_netflow.py"
+SUBACCOUNT_EVENT_SCANNER = ROOT / "scan_earn_subaccount_history_events.py"
+SUBACCOUNT_HISTORY_BUILDER = ROOT / "build_earn_subaccount_history.py"
 NETFLOW_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-netflow.yml"
 LIQUIDATION_PREVIEW = ROOT / "liquidation-preview.html"
 
@@ -128,9 +130,14 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("run-name: Refresh Secondary Canonical EARN History", workflow)
         self.assertIn("'23,53 * * * *' && 'mantle'", workflow)
         self.assertIn("'28,58 * * * *' && 'botanix'", workflow)
+        self.assertIn("Plan selected secondary chains", workflow)
+        self.assertIn("needs: plan-secondary-canonical", workflow)
+        self.assertIn("matrix: ${{ fromJson(needs.plan-secondary-canonical.outputs.matrix) }}", workflow)
+        self.assertIn("group: earn-secondary-canonical-history-${{ matrix.chain }}", workflow)
         self.assertIn("--max-steps 360", workflow)
-        self.assertIn("Resolve selected chain", workflow)
-        self.assertIn("Skipping $CHAIN for this trigger.", workflow)
+        self.assertNotIn("Resolve selected chain", workflow)
+        self.assertNotIn("Skipping $CHAIN for this trigger.", workflow)
+        self.assertNotIn("max-parallel: 1", workflow)
         self.assertNotIn("chain: polygonzkevm", workflow)
         self.assertNotIn("chain: xlayer", workflow)
 
@@ -234,6 +241,12 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("DRP_XLAYER_RPC_TWO: ${{ secrets.DRP_XLAYER_RPC_TWO }}", workflow)
         self.assertNotIn("QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}", workflow)
         scanner = NETFLOW_SCANNER.read_text(encoding="utf-8")
+        self.assertIn('os.environ.get("MANTLE_RPC")', scanner)
+        self.assertIn('os.environ.get("QUICKNODE_MANTLE_RPC")', scanner)
+        self.assertIn('os.environ.get("DRPC_MANTLE_RPC_ZEN")', scanner)
+        self.assertIn('os.environ.get("ALCHEMY_MANTLE_RPC_ZEN")', scanner)
+        self.assertIn('"https://mantle.api.onfinality.io/public"', scanner)
+        self.assertIn('"max_block_chunk": 1_800', scanner)
         self.assertIn('os.environ.get("QUICKNODE_BERACHAIN_RPC_2")', scanner)
         self.assertIn('os.environ.get("DRPC_BERACHAIN_RPC_ZEN")', scanner)
         self.assertIn('os.environ.get("ALCHEMY_POLYGONZKEVM_RPC_ZEN")', scanner)
@@ -248,6 +261,16 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("consecutive_failures_at_block", scanner)
         self.assertIn('os.environ.get("ALCHEMY_XLAYER_RPC_ZEN")', scanner)
         self.assertIn('os.environ.get("DRP_XLAYER_RPC_TWO")', scanner)
+        self.assertIn("raise SystemExit(main())", scanner)
+
+    def test_subaccount_scanners_respect_chain_specific_rpc_block_chunks(self):
+        event_scanner = SUBACCOUNT_EVENT_SCANNER.read_text(encoding="utf-8")
+        history_builder = SUBACCOUNT_HISTORY_BUILDER.read_text(encoding="utf-8")
+        self.assertIn('max_chunk_size = int(config.get("max_block_chunk") or BLOCK_CHUNK)', event_scanner)
+        self.assertIn("adaptive_chunk_size = min(max_chunk_size, max(1_000, int(chunk_size)))", event_scanner)
+        self.assertIn("adaptive_chunk_size = min(max_chunk_size, adaptive_chunk_size * 2)", event_scanner)
+        self.assertIn('CHAINS[args.chain].get("max_block_chunk")', event_scanner)
+        self.assertIn('default_block_chunk = int(config.get("max_block_chunk") or DEFAULT_ADDRESS_SCAN_BLOCK_CHUNK)', history_builder)
 
     def test_lending_toolbar_filters_always_open_downward(self):
         source = LIQUIDATION_PREVIEW.read_text(encoding="utf-8")

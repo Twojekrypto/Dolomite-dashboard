@@ -413,7 +413,8 @@ def build_history_for_addresses_in_block_range(
 
     current = start_block
     total_logs = 0
-    block_chunk = max(1, int(os.environ.get("EARN_SUBACCOUNT_HISTORY_BLOCK_CHUNK") or DEFAULT_ADDRESS_SCAN_BLOCK_CHUNK))
+    default_block_chunk = int(config.get("max_block_chunk") or DEFAULT_ADDRESS_SCAN_BLOCK_CHUNK)
+    block_chunk = max(1, int(os.environ.get("EARN_SUBACCOUNT_HISTORY_BLOCK_CHUNK") or default_block_chunk))
 
     while current <= end_block:
         chunk_end = min(current + block_chunk - 1, end_block)

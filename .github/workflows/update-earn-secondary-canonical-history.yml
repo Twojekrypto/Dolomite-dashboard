@@ -17,36 +17,84 @@ on:
           - mantle
           - botanix
 
-concurrency:
-  group: earn-secondary-canonical-history-${{ github.event.inputs.chain || github.event.schedule || github.ref }}
-  cancel-in-progress: false
-
 permissions:
   contents: write
 
 jobs:
+  plan-secondary-canonical:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - name: Plan selected secondary chains
+        id: plan
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+          DISPATCH_CHAIN: ${{ github.event.inputs.chain || 'all' }}
+        run: |
+          set -euo pipefail
+          matrix="$(python3 - <<'PY'
+          import json
+          import os
+          import sys
+
+          chains = {
+              "mantle": {
+                  "chain": "mantle",
+                  "label": "Mantle",
+                  "hot_limit": 1000,
+                  "scan_workers": 6,
+                  "materialize_workers": 6,
+                  "incremental_scan_workers": 6,
+                  "incremental_apply_workers": 6,
+              },
+              "botanix": {
+                  "chain": "botanix",
+                  "label": "Botanix",
+                  "hot_limit": 500,
+                  "scan_workers": 4,
+                  "materialize_workers": 4,
+                  "incremental_scan_workers": 4,
+                  "incremental_apply_workers": 4,
+              },
+          }
+          event_name = os.environ.get("EVENT_NAME") or ""
+          schedule = os.environ.get("EVENT_SCHEDULE") or ""
+          dispatch_chain = (os.environ.get("DISPATCH_CHAIN") or "all").strip().lower()
+
+          if event_name == "workflow_dispatch":
+              if dispatch_chain in {"", "all"}:
+                  selected = ["mantle", "botanix"]
+              elif dispatch_chain in chains:
+                  selected = [dispatch_chain]
+              else:
+                  print(f"Unknown secondary canonical chain: {dispatch_chain}", file=sys.stderr)
+                  sys.exit(1)
+          elif event_name == "schedule" and schedule == "23,53 * * * *":
+              selected = ["mantle"]
+          elif event_name == "schedule" and schedule == "28,58 * * * *":
+              selected = ["botanix"]
+          else:
+              selected = []
+
+          print(json.dumps({"include": [chains[chain] for chain in selected]}, separators=(",", ":")))
+          PY
+          )"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "Planned secondary canonical matrix: $matrix"
+
   refresh:
+    needs: plan-secondary-canonical
+    if: needs.plan-secondary-canonical.outputs.matrix != '{"include":[]}'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     strategy:
       fail-fast: false
-      max-parallel: 1
-      matrix:
-        include:
-          - chain: mantle
-            label: Mantle
-            hot_limit: 1000
-            scan_workers: 6
-            materialize_workers: 6
-            incremental_scan_workers: 6
-            incremental_apply_workers: 6
-          - chain: botanix
-            label: Botanix
-            hot_limit: 500
-            scan_workers: 4
-            materialize_workers: 4
-            incremental_scan_workers: 4
-            incremental_apply_workers: 4
+      matrix: ${{ fromJson(needs.plan-secondary-canonical.outputs.matrix) }}
+    concurrency:
+      group: earn-secondary-canonical-history-${{ matrix.chain }}
+      cancel-in-progress: false
     env:
       PYTHONUNBUFFERED: '1'
       CHAIN: ${{ matrix.chain }}
@@ -56,6 +104,11 @@ jobs:
       MATERIALIZE_WORKERS: ${{ matrix.materialize_workers }}
       INCREMENTAL_SCAN_WORKERS: ${{ matrix.incremental_scan_workers }}
       INCREMENTAL_APPLY_WORKERS: ${{ matrix.incremental_apply_workers }}
+      MANTLE_RPC: ${{ secrets.MANTLE_RPC }}
+      MANTLE_RPC_2: ${{ secrets.MANTLE_RPC_2 }}
+      QUICKNODE_MANTLE_RPC: ${{ secrets.QUICKNODE_MANTLE_RPC }}
+      DRPC_MANTLE_RPC_ZEN: ${{ secrets.DRPC_MANTLE_RPC_ZEN }}
+      ALCHEMY_MANTLE_RPC_ZEN: ${{ secrets.ALCHEMY_MANTLE_RPC_ZEN }}
       ALCHEMY_MANTLE_RPC: ${{ secrets.ALCHEMY_MANTLE_RPC }}
       ALCHEMY_MANTLE_RPC_2: ${{ secrets.ALCHEMY_MANTLE_RPC_2 }}
       ALCHEMY_MANTLE_RPC_3: ${{ secrets.ALCHEMY_MANTLE_RPC_3 }}
@@ -68,47 +121,21 @@ jobs:
       XLAYER_RPC_2: ${{ secrets.XLAYER_RPC_2 }}
 
     steps:
-      - name: Resolve selected chain
-        id: selected
-        run: |
-          set -euo pipefail
-          selected=false
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            dispatch_chain="${{ github.event.inputs.chain || 'all' }}"
-            if [ "$dispatch_chain" = "all" ] || [ "$dispatch_chain" = "$CHAIN" ]; then
-              selected=true
-            fi
-          elif [ "${{ github.event_name }}" = "schedule" ]; then
-            schedule="${{ github.event.schedule }}"
-            if { [ "$schedule" = "23,53 * * * *" ] && [ "$CHAIN" = "mantle" ]; } || \
-               { [ "$schedule" = "28,58 * * * *" ] && [ "$CHAIN" = "botanix" ]; }; then
-              selected=true
-            fi
-          fi
-          echo "selected=$selected" >> "$GITHUB_OUTPUT"
-          if [ "$selected" != "true" ]; then
-            echo "Skipping $CHAIN for this trigger."
-          fi
-
       - name: Checkout
-        if: steps.selected.outputs.selected == 'true'
         uses: actions/checkout@v6
         with:
           ref: master
           fetch-depth: 0
 
       - name: Set up Python
-        if: steps.selected.outputs.selected == 'true'
         uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
       - name: Install Python dependencies
-        if: steps.selected.outputs.selected == 'true'
         run: python3 -m pip install --upgrade pip requests
 
       - name: Restore canonical runtime cache
-        if: steps.selected.outputs.selected == 'true'
         uses: actions/cache@v5
         with:
           path: |
@@ -122,7 +149,6 @@ jobs:
             earn-canonical-runtime-${{ matrix.chain }}-
 
       - name: Select hot wallets
-        if: steps.selected.outputs.selected == 'true'
         run: |
           set -euo pipefail
           python3 select_earn_canonical_hot_addresses.py \
@@ -135,7 +161,6 @@ jobs:
           cat "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
 
       - name: Refresh canonical history
-        if: steps.selected.outputs.selected == 'true'
         id: refresh
         run: |
           set -euo pipefail
@@ -186,7 +211,7 @@ jobs:
           PYTHONUNBUFFERED: '1'
 
       - name: Save canonical runtime cache
-        if: always() && steps.selected.outputs.selected == 'true'
+        if: always()
         uses: actions/cache/save@v5
         with:
           path: |
