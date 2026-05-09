@@ -101,6 +101,7 @@ CHAINS = {
     "xlayer": {
         "margin": "0x836b557cf9ef29fcf49c776841191782df34e4e5",
         "rpcs": [
+            "https://mainnet.xlayer-rpc.com",
             *([] if not os.environ.get("ALCHEMY_XLAYER_RPC_ZEN") else [os.environ["ALCHEMY_XLAYER_RPC_ZEN"]]),
             *([] if not os.environ.get("DRP_XLAYER_RPC_TWO") else [os.environ["DRP_XLAYER_RPC_TWO"]]),
             *([] if not os.environ.get("XLAYER_RPC") else [os.environ["XLAYER_RPC"]]),
@@ -847,6 +848,8 @@ def scan_chain(
     max_chunk_size = int(chain_config.get("max_block_chunk") or BLOCK_CHUNK)
     chunk_size = min(ADDRESS_FILTER_CHUNK, max_chunk_size) if target_addresses else max_chunk_size
     last_partial_output_at = time.monotonic()
+    failed_block = None
+    consecutive_failures_at_block = 0
 
     def maybe_write_partial_output(scanned_block, *, force=False):
         nonlocal last_partial_output_at
@@ -870,6 +873,9 @@ def scan_chain(
     
     while current <= latest_block:
         if soft_deadline is not None and time.monotonic() >= soft_deadline:
+            if current <= start_block:
+                print(f"  ✗ Soft runtime limit reached before scanning any block at {current:,}")
+                return {"completed": False, "reason": "soft_runtime_no_progress", "lastBlock": current}
             if not target_addresses:
                 save_progress(
                     chain_id,
@@ -1009,6 +1015,8 @@ def scan_chain(
                 chunk_size = min(max_chunk_size, chunk_size * 2)
             
             current = to_block + 1
+            failed_block = None
+            consecutive_failures_at_block = 0
             
         except Exception as e:
             error_msg = str(e)
@@ -1028,6 +1036,14 @@ def scan_chain(
                     time.sleep(2)
                     rpc_idx[0] += 1
                     continue
+                if failed_block == current:
+                    consecutive_failures_at_block += 1
+                else:
+                    failed_block = current
+                    consecutive_failures_at_block = 1
+                if consecutive_failures_at_block >= 3:
+                    print(f"  ✗ RPC failed repeatedly at block {current}; no progress after {consecutive_failures_at_block} full retry cycles")
+                    return {"completed": False, "reason": "rpc_failed", "lastBlock": current}
                 print(f"  ✗ Error at block {current}: {e}")
                 time.sleep(2)
                 rpc_idx[0] += 1
@@ -1099,6 +1115,9 @@ def main():
         if isinstance(result, dict) and result.get("reason") == "soft_runtime_limit":
             print("Soft runtime limit reached; stopping remaining chains until next scheduled run")
             break
+        if isinstance(result, dict) and result.get("completed") is False:
+            print(f"Scan failed for {chain_id}: {result.get('reason') or 'unknown'}", file=sys.stderr)
+            return 1
     
     print(f"\n{'='*60}")
     print("Done! Files written to data/earn-netflow/")
