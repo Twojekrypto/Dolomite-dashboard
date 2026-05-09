@@ -48,6 +48,13 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("'This yield reconciles through public netflow plus snapshot history, but it is not strict replay verification.'", self.source)
         self.assertIn("? (canonicalHistoryCoverageIncomplete ? 'coverage_incomplete' : 'inferred')", self.source)
 
+    def test_earn_shows_verified_background_refresh_status(self):
+        self.assertIn("earn-data-freshness-pill", self.source)
+        self.assertIn("EARN_FRESHNESS_STATUS_URL", self.source)
+        self.assertIn("Verified · refreshing in background", self.source)
+        self.assertIn("earn_loadFreshnessStatus().then(earn_updateFreshnessPill)", self.source)
+        self.assertIn("String(chainStatus.refreshMode || '').toLowerCase() === 'background'", self.source)
+
     def test_rewards_card_has_merkl_unavailable_state(self):
         self.assertIn("merklUnavailable: false", self.source)
         self.assertIn("WLFI source did not respond", self.source)
@@ -143,7 +150,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("Plan selected secondary chains", workflow)
         self.assertIn("needs: plan-secondary-canonical", workflow)
         self.assertIn("matrix: ${{ fromJson(needs.plan-secondary-canonical.outputs.matrix) }}", workflow)
-        self.assertIn("group: earn-secondary-canonical-history", workflow)
+        self.assertIn("group: earn-secondary-canonical-history-${{ matrix.chain }}", workflow)
         self.assertIn('"polygonzkevm": {', workflow)
         self.assertIn('"xlayer": {', workflow)
         self.assertIn('"hot_limit": 1000', workflow)
@@ -226,6 +233,8 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn('f"[{chain}]" in title or "[all]" in title', workflow)
         self.assertIn("gh workflow run", workflow)
         self.assertIn("earn-refresh-jobs.tsv", workflow)
+        self.assertIn("earn-refresh-dispatched.tsv", workflow)
+        self.assertIn("Skipping duplicate refresh request", workflow)
         self.assertIn('-f "chain=$chain"', workflow)
 
     def test_freshness_routes_secondary_refreshes_with_chain_inputs(self):
