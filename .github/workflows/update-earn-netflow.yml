@@ -18,6 +18,7 @@ on:
           - mantle
           - botanix
           - polygonzkevm
+          - xlayer
       reset_chain:
         description: 'Chain to re-scan from scratch. Leave empty for normal incremental update.'
         required: false
@@ -50,6 +51,7 @@ jobs:
               "mantle": {"maxRuntimeSeconds": 7200, "partialOutputIntervalSeconds": 1800},
               "botanix": {"maxRuntimeSeconds": 3300, "partialOutputIntervalSeconds": 0},
               "polygonzkevm": {"maxRuntimeSeconds": 3300, "partialOutputIntervalSeconds": 600},
+              "xlayer": {"maxRuntimeSeconds": 3300, "partialOutputIntervalSeconds": 600},
           }
           requested = (os.environ.get("REQUESTED_CHAIN") or "all").strip().lower()
           reset = (os.environ.get("RESET_CHAIN") or "").strip().lower()
@@ -152,6 +154,10 @@ jobs:
           POLYGONZKEVM_RPC_2: ${{ secrets.POLYGONZKEVM_RPC_2 }}
           ALCHEMY_POLYGONZKEVM_RPC_ZEN: ${{ secrets.ALCHEMY_POLYGONZKEVM_RPC_ZEN }}
           DRP_POLYGONZKEVM_RPC_TWO: ${{ secrets.DRP_POLYGONZKEVM_RPC_TWO }}
+          XLAYER_RPC: ${{ secrets.XLAYER_RPC }}
+          XLAYER_RPC_2: ${{ secrets.XLAYER_RPC_2 }}
+          ALCHEMY_XLAYER_RPC_ZEN: ${{ secrets.ALCHEMY_XLAYER_RPC_ZEN }}
+          DRP_XLAYER_RPC_TWO: ${{ secrets.DRP_XLAYER_RPC_TWO }}
         run: |
           python3 scan_earn_netflow.py "$CHAIN" \
             --max-runtime-seconds "$MAX_RUNTIME_SECONDS" \

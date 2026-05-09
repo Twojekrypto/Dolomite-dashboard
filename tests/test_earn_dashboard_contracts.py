@@ -11,6 +11,7 @@ SECONDARY_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-sec
 BERACHAIN_NETFLOW_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-berachain-netflow.yml"
 BERACHAIN_BORROW_ROUTE_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-berachain-borrow-route-history.yml"
 EARN_FRESHNESS_WORKFLOW = ROOT / ".github" / "workflows" / "monitor-earn-freshness.yml"
+EARN_SNAPSHOTS_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-snapshots.yml"
 EARN_FRESHNESS_SCRIPT = ROOT / "update_earn_freshness_status.py"
 BERACHAIN_PRIORITY_ADDRESSES = ROOT / "config" / "earn_berachain_canonical_hot_addresses.txt"
 EARN_COVERAGE_REPORT = ROOT / "report_earn_subaccount_history_coverage.py"
@@ -57,6 +58,13 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("build_earn_verified_ledger.py", workflow)
         self.assertIn("git add -f data/earn-subaccount-history/manifest.json data/earn-subaccount-history/ethereum", workflow)
         self.assertIn("git add -f data/earn-verified-ledger/manifest.json data/earn-verified-ledger/ethereum", workflow)
+
+    def test_snapshot_workflow_builds_polygon_verified_ledger_cache(self):
+        workflow = EARN_SNAPSHOTS_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("Build Ethereum verified ledger cache", workflow)
+        self.assertIn("Build Polygon zkEVM verified ledger cache", workflow)
+        self.assertIn("--chain polygonzkevm", workflow)
+        self.assertIn("data/earn-verified-ledger/polygonzkevm/", workflow)
 
     def test_coverage_report_can_resolve_live_target_block(self):
         source = EARN_COVERAGE_REPORT.read_text(encoding="utf-8")
@@ -182,7 +190,8 @@ class EarnDashboardContractsTest(unittest.TestCase):
         source = EARN_FRESHNESS_SCRIPT.read_text(encoding="utf-8")
         self.assertIn('"canonicalWorkflowInputs": {"chain": "mantle"}', source)
         self.assertIn('"canonicalWorkflowInputs": {"chain": "botanix"}', source)
-        self.assertIn('"supportMode": "snapshot-first"', source)
+        self.assertIn('"xlayer": {', source)
+        self.assertIn('"verifiedBlockLag": 10800', source)
         self.assertIn('"backgroundRefreshRecommended"', source)
         self.assertIn('"chainReport"', source)
         self.assertIn('"refreshJobs"', source)
@@ -210,23 +219,25 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn('"arbitrum": {"maxRuntimeSeconds": 3300, "partialOutputIntervalSeconds": 0}', workflow)
         self.assertIn('"mantle": {"maxRuntimeSeconds": 7200, "partialOutputIntervalSeconds": 1800}', workflow)
         self.assertIn('"polygonzkevm": {"maxRuntimeSeconds": 3300, "partialOutputIntervalSeconds": 600}', workflow)
+        self.assertIn('"xlayer": {"maxRuntimeSeconds": 3300, "partialOutputIntervalSeconds": 600}', workflow)
         self.assertIn("path: data/.netflow-progress/${{ matrix.chain }}.json", workflow)
         self.assertIn('git add "data/earn-netflow/${CHAIN}.json"', workflow)
-        for chain in ("arbitrum", "ethereum", "mantle", "botanix", "polygonzkevm"):
+        for chain in ("arbitrum", "ethereum", "mantle", "botanix", "polygonzkevm", "xlayer"):
             self.assertIn(f'"{chain}"', workflow)
         self.assertNotIn("scan_earn_netflow.py arbitrum,ethereum,mantle,botanix,polygonzkevm --max-runtime-seconds 19800", workflow)
-        self.assertNotIn("scan_earn_netflow.py arbitrum,ethereum,mantle,botanix,polygonzkevm,xlayer", workflow)
         self.assertIn("ALCHEMY_ARBITRUM_RPC_ZEN: ${{ secrets.ALCHEMY_ARBITRUM_RPC_ZEN }}", workflow)
         self.assertIn("ALCHEMY_POLYGONZKEVM_RPC_ZEN: ${{ secrets.ALCHEMY_POLYGONZKEVM_RPC_ZEN }}", workflow)
         self.assertIn("DRP_POLYGONZKEVM_RPC_TWO: ${{ secrets.DRP_POLYGONZKEVM_RPC_TWO }}", workflow)
+        self.assertIn("ALCHEMY_XLAYER_RPC_ZEN: ${{ secrets.ALCHEMY_XLAYER_RPC_ZEN }}", workflow)
+        self.assertIn("DRP_XLAYER_RPC_TWO: ${{ secrets.DRP_XLAYER_RPC_TWO }}", workflow)
         self.assertNotIn("QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}", workflow)
-        self.assertNotIn("ALCHEMY_XLAYER_RPC_ZEN: ${{ secrets.ALCHEMY_XLAYER_RPC_ZEN }}", workflow)
         scanner = NETFLOW_SCANNER.read_text(encoding="utf-8")
         self.assertIn('os.environ.get("QUICKNODE_BERACHAIN_RPC_2")', scanner)
         self.assertIn('os.environ.get("DRPC_BERACHAIN_RPC_ZEN")', scanner)
         self.assertIn('os.environ.get("ALCHEMY_POLYGONZKEVM_RPC_ZEN")', scanner)
         self.assertIn('os.environ.get("DRP_POLYGONZKEVM_RPC_TWO")', scanner)
         self.assertIn('"max_block_chunk": 9_999', scanner)
+        self.assertIn('"start_block": 859_455', scanner)
         self.assertIn("max_chunk_size = int(chain_config.get(\"max_block_chunk\") or BLOCK_CHUNK)", scanner)
         self.assertIn("chunk_size = min(max_chunk_size, chunk_size * 2)", scanner)
         self.assertIn('os.environ.get("ALCHEMY_XLAYER_RPC_ZEN")', scanner)
