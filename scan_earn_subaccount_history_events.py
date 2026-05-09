@@ -271,7 +271,8 @@ def scan_chain_to_event_shards(
     total_decoded_entry_count = 0
     total_selected_event_count = 0
     shard_count = 0
-    adaptive_chunk_size = max(1_000, int(chunk_size))
+    max_chunk_size = int(config.get("max_block_chunk") or BLOCK_CHUNK)
+    adaptive_chunk_size = min(max_chunk_size, max(1_000, int(chunk_size)))
 
     progress = None if no_resume else _load_progress(output_dir, chain, progress_key)
     if progress:
@@ -365,8 +366,8 @@ def scan_chain_to_event_shards(
             if len(logs) > 5_000 and adaptive_chunk_size > 5_000:
                 adaptive_chunk_size = max(5_000, adaptive_chunk_size // 2)
                 print(f"[{chain}] reducing chunk size to {adaptive_chunk_size:,}")
-            elif len(logs) < 100 and adaptive_chunk_size < BLOCK_CHUNK:
-                adaptive_chunk_size = min(BLOCK_CHUNK, adaptive_chunk_size * 2)
+            elif len(logs) < 100 and adaptive_chunk_size < max_chunk_size:
+                adaptive_chunk_size = min(max_chunk_size, adaptive_chunk_size * 2)
 
             current = chunk_end + 1
         except Exception as exc:
@@ -427,7 +428,7 @@ def main() -> int:
     parser.add_argument("--end-index", type=int, default=None)
     parser.add_argument("--from-block", type=int, default=None)
     parser.add_argument("--to-block", type=int, default=None)
-    parser.add_argument("--chunk-size", type=int, default=BLOCK_CHUNK)
+    parser.add_argument("--chunk-size", type=int, default=None)
     parser.add_argument("--progress-key", default=None)
     parser.add_argument("--no-resume", action="store_true")
     parser.add_argument("--output-dir", default=str(DEFAULT_OUTPUT_DIR))
@@ -451,7 +452,7 @@ def main() -> int:
         output_dir=Path(args.output_dir),
         from_block=args.from_block,
         to_block=args.to_block,
-        chunk_size=max(1_000, int(args.chunk_size)),
+        chunk_size=max(1_000, int(args.chunk_size or (CHAINS[args.chain].get("max_block_chunk") or BLOCK_CHUNK))),
         no_resume=bool(args.no_resume),
         progress_key=args.progress_key,
     )
