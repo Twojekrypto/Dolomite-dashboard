@@ -19,6 +19,7 @@ jobs:
     env:
       PYTHONUNBUFFERED: '1'
       CHAIN: berachain
+      BORROW_ROUTE_HOT_LIMIT: '1000'
       ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
       QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}
       DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}
@@ -72,30 +73,62 @@ jobs:
             earn-canonical-global-runtime-berachain-
             earn-canonical-runtime-berachain-
 
-      - name: Select all known Berachain EARN wallets
+      - name: Select Berachain borrow-route and hot wallets
         run: |
           set -euo pipefail
-          python3 - /tmp/earn-${CHAIN}-all-known-addresses.txt <<'PY'
+          python3 select_earn_borrow_route_history_addresses.py \
+            --chain "$CHAIN" \
+            --output "/tmp/earn-${CHAIN}-borrow-route-existing-addresses.txt" \
+            --metadata-output "/tmp/earn-${CHAIN}-borrow-route-existing-addresses.json"
+          cat "/tmp/earn-${CHAIN}-borrow-route-existing-addresses.json"
+
+          python3 select_earn_canonical_hot_addresses.py \
+            --chain "$CHAIN" \
+            --limit "$BORROW_ROUTE_HOT_LIMIT" \
+            --priority-address-file config/earn_berachain_canonical_hot_addresses.txt \
+            --priority-address-file config/earn_canonical_priority_addresses.txt \
+            --include-priority-even-if-unknown \
+            --output "/tmp/earn-${CHAIN}-borrow-route-hot-addresses.txt" \
+            --metadata-output "/tmp/earn-${CHAIN}-borrow-route-hot-addresses.json"
+          cat "/tmp/earn-${CHAIN}-borrow-route-hot-addresses.json"
+
+          python3 - "/tmp/earn-${CHAIN}-borrow-route-refresh-addresses.txt" \
+            "/tmp/earn-${CHAIN}-borrow-route-existing-addresses.txt" \
+            "/tmp/earn-${CHAIN}-borrow-route-hot-addresses.txt" <<'PY'
+          import json
           import sys
           from pathlib import Path
-          from build_earn_subaccount_history import _load_known_addresses
 
           output = Path(sys.argv[1])
-          addresses = _load_known_addresses("berachain")
+          addresses = []
+          seen = set()
+          for raw_path in sys.argv[2:]:
+              path = Path(raw_path)
+              if not path.exists():
+                  continue
+              for raw in path.read_text(encoding="utf-8").splitlines():
+                  address = raw.strip().lower()
+                  if not address or address.startswith("#"):
+                      continue
+                  if not address.startswith("0x") or len(address) != 42:
+                      raise SystemExit(f"Invalid address in {path}: {raw}")
+                  if address not in seen:
+                      seen.add(address)
+                      addresses.append(address)
           if not addresses:
-            raise SystemExit("No known Berachain EARN addresses found")
+              raise SystemExit("No Berachain borrow-route refresh addresses found")
           output.write_text("".join(f"{address}\n" for address in addresses), encoding="utf-8")
-          print(f"knownAddressCount={len(addresses)}")
+          print(json.dumps({"refreshAddressCount": len(addresses)}, indent=2))
           PY
 
-      - name: Refresh all known canonical history
+      - name: Refresh selected borrow-route canonical history
         id: refresh
         run: |
           set -euo pipefail
           status_path="/tmp/earn-${CHAIN}-global-refresh.json"
           python3 run_earn_canonical_history_refresh.py \
             --chain "$CHAIN" \
-            --selection-address-file "/tmp/earn-${CHAIN}-all-known-addresses.txt" \
+            --selection-address-file "/tmp/earn-${CHAIN}-borrow-route-refresh-addresses.txt" \
             --max-scan-workers 8 \
             --max-materialize-workers 8 \
             --max-incremental-scan-workers 10 \

@@ -70,14 +70,16 @@ CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
         "blockTimeSeconds": 3.2,
         "verifiedBlockLag": 3400,
         "canonicalWorkflow": "update-earn-secondary-canonical-history.yml",
-        "canonicalSupported": False,
+        "canonicalWorkflowInputs": {"chain": "polygonzkevm"},
+        "canonicalSupported": True,
     },
     "xlayer": {
         "label": "X Layer",
         "blockTimeSeconds": 1.0,
         "verifiedBlockLag": 10800,
         "canonicalWorkflow": "update-earn-secondary-canonical-history.yml",
-        "canonicalSupported": False,
+        "canonicalWorkflowInputs": {"chain": "xlayer"},
+        "canonicalSupported": True,
     },
 }
 
@@ -241,7 +243,7 @@ def _register_refresh_job(
         if value is not None and str(value) != ""
     }
     job_key = workflow
-    if workflow == NETFLOW_WORKFLOW and normalized_inputs.get("chain") not in {"", None, "all"}:
+    if normalized_inputs.get("chain") not in {"", None, "all"}:
         job_key = f"{workflow}:chain={normalized_inputs['chain']}"
 
     existing = refresh_jobs_by_workflow.get(job_key)
