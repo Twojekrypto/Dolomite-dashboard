@@ -96,6 +96,7 @@ CHAINS = {
             "https://polygon-zkevm-rpc.publicnode.com/",
         ],
         "start_block": 9_860_000,
+        "max_block_chunk": 9_999,
     },
     "xlayer": {
         "margin": "0x836b557cf9ef29fcf49c776841191782df34e4e5",
@@ -842,7 +843,8 @@ def scan_chain(
     # Scan in chunks
     current = start_block
     total_events = 0
-    chunk_size = ADDRESS_FILTER_CHUNK if target_addresses else BLOCK_CHUNK
+    max_chunk_size = int(chain_config.get("max_block_chunk") or BLOCK_CHUNK)
+    chunk_size = min(ADDRESS_FILTER_CHUNK, max_chunk_size) if target_addresses else max_chunk_size
     last_partial_output_at = time.monotonic()
 
     def maybe_write_partial_output(scanned_block, *, force=False):
@@ -1002,8 +1004,8 @@ def scan_chain(
             if events_in_chunk > 5000:
                 chunk_size = max(5000, chunk_size // 2)
                 print(f"  ⚠ Reducing chunk size to {chunk_size}")
-            elif events_in_chunk < 100 and chunk_size < BLOCK_CHUNK:
-                chunk_size = min(BLOCK_CHUNK, chunk_size * 2)
+            elif events_in_chunk < 100 and chunk_size < max_chunk_size:
+                chunk_size = min(max_chunk_size, chunk_size * 2)
             
             current = to_block + 1
             
