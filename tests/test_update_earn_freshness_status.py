@@ -35,6 +35,8 @@ class EarnFreshnessStatusTest(unittest.TestCase):
                         "berachain": {"lastBlock": 0, "updatedAt": "2026-05-08T11:59:00Z"},
                         "botanix": {"lastBlock": 0, "updatedAt": "2026-05-08T11:59:00Z"},
                         "mantle": {"lastBlock": 0, "updatedAt": "2026-05-08T11:59:00Z"},
+                        "polygonzkevm": {"lastBlock": 0, "updatedAt": "2026-05-08T11:59:00Z"},
+                        "xlayer": {"lastBlock": 0, "updatedAt": "2026-05-08T11:59:00Z"},
                     }
                 },
             )
@@ -172,7 +174,7 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         self.assertIn("update-earn-berachain-netflow.yml", status["summary"]["refreshWorkflows"])
         self.assertNotIn(NETFLOW_WORKFLOW, status["summary"]["refreshWorkflows"])
 
-    def test_netflow_only_chains_trigger_chain_specific_watchdog_refreshes(self):
+    def test_secondary_canonical_refresh_jobs_stay_chain_specific(self):
         now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -180,9 +182,10 @@ class EarnFreshnessStatusTest(unittest.TestCase):
                 chain: {"lastBlock": 123, "updatedAt": "2026-05-08T11:59:00Z"}
                 for chain, policy in CHAIN_POLICIES.items()
                 if policy.get("canonicalSupported")
+                and chain not in {"polygonzkevm", "xlayer"}
             }
             self._write_json(root, "earn-subaccount-history/manifest.json", {"chains": supported})
-            for chain in supported:
+            for chain in (*supported.keys(), "polygonzkevm", "xlayer"):
                 self._write_json(
                     root,
                     f"earn-netflow/{chain}.json",
@@ -197,31 +200,45 @@ class EarnFreshnessStatusTest(unittest.TestCase):
             )
 
         self.assertEqual(status["chains"]["polygonzkevm"]["status"], "syncing")
-        self.assertEqual(status["chains"]["polygonzkevm"]["netflow"]["status"], "missing")
-        self.assertEqual(status["chains"]["polygonzkevm"]["supportMode"], "netflow-only")
+        self.assertEqual(status["chains"]["polygonzkevm"]["canonical"]["status"], "missing")
+        self.assertEqual(status["chains"]["polygonzkevm"]["supportMode"], "canonical-ledger")
         self.assertEqual(status["chains"]["xlayer"]["status"], "syncing")
-        self.assertEqual(status["chains"]["xlayer"]["netflow"]["status"], "missing")
-        self.assertEqual(status["chains"]["xlayer"]["supportMode"], "netflow-only")
+        self.assertEqual(status["chains"]["xlayer"]["canonical"]["status"], "missing")
+        self.assertEqual(status["chains"]["xlayer"]["supportMode"], "canonical-ledger")
         self.assertEqual(status["summary"]["limitedChains"], [])
-        self.assertIn(NETFLOW_WORKFLOW, status["summary"]["refreshWorkflows"])
+        self.assertIn("update-earn-secondary-canonical-history.yml", status["summary"]["refreshWorkflows"])
         self.assertIn(
-            {"workflow": NETFLOW_WORKFLOW, "inputs": {"chain": "polygonzkevm"}},
+            {"workflow": "update-earn-secondary-canonical-history.yml", "inputs": {"chain": "polygonzkevm"}},
             status["summary"]["refreshJobs"],
         )
         self.assertIn(
-            {"workflow": NETFLOW_WORKFLOW, "inputs": {"chain": "xlayer"}},
+            {"workflow": "update-earn-secondary-canonical-history.yml", "inputs": {"chain": "xlayer"}},
             status["summary"]["refreshJobs"],
         )
-        self.assertNotIn("update-earn-secondary-canonical-history.yml", status["summary"]["refreshWorkflows"])
+        self.assertNotIn(
+            {"workflow": "update-earn-secondary-canonical-history.yml", "inputs": {"chain": "all"}},
+            status["summary"]["refreshJobs"],
+        )
         report = {entry["chain"]: entry for entry in status["chainReport"]}
-        self.assertEqual(report["polygonzkevm"]["weakPoint"], "netflow missing")
-        self.assertEqual(report["xlayer"]["weakPoint"], "netflow missing")
+        self.assertEqual(report["polygonzkevm"]["weakPoint"], "canonical missing")
+        self.assertEqual(report["xlayer"]["weakPoint"], "canonical missing")
 
     def test_recent_partial_netflow_is_reported_as_catching_up(self):
         now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            self._write_json(root, "earn-subaccount-history/manifest.json", {"chains": {}})
+            self._write_json(
+                root,
+                "earn-subaccount-history/manifest.json",
+                {
+                    "chains": {
+                        "polygonzkevm": {
+                            "lastBlock": 10_000,
+                            "updatedAt": "2026-05-08T11:59:00Z",
+                        }
+                    }
+                },
+            )
             self._write_json(
                 root,
                 "earn-netflow/polygonzkevm.json",
