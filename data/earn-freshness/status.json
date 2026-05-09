@@ -37,23 +37,23 @@
       "canonicalLagMinutes": 35.1,
       "chain": "botanix",
       "label": "Botanix",
-      "lastRefreshAt": "2026-05-09T21:08:29Z",
-      "netflowLagMinutes": 0.1,
-      "refreshMode": "none",
+      "lastRefreshAt": "2026-05-09T20:33:32.518464Z",
+      "netflowLagMinutes": 89.3,
+      "refreshMode": "background",
       "status": "verified",
       "supportMode": "canonical-ledger",
-      "weakPoint": "none"
+      "weakPoint": "netflow background refresh due"
     },
     {
       "canonicalLagMinutes": 34.7,
       "chain": "mantle",
       "label": "Mantle",
-      "lastRefreshAt": "2026-05-09T20:34:09.095969Z",
-      "netflowLagMinutes": 90.0,
-      "refreshMode": "background",
+      "lastRefreshAt": "2026-05-09T21:08:28Z",
+      "netflowLagMinutes": 0.1,
+      "refreshMode": "none",
       "status": "verified",
       "supportMode": "canonical-ledger",
-      "weakPoint": "netflow background refresh due"
+      "weakPoint": "none"
     },
     {
       "canonicalLagMinutes": 57.9,
@@ -82,10 +82,10 @@
     "arbitrum": {
       "blockTimeSeconds": 0.25,
       "canonical": {
-        "blockLag": 9009,
+        "blockLag": 9008,
         "estimatedLagMinutes": 37.5,
         "lastBlock": 461130484,
-        "liveBlock": 461139493,
+        "liveBlock": 461139492,
         "refreshAfterBlockLag": 14400,
         "refreshAfterMinutes": 60.0,
         "refreshMode": "none",
@@ -98,10 +98,10 @@
       },
       "label": "Arbitrum",
       "netflow": {
-        "blockLag": 21449,
+        "blockLag": 21448,
         "estimatedLagMinutes": 89.4,
         "lastBlock": 461118044,
-        "liveBlock": 461139493,
+        "liveBlock": 461139492,
         "refreshAfterBlockLag": 14400,
         "refreshAfterMinutes": 60.0,
         "refreshMode": "none",
@@ -180,9 +180,9 @@
       },
       "label": "Botanix",
       "netflow": {
-        "blockLag": 1,
-        "estimatedLagMinutes": 0.1,
-        "lastBlock": 5460343,
+        "blockLag": 893,
+        "estimatedLagMinutes": 89.3,
+        "lastBlock": 5459451,
         "liveBlock": 5460344,
         "refreshAfterBlockLag": 600,
         "refreshAfterMinutes": 60.0,
@@ -190,8 +190,8 @@
         "refreshRecommended": false,
         "staleBlockLag": 2400,
         "status": "verified",
-        "updatedAgeMinutes": 0.0,
-        "updatedAt": "2026-05-09T21:08:29Z",
+        "updatedAgeMinutes": 90.0,
+        "updatedAt": "2026-05-09T19:38:28Z",
         "verifiedBlockLag": 1800
       },
       "refreshMode": "none",
@@ -262,21 +262,21 @@
       },
       "label": "Mantle",
       "netflow": {
-        "blockLag": 2701,
-        "estimatedLagMinutes": 90.0,
-        "lastBlock": 95112598,
+        "blockLag": 2,
+        "estimatedLagMinutes": 0.1,
+        "lastBlock": 95115297,
         "liveBlock": 95115299,
         "refreshAfterBlockLag": 1800,
         "refreshAfterMinutes": 60.0,
-        "refreshMode": "background",
-        "refreshRecommended": true,
+        "refreshMode": "none",
+        "refreshRecommended": false,
         "staleBlockLag": 7200,
         "status": "verified",
-        "updatedAgeMinutes": 90.0,
-        "updatedAt": "2026-05-09T19:38:30Z",
+        "updatedAgeMinutes": 0.0,
+        "updatedAt": "2026-05-09T21:08:28Z",
         "verifiedBlockLag": 5400
       },
-      "refreshMode": "background",
+      "refreshMode": "none",
       "snapshot": {
         "available": true,
         "latestDate": "2026-05-09"
@@ -367,7 +367,7 @@
       "supportMode": "canonical-ledger"
     }
   },
-  "generatedAt": "2026-05-09T21:08:30.516575Z",
+  "generatedAt": "2026-05-09T21:08:30.331593Z",
   "policy": {
     "refreshAfterMinutes": 60,
     "staleAfterHours": 4,
@@ -397,7 +397,19 @@
       },
       {
         "inputs": {
-          "chain": "mantle"
+          "chain": "ethereum"
+        },
+        "workflow": "update-earn-netflow.yml"
+      },
+      {
+        "inputs": {
+          "chain": "polygonzkevm"
+        },
+        "workflow": "update-earn-netflow.yml"
+      },
+      {
+        "inputs": {
+          "chain": "xlayer"
         },
         "workflow": "update-earn-netflow.yml"
       },
@@ -412,7 +424,7 @@
       "ethereum: netflow background refresh (verified, 90.2m lag)",
       "berachain: netflow background refresh (verified, 67.4m lag)",
       "arbitrum: netflow background refresh (verified, 89.4m lag)",
-      "mantle: netflow background refresh (verified, 90.0m lag)",
+      "botanix: netflow background refresh (verified, 89.3m lag)",
       "polygonzkevm: netflow background refresh (verified, 90.0m lag)",
       "xlayer: canonical background refresh (verified, 81.3m lag)",
       "xlayer: netflow background refresh (verified, 89.9m lag)"
