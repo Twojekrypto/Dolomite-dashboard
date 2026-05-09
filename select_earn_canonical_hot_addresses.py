@@ -21,6 +21,7 @@ from build_earn_subaccount_history import _load_known_addresses, _read_json
 ROOT = Path(__file__).resolve().parent
 SNAPSHOT_DIR = ROOT / "data" / "earn-snapshots"
 NETFLOW_DIR = ROOT / "data" / "earn-netflow"
+HISTORY_DIR = ROOT / "data" / "earn-subaccount-history"
 
 
 def _read_addresses(path: Path) -> List[str]:
@@ -127,12 +128,25 @@ def _unique_preserve_order(addresses: Iterable[str]) -> List[str]:
     return ordered
 
 
+def _existing_history_addresses(history_dir: Path, chain: str) -> set:
+    chain_dir = history_dir / chain
+    if not chain_dir.exists():
+        return set()
+    return {
+        path.stem.lower()
+        for path in chain_dir.glob("0x*.json")
+        if path.stem.startswith("0x") and len(path.stem) == 42
+    }
+
+
 def build_selection(
     chain: str,
     *,
     limit: int,
     priority_files: Sequence[Path],
     include_priority_even_if_unknown: bool,
+    history_dir: Path = HISTORY_DIR,
+    existing_history_only: bool = False,
 ) -> Tuple[List[str], dict]:
     known = set(_load_known_addresses(chain))
     scores: Dict[str, int] = {}
@@ -152,12 +166,17 @@ def build_selection(
         *priority,
         *(address for address, _score in ranked),
     ])
+    existing_history = _existing_history_addresses(history_dir, chain) if existing_history_only else set()
+    if existing_history_only:
+        selected = [address for address in selected if address in existing_history]
     if limit > 0:
         selected = selected[:limit]
 
     metadata = {
         "chain": chain,
         "limit": limit,
+        "existingHistoryOnly": bool(existing_history_only),
+        "existingHistoryAddressCount": len(existing_history),
         "knownAddressCount": len(known),
         "scoredAddressCount": len(scores),
         "priorityAddressCount": len(priority),
@@ -172,6 +191,8 @@ def main() -> int:
     parser.add_argument("--limit", type=int, default=1000)
     parser.add_argument("--priority-address-file", action="append", default=[])
     parser.add_argument("--include-priority-even-if-unknown", action="store_true")
+    parser.add_argument("--history-dir", type=Path, default=HISTORY_DIR)
+    parser.add_argument("--existing-history-only", action="store_true")
     parser.add_argument("--output", required=True)
     parser.add_argument("--metadata-output", default=None)
     args = parser.parse_args()
@@ -181,6 +202,8 @@ def main() -> int:
         limit=max(0, int(args.limit)),
         priority_files=[Path(path) for path in args.priority_address_file],
         include_priority_even_if_unknown=bool(args.include_priority_even_if_unknown),
+        history_dir=args.history_dir,
+        existing_history_only=bool(args.existing_history_only),
     )
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)

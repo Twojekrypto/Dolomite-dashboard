@@ -84,6 +84,8 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("CHECKPOINT_STEPS: '150'", workflow)
         self.assertIn("CHECKPOINT_SLEEP_SECONDS: '20'", workflow)
         self.assertIn("has_public_baseline", workflow)
+        self.assertIn("--existing-history-only", workflow)
+        self.assertIn("--history-dir data/earn-subaccount-history", workflow)
         self.assertIn("config/earn_berachain_canonical_hot_addresses.txt", workflow)
         self.assertIn("QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}", workflow)
         self.assertIn("DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}", workflow)
@@ -207,7 +209,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn('"partialOutputIntervalSeconds": chains[chain]["partialOutputIntervalSeconds"]', workflow)
         self.assertIn('"arbitrum": {"maxRuntimeSeconds": 3300, "partialOutputIntervalSeconds": 0}', workflow)
         self.assertIn('"mantle": {"maxRuntimeSeconds": 7200, "partialOutputIntervalSeconds": 1800}', workflow)
-        self.assertIn('"polygonzkevm": {"maxRuntimeSeconds": 1800, "partialOutputIntervalSeconds": 600}', workflow)
+        self.assertIn('"polygonzkevm": {"maxRuntimeSeconds": 3300, "partialOutputIntervalSeconds": 600}', workflow)
         self.assertIn("path: data/.netflow-progress/${{ matrix.chain }}.json", workflow)
         self.assertIn('git add "data/earn-netflow/${CHAIN}.json"', workflow)
         for chain in ("arbitrum", "ethereum", "mantle", "botanix", "polygonzkevm"):
