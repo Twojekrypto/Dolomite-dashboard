@@ -58,6 +58,8 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("cron: '12,42 * * * *'", workflow)
         self.assertIn("Build Ethereum verified ledger cache", workflow)
         self.assertIn("build_earn_verified_ledger.py", workflow)
+        self.assertIn("update_earn_freshness_status.py --output data/earn-freshness/status.json", workflow)
+        self.assertIn("git add data/earn-freshness/status.json", workflow)
         self.assertIn("git add -f data/earn-subaccount-history/manifest.json data/earn-subaccount-history/ethereum", workflow)
         self.assertIn("git add -f data/earn-verified-ledger/manifest.json data/earn-verified-ledger/ethereum", workflow)
 
@@ -84,6 +86,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("secrets.ALCHEMY_ARBITRUM_RPC_ZEN", workflow)
         self.assertIn("Build Arbitrum verified ledger cache", workflow)
         self.assertIn("build_earn_verified_ledger.py", workflow)
+        self.assertIn("update_earn_freshness_status.py --output data/earn-freshness/status.json", workflow)
 
     def test_berachain_canonical_workflow_runs_in_checkpointed_chunks(self):
         workflow = BERACHAIN_CANONICAL_WORKFLOW.read_text(encoding="utf-8")
@@ -104,6 +107,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("--allow-checkpoint-incomplete", workflow)
         self.assertIn("Build Berachain verified ledger cache", workflow)
         self.assertIn("build_earn_verified_ledger.py", workflow)
+        self.assertIn("update_earn_freshness_status.py --output data/earn-freshness/status.json", workflow)
 
     def test_berachain_canonical_priority_file_pins_valid_hot_wallets(self):
         addresses = [
@@ -149,6 +153,13 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("XLAYER_RPC_QUICKNODE_TWOJE: ${{ secrets.XLAYER_RPC_QUICKNODE_TWOJE }}", workflow)
         self.assertIn("ALCHEMY_XLAYER_RPC_ZEN: ${{ secrets.ALCHEMY_XLAYER_RPC_ZEN }}", workflow)
         self.assertIn("DRP_XLAYER_RPC_TWO: ${{ secrets.DRP_XLAYER_RPC_TWO }}", workflow)
+        self.assertIn("Check secondary RPC redundancy", workflow)
+        self.assertIn("QUICKNODE_MANTLE_RPC_2: ${{ secrets.QUICKNODE_MANTLE_RPC_2 }}", workflow)
+        self.assertIn("DRPC_MANTLE_RPC: ${{ secrets.DRPC_MANTLE_RPC }}", workflow)
+        self.assertIn("QUICKNODE_BOTANIX_RPC: ${{ secrets.QUICKNODE_BOTANIX_RPC }}", workflow)
+        self.assertIn("DRPC_BOTANIX_RPC_ZEN: ${{ secrets.DRPC_BOTANIX_RPC_ZEN }}", workflow)
+        self.assertIn("ALCHEMY_BOTANIX_RPC_ZEN: ${{ secrets.ALCHEMY_BOTANIX_RPC_ZEN }}", workflow)
+        self.assertIn("update_earn_freshness_status.py --output data/earn-freshness/status.json", workflow)
         self.assertIn("--max-steps 360", workflow)
         self.assertNotIn("Resolve selected chain", workflow)
         self.assertNotIn("Skipping $CHAIN for this trigger.", workflow)
@@ -165,22 +176,26 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}", workflow)
         self.assertIn("DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}", workflow)
         self.assertIn("ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}", workflow)
+        self.assertIn("update_earn_freshness_status.py --output data/earn-freshness/status.json", workflow)
 
     def test_berachain_borrow_route_workflow_checks_rpc_redundancy(self):
         workflow = BERACHAIN_BORROW_ROUTE_WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("timeout-minutes: 150", workflow)
-        self.assertIn("BORROW_ROUTE_HOT_LIMIT: '1000'", workflow)
+        self.assertIn("timeout-minutes: 75", workflow)
+        self.assertIn("BORROW_ROUTE_HOT_LIMIT: '250'", workflow)
+        self.assertIn("BORROW_ROUTE_CHECKPOINT_STEPS: '90'", workflow)
+        self.assertIn("BORROW_ROUTE_CHECKPOINT_SLEEP_SECONDS: '20'", workflow)
         self.assertIn("Select Berachain borrow-route and hot wallets", workflow)
         self.assertIn("select_earn_borrow_route_history_addresses.py", workflow)
         self.assertIn("select_earn_canonical_hot_addresses.py", workflow)
         self.assertIn("/tmp/earn-${CHAIN}-borrow-route-refresh-addresses.txt", workflow)
         self.assertIn("--selection-address-file \"/tmp/earn-${CHAIN}-borrow-route-refresh-addresses.txt\"", workflow)
         self.assertNotIn("--selection-address-file \"/tmp/earn-${CHAIN}-all-known-addresses.txt\"", workflow)
-        self.assertIn("--max-steps 240", workflow)
+        self.assertIn("--max-steps \"$BORROW_ROUTE_CHECKPOINT_STEPS\"", workflow)
         self.assertIn("Check Berachain RPC redundancy", workflow)
         self.assertIn("QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}", workflow)
         self.assertIn("DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}", workflow)
         self.assertIn("ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}", workflow)
+        self.assertIn("update_earn_freshness_status.py --output data/earn-freshness/status.json", workflow)
 
     def test_berachain_watchdog_refreshes_after_one_hour(self):
         source = EARN_FRESHNESS_SCRIPT.read_text(encoding="utf-8")
@@ -261,12 +276,25 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("XLAYER_RPC_QUICKNODE_TWOJE: ${{ secrets.XLAYER_RPC_QUICKNODE_TWOJE }}", workflow)
         self.assertIn("ALCHEMY_XLAYER_RPC_ZEN: ${{ secrets.ALCHEMY_XLAYER_RPC_ZEN }}", workflow)
         self.assertIn("DRP_XLAYER_RPC_TWO: ${{ secrets.DRP_XLAYER_RPC_TWO }}", workflow)
+        self.assertIn("Check secondary RPC redundancy", workflow)
+        self.assertIn("QUICKNODE_MANTLE_RPC_2: ${{ secrets.QUICKNODE_MANTLE_RPC_2 }}", workflow)
+        self.assertIn("DRPC_MANTLE_RPC: ${{ secrets.DRPC_MANTLE_RPC }}", workflow)
+        self.assertIn("QUICKNODE_BOTANIX_RPC: ${{ secrets.QUICKNODE_BOTANIX_RPC }}", workflow)
+        self.assertIn("DRPC_BOTANIX_RPC_ZEN: ${{ secrets.DRPC_BOTANIX_RPC_ZEN }}", workflow)
+        self.assertIn("ALCHEMY_BOTANIX_RPC_ZEN: ${{ secrets.ALCHEMY_BOTANIX_RPC_ZEN }}", workflow)
+        self.assertIn("update_earn_freshness_status.py --output data/earn-freshness/status.json", workflow)
         self.assertNotIn("QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}", workflow)
         scanner = NETFLOW_SCANNER.read_text(encoding="utf-8")
         self.assertIn('os.environ.get("MANTLE_RPC")', scanner)
         self.assertIn('os.environ.get("QUICKNODE_MANTLE_RPC")', scanner)
+        self.assertIn('os.environ.get("QUICKNODE_MANTLE_RPC_2")', scanner)
+        self.assertIn('os.environ.get("MANTLE_RPC_QUICKNODE_TWOJE")', scanner)
         self.assertIn('os.environ.get("DRPC_MANTLE_RPC_ZEN")', scanner)
+        self.assertIn('os.environ.get("DRPC_MANTLE_RPC")', scanner)
         self.assertIn('os.environ.get("ALCHEMY_MANTLE_RPC_ZEN")', scanner)
+        self.assertIn('os.environ.get("QUICKNODE_BOTANIX_RPC")', scanner)
+        self.assertIn('os.environ.get("DRPC_BOTANIX_RPC_ZEN")', scanner)
+        self.assertIn('os.environ.get("ALCHEMY_BOTANIX_RPC_ZEN")', scanner)
         self.assertIn('"https://mantle.api.onfinality.io/public"', scanner)
         self.assertIn('"max_block_chunk": 1_800', scanner)
         self.assertIn('os.environ.get("QUICKNODE_BERACHAIN_RPC_2")', scanner)
@@ -284,6 +312,11 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn('os.environ.get("ALCHEMY_XLAYER_RPC_ZEN")', scanner)
         self.assertIn('os.environ.get("DRP_XLAYER_RPC_TWO")', scanner)
         self.assertIn("raise SystemExit(main())", scanner)
+
+    def test_earn_snapshot_workflow_refreshes_freshness_status(self):
+        workflow = EARN_SNAPSHOTS_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("update_earn_freshness_status.py --output data/earn-freshness/status.json", workflow)
+        self.assertIn("git add data/earn-freshness/status.json", workflow)
 
     def test_subaccount_scanners_respect_chain_specific_rpc_block_chunks(self):
         event_scanner = SUBACCOUNT_EVENT_SCANNER.read_text(encoding="utf-8")
