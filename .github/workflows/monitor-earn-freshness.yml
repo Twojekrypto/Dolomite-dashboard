@@ -127,8 +127,14 @@ jobs:
             exit 0
           fi
 
+          : > /tmp/earn-refresh-dispatched.tsv
           while IFS=$'\t' read -r workflow chain; do
             if [ -z "$workflow" ]; then
+              continue
+            fi
+            job_key="${workflow}:chain=${chain:-all}"
+            if grep -Fxq "$job_key" /tmp/earn-refresh-dispatched.tsv; then
+              echo "Skipping duplicate refresh request for $job_key in this watchdog run."
               continue
             fi
             active="$(python3 - "$workflow" "${chain:-}" <<'PY'
@@ -204,4 +210,5 @@ jobs:
               echo "Triggering $workflow because EARN freshness drifted past the retry threshold."
               gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref master
             fi
+            echo "$job_key" >> /tmp/earn-refresh-dispatched.tsv
           done < /tmp/earn-refresh-jobs.tsv

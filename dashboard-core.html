@@ -10143,6 +10143,11 @@
             box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.12);
         }
 
+        .earn-summary-chip.is-live::before {
+            background: rgba(201, 162, 39, 0.95);
+            box-shadow: 0 0 0 4px rgba(201, 162, 39, 0.12);
+        }
+
         .earn-summary-chip.is-muted::before {
             background: rgba(148, 163, 184, 0.62);
         }
@@ -10756,6 +10761,40 @@
         }
         .earn-live-refresh-badge.visible {
             display: inline-flex;
+        }
+        .earn-live-refresh-badge.is-soft {
+            background: rgba(201, 162, 39, 0.1);
+            border-color: rgba(201, 162, 39, 0.22);
+            color: #e4c15a;
+        }
+        .earn-data-freshness-pill {
+            display: none;
+            align-items: center;
+            gap: 7px;
+            width: fit-content;
+            margin: 10px 0 0 auto;
+            padding: 7px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(201, 162, 39, 0.18);
+            background: rgba(201, 162, 39, 0.08);
+            color: #e4c15a;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.28px;
+            line-height: 1;
+            white-space: nowrap;
+        }
+        .earn-data-freshness-pill.visible {
+            display: inline-flex;
+        }
+        .earn-data-freshness-pill::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+            box-shadow: 0 0 0 4px rgba(201, 162, 39, 0.1);
+            flex-shrink: 0;
         }
         .earn-live-refresh-dot {
             width: 6px;
@@ -16723,6 +16762,7 @@
                                 <div class="spinner"></div>
                             </button>
                         </div>
+                        <div class="earn-data-freshness-pill" id="earn-data-freshness-pill" aria-live="polite" aria-hidden="true"></div>
                     </div>
                 </div>
             </div>
@@ -25810,6 +25850,8 @@
             document.getElementById('earn-chain-dropdown').classList.remove('open');
             // Update active state
             document.querySelectorAll('.earn-chain-option').forEach(o => o.classList.toggle('active', o.dataset.chain === key));
+            earn_updateFreshnessPill();
+            earn_loadFreshnessStatus().then(earn_updateFreshnessPill);
 
             // Clear all chain-specific caches so next lookup fetches fresh data
             earn_netflowData = null;
@@ -31155,6 +31197,7 @@
         const NETFLOW_BASE = `${EARN_DATA_BASE}/earn-netflow`;
         const VERIFIED_LEDGER_BASE = `${EARN_DATA_BASE}/earn-verified-ledger`;
         const SUBACCOUNT_HISTORY_BASE = `${EARN_DATA_BASE}/earn-subaccount-history`;
+        const EARN_FRESHNESS_STATUS_URL = `${EARN_DATA_BASE}/earn-freshness/status.json`;
         let earn_netflowData = null; // { marketId: netFlowWei (string) } for current address+chain
         let earn_acct0NetflowData = null; // { marketId: weiString } account-0-only supply netflow (for borrow markets)
         let earn_subgraphTokens = {}; // { marketId: { symbol, decimals, name } } — token metadata from subgraph
@@ -31167,7 +31210,62 @@
         // Snapshot manifest: { dates: [...], chains: { date: [chains] } }
         let earn_snapshotManifest = null;
         let earn_snapshotManifestRequest = null;
+        let earn_freshnessStatus = null;
+        let earn_freshnessStatusRequest = null;
         let earn_customSnapshotDate = null; // date string for custom selection
+
+        function earn_formatFreshnessLag(minutes) {
+            const value = Number(minutes || 0);
+            if (!Number.isFinite(value) || value <= 0) return '';
+            if (value < 90) return `${Math.round(value)}m lag`;
+            return `${(value / 60).toFixed(value >= 600 ? 0 : 1)}h lag`;
+        }
+
+        function earn_updateFreshnessPill() {
+            const pill = document.getElementById('earn-data-freshness-pill');
+            if (!pill) return;
+            const chainId = String(document.getElementById('earn-chain')?.value || 'ethereum').trim().toLowerCase();
+            const chainStatus = earn_freshnessStatus && earn_freshnessStatus.chains
+                ? earn_freshnessStatus.chains[chainId]
+                : null;
+            const isVerifiedBackground = chainStatus
+                && String(chainStatus.status || '').toLowerCase() === 'verified'
+                && String(chainStatus.refreshMode || '').toLowerCase() === 'background';
+            if (!isVerifiedBackground) {
+                pill.classList.remove('visible');
+                pill.setAttribute('aria-hidden', 'true');
+                pill.textContent = '';
+                return;
+            }
+            const canonicalLag = Number(chainStatus.canonical?.estimatedLagMinutes || 0);
+            const netflowLag = Number(chainStatus.netflow?.estimatedLagMinutes || 0);
+            const lagLabel = earn_formatFreshnessLag(Math.max(canonicalLag, netflowLag));
+            pill.textContent = lagLabel
+                ? `Verified · refreshing in background · ${lagLabel}`
+                : 'Verified · refreshing in background';
+            pill.classList.add('visible');
+            pill.setAttribute('aria-hidden', 'false');
+        }
+
+        async function earn_loadFreshnessStatus() {
+            if (earn_freshnessStatus) return earn_freshnessStatus;
+            if (earn_freshnessStatusRequest) return earn_freshnessStatusRequest;
+            earn_freshnessStatusRequest = (async () => {
+                try {
+                    const resp = await fetch(`${EARN_FRESHNESS_STATUS_URL}?v=${Date.now()}`, { cache: 'no-store' });
+                    if (!resp.ok) return null;
+                    earn_freshnessStatus = await resp.json();
+                    earn_updateFreshnessPill();
+                    return earn_freshnessStatus;
+                } catch (e) {
+                    console.warn('Failed to load EARN freshness status:', e);
+                    return null;
+                } finally {
+                    earn_freshnessStatusRequest = null;
+                }
+            })();
+            return earn_freshnessStatusRequest;
+        }
 
         function earn_getLatestSnapshotDateForChain(chainId) {
             if (!earn_snapshotManifest || !Array.isArray(earn_snapshotManifest.dates)) return null;
@@ -33944,11 +34042,13 @@
 
         // Load manifest on DOM ready
         earn_loadManifest();
+        earn_loadFreshnessStatus();
 
         function earn_setResultsRefreshing(isRefreshing) {
             const results = document.getElementById('earn-results');
             if (!results) return;
             results.classList.toggle('is-refreshing', !!isRefreshing);
+            earn_updateLookupRefreshBadge();
         }
 
         function earn_buildLookupSkeletonSummary() {
@@ -34104,11 +34204,18 @@
         function earn_updateLookupRefreshBadge() {
             const badge = document.getElementById('earn-live-refresh-badge');
             if (!badge) return;
-            const shouldShow = !!earn_lookupUsingCachedSnapshot && !!earn_lookupLoading && !earn_isLookupLoadingGateActive();
+            const results = document.getElementById('earn-results');
+            const softRefreshing = !!results
+                && results.classList.contains('visible')
+                && results.classList.contains('is-refreshing')
+                && !results.classList.contains('loading-gate');
+            const warmRefreshing = !!earn_lookupUsingCachedSnapshot && !!earn_lookupLoading && !earn_isLookupLoadingGateActive();
+            const shouldShow = softRefreshing || warmRefreshing;
             badge.classList.toggle('visible', shouldShow);
+            badge.classList.toggle('is-soft', softRefreshing);
             badge.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
             badge.innerHTML = shouldShow
-                ? '<span class="earn-live-refresh-dot"></span><span>Refreshing live...</span>'
+                ? `<span class="earn-live-refresh-dot"></span><span>${softRefreshing ? 'Verified · refreshing in background' : 'Refreshing live...'}</span>`
                 : '';
         }
 
@@ -34929,7 +35036,7 @@
                 sortEnrichedAssets();
                 earn_lookupLoading = false;
                 earn_lookupUsingCachedSnapshot = false;
-                earn_setResultsRefreshing(false);
+                earn_setResultsRefreshing(true);
                 earn_markLookupProfile(lookupProfile, 'firstRenderReady');
                 earn_renderResults(enriched, { skipSummary: false, softRefresh: !!cachedLookup });
                 earn_logLookupProfile(lookupProfile, 'firstRenderReady');
@@ -37031,6 +37138,10 @@
                             : trustedYieldAssetCount > 0
                                 ? 'is-positive'
                                 : 'is-muted';
+                    const resultsRefreshing = !!document.getElementById('earn-results')?.classList.contains('is-refreshing');
+                    const summaryRefreshChipHtml = resultsRefreshing
+                        ? '<span class="earn-summary-chip is-live">Verified · refreshing in background</span>'
+                        : '';
                     const summaryBorrowChip = hasBorrowContext
                         ? (borrowRouteCount > 0
                             ? `${borrowRouteCount} borrow route${borrowRouteCount !== 1 ? 's' : ''}`
@@ -37083,6 +37194,7 @@
                                     <span class="earn-summary-chip" id="earn-summary-supply-chip">${activeCount} supply asset${activeCount !== 1 ? 's' : ''}</span>
                                     <span class="earn-summary-chip ${summaryBorrowChipClass}" id="earn-summary-borrow-chip">${summaryBorrowChip}</span>
                                     <span class="earn-summary-chip ${summaryVerificationChipClass}">${summaryVerificationChip}</span>
+                                    ${summaryRefreshChipHtml}
                                 </div>
                             </div>
                         </div>

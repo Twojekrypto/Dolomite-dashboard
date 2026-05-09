@@ -119,7 +119,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJson(needs.plan-secondary-canonical.outputs.matrix) }}
     concurrency:
-      group: earn-secondary-canonical-history
+      group: earn-secondary-canonical-history-${{ matrix.chain }}
       cancel-in-progress: false
     env:
       PYTHONUNBUFFERED: '1'
