@@ -59,6 +59,14 @@ jobs:
         env:
           PYTHONUNBUFFERED: '1'
 
+      - name: Build Polygon zkEVM verified ledger cache
+        run: |
+          python3 build_earn_verified_ledger.py \
+            --chain polygonzkevm \
+            --all-addresses
+        env:
+          PYTHONUNBUFFERED: '1'
+
       - name: Validate generated earn data
         run: python3 validate_data.py
 
@@ -67,7 +75,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/earn-snapshots/
-          git add -f data/earn-verified-ledger/manifest.json data/earn-verified-ledger/ethereum/
+          git add -f data/earn-verified-ledger/manifest.json data/earn-verified-ledger/ethereum/ data/earn-verified-ledger/polygonzkevm/
           if git diff --staged --quiet; then
             echo "No changes to commit"
             exit 0

@@ -108,7 +108,8 @@ CHAINS = {
             "https://rpc.xlayer.tech/",
             "https://xlayer-mainnet.public.blastapi.io/",
         ],
-        "start_block": -1,  # Requires validated private RPC getLogs range before global scanning.
+        "start_block": 859_455,
+        "max_block_chunk": 9_999,
     },
 }
 
