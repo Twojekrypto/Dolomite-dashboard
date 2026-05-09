@@ -186,7 +186,10 @@ jobs:
               raise SystemExit(f"Missing earn netflow file: {path}")
           payload = json.loads(path.read_text())
           assert payload.get("chain") == chain, payload.get("chain")
-          assert int(payload.get("lastBlock") or 0) >= 0, "missing lastBlock"
+          last_block = int(payload.get("lastBlock") or 0)
+          assert last_block >= 0, "missing lastBlock"
+          if chain == "xlayer" and last_block <= 0:
+              raise SystemExit("X Layer netflow did not make progress past block 0")
           assert isinstance(payload.get("netflows") or {}, dict), "netflows must be an object"
           print(f"Validated {chain} netflow at block {payload.get('lastBlock')} with {payload.get('addressCount')} addresses")
           PY

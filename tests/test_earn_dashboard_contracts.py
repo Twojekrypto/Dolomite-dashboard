@@ -222,6 +222,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn('"xlayer": {"maxRuntimeSeconds": 3300, "partialOutputIntervalSeconds": 600}', workflow)
         self.assertIn("path: data/.netflow-progress/${{ matrix.chain }}.json", workflow)
         self.assertIn('git add "data/earn-netflow/${CHAIN}.json"', workflow)
+        self.assertIn("X Layer netflow did not make progress past block 0", workflow)
         for chain in ("arbitrum", "ethereum", "mantle", "botanix", "polygonzkevm", "xlayer"):
             self.assertIn(f'"{chain}"', workflow)
         self.assertNotIn("scan_earn_netflow.py arbitrum,ethereum,mantle,botanix,polygonzkevm --max-runtime-seconds 19800", workflow)
@@ -236,10 +237,13 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn('os.environ.get("DRPC_BERACHAIN_RPC_ZEN")', scanner)
         self.assertIn('os.environ.get("ALCHEMY_POLYGONZKEVM_RPC_ZEN")', scanner)
         self.assertIn('os.environ.get("DRP_POLYGONZKEVM_RPC_TWO")', scanner)
+        self.assertIn('"https://mainnet.xlayer-rpc.com"', scanner)
         self.assertIn('"max_block_chunk": 9_999', scanner)
         self.assertIn('"start_block": 859_455', scanner)
         self.assertIn("max_chunk_size = int(chain_config.get(\"max_block_chunk\") or BLOCK_CHUNK)", scanner)
         self.assertIn("chunk_size = min(max_chunk_size, chunk_size * 2)", scanner)
+        self.assertIn("soft_runtime_no_progress", scanner)
+        self.assertIn("consecutive_failures_at_block", scanner)
         self.assertIn('os.environ.get("ALCHEMY_XLAYER_RPC_ZEN")', scanner)
         self.assertIn('os.environ.get("DRP_XLAYER_RPC_TWO")', scanner)
 
