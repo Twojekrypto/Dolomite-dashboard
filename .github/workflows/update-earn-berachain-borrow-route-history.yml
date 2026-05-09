@@ -15,11 +15,13 @@ permissions:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    timeout-minutes: 75
     env:
       PYTHONUNBUFFERED: '1'
       CHAIN: berachain
-      BORROW_ROUTE_HOT_LIMIT: '1000'
+      BORROW_ROUTE_HOT_LIMIT: '250'
+      BORROW_ROUTE_CHECKPOINT_STEPS: '90'
+      BORROW_ROUTE_CHECKPOINT_SLEEP_SECONDS: '20'
       ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
       QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}
       DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}
@@ -134,8 +136,8 @@ jobs:
             --max-incremental-scan-workers 10 \
             --max-incremental-apply-workers 10 \
             --max-new-backfill-workers 4 \
-            --max-steps 240 \
-            --sleep-seconds 20 \
+            --max-steps "$BORROW_ROUTE_CHECKPOINT_STEPS" \
+            --sleep-seconds "$BORROW_ROUTE_CHECKPOINT_SLEEP_SECONDS" \
             --allow-empty \
             --skip-unsupported-start-block \
             --allow-checkpoint-incomplete \
@@ -212,6 +214,8 @@ jobs:
             [ -f "$history_path" ] && git add -f "$history_path"
             [ -f "$ledger_path" ] && git add -f "$ledger_path"
           done < "/tmp/earn-${CHAIN}-borrow-route-addresses.txt"
+          python3 update_earn_freshness_status.py --output data/earn-freshness/status.json
+          git add data/earn-freshness/status.json
           if git diff --staged --quiet; then
             echo "No borrow-route history changes to commit"
             exit 0

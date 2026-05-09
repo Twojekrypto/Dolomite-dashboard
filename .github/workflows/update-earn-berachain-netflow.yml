@@ -112,6 +112,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/earn-netflow/berachain.json
+          python3 update_earn_freshness_status.py --output data/earn-freshness/status.json
+          git add data/earn-freshness/status.json
           if git diff --staged --quiet; then
             echo "No Berachain netflow changes to commit"
             exit 0

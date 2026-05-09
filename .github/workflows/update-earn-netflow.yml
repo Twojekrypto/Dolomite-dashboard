@@ -131,6 +131,54 @@ jobs:
           mkdir -p data/.netflow-progress
           echo '{"version": 2, "last_block": 0, "netflows": {}, "cycleAccountState": {}, "cycleMarketState": {}}' > "data/.netflow-progress/${CHAIN}.json"
 
+      - name: Check secondary RPC redundancy
+        env:
+          CHAIN: ${{ matrix.chain }}
+          MANTLE_RPC: ${{ secrets.MANTLE_RPC }}
+          MANTLE_RPC_2: ${{ secrets.MANTLE_RPC_2 }}
+          QUICKNODE_MANTLE_RPC: ${{ secrets.QUICKNODE_MANTLE_RPC }}
+          QUICKNODE_MANTLE_RPC_2: ${{ secrets.QUICKNODE_MANTLE_RPC_2 }}
+          MANTLE_RPC_QUICKNODE_TWOJE: ${{ secrets.MANTLE_RPC_QUICKNODE_TWOJE }}
+          DRPC_MANTLE_RPC: ${{ secrets.DRPC_MANTLE_RPC }}
+          DRPC_MANTLE_RPC_ZEN: ${{ secrets.DRPC_MANTLE_RPC_ZEN }}
+          ALCHEMY_MANTLE_RPC_ZEN: ${{ secrets.ALCHEMY_MANTLE_RPC_ZEN }}
+          ALCHEMY_MANTLE_RPC: ${{ secrets.ALCHEMY_MANTLE_RPC }}
+          ALCHEMY_MANTLE_RPC_2: ${{ secrets.ALCHEMY_MANTLE_RPC_2 }}
+          ALCHEMY_MANTLE_RPC_3: ${{ secrets.ALCHEMY_MANTLE_RPC_3 }}
+          BOTANIX_RPC: ${{ secrets.BOTANIX_RPC }}
+          BOTANIX_RPC_2: ${{ secrets.BOTANIX_RPC_2 }}
+          BOTANIX_RPC_3: ${{ secrets.BOTANIX_RPC_3 }}
+          QUICKNODE_BOTANIX_RPC: ${{ secrets.QUICKNODE_BOTANIX_RPC }}
+          QUICKNODE_BOTANIX_RPC_2: ${{ secrets.QUICKNODE_BOTANIX_RPC_2 }}
+          DRPC_BOTANIX_RPC_ZEN: ${{ secrets.DRPC_BOTANIX_RPC_ZEN }}
+          ALCHEMY_BOTANIX_RPC_ZEN: ${{ secrets.ALCHEMY_BOTANIX_RPC_ZEN }}
+          ALCHEMY_BOTANIX_RPC: ${{ secrets.ALCHEMY_BOTANIX_RPC }}
+          ALCHEMY_BOTANIX_RPC_2: ${{ secrets.ALCHEMY_BOTANIX_RPC_2 }}
+          ALCHEMY_BOTANIX_RPC_3: ${{ secrets.ALCHEMY_BOTANIX_RPC_3 }}
+        run: |
+          set -euo pipefail
+          case "$CHAIN" in
+            mantle)
+              names=(MANTLE_RPC MANTLE_RPC_2 QUICKNODE_MANTLE_RPC QUICKNODE_MANTLE_RPC_2 MANTLE_RPC_QUICKNODE_TWOJE DRPC_MANTLE_RPC DRPC_MANTLE_RPC_ZEN ALCHEMY_MANTLE_RPC_ZEN ALCHEMY_MANTLE_RPC ALCHEMY_MANTLE_RPC_2 ALCHEMY_MANTLE_RPC_3)
+              ;;
+            botanix)
+              names=(BOTANIX_RPC BOTANIX_RPC_2 BOTANIX_RPC_3 QUICKNODE_BOTANIX_RPC QUICKNODE_BOTANIX_RPC_2 DRPC_BOTANIX_RPC_ZEN ALCHEMY_BOTANIX_RPC_ZEN ALCHEMY_BOTANIX_RPC ALCHEMY_BOTANIX_RPC_2 ALCHEMY_BOTANIX_RPC_3)
+              ;;
+            *)
+              exit 0
+              ;;
+          esac
+          configured=0
+          for name in "${names[@]}"; do
+            if [ -n "${!name:-}" ]; then
+              configured=$((configured + 1))
+            fi
+          done
+          echo "Configured ${CHAIN} RPC secrets: ${configured}/${#names[@]}"
+          if [ "$configured" -lt 2 ]; then
+            echo "::warning title=${CHAIN} RPC redundancy::Only ${configured} dedicated ${CHAIN} RPC secret(s) are configured. Add a second provider secret for better failover."
+          fi
+
       - name: Scan earn netflow events
         env:
           PYTHONUNBUFFERED: '1'
@@ -147,6 +195,9 @@ jobs:
           MANTLE_RPC: ${{ secrets.MANTLE_RPC }}
           MANTLE_RPC_2: ${{ secrets.MANTLE_RPC_2 }}
           QUICKNODE_MANTLE_RPC: ${{ secrets.QUICKNODE_MANTLE_RPC }}
+          QUICKNODE_MANTLE_RPC_2: ${{ secrets.QUICKNODE_MANTLE_RPC_2 }}
+          MANTLE_RPC_QUICKNODE_TWOJE: ${{ secrets.MANTLE_RPC_QUICKNODE_TWOJE }}
+          DRPC_MANTLE_RPC: ${{ secrets.DRPC_MANTLE_RPC }}
           DRPC_MANTLE_RPC_ZEN: ${{ secrets.DRPC_MANTLE_RPC_ZEN }}
           ALCHEMY_MANTLE_RPC_ZEN: ${{ secrets.ALCHEMY_MANTLE_RPC_ZEN }}
           ALCHEMY_MANTLE_RPC: ${{ secrets.ALCHEMY_MANTLE_RPC }}
@@ -155,6 +206,13 @@ jobs:
           BOTANIX_RPC: ${{ secrets.BOTANIX_RPC }}
           BOTANIX_RPC_2: ${{ secrets.BOTANIX_RPC_2 }}
           BOTANIX_RPC_3: ${{ secrets.BOTANIX_RPC_3 }}
+          QUICKNODE_BOTANIX_RPC: ${{ secrets.QUICKNODE_BOTANIX_RPC }}
+          QUICKNODE_BOTANIX_RPC_2: ${{ secrets.QUICKNODE_BOTANIX_RPC_2 }}
+          DRPC_BOTANIX_RPC_ZEN: ${{ secrets.DRPC_BOTANIX_RPC_ZEN }}
+          ALCHEMY_BOTANIX_RPC_ZEN: ${{ secrets.ALCHEMY_BOTANIX_RPC_ZEN }}
+          ALCHEMY_BOTANIX_RPC: ${{ secrets.ALCHEMY_BOTANIX_RPC }}
+          ALCHEMY_BOTANIX_RPC_2: ${{ secrets.ALCHEMY_BOTANIX_RPC_2 }}
+          ALCHEMY_BOTANIX_RPC_3: ${{ secrets.ALCHEMY_BOTANIX_RPC_3 }}
           POLYGONZKEVM_RPC: ${{ secrets.POLYGONZKEVM_RPC }}
           POLYGONZKEVM_RPC_2: ${{ secrets.POLYGONZKEVM_RPC_2 }}
           ALCHEMY_POLYGONZKEVM_RPC_ZEN: ${{ secrets.ALCHEMY_POLYGONZKEVM_RPC_ZEN }}
@@ -208,6 +266,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add "data/earn-netflow/${CHAIN}.json"
+          python3 update_earn_freshness_status.py --output data/earn-freshness/status.json
+          git add data/earn-freshness/status.json
           if git diff --staged --quiet; then
             echo "No ${CHAIN} netflow changes to commit"
             exit 0

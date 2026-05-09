@@ -133,6 +133,9 @@ jobs:
       MANTLE_RPC: ${{ secrets.MANTLE_RPC }}
       MANTLE_RPC_2: ${{ secrets.MANTLE_RPC_2 }}
       QUICKNODE_MANTLE_RPC: ${{ secrets.QUICKNODE_MANTLE_RPC }}
+      QUICKNODE_MANTLE_RPC_2: ${{ secrets.QUICKNODE_MANTLE_RPC_2 }}
+      MANTLE_RPC_QUICKNODE_TWOJE: ${{ secrets.MANTLE_RPC_QUICKNODE_TWOJE }}
+      DRPC_MANTLE_RPC: ${{ secrets.DRPC_MANTLE_RPC }}
       DRPC_MANTLE_RPC_ZEN: ${{ secrets.DRPC_MANTLE_RPC_ZEN }}
       ALCHEMY_MANTLE_RPC_ZEN: ${{ secrets.ALCHEMY_MANTLE_RPC_ZEN }}
       ALCHEMY_MANTLE_RPC: ${{ secrets.ALCHEMY_MANTLE_RPC }}
@@ -141,6 +144,13 @@ jobs:
       BOTANIX_RPC: ${{ secrets.BOTANIX_RPC }}
       BOTANIX_RPC_2: ${{ secrets.BOTANIX_RPC_2 }}
       BOTANIX_RPC_3: ${{ secrets.BOTANIX_RPC_3 }}
+      QUICKNODE_BOTANIX_RPC: ${{ secrets.QUICKNODE_BOTANIX_RPC }}
+      QUICKNODE_BOTANIX_RPC_2: ${{ secrets.QUICKNODE_BOTANIX_RPC_2 }}
+      DRPC_BOTANIX_RPC_ZEN: ${{ secrets.DRPC_BOTANIX_RPC_ZEN }}
+      ALCHEMY_BOTANIX_RPC_ZEN: ${{ secrets.ALCHEMY_BOTANIX_RPC_ZEN }}
+      ALCHEMY_BOTANIX_RPC: ${{ secrets.ALCHEMY_BOTANIX_RPC }}
+      ALCHEMY_BOTANIX_RPC_2: ${{ secrets.ALCHEMY_BOTANIX_RPC_2 }}
+      ALCHEMY_BOTANIX_RPC_3: ${{ secrets.ALCHEMY_BOTANIX_RPC_3 }}
       ALCHEMY_POLYGONZKEVM_RPC_ZEN: ${{ secrets.ALCHEMY_POLYGONZKEVM_RPC_ZEN }}
       DRP_POLYGONZKEVM_RPC_TWO: ${{ secrets.DRP_POLYGONZKEVM_RPC_TWO }}
       POLYGONZKEVM_RPC: ${{ secrets.POLYGONZKEVM_RPC }}
@@ -165,6 +175,31 @@ jobs:
 
       - name: Install Python dependencies
         run: python3 -m pip install --upgrade pip requests
+
+      - name: Check secondary RPC redundancy
+        run: |
+          set -euo pipefail
+          case "$CHAIN" in
+            mantle)
+              names=(MANTLE_RPC MANTLE_RPC_2 QUICKNODE_MANTLE_RPC QUICKNODE_MANTLE_RPC_2 MANTLE_RPC_QUICKNODE_TWOJE DRPC_MANTLE_RPC DRPC_MANTLE_RPC_ZEN ALCHEMY_MANTLE_RPC_ZEN ALCHEMY_MANTLE_RPC ALCHEMY_MANTLE_RPC_2 ALCHEMY_MANTLE_RPC_3)
+              ;;
+            botanix)
+              names=(BOTANIX_RPC BOTANIX_RPC_2 BOTANIX_RPC_3 QUICKNODE_BOTANIX_RPC QUICKNODE_BOTANIX_RPC_2 DRPC_BOTANIX_RPC_ZEN ALCHEMY_BOTANIX_RPC_ZEN ALCHEMY_BOTANIX_RPC ALCHEMY_BOTANIX_RPC_2 ALCHEMY_BOTANIX_RPC_3)
+              ;;
+            *)
+              exit 0
+              ;;
+          esac
+          configured=0
+          for name in "${names[@]}"; do
+            if [ -n "${!name:-}" ]; then
+              configured=$((configured + 1))
+            fi
+          done
+          echo "Configured ${CHAIN} RPC secrets: ${configured}/${#names[@]}"
+          if [ "$configured" -lt 2 ]; then
+            echo "::warning title=${CHAIN} RPC redundancy::Only ${configured} dedicated ${CHAIN} RPC secret(s) are configured. Add a second provider secret for better failover."
+          fi
 
       - name: Restore canonical runtime cache
         uses: actions/cache@v5
@@ -271,6 +306,8 @@ jobs:
           if [ -d "data/earn-verified-ledger/${CHAIN}" ]; then
             git add -f "data/earn-verified-ledger/${CHAIN}"
           fi
+          python3 update_earn_freshness_status.py --output data/earn-freshness/status.json
+          git add data/earn-freshness/status.json
           if git diff --staged --quiet; then
             echo "No canonical history changes to commit"
             exit 0
