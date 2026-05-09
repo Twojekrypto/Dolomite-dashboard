@@ -226,6 +226,9 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn('os.environ.get("DRPC_BERACHAIN_RPC_ZEN")', scanner)
         self.assertIn('os.environ.get("ALCHEMY_POLYGONZKEVM_RPC_ZEN")', scanner)
         self.assertIn('os.environ.get("DRP_POLYGONZKEVM_RPC_TWO")', scanner)
+        self.assertIn('"max_block_chunk": 9_999', scanner)
+        self.assertIn("max_chunk_size = int(chain_config.get(\"max_block_chunk\") or BLOCK_CHUNK)", scanner)
+        self.assertIn("chunk_size = min(max_chunk_size, chunk_size * 2)", scanner)
         self.assertIn('os.environ.get("ALCHEMY_XLAYER_RPC_ZEN")', scanner)
         self.assertIn('os.environ.get("DRP_XLAYER_RPC_TWO")', scanner)
 
