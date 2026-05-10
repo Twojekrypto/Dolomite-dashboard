@@ -141,17 +141,27 @@ def build_incremental_plan(
 
     fresh_existing: List[str] = []
     stale_existing: List[str] = []
+    already_fresh_existing: List[str] = []
+    invalid_existing: List[str] = []
+    tracked_rows: List[tuple[str, int]] = []
     for address in existing_addresses:
         last_block = _history_last_block(_history_chain_dir(history_dir, chain) / f"{address}.json")
-        if last_block >= base_target:
-            fresh_existing.append(address)
+        if last_block <= 0:
+            invalid_existing.append(address)
+        elif last_block >= target_block:
+            already_fresh_existing.append(address)
         else:
-            stale_existing.append(address)
+            tracked_rows.append((address, last_block))
+            if last_block >= base_target:
+                fresh_existing.append(address)
+            else:
+                stale_existing.append(address)
 
     new_addresses = sorted(set(current_known) - existing_set)
     orphaned_histories = sorted(all_existing_set - set(current_known))
-    delta_required = target_block > base_target
-    delta_from_block = base_target + 1
+    tracked_addresses = [address for address, _last_block in sorted(tracked_rows)]
+    delta_required = bool(tracked_rows)
+    delta_from_block = min((last_block + 1 for _address, last_block in tracked_rows), default=target_block)
 
     cycle_id = f"{chain}-f{delta_from_block}-t{target_block}"
     cycle_root = plan_dir / cycle_id
@@ -159,14 +169,14 @@ def build_incremental_plan(
     address_dir = cycle_root / "addresses"
 
     tracked_address_file = address_dir / "tracked-addresses.txt"
-    _write_lines(tracked_address_file, fresh_existing)
+    _write_lines(tracked_address_file, tracked_addresses)
 
     scan_workers = _worker_counts(max_scan_workers)[-1]
     apply_workers = _worker_counts(max_apply_workers)[-1]
     new_backfill_workers = _worker_counts(max_new_backfill_workers)[-1]
 
     scan_tasks = []
-    if delta_required and fresh_existing:
+    if delta_required and tracked_addresses:
         total_blocks = target_block - delta_from_block + 1
         shard_size = math.ceil(total_blocks / max(1, scan_workers))
         current_start = delta_from_block
@@ -193,7 +203,7 @@ def build_incremental_plan(
             })
             current_start = shard_end + 1
 
-    backfill_addresses = sorted(set(new_addresses) | set(stale_existing))
+    backfill_addresses = sorted(set(new_addresses) | set(invalid_existing))
     new_address_tasks = []
     if backfill_addresses:
         for idx, (start_index, end_index) in enumerate(_split_ranges(len(backfill_addresses), new_backfill_workers), start=1):
@@ -215,8 +225,8 @@ def build_incremental_plan(
             })
 
     apply_tasks = []
-    if delta_required and fresh_existing:
-        for idx, (start_index, end_index) in enumerate(_split_ranges(len(fresh_existing), apply_workers), start=1):
+    if delta_required and tracked_addresses:
+        for idx, (start_index, end_index) in enumerate(_split_ranges(len(tracked_addresses), apply_workers), start=1):
             progress_key = f"a{idx}of{apply_workers}"
             apply_tasks.append({
                 "progressKey": progress_key,
@@ -246,8 +256,11 @@ def build_incremental_plan(
         "deltaRequired": bool(delta_required),
         "deltaFromBlock": int(delta_from_block),
         "trackedAddressCount": len(existing_addresses),
+        "deltaTrackedAddressCount": len(tracked_addresses),
         "freshTrackedAddressCount": len(fresh_existing),
         "staleTrackedAddressCount": len(stale_existing),
+        "alreadyFreshAddressCount": len(already_fresh_existing),
+        "invalidExistingAddressCount": len(invalid_existing),
         "newAddressCount": len(new_addresses),
         "backfillAddressCount": len(backfill_addresses),
         "orphanedHistoryCount": len(orphaned_histories),
@@ -261,6 +274,7 @@ def build_incremental_plan(
         "newAddressTasks": new_address_tasks,
         "applyTasks": apply_tasks,
         "staleTrackedAddresses": stale_existing[:50],
+        "invalidExistingAddressesPreview": invalid_existing[:50],
         "newAddressesPreview": new_addresses[:50],
         "orphanedHistoriesPreview": orphaned_histories[:50],
     }
@@ -276,14 +290,16 @@ def _print_human_plan(payload: dict) -> None:
     print(f"Next target: {payload['targetBlock']:,}")
     print(f"Delta required: {payload['deltaRequired']}")
     print(f"Tracked histories: {payload['trackedAddressCount']}")
+    print(f"Delta-tracked histories: {payload['deltaTrackedAddressCount']}")
     print(f"Fresh tracked histories: {payload['freshTrackedAddressCount']}")
     print(f"Stale tracked histories: {payload['staleTrackedAddressCount']}")
+    print(f"Already fresh histories: {payload['alreadyFreshAddressCount']}")
     print(f"New known addresses: {payload['newAddressCount']}")
     print(f"Backfill addresses: {payload['backfillAddressCount']}")
     print(f"Orphaned histories: {payload['orphanedHistoryCount']}")
     print(f"Cycle root: {payload['cycleRoot']}")
     if payload["staleTrackedAddressCount"]:
-        print("Stale tracked histories will be fully backfilled to the target block.")
+        print("Stale tracked histories will be caught up from their own last scanned block.")
     print("Delta scan commands:")
     for task in payload["scanTasks"]:
         print(f"  {task['command']}")

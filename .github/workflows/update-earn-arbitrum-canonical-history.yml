@@ -19,7 +19,7 @@ jobs:
     env:
       PYTHONUNBUFFERED: '1'
       CHAIN: arbitrum
-      HOT_LIMIT: '500'
+      HOT_LIMIT: '0'
       ALCHEMY_ARBITRUM_RPC: ${{ secrets.ALCHEMY_ARBITRUM_RPC || secrets.ARBITRUM_RPC_URL || secrets.ARBITRUM_RPC || secrets.ARB_RPC_URL || secrets.ARB_RPC }}
       ALCHEMY_ARBITRUM_RPC_2: ${{ secrets.ALCHEMY_ARBITRUM_RPC_2 || secrets.ALCHEMY_ARBITRUM_RPC_ZEN || secrets.ARBITRUM_RPC_URL_2 || secrets.ARBITRUM_RPC_2 || secrets.ARB_RPC_URL_2 || secrets.ARB_RPC_2 }}
       ALCHEMY_ARBITRUM_RPC_3: ${{ secrets.ALCHEMY_ARBITRUM_RPC_3 || secrets.ARBITRUM_RPC_URL_3 || secrets.ARBITRUM_RPC_3 || secrets.ARB_RPC_URL_3 || secrets.ARB_RPC_3 }}
@@ -52,7 +52,7 @@ jobs:
           restore-keys: |
             earn-canonical-runtime-arbitrum-
 
-      - name: Select Arbitrum hot wallets
+      - name: Select Arbitrum coverage catch-up wallets
         run: |
           set -euo pipefail
           python3 select_earn_canonical_hot_addresses.py \
@@ -61,6 +61,7 @@ jobs:
             --priority-address-file config/earn_canonical_priority_addresses.txt \
             --priority-address-file config/earn_arbitrum_canonical_hot_addresses.txt \
             --include-priority-even-if-unknown \
+            --prefer-stale-history \
             --output "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt" \
             --metadata-output "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
           cat "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"

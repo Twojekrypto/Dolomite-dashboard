@@ -47,7 +47,7 @@ jobs:
               "mantle": {
                   "chain": "mantle",
                   "label": "Mantle",
-                  "hot_limit": 1000,
+                  "hot_limit": 0,
                   "scan_workers": 6,
                   "materialize_workers": 6,
                   "incremental_scan_workers": 6,
@@ -65,7 +65,7 @@ jobs:
               "polygonzkevm": {
                   "chain": "polygonzkevm",
                   "label": "Polygon zkEVM",
-                  "hot_limit": 1000,
+                  "hot_limit": 0,
                   "scan_workers": 5,
                   "materialize_workers": 5,
                   "incremental_scan_workers": 5,
@@ -114,7 +114,7 @@ jobs:
     needs: plan-secondary-canonical
     if: needs.plan-secondary-canonical.outputs.matrix != '{"include":[]}'
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.plan-secondary-canonical.outputs.matrix) }}
@@ -222,6 +222,7 @@ jobs:
             --limit "$HOT_LIMIT" \
             --priority-address-file config/earn_canonical_priority_addresses.txt \
             --include-priority-even-if-unknown \
+            --prefer-stale-history \
             --output "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt" \
             --metadata-output "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
           cat "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"

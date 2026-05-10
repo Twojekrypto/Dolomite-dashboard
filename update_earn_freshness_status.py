@@ -215,6 +215,107 @@ def _component_status(
     }
 
 
+def _safe_int(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except Exception:
+        return 0
+
+
+def _known_addresses_from_public_data(data_dir: Path, chain: str) -> list[str]:
+    addresses = set()
+
+    snapshot_manifest = _read_json(data_dir / "earn-snapshots" / "manifest.json", {})
+    chain_dates = [
+        str(date)
+        for date in (snapshot_manifest.get("dates") or [])
+        if chain in ((snapshot_manifest.get("chains") or {}).get(date) or [])
+    ]
+    if chain_dates:
+        latest_date = sorted(chain_dates)[-1]
+        payload = _read_json(data_dir / "earn-snapshots" / f"{latest_date}.json", {})
+        chain_snapshots = ((payload.get("snapshots") or {}).get(chain) or {}) if isinstance(payload, dict) else {}
+        addresses.update(str(address).lower() for address in chain_snapshots.keys())
+
+    netflow_payload = _read_json(data_dir / "earn-netflow" / f"{chain}.json", {})
+    netflows = (netflow_payload.get("netflows") or {}) if isinstance(netflow_payload, dict) else {}
+    addresses.update(str(address).lower() for address in netflows.keys())
+
+    return sorted(address for address in addresses if address.startswith("0x") and len(address) == 42)
+
+
+def _canonical_coverage_status(*, data_dir: Path, chain: str, target_block: Optional[int]) -> Dict[str, Any]:
+    target = _safe_int(target_block)
+    addresses = _known_addresses_from_public_data(data_dir, chain)
+    if target <= 0:
+        return {
+            "status": "missing_target",
+            "targetBlock": target_block,
+            "knownAddressCount": len(addresses),
+            "freshWalletCount": 0,
+            "partialWalletCount": 0,
+            "missingWalletCount": len(addresses),
+            "freshCoverageRatio": 0.0,
+        }
+    if not addresses:
+        return {
+            "status": "unknown",
+            "targetBlock": target,
+            "knownAddressCount": 0,
+            "freshWalletCount": 0,
+            "partialWalletCount": 0,
+            "missingWalletCount": 0,
+            "freshCoverageRatio": None,
+        }
+
+    fresh_count = 0
+    partial_count = 0
+    missing_count = 0
+    min_last_scanned: Optional[int] = None
+    max_last_scanned: Optional[int] = None
+    chain_dir = data_dir / "earn-subaccount-history" / chain
+    for address in addresses:
+        payload = _read_json(chain_dir / f"{address}.json", None)
+        if not isinstance(payload, dict):
+            missing_count += 1
+            continue
+        last_scanned = _safe_int(payload.get("lastScannedBlock"))
+        min_last_scanned = last_scanned if min_last_scanned is None else min(min_last_scanned, last_scanned)
+        max_last_scanned = last_scanned if max_last_scanned is None else max(max_last_scanned, last_scanned)
+        if last_scanned >= target:
+            fresh_count += 1
+        else:
+            partial_count += 1
+
+    complete = fresh_count == len(addresses) and partial_count == 0 and missing_count == 0
+    return {
+        "status": "full" if complete else "partial",
+        "targetBlock": target,
+        "knownAddressCount": len(addresses),
+        "freshWalletCount": fresh_count,
+        "partialWalletCount": partial_count,
+        "missingWalletCount": missing_count,
+        "freshCoverageRatio": round(fresh_count / len(addresses), 6),
+        "minLastScannedBlock": min_last_scanned,
+        "maxLastScannedBlock": max_last_scanned,
+    }
+
+
+def _apply_canonical_coverage(component: Dict[str, Any], coverage: Dict[str, Any]) -> Dict[str, Any]:
+    component["coverage"] = coverage
+    if coverage.get("status") != "partial":
+        return component
+    component["refreshRecommended"] = True
+    if component.get("status") in {"verified", "ahead"}:
+        component["status"] = "syncing"
+    component["refreshMode"] = _refresh_mode(str(component.get("status") or "syncing"), True)
+    component["reason"] = (
+        f"canonical coverage incomplete: {coverage.get('freshWalletCount')}/"
+        f"{coverage.get('knownAddressCount')} wallets fresh"
+    )
+    return component
+
+
 def _live_blocks(chains: Iterable[str]) -> Dict[str, Optional[int]]:
     blocks: Dict[str, Optional[int]] = {}
     for chain in chains:
@@ -307,6 +408,12 @@ def _weak_point(
         if snapshot_available:
             return "snapshot-first coverage; canonical and netflow event ledgers are not enabled"
         return "snapshot-first coverage; snapshot is currently missing"
+    canonical_coverage = canonical.get("coverage") or {}
+    if canonical_coverage.get("status") == "partial":
+        return (
+            f"canonical coverage {canonical_coverage.get('freshWalletCount')}/"
+            f"{canonical_coverage.get('knownAddressCount')} wallets fresh"
+        )
     for name, component in (("canonical", canonical), ("netflow", netflow)):
         if component.get("status") in {"missing", "syncing", "stale", "catching_up", "unknown"}:
             return f"{name} {component['status']}"
@@ -356,6 +463,13 @@ def build_status(
             supported=canonical_supported,
             now=now,
         )
+        if canonical_supported:
+            coverage = _canonical_coverage_status(
+                data_dir=data_dir,
+                chain=chain,
+                target_block=history_meta.get("lastBlock"),
+            )
+            canonical = _apply_canonical_coverage(canonical, coverage)
         netflow_supported = (CHAINS.get(chain) or {}).get("start_block", 0) >= 0
         support_mode = _support_mode(
             policy=policy,
@@ -381,9 +495,17 @@ def build_status(
                 workflow=workflow,
                 inputs=policy.get("canonicalWorkflowInputs"),
             )
-            refresh_reasons.append(
-                f"{chain}: canonical {canonical['refreshMode']} refresh ({canonical['status']}, {_format_lag_reason_minutes(canonical.get('estimatedLagMinutes'))})"
-            )
+            coverage = canonical.get("coverage") or {}
+            if coverage.get("status") == "partial":
+                refresh_reasons.append(
+                    f"{chain}: canonical coverage catchup "
+                    f"({coverage.get('freshWalletCount')}/{coverage.get('knownAddressCount')} wallets fresh, "
+                    f"{coverage.get('partialWalletCount')} behind, {coverage.get('missingWalletCount')} missing)"
+                )
+            else:
+                refresh_reasons.append(
+                    f"{chain}: canonical {canonical['refreshMode']} refresh ({canonical['status']}, {_format_lag_reason_minutes(canonical.get('estimatedLagMinutes'))})"
+                )
         if netflow.get("refreshRecommended") and netflow_supported:
             workflow = str(policy.get("netflowWorkflow") or NETFLOW_WORKFLOW)
             workflow_inputs = policy.get("netflowWorkflowInputs")

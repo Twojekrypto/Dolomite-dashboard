@@ -15,13 +15,13 @@ permissions:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 180
     env:
       PYTHONUNBUFFERED: '1'
       CHAIN: berachain
       BOOTSTRAP_HOT_LIMIT: '500'
-      STEADY_HOT_LIMIT: '500'
-      CHECKPOINT_STEPS: '150'
+      STEADY_HOT_LIMIT: '0'
+      CHECKPOINT_STEPS: '270'
       CHECKPOINT_SLEEP_SECONDS: '20'
       ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
       QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}
@@ -105,10 +105,11 @@ jobs:
             --priority-address-file config/earn_canonical_priority_addresses.txt
             --priority-address-file config/earn_berachain_canonical_hot_addresses.txt
             --include-priority-even-if-unknown
+            --prefer-stale-history
             --output "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt"
             --metadata-output "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
           )
-          if [ "$has_public_baseline" = "true" ]; then
+          if [ "$has_public_baseline" = "true" ] && [ "$hot_limit" != "0" ]; then
             selector_args+=(--existing-history-only --history-dir data/earn-subaccount-history)
           fi
           "${selector_args[@]}"

@@ -279,6 +279,67 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         report = {entry["chain"]: entry for entry in status["chainReport"]}
         self.assertEqual(report["polygonzkevm"]["weakPoint"], "netflow catching_up")
 
+    def test_partial_canonical_wallet_coverage_triggers_catchup(self):
+        now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)
+        wallet = "0x1111111111111111111111111111111111111111"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_json(
+                root,
+                "earn-subaccount-history/manifest.json",
+                {
+                    "chains": {
+                        "xlayer": {
+                            "lastBlock": 10_000,
+                            "updatedAt": "2026-05-08T11:59:00Z",
+                        }
+                    }
+                },
+            )
+            self._write_json(
+                root,
+                f"earn-subaccount-history/xlayer/{wallet}.json",
+                {"address": wallet, "lastScannedBlock": 9_999, "accounts": {}},
+            )
+            self._write_json(
+                root,
+                "earn-netflow/xlayer.json",
+                {
+                    "chain": "xlayer",
+                    "lastBlock": 10_000,
+                    "updatedAt": "2026-05-08T11:59:00Z",
+                    "netflows": {wallet: {"1": {"endingPar": "1"}}},
+                },
+            )
+            self._write_json(root, "earn-snapshots/manifest.json", {"dates": [], "chains": {}})
+
+            status = build_status(
+                data_dir=root,
+                live_blocks={
+                    "arbitrum": None,
+                    "ethereum": None,
+                    "berachain": None,
+                    "botanix": None,
+                    "mantle": None,
+                    "polygonzkevm": None,
+                    "xlayer": 10_000,
+                },
+                now=now,
+            )
+
+        xlayer = status["chains"]["xlayer"]
+        self.assertEqual(xlayer["canonical"]["status"], "syncing")
+        self.assertEqual(xlayer["canonical"]["refreshMode"], "catchup")
+        self.assertEqual(xlayer["canonical"]["coverage"]["status"], "partial")
+        self.assertEqual(xlayer["canonical"]["coverage"]["freshWalletCount"], 0)
+        self.assertEqual(xlayer["status"], "syncing")
+        self.assertIn(
+            {"workflow": "update-earn-secondary-canonical-history.yml", "inputs": {"chain": "xlayer"}},
+            status["summary"]["refreshJobs"],
+        )
+        report = {entry["chain"]: entry for entry in status["chainReport"]}
+        self.assertEqual(report["xlayer"]["weakPoint"], "canonical coverage 0/1 wallets fresh")
+
     def test_generic_netflow_refresh_jobs_stay_chain_specific(self):
         now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)
         with tempfile.TemporaryDirectory() as tmp:

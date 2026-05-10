@@ -139,6 +139,25 @@ def _existing_history_addresses(history_dir: Path, chain: str) -> set:
     }
 
 
+def _coverage_target_block(history_dir: Path, chain: str) -> int:
+    manifest = _read_json(history_dir / "manifest.json", {})
+    chain_payload = ((manifest.get("chains") or {}).get(chain) or {}) if isinstance(manifest, dict) else {}
+    try:
+        return int(chain_payload.get("lastBlock") or 0)
+    except Exception:
+        return 0
+
+
+def _history_last_scanned_block(history_dir: Path, chain: str, address: str) -> int:
+    payload = _read_json(history_dir / chain / f"{address.lower()}.json", None)
+    if not isinstance(payload, dict):
+        return 0
+    try:
+        return int(payload.get("lastScannedBlock") or 0)
+    except Exception:
+        return 0
+
+
 def build_selection(
     chain: str,
     *,
@@ -147,6 +166,7 @@ def build_selection(
     include_priority_even_if_unknown: bool,
     history_dir: Path = HISTORY_DIR,
     existing_history_only: bool = False,
+    prefer_stale_history: bool = False,
 ) -> Tuple[List[str], dict]:
     known = set(_load_known_addresses(chain))
     scores: Dict[str, int] = {}
@@ -162,11 +182,30 @@ def build_selection(
         priority = [address for address in priority if address in known]
 
     ranked = sorted(scores.items(), key=lambda item: (-item[1], item[0]))
+    existing_history = _existing_history_addresses(history_dir, chain) if (existing_history_only or prefer_stale_history) else set()
+    coverage_target = _coverage_target_block(history_dir, chain) if prefer_stale_history else 0
+    stale_history: List[str] = []
+    missing_history: List[str] = []
+    if prefer_stale_history and coverage_target > 0:
+        stale_rows = []
+        for address in sorted(known):
+            has_history = address in existing_history
+            if existing_history_only and not has_history:
+                continue
+            if not has_history:
+                missing_history.append(address)
+                continue
+            last_scanned = _history_last_scanned_block(history_dir, chain, address)
+            if last_scanned < coverage_target:
+                stale_rows.append((last_scanned, address))
+        stale_history = [address for _last_scanned, address in sorted(stale_rows)]
+
     selected = _unique_preserve_order([
         *priority,
+        *stale_history,
+        *missing_history,
         *(address for address, _score in ranked),
     ])
-    existing_history = _existing_history_addresses(history_dir, chain) if existing_history_only else set()
     if existing_history_only:
         selected = [address for address in selected if address in existing_history]
     if limit > 0:
@@ -180,6 +219,10 @@ def build_selection(
         "knownAddressCount": len(known),
         "scoredAddressCount": len(scores),
         "priorityAddressCount": len(priority),
+        "preferStaleHistory": bool(prefer_stale_history),
+        "coverageTargetBlock": coverage_target or None,
+        "staleHistoryAddressCount": len(stale_history),
+        "missingHistoryAddressCount": len(missing_history),
         "selectedAddressCount": len(selected),
     }
     return selected, metadata
@@ -193,6 +236,7 @@ def main() -> int:
     parser.add_argument("--include-priority-even-if-unknown", action="store_true")
     parser.add_argument("--history-dir", type=Path, default=HISTORY_DIR)
     parser.add_argument("--existing-history-only", action="store_true")
+    parser.add_argument("--prefer-stale-history", action="store_true")
     parser.add_argument("--output", required=True)
     parser.add_argument("--metadata-output", default=None)
     args = parser.parse_args()
@@ -204,6 +248,7 @@ def main() -> int:
         include_priority_even_if_unknown=bool(args.include_priority_even_if_unknown),
         history_dir=args.history_dir,
         existing_history_only=bool(args.existing_history_only),
+        prefer_stale_history=bool(args.prefer_stale_history),
     )
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
