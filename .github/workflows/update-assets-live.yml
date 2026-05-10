@@ -30,6 +30,47 @@ jobs:
       - name: Validate generated data
         run: python3 validate_data.py assets_live.json
 
+      - name: Check assets fallback freshness
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from "node:fs/promises";
+
+          const FALLBACK_MAX_AGE_MINUTES = 120;
+          const payload = JSON.parse(await readFile("assets_live.json", "utf8"));
+          const fallbackChains = Array.isArray(payload.rateFallbackChains)
+            ? payload.rateFallbackChains.filter(Boolean)
+            : [];
+
+          if (!fallbackChains.length) {
+            console.log("No assets rate fallback in current snapshot.");
+            process.exit(0);
+          }
+
+          const generatedAt = Date.parse(payload.generatedAt || "");
+          const fallbackSourceAt = Date.parse(payload.rateFallbackSourceGeneratedAt || "");
+          const storedAge = Number(payload.rateFallbackMaxAgeMinutes);
+          const fallbackAgeMinutes = Number.isFinite(storedAge)
+            ? storedAge
+            : Number.isFinite(generatedAt) && Number.isFinite(fallbackSourceAt)
+              ? Math.max(0, (generatedAt - fallbackSourceAt) / 60000)
+              : NaN;
+          const chainsLabel = fallbackChains.join(", ");
+          const ageLabel = Number.isFinite(fallbackAgeMinutes)
+            ? `${fallbackAgeMinutes.toFixed(fallbackAgeMinutes >= 10 ? 0 : 1)}m`
+            : "unknown age";
+
+          console.log(
+            `::warning title=Assets rate fallback::Using cached rate rows for ${chainsLabel}; fallback source age ${ageLabel}.`,
+          );
+
+          if (!Number.isFinite(fallbackAgeMinutes) || fallbackAgeMinutes > FALLBACK_MAX_AGE_MINUTES) {
+            console.log(
+              `::error title=Stale assets rate fallback::Cached rate rows for ${chainsLabel} are older than ${FALLBACK_MAX_AGE_MINUTES}m. Keeping previous production data instead of publishing a stale snapshot.`,
+            );
+            process.exit(1);
+          }
+          NODE
+
       - name: Commit & push changes
         run: |
           git config user.name "github-actions[bot]"
@@ -37,8 +78,13 @@ jobs:
           git add assets_live.json
           git diff --staged --quiet && echo "No changes to commit" && exit 0
           git commit -m "Assets live update: $(date -u '+%Y-%m-%d %H:%M UTC')"
-          for i in 1 2 3; do
-            git pull --rebase -X theirs origin master && git push origin master && break
+          pushed=false
+          for i in $(seq 1 12); do
+            if git pull --rebase -X theirs origin master && git push origin master; then
+              pushed=true
+              break
+            fi
             echo "Push attempt $i failed, retrying..."
             sleep 5
           done
+          [ "$pushed" = "true" ] || { echo "Failed to push after 12 attempts."; exit 1; }

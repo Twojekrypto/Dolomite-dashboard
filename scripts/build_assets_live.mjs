@@ -479,10 +479,18 @@ async function buildAssets() {
     throw new Error(`Expected at least 50 asset rows, received ${rows.length}`);
   }
   const fallbackChains = [...new Set(rows.filter((row) => row.rateFallback).map((row) => row.chain))];
+  const generatedAt = new Date().toISOString();
+  const fallbackSourceGeneratedAt = fallbackChains.length ? previousSnapshot?.generatedAt || null : null;
+  const generatedTime = Date.parse(generatedAt);
+  const fallbackSourceTime = fallbackSourceGeneratedAt ? Date.parse(fallbackSourceGeneratedAt) : NaN;
+  const rateFallbackMaxAgeMinutes =
+    fallbackChains.length && Number.isFinite(generatedTime) && Number.isFinite(fallbackSourceTime)
+      ? cleanNumber(Math.max(0, (generatedTime - fallbackSourceTime) / 60000), 8)
+      : null;
 
   return {
     version: 1,
-    generatedAt: new Date().toISOString(),
+    generatedAt,
     source: fallbackChains.length
       ? "dolomite-official-rates+subgraphs+cached-rate-fallback"
       : "dolomite-official-rates+subgraphs",
@@ -490,7 +498,8 @@ async function buildAssets() {
     rowCount: rows.length,
     chains: chainEntries,
     rateFallbackChains: fallbackChains,
-    rateFallbackSourceGeneratedAt: fallbackChains.length ? previousSnapshot?.generatedAt || null : null,
+    rateFallbackSourceGeneratedAt: fallbackSourceGeneratedAt,
+    rateFallbackMaxAgeMinutes,
     rows,
   };
 }
