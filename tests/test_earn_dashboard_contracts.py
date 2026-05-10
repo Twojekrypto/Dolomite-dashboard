@@ -60,14 +60,15 @@ class EarnDashboardContractsTest(unittest.TestCase):
 
     def test_earn_commit_helper_regenerates_freshness_after_rebase(self):
         helper = EARN_COMMIT_HELPER.read_text(encoding="utf-8")
-        rebase_pos = helper.index("git pull --rebase -X theirs origin master")
+        rebase_pos = helper.index('git pull --rebase -X theirs "$git_remote" "$git_branch"')
         refresh_pos = helper.index("update_earn_freshness_status.py --output")
         amend_pos = helper.index("git commit --amend --no-edit")
-        push_pos = helper.index("git push")
+        push_pos = helper.index('git push "$git_remote" "HEAD:$git_branch"')
         self.assertLess(rebase_pos, refresh_pos)
         self.assertLess(refresh_pos, amend_pos)
         self.assertLess(amend_pos, push_pos)
         self.assertIn("EARN_FRESHNESS_ACTIONS_OUTPUT", helper)
+        self.assertIn('EARN_GIT_REMOTE:-origin', helper)
         self.assertIn("Failed to push after $attempts attempts.", helper)
 
     def test_rewards_card_has_merkl_unavailable_state(self):
