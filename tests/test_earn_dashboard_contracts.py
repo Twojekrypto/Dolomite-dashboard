@@ -5,6 +5,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DASHBOARD_CORE = ROOT / "dashboard-core.html"
 ASSETS_LIVE_BUILDER = ROOT / "scripts" / "build_assets_live.mjs"
+ASSETS_LIVE_WORKFLOW = ROOT / ".github" / "workflows" / "update-assets-live.yml"
+PAGES_WORKFLOW = ROOT / ".github" / "workflows" / "pages.yml"
 ETHEREUM_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-ethereum-canonical-history.yml"
 ARBITRUM_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-arbitrum-canonical-history.yml"
 BERACHAIN_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-berachain-canonical-history.yml"
@@ -70,7 +72,46 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("function cachedRateRowsForChain", source)
         self.assertIn("fetchRateRowsForChainWithFallback", source)
         self.assertIn("rateFallbackSourceGeneratedAt", source)
+        self.assertIn("rateFallbackMaxAgeMinutes", source)
         self.assertIn("cached-rate-fallback", source)
+
+    def test_assets_live_workflow_warns_on_stale_cached_rate_fallback(self):
+        workflow = ASSETS_LIVE_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("Check assets fallback freshness", workflow)
+        self.assertIn("Assets rate fallback", workflow)
+        self.assertIn("Stale assets rate fallback", workflow)
+        self.assertIn("rateFallbackMaxAgeMinutes", workflow)
+        self.assertIn("FALLBACK_MAX_AGE_MINUTES = 120", workflow)
+        self.assertIn("for i in $(seq 1 12)", workflow)
+        self.assertIn("Failed to push after 12 attempts.", workflow)
+
+    def test_pages_workflow_redeploys_after_successful_data_workflows(self):
+        workflow = PAGES_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("workflow_run:", workflow)
+        for workflow_name in (
+            "Update Assets Live Data",
+            "Update veDOLO Data",
+            "Update DOLO Flows Data",
+            "Update Earn Snapshots",
+            "Update Earn Netflow Data",
+            "Update Berachain Earn Netflow Data",
+            "Monitor EARN Freshness",
+            "Refresh Ethereum Canonical EARN History",
+            "Refresh Arbitrum Canonical EARN History",
+            "Refresh Berachain Canonical EARN History",
+            "Refresh Secondary Canonical EARN History",
+            "Refresh Berachain Borrow-Route EARN History",
+            "Update Liquidation Risk Data",
+            "Update oDOLO Data",
+            "Update oDOLO Flows",
+            "Update veDOLO Flows",
+        ):
+            self.assertIn(f"- {workflow_name}", workflow)
+        self.assertIn("github.event.workflow_run.conclusion == 'success'", workflow)
+        self.assertNotIn("- Update Data", workflow)
+        self.assertNotIn("- Update DOLO Flows\n", workflow)
+        self.assertNotIn("- Update EARN Snapshots", workflow)
+        self.assertNotIn("- Update oDOLO Contract Data", workflow)
 
     def test_earn_commit_helper_regenerates_freshness_after_rebase(self):
         helper = EARN_COMMIT_HELPER.read_text(encoding="utf-8")
