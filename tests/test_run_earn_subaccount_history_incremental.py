@@ -114,7 +114,7 @@ class RunEarnSubaccountHistoryIncrementalTest(unittest.TestCase):
         self.assertEqual(plan["backfillAddressCount"], 0)
         self.assertEqual(len(plan["newAddressTasks"]), 0)
 
-    def test_stale_selected_histories_are_backfilled_to_target(self):
+    def test_stale_selected_histories_are_caught_up_by_delta(self):
         selected = "0x1111111111111111111111111111111111111111"
         with TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
@@ -154,12 +154,14 @@ class RunEarnSubaccountHistoryIncrementalTest(unittest.TestCase):
         self.assertEqual(plan["trackedAddressCount"], 1)
         self.assertEqual(plan["freshTrackedAddressCount"], 0)
         self.assertEqual(plan["staleTrackedAddressCount"], 1)
+        self.assertEqual(plan["deltaTrackedAddressCount"], 1)
+        self.assertEqual(plan["deltaFromBlock"], 91)
         self.assertEqual(plan["newAddressCount"], 0)
-        self.assertEqual(plan["backfillAddressCount"], 1)
-        self.assertEqual(len(plan["scanTasks"]), 0)
-        self.assertEqual(len(plan["applyTasks"]), 0)
-        self.assertEqual(len(plan["newAddressTasks"]), 1)
-        self.assertIn("--to-block 105", plan["newAddressTasks"][0]["command"])
+        self.assertEqual(plan["backfillAddressCount"], 0)
+        self.assertGreater(len(plan["scanTasks"]), 0)
+        self.assertEqual(len(plan["applyTasks"]), 1)
+        self.assertEqual(len(plan["newAddressTasks"]), 0)
+        self.assertIn("--from-block 91", plan["scanTasks"][0]["command"])
 
 
 if __name__ == "__main__":
