@@ -52,6 +52,7 @@ jobs:
                   "materialize_workers": 6,
                   "incremental_scan_workers": 6,
                   "incremental_apply_workers": 6,
+                  "checkpoint_steps": 60,
               },
               "botanix": {
                   "chain": "botanix",
@@ -61,6 +62,7 @@ jobs:
                   "materialize_workers": 4,
                   "incremental_scan_workers": 4,
                   "incremental_apply_workers": 4,
+                  "checkpoint_steps": 45,
               },
               "polygonzkevm": {
                   "chain": "polygonzkevm",
@@ -70,6 +72,7 @@ jobs:
                   "materialize_workers": 5,
                   "incremental_scan_workers": 5,
                   "incremental_apply_workers": 5,
+                  "checkpoint_steps": 90,
               },
               "xlayer": {
                   "chain": "xlayer",
@@ -79,6 +82,7 @@ jobs:
                   "materialize_workers": 5,
                   "incremental_scan_workers": 5,
                   "incremental_apply_workers": 5,
+                  "checkpoint_steps": 45,
               },
           }
           event_name = os.environ.get("EVENT_NAME") or ""
@@ -114,7 +118,7 @@ jobs:
     needs: plan-secondary-canonical
     if: needs.plan-secondary-canonical.outputs.matrix != '{"include":[]}'
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 75
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.plan-secondary-canonical.outputs.matrix) }}
@@ -130,6 +134,9 @@ jobs:
       MATERIALIZE_WORKERS: ${{ matrix.materialize_workers }}
       INCREMENTAL_SCAN_WORKERS: ${{ matrix.incremental_scan_workers }}
       INCREMENTAL_APPLY_WORKERS: ${{ matrix.incremental_apply_workers }}
+      CHECKPOINT_STEPS: ${{ matrix.checkpoint_steps }}
+      CHECKPOINT_SLEEP_SECONDS: '20'
+      COMMAND_TIMEOUT_SECONDS: '180'
       MANTLE_RPC: ${{ secrets.MANTLE_RPC }}
       MANTLE_RPC_2: ${{ secrets.MANTLE_RPC_2 }}
       QUICKNODE_MANTLE_RPC: ${{ secrets.QUICKNODE_MANTLE_RPC }}
@@ -240,8 +247,9 @@ jobs:
             --max-incremental-scan-workers "$INCREMENTAL_SCAN_WORKERS" \
             --max-incremental-apply-workers "$INCREMENTAL_APPLY_WORKERS" \
             --max-new-backfill-workers 4 \
-            --max-steps 360 \
-            --sleep-seconds 20 \
+            --max-steps "$CHECKPOINT_STEPS" \
+            --sleep-seconds "$CHECKPOINT_SLEEP_SECONDS" \
+            --command-timeout-seconds "$COMMAND_TIMEOUT_SECONDS" \
             --allow-empty \
             --skip-unsupported-start-block \
             --allow-checkpoint-incomplete \

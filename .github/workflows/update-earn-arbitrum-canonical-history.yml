@@ -15,11 +15,14 @@ permissions:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 75
     env:
       PYTHONUNBUFFERED: '1'
       CHAIN: arbitrum
       HOT_LIMIT: '0'
+      CHECKPOINT_STEPS: '60'
+      CHECKPOINT_SLEEP_SECONDS: '20'
+      COMMAND_TIMEOUT_SECONDS: '180'
       ALCHEMY_ARBITRUM_RPC: ${{ secrets.ALCHEMY_ARBITRUM_RPC || secrets.ARBITRUM_RPC_URL || secrets.ARBITRUM_RPC || secrets.ARB_RPC_URL || secrets.ARB_RPC }}
       ALCHEMY_ARBITRUM_RPC_2: ${{ secrets.ALCHEMY_ARBITRUM_RPC_2 || secrets.ALCHEMY_ARBITRUM_RPC_ZEN || secrets.ARBITRUM_RPC_URL_2 || secrets.ARBITRUM_RPC_2 || secrets.ARB_RPC_URL_2 || secrets.ARB_RPC_2 }}
       ALCHEMY_ARBITRUM_RPC_3: ${{ secrets.ALCHEMY_ARBITRUM_RPC_3 || secrets.ARBITRUM_RPC_URL_3 || secrets.ARBITRUM_RPC_3 || secrets.ARB_RPC_URL_3 || secrets.ARB_RPC_3 }}
@@ -79,8 +82,9 @@ jobs:
             --max-incremental-scan-workers 12 \
             --max-incremental-apply-workers 12 \
             --max-new-backfill-workers 6 \
-            --max-steps 720 \
-            --sleep-seconds 20 \
+            --max-steps "$CHECKPOINT_STEPS" \
+            --sleep-seconds "$CHECKPOINT_SLEEP_SECONDS" \
+            --command-timeout-seconds "$COMMAND_TIMEOUT_SECONDS" \
             --allow-checkpoint-incomplete \
             --status-output "$status_path"
           cat "$status_path"
