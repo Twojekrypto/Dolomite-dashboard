@@ -4,7 +4,8 @@ set -euo pipefail
 commit_message="${1:?commit message is required}"
 status_output="${EARN_FRESHNESS_STATUS_OUTPUT:-data/earn-freshness/status.json}"
 actions_output="${EARN_FRESHNESS_ACTIONS_OUTPUT:-}"
-attempts="${EARN_PUSH_ATTEMPTS:-3}"
+attempts="${EARN_PUSH_ATTEMPTS:-12}"
+retry_sleep_seconds="${EARN_PUSH_RETRY_SLEEP_SECONDS:-5}"
 git_remote="${EARN_GIT_REMOTE:-origin}"
 git_branch="${EARN_GIT_BRANCH:-master}"
 
@@ -33,7 +34,7 @@ for i in $(seq 1 "$attempts"); do
     fi
   fi
   echo "Push attempt $i failed, retrying after remote moved..."
-  sleep 5
+  sleep "$retry_sleep_seconds"
 done
 
 if [ "$pushed" != "true" ]; then
