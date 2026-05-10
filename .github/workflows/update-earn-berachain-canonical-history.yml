@@ -15,14 +15,15 @@ permissions:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 75
     env:
       PYTHONUNBUFFERED: '1'
       CHAIN: berachain
       BOOTSTRAP_HOT_LIMIT: '500'
       STEADY_HOT_LIMIT: '0'
-      CHECKPOINT_STEPS: '270'
+      CHECKPOINT_STEPS: '60'
       CHECKPOINT_SLEEP_SECONDS: '20'
+      COMMAND_TIMEOUT_SECONDS: '180'
       ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
       QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}
       DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}
@@ -130,6 +131,7 @@ jobs:
             --max-new-backfill-workers 4 \
             --max-steps "$CHECKPOINT_STEPS" \
             --sleep-seconds "$CHECKPOINT_SLEEP_SECONDS" \
+            --command-timeout-seconds "$COMMAND_TIMEOUT_SECONDS" \
             --allow-empty \
             --skip-unsupported-start-block \
             --allow-checkpoint-incomplete \

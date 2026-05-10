@@ -53,6 +53,15 @@ class RefreshIncomplete(Exception):
         self.payload = payload if isinstance(payload, dict) else {}
 
 
+class CommandTimedOut(Exception):
+    def __init__(self, argv: List[str], timeout_seconds: int, stdout: str = "", stderr: str = ""):
+        super().__init__(f"Command timed out after {timeout_seconds}s: {' '.join(argv)}")
+        self.argv = argv
+        self.timeout_seconds = timeout_seconds
+        self.stdout = stdout
+        self.stderr = stderr
+
+
 def _read_address_file(path: Path) -> List[str]:
     if not path.exists():
         return []
@@ -98,24 +107,56 @@ def _is_launch_run_alive(run: dict) -> bool:
     return _is_pid_alive(run.get("pid"))
 
 
-def _run_json(argv: List[str]) -> dict:
+def _terminate_process_group(proc: subprocess.Popen[str], sig: int) -> None:
+    try:
+        os.killpg(proc.pid, sig)
+    except OSError:
+        try:
+            proc.send_signal(sig)
+        except OSError:
+            pass
+
+
+def _tail_text(value: str, limit: int = 4000) -> str:
+    if len(value) <= limit:
+        return value
+    return value[-limit:]
+
+
+def _run_json(argv: List[str], *, timeout_seconds: Optional[int] = None) -> dict:
     print("+ " + " ".join(argv), flush=True)
-    proc = subprocess.run(
+    proc = subprocess.Popen(
         argv,
         cwd=str(ROOT),
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        check=False,
+        start_new_session=True,
     )
-    if proc.stderr:
-        print(proc.stderr, end="" if proc.stderr.endswith("\n") else "\n", flush=True)
-    if proc.stdout:
-        print(proc.stdout, end="" if proc.stdout.endswith("\n") else "\n", flush=True)
+    try:
+        stdout, stderr = proc.communicate(timeout=timeout_seconds if timeout_seconds and timeout_seconds > 0 else None)
+    except subprocess.TimeoutExpired as exc:
+        _terminate_process_group(proc, signal.SIGTERM)
+        try:
+            stdout, stderr = proc.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            _terminate_process_group(proc, signal.SIGKILL)
+            stdout, stderr = proc.communicate()
+        stdout = stdout or exc.stdout or ""
+        stderr = stderr or exc.stderr or ""
+        if stderr:
+            print(stderr, end="" if stderr.endswith("\n") else "\n", flush=True)
+        if stdout:
+            print(stdout, end="" if stdout.endswith("\n") else "\n", flush=True)
+        raise CommandTimedOut(argv, int(timeout_seconds or 0), stdout=stdout, stderr=stderr) from exc
+    if stderr:
+        print(stderr, end="" if stderr.endswith("\n") else "\n", flush=True)
+    if stdout:
+        print(stdout, end="" if stdout.endswith("\n") else "\n", flush=True)
     if proc.returncode != 0:
         raise RuntimeError(f"Command failed with exit code {proc.returncode}: {' '.join(argv)}")
     try:
-        return json.loads(proc.stdout)
+        return json.loads(stdout)
     except json.JSONDecodeError as exc:
         raise RuntimeError(f"Command did not return JSON: {' '.join(argv)}") from exc
 
@@ -195,6 +236,25 @@ def _validation_incomplete(
         phase=phase,
         max_steps=args.max_steps,
         payload=validation_payload,
+    )
+
+
+def _command_timeout_incomplete(
+    *, args: argparse.Namespace, phase: str, exc: CommandTimedOut, previous_payload: Optional[dict]
+) -> RefreshIncomplete:
+    payload = dict(previous_payload or {})
+    payload["commandTimedOut"] = True
+    payload["commandTimeoutSeconds"] = exc.timeout_seconds
+    payload["timedOutCommand"] = exc.argv
+    if exc.stdout:
+        payload["timedOutStdoutTail"] = _tail_text(exc.stdout)
+    if exc.stderr:
+        payload["timedOutStderrTail"] = _tail_text(exc.stderr)
+    return RefreshIncomplete(
+        chain=args.chain,
+        phase=f"{phase}-command-timeout",
+        max_steps=args.max_steps,
+        payload=payload,
     )
 
 
@@ -351,7 +411,15 @@ def _bootstrap_baseline(args: argparse.Namespace, selected_addresses: List[str])
         ]
         if step == 0:
             argv.append("--refresh-plan")
-        payload = _run_json(argv)
+        try:
+            payload = _run_json(argv, timeout_seconds=args.command_timeout_seconds)
+        except CommandTimedOut as exc:
+            raise _command_timeout_incomplete(
+                args=args,
+                phase="bootstrap",
+                exc=exc,
+                previous_payload=payload,
+            ) from exc
         complete = bool(
             payload.get("scanComplete")
             and payload.get("materializeComplete")
@@ -399,7 +467,15 @@ def _incremental_refresh(args: argparse.Namespace, selected_addresses: List[str]
         ]
         if step == 0:
             argv.append("--refresh-plan")
-        payload = _run_json(argv)
+        try:
+            payload = _run_json(argv, timeout_seconds=args.command_timeout_seconds)
+        except CommandTimedOut as exc:
+            raise _command_timeout_incomplete(
+                args=args,
+                phase="incremental",
+                exc=exc,
+                previous_payload=payload,
+            ) from exc
         status = payload.get("status") or {}
         coverage = status.get("coverage") or {}
         ratio = float(coverage.get("freshCoverageRatio") or 0)
@@ -435,6 +511,7 @@ def main() -> int:
     parser.add_argument("--max-new-backfill-workers", type=int, default=4)
     parser.add_argument("--max-steps", type=int, default=720)
     parser.add_argument("--sleep-seconds", type=int, default=20)
+    parser.add_argument("--command-timeout-seconds", type=int, default=600)
     parser.add_argument("--min-fresh-ratio", type=float, default=1.0)
     parser.add_argument("--allow-empty", action="store_true")
     parser.add_argument("--skip-unsupported-start-block", action="store_true")
