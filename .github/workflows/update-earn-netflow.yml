@@ -266,21 +266,14 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add "data/earn-netflow/${CHAIN}.json"
-          python3 update_earn_freshness_status.py --output data/earn-freshness/status.json
-          git add data/earn-freshness/status.json
           if git diff --staged --quiet; then
             echo "No ${CHAIN} netflow changes to commit"
             exit 0
           fi
           git stash push --keep-index --include-untracked --message "netflow-progress-${CHAIN}" -- data/.netflow-progress || true
-          git commit -m "📊 ${CHAIN} earn netflow update: $(date -u '+%Y-%m-%d %H:%M UTC')"
-          for i in 1 2 3; do
-            if git pull --rebase -X theirs origin master && git push; then
-              git stash pop || true
-              exit 0
-            fi
-            echo "Push attempt $i failed, retrying after remote moved..."
-            sleep 5
-          done
-          git stash pop || true
-          exit 1
+          if bash scripts/commit_with_fresh_earn_status.sh "📊 ${CHAIN} earn netflow update: $(date -u '+%Y-%m-%d %H:%M UTC')"; then
+            git stash pop || true
+          else
+            git stash pop || true
+            exit 1
+          fi

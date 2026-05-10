@@ -13,6 +13,7 @@ BERACHAIN_BORROW_ROUTE_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-
 EARN_FRESHNESS_WORKFLOW = ROOT / ".github" / "workflows" / "monitor-earn-freshness.yml"
 EARN_SNAPSHOTS_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-snapshots.yml"
 EARN_FRESHNESS_SCRIPT = ROOT / "update_earn_freshness_status.py"
+EARN_COMMIT_HELPER = ROOT / "scripts" / "commit_with_fresh_earn_status.sh"
 BERACHAIN_PRIORITY_ADDRESSES = ROOT / "config" / "earn_berachain_canonical_hot_addresses.txt"
 EARN_COVERAGE_REPORT = ROOT / "report_earn_subaccount_history_coverage.py"
 CANONICAL_REFRESH_RUNNER = ROOT / "run_earn_canonical_history_refresh.py"
@@ -53,7 +54,21 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("EARN_FRESHNESS_STATUS_URL", self.source)
         self.assertIn("Verified · refreshing in background", self.source)
         self.assertIn("earn_loadFreshnessStatus().then(earn_updateFreshnessPill)", self.source)
-        self.assertIn("String(chainStatus.refreshMode || '').toLowerCase() === 'background'", self.source)
+        self.assertIn("chainStatus.canonical?.refreshMode", self.source)
+        self.assertIn("chainStatus.netflow?.refreshMode", self.source)
+        self.assertIn("freshnessModes.includes('background')", self.source)
+
+    def test_earn_commit_helper_regenerates_freshness_after_rebase(self):
+        helper = EARN_COMMIT_HELPER.read_text(encoding="utf-8")
+        rebase_pos = helper.index("git pull --rebase -X theirs origin master")
+        refresh_pos = helper.index("update_earn_freshness_status.py --output")
+        amend_pos = helper.index("git commit --amend --no-edit")
+        push_pos = helper.index("git push")
+        self.assertLess(rebase_pos, refresh_pos)
+        self.assertLess(refresh_pos, amend_pos)
+        self.assertLess(amend_pos, push_pos)
+        self.assertIn("EARN_FRESHNESS_ACTIONS_OUTPUT", helper)
+        self.assertIn("Failed to push after $attempts attempts.", helper)
 
     def test_rewards_card_has_merkl_unavailable_state(self):
         self.assertIn("merklUnavailable: false", self.source)
@@ -65,8 +80,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("cron: '12,42 * * * *'", workflow)
         self.assertIn("Build Ethereum verified ledger cache", workflow)
         self.assertIn("build_earn_verified_ledger.py", workflow)
-        self.assertIn("update_earn_freshness_status.py --output data/earn-freshness/status.json", workflow)
-        self.assertIn("git add data/earn-freshness/status.json", workflow)
+        self.assertIn("scripts/commit_with_fresh_earn_status.sh", workflow)
         self.assertIn("git add -f data/earn-subaccount-history/manifest.json data/earn-subaccount-history/ethereum", workflow)
         self.assertIn("git add -f data/earn-verified-ledger/manifest.json data/earn-verified-ledger/ethereum", workflow)
 
@@ -93,7 +107,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("secrets.ALCHEMY_ARBITRUM_RPC_ZEN", workflow)
         self.assertIn("Build Arbitrum verified ledger cache", workflow)
         self.assertIn("build_earn_verified_ledger.py", workflow)
-        self.assertIn("update_earn_freshness_status.py --output data/earn-freshness/status.json", workflow)
+        self.assertIn("scripts/commit_with_fresh_earn_status.sh", workflow)
 
     def test_berachain_canonical_workflow_runs_in_checkpointed_chunks(self):
         workflow = BERACHAIN_CANONICAL_WORKFLOW.read_text(encoding="utf-8")
@@ -114,7 +128,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("--allow-checkpoint-incomplete", workflow)
         self.assertIn("Build Berachain verified ledger cache", workflow)
         self.assertIn("build_earn_verified_ledger.py", workflow)
-        self.assertIn("update_earn_freshness_status.py --output data/earn-freshness/status.json", workflow)
+        self.assertIn("scripts/commit_with_fresh_earn_status.sh", workflow)
 
     def test_berachain_canonical_priority_file_pins_valid_hot_wallets(self):
         addresses = [
@@ -166,7 +180,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("QUICKNODE_BOTANIX_RPC: ${{ secrets.QUICKNODE_BOTANIX_RPC }}", workflow)
         self.assertIn("DRPC_BOTANIX_RPC_ZEN: ${{ secrets.DRPC_BOTANIX_RPC_ZEN }}", workflow)
         self.assertIn("ALCHEMY_BOTANIX_RPC_ZEN: ${{ secrets.ALCHEMY_BOTANIX_RPC_ZEN }}", workflow)
-        self.assertIn("update_earn_freshness_status.py --output data/earn-freshness/status.json", workflow)
+        self.assertIn("scripts/commit_with_fresh_earn_status.sh", workflow)
         self.assertIn("--max-steps 360", workflow)
         self.assertNotIn("Resolve selected chain", workflow)
         self.assertNotIn("Skipping $CHAIN for this trigger.", workflow)
@@ -183,7 +197,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}", workflow)
         self.assertIn("DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}", workflow)
         self.assertIn("ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}", workflow)
-        self.assertIn("update_earn_freshness_status.py --output data/earn-freshness/status.json", workflow)
+        self.assertIn("scripts/commit_with_fresh_earn_status.sh", workflow)
 
     def test_berachain_borrow_route_workflow_checks_rpc_redundancy(self):
         workflow = BERACHAIN_BORROW_ROUTE_WORKFLOW.read_text(encoding="utf-8")
@@ -202,7 +216,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}", workflow)
         self.assertIn("DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}", workflow)
         self.assertIn("ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}", workflow)
-        self.assertIn("update_earn_freshness_status.py --output data/earn-freshness/status.json", workflow)
+        self.assertIn("scripts/commit_with_fresh_earn_status.sh", workflow)
 
     def test_berachain_watchdog_refreshes_after_one_hour(self):
         source = EARN_FRESHNESS_SCRIPT.read_text(encoding="utf-8")
@@ -291,7 +305,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("QUICKNODE_BOTANIX_RPC: ${{ secrets.QUICKNODE_BOTANIX_RPC }}", workflow)
         self.assertIn("DRPC_BOTANIX_RPC_ZEN: ${{ secrets.DRPC_BOTANIX_RPC_ZEN }}", workflow)
         self.assertIn("ALCHEMY_BOTANIX_RPC_ZEN: ${{ secrets.ALCHEMY_BOTANIX_RPC_ZEN }}", workflow)
-        self.assertIn("update_earn_freshness_status.py --output data/earn-freshness/status.json", workflow)
+        self.assertIn("scripts/commit_with_fresh_earn_status.sh", workflow)
         self.assertNotIn("QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}", workflow)
         scanner = NETFLOW_SCANNER.read_text(encoding="utf-8")
         self.assertIn('os.environ.get("MANTLE_RPC")', scanner)
@@ -324,8 +338,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
 
     def test_earn_snapshot_workflow_refreshes_freshness_status(self):
         workflow = EARN_SNAPSHOTS_WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("update_earn_freshness_status.py --output data/earn-freshness/status.json", workflow)
-        self.assertIn("git add data/earn-freshness/status.json", workflow)
+        self.assertIn("scripts/commit_with_fresh_earn_status.sh", workflow)
 
     def test_subaccount_scanners_respect_chain_specific_rpc_block_chunks(self):
         event_scanner = SUBACCOUNT_EVENT_SCANNER.read_text(encoding="utf-8")
