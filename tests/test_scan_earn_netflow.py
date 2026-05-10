@@ -1,4 +1,6 @@
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
+from io import StringIO
 from unittest.mock import patch
 
 import scan_earn_netflow
@@ -18,16 +20,21 @@ class ScanEarnNetflowTest(unittest.TestCase):
 
     def test_main_returns_failure_when_chain_scan_fails(self):
         fake_chains = {
-            "mantle": {
+            "testchain": {
                 "margin": "0x0000000000000000000000000000000000000000",
                 "rpcs": ["https://example.invalid"],
                 "start_block": 1,
             }
         }
+        stdout = StringIO()
+        stderr = StringIO()
         with patch.object(scan_earn_netflow, "CHAINS", fake_chains), \
              patch.object(scan_earn_netflow, "scan_chain", return_value={"completed": False, "reason": "rpc_failed"}), \
-             patch("sys.argv", ["scan_earn_netflow.py", "mantle"]):
+             patch("sys.argv", ["scan_earn_netflow.py", "testchain"]), \
+             redirect_stdout(stdout), \
+             redirect_stderr(stderr):
             self.assertEqual(scan_earn_netflow.main(), 1)
+        self.assertIn("Scan failed for testchain: rpc_failed", stderr.getvalue())
 
 
 if __name__ == "__main__":
