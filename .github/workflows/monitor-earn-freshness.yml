@@ -78,6 +78,7 @@ jobs:
       - name: Build freshness status
         run: |
           set -euo pipefail
+          git pull --rebase -X theirs origin master
           mkdir -p data/earn-freshness
           python3 update_earn_freshness_status.py \
             --output data/earn-freshness/status.json \
@@ -91,16 +92,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/earn-freshness/status.json
-          if git diff --staged --quiet; then
-            echo "No freshness status changes to commit"
-            exit 0
-          fi
-          git commit -m "Update EARN freshness status - $(date -u '+%Y-%m-%d %H:%M UTC')"
-          for i in 1 2 3; do
-            git pull --rebase -X theirs origin master && git push && break
-            echo "Freshness status push attempt $i failed, retrying..."
-            sleep 5
-          done
+          EARN_FRESHNESS_ACTIONS_OUTPUT=/tmp/earn-freshness-actions.json \
+            bash scripts/commit_with_fresh_earn_status.sh "Update EARN freshness status - $(date -u '+%Y-%m-%d %H:%M UTC')"
 
       - name: Trigger stale EARN refresh workflows
         run: |

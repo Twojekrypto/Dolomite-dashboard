@@ -194,15 +194,4 @@ jobs:
           if [ -d "data/earn-verified-ledger/${CHAIN}" ]; then
             git add -f "data/earn-verified-ledger/${CHAIN}"
           fi
-          python3 update_earn_freshness_status.py --output data/earn-freshness/status.json
-          git add data/earn-freshness/status.json
-          if git diff --staged --quiet; then
-            echo "No canonical history changes to commit"
-            exit 0
-          fi
-          git commit -m "Refresh Berachain canonical EARN history - $(date -u '+%Y-%m-%d %H:%M UTC')"
-          for i in 1 2 3; do
-            git pull --rebase -X theirs origin master && git push && break
-            echo "Push attempt $i failed, retrying..."
-            sleep 5
-          done
+          bash scripts/commit_with_fresh_earn_status.sh "Refresh Berachain canonical EARN history - $(date -u '+%Y-%m-%d %H:%M UTC')"

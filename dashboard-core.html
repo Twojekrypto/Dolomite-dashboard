@@ -31228,9 +31228,14 @@
             const chainStatus = earn_freshnessStatus && earn_freshnessStatus.chains
                 ? earn_freshnessStatus.chains[chainId]
                 : null;
+            const freshnessModes = chainStatus ? [
+                chainStatus.refreshMode,
+                chainStatus.canonical?.refreshMode,
+                chainStatus.netflow?.refreshMode
+            ].map(mode => String(mode || '').toLowerCase()) : [];
             const isVerifiedBackground = chainStatus
                 && String(chainStatus.status || '').toLowerCase() === 'verified'
-                && String(chainStatus.refreshMode || '').toLowerCase() === 'background';
+                && freshnessModes.includes('background');
             if (!isVerifiedBackground) {
                 pill.classList.remove('visible');
                 pill.setAttribute('aria-hidden', 'true');

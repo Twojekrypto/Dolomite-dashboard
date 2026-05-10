@@ -214,15 +214,8 @@ jobs:
             [ -f "$history_path" ] && git add -f "$history_path"
             [ -f "$ledger_path" ] && git add -f "$ledger_path"
           done < "/tmp/earn-${CHAIN}-borrow-route-addresses.txt"
-          python3 update_earn_freshness_status.py --output data/earn-freshness/status.json
-          git add data/earn-freshness/status.json
           if git diff --staged --quiet; then
             echo "No borrow-route history changes to commit"
             exit 0
           fi
-          git commit -m "Refresh Berachain borrow-route EARN history - $(date -u '+%Y-%m-%d %H:%M UTC')"
-          for i in 1 2 3; do
-            git pull --rebase -X theirs origin master && git push && break
-            echo "Push attempt $i failed, retrying..."
-            sleep 5
-          done
+          bash scripts/commit_with_fresh_earn_status.sh "Refresh Berachain borrow-route EARN history - $(date -u '+%Y-%m-%d %H:%M UTC')"
