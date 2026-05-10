@@ -4,6 +4,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DASHBOARD_CORE = ROOT / "dashboard-core.html"
+ASSETS_LIVE_BUILDER = ROOT / "scripts" / "build_assets_live.mjs"
 ETHEREUM_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-ethereum-canonical-history.yml"
 ARBITRUM_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-arbitrum-canonical-history.yml"
 BERACHAIN_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-berachain-canonical-history.yml"
@@ -57,6 +58,19 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("chainStatus.canonical?.refreshMode", self.source)
         self.assertIn("chainStatus.netflow?.refreshMode", self.source)
         self.assertIn("freshnessModes.includes('background')", self.source)
+        self.assertIn("earn_formatCanonicalCoverageLabel", self.source)
+        self.assertIn("canonical coverage syncing", self.source)
+        self.assertIn("Fresh chain data", self.source)
+        self.assertIn("chainStatus?.canonical?.coverageCatchup === true", self.source)
+
+    def test_assets_live_builder_keeps_cached_rate_rows_when_chain_api_is_empty(self):
+        source = ASSETS_LIVE_BUILDER.read_text(encoding="utf-8")
+        self.assertIn('import { readFile, writeFile } from "node:fs/promises";', source)
+        self.assertIn("async function loadPreviousAssetsSnapshot()", source)
+        self.assertIn("function cachedRateRowsForChain", source)
+        self.assertIn("fetchRateRowsForChainWithFallback", source)
+        self.assertIn("rateFallbackSourceGeneratedAt", source)
+        self.assertIn("cached-rate-fallback", source)
 
     def test_earn_commit_helper_regenerates_freshness_after_rebase(self):
         helper = EARN_COMMIT_HELPER.read_text(encoding="utf-8")
