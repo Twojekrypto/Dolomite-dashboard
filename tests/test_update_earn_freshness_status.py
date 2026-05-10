@@ -330,6 +330,8 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         xlayer = status["chains"]["xlayer"]
         self.assertEqual(xlayer["canonical"]["status"], "syncing")
         self.assertEqual(xlayer["canonical"]["refreshMode"], "catchup")
+        self.assertTrue(xlayer["canonical"]["coverageCatchup"])
+        self.assertEqual(xlayer["canonical"]["recencyStatus"], "verified")
         self.assertEqual(xlayer["canonical"]["coverage"]["status"], "partial")
         self.assertEqual(xlayer["canonical"]["coverage"]["freshWalletCount"], 0)
         self.assertEqual(xlayer["status"], "syncing")

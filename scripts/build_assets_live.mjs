@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -391,10 +391,58 @@ async function fetchRateRowsForChain(chainKey) {
   return rows;
 }
 
+async function loadPreviousAssetsSnapshot() {
+  try {
+    const payload = JSON.parse(await readFile(OUTPUT_PATH, "utf8"));
+    return payload && Array.isArray(payload.rows) ? payload : null;
+  } catch (error) {
+    if (error?.code !== "ENOENT") {
+      console.warn(`[assets] Previous snapshot unavailable: ${error?.message || error}`);
+    }
+    return null;
+  }
+}
+
+function cleanFallbackReason(error) {
+  const message = String(error?.message || error || "unknown error").trim();
+  return message.length > 240 ? `${message.slice(0, 237)}...` : message;
+}
+
+function cachedRateRowsForChain(previousSnapshot, chainKey, error) {
+  const sourceGeneratedAt = previousSnapshot?.generatedAt || null;
+  const reason = cleanFallbackReason(error);
+  return (previousSnapshot?.rows || [])
+    .filter((row) => String(row.chain || "").toLowerCase() === chainKey)
+    .map((row) => ({
+      ...row,
+      rateFallback: true,
+      rateFallbackReason: reason,
+      rateFallbackSourceGeneratedAt: sourceGeneratedAt,
+    }));
+}
+
+async function fetchRateRowsForChainWithFallback(chainKey, previousSnapshot) {
+  try {
+    return await fetchRateRowsForChain(chainKey);
+  } catch (error) {
+    const cachedRows = cachedRateRowsForChain(previousSnapshot, chainKey, error);
+    if (cachedRows.length) {
+      console.warn(
+        `[assets] Using ${cachedRows.length} cached ${chainKey} rate rows from ${previousSnapshot.generatedAt || "previous snapshot"}: ${cleanFallbackReason(error)}`,
+      );
+      return cachedRows;
+    }
+    throw error;
+  }
+}
+
 async function buildAssets() {
+  const previousSnapshot = await loadPreviousAssetsSnapshot();
   const depthPromise = fetchMarketDepth();
   const chainEntries = Object.keys(LIVE_CHAINS);
-  const chainRows = await Promise.all(chainEntries.map((chainKey) => fetchRateRowsForChain(chainKey)));
+  const chainRows = await Promise.all(
+    chainEntries.map((chainKey) => fetchRateRowsForChainWithFallback(chainKey, previousSnapshot)),
+  );
   const depth = await depthPromise;
   const rows = chainRows.flat();
 
@@ -430,14 +478,19 @@ async function buildAssets() {
   if (rows.length < 50) {
     throw new Error(`Expected at least 50 asset rows, received ${rows.length}`);
   }
+  const fallbackChains = [...new Set(rows.filter((row) => row.rateFallback).map((row) => row.chain))];
 
   return {
     version: 1,
     generatedAt: new Date().toISOString(),
-    source: "dolomite-official-rates+subgraphs",
+    source: fallbackChains.length
+      ? "dolomite-official-rates+subgraphs+cached-rate-fallback"
+      : "dolomite-official-rates+subgraphs",
     chainCount,
     rowCount: rows.length,
     chains: chainEntries,
+    rateFallbackChains: fallbackChains,
+    rateFallbackSourceGeneratedAt: fallbackChains.length ? previousSnapshot?.generatedAt || null : null,
     rows,
   };
 }

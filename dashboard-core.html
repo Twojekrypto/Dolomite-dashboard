@@ -31221,6 +31221,13 @@
             return `${(value / 60).toFixed(value >= 600 ? 0 : 1)}h lag`;
         }
 
+        function earn_formatCanonicalCoverageLabel(coverage) {
+            const fresh = Number(coverage?.freshWalletCount);
+            const known = Number(coverage?.knownAddressCount);
+            if (!Number.isFinite(fresh) || !Number.isFinite(known) || known <= 0) return '';
+            return `${Math.max(0, Math.min(fresh, known))}/${known} wallets`;
+        }
+
         function earn_updateFreshnessPill() {
             const pill = document.getElementById('earn-data-freshness-pill');
             if (!pill) return;
@@ -31236,15 +31243,35 @@
             const isVerifiedBackground = chainStatus
                 && String(chainStatus.status || '').toLowerCase() === 'verified'
                 && freshnessModes.includes('background');
+            const canonicalCoverage = chainStatus?.canonical?.coverage || null;
+            const canonicalCoverageStatus = String(canonicalCoverage?.status || '').toLowerCase();
+            const canonicalCoverageCatchup = canonicalCoverageStatus === 'partial' || chainStatus?.canonical?.coverageCatchup === true;
+            const canonicalLag = Number(chainStatus?.canonical?.estimatedLagMinutes || 0);
+            const netflowLag = Number(chainStatus?.netflow?.estimatedLagMinutes || 0);
+            const lagLabel = earn_formatFreshnessLag(Math.max(canonicalLag, netflowLag));
+            if (canonicalCoverageCatchup) {
+                const recencyStatus = String(chainStatus?.canonical?.recencyStatus || chainStatus?.canonical?.status || '').toLowerCase();
+                const blockLag = Number(chainStatus?.canonical?.blockLag);
+                const verifiedBlockLag = Number(chainStatus?.canonical?.verifiedBlockLag);
+                const recencyFresh = ['verified', 'ahead'].includes(recencyStatus)
+                    || (Number.isFinite(blockLag) && Number.isFinite(verifiedBlockLag) && verifiedBlockLag > 0 && blockLag <= verifiedBlockLag);
+                const coverageLabel = earn_formatCanonicalCoverageLabel(canonicalCoverage);
+                const parts = [
+                    recencyFresh ? 'Fresh chain data' : 'Chain data syncing',
+                    coverageLabel ? `canonical coverage syncing · ${coverageLabel}` : 'canonical coverage syncing',
+                ];
+                if (lagLabel) parts.push(lagLabel);
+                pill.textContent = parts.join(' · ');
+                pill.classList.add('visible');
+                pill.setAttribute('aria-hidden', 'false');
+                return;
+            }
             if (!isVerifiedBackground) {
                 pill.classList.remove('visible');
                 pill.setAttribute('aria-hidden', 'true');
                 pill.textContent = '';
                 return;
             }
-            const canonicalLag = Number(chainStatus.canonical?.estimatedLagMinutes || 0);
-            const netflowLag = Number(chainStatus.netflow?.estimatedLagMinutes || 0);
-            const lagLabel = earn_formatFreshnessLag(Math.max(canonicalLag, netflowLag));
             pill.textContent = lagLabel
                 ? `Verified · refreshing in background · ${lagLabel}`
                 : 'Verified · refreshing in background';

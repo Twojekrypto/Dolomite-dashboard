@@ -304,8 +304,11 @@ def _canonical_coverage_status(*, data_dir: Path, chain: str, target_block: Opti
 def _apply_canonical_coverage(component: Dict[str, Any], coverage: Dict[str, Any]) -> Dict[str, Any]:
     component["coverage"] = coverage
     if coverage.get("status") != "partial":
+        component["coverageCatchup"] = False
         return component
     component["refreshRecommended"] = True
+    component["coverageCatchup"] = True
+    component["recencyStatus"] = component.get("status")
     if component.get("status") in {"verified", "ahead"}:
         component["status"] = "syncing"
     component["refreshMode"] = _refresh_mode(str(component.get("status") or "syncing"), True)
