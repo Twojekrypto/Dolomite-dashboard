@@ -22,12 +22,14 @@ DEFAULT_LEDGER_DIR = ROOT / "data" / "earn-verified-ledger"
 DEFAULT_MANIFEST_PATH = DEFAULT_LEDGER_DIR / "manifest.json"
 
 
-def _read_json(path: Path, default: Any) -> Any:
+def _read_json(path: Path, default: Any, *, strict: bool = False) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
         return default
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as exc:
+        if strict:
+            raise ValueError(f"Invalid JSON in {path}") from exc
         return default
 
 
@@ -90,7 +92,7 @@ def _latest_chain_meta(
 
     rows: list[tuple[str, int]] = []
     for path in chain_dir.glob("*.json"):
-        payload = _read_json(path, None)
+        payload = _read_json(path, None, strict=True)
         if not isinstance(payload, dict):
             continue
         snapshot_date = str(payload.get("snapshotDate") or "").strip()

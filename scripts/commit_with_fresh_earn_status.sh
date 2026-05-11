@@ -17,19 +17,40 @@ fi
 ledger_chains="$(
   git diff --cached --name-only |
     sed -n 's#^data/earn-verified-ledger/\([^/][^/]*\)/.*#\1#p' |
+    tr '[:upper:]' '[:lower:]' |
     sort -u
 )"
+ledger_manifest_staged=false
+if git diff --cached --name-only -- data/earn-verified-ledger/manifest.json | grep -q .; then
+  ledger_manifest_staged=true
+fi
+if [ "$ledger_manifest_staged" = "true" ] && [ -n "${CHAIN:-}" ]; then
+  ledger_chains="$(
+    printf "%s\n%s\n" "$ledger_chains" "$CHAIN" |
+      sed '/^$/d' |
+      tr '[:upper:]' '[:lower:]' |
+      sort -u
+  )"
+fi
+ledger_sync_all=false
+if [ "$ledger_manifest_staged" = "true" ] && [ -z "$ledger_chains" ]; then
+  ledger_sync_all=true
+fi
 
 git commit -m "$commit_message"
 
 pushed=false
 for i in $(seq 1 "$attempts"); do
   if git pull --rebase -X theirs "$git_remote" "$git_branch"; then
-    if [ -n "$ledger_chains" ]; then
+    if [ -n "$ledger_chains" ] || [ "$ledger_sync_all" = "true" ]; then
       sync_args=(python3 scripts/sync_earn_verified_manifest.py --base-ref "$git_remote/$git_branch")
-      for chain in $ledger_chains; do
-        sync_args+=(--chain "$chain")
-      done
+      if [ "$ledger_sync_all" = "true" ]; then
+        sync_args+=(--all-chains)
+      else
+        for chain in $ledger_chains; do
+          sync_args+=(--chain "$chain")
+        done
+      fi
       "${sync_args[@]}"
       git add -f data/earn-verified-ledger/manifest.json
     fi
@@ -46,6 +67,8 @@ for i in $(seq 1 "$attempts"); do
       pushed=true
       break
     fi
+  elif [ -d .git/rebase-merge ] || [ -d .git/rebase-apply ]; then
+    git rebase --abort || true
   fi
   echo "Push attempt $i failed, retrying after remote moved..."
   sleep "$retry_sleep_seconds"

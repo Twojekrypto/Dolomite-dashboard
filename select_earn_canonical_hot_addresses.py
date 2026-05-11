@@ -182,6 +182,7 @@ def build_selection(
         priority = [address for address in priority if address in known]
 
     ranked = sorted(scores.items(), key=lambda item: (-item[1], item[0]))
+    ranked_addresses = [address for address, _score in ranked]
     existing_history = _existing_history_addresses(history_dir, chain) if (existing_history_only or prefer_stale_history) else set()
     coverage_target = _coverage_target_block(history_dir, chain) if prefer_stale_history else 0
     stale_history: List[str] = []
@@ -200,10 +201,11 @@ def build_selection(
                 stale_rows.append((last_scanned, address))
         stale_history = [address for _last_scanned, address in sorted(stale_rows)]
 
+    stale_unscored = [address for address in stale_history if address not in scores]
     selected = _unique_preserve_order([
         *priority,
-        *stale_history,
-        *(address for address, _score in ranked),
+        *ranked_addresses,
+        *stale_unscored,
         *missing_history,
     ])
     if existing_history_only:

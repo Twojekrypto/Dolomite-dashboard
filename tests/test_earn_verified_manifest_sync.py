@@ -102,6 +102,27 @@ class EarnVerifiedManifestSyncTest(unittest.TestCase):
 
             self.assertEqual(31951093, payload["chains"]["polygonzkevm"]["lastNetflowBlock"])
 
+    def test_sync_fails_on_invalid_ledger_json(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            ledger_dir = tmp_path / "earn-verified-ledger"
+            chain_dir = ledger_dir / "mantle"
+            chain_dir.mkdir(parents=True)
+            (chain_dir / "0x0000000000000000000000000000000000000001.json").write_text(
+                '{"snapshotDate":"2026-05-11"',
+                encoding="utf-8",
+            )
+            manifest_path = ledger_dir / "manifest.json"
+
+            with self.assertRaises(ValueError):
+                sync_earn_verified_manifest.sync_manifest(
+                    manifest_path=manifest_path,
+                    ledger_dir=ledger_dir,
+                    chains=["mantle"],
+                    base_manifest={"version": 2, "generatedAt": "remote", "chains": {}},
+                    now=datetime(2026, 5, 11, 8, 30, tzinfo=timezone.utc),
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

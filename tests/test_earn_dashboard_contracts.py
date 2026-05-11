@@ -130,7 +130,12 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertLess(amend_pos, push_pos)
         self.assertIn("data/earn-verified-ledger/", helper)
         self.assertIn("git add -f data/earn-verified-ledger/manifest.json", helper)
+        self.assertIn("ledger_manifest_staged", helper)
         self.assertIn("ledger_chains", helper)
+        self.assertIn("ledger_sync_all", helper)
+        self.assertIn("--all-chains", helper)
+        self.assertIn('CHAIN:-', helper)
+        self.assertIn("git rebase --abort", helper)
         self.assertIn("EARN_FRESHNESS_ACTIONS_OUTPUT", helper)
         self.assertIn('EARN_GIT_REMOTE:-origin', helper)
         self.assertIn('EARN_PUSH_ATTEMPTS:-12', helper)
@@ -321,6 +326,65 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertEqual(active, selected[0])
         self.assertEqual(2, len(selected))
         self.assertEqual(3, metadata["missingHistoryAddressCount"])
+
+    def test_hot_wallet_selector_prioritizes_scored_wallets_before_cold_stale_backlog(self):
+        import select_earn_canonical_hot_addresses as selector
+
+        chain = "berachain"
+        cold_stale = "0x" + "0" * 39 + "1"
+        active_stale = "0x" + "f" * 40
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            snapshot_dir = root / "snapshots"
+            netflow_dir = root / "netflow"
+            history_dir = root / "history"
+            chain_history_dir = history_dir / chain
+            snapshot_dir.mkdir()
+            netflow_dir.mkdir()
+            chain_history_dir.mkdir(parents=True)
+            (snapshot_dir / "manifest.json").write_text(
+                json.dumps({"dates": ["2026-05-11"], "chains": {"2026-05-11": [chain]}}),
+                encoding="utf-8",
+            )
+            (snapshot_dir / "2026-05-11.json").write_text(
+                json.dumps({
+                    "snapshots": {
+                        chain: {
+                            active_stale: {"markets": {"0": {"par": "987654321"}}},
+                        },
+                    },
+                }),
+                encoding="utf-8",
+            )
+            (netflow_dir / f"{chain}.json").write_text(json.dumps({"netflows": {}}), encoding="utf-8")
+            (history_dir / "manifest.json").write_text(
+                json.dumps({"chains": {chain: {"lastBlock": 1_000}}}),
+                encoding="utf-8",
+            )
+            (chain_history_dir / f"{cold_stale}.json").write_text(
+                json.dumps({"lastScannedBlock": 1}),
+                encoding="utf-8",
+            )
+            (chain_history_dir / f"{active_stale}.json").write_text(
+                json.dumps({"lastScannedBlock": 999}),
+                encoding="utf-8",
+            )
+
+            with mock.patch.object(selector, "SNAPSHOT_DIR", snapshot_dir):
+                with mock.patch.object(selector, "NETFLOW_DIR", netflow_dir):
+                    with mock.patch.object(selector, "_load_known_addresses", return_value=[cold_stale, active_stale]):
+                        selected, metadata = selector.build_selection(
+                            chain,
+                            limit=1,
+                            priority_files=[],
+                            include_priority_even_if_unknown=False,
+                            history_dir=history_dir,
+                            prefer_stale_history=True,
+                        )
+
+        self.assertEqual([active_stale], selected)
+        self.assertEqual(2, metadata["staleHistoryAddressCount"])
 
     def test_berachain_netflow_workflow_runs_frequent_chain_only_scan(self):
         workflow = BERACHAIN_NETFLOW_WORKFLOW.read_text(encoding="utf-8")
