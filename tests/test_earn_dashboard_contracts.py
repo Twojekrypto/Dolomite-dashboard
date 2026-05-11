@@ -117,6 +117,26 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertNotIn("- Update EARN Snapshots", workflow)
         self.assertNotIn("- Update oDOLO Contract Data", workflow)
 
+    def test_earn_commit_helper_dispatches_pages_after_action_token_push(self):
+        helper = EARN_COMMIT_HELPER.read_text(encoding="utf-8")
+        self.assertIn("EARN_DISPATCH_PAGES_AFTER_PUSH", helper)
+        self.assertIn("gh workflow run pages.yml --ref \"$git_branch\"", helper)
+        self.assertIn("Skipping GitHub Pages deploy dispatch", helper)
+        for workflow_path in (
+            EARN_SNAPSHOTS_WORKFLOW,
+            ETHEREUM_CANONICAL_WORKFLOW,
+            ARBITRUM_CANONICAL_WORKFLOW,
+            BERACHAIN_CANONICAL_WORKFLOW,
+            SECONDARY_CANONICAL_WORKFLOW,
+            BERACHAIN_NETFLOW_WORKFLOW,
+            BERACHAIN_BORROW_ROUTE_WORKFLOW,
+            NETFLOW_WORKFLOW,
+            EARN_FRESHNESS_WORKFLOW,
+        ):
+            workflow = workflow_path.read_text(encoding="utf-8")
+            self.assertIn("actions: write", workflow, workflow_path.name)
+            self.assertIn("GH_TOKEN: ${{ github.token }}", workflow, workflow_path.name)
+
     def test_earn_commit_helper_regenerates_freshness_after_rebase(self):
         helper = EARN_COMMIT_HELPER.read_text(encoding="utf-8")
         rebase_pos = helper.index('git pull --rebase -X theirs "$git_remote" "$git_branch"')

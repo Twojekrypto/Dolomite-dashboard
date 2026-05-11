@@ -6,6 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: write
   contents: write
 
 jobs:
@@ -71,6 +72,8 @@ jobs:
         run: python3 validate_data.py
 
       - name: Commit & push changes
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

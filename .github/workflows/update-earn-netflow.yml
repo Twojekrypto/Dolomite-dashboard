@@ -25,6 +25,7 @@ on:
         default: ''
 
 permissions:
+  actions: write
   contents: write
 
 jobs:
@@ -261,6 +262,7 @@ jobs:
       - name: Commit & push chain netflow changes
         env:
           CHAIN: ${{ matrix.chain }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"

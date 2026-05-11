@@ -10,6 +10,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
+  actions: write
   contents: write
 
 jobs:
@@ -199,6 +200,8 @@ jobs:
 
       - name: Commit and push borrow-route public history
         if: steps.refresh.outputs.complete == 'true' && steps.refresh.outputs.skipped != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
