@@ -138,8 +138,10 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("git rebase --abort", helper)
         self.assertIn("EARN_FRESHNESS_ACTIONS_OUTPUT", helper)
         self.assertIn('EARN_GIT_REMOTE:-origin', helper)
-        self.assertIn('EARN_PUSH_ATTEMPTS:-12', helper)
+        self.assertIn('EARN_PUSH_ATTEMPTS:-40', helper)
         self.assertIn('EARN_PUSH_RETRY_SLEEP_SECONDS:-5', helper)
+        self.assertIn('EARN_PUSH_MAX_RETRY_SLEEP_SECONDS:-30', helper)
+        self.assertIn("RANDOM % 4", helper)
         self.assertIn("Failed to push after $attempts attempts.", helper)
 
     def test_rewards_card_has_merkl_unavailable_state(self):

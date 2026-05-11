@@ -4,8 +4,9 @@ set -euo pipefail
 commit_message="${1:?commit message is required}"
 status_output="${EARN_FRESHNESS_STATUS_OUTPUT:-data/earn-freshness/status.json}"
 actions_output="${EARN_FRESHNESS_ACTIONS_OUTPUT:-}"
-attempts="${EARN_PUSH_ATTEMPTS:-12}"
+attempts="${EARN_PUSH_ATTEMPTS:-40}"
 retry_sleep_seconds="${EARN_PUSH_RETRY_SLEEP_SECONDS:-5}"
+max_retry_sleep_seconds="${EARN_PUSH_MAX_RETRY_SLEEP_SECONDS:-30}"
 git_remote="${EARN_GIT_REMOTE:-origin}"
 git_branch="${EARN_GIT_BRANCH:-master}"
 
@@ -70,8 +71,15 @@ for i in $(seq 1 "$attempts"); do
   elif [ -d .git/rebase-merge ] || [ -d .git/rebase-apply ]; then
     git rebase --abort || true
   fi
-  echo "Push attempt $i failed, retrying after remote moved..."
-  sleep "$retry_sleep_seconds"
+  if [ "$i" -lt "$attempts" ]; then
+    sleep_for=$((retry_sleep_seconds + i))
+    if [ "$sleep_for" -gt "$max_retry_sleep_seconds" ]; then
+      sleep_for="$max_retry_sleep_seconds"
+    fi
+    sleep_for=$((sleep_for + (RANDOM % 4)))
+    echo "Push attempt $i failed, retrying after remote moved in ${sleep_for}s..."
+    sleep "$sleep_for"
+  fi
 done
 
 if [ "$pushed" != "true" ]; then
