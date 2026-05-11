@@ -20,6 +20,7 @@ jobs:
     env:
       PYTHONUNBUFFERED: '1'
       GH_TOKEN: ${{ github.token }}
+      EARN_DISPATCH_PAGES_AFTER_PUSH: ${{ github.event_name == 'workflow_dispatch' && github.actor == 'github-actions[bot]' && 'true' || 'false' }}
       EARN_WATCHDOG_MAX_DISPATCHES: '4'
       ALCHEMY_ARBITRUM_RPC: ${{ secrets.ALCHEMY_ARBITRUM_RPC }}
       ALCHEMY_ARBITRUM_RPC_2: ${{ secrets.ALCHEMY_ARBITRUM_RPC_2 }}
