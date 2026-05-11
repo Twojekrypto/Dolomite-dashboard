@@ -447,6 +447,12 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("update_earn_freshness_status.py", workflow)
         self.assertIn("data/earn-freshness/status.json", workflow)
         self.assertIn("refreshJobs", workflow)
+        self.assertIn("EARN_WATCHDOG_MAX_DISPATCHES: '4'", workflow)
+        self.assertIn("priority", workflow)
+        self.assertIn("mode", workflow)
+        self.assertIn("dispatched_count=0", workflow)
+        self.assertIn("max_dispatches=\"${EARN_WATCHDOG_MAX_DISPATCHES:-4}\"", workflow)
+        self.assertIn("Deferring $job_key", workflow)
         self.assertIn("displayTitle,name,status", workflow)
         self.assertIn("covers_requested_chain", workflow)
         self.assertIn('f"[{chain}]" in title or "[all]" in title', workflow)
@@ -467,6 +473,9 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn('"backgroundRefreshRecommended"', source)
         self.assertIn('"chainReport"', source)
         self.assertIn('"refreshJobs"', source)
+        self.assertIn("def _refresh_job_priority", source)
+        self.assertIn('"priority": int(priority)', source)
+        self.assertIn('"mode": normalized_mode', source)
         self.assertIn('job_key = f"{workflow}:chain={normalized_inputs[\'chain\']}"', source)
 
     def test_canonical_refresh_runner_keeps_json_stdout_clean(self):

@@ -340,12 +340,16 @@ def _register_refresh_job(
     *,
     workflow: str,
     inputs: Optional[Dict[str, Any]] = None,
+    priority: int = 50,
+    mode: str = "catchup",
+    reason: str = "",
 ) -> None:
     normalized_inputs = {
         str(key): str(value)
         for key, value in (inputs or {}).items()
         if value is not None and str(value) != ""
     }
+    normalized_mode = str(mode or "catchup")
     job_key = workflow
     if normalized_inputs.get("chain") not in {"", None, "all"}:
         job_key = f"{workflow}:chain={normalized_inputs['chain']}"
@@ -355,8 +359,16 @@ def _register_refresh_job(
         refresh_jobs_by_workflow[job_key] = {
             "workflow": workflow,
             "inputs": normalized_inputs,
+            "priority": int(priority),
+            "mode": normalized_mode,
+            "reason": reason,
         }
         return
+    existing["priority"] = min(int(existing.get("priority", 50)), int(priority))
+    if normalized_mode == "catchup" or existing.get("mode") not in {"catchup", "background"}:
+        existing["mode"] = normalized_mode
+    if reason and not existing.get("reason"):
+        existing["reason"] = reason
     if existing.get("inputs") != normalized_inputs:
         merged_inputs: Dict[str, str] = {}
         if "chain" in (existing.get("inputs") or {}) or "chain" in normalized_inputs:
@@ -364,6 +376,9 @@ def _register_refresh_job(
         refresh_jobs_by_workflow[job_key] = {
             "workflow": workflow,
             "inputs": merged_inputs,
+            "priority": min(int(existing.get("priority", 50)), int(priority)),
+            "mode": "catchup" if "catchup" in {existing.get("mode"), normalized_mode} else normalized_mode,
+            "reason": existing.get("reason") or reason,
         }
 
 
@@ -424,6 +439,25 @@ def _weak_point(
         if component.get("refreshMode") == "background":
             return f"{name} background refresh due"
     return "none"
+
+
+def _refresh_job_priority(component: Dict[str, Any], component_name: str) -> int:
+    mode = str(component.get("refreshMode") or "none")
+    if mode == "background":
+        return 50 if component_name == "canonical" else 55
+    if mode != "catchup":
+        return 90
+    status = str(component.get("status") or "")
+    status_priority = {
+        "missing": 0,
+        "stale": 0,
+        "syncing": 10,
+        "catching_up": 20,
+        "unknown": 30,
+    }.get(status, 10)
+    if component_name != "canonical":
+        status_priority += 5
+    return status_priority
 
 
 def build_status(
@@ -493,36 +527,46 @@ def build_status(
         if canonical.get("refreshRecommended") and canonical_supported:
             workflow = str(policy["canonicalWorkflow"])
             refresh_workflows.add(workflow)
-            _register_refresh_job(
-                refresh_jobs_by_workflow,
-                workflow=workflow,
-                inputs=policy.get("canonicalWorkflowInputs"),
-            )
             coverage = canonical.get("coverage") or {}
             if coverage.get("status") == "partial":
-                refresh_reasons.append(
+                reason = (
                     f"{chain}: canonical coverage catchup "
                     f"({coverage.get('freshWalletCount')}/{coverage.get('knownAddressCount')} wallets fresh, "
                     f"{coverage.get('partialWalletCount')} behind, {coverage.get('missingWalletCount')} missing)"
                 )
             else:
-                refresh_reasons.append(
-                    f"{chain}: canonical {canonical['refreshMode']} refresh ({canonical['status']}, {_format_lag_reason_minutes(canonical.get('estimatedLagMinutes'))})"
+                reason = (
+                    f"{chain}: canonical {canonical['refreshMode']} refresh "
+                    f"({canonical['status']}, {_format_lag_reason_minutes(canonical.get('estimatedLagMinutes'))})"
                 )
+            _register_refresh_job(
+                refresh_jobs_by_workflow,
+                workflow=workflow,
+                inputs=policy.get("canonicalWorkflowInputs"),
+                priority=_refresh_job_priority(canonical, "canonical"),
+                mode=str(canonical.get("refreshMode") or "catchup"),
+                reason=reason,
+            )
+            refresh_reasons.append(reason)
         if netflow.get("refreshRecommended") and netflow_supported:
             workflow = str(policy.get("netflowWorkflow") or NETFLOW_WORKFLOW)
             workflow_inputs = policy.get("netflowWorkflowInputs")
             if workflow_inputs is None and workflow == NETFLOW_WORKFLOW:
                 workflow_inputs = {"chain": chain}
             refresh_workflows.add(workflow)
+            reason = (
+                f"{chain}: netflow {netflow['refreshMode']} refresh "
+                f"({netflow['status']}, {_format_lag_reason_minutes(netflow.get('estimatedLagMinutes'))})"
+            )
             _register_refresh_job(
                 refresh_jobs_by_workflow,
                 workflow=workflow,
                 inputs=workflow_inputs,
+                priority=_refresh_job_priority(netflow, "netflow"),
+                mode=str(netflow.get("refreshMode") or "catchup"),
+                reason=reason,
             )
-            refresh_reasons.append(
-                f"{chain}: netflow {netflow['refreshMode']} refresh ({netflow['status']}, {_format_lag_reason_minutes(netflow.get('estimatedLagMinutes'))})"
-            )
+            refresh_reasons.append(reason)
 
         chain_refresh_mode = _chain_refresh_mode(canonical, netflow)
         chain_statuses = [canonical["status"], netflow["status"]]
@@ -604,7 +648,11 @@ def build_status(
             "refreshWorkflows": sorted(refresh_workflows),
             "refreshJobs": sorted(
                 refresh_jobs_by_workflow.values(),
-                key=lambda job: (job["workflow"], sorted((job.get("inputs") or {}).items())),
+                key=lambda job: (
+                    int(job.get("priority", 50)),
+                    job["workflow"],
+                    sorted((job.get("inputs") or {}).items()),
+                ),
             ),
             "refreshReasons": refresh_reasons,
             "limitedChains": sorted(
