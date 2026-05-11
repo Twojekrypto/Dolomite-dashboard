@@ -104,6 +104,7 @@ class EarnCommitHelperIntegrationTest(unittest.TestCase):
                 "EARN_PUSH_ATTEMPTS": "1",
                 "EARN_GIT_REMOTE": "origin",
                 "EARN_GIT_BRANCH": "master",
+                "EARN_DISPATCH_PAGES_AFTER_PUSH": "false",
             }
             _run(["bash", "scripts/commit_with_fresh_earn_status.sh", "manifest only"], cwd=work, env=env)
 
@@ -111,6 +112,38 @@ class EarnCommitHelperIntegrationTest(unittest.TestCase):
             self.assertIn("--chain", sync_args)
             self.assertIn("mantle", sync_args)
             self.assertNotIn("--all-chains", sync_args)
+
+    def test_successful_push_dispatches_pages_when_token_available(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _remote, work = self._prepare_repo(Path(tmp))
+            status = work / "data" / "earn-freshness" / "status.json"
+            status.write_text('{"status":"changed"}\n', encoding="utf-8")
+            _run(["git", "add", "data/earn-freshness/status.json"], cwd=work)
+
+            fake_bin = work / "fake-bin"
+            fake_bin.mkdir()
+            capture = work / "gh-args.txt"
+            fake_gh = fake_bin / "gh"
+            fake_gh.write_text(
+                "#!/usr/bin/env bash\nprintf '%s\\n' \"$@\" > \"$GH_CAPTURE\"\n",
+                encoding="utf-8",
+            )
+            fake_gh.chmod(0o755)
+
+            env = {
+                **dict(os.environ),
+                "EARN_PUSH_ATTEMPTS": "1",
+                "EARN_GIT_REMOTE": "origin",
+                "EARN_GIT_BRANCH": "master",
+                "EARN_DISPATCH_PAGES_AFTER_PUSH": "true",
+                "GH_TOKEN": "test-token",
+                "GH_CAPTURE": str(capture),
+                "PATH": f"{fake_bin}{os.pathsep}{os.environ.get('PATH', '')}",
+            }
+            _run(["bash", "scripts/commit_with_fresh_earn_status.sh", "status update"], cwd=work, env=env)
+
+            gh_args = capture.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(gh_args, ["workflow", "run", "pages.yml", "--ref", "master"])
 
 
 if __name__ == "__main__":

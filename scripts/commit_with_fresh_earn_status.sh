@@ -86,3 +86,16 @@ if [ "$pushed" != "true" ]; then
   echo "Failed to push after $attempts attempts."
   exit 1
 fi
+
+if [ "${EARN_DISPATCH_PAGES_AFTER_PUSH:-true}" = "true" ]; then
+  deploy_token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+  if [ -n "$deploy_token" ] && command -v gh >/dev/null 2>&1; then
+    export GH_TOKEN="$deploy_token"
+    echo "Dispatching GitHub Pages deploy for $git_branch after EARN data push."
+    if ! gh workflow run pages.yml --ref "$git_branch"; then
+      echo "::warning::Failed to dispatch GitHub Pages deploy after EARN data push."
+    fi
+  else
+    echo "Skipping GitHub Pages deploy dispatch; gh CLI or GitHub token is unavailable."
+  fi
+fi
