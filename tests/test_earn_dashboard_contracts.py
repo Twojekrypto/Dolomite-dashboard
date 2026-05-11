@@ -136,6 +136,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
             workflow = workflow_path.read_text(encoding="utf-8")
             self.assertIn("actions: write", workflow, workflow_path.name)
             self.assertIn("GH_TOKEN: ${{ github.token }}", workflow, workflow_path.name)
+            self.assertIn("github.actor == 'github-actions[bot]'", workflow, workflow_path.name)
 
     def test_earn_commit_helper_regenerates_freshness_after_rebase(self):
         helper = EARN_COMMIT_HELPER.read_text(encoding="utf-8")

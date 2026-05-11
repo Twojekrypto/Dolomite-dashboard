@@ -263,6 +263,7 @@ jobs:
         env:
           CHAIN: ${{ matrix.chain }}
           GH_TOKEN: ${{ github.token }}
+          EARN_DISPATCH_PAGES_AFTER_PUSH: ${{ github.event_name == 'workflow_dispatch' && github.actor == 'github-actions[bot]' && 'true' || 'false' }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
