@@ -20,7 +20,7 @@ jobs:
       PYTHONUNBUFFERED: '1'
       CHAIN: berachain
       BOOTSTRAP_HOT_LIMIT: '500'
-      STEADY_HOT_LIMIT: '0'
+      STEADY_HOT_LIMIT: '500'
       CHECKPOINT_STEPS: '60'
       CHECKPOINT_SLEEP_SECONDS: '20'
       COMMAND_TIMEOUT_SECONDS: '180'
@@ -110,9 +110,6 @@ jobs:
             --output "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt"
             --metadata-output "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
           )
-          if [ "$has_public_baseline" = "true" ] && [ "$hot_limit" != "0" ]; then
-            selector_args+=(--existing-history-only --history-dir data/earn-subaccount-history)
-          fi
           "${selector_args[@]}"
           cat "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
 

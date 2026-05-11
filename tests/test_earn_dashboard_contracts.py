@@ -1,5 +1,8 @@
+import json
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -168,7 +171,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
         workflow = ARBITRUM_CANONICAL_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("cron: '18,48 * * * *'", workflow)
         self.assertIn("timeout-minutes: 75", workflow)
-        self.assertIn("HOT_LIMIT: '0'", workflow)
+        self.assertIn("HOT_LIMIT: '500'", workflow)
         self.assertIn("CHECKPOINT_STEPS: '60'", workflow)
         self.assertIn("COMMAND_TIMEOUT_SECONDS: '180'", workflow)
         self.assertIn("secrets.ALCHEMY_ARBITRUM_RPC_ZEN", workflow)
@@ -184,14 +187,12 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("cron: '7,37 * * * *'", workflow)
         self.assertIn("timeout-minutes: 75", workflow)
         self.assertIn("BOOTSTRAP_HOT_LIMIT: '500'", workflow)
-        self.assertIn("STEADY_HOT_LIMIT: '0'", workflow)
+        self.assertIn("STEADY_HOT_LIMIT: '500'", workflow)
         self.assertIn("CHECKPOINT_STEPS: '60'", workflow)
         self.assertIn("CHECKPOINT_SLEEP_SECONDS: '20'", workflow)
         self.assertIn("COMMAND_TIMEOUT_SECONDS: '180'", workflow)
         self.assertIn("has_public_baseline", workflow)
-        self.assertIn("--existing-history-only", workflow)
-        self.assertIn("--history-dir data/earn-subaccount-history", workflow)
-        self.assertIn('[ "$hot_limit" != "0" ]', workflow)
+        self.assertNotIn("--existing-history-only", workflow)
         self.assertIn("--prefer-stale-history", workflow)
         self.assertIn("config/earn_berachain_canonical_hot_addresses.txt", workflow)
         self.assertIn("QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}", workflow)
@@ -241,7 +242,8 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("group: earn-secondary-canonical-history-${{ matrix.chain }}", workflow)
         self.assertIn('"polygonzkevm": {', workflow)
         self.assertIn('"xlayer": {', workflow)
-        self.assertIn('"hot_limit": 0', workflow)
+        self.assertIn('"hot_limit": 750', workflow)
+        self.assertIn('"hot_limit": 500', workflow)
         self.assertIn('"hot_limit": 300', workflow)
         self.assertIn('"checkpoint_steps": 60', workflow)
         self.assertIn('"checkpoint_steps": 90', workflow)
@@ -265,6 +267,58 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertNotIn("Resolve selected chain", workflow)
         self.assertNotIn("Skipping $CHAIN for this trigger.", workflow)
         self.assertNotIn("max-parallel: 1", workflow)
+
+    def test_hot_wallet_selector_prioritizes_scored_wallets_before_missing_backlog(self):
+        import select_earn_canonical_hot_addresses as selector
+
+        chain = "arbitrum"
+        cold_a = "0x" + "0" * 39 + "1"
+        cold_b = "0x" + "0" * 39 + "2"
+        active = "0x" + "f" * 40
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            snapshot_dir = root / "snapshots"
+            netflow_dir = root / "netflow"
+            history_dir = root / "history"
+            snapshot_dir.mkdir()
+            netflow_dir.mkdir()
+            history_dir.mkdir()
+            (snapshot_dir / "manifest.json").write_text(
+                json.dumps({"dates": ["2026-05-11"], "chains": {"2026-05-11": [chain]}}),
+                encoding="utf-8",
+            )
+            (snapshot_dir / "2026-05-11.json").write_text(
+                json.dumps({
+                    "snapshots": {
+                        chain: {
+                            active: {"markets": {"0": {"par": "123456789"}}},
+                        },
+                    },
+                }),
+                encoding="utf-8",
+            )
+            (netflow_dir / f"{chain}.json").write_text(json.dumps({"netflows": {}}), encoding="utf-8")
+            (history_dir / "manifest.json").write_text(
+                json.dumps({"chains": {chain: {"lastBlock": 123}}}),
+                encoding="utf-8",
+            )
+
+            with mock.patch.object(selector, "SNAPSHOT_DIR", snapshot_dir):
+                with mock.patch.object(selector, "NETFLOW_DIR", netflow_dir):
+                    with mock.patch.object(selector, "_load_known_addresses", return_value=[cold_a, cold_b, active]):
+                        selected, metadata = selector.build_selection(
+                            chain,
+                            limit=2,
+                            priority_files=[],
+                            include_priority_even_if_unknown=False,
+                            history_dir=history_dir,
+                            prefer_stale_history=True,
+                        )
+
+        self.assertEqual(active, selected[0])
+        self.assertEqual(2, len(selected))
+        self.assertEqual(3, metadata["missingHistoryAddressCount"])
 
     def test_berachain_netflow_workflow_runs_frequent_chain_only_scan(self):
         workflow = BERACHAIN_NETFLOW_WORKFLOW.read_text(encoding="utf-8")
