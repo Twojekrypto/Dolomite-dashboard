@@ -293,6 +293,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}", workflow)
         self.assertIn("git add -f data/earn-subaccount-history/manifest.json", workflow)
         self.assertIn("git add -f data/earn-verified-ledger/manifest.json", workflow)
+        self.assertIn("git stash push --keep-index --include-untracked --message \"berachain-borrow-route-runtime\"", workflow)
         self.assertIn("scripts/commit_with_fresh_earn_status.sh", workflow)
 
     def test_berachain_watchdog_refreshes_after_one_hour(self):

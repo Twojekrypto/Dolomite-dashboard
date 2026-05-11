@@ -220,4 +220,5 @@ jobs:
             echo "No borrow-route history changes to commit"
             exit 0
           fi
+          git stash push --keep-index --include-untracked --message "berachain-borrow-route-runtime" || true
           bash scripts/commit_with_fresh_earn_status.sh "Refresh Berachain borrow-route EARN history - $(date -u '+%Y-%m-%d %H:%M UTC')"
