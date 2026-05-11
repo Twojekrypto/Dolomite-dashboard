@@ -291,6 +291,8 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}", workflow)
         self.assertIn("DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}", workflow)
         self.assertIn("ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}", workflow)
+        self.assertIn("git add -f data/earn-subaccount-history/manifest.json", workflow)
+        self.assertIn("git add -f data/earn-verified-ledger/manifest.json", workflow)
         self.assertIn("scripts/commit_with_fresh_earn_status.sh", workflow)
 
     def test_berachain_watchdog_refreshes_after_one_hour(self):
