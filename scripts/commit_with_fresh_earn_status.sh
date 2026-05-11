@@ -31,7 +31,7 @@ for i in $(seq 1 "$attempts"); do
         sync_args+=(--chain "$chain")
       done
       "${sync_args[@]}"
-      git add data/earn-verified-ledger/manifest.json
+      git add -f data/earn-verified-ledger/manifest.json
     fi
     refresh_args=(python3 update_earn_freshness_status.py --output "$status_output")
     if [ -n "$actions_output" ]; then
