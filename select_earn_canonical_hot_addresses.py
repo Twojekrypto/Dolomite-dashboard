@@ -203,8 +203,8 @@ def build_selection(
     selected = _unique_preserve_order([
         *priority,
         *stale_history,
-        *missing_history,
         *(address for address, _score in ranked),
+        *missing_history,
     ])
     if existing_history_only:
         selected = [address for address in selected if address in existing_history]
