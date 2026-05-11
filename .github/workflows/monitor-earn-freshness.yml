@@ -20,6 +20,7 @@ jobs:
     env:
       PYTHONUNBUFFERED: '1'
       GH_TOKEN: ${{ github.token }}
+      EARN_WATCHDOG_MAX_DISPATCHES: '4'
       ALCHEMY_ARBITRUM_RPC: ${{ secrets.ALCHEMY_ARBITRUM_RPC }}
       ALCHEMY_ARBITRUM_RPC_2: ${{ secrets.ALCHEMY_ARBITRUM_RPC_2 }}
       ALCHEMY_ARBITRUM_RPC_ZEN: ${{ secrets.ALCHEMY_ARBITRUM_RPC_ZEN }}
@@ -103,16 +104,26 @@ jobs:
           import sys
           payload = json.load(open(sys.argv[1]))
           jobs = payload.get("refreshJobs") or [
-              {"workflow": workflow, "inputs": {}}
+              {"workflow": workflow, "inputs": {}, "priority": 50, "mode": "catchup"}
               for workflow in payload.get("refreshWorkflows") or []
           ]
+          jobs = sorted(
+              jobs,
+              key=lambda job: (
+                  int(job.get("priority", 50)),
+                  str(job.get("workflow") or ""),
+                  str((job.get("inputs") or {}).get("chain") or ""),
+              ),
+          )
           for job in jobs:
               workflow = str(job.get("workflow") or "").strip()
               if not workflow:
                   continue
               inputs = job.get("inputs") or {}
               chain = str(inputs.get("chain") or "").strip()
-              print(f"{workflow}\t{chain}")
+              priority = int(job.get("priority", 50))
+              mode = str(job.get("mode") or "catchup").strip()
+              print(f"{workflow}\t{chain}\t{priority}\t{mode}")
           PY
 
           if [ ! -s /tmp/earn-refresh-jobs.tsv ]; then
@@ -121,13 +132,19 @@ jobs:
           fi
 
           : > /tmp/earn-refresh-dispatched.tsv
-          while IFS=$'\t' read -r workflow chain; do
+          dispatched_count=0
+          max_dispatches="${EARN_WATCHDOG_MAX_DISPATCHES:-4}"
+          while IFS=$'\t' read -r workflow chain priority mode; do
             if [ -z "$workflow" ]; then
               continue
             fi
             job_key="${workflow}:chain=${chain:-all}"
             if grep -Fxq "$job_key" /tmp/earn-refresh-dispatched.tsv; then
               echo "Skipping duplicate refresh request for $job_key in this watchdog run."
+              continue
+            fi
+            if [ "$dispatched_count" -ge "$max_dispatches" ]; then
+              echo "Deferring $job_key (${mode:-unknown}, priority ${priority:-50}) because watchdog already dispatched $dispatched_count/$max_dispatches refresh workflow(s)."
               continue
             fi
             active="$(python3 - "$workflow" "${chain:-}" <<'PY'
@@ -204,4 +221,5 @@ jobs:
               gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref master
             fi
             echo "$job_key" >> /tmp/earn-refresh-dispatched.tsv
+            dispatched_count=$((dispatched_count + 1))
           done < /tmp/earn-refresh-jobs.tsv

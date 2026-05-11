@@ -3,6 +3,7 @@ import tempfile
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 
 from update_earn_freshness_status import (
     CHAIN_POLICIES,
@@ -17,6 +18,25 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         path = root / rel
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(payload), encoding="utf-8")
+
+    def _assert_refresh_job(
+        self,
+        jobs: list[dict],
+        *,
+        workflow: str,
+        inputs: dict,
+        mode: Optional[str] = None,
+        priority: Optional[int] = None,
+    ) -> dict:
+        for job in jobs:
+            if job.get("workflow") == workflow and job.get("inputs") == inputs:
+                if mode is not None:
+                    self.assertEqual(mode, job.get("mode"))
+                if priority is not None:
+                    self.assertEqual(priority, job.get("priority"))
+                self.assertIn("reason", job)
+                return job
+        self.fail(f"Missing refresh job workflow={workflow!r} inputs={inputs!r}: {jobs!r}")
 
     def test_build_status_marks_verified_window_and_refresh_recommendation(self):
         now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)
@@ -95,9 +115,19 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         self.assertFalse(status["summary"]["catchupRefreshRecommended"])
         self.assertIn("update-earn-arbitrum-canonical-history.yml", status["summary"]["refreshWorkflows"])
         self.assertIn(NETFLOW_WORKFLOW, status["summary"]["refreshWorkflows"])
-        self.assertIn(
-            {"workflow": NETFLOW_WORKFLOW, "inputs": {"chain": "arbitrum"}},
+        self._assert_refresh_job(
             status["summary"]["refreshJobs"],
+            workflow="update-earn-arbitrum-canonical-history.yml",
+            inputs={},
+            mode="background",
+            priority=50,
+        )
+        self._assert_refresh_job(
+            status["summary"]["refreshJobs"],
+            workflow=NETFLOW_WORKFLOW,
+            inputs={"chain": "arbitrum"},
+            mode="background",
+            priority=55,
         )
         report = {entry["chain"]: entry for entry in status["chainReport"]}
         self.assertEqual(report["arbitrum"]["supportMode"], "canonical-ledger")
@@ -207,13 +237,19 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         self.assertEqual(status["chains"]["xlayer"]["supportMode"], "canonical-ledger")
         self.assertEqual(status["summary"]["limitedChains"], [])
         self.assertIn("update-earn-secondary-canonical-history.yml", status["summary"]["refreshWorkflows"])
-        self.assertIn(
-            {"workflow": "update-earn-secondary-canonical-history.yml", "inputs": {"chain": "polygonzkevm"}},
+        self._assert_refresh_job(
             status["summary"]["refreshJobs"],
+            workflow="update-earn-secondary-canonical-history.yml",
+            inputs={"chain": "polygonzkevm"},
+            mode="catchup",
+            priority=0,
         )
-        self.assertIn(
-            {"workflow": "update-earn-secondary-canonical-history.yml", "inputs": {"chain": "xlayer"}},
+        self._assert_refresh_job(
             status["summary"]["refreshJobs"],
+            workflow="update-earn-secondary-canonical-history.yml",
+            inputs={"chain": "xlayer"},
+            mode="catchup",
+            priority=0,
         )
         self.assertNotIn(
             {"workflow": "update-earn-secondary-canonical-history.yml", "inputs": {"chain": "all"}},
@@ -272,9 +308,12 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         self.assertEqual(polygon["netflow"]["refreshMode"], "catchup")
         self.assertEqual(polygon["status"], "syncing")
         self.assertTrue(status["summary"]["catchupRefreshRecommended"])
-        self.assertIn(
-            {"workflow": NETFLOW_WORKFLOW, "inputs": {"chain": "polygonzkevm"}},
+        self._assert_refresh_job(
             status["summary"]["refreshJobs"],
+            workflow=NETFLOW_WORKFLOW,
+            inputs={"chain": "polygonzkevm"},
+            mode="catchup",
+            priority=25,
         )
         report = {entry["chain"]: entry for entry in status["chainReport"]}
         self.assertEqual(report["polygonzkevm"]["weakPoint"], "netflow catching_up")
@@ -335,9 +374,12 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         self.assertEqual(xlayer["canonical"]["coverage"]["status"], "partial")
         self.assertEqual(xlayer["canonical"]["coverage"]["freshWalletCount"], 0)
         self.assertEqual(xlayer["status"], "syncing")
-        self.assertIn(
-            {"workflow": "update-earn-secondary-canonical-history.yml", "inputs": {"chain": "xlayer"}},
+        self._assert_refresh_job(
             status["summary"]["refreshJobs"],
+            workflow="update-earn-secondary-canonical-history.yml",
+            inputs={"chain": "xlayer"},
+            mode="catchup",
+            priority=10,
         )
         report = {entry["chain"]: entry for entry in status["chainReport"]}
         self.assertEqual(report["xlayer"]["weakPoint"], "canonical coverage 0/1 wallets fresh")
@@ -387,9 +429,63 @@ class EarnFreshnessStatusTest(unittest.TestCase):
             job for job in status["summary"]["refreshJobs"]
             if job["workflow"] == NETFLOW_WORKFLOW
         ]
-        self.assertIn({"workflow": NETFLOW_WORKFLOW, "inputs": {"chain": "arbitrum"}}, netflow_jobs)
-        self.assertIn({"workflow": NETFLOW_WORKFLOW, "inputs": {"chain": "ethereum"}}, netflow_jobs)
+        self._assert_refresh_job(
+            netflow_jobs,
+            workflow=NETFLOW_WORKFLOW,
+            inputs={"chain": "arbitrum"},
+            mode="catchup",
+        )
+        self._assert_refresh_job(
+            netflow_jobs,
+            workflow=NETFLOW_WORKFLOW,
+            inputs={"chain": "ethereum"},
+            mode="catchup",
+        )
         self.assertNotIn({"workflow": NETFLOW_WORKFLOW, "inputs": {"chain": "all"}}, netflow_jobs)
+
+    def test_refresh_jobs_are_sorted_by_priority(self):
+        now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_json(
+                root,
+                "earn-subaccount-history/manifest.json",
+                {
+                    "chains": {
+                        "arbitrum": {"lastBlock": 1_000_000, "updatedAt": "2026-05-08T11:00:00Z"},
+                    }
+                },
+            )
+            self._write_json(
+                root,
+                "earn-netflow/arbitrum.json",
+                {
+                    "chain": "arbitrum",
+                    "lastBlock": 1_021_600,
+                    "updatedAt": "2026-05-08T11:30:00Z",
+                    "addressCount": 1,
+                },
+            )
+            self._write_json(root, "earn-snapshots/manifest.json", {"dates": [], "chains": {}})
+
+            status = build_status(
+                data_dir=root,
+                live_blocks={
+                    "arbitrum": 1_043_200,
+                    "ethereum": None,
+                    "berachain": None,
+                    "botanix": None,
+                    "mantle": None,
+                    "polygonzkevm": None,
+                    "xlayer": 123,
+                },
+                now=now,
+            )
+
+        priorities = [int(job["priority"]) for job in status["summary"]["refreshJobs"]]
+        self.assertEqual(sorted(priorities), priorities)
+        self.assertEqual(0, priorities[0])
+        self.assertGreater(priorities[-1], priorities[0])
 
     def test_actions_output_contains_refresh_plan(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -399,6 +495,15 @@ class EarnFreshnessStatusTest(unittest.TestCase):
                     "summary": {
                         "refreshRecommended": True,
                         "refreshWorkflows": ["update-earn-netflow.yml"],
+                        "refreshJobs": [
+                            {
+                                "workflow": "update-earn-netflow.yml",
+                                "inputs": {"chain": "arbitrum"},
+                                "priority": 10,
+                                "mode": "catchup",
+                                "reason": "arbitrum: netflow stale",
+                            }
+                        ],
                         "refreshReasons": ["arbitrum: netflow stale"],
                     },
                     "chainReport": [{"chain": "arbitrum", "status": "syncing"}],
@@ -409,6 +514,18 @@ class EarnFreshnessStatusTest(unittest.TestCase):
 
         self.assertTrue(payload["refreshRecommended"])
         self.assertEqual(payload["refreshWorkflows"], ["update-earn-netflow.yml"])
+        self.assertEqual(
+            payload["refreshJobs"],
+            [
+                {
+                    "workflow": "update-earn-netflow.yml",
+                    "inputs": {"chain": "arbitrum"},
+                    "priority": 10,
+                    "mode": "catchup",
+                    "reason": "arbitrum: netflow stale",
+                }
+            ],
+        )
         self.assertEqual(payload["refreshReasons"], ["arbitrum: netflow stale"])
         self.assertEqual(payload["chainReport"], [{"chain": "arbitrum", "status": "syncing"}])
 
