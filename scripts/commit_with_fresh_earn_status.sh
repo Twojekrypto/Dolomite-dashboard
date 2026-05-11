@@ -14,11 +14,25 @@ if git diff --staged --quiet; then
   exit 0
 fi
 
+ledger_chains="$(
+  git diff --cached --name-only |
+    sed -n 's#^data/earn-verified-ledger/\([^/][^/]*\)/.*#\1#p' |
+    sort -u
+)"
+
 git commit -m "$commit_message"
 
 pushed=false
 for i in $(seq 1 "$attempts"); do
   if git pull --rebase -X theirs "$git_remote" "$git_branch"; then
+    if [ -n "$ledger_chains" ]; then
+      sync_args=(python3 scripts/sync_earn_verified_manifest.py --base-ref "$git_remote/$git_branch")
+      for chain in $ledger_chains; do
+        sync_args+=(--chain "$chain")
+      done
+      "${sync_args[@]}"
+      git add data/earn-verified-ledger/manifest.json
+    fi
     refresh_args=(python3 update_earn_freshness_status.py --output "$status_output")
     if [ -n "$actions_output" ]; then
       refresh_args+=(--actions-output "$actions_output")
