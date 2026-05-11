@@ -129,6 +129,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertLess(refresh_pos, amend_pos)
         self.assertLess(amend_pos, push_pos)
         self.assertIn("data/earn-verified-ledger/", helper)
+        self.assertIn("git add -f data/earn-verified-ledger/manifest.json", helper)
         self.assertIn("ledger_chains", helper)
         self.assertIn("EARN_FRESHNESS_ACTIONS_OUTPUT", helper)
         self.assertIn('EARN_GIT_REMOTE:-origin', helper)
