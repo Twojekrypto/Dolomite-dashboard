@@ -123,7 +123,8 @@ jobs:
               chain = str(inputs.get("chain") or "").strip()
               priority = int(job.get("priority", 50))
               mode = str(job.get("mode") or "catchup").strip()
-              print(f"{workflow}\t{chain}\t{priority}\t{mode}")
+              chain_field = chain or "__all__"
+              print(f"{workflow}\t{chain_field}\t{priority}\t{mode}")
           PY
 
           if [ ! -s /tmp/earn-refresh-jobs.tsv ]; then
@@ -137,6 +138,9 @@ jobs:
           while IFS=$'\t' read -r workflow chain priority mode; do
             if [ -z "$workflow" ]; then
               continue
+            fi
+            if [ "${chain:-}" = "__all__" ]; then
+              chain=""
             fi
             job_key="${workflow}:chain=${chain:-all}"
             if grep -Fxq "$job_key" /tmp/earn-refresh-dispatched.tsv; then

@@ -452,6 +452,8 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("mode", workflow)
         self.assertIn("dispatched_count=0", workflow)
         self.assertIn("max_dispatches=\"${EARN_WATCHDOG_MAX_DISPATCHES:-4}\"", workflow)
+        self.assertIn('chain_field = chain or "__all__"', workflow)
+        self.assertIn('if [ "${chain:-}" = "__all__" ]; then', workflow)
         self.assertIn("Deferring $job_key", workflow)
         self.assertIn("displayTitle,name,status", workflow)
         self.assertIn("covers_requested_chain", workflow)
