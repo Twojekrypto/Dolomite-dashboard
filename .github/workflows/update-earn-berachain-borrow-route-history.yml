@@ -207,6 +207,8 @@ jobs:
             echo "No borrow-route wallets to publish"
             exit 0
           fi
+          git add -f data/earn-subaccount-history/manifest.json
+          git add -f data/earn-verified-ledger/manifest.json
           while IFS= read -r address; do
             [ -n "$address" ] || continue
             history_path="data/earn-subaccount-history/${CHAIN}/${address}.json"
