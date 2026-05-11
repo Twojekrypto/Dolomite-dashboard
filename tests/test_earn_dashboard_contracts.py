@@ -17,6 +17,7 @@ SECONDARY_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-sec
 BERACHAIN_NETFLOW_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-berachain-netflow.yml"
 BERACHAIN_BORROW_ROUTE_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-berachain-borrow-route-history.yml"
 EARN_FRESHNESS_WORKFLOW = ROOT / ".github" / "workflows" / "monitor-earn-freshness.yml"
+EARN_WATCHDOG_DISPATCH_PLANNER = ROOT / "scripts" / "plan_earn_watchdog_dispatch.py"
 EARN_SNAPSHOTS_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-snapshots.yml"
 EARN_FRESHNESS_SCRIPT = ROOT / "update_earn_freshness_status.py"
 EARN_COMMIT_HELPER = ROOT / "scripts" / "commit_with_fresh_earn_status.sh"
@@ -446,13 +447,10 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("actions: write", workflow)
         self.assertIn("update_earn_freshness_status.py", workflow)
         self.assertIn("data/earn-freshness/status.json", workflow)
-        self.assertIn("refreshJobs", workflow)
         self.assertIn("EARN_WATCHDOG_MAX_DISPATCHES: '4'", workflow)
-        self.assertIn("priority", workflow)
-        self.assertIn("mode", workflow)
+        self.assertIn("scripts/plan_earn_watchdog_dispatch.py", workflow)
         self.assertIn("dispatched_count=0", workflow)
         self.assertIn("max_dispatches=\"${EARN_WATCHDOG_MAX_DISPATCHES:-4}\"", workflow)
-        self.assertIn('chain_field = chain or "__all__"', workflow)
         self.assertIn('if [ "${chain:-}" = "__all__" ]; then', workflow)
         self.assertIn("Deferring $job_key", workflow)
         self.assertIn("displayTitle,name,status", workflow)
@@ -463,6 +461,13 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("earn-refresh-dispatched.tsv", workflow)
         self.assertIn("Skipping duplicate refresh request", workflow)
         self.assertIn('-f "chain=$chain"', workflow)
+        planner = EARN_WATCHDOG_DISPATCH_PLANNER.read_text(encoding="utf-8")
+        self.assertIn("refreshJobs", planner)
+        self.assertIn("priority", planner)
+        self.assertIn("mode", planner)
+        self.assertIn('ALL_CHAINS_SENTINEL = "__all__"', planner)
+        self.assertIn("def build_dispatch_rows", planner)
+        self.assertIn("def write_dispatch_tsv", planner)
 
     def test_freshness_routes_secondary_refreshes_with_chain_inputs(self):
         source = EARN_FRESHNESS_SCRIPT.read_text(encoding="utf-8")

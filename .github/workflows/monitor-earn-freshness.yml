@@ -99,33 +99,9 @@ jobs:
       - name: Trigger stale EARN refresh workflows
         run: |
           set -euo pipefail
-          python3 - /tmp/earn-freshness-actions.json > /tmp/earn-refresh-jobs.tsv <<'PY'
-          import json
-          import sys
-          payload = json.load(open(sys.argv[1]))
-          jobs = payload.get("refreshJobs") or [
-              {"workflow": workflow, "inputs": {}, "priority": 50, "mode": "catchup"}
-              for workflow in payload.get("refreshWorkflows") or []
-          ]
-          jobs = sorted(
-              jobs,
-              key=lambda job: (
-                  int(job.get("priority", 50)),
-                  str(job.get("workflow") or ""),
-                  str((job.get("inputs") or {}).get("chain") or ""),
-              ),
-          )
-          for job in jobs:
-              workflow = str(job.get("workflow") or "").strip()
-              if not workflow:
-                  continue
-              inputs = job.get("inputs") or {}
-              chain = str(inputs.get("chain") or "").strip()
-              priority = int(job.get("priority", 50))
-              mode = str(job.get("mode") or "catchup").strip()
-              chain_field = chain or "__all__"
-              print(f"{workflow}\t{chain_field}\t{priority}\t{mode}")
-          PY
+          python3 scripts/plan_earn_watchdog_dispatch.py \
+            /tmp/earn-freshness-actions.json \
+            /tmp/earn-refresh-jobs.tsv
 
           if [ ! -s /tmp/earn-refresh-jobs.tsv ]; then
             echo "No EARN refresh workflows needed."

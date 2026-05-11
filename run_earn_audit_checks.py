@@ -26,6 +26,7 @@ PYTHON_FILES = [
     ROOT / "materialize_earn_subaccount_history.py",
     ROOT / "plan_earn_subaccount_history_incremental.py",
     ROOT / "plan_earn_subaccount_history_repairs.py",
+    ROOT / "scripts" / "plan_earn_watchdog_dispatch.py",
     ROOT / "run_earn_chain_live_rerun.py",
     ROOT / "run_earn_canonical_history_refresh.py",
     ROOT / "run_earn_data_correctness_pipeline.py",
