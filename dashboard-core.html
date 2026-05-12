@@ -31244,8 +31244,7 @@
                 && String(chainStatus.status || '').toLowerCase() === 'verified'
                 && freshnessModes.includes('background');
             const canonicalCoverage = chainStatus?.canonical?.coverage || null;
-            const canonicalCoverageStatus = String(canonicalCoverage?.status || '').toLowerCase();
-            const canonicalCoverageCatchup = canonicalCoverageStatus === 'partial' || chainStatus?.canonical?.coverageCatchup === true;
+            const canonicalCoverageCatchup = chainStatus?.canonical?.coverageCatchup === true;
             const canonicalLag = Number(chainStatus?.canonical?.estimatedLagMinutes || 0);
             const netflowLag = Number(chainStatus?.netflow?.estimatedLagMinutes || 0);
             const lagLabel = earn_formatFreshnessLag(Math.max(canonicalLag, netflowLag));

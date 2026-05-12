@@ -384,6 +384,59 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         report = {entry["chain"]: entry for entry in status["chainReport"]}
         self.assertEqual(report["xlayer"]["weakPoint"], "canonical coverage 0/1 wallets fresh")
 
+    def test_advisory_global_canonical_backlog_does_not_downgrade_fresh_chain(self):
+        now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)
+        wallet = "0x2222222222222222222222222222222222222222"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_json(
+                root,
+                "earn-subaccount-history/manifest.json",
+                {
+                    "chains": {
+                        chain: {"lastBlock": 10_000, "updatedAt": "2026-05-08T11:59:00Z"}
+                        for chain in CHAIN_POLICIES
+                    }
+                },
+            )
+            for chain in CHAIN_POLICIES:
+                netflows = {wallet: {"1": {"endingPar": "1"}}} if chain == "arbitrum" else {}
+                self._write_json(
+                    root,
+                    f"earn-netflow/{chain}.json",
+                    {
+                        "chain": chain,
+                        "lastBlock": 10_000,
+                        "updatedAt": "2026-05-08T11:59:00Z",
+                        "netflows": netflows,
+                    },
+                )
+            self._write_json(
+                root,
+                f"earn-subaccount-history/arbitrum/{wallet}.json",
+                {"address": wallet, "lastScannedBlock": 9_999, "accounts": {}},
+            )
+            self._write_json(root, "earn-snapshots/manifest.json", {"dates": [], "chains": {}})
+
+            status = build_status(
+                data_dir=root,
+                live_blocks={chain: 10_000 for chain in CHAIN_POLICIES},
+                now=now,
+            )
+
+        arbitrum = status["chains"]["arbitrum"]
+        self.assertEqual(arbitrum["canonical"]["status"], "verified")
+        self.assertEqual(arbitrum["canonical"]["recencyStatus"], "verified")
+        self.assertEqual(arbitrum["canonical"]["coverageCompleteness"], "advisory")
+        self.assertTrue(arbitrum["canonical"]["coverageBacklog"])
+        self.assertFalse(arbitrum["canonical"]["coverageCatchup"])
+        self.assertFalse(arbitrum["canonical"]["refreshRecommended"])
+        self.assertEqual(arbitrum["status"], "verified")
+        self.assertEqual(status["summary"]["status"], "verified")
+        self.assertEqual(status["summary"]["refreshJobs"], [])
+        report = {entry["chain"]: entry for entry in status["chainReport"]}
+        self.assertEqual(report["arbitrum"]["weakPoint"], "canonical global backfill 0/1 wallets fresh")
+
     def test_generic_netflow_refresh_jobs_stay_chain_specific(self):
         now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)
         with tempfile.TemporaryDirectory() as tmp:
