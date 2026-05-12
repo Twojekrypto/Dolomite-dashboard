@@ -73,6 +73,7 @@ CHAINS = {
             *([] if not os.environ.get("DRPC_MANTLE_RPC") else [os.environ["DRPC_MANTLE_RPC"]]),
             *([] if not os.environ.get("DRPC_MANTLE_RPC_ZEN") else [os.environ["DRPC_MANTLE_RPC_ZEN"]]),
             *([] if not os.environ.get("ALCHEMY_MANTLE_RPC_ZEN") else [os.environ["ALCHEMY_MANTLE_RPC_ZEN"]]),
+            *([] if not os.environ.get("ALCHEMY_MANTLE_RPC_DANU") else [os.environ["ALCHEMY_MANTLE_RPC_DANU"]]),
             *([] if not os.environ.get("ALCHEMY_MANTLE_RPC") else [os.environ["ALCHEMY_MANTLE_RPC"]]),
             *([] if not os.environ.get("ALCHEMY_MANTLE_RPC_2") else [os.environ["ALCHEMY_MANTLE_RPC_2"]]),
             *([] if not os.environ.get("ALCHEMY_MANTLE_RPC_3") else [os.environ["ALCHEMY_MANTLE_RPC_3"]]),
