@@ -32,6 +32,7 @@ CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
         "verifiedBlockLag": 900,
         "canonicalWorkflow": "update-earn-ethereum-canonical-history.yml",
         "canonicalSupported": True,
+        "canonicalCoverageCompleteness": "required",
     },
     "berachain": {
         "label": "Berachain",
@@ -41,6 +42,7 @@ CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
         "canonicalWorkflow": "update-earn-berachain-canonical-history.yml",
         "netflowWorkflow": "update-earn-berachain-netflow.yml",
         "canonicalSupported": True,
+        "canonicalCoverageCompleteness": "advisory",
     },
     "arbitrum": {
         "label": "Arbitrum",
@@ -48,6 +50,7 @@ CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
         "verifiedBlockLag": 43200,
         "canonicalWorkflow": "update-earn-arbitrum-canonical-history.yml",
         "canonicalSupported": True,
+        "canonicalCoverageCompleteness": "advisory",
     },
     "botanix": {
         "label": "Botanix",
@@ -56,6 +59,7 @@ CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
         "canonicalWorkflow": "update-earn-secondary-canonical-history.yml",
         "canonicalWorkflowInputs": {"chain": "botanix"},
         "canonicalSupported": True,
+        "canonicalCoverageCompleteness": "required",
     },
     "mantle": {
         "label": "Mantle",
@@ -64,6 +68,7 @@ CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
         "canonicalWorkflow": "update-earn-secondary-canonical-history.yml",
         "canonicalWorkflowInputs": {"chain": "mantle"},
         "canonicalSupported": True,
+        "canonicalCoverageCompleteness": "advisory",
     },
     "polygonzkevm": {
         "label": "Polygon zkEVM",
@@ -72,6 +77,7 @@ CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
         "canonicalWorkflow": "update-earn-secondary-canonical-history.yml",
         "canonicalWorkflowInputs": {"chain": "polygonzkevm"},
         "canonicalSupported": True,
+        "canonicalCoverageCompleteness": "advisory",
     },
     "xlayer": {
         "label": "X Layer",
@@ -80,6 +86,7 @@ CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
         "canonicalWorkflow": "update-earn-secondary-canonical-history.yml",
         "canonicalWorkflowInputs": {"chain": "xlayer"},
         "canonicalSupported": True,
+        "canonicalCoverageCompleteness": "required",
     },
 }
 
@@ -301,14 +308,36 @@ def _canonical_coverage_status(*, data_dir: Path, chain: str, target_block: Opti
     }
 
 
-def _apply_canonical_coverage(component: Dict[str, Any], coverage: Dict[str, Any]) -> Dict[str, Any]:
+def _canonical_coverage_completeness(policy: Dict[str, Any]) -> str:
+    mode = str(policy.get("canonicalCoverageCompleteness") or "required").strip().lower()
+    return mode if mode in {"required", "advisory"} else "required"
+
+
+def _apply_canonical_coverage(
+    component: Dict[str, Any],
+    coverage: Dict[str, Any],
+    *,
+    policy: Dict[str, Any],
+) -> Dict[str, Any]:
+    completeness = _canonical_coverage_completeness(policy)
     component["coverage"] = coverage
+    component["coverageCompleteness"] = completeness
     if coverage.get("status") != "partial":
         component["coverageCatchup"] = False
+        component["coverageBacklog"] = False
+        return component
+    component["recencyStatus"] = component.get("status")
+    if completeness == "advisory":
+        component["coverageCatchup"] = False
+        component["coverageBacklog"] = True
+        component["reason"] = (
+            f"canonical global backfill pending: {coverage.get('freshWalletCount')}/"
+            f"{coverage.get('knownAddressCount')} wallets fresh"
+        )
         return component
     component["refreshRecommended"] = True
     component["coverageCatchup"] = True
-    component["recencyStatus"] = component.get("status")
+    component["coverageBacklog"] = False
     if component.get("status") in {"verified", "ahead"}:
         component["status"] = "syncing"
     component["refreshMode"] = _refresh_mode(str(component.get("status") or "syncing"), True)
@@ -427,7 +456,7 @@ def _weak_point(
             return "snapshot-first coverage; canonical and netflow event ledgers are not enabled"
         return "snapshot-first coverage; snapshot is currently missing"
     canonical_coverage = canonical.get("coverage") or {}
-    if canonical_coverage.get("status") == "partial":
+    if canonical_coverage.get("status") == "partial" and canonical.get("coverageCatchup"):
         return (
             f"canonical coverage {canonical_coverage.get('freshWalletCount')}/"
             f"{canonical_coverage.get('knownAddressCount')} wallets fresh"
@@ -438,6 +467,11 @@ def _weak_point(
     for name, component in (("canonical", canonical), ("netflow", netflow)):
         if component.get("refreshMode") == "background":
             return f"{name} background refresh due"
+    if canonical_coverage.get("status") == "partial" and canonical.get("coverageBacklog"):
+        return (
+            f"canonical global backfill {canonical_coverage.get('freshWalletCount')}/"
+            f"{canonical_coverage.get('knownAddressCount')} wallets fresh"
+        )
     return "none"
 
 
@@ -506,7 +540,7 @@ def build_status(
                 chain=chain,
                 target_block=history_meta.get("lastBlock"),
             )
-            canonical = _apply_canonical_coverage(canonical, coverage)
+            canonical = _apply_canonical_coverage(canonical, coverage, policy=policy)
         netflow_supported = (CHAINS.get(chain) or {}).get("start_block", 0) >= 0
         support_mode = _support_mode(
             policy=policy,
@@ -528,7 +562,7 @@ def build_status(
             workflow = str(policy["canonicalWorkflow"])
             refresh_workflows.add(workflow)
             coverage = canonical.get("coverage") or {}
-            if coverage.get("status") == "partial":
+            if coverage.get("status") == "partial" and canonical.get("coverageCatchup"):
                 reason = (
                     f"{chain}: canonical coverage catchup "
                     f"({coverage.get('freshWalletCount')}/{coverage.get('knownAddressCount')} wallets fresh, "
