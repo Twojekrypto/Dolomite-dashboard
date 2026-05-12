@@ -156,49 +156,39 @@
     }
   }
 
-  function installSupplyHistoryCompactHover(points) {
-    const chart = document.getElementById('supply-history-chart');
-    const tooltip = document.getElementById('supply-history-tooltip');
-    const svg = chart?.querySelector('svg');
-    const hoverLine = document.getElementById('supply-history-hover-line');
-    const hoverDot = document.getElementById('supply-history-hover-dot');
-    if (!chart || !tooltip || !svg || !hoverLine || !hoverDot) return;
+  function supplyDraftNonNegative(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+  }
 
-    const historyMetric = currentSupplyOverview?.historyMetric || 'token';
-    let visiblePoints = [];
+  function getSupplyDraftVisibleHistoryPoints(points) {
+    let visible = [];
     try {
-      visiblePoints = getVisibleSupplyHistoryPoints(points || []).map(point => ({
-        ...point,
-        value: Math.max(0, Number(point?.value || 0)),
-        usdValue: Number.isFinite(Number(point?.usdValue)) ? Math.max(0, Number(point.usdValue)) : point?.usdValue,
-        tokenValue: Number.isFinite(Number(point?.tokenValue)) ? Math.max(0, Number(point.tokenValue)) : point?.tokenValue,
-      }));
+      visible = getVisibleSupplyHistoryPoints(points || []);
     } catch (error) {
-      visiblePoints = [];
+      visible = Array.isArray(points) ? points : [];
     }
-    if (visiblePoints.length < 2) return;
+    return visible.map(point => ({
+      ...point,
+      value: supplyDraftNonNegative(point?.value),
+      usdValue: Number.isFinite(Number(point?.usdValue)) ? supplyDraftNonNegative(point.usdValue) : point?.usdValue,
+      tokenValue: Number.isFinite(Number(point?.tokenValue)) ? supplyDraftNonNegative(point.tokenValue) : point?.tokenValue,
+    }));
+  }
 
-    tooltip.classList.add('supply-history-tooltip-compact');
-    tooltip.innerHTML = `
-      <div class="supply-history-tooltip-date"></div>
-      <div class="supply-history-tooltip-primary"></div>
-    `;
-    const tipDate = tooltip.querySelector('.supply-history-tooltip-date');
-    const tipPrimary = tooltip.querySelector('.supply-history-tooltip-primary');
-
+  function getSupplyDraftHistoryScale(visiblePoints, historyMetric) {
     const width = 1000;
     const height = 320;
     const padRight = 20;
     const padTop = 20;
     const padBottom = 20;
-    const values = visiblePoints.map(point => Number(point.value || 0));
+    const values = visiblePoints.map(point => supplyDraftNonNegative(point?.value));
     const rawMin = Math.max(0, Math.min(...values));
     const rawMax = Math.max(0, Math.max(...values));
     const rawSpread = rawMax - rawMin;
     const vertPad = rawSpread > 0 ? rawSpread * 0.08 : Math.max(rawMax * 0.02, 1);
     const min = Math.max(0, rawMin - vertPad);
     const max = Math.max(rawMax + vertPad, min + Math.max(rawMax * 0.02, 1));
-    const safeSpread = max - min;
     const labels = Array.from({ length: 5 }).map((_, index) => {
       try {
         return supplyFormatHistoryAxisValue(max - ((max - min) * index / 4), historyMetric);
@@ -211,12 +201,91 @@
     const innerW = width - padLeft - padRight;
     const innerH = height - padTop - padBottom;
     const plotRight = width - padRight;
+    const bottom = height - padBottom;
+    const yAt = value => {
+      const normalized = max > min ? (supplyDraftNonNegative(value) - min) / (max - min) : 0;
+      const y = bottom - normalized * innerH;
+      return Math.max(padTop, Math.min(bottom, y));
+    };
+    return { width, height, padTop, padBottom, padLeft, innerW, innerH, plotRight, bottom, yAt };
+  }
+
+  function stabilizeSupplyHistoryGeometry(points) {
+    const chart = document.getElementById('supply-history-chart');
+    const svg = chart?.querySelector('svg');
+    const line = svg?.querySelector('path[stroke="url(#supplyLineGrad)"]');
+    const area = svg?.querySelector('path[fill="url(#supplyAreaGradient)"]');
+    if (!chart || !svg || !line || !area) return;
+    const historyMetric = currentSupplyOverview?.historyMetric || 'token';
+    const visiblePoints = getSupplyDraftVisibleHistoryPoints(points);
+    if (visiblePoints.length < 2) return;
+    const scale = getSupplyDraftHistoryScale(visiblePoints, historyMetric);
+    const pathPoints = visiblePoints.map((point, index) => ({
+      x: scale.padLeft + (scale.innerW * index) / Math.max(1, visiblePoints.length - 1),
+      y: scale.yAt(point.value),
+    }));
+    const linePath = pathPoints.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(' ');
+    const first = pathPoints[0];
+    const last = pathPoints[pathPoints.length - 1];
+    const areaPath = `${linePath} L ${last.x.toFixed(2)} ${scale.bottom.toFixed(2)} L ${first.x.toFixed(2)} ${scale.bottom.toFixed(2)} Z`;
+    line.setAttribute('d', linePath);
+    area.setAttribute('d', areaPath);
+    line.dataset.supplyDraftStable = 'true';
+    area.dataset.supplyDraftStable = 'true';
+  }
+
+  function stabilizeSupplyHistoryBrush(points) {
+    const brush = document.getElementById('supply-history-brush');
+    const svg = document.getElementById('supply-brush-svg');
+    if (!brush || !svg || !Array.isArray(points) || points.length < 2) return;
+    const safePoints = points.map(point => ({ ...point, value: supplyDraftNonNegative(point?.value) }));
+    const bW = brush.offsetWidth || 800;
+    const bH = brush.offsetHeight || 48;
+    const values = safePoints.map(point => supplyDraftNonNegative(point.value));
+    const bMin = Math.max(0, Math.min(...values));
+    const bMax = Math.max(0, Math.max(...values));
+    const bSpread = bMax - bMin || 1;
+    const bPad = 4;
+    const bIH = bH - bPad * 2;
+    const yAt = value => {
+      const y = bH - bPad - ((supplyDraftNonNegative(value) - bMin) / bSpread) * bIH;
+      return Math.max(bPad, Math.min(bH - bPad, y));
+    };
+    const miniLine = safePoints.map((point, index) => {
+      const x = (bW * index) / Math.max(1, safePoints.length - 1);
+      return `${index === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${yAt(point.value).toFixed(1)}`;
+    }).join(' ');
+    const lastX = (bW * (safePoints.length - 1)) / Math.max(1, safePoints.length - 1);
+    const miniArea = `${miniLine} L ${lastX.toFixed(1)} ${bH} L 0 ${bH} Z`;
+    svg.setAttribute('viewBox', `0 0 ${bW} ${bH}`);
+    svg.innerHTML = `<defs><linearGradient id="brushGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(201,162,39,0.30)"/><stop offset="100%" stop-color="rgba(201,162,39,0)"/></linearGradient></defs><path d="${miniArea}" fill="url(#brushGrad)" data-supply-draft-stable="true"/><path d="${miniLine}" fill="none" stroke="rgba(201,162,39,0.58)" stroke-width="1" data-supply-draft-stable="true"/>`;
+  }
+
+  function installSupplyHistoryCompactHover(points) {
+    const chart = document.getElementById('supply-history-chart');
+    const tooltip = document.getElementById('supply-history-tooltip');
+    const svg = chart?.querySelector('svg');
+    const hoverLine = document.getElementById('supply-history-hover-line');
+    const hoverDot = document.getElementById('supply-history-hover-dot');
+    if (!chart || !tooltip || !svg || !hoverLine || !hoverDot) return;
+
+    const historyMetric = currentSupplyOverview?.historyMetric || 'token';
+    const visiblePoints = getSupplyDraftVisibleHistoryPoints(points);
+    if (visiblePoints.length < 2) return;
+
+    tooltip.classList.add('supply-history-tooltip-compact');
+    tooltip.innerHTML = `
+      <div class="supply-history-tooltip-date"></div>
+      <div class="supply-history-tooltip-primary"></div>
+    `;
+    const tipDate = tooltip.querySelector('.supply-history-tooltip-date');
+    const tipPrimary = tooltip.querySelector('.supply-history-tooltip-primary');
+
+    const scale = getSupplyDraftHistoryScale(visiblePoints, historyMetric);
 
     const pathPoints = visiblePoints.map((point, index) => {
-      const x = padLeft + (innerW * index) / Math.max(1, visiblePoints.length - 1);
-      const normalized = (Number(point.value || 0) - min) / safeSpread;
-      const y = height - padBottom - normalized * innerH;
-      return { x, y };
+      const x = scale.padLeft + (scale.innerW * index) / Math.max(1, visiblePoints.length - 1);
+      return { x, y: scale.yAt(point.value) };
     });
 
     function hideHover() {
@@ -244,8 +313,8 @@
 
       const chartRect = chart.getBoundingClientRect();
       const svgRect = svg.getBoundingClientRect();
-      const screenX = (svgRect.left - chartRect.left) + (point.x / width) * svgRect.width;
-      const screenY = (svgRect.top - chartRect.top) + (point.y / height) * svgRect.height;
+      const screenX = (svgRect.left - chartRect.left) + (point.x / scale.width) * svgRect.width;
+      const screenY = (svgRect.top - chartRect.top) + (point.y / scale.height) * svgRect.height;
       tooltip.classList.add('visible');
       tooltip.style.left = '0px';
       tooltip.style.top = '0px';
@@ -259,12 +328,12 @@
 
     chart.onpointermove = event => {
       const svgRect = svg.getBoundingClientRect();
-      const rx = ((event.clientX - svgRect.left) / svgRect.width) * width;
-      if (!Number.isFinite(rx) || rx < padLeft || rx > plotRight) {
+      const rx = ((event.clientX - svgRect.left) / svgRect.width) * scale.width;
+      if (!Number.isFinite(rx) || rx < scale.padLeft || rx > scale.plotRight) {
         hideHover();
         return;
       }
-      const index = Math.max(0, Math.min(visiblePoints.length - 1, Math.round(((rx - padLeft) / innerW) * (visiblePoints.length - 1))));
+      const index = Math.max(0, Math.min(visiblePoints.length - 1, Math.round(((rx - scale.padLeft) / scale.innerW) * (visiblePoints.length - 1))));
       showHover(index);
     };
     chart.onpointerleave = hideHover;
@@ -289,6 +358,8 @@
       syncSupplyHistoryBadge();
       syncSupplyHistoryHeaderCopy();
       polishSupplyHistoryChart();
+      stabilizeSupplyHistoryGeometry(arguments[0] || []);
+      stabilizeSupplyHistoryBrush(arguments[0] || []);
       installSupplyHistoryCompactHover(arguments[0] || []);
       return result;
     };

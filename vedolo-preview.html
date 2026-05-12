@@ -85,6 +85,41 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .count-badge{font-family:var(--mono);font-size:11px;color:var(--fg-2);background:var(--bg-3);border:1px solid var(--line-2);padding:3px 8px;border-radius:999px;white-space:nowrap}
 .card-meta{font-size:11px;color:var(--fg-3);font-family:var(--mono);display:flex;align-items:center;gap:6px}
 .card-body{padding:20px 24px 24px}
+.pulse{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold);display:inline-block;flex-shrink:0}
+.locked-chart-card{overflow:visible}
+.locked-chart-wrap{padding:24px 24px 22px;position:relative}
+.locked-chart-svg{width:100%;height:340px;display:block;overflow:visible}
+.locked-chart-grid line{stroke:var(--line-1);stroke-width:1}
+.locked-chart-grid text{font-family:var(--mono);font-size:10px;fill:var(--fg-3);font-weight:500}
+.locked-chart-line{fill:none;stroke:var(--gold);stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round;filter:drop-shadow(0 0 6px rgba(201,162,39,.25))}
+.locked-chart-area{fill:url(#lockedChartGrad)}
+.locked-chart-x text{font-family:var(--mono);font-size:10px;fill:var(--fg-3)}
+.locked-chart-hover-line{stroke:var(--fg-3);stroke-width:1;stroke-dasharray:3 3;opacity:0;pointer-events:none;transition:opacity .12s var(--ease)}
+.locked-chart-hover-dot{fill:var(--gold);stroke:var(--bg-0);stroke-width:2;opacity:0;pointer-events:none;transition:opacity .12s var(--ease)}
+.locked-chart-tip{position:absolute;pointer-events:none;background:rgba(15,15,17,.96);border:1px solid var(--line-3);border-radius:8px;padding:8px 11px;font-family:var(--mono);font-size:11px;color:var(--fg-1);box-shadow:var(--sh-hi);opacity:0;transition:opacity .12s var(--ease);white-space:nowrap;z-index:5}
+.locked-chart-tip .tt-date{color:var(--fg-3);font-size:10px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px}
+.locked-chart-tip .tt-val{color:var(--gold);font-weight:600;font-size:14px}
+.locked-brush-wrap{position:relative;padding:6px 24px 18px;user-select:none}
+.locked-brush-svg{width:100%;height:56px;display:block;border-radius:8px;border:1px solid var(--line-2);background:var(--bg-1);box-shadow:inset 0 1px 0 rgba(255,255,255,.02);cursor:crosshair}
+.locked-brush-line{fill:none;stroke:var(--gold);stroke-width:1;opacity:.55}
+.locked-brush-area{fill:url(#lockedBrushGrad);opacity:.7}
+.locked-brush-overlay{position:absolute;top:6px;left:24px;right:24px;height:56px;pointer-events:none}
+.locked-brush-dim{position:absolute;top:0;bottom:0;background:rgba(6,8,12,.55);pointer-events:none;border-radius:8px}
+.locked-brush-dim.l{left:0;border-radius:8px 0 0 8px}
+.locked-brush-dim.r{right:0;border-radius:0 8px 8px 0}
+.locked-brush-window{position:absolute;top:0;bottom:0;border:1.5px solid var(--gold);border-radius:6px;background:rgba(201,162,39,.06);box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 0 0 1px rgba(201,162,39,.10);cursor:grab;pointer-events:auto;transition:background .15s var(--ease),border-color .15s var(--ease)}
+.locked-brush-window:hover{background:rgba(201,162,39,.10)}
+.locked-brush-window.dragging{cursor:grabbing;background:rgba(201,162,39,.14)}
+.locked-brush-handle{position:absolute;top:0;bottom:0;width:14px;display:flex;align-items:center;justify-content:center;cursor:ew-resize;pointer-events:auto;border-radius:4px;transition:background .15s var(--ease)}
+.locked-brush-handle:hover{background:rgba(201,162,39,.10)}
+.locked-brush-handle.l{left:-7px;border-radius:4px 0 0 4px}
+.locked-brush-handle.r{right:-7px;border-radius:0 4px 4px 0}
+.locked-brush-handle .grip{display:flex;gap:2px;pointer-events:none}
+.locked-brush-handle .grip span{width:2px;height:18px;border-radius:2px;background:var(--gold);opacity:.85}
+.locked-brush-handle .grip span:last-child{opacity:.45}
+.locked-brush-label{text-align:center;font-family:var(--mono);font-size:11px;color:var(--fg-3);letter-spacing:.3px;margin-top:6px;min-height:16px}
+.locked-brush-label .sep{color:var(--fg-4);margin:0 8px}
+.locked-brush-label .v{color:var(--fg-2)}
 .toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 24px;background:linear-gradient(180deg,var(--bg-1),var(--bg-2));border-bottom:1px solid var(--line-1);flex-wrap:wrap}
 .tb-left,.tb-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .tb-right{margin-left:auto}
@@ -585,6 +620,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   #locks-table col.flow-lock{width:58px}
   .flow-col .tbl th,.flow-col .tbl td{padding-left:8px;padding-right:8px}
   .flow-address-meta{font-size:10px}
+  .locked-chart-wrap{padding:20px 16px 18px}
+  .locked-chart-svg{height:260px}
+  .locked-brush-wrap{padding:4px 16px 16px}
+  .locked-brush-overlay{top:4px;left:16px;right:16px}
   .expiry-chart{grid-template-columns:56px minmax(0,1fr);gap:10px}
   .expiry-axis{font-size:9.5px}
   .expiry-card .expiry-bars{gap:10px;padding-left:10px;padding-right:10px}
@@ -609,6 +648,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 }
 @media (max-width:560px){
   .holders-card .toolbar .tb-left{width:100%}
+  .locked-chart-svg{height:240px}
+  .locked-chart-grid text,.locked-chart-x text{font-size:9px}
   .expiry-chart{display:block;overflow-x:auto;padding-bottom:2px}
   .expiry-axis{display:none}
   .expiry-card .expiry-bars{min-width:520px}
@@ -675,6 +716,58 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
         <div class="val" id="hero-avg-weight" data-count-value="0">0x</div>
         <div class="sub">vote weight per locked DOLO</div>
       </div>
+    </div>
+  </section>
+
+  <section class="card locked-chart-card" id="vedolo-locked-chart-card">
+    <div class="card-head">
+      <div class="card-title">
+        <h2>Locked DOLO Over Time</h2>
+        <span class="count-badge" id="lockedRangeBadge">All Time</span>
+      </div>
+      <div class="card-meta"><span class="pulse"></span>drag window below to zoom</div>
+    </div>
+    <div class="locked-chart-wrap" id="lockedChartWrap">
+      <svg class="locked-chart-svg" id="lockedChart" viewBox="0 0 1000 340" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="lockedChartGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#c9a227" stop-opacity=".22"/>
+            <stop offset="55%" stop-color="#c9a227" stop-opacity=".06"/>
+            <stop offset="100%" stop-color="#c9a227" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <g class="locked-chart-grid" id="lockedChartGrid"></g>
+        <path class="locked-chart-area" id="lockedChartArea" d=""/>
+        <path class="locked-chart-line" id="lockedChartLine" d=""/>
+        <line class="locked-chart-hover-line" id="lockedHoverLine" x1="0" x2="0" y1="0" y2="0"/>
+        <circle class="locked-chart-hover-dot" id="lockedHoverDot" r="4" cx="0" cy="0"/>
+        <g class="locked-chart-x" id="lockedChartX"></g>
+      </svg>
+      <div class="locked-chart-tip" id="lockedChartTip">
+        <div class="tt-date">--</div>
+        <div class="tt-val">--</div>
+      </div>
+    </div>
+    <div class="locked-brush-wrap" id="lockedBrushWrap">
+      <svg class="locked-brush-svg" id="lockedBrushSvg" viewBox="0 0 1000 56" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="lockedBrushGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#c9a227" stop-opacity=".30"/>
+            <stop offset="100%" stop-color="#c9a227" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path class="locked-brush-area" id="lockedBrushArea" d=""/>
+        <path class="locked-brush-line" id="lockedBrushLine" d=""/>
+      </svg>
+      <div class="locked-brush-overlay" id="lockedBrushOverlay">
+        <div class="locked-brush-dim l" id="lockedBrushDimL"></div>
+        <div class="locked-brush-window" id="lockedBrushWindow">
+          <div class="locked-brush-handle l" id="lockedBrushHandleL"><div class="grip"><span></span><span></span></div></div>
+          <div class="locked-brush-handle r" id="lockedBrushHandleR"><div class="grip"><span></span><span></span></div></div>
+        </div>
+        <div class="locked-brush-dim r" id="lockedBrushDimR"></div>
+      </div>
+      <div class="locked-brush-label" id="lockedBrushLabel"></div>
     </div>
   </section>
 
@@ -935,6 +1028,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 <script>
 const state = {
   stats:{}, holders:[], exits:[], locks:[], unlocks:[], expiry:null, price:null,
+  lockedHistory:[], lockedBrush:{from:0,to:0}, lockedBrushReady:false,
   holder:{q:"",sort:"rank",asc:true,page:1,perPage:12,expanded:null,detailSort:"dolo",detailAsc:false},
   exitsUi:{q:"",period:"30",sort:"date",asc:false,page:1,perPage:10},
   flows:{q:"",period:"7",source:"all",locksSort:"rank",locksAsc:true,unlocksSort:"rank",unlocksAsc:true,locksPage:1,unlocksPage:1,perPage:8},
@@ -1028,6 +1122,7 @@ const CONTRACTS = [
   {token:"oDOLO", logo:"odolo-logo-official.svg", chain:"Berachain", chainKey:"berachain", addr:"0x02E513b5B54eE216Bf836ceb471507488fC89543", explorer:"https://berascan.com"},
   {token:"veDOLO", logo:"vedolo-logo.svg", chain:"Berachain", chainKey:"berachain", addr:"0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4", explorer:"https://berascan.com"}
 ];
+const LOCKED_CHART = {W:1000,H:340,P_L:56,P_R:18,P_T:20,P_B:28,BW:1000,BH:56};
 
 function setText(id, value){ const el = document.getElementById(id); if(el) el.textContent = value; }
 function setMetricText(id, value){
@@ -1046,6 +1141,307 @@ function matchesText(row, q, fields){
   if(!q) return true;
   q = q.toLowerCase();
   return fields.some(f => String(row[f] || "").toLowerCase().includes(q));
+}
+function lockedChartDayKey(sec){
+  const d = new Date(sec * 1000);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2,"0")}-${String(d.getUTCDate()).padStart(2,"0")}`;
+}
+function lockedChartDaySecFromKey(key){
+  const ms = Date.parse(`${key}T00:00:00Z`);
+  return Number.isFinite(ms) ? Math.floor(ms / 1000) : 0;
+}
+function lockedChartDaySecFromMs(ms){
+  const d = new Date(ms);
+  return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 1000);
+}
+function lockedChartDate(sec){
+  return new Date(sec * 1000).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+}
+function lockedChartAxisDate(sec, spanDays){
+  const d = new Date(sec * 1000);
+  if(spanDays <= 90) return d.toLocaleDateString("en-US",{month:"short",day:"numeric"});
+  return d.toLocaleDateString("en-US",{month:"short",year:"2-digit"});
+}
+function lockedChartWindowLabel(from, to, totalSpan){
+  const sel = Math.max(0, to - from);
+  if(!totalSpan || sel >= totalSpan * .99) return "All Time";
+  const days = Math.max(1, Math.round(sel / 86400));
+  if(days >= 365) return `${(days / 365).toFixed(1)}Y window`;
+  if(days >= 60) return `${Math.round(days / 30)}M window`;
+  return `${days}D window`;
+}
+function buildLockedHistory(){
+  const locks = state.locks || [];
+  const unlocks = state.unlocks || [];
+  const snapshotMs = Date.parse(state.statsTimestamp || state.holdersTimestamp || "") || Date.now();
+  const snapshotSec = Math.floor(snapshotMs / 1000);
+  const daily = new Map();
+  const tokenEnd = new Map();
+  const tokenUnlock = new Map();
+  const addDelta = (sec, delta) => {
+    if(!Number.isFinite(sec) || sec <= 0 || !Number.isFinite(delta) || !delta) return;
+    const key = lockedChartDayKey(sec);
+    daily.set(key, (daily.get(key) || 0) + delta);
+  };
+
+  locks.forEach(lock => {
+    const tokenId = String(lock.tokenId || "");
+    const locktime = num(lock.locktime);
+    if(tokenId && locktime > 0) tokenEnd.set(tokenId, Math.max(tokenEnd.get(tokenId) || 0, locktime));
+  });
+  unlocks.forEach(unlock => {
+    const tokenId = String(unlock.tokenId || "");
+    const timestamp = num(unlock.timestamp);
+    if(tokenId && timestamp > 0) tokenUnlock.set(tokenId, Math.min(tokenUnlock.get(tokenId) || Infinity, timestamp));
+  });
+  locks.forEach(lock => {
+    const tokenId = String(lock.tokenId || "");
+    const amount = num(lock.dolo);
+    const start = num(lock.timestamp);
+    if(amount <= 0 || start <= 0 || start > snapshotSec) return;
+    addDelta(start, amount);
+    const out = tokenUnlock.get(tokenId) || tokenEnd.get(tokenId) || num(lock.locktime);
+    if(out > 0 && out <= snapshotSec) addDelta(out, -amount);
+  });
+
+  let running = 0;
+  let points = [...daily.keys()].sort().map(key => {
+    running = Math.max(0, running + (daily.get(key) || 0));
+    return [lockedChartDaySecFromKey(key), running];
+  }).filter(p => p[0] > 0 && Number.isFinite(p[1]));
+
+  const currentLocked = num(state.stats?.total_locked_dolo);
+  const snapshotDay = lockedChartDaySecFromMs(snapshotMs);
+  if(currentLocked > 0){
+    if(points.length){
+      const derived = points[points.length - 1][1];
+      const ratio = derived > 0 ? currentLocked / derived : 0;
+      if(ratio >= .85 && ratio <= 1.15) points = points.map(([t,v]) => [t, v * ratio]);
+      if(points[points.length - 1][0] >= snapshotDay) points[points.length - 1][1] = currentLocked;
+      else points.push([snapshotDay, currentLocked]);
+    }else{
+      points = [[snapshotDay, currentLocked]];
+    }
+  }
+  state.lockedHistory = points.filter(p => p[0] > 0 && p[1] >= 0);
+  state.lockedBrushReady = false;
+}
+function renderLockedChart(){
+  const all = state.lockedHistory || [];
+  const badge = qs("#lockedRangeBadge");
+  if(all.length < 2){
+    if(badge) badge.textContent = "No Data";
+    ["lockedChartLine","lockedChartArea","lockedBrushLine","lockedBrushArea"].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.setAttribute("d", "");
+    });
+    return;
+  }
+  if(!state.lockedBrushReady) initLockedBrush();
+  const brush = state.lockedBrush;
+  let series = all.filter(p => p[0] >= brush.from && p[0] <= brush.to);
+  if(series.length < 2){
+    const idx = Math.max(0, all.findIndex(p => p[0] >= brush.from));
+    series = all.slice(Math.max(0, idx - 1), Math.min(all.length, idx + 2));
+  }
+  renderLockedChartFor(series.length >= 2 ? series : all.slice(-2));
+  const totalSpan = all[all.length - 1][0] - all[0][0];
+  if(badge) badge.textContent = lockedChartWindowLabel(brush.from, brush.to, totalSpan);
+}
+function renderLockedChartFor(series){
+  const {W,H,P_L,P_R,P_T,P_B} = LOCKED_CHART;
+  const minX = series[0][0];
+  const maxX = series[series.length - 1][0];
+  const xRange = maxX - minX || 1;
+  const maxY = Math.max(1, ...series.map(p => p[1])) * 1.08;
+  const xAt = t => P_L + (t - minX) / xRange * (W - P_L - P_R);
+  const yAt = v => P_T + (1 - (v / maxY)) * (H - P_T - P_B);
+
+  let line = "";
+  series.forEach((p,i) => {
+    line += `${i === 0 ? "M" : "L"}${xAt(p[0]).toFixed(2)} ${yAt(p[1]).toFixed(2)} `;
+  });
+  const x0 = xAt(series[0][0]).toFixed(2);
+  const xN = xAt(series[series.length - 1][0]).toFixed(2);
+  const yBase = (H - P_B).toFixed(2);
+  const area = `M${x0} ${yBase} ${line.replace(/^M/,"L")} L${xN} ${yBase} Z`;
+  qs("#lockedChartLine")?.setAttribute("d", line.trim());
+  qs("#lockedChartArea")?.setAttribute("d", area);
+
+  const grid = qs("#lockedChartGrid");
+  if(grid){
+    grid.innerHTML = "";
+    for(let i = 0; i <= 5; i++){
+      const v = maxY * i / 5;
+      const y = yAt(v);
+      grid.innerHTML += `<line x1="${P_L}" x2="${W-P_R}" y1="${y}" y2="${y}"/>`;
+      grid.innerHTML += `<text x="${P_L-10}" y="${y+3}" text-anchor="end">${fmtCompact(v)}</text>`;
+    }
+  }
+
+  const xg = qs("#lockedChartX");
+  if(xg){
+    xg.innerHTML = "";
+    const spanDays = (maxX - minX) / 86400;
+    for(let i = 0; i <= 5; i++){
+      const t = minX + xRange * i / 5;
+      xg.innerHTML += `<text x="${xAt(t)}" y="${H-8}" text-anchor="middle">${lockedChartAxisDate(t, spanDays)}</text>`;
+    }
+  }
+  attachLockedHover(series, xAt, yAt);
+}
+function attachLockedHover(series, xAt, yAt){
+  const {H,P_T,P_B} = LOCKED_CHART;
+  const svg = qs("#lockedChart");
+  const wrap = qs("#lockedChartWrap");
+  const tip = qs("#lockedChartTip");
+  const line = qs("#lockedHoverLine");
+  const dot = qs("#lockedHoverDot");
+  if(!svg || !wrap || !tip || !line || !dot) return;
+  line.setAttribute("y1", P_T);
+  line.setAttribute("y2", H - P_B);
+  function leave(){
+    line.style.opacity = 0;
+    dot.style.opacity = 0;
+    tip.style.opacity = 0;
+  }
+  function move(e){
+    const {W,P_L,P_R} = LOCKED_CHART;
+    const rect = svg.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width * W;
+    if(px < P_L || px > W - P_R){ leave(); return; }
+    let nearest = series[0];
+    let best = Infinity;
+    series.forEach(p => {
+      const distance = Math.abs(xAt(p[0]) - px);
+      if(distance < best){ best = distance; nearest = p; }
+    });
+    const x = xAt(nearest[0]);
+    const y = yAt(nearest[1]);
+    line.setAttribute("x1", x);
+    line.setAttribute("x2", x);
+    line.style.opacity = 1;
+    dot.setAttribute("cx", x);
+    dot.setAttribute("cy", y);
+    dot.style.opacity = 1;
+
+    const wrapRect = wrap.getBoundingClientRect();
+    const screenX = rect.left - wrapRect.left + (x / W) * rect.width;
+    const screenY = rect.top - wrapRect.top + (y / H) * rect.height;
+    tip.querySelector(".tt-date").textContent = lockedChartDate(nearest[0]);
+    tip.querySelector(".tt-val").textContent = fmtDolo(nearest[1]);
+    tip.style.opacity = 1;
+    tip.style.left = "0px";
+    tip.style.top = "0px";
+    const tipW = tip.offsetWidth;
+    const tipH = tip.offsetHeight;
+    tip.style.left = Math.min(Math.max(screenX - tipW / 2, 8), wrap.clientWidth - tipW - 8) + "px";
+    tip.style.top = Math.max(screenY - tipH - 12, 4) + "px";
+  }
+  svg.onmousemove = move;
+  svg.onmouseleave = leave;
+}
+function initLockedBrush(){
+  const all = state.lockedHistory || [];
+  if(all.length < 2) return;
+  const {BW,BH} = LOCKED_CHART;
+  const minX = all[0][0];
+  const maxX = all[all.length - 1][0];
+  const xRange = maxX - minX || 1;
+  const maxY = Math.max(1, ...all.map(p => p[1])) * 1.05;
+  state.lockedBrush = {from:minX, to:maxX};
+  state.lockedBrushReady = true;
+
+  const xAt = t => (t - minX) / xRange * BW;
+  const yAt = v => BH - (v / maxY) * BH;
+  let line = "";
+  all.forEach((p,i) => {
+    line += `${i === 0 ? "M" : "L"}${xAt(p[0]).toFixed(1)} ${yAt(p[1]).toFixed(1)} `;
+  });
+  const area = `M${xAt(all[0][0]).toFixed(1)} ${BH} ${line.replace(/^M/,"L")} L${xAt(all[all.length - 1][0]).toFixed(1)} ${BH} Z`;
+  qs("#lockedBrushLine")?.setAttribute("d", line.trim());
+  qs("#lockedBrushArea")?.setAttribute("d", area);
+
+  const overlay = qs("#lockedBrushOverlay");
+  const win = qs("#lockedBrushWindow");
+  const dimL = qs("#lockedBrushDimL");
+  const dimR = qs("#lockedBrushDimR");
+  const handleL = qs("#lockedBrushHandleL");
+  const handleR = qs("#lockedBrushHandleR");
+  const label = qs("#lockedBrushLabel");
+  const brushSvg = qs("#lockedBrushSvg");
+  if(!overlay || !win || !dimL || !dimR || !handleL || !handleR || !label || !brushSvg) return;
+
+  function paintWindow(){
+    const totalSpan = maxX - minX || 1;
+    const lPct = (state.lockedBrush.from - minX) / totalSpan * 100;
+    const rPct = (state.lockedBrush.to - minX) / totalSpan * 100;
+    win.style.left = lPct + "%";
+    win.style.width = (rPct - lPct) + "%";
+    dimL.style.width = lPct + "%";
+    dimR.style.width = (100 - rPct) + "%";
+    label.innerHTML = `<span class="v">${lockedChartDate(state.lockedBrush.from)}</span><span class="sep">&rarr;</span><span class="v">${lockedChartDate(state.lockedBrush.to)}</span>`;
+  }
+  function pxToTime(px){
+    const w = overlay.clientWidth || 1;
+    return Math.round(Math.max(0, Math.min(1, px / w)) * (maxX - minX) + minX);
+  }
+
+  let drag = null;
+  const onDown = kind => e => {
+    e.preventDefault();
+    e.stopPropagation();
+    drag = {kind, startX:e.clientX, startFrom:state.lockedBrush.from, startTo:state.lockedBrush.to};
+    win.classList.add("dragging");
+    document.body.style.userSelect = "none";
+  };
+  function onMove(e){
+    if(!drag) return;
+    const w = overlay.clientWidth || 1;
+    const totalSpan = maxX - minX || 1;
+    const dt = (e.clientX - drag.startX) / w * totalSpan;
+    const minWindow = totalSpan * .005;
+    if(drag.kind === "window"){
+      let from = drag.startFrom + dt;
+      let to = drag.startTo + dt;
+      const span = to - from;
+      if(from < minX){ from = minX; to = from + span; }
+      if(to > maxX){ to = maxX; from = to - span; }
+      state.lockedBrush.from = from;
+      state.lockedBrush.to = to;
+    }else if(drag.kind === "l"){
+      state.lockedBrush.from = Math.min(drag.startTo - minWindow, Math.max(minX, drag.startFrom + dt));
+    }else if(drag.kind === "r"){
+      state.lockedBrush.to = Math.max(drag.startFrom + minWindow, Math.min(maxX, drag.startTo + dt));
+    }
+    paintWindow();
+    renderLockedChart();
+  }
+  function onUp(){
+    if(!drag) return;
+    drag = null;
+    win.classList.remove("dragging");
+    document.body.style.userSelect = "";
+  }
+  win.addEventListener("mousedown", onDown("window"));
+  handleL.addEventListener("mousedown", onDown("l"));
+  handleR.addEventListener("mousedown", onDown("r"));
+  document.addEventListener("mousemove", onMove);
+  document.addEventListener("mouseup", onUp);
+  brushSvg.addEventListener("click", e => {
+    const rect = overlay.getBoundingClientRect();
+    const t = pxToTime(e.clientX - rect.left);
+    const span = state.lockedBrush.to - state.lockedBrush.from;
+    let from = t - span / 2;
+    let to = t + span / 2;
+    if(from < minX){ from = minX; to = from + span; }
+    if(to > maxX){ to = maxX; from = to - span; }
+    state.lockedBrush.from = from;
+    state.lockedBrush.to = to;
+    paintWindow();
+    renderLockedChart();
+  });
+  paintWindow();
 }
 function exitDateCell(date, txHash, timestamp){
   const label = eventDateLabel(date, timestamp);
@@ -1773,6 +2169,7 @@ function renderAllTables(){
 }
 function renderStatic(){
   renderHero();
+  renderLockedChart();
   renderRevenue();
   renderExpiry();
   renderDuration();
@@ -1847,6 +2244,13 @@ function emitQaReport(){
     const durationFocus = qs("#duration-focus");
     const durationFirstRow = qs("#duration-bars .duration-row");
     const durationActiveRows = qsa("#duration-bars .duration-row.active");
+    const lockedChartCard = qs("#vedolo-locked-chart-card");
+    const lockedChartWrap = qs("#lockedChartWrap");
+    const lockedChartLine = qs("#lockedChartLine");
+    const lockedChartArea = qs("#lockedChartArea");
+    const lockedBrushWindow = qs("#lockedBrushWindow");
+    const lockedBrushLabel = qs("#lockedBrushLabel");
+    const lockedRangeBadge = qs("#lockedRangeBadge");
     const exitBehaviorFocus = qs("#exit-behavior-focus");
     const exitBehaviorBars = qs("#exit-behavior-bars");
     const exitBehaviorFirstRow = qs("#exit-behavior-bars .exit-behavior-row");
@@ -1946,6 +2350,15 @@ function emitQaReport(){
       durationFillWidth: qs("#duration-bars .duration-bar-fill") ? Math.round(qs("#duration-bars .duration-bar-fill").getBoundingClientRect().width) : 0,
       durationBarsClientWidth: durationBars ? durationBars.clientWidth : 0,
       durationBarsScrollWidth: durationBars ? durationBars.scrollWidth : 0,
+      lockedChartExists: !!lockedChartCard,
+      lockedChartCardWidth: lockedChartCard ? Math.round(lockedChartCard.getBoundingClientRect().width) : 0,
+      lockedChartWrapHeight: lockedChartWrap ? Math.round(lockedChartWrap.getBoundingClientRect().height) : 0,
+      lockedChartPathLength: lockedChartLine ? (lockedChartLine.getAttribute("d") || "").length : 0,
+      lockedChartAreaPathLength: lockedChartArea ? (lockedChartArea.getAttribute("d") || "").length : 0,
+      lockedHistoryPoints: state.lockedHistory.length,
+      lockedRangeBadge: lockedRangeBadge ? lockedRangeBadge.textContent.trim() : "",
+      lockedBrushWindowWidth: lockedBrushWindow ? Math.round(lockedBrushWindow.getBoundingClientRect().width) : 0,
+      lockedBrushLabelText: lockedBrushLabel ? lockedBrushLabel.textContent.trim().replace(/\s+/g," ") : "",
       exitBehaviorFocusExists: !!exitBehaviorFocus,
       exitBehaviorFocusText: exitBehaviorFocus ? exitBehaviorFocus.textContent.trim().replace(/\s+/g," ") : "",
       exitBehaviorInteractiveRowCount: qsa("#exit-behavior-bars .exit-behavior-row[data-exit-behavior-idx]").length,
@@ -2219,6 +2632,8 @@ async function boot(){
     state.locks = (flows?.locks || []).sort((a,b) => num(b.timestamp)-num(a.timestamp));
     state.unlocks = (flows?.unlocks || []).sort((a,b) => num(b.timestamp)-num(a.timestamp));
     state.expiry = expiry;
+    buildLockedHistory();
+    initLockedBrush();
     renderStatic();
     renderAllTables();
     emitQaReport();
