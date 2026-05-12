@@ -32,6 +32,9 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install check dependencies
+        run: python3 -m pip install --upgrade pip requests
+
       - name: Build Ethereum MERKL rewards cache
         run: |
           python3 build_earn_merkl_rewards_cache.py \
