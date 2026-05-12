@@ -73,6 +73,21 @@ def resolve_reason_token(chain: str, reason_key: str, reward: dict[str, Any]) ->
     return CAMPAIGN_TOKEN_MAP.get(chain, {}).get(campaign_id, "")
 
 
+def reward_bucket(decimals: int, token: Any) -> dict[str, Any]:
+    return {
+        "accumulated": 0.0,
+        "unclaimed": 0.0,
+        "decimals": decimals,
+        "token": token,
+        "perToken": {},
+        "unclaimedPerToken": {},
+        "perAccountToken": {},
+        "unclaimedPerAccountToken": {},
+        "assignedPerToken": {},
+        "assignedUnclaimedPerToken": {},
+    }
+
+
 def parse_merkl_rewards(chain: str, payload: dict[str, Any]) -> dict[str, Any]:
     numeric_id = str(CHAIN_IDS[chain])
     chain_data = payload.get(numeric_id) or {}
@@ -93,30 +108,23 @@ def parse_merkl_rewards(chain: str, payload: dict[str, Any]) -> dict[str, Any]:
             if not token_addr:
                 unresolved_symbols.add(symbol)
                 continue
-            bucket = rewards.setdefault(
-                symbol,
-                {
-                    "accumulated": 0.0,
-                    "unclaimed": 0.0,
-                    "decimals": decimals,
-                    "token": reward.get("token"),
-                    "perToken": {},
-                    "perAccountToken": {},
-                    "assignedPerToken": {},
-                },
-            )
+            bucket = rewards.setdefault(symbol, reward_bucket(decimals, reward.get("token")))
             amount = decimal_number(reward.get("accumulated"), decimals)
             unclaimed = decimal_number(reward.get("unclaimed"), decimals)
             bucket["accumulated"] += amount
             bucket["unclaimed"] += unclaimed
             bucket["perToken"][token_addr] = bucket["perToken"].get(token_addr, 0.0) + amount
+            bucket["unclaimedPerToken"][token_addr] = bucket["unclaimedPerToken"].get(token_addr, 0.0) + unclaimed
 
             account_match = re.match(r"^MultiLogPerAdditionalParam_accountNumber_([^_]+)_", str(reason_key))
             if account_match:
                 account_number = account_match.group(1)
                 account_bucket = bucket["perAccountToken"].setdefault(account_number, {})
                 account_bucket[token_addr] = account_bucket.get(token_addr, 0.0) + amount
+                account_unclaimed_bucket = bucket["unclaimedPerAccountToken"].setdefault(account_number, {})
+                account_unclaimed_bucket[token_addr] = account_unclaimed_bucket.get(token_addr, 0.0) + unclaimed
                 bucket["assignedPerToken"][token_addr] = bucket["assignedPerToken"].get(token_addr, 0.0) + amount
+                bucket["assignedUnclaimedPerToken"][token_addr] = bucket["assignedUnclaimedPerToken"].get(token_addr, 0.0) + unclaimed
 
     for token_data in (chain_data.get("tokenData") or {}).values():
         if not isinstance(token_data, dict):
@@ -125,18 +133,7 @@ def parse_merkl_rewards(chain: str, payload: dict[str, Any]) -> dict[str, Any]:
         if not symbol or symbol not in unresolved_symbols:
             continue
         decimals = int(token_data.get("decimals") or 18)
-        bucket = rewards.setdefault(
-            symbol,
-            {
-                "accumulated": 0.0,
-                "unclaimed": 0.0,
-                "decimals": decimals,
-                "token": token_data.get("token"),
-                "perToken": {},
-                "perAccountToken": {},
-                "assignedPerToken": {},
-            },
-        )
+        bucket = rewards.setdefault(symbol, reward_bucket(decimals, token_data.get("token")))
         bucket["accumulated"] = max(bucket.get("accumulated") or 0.0, decimal_number(token_data.get("accumulated"), decimals))
         bucket["unclaimed"] = max(bucket.get("unclaimed") or 0.0, decimal_number(token_data.get("unclaimed"), decimals))
 

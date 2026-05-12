@@ -8970,6 +8970,41 @@
             color: rgba(251, 191, 36, 0.72);
         }
 
+        .earn-reward-state-line {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .earn-reward-state-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 7px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            background: rgba(255, 255, 255, 0.03);
+            color: rgba(255, 255, 255, 0.56);
+            font-size: 10px;
+            font-weight: 600;
+            line-height: 1.1;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .earn-reward-state-chip strong {
+            color: rgba(255, 255, 255, 0.86);
+            font-weight: 700;
+        }
+
+        .earn-reward-state-chip.claimed strong {
+            color: rgba(52, 211, 153, 0.92);
+        }
+
+        .earn-reward-state-chip.unclaimed strong {
+            color: rgba(34, 211, 238, 0.92);
+        }
+
         .earn-lend-detail-inner {
             padding: 22px 22px 24px;
             gap: 16px;
@@ -25354,6 +25389,8 @@
         const ODOLO_EARN_ADDR = '0x02E513b5B54eE216Bf836ceb471507488fC89543';
         let earn_odoloClaimed = 0; // total oDOLO claimed by current address
         let earn_odoloUnclaimed = 0; // unclaimed oDOLO (API allocation - contract claimed)
+        let earn_odoloCumulative = 0; // total oDOLO allocation from the Dolomite rewards API
+        let earn_odoloAmountPerNetwork = {}; // { numericChainId : cumulative oDOLO allocation }
         let earn_ibgtRewards = null; // { staked, rewards: [{symbol, amount, address}] }
 
         let earn_rpcId = 5000;
@@ -25968,6 +26005,8 @@
             if (!addr) {
                 earn_odoloClaimed = 0;
                 earn_odoloUnclaimed = 0;
+                earn_odoloCumulative = 0;
+                earn_odoloAmountPerNetwork = {};
                 return 0;
             }
             if (earn_odoloClaimedLoadedFor === addr) return earn_odoloClaimed;
@@ -25982,13 +26021,17 @@
                 const [apiResult, contractClaimed] = await Promise.allSettled([
                     fetch(`https://api.dolomite.io/liquidity-mining/odolo/seasons/0/wallets/${addr}`)
                         .then(r => r.json())
-                        .then(j => parseFloat(j?.user?.amount || '0')),
+                        .then(j => j?.user || null),
                     earn_beraRpcCall(IBGT_CONTRACTS.DISTRIBUTOR,
                         IBGT_CONTRACTS.SEL_USER_CLAIM_AMOUNT + '000000000000000000000000' + addr.slice(2))
                         .then(hex => parseInt(hex || '0x0', 16) / 1e18),
                 ]);
 
-                const cumulativeAllocation = apiResult.status === 'fulfilled' ? apiResult.value : 0;
+                const apiUser = apiResult.status === 'fulfilled' ? apiResult.value : null;
+                const cumulativeAllocation = parseFloat(apiUser?.amount || '0') || 0;
+                const amountPerNetwork = apiUser && apiUser.amountPerNetwork && typeof apiUser.amountPerNetwork === 'object'
+                    ? apiUser.amountPerNetwork
+                    : {};
                 const alreadyClaimed = contractClaimed.status === 'fulfilled' ? contractClaimed.value : 0;
 
                 claimedValue = alreadyClaimed > 0 ? alreadyClaimed : 0;
@@ -26024,6 +26067,8 @@
 
                 earn_odoloClaimed = claimedValue;
                 earn_odoloUnclaimed = unclaimedValue;
+                earn_odoloCumulative = cumulativeAllocation;
+                earn_odoloAmountPerNetwork = amountPerNetwork;
                 earn_odoloClaimedLoadedFor = addr;
                 console.log(`oDOLO: claimed=${claimedValue.toFixed(2)}, unclaimed=${unclaimedValue.toFixed(2)}, total=${cumulativeAllocation.toFixed(2)}`);
                 return claimedValue;
@@ -30103,6 +30148,63 @@
             return value.toFixed(6);
         }
 
+        function earn_getRewardUnclaimedForToken(rewardData, tokenAddr, earnedAmount) {
+            const addr = String(tokenAddr || '').toLowerCase();
+            const earned = Number(earnedAmount || 0);
+            const direct = Number(rewardData?.unclaimedPerToken?.[addr] || 0);
+            if (direct > 0 || Object.prototype.hasOwnProperty.call(rewardData?.unclaimedPerToken || {}, addr)) {
+                return Math.max(0, Math.min(earned, direct));
+            }
+            const totalAccumulated = Number(rewardData?.accumulated || 0);
+            const totalUnclaimed = Number(rewardData?.unclaimed || 0);
+            if (!(earned > 0) || !(totalAccumulated > 0) || !(totalUnclaimed > 0)) return 0;
+            return Math.max(0, Math.min(earned, totalUnclaimed * (earned / totalAccumulated)));
+        }
+
+        function earn_getOdoloChainKey(chainId) {
+            const numericId = EARN_DOLO_CHAIN_IDS[String(chainId || '')];
+            return numericId ? String(numericId) : '';
+        }
+
+        function earn_getOdoloRewardScore(position, rateData) {
+            const rewardRate = Math.max(0, Number(rateData?.rewards || 0));
+            const usdValue = Math.max(0, Number(position?.usdValue || 0));
+            if (!(rewardRate > 0) || !(usdValue > 0)) return 0;
+            return rewardRate * usdValue;
+        }
+
+        function earn_getOdoloEstimateForPosition(position, rateData, chainId) {
+            const chainKey = earn_getOdoloChainKey(chainId);
+            if (!chainKey) return null;
+            const chainAllocation = parseFloat(earn_odoloAmountPerNetwork?.[chainKey] || '0') || 0;
+            if (!(chainAllocation > 0)) return null;
+            const positionScore = earn_getOdoloRewardScore(position, rateData);
+            if (!(positionScore > 0)) return null;
+
+            let totalScore = 0;
+            (earn_cachedAssets || []).forEach(asset => {
+                if (!asset || asset.isBorrow || asset.isCollateral) return;
+                const assetRateData = earn_getSupplyRateData(asset);
+                totalScore += earn_getOdoloRewardScore(asset, assetRateData);
+            });
+            if (!(totalScore > 0)) totalScore = positionScore;
+
+            const generated = chainAllocation * (positionScore / totalScore);
+            if (!(generated > 0.000001)) return null;
+            const totalWalletAllocation = Number(earn_odoloCumulative || 0);
+            const claimedRatio = totalWalletAllocation > 0
+                ? Math.max(0, Math.min(1, Number(earn_odoloClaimed || 0) / totalWalletAllocation))
+                : 0;
+            const unclaimedRatio = totalWalletAllocation > 0
+                ? Math.max(0, Math.min(1, Number(earn_odoloUnclaimed || 0) / totalWalletAllocation))
+                : 0;
+            return {
+                generated,
+                claimed: generated * claimedRatio,
+                unclaimed: generated * unclaimedRatio,
+            };
+        }
+
         function earn_buildSupplyRewardsCard(position) {
             const rateData = earn_getSupplyRateData(position);
             const tokenAddr = String(position?.tokenAddr || '').toLowerCase();
@@ -30123,6 +30225,10 @@
                         earnedAmount: 0,
                         earnedUsd: 0,
                         hasEarnedData: false,
+                        claimedAmount: 0,
+                        unclaimedAmount: 0,
+                        hasClaimData: false,
+                        claimPrecision: 'exact',
                         note: defaults?.note || '',
                         sourceLabel: defaults?.sourceLabel || '',
                         assetSymbol: defaults?.assetSymbol || '',
@@ -30168,6 +30274,10 @@
                 row.earnedAmount = exactEarned;
                 row.earnedUsd = exactEarned * earn_getRewardTokenUsdPrice(rewardSymbol, rewardTokenAddr, chainId);
                 row.hasEarnedData = true;
+                row.unclaimedAmount = earn_getRewardUnclaimedForToken(rewardData, tokenAddr, exactEarned);
+                row.claimedAmount = Math.max(0, exactEarned - row.unclaimedAmount);
+                row.hasClaimData = true;
+                row.claimPrecision = 'exact';
             });
 
             if (rateData && Number(rateData.rewards || 0) > 0) {
@@ -30176,8 +30286,21 @@
                     icon: 'odolo-logo-official.svg',
                     claimUrl: 'https://app.dolomite.io/rewards',
                     note: 'Current supplier incentive',
+                    assetSymbol,
                 });
                 odoloRow.aprPct += Math.max(0, Number(rateData.rewards || 0));
+                const odoloEstimate = earn_getOdoloEstimateForPosition(position, rateData, chainId);
+                if (odoloEstimate) {
+                    const DOLO_ADDR = '0x0f81001ef0a83ecce5ccebf63eb302c70a39a654';
+                    odoloRow.earnedAmount = odoloEstimate.generated;
+                    odoloRow.earnedUsd = odoloEstimate.generated * earn_getRewardTokenUsdPrice('DOLO', DOLO_ADDR, chainId);
+                    odoloRow.hasEarnedData = true;
+                    odoloRow.claimedAmount = odoloEstimate.claimed;
+                    odoloRow.unclaimedAmount = odoloEstimate.unclaimed;
+                    odoloRow.hasClaimData = true;
+                    odoloRow.claimPrecision = 'estimate';
+                    odoloRow.note = 'Estimated generated by this asset';
+                }
             }
 
             const rewardRows = Object.values(rowsBySymbol);
@@ -30206,7 +30329,18 @@
                     : '<span class="earn-reward-rate-muted">—</span>';
 
                 let sublineHtml = '';
-                if (row.symbol === 'oDOLO') {
+                const statusHtml = row.hasClaimData
+                    ? `<div class="earn-reward-state-line">
+                        <span class="earn-reward-state-chip claimed"><span>${row.claimPrecision === 'estimate' ? 'Claimed est.' : 'Claimed'}</span><strong>${earn_escapeHtml(earn_formatRewardAmountCompact(row.claimedAmount))}</strong></span>
+                        <span class="earn-reward-state-chip unclaimed"><span>${row.claimPrecision === 'estimate' ? 'Unclaimed est.' : 'Unclaimed'}</span><strong>${earn_escapeHtml(earn_formatRewardAmountCompact(row.unclaimedAmount))}</strong></span>
+                    </div>`
+                    : '';
+
+                if (row.symbol === 'oDOLO' && row.hasEarnedData) {
+                    const usdSuffix = row.earnedUsd > 0.01 ? ` · <span class="earn-reward-usd-hint">~${earn_escapeHtml(earn_formatUSD(row.earnedUsd))}</span>` : '';
+                    const assetPrefix = row.assetSymbol ? `${earn_escapeHtml(row.assetSymbol)} generated: ~` : 'Generated ~';
+                    sublineHtml = `<div class="earn-reward-subline">${assetPrefix}${earn_escapeHtml(earn_formatRewardAmountCompact(row.earnedAmount))} ${earn_escapeHtml(row.label)}${usdSuffix}</div>`;
+                } else if (row.symbol === 'oDOLO') {
                     sublineHtml = `<div class="earn-reward-subline note">${earn_escapeHtml(row.note || 'Current supplier incentive')}</div>`;
                 } else if (row.hasEarnedData) {
                     const usdSuffix = row.earnedUsd > 0.01 ? ` · <span class="earn-reward-usd-hint">~${earn_escapeHtml(earn_formatUSD(row.earnedUsd))}</span>` : '';
@@ -30225,6 +30359,7 @@
                         <div class="earn-reward-rate">${rateHtml}</div>
                     </div>
                     ${sublineHtml}
+                    ${statusHtml}
                 </div>`;
             }).join('');
 
@@ -31572,7 +31707,7 @@
             if (earn_cachedAssets && earn_cachedAssets.length > 0) {
                 const tblRef = document.querySelector('.earn-asset-table');
                 if (tblRef) tblRef.classList.add('no-animate');
-                earn_renderResults(earn_cachedAssets, { skipSummary: false, softRefresh: true });
+                earn_renderResults(earn_cachedAssets, { skipSummary: true, softRefresh: true });
             }
 
             if (Array.isArray(earn_lendingPositions) && earn_lendingPositions.length > 0) {
@@ -32397,9 +32532,24 @@
         }
 
         // === External Rewards: MERKL WLFI + oDOLO per-position ===
-        let earn_merklRewards = {}; // { symbol: { accumulated, unclaimed, token, perToken, perAccountToken, assignedPerToken } }
+        let earn_merklRewards = {}; // { symbol: { accumulated, unclaimed, token, perToken, unclaimedPerToken, perAccountToken, unclaimedPerAccountToken, assignedPerToken, assignedUnclaimedPerToken } }
         let earn_merklRewardsLoaded = false;
         let earn_odoloMeta = null;  // { allChainWeights, currentEpochRewards, ... }
+
+        function earn_createRewardBucket(decimals, tokenAddr) {
+            return {
+                accumulated: 0,
+                unclaimed: 0,
+                decimals,
+                token: tokenAddr,
+                perToken: {},
+                unclaimedPerToken: {},
+                perAccountToken: {},
+                unclaimedPerAccountToken: {},
+                assignedPerToken: {},
+                assignedUnclaimedPerToken: {},
+            };
+        }
 
         function earn_applyMerklRewardsResult(dolomiteRewards, userAddr, chainId, requestKey) {
             const rewardTokenAddrs = Array.from(new Set(
@@ -32529,7 +32679,7 @@
                             if (sym) unresolvedSymbols.add(sym);
                             continue;
                         }
-                        if (!dolomiteRewards[sym]) dolomiteRewards[sym] = { accumulated: 0, unclaimed: 0, decimals: dec, token: reward.token, perToken: {}, perAccountToken: {}, assignedPerToken: {} };
+                        if (!dolomiteRewards[sym]) dolomiteRewards[sym] = earn_createRewardBucket(dec, reward.token);
                         const amt = earn_bigIntToDecimalNumber(reward.accumulated || '0', dec);
                         const uncl = earn_bigIntToDecimalNumber(reward.unclaimed || '0', dec);
                         dolomiteRewards[sym].accumulated += amt;
@@ -32537,14 +32687,21 @@
                         // Track per collateral token for per-position attribution
                         if (!dolomiteRewards[sym].perToken[tokenAddr]) dolomiteRewards[sym].perToken[tokenAddr] = 0;
                         dolomiteRewards[sym].perToken[tokenAddr] += amt;
+                        if (!dolomiteRewards[sym].unclaimedPerToken[tokenAddr]) dolomiteRewards[sym].unclaimedPerToken[tokenAddr] = 0;
+                        dolomiteRewards[sym].unclaimedPerToken[tokenAddr] += uncl;
                         // Account number "0" is a valid Dolomite subaccount and must not
                         // be treated as "unattributed" Merkl rewards.
                         if (hasExplicitAccountNumber) {
                             if (!dolomiteRewards[sym].perAccountToken[accountNumber]) dolomiteRewards[sym].perAccountToken[accountNumber] = {};
                             if (!dolomiteRewards[sym].perAccountToken[accountNumber][tokenAddr]) dolomiteRewards[sym].perAccountToken[accountNumber][tokenAddr] = 0;
                             dolomiteRewards[sym].perAccountToken[accountNumber][tokenAddr] += amt;
+                            if (!dolomiteRewards[sym].unclaimedPerAccountToken[accountNumber]) dolomiteRewards[sym].unclaimedPerAccountToken[accountNumber] = {};
+                            if (!dolomiteRewards[sym].unclaimedPerAccountToken[accountNumber][tokenAddr]) dolomiteRewards[sym].unclaimedPerAccountToken[accountNumber][tokenAddr] = 0;
+                            dolomiteRewards[sym].unclaimedPerAccountToken[accountNumber][tokenAddr] += uncl;
                             if (!dolomiteRewards[sym].assignedPerToken[tokenAddr]) dolomiteRewards[sym].assignedPerToken[tokenAddr] = 0;
                             dolomiteRewards[sym].assignedPerToken[tokenAddr] += amt;
+                            if (!dolomiteRewards[sym].assignedUnclaimedPerToken[tokenAddr]) dolomiteRewards[sym].assignedUnclaimedPerToken[tokenAddr] = 0;
+                            dolomiteRewards[sym].assignedUnclaimedPerToken[tokenAddr] += uncl;
                         }
                     }
                 }
@@ -32554,7 +32711,7 @@
                     const dec = tokenData.decimals || 18;
                     const totalAmt = earn_bigIntToDecimalNumber(tokenData.accumulated || '0', dec);
                     const totalUncl = earn_bigIntToDecimalNumber(tokenData.unclaimed || '0', dec);
-                    if (!dolomiteRewards[sym]) dolomiteRewards[sym] = { accumulated: 0, unclaimed: 0, decimals: dec, token: tokenData.token, perToken: {}, perAccountToken: {}, assignedPerToken: {} };
+                    if (!dolomiteRewards[sym]) dolomiteRewards[sym] = earn_createRewardBucket(dec, tokenData.token);
                     dolomiteRewards[sym].accumulated = Math.max(dolomiteRewards[sym].accumulated || 0, totalAmt);
                     dolomiteRewards[sym].unclaimed = Math.max(dolomiteRewards[sym].unclaimed || 0, totalUncl);
                 }
@@ -34637,6 +34794,8 @@
             earn_merklFetchError = '';
             earn_odoloClaimed = 0;
             earn_odoloUnclaimed = 0;
+            earn_odoloCumulative = 0;
+            earn_odoloAmountPerNetwork = {};
             earn_odoloClaimedLoadedFor = '';
             earn_ibgtRewards = null;
             earn_ibgtRewardsLoadedFor = '';
@@ -37550,6 +37709,7 @@
                         rewardsState.odoloClaimed = claimed || 0;
                         rewardsState.odoloUnclaimed = earn_odoloUnclaimed || 0;
                         renderRewardsOverview();
+                        earn_softRefreshRewardsUi(earnAddr, earnChainId);
                     });
 
                     // Fetch MERKL WLFI rewards and fold them into the unified rewards card
