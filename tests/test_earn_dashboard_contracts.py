@@ -19,6 +19,7 @@ BERACHAIN_BORROW_ROUTE_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-
 EARN_FRESHNESS_WORKFLOW = ROOT / ".github" / "workflows" / "monitor-earn-freshness.yml"
 EARN_WATCHDOG_DISPATCH_PLANNER = ROOT / "scripts" / "plan_earn_watchdog_dispatch.py"
 EARN_SNAPSHOTS_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-snapshots.yml"
+EARN_MERKL_REWARDS_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-merkl-rewards.yml"
 EARN_FRESHNESS_SCRIPT = ROOT / "update_earn_freshness_status.py"
 EARN_COMMIT_HELPER = ROOT / "scripts" / "commit_with_fresh_earn_status.sh"
 BERACHAIN_PRIORITY_ADDRESSES = ROOT / "config" / "earn_berachain_canonical_hot_addresses.txt"
@@ -98,6 +99,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
             "Update DOLO Flows Data",
             "Update Earn Snapshots",
             "Update Earn Netflow Data",
+            "Update Earn Merkl Rewards",
             "Update Berachain Earn Netflow Data",
             "Monitor EARN Freshness",
             "Refresh Ethereum Canonical EARN History",
@@ -131,6 +133,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
             BERACHAIN_NETFLOW_WORKFLOW,
             BERACHAIN_BORROW_ROUTE_WORKFLOW,
             NETFLOW_WORKFLOW,
+            EARN_MERKL_REWARDS_WORKFLOW,
             EARN_FRESHNESS_WORKFLOW,
         ):
             workflow = workflow_path.read_text(encoding="utf-8")
@@ -148,6 +151,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
             BERACHAIN_NETFLOW_WORKFLOW,
             BERACHAIN_BORROW_ROUTE_WORKFLOW,
             NETFLOW_WORKFLOW,
+            EARN_MERKL_REWARDS_WORKFLOW,
             EARN_FRESHNESS_WORKFLOW,
         ):
             workflow = workflow_path.read_text(encoding="utf-8")
@@ -187,6 +191,19 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("merklUnavailable: false", self.source)
         self.assertIn("WLFI source did not respond", self.source)
         self.assertIn("earn-summary-mini-pill is-warning", self.source)
+
+    def test_merkl_wlfi_rewards_are_named_and_attributed_per_asset(self):
+        self.assertIn("'576387d3d84237f5': '0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d'", self.source)
+        self.assertIn("'2ed15ca6f6a47991': '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'", self.source)
+        self.assertIn("function earn_getMerklRewardSymbolForPart", self.source)
+        self.assertIn("const merklRatesReady = earn_fetchMarketRates(chainId).catch", self.source)
+        self.assertIn("earn_resolveMerklReasonTokenAddress(chainId, reasonKey, reward, campaignTokenMap)", self.source)
+        self.assertIn("assetSymbol: symbol", self.source)
+        self.assertIn("earn-lend-token-source", self.source)
+        self.assertIn("allocation:", self.source)
+        self.assertIn("const rewardSymbol = String(ys.rewardSymbol || '').trim()", self.source)
+        self.assertIn("EARN_MERKL_REWARDS_BASE", self.source)
+        self.assertIn("earn_fetchCachedMerklRewards", self.source)
 
     def test_ethereum_canonical_workflow_rebuilds_verified_ledger_on_fresh_history(self):
         workflow = ETHEREUM_CANONICAL_WORKFLOW.read_text(encoding="utf-8")

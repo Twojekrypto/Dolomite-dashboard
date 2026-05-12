@@ -8136,6 +8136,24 @@
             border-radius: 50%;
             box-shadow: 0 0 4px rgba(0,0,0,0.3);
         }
+        .earn-lend-token-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+        .earn-lend-token-main {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            min-width: 0;
+        }
+        .earn-lend-token-source {
+            color: rgba(255, 255, 255, 0.42);
+            font-size: 10px;
+            font-weight: 500;
+            line-height: 1.1;
+        }
 
         /* APR badges */
         .earn-lend-token-apr {
@@ -30089,6 +30107,7 @@
             const rateData = earn_getSupplyRateData(position);
             const tokenAddr = String(position?.tokenAddr || '').toLowerCase();
             const chainId = document.getElementById('earn-chain')?.value || 'ethereum';
+            const assetSymbol = String(position?.symbol || 'asset');
             const rateLabel = earn_showApy ? 'APY' : 'APR';
             const rowsBySymbol = {};
 
@@ -30105,11 +30124,15 @@
                         earnedUsd: 0,
                         hasEarnedData: false,
                         note: defaults?.note || '',
+                        sourceLabel: defaults?.sourceLabel || '',
+                        assetSymbol: defaults?.assetSymbol || '',
                     };
                 } else {
                     if (!rowsBySymbol[key].icon && defaults?.icon) rowsBySymbol[key].icon = defaults.icon;
                     if (!rowsBySymbol[key].claimUrl && defaults?.claimUrl) rowsBySymbol[key].claimUrl = defaults.claimUrl;
                     if (!rowsBySymbol[key].note && defaults?.note) rowsBySymbol[key].note = defaults.note;
+                    if (!rowsBySymbol[key].sourceLabel && defaults?.sourceLabel) rowsBySymbol[key].sourceLabel = defaults.sourceLabel;
+                    if (!rowsBySymbol[key].assetSymbol && defaults?.assetSymbol) rowsBySymbol[key].assetSymbol = defaults.assetSymbol;
                 }
                 return rowsBySymbol[key];
             };
@@ -30123,6 +30146,8 @@
                         label: rewardSymbol,
                         icon,
                         claimUrl: part?.claimUrl || 'https://app.merkl.xyz/',
+                        sourceLabel: part?.sourceLabel || part?.label || '',
+                        assetSymbol,
                     });
                     row.aprPct += rewardAprPct;
                 });
@@ -30137,6 +30162,8 @@
                     label: rewardSymbol,
                     icon,
                     claimUrl: 'https://app.merkl.xyz/',
+                    sourceLabel: 'Merkl',
+                    assetSymbol,
                 });
                 row.earnedAmount = exactEarned;
                 row.earnedUsd = exactEarned * earn_getRewardTokenUsdPrice(rewardSymbol, rewardTokenAddr, chainId);
@@ -30183,7 +30210,10 @@
                     sublineHtml = `<div class="earn-reward-subline note">${earn_escapeHtml(row.note || 'Current supplier incentive')}</div>`;
                 } else if (row.hasEarnedData) {
                     const usdSuffix = row.earnedUsd > 0.01 ? ` · <span class="earn-reward-usd-hint">~${earn_escapeHtml(earn_formatUSD(row.earnedUsd))}</span>` : '';
-                    sublineHtml = `<div class="earn-reward-subline">Earned ${earn_escapeHtml(earn_formatRewardAmountCompact(row.earnedAmount))} ${earn_escapeHtml(row.label)}${usdSuffix}</div>`;
+                    const assetPrefix = row.assetSymbol ? `${earn_escapeHtml(row.assetSymbol)} allocation: ` : 'Earned ';
+                    sublineHtml = `<div class="earn-reward-subline">${assetPrefix}${earn_escapeHtml(earn_formatRewardAmountCompact(row.earnedAmount))} ${earn_escapeHtml(row.label)}${usdSuffix}</div>`;
+                } else if (row.assetSymbol && row.sourceLabel) {
+                    sublineHtml = `<div class="earn-reward-subline note">${earn_escapeHtml(row.sourceLabel)} for ${earn_escapeHtml(row.assetSymbol)}</div>`;
                 }
 
                 return `<div class="earn-reward-row">
@@ -30938,6 +30968,60 @@
         let earn_excludeLending = false;
         let earn_showApy = false; // false=APR, true=APY
         const EARN_DOLO_CHAIN_IDS = { ethereum: 1, berachain: 80094, arbitrum: 42161, polygonzkevm: 1101, mantle: 5000, xlayer: 196 };
+        const EARN_MERKL_REWARD_SYMBOL_BY_CAMPAIGN = {
+            ethereum: {
+                '576387d3d84237f5': 'WLFI', // USD1 net lending rewards
+                '2ed15ca6f6a47991': 'WLFI', // USDC net lending rewards
+            },
+        };
+        const EARN_MERKL_REWARD_TOKEN_BY_SYMBOL = {
+            ethereum: {
+                WLFI: '0xda5e1988097297dcdc1f90d4dfe7909e847cbef6',
+            },
+        };
+
+        function earn_normalizeMerklCampaignId(value) {
+            return String(value || '').trim().toLowerCase().replace(/^0x/, '');
+        }
+
+        function earn_getKnownMerklRewardSymbol(chainId, campaignId) {
+            const chainMap = EARN_MERKL_REWARD_SYMBOL_BY_CAMPAIGN[String(chainId || '').toLowerCase()] || {};
+            return chainMap[earn_normalizeMerklCampaignId(campaignId)] || '';
+        }
+
+        function earn_getMerklRewardTokenAddrForSymbol(chainId, symbol) {
+            const chainMap = EARN_MERKL_REWARD_TOKEN_BY_SYMBOL[String(chainId || '').toLowerCase()] || {};
+            return chainMap[String(symbol || '').toUpperCase()] || '';
+        }
+
+        function earn_getMerklRewardSymbolForPart(chainId, part) {
+            const explicitSymbol = String(part?.rewardToken?.symbol || part?.symbol || '').trim();
+            if (explicitSymbol) return explicitSymbol;
+            const label = String(part?.label || '');
+            const labelTokenMatch = label.match(/\b(WLFI|IBGT|WIBGT|HONEY|GMX|ESGMX)\b/i);
+            if (labelTokenMatch) return labelTokenMatch[1].toUpperCase();
+            const campaignSymbol = earn_getKnownMerklRewardSymbol(chainId, part?.merklData?.campaignIdentifier);
+            if (campaignSymbol) return campaignSymbol;
+            return '';
+        }
+
+        function earn_normalizeEvmAddress(value) {
+            const match = String(value || '').match(/0x[a-fA-F0-9]{40}/);
+            return match ? match[0].toLowerCase() : '';
+        }
+
+        function earn_resolveMerklReasonTokenAddress(chainId, reasonKey, reward, campaignTokenMap) {
+            const key = String(reasonKey || '');
+            if (key.startsWith('Dolomite_')) {
+                return earn_normalizeEvmAddress(key.replace(/^Dolomite_/, ''));
+            }
+            if (!key.startsWith('MultiLogPerAdditionalParam_')) return '';
+            const directAddress = earn_normalizeEvmAddress(reward && reward.mainParameter);
+            if (directAddress) return directAddress;
+            const campaignId = earn_normalizeMerklCampaignId(reward && reward.mainParameter);
+            if (!campaignId) return '';
+            return (campaignTokenMap[campaignId] || campaignTokenMap['0x' + campaignId] || '').toLowerCase();
+        }
 
         function earn_getCachedMarketRates(chainId) {
             const entry = earn_marketRatesCache[String(chainId || '')];
@@ -30974,14 +31058,20 @@
                     } else if (p.category === 'rewards' && p.interestRate) {
                         const yr = parseFloat(p.interestRate) || 0;
                         if (yr > 0) {
-                            yieldSources.push({ label: earn_cleanSupplyAprLabel(p.label), rate: yr * 100 });
+                            const rewardSymbol = earn_getMerklRewardSymbolForPart(chainId, p);
+                            const rewardTokenAddr = String(
+                                p.rewardToken?.id || earn_getMerklRewardTokenAddrForSymbol(chainId, rewardSymbol) || ''
+                            ).toLowerCase();
+                            const sourceLabel = earn_cleanSupplyAprLabel(p.label);
+                            yieldSources.push({ label: sourceLabel, rate: yr * 100, rewardSymbol });
                             rewardParts.push({
-                                label: p.label,
+                                label: rewardSymbol || sourceLabel || p.label,
+                                sourceLabel,
                                 apr: yr,
-                                symbol: p.rewardToken?.symbol || '',
-                                tokenAddr: (p.rewardToken?.id || '').toLowerCase(),
+                                symbol: rewardSymbol,
+                                tokenAddr: rewardTokenAddr,
                                 claimUrl: p.rewardClaimUrl || '',
-                                merklCampaignId: (p.merklData?.campaignIdentifier || '').toLowerCase(),
+                                merklCampaignId: earn_normalizeMerklCampaignId(p.merklData?.campaignIdentifier),
                             });
                         }
                     } else if (p.category === 'nativeYield' && p.interestRate) {
@@ -31014,7 +31104,7 @@
                     // Historical WLFI Merkl campaigns no longer exposed in the live
                     // interest-rates payload, but their accumulated rewards still need
                     // to resolve back to the underlying Dolomite market for token detail views.
-                    '576387d3d84237f5': '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USDC
+                    '576387d3d84237f5': '0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d', // USD1
                     '2ed15ca6f6a47991': '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USDC
                 },
             };
@@ -31028,7 +31118,7 @@
                 const marketTokenAddr = (key.slice(chainId.length + 1) || '').toLowerCase();
                 if (!marketTokenAddr) return;
                 entry.rewardParts.forEach(part => {
-                    const campaignId = (part && part.merklCampaignId ? part.merklCampaignId : '').toLowerCase();
+                    const campaignId = earn_normalizeMerklCampaignId(part && part.merklCampaignId ? part.merklCampaignId : '');
                     if (campaignId) map[campaignId] = marketTokenAddr;
                 });
             });
@@ -31196,6 +31286,7 @@
         const SNAPSHOT_BASE = `${EARN_DATA_BASE}/earn-snapshots`;
         const NETFLOW_BASE = `${EARN_DATA_BASE}/earn-netflow`;
         const VERIFIED_LEDGER_BASE = `${EARN_DATA_BASE}/earn-verified-ledger`;
+        const EARN_MERKL_REWARDS_BASE = `${EARN_DATA_BASE}/earn-merkl-rewards`;
         const SUBACCOUNT_HISTORY_BASE = `${EARN_DATA_BASE}/earn-subaccount-history`;
         const EARN_FRESHNESS_STATUS_URL = `${EARN_DATA_BASE}/earn-freshness/status.json`;
         let earn_netflowData = null; // { marketId: netFlowWei (string) } for current address+chain
@@ -31206,6 +31297,8 @@
         let earn_subaccountHistoryCache = {}; // { "chain:address" : payload|null }
         let earn_subaccountHistoryRequestCache = {}; // { "chain:address" : Promise<payload|null> }
         let earn_marketRatesRequestCache = {}; // { chainId : Promise<rates> }
+        let earn_cachedMerklRewardsCache = {}; // { "chain:address" : rewards|null }
+        let earn_cachedMerklRewardsRequestCache = {}; // { "chain:address" : Promise<rewards|null> }
 
         // Snapshot manifest: { dates: [...], chains: { date: [chains] } }
         let earn_snapshotManifest = null;
@@ -32308,6 +32401,65 @@
         let earn_merklRewardsLoaded = false;
         let earn_odoloMeta = null;  // { allChainWeights, currentEpochRewards, ... }
 
+        function earn_applyMerklRewardsResult(dolomiteRewards, userAddr, chainId, requestKey) {
+            const rewardTokenAddrs = Array.from(new Set(
+                Object.values(dolomiteRewards || {})
+                    .map(entry => String(entry && entry.token ? entry.token : '').toLowerCase())
+                    .filter(Boolean)
+            ));
+            earn_merklRewards = dolomiteRewards || {};
+            earn_merklRewardsLoaded = true;
+            earn_merklRewardsLoadedFor = requestKey;
+            earn_setMerklFetchState('success', '', userAddr, chainId);
+            earn_softRefreshRewardsUi(userAddr, chainId);
+            if (rewardTokenAddrs.length > 0) {
+                void earn_fetchCoinGeckoPrices(rewardTokenAddrs)
+                    .then(() => {
+                        earn_softRefreshRewardsUi(userAddr, chainId);
+                    })
+                    .catch(e => {
+                        console.warn('MERKL reward price refresh failed:', e);
+                    });
+            }
+            return earn_merklRewards;
+        }
+
+        function earn_normalizeCachedMerklRewards(payload) {
+            const rewards = payload && payload.rewards ? payload.rewards : payload;
+            if (!rewards || typeof rewards !== 'object' || Array.isArray(rewards)) return null;
+            return Object.keys(rewards).length > 0 ? rewards : null;
+        }
+
+        async function earn_fetchCachedMerklRewards(userAddr, chainId) {
+            const addr = String(userAddr || '').trim().toLowerCase();
+            const chain = String(chainId || '').trim().toLowerCase();
+            const cacheKey = earn_getRemoteLookupKey(chain, addr);
+            if (!cacheKey) return null;
+            if (Object.prototype.hasOwnProperty.call(earn_cachedMerklRewardsCache, cacheKey)) {
+                return earn_cachedMerklRewardsCache[cacheKey];
+            }
+            if (earn_cachedMerklRewardsRequestCache[cacheKey]) {
+                return earn_cachedMerklRewardsRequestCache[cacheKey];
+            }
+            const request = (async () => {
+                const resp = await fetch(`${EARN_MERKL_REWARDS_BASE}/${chain}/${addr}.json`, { cache: 'no-store' });
+                if (!resp.ok) return null;
+                const payload = await resp.json();
+                return earn_normalizeCachedMerklRewards(payload);
+            })().catch(e => {
+                console.warn('Cached MERKL rewards fetch failed:', e);
+                return null;
+            });
+            earn_cachedMerklRewardsRequestCache[cacheKey] = request;
+            try {
+                const rewards = await request;
+                earn_cachedMerklRewardsCache[cacheKey] = rewards;
+                return rewards;
+            } finally {
+                delete earn_cachedMerklRewardsRequestCache[cacheKey];
+            }
+        }
+
         // Fetch MERKL rewards (exact WLFI earned) for a wallet on a specific chain
         async function earn_fetchMerklRewards(userAddr, chainId) {
             const CHAIN_IDS = { ethereum: 1, berachain: 80094, arbitrum: 42161, mantle: 5000 };
@@ -32326,9 +32478,18 @@
 
             earn_setMerklFetchState('loading', '', userAddr, chainId);
             const request = (async () => {
+                const cachedMerklRewardsPromise = earn_fetchCachedMerklRewards(addr, chainId);
+                const merklRatesReady = earn_fetchMarketRates(chainId).catch(e => {
+                    console.warn('MERKL campaign map rate prefetch failed:', e);
+                    return null;
+                });
                 const url = `https://api.merkl.xyz/v3/rewards?chainIds=${numericId}&user=${addr}`;
                 const resp = await fetch(url);
                 if (!resp.ok) {
+                    const cachedRewards = await cachedMerklRewardsPromise;
+                    if (cachedRewards) {
+                        return earn_applyMerklRewardsResult(cachedRewards, userAddr, chainId, requestKey);
+                    }
                     earn_setMerklFetchState('error', `HTTP ${resp.status}`, userAddr, chainId);
                     earn_merklRewards = {};
                     earn_merklRewardsLoaded = true;
@@ -32344,6 +32505,7 @@
                     earn_setMerklFetchState('success', '', userAddr, chainId);
                     return {};
                 }
+                await merklRatesReady;
                 const campaignTokenMap = earn_getMerklCampaignTokenMap(chainId);
                 // Extract Dolomite-specific rewards from campaignData
                 const dolomiteRewards = {};
@@ -32353,11 +32515,8 @@
                         let tokenAddr = '';
                         let accountNumber = '';
                         let hasExplicitAccountNumber = false;
-                        if (reasonKey.startsWith('Dolomite_')) {
-                            tokenAddr = (reasonKey.replace('Dolomite_', '') || '').toLowerCase();
-                        } else if (reasonKey.startsWith('MultiLogPerAdditionalParam_')) {
-                            const campaignId = (reward && reward.mainParameter ? String(reward.mainParameter) : '').toLowerCase().replace(/^0x/, '');
-                            tokenAddr = campaignId ? (campaignTokenMap[campaignId] || '') : '';
+                        if (reasonKey.startsWith('Dolomite_') || reasonKey.startsWith('MultiLogPerAdditionalParam_')) {
+                            tokenAddr = earn_resolveMerklReasonTokenAddress(chainId, reasonKey, reward, campaignTokenMap);
                             const accountMatch = reasonKey.match(/^MultiLogPerAdditionalParam_accountNumber_([^_]+)_/);
                             hasExplicitAccountNumber = !!accountMatch;
                             accountNumber = accountMatch ? String(accountMatch[1]) : '';
@@ -32399,28 +32558,21 @@
                     dolomiteRewards[sym].accumulated = Math.max(dolomiteRewards[sym].accumulated || 0, totalAmt);
                     dolomiteRewards[sym].unclaimed = Math.max(dolomiteRewards[sym].unclaimed || 0, totalUncl);
                 }
-                const rewardTokenAddrs = Array.from(new Set(
-                    Object.values(dolomiteRewards)
-                        .map(entry => String(entry && entry.token ? entry.token : '').toLowerCase())
-                        .filter(Boolean)
-                ));
-                earn_merklRewards = dolomiteRewards;
-                earn_merklRewardsLoaded = true;
-                earn_merklRewardsLoadedFor = requestKey;
-                earn_setMerklFetchState('success', '', userAddr, chainId);
-                earn_softRefreshRewardsUi(userAddr, chainId);
-                if (rewardTokenAddrs.length > 0) {
-                    void earn_fetchCoinGeckoPrices(rewardTokenAddrs)
-                        .then(() => {
-                            earn_softRefreshRewardsUi(userAddr, chainId);
-                        })
-                        .catch(e => {
-                            console.warn('MERKL reward price refresh failed:', e);
-                        });
-                }
-                return dolomiteRewards;
+                return earn_applyMerklRewardsResult(dolomiteRewards, userAddr, chainId, requestKey);
             })().catch(e => {
                 console.warn('MERKL rewards fetch failed:', e);
+                return earn_fetchCachedMerklRewards(addr, chainId).then(cachedRewards => {
+                    if (cachedRewards) {
+                        return earn_applyMerklRewardsResult(cachedRewards, userAddr, chainId, requestKey);
+                    }
+                    earn_setMerklFetchState('error', e && e.message ? e.message : String(e), userAddr, chainId);
+                    earn_merklRewards = {};
+                    earn_merklRewardsLoaded = true;
+                    earn_merklRewardsLoadedFor = requestKey;
+                    return {};
+                });
+            }).catch(e => {
+                console.warn('Cached MERKL rewards fallback failed:', e);
                 earn_setMerklFetchState('error', e && e.message ? e.message : String(e), userAddr, chainId);
                 earn_merklRewards = {};
                 earn_merklRewardsLoaded = true;
@@ -35715,7 +35867,7 @@
                             p.openTimestamp = parseInt(bp.openTimestamp) || 0;
                             p.accruedCollateral = []; // { symbol, accruedTokens, accruedUSD }
                             p.accruedDebt = [];       // { symbol, accruedTokens, accruedUSD }
-                            p.externalRewards = [];   // { symbol, amount, usd, apr, claimUrl, source }
+                            p.externalRewards = [];   // { symbol, amount, usd, apr, claimUrl, source, assetSymbol }
                             const seenRewardTokens = new Set();
 
                             for (const amt of (bp.amounts || [])) {
@@ -35772,6 +35924,7 @@
                                                 apr: rateEntry ? rateEntry.rewards : 0,
                                                 claimUrl: 'https://app.dolomite.io/rewards',
                                                 source: 'dolomite',
+                                                assetSymbol: symbol,
                                                 icon: 'odolo-logo-official.svg',
                                             });
                                         }
@@ -35799,6 +35952,7 @@
                                                 apr: rewardApr * 100,
                                                 claimUrl: 'https://app.merkl.xyz/',
                                                 source: 'merkl',
+                                                assetSymbol: symbol,
                                                 icon: SYMBOL_ICONS[merklSym] || SYMBOL_ICONS[merklSym.toUpperCase()] || '',
                                             });
                                         }
@@ -36003,10 +36157,12 @@
                                 ${(p.externalRewards && p.externalRewards.length > 0) ? `<div class="earn-lend-section">
                                     <div class="earn-lend-section-title rewards">External Rewards</div>
                                     ${p.externalRewards.map(r => {
-                        const iconHtml = r.icon ? `<img src="${r.icon}" alt="${r.symbol}" onerror="this.style.display='none'">` : '';
-                        const claimHtml = r.claimUrl ? `<a href="${r.claimUrl}" target="_blank" class="earn-reward-claim-link" onclick="event.stopPropagation()">Claim ↗</a>` : '';
+                        const rewardSymbol = earn_escapeHtml(r.symbol || 'Reward');
+                        const iconHtml = r.icon ? `<img src="${earn_escapeHtml(r.icon)}" alt="${rewardSymbol}" onerror="this.style.display='none'">` : '';
+                        const claimHtml = r.claimUrl ? `<a href="${earn_escapeHtml(r.claimUrl)}" target="_blank" class="earn-reward-claim-link" onclick="event.stopPropagation()">Claim ↗</a>` : '';
                         const aprHtml = r.apr > 0 ? `<span class="earn-lend-token-annual" style="color:rgba(251,191,36,0.6)">${r.apr.toFixed(2)}% APR</span>` : '';
-                        return `<div class="earn-lend-token-row"><span class="earn-lend-token-left">${iconHtml}${r.symbol}${claimHtml}</span><span><span class="earn-lend-token-apr rewards">+${r.amount >= 1000 ? (r.amount / 1000).toFixed(2) + 'K' : r.amount.toFixed(2)}</span><span class="earn-lend-token-annual" style="color:rgba(251,191,36,0.5)"> ~${earn_formatUSD(r.usd)}</span>${aprHtml}</span></div>`;
+                        const assetHint = r.assetSymbol ? `<span class="earn-lend-token-source">For ${earn_escapeHtml(r.assetSymbol)}</span>` : '';
+                        return `<div class="earn-lend-token-row"><span class="earn-lend-token-left">${iconHtml}<span class="earn-lend-token-stack"><span class="earn-lend-token-main">${rewardSymbol}${claimHtml}</span>${assetHint}</span></span><span><span class="earn-lend-token-apr rewards">+${r.amount >= 1000 ? (r.amount / 1000).toFixed(2) + 'K' : r.amount.toFixed(2)}</span><span class="earn-lend-token-annual" style="color:rgba(251,191,36,0.5)"> ~${earn_formatUSD(r.usd)}</span>${aprHtml}</span></div>`;
                     }).join('')}
                                     <div style="border-top:1px solid rgba(251,191,36,0.08);margin-top:6px;padding-top:4px">
                                         <div class="earn-lend-token-row"><span class="earn-lend-token-left" style="color:rgba(251,191,36,0.7);font-weight:600">Total Rewards</span><span class="earn-lend-token-apr rewards">+${earn_formatUSD(p.totalExternalRewardsUSD)}</span></div>
@@ -36560,10 +36716,12 @@
                             ${(p.externalRewards && p.externalRewards.length > 0) ? `<div class="earn-lend-section">
                                 <div class="earn-lend-section-title rewards">External Rewards</div>
                                 ${p.externalRewards.map(r => {
-                    const iconHtml = r.icon ? `<img src="${r.icon}" alt="${r.symbol}" onerror="this.style.display='none'">` : '';
-                    const claimHtml = r.claimUrl ? `<a href="${r.claimUrl}" target="_blank" class="earn-reward-claim-link" onclick="event.stopPropagation()">Claim ↗</a>` : '';
+                    const rewardSymbol = earn_escapeHtml(r.symbol || 'Reward');
+                    const iconHtml = r.icon ? `<img src="${earn_escapeHtml(r.icon)}" alt="${rewardSymbol}" onerror="this.style.display='none'">` : '';
+                    const claimHtml = r.claimUrl ? `<a href="${earn_escapeHtml(r.claimUrl)}" target="_blank" class="earn-reward-claim-link" onclick="event.stopPropagation()">Claim ↗</a>` : '';
                     const aprHtml = r.apr > 0 ? `<span class="earn-lend-token-annual" style="color:rgba(251,191,36,0.6)">${r.apr.toFixed(2)}% APR</span>` : '';
-                    return `<div class="earn-lend-token-row"><span class="earn-lend-token-left">${iconHtml}${r.symbol}${claimHtml}</span><span><span class="earn-lend-token-apr rewards">+${r.amount >= 1000 ? (r.amount / 1000).toFixed(2) + 'K' : r.amount.toFixed(2)}</span><span class="earn-lend-token-annual" style="color:rgba(251,191,36,0.5)"> ~${earn_formatUSD(r.usd)}</span>${aprHtml}</span></div>`;
+                    const assetHint = r.assetSymbol ? `<span class="earn-lend-token-source">For ${earn_escapeHtml(r.assetSymbol)}</span>` : '';
+                    return `<div class="earn-lend-token-row"><span class="earn-lend-token-left">${iconHtml}<span class="earn-lend-token-stack"><span class="earn-lend-token-main">${rewardSymbol}${claimHtml}</span>${assetHint}</span></span><span><span class="earn-lend-token-apr rewards">+${r.amount >= 1000 ? (r.amount / 1000).toFixed(2) + 'K' : r.amount.toFixed(2)}</span><span class="earn-lend-token-annual" style="color:rgba(251,191,36,0.5)"> ~${earn_formatUSD(r.usd)}</span>${aprHtml}</span></div>`;
                 }).join('')}
                                 <div style="border-top:1px solid rgba(251,191,36,0.08);margin-top:6px;padding-top:4px">
                                     <div class="earn-lend-token-row"><span class="earn-lend-token-left" style="color:rgba(251,191,36,0.7);font-weight:600">Total Rewards</span><span class="earn-lend-token-apr rewards">+${earn_formatUSD(p.totalExternalRewardsUSD)}</span></div>
@@ -36738,7 +36896,13 @@
                         rateData.yieldSources.forEach(ys => {
                             const isGm = (ys.label || '').includes('Price Implied') || (ys.label || '').includes('GM ');
                             let displayLabel = earn_cleanSupplyAprLabel(ys.label);
+                            const rewardSymbol = String(ys.rewardSymbol || '').trim();
                             if (isGm) displayLabel = 'GM Performance';
+                            if (rewardSymbol) {
+                                const upperLabel = displayLabel.toUpperCase();
+                                const upperReward = rewardSymbol.toUpperCase();
+                                displayLabel = upperLabel.includes(upperReward) ? displayLabel : `${rewardSymbol} Rewards`;
+                            }
                             bLines.push({ label: displayLabel, rate: ys.rate, cls: isGm ? 'gm-part' : 'yield-part' });
                         });
                     }
