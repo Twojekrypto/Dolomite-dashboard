@@ -113,6 +113,7 @@
 - **oDOLO metadata API**: `https://api.dolomite.io/liquidity-mining/odolo/metadata` returns per-token weekly allocation (`allChainWeights`). Calculate per-position oDOLO as `(userSupply / totalSupply) × weeklyAlloc × weeksActive`.
 - **⚠️ WLFI blacklist**: Some wallets (e.g., `0x5be9...`) are blacklisted in MERKL campaigns. They appear in the `params.blacklist` array of campaign data and receive 0 WLFI despite supplying the eligible token.
 - **⚠️ Per-position attribution**: MERKL rewards are wallet-wide, NOT per-position. Use `perToken` matching (reason key → collateral token address) to correctly attribute rewards to specific borrow positions. This prevents double-counting when a wallet has multiple positions.
+- **⚠️ Earn WLFI campaign map race**: Merkl `MultiLogPerAdditionalParam_*` rewards depend on `mainParameter` campaign IDs. The Earn lookup must load Dolomite market rates before parsing Merkl rewards so live `campaignIdentifier → asset token` mapping wins. Historical fallback must map `576387d3d84237f5 → USD1` and `2ed15ca6f6a47991 → USDC`; otherwise USD1 WLFI can appear under USDC or vanish from the asset reward card.
 - **⚠️ Summary card pattern**: Dynamic summary stats should only appear when data exists. Use `if (data > threshold) return;` early exit + `getElementById()` dedup check to prevent duplicate cards on re-render.
 
 ## Grid Layout & Inline Style Overrides
