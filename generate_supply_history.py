@@ -333,6 +333,15 @@ def select_tokens(
     return selected
 
 
+def token_summary(token: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "tokenId": str(token.get("id") or "").lower(),
+        "symbol": token.get("symbol"),
+        "marketId": token.get("marketId"),
+        "supplyLiquidityUSD": decimal_to_string(decimal_or_zero(token.get("supplyLiquidityUSD"))),
+    }
+
+
 def write_history_file(out_dir: Path, chain: str, token: Dict[str, Any], points: List[Dict[str, Any]], generated_at: datetime) -> Path:
     token_id = str(token.get("id") or "").lower()
     chain_dir = out_dir / chain
@@ -370,17 +379,27 @@ def generate_chain(
     selected = select_tokens(tokens, token_limit, explicit_tokens, explicit_symbols, explicit_only)
     print(f"{chain}: selected {len(selected)} / {len(tokens)} tokens", flush=True)
     written: List[Dict[str, Any]] = []
+    skipped: List[Dict[str, Any]] = []
     common_fields = """
       transaction { timestamp blockNumber }
       amountDeltaPar
       interestIndex
     """
+
+    def record_skip(token: Dict[str, Any], reason: str, detail: str = "") -> None:
+        entry = token_summary(token)
+        entry["reason"] = reason
+        if detail:
+            entry["detail"] = detail[:500]
+        skipped.append(entry)
+
     for index, token in enumerate(selected, start=1):
         token_id = str(token.get("id") or "").lower()
         symbol = str(token.get("symbol") or token_id[:8])
         supply_index = indexes.get(token_id, Decimal(0))
         if supply_index <= 0:
             print(f"{chain} {symbol}: skipped missing supply index", flush=True)
+            record_skip(token, "missing_supply_index")
             continue
         where = f'token: "{token_id}"'
         print(f"{chain} {symbol}: fetching {index}/{len(selected)}", flush=True)
@@ -402,26 +421,25 @@ def generate_chain(
             points = build_history_points(token, supply_index, deposits, withdrawals, snapshots, int(generated_at.timestamp()))
         except RuntimeError as exc:
             print(f"{chain} {symbol}: skipped ({exc})", flush=True)
+            record_skip(token, "fetch_error", str(exc))
             continue
         if len(points) < 2:
             print(f"{chain} {symbol}: skipped insufficient points", flush=True)
+            record_skip(token, "insufficient_points")
             continue
         path = write_history_file(out_dir, chain, token, points, generated_at)
-        written.append(
-            {
-                "tokenId": token_id,
-                "symbol": token.get("symbol"),
-                "marketId": token.get("marketId"),
-                "points": len(points),
-                "path": str(path.as_posix()),
-            }
-        )
+        entry = token_summary(token)
+        entry["points"] = len(points)
+        entry["path"] = str(path.as_posix())
+        written.append(entry)
         print(f"{chain} {symbol}: wrote {len(points)} daily points", flush=True)
     return {
         "chain": chain,
         "tokensAvailable": len(tokens),
         "tokensWritten": len(written),
+        "tokensSkipped": len(skipped),
         "tokens": written,
+        "skippedTokens": skipped,
     }
 
 
@@ -429,15 +447,86 @@ def parse_csv_set(value: str) -> set[str]:
     return {item.strip() for item in value.split(",") if item.strip()}
 
 
+def load_existing_manifest(out_dir: Path) -> Optional[Dict[str, Any]]:
+    manifest_path = out_dir / "manifest.json"
+    if not manifest_path.exists():
+        return None
+    try:
+        return json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def merge_chain_entry(existing: Dict[str, Any], refreshed: Dict[str, Any]) -> Dict[str, Any]:
+    tokens_by_id: Dict[str, Dict[str, Any]] = {}
+    skipped_by_id: Dict[str, Dict[str, Any]] = {}
+
+    for token in existing.get("tokens") or []:
+        token_id = str(token.get("tokenId") or "").lower()
+        if token_id:
+            tokens_by_id[token_id] = token
+    for token in existing.get("skippedTokens") or []:
+        token_id = str(token.get("tokenId") or "").lower()
+        if token_id:
+            skipped_by_id[token_id] = token
+
+    for token in refreshed.get("tokens") or []:
+        token_id = str(token.get("tokenId") or "").lower()
+        if token_id:
+            tokens_by_id[token_id] = token
+            skipped_by_id.pop(token_id, None)
+    for token in refreshed.get("skippedTokens") or []:
+        token_id = str(token.get("tokenId") or "").lower()
+        if token_id:
+            skipped_by_id[token_id] = token
+            tokens_by_id.pop(token_id, None)
+
+    merged = {**existing, **refreshed}
+    sort_key = lambda item: (str(item.get("symbol") or ""), str(item.get("tokenId") or ""))
+    merged["tokens"] = sorted(tokens_by_id.values(), key=sort_key)
+    merged["skippedTokens"] = sorted(skipped_by_id.values(), key=sort_key)
+    merged["tokensWritten"] = len(merged["tokens"])
+    merged["tokensSkipped"] = len(merged["skippedTokens"])
+    return merged
+
+
+def merge_manifest_results(
+    existing_manifest: Optional[Dict[str, Any]],
+    refreshed_results: List[Dict[str, Any]],
+    replace_tokens_for_refreshed_chains: bool,
+) -> List[Dict[str, Any]]:
+    by_chain: Dict[str, Dict[str, Any]] = {}
+    if existing_manifest:
+        for chain_entry in existing_manifest.get("chains") or []:
+            chain = str(chain_entry.get("chain") or "")
+            if chain:
+                by_chain[chain] = chain_entry
+
+    for refreshed in refreshed_results:
+        chain = str(refreshed.get("chain") or "")
+        if not chain:
+            continue
+        existing = by_chain.get(chain)
+        if existing and not replace_tokens_for_refreshed_chains:
+            by_chain[chain] = merge_chain_entry(existing, refreshed)
+        else:
+            by_chain[chain] = refreshed
+
+    ordered = [by_chain[chain] for chain in GRAPH_ENDPOINTS if chain in by_chain]
+    ordered.extend(entry for chain, entry in sorted(by_chain.items()) if chain not in GRAPH_ENDPOINTS)
+    return ordered
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate static Dolomite Supply chart history")
     parser.add_argument("--out-dir", default="data/supply-history")
     parser.add_argument("--chains", default=os.environ.get("SUPPLY_HISTORY_CHAINS", ",".join(GRAPH_ENDPOINTS.keys())))
-    parser.add_argument("--token-limit", type=int, default=int(os.environ.get("SUPPLY_HISTORY_TOKEN_LIMIT", "18")))
+    parser.add_argument("--token-limit", type=int, default=int(os.environ.get("SUPPLY_HISTORY_TOKEN_LIMIT", "0")))
     parser.add_argument("--tokens", default=os.environ.get("SUPPLY_HISTORY_TOKENS", ""))
     parser.add_argument("--symbols", default=os.environ.get("SUPPLY_HISTORY_SYMBOLS", ",".join(sorted(DEFAULT_SYMBOLS))))
     parser.add_argument("--explicit-only", action="store_true", default=os.environ.get("SUPPLY_HISTORY_EXPLICIT_ONLY", "").lower() in {"1", "true", "yes"})
     parser.add_argument("--max-pages-per-entity", type=int, default=int(os.environ.get("SUPPLY_HISTORY_MAX_PAGES_PER_ENTITY", "600")))
+    parser.add_argument("--active-usd-threshold", default=os.environ.get("SUPPLY_HISTORY_ACTIVE_USD_THRESHOLD", "0"))
     args = parser.parse_args()
 
     out_dir = Path(args.out_dir)
@@ -445,6 +534,7 @@ def main() -> int:
     chains = [chain.strip() for chain in args.chains.split(",") if chain.strip()]
     explicit_tokens = {token.lower() for token in parse_csv_set(args.tokens)}
     explicit_symbols = parse_csv_set(args.symbols)
+    active_usd_threshold = decimal_or_zero(args.active_usd_threshold)
     generated_at = utc_now()
     results = []
 
@@ -467,6 +557,10 @@ def main() -> int:
             )
         )
 
+    existing_manifest = load_existing_manifest(out_dir)
+    replace_tokens_for_refreshed_chains = args.token_limit == 0 and not args.explicit_only
+    manifest_chains = merge_manifest_results(existing_manifest, results, replace_tokens_for_refreshed_chains)
+
     manifest = {
         "schemaVersion": 1,
         "generatedAt": generated_at.isoformat().replace("+00:00", "Z"),
@@ -475,10 +569,24 @@ def main() -> int:
         "tokenLimit": args.token_limit,
         "explicitOnly": bool(args.explicit_only),
         "maxPagesPerEntity": args.max_pages_per_entity,
-        "chains": results,
+        "activeUsdThreshold": decimal_to_string(active_usd_threshold),
+        "refreshedChains": chains,
+        "chains": manifest_chains,
     }
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    print(f"Wrote manifest for {len(results)} chains to {out_dir / 'manifest.json'}")
+    print(f"Wrote manifest for {len(manifest_chains)} chains to {out_dir / 'manifest.json'}")
+
+    active_skips = []
+    for chain_result in results:
+        chain = chain_result.get("chain")
+        for token in chain_result.get("skippedTokens") or []:
+            if decimal_or_zero(token.get("supplyLiquidityUSD")) > active_usd_threshold:
+                symbol = token.get("symbol") or token.get("tokenId")
+                active_skips.append(f"{chain} {symbol} (${token.get('supplyLiquidityUSD')}) {token.get('reason')}")
+    if active_skips:
+        print("Active Supply history tokens were skipped:", file=sys.stderr)
+        print("\n".join(active_skips), file=sys.stderr)
+        return 1
     return 0
 
 
