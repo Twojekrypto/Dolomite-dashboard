@@ -10,9 +10,9 @@ on:
         required: false
         default: ''
       token_limit:
-        description: 'Top tokens per chain; 0 means all'
+        description: 'Top tokens per chain; 0 means every selectable token'
         required: false
-        default: '18'
+        default: '0'
       tokens:
         description: 'Comma-separated token addresses to force include'
         required: false
@@ -53,7 +53,7 @@ jobs:
             CHAINS="ethereum,arbitrum,berachain,mantle,botanix,xlayer,polygon_zkevm"
           fi
           if [ -z "$TOKEN_LIMIT" ]; then
-            TOKEN_LIMIT="18"
+            TOKEN_LIMIT="0"
           fi
           if [ -z "$MAX_PAGES" ]; then
             MAX_PAGES="120"

@@ -88,12 +88,7 @@
       line.appendChild(title);
     }
     const titleLine = document.querySelector('.supply-history-title-line');
-    if (titleLine && !document.getElementById('supply-history-change-badge')) {
-      const badge = document.createElement('span');
-      badge.id = 'supply-history-change-badge';
-      badge.className = 'supply-history-change-badge';
-      titleLine.appendChild(badge);
-    }
+    document.getElementById('supply-history-change-badge')?.remove();
     if (titleLine && !document.getElementById('supply-history-mode-switch')) {
       const switcher = document.createElement('div');
       switcher.id = 'supply-history-mode-switch';
@@ -107,25 +102,7 @@
   }
 
   function syncSupplyHistoryBadge() {
-    const badge = document.getElementById('supply-history-change-badge');
-    if (!badge) return;
-    const mode = currentSupplyOverview?.historyDatasetMode || 'recent';
-    const fullStage = currentSupplyOverview?.historyFullStage || 'idle';
-    let label = mode === 'all' ? 'All History' : '90D';
-    try {
-      const points = currentSupplyOverview?.historyPoints || [];
-      if (supplyHistoryRange === 'custom' && Array.isArray(points) && points.length > 1 && typeof getSupplyHistoryWindow === 'function' && typeof supplyFormatShortRange === 'function') {
-        const range = getSupplyHistoryWindow(points);
-        label = supplyFormatShortRange(range.startTs, range.endTs);
-      }
-    } catch (error) {}
-    if (mode === 'all' && fullStage === 'loading') {
-      label = 'Loading All';
-    } else if (mode === 'all' && fullStage === 'error') {
-      label = 'All Unavailable';
-    }
-    badge.textContent = label;
-    badge.className = 'supply-history-change-badge visible';
+    document.getElementById('supply-history-change-badge')?.remove();
     syncSupplyHistoryModeControls();
   }
 
