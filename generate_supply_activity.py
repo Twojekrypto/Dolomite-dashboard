@@ -31,6 +31,8 @@ GRAPH_ENDPOINTS = {
     "polygon_zkevm": f"{DOLOMITE_SUPPLY_BASE}/dolomite-polygon-zkevm/latest/gn",
 }
 
+RECENT_ACTIVITY_DAYS = 30
+
 DEFAULT_ACTIVITY_SYMBOLS = {
     "USD1",
     "USDC",
@@ -99,7 +101,7 @@ def post_json(url: str, payload: Dict[str, Any], retries: int = 3) -> Dict[str, 
             if parsed.get("errors"):
                 raise RuntimeError(parsed["errors"][0].get("message", "GraphQL error"))
             return parsed.get("data") or {}
-        except (HTTPError, URLError, TimeoutError, RuntimeError, json.JSONDecodeError) as exc:
+        except (HTTPError, URLError, TimeoutError, OSError, RuntimeError, json.JSONDecodeError) as exc:
             last_error = exc
             if attempt < retries:
                 time.sleep(1.5 * attempt)
@@ -147,6 +149,31 @@ def paginate_entity(
 
 def parse_csv_set(value: str) -> set[str]:
     return {item.strip() for item in value.split(",") if item.strip()}
+
+
+def load_token_config(path_text: str) -> Dict[str, set[str]]:
+    if not path_text:
+        return {}
+    path = Path(path_text)
+    if not path.exists():
+        return {}
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"Could not read token config {path}: {exc}") from exc
+    chains = raw.get("chains") if isinstance(raw, dict) and isinstance(raw.get("chains"), dict) else raw
+    if not isinstance(chains, dict):
+        raise RuntimeError(f"Token config {path} must be a chain-to-token-list object")
+    config: Dict[str, set[str]] = {}
+    for chain, values in chains.items():
+        if isinstance(values, str):
+            tokens = parse_csv_set(values)
+        elif isinstance(values, list):
+            tokens = {str(item).strip() for item in values if str(item).strip()}
+        else:
+            tokens = set()
+        config[str(chain)] = {token.lower() for token in tokens}
+    return config
 
 
 def select_tokens(
@@ -313,11 +340,16 @@ def fetch_activity_rows(endpoint: str, token_id: str, max_pages_per_entity: int)
     return [compact_activity_row(row) for row in sorted(deduped.values(), key=lambda item: int(item.get("timestamp") or 0), reverse=True)]
 
 
-def write_activity_file(out_dir: Path, chain: str, token: Dict[str, Any], rows: List[List[Any]], generated_at: datetime) -> Path:
+def write_activity_file(out_dir: Path, chain: str, token: Dict[str, Any], rows: List[List[Any]], generated_at: datetime) -> Tuple[Path, Path, int]:
     token_id = str(token.get("id") or "").lower()
     chain_dir = out_dir / chain
+    recent_chain_dir = out_dir / "recent" / chain
     chain_dir.mkdir(parents=True, exist_ok=True)
+    recent_chain_dir.mkdir(parents=True, exist_ok=True)
     path = chain_dir / f"{token_id}.json"
+    recent_path = recent_chain_dir / f"{token_id}.json"
+    recent_cutoff = int(generated_at.timestamp()) - (RECENT_ACTIVITY_DAYS * 86400)
+    recent_rows = [row for row in rows if int(row[2] or 0) >= recent_cutoff]
     payload = {
         "schemaVersion": 1,
         "source": "static-subgraph-activity",
@@ -331,8 +363,14 @@ def write_activity_file(out_dir: Path, chain: str, token: Dict[str, Any], rows: 
         "generatedAt": generated_at.isoformat().replace("+00:00", "Z"),
         "rows": rows,
     }
+    recent_payload = {
+        **payload,
+        "scope": f"{RECENT_ACTIVITY_DAYS}d",
+        "rows": recent_rows,
+    }
     path.write_text(json.dumps(payload, separators=(",", ":"), ensure_ascii=False) + "\n", encoding="utf-8")
-    return path
+    recent_path.write_text(json.dumps(recent_payload, separators=(",", ":"), ensure_ascii=False) + "\n", encoding="utf-8")
+    return path, recent_path, len(recent_rows)
 
 
 def generate_chain(
@@ -364,10 +402,12 @@ def generate_chain(
             skipped.append(entry)
             print(f"{chain} {symbol}: skipped ({exc})", flush=True)
             continue
-        path = write_activity_file(out_dir, chain, token, rows, generated_at)
+        path, recent_path, recent_count = write_activity_file(out_dir, chain, token, rows, generated_at)
         entry = token_summary(token)
         entry["events"] = len(rows)
+        entry["recentEvents"] = recent_count
         entry["path"] = str(path.as_posix())
+        entry["recentPath"] = str(recent_path.as_posix())
         entry["generatedAt"] = generated_at.isoformat().replace("+00:00", "Z")
         written.append(entry)
         print(f"{chain} {symbol}: wrote {len(rows)} activity rows", flush=True)
@@ -414,6 +454,7 @@ def main() -> int:
     parser.add_argument("--token-limit", type=int, default=int(os.environ.get("SUPPLY_ACTIVITY_TOKEN_LIMIT", "8")))
     parser.add_argument("--tokens", default=os.environ.get("SUPPLY_ACTIVITY_TOKENS", ""))
     parser.add_argument("--symbols", default=os.environ.get("SUPPLY_ACTIVITY_SYMBOLS", ",".join(sorted(DEFAULT_ACTIVITY_SYMBOLS))))
+    parser.add_argument("--token-config", default=os.environ.get("SUPPLY_ACTIVITY_TOKEN_CONFIG", ""))
     parser.add_argument("--explicit-only", action="store_true", default=os.environ.get("SUPPLY_ACTIVITY_EXPLICIT_ONLY", "").lower() in {"1", "true", "yes"})
     parser.add_argument("--max-pages-per-entity", type=int, default=int(os.environ.get("SUPPLY_ACTIVITY_MAX_PAGES_PER_ENTITY", "600")))
     args = parser.parse_args()
@@ -423,6 +464,7 @@ def main() -> int:
     chains = [chain.strip() for chain in args.chains.split(",") if chain.strip()]
     explicit_tokens = {token.lower() for token in parse_csv_set(args.tokens)}
     explicit_symbols = parse_csv_set(args.symbols)
+    token_config = load_token_config(args.token_config)
     generated_at = utc_now()
     results = []
 
@@ -437,7 +479,7 @@ def main() -> int:
                 endpoint,
                 out_dir,
                 args.token_limit,
-                explicit_tokens,
+                explicit_tokens | token_config.get(chain, set()),
                 explicit_symbols,
                 args.explicit_only,
                 args.max_pages_per_entity,
