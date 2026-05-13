@@ -1259,11 +1259,29 @@ body.supply-draft-route .supply-activity-history-btn {
     opacity .16s var(--supply-ease) !important;
 }
 
+body.supply-draft-route .supply-activity-history-btn[hidden] {
+  display: none !important;
+}
+
 body.supply-draft-route .supply-activity-history-btn svg {
   width: 13px !important;
   height: 13px !important;
   flex: 0 0 13px !important;
   opacity: .9 !important;
+}
+
+body.supply-draft-route .supply-activity-history-btn.loading {
+  border-color: var(--supply-gold-line) !important;
+  background:
+    linear-gradient(180deg, rgba(201, 162, 39, .14), rgba(201, 162, 39, .06)),
+    var(--supply-bg-3) !important;
+  color: var(--supply-gold-hi) !important;
+  cursor: wait !important;
+  opacity: 1 !important;
+}
+
+body.supply-draft-route .supply-activity-history-btn.loading svg {
+  animation: supplyActivitySpin .86s linear infinite !important;
 }
 
 body.supply-draft-route .supply-activity-history-btn:hover:not(:disabled) {
@@ -1330,6 +1348,82 @@ body.supply-draft-route .supply-activity-toolbar {
   border-top: 1px solid var(--supply-line-1) !important;
   border-bottom: 1px solid var(--supply-line-1) !important;
   background: linear-gradient(180deg, var(--supply-bg-1), var(--supply-bg-2)) !important;
+}
+
+body.supply-draft-route .supply-activity-full-loading-panel {
+  display: none !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 12px !important;
+  margin: 0 !important;
+  padding: 12px 24px !important;
+  border-bottom: 1px solid var(--supply-line-1) !important;
+  background:
+    linear-gradient(90deg, rgba(201, 162, 39, .12), rgba(201, 162, 39, .035) 42%, rgba(52, 211, 153, .04)),
+    var(--supply-bg-2) !important;
+  box-shadow: inset 3px 0 0 rgba(201, 162, 39, .82) !important;
+}
+
+body.supply-draft-route .supply-activity-full-loading-panel.visible {
+  display: flex !important;
+}
+
+body.supply-draft-route .supply-activity-full-loading-spinner {
+  width: 18px !important;
+  height: 18px !important;
+  flex: 0 0 18px !important;
+  border-radius: 50% !important;
+  border: 2px solid rgba(201, 162, 39, .22) !important;
+  border-top-color: var(--supply-gold) !important;
+  animation: supplyActivitySpin .86s linear infinite !important;
+}
+
+body.supply-draft-route .supply-activity-full-loading-copy {
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+}
+
+body.supply-draft-route .supply-activity-full-loading-title {
+  color: var(--supply-fg-1) !important;
+  font-size: 12.5px !important;
+  font-weight: 700 !important;
+  line-height: 1.25 !important;
+}
+
+body.supply-draft-route .supply-activity-full-loading-text {
+  margin-top: 2px !important;
+  color: var(--supply-fg-3) !important;
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  line-height: 1.35 !important;
+}
+
+body.supply-draft-route .supply-activity-full-loading-meta {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 7px !important;
+  flex: 0 0 auto !important;
+  flex-wrap: wrap !important;
+}
+
+body.supply-draft-route .supply-activity-full-loading-meta span {
+  display: inline-flex !important;
+  align-items: center !important;
+  height: 24px !important;
+  padding: 0 8px !important;
+  border: 1px solid var(--supply-line-2) !important;
+  border-radius: 999px !important;
+  background: rgba(10, 14, 21, .52) !important;
+  color: var(--supply-fg-2) !important;
+  font-family: var(--supply-mono) !important;
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+  white-space: nowrap !important;
+}
+
+@keyframes supplyActivitySpin {
+  to { transform: rotate(360deg); }
 }
 
 body.supply-draft-route .supply-activity-toolbar-main,
@@ -2490,6 +2584,17 @@ body.supply-draft-route #supply-pagination .flow-pager-info {
 
   body.supply-draft-route .supply-activity-history-state {
     flex: 0 0 auto !important;
+  }
+
+  body.supply-draft-route .supply-activity-full-loading-panel.visible {
+    align-items: flex-start !important;
+    padding: 12px 18px !important;
+  }
+
+  body.supply-draft-route .supply-activity-full-loading-meta {
+    flex: 1 1 100% !important;
+    justify-content: flex-start !important;
+    padding-left: 30px !important;
   }
 
   body.supply-draft-route .supply-activity-filter-row,

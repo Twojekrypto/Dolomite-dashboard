@@ -12279,6 +12279,7 @@
             bundle: 2 * 60 * 1000,
             suppliers: 15 * 60 * 1000,
             activity: 3 * 60 * 1000,
+            fullActivity: 12 * 60 * 60 * 1000,
             history: 12 * 60 * 60 * 1000,
         };
         const SUPPLY_CACHE_STORAGE_PREFIX = 'dolomite_supply_cache_v2:';
@@ -12388,33 +12389,93 @@
             if (!button || !buttonLabel || !badge || !state || !dot) return;
             const activityStage = currentSupplyOverview?.activityStage || 'loading';
             const isFullLoading = !!currentSupplyOverview?.activityFullLoading;
+            const progress = currentSupplyOverview?.activityLoadProgress || {};
+            const progressTotal = Number(progress.total || 0);
             badge.classList.remove('loading', 'full');
+            state.classList.remove('loading', 'full');
             dot.classList.remove('loading', 'full');
+            button.classList.toggle('loading', isFullLoading);
+            button.setAttribute('aria-busy', isFullLoading ? 'true' : 'false');
             if (activityStage === 'full') {
+                button.hidden = true;
                 button.style.display = 'none';
                 button.disabled = false;
                 buttonLabel.textContent = 'Load older tx';
                 state.textContent = 'Full history';
                 badge.classList.add('full');
+                state.classList.add('full');
                 dot.classList.add('full');
+                syncSupplyActivityFullLoadingPanel();
                 return;
             }
+            button.hidden = false;
             button.style.display = 'inline-flex';
             if (activityStage === 'recent') {
                 button.disabled = isFullLoading;
-                buttonLabel.textContent = isFullLoading ? 'Loading older tx...' : 'Load older tx';
-                state.textContent = isFullLoading ? '30D ready · syncing older' : '30D ready';
+                buttonLabel.textContent = isFullLoading ? 'Loading older tx' : 'Load older tx';
+                state.textContent = isFullLoading
+                    ? (progressTotal > 0 ? `${progressTotal.toLocaleString()} tx` : 'Syncing older')
+                    : '30D ready';
                 if (isFullLoading) {
                     badge.classList.add('loading');
+                    state.classList.add('loading');
                     dot.classList.add('loading');
                 }
+                syncSupplyActivityFullLoadingPanel();
                 return;
             }
             button.disabled = true;
             buttonLabel.textContent = 'Preparing recent tx...';
             state.textContent = 'Loading 30D';
             badge.classList.add('loading');
+            state.classList.add('loading');
             dot.classList.add('loading');
+            syncSupplyActivityFullLoadingPanel();
+        }
+
+        function syncSupplyActivityFullLoadingPanel() {
+            const card = document.getElementById('supply-activity-card');
+            const toolbar = card?.querySelector('.supply-activity-toolbar');
+            if (!card || !toolbar) return;
+            let panel = document.getElementById('supply-activity-full-loading-panel');
+            if (!panel) {
+                panel = document.createElement('div');
+                panel.id = 'supply-activity-full-loading-panel';
+                panel.className = 'supply-activity-full-loading-panel';
+                panel.setAttribute('aria-live', 'polite');
+                toolbar.insertAdjacentElement('afterend', panel);
+            }
+
+            const isLoading = !!currentSupplyOverview?.activityFullLoading;
+            card.classList.toggle('is-loading-older-history', isLoading);
+            if (!isLoading) {
+                panel.classList.remove('visible');
+                panel.setAttribute('aria-hidden', 'true');
+                panel.innerHTML = '';
+                return;
+            }
+
+            const progress = currentSupplyOverview?.activityLoadProgress || {};
+            const tokenSymbol = currentSupplyOverview?.token?.symbol || 'market';
+            const total = Number(progress.total || 0);
+            const completedEntities = Number(progress.completedEntities || 0);
+            const totalEntities = Number(progress.totalEntities || 5);
+            const activeLabel = progress.activeLabel || 'subgraph sources';
+            const foundLabel = total > 0 ? `${total.toLocaleString()} tx found` : 'Scanning older history';
+            panel.setAttribute('aria-hidden', 'false');
+            panel.classList.add('visible');
+            panel.innerHTML = `
+                <div class="supply-activity-full-loading-spinner" aria-hidden="true"></div>
+                <div class="supply-activity-full-loading-copy">
+                    <div class="supply-activity-full-loading-title">Loading older ${supplyEscapeHtml(tokenSymbol)} tx</div>
+                    <div class="supply-activity-full-loading-text">30D activity stays visible while the older Dolomite subgraph history syncs.</div>
+                </div>
+                <div class="supply-activity-full-loading-meta">
+                    <span>${Math.max(0, Math.min(completedEntities, totalEntities))}/${totalEntities} sources</span>
+                    <span>${supplyEscapeHtml(foundLabel)}</span>
+                    <span>${supplyEscapeHtml(activeLabel)}</span>
+                </div>
+            `;
         }
 
         function supplyLoadFullActivityHistory() {
@@ -13998,31 +14059,82 @@
         async function supplySubgraphPaginateAll(url, entityName, whereClause, fields, pageSize = 1000, onProgress, options = {}) {
             const orderBy = options.orderBy || 'serialId';
             const orderDirection = options.orderDirection || 'desc';
+            const pageBatchSize = Math.max(1, Math.min(4, Math.floor(Number(options.pageBatchSize || 1))));
             let skip = 0;
             const rows = [];
 
-            while (true) {
+            const fetchPage = async pageSkip => {
                 const query = `{
-                    ${entityName}(first: ${pageSize}, skip: ${skip}, orderBy: ${orderBy}, orderDirection: ${orderDirection}, where: { ${whereClause} }) {
+                    ${entityName}(first: ${pageSize}, skip: ${pageSkip}, orderBy: ${orderBy}, orderDirection: ${orderDirection}, where: { ${whereClause} }) {
                         ${fields}
                     }
                 }`;
                 const data = await doGraphQuery(url, query);
-                const chunk = data && data[entityName] ? data[entityName] : [];
-                rows.push(...chunk);
-                if (onProgress) onProgress(entityName, rows.length, chunk.length < pageSize);
-                if (chunk.length < pageSize) break;
-                skip += pageSize;
+                return data && data[entityName] ? data[entityName] : [];
+            };
+
+            while (true) {
+                if (pageBatchSize === 1) {
+                    const chunk = await fetchPage(skip);
+                    rows.push(...chunk);
+                    if (onProgress) onProgress(entityName, rows.length, chunk.length < pageSize);
+                    if (chunk.length < pageSize) break;
+                    skip += pageSize;
+                    continue;
+                }
+
+                const chunks = await Promise.all(
+                    Array.from({ length: pageBatchSize }, (_, index) => fetchPage(skip + (index * pageSize)))
+                );
+                let foundLastPage = false;
+                for (const chunk of chunks) {
+                    if (foundLastPage) continue;
+                    rows.push(...chunk);
+                    if (onProgress) onProgress(entityName, rows.length, chunk.length < pageSize);
+                    if (chunk.length < pageSize) {
+                        foundLastPage = true;
+                    }
+                }
+                if (foundLastPage) break;
+                skip += pageSize * pageBatchSize;
             }
 
             return rows;
         }
 
-        async function fetchSupplyActivityHistory(url, tokenId, sinceTs, onProgress) {
-            const timeFilter = sinceTs ? `, transaction_: { timestamp_gte: "${sinceTs}" }` : '';
+        function mergeSupplyActivityRows(...rowSets) {
+            const rowsById = new Map();
+            rowSets.forEach(rowSet => {
+                (Array.isArray(rowSet) ? rowSet : []).forEach(row => {
+                    if (!row) return;
+                    const key = row.id || [
+                        row.type,
+                        row.txHash,
+                        row.primaryAddress,
+                        row.secondaryAddress,
+                        row.amount,
+                        row.timestamp,
+                    ].join(':');
+                    if (!rowsById.has(key)) {
+                        rowsById.set(key, row);
+                    }
+                });
+            });
+            return Array.from(rowsById.values()).sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
+        }
+
+        async function fetchSupplyActivityHistory(url, tokenId, sinceTs, onProgress, options = {}) {
+            const beforeTs = Number(options.beforeTs || 0);
+            const timeParts = [];
+            if (sinceTs) timeParts.push(`timestamp_gte: "${Math.floor(Number(sinceTs))}"`);
+            if (Number.isFinite(beforeTs) && beforeTs > 0) timeParts.push(`timestamp_lt: "${Math.floor(beforeTs)}"`);
+            const timeFilter = timeParts.length ? `, transaction_: { ${timeParts.join(', ')} }` : '';
             const tokenFilter = `token: "${tokenId}"${timeFilter}`;
             const liquidationBorrowedFilter = `borrowedToken: "${tokenId}"${timeFilter}`;
             const liquidationHeldFilter = `heldToken: "${tokenId}"${timeFilter}`;
+            const paginationOptions = Number(options.pageBatchSize || 1) > 1
+                ? { pageBatchSize: options.pageBatchSize }
+                : {};
             const commonFields = `
                 serialId
                 transaction { id timestamp blockNumber }
@@ -14030,17 +14142,26 @@
 
             // Track progress per entity
             const progressState = { deposits: 0, withdrawals: 0, transfers: 0, liquidations_b: 0, liquidations_h: 0 };
+            const doneState = { deposits: false, withdrawals: false, transfers: false, liquidations_b: false, liquidations_h: false };
             const entityNames = { deposits: 'deposits', withdrawals: 'withdrawals', transfers: 'transfers', liquidations_b: 'liquidations (borrowed)', liquidations_h: 'liquidations (held)' };
             const makeProgressCb = (key) => (entity, count, done) => {
                 progressState[key] = count;
+                if (done) doneState[key] = true;
                 if (onProgress) {
                     const total = Object.values(progressState).reduce((s, v) => s + v, 0);
                     const doneEntities = [];
-                    if (progressState.deposits > 0) doneEntities.push('deposits');
-                    if (progressState.withdrawals > 0) doneEntities.push('withdrawals');
-                    if (progressState.transfers > 0) doneEntities.push('transfers');
-                    if (progressState.liquidations_b > 0 || progressState.liquidations_h > 0) doneEntities.push('liquidations');
-                    onProgress(total, doneEntities, done);
+                    if (doneState.deposits) doneEntities.push('deposits');
+                    if (doneState.withdrawals) doneEntities.push('withdrawals');
+                    if (doneState.transfers) doneEntities.push('transfers');
+                    if (doneState.liquidations_b && doneState.liquidations_h) doneEntities.push('liquidations');
+                    onProgress({
+                        total,
+                        doneEntities,
+                        completedEntities: Object.values(doneState).filter(Boolean).length,
+                        totalEntities: Object.keys(doneState).length,
+                        activeLabel: entityNames[key] || entity,
+                        done,
+                    });
                 }
             };
 
@@ -14051,14 +14172,14 @@
                     token { symbol id }
                     amountDeltaWei
                     amountUSDDeltaWei
-                `, 1000, makeProgressCb('deposits')),
+                `, 1000, makeProgressCb('deposits'), paginationOptions),
                 supplySubgraphPaginateAll(url, 'withdrawals', tokenFilter, `
                     ${commonFields}
                     effectiveUser { id }
                     token { symbol id }
                     amountDeltaWei
                     amountUSDDeltaWei
-                `, 1000, makeProgressCb('withdrawals')),
+                `, 1000, makeProgressCb('withdrawals'), paginationOptions),
                 supplySubgraphPaginateAll(url, 'transfers', tokenFilter, `
                     ${commonFields}
                     fromEffectiveUser { id }
@@ -14068,7 +14189,7 @@
                     amountUSDDeltaWei
                     isSelfTransfer
                     isTransferForMarginPosition
-                `, 1000, makeProgressCb('transfers')),
+                `, 1000, makeProgressCb('transfers'), paginationOptions),
                 supplySubgraphPaginateAll(url, 'liquidations', liquidationBorrowedFilter, `
                     ${commonFields}
                     liquidEffectiveUser { id }
@@ -14079,7 +14200,7 @@
                     borrowedTokenAmountUSD
                     heldTokenAmountDeltaWei
                     heldTokenAmountUSD
-                `, 1000, makeProgressCb('liquidations_b')),
+                `, 1000, makeProgressCb('liquidations_b'), paginationOptions),
                 supplySubgraphPaginateAll(url, 'liquidations', liquidationHeldFilter, `
                     ${commonFields}
                     liquidEffectiveUser { id }
@@ -14090,7 +14211,7 @@
                     borrowedTokenAmountUSD
                     heldTokenAmountDeltaWei
                     heldTokenAmountUSD
-                `, 1000, makeProgressCb('liquidations_h')),
+                `, 1000, makeProgressCb('liquidations_h'), paginationOptions),
             ]);
 
             const liquidationRows = [
@@ -15228,7 +15349,7 @@
             const staleSuppliers = cachedSuppliers || getAnySupplyCacheData(supplySuppliersCache, supplierCacheKey);
             const cachedRecentActivity = getFreshSupplyCacheData(supplyRecentActivityCache, recentActivityKey, { ttlMs: SUPPLY_CACHE_TTLS_MS.activity });
             const staleRecentActivity = cachedRecentActivity || getAnySupplyCacheData(supplyRecentActivityCache, recentActivityKey);
-            const cachedFullActivity = getFreshSupplyCacheData(supplyFullActivityCache, fullActivityKey, { persist: false });
+            const cachedFullActivity = getFreshSupplyCacheData(supplyFullActivityCache, fullActivityKey, { ttlMs: SUPPLY_CACHE_TTLS_MS.fullActivity });
             const cachedRecentHistory = getFreshSupplyCacheData(supplyFlowHistoryCache, recentHistoryKey, { ttlMs: SUPPLY_CACHE_TTLS_MS.history });
             const staleRecentHistory = cachedRecentHistory || getAnySupplyCacheData(supplyFlowHistoryCache, recentHistoryKey);
             const cachedFullHistory = getFreshSupplyCacheData(supplyFlowHistoryCache, fullHistoryKey, { ttlMs: SUPPLY_CACHE_TTLS_MS.history });
@@ -15360,6 +15481,7 @@
                     historyFullStage: previousOverview.historyFullStage || 'idle',
                     activityStage: previousOverview.activityStage || 'loading',
                     activityFullLoading: previousOverview.activityFullLoading || false,
+                    activityLoadProgress: previousOverview.activityLoadProgress || null,
                 };
             };
 
@@ -15379,10 +15501,17 @@
             const applyRecentActivity = activityHistory => {
                 onOverviewReady(() => {
                     if (requestId !== supplyTabRequestId || !currentSupplyOverview) return;
-                    if (currentSupplyOverview.activityStage === 'full') return;
+                    if (currentSupplyOverview.activityStage === 'full') {
+                        currentSupplyActivity = mergeSupplyActivityRows(currentSupplyActivity, activityHistory?.rows || []);
+                        currentSupplyOverview.activityFullLoading = false;
+                        currentSupplyOverview.activityLoadProgress = null;
+                        renderSupplyActivityTable();
+                        return;
+                    }
                     currentSupplyActivity = activityHistory?.rows || [];
                     currentSupplyOverview.activityStage = 'recent';
                     currentSupplyOverview.activityFullLoading = false;
+                    currentSupplyOverview.activityLoadProgress = null;
                     renderSupplyActivityTable();
                 });
             };
@@ -15440,6 +15569,7 @@
                     currentSupplyActivity = activityHistory?.rows || [];
                     currentSupplyOverview.activityStage = 'full';
                     currentSupplyOverview.activityFullLoading = false;
+                    currentSupplyOverview.activityLoadProgress = null;
                     renderSupplyActivityTable();
                 });
             };
@@ -15501,10 +15631,10 @@
                 }
             };
 
-            const recentActivityPromise = cachedFullActivity
-                ? Promise.resolve(cachedFullActivity)
-                : getSupplyCachedResource(supplyRecentActivityCache, recentActivityKey, () => fetchSupplyActivityHistory(endpoint, tokenId, sinceTs, (totalEvents, doneEntities, isDone) => {
-                    if (requestId !== supplyTabRequestId || !activityLoadingEl || isDone) return;
+            const recentActivityPromise = getSupplyCachedResource(supplyRecentActivityCache, recentActivityKey, () => fetchSupplyActivityHistory(endpoint, tokenId, sinceTs, progress => {
+                    if (requestId !== supplyTabRequestId || !activityLoadingEl || progress?.done) return;
+                    const totalEvents = Number(progress?.total || 0);
+                    const doneEntities = Array.isArray(progress?.doneEntities) ? progress.doneEntities : [];
                     const entitiesText = doneEntities.length > 0 ? doneEntities.join(', ') : 'starting';
                     activityLoadingEl.innerHTML = `
                         <div class="loading-spinner"></div>
@@ -15548,14 +15678,54 @@
                 onOverviewReady(() => {
                     if (requestId !== supplyTabRequestId || !currentSupplyOverview) return;
                     currentSupplyOverview.activityFullLoading = true;
+                    currentSupplyOverview.activityLoadProgress = {
+                        total: 0,
+                        doneEntities: [],
+                        completedEntities: 0,
+                        totalEntities: 5,
+                        activeLabel: 'starting',
+                    };
                     renderSupplyActivityTable();
                 });
+                const updateFullActivityProgress = progress => {
+                    if (requestId !== supplyTabRequestId) return;
+                    onOverviewReady(() => {
+                        if (requestId !== supplyTabRequestId || !currentSupplyOverview) return;
+                        currentSupplyOverview.activityLoadProgress = {
+                            total: Number(progress?.total || 0),
+                            doneEntities: Array.isArray(progress?.doneEntities) ? progress.doneEntities : [],
+                            completedEntities: Number(progress?.completedEntities || 0),
+                            totalEntities: Number(progress?.totalEntities || 5),
+                            activeLabel: progress?.activeLabel || 'subgraph sources',
+                        };
+                        updateSupplyActivityHistoryAction();
+                    });
+                };
+                const fetchOlderActivityHistory = async () => {
+                    const recentRows = currentSupplyActivity.slice();
+                    try {
+                        const olderHistory = await fetchSupplyActivityHistory(endpoint, tokenId, null, updateFullActivityProgress, { beforeTs: sinceTs, pageBatchSize: 3 });
+                        return {
+                            ...olderHistory,
+                            scope: 'all',
+                            rows: mergeSupplyActivityRows(recentRows, olderHistory?.rows || []),
+                        };
+                    } catch (error) {
+                        console.warn('Older-only supply activity history unavailable, falling back to full replay', error);
+                        const fullHistory = await fetchSupplyActivityHistory(endpoint, tokenId, null, updateFullActivityProgress);
+                        return {
+                            ...fullHistory,
+                            scope: 'all',
+                            rows: mergeSupplyActivityRows(recentRows, fullHistory?.rows || []),
+                        };
+                    }
+                };
                 const beginHydration = () => {
                     getSupplyCachedResource(
                         supplyFullActivityCache,
                         fullActivityKey,
-                        () => fetchSupplyActivityHistory(endpoint, tokenId, null),
-                        { persist: false }
+                        fetchOlderActivityHistory,
+                        { persist: true, ttlMs: SUPPLY_CACHE_TTLS_MS.fullActivity }
                     )
                         .then(history => {
                             if (requestId !== supplyTabRequestId) return;
@@ -15567,6 +15737,7 @@
                             onOverviewReady(() => {
                                 if (requestId !== supplyTabRequestId || !currentSupplyOverview) return;
                                 currentSupplyOverview.activityFullLoading = false;
+                                currentSupplyOverview.activityLoadProgress = null;
                                 renderSupplyActivityTable();
                             });
                             if (!currentSupplyActivity.length) {
@@ -15642,8 +15813,11 @@
             recentActivityPromise
                 .then(activityHistory => {
                     if (requestId !== supplyTabRequestId) return;
-                    if (cachedFullActivity) {
-                        applyFullActivity(activityHistory);
+                    if (cachedFullActivity || currentSupplyOverview?.activityStage === 'full') {
+                        applyFullActivity({
+                            ...(cachedFullActivity || activityHistory || {}),
+                            rows: mergeSupplyActivityRows(cachedFullActivity?.rows || [], currentSupplyActivity, activityHistory?.rows || []),
+                        });
                     } else {
                         applyRecentActivity(activityHistory);
                     }
