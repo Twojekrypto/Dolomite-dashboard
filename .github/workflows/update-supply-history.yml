@@ -25,6 +25,14 @@ on:
         description: 'Fail if a skipped token has supplyLiquidityUSD above this value'
         required: false
         default: '0'
+      activity_token_limit:
+        description: 'Top tokens per chain for static Supply Activity; 0 means every selectable token'
+        required: false
+        default: '8'
+      activity_symbols:
+        description: 'Comma-separated symbols to force include in static Supply Activity'
+        required: false
+        default: 'USD1,USDC,USDC.E,USDC.e,USDT,USD₮0,WETH,WBTC,LINK,DOLO,WLFI,WBERA'
 
 permissions:
   contents: write
@@ -54,6 +62,8 @@ jobs:
           TOKENS="${{ github.event.inputs.tokens }}"
           MAX_PAGES="${{ github.event.inputs.max_pages }}"
           ACTIVE_USD_THRESHOLD="${{ github.event.inputs.active_usd_threshold }}"
+          ACTIVITY_TOKEN_LIMIT="${{ github.event.inputs.activity_token_limit }}"
+          ACTIVITY_SYMBOLS="${{ github.event.inputs.activity_symbols }}"
           if [ -z "$CHAINS" ]; then
             CHAINS="ethereum,arbitrum,berachain,mantle,botanix,xlayer,polygon_zkevm"
           fi
@@ -66,11 +76,19 @@ jobs:
           if [ -z "$ACTIVE_USD_THRESHOLD" ]; then
             ACTIVE_USD_THRESHOLD="0"
           fi
+          if [ -z "$ACTIVITY_TOKEN_LIMIT" ]; then
+            ACTIVITY_TOKEN_LIMIT="8"
+          fi
+          if [ -z "$ACTIVITY_SYMBOLS" ]; then
+            ACTIVITY_SYMBOLS="USD1,USDC,USDC.E,USDC.e,USDT,USD₮0,WETH,WBTC,LINK,DOLO,WLFI,WBERA"
+          fi
           python3 generate_supply_history.py --chains "$CHAINS" --token-limit "$TOKEN_LIMIT" --tokens "$TOKENS" --max-pages-per-entity "$MAX_PAGES" --active-usd-threshold "$ACTIVE_USD_THRESHOLD"
+          python3 generate_supply_activity.py --chains "$CHAINS" --token-limit "$ACTIVITY_TOKEN_LIMIT" --symbols "$ACTIVITY_SYMBOLS" --tokens "$TOKENS" --max-pages-per-entity "$MAX_PAGES"
 
       - name: Validate static supply history
         run: |
           python3 -m py_compile generate_supply_history.py
+          python3 -m py_compile generate_supply_activity.py
           python3 - <<'PY'
           import json
           import pathlib
@@ -137,12 +155,57 @@ jobs:
               sys.exit(1)
           print("Supply history validation passed")
           PY
+          python3 - <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          root = pathlib.Path("data/supply-activity")
+          manifest_path = root / "manifest.json"
+          if not manifest_path.exists():
+              print("Missing data/supply-activity/manifest.json", file=sys.stderr)
+              sys.exit(1)
+          manifest = json.loads(manifest_path.read_text())
+          errors = []
+          manifest_paths = {
+              token.get("path")
+              for chain in manifest.get("chains", [])
+              for token in chain.get("tokens", [])
+              if token.get("path")
+          }
+          for path_text in sorted(manifest_paths):
+              path = pathlib.Path(path_text)
+              if not path.exists():
+                  errors.append(f"{path_text}: manifest path is missing")
+                  continue
+              payload = json.loads(path.read_text())
+              rows = payload.get("rows") or []
+              if payload.get("__supplyActivityCompact") != 1:
+                  errors.append(f"{path}: missing compact activity marker")
+              last_ts = None
+              for index, row in enumerate(rows):
+                  if not isinstance(row, list) or len(row) < 8:
+                      errors.append(f"{path}: malformed row at {index}")
+                      break
+                  timestamp = int(row[2] or 0)
+                  if timestamp <= 0:
+                      errors.append(f"{path}: missing timestamp at {index}")
+                      break
+                  if last_ts is not None and timestamp > last_ts:
+                      errors.append(f"{path}: rows are not sorted desc at {index}")
+                      break
+                  last_ts = timestamp
+          if errors:
+              print("\n".join(errors), file=sys.stderr)
+              sys.exit(1)
+          print("Supply activity validation passed")
+          PY
 
       - name: Commit & push changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/supply-history generate_supply_history.py
+          git add data/supply-history data/supply-activity generate_supply_history.py generate_supply_activity.py
           git diff --staged --quiet && echo "No supply history changes to commit" && exit 0
           git commit -m "📊 Refresh Supply history - $(date -u '+%Y-%m-%d %H:%M UTC')"
           for i in 1 2 3; do
