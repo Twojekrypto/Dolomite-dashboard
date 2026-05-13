@@ -437,7 +437,7 @@ def main() -> int:
     parser.add_argument("--tokens", default=os.environ.get("SUPPLY_HISTORY_TOKENS", ""))
     parser.add_argument("--symbols", default=os.environ.get("SUPPLY_HISTORY_SYMBOLS", ",".join(sorted(DEFAULT_SYMBOLS))))
     parser.add_argument("--explicit-only", action="store_true", default=os.environ.get("SUPPLY_HISTORY_EXPLICIT_ONLY", "").lower() in {"1", "true", "yes"})
-    parser.add_argument("--max-pages-per-entity", type=int, default=int(os.environ.get("SUPPLY_HISTORY_MAX_PAGES_PER_ENTITY", "120")))
+    parser.add_argument("--max-pages-per-entity", type=int, default=int(os.environ.get("SUPPLY_HISTORY_MAX_PAGES_PER_ENTITY", "600")))
     args = parser.parse_args()
 
     out_dir = Path(args.out_dir)

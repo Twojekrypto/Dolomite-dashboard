@@ -20,7 +20,7 @@ on:
       max_pages:
         description: 'Max 1000-row pages per entity before skipping an oversized market'
         required: false
-        default: '120'
+        default: '600'
 
 permissions:
   contents: write
@@ -56,7 +56,7 @@ jobs:
             TOKEN_LIMIT="0"
           fi
           if [ -z "$MAX_PAGES" ]; then
-            MAX_PAGES="120"
+            MAX_PAGES="600"
           fi
           python3 generate_supply_history.py --chains "$CHAINS" --token-limit "$TOKEN_LIMIT" --tokens "$TOKENS" --max-pages-per-entity "$MAX_PAGES"
 
