@@ -12668,6 +12668,67 @@
             return `${SUPPLY_CACHE_STORAGE_PREFIX}${key}`;
         }
 
+        function getSupplyActivityRowLabels(row) {
+            const type = row?.type || '';
+            if (type === 'transfer') {
+                return { primaryLabel: 'From', secondaryLabel: 'To', note: 'Protocol transfer' };
+            }
+            if (type === 'liquidation') {
+                const isBorrowedSide = String(row?.id || '').includes('-borrowed');
+                return {
+                    primaryLabel: isBorrowedSide ? 'Liquidated' : 'Collateral Owner',
+                    secondaryLabel: 'Liquidator',
+                    note: isBorrowedSide ? 'Debt repaid' : 'Collateral seized',
+                };
+            }
+            if (type === 'withdraw') {
+                return { primaryLabel: 'Supplier', secondaryLabel: '', note: 'Withdrew from Dolomite' };
+            }
+            return { primaryLabel: 'Supplier', secondaryLabel: '', note: 'Deposited into Dolomite' };
+        }
+
+        function packSupplyActivityHistoryForStorage(key, data) {
+            if (!String(key || '').includes(':activity:') || !Array.isArray(data?.rows)) {
+                return data;
+            }
+            return {
+                __supplyActivityCompact: 1,
+                scope: data.scope || '',
+                rows: data.rows.map(row => [
+                    row?.id || '',
+                    row?.type || '',
+                    Number(row?.timestamp || 0),
+                    row?.txHash || '',
+                    Number(row?.amount || 0),
+                    Number(row?.usd || 0),
+                    row?.primaryAddress || '',
+                    row?.secondaryAddress || '',
+                ]),
+            };
+        }
+
+        function unpackSupplyActivityHistoryFromStorage(key, data) {
+            if (!String(key || '').includes(':activity:') || data?.__supplyActivityCompact !== 1 || !Array.isArray(data?.rows)) {
+                return data;
+            }
+            return {
+                scope: data.scope || '',
+                rows: data.rows.map(item => {
+                    const row = {
+                        id: item?.[0] || '',
+                        type: item?.[1] || '',
+                        timestamp: Number(item?.[2] || 0),
+                        txHash: item?.[3] || '',
+                        amount: Number(item?.[4] || 0),
+                        usd: Number(item?.[5] || 0),
+                        primaryAddress: item?.[6] || '',
+                        secondaryAddress: item?.[7] || '',
+                    };
+                    return { ...row, ...getSupplyActivityRowLabels(row) };
+                }).sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0)),
+            };
+        }
+
         function getSupplyPersistentStorages() {
             const stores = [];
             try {
@@ -12689,14 +12750,21 @@
                 try {
                     const raw = storage.getItem(storageKey);
                     if (!raw) continue;
-                    return JSON.parse(raw);
+                    const parsed = JSON.parse(raw);
+                    return {
+                        ...parsed,
+                        data: unpackSupplyActivityHistoryFromStorage(key, parsed?.data),
+                    };
                 } catch (_) {}
             }
             return null;
         }
 
         function writeSupplyCacheStorage(key, data, ts) {
-            const payload = JSON.stringify({ data, ts });
+            const payload = JSON.stringify({
+                data: packSupplyActivityHistoryForStorage(key, data),
+                ts,
+            });
             for (const storage of getSupplyPersistentStorages()) {
                 try {
                     storage.setItem(getSupplyStorageKey(key), payload);
@@ -15704,7 +15772,7 @@
                 const fetchOlderActivityHistory = async () => {
                     const recentRows = currentSupplyActivity.slice();
                     try {
-                        const olderHistory = await fetchSupplyActivityHistory(endpoint, tokenId, null, updateFullActivityProgress, { beforeTs: sinceTs, pageBatchSize: 3 });
+                        const olderHistory = await fetchSupplyActivityHistory(endpoint, tokenId, null, updateFullActivityProgress, { beforeTs: sinceTs, pageBatchSize: 4 });
                         return {
                             ...olderHistory,
                             scope: 'all',
@@ -15745,11 +15813,7 @@
                             }
                         });
                 };
-                if (typeof window.requestIdleCallback === 'function') {
-                    window.requestIdleCallback(beginHydration, { timeout: 1200 });
-                } else {
-                    setTimeout(beginHydration, 160);
-                }
+                beginHydration();
             };
 
             supplyActivityLoadAllHandler = () => {
