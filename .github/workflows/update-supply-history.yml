@@ -21,6 +21,10 @@ on:
         description: 'Max 1000-row pages per entity before skipping an oversized market'
         required: false
         default: '600'
+      active_usd_threshold:
+        description: 'Fail if a skipped token has supplyLiquidityUSD above this value'
+        required: false
+        default: '0'
 
 permissions:
   contents: write
@@ -32,7 +36,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
 
     steps:
       - name: Checkout
@@ -49,6 +53,7 @@ jobs:
           TOKEN_LIMIT="${{ github.event.inputs.token_limit }}"
           TOKENS="${{ github.event.inputs.tokens }}"
           MAX_PAGES="${{ github.event.inputs.max_pages }}"
+          ACTIVE_USD_THRESHOLD="${{ github.event.inputs.active_usd_threshold }}"
           if [ -z "$CHAINS" ]; then
             CHAINS="ethereum,arbitrum,berachain,mantle,botanix,xlayer,polygon_zkevm"
           fi
@@ -58,7 +63,10 @@ jobs:
           if [ -z "$MAX_PAGES" ]; then
             MAX_PAGES="600"
           fi
-          python3 generate_supply_history.py --chains "$CHAINS" --token-limit "$TOKEN_LIMIT" --tokens "$TOKENS" --max-pages-per-entity "$MAX_PAGES"
+          if [ -z "$ACTIVE_USD_THRESHOLD" ]; then
+            ACTIVE_USD_THRESHOLD="0"
+          fi
+          python3 generate_supply_history.py --chains "$CHAINS" --token-limit "$TOKEN_LIMIT" --tokens "$TOKENS" --max-pages-per-entity "$MAX_PAGES" --active-usd-threshold "$ACTIVE_USD_THRESHOLD"
 
       - name: Validate static supply history
         run: |
@@ -67,6 +75,7 @@ jobs:
           import json
           import pathlib
           import sys
+          from decimal import Decimal, InvalidOperation
 
           root = pathlib.Path("data/supply-history")
           manifest_path = root / "manifest.json"
@@ -75,6 +84,14 @@ jobs:
               sys.exit(1)
           manifest = json.loads(manifest_path.read_text())
           errors = []
+
+          def decimal_or_zero(value):
+              try:
+                  return Decimal(str(value or "0"))
+              except (InvalidOperation, ValueError):
+                  return Decimal(0)
+
+          active_usd_threshold = decimal_or_zero(manifest.get("activeUsdThreshold"))
 
           manifest_paths = {
               token.get("path")
@@ -86,6 +103,15 @@ jobs:
               path = pathlib.Path(path_text)
               if not path.exists():
                   errors.append(f"{path_text}: manifest path is missing")
+
+          for chain in manifest.get("chains", []):
+              chain_name = chain.get("chain")
+              for token in chain.get("skippedTokens", []):
+                  usd = decimal_or_zero(token.get("supplyLiquidityUSD"))
+                  if usd > active_usd_threshold:
+                      symbol = token.get("symbol") or token.get("tokenId")
+                      reason = token.get("reason") or "unknown"
+                      errors.append(f"{chain_name} {symbol}: skipped active token (${token.get('supplyLiquidityUSD')}) reason={reason}")
 
           for path in sorted(root.glob("*/*.json")):
               payload = json.loads(path.read_text())
