@@ -15637,11 +15637,7 @@
             recentHistoryPromise
                 .then(history => {
                     if (requestId !== supplyTabRequestId) return;
-                    if (cachedFullHistory) {
-                        applyFullFlow(history);
-                    } else {
-                        applyRecentHistory(history);
-                    }
+                    applyRecentHistory(history);
                 })
                 .catch(err => {
                     if (requestId !== supplyTabRequestId) return;
