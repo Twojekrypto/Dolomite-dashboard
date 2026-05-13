@@ -12288,6 +12288,9 @@
         const supplyFullActivityCache = new Map();
         const supplyFlowHistoryCache = new Map();
         let supplyBackgroundWarmStarted = false;
+        let supplyHistoryDatasetMode = 'recent';
+        let supplyHistoryLoadAllHandler = null;
+        const SUPPLY_HISTORY_STATIC_VERSION = 'supply-history-v1';
         let supplyActivityPage = 1;
         let supplyActivitySearchQuery = '';
         let supplyActivitySortField = 'time';
@@ -14161,6 +14164,7 @@
             return {
                 source: 'official-api',
                 metric: 'usd',
+                scope: 'recent',
                 points: rows
                     .map(row => {
                         const timestamp = Number(row?.timestamp || 0);
@@ -14181,7 +14185,79 @@
             };
         }
 
+        function getSupplyStaticHistoryChainKey(chain) {
+            if (chain === 'base') return 'botanix';
+            return chain || '';
+        }
+
+        function normalizeSupplyHistoryPointPayload(points, metric) {
+            const resolvedMetric = metric || 'token';
+            return (Array.isArray(points) ? points : [])
+                .map(point => {
+                    const timestamp = Number(point?.timestamp || 0);
+                    const value = resolvedMetric === 'usd'
+                        ? Math.max(0, Number(point?.value ?? point?.usdValue ?? 0))
+                        : Math.max(0, Number(point?.tokenValue ?? point?.value ?? 0));
+                    const usdValueRaw = Number(point?.usdValue);
+                    const tokenValueRaw = Number(point?.tokenValue);
+                    return {
+                        timestamp,
+                        value,
+                        tokenValue: Number.isFinite(tokenValueRaw)
+                            ? Math.max(0, tokenValueRaw)
+                            : (resolvedMetric === 'token' ? value : undefined),
+                        usdValue: Number.isFinite(usdValueRaw) ? Math.max(0, usdValueRaw) : undefined,
+                    };
+                })
+                .filter(point =>
+                    Number.isFinite(point.timestamp) && point.timestamp > 0 &&
+                    Number.isFinite(point.value)
+                )
+                .sort((a, b) => a.timestamp - b.timestamp);
+        }
+
+        async function fetchSupplyStaticFullHistory(chain, tokenId) {
+            const staticChain = getSupplyStaticHistoryChainKey(chain);
+            const safeTokenId = String(tokenId || '').toLowerCase();
+            if (!staticChain || !safeTokenId) {
+                throw new Error('Missing static supply history coordinates');
+            }
+            const cacheHour = Math.floor(Date.now() / 3600000);
+            const url = `data/supply-history/${encodeURIComponent(staticChain)}/${encodeURIComponent(safeTokenId)}.json?v=${SUPPLY_HISTORY_STATIC_VERSION}-${cacheHour}`;
+            const res = await fetch(url);
+            if (!res.ok) {
+                throw new Error(`Static full supply history unavailable (${res.status})`);
+            }
+            const raw = await res.json();
+            const metric = raw?.metric || 'token';
+            const points = normalizeSupplyHistoryPointPayload(raw?.points || [], metric);
+            if (points.length < 2) {
+                throw new Error('Static full supply history has insufficient points');
+            }
+            return {
+                source: raw?.source || 'static-subgraph-replay',
+                metric,
+                scope: raw?.scope || 'all',
+                generatedAt: raw?.generatedAt || '',
+                points,
+            };
+        }
+
         async function fetchSupplyHistoryDataset(chain, url, tokenId, sinceTs, onProgress) {
+            if (sinceTs == null) {
+                try {
+                    return await fetchSupplyStaticFullHistory(chain, tokenId);
+                } catch (staticError) {
+                    console.warn('Static full supply history unavailable, falling back to live subgraph replay', staticError);
+                    const replay = await fetchSupplyFlowHistory(url, tokenId, null, onProgress);
+                    return {
+                        ...replay,
+                        source: 'subgraph-replay',
+                        metric: 'token',
+                        scope: 'all',
+                    };
+                }
+            }
             try {
                 return await fetchSupplyOfficialMetricsHistory(chain, tokenId);
             } catch (error) {
@@ -14191,7 +14267,31 @@
                     ...replay,
                     source: 'subgraph-replay',
                     metric: 'token',
+                    scope: 'recent',
                 };
+            }
+        }
+
+        function supplySetHistoryDatasetMode(mode) {
+            supplyHistoryDatasetMode = mode === 'all' ? 'all' : 'recent';
+            supplyHistoryRange = 'all';
+            supplyHistoryCustomFrom = null;
+            supplyHistoryCustomTo = null;
+            if (supplyHistoryDatasetMode === 'all' && typeof supplyHistoryLoadAllHandler === 'function') {
+                supplyHistoryLoadAllHandler();
+                return;
+            }
+            if (currentSupplyOverview?.recentHistoryView) {
+                const view = currentSupplyOverview.recentHistoryView;
+                currentSupplyOverview.historyDatasetMode = 'recent';
+                currentSupplyOverview.historyPoints = view.points;
+                currentSupplyOverview.historySource = view.source;
+                currentSupplyOverview.historyMetric = view.metric;
+                currentSupplyOverview.historyStage = view.stage;
+                renderSupplyIntelOverview();
+            } else if (currentSupplyOverview) {
+                currentSupplyOverview.historyDatasetMode = supplyHistoryDatasetMode;
+                renderSupplyIntelOverview();
             }
         }
 
@@ -14912,7 +15012,7 @@
             const sinceTs = Math.floor(Date.now() / 1000) - (SUPPLY_ACTIVITY_DEFAULT_DAYS * 24 * 60 * 60);
             const cacheChain = getSupplyCacheChainKey(chain);
             const supplierCacheKey = `${cacheChain}:${tokenId}:suppliers`;
-            const historyCacheKey = `${cacheChain}:${tokenId}:history:v4:official`;
+            const historyCacheKey = `${cacheChain}:${tokenId}:history:v5:recent`;
 
             getSupplyCachedResource(
                 supplySuppliersCache,
@@ -15100,15 +15200,17 @@
             const supplierCacheKey = `${cacheChain}:${tokenId}:suppliers`;
             const recentActivityKey = `${cacheChain}:${tokenId}:activity:${SUPPLY_ACTIVITY_DEFAULT_DAYS}d`;
             const fullActivityKey = `${cacheChain}:${tokenId}:activity:all`;
-            const historyCacheKey = `${cacheChain}:${tokenId}:history:v4:official`;
+            const recentHistoryKey = `${cacheChain}:${tokenId}:history:v5:recent`;
+            const fullHistoryKey = `${cacheChain}:${tokenId}:history:v5:all`;
             const cachedSuppliers = getFreshSupplyCacheData(supplySuppliersCache, supplierCacheKey, { ttlMs: SUPPLY_CACHE_TTLS_MS.suppliers });
             const staleSuppliers = cachedSuppliers || getAnySupplyCacheData(supplySuppliersCache, supplierCacheKey);
             const cachedRecentActivity = getFreshSupplyCacheData(supplyRecentActivityCache, recentActivityKey, { ttlMs: SUPPLY_CACHE_TTLS_MS.activity });
             const staleRecentActivity = cachedRecentActivity || getAnySupplyCacheData(supplyRecentActivityCache, recentActivityKey);
             const cachedFullActivity = getFreshSupplyCacheData(supplyFullActivityCache, fullActivityKey, { persist: false });
-            const cachedRecentHistory = getFreshSupplyCacheData(supplyFlowHistoryCache, historyCacheKey, { ttlMs: SUPPLY_CACHE_TTLS_MS.history });
-            const staleRecentHistory = cachedRecentHistory || getAnySupplyCacheData(supplyFlowHistoryCache, historyCacheKey);
-            const cachedFullHistory = cachedRecentHistory;
+            const cachedRecentHistory = getFreshSupplyCacheData(supplyFlowHistoryCache, recentHistoryKey, { ttlMs: SUPPLY_CACHE_TTLS_MS.history });
+            const staleRecentHistory = cachedRecentHistory || getAnySupplyCacheData(supplyFlowHistoryCache, recentHistoryKey);
+            const cachedFullHistory = getFreshSupplyCacheData(supplyFlowHistoryCache, fullHistoryKey, { ttlMs: SUPPLY_CACHE_TTLS_MS.history });
+            const staleFullHistory = cachedFullHistory || getAnySupplyCacheData(supplyFlowHistoryCache, fullHistoryKey);
             const activityLoadingEl = document.getElementById('supply-activity-loading');
             const priceUsd = currentSupplyOraclePrices[tokenId] || 0;
             const supplyIndex = (currentSupplyInterestIndexes[tokenId] || {}).supplyIndex || 1;
@@ -15129,6 +15231,8 @@
             currentSupplyData = [];
             supplyPage = 1;
             supplyActivityPage = 1;
+            supplyHistoryDatasetMode = 'recent';
+            supplyHistoryLoadAllHandler = null;
             supplyActivitySearchQuery = '';
             supplyActivitySortField = 'time';
             supplyActivitySortAsc = false;
@@ -15228,6 +15332,10 @@
                     historyStage: previousOverview.historyStage || 'loading',
                     historySource: previousOverview.historySource || 'official-api',
                     historyMetric: previousOverview.historyMetric || 'usd',
+                    historyDatasetMode: previousOverview.historyDatasetMode || supplyHistoryDatasetMode,
+                    recentHistoryView: previousOverview.recentHistoryView || null,
+                    fullHistoryView: previousOverview.fullHistoryView || null,
+                    historyFullStage: previousOverview.historyFullStage || 'idle',
                     activityStage: previousOverview.activityStage || 'loading',
                     activityFullLoading: previousOverview.activityFullLoading || false,
                 };
@@ -15257,32 +15365,50 @@
                 });
             };
 
+            const buildHistoryView = (history, fallbackSinceTs, targetStage) => {
+                const isPointHistory = Array.isArray(history?.points);
+                const metric = history?.metric || (isPointHistory ? 'usd' : 'token');
+                const points = isPointHistory
+                    ? normalizeSupplyHistoryPointPayload(history.points, metric)
+                    : buildSupplyHistorySeries({
+                        currentSupply: currentSupplyOverview.supply,
+                        currentSupplyPar: currentSupplyOverview.supplyPar,
+                        currentSupplyIndex: currentSupplyOverview.supplyIndex,
+                        currentTimestamp: nowTs,
+                        sinceTs: fallbackSinceTs,
+                        deposits: history?.deposits || [],
+                        withdrawals: history?.withdrawals || [],
+                        snapshots: history?.snapshots || [],
+                    });
+                const scope = history?.scope || (fallbackSinceTs == null ? 'all' : 'recent');
+                return {
+                    points,
+                    source: history?.source || (isPointHistory ? 'official-api' : 'subgraph-replay'),
+                    metric,
+                    scope,
+                    generatedAt: history?.generatedAt || '',
+                    stage: points.length >= 2 ? (targetStage || (scope === 'all' ? 'full' : 'recent')) : 'loading',
+                };
+            };
+
+            const activateHistoryView = view => {
+                if (!currentSupplyOverview || !view) return;
+                currentSupplyOverview.historyPoints = view.points;
+                currentSupplyOverview.historySource = view.source;
+                currentSupplyOverview.historyMetric = view.metric;
+                currentSupplyOverview.historyStage = view.stage;
+            };
+
             const applyRecentHistory = history => {
                 onOverviewReady(() => {
                     if (requestId !== supplyTabRequestId || !currentSupplyOverview) return;
-                    if (currentSupplyOverview.historyStage === 'full') return;
-                    const isOfficialHistory = Array.isArray(history?.points);
-                    currentSupplyOverview.historyPoints = isOfficialHistory
-                        ? history.points
-                        : buildSupplyHistorySeries({
-                            currentSupply: currentSupplyOverview.supply,
-                            currentSupplyPar: currentSupplyOverview.supplyPar,
-                            currentSupplyIndex: currentSupplyOverview.supplyIndex,
-                            currentTimestamp: nowTs,
-                            sinceTs,
-                            deposits: history?.deposits || [],
-                            withdrawals: history?.withdrawals || [],
-                            snapshots: history?.snapshots || [],
-                        });
-                    currentSupplyOverview.historySource = history?.source || (isOfficialHistory ? 'official-api' : 'subgraph-replay');
-                    currentSupplyOverview.historyMetric = history?.metric || (isOfficialHistory ? 'usd' : 'token');
-                    currentSupplyOverview.historyStage = currentSupplyOverview.historyPoints.length >= 2
-                        ? (isOfficialHistory ? 'full' : 'recent')
-                        : 'loading';
-                    renderSupplyIntelOverview();
-                    if (!isOfficialHistory) {
-                        startFullFlowHydration();
+                    const view = buildHistoryView(history, sinceTs, 'recent');
+                    currentSupplyOverview.recentHistoryView = view;
+                    currentSupplyOverview.historyDatasetMode = currentSupplyOverview.historyDatasetMode || 'recent';
+                    if ((currentSupplyOverview.historyDatasetMode || 'recent') !== 'all') {
+                        activateHistoryView(view);
                     }
+                    renderSupplyIntelOverview();
                 });
             };
 
@@ -15299,21 +15425,12 @@
             const applyFullFlow = flowHistory => {
                 onOverviewReady(() => {
                     if (requestId !== supplyTabRequestId || !currentSupplyOverview) return;
-                    const isOfficialHistory = Array.isArray(flowHistory?.points);
-                    currentSupplyOverview.historyPoints = isOfficialHistory
-                        ? flowHistory.points
-                        : buildSupplyHistorySeries({
-                            currentSupply: currentSupplyOverview.supply,
-                            currentSupplyPar: currentSupplyOverview.supplyPar,
-                            currentSupplyIndex: currentSupplyOverview.supplyIndex,
-                            currentTimestamp: nowTs,
-                            deposits: flowHistory?.deposits || [],
-                            withdrawals: flowHistory?.withdrawals || [],
-                            snapshots: flowHistory?.snapshots || [],
-                        });
-                    currentSupplyOverview.historySource = flowHistory?.source || (isOfficialHistory ? 'official-api' : 'subgraph-replay');
-                    currentSupplyOverview.historyMetric = flowHistory?.metric || (isOfficialHistory ? 'usd' : 'token');
-                    currentSupplyOverview.historyStage = 'full';
+                    const view = buildHistoryView(flowHistory, null, 'full');
+                    currentSupplyOverview.fullHistoryView = view;
+                    currentSupplyOverview.historyFullStage = view.points.length >= 2 ? 'full' : 'error';
+                    if ((currentSupplyOverview.historyDatasetMode || supplyHistoryDatasetMode) === 'all') {
+                        activateHistoryView(view);
+                    }
                     renderSupplyIntelOverview();
                 });
             };
@@ -15321,14 +15438,20 @@
             const startFullFlowHydration = () => {
                 if (fullFlowHydrationStarted) return;
                 fullFlowHydrationStarted = true;
-                if (cachedFullHistory) {
-                    applyFullFlow(cachedFullHistory);
+                if (cachedFullHistory || staleFullHistory) {
+                    applyFullFlow(cachedFullHistory || staleFullHistory);
                     return;
                 }
+                onOverviewReady(() => {
+                    if (requestId !== supplyTabRequestId || !currentSupplyOverview) return;
+                    currentSupplyOverview.historyDatasetMode = 'all';
+                    currentSupplyOverview.historyFullStage = 'loading';
+                    renderSupplyIntelOverview();
+                });
                 const beginHydration = () => {
                     getSupplyCachedResource(
                         supplyFlowHistoryCache,
-                        historyCacheKey,
+                        fullHistoryKey,
                         () => fetchSupplyHistoryDataset(chain, endpoint, tokenId, null),
                         { persist: true, ttlMs: SUPPLY_CACHE_TTLS_MS.history }
                     )
@@ -15341,6 +15464,7 @@
                             console.error('Full flow history err', err);
                             onOverviewReady(() => {
                                 if (requestId !== supplyTabRequestId || !currentSupplyOverview) return;
+                                currentSupplyOverview.historyFullStage = 'error';
                                 currentSupplyOverview.historyStage = currentSupplyOverview.historyPoints.length >= 2 ? currentSupplyOverview.historyStage : 'error';
                                 renderSupplyIntelOverview();
                             });
@@ -15367,14 +15491,12 @@
                     `;
                 }), { persist: true, ttlMs: SUPPLY_CACHE_TTLS_MS.activity });
 
-            const recentHistoryPromise = cachedFullHistory
-                ? Promise.resolve(cachedFullHistory)
-                : getSupplyCachedResource(
-                    supplyFlowHistoryCache,
-                    historyCacheKey,
-                    () => fetchSupplyHistoryDataset(chain, endpoint, tokenId, sinceTs),
-                    { persist: true, ttlMs: SUPPLY_CACHE_TTLS_MS.history }
-                );
+            const recentHistoryPromise = getSupplyCachedResource(
+                supplyFlowHistoryCache,
+                recentHistoryKey,
+                () => fetchSupplyHistoryDataset(chain, endpoint, tokenId, sinceTs),
+                { persist: true, ttlMs: SUPPLY_CACHE_TTLS_MS.history }
+            );
 
             const supplierPromise = getSupplyCachedResource(
                 supplySuppliersCache,
@@ -15441,16 +15563,32 @@
                 startFullActivityHydration();
             };
 
+            supplyHistoryLoadAllHandler = () => {
+                if (requestId !== supplyTabRequestId || !currentSupplyOverview) return;
+                supplyHistoryDatasetMode = 'all';
+                currentSupplyOverview.historyDatasetMode = 'all';
+                supplyHistoryRange = 'all';
+                supplyHistoryCustomFrom = null;
+                supplyHistoryCustomTo = null;
+                if (currentSupplyOverview.fullHistoryView) {
+                    activateHistoryView(currentSupplyOverview.fullHistoryView);
+                    renderSupplyIntelOverview();
+                    return;
+                }
+                startFullFlowHydration();
+            };
+
             ensureBaseOverview();
 
             if (staleSuppliers) {
                 buildOverviewFromSuppliers(staleSuppliers, { supplierStage: 'full' });
             }
 
-            if (cachedFullHistory) {
-                applyFullFlow(cachedFullHistory);
-            } else if (staleRecentHistory) {
+            if (staleRecentHistory) {
                 applyRecentHistory(staleRecentHistory);
+            }
+            if (staleFullHistory) {
+                applyFullFlow(staleFullHistory);
             }
 
             if (cachedFullActivity) {
@@ -15463,7 +15601,6 @@
                 .then(supplierPars => {
                     if (requestId !== supplyTabRequestId) return;
                     buildOverviewFromSuppliers(supplierPars);
-                    startFullFlowHydration();
                 })
                 .catch(e => {
                     console.error('Supply fetch err (suppliers)', e);

@@ -94,12 +94,24 @@
       badge.className = 'supply-history-change-badge';
       titleLine.appendChild(badge);
     }
+    if (titleLine && !document.getElementById('supply-history-mode-switch')) {
+      const switcher = document.createElement('div');
+      switcher.id = 'supply-history-mode-switch';
+      switcher.className = 'supply-history-mode-switch';
+      switcher.innerHTML = `
+        <button type="button" class="supply-history-mode-btn" data-history-mode="recent" onclick="supplySetHistoryDatasetMode('recent')">90D</button>
+        <button type="button" class="supply-history-mode-btn" data-history-mode="all" onclick="supplySetHistoryDatasetMode('all')">All</button>
+      `;
+      titleLine.appendChild(switcher);
+    }
   }
 
   function syncSupplyHistoryBadge() {
     const badge = document.getElementById('supply-history-change-badge');
     if (!badge) return;
-    let label = 'All Time';
+    const mode = currentSupplyOverview?.historyDatasetMode || 'recent';
+    const fullStage = currentSupplyOverview?.historyFullStage || 'idle';
+    let label = mode === 'all' ? 'All History' : '90D';
     try {
       const points = currentSupplyOverview?.historyPoints || [];
       if (supplyHistoryRange === 'custom' && Array.isArray(points) && points.length > 1 && typeof getSupplyHistoryWindow === 'function' && typeof supplyFormatShortRange === 'function') {
@@ -107,8 +119,28 @@
         label = supplyFormatShortRange(range.startTs, range.endTs);
       }
     } catch (error) {}
+    if (mode === 'all' && fullStage === 'loading') {
+      label = 'Loading All';
+    } else if (mode === 'all' && fullStage === 'error') {
+      label = 'All Unavailable';
+    }
     badge.textContent = label;
     badge.className = 'supply-history-change-badge visible';
+    syncSupplyHistoryModeControls();
+  }
+
+  function syncSupplyHistoryModeControls() {
+    const mode = currentSupplyOverview?.historyDatasetMode || 'recent';
+    const fullStage = currentSupplyOverview?.historyFullStage || 'idle';
+    document.querySelectorAll('.supply-history-mode-btn').forEach(btn => {
+      const isActive = btn.dataset.historyMode === mode;
+      btn.classList.toggle('active', isActive);
+      btn.classList.toggle('loading', btn.dataset.historyMode === 'all' && fullStage === 'loading');
+      btn.disabled = btn.dataset.historyMode === 'all' && fullStage === 'loading';
+      if (btn.dataset.historyMode === 'all') {
+        btn.textContent = fullStage === 'loading' ? 'Loading' : 'All';
+      }
+    });
   }
 
   function polishSupplyHistoryChart() {
@@ -344,7 +376,12 @@
     const delta = document.getElementById('supply-history-delta');
     if (meta) meta.textContent = '';
     if (delta) {
-      delta.innerHTML = '<span class="supply-history-pulse"></span><span>drag the window below to zoom</span>';
+      const mode = currentSupplyOverview?.historyDatasetMode || 'recent';
+      const fullStage = currentSupplyOverview?.historyFullStage || 'idle';
+      let label = mode === 'all' ? 'all history loaded' : '90D instant history';
+      if (fullStage === 'loading') label = 'loading all history';
+      if (fullStage === 'error' && mode === 'all') label = 'all history unavailable';
+      delta.innerHTML = `<span class="supply-history-pulse"></span><span>${label} · drag below to zoom</span>`;
     }
   }
 

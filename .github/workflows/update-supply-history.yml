@@ -1,0 +1,74 @@
+name: Update Supply History
+
+on:
+  schedule:
+    - cron: '41 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      chains:
+        description: 'Comma-separated chains to refresh'
+        required: false
+        default: ''
+      token_limit:
+        description: 'Top tokens per chain; 0 means all'
+        required: false
+        default: '18'
+      tokens:
+        description: 'Comma-separated token addresses to force include'
+        required: false
+        default: ''
+      max_pages:
+        description: 'Max 1000-row pages per entity before skipping an oversized market'
+        required: false
+        default: '120'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-supply-history
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Generate static supply history
+        run: |
+          CHAINS="${{ github.event.inputs.chains }}"
+          TOKEN_LIMIT="${{ github.event.inputs.token_limit }}"
+          TOKENS="${{ github.event.inputs.tokens }}"
+          MAX_PAGES="${{ github.event.inputs.max_pages }}"
+          if [ -z "$CHAINS" ]; then
+            CHAINS="ethereum,arbitrum,berachain,mantle,botanix,xlayer,polygon_zkevm"
+          fi
+          if [ -z "$TOKEN_LIMIT" ]; then
+            TOKEN_LIMIT="18"
+          fi
+          if [ -z "$MAX_PAGES" ]; then
+            MAX_PAGES="120"
+          fi
+          python3 generate_supply_history.py --chains "$CHAINS" --token-limit "$TOKEN_LIMIT" --tokens "$TOKENS" --max-pages-per-entity "$MAX_PAGES"
+
+      - name: Commit & push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/supply-history generate_supply_history.py
+          git diff --staged --quiet && echo "No supply history changes to commit" && exit 0
+          git commit -m "📊 Refresh Supply history - $(date -u '+%Y-%m-%d %H:%M UTC')"
+          for i in 1 2 3; do
+            git pull --rebase -X theirs origin master && git push && break
+            echo "Push attempt $i failed, retrying..."
+            sleep 5
+          done
