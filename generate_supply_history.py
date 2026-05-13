@@ -63,7 +63,7 @@ DEFAULT_SYMBOLS = {
 
 BUNDLE_QUERY = """
 {
-  tokens(first: 100, where:{marketId_not: null}, orderBy: supplyLiquidityUSD, orderDirection: desc) {
+  tokens(first: 1000, where:{marketId_not: null}, orderBy: supplyLiquidityUSD, orderDirection: desc) {
     id
     symbol
     name
@@ -73,7 +73,7 @@ BUNDLE_QUERY = """
     supplyLiquidityUSD
     totalPar { supplyPar }
   }
-  interestIndexes(first: 100) {
+  interestIndexes(first: 1000) {
     token { id }
     supplyIndex
   }
