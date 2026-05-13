@@ -26,13 +26,21 @@ on:
         required: false
         default: '0'
       activity_token_limit:
-        description: 'Top tokens per chain for static Supply Activity; 0 means every selectable token'
+        description: 'Top tokens per chain for static Supply Activity when explicit-only is false; 0 means every selectable token'
         required: false
-        default: '8'
+        default: '0'
       activity_symbols:
         description: 'Comma-separated symbols to force include in static Supply Activity'
         required: false
-        default: 'USD1,USDC,USDC.E,USDC.e,USDT,USD₮0,WETH,WBTC,LINK,DOLO,WLFI,WBERA'
+        default: ''
+      activity_token_config:
+        description: 'JSON config with chain-specific token addresses for static Supply Activity'
+        required: false
+        default: 'config/supply_activity_static_tokens.json'
+      activity_explicit_only:
+        description: 'Build only explicitly configured Supply Activity tokens'
+        required: false
+        default: 'true'
 
 permissions:
   contents: write
@@ -64,6 +72,8 @@ jobs:
           ACTIVE_USD_THRESHOLD="${{ github.event.inputs.active_usd_threshold }}"
           ACTIVITY_TOKEN_LIMIT="${{ github.event.inputs.activity_token_limit }}"
           ACTIVITY_SYMBOLS="${{ github.event.inputs.activity_symbols }}"
+          ACTIVITY_TOKEN_CONFIG="${{ github.event.inputs.activity_token_config }}"
+          ACTIVITY_EXPLICIT_ONLY="${{ github.event.inputs.activity_explicit_only }}"
           if [ -z "$CHAINS" ]; then
             CHAINS="ethereum,arbitrum,berachain,mantle,botanix,xlayer,polygon_zkevm"
           fi
@@ -77,13 +87,23 @@ jobs:
             ACTIVE_USD_THRESHOLD="0"
           fi
           if [ -z "$ACTIVITY_TOKEN_LIMIT" ]; then
-            ACTIVITY_TOKEN_LIMIT="8"
+            ACTIVITY_TOKEN_LIMIT="0"
           fi
-          if [ -z "$ACTIVITY_SYMBOLS" ]; then
-            ACTIVITY_SYMBOLS="USD1,USDC,USDC.E,USDC.e,USDT,USD₮0,WETH,WBTC,LINK,DOLO,WLFI,WBERA"
+          if [ -z "$ACTIVITY_TOKEN_CONFIG" ]; then
+            ACTIVITY_TOKEN_CONFIG="config/supply_activity_static_tokens.json"
+          fi
+          if [ -z "$ACTIVITY_EXPLICIT_ONLY" ]; then
+            ACTIVITY_EXPLICIT_ONLY="true"
           fi
           python3 generate_supply_history.py --chains "$CHAINS" --token-limit "$TOKEN_LIMIT" --tokens "$TOKENS" --max-pages-per-entity "$MAX_PAGES" --active-usd-threshold "$ACTIVE_USD_THRESHOLD"
-          python3 generate_supply_activity.py --chains "$CHAINS" --token-limit "$ACTIVITY_TOKEN_LIMIT" --symbols "$ACTIVITY_SYMBOLS" --tokens "$TOKENS" --max-pages-per-entity "$MAX_PAGES"
+          ACTIVITY_ARGS=(--chains "$CHAINS" --token-limit "$ACTIVITY_TOKEN_LIMIT" --symbols "$ACTIVITY_SYMBOLS" --tokens "$TOKENS" --max-pages-per-entity "$MAX_PAGES")
+          if [ -n "$ACTIVITY_TOKEN_CONFIG" ]; then
+            ACTIVITY_ARGS+=(--token-config "$ACTIVITY_TOKEN_CONFIG")
+          fi
+          if [ "$ACTIVITY_EXPLICIT_ONLY" = "true" ] || [ "$ACTIVITY_EXPLICIT_ONLY" = "1" ]; then
+            ACTIVITY_ARGS+=(--explicit-only)
+          fi
+          python3 generate_supply_activity.py "${ACTIVITY_ARGS[@]}"
 
       - name: Validate static supply history
         run: |
@@ -168,10 +188,11 @@ jobs:
           manifest = json.loads(manifest_path.read_text())
           errors = []
           manifest_paths = {
-              token.get("path")
+              path
               for chain in manifest.get("chains", [])
               for token in chain.get("tokens", [])
-              if token.get("path")
+              for path in (token.get("path"), token.get("recentPath"))
+              if path
           }
           for path_text in sorted(manifest_paths):
               path = pathlib.Path(path_text)
@@ -205,7 +226,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/supply-history data/supply-activity generate_supply_history.py generate_supply_activity.py
+          git add data/supply-history data/supply-activity config/supply_activity_static_tokens.json generate_supply_history.py generate_supply_activity.py
           git diff --staged --quiet && echo "No supply history changes to commit" && exit 0
           git commit -m "📊 Refresh Supply history - $(date -u '+%Y-%m-%d %H:%M UTC')"
           for i in 1 2 3; do

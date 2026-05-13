@@ -12293,6 +12293,8 @@
         let supplyHistoryLoadAllHandler = null;
         const SUPPLY_HISTORY_STATIC_VERSION = 'supply-history-v1';
         const SUPPLY_ACTIVITY_STATIC_VERSION = 'supply-activity-v1';
+        const SUPPLY_ACTIVITY_STATIC_RECENT_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+        const SUPPLY_ACTIVITY_STATIC_RECENT_OVERLAP_SEC = 6 * 60 * 60;
         let supplyStaticHistoryManifestCacheKey = '';
         let supplyStaticHistoryManifestPromise = null;
         let supplyStaticActivityManifestCacheKey = '';
@@ -12315,6 +12317,7 @@
         let supplyTabRequestId = 0;
         let supplyChainRequestId = 0;
         const SUPPLY_ACTIVITY_PAGE_SIZE = 12;
+        const SUPPLY_ACTIVITY_STORAGE_ROW_LIMIT = 50000;
         let supplyActivityFilters = new Set(['deposit', 'withdraw', 'transfer', 'liquidation']);
 
         function getSupplyCacheChainKey(chain) {
@@ -12766,8 +12769,12 @@
         }
 
         function writeSupplyCacheStorage(key, data, ts) {
+            const packedData = packSupplyActivityHistoryForStorage(key, data);
+            if (String(key || '').includes(':activity:') && Array.isArray(packedData?.rows) && packedData.rows.length > SUPPLY_ACTIVITY_STORAGE_ROW_LIMIT) {
+                return;
+            }
             const payload = JSON.stringify({
-                data: packSupplyActivityHistoryForStorage(key, data),
+                data: packedData,
                 ts,
             });
             for (const storage of getSupplyPersistentStorages()) {
@@ -13469,7 +13476,27 @@
                 `;
             }
             document.getElementById('supply-activity-pagination').innerHTML = '';
-            updateSupplyActivityHistoryAction();
+            const button = document.getElementById('supply-activity-load-all-btn');
+            const buttonLabel = document.getElementById('supply-activity-load-all-label');
+            const badge = document.getElementById('supply-activity-history-pill');
+            const state = document.getElementById('supply-activity-history-state');
+            const dot = document.getElementById('supply-activity-history-dot');
+            if (button && buttonLabel && badge && state && dot) {
+                badge.classList.add('loading');
+                state.classList.add('loading');
+                dot.classList.add('loading');
+                badge.classList.remove('full');
+                state.classList.remove('full');
+                dot.classList.remove('full');
+                button.hidden = false;
+                button.style.display = 'inline-flex';
+                button.disabled = true;
+                button.classList.remove('loading');
+                button.setAttribute('aria-busy', 'false');
+                buttonLabel.textContent = 'Preparing recent tx...';
+                state.textContent = 'Loading 30D';
+            }
+            syncSupplyActivityFullLoadingPanel();
         }
 
         function renderSupplyIntelTitle(symbol, chain) {
@@ -14520,7 +14547,8 @@
             }
             const activity = unpackSupplyActivityHistoryFromStorage('static:activity:all', raw);
             const rows = Array.isArray(activity?.rows) ? activity.rows : [];
-            if (!rows.length) {
+            const expectedRows = Number(manifestEntry?.events || 0);
+            if (!rows.length && expectedRows > 0) {
                 throw new Error('Static full supply activity has no rows');
             }
             return {
@@ -14530,6 +14558,97 @@
                 generatedAt: raw?.generatedAt || manifestEntry.generatedAt || manifest?.generatedAt || '',
                 rows,
             };
+        }
+
+        async function fetchSupplyStaticRecentActivity(chain, tokenId, sinceTs) {
+            const staticChain = getSupplyStaticHistoryChainKey(chain);
+            const safeTokenId = String(tokenId || '').toLowerCase();
+            if (!staticChain || !safeTokenId) {
+                throw new Error('Missing static supply activity coordinates');
+            }
+            const cacheHour = Math.floor(Date.now() / 3600000);
+            const manifest = await fetchSupplyStaticActivityManifest(cacheHour);
+            const manifestEntry = findSupplyStaticActivityEntry(manifest, staticChain, safeTokenId);
+            if (!manifestEntry?.recentPath) {
+                throw new Error('Static recent supply activity unavailable in manifest');
+            }
+            const generatedAtMs = Date.parse(manifestEntry.generatedAt || manifest?.generatedAt || '');
+            if (!Number.isFinite(generatedAtMs) || Date.now() - generatedAtMs > SUPPLY_ACTIVITY_STATIC_RECENT_MAX_AGE_MS) {
+                throw new Error('Static recent supply activity is stale');
+            }
+            const staticPath = String(manifestEntry.recentPath || '').replace(/^\/+/, '');
+            const res = await fetch(`${staticPath}?v=${SUPPLY_ACTIVITY_STATIC_VERSION}-${cacheHour}`);
+            if (!res.ok) {
+                throw new Error(`Static recent supply activity unavailable (${res.status})`);
+            }
+            const raw = await res.json();
+            const activity = unpackSupplyActivityHistoryFromStorage('static:activity:30d', raw);
+            const safeSince = Math.floor(Number(sinceTs || 0));
+            const rows = (Array.isArray(activity?.rows) ? activity.rows : [])
+                .filter(row => Number(row?.timestamp || 0) >= safeSince);
+            const expectedRows = Number(manifestEntry?.recentEvents || 0);
+            if (!rows.length && expectedRows > 0) {
+                throw new Error('Static recent supply activity has no rows');
+            }
+            return {
+                ...activity,
+                source: raw?.source || 'static-subgraph-activity',
+                scope: 'recent',
+                generatedAt: raw?.generatedAt || manifestEntry.generatedAt || manifest?.generatedAt || '',
+                rows,
+            };
+        }
+
+        async function fetchSupplyRecentActivityDataset(chain, url, tokenId, sinceTs, onProgress) {
+            try {
+                const staticRecent = await fetchSupplyStaticRecentActivity(chain, tokenId, sinceTs);
+                if (onProgress) {
+                    onProgress({
+                        total: staticRecent.rows.length,
+                        doneEntities: ['static 30D'],
+                        completedEntities: 1,
+                        totalEntities: 2,
+                        activeLabel: 'live delta',
+                    });
+                }
+                const generatedAtTs = Math.floor(Date.parse(staticRecent.generatedAt || '') / 1000);
+                const deltaSinceTs = Number.isFinite(generatedAtTs)
+                    ? Math.max(Math.floor(Number(sinceTs || 0)), generatedAtTs - SUPPLY_ACTIVITY_STATIC_RECENT_OVERLAP_SEC)
+                    : Math.floor(Number(sinceTs || 0));
+                const pendingLiveDelta = fetchSupplyActivityHistory(url, tokenId, deltaSinceTs, progress => {
+                    if (!onProgress) return;
+                    onProgress({
+                        ...progress,
+                        total: staticRecent.rows.length + Number(progress?.total || 0),
+                        doneEntities: ['static 30D', ...(Array.isArray(progress?.doneEntities) ? progress.doneEntities : [])],
+                    });
+                })
+                    .then(liveDelta => ({
+                        ...staticRecent,
+                        source: 'static-recent-plus-live-delta',
+                        rows: mergeSupplyActivityRows(staticRecent.rows, liveDelta?.rows || [])
+                            .filter(row => Number(row?.timestamp || 0) >= Math.floor(Number(sinceTs || 0))),
+                    }))
+                    .catch(error => {
+                        console.warn('Supply activity live delta unavailable; keeping verified static recent cache', error);
+                        return null;
+                    });
+                return {
+                    ...staticRecent,
+                    source: 'static-recent',
+                    pendingLiveDelta,
+                };
+            } catch (staticRecentError) {
+                const message = String(staticRecentError?.message || staticRecentError);
+                const expectedMiss = message.includes('manifest unavailable') ||
+                    message.includes('unavailable in manifest') ||
+                    message.includes('Static recent supply activity unavailable') ||
+                    message.includes('is stale');
+                if (!expectedMiss) {
+                    console.warn('Static recent supply activity unavailable, falling back to live 30D replay', staticRecentError);
+                }
+                return fetchSupplyActivityHistory(url, tokenId, sinceTs, onProgress);
+            }
         }
 
         async function fetchSupplyHistoryDataset(chain, url, tokenId, sinceTs, onProgress) {
@@ -15286,6 +15405,7 @@
 
         function prefetchSupplyAssetData(chain, tokenId) {
             if (!chain || !tokenId || !DOLOMITE_MINI_GRAPHS[chain]) return;
+            if (chain === 'arbitrum' && !document.body.classList.contains('supply-has-asset')) return;
             const endpoint = DOLOMITE_MINI_GRAPHS[chain];
             const sinceTs = Math.floor(Date.now() / 1000) - (SUPPLY_ACTIVITY_DEFAULT_DAYS * 24 * 60 * 60);
             const cacheChain = getSupplyCacheChainKey(chain);
@@ -15766,7 +15886,24 @@
                 }
             };
 
-            const recentActivityPromise = getSupplyCachedResource(supplyRecentActivityCache, recentActivityKey, () => fetchSupplyActivityHistory(endpoint, tokenId, sinceTs, progress => {
+            const staticRecentActivityAvailabilityPromise = (!cachedRecentActivity && !staleRecentActivity)
+                ? fetchSupplyStaticActivityManifest(Math.floor(Date.now() / 3600000))
+                    .then(manifest => !!findSupplyStaticActivityEntry(manifest, chain, tokenId)?.recentPath)
+                    .catch(() => false)
+                : Promise.resolve(false);
+            const waitForRecentActivityPriority = async () => {
+                const hasStaticRecentActivity = await staticRecentActivityAvailabilityPromise;
+                if (!hasStaticRecentActivity) return;
+                return Promise.race([
+                    recentActivityPromise.catch(() => null),
+                    new Promise(resolve => setTimeout(resolve, 12000)),
+                ]);
+            };
+
+            const recentActivityPromise = getSupplyCachedResource(
+                supplyRecentActivityCache,
+                recentActivityKey,
+                () => fetchSupplyRecentActivityDataset(chain, endpoint, tokenId, sinceTs, progress => {
                     if (requestId !== supplyTabRequestId || !activityLoadingEl || progress?.done) return;
                     const totalEvents = Number(progress?.total || 0);
                     const doneEntities = Array.isArray(progress?.doneEntities) ? progress.doneEntities : [];
@@ -15778,28 +15915,48 @@
                             <div style="margin-top:4px; font-size:11px; color:rgba(255,255,255,0.35);">${entitiesText}</div>
                         </div>
                     `;
-                }), { persist: true, ttlMs: SUPPLY_CACHE_TTLS_MS.activity });
+                }),
+                { persist: true, ttlMs: SUPPLY_CACHE_TTLS_MS.activity }
+            );
+            const scheduleRecentActivityDeltaMerge = activityHistory => {
+                const pendingLiveDelta = activityHistory?.pendingLiveDelta;
+                if (!pendingLiveDelta || typeof pendingLiveDelta.then !== 'function') return;
+                pendingLiveDelta.then(deltaHistory => {
+                    if (requestId !== supplyTabRequestId || !deltaHistory || !Array.isArray(deltaHistory.rows)) return;
+                    const cacheableHistory = { ...deltaHistory };
+                    delete cacheableHistory.pendingLiveDelta;
+                    supplyRecentActivityCache.set(recentActivityKey, { data: cacheableHistory, ts: Date.now(), promise: null });
+                    writeSupplyCacheStorage(recentActivityKey, cacheableHistory, Date.now());
+                    applyRecentActivity(cacheableHistory);
+                }).catch(() => {});
+            };
 
             const recentHistoryPromise = getSupplyCachedResource(
                 supplyFlowHistoryCache,
                 recentHistoryKey,
-                () => fetchSupplyHistoryDataset(chain, endpoint, tokenId, sinceTs),
+                async () => {
+                    await waitForRecentActivityPriority();
+                    return fetchSupplyHistoryDataset(chain, endpoint, tokenId, sinceTs);
+                },
                 { persist: true, ttlMs: SUPPLY_CACHE_TTLS_MS.history }
             );
 
             const supplierPromise = getSupplyCachedResource(
                 supplySuppliersCache,
                 supplierCacheKey,
-                () => fetchAllSupplySuppliers(endpoint, tokenId, {
-                    onPartial: supplierPars => {
-                        if (requestId !== supplyTabRequestId || staleSuppliers || !Array.isArray(supplierPars) || !supplierPars.length) return;
-                        onOverviewReady(() => {
-                            if (requestId !== supplyTabRequestId) return;
-                            if ((currentSupplyOverview?.supplierStage || 'loading') === 'full' && currentSupplyData.length >= supplierPars.length) return;
-                            buildOverviewFromSuppliers(supplierPars, { supplierStage: 'partial' });
-                        });
-                    },
-                }),
+                async () => {
+                    await waitForRecentActivityPriority();
+                    return fetchAllSupplySuppliers(endpoint, tokenId, {
+                        onPartial: supplierPars => {
+                            if (requestId !== supplyTabRequestId || staleSuppliers || !Array.isArray(supplierPars) || !supplierPars.length) return;
+                            onOverviewReady(() => {
+                                if (requestId !== supplyTabRequestId) return;
+                                if ((currentSupplyOverview?.supplierStage || 'loading') === 'full' && currentSupplyData.length >= supplierPars.length) return;
+                                buildOverviewFromSuppliers(supplierPars, { supplierStage: 'partial' });
+                            });
+                        },
+                    });
+                },
                 { persist: true, ttlMs: SUPPLY_CACHE_TTLS_MS.suppliers }
             );
 
@@ -15855,7 +16012,8 @@
                     } catch (staticError) {
                         const staticErrorMessage = String(staticError?.message || staticError);
                         const isExpectedStaticMiss = staticErrorMessage.includes('manifest unavailable') ||
-                            staticErrorMessage.includes('unavailable in manifest');
+                            staticErrorMessage.includes('unavailable in manifest') ||
+                            staticErrorMessage.includes('Static full supply activity unavailable');
                         if (!isExpectedStaticMiss) {
                             console.warn('Static supply activity unavailable, falling back to live subgraph replay', staticError);
                         }
@@ -15966,6 +16124,7 @@
             recentActivityPromise
                 .then(activityHistory => {
                     if (requestId !== supplyTabRequestId) return;
+                    scheduleRecentActivityDeltaMerge(activityHistory);
                     if (cachedFullActivity || currentSupplyOverview?.activityStage === 'full') {
                         applyFullActivity({
                             ...(cachedFullActivity || activityHistory || {}),
