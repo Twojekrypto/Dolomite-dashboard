@@ -60,6 +60,58 @@ jobs:
           fi
           python3 generate_supply_history.py --chains "$CHAINS" --token-limit "$TOKEN_LIMIT" --tokens "$TOKENS" --max-pages-per-entity "$MAX_PAGES"
 
+      - name: Validate static supply history
+        run: |
+          python3 -m py_compile generate_supply_history.py
+          python3 - <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          root = pathlib.Path("data/supply-history")
+          manifest_path = root / "manifest.json"
+          if not manifest_path.exists():
+              print("Missing data/supply-history/manifest.json", file=sys.stderr)
+              sys.exit(1)
+          manifest = json.loads(manifest_path.read_text())
+          errors = []
+
+          manifest_paths = {
+              token.get("path")
+              for chain in manifest.get("chains", [])
+              for token in chain.get("tokens", [])
+              if token.get("path")
+          }
+          for path_text in sorted(manifest_paths):
+              path = pathlib.Path(path_text)
+              if not path.exists():
+                  errors.append(f"{path_text}: manifest path is missing")
+
+          for path in sorted(root.glob("*/*.json")):
+              payload = json.loads(path.read_text())
+              points = payload.get("points") or []
+              if len(points) < 2:
+                  errors.append(f"{path}: fewer than 2 points")
+                  continue
+              last_ts = 0
+              for index, point in enumerate(points):
+                  timestamp = int(point.get("timestamp") or 0)
+                  value = float(point.get("value") or 0)
+                  token_value = float(point.get("tokenValue") or point.get("value") or 0)
+                  if timestamp <= last_ts:
+                      errors.append(f"{path}: timestamp is not increasing at point {index}")
+                      break
+                  if value < 0 or token_value < 0:
+                      errors.append(f"{path}: negative value at point {index}")
+                      break
+                  last_ts = timestamp
+
+          if errors:
+              print("\n".join(errors), file=sys.stderr)
+              sys.exit(1)
+          print("Supply history validation passed")
+          PY
+
       - name: Commit & push changes
         run: |
           git config user.name "github-actions[bot]"
