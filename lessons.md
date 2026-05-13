@@ -298,3 +298,4 @@
 ### Supply Asset Activity history loading
 **Reguła na przyszłość:** `Load older tx` w Supply Activity nie powinno ponownie pobierać ostatnich 30 dni, które UI już ma. Najpierw ładuj świeży zakres 30D, a dla pełnej historii dociągaj tylko rekordy starsze przez filtr `transaction_.timestamp_lt`, scalając je po `id` z bieżącymi tx i zostawiając fallback do pełnego replayu, jeśli subgraph odrzuci zakres.
 **Reguła na przyszłość:** Podczas długiego dociągania starszej historii zostaw widoczną tabelę 30D i pokaż osobny stan `loading older history` z progressem źródeł. Ukryty spinner w samym przycisku jest za słaby UX dla rynków z dużą historią.
+**Reguła na przyszłość:** Pełny cache Asset Activity zapisuj w spakowanym formacie w przeglądarce. Surowe wiersze z hashami/adresami i powtarzalnymi labelami potrafią przekroczyć limit storage, przez co użytkownik po odświeżeniu znów czeka na pełny subgraph replay.
