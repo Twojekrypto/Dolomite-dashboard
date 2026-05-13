@@ -12292,8 +12292,11 @@
         let supplyHistoryDatasetMode = 'recent';
         let supplyHistoryLoadAllHandler = null;
         const SUPPLY_HISTORY_STATIC_VERSION = 'supply-history-v1';
+        const SUPPLY_ACTIVITY_STATIC_VERSION = 'supply-activity-v1';
         let supplyStaticHistoryManifestCacheKey = '';
         let supplyStaticHistoryManifestPromise = null;
+        let supplyStaticActivityManifestCacheKey = '';
+        let supplyStaticActivityManifestPromise = null;
         let supplyActivityPage = 1;
         let supplyActivitySearchQuery = '';
         let supplyActivitySortField = 'time';
@@ -12712,6 +12715,8 @@
                 return data;
             }
             return {
+                ...data,
+                __supplyActivityCompact: undefined,
                 scope: data.scope || '',
                 rows: data.rows.map(item => {
                     const row = {
@@ -14399,7 +14404,32 @@
             return supplyStaticHistoryManifestPromise;
         }
 
+        async function fetchSupplyStaticActivityManifest(cacheHour) {
+            const manifestCacheKey = `${SUPPLY_ACTIVITY_STATIC_VERSION}-${cacheHour}`;
+            if (supplyStaticActivityManifestPromise && supplyStaticActivityManifestCacheKey === manifestCacheKey) {
+                return supplyStaticActivityManifestPromise;
+            }
+            supplyStaticActivityManifestCacheKey = manifestCacheKey;
+            supplyStaticActivityManifestPromise = fetch(`data/supply-activity/manifest.json?v=${manifestCacheKey}`)
+                .then(res => {
+                    if (!res.ok) throw new Error(`Static supply activity manifest unavailable (${res.status})`);
+                    return res.json();
+                })
+                .catch(error => {
+                    supplyStaticActivityManifestPromise = null;
+                    throw error;
+                });
+            return supplyStaticActivityManifestPromise;
+        }
+
         function findSupplyStaticHistoryEntry(manifest, chain, tokenId) {
+            const staticChain = getSupplyStaticHistoryChainKey(chain);
+            const safeTokenId = String(tokenId || '').toLowerCase();
+            const chainEntry = (manifest?.chains || []).find(item => item?.chain === staticChain);
+            return (chainEntry?.tokens || []).find(item => String(item?.tokenId || '').toLowerCase() === safeTokenId) || null;
+        }
+
+        function findSupplyStaticActivityEntry(manifest, chain, tokenId) {
             const staticChain = getSupplyStaticHistoryChainKey(chain);
             const safeTokenId = String(tokenId || '').toLowerCase();
             const chainEntry = (manifest?.chains || []).find(item => item?.chain === staticChain);
@@ -14462,6 +14492,43 @@
                 scope: raw?.scope || 'all',
                 generatedAt: raw?.generatedAt || '',
                 points,
+            };
+        }
+
+        async function fetchSupplyStaticFullActivity(chain, tokenId) {
+            const staticChain = getSupplyStaticHistoryChainKey(chain);
+            const safeTokenId = String(tokenId || '').toLowerCase();
+            if (!staticChain || !safeTokenId) {
+                throw new Error('Missing static supply activity coordinates');
+            }
+            const cacheHour = Math.floor(Date.now() / 3600000);
+            const manifest = await fetchSupplyStaticActivityManifest(cacheHour);
+            const manifestEntry = findSupplyStaticActivityEntry(manifest, staticChain, safeTokenId);
+            if (!manifestEntry?.path) {
+                throw new Error('Static full supply activity unavailable in manifest');
+            }
+            const staticPath = String(manifestEntry.path || '').replace(/^\/+/, '');
+            const res = await fetch(`${staticPath}?v=${SUPPLY_ACTIVITY_STATIC_VERSION}-${cacheHour}`);
+            if (!res.ok) {
+                throw new Error(`Static full supply activity unavailable (${res.status})`);
+            }
+            const raw = await res.json();
+            const generatedAtMs = Date.parse(raw?.generatedAt || manifestEntry.generatedAt || manifest?.generatedAt || '');
+            const maxStaticAgeMs = Math.max(1, SUPPLY_ACTIVITY_DEFAULT_DAYS - 2) * 86400000;
+            if (!Number.isFinite(generatedAtMs) || Date.now() - generatedAtMs > maxStaticAgeMs) {
+                throw new Error('Static full supply activity is stale');
+            }
+            const activity = unpackSupplyActivityHistoryFromStorage('static:activity:all', raw);
+            const rows = Array.isArray(activity?.rows) ? activity.rows : [];
+            if (!rows.length) {
+                throw new Error('Static full supply activity has no rows');
+            }
+            return {
+                ...activity,
+                source: raw?.source || 'static-subgraph-activity',
+                scope: 'all',
+                generatedAt: raw?.generatedAt || manifestEntry.generatedAt || manifest?.generatedAt || '',
+                rows,
             };
         }
 
@@ -15771,6 +15838,28 @@
                 };
                 const fetchOlderActivityHistory = async () => {
                     const recentRows = currentSupplyActivity.slice();
+                    try {
+                        updateFullActivityProgress({
+                            total: recentRows.length,
+                            doneEntities: [],
+                            completedEntities: 0,
+                            totalEntities: 1,
+                            activeLabel: 'static history',
+                        });
+                        const staticHistory = await fetchSupplyStaticFullActivity(chain, tokenId);
+                        return {
+                            ...staticHistory,
+                            scope: 'all',
+                            rows: mergeSupplyActivityRows(recentRows, staticHistory?.rows || []),
+                        };
+                    } catch (staticError) {
+                        const staticErrorMessage = String(staticError?.message || staticError);
+                        const isExpectedStaticMiss = staticErrorMessage.includes('manifest unavailable') ||
+                            staticErrorMessage.includes('unavailable in manifest');
+                        if (!isExpectedStaticMiss) {
+                            console.warn('Static supply activity unavailable, falling back to live subgraph replay', staticError);
+                        }
+                    }
                     try {
                         const olderHistory = await fetchSupplyActivityHistory(endpoint, tokenId, null, updateFullActivityProgress, { beforeTs: sinceTs, pageBatchSize: 4 });
                         return {
