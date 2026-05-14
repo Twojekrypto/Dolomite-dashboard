@@ -100,7 +100,9 @@ class DoloAddressLabelsTest(unittest.TestCase):
     def test_removed_legacy_index_preview_stays_removed(self):
         self.assertFalse((ROOT / "index_preview.html").exists())
         for path in ROOT.rglob("*"):
-            if ".git" in path.parts or not path.is_file():
+            if ".git" in path.parts or "__pycache__" in path.parts or not path.is_file():
+                continue
+            if path.suffix in {".pyc", ".pyo"}:
                 continue
             if path.name == "test_dolo_address_labels.py":
                 continue
