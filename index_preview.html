@@ -8208,6 +8208,7 @@
             }
         }
     </style>
+<script src="dolo-address-labels.js?v=dolo-labels-20260514a"></script>
 </head>
 
 <body>
@@ -15241,73 +15242,8 @@
         }
 
         // ===== DOLO FLOWS — Top Accumulators & Sellers =====
-        const DOLO_ADDR_LABELS = {
-            // CEX wallets
-            '0xf977814e90da44bfa03b6295a0616a897441acec': { label: 'Binance 8', type: 'cex' },
-            '0x28c6c06298d514db089934071355e5743bf21d60': { label: 'Binance 14', type: 'cex' },
-            '0x21a31ee1afc51d94c2efccaa2092ad1028285549': { label: 'Binance 35', type: 'cex' },
-            '0xdfd5293d8e347dfe59e90efd55b2956a1343963d': { label: 'Binance US', type: 'cex' },
-            '0xbe0eb53f46cd790cd13851d5eff43d12404d33e8': { label: 'Binance 7', type: 'cex' },
-            '0x56eddb7aa87536c09ccc2793473599fd21a8b17f': { label: 'Binance 16', type: 'cex' },
-            '0x9696f59e4d72e237be84ffd425dcad154bf96976': { label: 'Binance 18', type: 'cex' },
-            '0xa9d1e08c7793af67e9d92fe308d5697fb81d3e43': { label: 'Binance Deposit', type: 'cex' },
-            '0xd862cdcfeb856c32b3c4f7563f4811d8ddfd42e2': { label: 'CA', type: 'protocol' },
-            '0x1103fc560de8b710983e7f3ec09d587f3f848566': { label: 'CA', type: 'protocol' },
-            '0x035ae7d933dcbfe617ffba194a88af0c2867b90c': { label: 'Gate.io', type: 'cex' },
-            '0x8782163068c7cd74d2510768a61135c1e4eb07b3': { label: 'Gate.io', type: 'cex' },
-            '0x0d0707963952f2fba59dd06f2b425ace40b492fe': { label: 'Gate.io', type: 'cex' },
-            '0xf89d7b9c864f589bbf53a82105107622b35eaa40': { label: 'Bybit', type: 'cex' },
-            '0xdf3100ac6c20c4a9443ece6c639c4ee91d592062': { label: 'Coinbase', type: 'cex' },
-            '0xe337c67ee9077e31aab205b25e8593b0e1c00cc4': { label: 'Coinbase', type: 'cex' },
-            '0x38fc9e8c73ea02f3a7de1da0760e71277f1e5e24': { label: 'Coinbase', type: 'cex' },
-            '0x305833cadd13a6d7febc6619304a6943a9a1ed22': { label: 'Binance', type: 'cex' },
-            '0x478271c960137418c9d90082dddbf68aa72e4367': { label: 'Gate.io', type: 'cex' },
-            '0x43684d03d81d3a4c70da68febdd61029d426f042': { label: 'Binance 117', type: 'cex' },
-            '0x7a1d00de77c0162d55d84a051bdc6840852b4a60': { label: 'CEX or MM', type: 'cex' },
-            '0x9642b23ed1e01df1092b92641051881a322f5d4e': { label: 'MEXC', type: 'cex' },
-            '0x1157a2076b9bb22a85cc2c162f20fab3898f4101': { label: 'FalconX', type: 'cex' },
-            '0x0529ea5885702715e83923c59746ae8734c553b7': { label: 'Bitpanda', type: 'cex' },
-            '0xd2dd7b597fd2435b6db61ddf48544fd931e6869f': { label: 'Kraken', type: 'cex' },
-            '0xfc89c020774524c9d03bd5de48fec149b10bdec3': { label: 'CEX or MM', type: 'cex' },
-            '0xd5c342acbeedef81ab8e6072323bfda76172d05f': { label: 'CEX or MM', type: 'cex' },
-            '0x38285671612d6f0ef7c3483f500d39fa71d66a1c': { label: 'CEX or MM', type: 'cex' },
-            '0x98adef6f2ac8572ec48965509d69a8dd5e8bba9d': { label: 'Binance 93', type: 'cex' },
-            '0x93ae9fe008636d2d6d7376198a54edb20367968f': { label: 'CEX or MM', type: 'cex' },
-            '0x753f43cca3dbd2bbe963609f8d25a833433a10c9': { label: 'Gate.io', type: 'cex' },
-            '0xb8001c3ec9aa1985f6c747e25c28324e4a361ec1': { label: 'Cobo Custody', type: 'cex' },
-            '0x3e9b9a16743551da49b5e136c716bba7932d2cec': { label: 'oDOLO Vester', type: 'protocol', treasury: true },
-            // LP pools
-            '0x003896387666c5c11458eeb3f927b72a11b19783': { label: 'Uniswap V3 DOLO/USDC', type: 'lp' },
-            '0xd5980e98a89e2d2361b3be657e8a003c6d3514e3': { label: 'Kodiak DOLO/WBERA', type: 'lp' },
-            '0x8991017b74f9f8070bff5b322802dd26e05e0cc7': { label: 'Bulla DOLO/HONEY', type: 'lp' },
-            // Protocol contracts
-            '0xcb86b75ee6133d179a12d550b09fb3cdb1e141d4': { label: 'veDOLO', type: 'protocol' },
-            '0x89576fce04dd73933f74bbcd4e6f0d9125118542': { label: 'Borrow Position Proxy', type: 'protocol', treasury: true },
-            '0x003ca23fd5f0ca87d01f6ec6cd14a8ae60c2b97d': { label: 'Dolomite Margin', type: 'protocol', treasury: true },
-            '0x06265db7ecd9c5724a97bd4909146625d2e2619c': { label: 'Operational Wallet', type: 'protocol', treasury: true },
-            '0x000000000004444c5dc75cb358380d2e3de08a90': { label: 'Permit2', type: 'protocol' },
-            '0x2f41d42de3eab9e75f3d417259f24421771fb700': { label: 'Dolomite EOA', type: 'protocol', treasury: true },
-            '0x6e939bbaceb45159982a2cac3a1fcbf7e93cf682': { label: 'Dolomite Main', type: 'protocol', treasury: true },
-            '0xa75c21c5be284122a87a37a76cc6c4dd3e55a1d4': { label: 'Gnosis Safe Multisig', type: 'protocol', treasury: true },
-            '0xcfc30d38a47817363a98a46834acf7040b17d7b0': { label: 'Admin Proxy', type: 'protocol', treasury: true },
-            '0xd88f473832b0403c7736ef237af5aff8759b99ef': { label: 'oDOLO Airdrop', type: 'protocol', treasury: true },
-            '0x51b3116ef47073ab8a0353a2751dc533d4238527': { label: 'Revenue Proxy', type: 'protocol', treasury: true },
-            '0xa3f079292cc35ba64996fe0bce3049928a838bc9': { label: 'Treasury Proxy', type: 'protocol', treasury: true },
-            // Core Team (CoinGecko)
-            '0x185000fb4d98acea1a771db3714a431f7fe51cac': { label: 'Core Team 1', type: 'protocol', treasury: true },
-            '0x882e6d630a8c70a6a8d29a4d33f960b1267aa3d1': { label: 'Core Team 2', type: 'protocol', treasury: true },
-            '0x6c97802a1815bc459004c686560244de28a2de75': { label: 'Core Team 3', type: 'protocol', treasury: true },
-            '0x665b3ce67daeb5b19d4d14bbdb6297da0ffa5bf1': { label: 'Core Team 4', type: 'protocol', treasury: true },
-            '0x3f1f155949f32fa3e688093d176a1b5a72c488eb': { label: 'Core Team 5', type: 'protocol', treasury: true },
-            '0xf2b42104b5ac0b3145a5e18b84aa3fd76d0fdeec': { label: 'Core Team 6', type: 'protocol', treasury: true },
-            '0xb8ba44d5e46562ec011ade12603f353b18089a41': { label: 'Core Team 7', type: 'protocol', treasury: true },
-            // Investors (CoinGecko)
-            '0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07': { label: 'Investor Vesting CA', type: 'protocol' },
-            '0xbf3c4e55a444ed489736c3d856b0cd0533fc2edd': { label: 'Core Team 8', type: 'protocol', treasury: true },
-            '0x7efd088ae500598a19a242d6d48b9f7e0d061176': { label: 'Early Investor Vesting CA', type: 'protocol' },
-            // Bots / Market Makers
-            '0xb7131fc8cdc43060a6210257f537dba5fcae6aed': { label: 'MEV / Liquidator Bot', type: 'liquidator' },
-        };
+        const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddressLabels() : {};
+        window.DOLO_ADDR_LABELS = DOLO_ADDR_LABELS;
 
         // --- DYNAMIC LABELS (Fetched from Backend Pipeline) ---
         fetch('vesting_investors.json').then(r => r.json()).then(data => {
@@ -15340,11 +15276,23 @@
                 cex: 'background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.25)',
                 lp: 'background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.25)',
                 protocol: 'background:rgba(139,92,246,0.15);color:#a78bfa;border:1px solid rgba(139,92,246,0.25)',
+                contract: 'background:rgba(139,92,246,0.15);color:#a78bfa;border:1px solid rgba(139,92,246,0.25)',
+                dead: 'background:rgba(107,114,128,0.15);color:#9ca3af;border:1px solid rgba(107,114,128,0.25)',
+                watch: 'background:rgba(245,158,11,0.11);color:#d6a853;border:1px solid rgba(245,158,11,0.22)',
+                bot: 'background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.25)',
+                investor: 'background:rgba(52,211,153,0.15);color:#34d399;border:1px solid rgba(52,211,153,0.25)',
+                liquidator: 'background:rgba(6,182,212,0.15);color:#06b6d4;border:1px solid rgba(6,182,212,0.25)',
             };
             const typeDescs = {
                 cex: 'Centralized Exchange — deposit/withdrawal wallet used by the exchange to manage user funds',
                 lp: 'Liquidity Pool — automated market maker contract that facilitates token swaps',
                 protocol: 'Protocol Contract — smart contract owned and operated by the protocol',
+                contract: 'Smart contract — not a personal wallet',
+                dead: 'Burn address — tokens are permanently removed from circulation',
+                watch: 'Potential CEX / market maker — detected by custody-like behavior, not verified',
+                bot: 'Bot / Market Maker — automated trading wallet with high-frequency activity',
+                investor: 'Known Investor — early investor or fund allocation',
+                liquidator: 'Liquidator Bot — automated system that closes unhealthy positions to protect the protocol',
             };
             const desc = typeDescs[info.type] || 'Known Address';
             const style = colors[info.type] || colors.protocol;
