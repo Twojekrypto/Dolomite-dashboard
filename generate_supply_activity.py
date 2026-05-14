@@ -8,6 +8,7 @@ import json
 import os
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -277,57 +278,77 @@ def build_row(activity_type: str, payload: Dict[str, Any], token_id: str) -> Dic
     }
 
 
-def fetch_activity_rows(endpoint: str, token_id: str, max_pages_per_entity: int) -> List[List[Any]]:
+def fetch_activity_rows(endpoint: str, token_id: str, max_pages_per_entity: int, since_ts: Optional[int] = None) -> List[List[Any]]:
     common_fields = """
       serialId
       transaction { id timestamp blockNumber }
     """
-    token_filter = f'token: "{token_id}"'
-    liquidation_borrowed_filter = f'borrowedToken: "{token_id}"'
-    liquidation_held_filter = f'heldToken: "{token_id}"'
-    deposits = paginate_entity(endpoint, "deposits", token_filter, f"""
-      {common_fields}
-      effectiveUser {{ id }}
-      amountDeltaWei
-      amountUSDDeltaWei
-    """, max_pages=max_pages_per_entity)
-    withdrawals = paginate_entity(endpoint, "withdrawals", token_filter, f"""
-      {common_fields}
-      effectiveUser {{ id }}
-      amountDeltaWei
-      amountUSDDeltaWei
-    """, max_pages=max_pages_per_entity)
-    transfers = paginate_entity(endpoint, "transfers", token_filter, f"""
-      {common_fields}
-      fromEffectiveUser {{ id }}
-      toEffectiveUser {{ id }}
-      amountDeltaWei
-      amountUSDDeltaWei
-      isSelfTransfer
-      isTransferForMarginPosition
-    """, max_pages=max_pages_per_entity)
-    liquidations_borrowed = paginate_entity(endpoint, "liquidations", liquidation_borrowed_filter, f"""
-      {common_fields}
-      liquidEffectiveUser {{ id }}
-      solidEffectiveUser {{ id }}
-      borrowedToken {{ id }}
-      heldToken {{ id }}
-      borrowedTokenAmountDeltaWei
-      borrowedTokenAmountUSD
-      heldTokenAmountDeltaWei
-      heldTokenAmountUSD
-    """, max_pages=max_pages_per_entity)
-    liquidations_held = paginate_entity(endpoint, "liquidations", liquidation_held_filter, f"""
-      {common_fields}
-      liquidEffectiveUser {{ id }}
-      solidEffectiveUser {{ id }}
-      borrowedToken {{ id }}
-      heldToken {{ id }}
-      borrowedTokenAmountDeltaWei
-      borrowedTokenAmountUSD
-      heldTokenAmountDeltaWei
-      heldTokenAmountUSD
-    """, max_pages=max_pages_per_entity)
+    time_filter = f', transaction_: {{ timestamp_gte: "{int(since_ts)}" }}' if since_ts else ""
+    token_filter = f'token: "{token_id}"{time_filter}'
+    liquidation_borrowed_filter = f'borrowedToken: "{token_id}"{time_filter}'
+    liquidation_held_filter = f'heldToken: "{token_id}"{time_filter}'
+    query_specs = {
+        "deposits": ("deposits", token_filter, f"""
+          {common_fields}
+          effectiveUser {{ id }}
+          amountDeltaWei
+          amountUSDDeltaWei
+        """),
+        "withdrawals": ("withdrawals", token_filter, f"""
+          {common_fields}
+          effectiveUser {{ id }}
+          amountDeltaWei
+          amountUSDDeltaWei
+        """),
+        "transfers": ("transfers", token_filter, f"""
+          {common_fields}
+          fromEffectiveUser {{ id }}
+          toEffectiveUser {{ id }}
+          amountDeltaWei
+          amountUSDDeltaWei
+          isSelfTransfer
+          isTransferForMarginPosition
+        """),
+        "liquidations_borrowed": ("liquidations", liquidation_borrowed_filter, f"""
+          {common_fields}
+          liquidEffectiveUser {{ id }}
+          solidEffectiveUser {{ id }}
+          borrowedToken {{ id }}
+          heldToken {{ id }}
+          borrowedTokenAmountDeltaWei
+          borrowedTokenAmountUSD
+          heldTokenAmountDeltaWei
+          heldTokenAmountUSD
+        """),
+        "liquidations_held": ("liquidations", liquidation_held_filter, f"""
+          {common_fields}
+          liquidEffectiveUser {{ id }}
+          solidEffectiveUser {{ id }}
+          borrowedToken {{ id }}
+          heldToken {{ id }}
+          borrowedTokenAmountDeltaWei
+          borrowedTokenAmountUSD
+          heldTokenAmountDeltaWei
+          heldTokenAmountUSD
+        """),
+    }
+    with ThreadPoolExecutor(max_workers=len(query_specs)) as executor:
+        futures = {
+            key: executor.submit(
+                paginate_entity,
+                endpoint,
+                entity_name,
+                where_clause,
+                fields,
+                max_pages=max_pages_per_entity,
+            )
+            for key, (entity_name, where_clause, fields) in query_specs.items()
+        }
+        deposits = futures["deposits"].result()
+        withdrawals = futures["withdrawals"].result()
+        transfers = futures["transfers"].result()
+        liquidations_borrowed = futures["liquidations_borrowed"].result()
+        liquidations_held = futures["liquidations_held"].result()
 
     rows = [
         *(build_row("deposit", item, token_id) for item in deposits),
@@ -340,35 +361,48 @@ def fetch_activity_rows(endpoint: str, token_id: str, max_pages_per_entity: int)
     return [compact_activity_row(row) for row in sorted(deduped.values(), key=lambda item: int(item.get("timestamp") or 0), reverse=True)]
 
 
-def write_activity_file(out_dir: Path, chain: str, token: Dict[str, Any], rows: List[List[Any]], generated_at: datetime) -> Tuple[Path, Path, int]:
+def write_activity_file(
+    out_dir: Path,
+    chain: str,
+    token: Dict[str, Any],
+    rows: List[List[Any]],
+    generated_at: datetime,
+    *,
+    write_full: bool = True,
+) -> Tuple[Optional[Path], Path, int]:
     token_id = str(token.get("id") or "").lower()
     chain_dir = out_dir / chain
     recent_chain_dir = out_dir / "recent" / chain
-    chain_dir.mkdir(parents=True, exist_ok=True)
     recent_chain_dir.mkdir(parents=True, exist_ok=True)
-    path = chain_dir / f"{token_id}.json"
+    path: Optional[Path] = None
     recent_path = recent_chain_dir / f"{token_id}.json"
     recent_cutoff = int(generated_at.timestamp()) - (RECENT_ACTIVITY_DAYS * 86400)
     recent_rows = [row for row in rows if int(row[2] or 0) >= recent_cutoff]
-    payload = {
+    base_payload = {
         "schemaVersion": 1,
         "source": "static-subgraph-activity",
         "__supplyActivityCompact": 1,
-        "scope": "all",
         "chain": chain,
         "tokenId": token_id,
         "symbol": token.get("symbol"),
         "name": token.get("name"),
         "marketId": token.get("marketId"),
         "generatedAt": generated_at.isoformat().replace("+00:00", "Z"),
-        "rows": rows,
     }
+    if write_full:
+        chain_dir.mkdir(parents=True, exist_ok=True)
+        path = chain_dir / f"{token_id}.json"
+        payload = {
+            **base_payload,
+            "scope": "all",
+            "rows": rows,
+        }
+        path.write_text(json.dumps(payload, separators=(",", ":"), ensure_ascii=False) + "\n", encoding="utf-8")
     recent_payload = {
-        **payload,
+        **base_payload,
         "scope": f"{RECENT_ACTIVITY_DAYS}d",
         "rows": recent_rows,
     }
-    path.write_text(json.dumps(payload, separators=(",", ":"), ensure_ascii=False) + "\n", encoding="utf-8")
     recent_path.write_text(json.dumps(recent_payload, separators=(",", ":"), ensure_ascii=False) + "\n", encoding="utf-8")
     return path, recent_path, len(recent_rows)
 
@@ -383,18 +417,21 @@ def generate_chain(
     explicit_only: bool,
     max_pages_per_entity: int,
     generated_at: datetime,
+    recent_only: bool,
 ) -> Dict[str, Any]:
     tokens = fetch_tokens(endpoint)
     selected = select_tokens(tokens, token_limit, explicit_tokens, explicit_symbols, explicit_only)
     written: List[Dict[str, Any]] = []
     skipped: List[Dict[str, Any]] = []
-    print(f"{chain}: selected {len(selected)} / {len(tokens)} activity tokens", flush=True)
+    mode_label = "recent activity" if recent_only else "activity"
+    since_ts = int(generated_at.timestamp()) - (RECENT_ACTIVITY_DAYS * 86400) if recent_only else None
+    print(f"{chain}: selected {len(selected)} / {len(tokens)} {mode_label} tokens", flush=True)
     for index, token in enumerate(selected, start=1):
         token_id = str(token.get("id") or "").lower()
         symbol = str(token.get("symbol") or token_id[:8])
-        print(f"{chain} {symbol}: fetching activity {index}/{len(selected)}", flush=True)
+        print(f"{chain} {symbol}: fetching {mode_label} {index}/{len(selected)}", flush=True)
         try:
-            rows = fetch_activity_rows(endpoint, token_id, max_pages_per_entity)
+            rows = fetch_activity_rows(endpoint, token_id, max_pages_per_entity, since_ts=since_ts)
         except RuntimeError as exc:
             entry = token_summary(token)
             entry["reason"] = "fetch_error"
@@ -402,15 +439,19 @@ def generate_chain(
             skipped.append(entry)
             print(f"{chain} {symbol}: skipped ({exc})", flush=True)
             continue
-        path, recent_path, recent_count = write_activity_file(out_dir, chain, token, rows, generated_at)
+        path, recent_path, recent_count = write_activity_file(out_dir, chain, token, rows, generated_at, write_full=not recent_only)
         entry = token_summary(token)
-        entry["events"] = len(rows)
+        if path is not None:
+            entry["events"] = len(rows)
+            entry["path"] = str(path.as_posix())
         entry["recentEvents"] = recent_count
-        entry["path"] = str(path.as_posix())
         entry["recentPath"] = str(recent_path.as_posix())
         entry["generatedAt"] = generated_at.isoformat().replace("+00:00", "Z")
         written.append(entry)
-        print(f"{chain} {symbol}: wrote {len(rows)} activity rows", flush=True)
+        if recent_only:
+            print(f"{chain} {symbol}: wrote {recent_count} recent activity rows", flush=True)
+        else:
+            print(f"{chain} {symbol}: wrote {len(rows)} activity rows", flush=True)
     return {
         "chain": chain,
         "tokensAvailable": len(tokens),
@@ -431,6 +472,33 @@ def load_existing_manifest(out_dir: Path) -> Optional[Dict[str, Any]]:
         return None
 
 
+def token_order_key(token: Dict[str, Any]) -> Tuple[int, str, str]:
+    try:
+        market_id = int(token.get("marketId"))
+    except (TypeError, ValueError):
+        market_id = 10**9
+    return (market_id, str(token.get("symbol") or ""), str(token.get("tokenId") or ""))
+
+
+def merge_chain_entry(existing: Optional[Dict[str, Any]], refreshed: Dict[str, Any]) -> Dict[str, Any]:
+    if not existing:
+        return refreshed
+    tokens_by_id: Dict[str, Dict[str, Any]] = {}
+    for token in existing.get("tokens") or []:
+        token_id = str(token.get("tokenId") or "").lower()
+        if token_id:
+            tokens_by_id[token_id] = dict(token)
+    for token in refreshed.get("tokens") or []:
+        token_id = str(token.get("tokenId") or "").lower()
+        if token_id:
+            tokens_by_id[token_id] = {**tokens_by_id.get(token_id, {}), **token}
+    merged = {**existing, **refreshed}
+    merged_tokens = sorted(tokens_by_id.values(), key=token_order_key)
+    merged["tokens"] = merged_tokens
+    merged["tokensWritten"] = len(merged_tokens)
+    return merged
+
+
 def merge_manifest(existing_manifest: Optional[Dict[str, Any]], refreshed_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     by_chain: Dict[str, Dict[str, Any]] = {}
     if existing_manifest:
@@ -441,7 +509,7 @@ def merge_manifest(existing_manifest: Optional[Dict[str, Any]], refreshed_result
     for refreshed in refreshed_results:
         chain = str(refreshed.get("chain") or "")
         if chain:
-            by_chain[chain] = refreshed
+            by_chain[chain] = merge_chain_entry(by_chain.get(chain), refreshed)
     ordered = [by_chain[chain] for chain in GRAPH_ENDPOINTS if chain in by_chain]
     ordered.extend(entry for chain, entry in sorted(by_chain.items()) if chain not in GRAPH_ENDPOINTS)
     return ordered
@@ -457,6 +525,7 @@ def main() -> int:
     parser.add_argument("--token-config", default=os.environ.get("SUPPLY_ACTIVITY_TOKEN_CONFIG", ""))
     parser.add_argument("--explicit-only", action="store_true", default=os.environ.get("SUPPLY_ACTIVITY_EXPLICIT_ONLY", "").lower() in {"1", "true", "yes"})
     parser.add_argument("--max-pages-per-entity", type=int, default=int(os.environ.get("SUPPLY_ACTIVITY_MAX_PAGES_PER_ENTITY", "600")))
+    parser.add_argument("--recent-only", action="store_true", default=os.environ.get("SUPPLY_ACTIVITY_RECENT_ONLY", "").lower() in {"1", "true", "yes"})
     args = parser.parse_args()
 
     out_dir = Path(args.out_dir)
@@ -484,6 +553,7 @@ def main() -> int:
                 args.explicit_only,
                 args.max_pages_per_entity,
                 generated_at,
+                bool(args.recent_only),
             )
         )
 
@@ -495,6 +565,7 @@ def main() -> int:
         "compact": True,
         "tokenLimit": args.token_limit,
         "explicitOnly": bool(args.explicit_only),
+        "recentOnly": bool(args.recent_only),
         "maxPagesPerEntity": args.max_pages_per_entity,
         "refreshedChains": chains,
         "chains": manifest_chains,

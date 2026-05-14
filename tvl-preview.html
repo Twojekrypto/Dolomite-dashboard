@@ -620,7 +620,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         <div class="hero-token-sub" id="heroChainSub"><b>Dolomite</b> · all user deposits across <b>7 chains</b></div>
       </div>
       <div class="hero-meta">
-        <div class="hero-live"><span class="dot"></span>Live · DeFiLlama</div>
+        <div class="hero-live" id="heroSource"><span class="dot"></span>Dolomite subgraphs</div>
       </div>
     </div>
 
@@ -1125,9 +1125,11 @@ function buildHistory(llamaData, currentSupply){
 
   if (points.length < 2) return TVL_HISTORY;
 
+  // Only smooth tiny current-snapshot drift. A large gap means the sources use
+  // different TVL methodology, so scaling the whole history would invent data.
   const last = points[points.length - 1][1];
   const ratio = last > 0 && currentSupply > 0 ? currentSupply / last : 1;
-  if (ratio > 0.5 && ratio < 2.5) {
+  if (ratio > 0.95 && ratio < 1.05) {
     return points.map(p => [p[0], p[1] * ratio]);
   }
   return points;
@@ -1152,11 +1154,56 @@ function displayTokenSymbol(symbol){
   return TOKEN_DISPLAY_SYMBOLS[raw] || raw;
 }
 
-function buildTokenComposition(llamaData, officialData){
+function currentChainRows(current){
+  return Object.entries(current || {})
+    .filter(([name, value]) => !String(name).includes("-") && !NON_CHAIN_KEYS.has(String(name).toLowerCase()) && Number(value) > 0)
+    .map(([name, value]) => ({ name, tvl: Number(value || 0) }));
+}
+
+function officialStaleChainKeys(officialData){
+  if (!officialData) return new Set();
+  const stale = new Set((officialData.staleChains || []).map(chainKey));
+  const maxAge = Number(officialData.freshnessMaxAgeSeconds || 21600);
+  const now = Date.now() / 1000;
+  Object.entries(officialData.chainMeta || {}).forEach(([chain, meta]) => {
+    const ts = Number(meta?.blockTimestamp || 0);
+    if (!ts || now - ts > maxAge) stale.add(chainKey(chain));
+  });
+  return stale;
+}
+
+function mergedChainTokens(llamaData, officialData, staleKeys){
+  const officialTokens = officialData?.chainTokensInUsd || {};
+  const llamaTokens = llamaData?.chainTokensInUsd || {};
+  const merged = {};
+  const chainNames = new Set([...Object.keys(officialTokens), ...Object.keys(llamaTokens)]);
+  chainNames.forEach(chain => {
+    const useLlama = staleKeys.has(chainKey(chain)) && llamaTokens[chain];
+    const tokens = useLlama ? llamaTokens[chain] : (officialTokens[chain] || llamaTokens[chain]);
+    if (tokens && Object.keys(tokens).length) merged[chain] = tokens;
+  });
+  return merged;
+}
+
+function tokenMapFromChains(chainTokens){
+  const tokenMap = {};
+  Object.values(chainTokens || {}).forEach(tokens => {
+    Object.entries(tokens || {}).forEach(([symbol, value]) => {
+      const usd = Number(value || 0);
+      if (!Number.isFinite(usd) || usd <= 0) return;
+      tokenMap[symbol] = (tokenMap[symbol] || 0) + usd;
+    });
+  });
+  return tokenMap;
+}
+
+function buildTokenComposition(llamaData, officialData, staleKeys=new Set()){
+  const chainTokens = officialData
+    ? mergedChainTokens(llamaData, officialData, staleKeys)
+    : (llamaData?.chainTokensInUsd || {});
   const tokenSource = officialData?.tokensInUsd || llamaData?.tokensInUsd || [];
-  const chainTokens = officialData?.chainTokensInUsd || llamaData?.chainTokensInUsd || {};
   const latest = tokenSource[tokenSource.length - 1] || tokenSource[0] || {};
-  const tokenMap = latest.tokens || {};
+  const tokenMap = Object.keys(chainTokens).length ? tokenMapFromChains(chainTokens) : (latest.tokens || {});
   const tokenChain = {};
 
   Object.entries(chainTokens).forEach(([chain, tokens]) => {
@@ -1183,8 +1230,10 @@ function buildTokenComposition(llamaData, officialData){
     .sort((a,b)=>b.usd-a.usd);
 }
 
-function buildChainTokenCompositions(llamaData, officialData){
-  const chainTokens = officialData?.chainTokensInUsd || llamaData?.chainTokensInUsd || {};
+function buildChainTokenCompositions(llamaData, officialData, staleKeys=new Set()){
+  const chainTokens = officialData
+    ? mergedChainTokens(llamaData, officialData, staleKeys)
+    : (llamaData?.chainTokensInUsd || {});
   const byChain = {};
   Object.entries(chainTokens).forEach(([chain, tokens]) => {
     const key = chainKey(chain);
@@ -1201,28 +1250,50 @@ function buildChainTokenCompositions(llamaData, officialData){
 }
 
 function buildTvlSnapshot(llamaData, officialData){
-  const current = officialData?.currentChainTvls || llamaData?.currentChainTvls || {};
-  const chainRows = Object.entries(current)
-    .filter(([name, value]) => !String(name).includes("-") && !NON_CHAIN_KEYS.has(String(name).toLowerCase()) && Number(value) > 0)
-    .map(([name, value]) => ({ name, tvl: Number(value || 0) }))
+  const officialCurrent = officialData?.currentChainTvls || {};
+  const llamaCurrent = llamaData?.currentChainTvls || {};
+  const current = officialData ? officialCurrent : llamaCurrent;
+  const staleKeys = officialStaleChainKeys(officialData);
+  const chainNames = new Set([
+    ...currentChainRows(current).map(c => c.name),
+    ...currentChainRows(llamaCurrent).map(c => c.name),
+  ]);
+  const chainRows = [...chainNames]
+    .map(name => {
+      const key = chainKey(name);
+      const useLlama = staleKeys.has(key) && Number(llamaCurrent[name]) > 0;
+      const source = useLlama ? llamaCurrent : current;
+      return {
+        name,
+        tvl: Number(source[name] || 0),
+        borrowed: Number(source[`${name}-borrowed`] || 0),
+        source: useLlama ? "defillama_fallback" : "dolomite_subgraph",
+      };
+    })
+    .filter(c => c.tvl > 0)
     .sort((a,b)=>b.tvl-a.tvl);
-  const chainTokens = officialData?.chainTokensInUsd || llamaData?.chainTokensInUsd || {};
-  const totalTvl = Number(officialData?.totalTvl ?? chainRows.reduce((sum,c)=>sum+c.tvl, 0));
-  const totalBorrowed = Number(officialData?.totalBorrowed ?? current.borrowed ?? 0);
-  const supplyLiquidity = Number(officialData?.supplyLiquidity ?? (totalTvl + totalBorrowed));
+  const chainTokens = officialData
+    ? mergedChainTokens(llamaData, officialData, staleKeys)
+    : (llamaData?.chainTokensInUsd || {});
+  const hasFallback = chainRows.some(c => c.source === "defillama_fallback");
+  const rowTvl = chainRows.reduce((sum,c)=>sum+c.tvl, 0);
+  const rowBorrowed = chainRows.reduce((sum,c)=>sum+c.borrowed, 0);
+  const totalTvl = hasFallback ? rowTvl : Number(officialData?.totalTvl ?? rowTvl);
+  const totalBorrowed = hasFallback ? rowBorrowed : Number(officialData?.totalBorrowed ?? current.borrowed ?? rowBorrowed);
+  const supplyLiquidity = hasFallback ? totalTvl + totalBorrowed : Number(officialData?.supplyLiquidity ?? (totalTvl + totalBorrowed));
 
   const chains = chainRows.map(c => ({
     key: chainKey(c.name),
     name: c.name,
     icon: CHAIN_ICONS[c.name] || "",
     tvl: c.tvl,
-    borrowed: Number(current[`${c.name}-borrowed`] || 0),
+    borrowed: c.borrowed,
     tokens: Object.values(chainTokens[c.name] || {}).filter(v => Number(v) > 0).length,
   }));
 
   const history = buildHistory(llamaData, supplyLiquidity);
-  const tokens = buildTokenComposition(llamaData, officialData);
-  const tokenCompositionByChain = buildChainTokenCompositions(llamaData, officialData);
+  const tokens = buildTokenComposition(llamaData, officialData, staleKeys);
+  const tokenCompositionByChain = buildChainTokenCompositions(llamaData, officialData, staleKeys);
 
   return {
     snapshotTs: officialData?.last_updated || llamaData?.last_updated || SNAPSHOT_TS,
@@ -1233,6 +1304,7 @@ function buildTvlSnapshot(llamaData, officialData){
     tokens: tokens.length ? tokens : TOP_TOKENS,
     tokenCompositionByChain,
     history,
+    staleChains: [...staleKeys],
   };
 }
 
@@ -1309,6 +1381,10 @@ function applyTvlSnapshot(snapshot){
   if (chainSub) chainSub.innerHTML = `<b>Dolomite</b> · all user deposits across <b>${chainCount} chains</b>`;
   const protoSub = document.getElementById("protoBrandSub");
   if (protoSub) protoSub.innerHTML = `Lending &amp; margin · <b>${chainCount} chains</b> · <b>${marketCount} markets</b>`;
+  const heroSource = document.getElementById("heroSource");
+  if (heroSource) {
+    heroSource.innerHTML = `<span class="dot"></span>${snapshot.staleChains?.length ? "Dolomite subgraphs + fallback" : "Dolomite subgraphs"}`;
+  }
 
   const heroChg = document.getElementById("heroChg");
   if (heroChg && Number.isFinite(change7d)) {

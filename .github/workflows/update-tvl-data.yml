@@ -1,0 +1,52 @@
+name: Update TVL Data
+
+on:
+  schedule:
+    - cron: '13 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-tvl-data
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Fetch DeFi Llama data
+        run: python3 fetch_defillama.py
+
+      - name: Fetch Official Dolomite TVL
+        run: python3 fetch_dolomite_tvl.py
+
+      - name: Validate TVL data
+        run: python3 validate_data.py defillama_data.json dolomite_tvl.json
+
+      - name: Commit & push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add defillama_data.json dolomite_tvl.json
+          git diff --staged --quiet && echo "No changes to commit" && exit 0
+          git commit -m "📊 Auto-update TVL: $(date -u '+%Y-%m-%d %H:%M UTC')"
+          for i in 1 2 3; do
+            git pull --rebase -X theirs origin master && git push && break
+            echo "⚠️ Push attempt $i failed, retrying..."
+            sleep 5
+          done

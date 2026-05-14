@@ -41,6 +41,14 @@ on:
         description: 'Build only explicitly configured Supply Activity tokens'
         required: false
         default: 'true'
+      activity_recent_enabled:
+        description: 'Build 30D Supply Activity cache for every selected token'
+        required: false
+        default: 'true'
+      activity_recent_token_limit:
+        description: 'Top tokens per chain for 30D Supply Activity cache; 0 means every selectable token'
+        required: false
+        default: '0'
 
 permissions:
   contents: write
@@ -74,6 +82,8 @@ jobs:
           ACTIVITY_SYMBOLS="${{ github.event.inputs.activity_symbols }}"
           ACTIVITY_TOKEN_CONFIG="${{ github.event.inputs.activity_token_config }}"
           ACTIVITY_EXPLICIT_ONLY="${{ github.event.inputs.activity_explicit_only }}"
+          ACTIVITY_RECENT_ENABLED="${{ github.event.inputs.activity_recent_enabled }}"
+          ACTIVITY_RECENT_TOKEN_LIMIT="${{ github.event.inputs.activity_recent_token_limit }}"
           if [ -z "$CHAINS" ]; then
             CHAINS="ethereum,arbitrum,berachain,mantle,botanix,xlayer,polygon_zkevm"
           fi
@@ -95,6 +105,12 @@ jobs:
           if [ -z "$ACTIVITY_EXPLICIT_ONLY" ]; then
             ACTIVITY_EXPLICIT_ONLY="true"
           fi
+          if [ -z "$ACTIVITY_RECENT_ENABLED" ]; then
+            ACTIVITY_RECENT_ENABLED="true"
+          fi
+          if [ -z "$ACTIVITY_RECENT_TOKEN_LIMIT" ]; then
+            ACTIVITY_RECENT_TOKEN_LIMIT="0"
+          fi
           python3 generate_supply_history.py --chains "$CHAINS" --token-limit "$TOKEN_LIMIT" --tokens "$TOKENS" --max-pages-per-entity "$MAX_PAGES" --active-usd-threshold "$ACTIVE_USD_THRESHOLD"
           ACTIVITY_ARGS=(--chains "$CHAINS" --token-limit "$ACTIVITY_TOKEN_LIMIT" --symbols "$ACTIVITY_SYMBOLS" --tokens "$TOKENS" --max-pages-per-entity "$MAX_PAGES")
           if [ -n "$ACTIVITY_TOKEN_CONFIG" ]; then
@@ -104,6 +120,9 @@ jobs:
             ACTIVITY_ARGS+=(--explicit-only)
           fi
           python3 generate_supply_activity.py "${ACTIVITY_ARGS[@]}"
+          if [ "$ACTIVITY_RECENT_ENABLED" = "true" ] || [ "$ACTIVITY_RECENT_ENABLED" = "1" ]; then
+            python3 generate_supply_activity.py --chains "$CHAINS" --token-limit "$ACTIVITY_RECENT_TOKEN_LIMIT" --symbols "" --tokens "$TOKENS" --max-pages-per-entity "$MAX_PAGES" --recent-only
+          fi
 
       - name: Validate static supply history
         run: |
