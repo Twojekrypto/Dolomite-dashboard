@@ -37,6 +37,17 @@ console.log(JSON.stringify({base: window.DOLO_ADDRESS_LABELS, labels}));
     return json.loads(proc.stdout)
 
 
+def tracked_repo_files():
+    proc = subprocess.run(
+        ["git", "ls-files"],
+        cwd=str(ROOT),
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    return [ROOT / line for line in proc.stdout.splitlines() if line]
+
+
 class DoloAddressLabelsTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -97,17 +108,17 @@ class DoloAddressLabelsTest(unittest.TestCase):
             with self.subTest(path=str(path.relative_to(ROOT))):
                 self.assertIn("dolo-label-cleanup-20260514", path.read_text(encoding="utf-8"))
 
-    def test_removed_legacy_index_preview_stays_removed(self):
-        self.assertFalse((ROOT / "index_preview.html").exists())
-        for path in ROOT.rglob("*"):
-            if ".git" in path.parts or "__pycache__" in path.parts or not path.is_file():
-                continue
-            if path.suffix in {".pyc", ".pyo"}:
-                continue
+    def test_removed_legacy_preview_files_stay_removed(self):
+        removed_files = ("index_preview.html", "add_investors.py")
+        for filename in removed_files:
+            self.assertFalse((ROOT / filename).exists(), filename)
+
+        for path in tracked_repo_files():
             if path.name == "test_dolo_address_labels.py":
                 continue
             text = path.read_text(encoding="utf-8", errors="ignore")
-            self.assertNotIn("index_preview.html", text, str(path.relative_to(ROOT)))
+            for filename in removed_files:
+                self.assertNotIn(filename, text, str(path.relative_to(ROOT)))
 
 
 if __name__ == "__main__":
