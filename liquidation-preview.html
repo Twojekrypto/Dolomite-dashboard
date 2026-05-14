@@ -10356,7 +10356,7 @@
                 (items || []).forEach(addr => {
                     const lower = String(addr || '').toLowerCase();
                     if (!lower || DOLO_ADDR_LABELS[lower]) return;
-                    DOLO_ADDR_LABELS[lower] = { label, type, ...extra };
+                    DOLO_ADDR_LABELS[lower] = { label, type, source: 'vesting_investors', confidence: 'confirmed', ...extra };
                     changed = true;
                 });
             };

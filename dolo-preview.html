@@ -1722,7 +1722,7 @@ renderFlows();
       const largeCustodyLike = s.tx >= 3 && s.balance >= 2_500_000 && s.flow >= 250_000;
       const activeCustodyLike = s.roles.has("acc") && s.tx >= 100 && s.balance >= 500_000 && s.flow >= 100_000;
       if(hotWithdrawalWallet || largeCustodyLike || activeCustodyLike){
-        AUTO_CEX_LABELS[key] = {label:"Potential CEX/MM", type:"watch"};
+        AUTO_CEX_LABELS[key] = {label:"Potential CEX/MM", type:"watch", source:"heuristic-flow-pattern", confidence:"potential"};
       }
     });
   }
@@ -1849,10 +1849,14 @@ renderFlows();
     try{
       const data = await fetchJson("vesting_investors.json");
       if(!data || Array.isArray(data)) return;
-      [["early_investors","Early Investor","investor"],["investors","Investor","investor"],["team","Core Team","protocol"]].forEach(([key,label,type]) => {
+      [
+        ["early_investors","Early Investor","investor","vesting_investors"],
+        ["investors","Investor","investor","vesting_investors"],
+        ["team","Core Team","protocol","vesting_investors"],
+      ].forEach(([key,label,type,source]) => {
         (data[key] || []).forEach(addr => {
           const k = lower(addr);
-          if(!ADDR_LABELS[k]) ADDR_LABELS[k] = {label, type};
+          if(!ADDR_LABELS[k]) ADDR_LABELS[k] = {label, type, source, confidence:"confirmed"};
         });
       });
     }catch(_){}

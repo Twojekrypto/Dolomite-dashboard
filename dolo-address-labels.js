@@ -82,8 +82,31 @@
     "0x9cb677f2a8daa9511ae79c2ba56395552b5d030d": {label:"Active Trader/Bot", type:"bot"}
   };
 
-  const cloneLabels = () => JSON.parse(JSON.stringify(DOLO_ADDRESS_LABELS));
-  window.DOLO_ADDRESS_LABELS = DOLO_ADDRESS_LABELS;
+  const LABEL_SOURCE_BY_TYPE = {
+    bot: "behavioral-label",
+    cex: "public-label",
+    contract: "dolomite-known-address",
+    dead: "standard-burn-address",
+    investor: "coingecko-tokenomics",
+    liquidator: "behavioral-label",
+    lp: "public-pool-label",
+    protocol: "dolomite-known-address",
+    watch: "heuristic-flow-pattern",
+  };
+  const COINGECKO_LABEL_RE = /^(Core Team|Investor|Ecosystem Incentives)\b/;
+  const CONFIDENCE_BY_TYPE = { watch: "potential" };
+
+  function normalizeDoloAddressLabels(labels){
+    return Object.fromEntries(Object.entries(labels).map(([address, info]) => {
+      const source = info.source || (COINGECKO_LABEL_RE.test(info.label || "") ? "coingecko-tokenomics" : LABEL_SOURCE_BY_TYPE[info.type] || "manual-review");
+      const confidence = info.confidence || CONFIDENCE_BY_TYPE[info.type] || "confirmed";
+      return [address.toLowerCase(), {...info, source, confidence}];
+    }));
+  }
+
+  const NORMALIZED_DOLO_ADDRESS_LABELS = normalizeDoloAddressLabels(DOLO_ADDRESS_LABELS);
+  const cloneLabels = () => JSON.parse(JSON.stringify(NORMALIZED_DOLO_ADDRESS_LABELS));
+  window.DOLO_ADDRESS_LABELS = NORMALIZED_DOLO_ADDRESS_LABELS;
   window.cloneDoloAddressLabels = cloneLabels;
   if(!window.DOLO_ADDR_LABELS) window.DOLO_ADDR_LABELS = cloneLabels();
 })();

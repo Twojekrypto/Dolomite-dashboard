@@ -32,6 +32,11 @@ PYTHON_FILES = [
     ROOT / "run_earn_data_correctness_pipeline.py",
     ROOT / "run_earn_subaccount_history_incremental.py",
     ROOT / "update_earn_freshness_status.py",
+    ROOT / "scripts" / "smoke_live_pages.py",
+]
+
+JAVASCRIPT_FILES = [
+    ROOT / "dolo-address-labels.js",
 ]
 
 
@@ -43,6 +48,9 @@ def run(cmd: list[str], *, cwd: Path) -> None:
 
 def main() -> int:
     run(["python3", "-m", "py_compile", *[str(path) for path in PYTHON_FILES]], cwd=ROOT)
+
+    for js_file in JAVASCRIPT_FILES:
+        run(["node", "--check", str(js_file)], cwd=ROOT)
 
     with tempfile.NamedTemporaryFile("w", suffix="_earn_live_audit.js", delete=False, encoding="utf-8") as tmp:
         tmp.write(build_live_audit_js())

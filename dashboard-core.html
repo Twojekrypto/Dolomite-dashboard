@@ -22505,19 +22505,19 @@
             if (data.early_investors) {
                 data.early_investors.forEach(addr => {
                     const lower = addr.toLowerCase();
-                    if (!DOLO_ADDR_LABELS[lower]) DOLO_ADDR_LABELS[lower] = { label: 'Early Investor', type: 'investor' };
+                    if (!DOLO_ADDR_LABELS[lower]) DOLO_ADDR_LABELS[lower] = { label: 'Early Investor', type: 'investor', source: 'vesting_investors', confidence: 'confirmed' };
                 });
             }
             if (data.investors) {
                 data.investors.forEach(addr => {
                     const lower = addr.toLowerCase();
-                    if (!DOLO_ADDR_LABELS[lower]) DOLO_ADDR_LABELS[lower] = { label: 'Investor', type: 'investor' };
+                    if (!DOLO_ADDR_LABELS[lower]) DOLO_ADDR_LABELS[lower] = { label: 'Investor', type: 'investor', source: 'vesting_investors', confidence: 'confirmed' };
                 });
             }
             if (data.team) {
                 data.team.forEach(addr => {
                     const lower = addr.toLowerCase();
-                    if (!DOLO_ADDR_LABELS[lower]) DOLO_ADDR_LABELS[lower] = { label: 'Core Team', type: 'protocol', treasury: true };
+                    if (!DOLO_ADDR_LABELS[lower]) DOLO_ADDR_LABELS[lower] = { label: 'Core Team', type: 'protocol', treasury: true, source: 'vesting_investors', confidence: 'confirmed' };
                 });
             }
         }).catch(e => console.log('vesting_investors.json load skipped or missing'));
