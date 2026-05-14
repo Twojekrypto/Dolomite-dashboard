@@ -32,6 +32,7 @@ PYTHON_FILES = [
     ROOT / "run_earn_data_correctness_pipeline.py",
     ROOT / "run_earn_subaccount_history_incremental.py",
     ROOT / "update_earn_freshness_status.py",
+    ROOT / "update_dolo_price.py",
     ROOT / "scripts" / "smoke_live_pages.py",
 ]
 
