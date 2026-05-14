@@ -12309,6 +12309,9 @@
         let supplyActivityAmountMax = null;
         let supplyActivityUsdMin = null;
         let supplyActivityUsdMax = null;
+        let supplyActivityRowsVersion = 0;
+        let supplyActivityFilteredCache = null;
+        let supplyActivitySummaryCache = null;
         let supplyHistoryRange = 'all';
         let supplyHistoryCustomFrom = null;
         let supplyHistoryCustomTo = null;
@@ -12376,6 +12379,12 @@
             supplyActivityPage = 1;
             updateSupplyActivitySortUi();
             renderSupplyActivityTable();
+        }
+
+        function markSupplyActivityRowsChanged() {
+            supplyActivityRowsVersion += 1;
+            supplyActivityFilteredCache = null;
+            supplyActivitySummaryCache = null;
         }
 
         function updateSupplyActivitySubtitle() {
@@ -13357,6 +13366,7 @@
         function resetSupplyIntelState() {
             currentSupplyOverview = null;
             currentSupplyActivity = [];
+            markSupplyActivityRowsChanged();
             supplyActivityLoadAllHandler = null;
             supplyActivityPage = 1;
             supplyActivitySearchQuery = '';
@@ -14449,6 +14459,17 @@
             return supplyStaticActivityManifestPromise;
         }
 
+        function getSupplyStaticActivityFileVersion(manifestEntry, manifest, scope) {
+            const generatedAt = manifestEntry?.generatedAt || manifest?.generatedAt || '';
+            const stableStamp = String(generatedAt || '')
+                .replace(/[^0-9A-Za-z_-]/g, '')
+                .slice(0, 32);
+            if (stableStamp) {
+                return `${SUPPLY_ACTIVITY_STATIC_VERSION}-${scope}-${stableStamp}`;
+            }
+            return `${SUPPLY_ACTIVITY_STATIC_VERSION}-${scope}-${Math.floor(Date.now() / 3600000)}`;
+        }
+
         function findSupplyStaticHistoryEntry(manifest, chain, tokenId) {
             const staticChain = getSupplyStaticHistoryChainKey(chain);
             const safeTokenId = String(tokenId || '').toLowerCase();
@@ -14535,7 +14556,7 @@
                 throw new Error('Static full supply activity unavailable in manifest');
             }
             const staticPath = String(manifestEntry.path || '').replace(/^\/+/, '');
-            const res = await fetch(`${staticPath}?v=${SUPPLY_ACTIVITY_STATIC_VERSION}-${cacheHour}`);
+            const res = await fetch(`${staticPath}?v=${getSupplyStaticActivityFileVersion(manifestEntry, manifest, 'all')}`);
             if (!res.ok) {
                 throw new Error(`Static full supply activity unavailable (${res.status})`);
             }
@@ -14577,7 +14598,7 @@
                 throw new Error('Static recent supply activity is stale');
             }
             const staticPath = String(manifestEntry.recentPath || '').replace(/^\/+/, '');
-            const res = await fetch(`${staticPath}?v=${SUPPLY_ACTIVITY_STATIC_VERSION}-${cacheHour}`);
+            const res = await fetch(`${staticPath}?v=${getSupplyStaticActivityFileVersion(manifestEntry, manifest, 'recent')}`);
             if (!res.ok) {
                 throw new Error(`Static recent supply activity unavailable (${res.status})`);
             }
@@ -14694,7 +14715,23 @@
 
         function getFilteredSupplyActivityRows() {
             const activitySearchNeedle = (supplyActivitySearchQuery || '').toLowerCase();
-            return (currentSupplyActivity || [])
+            const cacheKey = JSON.stringify([
+                supplyActivityRowsVersion,
+                activitySearchNeedle,
+                Array.from(supplyActivityFilters || []).sort().join(','),
+                supplyActivitySortField,
+                supplyActivitySortAsc ? 1 : 0,
+                supplyActivityTimeMin,
+                supplyActivityTimeMax,
+                supplyActivityAmountMin,
+                supplyActivityAmountMax,
+                supplyActivityUsdMin,
+                supplyActivityUsdMax,
+            ]);
+            if (supplyActivityFilteredCache?.key === cacheKey && Array.isArray(supplyActivityFilteredCache.rows)) {
+                return supplyActivityFilteredCache.rows;
+            }
+            const filteredRows = (currentSupplyActivity || [])
                 .filter(row => supplyActivityFilters.has(row.type))
                 .filter(row => {
                     if (!activitySearchNeedle) return true;
@@ -14723,6 +14760,8 @@
                     }
                     return supplyActivitySortAsc ? cmp : -cmp;
                 });
+            supplyActivityFilteredCache = { key: cacheKey, rows: filteredRows };
+            return filteredRows;
         }
 
         function summarizeSupplyActivityRows(rows, cutoffTs) {
@@ -14777,6 +14816,17 @@
             const nowTs = Math.floor(Date.now() / 1000);
             const tokenSymbol = currentSupplyOverview?.token?.symbol || '';
             const liveSupply = Number(currentSupplyOverview?.supply || 0);
+            const summaryCacheKey = JSON.stringify([
+                supplyActivityFilteredCache?.key || '',
+                tokenSymbol,
+                liveSupply,
+                Math.floor(nowTs / 60),
+            ]);
+            if (supplyActivitySummaryCache?.key === summaryCacheKey) {
+                summaryGrid.innerHTML = supplyActivitySummaryCache.html;
+                summaryEl.style.display = 'block';
+                return;
+            }
 
             const periods = [
                 { label: '24H', seconds: 24 * 60 * 60 },
@@ -14784,7 +14834,7 @@
                 { label: '30D', seconds: 30 * 24 * 60 * 60 },
             ];
 
-            summaryGrid.innerHTML = periods.map(period => {
+            const summaryHtml = periods.map(period => {
                 const summary = summarizeSupplyActivityRows(rows, nowTs - period.seconds);
                 const netClass = summary.netUsd > 0 ? 'positive' : summary.netUsd < 0 ? 'negative' : 'neutral';
                 const netTokenText = tokenSymbol
@@ -14826,6 +14876,8 @@
                     </div>
                 `;
             }).join('');
+            summaryGrid.innerHTML = summaryHtml;
+            supplyActivitySummaryCache = { key: summaryCacheKey, html: summaryHtml };
 
             summaryEl.style.display = 'block';
         }
@@ -15626,6 +15678,7 @@
             if (supplyTitle) supplyTitle.textContent = `${tokenObj.symbol} Supplier Leaderboard`;
             currentSupplyOverview = null;
             currentSupplyActivity = [];
+            markSupplyActivityRowsChanged();
             currentSupplyData = [];
             supplyPage = 1;
             supplyActivityPage = 1;
@@ -15758,12 +15811,14 @@
                     if (requestId !== supplyTabRequestId || !currentSupplyOverview) return;
                     if (currentSupplyOverview.activityStage === 'full') {
                         currentSupplyActivity = mergeSupplyActivityRows(currentSupplyActivity, activityHistory?.rows || []);
+                        markSupplyActivityRowsChanged();
                         currentSupplyOverview.activityFullLoading = false;
                         currentSupplyOverview.activityLoadProgress = null;
                         renderSupplyActivityTable();
                         return;
                     }
                     currentSupplyActivity = activityHistory?.rows || [];
+                    markSupplyActivityRowsChanged();
                     currentSupplyOverview.activityStage = 'recent';
                     currentSupplyOverview.activityFullLoading = false;
                     currentSupplyOverview.activityLoadProgress = null;
@@ -15822,6 +15877,7 @@
                 onOverviewReady(() => {
                     if (requestId !== supplyTabRequestId || !currentSupplyOverview) return;
                     currentSupplyActivity = activityHistory?.rows || [];
+                    markSupplyActivityRowsChanged();
                     currentSupplyOverview.activityStage = 'full';
                     currentSupplyOverview.activityFullLoading = false;
                     currentSupplyOverview.activityLoadProgress = null;

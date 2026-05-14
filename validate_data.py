@@ -24,6 +24,139 @@ def _is_iso_datetime(value):
         return False
 
 
+EXPECTED_TVL_CHAINS = {
+    "Ethereum",
+    "Berachain",
+    "Botanix",
+    "Polygon zkEVM",
+    "Mantle",
+    "Arbitrum",
+    "X Layer",
+}
+NON_CHAIN_TVL_KEYS = {
+    "borrowed",
+    "staking",
+    "pool2",
+    "vesting",
+    "offers",
+    "treasury",
+    "cex",
+    "governance",
+}
+
+
+def _age_hours(value):
+    dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return (datetime.now(timezone.utc) - dt.astimezone(timezone.utc)).total_seconds() / 3600
+
+
+def _fresh_timestamp(value, max_hours=4):
+    try:
+        return 0 <= _age_hours(value) <= max_hours
+    except (TypeError, ValueError):
+        return False
+
+
+def _nearly_equal(a, b, rel=1e-8, abs_tol=5.0):
+    try:
+        a = float(a)
+        b = float(b)
+    except (TypeError, ValueError):
+        return False
+    return abs(a - b) <= max(abs_tol, max(abs(a), abs(b)) * rel)
+
+
+def _current_chain_tvls(data):
+    current = data.get("currentChainTvls", {})
+    return {
+        key: float(value)
+        for key, value in current.items()
+        if isinstance(value, (int, float))
+        and "-" not in key
+        and key.lower() not in NON_CHAIN_TVL_KEYS
+    }
+
+
+def _borrowed_chain_tvls(data):
+    current = data.get("currentChainTvls", {})
+    return {
+        key[:-9]: float(value)
+        for key, value in current.items()
+        if isinstance(value, (int, float)) and key.endswith("-borrowed")
+    }
+
+
+def _has_expected_tvl_chains(data):
+    return EXPECTED_TVL_CHAINS.issubset(set(_current_chain_tvls(data)))
+
+
+def _dolomite_tvl_totals_reconcile(data):
+    chains = _current_chain_tvls(data)
+    borrowed = _borrowed_chain_tvls(data)
+    total_tvl = data.get("totalTvl")
+    total_borrowed = data.get("totalBorrowed")
+    supply = data.get("supplyLiquidity")
+    return (
+        _nearly_equal(sum(chains.values()), total_tvl)
+        and _nearly_equal(sum(borrowed.values()), total_borrowed)
+        and _nearly_equal(float(total_tvl) + float(total_borrowed), supply)
+        and _nearly_equal(data.get("currentChainTvls", {}).get("borrowed"), total_borrowed)
+    )
+
+
+def _dolomite_token_sums_reconcile(data):
+    chains = _current_chain_tvls(data)
+    borrowed = _borrowed_chain_tvls(data)
+    chain_tokens = data.get("chainTokensInUsd", {})
+    for chain in EXPECTED_TVL_CHAINS:
+        token_sum = sum(
+            float(value)
+            for value in chain_tokens.get(chain, {}).values()
+            if isinstance(value, (int, float))
+        )
+        supply = chains.get(chain, 0.0) + borrowed.get(chain, 0.0)
+        if not _nearly_equal(token_sum, supply):
+            return False
+
+    latest = (data.get("tokensInUsd") or [{}])[-1].get("tokens", {})
+    total_tokens = sum(float(value) for value in latest.values() if isinstance(value, (int, float)))
+    return _nearly_equal(total_tokens, data.get("supplyLiquidity"))
+
+
+def _dolomite_chain_meta_complete(data):
+    meta = data.get("chainMeta", {})
+    if not EXPECTED_TVL_CHAINS.issubset(set(meta)):
+        return False
+    for chain in EXPECTED_TVL_CHAINS:
+        block = meta.get(chain, {})
+        if not block.get("blockNumber") or not block.get("blockHash") or not block.get("blockTimestamp"):
+            return False
+    return True
+
+
+def _dolomite_stale_chains_known(data):
+    stale = set(data.get("staleChains", []))
+    return stale.issubset(EXPECTED_TVL_CHAINS)
+
+
+def _defillama_history_valid(data):
+    rows = data.get("tvl", [])
+    if len(rows) < 1000:
+        return False
+    previous = 0
+    for row in rows:
+        date = row.get("date")
+        value = row.get("totalLiquidityUSD")
+        if not isinstance(date, int) or not isinstance(value, (int, float)) or value <= 0:
+            return False
+        if date <= previous:
+            return False
+        previous = date
+    return True
+
+
 RULES = {
     "dolo_flows.json": {
         "required_keys": ["timestamp", "dolo_price", "periods"],
@@ -79,15 +212,25 @@ RULES = {
         "min_bytes": 1_000,
     },
     "dolomite_tvl.json": {
-        "required_keys": ["totalTvl"],
+        "required_keys": ["totalTvl", "totalBorrowed", "supplyLiquidity", "currentChainTvls", "tokensInUsd", "chainTokensInUsd", "chainMeta", "staleChains", "last_updated"],
         "checks": [
             ("totalTvl must be positive", lambda d: d.get("totalTvl", 0) > 0),
+            ("last_updated must be fresh", lambda d: _fresh_timestamp(d.get("last_updated"))),
+            ("all expected TVL chains must be present", _has_expected_tvl_chains),
+            ("chain metadata must be complete", _dolomite_chain_meta_complete),
+            ("stale chain list must be known chains only", _dolomite_stale_chains_known),
+            ("TVL totals must reconcile", _dolomite_tvl_totals_reconcile),
+            ("token sums must reconcile with supply liquidity", _dolomite_token_sums_reconcile),
         ],
         "min_bytes": 1_000,
     },
     "defillama_data.json": {
-        "required_keys": ["tvl", "name"],
-        "checks": [],
+        "required_keys": ["tvl", "name", "currentChainTvls", "tokensInUsd", "chainTokensInUsd", "last_updated"],
+        "checks": [
+            ("last_updated must be fresh", lambda d: _fresh_timestamp(d.get("last_updated"))),
+            ("all expected TVL chains must be present", _has_expected_tvl_chains),
+            ("TVL history must be sorted and populated", _defillama_history_valid),
+        ],
         "min_bytes": 10_000,
     },
     "vedolo_stats.json": {

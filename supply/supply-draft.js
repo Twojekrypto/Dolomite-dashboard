@@ -12,6 +12,7 @@
   let originalSelectAsset = null;
   let stagedAssetId = '';
   let appliedAssetId = '';
+  let chainDefaultAutoApplyArmed = false;
   const defaultSupplyAssetSymbol = String(window.__DOLO_SUPPLY_DEFAULT_ASSET || 'USD1').toUpperCase();
   const activityTypeOptions = [
     { type: 'deposit', label: 'Deposits' },
@@ -926,6 +927,7 @@
   }
 
   function autoApplyDefaultSupplyAsset() {
+    if (autoApplyArmedDefaultSupplyAsset()) return;
     if (appliedAssetId || syncAppliedAssetFromHidden()) return;
     const token = getDefaultSupplyToken();
     if (!token?.id) return;
@@ -938,6 +940,13 @@
     setSelectorUi(token, false);
     originalSelectAsset.call(window, token.id);
     syncApplyButton();
+  }
+
+  function autoApplyArmedDefaultSupplyAsset() {
+    if (!chainDefaultAutoApplyArmed || !stagedAssetId || stagedAssetId === appliedAssetId) return false;
+    chainDefaultAutoApplyArmed = false;
+    applyStagedAsset();
+    return true;
   }
 
   function getIconPath(token) {
@@ -1074,10 +1083,14 @@
     syncApplyButton();
     const dropdown = document.getElementById('custom-asset-dropdown');
     if (dropdown) dropdown.style.display = 'none';
+    if (chainDefaultAutoApplyArmed && stagedAssetId !== appliedAssetId) {
+      setTimeout(autoApplyArmedDefaultSupplyAsset, 0);
+    }
   }
 
   function applyStagedAsset() {
     if (!stagedAssetId || stagedAssetId === appliedAssetId || !originalSelectAsset) return;
+    chainDefaultAutoApplyArmed = false;
     appliedAssetId = stagedAssetId;
     document.body.classList.remove('supply-has-pending-asset');
     setAssetState(true);
@@ -1100,6 +1113,7 @@
     window.selectSupplyChain = function supplyDraftSelectChain() {
       stagedAssetId = '';
       appliedAssetId = '';
+      chainDefaultAutoApplyArmed = true;
       setAssetState(false);
       document.body.classList.remove('supply-has-pending-asset');
       const result = originalSelectChain.apply(this, arguments);
@@ -1109,7 +1123,13 @@
       setTimeout(autoApplyDefaultSupplyAsset, 0);
       setTimeout(syncSupplyChainOptions, 0);
       setTimeout(setAssetPlaceholder, 300);
-      setTimeout(autoApplyDefaultSupplyAsset, 320);
+      setTimeout(() => {
+        if (stagedAssetId && stagedAssetId !== appliedAssetId) {
+          applyStagedAsset();
+        } else if (!autoApplyArmedDefaultSupplyAsset()) {
+          autoApplyDefaultSupplyAsset();
+        }
+      }, 320);
       return result;
     };
   }
