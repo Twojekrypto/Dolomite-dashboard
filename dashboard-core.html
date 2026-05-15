@@ -3792,6 +3792,74 @@
             color: #f87171;
         }
 
+        #recent-exercisers-section.odolo-positive-card {
+            position: relative;
+            border-color: rgba(52, 211, 153, 0.14);
+            background:
+                linear-gradient(180deg, rgba(52, 211, 153, 0.026), rgba(21, 21, 31, 0) 42%),
+                var(--bg-card);
+        }
+
+        #recent-exercisers-section.odolo-positive-card::before {
+            content: "";
+            position: absolute;
+            inset: 0 0 auto;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(52, 211, 153, 0.34), transparent);
+            pointer-events: none;
+        }
+
+        .odolo-positive-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 999px;
+            background: #34d399;
+            box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.1);
+            flex: 0 0 auto;
+        }
+
+        .odolo-positive-title {
+            color: #34d399;
+        }
+
+        .odolo-positive-table-wrap {
+            border: 1px solid rgba(52, 211, 153, 0.1);
+            border-radius: 10px;
+            background: rgba(52, 211, 153, 0.022);
+        }
+
+        #recent-exercisers-section #recent-exercisers-table thead th {
+            background: linear-gradient(180deg, rgba(17, 33, 29, 0.96), rgba(20, 24, 37, 0.96)) !important;
+            border-bottom-color: rgba(52, 211, 153, 0.14) !important;
+        }
+
+        #recent-exercisers-section #recent-exercisers-table thead th:hover,
+        #recent-exercisers-section #recent-exercisers-table thead th.sorted {
+            color: #34d399 !important;
+        }
+
+        #recent-ex-tbody tr.recent-ex-row {
+            border-bottom: 1px solid rgba(52, 211, 153, 0.075) !important;
+            transition: background var(--transition), transform var(--transition);
+        }
+
+        #recent-ex-tbody tr.recent-ex-row td {
+            background: transparent;
+        }
+
+        #recent-ex-tbody tr.recent-ex-row td:first-child {
+            box-shadow: inset 2px 0 0 rgba(52, 211, 153, 0.34);
+        }
+
+        #recent-ex-tbody tr.recent-ex-row:hover {
+            background: rgba(52, 211, 153, 0.065) !important;
+            transform: translateY(-1px);
+        }
+
+        #recent-ex-tbody tr.recent-ex-row:hover td:first-child {
+            box-shadow: inset 2px 0 0 rgba(52, 211, 153, 0.74);
+        }
+
         .dolo-flow-table {
             width: 100%;
             border-collapse: collapse;
@@ -15396,11 +15464,12 @@
             </div>
 
             <!-- LAST 7D EXERCISERS TABLE -->
-            <div class="card anim anim-d3" id="recent-exercisers-section" style="margin-top: 20px;">
+            <div class="card anim anim-d3 odolo-positive-card" id="recent-exercisers-section" style="margin-top: 20px;">
                 <div class="card-header">
                     <h3 style="display:flex;align-items:center;gap:8px;margin:0"><img src="odolo-logo-official.svg"
-                            width="22" height="22" alt="oDOLO" style="flex-shrink:0"> Latest oDOLO Exercises <span
-                            class="toolbar-count" id="recent-ex-count"
+                            width="22" height="22" alt="oDOLO" style="flex-shrink:0"><span
+                            class="odolo-positive-dot" aria-hidden="true"></span><span
+                            class="odolo-positive-title">Latest oDOLO Exercises</span> <span class="toolbar-count" id="recent-ex-count"
                             style="font-size:0.85em;opacity:0.7;font-weight:500"></span></h3>
                 </div>
                 <div class="dolo-flow-toolbar">
@@ -15427,7 +15496,7 @@
                         </div>
                     </div>
                 </div>
-                <div style="overflow-x:auto;overflow-y:auto;max-height:500px">
+                <div class="odolo-positive-table-wrap" style="overflow-x:auto;overflow-y:auto;max-height:500px">
                     <table id="recent-exercisers-table"
                         style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
                         <colgroup>
@@ -20487,7 +20556,7 @@
                 const dateLabel = exFmtDate(tx.date);
                 const shortAddr = tx.address.slice(0, 6) + '…' + tx.address.slice(-4);
 
-                html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);transition:transform 0.15s,background 0.15s" onmouseenter="this.style.transform=\'scale(1.01)\';this.style.background=\'rgba(255,255,255,0.03)\'" onmouseleave="this.style.transform=\'\';this.style.background=\'\'"><td style="padding:5px 6px;color:rgba(255,255,255,0.3)">' + rank + '</td>';
+                html += '<tr class="recent-ex-row"><td style="padding:5px 6px;color:rgba(255,255,255,0.3)">' + rank + '</td>';
                 html += '<td style="padding:5px 6px"><div style="display:flex;flex-direction:column;gap:3px">' +
                     '<div style="display:flex;align-items:center;gap:6px"><a href="' + berascanUrl + '" target="_blank" style="color:#60a5fa;font-family:monospace;font-size:11px;text-decoration:none" onclick="event.stopPropagation()">' + shortHash + '</a><a href="' + berascanUrl + '" target="_blank" onclick="event.stopPropagation()" class="tx-ext-icon" style="display:inline-flex;align-items:center;margin-left:3px;opacity:0.35;color:rgba(255,255,255,0.5);transition:opacity 0.2s,transform 0.2s;vertical-align:middle"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a><span style="font-size:10px;color:rgba(255,255,255,0.25)">' + dateLabel + '</span></div>' +
                     '<div style="display:inline-flex;align-items:center;gap:4px"><a href="https://debank.com/profile/' + tx.address + '" target="_blank" style="color:#fff;font-family:monospace;font-size:11px;text-decoration:none" class="addr-tooltip-wrap" data-full-addr="' + tx.address + '" onclick="event.stopPropagation()">' + shortAddr + '</a><span class="copy-addr-icon" style="flex-shrink:0" onclick="event.stopPropagation();copyAddr(\'' + tx.address + '\',this)">' + COPY_SVG + '</span><a href="https://debank.com/profile/' + tx.address + '" target="_blank" onclick="event.stopPropagation()" class="debank-icon" style="flex-shrink:0"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display=\'none\'"></a></div>' +
