@@ -21484,21 +21484,9 @@
         async function dolo_refreshPrice() {
             // Refresh regardless of current tab — price is used globally
             try {
-                // Try live CoinGecko first
-                let price, ch;
-                try {
-                    const ctrl = new AbortController();
-                    setTimeout(() => ctrl.abort(), 5000);
-                    const resp = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=dolomite&vs_currencies=usd&include_24hr_change=true', { signal: ctrl.signal });
-                    const data = await resp.json();
-                    price = data?.dolomite?.usd;
-                    ch = data?.dolomite?.usd_24h_change || 0;
-                } catch (_) {
-                    // Fallback to static JSON
-                    const pd = await fetch('dolo_price.json').then(r => r.json());
-                    price = pd.price;
-                    ch = pd.change_24h || 0;
-                }
+                const pd = await fetch('dolo_price.json', { cache: 'no-cache' }).then(r => r.json());
+                const price = Number(pd.price);
+                const ch = Number(pd.change_24h) || 0;
                 if (price) {
                     document.getElementById('dolo-price').textContent = '$' + price.toFixed(4);
                     const sign = ch >= 0 ? '+' : '';

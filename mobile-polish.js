@@ -89,13 +89,22 @@
         });
     }
 
+    function getTranslateX(style) {
+        if (!style || !style.transform || style.transform === "none") return 0;
+        try {
+            const Matrix = window.DOMMatrixReadOnly || window.DOMMatrix || window.WebKitCSSMatrix;
+            return Matrix ? (new Matrix(style.transform).m41 || 0) : 0;
+        } catch (error) {
+            return 0;
+        }
+    }
+
     function updateDropdownPanels() {
         const edge = 8;
         const maxRight = window.innerWidth - edge;
         document.querySelectorAll(DROPDOWN_PANEL_SELECTOR).forEach(panel => {
             const style = window.getComputedStyle(panel);
             if (style.display === "none" || style.visibility === "hidden") return;
-            panel.style.setProperty("--mobile-panel-shift", "0px");
             panel.style.removeProperty("max-height");
             let rect = panel.getBoundingClientRect();
             const bottomOverflow = rect.bottom - window.innerHeight + edge;
@@ -111,9 +120,12 @@
                 panel.style.setProperty("max-height", `${Math.floor(availableBelow)}px`, "important");
                 rect = panel.getBoundingClientRect();
             }
+            const currentTranslateX = getTranslateX(style);
+            const unshiftedLeft = rect.left - currentTranslateX;
+            const unshiftedRight = rect.right - currentTranslateX;
             let shift = 0;
-            if (rect.left < edge) shift = edge - rect.left;
-            if (rect.right + shift > maxRight) shift += maxRight - (rect.right + shift);
+            if (unshiftedLeft < edge) shift = edge - unshiftedLeft;
+            if (unshiftedRight + shift > maxRight) shift += maxRight - (unshiftedRight + shift);
             panel.style.setProperty("--mobile-panel-shift", `${Math.round(shift)}px`);
         });
     }
