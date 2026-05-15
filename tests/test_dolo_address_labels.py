@@ -94,6 +94,38 @@ class DoloAddressLabelsTest(unittest.TestCase):
                 self.assertNotIn("CEX/MM", info["label"])
                 self.assertEqual(info["confidence"], "confirmed")
 
+    def test_public_explorer_labels_are_current(self):
+        expected = {
+            "0x000000000004444c5dc75cb358380d2e3de08a90": ("Uniswap V4 Pool Manager", "contract"),
+            "0xf977814e90da44bfa03b6295a0616a897441acec": ("Binance Hot Wallet 20", "cex"),
+            "0x21a31ee1afc51d94c2efccaa2092ad1028285549": ("Binance 15", "cex"),
+            "0xdfd5293d8e347dfe59e90efd55b2956a1343963d": ("Binance 16", "cex"),
+            "0x0d0707963952f2fba59dd06f2b425ace40b492fe": ("Gate.io Deposit", "cex"),
+            "0x1157a2076b9bb22a85cc2c162f20fab3898f4101": ("FalconX 1", "cex"),
+        }
+        for address, (label, label_type) in expected.items():
+            with self.subTest(address=address):
+                info = self.labels[address]
+                self.assertEqual(info["label"], label)
+                self.assertEqual(info["type"], label_type)
+                self.assertEqual(info["source"], "etherscan-public-label")
+                self.assertEqual(info["confidence"], "confirmed")
+
+    def test_ens_reverse_names_are_identity_labels_not_entity_claims(self):
+        expected = {
+            "0xd6f631c796a56a5d448dd88a01f15058c4a0be52": "makeitback.eth",
+            "0x7bfee91193d9df2ac0bfe90191d40f23c773c060": "7bfee.eth",
+            "0x224f590a8b58f83bd2673348d6ac75a7b27f9b54": "mike-tyson.eth",
+            "0x87db27ac8459ab6602f7a6155b48f6b184065da0": "atheon.eth",
+        }
+        for address, label in expected.items():
+            with self.subTest(address=address):
+                info = self.labels[address]
+                self.assertEqual(info["label"], label)
+                self.assertEqual(info["type"], "eoa")
+                self.assertEqual(info["source"], "ens-reverse")
+                self.assertEqual(info["confidence"], "confirmed")
+
     def test_active_pages_use_shared_label_source_only(self):
         inline_map_re = re.compile(r"const\s+(?:ADDR_LABELS|DOLO_ADDR_LABELS)\s*=\s*\{")
         for path in ACTIVE_LABEL_CONSUMERS:
