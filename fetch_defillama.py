@@ -8,22 +8,51 @@ This runs in GitHub Actions so the dashboard doesn't need live API calls.
 import json
 import os
 import requests
+import time
 from datetime import datetime, timezone
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.join(DATA_DIR, "defillama_data.json")
+DEFILLAMA_URL = "https://api.llama.fi/protocol/dolomite"
+REQUEST_TIMEOUTS = (
+    (10, 45),
+    (10, 75),
+    (10, 120),
+)
+
+
+def fetch_defillama_protocol():
+    headers = {
+        "Accept": "application/json",
+        "User-Agent": "dolomite-dashboard-tvl/1.0",
+    }
+    last_error = None
+    for attempt, timeout in enumerate(REQUEST_TIMEOUTS, start=1):
+        try:
+            print(f"   Attempt {attempt}/{len(REQUEST_TIMEOUTS)} (read timeout {timeout[1]}s)")
+            resp = requests.get(DEFILLAMA_URL, timeout=timeout, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
+            if not isinstance(data, dict):
+                raise ValueError("DeFi Llama response is not a JSON object")
+            if len(data.get("tvl") or []) < 1000:
+                raise ValueError("DeFi Llama response is missing full TVL history")
+            if not isinstance(data.get("currentChainTvls"), dict):
+                raise ValueError("DeFi Llama response is missing currentChainTvls")
+            return data
+        except Exception as exc:
+            last_error = exc
+            print(f"   ⚠️ Attempt {attempt} failed: {exc}")
+            if attempt < len(REQUEST_TIMEOUTS):
+                time.sleep(5 * attempt)
+    raise RuntimeError(f"DeFi Llama fetch failed after {len(REQUEST_TIMEOUTS)} attempts: {last_error}")
 
 
 def main():
     print("📡 Fetching DeFi Llama data for Dolomite...")
 
     try:
-        resp = requests.get(
-            "https://api.llama.fi/protocol/dolomite",
-            timeout=30
-        )
-        resp.raise_for_status()
-        data = resp.json()
+        data = fetch_defillama_protocol()
 
         # --- Build SLIM output (only what the dashboard needs) ---
 
