@@ -31486,8 +31486,8 @@
                 return;
             }
             pill.textContent = lagLabel
-                ? `Verified · refreshing in background · ${lagLabel}`
-                : 'Verified · refreshing in background';
+                ? `Fresh data · refreshing in background · ${lagLabel}`
+                : 'Fresh data · refreshing in background';
             pill.classList.add('visible');
             pill.setAttribute('aria-hidden', 'false');
         }
@@ -34541,7 +34541,7 @@
             badge.classList.toggle('is-soft', softRefreshing);
             badge.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
             badge.innerHTML = shouldShow
-                ? `<span class="earn-live-refresh-dot"></span><span>${softRefreshing ? 'Verified · refreshing in background' : 'Refreshing live...'}</span>`
+                ? `<span class="earn-live-refresh-dot"></span><span>${softRefreshing ? 'Fresh data · refreshing in background' : 'Refreshing live...'}</span>`
                 : '';
         }
 
@@ -37480,7 +37480,7 @@
                                 : 'is-muted';
                     const resultsRefreshing = !!document.getElementById('earn-results')?.classList.contains('is-refreshing');
                     const summaryRefreshChipHtml = resultsRefreshing
-                        ? '<span class="earn-summary-chip is-live">Verified · refreshing in background</span>'
+                        ? '<span class="earn-summary-chip is-live">Fresh data · refreshing in background</span>'
                         : '';
                     const summaryBorrowChip = hasBorrowContext
                         ? (borrowRouteCount > 0

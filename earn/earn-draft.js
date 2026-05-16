@@ -64,7 +64,7 @@
     if (input) {
       const live = document.createElement("div");
       live.className = "earn-draft-live";
-      live.innerHTML = '<span class="earn-draft-live-dot"></span><span>Verified wallet lookup</span>';
+      live.innerHTML = '<span class="earn-draft-live-dot"></span><span>On-chain wallet lookup</span>';
       hero.insertBefore(live, input);
     }
   }

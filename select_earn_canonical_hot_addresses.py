@@ -201,12 +201,19 @@ def build_selection(
                 stale_rows.append((last_scanned, address))
         stale_history = [address for _last_scanned, address in sorted(stale_rows)]
 
+    stale_set = set(stale_history)
+    missing_set = set(missing_history)
+    stale_ranked = [address for address in ranked_addresses if address in stale_set]
+    missing_ranked = [address for address in ranked_addresses if address in missing_set]
     stale_unscored = [address for address in stale_history if address not in scores]
+    missing_unscored = [address for address in missing_history if address not in scores]
     selected = _unique_preserve_order([
         *priority,
+        *stale_ranked,
+        *missing_ranked,
         *ranked_addresses,
         *stale_unscored,
-        *missing_history,
+        *missing_unscored,
     ])
     if existing_history_only:
         selected = [address for address in selected if address in existing_history]

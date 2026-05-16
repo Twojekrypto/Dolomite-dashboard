@@ -22,6 +22,7 @@ PYTHON_FILES = [
     ROOT / "apply_earn_subaccount_history_delta.py",
     ROOT / "audit_earn_asset.py",
     ROOT / "build_earn_subaccount_history.py",
+    ROOT / "build_earn_quality_status.py",
     ROOT / "earn_live_config.py",
     ROOT / "materialize_earn_subaccount_history.py",
     ROOT / "plan_earn_subaccount_history_incremental.py",
@@ -38,6 +39,7 @@ PYTHON_FILES = [
 
 JAVASCRIPT_FILES = [
     ROOT / "dolo-address-labels.js",
+    ROOT / "earn" / "earn-draft.js",
 ]
 
 

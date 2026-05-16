@@ -1,0 +1,66 @@
+import json
+import tempfile
+import unittest
+from pathlib import Path
+
+from build_earn_quality_status import build_quality_status
+
+
+class EarnQualityStatusTest(unittest.TestCase):
+    def _write_json(self, root: Path, rel: str, payload: dict) -> None:
+        path = root / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload), encoding="utf-8")
+
+    def test_active_snapshot_positions_are_counted_against_strict_ledger_status(self):
+        wallet_a = "0x1111111111111111111111111111111111111111"
+        wallet_b = "0x2222222222222222222222222222222222222222"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_json(
+                root,
+                "earn-snapshots/manifest.json",
+                {"dates": ["2026-05-16"], "chains": {"2026-05-16": ["arbitrum"]}},
+            )
+            self._write_json(
+                root,
+                "earn-snapshots/2026-05-16.json",
+                {
+                    "date": "2026-05-16",
+                    "snapshots": {
+                        "arbitrum": {
+                            wallet_a: {"markets": {"0": {"symbol": "WETH"}, "1": {"symbol": "USDC"}}},
+                            wallet_b: {"markets": {"2": {"symbol": "USD1"}}},
+                        }
+                    },
+                },
+            )
+            self._write_json(
+                root,
+                f"earn-verified-ledger/arbitrum/{wallet_a}.json",
+                {
+                    "markets": {
+                        "0": {"strictStatus": "verified"},
+                        "1": {"strictStatus": "coverage_incomplete"},
+                    }
+                },
+            )
+
+            status = build_quality_status(data_dir=root)
+
+        chain = status["chains"]["arbitrum"]
+        self.assertEqual(chain["activeAddressCount"], 2)
+        self.assertEqual(chain["activeMarketCount"], 3)
+        self.assertEqual(chain["strictVerifiedMarketCount"], 1)
+        self.assertEqual(chain["nonStrictMarketCount"], 2)
+        self.assertEqual(chain["blockingMarketCount"], 2)
+        self.assertEqual(
+            chain["marketStatusCounts"],
+            {"verified": 1, "coverage_incomplete": 1, "missing_ledger": 1},
+        )
+        self.assertEqual(chain["qualityTier"], "partial")
+        self.assertEqual(status["summary"]["strictVerifiedMarketRatio"], 0.333333)
+
+
+if __name__ == "__main__":
+    unittest.main()

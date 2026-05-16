@@ -42,12 +42,14 @@ class EarnWatchdogDispatchPlanTest(unittest.TestCase):
                     "chain": "xlayer",
                     "priority": 5,
                     "mode": "catchup",
+                    "inputs": {},
                 },
                 {
                     "workflow": "update-earn-arbitrum-canonical-history.yml",
                     "chain": "__all__",
                     "priority": 10,
                     "mode": "catchup",
+                    "inputs": {},
                 },
             ],
             rows,
@@ -81,10 +83,10 @@ class EarnWatchdogDispatchPlanTest(unittest.TestCase):
 
         self.assertEqual(2, len(rows))
         for row in rows:
-            self.assertEqual(4, len(row))
+            self.assertEqual(5, len(row))
             self.assertNotEqual("", row[1])
         self.assertIn(
-            ["update-earn-arbitrum-canonical-history.yml", "__all__", "10", "catchup"],
+            ["update-earn-arbitrum-canonical-history.yml", "__all__", "10", "catchup", "{}"],
             rows,
         )
 
@@ -105,12 +107,14 @@ class EarnWatchdogDispatchPlanTest(unittest.TestCase):
                     "chain": "__all__",
                     "priority": 50,
                     "mode": "catchup",
+                    "inputs": {},
                 },
                 {
                     "workflow": "update-earn-netflow.yml",
                     "chain": "__all__",
                     "priority": 50,
                     "mode": "catchup",
+                    "inputs": {},
                 },
             ],
             rows,
@@ -141,9 +145,34 @@ class EarnWatchdogDispatchPlanTest(unittest.TestCase):
                 self.assertEqual(0, plan_earn_watchdog_dispatch.main())
 
             self.assertEqual(
-                "update-earn-secondary-canonical-history.yml\tmantle\t20\tbackground\n",
+                "update-earn-secondary-canonical-history.yml\tmantle\t20\tbackground\t{}\n",
                 output.read_text(encoding="utf-8"),
             )
+
+    def test_non_chain_inputs_are_preserved_for_workflow_dispatch(self):
+        rows = plan_earn_watchdog_dispatch.build_dispatch_rows(
+            {
+                "refreshJobs": [
+                    {
+                        "workflow": "update-earn-arbitrum-canonical-history.yml",
+                        "inputs": {"hot_limit": "120", "checkpoint_steps": "24"},
+                        "priority": 0,
+                        "mode": "catchup",
+                    }
+                ]
+            }
+        )
+
+        self.assertEqual(
+            {
+                "workflow": "update-earn-arbitrum-canonical-history.yml",
+                "chain": "__all__",
+                "priority": 0,
+                "mode": "catchup",
+                "inputs": {"hot_limit": "120", "checkpoint_steps": "24"},
+            },
+            rows[0],
+        )
 
 
 if __name__ == "__main__":

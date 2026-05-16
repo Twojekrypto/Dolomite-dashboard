@@ -20,6 +20,14 @@ on:
           - botanix
           - polygonzkevm
           - xlayer
+      hot_limit:
+        description: 'Optional wallet limit override for checkpointed refreshes.'
+        required: false
+        default: ''
+      checkpoint_steps:
+        description: 'Optional polling-step override before checkpointing.'
+        required: false
+        default: ''
 
 permissions:
   actions: write
@@ -37,6 +45,8 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           EVENT_SCHEDULE: ${{ github.event.schedule }}
           DISPATCH_CHAIN: ${{ github.event.inputs.chain || 'all' }}
+          HOT_LIMIT_OVERRIDE: ${{ github.event.inputs.hot_limit || '' }}
+          CHECKPOINT_STEPS_OVERRIDE: ${{ github.event.inputs.checkpoint_steps || '' }}
         run: |
           set -euo pipefail
           matrix="$(python3 - <<'PY'
@@ -44,46 +54,56 @@ jobs:
           import os
           import sys
 
+          def positive_int(value, fallback):
+              try:
+                  parsed = int(str(value or "").strip())
+              except Exception:
+                  return fallback
+              return parsed if parsed > 0 else fallback
+
+          hot_limit_override = os.environ.get("HOT_LIMIT_OVERRIDE") or ""
+          checkpoint_steps_override = os.environ.get("CHECKPOINT_STEPS_OVERRIDE") or ""
+
           chains = {
               "mantle": {
                   "chain": "mantle",
                   "label": "Mantle",
-                  "hot_limit": 500,
+                  "hot_limit": positive_int(hot_limit_override, 160),
                   "scan_workers": 6,
                   "materialize_workers": 6,
                   "incremental_scan_workers": 6,
                   "incremental_apply_workers": 6,
-                  "checkpoint_steps": 60,
+                  "checkpoint_steps": positive_int(checkpoint_steps_override, 30),
               },
               "botanix": {
                   "chain": "botanix",
                   "label": "Botanix",
-                  "hot_limit": 500,
+                  "hot_limit": positive_int(hot_limit_override, 500),
                   "scan_workers": 4,
                   "materialize_workers": 4,
                   "incremental_scan_workers": 4,
                   "incremental_apply_workers": 4,
-                  "checkpoint_steps": 45,
+                  "checkpoint_steps": positive_int(checkpoint_steps_override, 45),
               },
               "polygonzkevm": {
                   "chain": "polygonzkevm",
                   "label": "Polygon zkEVM",
-                  "hot_limit": 1000,
+                  "hot_limit": positive_int(hot_limit_override, 250),
                   "scan_workers": 5,
                   "materialize_workers": 5,
                   "incremental_scan_workers": 5,
                   "incremental_apply_workers": 5,
-                  "checkpoint_steps": 90,
+                  "checkpoint_steps": positive_int(checkpoint_steps_override, 45),
               },
               "xlayer": {
                   "chain": "xlayer",
                   "label": "X Layer",
-                  "hot_limit": 300,
+                  "hot_limit": positive_int(hot_limit_override, 300),
                   "scan_workers": 5,
                   "materialize_workers": 5,
                   "incremental_scan_workers": 5,
                   "incremental_apply_workers": 5,
-                  "checkpoint_steps": 45,
+                  "checkpoint_steps": positive_int(checkpoint_steps_override, 45),
               },
           }
           event_name = os.environ.get("EVENT_NAME") or ""
