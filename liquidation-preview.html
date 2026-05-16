@@ -9472,6 +9472,26 @@
             const simAssetTrigger = document.getElementById('sim-asset-trigger');
             const simAssetMode = document.getElementById('sim-asset-mode');
 
+            window.isMobileBorrowLayout = function() {
+                return window.matchMedia && window.matchMedia('(max-width: 760px)').matches;
+            };
+
+            window.guardMobileDropdownScroll = function() {
+                if (!window.isMobileBorrowLayout()) return;
+                window.__mobilePolishDropdownScroll = true;
+                window.__mobilePolishDropdownScrollUntil = Date.now() + 520;
+                window.setTimeout(() => {
+                    window.__mobilePolishDropdownScroll = false;
+                }, 520);
+            };
+
+            window.bringDropdownTriggerIntoMobileView = function(trigger) {
+                if (!trigger || !window.isMobileBorrowLayout()) return false;
+                window.guardMobileDropdownScroll();
+                trigger.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' });
+                return true;
+            };
+
             function setSimAssetPopoverOpen(isOpen) {
                 if (!simAssetPopover || !simAssetMode) return;
                 simAssetPopover.style.display = isOpen ? 'flex' : 'none';
@@ -9580,13 +9600,9 @@
                         e.stopPropagation();
                         const val = el.dataset.value;
                         if (val === 'all') {
-                            // "Market Basket" toggles: if active, deselect; if not, select all volatile and clear individuals
-                            if (pending.has('all')) {
-                                pending.delete('all');
-                            } else {
-                                pending.clear();
-                                pending.add('all');
-                            }
+                            // "Market Basket" is a reset/select-all action, not a zero-selection toggle.
+                            pending.clear();
+                            pending.add('all');
                         } else {
                             // Individual token toggle
                             pending.delete('all'); // uncheck "all" when picking individuals
@@ -9678,16 +9694,12 @@
                 const searchEl = document.getElementById('sim-asset-search');
                 const isOpen = modeEl ? modeEl.classList.contains('open') : false;
                 if (!isOpen) {
-                    window.__mobilePolishDropdownScroll = true;
-                    window.__mobilePolishDropdownScrollUntil = Date.now() + 300;
+                    window.bringDropdownTriggerIntoMobileView(triggerEl);
                     closeFloatingMenus({ keepSimAsset: true });
                     // Sync pending to current
                     window._simAssetPending = new Set(window._simAssets);
-                    window.setTimeout(() => { window.__mobilePolishDropdownScroll = false; }, 300);
                 }
-                if (popoverEl) popoverEl.style.display = !isOpen ? 'flex' : 'none';
-                if (modeEl) modeEl.classList.toggle('open', !isOpen);
-                if (triggerEl) triggerEl.setAttribute('aria-expanded', !isOpen ? 'true' : 'false');
+                setSimAssetPopoverOpen(!isOpen);
                 if (!isOpen && searchEl) {
                     searchEl.value = '';
                     renderSimAssetList('');
@@ -10136,16 +10148,24 @@
 
             trigger.addEventListener('click', (e) => {
                 e.stopPropagation();
-                const isOpen = popover.style.display !== 'none';
+                const isOpen = window.getComputedStyle(popover).display !== 'none';
                 if (!isOpen) closeFloatingMenus({ keepSimMultiPopover: popover });
                 if (isOpen) {
                     popover.style.display = 'none';
                     return;
                 }
+                const movedForMobile = window.bringDropdownTriggerIntoMobileView
+                    ? window.bringDropdownTriggerIntoMobileView(trigger)
+                    : false;
                 searchInput.value = '';
                 renderTokenList('');
                 positionMultiTokenPopover();
-                searchInput.focus();
+                if (movedForMobile) window.requestAnimationFrame(positionMultiTokenPopover);
+                try {
+                    searchInput.focus({ preventScroll: true });
+                } catch (error) {
+                    searchInput.focus();
+                }
             });
 
             searchInput.addEventListener('input', () => {
