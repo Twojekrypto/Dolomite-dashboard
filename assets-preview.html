@@ -1168,7 +1168,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
           <button class="dd-btn" data-dd="cat">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
             <span class="lbl">All Assets</span>
-            <span class="count">3/3</span>
+            <span class="count">4/4</span>
             <span class="dd-clear" data-clear="cat" role="button" aria-label="Clear category filter">
               <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg>
             </span>
@@ -1181,6 +1181,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
               <div class="dd-opt" data-cat="stable"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://app.dolomite.io/static/media/USDC.5f67b2404ca2e547fb00b70128d132cd.svg" onerror="this.style.display='none'"><span class="dd-opt-name">Stablecoins</span></div>
               <div class="dd-opt" data-cat="btc"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://app.dolomite.io/static/media/WBTC.f3c8718835179e7543b5.png" onerror="this.style.display='none'"><span class="dd-opt-name">BTC &amp; Wrapped</span></div>
               <div class="dd-opt" data-cat="eth"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://app.dolomite.io/static/media/ETH.6a879eb637c89695e6c5f5dc65c8c927.svg" onerror="this.style.display='none'"><span class="dd-opt-name">ETH &amp; LSTs</span></div>
+              <div class="dd-opt" data-cat="other"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="dolo-logo.svg" onerror="this.style.display='none'"><span class="dd-opt-name">Other Assets</span></div>
             </div>
           </div>
         </div>
@@ -1444,7 +1445,7 @@ const state = {
   calc:new Map()      // per-row calculator state {action, amount}
 };
 
-const CAT_LABELS = {stable:"Stablecoins", btc:"BTC & Wrapped", eth:"ETH & LSTs"};
+const CAT_LABELS = {stable:"Stablecoins", btc:"BTC & Wrapped", eth:"ETH & LSTs", other:"Other Assets"};
 const CHAIN_LABELS = {
   berachain:"Berachain", arbitrum:"Arbitrum", ethereum:"Ethereum",
   botanix:"Botanix", mantle:"Mantle",
@@ -1719,17 +1720,25 @@ const LIVE_CHAINS = {
   polygonzkevm: {id:1101, name:"Polygon zkEVM", short:"zkEVM", icon:chainIcon("polygonzkevm"), explorer:"https://zkevm.polygonscan.com/address/", tokenExplorer:"https://zkevm.polygonscan.com/token/", subgraph:"https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-polygon-zkevm/latest/gn"},
   xlayer: {id:196, name:"X Layer", short:"XLAY", icon:chainIcon("xlayer"), explorer:"https://www.okx.com/web3/explorer/xlayer/address/", subgraph:"https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-x-layer/latest/gn"}
 };
-const STABLE_SYMBOLS = new Set(["USDC","USDT","USDT0","USD₮0","DAI","USDC.E","USDC.e","HONEY","USDE","sUSDe","SUSDE","NECT","RUSD","rUSD","SRUSD","srUSD","WSRUSD","wsrUSD","BYUSD","MIM","USDS","sUSDS","SUSDS","USDA","USDa","SAVUSD","savUSD","USD1","USDY","CUSD","cUSD","STCUSD","stcUSD"]);
-const BTC_SYMBOLS = new Set(["BTC","WBTC","LBTC","EBTC","eBTC","SOLVBTC","SolvBTC","SOLVBTC.BBN","TBTC","tBTC","UNIBTC","uniBTC","PUMPBTC","PumpBTC","CBBTC","cbBTC","FBTC","STBTC","stBTC","SBTC","pBTC"]);
-const ETH_SYMBOLS = new Set(["ETH","WETH","WSTETH","wstETH","STETH","RETH","rETH","WEETH","weETH","BERAETH","beraETH","EZETH","ezETH","RSETH","rsETH","STONE","WOETH","METH","mETH","CMETH","cmETH","BERA","WBERA","iBERA","sWBERA","wgBERA","iBGT","diBGT","oriBGT","PT-iBGT-25DEC2025"]);
+const STABLE_SYMBOLS = new Set(["USDC","USDT","USDT0","USD₮0","DAI","USDC.E","HONEY","USDE","SUSDE","DEUSD","SDEUSD","EUSD","GRAI","NECT","RUSD","SRUSD","WSRUSD","POL-RUSD","BYUSD","MIM","USDS","SUSDS","USDA","SUSDA","USDAI","SUSDAI","SAVUSD","USD0","USD0++","USD1","USDY","USDM","WUSDM","CUSD","STCUSD","OUSDT"]);
+const BTC_SYMBOLS = new Set(["BTC","WBTC","LBTC","EBTC","SOLVBTC","SOLVBTC.A","SOLVBTC.BBN","SOLVBTCBBN","TBTC","UNIBTC","PUMPBTC","PUMPBTC.BERA","CBBTC","FBTC","STBTC","SBTC","PBTC","XSOLVBTC","YLFBTC","YLPUMPBTC","YLBTCLRT","YLBTCLST","STONEBTC","GMBTC","GMBTC-USD","GLV-BTC"]);
+const ETH_SYMBOLS = new Set(["ETH","WETH","WSTETH","STETH","RETH","WEETH","BERAETH","EZETH","RSETH","RSWETH","STONE","WOETH","METH","CMETH","TETH","ETH+","ETHX","YLSTETH","PT-RETH","PT-WSTETH","PT-WEETH","PT-EETH","PT-EZETH","PT-RSETH","PT-METH","PT-CMETH","GMETH","GMETH-USD","GMWSTETH-USD","GLV-ETH"]);
 const SKIP_PREFIXES = ["dPT-","dYT-","Dolomite Isolation","djUSDC","dfsGLP","dplvGLP","dARB","dGMX","mGLP","sGLP"];
 const MONTH_INDEX = {JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11};
 
-function classifyAsset(sym){
-  if(STABLE_SYMBOLS.has(sym)) return "stable";
-  if(BTC_SYMBOLS.has(sym)) return "btc";
-  if(ETH_SYMBOLS.has(sym)) return "eth";
-  return "eth";
+function normalizeSymbol(sym){
+  return String(sym || "").trim().toUpperCase();
+}
+
+function classifyAsset(sym, name=""){
+  const token = normalizeSymbol(sym);
+  if(STABLE_SYMBOLS.has(token)) return "stable";
+  if(BTC_SYMBOLS.has(token)) return "btc";
+  if(ETH_SYMBOLS.has(token)) return "eth";
+  const text = `${token} ${String(name || "").toUpperCase()}`;
+  if(/^(GM|GLV).*(BTC|WBTC)/.test(text)) return "btc";
+  if(/^(GM|GLV).*(ETH|WSTETH|WEETH|EZETH|RETH|RSETH|METH|CMETH)/.test(text)) return "eth";
+  return "other";
 }
 function maturityDateFor(sym, name=""){
   const match = `${sym || ""} ${name || ""}`.match(/(\d{1,2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(20\d{2})/i);
@@ -1800,7 +1809,7 @@ function normalizeAssetRows(rows){
       sym,
       name: row.name || sym,
       addr,
-      cat: row.cat || classifyAsset(sym),
+      cat: classifyAsset(sym, row.name || sym),
       chain,
       chainName: row.chainName || meta.name || CHAIN_LABELS[chain] || chain,
       icon: tokenIcon(sym, {...row, chain, addr}),
@@ -1897,7 +1906,7 @@ async function loadLiveAssets(){
           name: token.tokenName || sym,
           addr,
           marketId: token.marketId,
-          cat: classifyAsset(sym),
+          cat: classifyAsset(sym, token.tokenName || sym),
           chain: chainKey,
           chainName: chain.name,
           icon: tokenIcon(sym, {chain: chainKey, addr}),
@@ -2907,6 +2916,7 @@ async function initAssetsPreview(){
       setCachedLiveStatus(ASSETS.length, cached.savedAt, true, cached.generatedAt);
       return;
     }
+    ASSETS = normalizeAssetRows(ASSETS);
     state.loading = false;
     state.fallback = true;
     document.body.classList.remove("assets-loading");

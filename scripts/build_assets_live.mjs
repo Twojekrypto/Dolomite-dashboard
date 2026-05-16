@@ -51,94 +51,27 @@ const LIVE_CHAINS = {
 };
 
 const STABLE_SYMBOLS = new Set([
-  "USDC",
-  "USDT",
-  "USDT0",
-  "USD\u20ae0",
-  "DAI",
-  "USDC.E",
-  "USDC.e",
-  "HONEY",
-  "USDE",
-  "sUSDe",
-  "SUSDE",
-  "NECT",
-  "RUSD",
-  "rUSD",
-  "SRUSD",
-  "srUSD",
-  "WSRUSD",
-  "wsrUSD",
-  "BYUSD",
-  "MIM",
-  "USDS",
-  "sUSDS",
-  "SUSDS",
-  "USDA",
-  "USDa",
-  "SAVUSD",
-  "savUSD",
-  "USD1",
-  "USDY",
-  "CUSD",
-  "cUSD",
-  "STCUSD",
-  "stcUSD",
+  "USDC", "USDT", "USDT0", "USD\u20ae0", "DAI", "USDC.E", "HONEY",
+  "USDE", "SUSDE", "DEUSD", "SDEUSD", "EUSD", "GRAI",
+  "NECT", "RUSD", "SRUSD", "WSRUSD", "POL-RUSD",
+  "BYUSD", "MIM", "USDS", "SUSDS", "USDA", "SUSDA", "USDAI", "SUSDAI",
+  "SAVUSD", "USD0", "USD0++", "USD1", "USDY", "USDM", "WUSDM",
+  "CUSD", "STCUSD", "OUSDT",
 ]);
 const BTC_SYMBOLS = new Set([
-  "BTC",
-  "WBTC",
-  "LBTC",
-  "EBTC",
-  "eBTC",
-  "SOLVBTC",
-  "SolvBTC",
-  "SOLVBTC.BBN",
-  "TBTC",
-  "tBTC",
-  "UNIBTC",
-  "uniBTC",
-  "PUMPBTC",
-  "PumpBTC",
-  "CBBTC",
-  "cbBTC",
-  "FBTC",
-  "STBTC",
-  "stBTC",
-  "SBTC",
-  "pBTC",
+  "BTC", "WBTC", "LBTC", "EBTC", "SOLVBTC", "SOLVBTC.A", "SOLVBTC.BBN",
+  "SOLVBTCBBN", "TBTC", "UNIBTC", "PUMPBTC", "PUMPBTC.BERA",
+  "CBBTC", "FBTC", "STBTC", "SBTC", "PBTC", "XSOLVBTC",
+  "YLFBTC", "YLPUMPBTC", "YLBTCLRT", "YLBTCLST", "STONEBTC",
+  "GMBTC", "GMBTC-USD", "GLV-BTC",
 ]);
 const ETH_SYMBOLS = new Set([
-  "ETH",
-  "WETH",
-  "WSTETH",
-  "wstETH",
-  "STETH",
-  "RETH",
-  "rETH",
-  "WEETH",
-  "weETH",
-  "BERAETH",
-  "beraETH",
-  "EZETH",
-  "ezETH",
-  "RSETH",
-  "rsETH",
-  "STONE",
-  "WOETH",
-  "METH",
-  "mETH",
-  "CMETH",
-  "cmETH",
-  "BERA",
-  "WBERA",
-  "iBERA",
-  "sWBERA",
-  "wgBERA",
-  "iBGT",
-  "diBGT",
-  "oriBGT",
-  "PT-iBGT-25DEC2025",
+  "ETH", "WETH", "WSTETH", "STETH", "RETH", "WEETH", "BERAETH",
+  "EZETH", "RSETH", "RSWETH", "STONE", "WOETH", "METH", "CMETH",
+  "TETH", "ETH+", "ETHX", "YLSTETH",
+  "PT-RETH", "PT-WSTETH", "PT-WEETH", "PT-EETH", "PT-EZETH",
+  "PT-RSETH", "PT-METH", "PT-CMETH",
+  "GMETH", "GMETH-USD", "GMWSTETH-USD", "GLV-ETH",
 ]);
 const SKIP_PREFIXES = [
   "dPT-",
@@ -217,11 +150,19 @@ function cleanNumber(value, digits = 12) {
   return Number(value.toPrecision(digits));
 }
 
-function classifyAsset(sym) {
-  if (STABLE_SYMBOLS.has(sym)) return "stable";
-  if (BTC_SYMBOLS.has(sym)) return "btc";
-  if (ETH_SYMBOLS.has(sym)) return "eth";
-  return "eth";
+function normalizeSymbol(sym) {
+  return String(sym || "").trim().toUpperCase();
+}
+
+function classifyAsset(sym, name = "") {
+  const token = normalizeSymbol(sym);
+  if (STABLE_SYMBOLS.has(token)) return "stable";
+  if (BTC_SYMBOLS.has(token)) return "btc";
+  if (ETH_SYMBOLS.has(token)) return "eth";
+  const text = `${token} ${String(name || "").toUpperCase()}`;
+  if (/^(GM|GLV).*(BTC|WBTC)/.test(text)) return "btc";
+  if (/^(GM|GLV).*(ETH|WSTETH|WEETH|EZETH|RETH|RSETH|METH|CMETH)/.test(text)) return "eth";
+  return "other";
 }
 
 function maturityDateFor(sym, name = "") {
@@ -367,7 +308,7 @@ async function fetchRateRowsForChain(chainKey) {
       name: token.tokenName || sym,
       addr,
       marketId: token.marketId,
-      cat: classifyAsset(sym),
+      cat: classifyAsset(sym, token.tokenName || sym),
       chain: chainKey,
       chainName: chain.name,
       price: 0,
