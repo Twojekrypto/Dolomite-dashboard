@@ -9703,10 +9703,12 @@
                 if (!isOpen && searchEl) {
                     searchEl.value = '';
                     renderSimAssetList('');
-                    try {
-                        searchEl.focus({ preventScroll: true });
-                    } catch (error) {
-                        searchEl.focus();
+                    if (!window.isMobileBorrowLayout || !window.isMobileBorrowLayout()) {
+                        try {
+                            searchEl.focus({ preventScroll: true });
+                        } catch (error) {
+                            searchEl.focus();
+                        }
                     }
                 }
             };
@@ -10161,10 +10163,12 @@
                 renderTokenList('');
                 positionMultiTokenPopover();
                 if (movedForMobile) window.requestAnimationFrame(positionMultiTokenPopover);
-                try {
-                    searchInput.focus({ preventScroll: true });
-                } catch (error) {
-                    searchInput.focus();
+                if (!window.isMobileBorrowLayout || !window.isMobileBorrowLayout()) {
+                    try {
+                        searchInput.focus({ preventScroll: true });
+                    } catch (error) {
+                        searchInput.focus();
+                    }
                 }
             });
 
@@ -10676,9 +10680,17 @@
             );
         }
 
+        function isActiveElementInsideOpenFloatingMenu() {
+            const el = document.activeElement;
+            return !!el?.closest?.(
+                '.chain-menu, .risk-menu, .col-filter-popover, .sim-asset-popover, .sim-multi-token-popover'
+            );
+        }
+
         window.addEventListener('scroll', (event) => {
             if (window.__mobilePolishDropdownScroll || Date.now() < (window.__mobilePolishDropdownScrollUntil || 0)) return;
             if (isScrollInsideOpenFloatingMenu(event.target)) return;
+            if (isActiveElementInsideOpenFloatingMenu()) return;
             closeFloatingMenus();
         }, true);
 
