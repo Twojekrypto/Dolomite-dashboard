@@ -4,6 +4,15 @@ on:
   schedule:
     - cron: '7,37 * * * *'  # Checkpointed 30m chunks; keeps Berachain moving without multi-hour lockups
   workflow_dispatch:
+    inputs:
+      hot_limit:
+        description: 'Maximum Berachain wallets to refresh in this checkpoint.'
+        required: false
+        default: '180'
+      checkpoint_steps:
+        description: 'Polling steps before checkpointing this run.'
+        required: false
+        default: '24'
 
 concurrency:
   group: earn-berachain-canonical-history
@@ -20,9 +29,9 @@ jobs:
     env:
       PYTHONUNBUFFERED: '1'
       CHAIN: berachain
-      BOOTSTRAP_HOT_LIMIT: '500'
-      STEADY_HOT_LIMIT: '500'
-      CHECKPOINT_STEPS: '60'
+      BOOTSTRAP_HOT_LIMIT: ${{ github.event.inputs.hot_limit || '180' }}
+      STEADY_HOT_LIMIT: ${{ github.event.inputs.hot_limit || '180' }}
+      CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '24' }}
       CHECKPOINT_SLEEP_SECONDS: '20'
       COMMAND_TIMEOUT_SECONDS: '180'
       ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}

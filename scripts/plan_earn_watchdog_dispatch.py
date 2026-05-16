@@ -54,6 +54,13 @@ def build_dispatch_rows(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "chain": chain or ALL_CHAINS_SENTINEL,
                 "priority": _safe_priority(job.get("priority", DEFAULT_PRIORITY)),
                 "mode": _clean_tsv_field(job.get("mode")) or DEFAULT_MODE,
+                "inputs": {
+                    _clean_tsv_field(key): _clean_tsv_field(value)
+                    for key, value in inputs.items()
+                    if _clean_tsv_field(key)
+                    and _clean_tsv_field(key) != "chain"
+                    and _clean_tsv_field(value)
+                },
             }
         )
     return sorted(
@@ -74,6 +81,7 @@ def write_dispatch_tsv(rows: Iterable[Dict[str, Any]], output_path: Path) -> Non
                 str(row["chain"]),
                 str(row["priority"]),
                 str(row["mode"]),
+                json.dumps(row.get("inputs") or {}, sort_keys=True, separators=(",", ":")),
             ]
         )
         for row in rows

@@ -4,6 +4,15 @@ on:
   schedule:
     - cron: '18,48 * * * *'  # Every 30 minutes; keeps Arbitrum EARN history within the ~1h freshness target
   workflow_dispatch:
+    inputs:
+      hot_limit:
+        description: 'Maximum Arbitrum wallets to refresh in this checkpoint.'
+        required: false
+        default: '120'
+      checkpoint_steps:
+        description: 'Polling steps before checkpointing this run.'
+        required: false
+        default: '24'
 
 concurrency:
   group: earn-arbitrum-canonical-history
@@ -20,8 +29,8 @@ jobs:
     env:
       PYTHONUNBUFFERED: '1'
       CHAIN: arbitrum
-      HOT_LIMIT: '500'
-      CHECKPOINT_STEPS: '60'
+      HOT_LIMIT: ${{ github.event.inputs.hot_limit || '120' }}
+      CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '24' }}
       CHECKPOINT_SLEEP_SECONDS: '20'
       COMMAND_TIMEOUT_SECONDS: '180'
       ALCHEMY_ARBITRUM_RPC: ${{ secrets.ALCHEMY_ARBITRUM_RPC || secrets.ARBITRUM_RPC_URL || secrets.ARBITRUM_RPC || secrets.ARB_RPC_URL || secrets.ARB_RPC }}

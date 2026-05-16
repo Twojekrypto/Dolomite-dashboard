@@ -240,7 +240,7 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         self._assert_refresh_job(
             status["summary"]["refreshJobs"],
             workflow="update-earn-secondary-canonical-history.yml",
-            inputs={"chain": "polygonzkevm"},
+            inputs={"chain": "polygonzkevm", "hot_limit": "250", "checkpoint_steps": "45"},
             mode="catchup",
             priority=0,
         )
@@ -383,6 +383,48 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         )
         report = {entry["chain"]: entry for entry in status["chainReport"]}
         self.assertEqual(report["xlayer"]["weakPoint"], "canonical coverage 0/1 wallets fresh")
+
+    def test_stale_canonical_refresh_adds_small_checkpoint_inputs(self):
+        now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_json(
+                root,
+                "earn-subaccount-history/manifest.json",
+                {
+                    "chains": {
+                        "arbitrum": {"lastBlock": 1_000_000, "updatedAt": "2026-05-08T00:00:00Z"},
+                    }
+                },
+            )
+            self._write_json(
+                root,
+                "earn-netflow/arbitrum.json",
+                {"chain": "arbitrum", "lastBlock": 1_000_000, "updatedAt": "2026-05-08T11:59:00Z"},
+            )
+            self._write_json(root, "earn-snapshots/manifest.json", {"dates": [], "chains": {}})
+
+            status = build_status(
+                data_dir=root,
+                live_blocks={
+                    "arbitrum": 2_000_000,
+                    "ethereum": None,
+                    "berachain": None,
+                    "botanix": None,
+                    "mantle": None,
+                    "polygonzkevm": None,
+                    "xlayer": None,
+                },
+                now=now,
+            )
+
+        self._assert_refresh_job(
+            status["summary"]["refreshJobs"],
+            workflow="update-earn-arbitrum-canonical-history.yml",
+            inputs={"hot_limit": "120", "checkpoint_steps": "24"},
+            mode="catchup",
+            priority=0,
+        )
 
     def test_advisory_global_canonical_backlog_does_not_downgrade_fresh_chain(self):
         now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)

@@ -92,6 +92,13 @@ CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
 
 NETFLOW_WORKFLOW = "update-earn-netflow.yml"
 
+CANONICAL_CATCHUP_INPUTS: Dict[str, Dict[str, str]] = {
+    "arbitrum": {"hot_limit": "120", "checkpoint_steps": "24"},
+    "berachain": {"hot_limit": "180", "checkpoint_steps": "24"},
+    "mantle": {"hot_limit": "160", "checkpoint_steps": "30"},
+    "polygonzkevm": {"hot_limit": "250", "checkpoint_steps": "45"},
+}
+
 
 def _read_json(path: Path, default: Any) -> Any:
     try:
@@ -494,6 +501,14 @@ def _refresh_job_priority(component: Dict[str, Any], component_name: str) -> int
     return status_priority
 
 
+def _canonical_workflow_inputs(chain: str, policy: Dict[str, Any], component: Dict[str, Any]) -> Dict[str, str]:
+    inputs = dict(policy.get("canonicalWorkflowInputs") or {})
+    mode = str(component.get("refreshMode") or "none")
+    if mode == "catchup":
+        inputs.update(CANONICAL_CATCHUP_INPUTS.get(chain) or {})
+    return inputs
+
+
 def build_status(
     *,
     data_dir: Path,
@@ -576,7 +591,7 @@ def build_status(
             _register_refresh_job(
                 refresh_jobs_by_workflow,
                 workflow=workflow,
-                inputs=policy.get("canonicalWorkflowInputs"),
+                inputs=_canonical_workflow_inputs(chain, policy, canonical),
                 priority=_refresh_job_priority(canonical, "canonical"),
                 mode=str(canonical.get("refreshMode") or "catchup"),
                 reason=reason,

@@ -3,6 +3,7 @@ set -euo pipefail
 
 commit_message="${1:?commit message is required}"
 status_output="${EARN_FRESHNESS_STATUS_OUTPUT:-data/earn-freshness/status.json}"
+quality_output="${EARN_QUALITY_STATUS_OUTPUT:-data/earn-quality/status.json}"
 actions_output="${EARN_FRESHNESS_ACTIONS_OUTPUT:-}"
 attempts="${EARN_PUSH_ATTEMPTS:-40}"
 retry_sleep_seconds="${EARN_PUSH_RETRY_SLEEP_SECONDS:-5}"
@@ -61,6 +62,10 @@ for i in $(seq 1 "$attempts"); do
     fi
     "${refresh_args[@]}"
     git add "$status_output"
+    if [ -f build_earn_quality_status.py ]; then
+      python3 build_earn_quality_status.py --output "$quality_output"
+      git add "$quality_output"
+    fi
     if ! git diff --staged --quiet; then
       git commit --amend --no-edit
     fi
