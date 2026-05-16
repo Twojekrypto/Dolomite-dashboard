@@ -1647,17 +1647,22 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            position: absolute;
+            top: 50%;
+            right: 8px;
+            z-index: 4;
             width: 28px;
             height: 28px;
+            padding: 0;
             border-radius: 8px;
             border: 1px solid rgba(239,68,68,0.2);
             background: rgba(239,68,68,0.08);
             color: rgba(248,113,113,0.7);
             cursor: pointer;
-            transition: all 0.18s ease;
+            transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
             flex-shrink: 0;
-            margin-left: -4px;
-            align-self: center;
+            margin: 0;
+            transform: translateY(-50%);
         }
         .sim-asset-clear-btn:hover {
             background: rgba(239,68,68,0.18);
@@ -5844,9 +5849,28 @@
         body.route-liquidation .sim-asset-label-text {
             color: var(--fg-1) !important;
         }
+        body.route-liquidation .sim-asset-trigger.has-selection {
+            padding-right: 44px !important;
+        }
         body.route-liquidation .sim-asset-caret {
             color: var(--fg-3) !important;
             opacity: 1 !important;
+        }
+        body.route-liquidation .sim-asset-clear-btn {
+            width: 28px !important;
+            height: 28px !important;
+            min-height: 28px !important;
+            border-radius: 8px !important;
+            border-color: var(--line-2) !important;
+            background: var(--bg-4) !important;
+            color: var(--fg-3) !important;
+            box-shadow: none !important;
+            transform: translateY(-50%) !important;
+        }
+        body.route-liquidation .sim-asset-clear-btn:hover {
+            border-color: var(--gold-line) !important;
+            background: var(--gold-wash) !important;
+            color: var(--gold) !important;
         }
         body.route-liquidation .liquidation-direction-toggle {
             position: relative !important;
@@ -6813,7 +6837,31 @@
                 flex-direction: column !important;
             }
             body.route-liquidation .sim-active-banner {
-                margin-left: 44px !important;
+                display: none !important;
+            }
+            body.route-liquidation .sim-reset-btn {
+                display: inline-flex !important;
+                flex: 0 0 36px !important;
+                width: 36px !important;
+                min-width: 36px !important;
+                height: 36px !important;
+                min-height: 36px !important;
+                padding: 0 !important;
+                justify-content: center !important;
+                font-size: 0 !important;
+                letter-spacing: 0 !important;
+                opacity: 0 !important;
+                visibility: hidden !important;
+                pointer-events: none !important;
+            }
+            body.route-liquidation .sim-reset-btn.visible {
+                opacity: 1 !important;
+                visibility: visible !important;
+                pointer-events: auto !important;
+            }
+            body.route-liquidation .sim-reset-btn svg {
+                width: 13px !important;
+                height: 13px !important;
             }
             body.route-liquidation .sim-multi-summary-card {
                 grid-template-columns: 1fr !important;
@@ -7210,6 +7258,9 @@
                                 <span id="sim-asset-label" class="sim-asset-label-text">Market Basket</span>
                                 <svg class="sim-asset-caret" width="10" height="10" viewBox="0 0 20 20" fill="currentColor"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
                             </button>
+                            <button type="button" id="sim-asset-clear" class="sim-asset-clear-btn" aria-label="Reset to Market Basket" onclick="event.stopPropagation(); resetSimAssets()" style="display:none">
+                                <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"/></svg>
+                            </button>
                             <div id="sim-asset-popover" class="sim-asset-popover">
                                 <div class="sim-asset-popover-head">
                                     <div class="sim-asset-popover-title-row">
@@ -7225,10 +7276,6 @@
                                 </div>
                             </div>
                         </div>
-                        <!-- Clear/reset button — visible when custom selection is active, sits inline in toolbar -->
-                        <button type="button" id="sim-asset-clear" class="sim-asset-clear-btn" aria-label="Reset to Market Basket" onclick="resetSimAssets()" style="display:none">
-                            <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"/></svg>
-                        </button>
 
                         <div id="sim-dir-toggle" class="liquidation-direction-toggle" aria-label="Price direction">
                             <div id="sim-dir-pill" class="liquidation-dir-pill"></div>
