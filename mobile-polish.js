@@ -108,7 +108,8 @@
             panel.style.removeProperty("max-height");
             let rect = panel.getBoundingClientRect();
             const bottomOverflow = rect.bottom - window.innerHeight + edge;
-            if (bottomOverflow > 0 && style.position !== "fixed") {
+            const shouldAvoidPageScroll = panel.matches(".sim-asset-popover, .sim-multi-token-popover");
+            if (bottomOverflow > 0 && style.position !== "fixed" && !shouldAvoidPageScroll) {
                 window.__mobilePolishDropdownScroll = true;
                 window.__mobilePolishDropdownScrollUntil = Date.now() + 300;
                 window.scrollBy(0, Math.ceil(bottomOverflow));
