@@ -128,6 +128,171 @@
     return card;
   }
 
+  function supplyDraftEscape(value) {
+    try {
+      if (typeof supplyEscapeHtml === 'function') return supplyEscapeHtml(value == null ? '' : String(value));
+    } catch (error) {}
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function supplyDraftFormatUsd(value) {
+    const numeric = Number(value || 0);
+    try {
+      if (typeof formatUSDCompact === 'function') return formatUSDCompact(numeric);
+    } catch (error) {}
+    return `$${numeric.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  }
+
+  function supplyDraftFormatSignedUsd(value) {
+    const numeric = Number(value || 0);
+    try {
+      if (typeof supplyFormatSignedCompact === 'function' && typeof formatUSDCompact === 'function') {
+        return supplyFormatSignedCompact(numeric, formatUSDCompact);
+      }
+    } catch (error) {}
+    const sign = numeric > 0 ? '+' : numeric < 0 ? '-' : '';
+    return `${sign}${supplyDraftFormatUsd(Math.abs(numeric))}`;
+  }
+
+  function supplyDraftFormatToken(value) {
+    const numeric = Number(value || 0);
+    try {
+      if (typeof supplyFormatTokenCompact === 'function') return supplyFormatTokenCompact(numeric);
+    } catch (error) {}
+    return numeric.toLocaleString('en-US', { maximumFractionDigits: 2 });
+  }
+
+  function supplyDraftFormatSignedToken(value) {
+    const numeric = Number(value || 0);
+    try {
+      if (typeof supplyFormatSignedCompact === 'function' && typeof supplyFormatTokenCompact === 'function') {
+        return supplyFormatSignedCompact(numeric, supplyFormatTokenCompact);
+      }
+    } catch (error) {}
+    const sign = numeric > 0 ? '+' : numeric < 0 ? '-' : '';
+    return `${sign}${supplyDraftFormatToken(Math.abs(numeric))}`;
+  }
+
+  function supplyDraftFormatSignedShare(value) {
+    const numeric = Number(value || 0);
+    try {
+      if (typeof supplyFormatSignedPercent === 'function') return supplyFormatSignedPercent(numeric);
+    } catch (error) {}
+    const sign = numeric > 0 ? '+' : numeric < 0 ? '-' : '';
+    return `${sign}${Math.abs(numeric).toFixed(2)}%`;
+  }
+
+  function polishSupplyFlowSnapshotPremium() {
+    const grid = document.getElementById('supply-activity-summary-grid');
+    if (!grid || typeof getFilteredSupplyActivityRows !== 'function' || typeof summarizeSupplyActivityRows !== 'function') {
+      return false;
+    }
+
+    let rows = [];
+    try {
+      rows = getFilteredSupplyActivityRows();
+    } catch (error) {
+      return false;
+    }
+
+    const meta = getActivityPeriodMeta();
+    const nowTs = Math.floor(Date.now() / 1000);
+    const cutoffTs = nowTs - (meta.days * 24 * 60 * 60);
+    const summary = summarizeSupplyActivityRows(Array.isArray(rows) ? rows : [], cutoffTs);
+    let tokenSymbol = '';
+    let liveSupply = 0;
+    try {
+      tokenSymbol = currentSupplyOverview?.token?.symbol || '';
+      liveSupply = Number(currentSupplyOverview?.supply || 0);
+    } catch (error) {}
+
+    const netClass = summary.netUsd > 0 ? 'positive' : summary.netUsd < 0 ? 'negative' : 'neutral';
+    const tokenSuffix = tokenSymbol ? ` ${tokenSymbol}` : '';
+    const netTokenText = `${supplyDraftFormatSignedToken(summary.netToken)}${tokenSuffix}`;
+    const netShareText = liveSupply > 0
+      ? `${supplyDraftFormatSignedShare((summary.netToken / liveSupply) * 100)} supply`
+      : '';
+    const premiumKey = JSON.stringify([
+      'premium',
+      activityPeriodKey,
+      supplyActivityFilteredCache?.key || '',
+      tokenSymbol,
+      liveSupply,
+      summary.netUsd,
+      summary.inflowUsd,
+      summary.outflowUsd,
+      summary.internalUsd,
+      summary.wallets,
+      summary.events,
+      Math.floor(nowTs / 60),
+    ]);
+    if (grid.dataset.supplyPremiumKey === premiumKey && grid.querySelector('.supply-flow-premium')) {
+      return true;
+    }
+
+    const metrics = [
+      {
+        label: 'Inflow',
+        value: supplyDraftFormatUsd(summary.inflowUsd),
+        sub: `${supplyDraftFormatToken(summary.inflowToken)}${tokenSuffix}`,
+        tone: 'inflow',
+      },
+      {
+        label: 'Outflow',
+        value: supplyDraftFormatUsd(summary.outflowUsd),
+        sub: `${supplyDraftFormatToken(summary.outflowToken)}${tokenSuffix}`,
+        tone: 'outflow',
+      },
+      {
+        label: 'Transfers',
+        value: supplyDraftFormatUsd(summary.internalUsd),
+        sub: `${supplyDraftFormatToken(summary.internalToken)}${tokenSuffix}`,
+        tone: 'internal',
+      },
+      {
+        label: 'Active Wallets',
+        value: Number(summary.wallets || 0).toLocaleString('en-US'),
+        sub: `${Number(summary.events || 0).toLocaleString('en-US')} events`,
+        tone: 'wallets',
+      },
+    ];
+
+    grid.dataset.supplyPremiumKey = premiumKey;
+    grid.innerHTML = `
+      <div class="supply-flow-premium" data-net="${netClass}">
+        <div class="supply-flow-premium-hero">
+          <div class="supply-flow-premium-period">
+            <strong>${supplyDraftEscape(meta.short)}</strong>
+            <span>Selected period</span>
+          </div>
+          <div class="supply-flow-premium-main">
+            <div class="supply-flow-premium-label">Net Flow</div>
+            <div class="supply-flow-premium-value ${netClass}">${supplyDraftEscape(supplyDraftFormatSignedUsd(summary.netUsd))}</div>
+            <div class="supply-flow-premium-sub">
+              <span>${supplyDraftEscape(netTokenText)}</span>
+              ${netShareText ? `<span>${supplyDraftEscape(netShareText)}</span>` : ''}
+            </div>
+          </div>
+        </div>
+        <div class="supply-flow-premium-metrics">
+          ${metrics.map(metric => `
+            <div class="supply-flow-premium-metric">
+              <div class="supply-flow-premium-metric-label">${supplyDraftEscape(metric.label)}</div>
+              <div class="supply-flow-premium-metric-value ${supplyDraftEscape(metric.tone)}">${supplyDraftEscape(metric.value)}</div>
+              <div class="supply-flow-premium-metric-sub">${supplyDraftEscape(metric.sub)}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+    return true;
+  }
+
   function syncSupplyFlowSnapshotCard() {
     const card = ensureSupplyFlowSnapshotCard();
     const summary = document.getElementById('supply-activity-summary');
@@ -149,6 +314,8 @@
     if (market) {
       market.textContent = token && chainName ? `${token} · ${chainName}` : 'Selected market';
     }
+
+    polishSupplyFlowSnapshotPremium();
 
     const shouldShow = document.body.classList.contains('supply-has-asset')
       && summary.style.display !== 'none'
