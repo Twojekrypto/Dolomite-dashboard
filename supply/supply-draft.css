@@ -811,6 +811,15 @@ body.supply-draft-route .supply-flow-snapshot-heading h3 {
   letter-spacing: 0 !important;
 }
 
+body.supply-draft-route .supply-flow-snapshot-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+  margin-left: auto;
+}
+
 body.supply-draft-route .supply-flow-snapshot-market {
   display: inline-flex;
   align-items: center;
@@ -827,6 +836,37 @@ body.supply-draft-route .supply-flow-snapshot-market {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+body.supply-draft-route .supply-flow-period-filter {
+  flex: 0 0 auto;
+  z-index: 62;
+}
+
+body.supply-draft-route .supply-flow-period-filter .supply-activity-type-trigger {
+  flex-basis: 96px;
+  width: 96px;
+  min-width: 96px;
+  height: 28px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-family: var(--supply-mono);
+  font-size: 11px;
+  gap: 6px;
+}
+
+body.supply-draft-route .supply-flow-period-filter .supply-activity-type-menu {
+  left: auto;
+  right: 0;
+  width: 148px;
+  min-width: 148px;
+  max-width: 148px;
+}
+
+body.supply-draft-route .supply-flow-period-filter .supply-activity-period-icon {
+  width: 13px;
+  height: 13px;
+  flex-basis: 13px;
 }
 
 body.supply-draft-route .supply-flow-snapshot-body .supply-activity-summary {
@@ -2850,8 +2890,29 @@ body.supply-draft-route #supply-pagination .flow-pager-info {
     gap: 8px;
   }
 
+  body.supply-draft-route .supply-flow-snapshot-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    width: 100%;
+    margin-left: 0;
+  }
+
   body.supply-draft-route .supply-flow-snapshot-market {
     max-width: 100%;
+  }
+
+  body.supply-draft-route .supply-flow-period-filter,
+  body.supply-draft-route .supply-flow-period-filter .supply-activity-type-trigger {
+    width: 96px;
+    min-width: 96px;
+  }
+
+  body.supply-draft-route .supply-flow-period-filter .supply-activity-type-menu {
+    left: 0;
+    right: auto;
+    width: 148px;
+    min-width: 148px;
+    max-width: 148px;
   }
 
   .supply-draft-title {

@@ -28,6 +28,7 @@
     { key: '180d', short: '180D', label: '180 days', days: 180 },
   ];
   let activityPeriodKey = '30d';
+  let flowSnapshotPeriodKey = '30d';
 
   function setAssetState(selected) {
     document.body.classList.toggle('supply-has-asset', !!selected);
@@ -103,7 +104,26 @@
           <div class="table-card-header supply-flow-snapshot-header">
             <div class="supply-flow-snapshot-heading">
               <h3>Flow Snapshot</h3>
-              <span class="supply-flow-snapshot-market" id="supply-flow-snapshot-market">Selected market</span>
+              <div class="supply-flow-snapshot-actions">
+                <span class="supply-flow-snapshot-market" id="supply-flow-snapshot-market">Selected market</span>
+                <div class="supply-activity-type-filter supply-flow-period-filter" id="supply-flow-period-filter">
+                  <button type="button" class="supply-activity-type-trigger" aria-haspopup="menu" aria-expanded="false">
+                    <svg class="supply-activity-period-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                    <span class="supply-activity-type-label">30D</span>
+                    ${chevronIcon}
+                  </button>
+                  <div class="supply-activity-type-menu" role="menu">
+                    ${activityPeriodOptions.map(option => `
+                      <button type="button" class="supply-activity-type-option" data-flow-period="${option.key}" role="menuitemradio" aria-checked="${option.key === flowSnapshotPeriodKey ? 'true' : 'false'}">
+                        <span class="supply-activity-type-check" aria-hidden="true">
+                          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg>
+                        </span>
+                        <span class="supply-activity-type-option-label">${option.label}</span>
+                      </button>
+                    `).join('')}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           <div class="supply-flow-snapshot-body"></div>
@@ -125,7 +145,82 @@
       if (grid) observer.observe(grid, { childList: true });
     }
 
+    installSupplyFlowSnapshotPeriodControls(card);
+    syncSupplyFlowSnapshotPeriodDropdown();
     return card;
+  }
+
+  function getFlowSnapshotPeriodMeta(key = flowSnapshotPeriodKey) {
+    return activityPeriodOptions.find(option => option.key === key) || activityPeriodOptions[2];
+  }
+
+  function maybeLoadFullActivityForFlowPeriod() {
+    const meta = getFlowSnapshotPeriodMeta();
+    if (!meta || meta.days <= 30) return;
+    try {
+      if (currentSupplyOverview?.activityStage !== 'full' && !currentSupplyOverview?.activityFullLoading && typeof supplyLoadFullActivityHistory === 'function') {
+        supplyLoadFullActivityHistory();
+      }
+    } catch (error) {}
+  }
+
+  function syncSupplyFlowSnapshotPeriodDropdown() {
+    const dropdown = document.getElementById('supply-flow-period-filter');
+    if (!dropdown) return;
+    const meta = getFlowSnapshotPeriodMeta();
+    const label = dropdown.querySelector('.supply-activity-type-label');
+    if (label) label.textContent = meta.short;
+    dropdown.querySelectorAll('.supply-activity-type-option').forEach(option => {
+      const isActive = option.dataset.flowPeriod === flowSnapshotPeriodKey;
+      option.classList.toggle('active', isActive);
+      option.setAttribute('aria-checked', isActive ? 'true' : 'false');
+    });
+  }
+
+  function selectSupplyFlowSnapshotPeriod(key) {
+    if (!activityPeriodOptions.some(option => option.key === key)) return;
+    flowSnapshotPeriodKey = key;
+    syncSupplyFlowSnapshotPeriodDropdown();
+    maybeLoadFullActivityForFlowPeriod();
+    const grid = document.getElementById('supply-activity-summary-grid');
+    if (grid) delete grid.dataset.supplyPremiumKey;
+    syncSupplyFlowSnapshotCard();
+  }
+
+  function installSupplyFlowSnapshotPeriodControls(card) {
+    const dropdown = card?.querySelector('#supply-flow-period-filter');
+    if (!dropdown || dropdown.dataset.supplyFlowPeriodReady === 'true') return;
+    dropdown.dataset.supplyFlowPeriodReady = 'true';
+    const trigger = dropdown.querySelector('.supply-activity-type-trigger');
+    trigger?.addEventListener('click', event => {
+      event.stopPropagation();
+      document.querySelectorAll('.supply-activity-type-filter.open').forEach(current => {
+        if (current === dropdown) return;
+        current.classList.remove('open');
+        current.querySelector('.supply-activity-type-trigger')?.setAttribute('aria-expanded', 'false');
+      });
+      const isOpen = dropdown.classList.toggle('open');
+      trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    });
+    dropdown.querySelectorAll('.supply-activity-type-option').forEach(option => {
+      option.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        selectSupplyFlowSnapshotPeriod(option.dataset.flowPeriod);
+        dropdown.classList.remove('open');
+        trigger?.setAttribute('aria-expanded', 'false');
+      });
+    });
+    if (document.body.dataset.supplyFlowPeriodClickClose !== 'true') {
+      document.body.dataset.supplyFlowPeriodClickClose = 'true';
+      document.addEventListener('click', event => {
+        document.querySelectorAll('.supply-flow-period-filter.open').forEach(current => {
+          if (current.contains(event.target)) return;
+          current.classList.remove('open');
+          current.querySelector('.supply-activity-type-trigger')?.setAttribute('aria-expanded', 'false');
+        });
+      });
+    }
   }
 
   function supplyDraftEscape(value) {
@@ -189,21 +284,24 @@
 
   function polishSupplyFlowSnapshotPremium() {
     const grid = document.getElementById('supply-activity-summary-grid');
-    if (!grid || typeof getFilteredSupplyActivityRows !== 'function' || typeof summarizeSupplyActivityRows !== 'function') {
+    if (!grid || typeof summarizeSupplyActivityRows !== 'function') {
       return false;
     }
 
     let rows = [];
     try {
-      rows = getFilteredSupplyActivityRows();
+      rows = Array.isArray(currentSupplyActivity) ? currentSupplyActivity : [];
     } catch (error) {
       return false;
     }
 
-    const meta = getActivityPeriodMeta();
+    const meta = getFlowSnapshotPeriodMeta();
     const nowTs = Math.floor(Date.now() / 1000);
     const cutoffTs = nowTs - (meta.days * 24 * 60 * 60);
     const summary = summarizeSupplyActivityRows(Array.isArray(rows) ? rows : [], cutoffTs);
+    const isSyncingOlder = meta.days > 30
+      && !!currentSupplyOverview?.activityFullLoading
+      && currentSupplyOverview?.activityStage !== 'full';
     let tokenSymbol = '';
     let liveSupply = 0;
     try {
@@ -219,10 +317,13 @@
       : '';
     const premiumKey = JSON.stringify([
       'premium',
-      activityPeriodKey,
-      supplyActivityFilteredCache?.key || '',
+      flowSnapshotPeriodKey,
+      supplyActivityRowsVersion,
+      rows.length,
       tokenSymbol,
       liveSupply,
+      currentSupplyOverview?.activityStage || '',
+      currentSupplyOverview?.activityFullLoading ? 'loading' : 'ready',
       summary.netUsd,
       summary.inflowUsd,
       summary.outflowUsd,
@@ -237,13 +338,13 @@
 
     const metrics = [
       {
-        label: 'Inflow',
+        label: 'Deposits',
         value: supplyDraftFormatUsd(summary.inflowUsd),
         sub: `${supplyDraftFormatToken(summary.inflowToken)}${tokenSuffix}`,
         tone: 'inflow',
       },
       {
-        label: 'Outflow',
+        label: 'Withdrawals',
         value: supplyDraftFormatUsd(summary.outflowUsd),
         sub: `${supplyDraftFormatToken(summary.outflowToken)}${tokenSuffix}`,
         tone: 'outflow',
@@ -268,7 +369,7 @@
         <div class="supply-flow-premium-hero">
           <div class="supply-flow-premium-period">
             <strong>${supplyDraftEscape(meta.short)}</strong>
-            <span>Selected period</span>
+            <span>${isSyncingOlder ? 'Syncing older tx' : 'Snapshot range'}</span>
           </div>
           <div class="supply-flow-premium-main">
             <div class="supply-flow-premium-label">Net Flow</div>
@@ -318,8 +419,8 @@
     polishSupplyFlowSnapshotPremium();
 
     const shouldShow = document.body.classList.contains('supply-has-asset')
-      && summary.style.display !== 'none'
       && grid.children.length > 0;
+    if (shouldShow) summary.style.display = 'block';
     card.style.display = shouldShow ? 'block' : 'none';
   }
 
