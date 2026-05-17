@@ -413,7 +413,15 @@
     } catch (error) {}
     const market = document.getElementById('supply-flow-snapshot-market');
     if (market) {
-      market.textContent = token && chainName ? `${token} · ${chainName}` : 'Selected market';
+      let iconPath = '';
+      try {
+        iconPath = getIconPath(currentSupplyOverview?.token);
+      } catch (error) {}
+      const marketText = token && chainName ? `${token} · ${chainName}` : 'Selected market';
+      market.innerHTML = `
+        ${iconPath ? `<span class="supply-flow-snapshot-market-icon"><img src="${supplyDraftEscape(iconPath)}" alt="${supplyDraftEscape(token)}" onerror="this.closest('.supply-flow-snapshot-market-icon').style.display='none'"></span>` : ''}
+        <span class="supply-flow-snapshot-market-text">${supplyDraftEscape(marketText)}</span>
+      `;
     }
 
     polishSupplyFlowSnapshotPremium();

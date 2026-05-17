@@ -816,6 +816,7 @@ body.supply-draft-route .supply-flow-snapshot-actions {
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
+  flex: 1 1 auto;
   min-width: 0;
   margin-left: auto;
 }
@@ -823,8 +824,11 @@ body.supply-draft-route .supply-flow-snapshot-actions {
 body.supply-draft-route .supply-flow-snapshot-market {
   display: inline-flex;
   align-items: center;
+  gap: 7px;
+  flex: 0 1 auto;
   min-height: 28px;
-  max-width: 48%;
+  min-width: 168px;
+  max-width: 100%;
   padding: 0 11px;
   border: 1px solid var(--supply-line-2);
   border-radius: 999px;
@@ -833,6 +837,32 @@ body.supply-draft-route .supply-flow-snapshot-market {
   font-family: var(--supply-mono);
   font-size: 11px;
   font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.supply-draft-route .supply-flow-snapshot-market-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--supply-bg-4);
+}
+
+body.supply-draft-route .supply-flow-snapshot-market-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+body.supply-draft-route .supply-flow-snapshot-market-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2898,6 +2928,7 @@ body.supply-draft-route #supply-pagination .flow-pager-info {
   }
 
   body.supply-draft-route .supply-flow-snapshot-market {
+    min-width: 0;
     max-width: 100%;
   }
 
