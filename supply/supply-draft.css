@@ -531,12 +531,14 @@ body.supply-draft-route.supply-has-asset .supply-draft-empty {
 
 body.supply-draft-route:not(.supply-has-asset) .supply-draft-result-card,
 body.supply-draft-route:not(.supply-has-asset) #supply-intel-shell,
+body.supply-draft-route:not(.supply-has-asset) #supply-flow-snapshot-card,
 body.supply-draft-route:not(.supply-has-asset) #supply-activity-card {
   display: none !important;
 }
 
 body.supply-draft-route #supply-intel-shell,
 body.supply-draft-route .supply-history-card,
+body.supply-draft-route #supply-flow-snapshot-card .table-card-inner,
 body.supply-draft-route .supply-activity-summary,
 body.supply-draft-route .supply-draft-result-card .table-card-inner,
 body.supply-draft-route #supply-activity-card .table-card-inner {
@@ -775,6 +777,68 @@ body.supply-draft-route .supply-activity-summary-metric-value.internal {
 body.supply-draft-route .supply-activity-summary-metric-value.wallets {
   color: var(--supply-fg-1) !important;
   font-family: var(--supply-mono) !important;
+}
+
+body.supply-draft-route #supply-flow-snapshot-card {
+  margin-top: 24px;
+}
+
+body.supply-draft-route #supply-flow-snapshot-card .table-card-inner {
+  border-radius: 22px !important;
+  overflow: hidden !important;
+}
+
+body.supply-draft-route .supply-flow-snapshot-header {
+  padding: 20px 24px 14px !important;
+  border-bottom: 1px solid var(--supply-line-1) !important;
+  background: transparent !important;
+}
+
+body.supply-draft-route .supply-flow-snapshot-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+}
+
+body.supply-draft-route .supply-flow-snapshot-heading h3 {
+  margin: 0;
+  color: var(--supply-fg-1) !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+}
+
+body.supply-draft-route .supply-flow-snapshot-market {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  max-width: 48%;
+  padding: 0 11px;
+  border: 1px solid var(--supply-line-2);
+  border-radius: 999px;
+  background: var(--supply-bg-3);
+  color: var(--supply-fg-2);
+  font-family: var(--supply-mono);
+  font-size: 11px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.supply-draft-route .supply-flow-snapshot-body .supply-activity-summary {
+  padding: 18px 24px 24px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+body.supply-draft-route .supply-flow-snapshot-body .supply-activity-summary-head {
+  display: none !important;
 }
 
 body.supply-draft-route .supply-intel-stat {
@@ -2567,6 +2631,20 @@ body.supply-draft-route #supply-pagination .flow-pager-info {
     flex: 0 1 auto !important;
   }
 
+  body.supply-draft-route .supply-flow-snapshot-header {
+    padding: 18px 18px 12px !important;
+  }
+
+  body.supply-draft-route .supply-flow-snapshot-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  body.supply-draft-route .supply-flow-snapshot-market {
+    max-width: 100%;
+  }
+
   .supply-draft-title {
     font-size: 34px;
   }
@@ -2641,7 +2719,8 @@ body.supply-draft-route #supply-pagination .flow-pager-info {
     width: 100%;
   }
 
-  body.supply-draft-route .supply-activity-summary {
+  body.supply-draft-route .supply-activity-summary,
+  body.supply-draft-route .supply-flow-snapshot-body .supply-activity-summary {
     padding: 14px 18px 16px !important;
   }
 
