@@ -20,6 +20,14 @@
     { type: 'transfer', label: 'Transfers' },
     { type: 'liquidation', label: 'Liquidations' },
   ];
+  const activityPeriodOptions = [
+    { key: '1d', short: '24H', label: '24 hours', days: 1 },
+    { key: '7d', short: '7D', label: '7 days', days: 7 },
+    { key: '30d', short: '30D', label: '30 days', days: 30 },
+    { key: '90d', short: '90D', label: '90 days', days: 90 },
+    { key: '180d', short: '180D', label: '180 days', days: 180 },
+  ];
+  let activityPeriodKey = '30d';
 
   function setAssetState(selected) {
     document.body.classList.toggle('supply-has-asset', !!selected);
@@ -634,6 +642,58 @@
     syncActivityTypeDropdown();
   }
 
+  function getActivityPeriodMeta(key = activityPeriodKey) {
+    return activityPeriodOptions.find(option => option.key === key) || activityPeriodOptions[2];
+  }
+
+  function getActivityPeriodCutoffTs() {
+    const meta = getActivityPeriodMeta();
+    const nowRoundedToMinute = Math.floor(Date.now() / 60000) * 60;
+    return nowRoundedToMinute - (meta.days * 24 * 60 * 60);
+  }
+
+  function applyActivityPeriodFilter() {
+    try {
+      supplyActivityTimeMin = getActivityPeriodCutoffTs();
+      supplyActivityTimeMax = null;
+      document.getElementById('supply-activity-time-filter-trigger')?.classList.add('has-active');
+    } catch (error) {}
+  }
+
+  function syncActivityPeriodDropdown() {
+    const dropdown = document.getElementById('supply-activity-period-filter');
+    if (!dropdown) return;
+    const meta = getActivityPeriodMeta();
+    dropdown.querySelector('.supply-activity-type-label').textContent = meta.short;
+    dropdown.querySelectorAll('.supply-activity-type-option').forEach(option => {
+      const isActive = option.dataset.period === activityPeriodKey;
+      option.classList.toggle('active', isActive);
+      option.setAttribute('aria-checked', isActive ? 'true' : 'false');
+    });
+  }
+
+  function maybeLoadFullActivityForPeriod() {
+    const meta = getActivityPeriodMeta();
+    if (!meta || meta.days <= 30) return;
+    try {
+      if (currentSupplyOverview?.activityStage !== 'full' && !currentSupplyOverview?.activityFullLoading && typeof supplyLoadFullActivityHistory === 'function') {
+        supplyLoadFullActivityHistory();
+      }
+    } catch (error) {}
+  }
+
+  function selectActivityPeriod(key) {
+    if (!activityPeriodOptions.some(option => option.key === key)) return;
+    activityPeriodKey = key;
+    applyActivityPeriodFilter();
+    syncActivityPeriodDropdown();
+    maybeLoadFullActivityForPeriod();
+    try {
+      supplyActivityPage = 1;
+      if (typeof renderSupplyActivityTable === 'function') renderSupplyActivityTable();
+    } catch (error) {}
+  }
+
   function installActivityTypeDropdown() {
     const toolbar = document.querySelector('.supply-activity-toolbar');
     const main = document.querySelector('.supply-activity-toolbar-main');
@@ -714,18 +774,66 @@
       main.appendChild(dropdown);
     }
 
-    if (toolbar.dataset.supplyDraftClickClose !== 'true') {
-      toolbar.dataset.supplyDraftClickClose = 'true';
-      document.addEventListener('click', event => {
-        const current = document.getElementById('supply-activity-type-filter');
-        if (current && !current.contains(event.target)) {
-          current.classList.remove('open');
-          current.querySelector('.supply-activity-type-trigger')?.setAttribute('aria-expanded', 'false');
-        }
+    let periodDropdown = document.getElementById('supply-activity-period-filter');
+    if (!periodDropdown) {
+      periodDropdown = document.createElement('div');
+      periodDropdown.id = 'supply-activity-period-filter';
+      periodDropdown.className = 'supply-activity-type-filter supply-activity-period-filter';
+      periodDropdown.innerHTML = `
+        <button type="button" class="supply-activity-type-trigger" aria-haspopup="menu" aria-expanded="false">
+          <svg class="supply-activity-period-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          <span class="supply-activity-type-label">30D</span>
+          ${chevronIcon}
+        </button>
+        <div class="supply-activity-type-menu" role="menu">
+          ${activityPeriodOptions.map(option => `
+            <button type="button" class="supply-activity-type-option" data-period="${option.key}" role="menuitemradio" aria-checked="${option.key === activityPeriodKey ? 'true' : 'false'}">
+              <span class="supply-activity-type-check" aria-hidden="true">
+                <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg>
+              </span>
+              <span class="supply-activity-type-option-label">${option.label}</span>
+            </button>
+          `).join('')}
+        </div>
+      `;
+
+      const periodTrigger = periodDropdown.querySelector('.supply-activity-type-trigger');
+      periodTrigger?.addEventListener('click', event => {
+        event.stopPropagation();
+        const isOpen = periodDropdown.classList.toggle('open');
+        periodTrigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      });
+      periodDropdown.querySelectorAll('.supply-activity-type-option').forEach(option => {
+        option.addEventListener('click', event => {
+          event.preventDefault();
+          event.stopPropagation();
+          selectActivityPeriod(option.dataset.period);
+          periodDropdown.classList.remove('open');
+          periodTrigger?.setAttribute('aria-expanded', 'false');
+        });
       });
     }
 
+    if (dropdown.parentElement) {
+      dropdown.insertAdjacentElement('afterend', periodDropdown);
+    } else if (periodDropdown.parentElement !== main) {
+      main.appendChild(periodDropdown);
+    }
+
+    if (toolbar.dataset.supplyDraftClickClose !== 'true') {
+      toolbar.dataset.supplyDraftClickClose = 'true';
+      document.addEventListener('click', event => {
+        document.querySelectorAll('.supply-activity-type-filter.open').forEach(current => {
+          if (current.contains(event.target)) return;
+          current.classList.remove('open');
+          current.querySelector('.supply-activity-type-trigger')?.setAttribute('aria-expanded', 'false');
+        });
+      });
+    }
+
+    applyActivityPeriodFilter();
     syncActivityTypeDropdown();
+    syncActivityPeriodDropdown();
   }
 
   function stripSupplyActivityHoverExplanations() {
@@ -832,7 +940,9 @@
     activityPatched = true;
     const originalRenderSupplyActivityTable = window.renderSupplyActivityTable;
     window.renderSupplyActivityTable = function supplyDraftRenderSupplyActivityTable() {
+      applyActivityPeriodFilter();
       const result = originalRenderSupplyActivityTable.apply(this, arguments);
+      maybeLoadFullActivityForPeriod();
       polishSupplyActivityUi();
       return result;
     };

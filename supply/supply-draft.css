@@ -1466,6 +1466,10 @@ body.supply-draft-route .supply-activity-type-filter {
   z-index: 50;
 }
 
+body.supply-draft-route .supply-activity-period-filter {
+  z-index: 49;
+}
+
 body.supply-draft-route .supply-activity-type-trigger {
   display: inline-flex;
   align-items: center;
@@ -1483,6 +1487,21 @@ body.supply-draft-route .supply-activity-type-trigger {
   cursor: pointer;
   box-shadow: none;
   transition: border-color .16s var(--supply-ease), background .16s var(--supply-ease), color .16s var(--supply-ease);
+}
+
+body.supply-draft-route .supply-activity-period-filter .supply-activity-type-trigger {
+  flex-basis: 96px;
+  min-width: 96px;
+  width: 96px;
+  padding: 0 10px;
+  gap: 7px;
+}
+
+body.supply-draft-route .supply-activity-period-icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  color: var(--supply-gold);
 }
 
 body.supply-draft-route .supply-activity-type-trigger:hover,
@@ -1575,6 +1594,14 @@ body.supply-draft-route .supply-activity-type-menu {
   border-radius: 10px;
   background: var(--supply-bg-2);
   box-shadow: 0 18px 46px rgba(0, 0, 0, .58);
+}
+
+body.supply-draft-route .supply-activity-period-filter .supply-activity-type-menu {
+  left: 0;
+  right: auto;
+  width: 148px;
+  min-width: 148px;
+  max-width: 148px;
 }
 
 body.supply-draft-route .supply-activity-type-filter.open .supply-activity-type-menu {
@@ -2031,6 +2058,11 @@ body.supply-draft-route #supply-activity-table .col-filter-clear {
   box-shadow: none !important;
   animation: none !important;
   transform: none !important;
+}
+
+body.supply-draft-route #supply-activity-time-filter-trigger,
+body.supply-draft-route #supply-activity-time-filter-clear {
+  display: none !important;
 }
 
 body.supply-draft-route #supply-activity-table .col-filter-btn:hover,
