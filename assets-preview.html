@@ -418,6 +418,7 @@ body::before{
 .dd-btn:hover{border-color:var(--line-3)}
 .dd-btn.open{border-color:var(--gold-line);background:var(--bg-4)}
 .dd-btn .icon{width:14px;height:14px;color:var(--fg-2);flex-shrink:0;transition:color .2s var(--ease)}
+.dd-btn img.icon{border-radius:50%;object-fit:cover;background:var(--bg-4);box-shadow:0 0 0 1px rgba(0,0,0,.35)}
 .dd-btn .lbl{
   flex:1;min-width:0;text-align:left;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
@@ -980,9 +981,9 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .proto-token img{width:28px;height:28px;border-radius:50%;object-fit:cover;background:var(--bg-3);border:1px solid var(--line-2)}
 .proto-token-name{font-size:14px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px}
 .proto-chain-chip{display:inline-flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--fg-2);padding:3px 8px;border-radius:4px;background:var(--bg-3);border:1px solid var(--line-2);font-weight:500}
-.proto-chain-chip .dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;background-color:var(--bg-2);background-position:center;background-size:cover;border:1px solid rgba(255,255,255,.10)}
+.proto-chain-chip .dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;background-color:var(--bg-2);background-position:center;background-size:cover;box-shadow:0 0 0 1px rgba(0,0,0,.35)}
 .proto-chain-chip .dot-ethereum{background-image:url("https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg")}
-.proto-chain-chip .dot-berachain{background-image:url("https://icons.llamao.fi/icons/chains/rsz_berachain.jpg")}
+.proto-chain-chip .dot-berachain{background-image:url("https://icons.llamao.fi/icons/chains/rsz_berachain.jpg");background-size:126%}
 .proto-addr-right{display:flex;align-items:center;gap:8px;min-width:0;flex:1;justify-content:flex-end}
 .proto-addr-hex{font-family:var(--mono);font-size:11px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
 .proto-copy{width:26px;height:26px;border-radius:6px;background:var(--bg-3);border:1px solid var(--line-2);display:grid;place-items:center;color:var(--fg-3);flex-shrink:0;cursor:pointer;transition:color .2s var(--ease),border-color .2s var(--ease),background .2s var(--ease)}
@@ -2674,6 +2675,29 @@ function wireSearchClears(){
 }
 wireSearchClears();
 
+function setDropdownButtonIcon(btn, opt){
+  const icon = btn && btn.querySelector(".icon");
+  if(!icon || !opt) return;
+  const img = opt.querySelector(":scope > img");
+  const svg = opt.querySelector(":scope > .dd-ico svg");
+  if(img){
+    const next = document.createElement("img");
+    next.className = icon.getAttribute("class") || "icon";
+    if(!next.classList.contains("icon")) next.classList.add("icon");
+    next.src = img.getAttribute("src") || "";
+    next.alt = "";
+    next.onerror = function(){ this.style.display = "none"; };
+    icon.replaceWith(next);
+    return;
+  }
+  if(svg){
+    const next = svg.cloneNode(true);
+    next.classList.add("icon");
+    next.removeAttribute("style");
+    icon.replaceWith(next);
+  }
+}
+
 // sort
 document.querySelectorAll("#tbl thead th[data-sort]").forEach(th=>{
   th.addEventListener("click",()=>{
@@ -2718,6 +2742,11 @@ function syncCatDropdown(){
   else if(state.cats.size === 1) lbl.textContent = CAT_LABELS[[...state.cats][0]] || [...state.cats][0];
   else lbl.textContent = `${state.cats.size} categories`;
   if(count) count.textContent = `${state.cats.size || total}/${total}`;
+  const single = state.cats.size === 1 ? [...state.cats][0] : null;
+  const iconOpt = single
+    ? Array.from(document.querySelectorAll('#dd-cat .dd-opt[data-cat]')).find(o => o.dataset.cat === single)
+    : allOpt;
+  setDropdownButtonIcon(btn, iconOpt || allOpt);
 }
 document.querySelectorAll("#dd-cat .dd-opt").forEach(opt=>{
   opt.addEventListener("click",e=>{
@@ -2758,6 +2787,11 @@ function syncNetDropdown(){
     lbl.textContent = `${state.nets.size} chains`;
     if(count) count.textContent = `${state.nets.size}/${total}`;
   }
+  const single = state.nets.size === 1 ? [...state.nets][0] : null;
+  const iconOpt = single
+    ? Array.from(document.querySelectorAll('#dd-net .dd-opt[data-net]')).find(o => o.dataset.net === single)
+    : allOpt;
+  setDropdownButtonIcon(btn, iconOpt || allOpt);
 }
 document.querySelectorAll("#dd-net .dd-opt").forEach(opt=>{
   opt.addEventListener("click",e=>{
