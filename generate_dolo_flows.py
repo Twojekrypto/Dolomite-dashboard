@@ -93,7 +93,7 @@ CHAINS = {
             "https://rpc.berachain.com/",
         ],
         "block_time": 2,    # ~2 seconds per block
-        "chunk_size": 500_000,  # Berachain: large chunks (sparse DOLO txs, 2s blocks)
+        "chunk_size": 100_000,  # Berachain: keep ranges small enough to avoid dropped log chunks
         "deploy_block": 2_900_000,   # DOLO deployed on Berachain ~block 2,925,727 (Mar 2025)
     },
 }
@@ -104,8 +104,13 @@ PERIODS = {
     "30d": 86400 * 30,
     "90d": 86400 * 90,
     "180d": 86400 * 180,
-    "all": 86400 * 365,        # 1 year — covers full DOLO history
+    # Wide enough to pin the cutoff to each chain's deploy block. This keeps
+    # the holder-bucket chart's All range at DOLO inception instead of a rolling
+    # yearly window.
+    "all": 86400 * 365 * 10,
 }
+
+HOLDER_HISTORY_START_TIMESTAMP = 1735377287  # Ethereum DOLO deploy block 21,500,000
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_JSON = os.path.join(DATA_DIR, "dolo_flows.json")
@@ -238,6 +243,10 @@ def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_tr
                 time.sleep(0.5)
 
         if not success:
+            if chunk_size > 1000:
+                chunk_size = max(chunk_size // 2, 1000)
+                print(f"    ⚠️ Retrying block {current:,} with smaller chunk ({chunk_size:,} blocks)")
+                continue
             chunks_failed += 1
             print(f"    ⚠️ Failed at block {current}, skipping chunk ({chunks_failed} failures so far)")
             current = chunk_end + 1
@@ -538,12 +547,28 @@ def main():
         # Load cached transfers for this chain
         cached_key = f"{chain_key}_transfers"
         last_block_key = f"{chain_key}_last_block"
+        history_start_key = f"{chain_key}_history_start_block"
         cached_transfers = state.get(cached_key, [])
         last_block = state.get(last_block_key, 0)
+        history_coverage_start = None
 
         if is_incremental and last_block > 0 and cached_transfers:
             # Only fetch new blocks since last run
             fetch_start = last_block + 1
+            restored = [tuple(t) for t in cached_transfers]
+            cached_min_block = min((t[3] for t in restored), default=last_block + 1)
+            coverage_min_block = int(state.get(history_start_key) or cached_min_block)
+            backfill_transfers = []
+            backfill_failed = 0
+            if coverage_min_block > oldest_needed:
+                backfill_end = coverage_min_block - 1
+                print(f"  {CHAINS[chain_key]['name']}: backfilling All history blocks {oldest_needed:,} → {backfill_end:,}")
+                backfill_transfers, backfill_failed, _ = fetch_transfer_logs(
+                    chain_key, oldest_needed, backfill_end
+                )
+                if backfill_failed:
+                    print(f"  ⚠️ {CHAINS[chain_key]['name']}: {backfill_failed} historical backfill chunks failed")
+            history_coverage_start = oldest_needed if backfill_failed == 0 else coverage_min_block
             if fetch_start >= end:
                 print(f"  {CHAINS[chain_key]['name']}: already up to date (block {last_block:,})")
                 new_transfers = []
@@ -555,17 +580,14 @@ def main():
                     chain_key, fetch_start, end, state=state, cached_transfers_so_far=cached_as_lists
                 )
 
-            # Convert cached transfers back from lists to tuples
-            restored = [tuple(t) for t in cached_transfers]
-
             # Merge: cached + new
-            merged = restored + new_transfers
+            merged = backfill_transfers + restored + new_transfers
 
             # Prune: drop transfers from blocks older than the oldest needed
             merged = [t for t in merged if t[3] >= oldest_needed]
 
             all_transfers[chain_key] = merged
-            print(f"  {CHAINS[chain_key]['name']}: {len(new_transfers):,} new + {len(restored):,} cached → {len(merged):,} total (after pruning)")
+            print(f"  {CHAINS[chain_key]['name']}: {len(backfill_transfers):,} backfilled + {len(new_transfers):,} new + {len(restored):,} cached → {len(merged):,} total (after pruning)")
         else:
             # Full scan from the oldest needed block (or resume from cached last_block)
             scan_start = oldest_needed
@@ -579,6 +601,8 @@ def main():
             fresh_transfers, chunks_failed, total_chunks = fetch_transfer_logs(
                 chain_key, scan_start, end, state=state, cached_transfers_so_far=cached_as_lists
             )
+            if chunks_failed == 0:
+                history_coverage_start = oldest_needed
 
             # Merge with any cached partial data
             if cached_as_lists:
@@ -604,6 +628,8 @@ def main():
 
         # Update state for this chain — save immediately so next timeout preserves this chain's data
         state[last_block_key] = end
+        if history_coverage_start is not None:
+            state[history_start_key] = history_coverage_start
         # Store transfers as lists (JSON can't serialize tuples)
         # Only cache transfers within MAX_CACHE_SECONDS window (180d)
         # to keep state file small — "all" period recalculates from scratch
@@ -828,6 +854,7 @@ def main():
 
     output = {
         "timestamp": datetime.utcnow().isoformat(),
+        "holder_history_start_timestamp": datetime.utcfromtimestamp(HOLDER_HISTORY_START_TIMESTAMP).isoformat() + "Z",
         "dolo_price": dolo_price,
         "periods": output_periods,
         "balance_changes": balance_changes,
