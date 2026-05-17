@@ -9581,8 +9581,42 @@
             window.bringDropdownTriggerIntoMobileView = function(trigger) {
                 if (!trigger || !window.isMobileBorrowLayout()) return false;
                 window.guardMobileDropdownScroll();
-                trigger.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' });
-                return true;
+                return false;
+            };
+
+            function resetSimAssetPopoverPosition() {
+                if (!simAssetPopover) return;
+                ['position', 'left', 'right', 'top', 'bottom', 'width', 'max-height'].forEach(prop => {
+                    simAssetPopover.style.removeProperty(prop);
+                });
+                simAssetPopover.querySelector('#sim-asset-list')?.style.removeProperty('max-height');
+            }
+
+            function positionSimAssetPopover() {
+                if (!simAssetPopover || !simAssetTrigger) return;
+                if (!window.isMobileBorrowLayout || !window.isMobileBorrowLayout()) {
+                    resetSimAssetPopoverPosition();
+                    return;
+                }
+                const rect = simAssetTrigger.getBoundingClientRect();
+                const edge = 12;
+                const width = Math.min(390, Math.max(290, window.innerWidth - edge * 2));
+                const left = Math.max(edge, Math.min(rect.left, window.innerWidth - width - edge));
+                const top = Math.min(rect.bottom + 7, window.innerHeight - 96);
+                const availableHeight = Math.max(180, window.innerHeight - top - edge);
+                const maxHeight = Math.min(420, availableHeight);
+                const headHeight = simAssetPopover.querySelector('.sim-asset-popover-head')?.offsetHeight || 0;
+                const searchHeight = simAssetPopover.querySelector('#sim-asset-search')?.offsetHeight || 0;
+                const footerHeight = simAssetPopover.querySelector('.sim-asset-popover-footer')?.offsetHeight || 0;
+                const listMaxHeight = Math.max(112, maxHeight - headHeight - searchHeight - footerHeight - 28);
+                simAssetPopover.style.setProperty('position', 'fixed', 'important');
+                simAssetPopover.style.setProperty('left', `${Math.round(left)}px`, 'important');
+                simAssetPopover.style.setProperty('right', 'auto', 'important');
+                simAssetPopover.style.setProperty('top', `${Math.round(top)}px`, 'important');
+                simAssetPopover.style.setProperty('bottom', 'auto', 'important');
+                simAssetPopover.style.setProperty('width', `${Math.round(width)}px`, 'important');
+                simAssetPopover.style.setProperty('max-height', `${Math.floor(maxHeight)}px`, 'important');
+                simAssetPopover.querySelector('#sim-asset-list')?.style.setProperty('max-height', `${Math.floor(listMaxHeight)}px`, 'important');
             };
 
             function setSimAssetPopoverOpen(isOpen) {
@@ -9590,6 +9624,8 @@
                 simAssetPopover.style.display = isOpen ? 'flex' : 'none';
                 simAssetMode.classList.toggle('open', isOpen);
                 if (simAssetTrigger) simAssetTrigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                if (isOpen) positionSimAssetPopover();
+                else resetSimAssetPopoverPosition();
             }
 
             // Multi-select state: Set of selected values ('all' or 'token:SYM')
@@ -9796,6 +9832,7 @@
                 if (!isOpen && searchEl) {
                     searchEl.value = '';
                     renderSimAssetList('');
+                    positionSimAssetPopover();
                     if (!window.isMobileBorrowLayout || !window.isMobileBorrowLayout()) {
                         try {
                             searchEl.focus({ preventScroll: true });
@@ -10231,10 +10268,13 @@
                 if (left < 8) left = 8;
                 const top = rect.bottom + 8;
                 const list = popover.querySelector('.sim-multi-token-list');
+                const availablePopoverHeight = Math.max(112, window.innerHeight - top - 12);
+                popover.style.setProperty('max-height', availablePopoverHeight + 'px', 'important');
+                popover.style.setProperty('overflow', 'hidden', 'important');
                 if (list) {
                     const search = popover.querySelector('.sim-multi-search');
-                    const fixedChrome = (search?.offsetHeight || 0) + 26;
-                    const availableBelow = Math.max(112, window.innerHeight - top - 12 - fixedChrome);
+                    const fixedChrome = (search?.offsetHeight || 0) + 34;
+                    const availableBelow = Math.max(72, availablePopoverHeight - fixedChrome);
                     list.style.setProperty('max-height', Math.min(240, availableBelow) + 'px', 'important');
                 }
                 popover.style.left = left + 'px';
@@ -10249,13 +10289,10 @@
                     popover.style.display = 'none';
                     return;
                 }
-                const movedForMobile = window.bringDropdownTriggerIntoMobileView
-                    ? window.bringDropdownTriggerIntoMobileView(trigger)
-                    : false;
+                if (window.bringDropdownTriggerIntoMobileView) window.bringDropdownTriggerIntoMobileView(trigger);
                 searchInput.value = '';
                 renderTokenList('');
                 positionMultiTokenPopover();
-                if (movedForMobile) window.requestAnimationFrame(positionMultiTokenPopover);
                 if (!window.isMobileBorrowLayout || !window.isMobileBorrowLayout()) {
                     try {
                         searchInput.focus({ preventScroll: true });
@@ -10636,26 +10673,25 @@
 
         function positionLendingToolbarMenu(triggerEl, menuEl) {
             if (!triggerEl || !menuEl) return;
-            let rect = triggerEl.getBoundingClientRect();
-            const minimumMobileRoom = 128;
-            const neededMobileRoom = rect.bottom + 6 + minimumMobileRoom - window.innerHeight + 8;
-            if (window.innerWidth <= 760 && neededMobileRoom > 0) {
-                window.__mobilePolishDropdownScroll = true;
-                window.__mobilePolishDropdownScrollUntil = Date.now() + 300;
-                window.scrollBy(0, Math.ceil(neededMobileRoom));
-                window.setTimeout(() => { window.__mobilePolishDropdownScroll = false; }, 300);
-                rect = triggerEl.getBoundingClientRect();
-            }
-            const width = Math.max(rect.width, 220);
-            const left = Math.min(Math.max(8, rect.left), Math.max(8, window.innerWidth - width - 8));
+            const rect = triggerEl.getBoundingClientRect();
+            const isMobile = window.innerWidth <= 760;
+            const edge = isMobile ? 12 : 8;
+            const width = Math.min(window.innerWidth - edge * 2, Math.max(rect.width, 220));
+            const left = Math.min(Math.max(edge, rect.left), Math.max(edge, window.innerWidth - width - edge));
             const top = rect.bottom + 6;
-            const availableBelow = Math.max(96, window.innerHeight - top - 8);
+            const availableBelow = Math.max(isMobile ? 72 : 96, window.innerHeight - top - edge);
             menuEl.style.setProperty('position', 'fixed', 'important');
             menuEl.style.setProperty('left', `${left}px`, 'important');
             menuEl.style.setProperty('top', `${top}px`, 'important');
+            menuEl.style.setProperty('right', 'auto', 'important');
+            menuEl.style.setProperty('bottom', 'auto', 'important');
             menuEl.style.setProperty('min-width', `${width}px`, 'important');
+            menuEl.style.setProperty('width', `${width}px`, 'important');
+            menuEl.style.setProperty('max-width', `${window.innerWidth - edge * 2}px`, 'important');
             menuEl.style.setProperty('max-height', `${Math.min(420, availableBelow)}px`, 'important');
             menuEl.style.setProperty('overflow-y', 'auto', 'important');
+            menuEl.style.setProperty('transform', 'translate(0, 0)', 'important');
+            menuEl.style.setProperty('--mobile-panel-shift', '0px');
             menuEl.style.setProperty('z-index', '10050', 'important');
         }
 
