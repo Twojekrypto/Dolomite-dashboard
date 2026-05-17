@@ -87,6 +87,75 @@
     document.getElementById('supply-activity-card')?.classList.add('supply-draft-activity-card');
   }
 
+  function ensureSupplyFlowSnapshotCard() {
+    const summary = document.getElementById('supply-activity-summary');
+    const activityCard = document.getElementById('supply-activity-card');
+    if (!summary || !activityCard?.parentElement) return null;
+
+    let card = document.getElementById('supply-flow-snapshot-card');
+    if (!card) {
+      card = document.createElement('section');
+      card.id = 'supply-flow-snapshot-card';
+      card.className = 'table-card-outer supply-flow-snapshot-card';
+      card.style.display = 'none';
+      card.innerHTML = `
+        <div class="table-card-inner">
+          <div class="table-card-header supply-flow-snapshot-header">
+            <div class="supply-flow-snapshot-heading">
+              <h3>Flow Snapshot</h3>
+              <span class="supply-flow-snapshot-market" id="supply-flow-snapshot-market">Selected market</span>
+            </div>
+          </div>
+          <div class="supply-flow-snapshot-body"></div>
+        </div>
+      `;
+      activityCard.parentElement.insertBefore(card, activityCard);
+    }
+
+    const body = card.querySelector('.supply-flow-snapshot-body');
+    if (body && summary.parentElement !== body) {
+      body.appendChild(summary);
+    }
+
+    if (card.dataset.flowObserver !== 'true') {
+      card.dataset.flowObserver = 'true';
+      const grid = document.getElementById('supply-activity-summary-grid');
+      const observer = new MutationObserver(() => syncSupplyFlowSnapshotCard());
+      observer.observe(summary, { attributes: true, attributeFilter: ['style'] });
+      if (grid) observer.observe(grid, { childList: true });
+    }
+
+    return card;
+  }
+
+  function syncSupplyFlowSnapshotCard() {
+    const card = ensureSupplyFlowSnapshotCard();
+    const summary = document.getElementById('supply-activity-summary');
+    const grid = document.getElementById('supply-activity-summary-grid');
+    if (!card || !summary || !grid) return;
+
+    let token = '';
+    try {
+      token = currentSupplyOverview?.token?.symbol || '';
+    } catch (error) {}
+    const chain = document.getElementById('supply-chain-select')?.value || '';
+    let chainName = chain;
+    try {
+      if (typeof CHAIN_DISPLAY_NAMES !== 'undefined') {
+        chainName = CHAIN_DISPLAY_NAMES[chain] || chain;
+      }
+    } catch (error) {}
+    const market = document.getElementById('supply-flow-snapshot-market');
+    if (market) {
+      market.textContent = token && chainName ? `${token} · ${chainName}` : 'Selected market';
+    }
+
+    const shouldShow = document.body.classList.contains('supply-has-asset')
+      && summary.style.display !== 'none'
+      && grid.children.length > 0;
+    card.style.display = shouldShow ? 'block' : 'none';
+  }
+
   function enhanceSupplyHistoryShell() {
     const title = document.querySelector('.supply-history-title');
     if (title) title.textContent = 'Supply Liquidity Over Time';
@@ -886,6 +955,7 @@
 
   function polishSupplyActivityUi() {
     polishSearchClear('supply-activity-search-clear');
+    syncSupplyFlowSnapshotCard();
     polishSupplyActivityHeaders();
     polishSupplyActivityRows();
     stripSupplyActivityHoverExplanations();
@@ -975,6 +1045,7 @@
     polishSupplyHeaders();
     polishSupplyRows();
     polishSearchClear('supply-activity-search-clear');
+    syncSupplyFlowSnapshotCard();
     polishSupplyActivityUi();
   }
 
