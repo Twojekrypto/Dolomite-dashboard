@@ -150,9 +150,135 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .card-head{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 18px;border-bottom:1px solid var(--line-1);gap:12px;flex-wrap:wrap}
 .card-title{display:flex;align-items:center;gap:10px}
 .card-title h2{font-size:16px;font-weight:600;letter-spacing:-.1px;color:var(--fg-1)}
-.card-title .count-badge{font-family:var(--mono);font-size:11px;color:var(--fg-2);background:var(--bg-3);border:1px solid var(--line-2);padding:3px 8px;border-radius:999px}
+.card-title .count-badge{font-family:var(--mono);font-size:11px;color:var(--fg-2);background:var(--bg-3);border:1px solid var(--line-2);padding:3px 8px;border-radius:999px;white-space:nowrap}
 .card-meta{font-size:11px;color:var(--fg-3);font-family:var(--mono);display:flex;align-items:center;gap:6px}
 .pulse{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
+
+/* Holder buckets chart — TVL Over Time rhythm */
+.holder-chart-card{background:linear-gradient(180deg,rgba(20,20,23,.98),var(--bg-2))}
+.holder-title-block{display:flex;flex-direction:column;gap:12px;min-width:0}
+.holder-chart-controls{display:flex;align-items:center;justify-content:flex-start;gap:10px;flex-wrap:wrap;min-width:0}
+.holder-chart-toggle{
+  position:relative;display:inline-flex;align-items:center;gap:9px;height:32px;padding:0 11px;
+  border:1px solid var(--line-2);border-radius:10px;background:var(--bg-3);
+  font-size:12px;color:var(--fg-2);font-weight:600;transition:border-color .16s var(--ease),background .16s var(--ease),color .16s var(--ease)
+}
+.holder-chart-toggle:hover{color:var(--fg-1);border-color:var(--line-3)}
+.holder-chart-toggle input{position:absolute;opacity:0;pointer-events:none}
+.holder-bucket-mode{
+  display:inline-grid;grid-template-columns:repeat(2,minmax(70px,1fr));height:32px;padding:3px;
+  border:1px solid var(--line-2);border-radius:10px;background:var(--bg-3)
+}
+.holder-bucket-mode button{
+  border:0;background:transparent;border-radius:7px;color:var(--fg-3);font-size:11px;font-weight:700;
+  padding:0 9px;cursor:pointer;transition:background .15s var(--ease),color .15s var(--ease)
+}
+.holder-bucket-mode button:hover{color:var(--fg-1)}
+.holder-bucket-mode button.active{background:var(--gold-wash);color:var(--fg-1)}
+.holder-chart-check{
+  width:15px;height:15px;border-radius:4px;flex-shrink:0;background:var(--bg-4);border:1.5px solid var(--line-3);
+  display:grid;place-items:center;transition:background .15s var(--ease),border-color .15s var(--ease)
+}
+.holder-chart-check svg{width:9px;height:9px;color:var(--bg-0);opacity:0;transition:opacity .15s var(--ease)}
+.holder-chart-toggle input:checked + .holder-chart-check{background:var(--gold);border-color:var(--gold)}
+.holder-chart-toggle input:checked + .holder-chart-check svg{opacity:1}
+.holder-chart-toggle:has(input:checked){border-color:var(--gold-line);background:var(--gold-wash);color:var(--fg-1)}
+.holder-chart-source{
+  display:inline-flex;align-items:center;gap:10px;min-height:32px;padding:0 2px;
+  font-family:var(--mono);font-size:10px;color:var(--fg-3);letter-spacing:.25px;white-space:nowrap
+}
+.holder-chart-source::before{
+  content:"";width:5px;height:5px;border-radius:50%;background:var(--gold);
+  box-shadow:0 0 8px rgba(201,162,39,.35);margin-right:7px
+}
+.holder-source-scope{color:var(--fg-3)}
+.holder-chart-wrap{padding:24px 24px 18px;position:relative}
+.holder-chart-svg{width:100%;height:340px;display:block;overflow:visible}
+.holder-chart-grid line{stroke:var(--line-1);stroke-width:1}
+.holder-chart-grid text,.holder-chart-axis text{font-family:var(--mono);font-size:10px;fill:var(--fg-3);font-weight:500}
+.holder-chart-axis text{fill:var(--fg-3)}
+.holder-chart-area{fill:url(#holderChartAreaGrad);opacity:.58;pointer-events:none}
+.holder-chart-series-line{
+  fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;
+  filter:drop-shadow(0 0 7px rgba(201,162,39,.16));transition:opacity .15s var(--ease),stroke-width .15s var(--ease)
+}
+.holder-chart-series-line.is-muted{opacity:.28}
+.holder-chart-series-line.is-active{stroke-width:2.9;opacity:1}
+.holder-chart-series-dot{stroke:var(--bg-0);stroke-width:2;opacity:0;pointer-events:none;transition:opacity .12s var(--ease)}
+.holder-chart-line{stroke:var(--fg-3);stroke-width:1;stroke-dasharray:3 3;opacity:0;pointer-events:none;transition:opacity .12s var(--ease)}
+.holder-chart-dot{fill:var(--gold);stroke:var(--bg-0);stroke-width:2;opacity:0;pointer-events:none;transition:opacity .12s var(--ease)}
+.holder-chart-tip{
+  position:absolute;pointer-events:none;background:rgba(15,15,17,.96);border:1px solid var(--line-3);border-radius:8px;
+  padding:8px 11px;font-family:var(--mono);font-size:11px;color:var(--fg-1);box-shadow:var(--sh-hi);
+  opacity:0;transition:opacity .12s var(--ease);white-space:nowrap;z-index:5
+}
+.holder-chart-tip .tt-date{color:var(--fg-3);font-size:10px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px}
+.holder-chart-tip .tt-val{color:var(--gold);font-weight:600;font-size:14px}
+.holder-chart-tip .tt-row{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-top:5px;color:var(--fg-3)}
+.holder-chart-tip .tt-row b{color:var(--fg-1);font-weight:600}
+.holder-chart-legend{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-top:1px solid var(--line-1);background:rgba(255,255,255,.012)}
+.holder-chart-legend-item{padding:15px 18px;border-left:1px solid var(--line-1);min-width:0;cursor:pointer;transition:background .15s var(--ease)}
+.holder-chart-legend-item:first-child{border-left:0}
+.holder-chart-legend-item:hover,.holder-chart-legend-item.is-active{background:var(--gold-wash)}
+.holder-chart-legend-item .top{display:flex;align-items:center;gap:8px;min-width:0}
+.holder-chart-legend-item .dot{width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px rgba(201,162,39,.36);flex:0 0 7px}
+.holder-chart-legend-item .bucket{font-size:12px;font-weight:700;color:var(--fg-1);white-space:nowrap}
+.holder-chart-legend-item .metric{margin-top:8px;font-family:var(--mono);font-size:15px;color:var(--gold);font-weight:600;font-variant-numeric:tabular-nums}
+.holder-chart-legend-item .sub{margin-top:4px;font-family:var(--mono);font-size:10px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.holder-chart-legend-item .chg{font-family:var(--mono);font-size:10px;margin-left:auto;color:var(--fg-3);font-weight:600}
+.holder-chart-legend-item .chg.up{color:var(--up)}
+.holder-chart-legend-item .chg.down{color:var(--down)}
+.holder-brush-wrap{position:relative;padding:4px 24px 18px;user-select:none}
+.holder-brush-svg{
+  width:100%;height:56px;display:block;border-radius:8px;border:1px solid var(--line-2);
+  background:var(--bg-1);box-shadow:inset 0 1px 0 rgba(255,255,255,.02);cursor:crosshair
+}
+.holder-brush-line{fill:none;stroke:var(--gold);stroke-width:1;opacity:.58}
+.holder-brush-area{fill:url(#holderBrushGrad);opacity:.68}
+.holder-brush-overlay{position:absolute;top:4px;left:24px;right:24px;height:56px;pointer-events:none}
+.holder-brush-dim{position:absolute;top:0;bottom:0;background:rgba(6,8,12,.55);pointer-events:none;border-radius:8px}
+.holder-brush-dim.l{left:0;border-radius:8px 0 0 8px}
+.holder-brush-dim.r{right:0;border-radius:0 8px 8px 0}
+.holder-brush-window{
+  position:absolute;top:0;bottom:0;border:1.5px solid var(--gold);border-radius:6px;background:rgba(201,162,39,.06);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 0 0 1px rgba(201,162,39,.10);
+  cursor:grab;pointer-events:auto;transition:background .15s var(--ease),border-color .15s var(--ease)
+}
+.holder-brush-window:hover{background:rgba(201,162,39,.10)}
+.holder-brush-window.dragging{cursor:grabbing;background:rgba(201,162,39,.14)}
+.holder-brush-handle{
+  position:absolute;top:0;bottom:0;width:14px;display:flex;align-items:center;justify-content:center;
+  cursor:ew-resize;pointer-events:auto;border-radius:4px;transition:background .15s var(--ease)
+}
+.holder-brush-handle:hover{background:rgba(201,162,39,.10)}
+.holder-brush-handle.l{left:-7px;border-radius:4px 0 0 4px}
+.holder-brush-handle.r{right:-7px;border-radius:0 4px 4px 0}
+.holder-brush-handle .grip{display:flex;gap:2px;pointer-events:none}
+.holder-brush-handle .grip span{width:2px;height:18px;border-radius:2px;background:var(--gold);opacity:.85}
+.holder-brush-handle .grip span:last-child{opacity:.45}
+.holder-brush-label{
+  text-align:center;font-family:var(--mono);font-size:11px;color:var(--fg-3);letter-spacing:.3px;
+  margin-top:6px;min-height:16px
+}
+.holder-brush-label .sep{color:var(--fg-4);margin:0 8px}
+.holder-brush-label .v{color:var(--fg-2)}
+.holder-flow-stats{
+  display:grid;grid-template-columns:1.2fr .8fr .8fr;border-top:1px solid var(--line-1);
+  background:linear-gradient(90deg,rgba(180,121,107,.05),rgba(255,255,255,.012))
+}
+.holder-flow-stat{
+  padding:15px 18px;border-left:1px solid var(--line-1);border-bottom:1px solid var(--line-1);
+  min-width:0;background:linear-gradient(180deg,rgba(180,121,107,.045),rgba(12,12,14,.02))
+}
+.holder-flow-stat:first-child{border-left:0}
+.holder-flow-stat .top{display:flex;align-items:center;gap:8px;min-width:0}
+.holder-flow-stat .dot{width:7px;height:7px;border-radius:50%;background:var(--down);box-shadow:0 0 10px rgba(180,121,107,.48);flex:0 0 7px}
+.holder-flow-stat .label{font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--fg-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.holder-flow-stat .value{margin-top:8px;font-family:var(--mono);font-size:15px;font-weight:800;color:var(--down);font-variant-numeric:tabular-nums;white-space:nowrap}
+.holder-flow-stat.primary .value{font-size:17px}
+.holder-flow-stat .sub{margin-top:4px;font-family:var(--mono);font-size:10px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.holder-flow-stat.neutral .dot{background:var(--gold);box-shadow:0 0 10px rgba(201,162,39,.38)}
+.holder-flow-stat.neutral .value{color:var(--fg-1)}
 
 /* TOOLBAR */
 .toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 24px;background:linear-gradient(180deg,var(--bg-1),var(--bg-2));border-bottom:1px solid var(--line-1);flex-wrap:wrap}
@@ -471,8 +597,15 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 @media (max-width:980px){
   .hero-stats{grid-template-columns:1fr 1fr;gap:18px 0;border-top:1px solid var(--line-1)}
   .hero-stat:nth-child(3){border-left:0;padding-left:0}
+  .holder-chart-legend{grid-template-columns:1fr}
+  .holder-chart-legend-item{border-left:0;border-top:1px solid var(--line-1)}
+  .holder-chart-legend-item:first-child{border-top:0}
   .flows-grid{grid-template-columns:1fr}
   .flows-tbl{min-width:500px}
+}
+@media (max-width:760px){
+  .holder-flow-stats{grid-template-columns:1fr}
+  .holder-flow-stat{border-left:0;padding:13px 16px}
 }
 @media (max-width:640px){
   .wrap{padding:24px 16px 48px}
@@ -482,6 +615,16 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .hero-stat:first-child{border-top:0;padding-top:0}
   .hero-token-name{font-size:20px}
   .hero-meta{margin-left:0;width:100%}
+  .holder-chart-wrap{padding:18px 16px 14px}
+  .holder-chart-svg{height:280px}
+  .holder-brush-wrap{padding:4px 16px 16px}
+  .holder-brush-overlay{left:16px;right:16px}
+  .holder-chart-controls{width:100%;justify-content:flex-start}
+  .holder-bucket-mode,.holder-chart-toggle{width:100%}
+  .holder-chart-toggle{justify-content:center}
+  .holder-chart-source{width:100%;justify-content:center;gap:7px;min-height:28px;padding:0;font-size:9px;flex-wrap:wrap}
+  .holder-chart-source::before{margin-right:0}
+  .holder-flow-stat.primary .value,.holder-flow-stat .value{font-size:15px}
   .tbl-foot,.flow-foot{grid-template-columns:1fr;justify-items:center;gap:10px}
   .tbl-foot-info{grid-column:1;text-align:center}
   .pager{grid-column:1}
@@ -871,6 +1014,75 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     </div>
   </section>
 
+  <!-- HOLDER DISTRIBUTION CHART -->
+  <section class="card holder-chart-card" id="holder-distribution-card">
+    <div class="card-head">
+      <div class="holder-title-block">
+        <div class="card-title">
+          <h2>DOLO Holder Buckets Over Time</h2>
+          <span class="count-badge" id="holder-chart-count">All</span>
+        </div>
+        <div class="holder-chart-controls">
+          <div class="holder-bucket-mode" id="holder-bucket-mode" aria-label="Holder bucket range">
+            <button type="button" class="active" data-holder-bucket-view="whales">Whales</button>
+            <button type="button" data-holder-bucket-view="smaller">Smaller</button>
+          </div>
+          <label class="holder-chart-toggle" for="holder-include-vedolo">
+            <input id="holder-include-vedolo" type="checkbox">
+            <span class="holder-chart-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span>
+            <span>veDOLO</span>
+          </label>
+        </div>
+      </div>
+      <div class="holder-chart-source" id="holder-chart-meta" aria-label="Holder chart data scope"></div>
+    </div>
+    <div class="holder-chart-wrap" id="holderChartWrap">
+      <svg class="holder-chart-svg" id="holderChartSvg" viewBox="0 0 1000 340" preserveAspectRatio="none" aria-label="DOLO holder buckets over time chart">
+        <defs>
+          <linearGradient id="holderChartAreaGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#c9a227" stop-opacity=".18"/>
+            <stop offset="58%" stop-color="#c9a227" stop-opacity=".05"/>
+            <stop offset="100%" stop-color="#c9a227" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <g class="holder-chart-grid" id="holderChartGrid"></g>
+        <path class="holder-chart-area" id="holderChartArea" d=""></path>
+        <g class="holder-chart-lines" id="holderChartLines"></g>
+        <g class="holder-chart-dots" id="holderChartDots"></g>
+        <line class="holder-chart-line" id="holderChartHoverLine" x1="0" x2="0" y1="0" y2="0"/>
+        <circle class="holder-chart-dot" id="holderChartHoverDot" r="4" cx="0" cy="0"/>
+        <g class="holder-chart-axis" id="holderChartAxis"></g>
+      </svg>
+      <div class="holder-chart-tip" id="holderChartTip">
+        <div class="tt-date">—</div>
+        <div class="tt-val">—</div>
+      </div>
+    </div>
+    <div class="holder-brush-wrap" id="holderBrushWrap">
+      <svg class="holder-brush-svg" id="holderBrushSvg" viewBox="0 0 1000 56" preserveAspectRatio="none" aria-label="DOLO holder buckets time range navigator">
+        <defs>
+          <linearGradient id="holderBrushGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#c9a227" stop-opacity=".30"/>
+            <stop offset="100%" stop-color="#c9a227" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path class="holder-brush-area" id="holderBrushArea" d=""></path>
+        <path class="holder-brush-line" id="holderBrushLine" d=""></path>
+      </svg>
+      <div class="holder-brush-overlay" id="holderBrushOverlay">
+        <div class="holder-brush-dim l" id="holderBrushDimL"></div>
+        <div class="holder-brush-window" id="holderBrushWindow">
+          <div class="holder-brush-handle l" id="holderBrushHandleL"><div class="grip"><span></span><span></span></div></div>
+          <div class="holder-brush-handle r" id="holderBrushHandleR"><div class="grip"><span></span><span></span></div></div>
+        </div>
+        <div class="holder-brush-dim r" id="holderBrushDimR"></div>
+      </div>
+      <div class="holder-brush-label" id="holderBrushLabel"></div>
+    </div>
+    <div class="holder-flow-stats" id="holderFlowStats"></div>
+    <div class="holder-chart-legend" id="holderChartLegend"></div>
+  </section>
+
   <!-- PROTOCOL INFO -->
   <section class="proto">
     <div class="proto-head">
@@ -986,6 +1198,7 @@ const state = {
     acc: {key:"net", dir:"desc"},
     out: {key:"net", dir:"desc"},
   },
+  includeVeDolo: false,
   flowsPage: {acc: 0, out: 0},
   flowsPageSize: 6,
   flowsStableBodyHeight: {acc: 0, out: 0},
@@ -1018,6 +1231,605 @@ const fmtPct = v => {
   if(v >= 1)  return v.toFixed(1) + "%";
   return v.toFixed(2) + "%";
 };
+
+const HOLDER_BUCKET_GROUPS = {
+  whales: [
+    {key:"gt1m", label:"1M+", detail:"At least 1M DOLO", min:1_000_000, max:Infinity, color:"#e4c15a"},
+    {key:"500k1m", label:"500K-1M", detail:"500K to 1M DOLO", min:500_000, max:1_000_000, color:"#8aa37b"},
+    {key:"100k500k", label:"100K-500K", detail:"100K to 500K DOLO", min:100_000, max:500_000, color:"#9ab7c2"},
+  ],
+  smaller: [
+    {key:"50k100k", label:"50K-100K", detail:"50K to 100K DOLO", min:50_000, max:100_000, color:"#e4c15a"},
+    {key:"10k50k", label:"10K-50K", detail:"10K to 50K DOLO", min:10_000, max:50_000, color:"#8aa37b"},
+    {key:"1k10k", label:"1K-10K", detail:"1K to 10K DOLO", min:1_000, max:10_000, color:"#9ab7c2"},
+  ],
+};
+const HOLDER_HISTORY_POINTS = [
+  {key:"all", label:"All", days:null},
+  {key:"180d", label:"180D", days:180},
+  {key:"90d", label:"90D", days:90},
+  {key:"30d", label:"30D", days:30},
+  {key:"7d", label:"7D", days:7},
+  {key:"1d", label:"24H", days:1},
+  {key:"now", label:"Now", days:0},
+];
+let holderDistributionActiveKey = "";
+let holderBucketView = "whales";
+let VEDOLO_LOCKS = new Map();
+let VEDOLO_FLOW_EVENTS = {locks:[], unlocks:[]};
+let DOLO_BALANCE_CHANGES = {};
+let vedoloHolderStats = null;
+let vedoloDataTimestamp = null;
+let doloHolderDataTimestamp = null;
+let doloFlowDataTimestamp = null;
+let doloAllHistoryStartTs = null;
+let holderBrushSel = {from:0, to:0};
+let holderBrushInitialized = false;
+let holderBrushDragging = null;
+let holderBrushDomainKey = "";
+let holderFullHistoryModel = null;
+const safeHolderNum = v => Number.isFinite(Number(v)) ? Number(v) : 0;
+const lowerHolderAddr = addr => String(addr || "").toLowerCase();
+function activeHolderBuckets(){
+  return HOLDER_BUCKET_GROUPS[holderBucketView] || HOLDER_BUCKET_GROUPS.whales;
+}
+function holderBucketFloorLabel(view = holderBucketView){
+  return view === "smaller" ? "1K-100K" : ">=100K";
+}
+function sharedAddressInfo(addr){
+  const labels = window.DOLO_ADDR_LABELS || window.DOLO_ADDRESS_LABELS || {};
+  return labels[String(addr || "").toLowerCase()] || null;
+}
+function holderDistributionType(addr, source){
+  const info = sharedAddressInfo(addr);
+  const t = (info && info.type) || source?.type || "";
+  if(t === "cex") return "cex";
+  if(t === "investor") return "investor";
+  if(t === "watch") return "watch";
+  if(t === "mm") return "mm";
+  if(t === "bot" || t === "liquidator") return "bot";
+  if(t === "protocol" || t === "lp" || t === "contract" || t === "dead" || source?.is_contract || source?.type === "ca") return "ca";
+  return "eoa";
+}
+function parseHolderTimestamp(value){
+  const ts = Date.parse(value || "");
+  return Number.isFinite(ts) ? Math.floor(ts / 1000) : 0;
+}
+function holderHistoryBaseTs(){
+  const timestamps = [doloFlowDataTimestamp, doloHolderDataTimestamp, vedoloDataTimestamp]
+    .map(parseHolderTimestamp)
+    .filter(Boolean);
+  return timestamps.length ? Math.max(...timestamps) : Math.floor(Date.now() / 1000);
+}
+function fmtHolderDate(ts){
+  return new Date(ts * 1000).toLocaleDateString("en-US", {month:"short", day:"numeric", year:"numeric"});
+}
+function fmtHolderAxisDate(ts, spanDays = 0){
+  const date = new Date(ts * 1000);
+  if(spanDays <= 90) return date.toLocaleDateString("en-US", {month:"short", day:"numeric"});
+  return date.toLocaleDateString("en-US", {month:"short", year:"numeric"});
+}
+function fmtHolderBrushDate(ts){
+  return new Date(ts * 1000).toLocaleDateString("en-US", {month:"short", year:"numeric"});
+}
+function fmtSignedHolder(value){
+  const n = safeHolderNum(value);
+  return (n >= 0 ? "+" : "-") + fmtNum(Math.abs(n));
+}
+function holderCexInflow(period = "7d"){
+  const changes = DOLO_BALANCE_CHANGES?.[period] || {};
+  let total = 0;
+  let wallets = 0;
+  Object.entries(changes).forEach(([addr, net]) => {
+    const value = safeHolderNum(net);
+    if(value <= 0 || holderDistributionType(addr, null) !== "cex") return;
+    total += value;
+    wallets += 1;
+  });
+  return {total, wallets};
+}
+function holderScopeHtml(){
+  return '<span class="holder-source-scope">ETH+Bera · CEX excluded from buckets</span>';
+}
+function holderCexStatHtml(){
+  const cex = holderCexInflow("7d");
+  if(cex.total <= 0) return "";
+  return `
+    <div class="holder-flow-stat primary">
+      <div class="top">
+        <span class="dot"></span>
+        <div class="label">CEX Inflow 7D</div>
+      </div>
+      <div class="value">+${fmtNum(cex.total)} DOLO</div>
+      <div class="sub">Net inflow to labeled CEX wallets</div>
+    </div>
+    <div class="holder-flow-stat neutral">
+      <div class="top">
+        <span class="dot"></span>
+        <div class="label">CEX Wallets</div>
+      </div>
+      <div class="value">${cex.wallets.toLocaleString()}</div>
+      <div class="sub">Known exchange wallets with inflow</div>
+    </div>
+    <div class="holder-flow-stat">
+      <div class="top">
+        <span class="dot"></span>
+        <div class="label">Net Direction</div>
+      </div>
+      <div class="value">To CEX</div>
+      <div class="sub">Sell-side signal for the period</div>
+    </div>
+  `;
+}
+function holderPointTimestamp(point, baseTs){
+  if(point.key === "now") return baseTs;
+  if(point.key === "all") return safeHolderNum(doloAllHistoryStartTs) || (baseTs - 365 * 86400);
+  return baseTs - safeHolderNum(point.days) * 86400;
+}
+function ensureHolderBucketRow(byAddress, addr, source){
+  const key = lowerHolderAddr(addr);
+  if(!key) return null;
+  const nextType = holderDistributionType(key, source);
+  const existing = byAddress.get(key) || {addr:key, type:nextType, liquid:0, locked:0};
+  if(nextType === "cex") existing.type = "cex";
+  else if(existing.type === "eoa" && nextType !== "eoa") existing.type = nextType;
+  byAddress.set(key, existing);
+  return existing;
+}
+function lockedMapAtHolderPoint(point, baseTs){
+  const lockedByAddress = new Map();
+  VEDOLO_LOCKS.forEach((locked, addr) => {
+    lockedByAddress.set(lowerHolderAddr(addr), safeHolderNum(locked));
+  });
+  if(point.key === "now") return lockedByAddress;
+  const cutoff = holderPointTimestamp(point, baseTs);
+  if(!Number.isFinite(cutoff) || cutoff <= 0) return lockedByAddress;
+  (VEDOLO_FLOW_EVENTS.locks || []).forEach(lock => {
+    const ts = safeHolderNum(lock.timestamp);
+    if(ts < cutoff) return;
+    const addr = lowerHolderAddr(lock.beneficiaryAddress || lock.address);
+    if(!addr) return;
+    lockedByAddress.set(addr, safeHolderNum(lockedByAddress.get(addr)) - safeHolderNum(lock.dolo));
+  });
+  (VEDOLO_FLOW_EVENTS.unlocks || []).forEach(unlock => {
+    const ts = safeHolderNum(unlock.timestamp);
+    if(ts < cutoff) return;
+    const addr = lowerHolderAddr(unlock.address);
+    if(!addr) return;
+    lockedByAddress.set(addr, safeHolderNum(lockedByAddress.get(addr)) + safeHolderNum(unlock.dolo));
+  });
+  lockedByAddress.forEach((value, addr) => {
+    const clean = Math.max(0, value);
+    if(clean > 0.0001) lockedByAddress.set(addr, clean);
+    else lockedByAddress.delete(addr);
+  });
+  return lockedByAddress;
+}
+function getHolderDistributionAtPoint(point, baseTs, includeVeDolo = state.includeVeDolo){
+  const byAddress = new Map();
+  const pointTs = holderPointTimestamp(point, baseTs);
+  HOLDERS.forEach(holder => {
+    const row = ensureHolderBucketRow(byAddress, holder.addr || holder.address, holder);
+    if(!row) return;
+    const splitTotal = safeHolderNum(holder.balEth) + safeHolderNum(holder.balBera);
+    row.liquid += safeHolderNum(holder.total) || splitTotal;
+  });
+  if(point.key !== "now"){
+    const changes = DOLO_BALANCE_CHANGES?.[point.key] || {};
+    Object.entries(changes).forEach(([addr, netFlow]) => {
+      const row = ensureHolderBucketRow(byAddress, addr, null);
+      if(row) row.liquid -= safeHolderNum(netFlow);
+    });
+  }
+  if(includeVeDolo){
+    lockedMapAtHolderPoint(point, baseTs).forEach((locked, addr) => {
+      const row = ensureHolderBucketRow(byAddress, addr, null);
+      if(row) row.locked += safeHolderNum(locked);
+    });
+  }
+
+  const bucketDefs = activeHolderBuckets();
+  const buckets = bucketDefs.map(bucket => ({...bucket, wallets:0, total:0, liquid:0, locked:0}));
+  const model = {
+    includeVeDolo,
+    bucketView: holderBucketView,
+    bucketFloorLabel: holderBucketFloorLabel(),
+    buckets,
+    trackedWallets:0,
+    trackedTotal:0,
+    trackedLiquid:0,
+    trackedLocked:0,
+    excludedCexWallets:0,
+    excludedCexTotal:0,
+    veWallets: VEDOLO_LOCKS.size,
+    veLockedTotal: [...VEDOLO_LOCKS.values()].reduce((sum, v) => sum + safeHolderNum(v), 0),
+  };
+
+  byAddress.forEach(holder => {
+    const liquid = Math.max(0, safeHolderNum(holder.liquid));
+    const locked = includeVeDolo ? safeHolderNum(holder.locked) : 0;
+    const total = liquid + locked;
+    if(total <= 0) return;
+    if(holder.type === "cex"){
+      model.excludedCexWallets += 1;
+      model.excludedCexTotal += total;
+      return;
+    }
+    const bucket = buckets.find(item => total >= item.min && total < item.max);
+    if(!bucket) return;
+    bucket.wallets += 1;
+    bucket.total += total;
+    bucket.liquid += liquid;
+    bucket.locked += locked;
+    model.trackedWallets += 1;
+    model.trackedTotal += total;
+    model.trackedLiquid += liquid;
+    model.trackedLocked += locked;
+  });
+  model.ts = pointTs;
+  model.label = point.label;
+  model.key = point.key;
+  return model;
+}
+function getHolderDistribution(includeVeDolo = state.includeVeDolo){
+  return getHolderDistributionAtPoint({key:"now", label:"Now", days:0}, holderHistoryBaseTs(), includeVeDolo);
+}
+function getHolderHistory(includeVeDolo = state.includeVeDolo){
+  const baseTs = holderHistoryBaseTs();
+  const points = HOLDER_HISTORY_POINTS
+    .filter(point => point.key === "now" || DOLO_BALANCE_CHANGES?.[point.key])
+    .map(point => getHolderDistributionAtPoint(point, baseTs, includeVeDolo))
+    .sort((a,b)=>a.ts-b.ts);
+  const current = points[points.length - 1] || getHolderDistribution(includeVeDolo);
+  return {
+    includeVeDolo,
+    bucketView: holderBucketView,
+    bucketFloorLabel: holderBucketFloorLabel(),
+    points,
+    current,
+    buckets: current.buckets,
+    trackedWallets: current.trackedWallets,
+    trackedTotal: current.trackedTotal,
+    trackedLiquid: current.trackedLiquid,
+    trackedLocked: current.trackedLocked,
+    excludedCexWallets: current.excludedCexWallets,
+    excludedCexTotal: current.excludedCexTotal,
+    veWallets: VEDOLO_LOCKS.size,
+    veLockedTotal: [...VEDOLO_LOCKS.values()].reduce((sum, v) => sum + safeHolderNum(v), 0),
+  };
+}
+function holderWindowLabel(from, to, minX, maxX){
+  const totalSpan = Math.max(1, maxX - minX);
+  const span = Math.max(1, to - from);
+  if(span >= totalSpan * 0.99) return "All";
+  const days = Math.round(span / 86400);
+  if(days >= 365) return `${(days / 365).toFixed(1)}Y`;
+  if(days >= 60) return `${Math.round(days / 30)}M`;
+  return `${Math.max(1, days)}D`;
+}
+function niceHolderChartMax(value){
+  const n = Math.max(1, safeHolderNum(value));
+  const exp = Math.pow(10, Math.floor(Math.log10(n)));
+  const norm = n / exp;
+  const step = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10;
+  return step * exp;
+}
+function holderBrushDomain(){
+  const points = holderFullHistoryModel?.points || [];
+  const minX = points[0]?.ts || 0;
+  const maxX = points[points.length - 1]?.ts || (minX + 1);
+  return {points, minX, maxX, span:Math.max(1, maxX - minX)};
+}
+function ensureHolderBrushSelection(fullModel){
+  const points = fullModel.points || [];
+  const minX = points[0]?.ts || 0;
+  const maxX = points[points.length - 1]?.ts || (minX + 1);
+  const domainKey = `${minX}:${maxX}:${points.length}`;
+  if(holderBrushDomainKey !== domainKey || !(holderBrushSel.from >= minX && holderBrushSel.to <= maxX && holderBrushSel.from < holderBrushSel.to)){
+    holderBrushSel = {from:minX, to:maxX};
+    holderBrushDomainKey = domainKey;
+  }
+}
+function visibleHolderHistory(fullModel){
+  ensureHolderBrushSelection(fullModel);
+  const points = fullModel.points || [];
+  let visible = points.filter(point => point.ts >= holderBrushSel.from && point.ts <= holderBrushSel.to);
+  if(visible.length < 2 && points.length >= 2){
+    const center = (holderBrushSel.from + holderBrushSel.to) / 2;
+    visible = [...points]
+      .sort((a,b)=>Math.abs(a.ts - center) - Math.abs(b.ts - center))
+      .slice(0, 2)
+      .sort((a,b)=>a.ts-b.ts);
+  }
+  const current = visible[visible.length - 1] || fullModel.current;
+  return {...fullModel, points:visible.length ? visible : points, current, buckets:current?.buckets || fullModel.buckets};
+}
+function paintHolderBrushWindow(){
+  const {minX, span} = holderBrushDomain();
+  const win = document.getElementById("holderBrushWindow");
+  const dimL = document.getElementById("holderBrushDimL");
+  const dimR = document.getElementById("holderBrushDimR");
+  const label = document.getElementById("holderBrushLabel");
+  if(!win || !dimL || !dimR || !label) return;
+  const leftPct = Math.max(0, Math.min(100, (holderBrushSel.from - minX) / span * 100));
+  const rightPct = Math.max(leftPct, Math.min(100, (holderBrushSel.to - minX) / span * 100));
+  win.style.left = leftPct + "%";
+  win.style.width = (rightPct - leftPct) + "%";
+  dimL.style.width = leftPct + "%";
+  dimR.style.width = (100 - rightPct) + "%";
+  label.innerHTML = `<span class="v">${fmtHolderBrushDate(holderBrushSel.from)}</span><span class="sep">→</span><span class="v">${fmtHolderBrushDate(holderBrushSel.to)}</span>`;
+}
+function renderHolderBrush(fullModel){
+  holderFullHistoryModel = fullModel;
+  ensureHolderBrushSelection(fullModel);
+  const brushLine = document.getElementById("holderBrushLine");
+  const brushArea = document.getElementById("holderBrushArea");
+  if(!brushLine || !brushArea) return;
+  const points = fullModel.points || [];
+  if(points.length < 2){
+    brushLine.setAttribute("d", "");
+    brushArea.setAttribute("d", "");
+    paintHolderBrushWindow();
+    return;
+  }
+  const minX = points[0].ts;
+  const maxX = points[points.length - 1].ts;
+  const span = Math.max(1, maxX - minX);
+  const maxY = Math.max(1, ...points.map(point => point.trackedTotal));
+  const BW = 1000, BH = 56;
+  const xAt = ts => (ts - minX) / span * BW;
+  const yAt = value => BH - Math.max(0, Math.min(1, value / (maxY * 1.05))) * BH;
+  const line = points.map((point, i) => `${i ? "L" : "M"}${xAt(point.ts).toFixed(1)} ${yAt(point.trackedTotal).toFixed(1)}`).join(" ");
+  const area = `${line} L${xAt(points[points.length - 1].ts).toFixed(1)} ${BH} L${xAt(points[0].ts).toFixed(1)} ${BH} Z`;
+  brushLine.setAttribute("d", line);
+  brushArea.setAttribute("d", area);
+  paintHolderBrushWindow();
+  initHolderBrush();
+}
+function initHolderBrush(){
+  if(holderBrushInitialized) return;
+  const svg = document.getElementById("holderBrushSvg");
+  const overlay = document.getElementById("holderBrushOverlay");
+  const win = document.getElementById("holderBrushWindow");
+  const handleL = document.getElementById("holderBrushHandleL");
+  const handleR = document.getElementById("holderBrushHandleR");
+  if(!svg || !overlay || !win || !handleL || !handleR) return;
+  holderBrushInitialized = true;
+  const onDown = kind => event => {
+    event.preventDefault();
+    event.stopPropagation();
+    holderBrushDragging = {kind, startX:event.clientX, startFrom:holderBrushSel.from, startTo:holderBrushSel.to};
+    win.classList.add("dragging");
+    document.body.style.userSelect = "none";
+  };
+  const pxToTime = px => {
+    const {minX, span} = holderBrushDomain();
+    const width = Math.max(1, overlay.clientWidth);
+    return minX + Math.max(0, Math.min(1, px / width)) * span;
+  };
+  win.addEventListener("mousedown", onDown("window"));
+  handleL.addEventListener("mousedown", onDown("left"));
+  handleR.addEventListener("mousedown", onDown("right"));
+  document.addEventListener("mousemove", event => {
+    if(!holderBrushDragging) return;
+    const {minX, maxX, span} = holderBrushDomain();
+    const width = Math.max(1, overlay.clientWidth);
+    const delta = (event.clientX - holderBrushDragging.startX) / width * span;
+    const minWindow = Math.max(86400, span * 0.01);
+    if(holderBrushDragging.kind === "window"){
+      const windowSpan = holderBrushDragging.startTo - holderBrushDragging.startFrom;
+      let from = holderBrushDragging.startFrom + delta;
+      let to = holderBrushDragging.startTo + delta;
+      if(from < minX){ from = minX; to = from + windowSpan; }
+      if(to > maxX){ to = maxX; from = to - windowSpan; }
+      holderBrushSel = {from, to};
+    } else if(holderBrushDragging.kind === "left"){
+      holderBrushSel.from = Math.min(holderBrushDragging.startTo - minWindow, Math.max(minX, holderBrushDragging.startFrom + delta));
+    } else if(holderBrushDragging.kind === "right"){
+      holderBrushSel.to = Math.max(holderBrushDragging.startFrom + minWindow, Math.min(maxX, holderBrushDragging.startTo + delta));
+    }
+    paintHolderBrushWindow();
+    renderHolderDistributionChart();
+  });
+  document.addEventListener("mouseup", () => {
+    if(!holderBrushDragging) return;
+    holderBrushDragging = null;
+    win.classList.remove("dragging");
+    document.body.style.userSelect = "";
+  });
+  svg.addEventListener("click", event => {
+    if(holderBrushDragging) return;
+    const {minX, maxX} = holderBrushDomain();
+    const rect = overlay.getBoundingClientRect();
+    const center = pxToTime(event.clientX - rect.left);
+    const span = holderBrushSel.to - holderBrushSel.from;
+    let from = center - span / 2;
+    let to = center + span / 2;
+    if(from < minX){ from = minX; to = from + span; }
+    if(to > maxX){ to = maxX; from = to - span; }
+    holderBrushSel = {from, to};
+    paintHolderBrushWindow();
+    renderHolderDistributionChart();
+  });
+}
+function renderHolderDistributionChart(){
+  const svg = document.getElementById("holderChartSvg");
+  const areaPath = document.getElementById("holderChartArea");
+  const lines = document.getElementById("holderChartLines");
+  const dots = document.getElementById("holderChartDots");
+  const grid = document.getElementById("holderChartGrid");
+  const axis = document.getElementById("holderChartAxis");
+  const legend = document.getElementById("holderChartLegend");
+  if(!svg || !areaPath || !lines || !dots || !grid || !axis || !legend) return;
+
+  const fullModel = getHolderHistory();
+  renderHolderBrush(fullModel);
+  const model = visibleHolderHistory(fullModel);
+  window.__doloHolderDistribution = {...fullModel, visiblePoints:model.points, brush:{...holderBrushSel}};
+  const bucketDefs = activeHolderBuckets();
+  if(holderDistributionActiveKey && !bucketDefs.some(bucket => bucket.key === holderDistributionActiveKey)){
+    holderDistributionActiveKey = "";
+  }
+  const maxTotal = Math.max(1, ...model.points.flatMap(point => point.buckets.map(bucket => bucket.total)));
+  const yMax = niceHolderChartMax(maxTotal * 1.12);
+  const W = 1000, H = 340, P_L = 74, P_R = 30, P_T = 24, P_B = 42;
+  const chartW = W - P_L - P_R;
+  const chartH = H - P_T - P_B;
+  const zeroY = P_T + chartH;
+  const yAt = value => P_T + (1 - Math.max(0, Math.min(1, value / yMax))) * chartH;
+  const xMin = model.points[0]?.ts || 0;
+  const xMax = model.points[model.points.length - 1]?.ts || (xMin + 1);
+  const xRange = Math.max(1, xMax - xMin);
+  const xAt = ts => P_L + (ts - xMin) / xRange * chartW;
+
+  grid.innerHTML = "";
+  for(let i=0; i<=4; i++){
+    const value = yMax * i / 4;
+    const y = yAt(value);
+    grid.innerHTML += `<line x1="${P_L}" x2="${W-P_R}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}"/>`;
+    grid.innerHTML += `<text x="${P_L-12}" y="${(y+3).toFixed(1)}" text-anchor="end">${fmtNum(value)}</text>`;
+  }
+  grid.innerHTML += `<line x1="${P_L}" x2="${W-P_R}" y1="${zeroY}" y2="${zeroY}" style="stroke:var(--line-2)"/>`;
+
+  lines.innerHTML = "";
+  dots.innerHTML = "";
+  axis.innerHTML = "";
+  const spanDays = xRange / 86400;
+  if(model.points.length < 2){
+    areaPath.setAttribute("d", "");
+  } else {
+    const focusKey = holderDistributionActiveKey || bucketDefs[0].key;
+    const focusedBucketIndex = Math.max(0, bucketDefs.findIndex(bucket => bucket.key === focusKey));
+    const areaSeries = model.points.map(point => [point.ts, point.buckets[focusedBucketIndex]?.total || 0]);
+    const areaLine = areaSeries.map((point, i) => `${i ? "L" : "M"}${xAt(point[0]).toFixed(2)} ${yAt(point[1]).toFixed(2)}`).join(" ");
+    const area = `${areaLine} L${xAt(areaSeries[areaSeries.length - 1][0]).toFixed(2)} ${zeroY.toFixed(2)} L${xAt(areaSeries[0][0]).toFixed(2)} ${zeroY.toFixed(2)} Z`;
+    areaPath.setAttribute("d", area);
+  }
+  const xTicks = 5;
+  for(let i=0; i<=xTicks; i++){
+    const ts = xMin + xRange * i / xTicks;
+    const x = xAt(ts);
+    const anchor = i === 0 ? "start" : i === xTicks ? "end" : "middle";
+    axis.innerHTML += `<text x="${x.toFixed(1)}" y="${H-10}" text-anchor="${anchor}">${fmtHolderAxisDate(ts, spanDays)}</text>`;
+  }
+  bucketDefs.forEach((bucket, bucketIndex) => {
+    const series = model.points.map(point => [point.ts, point.buckets[bucketIndex]?.total || 0]);
+    const path = series.map((point, i) => `${i ? "L" : "M"}${xAt(point[0]).toFixed(2)} ${yAt(point[1]).toFixed(2)}`).join(" ");
+    const active = bucket.key === holderDistributionActiveKey ? " is-active" : "";
+    const muted = holderDistributionActiveKey && bucket.key !== holderDistributionActiveKey ? " is-muted" : "";
+    lines.innerHTML += `<path class="holder-chart-series-line${active}${muted}" data-key="${bucket.key}" d="${path}" stroke="${bucket.color}"/>`;
+    series.forEach(point => {
+      dots.innerHTML += `<circle class="holder-chart-series-dot" data-key="${bucket.key}" r="3" cx="${xAt(point[0]).toFixed(2)}" cy="${yAt(point[1]).toFixed(2)}" fill="${bucket.color}"/>`;
+    });
+  });
+
+  const countEl = document.getElementById("holder-chart-count");
+  if(countEl){
+    const {minX, maxX} = holderBrushDomain();
+    countEl.textContent = model.points.length > 1 ? holderWindowLabel(holderBrushSel.from, holderBrushSel.to, minX, maxX) : "Loading";
+  }
+  const metaEl = document.getElementById("holder-chart-meta");
+  if(metaEl){
+    metaEl.innerHTML = holderScopeHtml();
+  }
+  const flowStatsEl = document.getElementById("holderFlowStats");
+  if(flowStatsEl){
+    flowStatsEl.innerHTML = holderCexStatHtml();
+    flowStatsEl.style.display = flowStatsEl.innerHTML.trim() ? "" : "none";
+  }
+  const firstPoint = model.points[0] || model.current;
+  const current = model.current;
+  legend.innerHTML = current.buckets.map((bucket, i) => {
+    const share = current.trackedTotal ? bucket.total / current.trackedTotal * 100 : 0;
+    const firstTotal = firstPoint.buckets?.[i]?.total || 0;
+    const delta = bucket.total - firstTotal;
+    const deltaClass = delta >= 0 ? "up" : "down";
+    const lockedText = model.includeVeDolo ? ` · ${fmtNum(bucket.locked)} locked` : "";
+    const active = bucket.key === holderDistributionActiveKey ? " is-active" : "";
+    return `
+      <div class="holder-chart-legend-item${active}" data-key="${bucket.key}">
+        <div class="top"><span class="dot" style="background:${bucket.color};box-shadow:0 0 8px ${bucket.color}66"></span><span class="bucket">${bucket.label} DOLO</span><span class="chg ${deltaClass}">${fmtSignedHolder(delta)}</span></div>
+        <div class="metric">${fmtNum(bucket.total)} DOLO</div>
+        <div class="sub">${bucket.wallets.toLocaleString()} wallets · ${fmtPct(share)} of ${model.bucketFloorLabel}${lockedText}</div>
+      </div>
+    `;
+  }).join("");
+
+  const hoverLine = document.getElementById("holderChartHoverLine");
+  const hoverDot = document.getElementById("holderChartHoverDot");
+  const tip = document.getElementById("holderChartTip");
+  const wrap = document.getElementById("holderChartWrap");
+  hoverLine.setAttribute("y1", P_T);
+  hoverLine.setAttribute("y2", zeroY);
+  const paintActive = key => {
+    svg.querySelectorAll(".holder-chart-series-line").forEach(lineEl => {
+      lineEl.classList.toggle("is-active", lineEl.dataset.key === key);
+      lineEl.classList.toggle("is-muted", !!key && lineEl.dataset.key !== key);
+    });
+    legend.querySelectorAll(".holder-chart-legend-item").forEach(item => {
+      item.classList.toggle("is-active", item.dataset.key === key);
+    });
+  };
+  const leave = () => {
+    hoverLine.style.opacity = 0;
+    hoverDot.style.opacity = 0;
+    tip.style.opacity = 0;
+    paintActive(holderDistributionActiveKey);
+  };
+  svg.onmousemove = event => {
+    if(model.points.length < 2) return;
+    const rect = svg.getBoundingClientRect();
+    const px = (event.clientX - rect.left) / rect.width * W;
+    if(px < P_L || px > W - P_R){ leave(); return; }
+    let nearest = model.points[0], best = Infinity;
+    model.points.forEach(point => {
+      const dist = Math.abs(xAt(point.ts) - px);
+      if(dist < best){ best = dist; nearest = point; }
+    });
+    const focusKey = holderDistributionActiveKey || bucketDefs[0].key;
+    const focusIndex = Math.max(0, bucketDefs.findIndex(bucket => bucket.key === focusKey));
+    const focusBucket = nearest.buckets[focusIndex] || nearest.buckets[0];
+    const x = xAt(nearest.ts);
+    const y = yAt(focusBucket.total);
+    const focusColor = bucketDefs[focusIndex]?.color || "#e4c15a";
+    paintActive(focusKey);
+    hoverLine.setAttribute("x1", x);
+    hoverLine.setAttribute("x2", x);
+    hoverLine.style.opacity = 1;
+    hoverDot.setAttribute("cx", x);
+    hoverDot.setAttribute("cy", y);
+    hoverDot.setAttribute("fill", focusColor);
+    hoverDot.style.opacity = 1;
+    tip.innerHTML = `
+      <div class="tt-date">${fmtHolderDate(nearest.ts)}</div>
+      <div class="tt-val">${fmtNum(nearest.trackedTotal)} DOLO tracked</div>
+      ${nearest.buckets.map(bucket => `
+        <div class="tt-row"><span><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${bucket.color};margin-right:6px"></i>${bucket.label}</span><b>${fmtNum(bucket.total)} · ${bucket.wallets.toLocaleString()} wallets</b></div>
+      `).join("")}
+    `;
+    tip.style.opacity = 1;
+    tip.style.left = "0px";
+    tip.style.top = "0px";
+    const wrapRect = wrap.getBoundingClientRect();
+    const screenX = rect.left - wrapRect.left + (x / W) * rect.width;
+    const screenY = rect.top - wrapRect.top + (y / H) * rect.height;
+    const tipW = tip.offsetWidth;
+    const tipH = tip.offsetHeight;
+    const lx = Math.min(Math.max(screenX - tipW / 2, 8), wrap.clientWidth - tipW - 8);
+    const ly = Math.max(screenY - tipH - 12, 4);
+    tip.style.left = lx + "px";
+    tip.style.top = ly + "px";
+  };
+  svg.onmouseleave = leave;
+  legend.querySelectorAll(".holder-chart-legend-item").forEach(item => {
+    item.addEventListener("mouseenter", () => paintActive(item.dataset.key));
+    item.addEventListener("mouseleave", () => paintActive(holderDistributionActiveKey));
+    item.addEventListener("click", () => {
+      holderDistributionActiveKey = holderDistributionActiveKey === item.dataset.key ? "" : item.dataset.key;
+      renderHolderDistributionChart();
+    });
+  });
+}
 
 const COPY_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
 const CHECK_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
@@ -1189,6 +2001,7 @@ function renderHolders(){
     if(e.target.closest(".addr-copy")) return;
     window.open(`https://etherscan.io/address/${tr.dataset.addr}`, "_blank", "noopener");
   }));
+  renderHolderDistributionChart();
 }
 
 function effectiveChg(r){
@@ -1585,6 +2398,21 @@ document.querySelector('#dd-flows-types .dd-clear')?.addEventListener("click", e
   renderFlows();
 });
 
+document.getElementById("holder-include-vedolo")?.addEventListener("change", e=>{
+  state.includeVeDolo = e.currentTarget.checked;
+  renderHolderDistributionChart();
+});
+document.querySelectorAll("[data-holder-bucket-view]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const next = btn.dataset.holderBucketView;
+    if(!HOLDER_BUCKET_GROUPS[next] || next === holderBucketView) return;
+    holderBucketView = next;
+    holderDistributionActiveKey = "";
+    document.querySelectorAll("[data-holder-bucket-view]").forEach(item => item.classList.toggle("active", item.dataset.holderBucketView === holderBucketView));
+    renderHolderDistributionChart();
+  });
+});
+
 // One row per (token, chain) pair — explicit even when same address.
 const CONTRACTS = [
   {token:"DOLO",   logo:"dolo-logo.svg",           chain:"Ethereum",  chainKey:"ethereum",  addr:"0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654", explorer:"https://etherscan.io"},
@@ -1657,6 +2485,8 @@ renderFlows();
     "dolo_price.json",
     "dolo_holders.json",
     "dolo_flows.json",
+    "vedolo_holders.json",
+    "vedolo_flows.json",
     "vesting_investors.json",
   ];
   const ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddressLabels() : {};
@@ -1802,6 +2632,7 @@ renderFlows();
   function applyHolders(data){
     if(!data || !Array.isArray(data.holders)) return;
     liveHolderStats = data.stats || null;
+    doloHolderDataTimestamp = data.timestamp || null;
     HOLDERS.length = 0;
     data.holders.forEach(h => {
       const info = addressInfo(h.address, h);
@@ -1814,12 +2645,36 @@ renderFlows();
         balEth: safeNum(h.balance_eth),
         balBera: safeNum(h.balance_bera),
       };
-      row.total = row.balEth + row.balBera;
+      row.total = safeNum(h.balance) || row.balEth + row.balBera;
       HOLDERS.push(row);
     });
     state.page = 0;
     renderHolders();
     syncLiveMeta(data.timestamp);
+  }
+  function applyVeDoloHolders(data){
+    VEDOLO_LOCKS = new Map();
+    if(!data || !Array.isArray(data.holders)){
+      vedoloHolderStats = null;
+      vedoloDataTimestamp = null;
+      renderHolderDistributionChart();
+      return;
+    }
+    vedoloHolderStats = data.stats || null;
+    vedoloDataTimestamp = data.timestamp || null;
+    data.holders.forEach(holder => {
+      const key = lower(holder.address);
+      if(!key) return;
+      VEDOLO_LOCKS.set(key, safeNum(holder.total_dolo));
+    });
+    renderHolderDistributionChart();
+  }
+  function applyVeDoloFlows(data){
+    VEDOLO_FLOW_EVENTS = {
+      locks: Array.isArray(data?.locks) ? data.locks : [],
+      unlocks: Array.isArray(data?.unlocks) ? data.unlocks : [],
+    };
+    renderHolderDistributionChart();
   }
   function flowRowsForPeriod(){
     const periodData = liveFlowsData?.periods?.[state.flowsPeriod];
@@ -1892,14 +2747,23 @@ renderFlows();
   async function boot(){
     try{
       await applyVestingLabels();
-      const [price, holders, flows] = await Promise.all([
+      const [price, holders, flows, veHolders, veFlows] = await Promise.all([
         fetchJson("dolo_price.json").catch(() => null),
         fetchJson("dolo_holders.json").catch(() => null),
         fetchJson("dolo_flows.json").catch(() => null),
+        fetchJson("vedolo_holders.json").catch(() => null),
+        fetchJson("vedolo_flows.json").catch(() => null),
       ]);
       applyPrice(price);
       if(flows) learnAutoCexLabels(flows, holders);
+      if(flows){
+        DOLO_BALANCE_CHANGES = flows.balance_changes || {};
+        doloFlowDataTimestamp = flows.timestamp || null;
+        doloAllHistoryStartTs = parseHolderTimestamp(flows.holder_history_start_timestamp || flows.all_history_start_timestamp || flows.period_start_timestamps?.all);
+      }
       applyHolders(holders);
+      applyVeDoloHolders(veHolders);
+      applyVeDoloFlows(veFlows);
       if(flows){
         liveFlowsData = flows;
         liveFlowTimestamp = flows.timestamp;
