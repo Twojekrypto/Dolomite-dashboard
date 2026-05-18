@@ -1270,6 +1270,7 @@ let holderBrushInitialized = false;
 let holderBrushDragging = null;
 let holderBrushDomainKey = "";
 let holderFullHistoryModel = null;
+let holderPrecomputedVeDoloIsDaily = false;
 const safeHolderNum = v => Number.isFinite(Number(v)) ? Number(v) : 0;
 const lowerHolderAddr = addr => String(addr || "").toLowerCase();
 function activeHolderBuckets(){
@@ -1519,11 +1520,13 @@ function getPrecomputedHolderHistory(includeVeDolo = state.includeVeDolo){
       veLockedTotal:[...VEDOLO_LOCKS.values()].reduce((sum, v) => sum + safeHolderNum(v), 0),
     };
   }).filter(point => point && point.ts > 0).sort((a,b)=>a.ts-b.ts);
-  const now = getHolderDistribution(includeVeDolo);
-  if(points.length && Math.abs(now.ts - points[points.length - 1].ts) > 3600){
+  const hasLiveVeDoloLocks = !includeVeDolo || VEDOLO_LOCKS.size > 0;
+  const now = hasLiveVeDoloLocks ? getHolderDistribution(includeVeDolo) : null;
+  holderPrecomputedVeDoloIsDaily = includeVeDolo && !hasLiveVeDoloLocks;
+  if(now && points.length && Math.abs(now.ts - points[points.length - 1].ts) > 3600){
     points.push(now);
   }
-  const current = points[points.length - 1] || now;
+  const current = points[points.length - 1] || now || getHolderDistribution(false);
   return {
     includeVeDolo,
     bucketView:holderBucketView,
@@ -2553,8 +2556,6 @@ renderFlows();
     "dolo_price.json",
     "dolo_holders.json",
     "dolo_flows.json",
-    "vedolo_holders.json",
-    "vedolo_flows.json",
     "vesting_investors.json",
   ];
   const ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddressLabels() : {};
@@ -2572,6 +2573,12 @@ renderFlows();
     if(!r.ok) throw new Error(name + " HTTP " + r.status);
     return r.json();
   });
+  const afterFirstPaint = () => new Promise(resolve => {
+    const done = () => setTimeout(resolve, 0);
+    if(typeof requestAnimationFrame === "function") requestAnimationFrame(done);
+    else done();
+  });
+  const fetchHeavyJson = name => afterFirstPaint().then(() => fetchJson(name));
   const safeNum = v => Number.isFinite(Number(v)) ? Number(v) : 0;
   const lower = addr => String(addr || "").toLowerCase();
   function setMetricElement(el, value){
@@ -2643,14 +2650,17 @@ renderFlows();
         (data.sellers || []).forEach(item => touch(item, "out"));
       });
     });
+    let learned = 0;
     Object.entries(signals).forEach(([key, s]) => {
       const hotWithdrawalWallet = s.roles.has("out") && s.tx >= 250 && s.flow >= 250_000 && s.balance <= 150_000;
       const largeCustodyLike = s.tx >= 3 && s.balance >= 2_500_000 && s.flow >= 250_000;
       const activeCustodyLike = s.roles.has("acc") && s.tx >= 100 && s.balance >= 500_000 && s.flow >= 100_000;
       if(hotWithdrawalWallet || largeCustodyLike || activeCustodyLike){
         AUTO_CEX_LABELS[key] = {label:"Potential CEX/MM", type:"watch", source:"heuristic-flow-pattern", confidence:"potential"};
+        learned += 1;
       }
     });
+    return learned;
   }
   function syncLiveMeta(timestamp){
     const label = "Live · " + ago(timestamp);
@@ -2744,6 +2754,16 @@ renderFlows();
     };
     renderHolderDistributionChart();
   }
+  function applyDoloFlows(flows){
+    if(!flows) return;
+    DOLO_BALANCE_CHANGES = flows.balance_changes || {};
+    DOLO_HOLDER_HISTORY_POINTS = Array.isArray(flows.holder_history_points) ? flows.holder_history_points : [];
+    DOLO_HOLDER_BUCKET_HISTORY = Array.isArray(flows.holder_bucket_history) ? flows.holder_bucket_history : [];
+    doloFlowDataTimestamp = flows.timestamp || null;
+    doloAllHistoryStartTs = parseHolderTimestamp(flows.holder_history_start_timestamp || flows.all_history_start_timestamp || flows.period_start_timestamps?.all);
+    liveFlowsData = flows;
+    liveFlowTimestamp = flows.timestamp;
+  }
   function flowRowsForPeriod(){
     const periodData = liveFlowsData?.periods?.[state.flowsPeriod];
     if(!periodData) return;
@@ -2815,30 +2835,36 @@ renderFlows();
   async function boot(){
     try{
       await applyVestingLabels();
-      const [price, holders, flows, veHolders, veFlows] = await Promise.all([
-        fetchJson("dolo_price.json").catch(() => null),
-        fetchJson("dolo_holders.json").catch(() => null),
-        fetchJson("dolo_flows.json").catch(() => null),
-        fetchJson("vedolo_holders.json").catch(() => null),
-        fetchJson("vedolo_flows.json").catch(() => null),
-      ]);
-      applyPrice(price);
-      if(flows) learnAutoCexLabels(flows, holders);
-      if(flows){
-        DOLO_BALANCE_CHANGES = flows.balance_changes || {};
-        DOLO_HOLDER_HISTORY_POINTS = Array.isArray(flows.holder_history_points) ? flows.holder_history_points : [];
-        DOLO_HOLDER_BUCKET_HISTORY = Array.isArray(flows.holder_bucket_history) ? flows.holder_bucket_history : [];
-        doloFlowDataTimestamp = flows.timestamp || null;
-        doloAllHistoryStartTs = parseHolderTimestamp(flows.holder_history_start_timestamp || flows.all_history_start_timestamp || flows.period_start_timestamps?.all);
-      }
-      applyHolders(holders);
-      applyVeDoloHolders(veHolders);
-      applyVeDoloFlows(veFlows);
-      if(flows){
-        liveFlowsData = flows;
-        liveFlowTimestamp = flows.timestamp;
-        renderFlows();
-      }
+      let latestHoldersData = null;
+      const pricePromise = fetchJson("dolo_price.json")
+        .then(applyPrice)
+        .catch(error => console.warn("DOLO price load failed", error));
+      const holdersPromise = fetchJson("dolo_holders.json")
+        .then(data => {
+          latestHoldersData = data;
+          applyHolders(data);
+          return data;
+        })
+        .catch(error => {
+          console.warn("DOLO holders load failed", error);
+          return null;
+        });
+      const flowsPromise = fetchHeavyJson("dolo_flows.json")
+        .then(async flows => {
+          const holdersData = latestHoldersData || await holdersPromise;
+          const learned = holdersData ? learnAutoCexLabels(flows, holdersData) : 0;
+          applyDoloFlows(flows);
+          if(holdersData && learned > 0) applyHolders(holdersData);
+          renderFlows();
+          renderHolderDistributionChart();
+          return flows;
+        })
+        .catch(error => {
+          console.warn("DOLO flows load failed", error);
+          return null;
+        });
+      await Promise.allSettled([pricePromise, holdersPromise]);
+      await flowsPromise;
     }catch(err){
       console.warn("DOLO live preview integration failed; using bundled sample rows.", err, SOURCE_FILES);
     }
