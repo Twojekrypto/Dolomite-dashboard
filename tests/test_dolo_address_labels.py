@@ -113,6 +113,15 @@ class DoloAddressLabelsTest(unittest.TestCase):
             "0xdb861e302ef7b7578a448e951aede06302936c28": ("Phemex 1", "cex"),
             "0xf2067abfab8bc621211935431519d41825d2f344": ("Coinstore 3", "cex"),
             "0xcd531ae9efcce479654c4926dec5f6209531ca7b": ("Coinbase Prime 1", "cex"),
+            "0x43684d03d81d3a4c70da68febdd61029d426f042": ("Binance 117", "cex"),
+            "0x28c6c06298d514db089934071355e5743bf21d60": ("Binance 14", "cex"),
+            "0x98adef6f2ac8572ec48965509d69a8dd5e8bba9d": ("Binance 93", "cex"),
+            "0x2b3bf74b29f59fb8dda41cf3d6a8da28cf8e7921": ("BingX 29", "cex"),
+            "0xb8001c3ec9aa1985f6c747e25c28324e4a361ec1": ("Cobo Custody 1", "cex"),
+            "0x4ed6cf63bd9c009d247ee51224fc1c7041f517f1": ("Ceffu 6", "cex"),
+            "0xef7960eb0b732f70007f7c05daf6bb597aa742d6": ("Binance Deposit", "cex"),
+            "0x7ff8bbf9c8ab106db589e7863fb100525f61cce5": ("BloFin Hot Wallet 1", "cex"),
+            "0x9b0c45d46d386cedd98873168c36efd0dcba8d46": ("Revolut 3", "cex"),
         }
         for address, (label, label_type) in expected.items():
             with self.subTest(address=address):
