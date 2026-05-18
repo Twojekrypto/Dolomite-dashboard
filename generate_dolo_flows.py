@@ -4,9 +4,9 @@ DOLO Token Flows — Top Accumulators & Sellers (1d / 7d / 30d)
 Fetches ERC-20 Transfer events via eth_getLogs for ETH and Berachain,
 calculates net inflow/outflow per address, outputs top 5 each.
 """
-import json, time, os, sys, signal
+import json, time, os, sys, signal, re
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 ALCHEMY_BERA_RPC = os.environ.get("ALCHEMY_BERACHAIN_RPC", "")
 ALCHEMY_BERA_RPC_2 = os.environ.get("ALCHEMY_BERACHAIN_RPC_2", "")
@@ -17,6 +17,29 @@ DOLO_CONTRACT = "0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654".lower()
 TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 ZERO = "0x0000000000000000000000000000000000000000"
 TOP_N = 100
+FLOW_SKIP_ADDRS = {
+    ZERO,
+    DOLO_CONTRACT,
+    "0x0000000000000000000000000000000000000001",
+    "0x3e9b9a16743551da49b5e136c716bba7932d2cec",  # oDOLO Vester
+}
+BRIDGE_ADDRS = {
+    ZERO,
+    DOLO_CONTRACT,
+    "0x0000000000000000000000000000000000000001",
+}
+HOLDER_BUCKET_GROUPS = {
+    "whales": [
+        {"key": "1mplus", "min": 1_000_000, "max": float("inf")},
+        {"key": "500k1m", "min": 500_000, "max": 1_000_000},
+        {"key": "100k500k", "min": 100_000, "max": 500_000},
+    ],
+    "smaller": [
+        {"key": "50k100k", "min": 50_000, "max": 100_000},
+        {"key": "10k50k", "min": 10_000, "max": 50_000},
+        {"key": "1k10k", "min": 1_000, "max": 10_000},
+    ],
+}
 
 # Known contract addresses to exclude (DEX routers, LP pools, bots, etc.)
 EXCLUDED_ADDRS = {
@@ -110,7 +133,7 @@ PERIODS = {
     "all": 86400 * 365 * 10,
 }
 
-HOLDER_HISTORY_START_TIMESTAMP = 1735377287  # Ethereum DOLO deploy block 21,500,000
+HOLDER_HISTORY_START_TIMESTAMP = int(datetime(2025, 4, 24, tzinfo=timezone.utc).timestamp())  # DOLO TGE
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_JSON = os.path.join(DATA_DIR, "dolo_flows.json")
@@ -321,16 +344,9 @@ def calculate_flows(transfers, excluded):
     entirely — mints are not accumulation and burns are not selling.
     Detected DEX/LP contracts are kept in the calculation (both legs counted)
     but filtered from the final results by get_top()."""
-    # Mint/burn addresses whose transfers should be SKIPPED entirely
-    SKIP_ADDRS = {
-        ZERO,
-        DOLO_CONTRACT,
-        "0x0000000000000000000000000000000000000001",
-        "0x3e9b9a16743551da49b5e136c716bba7932d2cec",  # oDOLO Vester
-    }
     flows = {}
     for from_addr, to_addr, value_wei, _ in transfers:
-        if from_addr in SKIP_ADDRS or to_addr in SKIP_ADDRS:
+        if from_addr in FLOW_SKIP_ADDRS or to_addr in FLOW_SKIP_ADDRS:
             continue
         value = value_wei / (10 ** 18)
         flows[from_addr] = flows.get(from_addr, 0) - value
@@ -346,11 +362,6 @@ def calculate_bridge_flows(transfers):
     
     Returns: {addr: net_bridge_flow} where positive = received mints,
     negative = sent burns."""
-    BRIDGE_ADDRS = {
-        ZERO,
-        DOLO_CONTRACT,
-        "0x0000000000000000000000000000000000000001",
-    }
     bridge_flows = {}
     for from_addr, to_addr, value_wei, _ in transfers:
         value = value_wei / (10 ** 18)
@@ -437,6 +448,319 @@ def neutralize_cross_chain_flows(flows_by_chain):
         neutralized_volume += cancel_amount
     
     return flows_by_chain, neutralized_count, neutralized_volume
+
+
+def build_holder_history_schedule(base_ts):
+    """Build daily holder-bucket chart cutoffs from DOLO TGE to yesterday."""
+    points_by_day = {}
+    start_ts = HOLDER_HISTORY_START_TIMESTAMP
+    end_ts = int(base_ts)
+
+    def add_point(ts):
+        ts = max(start_ts, min(int(ts), end_ts))
+        if ts >= end_ts - 3600:
+            return
+        dt = datetime.utcfromtimestamp(ts)
+        key = dt.strftime("hist_%Y%m%d")
+        existing = points_by_day.get(key)
+        if existing is None or abs(ts - end_ts) < abs(existing["ts"] - end_ts):
+            points_by_day[key] = {
+                "key": key,
+                "timestamp": dt.isoformat() + "Z",
+                "ts": ts,
+            }
+
+    add_point(start_ts)
+    current = datetime.fromtimestamp(start_ts, timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    if int(current.timestamp()) < start_ts:
+        current = current + timedelta(days=1)
+    while int(current.timestamp()) < end_ts - 3600:
+        add_point(int(current.timestamp()))
+        current = current + timedelta(days=1)
+
+    return sorted(points_by_day.values(), key=lambda point: point["ts"])
+
+
+def calculate_neutralized_flows_for_cutoffs(all_transfers, cutoff_by_chain):
+    raw_flows = {}
+    bridge_flows_by_chain = {}
+    for chain_key in CHAINS:
+        cutoff = cutoff_by_chain[chain_key]
+        period_transfers = [t for t in all_transfers[chain_key] if t[3] >= cutoff]
+        raw_flows[chain_key] = calculate_flows(period_transfers, EXCLUDED_ADDRS)
+        bridge_flows_by_chain[chain_key] = calculate_bridge_flows(period_transfers)
+    return neutralize_raw_and_bridge_flows(raw_flows, bridge_flows_by_chain)
+
+
+def neutralize_raw_and_bridge_flows(raw_flows, bridge_flows_by_chain):
+    augmented_flows = {}
+    for chain_key in CHAINS:
+        augmented_flows[chain_key] = dict(raw_flows[chain_key])
+        for addr, bflow in bridge_flows_by_chain[chain_key].items():
+            augmented_flows[chain_key][addr] = augmented_flows[chain_key].get(addr, 0) + bflow
+
+    neutralized_aug, _, _ = neutralize_cross_chain_flows(augmented_flows)
+    neutralized = {}
+    for chain_key in CHAINS:
+        neutralized[chain_key] = dict(raw_flows[chain_key])
+        for addr in raw_flows[chain_key]:
+            original_aug = raw_flows[chain_key].get(addr, 0) + bridge_flows_by_chain[chain_key].get(addr, 0)
+            neutralized_aug_val = neutralized_aug[chain_key].get(addr, 0)
+            delta = neutralized_aug_val - original_aug
+            if abs(delta) > 0.01:
+                neutralized[chain_key][addr] = raw_flows[chain_key][addr] + delta
+    return neutralized
+
+
+def add_transfer_to_running_flows(raw_flows, bridge_flows, transfer):
+    from_addr, to_addr, value_wei, _ = transfer
+    value = value_wei / (10 ** 18)
+    if from_addr not in FLOW_SKIP_ADDRS and to_addr not in FLOW_SKIP_ADDRS:
+        raw_flows[from_addr] = raw_flows.get(from_addr, 0) - value
+        raw_flows[to_addr] = raw_flows.get(to_addr, 0) + value
+    if from_addr in BRIDGE_ADDRS and to_addr not in BRIDGE_ADDRS:
+        bridge_flows[to_addr] = bridge_flows.get(to_addr, 0) + value
+    elif to_addr in BRIDGE_ADDRS and from_addr not in BRIDGE_ADDRS:
+        bridge_flows[from_addr] = bridge_flows.get(from_addr, 0) - value
+
+
+def ensure_transfers_sorted_by_block(transfers):
+    if len(transfers) < 2:
+        return transfers
+    for idx in range(1, len(transfers)):
+        if transfers[idx - 1][3] > transfers[idx][3]:
+            return sorted(transfers, key=lambda t: t[3])
+    return transfers
+
+
+def holder_history_cutoff_block(chain_key, point_ts, base_ts, current_blocks):
+    cfg = CHAINS[chain_key]
+    seconds_back = max(0, int(base_ts) - int(point_ts))
+    blocks_back = int(seconds_back // cfg["block_time"])
+    return max(current_blocks[chain_key] - blocks_back, cfg.get("deploy_block", 0))
+
+
+def calculate_holder_bucket_history(all_transfers, points, current_blocks, base_ts):
+    holder_rows = load_current_holder_rows()
+    label_types = load_address_label_types()
+    current_liquid = {
+        addr: float(row.get("balance") or 0)
+        for addr, row in holder_rows.items()
+    }
+    current_locks = load_current_vedolo_locks()
+    vedolo_events = load_vedolo_flow_events()
+    sorted_transfers = {
+        chain_key: ensure_transfers_sorted_by_block(transfers)
+        for chain_key, transfers in all_transfers.items()
+    }
+    cursors = {
+        chain_key: len(transfers) - 1
+        for chain_key, transfers in sorted_transfers.items()
+    }
+    running_raw = {chain_key: {} for chain_key in CHAINS}
+    running_bridge = {chain_key: {} for chain_key in CHAINS}
+    history = []
+
+    for point in sorted(points, key=lambda row: row["ts"], reverse=True):
+        for chain_key in CHAINS:
+            cutoff = holder_history_cutoff_block(chain_key, point["ts"], base_ts, current_blocks)
+            chain_transfers = sorted_transfers[chain_key]
+            cursor = cursors[chain_key]
+            while cursor >= 0 and chain_transfers[cursor][3] >= cutoff:
+                add_transfer_to_running_flows(
+                    running_raw[chain_key],
+                    running_bridge[chain_key],
+                    chain_transfers[cursor],
+                )
+                cursor -= 1
+            cursors[chain_key] = cursor
+
+        raw_snapshot = {chain_key: dict(running_raw[chain_key]) for chain_key in CHAINS}
+        bridge_snapshot = {chain_key: dict(running_bridge[chain_key]) for chain_key in CHAINS}
+        changes = merge_balance_changes(neutralize_raw_and_bridge_flows(raw_snapshot, bridge_snapshot))
+        liquid_balances = dict(current_liquid)
+        for addr, net in changes.items():
+            historical = liquid_balances.get(addr.lower(), 0) - net
+            if historical > 0.0001:
+                liquid_balances[addr.lower()] = historical
+            elif addr.lower() in liquid_balances:
+                liquid_balances.pop(addr.lower(), None)
+
+        locked_balances = locked_map_at_holder_point(point["ts"], current_locks, vedolo_events)
+        row = {
+            "key": point["key"],
+            "timestamp": point["timestamp"],
+            "liquid": {},
+            "with_vedolo": {},
+        }
+        for view, bucket_defs in HOLDER_BUCKET_GROUPS.items():
+            row["liquid"][view] = build_bucket_model(liquid_balances, {}, holder_rows, label_types, bucket_defs)
+            row["with_vedolo"][view] = build_bucket_model(liquid_balances, locked_balances, holder_rows, label_types, bucket_defs)
+        history.append(row)
+
+    return sorted(history, key=lambda row: row["timestamp"])
+
+
+def merge_balance_changes(flows_by_chain):
+    merged = {}
+    for chain_key in CHAINS:
+        flows = flows_by_chain[chain_key]
+        for addr, net in flows.items():
+            if addr in EXCLUDED_ADDRS:
+                continue
+            if abs(net) < 1:
+                continue
+            merged[addr] = merged.get(addr, 0) + net
+    return {addr: round(v, 2) for addr, v in merged.items()}
+
+
+def load_current_holder_rows():
+    holders_file = os.path.join(DATA_DIR, "dolo_holders.json")
+    if not os.path.exists(holders_file):
+        return {}
+    try:
+        with open(holders_file) as f:
+            holders_data = json.load(f)
+        return {
+            h.get("address", "").lower(): h
+            for h in holders_data.get("holders", [])
+            if h.get("address")
+        }
+    except Exception as e:
+        print(f"  ⚠️ Could not load holder rows for bucket history: {e}")
+        return {}
+
+
+def load_address_label_types():
+    labels_file = os.path.join(DATA_DIR, "dolo-address-labels.js")
+    if not os.path.exists(labels_file):
+        return {}
+    try:
+        text = open(labels_file).read()
+    except Exception as e:
+        print(f"  ⚠️ Could not load address labels for bucket history: {e}")
+        return {}
+    labels = {}
+    for match in re.finditer(r'"(0x[a-fA-F0-9]{40})"\s*:\s*\{[^}]*?type\s*:\s*"([^"]+)"', text):
+        labels[match.group(1).lower()] = match.group(2)
+    return labels
+
+
+def holder_distribution_type(addr, holder_rows, label_types):
+    key = addr.lower()
+    label_type = label_types.get(key, "")
+    if label_type == "cex":
+        return "cex"
+    if label_type in {"protocol", "lp", "contract", "dead"}:
+        return "ca"
+    holder = holder_rows.get(key) or {}
+    if holder.get("is_contract"):
+        return "ca"
+    return label_type or "eoa"
+
+
+def load_current_vedolo_locks():
+    holders_file = os.path.join(DATA_DIR, "vedolo_holders.json")
+    if not os.path.exists(holders_file):
+        return {}
+    try:
+        with open(holders_file) as f:
+            holders_data = json.load(f)
+        return {
+            h.get("address", "").lower(): float(h.get("total_dolo") or 0)
+            for h in holders_data.get("holders", [])
+            if h.get("address") and float(h.get("total_dolo") or 0) > 0
+        }
+    except Exception as e:
+        print(f"  ⚠️ Could not load veDOLO holders for bucket history: {e}")
+        return {}
+
+
+def load_vedolo_flow_events():
+    flows_file = os.path.join(DATA_DIR, "vedolo_flows.json")
+    if not os.path.exists(flows_file):
+        return {"locks": [], "unlocks": []}
+    try:
+        with open(flows_file) as f:
+            data = json.load(f)
+        return {
+            "locks": data.get("locks") or [],
+            "unlocks": data.get("unlocks") or [],
+        }
+    except Exception as e:
+        print(f"  ⚠️ Could not load veDOLO flows for bucket history: {e}")
+        return {"locks": [], "unlocks": []}
+
+
+def locked_map_at_holder_point(point_ts, current_locks, vedolo_events):
+    locked = dict(current_locks)
+    for lock in vedolo_events.get("locks", []):
+        ts = int(lock.get("timestamp") or 0)
+        if ts < point_ts:
+            continue
+        addr = (lock.get("beneficiaryAddress") or lock.get("address") or "").lower()
+        if not addr:
+            continue
+        locked[addr] = locked.get(addr, 0) - float(lock.get("dolo") or 0)
+    for unlock in vedolo_events.get("unlocks", []):
+        ts = int(unlock.get("timestamp") or 0)
+        if ts < point_ts:
+            continue
+        addr = (unlock.get("address") or "").lower()
+        if not addr:
+            continue
+        locked[addr] = locked.get(addr, 0) + float(unlock.get("dolo") or 0)
+    return {addr: value for addr, value in locked.items() if value > 0.0001}
+
+
+def empty_bucket_model(bucket_defs):
+    buckets = [
+        {"wallets": 0, "total": 0, "liquid": 0, "locked": 0}
+        for _ in bucket_defs
+    ]
+    return {
+        "buckets": buckets,
+        "trackedWallets": 0,
+        "trackedTotal": 0,
+        "trackedLiquid": 0,
+        "trackedLocked": 0,
+        "excludedCexWallets": 0,
+        "excludedCexTotal": 0,
+    }
+
+
+def build_bucket_model(liquid_balances, locked_balances, holder_rows, label_types, bucket_defs):
+    model = empty_bucket_model(bucket_defs)
+    addresses = set(liquid_balances.keys()) | set(locked_balances.keys())
+    for addr in addresses:
+        liquid = max(0, float(liquid_balances.get(addr) or 0))
+        locked = max(0, float(locked_balances.get(addr) or 0))
+        total = liquid + locked
+        if total <= 0:
+            continue
+        if holder_distribution_type(addr, holder_rows, label_types) == "cex":
+            model["excludedCexWallets"] += 1
+            model["excludedCexTotal"] += total
+            continue
+        bucket_index = next((idx for idx, bucket in enumerate(bucket_defs) if total >= bucket["min"] and total < bucket["max"]), None)
+        if bucket_index is None:
+            continue
+        bucket = model["buckets"][bucket_index]
+        bucket["wallets"] += 1
+        bucket["total"] += total
+        bucket["liquid"] += liquid
+        bucket["locked"] += locked
+        model["trackedWallets"] += 1
+        model["trackedTotal"] += total
+        model["trackedLiquid"] += liquid
+        model["trackedLocked"] += locked
+    for bucket in model["buckets"]:
+        bucket["total"] = round(bucket["total"], 2)
+        bucket["liquid"] = round(bucket["liquid"], 2)
+        bucket["locked"] = round(bucket["locked"], 2)
+    for key in ["trackedTotal", "trackedLiquid", "trackedLocked", "excludedCexTotal"]:
+        model[key] = round(model[key], 2)
+    return model
 
 
 def count_txs(transfers, excluded):
@@ -819,17 +1143,20 @@ def main():
     # Uses already-neutralized flows from the cache (bridge transfers cancelled out)
     balance_changes = {}
     for period in PERIODS:
-        merged = {}
-        for chain_key in CHAINS:
-            flows = neutralized_flows_cache[period][chain_key]
-            for addr, net in flows.items():
-                if addr in EXCLUDED_ADDRS:
-                    continue
-                if abs(net) < 1:  # skip dust
-                    continue
-                merged[addr] = merged.get(addr, 0) + net
-        # Round values to reduce JSON size
-        balance_changes[period] = {addr: round(v, 2) for addr, v in merged.items()}
+        balance_changes[period] = merge_balance_changes(neutralized_flows_cache[period])
+
+    # Extra holder-bucket chart history. These are still derived from the same
+    # transfer logs as the flow tables, but add enough cutoffs for a usable hover.
+    holder_history_base_ts = int(time.time())
+    holder_history_points = build_holder_history_schedule(holder_history_base_ts)
+    print(f"\n📈 Building holder bucket chart history ({len(holder_history_points)} points)...")
+    holder_bucket_history = calculate_holder_bucket_history(
+        all_transfers,
+        holder_history_points,
+        current_blocks,
+        holder_history_base_ts,
+    )
+    print(f"  ... {len(holder_history_points)}/{len(holder_history_points)} holder history points")
 
     # Checksum addresses in balance_changes
     try:
@@ -855,6 +1182,11 @@ def main():
     output = {
         "timestamp": datetime.utcnow().isoformat(),
         "holder_history_start_timestamp": datetime.utcfromtimestamp(HOLDER_HISTORY_START_TIMESTAMP).isoformat() + "Z",
+        "holder_history_points": [
+            {"key": point["key"], "timestamp": point["timestamp"]}
+            for point in holder_history_points
+        ],
+        "holder_bucket_history": holder_bucket_history,
         "dolo_price": dolo_price,
         "periods": output_periods,
         "balance_changes": balance_changes,
