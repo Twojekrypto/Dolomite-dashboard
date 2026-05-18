@@ -1369,9 +1369,8 @@ function holderCexStatHtml(){
   return stats.map(stat => {
     const direction = stat.net > 0 ? "Net Inflow" : stat.net < 0 ? "Net Outflow" : "Balanced";
     const cls = stat.net > 0 ? " inflow" : stat.net < 0 ? " outflow" : " neutral";
-    const tip = `${direction}: ${fmtSignedHolder(stat.net)} DOLO. Inflow: +${fmtNum(stat.inflow)} DOLO from ${stat.inflowWallets.toLocaleString()} labeled CEX wallet${stat.inflowWallets === 1 ? "" : "s"}. Outflow: -${fmtNum(stat.outflow)} DOLO from ${stat.outflowWallets.toLocaleString()} labeled CEX wallet${stat.outflowWallets === 1 ? "" : "s"}. Net = inflow - outflow.`;
     return `
-    <div class="holder-flow-stat${stat.primary ? " primary" : ""}${cls}" data-tooltip="${tip}">
+    <div class="holder-flow-stat${stat.primary ? " primary" : ""}${cls}">
       <div class="top">
         <span class="dot"></span>
         <div class="label">${stat.label}</div>
