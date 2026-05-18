@@ -1253,6 +1253,7 @@ const HOLDER_HISTORY_POINTS = [
   {key:"1d", label:"24H", days:1},
   {key:"now", label:"Now", days:0},
 ];
+const HOLDER_DEFAULT_WINDOW_DAYS = 30;
 let holderDistributionActiveKey = "";
 let holderBucketView = "whales";
 let VEDOLO_LOCKS = new Map();
@@ -1271,6 +1272,7 @@ let holderBrushDragging = null;
 let holderBrushDomainKey = "";
 let holderFullHistoryModel = null;
 let holderPrecomputedVeDoloIsDaily = false;
+let holderBrushRenderFrame = 0;
 const safeHolderNum = v => Number.isFinite(Number(v)) ? Number(v) : 0;
 const lowerHolderAddr = addr => String(addr || "").toLowerCase();
 function activeHolderBuckets(){
@@ -1597,7 +1599,9 @@ function ensureHolderBrushSelection(fullModel){
   const maxX = points[points.length - 1]?.ts || (minX + 1);
   const domainKey = `${minX}:${maxX}:${points.length}`;
   if(holderBrushDomainKey !== domainKey || !(holderBrushSel.from >= minX && holderBrushSel.to <= maxX && holderBrushSel.from < holderBrushSel.to)){
-    holderBrushSel = {from:minX, to:maxX};
+    const span = Math.max(1, maxX - minX);
+    const defaultSpan = Math.min(span, HOLDER_DEFAULT_WINDOW_DAYS * 86400);
+    holderBrushSel = {from:maxX - defaultSpan, to:maxX};
     holderBrushDomainKey = domainKey;
   }
 }
@@ -1629,6 +1633,26 @@ function paintHolderBrushWindow(){
   dimL.style.width = leftPct + "%";
   dimR.style.width = (100 - rightPct) + "%";
   label.innerHTML = `<span class="v">${fmtHolderBrushDate(holderBrushSel.from)}</span><span class="sep">→</span><span class="v">${fmtHolderBrushDate(holderBrushSel.to)}</span>`;
+}
+function scheduleHolderBrushChartRender(){
+  if(holderBrushRenderFrame) return;
+  const run = () => {
+    holderBrushRenderFrame = 0;
+    renderHolderDistributionChart({skipBrush:true});
+  };
+  if(typeof requestAnimationFrame === "function"){
+    holderBrushRenderFrame = requestAnimationFrame(run);
+  } else {
+    holderBrushRenderFrame = setTimeout(run, 16);
+  }
+}
+function flushHolderBrushChartRender(){
+  if(holderBrushRenderFrame){
+    if(typeof cancelAnimationFrame === "function") cancelAnimationFrame(holderBrushRenderFrame);
+    else clearTimeout(holderBrushRenderFrame);
+    holderBrushRenderFrame = 0;
+  }
+  renderHolderDistributionChart({skipBrush:true});
 }
 function renderHolderBrush(fullModel){
   holderFullHistoryModel = fullModel;
@@ -1700,13 +1724,14 @@ function initHolderBrush(){
       holderBrushSel.to = Math.max(holderBrushDragging.startFrom + minWindow, Math.min(maxX, holderBrushDragging.startTo + delta));
     }
     paintHolderBrushWindow();
-    renderHolderDistributionChart();
+    scheduleHolderBrushChartRender();
   });
   document.addEventListener("mouseup", () => {
     if(!holderBrushDragging) return;
     holderBrushDragging = null;
     win.classList.remove("dragging");
     document.body.style.userSelect = "";
+    flushHolderBrushChartRender();
   });
   svg.addEventListener("click", event => {
     if(holderBrushDragging) return;
@@ -1720,10 +1745,10 @@ function initHolderBrush(){
     if(to > maxX){ to = maxX; from = to - span; }
     holderBrushSel = {from, to};
     paintHolderBrushWindow();
-    renderHolderDistributionChart();
+    renderHolderDistributionChart({skipBrush:true});
   });
 }
-function renderHolderDistributionChart(){
+function renderHolderDistributionChart(options = {}){
   const svg = document.getElementById("holderChartSvg");
   const areaPath = document.getElementById("holderChartArea");
   const lines = document.getElementById("holderChartLines");
@@ -1734,7 +1759,12 @@ function renderHolderDistributionChart(){
   if(!svg || !areaPath || !lines || !dots || !grid || !axis || !legend) return;
 
   const fullModel = getHolderHistory();
-  renderHolderBrush(fullModel);
+  if(options.skipBrush){
+    holderFullHistoryModel = fullModel;
+    ensureHolderBrushSelection(fullModel);
+  } else {
+    renderHolderBrush(fullModel);
+  }
   const model = visibleHolderHistory(fullModel);
   window.__doloHolderDistribution = {...fullModel, visiblePoints:model.points, brush:{...holderBrushSel}};
   const bucketDefs = activeHolderBuckets();
