@@ -1289,6 +1289,7 @@ function holderDistributionType(addr, source){
   const info = sharedAddressInfo(addr);
   const t = (info && info.type) || source?.type || "";
   if(t === "cex") return "cex";
+  if((info?.label || "").startsWith("Core Team")) return "team";
   if(t === "investor") return "investor";
   if(t === "watch") return "watch";
   if(t === "mm") return "mm";
@@ -1334,7 +1335,7 @@ function holderCexInflow(period = "7d"){
   return {total, wallets};
 }
 function holderScopeHtml(){
-  return '<span class="holder-source-scope">CEX excluded from buckets</span>';
+  return '<span class="holder-source-scope">CEX + protocol/contracts/LP excluded · team + investors included</span>';
 }
 function holderCexStatHtml(){
   const periods = [
@@ -1447,7 +1448,7 @@ function getHolderDistributionAtPoint(point, baseTs, includeVeDolo = state.inclu
     const locked = includeVeDolo ? safeHolderNum(holder.locked) : 0;
     const total = liquid + locked;
     if(total <= 0) return;
-    if(holder.type === "cex"){
+    if(holder.type === "cex" || holder.type === "ca"){
       model.excludedCexWallets += 1;
       model.excludedCexTotal += total;
       return;

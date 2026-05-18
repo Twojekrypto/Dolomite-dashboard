@@ -542,7 +542,7 @@ def holder_history_cutoff_block(chain_key, point_ts, base_ts, current_blocks):
 
 def calculate_holder_bucket_history(all_transfers, points, current_blocks, base_ts):
     holder_rows = load_current_holder_rows()
-    label_types = load_address_label_types()
+    address_labels = load_address_labels()
     current_liquid = {
         addr: float(row.get("balance") or 0)
         for addr, row in holder_rows.items()
@@ -594,8 +594,8 @@ def calculate_holder_bucket_history(all_transfers, points, current_blocks, base_
             "with_vedolo": {},
         }
         for view, bucket_defs in HOLDER_BUCKET_GROUPS.items():
-            row["liquid"][view] = build_bucket_model(liquid_balances, {}, holder_rows, label_types, bucket_defs)
-            row["with_vedolo"][view] = build_bucket_model(liquid_balances, locked_balances, holder_rows, label_types, bucket_defs)
+            row["liquid"][view] = build_bucket_model(liquid_balances, {}, holder_rows, address_labels, bucket_defs)
+            row["with_vedolo"][view] = build_bucket_model(liquid_balances, locked_balances, holder_rows, address_labels, bucket_defs)
         history.append(row)
 
     return sorted(history, key=lambda row: row["timestamp"])
@@ -631,7 +631,7 @@ def load_current_holder_rows():
         return {}
 
 
-def load_address_label_types():
+def load_address_labels():
     labels_file = os.path.join(DATA_DIR, "dolo-address-labels.js")
     if not os.path.exists(labels_file):
         return {}
@@ -641,16 +641,28 @@ def load_address_label_types():
         print(f"  ⚠️ Could not load address labels for bucket history: {e}")
         return {}
     labels = {}
-    for match in re.finditer(r'"(0x[a-fA-F0-9]{40})"\s*:\s*\{[^}]*?type\s*:\s*"([^"]+)"', text):
-        labels[match.group(1).lower()] = match.group(2)
+    for match in re.finditer(r'"(0x[a-fA-F0-9]{40})"\s*:\s*\{([^}]+)\}', text):
+        body = match.group(2)
+        label_match = re.search(r'label\s*:\s*"([^"]+)"', body)
+        type_match = re.search(r'type\s*:\s*"([^"]+)"', body)
+        labels[match.group(1).lower()] = {
+            "label": label_match.group(1) if label_match else "",
+            "type": type_match.group(1) if type_match else "",
+        }
     return labels
 
 
-def holder_distribution_type(addr, holder_rows, label_types):
+def holder_distribution_type(addr, holder_rows, labels):
     key = addr.lower()
-    label_type = label_types.get(key, "")
+    info = labels.get(key, {})
+    label = info.get("label", "")
+    label_type = info.get("type", "")
     if label_type == "cex":
         return "cex"
+    if label.startswith("Core Team"):
+        return "team"
+    if label_type == "investor":
+        return "investor"
     if label_type in {"protocol", "lp", "contract", "dead"}:
         return "ca"
     holder = holder_rows.get(key) or {}
@@ -729,7 +741,7 @@ def empty_bucket_model(bucket_defs):
     }
 
 
-def build_bucket_model(liquid_balances, locked_balances, holder_rows, label_types, bucket_defs):
+def build_bucket_model(liquid_balances, locked_balances, holder_rows, address_labels, bucket_defs):
     model = empty_bucket_model(bucket_defs)
     addresses = set(liquid_balances.keys()) | set(locked_balances.keys())
     for addr in addresses:
@@ -738,7 +750,8 @@ def build_bucket_model(liquid_balances, locked_balances, holder_rows, label_type
         total = liquid + locked
         if total <= 0:
             continue
-        if holder_distribution_type(addr, holder_rows, label_types) == "cex":
+        holder_type = holder_distribution_type(addr, holder_rows, address_labels)
+        if holder_type in {"cex", "ca"}:
             model["excludedCexWallets"] += 1
             model["excludedCexTotal"] += total
             continue
