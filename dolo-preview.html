@@ -285,6 +285,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-flow-stat .value{margin-top:8px;font-family:var(--mono);font-size:15px;font-weight:800;color:var(--down);font-variant-numeric:tabular-nums;white-space:nowrap}
 .holder-flow-stat.primary .value{font-size:17px}
 .holder-flow-stat .sub{margin-top:4px;font-family:var(--mono);font-size:10px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.holder-flow-stat.outflow .dot{background:var(--up);box-shadow:0 0 10px rgba(113,160,133,.46)}
+.holder-flow-stat.outflow .value{color:var(--up)}
+.holder-flow-stat .sub .in{color:var(--down)}
+.holder-flow-stat .sub .out{color:var(--up)}
 .holder-flow-stat.neutral .dot{background:var(--gold);box-shadow:0 0 10px rgba(201,162,39,.38)}
 .holder-flow-stat.neutral .value{color:var(--fg-1)}
 
@@ -1330,17 +1334,25 @@ function fmtSignedHolder(value){
   const n = safeHolderNum(value);
   return (n >= 0 ? "+" : "-") + fmtNum(Math.abs(n));
 }
-function holderCexInflow(period = "7d"){
+function holderCexFlow(period = "7d"){
   const changes = DOLO_BALANCE_CHANGES?.[period] || {};
-  let total = 0;
-  let wallets = 0;
+  let inflow = 0;
+  let outflow = 0;
+  let inflowWallets = 0;
+  let outflowWallets = 0;
   Object.entries(changes).forEach(([addr, net]) => {
     const value = safeHolderNum(net);
-    if(value <= 0 || holderDistributionType(addr, null) !== "cex") return;
-    total += value;
-    wallets += 1;
+    if(holderDistributionType(addr, null) !== "cex") return;
+    if(value > 0){
+      inflow += value;
+      inflowWallets += 1;
+    } else if(value < 0){
+      outflow += Math.abs(value);
+      outflowWallets += 1;
+    }
   });
-  return {total, wallets};
+  const net = inflow - outflow;
+  return {inflow, outflow, net, inflowWallets, outflowWallets};
 }
 function holderScopeHtml(){
   const tip = "Chart excludes CEX wallets and protocol/contract/LP addresses, including Dolomite protocol addresses such as veDOLO, oDOLO Vester, Dolomite Margin, Admin Proxy, incentive wallets and LP pools. Core Team and Investors are included. When veDOLO is enabled, locked DOLO on excluded protocol/contract/LP addresses is also excluded.";
@@ -1348,22 +1360,27 @@ function holderScopeHtml(){
 }
 function holderCexStatHtml(){
   const periods = [
-    {key:"1d", label:"CEX Inflow 24H"},
-    {key:"7d", label:"CEX Inflow 7D", primary:true},
-    {key:"30d", label:"CEX Inflow 30D"},
+    {key:"1d", label:"CEX Flow 24H"},
+    {key:"7d", label:"CEX Flow 7D", primary:true},
+    {key:"30d", label:"CEX Flow 30D"},
   ];
-  const stats = periods.map(period => ({...period, ...holderCexInflow(period.key)}));
-  if(!stats.some(stat => stat.total > 0)) return "";
-  return stats.map(stat => `
-    <div class="holder-flow-stat${stat.primary ? " primary" : ""}">
+  const stats = periods.map(period => ({...period, ...holderCexFlow(period.key)}));
+  if(!stats.some(stat => stat.inflow > 0 || stat.outflow > 0)) return "";
+  return stats.map(stat => {
+    const direction = stat.net > 0 ? "Net Inflow" : stat.net < 0 ? "Net Outflow" : "Balanced";
+    const cls = stat.net > 0 ? " inflow" : stat.net < 0 ? " outflow" : " neutral";
+    const tip = `${direction}: ${fmtSignedHolder(stat.net)} DOLO. Inflow: +${fmtNum(stat.inflow)} DOLO from ${stat.inflowWallets.toLocaleString()} labeled CEX wallet${stat.inflowWallets === 1 ? "" : "s"}. Outflow: -${fmtNum(stat.outflow)} DOLO from ${stat.outflowWallets.toLocaleString()} labeled CEX wallet${stat.outflowWallets === 1 ? "" : "s"}. Net = inflow - outflow.`;
+    return `
+    <div class="holder-flow-stat${stat.primary ? " primary" : ""}${cls}" data-tooltip="${tip}">
       <div class="top">
         <span class="dot"></span>
         <div class="label">${stat.label}</div>
       </div>
-      <div class="value">${stat.total > 0 ? "+" : ""}${fmtNum(stat.total)} DOLO</div>
-      <div class="sub">${stat.wallets.toLocaleString()} labeled CEX wallet${stat.wallets === 1 ? "" : "s"} with inflow</div>
+      <div class="value">${direction} ${fmtSignedHolder(stat.net)} DOLO</div>
+      <div class="sub"><span class="in">In +${fmtNum(stat.inflow)}</span> · <span class="out">Out -${fmtNum(stat.outflow)}</span></div>
     </div>
-  `).join("");
+  `;
+  }).join("");
 }
 function holderPointTimestamp(point, baseTs){
   if(Number.isFinite(point?.ts) && point.ts > 0) return point.ts;
