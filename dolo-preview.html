@@ -287,8 +287,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-flow-stat .sub{margin-top:4px;font-family:var(--mono);font-size:10px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .holder-flow-stat.outflow .dot{background:var(--up);box-shadow:0 0 10px rgba(113,160,133,.46)}
 .holder-flow-stat.outflow .value{color:var(--up)}
-.holder-flow-stat .sub .in{color:var(--down)}
-.holder-flow-stat .sub .out{color:var(--up)}
+.holder-flow-stat.inflow .sub{color:var(--down)}
+.holder-flow-stat.outflow .sub{color:var(--up)}
 .holder-flow-stat.neutral .dot{background:var(--gold);box-shadow:0 0 10px rgba(201,162,39,.38)}
 .holder-flow-stat.neutral .value{color:var(--fg-1)}
 
@@ -1376,8 +1376,8 @@ function holderCexStatHtml(){
         <span class="dot"></span>
         <div class="label">${stat.label}</div>
       </div>
-      <div class="value">${direction} ${fmtSignedHolder(stat.net)} DOLO</div>
-      <div class="sub"><span class="in">In +${fmtNum(stat.inflow)}</span> · <span class="out">Out -${fmtNum(stat.outflow)}</span></div>
+      <div class="value">${fmtSignedHolder(stat.net)} DOLO</div>
+      <div class="sub">${direction}</div>
     </div>
   `;
   }).join("");
