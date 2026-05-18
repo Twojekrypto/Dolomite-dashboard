@@ -263,7 +263,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-brush-label .sep{color:var(--fg-4);margin:0 8px}
 .holder-brush-label .v{color:var(--fg-2)}
 .holder-flow-stats{
-  display:grid;grid-template-columns:1.2fr .8fr .8fr;border-top:1px solid var(--line-1);
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--line-1);
   background:linear-gradient(90deg,rgba(180,121,107,.05),rgba(255,255,255,.012))
 }
 .holder-flow-stat{
@@ -1258,6 +1258,8 @@ let holderBucketView = "whales";
 let VEDOLO_LOCKS = new Map();
 let VEDOLO_FLOW_EVENTS = {locks:[], unlocks:[]};
 let DOLO_BALANCE_CHANGES = {};
+let DOLO_HOLDER_HISTORY_POINTS = [];
+let DOLO_HOLDER_BUCKET_HISTORY = [];
 let vedoloHolderStats = null;
 let vedoloDataTimestamp = null;
 let doloHolderDataTimestamp = null;
@@ -1329,39 +1331,31 @@ function holderCexInflow(period = "7d"){
   return {total, wallets};
 }
 function holderScopeHtml(){
-  return '<span class="holder-source-scope">ETH+Bera · CEX excluded from buckets</span>';
+  return '<span class="holder-source-scope">CEX excluded from buckets</span>';
 }
 function holderCexStatHtml(){
-  const cex = holderCexInflow("7d");
-  if(cex.total <= 0) return "";
-  return `
-    <div class="holder-flow-stat primary">
+  const periods = [
+    {key:"1d", label:"CEX Inflow 24H"},
+    {key:"7d", label:"CEX Inflow 7D", primary:true},
+    {key:"30d", label:"CEX Inflow 30D"},
+  ];
+  const stats = periods.map(period => ({...period, ...holderCexInflow(period.key)}));
+  if(!stats.some(stat => stat.total > 0)) return "";
+  return stats.map(stat => `
+    <div class="holder-flow-stat${stat.primary ? " primary" : ""}">
       <div class="top">
         <span class="dot"></span>
-        <div class="label">CEX Inflow 7D</div>
+        <div class="label">${stat.label}</div>
       </div>
-      <div class="value">+${fmtNum(cex.total)} DOLO</div>
-      <div class="sub">Net inflow to labeled CEX wallets</div>
+      <div class="value">${stat.total > 0 ? "+" : ""}${fmtNum(stat.total)} DOLO</div>
+      <div class="sub">${stat.wallets.toLocaleString()} labeled CEX wallet${stat.wallets === 1 ? "" : "s"} with inflow</div>
     </div>
-    <div class="holder-flow-stat neutral">
-      <div class="top">
-        <span class="dot"></span>
-        <div class="label">CEX Wallets</div>
-      </div>
-      <div class="value">${cex.wallets.toLocaleString()}</div>
-      <div class="sub">Known exchange wallets with inflow</div>
-    </div>
-    <div class="holder-flow-stat">
-      <div class="top">
-        <span class="dot"></span>
-        <div class="label">Net Direction</div>
-      </div>
-      <div class="value">To CEX</div>
-      <div class="sub">Sell-side signal for the period</div>
-    </div>
-  `;
+  `).join("");
 }
 function holderPointTimestamp(point, baseTs){
+  if(Number.isFinite(point?.ts) && point.ts > 0) return point.ts;
+  const parsedTs = parseHolderTimestamp(point?.timestamp);
+  if(parsedTs) return parsedTs;
   if(point.key === "now") return baseTs;
   if(point.key === "all") return safeHolderNum(doloAllHistoryStartTs) || (baseTs - 365 * 86400);
   return baseTs - safeHolderNum(point.days) * 86400;
@@ -1474,10 +1468,84 @@ function getHolderDistributionAtPoint(point, baseTs, includeVeDolo = state.inclu
 function getHolderDistribution(includeVeDolo = state.includeVeDolo){
   return getHolderDistributionAtPoint({key:"now", label:"Now", days:0}, holderHistoryBaseTs(), includeVeDolo);
 }
+function holderHistoryPointList(baseTs){
+  const dynamicPoints = (DOLO_HOLDER_HISTORY_POINTS || [])
+    .map(point => {
+      const ts = parseHolderTimestamp(point.timestamp) || safeHolderNum(point.ts);
+      return {...point, ts};
+    })
+    .filter(point => point.key && point.ts > 0 && DOLO_BALANCE_CHANGES?.[point.key]);
+  if(dynamicPoints.length){
+    return [
+      ...dynamicPoints,
+      {key:"now", label:"Now", ts:baseTs, days:0},
+    ].sort((a,b)=>a.ts-b.ts);
+  }
+  return HOLDER_HISTORY_POINTS.filter(point => point.key === "now" || DOLO_BALANCE_CHANGES?.[point.key]);
+}
+function getPrecomputedHolderHistory(includeVeDolo = state.includeVeDolo){
+  if(!Array.isArray(DOLO_HOLDER_BUCKET_HISTORY) || !DOLO_HOLDER_BUCKET_HISTORY.length) return null;
+  const bucketDefs = activeHolderBuckets();
+  const sourceKey = includeVeDolo ? "with_vedolo" : "liquid";
+  const points = DOLO_HOLDER_BUCKET_HISTORY.map(point => {
+    const source = point?.[sourceKey]?.[holderBucketView];
+    if(!source) return null;
+    const ts = parseHolderTimestamp(point.timestamp);
+    const buckets = bucketDefs.map((bucket, index) => {
+      const item = source.buckets?.[index] || {};
+      return {
+        ...bucket,
+        wallets:safeHolderNum(item.wallets),
+        total:safeHolderNum(item.total),
+        liquid:safeHolderNum(item.liquid),
+        locked:safeHolderNum(item.locked),
+      };
+    });
+    return {
+      key:point.key,
+      label:point.key,
+      ts,
+      includeVeDolo,
+      bucketView:holderBucketView,
+      bucketFloorLabel:holderBucketFloorLabel(),
+      buckets,
+      trackedWallets:safeHolderNum(source.trackedWallets),
+      trackedTotal:safeHolderNum(source.trackedTotal),
+      trackedLiquid:safeHolderNum(source.trackedLiquid),
+      trackedLocked:safeHolderNum(source.trackedLocked),
+      excludedCexWallets:safeHolderNum(source.excludedCexWallets),
+      excludedCexTotal:safeHolderNum(source.excludedCexTotal),
+      veWallets:VEDOLO_LOCKS.size,
+      veLockedTotal:[...VEDOLO_LOCKS.values()].reduce((sum, v) => sum + safeHolderNum(v), 0),
+    };
+  }).filter(point => point && point.ts > 0).sort((a,b)=>a.ts-b.ts);
+  const now = getHolderDistribution(includeVeDolo);
+  if(points.length && Math.abs(now.ts - points[points.length - 1].ts) > 3600){
+    points.push(now);
+  }
+  const current = points[points.length - 1] || now;
+  return {
+    includeVeDolo,
+    bucketView:holderBucketView,
+    bucketFloorLabel:holderBucketFloorLabel(),
+    points,
+    current,
+    buckets:current.buckets,
+    trackedWallets:current.trackedWallets,
+    trackedTotal:current.trackedTotal,
+    trackedLiquid:current.trackedLiquid,
+    trackedLocked:current.trackedLocked,
+    excludedCexWallets:current.excludedCexWallets,
+    excludedCexTotal:current.excludedCexTotal,
+    veWallets:VEDOLO_LOCKS.size,
+    veLockedTotal:[...VEDOLO_LOCKS.values()].reduce((sum, v) => sum + safeHolderNum(v), 0),
+  };
+}
 function getHolderHistory(includeVeDolo = state.includeVeDolo){
+  const precomputed = getPrecomputedHolderHistory(includeVeDolo);
+  if(precomputed) return precomputed;
   const baseTs = holderHistoryBaseTs();
-  const points = HOLDER_HISTORY_POINTS
-    .filter(point => point.key === "now" || DOLO_BALANCE_CHANGES?.[point.key])
+  const points = holderHistoryPointList(baseTs)
     .map(point => getHolderDistributionAtPoint(point, baseTs, includeVeDolo))
     .sort((a,b)=>a.ts-b.ts);
   const current = points[points.length - 1] || getHolderDistribution(includeVeDolo);
@@ -2758,6 +2826,8 @@ renderFlows();
       if(flows) learnAutoCexLabels(flows, holders);
       if(flows){
         DOLO_BALANCE_CHANGES = flows.balance_changes || {};
+        DOLO_HOLDER_HISTORY_POINTS = Array.isArray(flows.holder_history_points) ? flows.holder_history_points : [];
+        DOLO_HOLDER_BUCKET_HISTORY = Array.isArray(flows.holder_bucket_history) ? flows.holder_bucket_history : [];
         doloFlowDataTimestamp = flows.timestamp || null;
         doloAllHistoryStartTs = parseHolderTimestamp(flows.holder_history_start_timestamp || flows.all_history_start_timestamp || flows.period_start_timestamps?.all);
       }
