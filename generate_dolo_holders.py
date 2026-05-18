@@ -436,7 +436,7 @@ def main():
     }
 
     with open(OUTPUT_JSON, "w") as f:
-        json.dump(output, f, indent=2)
+        json.dump(output, f, separators=(",", ":"))
 
     # Save state for incremental sync
     save_state({

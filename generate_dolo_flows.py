@@ -1225,7 +1225,7 @@ def main():
     print(f"  🧑‍💼 Saved {len(early_set)} early investors and {len(inv_set)} investors to vesting_investors.json")
 
     with open(OUTPUT_JSON, "w") as f:
-        json.dump(output, f, indent=2)
+        json.dump(output, f, separators=(",", ":"))
 
     # Save incremental state for next run
     save_state(state)
