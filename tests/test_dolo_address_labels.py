@@ -98,10 +98,21 @@ class DoloAddressLabelsTest(unittest.TestCase):
         expected = {
             "0x000000000004444c5dc75cb358380d2e3de08a90": ("Uniswap V4 Pool Manager", "contract"),
             "0xf977814e90da44bfa03b6295a0616a897441acec": ("Binance Hot Wallet 20", "cex"),
+            "0xa9d1e08c7793af67e9d92fe308d5697fb81d3e43": ("Coinbase 10", "cex"),
+            "0xf89d7b9c864f589bbf53a82105107622b35eaa40": ("Bybit Hot Wallet", "cex"),
+            "0x0529ea5885702715e83923c59746ae8734c553b7": ("Bitpanda 18", "cex"),
+            "0xd2dd7b597fd2435b6db61ddf48544fd931e6869f": ("Kraken 246", "cex"),
             "0x21a31ee1afc51d94c2efccaa2092ad1028285549": ("Binance 15", "cex"),
             "0xdfd5293d8e347dfe59e90efd55b2956a1343963d": ("Binance 16", "cex"),
             "0x0d0707963952f2fba59dd06f2b425ace40b492fe": ("Gate.io Deposit", "cex"),
             "0x1157a2076b9bb22a85cc2c162f20fab3898f4101": ("FalconX 1", "cex"),
+            "0x1ab4973a48dc892cd9971ece8e01dcc7688f8f23": ("Bitget 6", "cex"),
+            "0xe302dc0c3b74ae06da002fc66c2ee8a40cce256d": ("Gate.io Deposit", "cex"),
+            "0xb46a0f71fded6ceb00b1c9278e0ac7e22c242df5": ("Binance Deposit", "cex"),
+            "0x2933782b5a8d72f2754103d1489614f29bfa4625": ("KuCoin Wallet", "cex"),
+            "0xdb861e302ef7b7578a448e951aede06302936c28": ("Phemex 1", "cex"),
+            "0xf2067abfab8bc621211935431519d41825d2f344": ("Coinstore 3", "cex"),
+            "0xcd531ae9efcce479654c4926dec5f6209531ca7b": ("Coinbase Prime 1", "cex"),
         }
         for address, (label, label_type) in expected.items():
             with self.subTest(address=address):
