@@ -1913,13 +1913,13 @@ function renderHolderDistributionChart(options = {}){
       const dist = Math.abs(xAt(point.ts) - px);
       if(dist < best){ best = dist; nearest = point; }
     });
-    const focusKey = holderDistributionActiveKey || bucketDefs[0].key;
+    const focusKey = holderDistributionActiveKey;
     const focusIndex = Math.max(0, bucketDefs.findIndex(bucket => bucket.key === focusKey));
     const focusBucket = nearest.buckets[focusIndex] || nearest.buckets[0];
     const x = xAt(nearest.ts);
     const y = yAt(focusBucket.total);
     const focusColor = bucketDefs[focusIndex]?.color || "#e4c15a";
-    paintActive(focusKey);
+    paintActive(holderDistributionActiveKey);
     hoverLine.setAttribute("x1", x);
     hoverLine.setAttribute("x2", x);
     hoverLine.style.opacity = 1;
