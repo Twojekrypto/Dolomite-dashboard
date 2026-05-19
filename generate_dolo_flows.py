@@ -844,34 +844,93 @@ def fetch_first_chain_activity(activity_source, address, state, session, base_ts
     }
 
 
+def _debank_age_range_from_text(text):
+    """Return lower/upper age bounds in days for a rendered DeBank age label."""
+    match = re.search(
+        r'([0-9]+(?:\.[0-9]+)?)\s*'
+        r'(seconds?|secs?|minutes?|mins?|hours?|hrs?|days?|months?|mos?|years?|yrs?)',
+        text or "",
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return None, None, ""
+    value = float(match.group(1))
+    unit = match.group(2).lower()
+    if unit.startswith("sec"):
+        days = value / 86400
+        max_days = (value + 1) / 86400
+    elif unit.startswith("min"):
+        days = value / 1440
+        max_days = (value + 1) / 1440
+    elif unit.startswith("hour") or unit.startswith("hr"):
+        days = value / 24
+        max_days = (value + 1) / 24
+    elif unit.startswith("day"):
+        days = value
+        max_days = value + 1
+    elif unit.startswith("month") or unit.startswith("mo"):
+        days = value * 30
+        max_days = (value + 1) * 30
+    elif unit.startswith("year") or unit.startswith("yr"):
+        days = value * 365
+        max_days = (value + 1) * 365
+    else:
+        return None, None, ""
+    return days, max_days, f"{match.group(1)} {match.group(2)}"
+
+
+def parse_debank_age_range_days(html):
+    """Extract the rendered DeBank wallet age tag and conservative bounds."""
+    if not html:
+        return None, None, ""
+    class_pattern = (
+        r'<[^>]+class=["\'][^"\']*(?:db-user-tag[^"\']*is-age|is-age[^"\']*db-user-tag)[^"\']*["\'][^>]*>'
+        r'(.*?)</[^>]+>'
+    )
+    for match in re.finditer(class_pattern, html, flags=re.IGNORECASE | re.DOTALL):
+        text = re.sub(r'<[^>]+>', ' ', match.group(1))
+        age_days, age_max_days, raw_age = _debank_age_range_from_text(text)
+        if age_days is not None:
+            return age_days, age_max_days, raw_age
+    return None, None, ""
+
+
 def parse_debank_age_days(html):
     """Extract the rendered DeBank wallet age tag from profile HTML."""
-    if not html:
-        return None, ""
-    patterns = [
-        r'class=["\']db-user-tag is-age["\'][^>]*>.*?([0-9]+(?:\.[0-9]+)?)\s*(minutes?|mins?|hours?|days?|months?|years?)',
-        r'([0-9]+(?:\.[0-9]+)?)\s*(minutes?|mins?|hours?|days?|months?|years?)</div>\s*</div>\s*</div>\s*</div>\s*<div[^>]+>\s*<div[^>]+>\s*<div[^>]+>\s*TVF',
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, html, flags=re.IGNORECASE | re.DOTALL)
-        if not match:
-            continue
-        value = float(match.group(1))
-        unit = match.group(2).lower()
-        if unit.startswith("min"):
-            days = value / 1440
-        elif unit.startswith("hour"):
-            days = value / 24
-        elif unit.startswith("day"):
-            days = value
-        elif unit.startswith("month"):
-            days = value * 30
-        elif unit.startswith("year"):
-            days = value * 365
-        else:
-            continue
-        return days, f"{match.group(1)} {match.group(2)}"
-    return None, ""
+    age_days, _age_max_days, raw_age = parse_debank_age_range_days(html)
+    return age_days, raw_age
+
+
+def _normalize_cached_debank_age(item):
+    if not item or item.get("status") != "ok":
+        return item
+    if item.get("debank_age_max_days") is not None:
+        return item
+    age_days, age_max_days, _raw_age = _debank_age_range_from_text(item.get("debank_raw_age", ""))
+    if age_max_days is None and item.get("debank_age_days") is not None:
+        try:
+            age_days = float(item.get("debank_age_days"))
+            age_max_days = age_days + 1
+        except (TypeError, ValueError):
+            return item
+    if age_days is not None and item.get("debank_age_days") is None:
+        item["debank_age_days"] = round(age_days, 4)
+    if age_max_days is not None:
+        item["debank_age_max_days"] = round(age_max_days, 4)
+    return item
+
+
+def _fresh_activity_within_period(first_activity, period, base_ts):
+    if first_activity.get("source") == "debank_age":
+        age_max_days = first_activity.get("debank_age_max_days")
+        if age_max_days is None:
+            _normalize_cached_debank_age(first_activity)
+            age_max_days = first_activity.get("debank_age_max_days")
+        if age_max_days is not None:
+            return float(age_max_days) <= (PERIODS[period] / 86400)
+    wallet_created_ts = int(first_activity.get("first_timestamp") or 0)
+    period_start_ts = int(base_ts) - PERIODS[period]
+    return wallet_created_ts >= period_start_ts
 
 
 def find_debank_chrome_binary():
@@ -914,6 +973,7 @@ def fetch_debank_first_activity(address, state, base_ts):
     cache_ttl = FRESH_DEBANK_AGE_CACHE_SECONDS if cached.get("status") == "ok" else FRESH_DEBANK_FAILURE_CACHE_SECONDS
     if cached and base_ts - checked_at < cache_ttl:
         item = dict(cached)
+        _normalize_cached_debank_age(item)
         item["verified"] = item.get("status") == "ok" and int(item.get("first_timestamp") or 0) > 0
         return item
 
@@ -988,7 +1048,7 @@ def fetch_debank_first_activity(address, state, base_ts):
         cache[addr] = item
         return {"verified": False, **item}
 
-    age_days, raw_age = parse_debank_age_days(proc.stdout)
+    age_days, age_max_days, raw_age = parse_debank_age_range_days(proc.stdout)
     if age_days is None:
         item = {
             "status": "debank_age_missing",
@@ -1011,6 +1071,7 @@ def fetch_debank_first_activity(address, state, base_ts):
         "first_tx": "",
         "source": "debank_age",
         "debank_age_days": round(age_days, 4),
+        "debank_age_max_days": round(age_max_days, 4),
         "debank_raw_age": raw_age,
         "checked_at": int(base_ts),
     }
@@ -1048,6 +1109,18 @@ def wallet_first_activity(address, state, session, base_ts):
             return fallback
         return {"verified": False, "status": "no_normal_activity", "errors": []}
     first = min(results, key=lambda item: int(item.get("first_timestamp") or 0))
+    if int(first.get("first_timestamp") or 0) >= oldest_fresh_cutoff:
+        fallback = fetch_debank_first_activity(address, state, base_ts)
+        if fallback.get("verified") and int(fallback.get("first_timestamp") or 0) <= int(first.get("first_timestamp") or 0):
+            return {**fallback, "explorer_first_activity": first}
+        if fallback.get("verified"):
+            return {"verified": True, **first, "debank_crosscheck": fallback}
+        return {
+            "verified": False,
+            "status": "debank_crosscheck_unverified",
+            "errors": [{"chain": "debank", "chain_name": "DeBank", "status": fallback.get("status", "unknown")}],
+            "explorer_first_activity": first,
+        }
     return {"verified": True, **first}
 
 
@@ -1209,8 +1282,7 @@ def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralize
                 audit[period]["unverifiedExcluded"] += 1
                 continue
             wallet_created_ts = int(first_activity.get("first_timestamp") or 0)
-            period_start_ts = int(base_ts) - PERIODS[period]
-            if wallet_created_ts < period_start_ts:
+            if not _fresh_activity_within_period(first_activity, period, base_ts):
                 emit_fresh_audit(period, "old", addr, received, current_exposure, liquid_balance, locked_balance, holder_type, first_activity)
                 audit[period]["oldWalletsExcluded"] += 1
                 continue
@@ -1241,6 +1313,7 @@ def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralize
                 "wallet_created_source": first_activity.get("source", "normal_tx"),
                 "verification_source": first_activity.get("source", "normal_tx"),
                 "wallet_age_days": first_activity.get("debank_age_days"),
+                "wallet_age_max_days": first_activity.get("debank_age_max_days"),
                 "first_dolo_chain": first_chain,
                 "first_dolo_block": first["block"],
                 "first_dolo_timestamp_estimate": datetime.utcfromtimestamp(max(0, first["estimated_ts"])).isoformat() + "Z",
@@ -1828,8 +1901,9 @@ def main():
         "fresh_holders": fresh_holders,
         "fresh_holders_meta": {
             "source": "full_transfer_history_plus_multichain_explorer_first_tx_plus_debank_age_fallback",
-            "definition": "address first normal on-chain transaction across tracked EVM activity sources within the selected period, or DeBank wallet age fallback when explorers are inconclusive, with current liquid DOLO plus veDOLO locked exposure above 10K DOLO",
+            "definition": "address first normal on-chain transaction across tracked EVM activity sources within the selected period, plus required conservative DeBank wallet age fallback/cross-check for fresh candidates, with current liquid DOLO plus veDOLO locked exposure above 10K DOLO",
             "walletActivitySource": "Etherscan v2 txlist + Routescan Berachain txlist + DeBank rendered wallet age fallback",
+            "walletAgeBoundaryPolicy": "DeBank rendered age labels are treated as ranges; a fallback wallet is included only when the upper bound fits inside the selected period.",
             "activityChains": [source["name"] for source in FRESH_WALLET_ACTIVITY_SOURCES],
             "activityChainKeys": [source["key"] for source in FRESH_WALLET_ACTIVITY_SOURCES],
             "fallbackSources": ["DeBank rendered wallet age"],
