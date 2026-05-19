@@ -328,7 +328,12 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .fresh-stat .value{margin-top:7px;font-family:var(--mono);font-size:16px;font-weight:800;color:var(--fg-1);font-variant-numeric:tabular-nums;white-space:nowrap}
 .fresh-stat.primary .value{color:var(--gold);font-size:17px}
 .fresh-stat .sub{margin-top:4px;font-family:var(--mono);font-size:10px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fresh-wallets-table{min-width:820px}
+.fresh-wallets-table{min-width:960px}
+.fresh-wallets-table thead th[data-fresh-sort]{cursor:pointer}
+.fresh-created{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0}
+.fresh-created .date{font-size:12px;font-weight:700;color:var(--fg-1);white-space:nowrap}
+.fresh-created .sub{font-family:var(--mono);font-size:10px;color:var(--fg-3);white-space:nowrap}
+.fresh-created.muted .date{color:var(--fg-4)}
 .fresh-signal{
   display:inline-flex;align-items:center;justify-content:center;gap:6px;height:24px;padding:0 9px;border-radius:999px;
   border:1px solid var(--gold-line);background:var(--gold-wash);color:var(--gold);font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;white-space:nowrap
@@ -1129,13 +1134,14 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <tr>
             <th style="width:54px">#</th>
             <th>Address</th>
+            <th data-fresh-sort="created" style="width:142px">Created</th>
             <th style="width:132px">Signal</th>
-            <th class="num" style="width:140px">Received</th>
-            <th class="num" style="width:140px">Balance</th>
+            <th class="num sorted" data-fresh-sort="received" style="width:136px">Received</th>
+            <th class="num" data-fresh-sort="balance" style="width:136px">Balance</th>
             <th style="width:150px">Status</th>
           </tr>
         </thead>
-        <tbody id="fresh-wallets-body"><tr class="loading-row"><td colspan="6">Loading fresh wallets...</td></tr></tbody>
+        <tbody id="fresh-wallets-body"><tr class="loading-row"><td colspan="7">Loading fresh wallets...</td></tr></tbody>
       </table>
     </div>
     <div class="tbl-foot">
@@ -1336,6 +1342,7 @@ const state = {
   freshPage: 0,
   freshPageSize: 8,
   freshStableBodyHeight: 0,
+  freshSort: {key:"received", dir:"desc"},
   sort: {key:"total", dir:"desc"},
   page: 0,
   pageSize: 10,
@@ -2501,6 +2508,8 @@ function buildFreshWalletRowsFromBackend(period){
       balance_eth: safeHolderNum(item.balance_eth),
       balance_bera: safeHolderNum(item.balance_bera),
       first_chain: item.first_chain,
+      createdTs: parseHolderTimestamp(item.first_timestamp_estimate || item.first_timestamp || item.created_at || item.created),
+      createdBlock: safeHolderNum(item.first_block),
       chains: freshWalletChainParts(item),
       retention: safeHolderNum(item.retention),
       source: item.source || item.source_label || "",
@@ -2531,6 +2540,8 @@ function buildFreshWalletRowsFromSnapshot(){
       type,
       received,
       balance,
+      createdTs: 0,
+      createdBlock: 0,
       chains: freshWalletChainParts(holder),
       signal,
     });
@@ -2541,6 +2552,49 @@ function buildFreshWalletRows(){
   const backendRows = buildFreshWalletRowsFromBackend(state.freshPeriod);
   if(backendRows) return backendRows;
   return buildFreshWalletRowsFromSnapshot();
+}
+function freshSortValue(row, key){
+  if(key === "balance") return safeHolderNum(row.balance);
+  if(key === "created") return safeHolderNum(row.createdTs);
+  return safeHolderNum(row.received);
+}
+function sortFreshWalletRows(rows){
+  const sort = state.freshSort || {key:"received", dir:"desc"};
+  const mult = sort.dir === "asc" ? 1 : -1;
+  return [...rows].sort((a,b)=>{
+    const va = freshSortValue(a, sort.key);
+    const vb = freshSortValue(b, sort.key);
+    if(sort.key === "created" && Boolean(va) !== Boolean(vb)) return va ? -1 : 1;
+    if(va !== vb) return (va - vb) * mult;
+    if(a.received !== b.received) return b.received - a.received;
+    return (a.addr || "").localeCompare(b.addr || "");
+  });
+}
+function freshCreatedAgo(ts){
+  const diff = Math.max(0, holderHistoryBaseTs() - safeHolderNum(ts));
+  const days = Math.floor(diff / 86400);
+  if(days <= 0) return "today";
+  if(days === 1) return "1D ago";
+  return `${days}D ago`;
+}
+function freshCreatedHtml(row){
+  const ts = safeHolderNum(row.createdTs);
+  if(!ts) return `<div class="fresh-created muted"><span class="date">—</span><span class="sub">—</span></div>`;
+  return `<div class="fresh-created"><span class="date">${fmtHolderDate(ts)}</span><span class="sub">${freshCreatedAgo(ts)}</span></div>`;
+}
+function syncFreshSortHeaders(){
+  document.querySelectorAll("#fresh-wallets-table th[data-fresh-sort]").forEach(th=>{
+    const active = state.freshSort.key === th.dataset.freshSort;
+    th.classList.toggle("sorted", active);
+    let marker = th.querySelector(".sort");
+    if(marker) marker.remove();
+    if(active){
+      marker = document.createElement("span");
+      marker.className = "sort";
+      marker.textContent = state.freshSort.dir === "asc" ? "▲" : "▼";
+      th.appendChild(marker);
+    }
+  });
 }
 function renderFreshStats(rows){
   const box = document.getElementById("fresh-wallet-stats");
@@ -2580,7 +2634,7 @@ function renderFreshPager(totalRows){
 }
 function renderFreshWallets(){
   const allRows = buildFreshWalletRows();
-  let rows = allRows;
+  let rows = sortFreshWalletRows(allRows);
   renderFreshStats(allRows);
   const q = state.qFresh.trim().toLowerCase();
   if(q) rows = rows.filter(row => row.addr.toLowerCase().includes(q) || (row.label || "").toLowerCase().includes(q) || row.signal.label.toLowerCase().includes(q));
@@ -2624,6 +2678,7 @@ function renderFreshWallets(){
             </div>
           </div>
         </td>
+        <td>${freshCreatedHtml(row)}</td>
         <td><span class="fresh-signal ${row.signal.cls}">${row.signal.label}</span></td>
         <td class="num"><span class="flows-net up">+${fmtNum(row.received)}</span></td>
         <td class="num"><span class="bal-val total">${fmtNum(row.balance)}</span></td>
@@ -2633,13 +2688,14 @@ function renderFreshWallets(){
   }).join("");
   const emptyHtml = total === 0 ? `
       <tr>
-        <td colspan="6" class="loading-row">${allRows.length ? "No matching fresh wallets." : "No fresh 10K+ DOLO wallets in this period."}</td>
+        <td colspan="7" class="loading-row">${allRows.length ? "No matching fresh wallets." : "No fresh 10K+ DOLO wallets in this period."}</td>
       </tr>
     ` : "";
   const spacerRowsHtml = total === 0 ? "" : Array.from({length: Math.max(0, state.freshPageSize - pageRows.length)}, () => `
       <tr class="fresh-spacer-row" aria-hidden="true" tabindex="-1">
         <td class="rank">0</td>
         <td><div class="addr-cell"><div class="addr-line top"><span class="addr-name">Placeholder</span><span class="type-tag type-eoa">EOA</span></div><div class="addr-line bot"><span class="addr-mono">0x0000…0000</span><span class="addr-act">Copy</span></div></div></td>
+        <td><div class="fresh-created"><span class="date">May 19, 2026</span><span class="sub">today</span></div></td>
         <td><span class="fresh-signal">New Holder</span></td>
         <td class="num"><span class="flows-net up">+0</span></td>
         <td class="num"><span class="bal-val total">0</span></td>
@@ -2658,6 +2714,7 @@ function renderFreshWallets(){
   const metaEl = document.getElementById("fresh-wallets-meta");
   if(metaEl) metaEl.textContent = `${meta.short} · current balance >10K DOLO`;
   renderFreshPager(total);
+  syncFreshSortHeaders();
   tbody.querySelectorAll(".addr-copy").forEach(btn => btn.addEventListener("click", async e=>{
     e.stopPropagation();
     try { await navigator.clipboard.writeText(btn.dataset.copy); } catch(_) {}
@@ -2750,6 +2807,19 @@ document.querySelectorAll(".flows-tbl th[data-flow-sort]").forEach(th=>{
     }
     state.flowsPage[kind] = 0;
     renderFlows();
+  });
+});
+
+document.querySelectorAll("#fresh-wallets-table th[data-fresh-sort]").forEach(th=>{
+  th.addEventListener("click", ()=>{
+    const key = th.dataset.freshSort;
+    if(state.freshSort.key === key) state.freshSort.dir = state.freshSort.dir === "asc" ? "desc" : "asc";
+    else {
+      state.freshSort.key = key;
+      state.freshSort.dir = "desc";
+    }
+    state.freshPage = 0;
+    renderFreshWallets();
   });
 });
 
