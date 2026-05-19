@@ -317,6 +317,32 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-flow-stat.outflow .sub{color:var(--up)}
 .holder-flow-stat.neutral .dot{background:var(--gold);box-shadow:0 0 10px rgba(201,162,39,.38)}
 .holder-flow-stat.neutral .value{color:var(--fg-1)}
+.fresh-wallets-card{background:linear-gradient(180deg,rgba(20,20,23,.98),var(--bg-2))}
+.fresh-wallet-stats{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border-top:1px solid var(--line-1);border-bottom:1px solid var(--line-1);
+  background:linear-gradient(180deg,rgba(255,255,255,.018),rgba(255,255,255,.006))
+}
+.fresh-stat{padding:15px 18px;border-left:1px solid var(--line-1);min-width:0}
+.fresh-stat:first-child{border-left:0}
+.fresh-stat .label{font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fresh-stat .value{margin-top:7px;font-family:var(--mono);font-size:16px;font-weight:800;color:var(--fg-1);font-variant-numeric:tabular-nums;white-space:nowrap}
+.fresh-stat.primary .value{color:var(--gold);font-size:17px}
+.fresh-stat .sub{margin-top:4px;font-family:var(--mono);font-size:10px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fresh-wallets-table{min-width:820px}
+.fresh-signal{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;height:24px;padding:0 9px;border-radius:999px;
+  border:1px solid var(--gold-line);background:var(--gold-wash);color:var(--gold);font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;white-space:nowrap
+}
+.fresh-signal::before{
+  content:"";width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 8px rgba(201,162,39,.36)
+}
+.fresh-signal.received{color:var(--fg-2);border-color:var(--line-2);background:var(--bg-3)}
+.fresh-signal.received::before{box-shadow:0 0 8px rgba(255,255,255,.12)}
+.fresh-status{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0}
+.fresh-status .main{font-size:12px;font-weight:800;color:var(--fg-1);white-space:nowrap}
+.fresh-status .sub{font-family:var(--mono);font-size:10px;color:var(--fg-3);white-space:nowrap}
+.fresh-chain{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:var(--fg-3);white-space:nowrap}
+.fresh-chain .dot{width:7px;height:7px}
 
 /* TOOLBAR */
 .toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 24px;background:linear-gradient(180deg,var(--bg-1),var(--bg-2));border-bottom:1px solid var(--line-1);flex-wrap:wrap}
@@ -644,6 +670,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 @media (max-width:760px){
   .holder-flow-stats{grid-template-columns:1fr}
   .holder-flow-stat{border-left:0;padding:13px 16px}
+  .fresh-wallet-stats{grid-template-columns:1fr}
+  .fresh-stat{border-left:0;border-top:1px solid var(--line-1);padding:13px 16px}
+  .fresh-stat:first-child{border-top:0}
 }
 @media (max-width:640px){
   .wrap{padding:24px 16px 48px}
@@ -1053,6 +1082,67 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     </div>
   </section>
 
+  <!-- FRESH WALLETS CARD -->
+  <section class="card fresh-wallets-card" id="fresh-wallets-card">
+    <div class="card-head">
+      <div class="card-title">
+        <h2>Fresh 10K+ DOLO Wallets</h2>
+        <span class="count-badge" id="fresh-wallets-count">--</span>
+      </div>
+      <div class="card-meta"><span class="pulse"></span><span id="fresh-wallets-meta">First received DOLO · current balance above 10K</span></div>
+    </div>
+
+    <div class="toolbar">
+      <div class="tb-left">
+        <label class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="q-fresh-wallets" type="text" placeholder="Search fresh wallet…" spellcheck="false" autocomplete="off">
+          <button class="search-clear" type="button" aria-label="Clear search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
+        </label>
+      </div>
+      <div class="tb-right">
+        <div class="dd" id="dd-fresh-period">
+          <button class="dd-btn" data-dd="fresh-period">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            <span class="lbl">7D</span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dd-panel" style="left:auto;right:0">
+            <div class="dd-panel-head">Period</div>
+            <div class="dd-list">
+              <div class="dd-opt" data-period="1d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">24 hours</span></div>
+              <div class="dd-opt active" data-period="7d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">7 days</span></div>
+              <div class="dd-opt" data-period="30d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">30 days</span></div>
+              <div class="dd-opt" data-period="90d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">90 days</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fresh-wallet-stats" id="fresh-wallet-stats"></div>
+
+    <div class="tbl-wrap">
+      <table class="tbl fresh-wallets-table" id="fresh-wallets-table">
+        <thead>
+          <tr>
+            <th style="width:54px">#</th>
+            <th>Address</th>
+            <th style="width:132px">Signal</th>
+            <th class="num" style="width:140px">Received</th>
+            <th class="num" style="width:140px">Balance</th>
+            <th style="width:150px">Status</th>
+          </tr>
+        </thead>
+        <tbody id="fresh-wallets-body"><tr class="loading-row"><td colspan="6">Loading fresh wallets...</td></tr></tbody>
+      </table>
+    </div>
+    <div class="tbl-foot">
+      <div class="tbl-foot-info" id="fresh-wallets-info">--</div>
+      <div class="pager" id="fresh-wallets-pager"></div>
+    </div>
+  </section>
+
   <!-- HOLDER DISTRIBUTION CHART -->
   <section class="card holder-chart-card" id="holder-distribution-card">
     <div class="card-head">
@@ -1227,10 +1317,11 @@ const FLOWS = [
 ];
 
 const state = {
-  q:"", qFlows:"",
+  q:"", qFlows:"", qFresh:"",
   chain: "all",                                            // all | ethereum | berachain
   types: new Set(ADDRESS_TYPES),                            // holders: all enabled
   flowsPeriod: "7d",                                        // 1d | 7d | 30d | 90d | 180d | all
+  freshPeriod: "7d",                                        // fresh holders: 1d | 7d | 30d | 90d
   flowsChain: "all",                                        // all | ethereum | berachain
   flowsTypes: new Set(ADDRESS_TYPES),                       // flows: all enabled
   flowsSort: {
@@ -1241,6 +1332,9 @@ const state = {
   flowsPage: {acc: 0, out: 0},
   flowsPageSize: 6,
   flowsStableBodyHeight: {acc: 0, out: 0},
+  freshPage: 0,
+  freshPageSize: 8,
+  freshStableBodyHeight: 0,
   sort: {key:"total", dir:"desc"},
   page: 0,
   pageSize: 10,
@@ -1293,11 +1387,13 @@ const HOLDER_HISTORY_POINTS = [
   {key:"now", label:"Now", days:0},
 ];
 const HOLDER_DEFAULT_WINDOW_DAYS = 30;
+const FRESH_HOLDER_MIN_BALANCE = 10_000;
 let holderDistributionActiveKey = "";
 let holderBucketView = "whales";
 let VEDOLO_LOCKS = new Map();
 let VEDOLO_FLOW_EVENTS = {locks:[], unlocks:[]};
 let DOLO_BALANCE_CHANGES = {};
+let DOLO_FRESH_HOLDERS = {};
 let DOLO_HOLDER_HISTORY_POINTS = [];
 let DOLO_HOLDER_BUCKET_HISTORY = [];
 let vedoloHolderStats = null;
@@ -2233,15 +2329,17 @@ function renderFlowPager(kind, totalRows){
 function syncFlowSpacerHeight(tbody, kind, dataRowSelector, spacerSelector, expectedRows){
   const dataRowEls = [...tbody.querySelectorAll(dataRowSelector)];
   const spacerRowEls = [...tbody.querySelectorAll(spacerSelector)];
+  const stableHeight = safeHolderNum(state.flowsStableBodyHeight[kind]);
   if(!spacerRowEls.length && dataRowEls.length === expectedRows){
-    state.flowsStableBodyHeight[kind] = Math.max(state.flowsStableBodyHeight[kind], tbody.getBoundingClientRect().height);
+    state.flowsStableBodyHeight[kind] = Math.max(stableHeight, tbody.getBoundingClientRect().height);
   }
   if(spacerRowEls.length){
+    const nextStableHeight = safeHolderNum(state.flowsStableBodyHeight[kind]);
     const dataHeight = dataRowEls.reduce((sum, row) => sum + row.getBoundingClientRect().height, 0);
     const fallbackRowHeight = dataRowEls.length
       ? Math.max(...dataRowEls.map(row => row.getBoundingClientRect().height))
-      : (state.flowsStableBodyHeight[kind] ? state.flowsStableBodyHeight[kind] / expectedRows : 0);
-    const targetBodyHeight = state.flowsStableBodyHeight[kind] || fallbackRowHeight * expectedRows;
+      : (nextStableHeight ? nextStableHeight / expectedRows : 0);
+    const targetBodyHeight = nextStableHeight || fallbackRowHeight * expectedRows;
     const spacerHeight = targetBodyHeight
       ? Math.max(0, (targetBodyHeight - dataHeight) / spacerRowEls.length)
       : fallbackRowHeight;
@@ -2342,8 +2440,232 @@ function renderFlows(){
   renderFlow("flows-out-body", "out");
 }
 
+function freshPeriodMeta(){
+  return PERIODS.find(p => p.key === state.freshPeriod) || {key:state.freshPeriod, short:state.freshPeriod.toUpperCase(), label:state.freshPeriod};
+}
+function normalizedBalanceChangeMap(period){
+  const raw = DOLO_BALANCE_CHANGES?.[period] || {};
+  const map = new Map();
+  Object.entries(raw).forEach(([addr, net]) => {
+    const key = lowerHolderAddr(addr);
+    if(key) map.set(key, {addr, net:safeHolderNum(net)});
+  });
+  return map;
+}
+function freshChainModel(raw){
+  const key = String(raw || "").toLowerCase();
+  if(key === "eth" || key === "ethereum") return {key:"ethereum", label:"Ethereum"};
+  if(key === "bera" || key === "berachain") return {key:"berachain", label:"Berachain"};
+  return {key:"unknown", label:"Unknown"};
+}
+function freshWalletChainParts(row){
+  const explicit = Array.isArray(row?.chains) ? row.chains.map(freshChainModel) : [];
+  const parts = explicit.filter((chain, index, arr) => chain.key !== "unknown" && arr.findIndex(item => item.key === chain.key) === index);
+  if(parts.length) return parts;
+  if(safeHolderNum(row?.balance_eth) > 0 || safeHolderNum(row?.balEth) > 0) parts.push(freshChainModel("eth"));
+  if(safeHolderNum(row?.balance_bera) > 0 || safeHolderNum(row?.balBera) > 0) parts.push(freshChainModel("bera"));
+  if(parts.length) return parts;
+  if(row?.first_chain) return [freshChainModel(row.first_chain)];
+  return [{key:"unknown", label:"Unknown"}];
+}
+function freshWalletSignal(row){
+  const source = row?.source || row?.source_label || row?.signalLabel || "";
+  if(source) return {label:source, cls:source === "Received" ? "" : "received"};
+  if(row?.type === "investor") return {label:"Investor", cls:"received"};
+  if(row?.type === "mm") return {label:"Market Maker", cls:"received"};
+  if(row?.type === "bot") return {label:"Bot", cls:"received"};
+  return {label:"New Wallet", cls:""};
+}
+function freshWalletStatus(row){
+  const retention = Number.isFinite(Number(row.retention)) ? Number(row.retention) : row.received > 0 ? row.balance / row.received : 0;
+  if(row.balance <= 1) return {main:"Exited", sub:"kept 0%"};
+  if(retention >= 0.95) return {main:"Still Holding", sub:"kept 95%+"};
+  if(retention >= 0.5) return {main:"Mostly Holding", sub:`kept ${fmtPct(Math.min(1, retention) * 100)}`};
+  return {main:"Reduced", sub:`kept ${fmtPct(Math.max(0, retention) * 100)}`};
+}
+function buildFreshWalletRowsFromBackend(period){
+  const raw = DOLO_FRESH_HOLDERS?.[period];
+  if(!Array.isArray(raw)) return null;
+  return raw.map(item => {
+    const addr = item.address || item.addr || "";
+    const info = sharedAddressInfo(addr);
+    const type = holderDistributionType(addr, item);
+    if(!addr || ["cex","ca","watch"].includes(type)) return null;
+    const row = {
+      addr,
+      label: info?.label || item.label || null,
+      type,
+      received: safeHolderNum(item.received ?? item.gross_received ?? item.net_flow),
+      balance: safeHolderNum(item.balance ?? item.current_balance),
+      balance_eth: safeHolderNum(item.balance_eth),
+      balance_bera: safeHolderNum(item.balance_bera),
+      first_chain: item.first_chain,
+      chains: freshWalletChainParts(item),
+      retention: safeHolderNum(item.retention),
+      source: item.source || item.source_label || "",
+    };
+    if(row.balance <= FRESH_HOLDER_MIN_BALANCE) return null;
+    row.signal = freshWalletSignal(row);
+    return row;
+  }).filter(Boolean).sort((a,b) => b.received - a.received);
+}
+function buildFreshWalletRowsFromSnapshot(){
+  const changes = normalizedBalanceChangeMap(state.freshPeriod);
+  if(!changes.size) return [];
+  const rows = [];
+  HOLDERS.forEach(holder => {
+    const key = lowerHolderAddr(holder.addr);
+    const change = changes.get(key);
+    if(!change) return;
+    const type = holder.type || "eoa";
+    if(type === "cex" || type === "ca" || type === "watch") return;
+    const balance = safeHolderNum(holder.total);
+    const received = safeHolderNum(change.net);
+    const prior = balance - received;
+    if(received <= 1 || balance <= FRESH_HOLDER_MIN_BALANCE || prior > 1) return;
+    const signal = freshWalletSignal(holder);
+    rows.push({
+      addr: holder.addr,
+      label: holder.label,
+      type,
+      received,
+      balance,
+      chains: freshWalletChainParts(holder),
+      signal,
+    });
+  });
+  return rows.sort((a,b) => b.received - a.received);
+}
+function buildFreshWalletRows(){
+  const backendRows = buildFreshWalletRowsFromBackend(state.freshPeriod);
+  if(backendRows) return backendRows;
+  return buildFreshWalletRowsFromSnapshot();
+}
+function renderFreshStats(rows){
+  const box = document.getElementById("fresh-wallet-stats");
+  if(!box) return;
+  const received = rows.reduce((sum, row) => sum + row.received, 0);
+  const balance = rows.reduce((sum, row) => sum + row.balance, 0);
+  const retained = received > 0 ? Math.min(100, balance / received * 100) : 0;
+  const period = freshPeriodMeta();
+  box.innerHTML = `
+    <div class="fresh-stat primary"><div class="label">Fresh Wallets</div><div class="value">${rows.length.toLocaleString()}</div><div class="sub">10K+ current · ${period.short}</div></div>
+    <div class="fresh-stat"><div class="label">DOLO Received</div><div class="value">${fmtNum(received)}</div><div class="sub">fresh 10K+ wallets</div></div>
+    <div class="fresh-stat"><div class="label">Current Balance</div><div class="value">${fmtNum(balance)}</div><div class="sub">current holdings</div></div>
+    <div class="fresh-stat"><div class="label">Retention</div><div class="value">${fmtPct(retained)}</div><div class="sub">kept by wallets</div></div>
+  `;
+}
+function renderFreshPager(totalRows){
+  const totalPages = Math.max(1, Math.ceil(totalRows / state.freshPageSize));
+  state.freshPage = Math.max(0, Math.min(state.freshPage, totalPages - 1));
+  const curPage = state.freshPage + 1;
+  const pager = document.getElementById("fresh-wallets-pager");
+  if(!pager) return;
+  pager.innerHTML = `
+    <button class="pg-btn" data-fresh-page="first" ${curPage===1?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg></button>
+    <button class="pg-btn" data-fresh-page="prev" ${curPage===1?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <span class="pg-current">${curPage} <span class="pg-sep">/</span> ${totalPages}</span>
+    <button class="pg-btn" data-fresh-page="next" ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button class="pg-btn" data-fresh-page="last" ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></button>
+  `;
+  pager.querySelectorAll("[data-fresh-page]").forEach(btn => btn.addEventListener("click", () => {
+    const a = btn.dataset.freshPage;
+    if(a === "first") state.freshPage = 0;
+    else if(a === "prev") state.freshPage = Math.max(0, state.freshPage - 1);
+    else if(a === "next") state.freshPage = Math.min(totalPages - 1, state.freshPage + 1);
+    else if(a === "last") state.freshPage = totalPages - 1;
+    renderFreshWallets();
+  }));
+}
+function renderFreshWallets(){
+  const allRows = buildFreshWalletRows();
+  let rows = allRows;
+  renderFreshStats(allRows);
+  const q = state.qFresh.trim().toLowerCase();
+  if(q) rows = rows.filter(row => row.addr.toLowerCase().includes(q) || (row.label || "").toLowerCase().includes(q) || row.signal.label.toLowerCase().includes(q));
+  const total = rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / state.freshPageSize));
+  state.freshPage = Math.max(0, Math.min(state.freshPage, totalPages - 1));
+  const start = state.freshPage * state.freshPageSize;
+  const pageRows = rows.slice(start, start + state.freshPageSize);
+  const tbody = document.getElementById("fresh-wallets-body");
+  if(!tbody) return;
+  const rowHtml = pageRows.map((row, i) => {
+    const rank = start + i + 1;
+    const typeHtml = `<span class="type-tag type-${row.type}" data-tooltip="${TYPE_TIPS[row.type] || row.type}">${TYPE_LABELS[row.type] || row.type.toUpperCase()}</span>`;
+    const actions = `
+      <button class="addr-copy" data-copy="${row.addr}" aria-label="Copy address">${COPY_ICO}</button>
+      <a class="addr-debank" href="https://debank.com/profile/${row.addr}" target="_blank" rel="noopener" aria-label="View on DeBank" onclick="event.stopPropagation()">
+        <img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'">
+      </a>`;
+    const nameCell = row.label
+      ? `<span class="addr-name">${row.label}</span>`
+      : `<span class="addr-name addr-generic">${TYPE_GENERIC[row.type] || "Wallet"}</span>`;
+    const status = freshWalletStatus(row);
+    const chainHtml = row.chains.map(chain => `<span class="fresh-chain"><span class="dot dot-${chain.key}"></span>${chain.label}</span>`).join(" ");
+    return `
+      <tr data-addr="${row.addr}">
+        <td class="rank">${rank}</td>
+        <td>
+          <div class="addr-cell">
+            <div class="addr-line top">${nameCell}${typeHtml}</div>
+            <div class="addr-line bot">
+              <span class="addr-mono addr-tooltip-wrap" data-full-addr="${row.addr}">${shorten(row.addr)}</span>
+              ${actions}
+            </div>
+          </div>
+        </td>
+        <td><span class="fresh-signal ${row.signal.cls}">${row.signal.label}</span></td>
+        <td class="num"><span class="flows-net up">+${fmtNum(row.received)}</span></td>
+        <td class="num"><span class="bal-val total">${fmtNum(row.balance)}</span></td>
+        <td><div class="fresh-status"><span class="main">${status.main}</span><span class="sub">${status.sub} · ${chainHtml}</span></div></td>
+      </tr>
+    `;
+  }).join("");
+  const emptyHtml = total === 0 ? `
+      <tr>
+        <td colspan="6" class="loading-row">${allRows.length ? "No matching fresh wallets." : "No fresh 10K+ DOLO wallets in this period."}</td>
+      </tr>
+    ` : "";
+  const spacerRowsHtml = total === 0 ? "" : Array.from({length: Math.max(0, state.freshPageSize - pageRows.length)}, () => `
+      <tr class="fresh-spacer-row" aria-hidden="true" tabindex="-1">
+        <td class="rank">0</td>
+        <td><div class="addr-cell"><div class="addr-line top"><span class="addr-name">Placeholder</span><span class="type-tag type-eoa">EOA</span></div><div class="addr-line bot"><span class="addr-mono">0x0000…0000</span><span class="addr-act">Copy</span></div></div></td>
+        <td><span class="fresh-signal">New Holder</span></td>
+        <td class="num"><span class="flows-net up">+0</span></td>
+        <td class="num"><span class="bal-val total">0</span></td>
+        <td><div class="fresh-status"><span class="main">Still Holding</span><span class="sub">kept 95%+ · Ethereum</span></div></td>
+      </tr>
+    `).join("");
+  tbody.innerHTML = rowHtml + spacerRowsHtml + emptyHtml;
+  syncFlowSpacerHeight(tbody, "fresh", "tr:not(.fresh-spacer-row)", "tr.fresh-spacer-row", state.freshPageSize);
+  const showStart = total > 0 ? start + 1 : 0;
+  const showEnd = Math.min(start + state.freshPageSize, total);
+  const info = document.getElementById("fresh-wallets-info");
+  if(info) info.textContent = `${showStart}–${showEnd} of ${total.toLocaleString()}`;
+  const count = document.getElementById("fresh-wallets-count");
+  if(count) count.textContent = `${allRows.length.toLocaleString()} wallets`;
+  const meta = freshPeriodMeta();
+  const metaEl = document.getElementById("fresh-wallets-meta");
+  if(metaEl) metaEl.textContent = `${meta.short} · current balance >10K DOLO`;
+  renderFreshPager(total);
+  tbody.querySelectorAll(".addr-copy").forEach(btn => btn.addEventListener("click", async e=>{
+    e.stopPropagation();
+    try { await navigator.clipboard.writeText(btn.dataset.copy); } catch(_) {}
+    btn.classList.add("copied");
+    btn.innerHTML = CHECK_ICO;
+    setTimeout(()=>{ btn.classList.remove("copied"); btn.innerHTML = COPY_ICO; }, 1400);
+  }));
+  tbody.querySelectorAll("tr:not(.fresh-spacer-row)").forEach(tr => tr.addEventListener("click", e=>{
+    if(e.target.closest(".addr-copy") || e.target.closest(".addr-debank")) return;
+    const addr = tr.dataset.addr;
+    if(addr) window.open(`https://etherscan.io/address/${addr}`, "_blank", "noopener");
+  }));
+}
+
 document.getElementById("q-holders").addEventListener("input", e=>{state.q=e.target.value;state.page=0;renderHolders()});
 document.getElementById("q-flows").addEventListener("input", e=>{state.qFlows=e.target.value;state.flowsPage.acc=0;state.flowsPage.out=0;renderFlows()});
+document.getElementById("q-fresh-wallets").addEventListener("input", e=>{state.qFresh=e.target.value;state.freshPage=0;renderFreshWallets()});
 
 function syncSearchClear(input){
   const search = input && input.closest(".search");
@@ -2436,6 +2758,12 @@ document.addEventListener("click", ()=>{
   document.querySelectorAll(".dd-panel.show").forEach(p=>p.classList.remove("show"));
   document.querySelectorAll(".dd-btn.open").forEach(b=>b.classList.remove("open"));
 });
+function closeDropdownPanelFromOption(opt){
+  const panel = opt && opt.closest ? opt.closest(".dd-panel") : null;
+  if(panel) panel.classList.remove("show");
+  const btn = panel && panel.previousElementSibling;
+  if(btn && btn.classList) btn.classList.remove("open");
+}
 
 // Holders chain — single-select dropdown (matches Flows chain pattern)
 document.querySelectorAll('#dd-chain .dd-opt').forEach(opt=>{
@@ -2450,6 +2778,7 @@ document.querySelectorAll('#dd-chain .dd-opt').forEach(opt=>{
     btn.classList.toggle("filtered", state.chain !== "all");
     state.page = 0;
     renderHolders();
+    closeDropdownPanelFromOption(opt);
   });
 });
 
@@ -2508,6 +2837,7 @@ document.querySelectorAll('#dd-flows-chain .dd-opt').forEach(opt=>{
     state.flowsPage.acc=0;
     state.flowsPage.out=0;
     renderFlows();
+    closeDropdownPanelFromOption(opt);
   });
 });
 
@@ -2526,6 +2856,22 @@ document.querySelectorAll('#dd-flows-period .dd-opt').forEach(opt=>{
     state.flowsPage.acc=0;
     state.flowsPage.out=0;
     renderFlows();
+    closeDropdownPanelFromOption(opt);
+  });
+});
+
+// Fresh wallets period — single-select dropdown
+document.querySelectorAll('#dd-fresh-period .dd-opt').forEach(opt=>{
+  opt.addEventListener("click", e=>{
+    e.stopPropagation();
+    document.querySelectorAll('#dd-fresh-period .dd-opt').forEach(o=>o.classList.remove("active"));
+    opt.classList.add("active");
+    state.freshPeriod = opt.dataset.period;
+    const meta = freshPeriodMeta();
+    document.querySelector('#dd-fresh-period .dd-btn .lbl').textContent = meta.short;
+    state.freshPage = 0;
+    renderFreshWallets();
+    closeDropdownPanelFromOption(opt);
   });
 });
 
@@ -2646,6 +2992,7 @@ document.getElementById("now").textContent = new Date().toLocaleString();
 
 renderHolders();
 renderFlows();
+renderFreshWallets();
 
 // Live integration layer. The visual prototype above ships with sample rows so
 // it is readable from file://, then this adapter replaces them with the same
@@ -2827,6 +3174,7 @@ renderFlows();
     });
     state.page = 0;
     renderHolders();
+    renderFreshWallets();
     syncLiveMeta(data.timestamp);
   }
   function applyVeDoloHolders(data){
@@ -2856,6 +3204,7 @@ renderFlows();
   function applyDoloFlows(flows){
     if(!flows) return;
     DOLO_BALANCE_CHANGES = flows.balance_changes || {};
+    DOLO_FRESH_HOLDERS = flows.fresh_holders || flows.fresh_wallets || {};
     DOLO_HOLDER_HISTORY_POINTS = Array.isArray(flows.holder_history_points) ? flows.holder_history_points : [];
     DOLO_HOLDER_BUCKET_HISTORY = Array.isArray(flows.holder_bucket_history) ? flows.holder_bucket_history : [];
     doloFlowDataTimestamp = flows.timestamp || null;
@@ -2955,6 +3304,7 @@ renderFlows();
           applyDoloFlows(flows);
           if(holdersData && learned > 0) applyHolders(holdersData);
           renderFlows();
+          renderFreshWallets();
           renderHolderDistributionChart();
           return flows;
         })

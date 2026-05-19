@@ -132,6 +132,9 @@ PERIODS = {
     # yearly window.
     "all": 86400 * 365 * 10,
 }
+FRESH_HOLDER_PERIODS = ("1d", "7d", "30d", "90d")
+FRESH_HOLDER_MIN_RECEIVED = 0.000001
+FRESH_HOLDER_MIN_CURRENT_BALANCE = 10_000.0
 
 HOLDER_HISTORY_START_TIMESTAMP = int(datetime(2025, 4, 24, tzinfo=timezone.utc).timestamp())  # DOLO TGE
 
@@ -671,6 +674,168 @@ def holder_distribution_type(addr, holder_rows, labels):
     return label_type or "eoa"
 
 
+def transfer_estimated_timestamp(chain_key, block_number, current_blocks, base_ts):
+    """Approximate block time well enough to compare first DOLO receipts across chains."""
+    cfg = CHAINS[chain_key]
+    blocks_back = max(0, int(current_blocks.get(chain_key, block_number)) - int(block_number))
+    return int(base_ts) - blocks_back * int(cfg["block_time"])
+
+
+def source_label_for_fresh_wallet(source_addr, labels):
+    key = (source_addr or "").lower()
+    if key in BRIDGE_ADDRS:
+        return "Bridge / Mint"
+    if key == "0x3e9b9a16743551da49b5e136c716bba7932d2cec":
+        return "oDOLO Exercise"
+    info = labels.get(key, {})
+    label_type = info.get("type", "")
+    label = info.get("label", "")
+    if label_type == "cex":
+        return "CEX Withdrawal"
+    if label_type in {"protocol", "lp", "contract"} or key in EXCLUDED_ADDRS:
+        return "DEX / Contract"
+    if label:
+        return f"From {label}"
+    return "Received"
+
+
+def calculate_current_balances_by_chain(all_transfers):
+    balances = {chain_key: {} for chain_key in CHAINS}
+    for chain_key, transfers in all_transfers.items():
+        chain_balances = balances.setdefault(chain_key, {})
+        for from_addr, to_addr, value_wei, _ in transfers:
+            value = value_wei / (10 ** 18)
+            if from_addr != ZERO:
+                chain_balances[from_addr] = chain_balances.get(from_addr, 0) - value
+            if to_addr != ZERO:
+                chain_balances[to_addr] = chain_balances.get(to_addr, 0) + value
+    return balances
+
+
+def fresh_holder_history_coverage(state, all_transfers, cutoff_blocks):
+    meta = {}
+    ok = True
+    for chain_key, cfg in CHAINS.items():
+        required_start = cutoff_blocks.get(chain_key, {}).get("all", cfg.get("deploy_block", 0))
+        state_start = state.get(f"{chain_key}_history_start_block")
+        transfer_min = min((t[3] for t in all_transfers.get(chain_key, [])), default=None)
+        coverage_start = int(state_start or transfer_min or 0)
+        chain_ok = bool(coverage_start and coverage_start <= required_start)
+        ok = ok and chain_ok
+        meta[chain_key] = {
+            "requiredStartBlock": required_start,
+            "coverageStartBlock": coverage_start,
+            "transferMinBlock": transfer_min,
+            "ok": chain_ok,
+        }
+    return ok, meta
+
+
+def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralized_flows_cache, base_ts):
+    """Build fresh DOLO wallets from the full transfer ledger, not the 100+ holder snapshot.
+
+    A wallet is fresh for a period when its first-ever DOLO inbound transfer on
+    either tracked chain happened inside that period. Current balances are
+    replayed from all cached transfers, so exited or sub-100 DOLO wallets remain
+    visible in this cohort.
+    """
+    holder_rows = load_current_holder_rows()
+    address_labels = load_address_labels()
+    current_balances = calculate_current_balances_by_chain(all_transfers)
+    first_in_period = {period: {} for period in FRESH_HOLDER_PERIODS}
+    preexisting_by_period = {period: set() for period in FRESH_HOLDER_PERIODS}
+    received_by_period = {period: {} for period in FRESH_HOLDER_PERIODS}
+    tx_count_by_period = {period: {} for period in FRESH_HOLDER_PERIODS}
+
+    for chain_key, transfers in all_transfers.items():
+        for from_addr, to_addr, value_wei, block_number in transfers:
+            to_key = (to_addr or "").lower()
+            from_key = (from_addr or "").lower()
+            if not to_key or to_key in FLOW_SKIP_ADDRS:
+                continue
+            value = value_wei / (10 ** 18)
+            if value <= 0:
+                continue
+            estimated_ts = transfer_estimated_timestamp(chain_key, block_number, current_blocks, base_ts)
+            for period in FRESH_HOLDER_PERIODS:
+                cutoff = cutoff_blocks.get(chain_key, {}).get(period, 0)
+                if block_number < cutoff:
+                    preexisting_by_period[period].add(to_key)
+                    continue
+                received_by_period[period][to_key] = received_by_period[period].get(to_key, 0) + value
+                tx_count_by_period[period][to_key] = tx_count_by_period[period].get(to_key, 0) + 1
+                existing = first_in_period[period].get(to_key)
+                if existing is None or estimated_ts < existing["estimated_ts"]:
+                    first_in_period[period][to_key] = {
+                        "chain": chain_key,
+                        "block": block_number,
+                        "estimated_ts": estimated_ts,
+                        "source_address": from_key,
+                        "amount": value,
+                    }
+
+    merged_net_by_period = {
+        period: merge_balance_changes(neutralized_flows_cache.get(period, {chain_key: {} for chain_key in CHAINS}))
+        for period in FRESH_HOLDER_PERIODS
+    }
+    result = {}
+    for period in FRESH_HOLDER_PERIODS:
+        rows = []
+        period_received = received_by_period.get(period, {})
+        period_txs = tx_count_by_period.get(period, {})
+        period_net = merged_net_by_period.get(period, {})
+        preexisting = preexisting_by_period.get(period, set())
+        for addr, received in period_received.items():
+            if addr in preexisting:
+                continue
+            first = first_in_period.get(period, {}).get(addr)
+            if not first:
+                continue
+            first_chain = first["chain"]
+            if addr in EXCLUDED_ADDRS:
+                continue
+            holder_type = holder_distribution_type(addr, holder_rows, address_labels)
+            if holder_type in {"cex", "ca", "watch"}:
+                continue
+            if received <= FRESH_HOLDER_MIN_RECEIVED:
+                continue
+            balance_eth = max(0, current_balances.get("eth", {}).get(addr, 0))
+            balance_bera = max(0, current_balances.get("bera", {}).get(addr, 0))
+            current_balance = balance_eth + balance_bera
+            if current_balance <= FRESH_HOLDER_MIN_CURRENT_BALANCE:
+                continue
+            chains = []
+            if balance_eth > 0.0001:
+                chains.append("eth")
+            if balance_bera > 0.0001:
+                chains.append("bera")
+            if not chains:
+                chains.append(first_chain)
+            info = address_labels.get(addr, {})
+            row = {
+                "address": addr,
+                "label": info.get("label", ""),
+                "type": holder_type,
+                "source": source_label_for_fresh_wallet(first.get("source_address"), address_labels),
+                "source_address": first.get("source_address", ""),
+                "first_chain": first_chain,
+                "first_block": first["block"],
+                "first_timestamp_estimate": datetime.utcfromtimestamp(max(0, first["estimated_ts"])).isoformat() + "Z",
+                "received": round(received, 6),
+                "net_flow": round(period_net.get(addr, 0), 6),
+                "balance": round(current_balance, 6),
+                "balance_eth": round(balance_eth, 6),
+                "balance_bera": round(balance_bera, 6),
+                "chains": chains,
+                "tx_count": period_txs.get(addr, 0),
+                "retention": round((current_balance / received) if received > 0 else 0, 4),
+            }
+            rows.append(row)
+        rows.sort(key=lambda item: item["received"], reverse=True)
+        result[period] = rows
+    return result
+
+
 def load_current_vedolo_locks():
     holders_file = os.path.join(DATA_DIR, "vedolo_holders.json")
     if not os.path.exists(holders_file):
@@ -1158,9 +1323,23 @@ def main():
     for period in PERIODS:
         balance_changes[period] = merge_balance_changes(neutralized_flows_cache[period])
 
+    holder_history_base_ts = int(time.time())
+    fresh_coverage_ok, fresh_coverage_meta = fresh_holder_history_coverage(state, all_transfers, cutoff_blocks)
+    if not fresh_coverage_ok:
+        raise RuntimeError(f"Fresh DOLO wallet cohorts require full transfer history coverage: {fresh_coverage_meta}")
+    print("\n🆕 Building fresh DOLO wallet cohorts...")
+    fresh_holders = build_fresh_holders(
+        all_transfers,
+        cutoff_blocks,
+        current_blocks,
+        neutralized_flows_cache,
+        holder_history_base_ts,
+    )
+    for period in FRESH_HOLDER_PERIODS:
+        print(f"  {period}: {len(fresh_holders.get(period, [])):,} fresh wallet(s)")
+
     # Extra holder-bucket chart history. These are still derived from the same
     # transfer logs as the flow tables, but add enough cutoffs for a usable hover.
-    holder_history_base_ts = int(time.time())
     holder_history_points = build_holder_history_schedule(holder_history_base_ts)
     print(f"\n📈 Building holder bucket chart history ({len(holder_history_points)} points)...")
     holder_bucket_history = calculate_holder_bucket_history(
@@ -1189,6 +1368,15 @@ def main():
                 except Exception:
                     checksummed[addr] = val
             balance_changes[period] = checksummed
+        for rows in fresh_holders.values():
+            for entry in rows:
+                for key in ("address", "source_address"):
+                    if not entry.get(key):
+                        continue
+                    try:
+                        entry[key] = Web3.to_checksum_address(entry[key])
+                    except Exception:
+                        pass
     except ImportError:
         pass
 
@@ -1203,6 +1391,15 @@ def main():
         "dolo_price": dolo_price,
         "periods": output_periods,
         "balance_changes": balance_changes,
+        "fresh_holders": fresh_holders,
+        "fresh_holders_meta": {
+            "source": "full_transfer_history",
+            "definition": "address first received DOLO within the selected period across Ethereum and Berachain",
+            "periods": list(FRESH_HOLDER_PERIODS),
+            "minReceivedDolo": FRESH_HOLDER_MIN_RECEIVED,
+            "minCurrentBalanceDolo": FRESH_HOLDER_MIN_CURRENT_BALANCE,
+            "coverage": fresh_coverage_meta,
+        },
     }
 
     # Dynamically extract all Vesting Claimers (Early Investors) and Team
@@ -1229,9 +1426,9 @@ def main():
                     inv_set.add(t[1].lower())
                     team_set.add(t[1].lower())
                     
-    out_investors["early_investors"] = list(early_set)
-    out_investors["investors"] = list(inv_set)
-    out_investors["team"] = list(team_set)
+    out_investors["early_investors"] = sorted(early_set)
+    out_investors["investors"] = sorted(inv_set)
+    out_investors["team"] = sorted(team_set)
     
     with open(os.path.join(DATA_DIR, "vesting_investors.json"), "w") as f:
         json.dump(out_investors, f, indent=2)
