@@ -1095,7 +1095,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         <h2>Fresh 10K+ DOLO Wallets</h2>
         <span class="count-badge" id="fresh-wallets-count">--</span>
       </div>
-      <div class="card-meta"><span class="pulse"></span><span id="fresh-wallets-meta">First received DOLO · current balance above 10K</span></div>
+      <div class="card-meta"><span class="pulse"></span><span id="fresh-wallets-meta">First on-chain tx · current balance above 10K</span></div>
     </div>
 
     <div class="toolbar">
@@ -2499,6 +2499,8 @@ function buildFreshWalletRowsFromBackend(period){
     const info = sharedAddressInfo(addr);
     const type = holderDistributionType(addr, item);
     if(!addr || ["cex","ca","watch"].includes(type)) return null;
+    const createdTs = parseHolderTimestamp(item.wallet_created_timestamp || item.wallet_created_at || "");
+    if(!createdTs) return null;
     const row = {
       addr,
       label: info?.label || item.label || null,
@@ -2507,9 +2509,10 @@ function buildFreshWalletRowsFromBackend(period){
       balance: safeHolderNum(item.balance ?? item.current_balance),
       balance_eth: safeHolderNum(item.balance_eth),
       balance_bera: safeHolderNum(item.balance_bera),
-      first_chain: item.first_chain,
-      createdTs: parseHolderTimestamp(item.first_timestamp_estimate || item.first_timestamp || item.created_at || item.created),
-      createdBlock: safeHolderNum(item.first_block),
+      first_chain: item.first_chain || item.wallet_created_chain,
+      createdTs,
+      createdBlock: safeHolderNum(item.wallet_created_block || item.first_block),
+      createdTx: item.wallet_created_tx || "",
       chains: freshWalletChainParts(item),
       retention: safeHolderNum(item.retention),
       source: item.source || item.source_label || "",
@@ -2551,7 +2554,7 @@ function buildFreshWalletRowsFromSnapshot(){
 function buildFreshWalletRows(){
   const backendRows = buildFreshWalletRowsFromBackend(state.freshPeriod);
   if(backendRows) return backendRows;
-  return buildFreshWalletRowsFromSnapshot();
+  return [];
 }
 function freshSortValue(row, key){
   if(key === "balance") return safeHolderNum(row.balance);
@@ -2688,7 +2691,7 @@ function renderFreshWallets(){
   }).join("");
   const emptyHtml = total === 0 ? `
       <tr>
-        <td colspan="7" class="loading-row">${allRows.length ? "No matching fresh wallets." : "No fresh 10K+ DOLO wallets in this period."}</td>
+        <td colspan="7" class="loading-row">${allRows.length ? "No matching fresh wallets." : "No verified fresh 10K+ DOLO wallets in this period."}</td>
       </tr>
     ` : "";
   const spacerRowsHtml = total === 0 ? "" : Array.from({length: Math.max(0, state.freshPageSize - pageRows.length)}, () => `
@@ -2712,7 +2715,7 @@ function renderFreshWallets(){
   if(count) count.textContent = `${allRows.length.toLocaleString()} wallets`;
   const meta = freshPeriodMeta();
   const metaEl = document.getElementById("fresh-wallets-meta");
-  if(metaEl) metaEl.textContent = `${meta.short} · current balance >10K DOLO`;
+  if(metaEl) metaEl.textContent = `${meta.short} · first on-chain tx + >10K DOLO`;
   renderFreshPager(total);
   syncFreshSortHeaders();
   tbody.querySelectorAll(".addr-copy").forEach(btn => btn.addEventListener("click", async e=>{

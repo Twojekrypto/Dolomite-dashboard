@@ -11,6 +11,8 @@ from datetime import datetime, timedelta, timezone
 ALCHEMY_BERA_RPC = os.environ.get("ALCHEMY_BERACHAIN_RPC", "")
 ALCHEMY_BERA_RPC_2 = os.environ.get("ALCHEMY_BERACHAIN_RPC_2", "")
 ALCHEMY_BERA_RPC_3 = os.environ.get("ALCHEMY_BERACHAIN_RPC_3", "")
+ETHERSCAN_API_KEY = os.environ.get("ETHERSCAN_API_KEY", "").strip()
+BERASCAN_API_KEY = os.environ.get("BERASCAN_API_KEY", "").strip()
 
 # ===== CONFIG =====
 DOLO_CONTRACT = "0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654".lower()
@@ -135,6 +137,10 @@ PERIODS = {
 FRESH_HOLDER_PERIODS = ("1d", "7d", "30d", "90d")
 FRESH_HOLDER_MIN_RECEIVED = 0.000001
 FRESH_HOLDER_MIN_CURRENT_BALANCE = 10_000.0
+FRESH_WALLET_ACTIVITY_CACHE_KEY = "fresh_wallet_activity_cache"
+FRESH_WALLET_NO_ACTIVITY_CACHE_SECONDS = 6 * 3600
+ETHERSCAN_V2_API = "https://api.etherscan.io/v2/api"
+BERACHAIN_EXPLORER_API = "https://api.routescan.io/v2/network/mainnet/evm/80094/etherscan/api"
 
 HOLDER_HISTORY_START_TIMESTAMP = int(datetime(2025, 4, 24, tzinfo=timezone.utc).timestamp())  # DOLO TGE
 
@@ -699,6 +705,121 @@ def source_label_for_fresh_wallet(source_addr, labels):
     return "Received"
 
 
+def _explorer_first_activity_params(chain_key, address):
+    params = {
+        "module": "account",
+        "action": "txlist",
+        "address": address,
+        "startblock": 0,
+        "endblock": 99999999,
+        "page": 1,
+        "offset": 1,
+        "sort": "asc",
+    }
+    if chain_key == "eth":
+        if not ETHERSCAN_API_KEY:
+            return None, None, "missing_ETHERSCAN_API_KEY"
+        params["chainid"] = 1
+        params["apikey"] = ETHERSCAN_API_KEY
+        return ETHERSCAN_V2_API, params, ""
+    if BERASCAN_API_KEY:
+        params["apikey"] = BERASCAN_API_KEY
+    return BERACHAIN_EXPLORER_API, params, ""
+
+
+def fetch_first_chain_activity(chain_key, address, state, session, base_ts):
+    """Return the first normal tx for an address on one chain.
+
+    EOA creation is not an on-chain field. For this dashboard, a true fresh
+    wallet means the first normal account transaction observed by the explorer.
+    Token spam is intentionally ignored so random old token receipts do not age
+    a wallet that never actually used the chain.
+    """
+    addr = (address or "").lower()
+    cache = state.setdefault(FRESH_WALLET_ACTIVITY_CACHE_KEY, {})
+    entry = cache.setdefault(addr, {})
+    cached = entry.get(chain_key) or {}
+    checked_at = int(cached.get("checked_at") or 0)
+    if cached.get("status") == "ok" and int(cached.get("first_timestamp") or 0) > 0:
+        return dict(cached)
+    if cached.get("status") == "no_activity" and base_ts - checked_at < FRESH_WALLET_NO_ACTIVITY_CACHE_SECONDS:
+        return dict(cached)
+
+    url, params, setup_error = _explorer_first_activity_params(chain_key, address)
+    if setup_error:
+        return {"status": setup_error, "chain": chain_key, "first_timestamp": 0}
+
+    last_error = ""
+    for attempt in range(3):
+        try:
+            response = session.get(url, params=params, timeout=20)
+            data = response.json()
+        except requests.RequestException as exc:
+            last_error = f"request_error:{exc.__class__.__name__}"
+            time.sleep(0.5 + attempt * 0.5)
+            continue
+        except ValueError:
+            last_error = "invalid_json"
+            time.sleep(0.5 + attempt * 0.5)
+            continue
+
+        result = data.get("result")
+        message = str(data.get("message") or "")
+        if data.get("status") == "1" and isinstance(result, list) and result:
+            tx = result[0]
+            item = {
+                "status": "ok",
+                "chain": chain_key,
+                "first_timestamp": int(tx.get("timeStamp") or 0),
+                "first_block": int(tx.get("blockNumber") or 0),
+                "first_tx": tx.get("hash") or "",
+                "source": "normal_tx",
+                "checked_at": int(base_ts),
+            }
+            entry[chain_key] = item
+            return dict(item)
+        if message.lower().startswith("no transactions") or result == []:
+            item = {
+                "status": "no_activity",
+                "chain": chain_key,
+                "first_timestamp": 0,
+                "first_block": 0,
+                "first_tx": "",
+                "source": "normal_tx",
+                "checked_at": int(base_ts),
+            }
+            entry[chain_key] = item
+            return dict(item)
+
+        last_error = f"explorer_{data.get('status', 'unknown')}:{message or str(result)[:80]}"
+        if "rate" in last_error.lower() or "limit" in last_error.lower():
+            time.sleep(1.0 + attempt)
+            continue
+        break
+
+    return {"status": last_error or "explorer_error", "chain": chain_key, "first_timestamp": 0}
+
+
+def wallet_first_activity(address, state, session, base_ts):
+    results = []
+    errors = []
+    for chain_key in CHAINS:
+        item = fetch_first_chain_activity(chain_key, address, state, session, base_ts)
+        status = item.get("status")
+        if status == "ok" and int(item.get("first_timestamp") or 0) > 0:
+            results.append(item)
+        elif status != "no_activity":
+            errors.append({"chain": chain_key, "status": status})
+        time.sleep(0.08)
+
+    if errors:
+        return {"verified": False, "status": "explorer_unverified", "errors": errors}
+    if not results:
+        return {"verified": False, "status": "no_normal_activity", "errors": []}
+    first = min(results, key=lambda item: int(item.get("first_timestamp") or 0))
+    return {"verified": True, **first}
+
+
 def calculate_current_balances_by_chain(all_transfers):
     balances = {chain_key: {} for chain_key in CHAINS}
     for chain_key, transfers in all_transfers.items():
@@ -731,21 +852,30 @@ def fresh_holder_history_coverage(state, all_transfers, cutoff_blocks):
     return ok, meta
 
 
-def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralized_flows_cache, base_ts):
-    """Build fresh DOLO wallets from the full transfer ledger, not the 100+ holder snapshot.
+def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralized_flows_cache, base_ts, state):
+    """Build true fresh DOLO wallets.
 
-    A wallet is fresh for a period when its first-ever DOLO inbound transfer on
-    either tracked chain happened inside that period. Current balances are
-    replayed from all cached transfers, so exited or sub-100 DOLO wallets remain
-    visible in this cohort.
+    A wallet is fresh for a period only when its first normal on-chain account
+    transaction across Ethereum/Berachain happened inside that period. DOLO
+    transfer history is still used for received amount and current balance.
     """
     holder_rows = load_current_holder_rows()
     address_labels = load_address_labels()
     current_balances = calculate_current_balances_by_chain(all_transfers)
+    session = requests.Session()
     first_in_period = {period: {} for period in FRESH_HOLDER_PERIODS}
     preexisting_by_period = {period: set() for period in FRESH_HOLDER_PERIODS}
     received_by_period = {period: {} for period in FRESH_HOLDER_PERIODS}
     tx_count_by_period = {period: {} for period in FRESH_HOLDER_PERIODS}
+    audit = {
+        period: {
+            "candidateWallets": 0,
+            "verifiedFreshWallets": 0,
+            "oldWalletsExcluded": 0,
+            "unverifiedExcluded": 0,
+        }
+        for period in FRESH_HOLDER_PERIODS
+    }
 
     for chain_key, transfers in all_transfers.items():
         for from_addr, to_addr, value_wei, block_number in transfers:
@@ -786,6 +916,7 @@ def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralize
         period_net = merged_net_by_period.get(period, {})
         preexisting = preexisting_by_period.get(period, set())
         for addr, received in period_received.items():
+            audit[period]["candidateWallets"] += 1
             if addr in preexisting:
                 continue
             first = first_in_period.get(period, {}).get(addr)
@@ -804,6 +935,15 @@ def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralize
             current_balance = balance_eth + balance_bera
             if current_balance <= FRESH_HOLDER_MIN_CURRENT_BALANCE:
                 continue
+            first_activity = wallet_first_activity(addr, state, session, base_ts)
+            if not first_activity.get("verified"):
+                audit[period]["unverifiedExcluded"] += 1
+                continue
+            wallet_created_ts = int(first_activity.get("first_timestamp") or 0)
+            period_start_ts = int(base_ts) - PERIODS[period]
+            if wallet_created_ts < period_start_ts:
+                audit[period]["oldWalletsExcluded"] += 1
+                continue
             chains = []
             if balance_eth > 0.0001:
                 chains.append("eth")
@@ -818,9 +958,17 @@ def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralize
                 "type": holder_type,
                 "source": source_label_for_fresh_wallet(first.get("source_address"), address_labels),
                 "source_address": first.get("source_address", ""),
-                "first_chain": first_chain,
-                "first_block": first["block"],
-                "first_timestamp_estimate": datetime.utcfromtimestamp(max(0, first["estimated_ts"])).isoformat() + "Z",
+                "first_chain": first_activity.get("chain", first_chain),
+                "first_block": int(first_activity.get("first_block") or 0),
+                "first_timestamp_estimate": datetime.utcfromtimestamp(max(0, wallet_created_ts)).isoformat() + "Z",
+                "wallet_created_chain": first_activity.get("chain", ""),
+                "wallet_created_block": int(first_activity.get("first_block") or 0),
+                "wallet_created_tx": first_activity.get("first_tx", ""),
+                "wallet_created_timestamp": datetime.utcfromtimestamp(max(0, wallet_created_ts)).isoformat() + "Z",
+                "wallet_created_source": first_activity.get("source", "normal_tx"),
+                "first_dolo_chain": first_chain,
+                "first_dolo_block": first["block"],
+                "first_dolo_timestamp_estimate": datetime.utcfromtimestamp(max(0, first["estimated_ts"])).isoformat() + "Z",
                 "received": round(received, 6),
                 "net_flow": round(period_net.get(addr, 0), 6),
                 "balance": round(current_balance, 6),
@@ -831,9 +979,10 @@ def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralize
                 "retention": round((current_balance / received) if received > 0 else 0, 4),
             }
             rows.append(row)
+            audit[period]["verifiedFreshWallets"] += 1
         rows.sort(key=lambda item: item["received"], reverse=True)
         result[period] = rows
-    return result
+    return result, audit
 
 
 def load_current_vedolo_locks():
@@ -1328,15 +1477,21 @@ def main():
     if not fresh_coverage_ok:
         raise RuntimeError(f"Fresh DOLO wallet cohorts require full transfer history coverage: {fresh_coverage_meta}")
     print("\n🆕 Building fresh DOLO wallet cohorts...")
-    fresh_holders = build_fresh_holders(
+    fresh_holders, fresh_wallet_audit = build_fresh_holders(
         all_transfers,
         cutoff_blocks,
         current_blocks,
         neutralized_flows_cache,
         holder_history_base_ts,
+        state,
     )
     for period in FRESH_HOLDER_PERIODS:
-        print(f"  {period}: {len(fresh_holders.get(period, [])):,} fresh wallet(s)")
+        audit_row = fresh_wallet_audit.get(period, {})
+        print(
+            f"  {period}: {len(fresh_holders.get(period, [])):,} true fresh wallet(s) "
+            f"({audit_row.get('oldWalletsExcluded', 0):,} old, "
+            f"{audit_row.get('unverifiedExcluded', 0):,} unverified excluded)"
+        )
 
     # Extra holder-bucket chart history. These are still derived from the same
     # transfer logs as the flow tables, but add enough cutoffs for a usable hover.
@@ -1393,12 +1548,14 @@ def main():
         "balance_changes": balance_changes,
         "fresh_holders": fresh_holders,
         "fresh_holders_meta": {
-            "source": "full_transfer_history",
-            "definition": "address first received DOLO within the selected period across Ethereum and Berachain",
+            "source": "full_transfer_history_plus_explorer_first_tx",
+            "definition": "address first normal on-chain transaction across Ethereum/Berachain within the selected period, with current balance above 10K DOLO",
+            "walletActivitySource": "Etherscan v2 txlist + Routescan txlist",
             "periods": list(FRESH_HOLDER_PERIODS),
             "minReceivedDolo": FRESH_HOLDER_MIN_RECEIVED,
             "minCurrentBalanceDolo": FRESH_HOLDER_MIN_CURRENT_BALANCE,
             "coverage": fresh_coverage_meta,
+            "audit": fresh_wallet_audit,
         },
     }
 
