@@ -1115,15 +1115,15 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         <div class="dd" id="dd-fresh-period">
           <button class="dd-btn" data-dd="fresh-period">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-            <span class="lbl">7D</span>
+            <span class="lbl">30D</span>
             <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div class="dd-panel" style="left:auto;right:0">
             <div class="dd-panel-head">Period</div>
             <div class="dd-list">
               <div class="dd-opt" data-period="1d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">24 hours</span></div>
-              <div class="dd-opt active" data-period="7d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">7 days</span></div>
-              <div class="dd-opt" data-period="30d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">30 days</span></div>
+              <div class="dd-opt" data-period="7d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">7 days</span></div>
+              <div class="dd-opt active" data-period="30d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">30 days</span></div>
               <div class="dd-opt" data-period="90d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">90 days</span></div>
             </div>
           </div>
@@ -1333,7 +1333,7 @@ const state = {
   chain: "all",                                            // all | ethereum | berachain
   types: new Set(ADDRESS_TYPES),                            // holders: all enabled
   flowsPeriod: "7d",                                        // 1d | 7d | 30d | 90d | 180d | all
-  freshPeriod: "7d",                                        // fresh holders: 1d | 7d | 30d | 90d
+  freshPeriod: "30d",                                       // fresh holders: 1d | 7d | 30d | 90d
   flowsChain: "all",                                        // all | ethereum | berachain
   flowsTypes: new Set(ADDRESS_TYPES),                       // flows: all enabled
   flowsSort: {
