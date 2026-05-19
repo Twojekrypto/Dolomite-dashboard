@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: '47 */6 * * *'  # Every 6 hours, staggered
   workflow_dispatch: # Allow manual trigger
+    inputs:
+      fresh_wallet_audit_verbose:
+        description: 'Print detailed Fresh Wallet 90D candidate audit rows'
+        required: false
+        default: '0'
 
 permissions:
   contents: write
@@ -64,6 +69,7 @@ jobs:
           ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
           ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
           ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}
+          FRESH_WALLET_AUDIT_VERBOSE: ${{ github.event.inputs.fresh_wallet_audit_verbose || '0' }}
         run: python3 generate_dolo_flows.py
 
       - name: Save flows state cache (even on timeout)
