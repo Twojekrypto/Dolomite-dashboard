@@ -158,42 +158,54 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-chart-card{background:linear-gradient(180deg,rgba(20,20,23,.98),var(--bg-2))}
 .holder-title-block{display:flex;flex-direction:column;gap:12px;min-width:0}
 .holder-chart-controls{
-  display:inline-flex;align-items:center;justify-content:flex-start;gap:4px;flex-wrap:nowrap;min-width:0;
-  width:max-content;max-width:100%;padding:4px;border:1px solid var(--line-2);border-radius:12px;
-  background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.012));
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.035)
+  display:inline-flex;align-items:center;justify-content:flex-start;gap:10px;min-width:0;
+  width:max-content;max-width:100%;padding:0
 }
-.holder-chart-toggle{
-  position:relative;display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 10px;
-  border:1px solid transparent;border-radius:8px;background:transparent;
-  font-size:11px;color:var(--fg-2);font-weight:700;cursor:pointer;
-  transition:border-color .16s var(--ease),background .16s var(--ease),color .16s var(--ease),box-shadow .16s var(--ease)
+.holder-chart-toggle,
+.holder-bucket-mode button{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;height:30px;
+  font-size:11px;color:var(--fg-2);font-weight:800;letter-spacing:.08px;cursor:pointer;
+  transition:border-color .16s var(--ease),background .16s var(--ease),color .16s var(--ease),box-shadow .16s var(--ease),transform .16s var(--ease)
 }
-.holder-chart-toggle::before{content:"";position:absolute;left:-3px;top:6px;bottom:6px;width:1px;background:var(--line-2);pointer-events:none}
-.holder-chart-toggle:hover{color:var(--fg-1);background:rgba(255,255,255,.025)}
+.holder-chart-toggle:hover,
+.holder-bucket-mode button:hover{color:var(--fg-1)}
 .holder-chart-toggle input{position:absolute;opacity:0;pointer-events:none}
 .holder-bucket-mode{
-  display:inline-grid;grid-template-columns:repeat(2,minmax(76px,1fr));height:30px;padding:0;gap:3px;
-  border:0;border-radius:8px;background:transparent
+  display:inline-grid;grid-template-columns:repeat(2,minmax(118px,1fr));height:34px;gap:3px;padding:3px;
+  border:1px solid var(--line-2);border-radius:12px;background:var(--bg-3);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.03)
 }
 .holder-bucket-mode button{
-  border:0;background:transparent;border-radius:7px;color:var(--fg-3);font-size:11px;font-weight:800;
-  padding:0 10px;cursor:pointer;letter-spacing:.15px;
-  transition:background .15s var(--ease),color .15s var(--ease),box-shadow .15s var(--ease),transform .15s var(--ease)
+  min-width:118px;padding:0 12px;border:0;border-radius:9px;background:transparent;color:var(--fg-3)
 }
-.holder-bucket-mode button:hover{color:var(--fg-1);background:rgba(255,255,255,.025)}
 .holder-bucket-mode button.active{
-  background:var(--gold);color:var(--bg-0);
-  box-shadow:0 0 0 1px rgba(255,255,255,.06) inset,0 8px 18px rgba(201,162,39,.12)
+  background:linear-gradient(180deg,rgba(201,162,39,.24),rgba(201,162,39,.12));color:var(--fg-1);
+  box-shadow:inset 0 0 0 1px var(--gold-line),0 8px 18px rgba(0,0,0,.16)
 }
-.holder-chart-check{
-  width:15px;height:15px;border-radius:4px;flex-shrink:0;background:var(--bg-4);border:1.5px solid var(--line-3);
-  display:grid;place-items:center;transition:background .15s var(--ease),border-color .15s var(--ease)
+.holder-bucket-mode button.active::after{
+  content:"";position:absolute;left:13px;right:13px;bottom:4px;height:2px;border-radius:999px;background:var(--gold);
+  box-shadow:0 0 10px rgba(201,162,39,.34)
 }
-.holder-chart-check svg{width:9px;height:9px;color:var(--bg-0);opacity:0;transition:opacity .15s var(--ease)}
-.holder-chart-toggle input:checked + .holder-chart-check{background:var(--gold);border-color:var(--gold)}
-.holder-chart-toggle input:checked + .holder-chart-check svg{opacity:1}
-.holder-chart-toggle:has(input:checked),.holder-chart-toggle.is-active{border-color:var(--gold-line);background:var(--gold-wash);color:var(--fg-1);box-shadow:inset 0 1px 0 rgba(255,255,255,.035)}
+.holder-chart-toggle.is-active{
+  border-color:var(--gold-line);background:linear-gradient(180deg,rgba(201,162,39,.20),rgba(201,162,39,.08));color:var(--fg-1);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 0 0 1px rgba(201,162,39,.05)
+}
+.holder-chart-toggle{
+  gap:8px;min-width:100px;padding:0 12px;border:1px solid var(--line-2);border-radius:999px;background:var(--bg-3);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.03)
+}
+.holder-chart-toggle-knob{
+  width:24px;height:14px;border-radius:999px;background:var(--bg-4);border:1px solid var(--line-3);position:relative;
+  transition:background .16s var(--ease),border-color .16s var(--ease)
+}
+.holder-chart-toggle-knob::after{
+  content:"";position:absolute;top:2px;left:2px;width:8px;height:8px;border-radius:50%;background:var(--fg-3);
+  transition:transform .18s var(--ease),background .18s var(--ease),box-shadow .18s var(--ease)
+}
+.holder-chart-toggle.is-active .holder-chart-toggle-knob{background:rgba(201,162,39,.16);border-color:var(--gold-line)}
+.holder-chart-toggle.is-active .holder-chart-toggle-knob::after{
+  transform:translateX(10px);background:var(--gold);box-shadow:0 0 8px rgba(201,162,39,.35)
+}
 .holder-chart-source{
   display:inline-flex;align-items:center;gap:8px;min-height:30px;padding:0 10px;
   font-family:var(--mono);font-size:10px;color:var(--fg-3);letter-spacing:.25px;white-space:nowrap;
@@ -645,10 +657,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .holder-chart-svg{height:280px}
   .holder-brush-wrap{padding:4px 16px 16px}
   .holder-brush-overlay{left:16px;right:16px}
-  .holder-chart-controls{display:grid;grid-template-columns:1fr;width:100%;justify-content:stretch}
-  .holder-bucket-mode,.holder-chart-toggle{width:100%}
-  .holder-chart-toggle{justify-content:center}
-  .holder-chart-toggle::before{display:none}
+  .holder-chart-controls{width:100%;display:grid;grid-template-columns:1fr;gap:8px}
+  .holder-bucket-mode{width:100%;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .holder-bucket-mode button{width:100%;min-width:0}
+  .holder-chart-toggle{width:100%;justify-content:center;min-width:0}
   .holder-chart-source{width:100%;justify-content:center;gap:7px;min-height:28px;padding:0;font-size:9px;flex-wrap:wrap}
   .holder-chart-source::before{margin-right:0}
   .holder-flow-stat.primary .value,.holder-flow-stat .value{font-size:15px}
@@ -1051,12 +1063,12 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         </div>
         <div class="holder-chart-controls">
           <div class="holder-bucket-mode" id="holder-bucket-mode" aria-label="Holder bucket range">
-            <button type="button" class="active" data-holder-bucket-view="whales">Whales</button>
-            <button type="button" data-holder-bucket-view="smaller">Smaller</button>
+            <button type="button" class="active" data-holder-bucket-view="whales">Large Holders</button>
+            <button type="button" data-holder-bucket-view="smaller">Smaller Holders</button>
           </div>
           <label class="holder-chart-toggle" for="holder-include-vedolo">
             <input id="holder-include-vedolo" type="checkbox">
-            <span class="holder-chart-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span>
+            <span class="holder-chart-toggle-knob" aria-hidden="true"></span>
             <span>veDOLO</span>
           </label>
         </div>

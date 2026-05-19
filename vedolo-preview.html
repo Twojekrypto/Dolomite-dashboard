@@ -162,10 +162,28 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 #dd-exit-period .dd-panel,#dd-flow-period .dd-panel{min-width:148px;max-width:148px;width:148px}
 #dd-exit-period .dd-opt,#dd-flow-period .dd-opt{gap:9px;padding:8px 9px}
 #dd-exit-period .dd-opt-name,#dd-flow-period .dd-opt-name{white-space:nowrap}
-.seg{display:inline-flex;align-items:center;gap:2px;background:var(--bg-3);border:1px solid var(--line-2);padding:4px;border-radius:11px}
-.seg button{height:28px;padding:0 10px;border-radius:8px;font-size:12px;font-weight:600;color:var(--fg-3);transition:background .15s var(--ease),color .15s var(--ease),box-shadow .15s var(--ease)}
+.seg{
+  display:inline-grid;grid-auto-flow:column;grid-auto-columns:minmax(82px,1fr);align-items:center;gap:3px;height:34px;
+  max-width:100%;padding:3px;border:1px solid var(--line-2);border-radius:12px;background:var(--bg-3);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.03)
+}
+.seg button{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;height:28px;min-width:82px;padding:0 12px;
+  border:0;border-radius:9px;background:transparent;font-size:11px;font-weight:800;letter-spacing:.08px;color:var(--fg-3);
+  white-space:nowrap;cursor:pointer;
+  transition:background .16s var(--ease),color .16s var(--ease),box-shadow .16s var(--ease),transform .16s var(--ease)
+}
 .seg button:hover{color:var(--fg-1)}
-.seg button.active{color:var(--fg-1);background:var(--bg-4);box-shadow:inset 0 0 0 1px var(--gold-line)}
+.seg button.active{
+  color:var(--fg-1);background:linear-gradient(180deg,rgba(201,162,39,.24),rgba(201,162,39,.12));
+  box-shadow:inset 0 0 0 1px var(--gold-line),0 8px 18px rgba(0,0,0,.16)
+}
+.seg button.active::after{
+  content:"";position:absolute;left:13px;right:13px;bottom:4px;height:2px;border-radius:999px;background:var(--gold);
+  box-shadow:0 0 10px rgba(201,162,39,.34)
+}
+#flow-source{grid-auto-columns:minmax(92px,1fr)}
+#duration-mode{grid-auto-columns:minmax(82px,1fr)}
 .tbl-wrap{max-width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
 .tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;min-width:760px}
 .tbl th{position:sticky;top:0;z-index:2;background:var(--bg-1);padding:12px 14px;border-bottom:1px solid var(--line-2);font-size:10px;text-transform:uppercase;letter-spacing:1.35px;color:var(--fg-3);font-weight:700;text-align:left;white-space:nowrap;user-select:none}
