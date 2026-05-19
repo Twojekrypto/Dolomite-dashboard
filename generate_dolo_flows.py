@@ -141,6 +141,25 @@ FRESH_WALLET_ACTIVITY_CACHE_KEY = "fresh_wallet_activity_cache"
 FRESH_WALLET_NO_ACTIVITY_CACHE_SECONDS = 6 * 3600
 ETHERSCAN_V2_API = "https://api.etherscan.io/v2/api"
 BERACHAIN_EXPLORER_API = "https://api.routescan.io/v2/network/mainnet/evm/80094/etherscan/api"
+FRESH_ETHERSCAN_ACTIVITY_CHAINS = [
+    {"key": "eth", "name": "Ethereum", "chainid": 1},
+    {"key": "arb", "name": "Arbitrum", "chainid": 42161},
+    {"key": "base", "name": "Base", "chainid": 8453},
+    {"key": "op", "name": "Optimism", "chainid": 10},
+    {"key": "polygon", "name": "Polygon", "chainid": 137},
+    {"key": "bsc", "name": "BNB Chain", "chainid": 56},
+    {"key": "avax", "name": "Avalanche", "chainid": 43114},
+    {"key": "mantle", "name": "Mantle", "chainid": 5000},
+    {"key": "linea", "name": "Linea", "chainid": 59144},
+    {"key": "scroll", "name": "Scroll", "chainid": 534352},
+    {"key": "zksync", "name": "zkSync Era", "chainid": 324},
+]
+FRESH_WALLET_ACTIVITY_SOURCES = [
+    {**source, "provider": "etherscan"} for source in FRESH_ETHERSCAN_ACTIVITY_CHAINS
+] + [
+    {"key": "bera", "name": "Berachain", "provider": "routescan"},
+]
+FRESH_ETHERSCAN_REQUEST_DELAY_SECONDS = 0.22
 
 HOLDER_HISTORY_START_TIMESTAMP = int(datetime(2025, 4, 24, tzinfo=timezone.utc).timestamp())  # DOLO TGE
 
@@ -705,7 +724,16 @@ def source_label_for_fresh_wallet(source_addr, labels):
     return "Received"
 
 
-def _explorer_first_activity_params(chain_key, address):
+def validate_fresh_wallet_activity_config():
+    if any(source["provider"] == "etherscan" for source in FRESH_WALLET_ACTIVITY_SOURCES) and not ETHERSCAN_API_KEY:
+        raise RuntimeError(
+            "Fresh DOLO wallet cohorts require ETHERSCAN_API_KEY because first wallet activity "
+            "is verified with Etherscan V2 txlist across tracked EVM chains."
+        )
+
+
+def _explorer_first_activity_params(activity_source, address):
+    chain_key = activity_source["key"]
     params = {
         "module": "account",
         "action": "txlist",
@@ -716,18 +744,18 @@ def _explorer_first_activity_params(chain_key, address):
         "offset": 1,
         "sort": "asc",
     }
-    if chain_key == "eth":
+    if activity_source["provider"] == "etherscan":
         if not ETHERSCAN_API_KEY:
             return None, None, "missing_ETHERSCAN_API_KEY"
-        params["chainid"] = 1
+        params["chainid"] = activity_source["chainid"]
         params["apikey"] = ETHERSCAN_API_KEY
         return ETHERSCAN_V2_API, params, ""
-    if BERASCAN_API_KEY:
+    if chain_key == "bera" and BERASCAN_API_KEY:
         params["apikey"] = BERASCAN_API_KEY
     return BERACHAIN_EXPLORER_API, params, ""
 
 
-def fetch_first_chain_activity(chain_key, address, state, session, base_ts):
+def fetch_first_chain_activity(activity_source, address, state, session, base_ts):
     """Return the first normal tx for an address on one chain.
 
     EOA creation is not an on-chain field. For this dashboard, a true fresh
@@ -735,6 +763,7 @@ def fetch_first_chain_activity(chain_key, address, state, session, base_ts):
     Token spam is intentionally ignored so random old token receipts do not age
     a wallet that never actually used the chain.
     """
+    chain_key = activity_source["key"]
     addr = (address or "").lower()
     cache = state.setdefault(FRESH_WALLET_ACTIVITY_CACHE_KEY, {})
     entry = cache.setdefault(addr, {})
@@ -745,9 +774,9 @@ def fetch_first_chain_activity(chain_key, address, state, session, base_ts):
     if cached.get("status") == "no_activity" and base_ts - checked_at < FRESH_WALLET_NO_ACTIVITY_CACHE_SECONDS:
         return dict(cached)
 
-    url, params, setup_error = _explorer_first_activity_params(chain_key, address)
+    url, params, setup_error = _explorer_first_activity_params(activity_source, address)
     if setup_error:
-        return {"status": setup_error, "chain": chain_key, "first_timestamp": 0}
+        return {"status": setup_error, "chain": chain_key, "chain_name": activity_source.get("name", chain_key), "first_timestamp": 0}
 
     last_error = ""
     for attempt in range(3):
@@ -770,6 +799,7 @@ def fetch_first_chain_activity(chain_key, address, state, session, base_ts):
             item = {
                 "status": "ok",
                 "chain": chain_key,
+                "chain_name": activity_source.get("name", chain_key),
                 "first_timestamp": int(tx.get("timeStamp") or 0),
                 "first_block": int(tx.get("blockNumber") or 0),
                 "first_tx": tx.get("hash") or "",
@@ -782,6 +812,7 @@ def fetch_first_chain_activity(chain_key, address, state, session, base_ts):
             item = {
                 "status": "no_activity",
                 "chain": chain_key,
+                "chain_name": activity_source.get("name", chain_key),
                 "first_timestamp": 0,
                 "first_block": 0,
                 "first_tx": "",
@@ -797,20 +828,32 @@ def fetch_first_chain_activity(chain_key, address, state, session, base_ts):
             continue
         break
 
-    return {"status": last_error or "explorer_error", "chain": chain_key, "first_timestamp": 0}
+    return {
+        "status": last_error or "explorer_error",
+        "chain": chain_key,
+        "chain_name": activity_source.get("name", chain_key),
+        "first_timestamp": 0,
+    }
 
 
 def wallet_first_activity(address, state, session, base_ts):
     results = []
     errors = []
-    for chain_key in CHAINS:
-        item = fetch_first_chain_activity(chain_key, address, state, session, base_ts)
+    oldest_fresh_cutoff = int(base_ts) - max(PERIODS[period] for period in FRESH_HOLDER_PERIODS)
+    for activity_source in FRESH_WALLET_ACTIVITY_SOURCES:
+        item = fetch_first_chain_activity(activity_source, address, state, session, base_ts)
         status = item.get("status")
         if status == "ok" and int(item.get("first_timestamp") or 0) > 0:
+            if int(item.get("first_timestamp") or 0) < oldest_fresh_cutoff:
+                return {"verified": True, **item}
             results.append(item)
         elif status != "no_activity":
-            errors.append({"chain": chain_key, "status": status})
-        time.sleep(0.08)
+            errors.append({
+                "chain": activity_source["key"],
+                "chain_name": activity_source.get("name", activity_source["key"]),
+                "status": status,
+            })
+        time.sleep(FRESH_ETHERSCAN_REQUEST_DELAY_SECONDS if activity_source["provider"] == "etherscan" else 0.08)
 
     if errors:
         return {"verified": False, "status": "explorer_unverified", "errors": errors}
@@ -881,8 +924,6 @@ def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralize
         for from_addr, to_addr, value_wei, block_number in transfers:
             to_key = (to_addr or "").lower()
             from_key = (from_addr or "").lower()
-            if not to_key or to_key in FLOW_SKIP_ADDRS:
-                continue
             value = value_wei / (10 ** 18)
             if value <= 0:
                 continue
@@ -890,7 +931,12 @@ def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralize
             for period in FRESH_HOLDER_PERIODS:
                 cutoff = cutoff_blocks.get(chain_key, {}).get(period, 0)
                 if block_number < cutoff:
-                    preexisting_by_period[period].add(to_key)
+                    if to_key and to_key not in FLOW_SKIP_ADDRS:
+                        preexisting_by_period[period].add(to_key)
+                    if from_key and from_key not in FLOW_SKIP_ADDRS:
+                        preexisting_by_period[period].add(from_key)
+                    continue
+                if not to_key or to_key in FLOW_SKIP_ADDRS:
                     continue
                 received_by_period[period][to_key] = received_by_period[period].get(to_key, 0) + value
                 tx_count_by_period[period][to_key] = tx_count_by_period[period].get(to_key, 0) + 1
@@ -1476,6 +1522,7 @@ def main():
     fresh_coverage_ok, fresh_coverage_meta = fresh_holder_history_coverage(state, all_transfers, cutoff_blocks)
     if not fresh_coverage_ok:
         raise RuntimeError(f"Fresh DOLO wallet cohorts require full transfer history coverage: {fresh_coverage_meta}")
+    validate_fresh_wallet_activity_config()
     print("\n🆕 Building fresh DOLO wallet cohorts...")
     fresh_holders, fresh_wallet_audit = build_fresh_holders(
         all_transfers,
@@ -1548,9 +1595,11 @@ def main():
         "balance_changes": balance_changes,
         "fresh_holders": fresh_holders,
         "fresh_holders_meta": {
-            "source": "full_transfer_history_plus_explorer_first_tx",
-            "definition": "address first normal on-chain transaction across Ethereum/Berachain within the selected period, with current balance above 10K DOLO",
-            "walletActivitySource": "Etherscan v2 txlist + Routescan txlist",
+            "source": "full_transfer_history_plus_multichain_explorer_first_tx",
+            "definition": "address first normal on-chain transaction across tracked EVM activity sources within the selected period, with current balance above 10K DOLO",
+            "walletActivitySource": "Etherscan v2 txlist + Routescan Berachain txlist",
+            "activityChains": [source["name"] for source in FRESH_WALLET_ACTIVITY_SOURCES],
+            "activityChainKeys": [source["key"] for source in FRESH_WALLET_ACTIVITY_SOURCES],
             "periods": list(FRESH_HOLDER_PERIODS),
             "minReceivedDolo": FRESH_HOLDER_MIN_RECEIVED,
             "minCurrentBalanceDolo": FRESH_HOLDER_MIN_CURRENT_BALANCE,
