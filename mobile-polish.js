@@ -30,6 +30,19 @@
 
     let scheduled = false;
 
+    function ensureSiteCredit() {
+        if (!document.body) return;
+        let bar = document.getElementById("site-source-credit");
+        if (!bar) {
+            bar = document.createElement("div");
+            document.body.appendChild(bar);
+        }
+        bar.id = "site-source-credit";
+        bar.className = "site-source-credit";
+        bar.innerHTML = '<a href="https://x.com/twojekrypto" target="_blank" rel="noopener noreferrer" aria-label="Unofficial Dolomite dashboard by TwojeKrypto on X"><span class="site-source-credit-group"><span class="site-source-credit-dolo" aria-hidden="true"><img src="dolo-logo.svg" alt=""></span><span class="site-source-credit-full">Unofficial Dolomite dashboard</span><span class="site-source-credit-short">Unofficial dashboard</span></span><span class="site-source-credit-sep" aria-hidden="true"></span><span class="site-source-credit-group site-source-credit-author"><span class="site-source-credit-muted">Source by</span><span class="site-source-credit-x" aria-hidden="true">X</span><strong>TwojeKrypto</strong></span></a>';
+        document.body.classList.add("has-site-credit");
+    }
+
     function setBodyState() {
         document.body?.classList.toggle("mobile-polished", MOBILE_QUERY.matches);
     }
@@ -141,6 +154,7 @@
     }
 
     function boot() {
+        ensureSiteCredit();
         setBodyState();
         scheduleUpdate();
         MOBILE_QUERY.addEventListener?.("change", scheduleUpdate);

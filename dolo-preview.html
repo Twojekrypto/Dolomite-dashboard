@@ -157,24 +157,35 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 /* Holder buckets chart — TVL Over Time rhythm */
 .holder-chart-card{background:linear-gradient(180deg,rgba(20,20,23,.98),var(--bg-2))}
 .holder-title-block{display:flex;flex-direction:column;gap:12px;min-width:0}
-.holder-chart-controls{display:flex;align-items:center;justify-content:flex-start;gap:10px;flex-wrap:wrap;min-width:0}
-.holder-chart-toggle{
-  position:relative;display:inline-flex;align-items:center;gap:9px;height:32px;padding:0 11px;
-  border:1px solid var(--line-2);border-radius:10px;background:var(--bg-3);
-  font-size:12px;color:var(--fg-2);font-weight:600;transition:border-color .16s var(--ease),background .16s var(--ease),color .16s var(--ease)
+.holder-chart-controls{
+  display:inline-flex;align-items:center;justify-content:flex-start;gap:4px;flex-wrap:nowrap;min-width:0;
+  width:max-content;max-width:100%;padding:4px;border:1px solid var(--line-2);border-radius:12px;
+  background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.012));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035)
 }
-.holder-chart-toggle:hover{color:var(--fg-1);border-color:var(--line-3)}
+.holder-chart-toggle{
+  position:relative;display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 10px;
+  border:1px solid transparent;border-radius:8px;background:transparent;
+  font-size:11px;color:var(--fg-2);font-weight:700;cursor:pointer;
+  transition:border-color .16s var(--ease),background .16s var(--ease),color .16s var(--ease),box-shadow .16s var(--ease)
+}
+.holder-chart-toggle::before{content:"";position:absolute;left:-3px;top:6px;bottom:6px;width:1px;background:var(--line-2);pointer-events:none}
+.holder-chart-toggle:hover{color:var(--fg-1);background:rgba(255,255,255,.025)}
 .holder-chart-toggle input{position:absolute;opacity:0;pointer-events:none}
 .holder-bucket-mode{
-  display:inline-grid;grid-template-columns:repeat(2,minmax(70px,1fr));height:32px;padding:3px;
-  border:1px solid var(--line-2);border-radius:10px;background:var(--bg-3)
+  display:inline-grid;grid-template-columns:repeat(2,minmax(76px,1fr));height:30px;padding:0;gap:3px;
+  border:0;border-radius:8px;background:transparent
 }
 .holder-bucket-mode button{
-  border:0;background:transparent;border-radius:7px;color:var(--fg-3);font-size:11px;font-weight:700;
-  padding:0 9px;cursor:pointer;transition:background .15s var(--ease),color .15s var(--ease)
+  border:0;background:transparent;border-radius:7px;color:var(--fg-3);font-size:11px;font-weight:800;
+  padding:0 10px;cursor:pointer;letter-spacing:.15px;
+  transition:background .15s var(--ease),color .15s var(--ease),box-shadow .15s var(--ease),transform .15s var(--ease)
 }
-.holder-bucket-mode button:hover{color:var(--fg-1)}
-.holder-bucket-mode button.active{background:var(--gold-wash);color:var(--fg-1)}
+.holder-bucket-mode button:hover{color:var(--fg-1);background:rgba(255,255,255,.025)}
+.holder-bucket-mode button.active{
+  background:var(--gold);color:var(--bg-0);
+  box-shadow:0 0 0 1px rgba(255,255,255,.06) inset,0 8px 18px rgba(201,162,39,.12)
+}
 .holder-chart-check{
   width:15px;height:15px;border-radius:4px;flex-shrink:0;background:var(--bg-4);border:1.5px solid var(--line-3);
   display:grid;place-items:center;transition:background .15s var(--ease),border-color .15s var(--ease)
@@ -182,7 +193,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-chart-check svg{width:9px;height:9px;color:var(--bg-0);opacity:0;transition:opacity .15s var(--ease)}
 .holder-chart-toggle input:checked + .holder-chart-check{background:var(--gold);border-color:var(--gold)}
 .holder-chart-toggle input:checked + .holder-chart-check svg{opacity:1}
-.holder-chart-toggle:has(input:checked){border-color:var(--gold-line);background:var(--gold-wash);color:var(--fg-1)}
+.holder-chart-toggle:has(input:checked),.holder-chart-toggle.is-active{border-color:var(--gold-line);background:var(--gold-wash);color:var(--fg-1);box-shadow:inset 0 1px 0 rgba(255,255,255,.035)}
 .holder-chart-source{
   display:inline-flex;align-items:center;gap:8px;min-height:30px;padding:0 10px;
   font-family:var(--mono);font-size:10px;color:var(--fg-3);letter-spacing:.25px;white-space:nowrap;
@@ -634,9 +645,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .holder-chart-svg{height:280px}
   .holder-brush-wrap{padding:4px 16px 16px}
   .holder-brush-overlay{left:16px;right:16px}
-  .holder-chart-controls{width:100%;justify-content:flex-start}
+  .holder-chart-controls{display:grid;grid-template-columns:1fr;width:100%;justify-content:stretch}
   .holder-bucket-mode,.holder-chart-toggle{width:100%}
   .holder-chart-toggle{justify-content:center}
+  .holder-chart-toggle::before{display:none}
   .holder-chart-source{width:100%;justify-content:center;gap:7px;min-height:28px;padding:0;font-size:9px;flex-wrap:wrap}
   .holder-chart-source::before{margin-right:0}
   .holder-flow-stat.primary .value,.holder-flow-stat .value{font-size:15px}
@@ -2545,6 +2557,7 @@ document.querySelector('#dd-flows-types .dd-clear')?.addEventListener("click", e
 
 document.getElementById("holder-include-vedolo")?.addEventListener("change", e=>{
   state.includeVeDolo = e.currentTarget.checked;
+  e.currentTarget.closest(".holder-chart-toggle")?.classList.toggle("is-active", e.currentTarget.checked);
   renderHolderDistributionChart();
 });
 document.querySelectorAll("[data-holder-bucket-view]").forEach(btn => {
