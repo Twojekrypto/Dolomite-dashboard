@@ -160,6 +160,7 @@ FRESH_WALLET_ACTIVITY_SOURCES = [
     {"key": "bera", "name": "Berachain", "provider": "routescan"},
 ]
 FRESH_ETHERSCAN_REQUEST_DELAY_SECONDS = 0.22
+FRESH_WALLET_AUDIT_VERBOSE = os.getenv("FRESH_WALLET_AUDIT_VERBOSE", "").lower() in {"1", "true", "yes"}
 
 HOLDER_HISTORY_START_TIMESTAMP = int(datetime(2025, 4, 24, tzinfo=timezone.utc).timestamp())  # DOLO TGE
 
@@ -957,6 +958,34 @@ def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralize
         for period in FRESH_HOLDER_PERIODS
     }
     result = {}
+
+    def emit_fresh_audit(period, reason, addr, received, current_exposure, liquid_balance, locked_balance, holder_type, first_activity=None):
+        if not FRESH_WALLET_AUDIT_VERBOSE or period != "90d":
+            return
+        first_activity = first_activity or {}
+        first_ts = int(first_activity.get("first_timestamp") or 0)
+        first_iso = datetime.utcfromtimestamp(first_ts).isoformat() + "Z" if first_ts > 0 else ""
+        errors = ",".join(
+            f"{item.get('chain')}:{item.get('status')}"
+            for item in first_activity.get("errors", [])[:8]
+        )
+        print(
+            "FRESH_AUDIT_90D\t"
+            f"reason={reason}\t"
+            f"address={addr}\t"
+            f"received={received:.6f}\t"
+            f"exposure={current_exposure:.6f}\t"
+            f"liquid={liquid_balance:.6f}\t"
+            f"locked={locked_balance:.6f}\t"
+            f"type={holder_type}\t"
+            f"status={first_activity.get('status', '')}\t"
+            f"first_chain={first_activity.get('chain', '')}\t"
+            f"first_timestamp={first_iso}\t"
+            f"first_block={first_activity.get('first_block', '')}\t"
+            f"errors={errors}",
+            flush=True,
+        )
+
     for period in FRESH_HOLDER_PERIODS:
         rows = []
         period_received = received_by_period.get(period, {})
@@ -987,13 +1016,16 @@ def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralize
                 continue
             first_activity = wallet_first_activity(addr, state, session, base_ts)
             if not first_activity.get("verified"):
+                emit_fresh_audit(period, "unverified", addr, received, current_exposure, liquid_balance, locked_balance, holder_type, first_activity)
                 audit[period]["unverifiedExcluded"] += 1
                 continue
             wallet_created_ts = int(first_activity.get("first_timestamp") or 0)
             period_start_ts = int(base_ts) - PERIODS[period]
             if wallet_created_ts < period_start_ts:
+                emit_fresh_audit(period, "old", addr, received, current_exposure, liquid_balance, locked_balance, holder_type, first_activity)
                 audit[period]["oldWalletsExcluded"] += 1
                 continue
+            emit_fresh_audit(period, "fresh", addr, received, current_exposure, liquid_balance, locked_balance, holder_type, first_activity)
             chains = []
             if balance_eth > 0.0001:
                 chains.append("eth")
