@@ -61,6 +61,50 @@ class FreshWalletTests(unittest.TestCase):
         self.assertEqual(first["chain"], "arb")
         self.assertEqual(first["first_timestamp"], old_ts)
 
+    def test_parse_debank_rendered_wallet_age(self):
+        html = '''
+        <div class="db-user-tag is-age"><img alt="">88 days</div>
+        <div><div><div>TVF</div></div></div>
+        '''
+        days, raw = flows.parse_debank_age_days(html)
+
+        self.assertEqual(days, 88)
+        self.assertEqual(raw, "88 days")
+
+    def test_debank_age_fallback_verifies_explorer_unverified_wallet(self):
+        base_ts = 2_000_000_000
+
+        def fake_get(_url, params=None, timeout=None):
+            return _ExplorerResponse({"status": "0", "message": "NOTOK", "result": "rate limit"})
+
+        session = Mock()
+        session.get.side_effect = fake_get
+        sources = [
+            {"key": "base", "name": "Base", "provider": "etherscan", "chainid": 8453},
+        ]
+        fallback = {
+            "verified": True,
+            "status": "ok",
+            "chain": "debank",
+            "chain_name": "DeBank",
+            "first_timestamp": base_ts - 12 * 86400,
+            "first_block": 0,
+            "first_tx": "",
+            "source": "debank_age",
+            "debank_age_days": 12,
+        }
+
+        with patch.object(flows, "ETHERSCAN_API_KEY", "test"), \
+             patch.object(flows, "FRESH_WALLET_ACTIVITY_SOURCES", sources), \
+             patch.object(flows, "FRESH_ETHERSCAN_REQUEST_DELAY_SECONDS", 0), \
+             patch.object(flows, "fetch_debank_first_activity", return_value=fallback):
+            first = flows.wallet_first_activity("0x1111111111111111111111111111111111111111", {}, session, base_ts)
+
+        self.assertTrue(first["verified"])
+        self.assertEqual(first["source"], "debank_age")
+        self.assertEqual(first["debank_age_days"], 12)
+        self.assertEqual(first["explorer_errors"][0]["chain"], "base")
+
     def test_prior_outgoing_dolo_transfer_excludes_fresh_candidate(self):
         candidate = "0x1111111111111111111111111111111111111111"
         other = "0x2222222222222222222222222222222222222222"

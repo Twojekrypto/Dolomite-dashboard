@@ -31,6 +31,20 @@ jobs:
       - name: Install dependencies
         run: pip install requests web3
 
+      - name: Check DeBank fallback browser
+        run: |
+          if command -v google-chrome >/dev/null 2>&1; then
+            google-chrome --version
+          elif command -v google-chrome-stable >/dev/null 2>&1; then
+            google-chrome-stable --version
+          elif command -v chromium >/dev/null 2>&1; then
+            chromium --version
+          elif command -v chromium-browser >/dev/null 2>&1; then
+            chromium-browser --version
+          else
+            echo "::warning::No Chrome/Chromium binary found; Fresh Wallet DeBank age fallback will be skipped."
+          fi
+
       - name: Run fresh wallet unit tests
         run: python3 -m unittest tests/test_fresh_wallets.py
 
