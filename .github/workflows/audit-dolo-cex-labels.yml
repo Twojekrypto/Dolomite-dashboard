@@ -1,0 +1,36 @@
+name: Audit DOLO CEX Labels
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: master
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run DOLO CEX label audit
+        env:
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+        run: python3 audit_dolo_cex_labels.py --output dolo_cex_label_audit.json
+
+      - name: Upload audit report
+        uses: actions/upload-artifact@v6
+        with:
+          name: dolo-cex-label-audit
+          path: dolo_cex_label_audit.json
