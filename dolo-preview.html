@@ -1100,7 +1100,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         <h2>Fresh 10K+ DOLO Wallets</h2>
         <span class="count-badge" id="fresh-wallets-count">--</span>
       </div>
-      <div class="card-meta"><span class="pulse"></span><span id="fresh-wallets-meta">First on-chain tx · current balance above 10K</span></div>
+      <div class="card-meta"><span class="pulse"></span><span id="fresh-wallets-meta">First on-chain tx · 10K+ liquid or locked</span></div>
     </div>
 
     <div class="toolbar">
@@ -1142,7 +1142,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
             <th data-fresh-sort="created" style="width:142px">Created</th>
             <th style="width:132px">Signal</th>
             <th class="num sorted" data-fresh-sort="received" style="width:136px">Received</th>
-            <th class="num" data-fresh-sort="balance" style="width:136px">Balance</th>
+            <th class="num" data-fresh-sort="balance" style="width:136px">Exposure</th>
             <th style="width:150px">Status</th>
           </tr>
         </thead>
@@ -2477,6 +2477,7 @@ function freshWalletChainParts(row){
   if(parts.length) return parts;
   if(safeHolderNum(row?.balance_eth) > 0 || safeHolderNum(row?.balEth) > 0) parts.push(freshChainModel("eth"));
   if(safeHolderNum(row?.balance_bera) > 0 || safeHolderNum(row?.balBera) > 0) parts.push(freshChainModel("bera"));
+  if(safeHolderNum(row?.locked_balance ?? row?.lockedBalance ?? row?.vedolo_locked) > 0) parts.push(freshChainModel("bera"));
   if(parts.length) return parts;
   if(row?.first_chain) return [freshChainModel(row.first_chain)];
   return [{key:"unknown", label:"Unknown"}];
@@ -2492,9 +2493,21 @@ function freshWalletSignal(row){
 function freshWalletStatus(row){
   const retention = Number.isFinite(Number(row.retention)) ? Number(row.retention) : row.received > 0 ? row.balance / row.received : 0;
   if(row.balance <= 1) return {main:"Exited", sub:"kept 0%"};
+  if(row.lockedBalance > 0 && retention >= 0.95) return {main:"Holding + Locked", sub:"kept 95%+"};
+  if(row.lockedBalance > 0) return {main:"Partly Locked", sub:`kept ${fmtPct(Math.max(0, Math.min(1, retention)) * 100)}`};
   if(retention >= 0.95) return {main:"Still Holding", sub:"kept 95%+"};
   if(retention >= 0.5) return {main:"Mostly Holding", sub:`kept ${fmtPct(Math.min(1, retention) * 100)}`};
   return {main:"Reduced", sub:`kept ${fmtPct(Math.max(0, retention) * 100)}`};
+}
+function freshExposureHtml(row){
+  const exposure = safeHolderNum(row.balance);
+  const liquid = safeHolderNum(row.liquidBalance);
+  const locked = safeHolderNum(row.lockedBalance);
+  let sub = "liquid";
+  if(locked > 0 && liquid > 0) sub = `${fmtNum(liquid)} liquid · ${fmtNum(locked)} locked`;
+  else if(locked > 0) sub = `${fmtNum(locked)} locked`;
+  else if(liquid > 0) sub = `${fmtNum(liquid)} liquid`;
+  return `<div class="bal-cell"><span class="bal-val total">${fmtNum(exposure)}</span><span class="bal-chg">${sub}</span></div>`;
 }
 function buildFreshWalletRowsFromBackend(period){
   const raw = DOLO_FRESH_HOLDERS?.[period];
@@ -2506,14 +2519,22 @@ function buildFreshWalletRowsFromBackend(period){
     if(!addr || ["cex","ca","watch"].includes(type)) return null;
     const createdTs = parseHolderTimestamp(item.wallet_created_timestamp || item.wallet_created_at || "");
     if(!createdTs) return null;
+    const liquidBalance = safeHolderNum(item.liquid_balance ?? item.liquidBalance ?? item.current_balance_liquid);
+    const balanceEth = safeHolderNum(item.balance_eth);
+    const balanceBera = safeHolderNum(item.balance_bera);
+    const inferredLiquid = liquidBalance || balanceEth + balanceBera;
+    const lockedBalance = safeHolderNum(item.locked_balance ?? item.lockedBalance ?? item.vedolo_locked);
+    const exposure = safeHolderNum(item.exposure ?? item.total_exposure ?? item.balance ?? item.current_balance);
     const row = {
       addr,
       label: info?.label || item.label || null,
       type,
       received: safeHolderNum(item.received ?? item.gross_received ?? item.net_flow),
-      balance: safeHolderNum(item.balance ?? item.current_balance),
-      balance_eth: safeHolderNum(item.balance_eth),
-      balance_bera: safeHolderNum(item.balance_bera),
+      balance: exposure || inferredLiquid + lockedBalance,
+      liquidBalance: inferredLiquid,
+      lockedBalance,
+      balance_eth: balanceEth,
+      balance_bera: balanceBera,
       first_chain: item.first_chain || item.wallet_created_chain,
       createdTs,
       createdBlock: safeHolderNum(item.wallet_created_block || item.first_block),
@@ -2609,13 +2630,14 @@ function renderFreshStats(rows){
   if(!box) return;
   const received = rows.reduce((sum, row) => sum + row.received, 0);
   const balance = rows.reduce((sum, row) => sum + row.balance, 0);
+  const locked = rows.reduce((sum, row) => sum + safeHolderNum(row.lockedBalance), 0);
   const retained = received > 0 ? Math.min(100, balance / received * 100) : 0;
   const period = freshPeriodMeta();
   box.innerHTML = `
-    <div class="fresh-stat primary"><div class="label">Fresh Wallets</div><div class="value">${rows.length.toLocaleString()}</div><div class="sub">10K+ current · ${period.short}</div></div>
+    <div class="fresh-stat primary"><div class="label">Fresh Wallets</div><div class="value">${rows.length.toLocaleString()}</div><div class="sub">10K+ exposure · ${period.short}</div></div>
     <div class="fresh-stat"><div class="label">DOLO Received</div><div class="value">${fmtNum(received)}</div><div class="sub">fresh 10K+ wallets</div></div>
-    <div class="fresh-stat"><div class="label">Current Balance</div><div class="value">${fmtNum(balance)}</div><div class="sub">current holdings</div></div>
-    <div class="fresh-stat"><div class="label">Retention</div><div class="value">${fmtPct(retained)}</div><div class="sub">kept by wallets</div></div>
+    <div class="fresh-stat"><div class="label">Current Exposure</div><div class="value">${fmtNum(balance)}</div><div class="sub">${locked > 0 ? `${fmtNum(locked)} locked` : "liquid + locked"}</div></div>
+    <div class="fresh-stat"><div class="label">Retention</div><div class="value">${fmtPct(retained)}</div><div class="sub">kept exposure</div></div>
   `;
 }
 function renderFreshPager(totalRows){
@@ -2689,7 +2711,7 @@ function renderFreshWallets(){
         <td>${freshCreatedHtml(row)}</td>
         <td><span class="fresh-signal ${row.signal.cls}">${row.signal.label}</span></td>
         <td class="num"><span class="flows-net up">+${fmtNum(row.received)}</span></td>
-        <td class="num"><span class="bal-val total">${fmtNum(row.balance)}</span></td>
+        <td class="num">${freshExposureHtml(row)}</td>
         <td><div class="fresh-status"><span class="main">${status.main}</span><span class="sub">${status.sub} · ${chainHtml}</span></div></td>
       </tr>
     `;
@@ -2720,7 +2742,7 @@ function renderFreshWallets(){
   if(count) count.textContent = `${allRows.length.toLocaleString()} wallets`;
   const meta = freshPeriodMeta();
   const metaEl = document.getElementById("fresh-wallets-meta");
-  if(metaEl) metaEl.textContent = `${meta.short} · first on-chain tx + >10K DOLO`;
+  if(metaEl) metaEl.textContent = `${meta.short} · first on-chain tx + >10K exposure`;
   renderFreshPager(total);
   syncFreshSortHeaders();
   tbody.querySelectorAll(".addr-copy").forEach(btn => btn.addEventListener("click", async e=>{

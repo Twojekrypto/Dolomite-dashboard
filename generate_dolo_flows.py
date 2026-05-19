@@ -136,7 +136,7 @@ PERIODS = {
 }
 FRESH_HOLDER_PERIODS = ("1d", "7d", "30d", "90d")
 FRESH_HOLDER_MIN_RECEIVED = 0.000001
-FRESH_HOLDER_MIN_CURRENT_BALANCE = 10_000.0
+FRESH_HOLDER_MIN_EXPOSURE = 10_000.0
 FRESH_WALLET_ACTIVITY_CACHE_KEY = "fresh_wallet_activity_cache"
 FRESH_WALLET_NO_ACTIVITY_CACHE_SECONDS = 6 * 3600
 ETHERSCAN_V2_API = "https://api.etherscan.io/v2/api"
@@ -900,10 +900,12 @@ def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralize
 
     A wallet is fresh for a period only when its first normal on-chain account
     transaction across Ethereum/Berachain happened inside that period. DOLO
-    transfer history is still used for received amount and current balance.
+    transfer history is still used for received amount, liquid balance, and
+    current DOLO exposure including active veDOLO locks.
     """
     holder_rows = load_current_holder_rows()
     address_labels = load_address_labels()
+    current_locks = load_current_vedolo_locks()
     current_balances = calculate_current_balances_by_chain(all_transfers)
     session = requests.Session()
     first_in_period = {period: {} for period in FRESH_HOLDER_PERIODS}
@@ -978,8 +980,10 @@ def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralize
                 continue
             balance_eth = max(0, current_balances.get("eth", {}).get(addr, 0))
             balance_bera = max(0, current_balances.get("bera", {}).get(addr, 0))
-            current_balance = balance_eth + balance_bera
-            if current_balance <= FRESH_HOLDER_MIN_CURRENT_BALANCE:
+            liquid_balance = balance_eth + balance_bera
+            locked_balance = max(0, current_locks.get(addr, 0))
+            current_exposure = liquid_balance + locked_balance
+            if current_exposure <= FRESH_HOLDER_MIN_EXPOSURE:
                 continue
             first_activity = wallet_first_activity(addr, state, session, base_ts)
             if not first_activity.get("verified"):
@@ -994,6 +998,8 @@ def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralize
             if balance_eth > 0.0001:
                 chains.append("eth")
             if balance_bera > 0.0001:
+                chains.append("bera")
+            if locked_balance > 0.0001 and "bera" not in chains:
                 chains.append("bera")
             if not chains:
                 chains.append(first_chain)
@@ -1017,12 +1023,15 @@ def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralize
                 "first_dolo_timestamp_estimate": datetime.utcfromtimestamp(max(0, first["estimated_ts"])).isoformat() + "Z",
                 "received": round(received, 6),
                 "net_flow": round(period_net.get(addr, 0), 6),
-                "balance": round(current_balance, 6),
+                "balance": round(current_exposure, 6),
+                "exposure": round(current_exposure, 6),
+                "liquid_balance": round(liquid_balance, 6),
+                "locked_balance": round(locked_balance, 6),
                 "balance_eth": round(balance_eth, 6),
                 "balance_bera": round(balance_bera, 6),
                 "chains": chains,
                 "tx_count": period_txs.get(addr, 0),
-                "retention": round((current_balance / received) if received > 0 else 0, 4),
+                "retention": round((current_exposure / received) if received > 0 else 0, 4),
             }
             rows.append(row)
             audit[period]["verifiedFreshWallets"] += 1
@@ -1596,13 +1605,14 @@ def main():
         "fresh_holders": fresh_holders,
         "fresh_holders_meta": {
             "source": "full_transfer_history_plus_multichain_explorer_first_tx",
-            "definition": "address first normal on-chain transaction across tracked EVM activity sources within the selected period, with current balance above 10K DOLO",
+            "definition": "address first normal on-chain transaction across tracked EVM activity sources within the selected period, with current liquid DOLO plus veDOLO locked exposure above 10K DOLO",
             "walletActivitySource": "Etherscan v2 txlist + Routescan Berachain txlist",
             "activityChains": [source["name"] for source in FRESH_WALLET_ACTIVITY_SOURCES],
             "activityChainKeys": [source["key"] for source in FRESH_WALLET_ACTIVITY_SOURCES],
             "periods": list(FRESH_HOLDER_PERIODS),
             "minReceivedDolo": FRESH_HOLDER_MIN_RECEIVED,
-            "minCurrentBalanceDolo": FRESH_HOLDER_MIN_CURRENT_BALANCE,
+            "minExposureDolo": FRESH_HOLDER_MIN_EXPOSURE,
+            "minCurrentBalanceDolo": FRESH_HOLDER_MIN_EXPOSURE,
             "coverage": fresh_coverage_meta,
             "audit": fresh_wallet_audit,
         },
