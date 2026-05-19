@@ -239,7 +239,12 @@ def fetch_nametag(address: str, api_key: str, session: requests.Session) -> tupl
         return None, f"request_failed: {exc}"
 
     if payload.get("status") != "1":
-        message = str(payload.get("message") or payload.get("result") or "unknown_error")
+        message = str(payload.get("message") or "")
+        result_message = str(payload.get("result") or "")
+        if result_message and result_message != message:
+            message = f"{message}: {result_message}" if message else result_message
+        if not message:
+            message = "unknown_error"
         return None, message
 
     result = payload.get("result")
