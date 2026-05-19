@@ -1,5 +1,237 @@
-/* Shared mobile polish for every routed dashboard tab. Desktop layout is untouched. */
+/* Shared mobile polish for every routed dashboard tab. */
+body.has-site-credit {
+    padding-bottom: calc(54px + env(safe-area-inset-bottom, 0px));
+}
+
+.site-source-credit {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1350;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(44px + env(safe-area-inset-bottom, 0px));
+    padding: 7px 18px calc(7px + env(safe-area-inset-bottom, 0px));
+    pointer-events: none;
+    background:
+        radial-gradient(circle at 50% 0%, rgba(214, 164, 47, 0.22), rgba(214, 164, 47, 0.07) 38%, rgba(9, 9, 11, 0) 72%),
+        linear-gradient(180deg, rgba(9, 9, 11, 0), rgba(55, 43, 13, 0.62) 24%, rgba(18, 15, 8, 0.96)),
+        rgba(20, 16, 8, 0.92);
+    border-top: 1px solid rgba(214, 164, 47, 0.28);
+    box-shadow: 0 -16px 38px rgba(0, 0, 0, 0.34), 0 -1px 22px rgba(214, 164, 47, 0.1);
+    -webkit-backdrop-filter: blur(20px) saturate(155%);
+    backdrop-filter: blur(20px) saturate(155%);
+}
+
+.site-source-credit a {
+    pointer-events: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 32px;
+    padding: 0 14px;
+    border: 1px solid rgba(214, 164, 47, 0.36);
+    border-radius: 999px;
+    background:
+        linear-gradient(135deg, rgba(214, 164, 47, 0.2), rgba(255, 255, 255, 0.035)),
+        rgba(26, 21, 11, 0.94);
+    color: rgba(244, 243, 239, 0.88);
+    text-decoration: none;
+    font: 800 11px/1 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    letter-spacing: 0.03em;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.44), 0 0 0 1px rgba(214, 164, 47, 0.08) inset, inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    transition: color 0.16s ease, border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+
+.site-source-credit a:hover,
+.site-source-credit a:focus-visible {
+    outline: none;
+    color: rgba(244, 243, 239, 0.96);
+    border-color: rgba(214, 164, 47, 0.34);
+    background:
+        linear-gradient(135deg, rgba(214, 164, 47, 0.26), rgba(255, 255, 255, 0.045)),
+        rgba(28, 23, 12, 0.96);
+    transform: translateY(-1px);
+}
+
+.site-source-credit strong {
+    color: #d6a42f;
+    font-weight: 800;
+    transition: color 0.16s ease, text-shadow 0.16s ease;
+}
+
+.site-source-credit-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+}
+
+.site-source-credit-author {
+    gap: 6px;
+}
+
+.site-source-credit-muted {
+    color: rgba(244, 243, 239, 0.68);
+    font-weight: 760;
+}
+
+.site-source-credit-sep {
+    width: 1px;
+    height: 16px;
+    flex: 0 0 1px;
+    border-radius: 999px;
+    background: rgba(214, 164, 47, 0.28);
+    box-shadow: 0 0 8px rgba(214, 164, 47, 0.14);
+    transition: background 0.16s ease, box-shadow 0.16s ease;
+}
+
+.site-source-credit-full,
+.site-source-credit-short {
+    white-space: nowrap;
+}
+
+.site-source-credit-short {
+    display: none;
+}
+
+.site-source-credit-dolo,
+.site-source-credit-x {
+    display: inline-grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1px solid rgba(214, 164, 47, 0.46);
+    color: #d6a42f;
+    background:
+        radial-gradient(circle at 50% 46%, rgba(244, 243, 239, 0.08), rgba(214, 164, 47, 0.08) 42%, rgba(9, 9, 11, 0.88) 72%),
+        rgba(9, 9, 11, 0.84);
+    font-size: 10px;
+    line-height: 1;
+    flex: 0 0 20px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 12px rgba(214, 164, 47, 0.12);
+    transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+
+.site-source-credit-dolo img {
+    width: 16px;
+    height: 16px;
+    display: block;
+    object-fit: contain;
+    border-radius: 50%;
+    filter: brightness(1.16) contrast(1.06) drop-shadow(0 0 5px rgba(214, 164, 47, 0.28));
+}
+
+.site-source-credit-x {
+    width: 20px;
+    height: 20px;
+    flex-basis: 20px;
+    margin-left: 2px;
+    border-radius: 50%;
+    font-size: 10.5px;
+    font-weight: 900;
+    color: rgba(244, 243, 239, 0.9);
+    background:
+        radial-gradient(circle at 50% 45%, rgba(244, 243, 239, 0.12), rgba(214, 164, 47, 0.1) 44%, rgba(9, 9, 11, 0.9) 74%),
+        rgba(9, 9, 11, 0.86);
+    border-color: rgba(214, 164, 47, 0.42);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 10px rgba(214, 164, 47, 0.12);
+}
+
+.site-source-credit a:hover strong,
+.site-source-credit a:focus-visible strong {
+    color: #f0cd67;
+    text-shadow: 0 0 10px rgba(214, 164, 47, 0.24);
+}
+
+.site-source-credit a:hover .site-source-credit-sep,
+.site-source-credit a:focus-visible .site-source-credit-sep {
+    background: rgba(214, 164, 47, 0.42);
+    box-shadow: 0 0 12px rgba(214, 164, 47, 0.24);
+}
+
+.site-source-credit a:hover .site-source-credit-dolo,
+.site-source-credit a:focus-visible .site-source-credit-dolo,
+.site-source-credit a:hover .site-source-credit-x,
+.site-source-credit a:focus-visible .site-source-credit-x {
+    border-color: rgba(214, 164, 47, 0.62);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 0 14px rgba(214, 164, 47, 0.22);
+}
+
 @media (max-width: 760px) {
+    body.has-site-credit {
+        padding-bottom: calc(46px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .site-source-credit {
+        min-height: calc(38px + env(safe-area-inset-bottom, 0px));
+        padding: 6px 14px calc(6px + env(safe-area-inset-bottom, 0px));
+        background:
+            radial-gradient(circle at 50% 0%, rgba(214, 164, 47, 0.16), rgba(214, 164, 47, 0.05) 40%, rgba(9, 9, 11, 0) 72%),
+            linear-gradient(180deg, rgba(9, 9, 11, 0), rgba(45, 35, 11, 0.56) 24%, rgba(14, 12, 7, 0.94)),
+            rgba(16, 13, 7, 0.86);
+        border-top-color: rgba(214, 164, 47, 0.22);
+        box-shadow: 0 -10px 26px rgba(0, 0, 0, 0.26), 0 -1px 16px rgba(214, 164, 47, 0.07);
+    }
+
+    .site-source-credit a {
+        gap: 8px;
+        min-height: 28px;
+        padding: 0 12px;
+        border-color: rgba(214, 164, 47, 0.28);
+        background:
+            linear-gradient(135deg, rgba(214, 164, 47, 0.16), rgba(255, 255, 255, 0.026)),
+            rgba(22, 18, 10, 0.9);
+        color: rgba(244, 243, 239, 0.84);
+        font-size: 10.5px;
+        letter-spacing: 0.02em;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    }
+
+    .site-source-credit-group {
+        gap: 6px;
+    }
+
+    .site-source-credit-author {
+        gap: 5px;
+    }
+
+    .site-source-credit-sep {
+        height: 14px;
+    }
+
+    .site-source-credit-dolo,
+    .site-source-credit-x {
+        width: 18px;
+        height: 18px;
+        border-color: rgba(214, 164, 47, 0.42);
+        font-size: 9.5px;
+        flex-basis: 18px;
+    }
+
+    .site-source-credit-dolo img {
+        width: 14px;
+        height: 14px;
+    }
+
+    .site-source-credit-x {
+        width: 18px;
+        height: 18px;
+        flex-basis: 18px;
+        margin-left: 1px;
+        border-radius: 50%;
+        color: rgba(244, 243, 239, 0.9);
+        background:
+            radial-gradient(circle at 50% 45%, rgba(244, 243, 239, 0.12), rgba(214, 164, 47, 0.09) 44%, rgba(9, 9, 11, 0.9) 74%),
+            rgba(9, 9, 11, 0.86);
+        border-color: rgba(214, 164, 47, 0.4);
+        font-size: 10px;
+    }
+
     html,
     body {
         width: 100%;
@@ -586,6 +818,26 @@
 }
 
 @media (max-width: 480px) {
+    .site-source-credit-full {
+        display: none;
+    }
+
+    .site-source-credit-short {
+        display: inline;
+    }
+
+    .site-source-credit a {
+        gap: 7px;
+        padding-inline: 10px;
+    }
+
+    .site-source-credit-sep {
+        width: 4px;
+        height: 4px;
+        flex-basis: 4px;
+        border-radius: 50%;
+    }
+
     body.mobile-polished .wrap,
     body.mobile-polished .page-wrapper,
     body.mobile-polished .dashboard-shell,
