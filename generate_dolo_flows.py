@@ -4,7 +4,7 @@ DOLO Token Flows — Top Accumulators & Sellers (1d / 7d / 30d)
 Fetches ERC-20 Transfer events via eth_getLogs for ETH and Berachain,
 calculates net inflow/outflow per address, outputs top 5 each.
 """
-import json, time, os, sys, signal, re
+import json, time, os, sys, signal, re, shutil, subprocess
 import requests
 from datetime import datetime, timedelta, timezone
 
@@ -161,6 +161,13 @@ FRESH_WALLET_ACTIVITY_SOURCES = [
 ]
 FRESH_ETHERSCAN_REQUEST_DELAY_SECONDS = 0.22
 FRESH_WALLET_AUDIT_VERBOSE = os.getenv("FRESH_WALLET_AUDIT_VERBOSE", "").lower() in {"1", "true", "yes"}
+FRESH_DEBANK_AGE_FALLBACK = os.getenv("FRESH_DEBANK_AGE_FALLBACK", "1").lower() not in {"0", "false", "no"}
+FRESH_DEBANK_AGE_CACHE_KEY = "fresh_wallet_debank_age_cache"
+FRESH_DEBANK_AGE_CACHE_SECONDS = 7 * 86400
+FRESH_DEBANK_FAILURE_CACHE_SECONDS = 6 * 3600
+FRESH_DEBANK_HEADLESS_TIMEOUT_SECONDS = int(os.getenv("FRESH_DEBANK_HEADLESS_TIMEOUT_SECONDS", "75"))
+FRESH_DEBANK_VIRTUAL_TIME_BUDGET_MS = int(os.getenv("FRESH_DEBANK_VIRTUAL_TIME_BUDGET_MS", "12000"))
+FRESH_DEBANK_CHROME_BIN = os.getenv("FRESH_DEBANK_CHROME_BIN", "").strip()
 
 HOLDER_HISTORY_START_TIMESTAMP = int(datetime(2025, 4, 24, tzinfo=timezone.utc).timestamp())  # DOLO TGE
 
@@ -837,6 +844,180 @@ def fetch_first_chain_activity(activity_source, address, state, session, base_ts
     }
 
 
+def parse_debank_age_days(html):
+    """Extract the rendered DeBank wallet age tag from profile HTML."""
+    if not html:
+        return None, ""
+    patterns = [
+        r'class=["\']db-user-tag is-age["\'][^>]*>.*?([0-9]+(?:\.[0-9]+)?)\s*(minutes?|mins?|hours?|days?|months?|years?)',
+        r'([0-9]+(?:\.[0-9]+)?)\s*(minutes?|mins?|hours?|days?|months?|years?)</div>\s*</div>\s*</div>\s*</div>\s*<div[^>]+>\s*<div[^>]+>\s*<div[^>]+>\s*TVF',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, html, flags=re.IGNORECASE | re.DOTALL)
+        if not match:
+            continue
+        value = float(match.group(1))
+        unit = match.group(2).lower()
+        if unit.startswith("min"):
+            days = value / 1440
+        elif unit.startswith("hour"):
+            days = value / 24
+        elif unit.startswith("day"):
+            days = value
+        elif unit.startswith("month"):
+            days = value * 30
+        elif unit.startswith("year"):
+            days = value * 365
+        else:
+            continue
+        return days, f"{match.group(1)} {match.group(2)}"
+    return None, ""
+
+
+def find_debank_chrome_binary():
+    candidates = [
+        FRESH_DEBANK_CHROME_BIN,
+        "google-chrome",
+        "google-chrome-stable",
+        "chromium",
+        "chromium-browser",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    ]
+    for candidate in candidates:
+        if not candidate:
+            continue
+        if os.path.isabs(candidate) and os.path.exists(candidate):
+            return candidate
+        resolved = shutil.which(candidate)
+        if resolved:
+            return resolved
+    return ""
+
+
+def fetch_debank_first_activity(address, state, base_ts):
+    """Fallback wallet-age verifier using rendered DeBank profile age.
+
+    This is intentionally narrow: it only runs for 10K+ fresh-wallet candidates
+    after explorer verification returns an inconclusive result. Successful
+    lookups are cached so the scheduled GitHub job does not repeatedly render
+    the same DeBank profile.
+    """
+    if not FRESH_DEBANK_AGE_FALLBACK:
+        return {"verified": False, "status": "debank_disabled", "first_timestamp": 0}
+    addr = (address or "").lower()
+    if not addr:
+        return {"verified": False, "status": "debank_missing_address", "first_timestamp": 0}
+
+    cache = state.setdefault(FRESH_DEBANK_AGE_CACHE_KEY, {})
+    cached = cache.get(addr) or {}
+    checked_at = int(cached.get("checked_at") or 0)
+    cache_ttl = FRESH_DEBANK_AGE_CACHE_SECONDS if cached.get("status") == "ok" else FRESH_DEBANK_FAILURE_CACHE_SECONDS
+    if cached and base_ts - checked_at < cache_ttl:
+        item = dict(cached)
+        item["verified"] = item.get("status") == "ok" and int(item.get("first_timestamp") or 0) > 0
+        return item
+
+    chrome = find_debank_chrome_binary()
+    if not chrome:
+        item = {
+            "status": "debank_no_chrome",
+            "chain": "debank",
+            "chain_name": "DeBank",
+            "first_timestamp": 0,
+            "source": "debank_age",
+            "checked_at": int(base_ts),
+        }
+        cache[addr] = item
+        return {"verified": False, **item}
+
+    url = f"https://debank.com/profile/{addr}/history"
+    try:
+        cmd = [
+            chrome,
+            "--headless=new",
+            "--disable-gpu",
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-extensions",
+            "--disable-background-networking",
+            "--disable-sync",
+            "--disable-default-apps",
+            f"--virtual-time-budget={FRESH_DEBANK_VIRTUAL_TIME_BUDGET_MS}",
+            "--dump-dom",
+            url,
+        ]
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=FRESH_DEBANK_HEADLESS_TIMEOUT_SECONDS,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        item = {
+            "status": "debank_timeout",
+            "chain": "debank",
+            "chain_name": "DeBank",
+            "first_timestamp": 0,
+            "source": "debank_age",
+            "checked_at": int(base_ts),
+        }
+        cache[addr] = item
+        return {"verified": False, **item}
+    except Exception as exc:
+        item = {
+            "status": f"debank_error:{exc.__class__.__name__}",
+            "chain": "debank",
+            "chain_name": "DeBank",
+            "first_timestamp": 0,
+            "source": "debank_age",
+            "checked_at": int(base_ts),
+        }
+        cache[addr] = item
+        return {"verified": False, **item}
+
+    if proc.returncode != 0 and not proc.stdout:
+        item = {
+            "status": f"debank_chrome_exit_{proc.returncode}",
+            "chain": "debank",
+            "chain_name": "DeBank",
+            "first_timestamp": 0,
+            "source": "debank_age",
+            "checked_at": int(base_ts),
+        }
+        cache[addr] = item
+        return {"verified": False, **item}
+
+    age_days, raw_age = parse_debank_age_days(proc.stdout)
+    if age_days is None:
+        item = {
+            "status": "debank_age_missing",
+            "chain": "debank",
+            "chain_name": "DeBank",
+            "first_timestamp": 0,
+            "source": "debank_age",
+            "checked_at": int(base_ts),
+        }
+        cache[addr] = item
+        return {"verified": False, **item}
+
+    first_ts = max(0, int(base_ts - age_days * 86400))
+    item = {
+        "status": "ok",
+        "chain": "debank",
+        "chain_name": "DeBank",
+        "first_timestamp": first_ts,
+        "first_block": 0,
+        "first_tx": "",
+        "source": "debank_age",
+        "debank_age_days": round(age_days, 4),
+        "debank_raw_age": raw_age,
+        "checked_at": int(base_ts),
+    }
+    cache[addr] = item
+    return {"verified": True, **item}
+
+
 def wallet_first_activity(address, state, session, base_ts):
     results = []
     errors = []
@@ -857,8 +1038,14 @@ def wallet_first_activity(address, state, session, base_ts):
         time.sleep(FRESH_ETHERSCAN_REQUEST_DELAY_SECONDS if activity_source["provider"] == "etherscan" else 0.08)
 
     if errors:
+        fallback = fetch_debank_first_activity(address, state, base_ts)
+        if fallback.get("verified"):
+            return {**fallback, "explorer_errors": errors}
         return {"verified": False, "status": "explorer_unverified", "errors": errors}
     if not results:
+        fallback = fetch_debank_first_activity(address, state, base_ts)
+        if fallback.get("verified"):
+            return fallback
         return {"verified": False, "status": "no_normal_activity", "errors": []}
     first = min(results, key=lambda item: int(item.get("first_timestamp") or 0))
     return {"verified": True, **first}
@@ -979,6 +1166,8 @@ def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralize
             f"locked={locked_balance:.6f}\t"
             f"type={holder_type}\t"
             f"status={first_activity.get('status', '')}\t"
+            f"source={first_activity.get('source', '')}\t"
+            f"debank_age_days={first_activity.get('debank_age_days', '')}\t"
             f"first_chain={first_activity.get('chain', '')}\t"
             f"first_timestamp={first_iso}\t"
             f"first_block={first_activity.get('first_block', '')}\t"
@@ -1050,6 +1239,8 @@ def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralize
                 "wallet_created_tx": first_activity.get("first_tx", ""),
                 "wallet_created_timestamp": datetime.utcfromtimestamp(max(0, wallet_created_ts)).isoformat() + "Z",
                 "wallet_created_source": first_activity.get("source", "normal_tx"),
+                "verification_source": first_activity.get("source", "normal_tx"),
+                "wallet_age_days": first_activity.get("debank_age_days"),
                 "first_dolo_chain": first_chain,
                 "first_dolo_block": first["block"],
                 "first_dolo_timestamp_estimate": datetime.utcfromtimestamp(max(0, first["estimated_ts"])).isoformat() + "Z",
@@ -1636,11 +1827,12 @@ def main():
         "balance_changes": balance_changes,
         "fresh_holders": fresh_holders,
         "fresh_holders_meta": {
-            "source": "full_transfer_history_plus_multichain_explorer_first_tx",
-            "definition": "address first normal on-chain transaction across tracked EVM activity sources within the selected period, with current liquid DOLO plus veDOLO locked exposure above 10K DOLO",
-            "walletActivitySource": "Etherscan v2 txlist + Routescan Berachain txlist",
+            "source": "full_transfer_history_plus_multichain_explorer_first_tx_plus_debank_age_fallback",
+            "definition": "address first normal on-chain transaction across tracked EVM activity sources within the selected period, or DeBank wallet age fallback when explorers are inconclusive, with current liquid DOLO plus veDOLO locked exposure above 10K DOLO",
+            "walletActivitySource": "Etherscan v2 txlist + Routescan Berachain txlist + DeBank rendered wallet age fallback",
             "activityChains": [source["name"] for source in FRESH_WALLET_ACTIVITY_SOURCES],
             "activityChainKeys": [source["key"] for source in FRESH_WALLET_ACTIVITY_SOURCES],
+            "fallbackSources": ["DeBank rendered wallet age"],
             "periods": list(FRESH_HOLDER_PERIODS),
             "minReceivedDolo": FRESH_HOLDER_MIN_RECEIVED,
             "minExposureDolo": FRESH_HOLDER_MIN_EXPOSURE,
