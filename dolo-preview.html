@@ -224,6 +224,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-chart-tip .tt-val{color:var(--gold);font-weight:600;font-size:14px}
 .holder-chart-tip .tt-row{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-top:5px;color:var(--fg-3)}
 .holder-chart-tip .tt-row b{color:var(--fg-1);font-weight:600}
+.holder-chart-tip .tt-change{margin-left:7px;font-weight:700}
+.holder-chart-tip .tt-change.up{color:var(--up)}
+.holder-chart-tip .tt-change.down{color:var(--down)}
 .holder-chart-legend{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-top:1px solid var(--line-1);background:rgba(255,255,255,.012)}
 .holder-chart-legend-item{padding:15px 18px;border-left:1px solid var(--line-1);min-width:0;cursor:pointer;transition:background .15s var(--ease)}
 .holder-chart-legend-item:first-child{border-left:0}
@@ -1334,6 +1337,16 @@ function fmtSignedHolder(value){
   const n = safeHolderNum(value);
   return (n >= 0 ? "+" : "-") + fmtNum(Math.abs(n));
 }
+function fmtSignedHolderPct(value){
+  const n = safeHolderNum(value);
+  return (n >= 0 ? "+" : "-") + fmtPct(Math.abs(n));
+}
+function holderBucketDeltaLabel(delta, base){
+  const change = safeHolderNum(delta);
+  const start = safeHolderNum(base);
+  if(start <= 0) return fmtSignedHolder(change);
+  return `${fmtSignedHolder(change)} (${fmtSignedHolderPct(change / start * 100)})`;
+}
 function holderCexFlow(period = "7d"){
   const changes = DOLO_BALANCE_CHANGES?.[period] || {};
   let inflow = 0;
@@ -1930,9 +1943,14 @@ function renderHolderDistributionChart(options = {}){
     tip.innerHTML = `
       <div class="tt-date">${fmtHolderDate(nearest.ts)}</div>
       <div class="tt-val">${fmtNum(nearest.trackedTotal)} DOLO tracked</div>
-      ${nearest.buckets.map(bucket => `
-        <div class="tt-row"><span><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${bucket.color};margin-right:6px"></i>${bucket.label}</span><b>${fmtNum(bucket.total)} · ${bucket.wallets.toLocaleString()} wallets</b></div>
-      `).join("")}
+      ${nearest.buckets.map((bucket, i) => {
+        const startTotal = firstPoint.buckets?.[i]?.total || 0;
+        const delta = bucket.total - startTotal;
+        const deltaClass = delta >= 0 ? "up" : "down";
+        return `
+          <div class="tt-row"><span><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${bucket.color};margin-right:6px"></i>${bucket.label}</span><b>${fmtNum(bucket.total)} DOLO <span class="tt-change ${deltaClass}">${holderBucketDeltaLabel(delta, startTotal)}</span></b></div>
+        `;
+      }).join("")}
     `;
     tip.style.opacity = 1;
     tip.style.left = "0px";
