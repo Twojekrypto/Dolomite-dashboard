@@ -67,9 +67,21 @@ class FreshWalletTests(unittest.TestCase):
         <div><div><div>TVF</div></div></div>
         '''
         days, raw = flows.parse_debank_age_days(html)
+        range_days, max_days, range_raw = flows.parse_debank_age_range_days(html)
 
         self.assertEqual(days, 88)
         self.assertEqual(raw, "88 days")
+        self.assertEqual(range_days, 88)
+        self.assertEqual(max_days, 89)
+        self.assertEqual(range_raw, "88 days")
+
+    def test_parse_debank_age_range_is_conservative_for_months(self):
+        html = '<div class="is-age db-user-tag">3 months</div>'
+        days, max_days, raw = flows.parse_debank_age_range_days(html)
+
+        self.assertEqual(days, 90)
+        self.assertEqual(max_days, 120)
+        self.assertEqual(raw, "3 months")
 
     def test_debank_age_fallback_verifies_explorer_unverified_wallet(self):
         base_ts = 2_000_000_000
@@ -104,6 +116,132 @@ class FreshWalletTests(unittest.TestCase):
         self.assertEqual(first["source"], "debank_age")
         self.assertEqual(first["debank_age_days"], 12)
         self.assertEqual(first["explorer_errors"][0]["chain"], "base")
+
+    def test_debank_crosscheck_can_age_tracked_fresh_wallet(self):
+        base_ts = 2_000_000_000
+        tracked_fresh_ts = base_ts - 12 * 86400
+
+        def fake_get(_url, params=None, timeout=None):
+            return _ExplorerResponse({
+                "status": "1",
+                "result": [{
+                    "timeStamp": str(tracked_fresh_ts),
+                    "blockNumber": "123",
+                    "hash": "0xfresh",
+                }],
+            })
+
+        session = Mock()
+        session.get.side_effect = fake_get
+        sources = [
+            {"key": "eth", "name": "Ethereum", "provider": "etherscan", "chainid": 1},
+        ]
+        debank_older = {
+            "verified": True,
+            "status": "ok",
+            "chain": "debank",
+            "chain_name": "DeBank",
+            "first_timestamp": base_ts - 613 * 86400,
+            "first_block": 0,
+            "first_tx": "",
+            "source": "debank_age",
+            "debank_age_days": 613,
+            "debank_age_max_days": 614,
+        }
+
+        with patch.object(flows, "ETHERSCAN_API_KEY", "test"), \
+             patch.object(flows, "FRESH_WALLET_ACTIVITY_SOURCES", sources), \
+             patch.object(flows, "FRESH_ETHERSCAN_REQUEST_DELAY_SECONDS", 0), \
+             patch.object(flows, "fetch_debank_first_activity", return_value=debank_older):
+            first = flows.wallet_first_activity("0x1111111111111111111111111111111111111111", {}, session, base_ts)
+
+        self.assertTrue(first["verified"])
+        self.assertEqual(first["source"], "debank_age")
+        self.assertEqual(first["debank_age_days"], 613)
+        self.assertEqual(first["explorer_first_activity"]["source"], "normal_tx")
+
+    def test_tracked_fresh_wallet_requires_debank_crosscheck(self):
+        base_ts = 2_000_000_000
+        tracked_fresh_ts = base_ts - 12 * 86400
+
+        def fake_get(_url, params=None, timeout=None):
+            return _ExplorerResponse({
+                "status": "1",
+                "result": [{
+                    "timeStamp": str(tracked_fresh_ts),
+                    "blockNumber": "123",
+                    "hash": "0xfresh",
+                }],
+            })
+
+        session = Mock()
+        session.get.side_effect = fake_get
+        sources = [
+            {"key": "eth", "name": "Ethereum", "provider": "etherscan", "chainid": 1},
+        ]
+        debank_missing = {
+            "verified": False,
+            "status": "debank_age_missing",
+            "chain": "debank",
+            "first_timestamp": 0,
+            "source": "debank_age",
+        }
+
+        with patch.object(flows, "ETHERSCAN_API_KEY", "test"), \
+             patch.object(flows, "FRESH_WALLET_ACTIVITY_SOURCES", sources), \
+             patch.object(flows, "FRESH_ETHERSCAN_REQUEST_DELAY_SECONDS", 0), \
+             patch.object(flows, "fetch_debank_first_activity", return_value=debank_missing):
+            first = flows.wallet_first_activity("0x1111111111111111111111111111111111111111", {}, session, base_ts)
+
+        self.assertFalse(first["verified"])
+        self.assertEqual(first["status"], "debank_crosscheck_unverified")
+        self.assertEqual(first["explorer_first_activity"]["source"], "normal_tx")
+
+    def test_debank_coarse_month_age_is_excluded_from_90d_fresh(self):
+        candidate = "0x1111111111111111111111111111111111111111"
+        source = "0x3333333333333333333333333333333333333333"
+        all_transfers = {
+            "eth": [
+                (source, candidate, int(20_000 * 10**18), 150),
+            ],
+            "bera": [],
+        }
+        cutoffs = {
+            chain: {period: 100 for period in flows.FRESH_HOLDER_PERIODS}
+            for chain in flows.CHAINS
+        }
+        current_blocks = {"eth": 200, "bera": 200}
+        neutralized = {
+            period: {"eth": {candidate: 20_000}, "bera": {}}
+            for period in flows.FRESH_HOLDER_PERIODS
+        }
+        first_activity = {
+            "verified": True,
+            "status": "ok",
+            "chain": "debank",
+            "first_timestamp": 2_000_000_000 - flows.PERIODS["90d"],
+            "first_block": 0,
+            "first_tx": "",
+            "source": "debank_age",
+            "debank_age_days": 90,
+            "debank_age_max_days": 120,
+        }
+
+        with patch.object(flows, "load_current_holder_rows", return_value={}), \
+             patch.object(flows, "load_address_labels", return_value={}), \
+             patch.object(flows, "load_current_vedolo_locks", return_value={}), \
+             patch.object(flows, "wallet_first_activity", return_value=first_activity):
+            rows, audit = flows.build_fresh_holders(
+                all_transfers,
+                cutoffs,
+                current_blocks,
+                neutralized,
+                2_000_000_000,
+                {},
+            )
+
+        self.assertEqual(rows["90d"], [])
+        self.assertGreaterEqual(audit["90d"]["oldWalletsExcluded"], 1)
 
     def test_prior_outgoing_dolo_transfer_excludes_fresh_candidate(self):
         candidate = "0x1111111111111111111111111111111111111111"
