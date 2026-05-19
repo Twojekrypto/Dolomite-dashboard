@@ -349,6 +349,11 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .fresh-chain{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:var(--fg-3);white-space:nowrap}
 .fresh-chain .chain-icon{width:13px;height:13px;border-radius:50%;object-fit:cover;flex:0 0 13px;background:var(--bg-4);box-shadow:0 0 0 1px rgba(255,255,255,.08)}
 .fresh-chain .chain-icon.berachain{transform:scale(1.08)}
+.fresh-wallets-table tbody tr.fresh-spacer-row{pointer-events:none;cursor:default}
+.fresh-wallets-table tbody tr.fresh-spacer-row td{color:transparent}
+.fresh-wallets-table tbody tr.fresh-spacer-row td > *{visibility:hidden}
+.fresh-wallets-table tbody tr.fresh-spacer-row:hover td{background:transparent}
+.fresh-wallets-table tbody tr.fresh-spacer-row:hover td:first-child::before{display:none}
 
 /* TOOLBAR */
 .toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 24px;background:linear-gradient(180deg,var(--bg-1),var(--bg-2));border-bottom:1px solid var(--line-1);flex-wrap:wrap}
@@ -2696,13 +2701,13 @@ function renderFreshWallets(){
     ` : "";
   const spacerRowsHtml = total === 0 ? "" : Array.from({length: Math.max(0, state.freshPageSize - pageRows.length)}, () => `
       <tr class="fresh-spacer-row" aria-hidden="true" tabindex="-1">
-        <td class="rank">0</td>
-        <td><div class="addr-cell"><div class="addr-line top"><span class="addr-name">Placeholder</span><span class="type-tag type-eoa">EOA</span></div><div class="addr-line bot"><span class="addr-mono">0x0000…0000</span><span class="addr-act">Copy</span></div></div></td>
-        <td><div class="fresh-created"><span class="date">May 19, 2026</span><span class="sub">today</span></div></td>
-        <td><span class="fresh-signal">New Holder</span></td>
-        <td class="num"><span class="flows-net up">+0</span></td>
-        <td class="num"><span class="bal-val total">0</span></td>
-        <td><div class="fresh-status"><span class="main">Still Holding</span><span class="sub">kept 95%+ · Ethereum</span></div></td>
+        <td class="rank">&nbsp;</td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+        <td class="num">&nbsp;</td>
+        <td class="num">&nbsp;</td>
+        <td>&nbsp;</td>
       </tr>
     `).join("");
   tbody.innerHTML = rowHtml + spacerRowsHtml + emptyHtml;
