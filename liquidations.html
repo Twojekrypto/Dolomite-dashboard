@@ -1871,6 +1871,64 @@
         }
         .toggle-btn .icon { display: none; /* replaced by toggle-dot */ }
 
+        #hide-dust-btn.toggle-btn {
+            height: 30px;
+            min-width: 100px;
+            padding: 0 12px;
+            border-radius: 999px;
+            border-color: var(--line-2, var(--border-default));
+            background: var(--bg-3, var(--bg-card-alt));
+            color: var(--fg-2, var(--text-secondary));
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: .08px;
+            gap: 8px;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+        }
+        #hide-dust-btn.toggle-btn:hover {
+            color: var(--fg-1, var(--text-primary));
+            border-color: var(--line-3, rgba(255,255,255,.14));
+            background: var(--bg-3, var(--bg-card-alt));
+        }
+        #hide-dust-btn.toggle-btn.active {
+            color: var(--fg-1, var(--text-primary));
+            border-color: var(--gold-line, rgba(201,162,39,.30));
+            background: linear-gradient(180deg, rgba(201,162,39,.20), rgba(201,162,39,.08));
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 0 0 1px rgba(201,162,39,.05);
+        }
+        #hide-dust-btn.toggle-btn .toggle-dot {
+            width: 24px;
+            height: 14px;
+            border-radius: 999px;
+            background: var(--bg-4, var(--bg-hover));
+            border: 1px solid var(--line-3, rgba(255,255,255,.14));
+            opacity: 1;
+            position: relative;
+            flex: 0 0 auto;
+            box-shadow: none;
+        }
+        #hide-dust-btn.toggle-btn .toggle-dot::after {
+            content: "";
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--fg-3, var(--text-muted));
+            transition: transform var(--transition), background var(--transition), box-shadow var(--transition);
+        }
+        #hide-dust-btn.toggle-btn.active .toggle-dot {
+            background: rgba(201,162,39,.16);
+            border-color: var(--gold-line, rgba(201,162,39,.30));
+            box-shadow: none;
+        }
+        #hide-dust-btn.toggle-btn.active .toggle-dot::after {
+            transform: translateX(10px);
+            background: var(--gold, var(--accent-amber));
+            box-shadow: 0 0 8px rgba(201,162,39,.35);
+        }
+
         /* Premium tooltip for toggle buttons (data-tip) */
         .toggle-btn[data-tip] {
             position: relative;
@@ -2842,7 +2900,7 @@
                     Set Alert
                 </a>
 
-                <button class="toggle-btn active" id="hide-dust-btn" data-tip="Hide dust positions — accounts with less than $10 total (collateral + debt). These are residual/abandoned positions with no real liquidation risk.">
+                <button class="toggle-btn active" id="hide-dust-btn">
                     <span class="toggle-dot"></span><span class="icon">🧹</span>Hide Dust
                 </button>
 

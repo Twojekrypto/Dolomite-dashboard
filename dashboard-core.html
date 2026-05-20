@@ -2055,85 +2055,88 @@
             opacity: 1;
         }
 
-        /* ===== DUST TOGGLE — Mini iOS Switch ===== */
+        /* ===== DUST TOGGLE — aligned with DOLO Holders Over Time veDOLO pill ===== */
         .dust-pill {
+            --dust-gold: var(--gold, #c9a227);
+            --dust-gold-line: var(--gold-line, rgba(201, 162, 39, 0.30));
+            --dust-bg: var(--bg-3, var(--bg-card-alt, #1a1a1e));
+            --dust-bg-strong: var(--bg-4, var(--bg-hover, #202024));
+            --dust-fg: var(--fg-2, var(--text-secondary, #a5a29a));
+            --dust-fg-active: var(--fg-1, var(--text-primary, #f4f3ef));
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 8px;
-            height: 32px;
-            padding: 5px 12px 5px 8px;
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            background: rgba(255, 255, 255, 0.03);
+            height: 30px;
+            min-width: 100px;
+            padding: 0 12px;
+            border-radius: 999px;
+            border: 1px solid var(--border-default, rgba(255, 255, 255, 0.08));
+            background: var(--dust-bg);
+            color: var(--dust-fg);
             cursor: pointer;
             user-select: none;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: border-color var(--transition), background var(--transition), color var(--transition), box-shadow var(--transition);
             position: relative;
-            backdrop-filter: blur(8px);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+            backdrop-filter: none;
         }
 
         .dust-pill:hover {
-            border-color: rgba(99, 102, 241, 0.35);
-            background: rgba(99, 102, 241, 0.06);
-            box-shadow: 0 0 12px rgba(99, 102, 241, 0.08);
+            color: var(--dust-fg-active);
+            border-color: var(--line-3, rgba(255, 255, 255, 0.14));
         }
 
         .dust-pill.active {
-            border-color: rgba(52, 211, 153, 0.3);
-            background: rgba(52, 211, 153, 0.04);
+            color: var(--dust-fg-active);
+            border-color: var(--dust-gold-line);
+            background: linear-gradient(180deg, rgba(201, 162, 39, 0.20), rgba(201, 162, 39, 0.08));
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 0 0 1px rgba(201, 162, 39, 0.05);
         }
 
         .dust-pill.active:hover {
-            border-color: rgba(52, 211, 153, 0.45);
-            background: rgba(52, 211, 153, 0.06);
-            box-shadow: 0 0 12px rgba(52, 211, 153, 0.08);
+            border-color: var(--dust-gold-line);
         }
 
-        /* Track */
         .dust-switch-track {
-            width: 28px;
-            height: 16px;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.1);
+            width: 24px;
+            height: 14px;
+            border-radius: 999px;
+            background: var(--dust-bg-strong);
+            border: 1px solid var(--line-3, rgba(255, 255, 255, 0.14));
             position: relative;
-            flex-shrink: 0;
-            transition: background 0.3s ease, box-shadow 0.3s ease;
+            flex: 0 0 auto;
+            transition: background var(--transition), border-color var(--transition);
         }
 
         .dust-pill.active .dust-switch-track {
-            background: rgba(52, 211, 153, 0.5);
-            box-shadow: 0 0 8px rgba(52, 211, 153, 0.2);
+            background: rgba(201, 162, 39, 0.16);
+            border-color: var(--dust-gold-line);
         }
 
-        /* Knob */
         .dust-switch-knob {
             position: absolute;
             top: 2px;
             left: 2px;
-            width: 12px;
-            height: 12px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
-            background: rgba(255, 255, 255, 0.4);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            background: var(--fg-3, var(--text-muted, #6b6a66));
+            transition: transform var(--transition), background var(--transition), box-shadow var(--transition);
         }
 
         .dust-pill.active .dust-switch-knob {
-            left: 14px;
-            background: #fff;
-            box-shadow: 0 1px 4px rgba(52, 211, 153, 0.4);
+            transform: translateX(10px);
+            background: var(--dust-gold);
+            box-shadow: 0 0 8px rgba(201, 162, 39, 0.35);
         }
 
         .dust-pill-label {
             font-size: 11px;
-            font-weight: 600;
-            color: rgba(255, 255, 255, 0.3);
-            transition: color 0.3s ease;
-            letter-spacing: 0.02em;
-        }
-
-        .dust-pill.active .dust-pill-label {
-            color: #34d399;
+            font-weight: 800;
+            color: inherit;
+            transition: color var(--transition);
+            letter-spacing: 0.08px;
         }
 
         .assets-th-search {
@@ -19497,7 +19500,7 @@
             if (view === 'lending') {
                 const iframe = document.getElementById('lending-iframe');
                 if (iframe && iframe.src === 'about:blank') {
-                    iframe.src = 'liq-monitor.html?embed=1';
+                    iframe.src = 'liq-monitor.html?embed=1&v=hide-dust-20260520';
                 }
             }
 

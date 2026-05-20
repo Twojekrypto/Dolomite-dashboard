@@ -1906,74 +1906,74 @@
             background: rgba(255,255,255,0.08);
             flex-shrink: 0;
         }
-        /* ── Dust Pill Toggle (iOS-style, matching Assets tab) ── */
+        /* ── Dust Pill Toggle (aligned with DOLO Holders Over Time veDOLO pill) ── */
         .liq-dust-pill {
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 8px;
-            height: 32px;
-            padding: 5px 12px 5px 8px;
-            border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.08);
-            background: rgba(255,255,255,0.03);
+            height: 30px;
+            min-width: 100px;
+            padding: 0 12px;
+            border-radius: 999px;
+            border: 1px solid var(--line-2, var(--border-default));
+            background: var(--bg-3, var(--bg-card-alt));
+            color: var(--fg-2, var(--text-secondary));
             cursor: pointer;
             user-select: none;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: border-color var(--transition), background var(--transition), color var(--transition), box-shadow var(--transition);
             position: relative;
-            backdrop-filter: blur(8px);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+            backdrop-filter: none;
         }
         .liq-dust-pill:hover {
-            border-color: rgba(99, 102, 241, 0.35);
-            background: rgba(99, 102, 241, 0.06);
-            box-shadow: 0 0 12px rgba(99, 102, 241, 0.08);
+            color: var(--fg-1, var(--text-primary));
+            border-color: var(--line-3, rgba(255,255,255,.14));
         }
         .liq-dust-pill.active {
-            border-color: rgba(52, 211, 153, 0.3);
-            background: rgba(52, 211, 153, 0.04);
+            color: var(--fg-1, var(--text-primary));
+            border-color: var(--gold-line, rgba(201,162,39,.30));
+            background: linear-gradient(180deg, rgba(201,162,39,.20), rgba(201,162,39,.08));
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 0 0 1px rgba(201,162,39,.05);
         }
         .liq-dust-pill.active:hover {
-            border-color: rgba(52, 211, 153, 0.45);
-            background: rgba(52, 211, 153, 0.06);
-            box-shadow: 0 0 12px rgba(52, 211, 153, 0.08);
+            border-color: var(--gold-line, rgba(201,162,39,.30));
         }
         .liq-dust-switch-track {
-            width: 28px;
-            height: 16px;
-            border-radius: 8px;
-            background: rgba(255,255,255,0.1);
+            width: 24px;
+            height: 14px;
+            border-radius: 999px;
+            background: var(--bg-4, var(--bg-hover));
+            border: 1px solid var(--line-3, rgba(255,255,255,.14));
             position: relative;
-            flex-shrink: 0;
-            transition: background 0.3s ease, box-shadow 0.3s ease;
+            flex: 0 0 auto;
+            transition: background var(--transition), border-color var(--transition);
         }
         .liq-dust-pill.active .liq-dust-switch-track {
-            background: rgba(52, 211, 153, 0.5);
-            box-shadow: 0 0 8px rgba(52, 211, 153, 0.2);
+            background: rgba(201,162,39,.16);
+            border-color: var(--gold-line, rgba(201,162,39,.30));
         }
         .liq-dust-switch-knob {
             position: absolute;
             top: 2px;
             left: 2px;
-            width: 12px;
-            height: 12px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
-            background: rgba(255,255,255,0.4);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            background: var(--fg-3, var(--text-muted));
+            transition: transform var(--transition), background var(--transition), box-shadow var(--transition);
         }
         .liq-dust-pill.active .liq-dust-switch-knob {
-            left: 14px;
-            background: #fff;
-            box-shadow: 0 1px 4px rgba(52, 211, 153, 0.4);
+            transform: translateX(10px);
+            background: var(--gold, var(--accent-amber));
+            box-shadow: 0 0 8px rgba(201,162,39,.35);
         }
         .liq-dust-pill-label {
             font-size: 11px;
-            font-weight: 600;
-            color: rgba(255,255,255,0.3);
-            transition: color 0.3s ease;
-            letter-spacing: 0.02em;
-        }
-        .liq-dust-pill.active .liq-dust-pill-label {
-            color: #34d399;
+            font-weight: 800;
+            color: inherit;
+            transition: color var(--transition);
+            letter-spacing: .08px;
         }
         .liquidation-table-header {
             align-items: flex-start;
@@ -4469,7 +4469,7 @@
 
                     <div class="liquidation-command-group--actions">
                         <div class="liquidation-command-actions-row">
-                            <div class="liq-dust-pill active" id="hide-dust-btn" tabindex="0" role="switch" aria-checked="true" title="Hide dust positions — accounts with less than $10 total (collateral + debt)">
+                            <div class="liq-dust-pill active" id="hide-dust-btn" tabindex="0" role="switch" aria-checked="true">
                                 <div class="liq-dust-switch-track"><div class="liq-dust-switch-knob"></div></div>
                                 <span class="liq-dust-pill-label">Hide Dust</span>
                             </div>
