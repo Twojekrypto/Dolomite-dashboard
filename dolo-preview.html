@@ -156,6 +156,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 
 /* Holder buckets chart — TVL Over Time rhythm */
 .holder-chart-card{background:linear-gradient(180deg,rgba(20,20,23,.98),var(--bg-2))}
+.cex-supply-card{margin-top:18px}
+.cex-supply-card .holder-chart-area{fill:url(#cexSupplyAreaGrad);opacity:.56}
+.cex-supply-card .holder-chart-series-line{filter:drop-shadow(0 0 7px rgba(180,121,107,.18))}
+.cex-supply-card .holder-flow-stats{background:linear-gradient(90deg,rgba(180,121,107,.055),rgba(255,255,255,.012))}
 .holder-title-block{display:flex;flex-direction:column;gap:12px;min-width:0}
 .holder-chart-controls{
   display:inline-flex;align-items:center;justify-content:flex-start;gap:10px;min-width:0;
@@ -1220,8 +1224,62 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
       </div>
       <div class="holder-brush-label" id="holderBrushLabel"></div>
     </div>
-    <div class="holder-flow-stats" id="holderFlowStats"></div>
     <div class="holder-chart-legend" id="holderChartLegend"></div>
+  </section>
+
+  <section class="card holder-chart-card cex-supply-card" id="cex-supply-card">
+    <div class="card-head">
+      <div class="holder-title-block">
+        <div class="card-title">
+          <h2>CEX Supply Over Time</h2>
+          <span class="count-badge" id="cex-supply-count">All</span>
+        </div>
+      </div>
+      <div class="holder-chart-source" id="cex-supply-meta" aria-label="CEX supply data scope"></div>
+    </div>
+    <div class="holder-chart-wrap" id="cexSupplyWrap">
+      <svg class="holder-chart-svg" id="cexSupplySvg" viewBox="0 0 1000 340" preserveAspectRatio="none" aria-label="CEX DOLO supply over time chart">
+        <defs>
+          <linearGradient id="cexSupplyAreaGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#b4796b" stop-opacity=".22"/>
+            <stop offset="58%" stop-color="#b4796b" stop-opacity=".06"/>
+            <stop offset="100%" stop-color="#b4796b" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <g class="holder-chart-grid" id="cexSupplyGrid"></g>
+        <path class="holder-chart-area" id="cexSupplyArea" d=""></path>
+        <g class="holder-chart-lines" id="cexSupplyLines"></g>
+        <line class="holder-chart-line" id="cexSupplyHoverLine" x1="0" x2="0" y1="0" y2="0"/>
+        <circle class="holder-chart-dot" id="cexSupplyHoverDot" r="4" cx="0" cy="0"/>
+        <g class="holder-chart-axis" id="cexSupplyAxis"></g>
+      </svg>
+      <div class="holder-chart-tip" id="cexSupplyTip">
+        <div class="tt-date">—</div>
+        <div class="tt-val">—</div>
+      </div>
+    </div>
+    <div class="holder-brush-wrap" id="cexSupplyBrushWrap">
+      <svg class="holder-brush-svg" id="cexSupplyBrushSvg" viewBox="0 0 1000 56" preserveAspectRatio="none" aria-label="CEX supply time range navigator">
+        <defs>
+          <linearGradient id="cexSupplyBrushGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#b4796b" stop-opacity=".34"/>
+            <stop offset="100%" stop-color="#b4796b" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path class="holder-brush-area" id="cexSupplyBrushArea" fill="url(#cexSupplyBrushGrad)" d=""></path>
+        <path class="holder-brush-line" id="cexSupplyBrushLine" d="" style="stroke:#b4796b"></path>
+      </svg>
+      <div class="holder-brush-overlay" id="cexSupplyBrushOverlay">
+        <div class="holder-brush-dim l" id="cexSupplyBrushDimL"></div>
+        <div class="holder-brush-window" id="cexSupplyBrushWindow">
+          <div class="holder-brush-handle l" id="cexSupplyBrushHandleL"><div class="grip"><span></span><span></span></div></div>
+          <div class="holder-brush-handle r" id="cexSupplyBrushHandleR"><div class="grip"><span></span><span></span></div></div>
+        </div>
+        <div class="holder-brush-dim r" id="cexSupplyBrushDimR"></div>
+      </div>
+      <div class="holder-brush-label" id="cexSupplyBrushLabel"></div>
+    </div>
+    <div class="holder-flow-stats" id="cexSupplyStats"></div>
   </section>
 
   <!-- PROTOCOL INFO -->
@@ -1409,6 +1467,7 @@ let DOLO_BALANCE_CHANGES = {};
 let DOLO_FRESH_HOLDERS = {};
 let DOLO_HOLDER_HISTORY_POINTS = [];
 let DOLO_HOLDER_BUCKET_HISTORY = [];
+let DOLO_CEX_SUPPLY_HISTORY = [];
 let vedoloHolderStats = null;
 let vedoloDataTimestamp = null;
 let doloHolderDataTimestamp = null;
@@ -1421,6 +1480,12 @@ let holderBrushDomainKey = "";
 let holderFullHistoryModel = null;
 let holderPrecomputedVeDoloIsDaily = false;
 let holderBrushRenderFrame = 0;
+let cexSupplyBrushSel = {from:0, to:0};
+let cexSupplyBrushInitialized = false;
+let cexSupplyBrushDragging = null;
+let cexSupplyBrushDomainKey = "";
+let cexSupplyFullModel = null;
+let cexSupplyBrushRenderFrame = 0;
 const safeHolderNum = v => Number.isFinite(Number(v)) ? Number(v) : 0;
 const lowerHolderAddr = addr => String(addr || "").toLowerCase();
 function activeHolderBuckets(){
@@ -2005,11 +2070,6 @@ function renderHolderDistributionChart(options = {}){
   if(metaEl){
     metaEl.innerHTML = holderScopeHtml();
   }
-  const flowStatsEl = document.getElementById("holderFlowStats");
-  if(flowStatsEl){
-    flowStatsEl.innerHTML = holderCexStatHtml();
-    flowStatsEl.style.display = flowStatsEl.innerHTML.trim() ? "" : "none";
-  }
   const firstPoint = model.points[0] || model.current;
   const current = model.current;
   legend.innerHTML = current.buckets.map((bucket, i) => {
@@ -2107,6 +2167,350 @@ function renderHolderDistributionChart(options = {}){
       renderHolderDistributionChart();
     });
   });
+}
+
+function holderCexCurrentSupply(){
+  let total = 0;
+  let wallets = 0;
+  HOLDERS.forEach(holder => {
+    if(holderDistributionType(holder.addr, holder) !== "cex") return;
+    const value = safeHolderNum(holder.total) || safeHolderNum(holder.balEth) + safeHolderNum(holder.balBera);
+    if(value <= 0) return;
+    total += value;
+    wallets += 1;
+  });
+  return {total, wallets};
+}
+function buildCexSupplySeries(){
+  const current = holderCexCurrentSupply();
+  const baseTs = holderHistoryBaseTs();
+  const dailyPoints = (DOLO_CEX_SUPPLY_HISTORY || [])
+    .map(point => ({
+      key:point.key || String(point.timestamp || ""),
+      label:point.key || "Daily",
+      ts:parseHolderTimestamp(point.timestamp) || safeHolderNum(point.ts),
+      cex:safeHolderNum(point.liquid ?? point.cex ?? point.supply),
+      wallets:safeHolderNum(point.wallets),
+    }))
+    .filter(point => point.ts > 0)
+    .sort((a,b) => a.ts - b.ts);
+  if(dailyPoints.length > 1){
+    if(current.total > 0 && Math.abs(baseTs - dailyPoints[dailyPoints.length - 1].ts) > 3600){
+      dailyPoints.push({key:"now", label:"Now", ts:baseTs, cex:current.total, wallets:current.wallets});
+    }
+    return {
+      points:dailyPoints,
+      current,
+      currentPoint:dailyPoints[dailyPoints.length - 1],
+      sourceLabel:`${dailyPoints.length} daily points`,
+    };
+  }
+  const startTs = safeHolderNum(doloAllHistoryStartTs) || baseTs - 365 * 86400;
+  const specs = [
+    {key:"all", label:"TGE", ts:startTs},
+    {key:"180d", label:"180D", ts:baseTs - 180 * 86400},
+    {key:"90d", label:"90D", ts:baseTs - 90 * 86400},
+    {key:"30d", label:"30D", ts:baseTs - 30 * 86400},
+    {key:"7d", label:"7D", ts:baseTs - 7 * 86400},
+    {key:"1d", label:"24H", ts:baseTs - 86400},
+  ];
+  const points = specs
+    .filter(spec => spec.key === "all" || DOLO_BALANCE_CHANGES?.[spec.key])
+    .map(spec => {
+      const flow = holderCexFlow(spec.key);
+      return {
+        key:spec.key,
+        label:spec.label,
+        ts:spec.ts,
+        cex:Math.max(0, current.total - flow.net),
+        net:flow.net,
+        inflow:flow.inflow,
+        outflow:flow.outflow,
+      };
+    });
+  points.push({key:"now", label:"Now", ts:baseTs, cex:current.total, net:0, inflow:0, outflow:0});
+  const cleanPoints = points
+    .filter(point => point.ts > 0)
+    .sort((a,b) => a.ts - b.ts)
+    .filter((point, index, arr) => index === arr.length - 1 || point.ts < arr[index + 1].ts);
+  const currentPoint = cleanPoints[cleanPoints.length - 1] || {ts:baseTs, cex:current.total, label:"Now"};
+  return {points:cleanPoints, current, currentPoint, sourceLabel:`${cleanPoints.length} checkpoints`};
+}
+function ensureCexSupplyBrushSelection(model){
+  const points = model.points || [];
+  const minX = points[0]?.ts || 0;
+  const maxX = points[points.length - 1]?.ts || (minX + 1);
+  const domainKey = `${minX}:${maxX}:${points.length}`;
+  if(cexSupplyBrushDomainKey !== domainKey || !(cexSupplyBrushSel.from >= minX && cexSupplyBrushSel.to <= maxX && cexSupplyBrushSel.from < cexSupplyBrushSel.to)){
+    cexSupplyBrushSel = {from:minX, to:maxX};
+    cexSupplyBrushDomainKey = domainKey;
+  }
+}
+function cexSupplyBrushDomain(){
+  const points = cexSupplyFullModel?.points || [];
+  const minX = points[0]?.ts || 0;
+  const maxX = points[points.length - 1]?.ts || (minX + 1);
+  return {points, minX, maxX, span:Math.max(1, maxX - minX)};
+}
+function visibleCexSupplyHistory(fullModel){
+  ensureCexSupplyBrushSelection(fullModel);
+  const points = fullModel.points || [];
+  let visible = points.filter(point => point.ts >= cexSupplyBrushSel.from && point.ts <= cexSupplyBrushSel.to);
+  if(visible.length < 2 && points.length >= 2){
+    const center = (cexSupplyBrushSel.from + cexSupplyBrushSel.to) / 2;
+    visible = [...points]
+      .sort((a,b)=>Math.abs(a.ts - center) - Math.abs(b.ts - center))
+      .slice(0, 2)
+      .sort((a,b)=>a.ts-b.ts);
+  }
+  return {...fullModel, points:visible.length ? visible : points};
+}
+function paintCexSupplyBrushWindow(){
+  const {minX, span} = cexSupplyBrushDomain();
+  const win = document.getElementById("cexSupplyBrushWindow");
+  const dimL = document.getElementById("cexSupplyBrushDimL");
+  const dimR = document.getElementById("cexSupplyBrushDimR");
+  const label = document.getElementById("cexSupplyBrushLabel");
+  if(!win || !dimL || !dimR || !label) return;
+  const leftPct = Math.max(0, Math.min(100, (cexSupplyBrushSel.from - minX) / span * 100));
+  const rightPct = Math.max(leftPct, Math.min(100, (cexSupplyBrushSel.to - minX) / span * 100));
+  win.style.left = leftPct + "%";
+  win.style.width = (rightPct - leftPct) + "%";
+  dimL.style.width = leftPct + "%";
+  dimR.style.width = (100 - rightPct) + "%";
+  label.innerHTML = `<span class="v">${fmtHolderBrushDate(cexSupplyBrushSel.from)}</span><span class="sep">→</span><span class="v">${fmtHolderBrushDate(cexSupplyBrushSel.to)}</span>`;
+}
+function scheduleCexSupplyChartRender(){
+  if(cexSupplyBrushRenderFrame) return;
+  const run = () => {
+    cexSupplyBrushRenderFrame = 0;
+    renderCexSupplyChart({skipBrush:true});
+  };
+  if(typeof requestAnimationFrame === "function"){
+    cexSupplyBrushRenderFrame = requestAnimationFrame(run);
+  } else {
+    cexSupplyBrushRenderFrame = setTimeout(run, 16);
+  }
+}
+function flushCexSupplyChartRender(){
+  if(cexSupplyBrushRenderFrame){
+    if(typeof cancelAnimationFrame === "function") cancelAnimationFrame(cexSupplyBrushRenderFrame);
+    else clearTimeout(cexSupplyBrushRenderFrame);
+    cexSupplyBrushRenderFrame = 0;
+  }
+  renderCexSupplyChart({skipBrush:true});
+}
+function renderCexSupplyBrush(fullModel){
+  cexSupplyFullModel = fullModel;
+  ensureCexSupplyBrushSelection(fullModel);
+  const brushLine = document.getElementById("cexSupplyBrushLine");
+  const brushArea = document.getElementById("cexSupplyBrushArea");
+  if(!brushLine || !brushArea) return;
+  const points = fullModel.points || [];
+  if(points.length < 2){
+    brushLine.setAttribute("d", "");
+    brushArea.setAttribute("d", "");
+    paintCexSupplyBrushWindow();
+    return;
+  }
+  const minX = points[0].ts;
+  const maxX = points[points.length - 1].ts;
+  const span = Math.max(1, maxX - minX);
+  const maxY = Math.max(1, ...points.map(point => point.cex));
+  const BW = 1000, BH = 56;
+  const xAt = ts => (ts - minX) / span * BW;
+  const yAt = value => BH - Math.max(0, Math.min(1, value / (maxY * 1.05))) * BH;
+  const line = points.map((point, index) => `${index ? "L" : "M"}${xAt(point.ts).toFixed(1)} ${yAt(point.cex).toFixed(1)}`).join(" ");
+  const area = `${line} L${xAt(points[points.length - 1].ts).toFixed(1)} ${BH} L${xAt(points[0].ts).toFixed(1)} ${BH} Z`;
+  brushLine.setAttribute("d", line);
+  brushArea.setAttribute("d", area);
+  paintCexSupplyBrushWindow();
+  initCexSupplyBrush();
+}
+function initCexSupplyBrush(){
+  if(cexSupplyBrushInitialized) return;
+  const svg = document.getElementById("cexSupplyBrushSvg");
+  const overlay = document.getElementById("cexSupplyBrushOverlay");
+  const win = document.getElementById("cexSupplyBrushWindow");
+  const handleL = document.getElementById("cexSupplyBrushHandleL");
+  const handleR = document.getElementById("cexSupplyBrushHandleR");
+  if(!svg || !overlay || !win || !handleL || !handleR) return;
+  cexSupplyBrushInitialized = true;
+  const onDown = kind => event => {
+    event.preventDefault();
+    event.stopPropagation();
+    cexSupplyBrushDragging = {kind, startX:event.clientX, startFrom:cexSupplyBrushSel.from, startTo:cexSupplyBrushSel.to};
+    win.classList.add("dragging");
+    document.body.style.userSelect = "none";
+  };
+  const pxToTime = px => {
+    const {minX, span} = cexSupplyBrushDomain();
+    const width = Math.max(1, overlay.clientWidth);
+    return minX + Math.max(0, Math.min(1, px / width)) * span;
+  };
+  win.addEventListener("mousedown", onDown("window"));
+  handleL.addEventListener("mousedown", onDown("left"));
+  handleR.addEventListener("mousedown", onDown("right"));
+  document.addEventListener("mousemove", event => {
+    if(!cexSupplyBrushDragging) return;
+    const {minX, maxX, span} = cexSupplyBrushDomain();
+    const width = Math.max(1, overlay.clientWidth);
+    const delta = (event.clientX - cexSupplyBrushDragging.startX) / width * span;
+    const minWindow = Math.max(86400, span * 0.08);
+    if(cexSupplyBrushDragging.kind === "window"){
+      const windowSpan = cexSupplyBrushDragging.startTo - cexSupplyBrushDragging.startFrom;
+      let from = cexSupplyBrushDragging.startFrom + delta;
+      let to = cexSupplyBrushDragging.startTo + delta;
+      if(from < minX){ from = minX; to = from + windowSpan; }
+      if(to > maxX){ to = maxX; from = to - windowSpan; }
+      cexSupplyBrushSel = {from, to};
+    } else if(cexSupplyBrushDragging.kind === "left"){
+      cexSupplyBrushSel.from = Math.min(cexSupplyBrushDragging.startTo - minWindow, Math.max(minX, cexSupplyBrushDragging.startFrom + delta));
+    } else if(cexSupplyBrushDragging.kind === "right"){
+      cexSupplyBrushSel.to = Math.max(cexSupplyBrushDragging.startFrom + minWindow, Math.min(maxX, cexSupplyBrushDragging.startTo + delta));
+    }
+    paintCexSupplyBrushWindow();
+    scheduleCexSupplyChartRender();
+  });
+  document.addEventListener("mouseup", () => {
+    if(!cexSupplyBrushDragging) return;
+    cexSupplyBrushDragging = null;
+    win.classList.remove("dragging");
+    document.body.style.userSelect = "";
+    flushCexSupplyChartRender();
+  });
+  svg.addEventListener("click", event => {
+    if(cexSupplyBrushDragging) return;
+    const {minX, maxX} = cexSupplyBrushDomain();
+    const rect = overlay.getBoundingClientRect();
+    const center = pxToTime(event.clientX - rect.left);
+    const span = cexSupplyBrushSel.to - cexSupplyBrushSel.from;
+    let from = center - span / 2;
+    let to = center + span / 2;
+    if(from < minX){ from = minX; to = from + span; }
+    if(to > maxX){ to = maxX; from = to - span; }
+    cexSupplyBrushSel = {from, to};
+    paintCexSupplyBrushWindow();
+    renderCexSupplyChart({skipBrush:true});
+  });
+}
+function renderCexSupplyChart(options = {}){
+  const svg = document.getElementById("cexSupplySvg");
+  const areaPath = document.getElementById("cexSupplyArea");
+  const lines = document.getElementById("cexSupplyLines");
+  const grid = document.getElementById("cexSupplyGrid");
+  const axis = document.getElementById("cexSupplyAxis");
+  if(!svg || !areaPath || !lines || !grid || !axis) return;
+
+  const fullModel = buildCexSupplySeries();
+  if(options.skipBrush){
+    cexSupplyFullModel = fullModel;
+    ensureCexSupplyBrushSelection(fullModel);
+  } else {
+    renderCexSupplyBrush(fullModel);
+  }
+  const model = visibleCexSupplyHistory(fullModel);
+  window.__doloCexSupply = {...fullModel, visiblePoints:model.points, brush:{...cexSupplyBrushSel}};
+
+  const W = 1000, H = 340, P_L = 74, P_R = 30, P_T = 24, P_B = 42;
+  const chartW = W - P_L - P_R;
+  const chartH = H - P_T - P_B;
+  const zeroY = P_T + chartH;
+  const maxTotal = Math.max(1, ...model.points.map(point => point.cex));
+  const yMax = niceHolderChartMax(maxTotal * 1.12);
+  const yAt = value => P_T + (1 - Math.max(0, Math.min(1, value / yMax))) * chartH;
+  const xMin = model.points[0]?.ts || 0;
+  const xMax = model.points[model.points.length - 1]?.ts || (xMin + 1);
+  const xRange = Math.max(1, xMax - xMin);
+  const xAt = ts => P_L + (ts - xMin) / xRange * chartW;
+  const spanDays = xRange / 86400;
+
+  grid.innerHTML = "";
+  lines.innerHTML = "";
+  axis.innerHTML = "";
+  for(let i=0; i<=4; i++){
+    const value = yMax * i / 4;
+    const y = yAt(value);
+    grid.innerHTML += `<line x1="${P_L}" x2="${W-P_R}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}"/>`;
+    grid.innerHTML += `<text x="${P_L-12}" y="${(y+3).toFixed(1)}" text-anchor="end">${fmtNum(value)}</text>`;
+  }
+  grid.innerHTML += `<line x1="${P_L}" x2="${W-P_R}" y1="${zeroY}" y2="${zeroY}" style="stroke:var(--line-2)"/>`;
+  if(model.points.length < 2){
+    areaPath.setAttribute("d", "");
+  } else {
+    const line = model.points.map((point, index) => `${index ? "L" : "M"}${xAt(point.ts).toFixed(2)} ${yAt(point.cex).toFixed(2)}`).join(" ");
+    areaPath.setAttribute("d", `${line} L${xAt(model.points[model.points.length - 1].ts).toFixed(2)} ${zeroY.toFixed(2)} L${xAt(model.points[0].ts).toFixed(2)} ${zeroY.toFixed(2)} Z`);
+    lines.innerHTML = `<path class="holder-chart-series-line is-active" data-key="cex" d="${line}" stroke="#b4796b"/>`;
+  }
+  for(let i=0; i<=5; i++){
+    const ts = xMin + xRange * i / 5;
+    const x = xAt(ts);
+    const anchor = i === 0 ? "start" : i === 5 ? "end" : "middle";
+    axis.innerHTML += `<text x="${x.toFixed(1)}" y="${H-10}" text-anchor="${anchor}">${fmtHolderAxisDate(ts, spanDays)}</text>`;
+  }
+
+  const countEl = document.getElementById("cex-supply-count");
+  if(countEl){
+    const {minX, maxX} = cexSupplyBrushDomain();
+    countEl.textContent = model.points.length > 1 ? holderWindowLabel(cexSupplyBrushSel.from, cexSupplyBrushSel.to, minX, maxX) : "Loading";
+  }
+  const metaEl = document.getElementById("cex-supply-meta");
+  if(metaEl){
+    metaEl.innerHTML = `<span class="holder-source-scope">${fullModel.sourceLabel || `${fullModel.points.length} points`}</span>`;
+  }
+  const statsEl = document.getElementById("cexSupplyStats");
+  if(statsEl){
+    statsEl.innerHTML = holderCexStatHtml();
+    statsEl.style.display = statsEl.innerHTML.trim() ? "" : "none";
+  }
+
+  const hoverLine = document.getElementById("cexSupplyHoverLine");
+  const hoverDot = document.getElementById("cexSupplyHoverDot");
+  const tip = document.getElementById("cexSupplyTip");
+  const wrap = document.getElementById("cexSupplyWrap");
+  hoverLine.setAttribute("y1", P_T);
+  hoverLine.setAttribute("y2", zeroY);
+  const leave = () => {
+    hoverLine.style.opacity = 0;
+    hoverDot.style.opacity = 0;
+    tip.style.opacity = 0;
+  };
+  svg.onmousemove = event => {
+    if(model.points.length < 2) return;
+    const rect = svg.getBoundingClientRect();
+    const px = (event.clientX - rect.left) / rect.width * W;
+    if(px < P_L || px > W - P_R){ leave(); return; }
+    let nearest = model.points[0], best = Infinity;
+    model.points.forEach(point => {
+      const dist = Math.abs(xAt(point.ts) - px);
+      if(dist < best){ best = dist; nearest = point; }
+    });
+    const x = xAt(nearest.ts);
+    const y = yAt(nearest.cex);
+    hoverLine.setAttribute("x1", x);
+    hoverLine.setAttribute("x2", x);
+    hoverLine.style.opacity = 1;
+    hoverDot.setAttribute("cx", x);
+    hoverDot.setAttribute("cy", y);
+    hoverDot.setAttribute("fill", "#b4796b");
+    hoverDot.style.opacity = 1;
+    tip.innerHTML = `
+      <div class="tt-date">${fmtHolderDate(nearest.ts)}</div>
+      <div class="tt-val">${fmtNum(nearest.cex)} DOLO</div>
+      <div class="tt-row"><span>Checkpoint</span><b>${nearest.label}</b></div>
+    `;
+    tip.style.opacity = 1;
+    tip.style.left = "0px";
+    tip.style.top = "0px";
+    const wrapRect = wrap.getBoundingClientRect();
+    const screenX = rect.left - wrapRect.left + (x / W) * rect.width;
+    const screenY = rect.top - wrapRect.top + (y / H) * rect.height;
+    const tipW = tip.offsetWidth;
+    const tipH = tip.offsetHeight;
+    tip.style.left = Math.min(Math.max(screenX - tipW / 2, 8), wrap.clientWidth - tipW - 8) + "px";
+    tip.style.top = Math.max(screenY - tipH - 12, 4) + "px";
+  };
+  svg.onmouseleave = leave;
 }
 
 const COPY_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
@@ -3102,6 +3506,7 @@ document.getElementById("now").textContent = new Date().toLocaleString();
 renderHolders();
 renderFlows();
 renderFreshWallets();
+renderCexSupplyChart();
 
 // Live integration layer. The visual prototype above ships with sample rows so
 // it is readable from file://, then this adapter replaces them with the same
@@ -3284,6 +3689,7 @@ renderFreshWallets();
     state.page = 0;
     renderHolders();
     renderFreshWallets();
+    renderCexSupplyChart();
     syncLiveMeta(data.timestamp);
   }
   function applyVeDoloHolders(data){
@@ -3302,6 +3708,7 @@ renderFreshWallets();
       VEDOLO_LOCKS.set(key, safeNum(holder.total_dolo));
     });
     renderHolderDistributionChart();
+    renderCexSupplyChart();
   }
   function applyVeDoloFlows(data){
     VEDOLO_FLOW_EVENTS = {
@@ -3309,6 +3716,7 @@ renderFreshWallets();
       unlocks: Array.isArray(data?.unlocks) ? data.unlocks : [],
     };
     renderHolderDistributionChart();
+    renderCexSupplyChart();
   }
   function applyDoloFlows(flows){
     if(!flows) return;
@@ -3316,10 +3724,12 @@ renderFreshWallets();
     DOLO_FRESH_HOLDERS = flows.fresh_holders || flows.fresh_wallets || {};
     DOLO_HOLDER_HISTORY_POINTS = Array.isArray(flows.holder_history_points) ? flows.holder_history_points : [];
     DOLO_HOLDER_BUCKET_HISTORY = Array.isArray(flows.holder_bucket_history) ? flows.holder_bucket_history : [];
+    DOLO_CEX_SUPPLY_HISTORY = Array.isArray(flows.cex_supply_history) ? flows.cex_supply_history : [];
     doloFlowDataTimestamp = flows.timestamp || null;
     doloAllHistoryStartTs = parseHolderTimestamp(flows.holder_history_start_timestamp || flows.all_history_start_timestamp || flows.period_start_timestamps?.all);
     liveFlowsData = flows;
     liveFlowTimestamp = flows.timestamp;
+    renderCexSupplyChart();
   }
   function flowRowsForPeriod(){
     const periodData = liveFlowsData?.periods?.[state.flowsPeriod];
@@ -3415,6 +3825,7 @@ renderFreshWallets();
           renderFlows();
           renderFreshWallets();
           renderHolderDistributionChart();
+          renderCexSupplyChart();
           return flows;
         })
         .catch(error => {
