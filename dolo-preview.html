@@ -1139,9 +1139,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <tr>
             <th style="width:54px">#</th>
             <th>Address</th>
-            <th data-fresh-sort="created" style="width:142px">Created</th>
+            <th class="sorted" data-fresh-sort="created" style="width:142px">Created</th>
             <th style="width:132px">Signal</th>
-            <th class="num sorted" data-fresh-sort="received" style="width:136px">Received</th>
+            <th class="num" data-fresh-sort="received" style="width:136px">Received</th>
             <th class="num" data-fresh-sort="balance" style="width:136px">Exposure</th>
             <th style="width:150px">Status</th>
           </tr>
@@ -1347,7 +1347,7 @@ const state = {
   freshPage: 0,
   freshPageSize: 8,
   freshStableBodyHeight: 0,
-  freshSort: {key:"received", dir:"desc"},
+  freshSort: {key:"created", dir:"desc"},
   sort: {key:"total", dir:"desc"},
   page: 0,
   pageSize: 10,
@@ -2588,7 +2588,7 @@ function freshSortValue(row, key){
   return safeHolderNum(row.received);
 }
 function sortFreshWalletRows(rows){
-  const sort = state.freshSort || {key:"received", dir:"desc"};
+  const sort = state.freshSort || {key:"created", dir:"desc"};
   const mult = sort.dir === "asc" ? 1 : -1;
   return [...rows].sort((a,b)=>{
     const va = freshSortValue(a, sort.key);
