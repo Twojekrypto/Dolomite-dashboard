@@ -637,6 +637,78 @@ def calculate_holder_bucket_history(all_transfers, points, current_blocks, base_
     return sorted(history, key=lambda row: row["timestamp"])
 
 
+def calculate_cex_supply_history(all_transfers, points, current_blocks, base_ts):
+    holder_rows = load_current_holder_rows()
+    address_labels = load_address_labels()
+    current_liquid = {
+        addr: float(row.get("balance") or 0)
+        for addr, row in holder_rows.items()
+    }
+    sorted_transfers = {
+        chain_key: ensure_transfers_sorted_by_block(transfers)
+        for chain_key, transfers in all_transfers.items()
+    }
+    cursors = {
+        chain_key: len(transfers) - 1
+        for chain_key, transfers in sorted_transfers.items()
+    }
+    running_raw = {chain_key: {} for chain_key in CHAINS}
+    running_bridge = {chain_key: {} for chain_key in CHAINS}
+    history = []
+
+    for point in sorted(points, key=lambda row: row["ts"], reverse=True):
+        for chain_key in CHAINS:
+            cutoff = holder_history_cutoff_block(chain_key, point["ts"], base_ts, current_blocks)
+            chain_transfers = sorted_transfers[chain_key]
+            cursor = cursors[chain_key]
+            while cursor >= 0 and chain_transfers[cursor][3] >= cutoff:
+                add_transfer_to_running_flows(
+                    running_raw[chain_key],
+                    running_bridge[chain_key],
+                    chain_transfers[cursor],
+                )
+                cursor -= 1
+            cursors[chain_key] = cursor
+
+        raw_snapshot = {chain_key: dict(running_raw[chain_key]) for chain_key in CHAINS}
+        bridge_snapshot = {chain_key: dict(running_bridge[chain_key]) for chain_key in CHAINS}
+        changes = merge_balance_changes(neutralize_raw_and_bridge_flows(raw_snapshot, bridge_snapshot))
+        liquid_balances = dict(current_liquid)
+        for addr, net in changes.items():
+            historical = liquid_balances.get(addr.lower(), 0) - net
+            if historical > 0.0001:
+                liquid_balances[addr.lower()] = historical
+            elif addr.lower() in liquid_balances:
+                liquid_balances.pop(addr.lower(), None)
+
+        cex = build_cex_supply_point(liquid_balances, holder_rows, address_labels)
+        history.append({
+            "key": point["key"],
+            "timestamp": point["timestamp"],
+            "liquid": cex["liquid"],
+            "wallets": cex["wallets"],
+        })
+
+    return sorted(history, key=lambda row: row["timestamp"])
+
+
+def build_cex_supply_point(liquid_balances, holder_rows, address_labels):
+    total = 0
+    wallets = 0
+    for addr, value in liquid_balances.items():
+        liquid = max(0, float(value or 0))
+        if liquid <= 0:
+            continue
+        if holder_distribution_type(addr, holder_rows, address_labels) != "cex":
+            continue
+        total += liquid
+        wallets += 1
+    return {
+        "wallets": wallets,
+        "liquid": round(total, 2),
+    }
+
+
 def merge_balance_changes(flows_by_chain):
     merged = {}
     for chain_key in CHAINS:
@@ -1855,6 +1927,12 @@ def main():
         current_blocks,
         holder_history_base_ts,
     )
+    cex_supply_history = calculate_cex_supply_history(
+        all_transfers,
+        holder_history_points,
+        current_blocks,
+        holder_history_base_ts,
+    )
     print(f"  ... {len(holder_history_points)}/{len(holder_history_points)} holder history points")
 
     # Checksum addresses in balance_changes
@@ -1895,6 +1973,7 @@ def main():
             for point in holder_history_points
         ],
         "holder_bucket_history": holder_bucket_history,
+        "cex_supply_history": cex_supply_history,
         "dolo_price": dolo_price,
         "periods": output_periods,
         "balance_changes": balance_changes,
