@@ -258,40 +258,83 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-chart-tip .tt-change{margin-left:7px;font-weight:700}
 .holder-chart-tip .tt-change.up{color:var(--up)}
 .holder-chart-tip .tt-change.down{color:var(--down)}
-.holder-chart-legend{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-top:1px solid var(--line-1);background:rgba(255,255,255,.012)}
-.holder-chart-legend-item{padding:15px 18px;border-left:1px solid var(--line-1);min-width:0;cursor:pointer;transition:background .15s var(--ease)}
-.holder-chart-legend-item:first-child{border-left:0}
-.holder-chart-legend-item:hover,.holder-chart-legend-item.is-active{background:var(--gold-wash)}
+.holder-chart-legend{display:flex;flex-direction:column;border-top:1px solid var(--line-1);background:rgba(255,255,255,.012)}
+.holder-chart-legend-item{min-width:0;border-top:1px solid var(--line-1)}
+.holder-chart-legend-item:first-child{border-top:0}
+.holder-legend-row{display:grid;grid-template-columns:minmax(180px,1.12fr) minmax(92px,.36fr) minmax(92px,.36fr) minmax(154px,.52fr) auto;gap:14px;align-items:center;padding:14px 18px;transition:background .15s var(--ease)}
+.holder-chart-legend-item:hover .holder-legend-row,.holder-chart-legend-item.is-active .holder-legend-row{background:var(--gold-wash)}
+.holder-legend-main{min-width:0}
 .holder-chart-legend-item .top{display:flex;align-items:center;gap:8px;min-width:0}
 .holder-chart-legend-item .dot{width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px rgba(201,162,39,.36);flex:0 0 7px}
 .holder-chart-legend-item .bucket{font-size:12px;font-weight:700;color:var(--fg-1);white-space:nowrap}
-.holder-chart-legend-item .metric{margin-top:8px;font-family:var(--mono);font-size:15px;color:var(--gold);font-weight:600;font-variant-numeric:tabular-nums}
+.holder-chart-legend-item .metric{font-family:var(--mono);font-size:15px;color:var(--gold);font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right;line-height:1.1}
 .holder-chart-legend-item .sub{margin-top:4px;font-family:var(--mono);font-size:10px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.holder-chart-legend-item .chg{font-family:var(--mono);font-size:10px;margin-left:auto;color:var(--fg-3);font-weight:600}
-.holder-chart-legend-item .chg.up{color:var(--up)}
-.holder-chart-legend-item .chg.down{color:var(--down)}
-.holder-wallet-panel{display:none;border-top:1px solid var(--line-1);background:rgba(255,255,255,.014);padding:18px 20px 20px}
+.holder-legend-stat{min-width:0;padding-left:14px;border-left:1px solid var(--line-1)}
+.holder-legend-stat span,.holder-change-pill span{display:block;font-size:9px;font-weight:700;letter-spacing:1.1px;text-transform:uppercase;color:var(--fg-4);line-height:1}
+.holder-legend-stat strong{display:block;margin-top:6px;font-family:var(--mono);font-size:12px;font-weight:600;color:var(--fg-1);font-variant-numeric:tabular-nums;white-space:nowrap}
+.holder-legend-value{min-width:0;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.holder-change-pill{
+  display:inline-flex;align-items:center;gap:6px;min-height:22px;padding:0 8px;border-radius:999px;border:1px solid var(--line-2);
+  background:rgba(255,255,255,.018);font-family:var(--mono);font-size:10px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums
+}
+.holder-change-pill span{font-size:8.5px;letter-spacing:.9px;color:var(--fg-4)}
+.holder-change-pill b{font-weight:700;color:var(--fg-2)}
+.holder-change-pill.up{border-color:rgba(138,163,123,.28);background:rgba(138,163,123,.07)}
+.holder-change-pill.up b{color:var(--up)}
+.holder-change-pill.down{border-color:rgba(180,121,107,.28);background:rgba(180,121,107,.07)}
+.holder-change-pill.down b{color:var(--down)}
+.holder-details-btn{
+  height:24px;min-width:78px;padding:0 8px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;gap:5px;flex-shrink:0;
+  color:var(--gold);background:var(--gold-wash);border:1px solid rgba(201,162,39,.28);cursor:pointer;white-space:nowrap;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 0 0 1px rgba(201,162,39,.035);
+  transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease),box-shadow .15s var(--ease),transform .15s var(--ease);
+}
+.holder-details-btn span{font-size:9.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;line-height:1;pointer-events:none}
+.holder-details-btn svg{width:12px;height:12px;transition:transform .18s var(--ease);pointer-events:none}
+.holder-details-btn:hover{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.16);box-shadow:0 0 0 3px rgba(201,162,39,.08);transform:translateY(-1px)}
+.holder-details-btn[aria-expanded="true"]{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.18);box-shadow:0 0 0 3px rgba(201,162,39,.08)}
+.holder-details-btn[aria-expanded="true"] svg{transform:rotate(180deg)}
+.holder-wallet-panel{display:none;border-top:0;background:linear-gradient(90deg,rgba(201,162,39,.06),var(--bg-1) 38px);padding:0 14px 18px}
 .holder-wallet-panel.is-open{display:block}
-.holder-wallet-panel-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px}
-.holder-wallet-panel-title{font-size:13px;font-weight:700;color:var(--fg-1);letter-spacing:.1px}
+.holder-wallet-panel-inline{background:linear-gradient(90deg,rgba(201,162,39,.06),var(--bg-1) 38px)}
+.holder-wallet-detail-shell{
+  margin:0;border:1px solid rgba(201,162,39,.2);border-top:1px solid rgba(201,162,39,.48);border-radius:0 0 var(--r-lg) var(--r-lg);
+  background:linear-gradient(180deg,rgba(18,18,20,.985),rgba(12,12,14,.985));
+  overflow:hidden;position:relative;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 0 0 1px rgba(201,162,39,.055),0 18px 44px rgba(0,0,0,.22);
+}
+.holder-wallet-detail-shell::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:linear-gradient(180deg,var(--gold),rgba(201,162,39,.18));
+  box-shadow:0 0 18px rgba(201,162,39,.28);pointer-events:none;
+}
+.holder-wallet-panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:18px 22px 12px}
+.holder-wallet-panel-eyebrow{font-size:9.5px;letter-spacing:1.45px;text-transform:uppercase;color:var(--gold);font-weight:700;margin-bottom:6px}
+.holder-wallet-panel-title{font-size:15px;font-weight:700;color:var(--fg-1);letter-spacing:0;line-height:1.25}
 .holder-wallet-panel-meta{margin-top:4px;font-family:var(--mono);font-size:10px;color:var(--fg-3)}
-.holder-wallet-close{
-  width:30px;height:30px;border-radius:7px;border:1px solid var(--line-2);background:var(--bg-3);color:var(--fg-3);
-  display:grid;place-items:center;cursor:pointer;transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease)
+.holder-wallet-table-wrap{
+  max-height:330px;overflow:auto;position:relative;margin:0 12px 14px 14px;border:1px solid rgba(201,162,39,.14);border-radius:8px;
+  background:rgba(0,0,0,.16);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 1px 0 rgba(255,255,255,.025);
+  scrollbar-color:rgba(201,162,39,.34) rgba(255,255,255,.055);
+  scrollbar-width:thin;
 }
-.holder-wallet-close:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
-.holder-wallet-close svg{width:13px;height:13px}
-.holder-wallet-table-wrap{border:1px solid var(--line-1);border-radius:8px;background:var(--bg-1);overflow:auto;max-height:340px}
-.holder-wallet-table{width:100%;min-width:680px;border-collapse:collapse}
+.holder-wallet-table{width:100%;min-width:700px;border-collapse:separate;border-spacing:0;font-size:12px;table-layout:fixed}
+.holder-wallet-table .holder-col-rank{width:44px}
+.holder-wallet-table .holder-col-dolo{width:126px}
+.holder-wallet-table .holder-col-chain{width:160px}
 .holder-wallet-table th{
-  height:34px;padding:0 14px;border-bottom:1px solid var(--line-1);
-  font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--fg-4);font-weight:600;text-align:left;background:rgba(255,255,255,.012)
+  position:sticky;top:0;z-index:4;padding:10px 12px;background:#101012;border-bottom:1px solid var(--line-2);
+  color:var(--fg-3);font-size:9.5px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;text-align:left;white-space:nowrap;
+  box-shadow:0 10px 18px rgba(0,0,0,.18);
 }
-.holder-wallet-table td{padding:11px 14px;border-bottom:1px solid var(--line-1);vertical-align:middle}
+.holder-wallet-table td{padding:12px;border-bottom:1px solid rgba(255,255,255,.055);font-variant-numeric:tabular-nums;color:var(--fg-2);vertical-align:middle;white-space:nowrap;position:relative;background:transparent}
 .holder-wallet-table tbody tr{cursor:pointer;transition:background .15s var(--ease)}
-.holder-wallet-table tbody tr:hover{background:rgba(201,162,39,.035)}
+.holder-wallet-table tbody tr:nth-child(even) td{background:rgba(255,255,255,.014)}
+.holder-wallet-table tbody tr:hover td{background:rgba(255,255,255,.026);color:var(--fg-1)}
+.holder-wallet-table tbody tr:hover td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0;display:block}
 .holder-wallet-table tbody tr:last-child td{border-bottom:0}
-.holder-wallet-table .rank{width:48px;font-family:var(--mono);font-size:11px;color:var(--fg-4)}
+.holder-wallet-table .rank{font-family:var(--mono);font-size:12px;color:var(--fg-4);font-weight:600;text-align:right}
 .holder-wallet-table .num{text-align:right;font-family:var(--mono)}
 .holder-wallet-table .chain-cell{font-size:10px;color:var(--fg-3);white-space:nowrap;text-align:right}
 .holder-dolo-amount{display:flex;align-items:center;justify-content:flex-end;gap:7px}
@@ -305,7 +348,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-chain-icon.ethereum{background-image:url("https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg")}
 .holder-chain-icon.berachain{background-image:url("https://icons.llamao.fi/icons/chains/rsz_berachain.jpg");background-size:126%}
 .holder-wallet-sub{margin-top:4px;font-family:var(--mono);font-size:10px;color:var(--fg-4)}
-.holder-wallet-empty{padding:22px 16px;border:1px dashed var(--line-2);border-radius:8px;color:var(--fg-3);font-size:12px;text-align:center;background:var(--bg-1)}
+.holder-wallet-empty{margin:0 12px 14px 14px;padding:18px;color:var(--fg-3);font-size:12px;border:1px dashed rgba(201,162,39,.16);border-radius:8px;background:rgba(0,0,0,.16)}
 .holder-brush-wrap{position:relative;padding:4px 24px 18px;user-select:none}
 .holder-brush-svg{
   width:100%;height:56px;display:block;border-radius:8px;border:1px solid var(--line-2);
@@ -720,9 +763,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 @media (max-width:980px){
   .hero-stats{grid-template-columns:1fr 1fr;gap:18px 0;border-top:1px solid var(--line-1)}
   .hero-stat:nth-child(3){border-left:0;padding-left:0}
-  .holder-chart-legend{grid-template-columns:1fr}
-  .holder-chart-legend-item{border-left:0;border-top:1px solid var(--line-1)}
-  .holder-chart-legend-item:first-child{border-top:0}
   .flows-grid{grid-template-columns:1fr}
   .flows-tbl{min-width:500px}
 }
@@ -732,9 +772,30 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .fresh-wallet-stats{grid-template-columns:1fr}
   .fresh-stat{border-left:0;border-top:1px solid var(--line-1);padding:13px 16px}
   .fresh-stat:first-child{border-top:0}
-  .holder-wallet-panel{padding:14px 14px 16px}
-  .holder-wallet-panel-head{align-items:flex-start}
-  .holder-wallet-table{min-width:620px}
+  .holder-wallet-panel{padding:0 10px 14px}
+  .holder-wallet-panel-head{padding:15px 16px}
+  .holder-wallet-table-wrap{max-height:420px;margin:0 10px 14px 12px;padding:12px 0}
+  .holder-wallet-table{min-width:0}
+  .holder-wallet-table thead{display:none}
+  .holder-wallet-table,
+  .holder-wallet-table tbody,
+  .holder-wallet-table tr{display:block}
+  .holder-wallet-table tr{
+    margin:0 12px 10px;padding:12px 14px;border:1px solid var(--line-1);border-radius:8px;
+    background:linear-gradient(180deg,rgba(255,255,255,.024),rgba(255,255,255,.01));
+  }
+  .holder-wallet-table tr:last-child{margin-bottom:0}
+  .holder-wallet-table td{
+    display:grid;grid-template-columns:88px minmax(0,1fr);align-items:center;gap:12px;
+    padding:5px 0!important;border-bottom:0!important;background:transparent!important;white-space:normal;text-align:right;
+  }
+  .holder-wallet-table td::before{
+    content:attr(data-label);font-size:9px;letter-spacing:1.15px;text-transform:uppercase;color:var(--fg-4);font-family:var(--sans);font-weight:700;
+    text-align:left;
+  }
+  .holder-wallet-table td > *{justify-self:end}
+  .holder-wallet-table td .addr-cell{justify-self:start;text-align:left}
+  .holder-chain-list{justify-content:flex-end}
 }
 @media (max-width:640px){
   .wrap{padding:24px 16px 48px}
@@ -746,6 +807,12 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .hero-meta{margin-left:0;width:100%}
   .holder-chart-wrap{padding:18px 16px 14px}
   .holder-chart-svg{height:280px}
+  .holder-legend-row{grid-template-columns:1fr 1fr;gap:12px;padding:13px 14px}
+  .holder-legend-main,.holder-legend-value{grid-column:1/-1}
+  .holder-legend-value{align-items:flex-start}
+  .holder-chart-legend-item .metric{text-align:left}
+  .holder-legend-stat{padding-left:0;border-left:0;border-top:1px solid var(--line-1);padding-top:10px}
+  .holder-details-btn{grid-column:1/-1;justify-self:start}
   .holder-brush-wrap{padding:4px 16px 16px}
   .holder-brush-overlay{left:16px;right:16px}
   .holder-chart-controls{width:100%;display:grid;grid-template-columns:1fr;gap:8px}
@@ -1272,7 +1339,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
       <div class="holder-brush-label" id="holderBrushLabel"></div>
     </div>
     <div class="holder-chart-legend" id="holderChartLegend"></div>
-    <div class="holder-wallet-panel" id="holderWalletPanel" aria-live="polite"></div>
   </section>
 
   <section class="card holder-chart-card allocation-chart-card" id="allocation-chart-card">
@@ -1329,7 +1395,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
       <div class="holder-brush-label" id="allocationBrushLabel"></div>
     </div>
     <div class="holder-chart-legend" id="allocationChartLegend"></div>
-    <div class="holder-wallet-panel" id="allocationWalletPanel" aria-live="polite"></div>
   </section>
 
   <section class="card holder-chart-card cex-supply-card" id="cex-supply-card">
@@ -2315,12 +2380,26 @@ function renderHolderDistributionChart(options = {}){
     const delta = bucket.total - firstTotal;
     const deltaClass = delta >= 0 ? "up" : "down";
     const lockedText = model.includeVeDolo ? ` · ${fmtNum(bucket.locked)} locked` : "";
+    const scopeText = `${model.bucketFloorLabel} tracked${lockedText}`;
     const active = bucket.key === holderDistributionActiveKey ? " is-active" : "";
+    const open = holderWalletPanelKey === bucket.key;
+    const panelId = `holder-wallet-panel-${bucket.key}`;
     return `
       <div class="holder-chart-legend-item${active}" data-key="${bucket.key}">
-        <div class="top"><span class="dot" style="background:${bucket.color};box-shadow:0 0 8px ${bucket.color}66"></span><span class="bucket">${bucket.label} DOLO</span><span class="chg ${deltaClass}">${fmtSignedHolder(delta)}</span></div>
-        <div class="metric">${fmtNum(bucket.total)} DOLO</div>
-        <div class="sub">${bucket.wallets.toLocaleString()} wallets · ${fmtPct(share)} of ${model.bucketFloorLabel}${lockedText}</div>
+        <div class="holder-legend-row">
+          <div class="holder-legend-main">
+            <div class="top"><span class="dot" style="background:${bucket.color};box-shadow:0 0 8px ${bucket.color}66"></span><span class="bucket">${bucket.label} DOLO</span></div>
+            <div class="sub">${scopeText}</div>
+          </div>
+          <div class="holder-legend-stat"><span>Wallets</span><strong>${bucket.wallets.toLocaleString()}</strong></div>
+          <div class="holder-legend-stat"><span>Share</span><strong>${fmtPct(share)}</strong></div>
+          <div class="holder-legend-value">
+            <div class="metric">${fmtNum(bucket.total)} DOLO</div>
+            <div class="holder-change-pill ${deltaClass}"><span>Change</span><b>${fmtSignedHolder(delta)}</b></div>
+          </div>
+          <button class="holder-details-btn" type="button" data-details-key="${bucket.key}" aria-expanded="${open ? "true" : "false"}" aria-controls="${panelId}" aria-label="${open ? "Hide" : "Show"} ${bucket.label} DOLO wallets"><span>${open ? "Hide" : "Details"}</span>${CHEVRON_DOWN_ICO}</button>
+        </div>
+        ${open ? holderWalletInlinePanelHtml(bucket, model) : ""}
       </div>
     `;
   }).join("");
@@ -2399,19 +2478,20 @@ function renderHolderDistributionChart(options = {}){
   legend.querySelectorAll(".holder-chart-legend-item").forEach(item => {
     item.addEventListener("mouseenter", () => paintActive(item.dataset.key));
     item.addEventListener("mouseleave", () => paintActive(holderDistributionActiveKey));
-    item.addEventListener("click", () => {
-      const key = item.dataset.key;
-      if(holderWalletPanelKey === key){
-        holderWalletPanelKey = "";
-        holderDistributionActiveKey = "";
-      } else {
-        holderWalletPanelKey = key;
-        holderDistributionActiveKey = key;
-      }
-      renderHolderDistributionChart({skipBrush:true});
-    });
   });
-  renderHolderWalletPanel(model);
+  legend.querySelectorAll(".holder-details-btn").forEach(btn => btn.addEventListener("click", event => {
+    event.stopPropagation();
+    const key = btn.dataset.detailsKey;
+    if(holderWalletPanelKey === key){
+      holderWalletPanelKey = "";
+      holderDistributionActiveKey = "";
+    } else {
+      holderWalletPanelKey = key;
+      holderDistributionActiveKey = key;
+    }
+    renderHolderDistributionChart({skipBrush:true});
+  }));
+  bindHolderWalletPanel(legend);
 }
 
 function allocationPointFromSource(point, source){
@@ -2730,11 +2810,24 @@ function renderAllocationChart(options = {}){
     const delta = value - firstValue;
     const deltaClass = delta >= 0 ? "up" : "down";
     const active = series.key === focusKey ? " is-active" : "";
+    const open = allocationWalletPanelKey === series.key;
+    const panelId = `allocation-wallet-panel-${series.key}`;
     return `
       <div class="holder-chart-legend-item${active}" data-key="${series.key}">
-        <div class="top"><span class="dot" style="background:${series.color};box-shadow:0 0 8px ${series.color}66"></span><span class="bucket">${series.label}</span><span class="chg ${deltaClass}">${fmtSignedHolder(delta)}</span></div>
-        <div class="metric">${fmtNum(value)} DOLO</div>
-        <div class="sub">${wallets.toLocaleString()} wallets · ${fmtPct(share)} of allocations</div>
+        <div class="holder-legend-row">
+          <div class="holder-legend-main">
+            <div class="top"><span class="dot" style="background:${series.color};box-shadow:0 0 8px ${series.color}66"></span><span class="bucket">${series.label}</span></div>
+            <div class="sub">Labeled allocation wallets</div>
+          </div>
+          <div class="holder-legend-stat"><span>Wallets</span><strong>${wallets.toLocaleString()}</strong></div>
+          <div class="holder-legend-stat"><span>Share</span><strong>${fmtPct(share)}</strong></div>
+          <div class="holder-legend-value">
+            <div class="metric">${fmtNum(value)} DOLO</div>
+            <div class="holder-change-pill ${deltaClass}"><span>Change</span><b>${fmtSignedHolder(delta)}</b></div>
+          </div>
+          <button class="holder-details-btn" type="button" data-details-key="${series.key}" aria-expanded="${open ? "true" : "false"}" aria-controls="${panelId}" aria-label="${open ? "Hide" : "Show"} ${series.label} wallets"><span>${open ? "Hide" : "Details"}</span>${CHEVRON_DOWN_ICO}</button>
+        </div>
+        ${open ? allocationWalletInlinePanelHtml(series, model) : ""}
       </div>
     `;
   }).join("");
@@ -2809,19 +2902,20 @@ function renderAllocationChart(options = {}){
   legend.querySelectorAll(".holder-chart-legend-item").forEach(item => {
     item.addEventListener("mouseenter", () => paintActive(item.dataset.key));
     item.addEventListener("mouseleave", () => paintActive(allocationChartActiveKey || "total"));
-    item.addEventListener("click", () => {
-      const key = item.dataset.key || "total";
-      if(allocationWalletPanelKey === key){
-        allocationWalletPanelKey = "";
-        allocationChartActiveKey = "total";
-      } else {
-        allocationWalletPanelKey = key;
-        allocationChartActiveKey = key;
-      }
-      renderAllocationChart({skipBrush:true});
-    });
   });
-  renderAllocationWalletPanel(model);
+  legend.querySelectorAll(".holder-details-btn").forEach(btn => btn.addEventListener("click", event => {
+    event.stopPropagation();
+    const key = btn.dataset.detailsKey || "total";
+    if(allocationWalletPanelKey === key){
+      allocationWalletPanelKey = "";
+      allocationChartActiveKey = "total";
+    } else {
+      allocationWalletPanelKey = key;
+      allocationChartActiveKey = key;
+    }
+    renderAllocationChart({skipBrush:true});
+  }));
+  bindHolderWalletPanel(legend);
 }
 
 function holderCexCurrentSupply(){
@@ -3195,7 +3289,7 @@ function renderCexSupplyChart(options = {}){
 
 const COPY_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
 const CHECK_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-const CLOSE_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+const CHEVRON_DOWN_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
 function escHtml(value){
   return String(value ?? "").replace(/[&<>"']/g, char => ({
     "&":"&amp;",
@@ -3302,11 +3396,7 @@ function allocationWalletRows(key, point = null){
     return {...holder, type, locked:0};
   }).filter(Boolean).sort((a,b) => b.panelTotal - a.panelTotal);
 }
-function bindHolderWalletPanel(panel, closeFn){
-  panel.querySelectorAll(".holder-wallet-close").forEach(btn => btn.addEventListener("click", event => {
-    event.stopPropagation();
-    closeFn();
-  }));
+function bindHolderWalletPanel(panel){
   panel.querySelectorAll(".addr-copy").forEach(btn => btn.addEventListener("click", async event => {
     event.stopPropagation();
     try { await navigator.clipboard.writeText(btn.dataset.copy); } catch(_) {}
@@ -3319,105 +3409,91 @@ function bindHolderWalletPanel(panel, closeFn){
     window.open(`https://debank.com/profile/${row.dataset.addr}`, "_blank", "noopener");
   }));
 }
-function renderWalletDrilldownPanel(panel, {title, meta, rows, emptyText, closeFn}){
-  if(!panel) return;
-  panel.classList.add("is-open");
-  panel.innerHTML = `
-    <div class="holder-wallet-panel-head">
-      <div>
-        <div class="holder-wallet-panel-title">${escHtml(title)}</div>
-        <div class="holder-wallet-panel-meta">${escHtml(meta)}</div>
+function walletDrilldownPanelHtml({eyebrow = "Wallets", title, meta, rows, emptyText}){
+  return `
+    <div class="holder-wallet-detail-shell">
+      <div class="holder-wallet-panel-head">
+        <div>
+          <div class="holder-wallet-panel-eyebrow">${escHtml(eyebrow)}</div>
+          <div class="holder-wallet-panel-title">${escHtml(title)}</div>
+          <div class="holder-wallet-panel-meta">${escHtml(meta)}</div>
+        </div>
       </div>
-      <button class="holder-wallet-close" type="button" aria-label="Close wallet list">${CLOSE_ICO}</button>
-    </div>
-    ${rows.length ? `
-      <div class="holder-wallet-table-wrap">
-        <table class="holder-wallet-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Address</th>
-              <th class="num">DOLO</th>
-              <th class="chain-cell">Chain</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows.map((row, index) => `
-              <tr data-addr="${escHtml(row.addr)}" data-panel-total="${escHtml(row.panelTotal)}">
-                <td class="rank">${index + 1}</td>
-                <td>${holderWalletAddressCell(row)}</td>
-                <td class="num">
-                  <div class="holder-dolo-amount">
-                    <span class="bal-val total">${fmtNum(row.panelTotal)}</span>
-                    <img class="holder-dolo-icon" src="dolo-logo.svg" alt="DOLO" onerror="this.style.display='none'">
-                  </div>
-                  ${row.locked > 0 ? `<div class="holder-wallet-sub">${fmtNum(row.locked)} veDOLO</div>` : ""}
-                </td>
-                <td class="chain-cell">${holderWalletChainHtml(row)}</td>
+      ${rows.length ? `
+        <div class="holder-wallet-table-wrap">
+          <table class="holder-wallet-table">
+            <colgroup>
+              <col class="holder-col-rank">
+              <col>
+              <col class="holder-col-dolo">
+              <col class="holder-col-chain">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Address</th>
+                <th class="num">DOLO</th>
+                <th class="chain-cell">Chain</th>
               </tr>
-            `).join("")}
-          </tbody>
-        </table>
-      </div>
-    ` : `<div class="holder-wallet-empty">${escHtml(emptyText)}</div>`}
+            </thead>
+            <tbody>
+              ${rows.map((row, index) => `
+                <tr data-addr="${escHtml(row.addr)}" data-panel-total="${escHtml(row.panelTotal)}">
+                  <td class="rank" data-label="#">${index + 1}</td>
+                  <td data-label="Address">${holderWalletAddressCell(row)}</td>
+                  <td class="num" data-label="DOLO">
+                    <div class="holder-dolo-amount">
+                      <span class="bal-val total">${fmtNum(row.panelTotal)}</span>
+                      <img class="holder-dolo-icon" src="dolo-logo.svg" alt="DOLO" onerror="this.style.display='none'">
+                    </div>
+                    ${row.locked > 0 ? `<div class="holder-wallet-sub">${fmtNum(row.locked)} veDOLO</div>` : ""}
+                  </td>
+                  <td class="chain-cell" data-label="Chain">${holderWalletChainHtml(row)}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      ` : `<div class="holder-wallet-empty">${escHtml(emptyText)}</div>`}
+    </div>
   `;
-  bindHolderWalletPanel(panel, closeFn);
-}
-function closeHolderWalletPanel(){
-  holderWalletPanelKey = "";
-  holderDistributionActiveKey = "";
-  renderHolderDistributionChart({skipBrush:true});
-}
-function closeAllocationWalletPanel(){
-  allocationWalletPanelKey = "";
-  allocationChartActiveKey = "total";
-  renderAllocationChart({skipBrush:true});
 }
 function holderPanelDateText(point){
   const ts = safeHolderNum(point?.ts);
   return ts > 0 ? fmtHolderDate(ts) : "current point";
 }
-function renderHolderWalletPanel(model = null){
-  const panel = document.getElementById("holderWalletPanel");
-  if(!panel) return;
-  const bucket = activeHolderBuckets().find(item => item.key === holderWalletPanelKey);
-  if(!bucket){
-    panel.classList.remove("is-open");
-    panel.innerHTML = "";
-    return;
-  }
+function holderWalletInlinePanelHtml(bucket, model = null){
   const point = model?.current || null;
   const rows = holderBucketWalletRows(bucket, point);
   const veDoloText = state.includeVeDolo ? " · DOLO + veDOLO" : " · DOLO balance";
-  renderWalletDrilldownPanel(panel, {
-    title:`${bucket.label} DOLO wallets`,
-    meta:`${rows.length.toLocaleString()} wallets · ${holderPanelDateText(point)}${veDoloText} · CEX/protocol/allocation excluded`,
-    rows,
-    emptyText:"No wallets in this bucket for the selected point.",
-    closeFn:closeHolderWalletPanel,
-  });
+  return `
+    <div class="holder-wallet-panel holder-wallet-panel-inline is-open" id="holder-wallet-panel-${escHtml(bucket.key)}" aria-live="polite">
+      ${walletDrilldownPanelHtml({
+        eyebrow:"Bucket wallets",
+        title:`${bucket.label} DOLO wallets`,
+        meta:`${rows.length.toLocaleString()} wallets · ${holderPanelDateText(point)}${veDoloText} · CEX/protocol/allocation excluded`,
+        rows,
+        emptyText:"No wallets in this bucket for the selected point.",
+      })}
+    </div>
+  `;
 }
-function renderAllocationWalletPanel(model = null){
-  const panel = document.getElementById("allocationWalletPanel");
-  if(!panel) return;
-  const series = ALLOCATION_CHART_SERIES.find(item => item.key === allocationWalletPanelKey);
-  if(!series){
-    panel.classList.remove("is-open");
-    panel.innerHTML = "";
-    return;
-  }
+function allocationWalletInlinePanelHtml(series, model = null){
   const point = model?.current || null;
   const rows = allocationWalletRows(series.key, point);
   const title = series.key === "team" ? "Core Team wallets" : series.key === "investors" ? "Investor wallets" : "Allocation wallets";
-  renderWalletDrilldownPanel(panel, {
-    title,
-    meta:`${rows.length.toLocaleString()} labeled wallets · ${holderPanelDateText(point)} · DOLO balance`,
-    rows,
-    emptyText:"No wallets in this allocation group for the selected point.",
-    closeFn:closeAllocationWalletPanel,
-  });
+  return `
+    <div class="holder-wallet-panel holder-wallet-panel-inline is-open" id="allocation-wallet-panel-${escHtml(series.key)}" aria-live="polite">
+      ${walletDrilldownPanelHtml({
+        eyebrow:"Allocation wallets",
+        title,
+        meta:`${rows.length.toLocaleString()} labeled wallets · ${holderPanelDateText(point)} · DOLO balance`,
+        rows,
+        emptyText:"No wallets in this allocation group for the selected point.",
+      })}
+    </div>
+  `;
 }
-
 function filterHolders({includeSearch = true} = {}){
   const q = includeSearch ? state.q.trim().toLowerCase() : "";
   return HOLDERS.filter(h=>{
