@@ -1918,13 +1918,8 @@ function getPrecomputedHolderHistory(includeVeDolo = state.includeVeDolo){
     };
   }).filter(point => point && point.ts > 0).sort((a,b)=>a.ts-b.ts);
   if(points.length < 2) return null;
-  const hasLiveVeDoloLocks = !includeVeDolo || VEDOLO_LOCKS.size > 0;
-  const now = hasLiveVeDoloLocks ? getHolderDistribution(includeVeDolo) : null;
-  holderPrecomputedVeDoloIsDaily = includeVeDolo && !hasLiveVeDoloLocks;
-  if(now && points.length && Math.abs(now.ts - points[points.length - 1].ts) > 3600){
-    points.push(now);
-  }
-  const current = points[points.length - 1] || now || getHolderDistribution(false);
+  holderPrecomputedVeDoloIsDaily = includeVeDolo && VEDOLO_LOCKS.size <= 0;
+  const current = points[points.length - 1] || getHolderDistribution(includeVeDolo);
   return {
     includeVeDolo,
     includeAllocations:false,
@@ -4337,6 +4332,7 @@ renderCexSupplyChart();
     doloAllHistoryStartTs = parseHolderTimestamp(flows.holder_history_start_timestamp || flows.all_history_start_timestamp || flows.period_start_timestamps?.all);
     liveFlowsData = flows;
     liveFlowTimestamp = flows.timestamp;
+    renderHolderDistributionChart();
     renderAllocationChart();
     renderCexSupplyChart();
   }
