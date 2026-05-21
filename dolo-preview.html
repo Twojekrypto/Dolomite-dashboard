@@ -156,6 +156,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 
 /* Holder buckets chart — TVL Over Time rhythm */
 .holder-chart-card{background:linear-gradient(180deg,rgba(20,20,23,.98),var(--bg-2))}
+.allocation-chart-card{margin-top:18px}
+.allocation-chart-card .holder-chart-area{fill:url(#allocationChartAreaGrad);opacity:.56}
+.allocation-chart-card .holder-chart-series-line{filter:drop-shadow(0 0 7px rgba(201,162,39,.16))}
 .cex-supply-card{margin-top:18px}
 .cex-supply-card .holder-chart-area{fill:url(#cexSupplyAreaGrad);opacity:.56}
 .cex-supply-card .holder-chart-series-line{filter:drop-shadow(0 0 7px rgba(180,121,107,.18))}
@@ -250,6 +253,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-chart-tip .tt-date{color:var(--fg-3);font-size:10px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px}
 .holder-chart-tip .tt-val{color:var(--gold);font-weight:600;font-size:14px}
 .holder-chart-tip .tt-row{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-top:5px;color:var(--fg-3)}
+.holder-chart-tip .tt-row.tt-sep{padding-top:7px;margin-top:7px;border-top:1px solid var(--line-1)}
 .holder-chart-tip .tt-row b{color:var(--fg-1);font-weight:600}
 .holder-chart-tip .tt-change{margin-left:7px;font-weight:700}
 .holder-chart-tip .tt-change.up{color:var(--up)}
@@ -1231,6 +1235,62 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     <div class="holder-chart-legend" id="holderChartLegend"></div>
   </section>
 
+  <section class="card holder-chart-card allocation-chart-card" id="allocation-chart-card">
+    <div class="card-head">
+      <div class="holder-title-block">
+        <div class="card-title">
+          <h2>DOLO Allocations Over Time</h2>
+          <span class="count-badge" id="allocation-chart-count">30D</span>
+        </div>
+      </div>
+      <div class="holder-chart-source" id="allocation-chart-meta" aria-label="Allocation chart data scope"></div>
+    </div>
+    <div class="holder-chart-wrap" id="allocationChartWrap">
+      <svg class="holder-chart-svg" id="allocationChartSvg" viewBox="0 0 1000 340" preserveAspectRatio="none" aria-label="DOLO allocations over time chart">
+        <defs>
+          <linearGradient id="allocationChartAreaGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#c9a227" stop-opacity=".20"/>
+            <stop offset="58%" stop-color="#c9a227" stop-opacity=".06"/>
+            <stop offset="100%" stop-color="#c9a227" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <g class="holder-chart-grid" id="allocationChartGrid"></g>
+        <path class="holder-chart-area" id="allocationChartArea" d=""></path>
+        <g class="holder-chart-lines" id="allocationChartLines"></g>
+        <g class="holder-chart-dots" id="allocationChartDots"></g>
+        <line class="holder-chart-line" id="allocationChartHoverLine" x1="0" x2="0" y1="0" y2="0"/>
+        <circle class="holder-chart-dot" id="allocationChartHoverDot" r="4" cx="0" cy="0"/>
+        <g class="holder-chart-axis" id="allocationChartAxis"></g>
+      </svg>
+      <div class="holder-chart-tip" id="allocationChartTip">
+        <div class="tt-date">—</div>
+        <div class="tt-val">—</div>
+      </div>
+    </div>
+    <div class="holder-brush-wrap" id="allocationBrushWrap">
+      <svg class="holder-brush-svg" id="allocationBrushSvg" viewBox="0 0 1000 56" preserveAspectRatio="none" aria-label="DOLO allocations time range navigator">
+        <defs>
+          <linearGradient id="allocationBrushGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#c9a227" stop-opacity=".30"/>
+            <stop offset="100%" stop-color="#c9a227" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path class="holder-brush-area" id="allocationBrushArea" fill="url(#allocationBrushGrad)" d=""></path>
+        <path class="holder-brush-line" id="allocationBrushLine" d=""></path>
+      </svg>
+      <div class="holder-brush-overlay" id="allocationBrushOverlay">
+        <div class="holder-brush-dim l" id="allocationBrushDimL"></div>
+        <div class="holder-brush-window" id="allocationBrushWindow">
+          <div class="holder-brush-handle l" id="allocationBrushHandleL"><div class="grip"><span></span><span></span></div></div>
+          <div class="holder-brush-handle r" id="allocationBrushHandleR"><div class="grip"><span></span><span></span></div></div>
+        </div>
+        <div class="holder-brush-dim r" id="allocationBrushDimR"></div>
+      </div>
+      <div class="holder-brush-label" id="allocationBrushLabel"></div>
+    </div>
+    <div class="holder-chart-legend" id="allocationChartLegend"></div>
+  </section>
+
   <section class="card holder-chart-card cex-supply-card" id="cex-supply-card">
     <div class="card-head">
       <div class="holder-title-block">
@@ -1484,6 +1544,18 @@ let holderBrushDomainKey = "";
 let holderFullHistoryModel = null;
 let holderPrecomputedVeDoloIsDaily = false;
 let holderBrushRenderFrame = 0;
+const ALLOCATION_CHART_SERIES = [
+  {key:"total", label:"Allocations", valueKey:"total", walletKey:"wallets", color:"#e4c15a"},
+  {key:"team", label:"Core Team", valueKey:"team", walletKey:"teamWallets", color:"#9ab7c2"},
+  {key:"investors", label:"Investors", valueKey:"investors", walletKey:"investorWallets", color:"#8aa37b"},
+];
+let allocationChartActiveKey = "total";
+let allocationBrushSel = {from:0, to:0};
+let allocationBrushInitialized = false;
+let allocationBrushDragging = null;
+let allocationBrushDomainKey = "";
+let allocationFullModel = null;
+let allocationBrushRenderFrame = 0;
 let cexSupplyBrushSel = {from:0, to:0};
 let cexSupplyBrushInitialized = false;
 let cexSupplyBrushDragging = null;
@@ -1570,7 +1642,7 @@ function holderCexFlow(period = "7d"){
   return {inflow, outflow, net, inflowWallets, outflowWallets};
 }
 function holderScopeHtml(){
-  const tip = "Chart excludes CEX wallets, protocol/contract/LP addresses and other labeled non-market addresses. When veDOLO is enabled, locked DOLO on excluded protocol/contract/LP addresses is also excluded.";
+  const tip = "Chart lines show market holders and exclude CEX wallets, protocol/contract/LP addresses and allocation wallets. Core Team and Investor allocations are shown in the separate allocations chart below.";
   return `<span class="holder-source-scope">Market holders</span><span class="holder-source-help" data-tooltip="${tip}" aria-label="Holder scope details">?</span>`;
 }
 function holderCexStatHtml(){
@@ -1643,7 +1715,7 @@ function lockedMapAtHolderPoint(point, baseTs){
   });
   return lockedByAddress;
 }
-function getHolderDistributionAtPoint(point, baseTs, includeVeDolo = state.includeVeDolo){
+function getHolderDistributionAtPoint(point, baseTs, includeVeDolo = state.includeVeDolo, includeAllocations = false){
   const byAddress = new Map();
   const pointTs = holderPointTimestamp(point, baseTs);
   HOLDERS.forEach(holder => {
@@ -1667,9 +1739,24 @@ function getHolderDistributionAtPoint(point, baseTs, includeVeDolo = state.inclu
   }
 
   const bucketDefs = activeHolderBuckets();
-  const buckets = bucketDefs.map(bucket => ({...bucket, wallets:0, total:0, liquid:0, locked:0}));
+  const buckets = bucketDefs.map(bucket => ({
+    ...bucket,
+    wallets:0,
+    total:0,
+    liquid:0,
+    locked:0,
+    allocationWallets:0,
+    allocationTotal:0,
+    allocationLiquid:0,
+    allocationLocked:0,
+    teamWallets:0,
+    teamTotal:0,
+    investorWallets:0,
+    investorTotal:0,
+  }));
   const model = {
     includeVeDolo,
+    includeAllocations,
     bucketView: holderBucketView,
     bucketFloorLabel: holderBucketFloorLabel(),
     buckets,
@@ -1681,6 +1768,14 @@ function getHolderDistributionAtPoint(point, baseTs, includeVeDolo = state.inclu
     excludedCexTotal:0,
     excludedInsiderWallets:0,
     excludedInsiderTotal:0,
+    allocationWallets:0,
+    allocationTotal:0,
+    allocationLiquid:0,
+    allocationLocked:0,
+    teamWallets:0,
+    teamTotal:0,
+    investorWallets:0,
+    investorTotal:0,
     veWallets: VEDOLO_LOCKS.size,
     veLockedTotal: [...VEDOLO_LOCKS.values()].reduce((sum, v) => sum + safeHolderNum(v), 0),
   };
@@ -1695,7 +1790,21 @@ function getHolderDistributionAtPoint(point, baseTs, includeVeDolo = state.inclu
       model.excludedCexTotal += total;
       return;
     }
-    if(holder.type === "team" || holder.type === "investor"){
+    const isAllocation = holder.type === "team" || holder.type === "investor";
+    if(isAllocation){
+      model.allocationWallets += 1;
+      model.allocationTotal += total;
+      model.allocationLiquid += liquid;
+      model.allocationLocked += locked;
+      if(holder.type === "team"){
+        model.teamWallets += 1;
+        model.teamTotal += total;
+      } else {
+        model.investorWallets += 1;
+        model.investorTotal += total;
+      }
+    }
+    if(isAllocation && !includeAllocations){
       model.excludedInsiderWallets += 1;
       model.excludedInsiderTotal += total;
       return;
@@ -1706,6 +1815,19 @@ function getHolderDistributionAtPoint(point, baseTs, includeVeDolo = state.inclu
     bucket.total += total;
     bucket.liquid += liquid;
     bucket.locked += locked;
+    if(isAllocation){
+      bucket.allocationWallets += 1;
+      bucket.allocationTotal += total;
+      bucket.allocationLiquid += liquid;
+      bucket.allocationLocked += locked;
+      if(holder.type === "team"){
+        bucket.teamWallets += 1;
+        bucket.teamTotal += total;
+      } else {
+        bucket.investorWallets += 1;
+        bucket.investorTotal += total;
+      }
+    }
     model.trackedWallets += 1;
     model.trackedTotal += total;
     model.trackedLiquid += liquid;
@@ -1717,7 +1839,7 @@ function getHolderDistributionAtPoint(point, baseTs, includeVeDolo = state.inclu
   return model;
 }
 function getHolderDistribution(includeVeDolo = state.includeVeDolo){
-  return getHolderDistributionAtPoint({key:"now", label:"Now", days:0}, holderHistoryBaseTs(), includeVeDolo);
+  return getHolderDistributionAtPoint({key:"now", label:"Now", days:0}, holderHistoryBaseTs(), includeVeDolo, false);
 }
 function holderPrecomputedSource(point, sourceKey){
   const root = point?.[sourceKey];
@@ -1756,6 +1878,14 @@ function getPrecomputedHolderHistory(includeVeDolo = state.includeVeDolo){
         total:safeHolderNum(item.total),
         liquid:safeHolderNum(item.liquid),
         locked:safeHolderNum(item.locked),
+        allocationWallets:safeHolderNum(item.allocationWallets),
+        allocationTotal:safeHolderNum(item.allocationTotal),
+        allocationLiquid:safeHolderNum(item.allocationLiquid),
+        allocationLocked:safeHolderNum(item.allocationLocked),
+        teamWallets:safeHolderNum(item.teamWallets),
+        teamTotal:safeHolderNum(item.teamTotal),
+        investorWallets:safeHolderNum(item.investorWallets),
+        investorTotal:safeHolderNum(item.investorTotal),
       };
     });
     return {
@@ -1763,6 +1893,7 @@ function getPrecomputedHolderHistory(includeVeDolo = state.includeVeDolo){
       label:point.key,
       ts,
       includeVeDolo,
+      includeAllocations:false,
       bucketView:holderBucketView,
       bucketFloorLabel:holderBucketFloorLabel(),
       buckets,
@@ -1774,10 +1905,19 @@ function getPrecomputedHolderHistory(includeVeDolo = state.includeVeDolo){
       excludedCexTotal:safeHolderNum(source.excludedCexTotal),
       excludedInsiderWallets:safeHolderNum(source.excludedInsiderWallets),
       excludedInsiderTotal:safeHolderNum(source.excludedInsiderTotal),
+      allocationWallets:safeHolderNum(source.allocationWallets),
+      allocationTotal:safeHolderNum(source.allocationTotal),
+      allocationLiquid:safeHolderNum(source.allocationLiquid),
+      allocationLocked:safeHolderNum(source.allocationLocked),
+      teamWallets:safeHolderNum(source.teamWallets),
+      teamTotal:safeHolderNum(source.teamTotal),
+      investorWallets:safeHolderNum(source.investorWallets),
+      investorTotal:safeHolderNum(source.investorTotal),
       veWallets:VEDOLO_LOCKS.size,
       veLockedTotal:[...VEDOLO_LOCKS.values()].reduce((sum, v) => sum + safeHolderNum(v), 0),
     };
   }).filter(point => point && point.ts > 0).sort((a,b)=>a.ts-b.ts);
+  if(points.length < 2) return null;
   const hasLiveVeDoloLocks = !includeVeDolo || VEDOLO_LOCKS.size > 0;
   const now = hasLiveVeDoloLocks ? getHolderDistribution(includeVeDolo) : null;
   holderPrecomputedVeDoloIsDaily = includeVeDolo && !hasLiveVeDoloLocks;
@@ -1787,6 +1927,7 @@ function getPrecomputedHolderHistory(includeVeDolo = state.includeVeDolo){
   const current = points[points.length - 1] || now || getHolderDistribution(false);
   return {
     includeVeDolo,
+    includeAllocations:false,
     bucketView:holderBucketView,
     bucketFloorLabel:holderBucketFloorLabel(),
     points,
@@ -1800,6 +1941,14 @@ function getPrecomputedHolderHistory(includeVeDolo = state.includeVeDolo){
     excludedCexTotal:current.excludedCexTotal,
     excludedInsiderWallets:current.excludedInsiderWallets,
     excludedInsiderTotal:current.excludedInsiderTotal,
+    allocationWallets:current.allocationWallets,
+    allocationTotal:current.allocationTotal,
+    allocationLiquid:current.allocationLiquid,
+    allocationLocked:current.allocationLocked,
+    teamWallets:current.teamWallets,
+    teamTotal:current.teamTotal,
+    investorWallets:current.investorWallets,
+    investorTotal:current.investorTotal,
     veWallets:VEDOLO_LOCKS.size,
     veLockedTotal:[...VEDOLO_LOCKS.values()].reduce((sum, v) => sum + safeHolderNum(v), 0),
   };
@@ -1809,11 +1958,12 @@ function getHolderHistory(includeVeDolo = state.includeVeDolo){
   if(precomputed) return precomputed;
   const baseTs = holderHistoryBaseTs();
   const points = holderHistoryPointList(baseTs)
-    .map(point => getHolderDistributionAtPoint(point, baseTs, includeVeDolo))
+    .map(point => getHolderDistributionAtPoint(point, baseTs, includeVeDolo, false))
     .sort((a,b)=>a.ts-b.ts);
   const current = points[points.length - 1] || getHolderDistribution(includeVeDolo);
   return {
     includeVeDolo,
+    includeAllocations: false,
     bucketView: holderBucketView,
     bucketFloorLabel: holderBucketFloorLabel(),
     points,
@@ -1827,6 +1977,14 @@ function getHolderHistory(includeVeDolo = state.includeVeDolo){
     excludedCexTotal: current.excludedCexTotal,
     excludedInsiderWallets: current.excludedInsiderWallets,
     excludedInsiderTotal: current.excludedInsiderTotal,
+    allocationWallets: current.allocationWallets,
+    allocationTotal: current.allocationTotal,
+    allocationLiquid: current.allocationLiquid,
+    allocationLocked: current.allocationLocked,
+    teamWallets: current.teamWallets,
+    teamTotal: current.teamTotal,
+    investorWallets: current.investorWallets,
+    investorTotal: current.investorTotal,
     veWallets: VEDOLO_LOCKS.size,
     veLockedTotal: [...VEDOLO_LOCKS.values()].reduce((sum, v) => sum + safeHolderNum(v), 0),
   };
@@ -2188,6 +2346,402 @@ function renderHolderDistributionChart(options = {}){
     item.addEventListener("click", () => {
       holderDistributionActiveKey = holderDistributionActiveKey === item.dataset.key ? "" : item.dataset.key;
       renderHolderDistributionChart();
+    });
+  });
+}
+
+function allocationPointFromSource(point, source){
+  return {
+    key:point.key || String(point.timestamp || ""),
+    label:point.key || "Daily",
+    ts:parseHolderTimestamp(point.timestamp) || safeHolderNum(point.ts),
+    total:safeHolderNum(source?.allocationTotal),
+    team:safeHolderNum(source?.teamTotal),
+    investors:safeHolderNum(source?.investorTotal),
+    wallets:safeHolderNum(source?.allocationWallets),
+    teamWallets:safeHolderNum(source?.teamWallets),
+    investorWallets:safeHolderNum(source?.investorWallets),
+  };
+}
+function buildAllocationSeries(){
+  const dailyPoints = (DOLO_HOLDER_BUCKET_HISTORY || [])
+    .map(point => allocationPointFromSource(point, point?.liquid?.whales || point?.liquid?.smaller || {}))
+    .filter(point => point.ts > 0 && (point.total > 0 || point.team > 0 || point.investors > 0))
+    .sort((a,b) => a.ts - b.ts);
+  const nowModel = getHolderDistribution(false);
+  const now = {
+    key:"now",
+    label:"Now",
+    ts:holderHistoryBaseTs(),
+    total:safeHolderNum(nowModel.allocationTotal),
+    team:safeHolderNum(nowModel.teamTotal),
+    investors:safeHolderNum(nowModel.investorTotal),
+    wallets:safeHolderNum(nowModel.allocationWallets),
+    teamWallets:safeHolderNum(nowModel.teamWallets),
+    investorWallets:safeHolderNum(nowModel.investorWallets),
+  };
+  if(now.total > 0 && (!dailyPoints.length || Math.abs(now.ts - dailyPoints[dailyPoints.length - 1].ts) > 3600)){
+    dailyPoints.push(now);
+  }
+  const current = dailyPoints[dailyPoints.length - 1] || now;
+  return {
+    points:dailyPoints,
+    current,
+    sourceLabel:`${dailyPoints.length || 0} daily points`,
+  };
+}
+function ensureAllocationBrushSelection(fullModel){
+  const points = fullModel.points || [];
+  const minX = points[0]?.ts || 0;
+  const maxX = points[points.length - 1]?.ts || (minX + 1);
+  const domainKey = `${minX}:${maxX}:${points.length}`;
+  if(allocationBrushDomainKey !== domainKey || !(allocationBrushSel.from >= minX && allocationBrushSel.to <= maxX && allocationBrushSel.from < allocationBrushSel.to)){
+    const span = Math.max(1, maxX - minX);
+    const defaultSpan = Math.min(span, HOLDER_DEFAULT_WINDOW_DAYS * 86400);
+    allocationBrushSel = {from:maxX - defaultSpan, to:maxX};
+    allocationBrushDomainKey = domainKey;
+  }
+}
+function allocationBrushDomain(){
+  const points = allocationFullModel?.points || [];
+  const minX = points[0]?.ts || 0;
+  const maxX = points[points.length - 1]?.ts || (minX + 1);
+  return {points, minX, maxX, span:Math.max(1, maxX - minX)};
+}
+function visibleAllocationHistory(fullModel){
+  ensureAllocationBrushSelection(fullModel);
+  const points = fullModel.points || [];
+  let visible = points.filter(point => point.ts >= allocationBrushSel.from && point.ts <= allocationBrushSel.to);
+  if(visible.length < 2 && points.length >= 2){
+    const center = (allocationBrushSel.from + allocationBrushSel.to) / 2;
+    visible = [...points]
+      .sort((a,b)=>Math.abs(a.ts - center) - Math.abs(b.ts - center))
+      .slice(0, 2)
+      .sort((a,b)=>a.ts-b.ts);
+  }
+  const current = visible[visible.length - 1] || fullModel.current;
+  return {...fullModel, points:visible.length ? visible : points, current};
+}
+function allocationSelectedChange(fullModel = allocationFullModel){
+  if(!fullModel || !Array.isArray(fullModel.points)) return null;
+  const model = visibleAllocationHistory(fullModel);
+  const points = model.points || [];
+  if(points.length < 2) return null;
+  const first = points[0];
+  const last = points[points.length - 1];
+  const start = safeHolderNum(first.total);
+  const end = safeHolderNum(last.total);
+  if(start <= 0) return null;
+  const delta = end - start;
+  return {delta, pct:delta / start * 100, first, last};
+}
+function paintAllocationBrushWindow(){
+  const {minX, span} = allocationBrushDomain();
+  const win = document.getElementById("allocationBrushWindow");
+  const dimL = document.getElementById("allocationBrushDimL");
+  const dimR = document.getElementById("allocationBrushDimR");
+  const label = document.getElementById("allocationBrushLabel");
+  if(!win || !dimL || !dimR || !label) return;
+  const leftPct = Math.max(0, Math.min(100, (allocationBrushSel.from - minX) / span * 100));
+  const rightPct = Math.max(leftPct, Math.min(100, (allocationBrushSel.to - minX) / span * 100));
+  win.style.left = leftPct + "%";
+  win.style.width = (rightPct - leftPct) + "%";
+  dimL.style.width = leftPct + "%";
+  dimR.style.width = (100 - rightPct) + "%";
+  const change = allocationSelectedChange();
+  const changeHtml = change
+    ? `<span class="chg ${change.delta >= 0 ? "up" : "down"}">${fmtSignedHolderPct(change.pct)}</span><span class="amt ${change.delta >= 0 ? "up" : "down"}">(${fmtSignedHolder(change.delta)} DOLO)</span>`
+    : "";
+  label.innerHTML = `<span class="v">${fmtHolderBrushDate(allocationBrushSel.from)}</span><span class="sep">→</span><span class="v">${fmtHolderBrushDate(allocationBrushSel.to)}</span>${changeHtml}`;
+}
+function scheduleAllocationChartRender(){
+  if(allocationBrushRenderFrame) return;
+  const run = () => {
+    allocationBrushRenderFrame = 0;
+    renderAllocationChart({skipBrush:true});
+  };
+  if(typeof requestAnimationFrame === "function"){
+    allocationBrushRenderFrame = requestAnimationFrame(run);
+  } else {
+    allocationBrushRenderFrame = setTimeout(run, 16);
+  }
+}
+function flushAllocationChartRender(){
+  if(allocationBrushRenderFrame){
+    if(typeof cancelAnimationFrame === "function") cancelAnimationFrame(allocationBrushRenderFrame);
+    else clearTimeout(allocationBrushRenderFrame);
+    allocationBrushRenderFrame = 0;
+  }
+  renderAllocationChart({skipBrush:true});
+}
+function renderAllocationBrush(fullModel){
+  allocationFullModel = fullModel;
+  ensureAllocationBrushSelection(fullModel);
+  const brushLine = document.getElementById("allocationBrushLine");
+  const brushArea = document.getElementById("allocationBrushArea");
+  if(!brushLine || !brushArea) return;
+  const points = fullModel.points || [];
+  if(points.length < 2){
+    brushLine.setAttribute("d", "");
+    brushArea.setAttribute("d", "");
+    paintAllocationBrushWindow();
+    return;
+  }
+  const minX = points[0].ts;
+  const maxX = points[points.length - 1].ts;
+  const span = Math.max(1, maxX - minX);
+  const maxY = Math.max(1, ...points.map(point => point.total));
+  const BW = 1000, BH = 56;
+  const xAt = ts => (ts - minX) / span * BW;
+  const yAt = value => BH - Math.max(0, Math.min(1, value / (maxY * 1.05))) * BH;
+  const line = points.map((point, index) => `${index ? "L" : "M"}${xAt(point.ts).toFixed(1)} ${yAt(point.total).toFixed(1)}`).join(" ");
+  const area = `${line} L${xAt(points[points.length - 1].ts).toFixed(1)} ${BH} L${xAt(points[0].ts).toFixed(1)} ${BH} Z`;
+  brushLine.setAttribute("d", line);
+  brushArea.setAttribute("d", area);
+  paintAllocationBrushWindow();
+  initAllocationBrush();
+}
+function initAllocationBrush(){
+  if(allocationBrushInitialized) return;
+  const svg = document.getElementById("allocationBrushSvg");
+  const overlay = document.getElementById("allocationBrushOverlay");
+  const win = document.getElementById("allocationBrushWindow");
+  const handleL = document.getElementById("allocationBrushHandleL");
+  const handleR = document.getElementById("allocationBrushHandleR");
+  if(!svg || !overlay || !win || !handleL || !handleR) return;
+  allocationBrushInitialized = true;
+  const onDown = kind => event => {
+    event.preventDefault();
+    event.stopPropagation();
+    allocationBrushDragging = {kind, startX:event.clientX, startFrom:allocationBrushSel.from, startTo:allocationBrushSel.to};
+    win.classList.add("dragging");
+    document.body.style.userSelect = "none";
+  };
+  const pxToTime = px => {
+    const {minX, span} = allocationBrushDomain();
+    const width = Math.max(1, overlay.clientWidth);
+    return minX + Math.max(0, Math.min(1, px / width)) * span;
+  };
+  win.addEventListener("mousedown", onDown("window"));
+  handleL.addEventListener("mousedown", onDown("left"));
+  handleR.addEventListener("mousedown", onDown("right"));
+  document.addEventListener("mousemove", event => {
+    if(!allocationBrushDragging) return;
+    const {minX, maxX, span} = allocationBrushDomain();
+    const width = Math.max(1, overlay.clientWidth);
+    const delta = (event.clientX - allocationBrushDragging.startX) / width * span;
+    const minWindow = Math.max(86400, span * 0.01);
+    if(allocationBrushDragging.kind === "window"){
+      const windowSpan = allocationBrushDragging.startTo - allocationBrushDragging.startFrom;
+      let from = allocationBrushDragging.startFrom + delta;
+      let to = allocationBrushDragging.startTo + delta;
+      if(from < minX){ from = minX; to = from + windowSpan; }
+      if(to > maxX){ to = maxX; from = to - windowSpan; }
+      allocationBrushSel = {from, to};
+    } else if(allocationBrushDragging.kind === "left"){
+      allocationBrushSel.from = Math.min(allocationBrushDragging.startTo - minWindow, Math.max(minX, allocationBrushDragging.startFrom + delta));
+    } else if(allocationBrushDragging.kind === "right"){
+      allocationBrushSel.to = Math.max(allocationBrushDragging.startFrom + minWindow, Math.min(maxX, allocationBrushDragging.startTo + delta));
+    }
+    paintAllocationBrushWindow();
+    scheduleAllocationChartRender();
+  });
+  document.addEventListener("mouseup", () => {
+    if(!allocationBrushDragging) return;
+    allocationBrushDragging = null;
+    win.classList.remove("dragging");
+    document.body.style.userSelect = "";
+    flushAllocationChartRender();
+  });
+  svg.addEventListener("click", event => {
+    if(allocationBrushDragging) return;
+    const {minX, maxX} = allocationBrushDomain();
+    const rect = overlay.getBoundingClientRect();
+    const center = pxToTime(event.clientX - rect.left);
+    const span = allocationBrushSel.to - allocationBrushSel.from;
+    let from = center - span / 2;
+    let to = center + span / 2;
+    if(from < minX){ from = minX; to = from + span; }
+    if(to > maxX){ to = maxX; from = to - span; }
+    allocationBrushSel = {from, to};
+    paintAllocationBrushWindow();
+    renderAllocationChart({skipBrush:true});
+  });
+}
+function renderAllocationChart(options = {}){
+  const svg = document.getElementById("allocationChartSvg");
+  const areaPath = document.getElementById("allocationChartArea");
+  const lines = document.getElementById("allocationChartLines");
+  const dots = document.getElementById("allocationChartDots");
+  const grid = document.getElementById("allocationChartGrid");
+  const axis = document.getElementById("allocationChartAxis");
+  const legend = document.getElementById("allocationChartLegend");
+  if(!svg || !areaPath || !lines || !dots || !grid || !axis || !legend) return;
+
+  const fullModel = buildAllocationSeries();
+  if(options.skipBrush){
+    allocationFullModel = fullModel;
+    ensureAllocationBrushSelection(fullModel);
+  } else {
+    renderAllocationBrush(fullModel);
+  }
+  const model = visibleAllocationHistory(fullModel);
+  window.__doloAllocationChart = {...fullModel, visiblePoints:model.points, brush:{...allocationBrushSel}};
+
+  const W = 1000, H = 340, P_L = 74, P_R = 30, P_T = 24, P_B = 42;
+  const chartW = W - P_L - P_R;
+  const chartH = H - P_T - P_B;
+  const zeroY = P_T + chartH;
+  const maxTotal = Math.max(1, ...model.points.flatMap(point => ALLOCATION_CHART_SERIES.map(series => point[series.valueKey] || 0)));
+  const yMax = niceHolderChartMax(maxTotal * 1.12);
+  const yAt = value => P_T + (1 - Math.max(0, Math.min(1, value / yMax))) * chartH;
+  const xMin = model.points[0]?.ts || 0;
+  const xMax = model.points[model.points.length - 1]?.ts || (xMin + 1);
+  const xRange = Math.max(1, xMax - xMin);
+  const xAt = ts => P_L + (ts - xMin) / xRange * chartW;
+  const spanDays = xRange / 86400;
+
+  grid.innerHTML = "";
+  lines.innerHTML = "";
+  dots.innerHTML = "";
+  axis.innerHTML = "";
+  for(let i=0; i<=4; i++){
+    const value = yMax * i / 4;
+    const y = yAt(value);
+    grid.innerHTML += `<line x1="${P_L}" x2="${W-P_R}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}"/>`;
+    grid.innerHTML += `<text x="${P_L-12}" y="${(y+3).toFixed(1)}" text-anchor="end">${fmtNum(value)}</text>`;
+  }
+  grid.innerHTML += `<line x1="${P_L}" x2="${W-P_R}" y1="${zeroY}" y2="${zeroY}" style="stroke:var(--line-2)"/>`;
+  const focusKey = allocationChartActiveKey || "total";
+  const focusSeries = ALLOCATION_CHART_SERIES.find(series => series.key === focusKey) || ALLOCATION_CHART_SERIES[0];
+  if(model.points.length < 2){
+    areaPath.setAttribute("d", "");
+  } else {
+    const areaSeries = model.points.map(point => [point.ts, point[focusSeries.valueKey] || 0]);
+    const areaLine = areaSeries.map((point, index) => `${index ? "L" : "M"}${xAt(point[0]).toFixed(2)} ${yAt(point[1]).toFixed(2)}`).join(" ");
+    const area = `${areaLine} L${xAt(areaSeries[areaSeries.length - 1][0]).toFixed(2)} ${zeroY.toFixed(2)} L${xAt(areaSeries[0][0]).toFixed(2)} ${zeroY.toFixed(2)} Z`;
+    areaPath.setAttribute("d", area);
+  }
+  for(let i=0; i<=5; i++){
+    const ts = xMin + xRange * i / 5;
+    const x = xAt(ts);
+    const anchor = i === 0 ? "start" : i === 5 ? "end" : "middle";
+    axis.innerHTML += `<text x="${x.toFixed(1)}" y="${H-10}" text-anchor="${anchor}">${fmtHolderAxisDate(ts, spanDays)}</text>`;
+  }
+  ALLOCATION_CHART_SERIES.forEach(series => {
+    const values = model.points.map(point => [point.ts, point[series.valueKey] || 0]);
+    const path = values.map((point, index) => `${index ? "L" : "M"}${xAt(point[0]).toFixed(2)} ${yAt(point[1]).toFixed(2)}`).join(" ");
+    const active = series.key === focusKey ? " is-active" : "";
+    const muted = focusKey && series.key !== focusKey ? " is-muted" : "";
+    lines.innerHTML += `<path class="holder-chart-series-line${active}${muted}" data-key="${series.key}" d="${path}" stroke="${series.color}"/>`;
+    values.forEach(point => {
+      dots.innerHTML += `<circle class="holder-chart-series-dot" data-key="${series.key}" r="3" cx="${xAt(point[0]).toFixed(2)}" cy="${yAt(point[1]).toFixed(2)}" fill="${series.color}"/>`;
+    });
+  });
+
+  const countEl = document.getElementById("allocation-chart-count");
+  if(countEl){
+    const {minX, maxX} = allocationBrushDomain();
+    countEl.textContent = model.points.length > 1 ? holderWindowLabel(allocationBrushSel.from, allocationBrushSel.to, minX, maxX) : "Loading";
+  }
+  const metaEl = document.getElementById("allocation-chart-meta");
+  if(metaEl){
+    const tip = "Shows labeled Core Team and Investor allocation wallets. CEX wallets, protocol/contract/LP addresses and market holders are not included.";
+    metaEl.innerHTML = `<span class="holder-source-scope">Core Team + Investors</span><span class="holder-source-help" data-tooltip="${tip}" aria-label="Allocation chart details">?</span>`;
+  }
+  const firstPoint = model.points[0] || model.current;
+  const current = model.current || model.points[model.points.length - 1] || {};
+  const total = Math.max(1, safeHolderNum(current.total));
+  legend.innerHTML = ALLOCATION_CHART_SERIES.map(series => {
+    const value = safeHolderNum(current[series.valueKey]);
+    const firstValue = safeHolderNum(firstPoint?.[series.valueKey]);
+    const wallets = safeHolderNum(current[series.walletKey]);
+    const share = series.key === "total" ? 100 : value / total * 100;
+    const delta = value - firstValue;
+    const deltaClass = delta >= 0 ? "up" : "down";
+    const active = series.key === focusKey ? " is-active" : "";
+    return `
+      <div class="holder-chart-legend-item${active}" data-key="${series.key}">
+        <div class="top"><span class="dot" style="background:${series.color};box-shadow:0 0 8px ${series.color}66"></span><span class="bucket">${series.label}</span><span class="chg ${deltaClass}">${fmtSignedHolder(delta)}</span></div>
+        <div class="metric">${fmtNum(value)} DOLO</div>
+        <div class="sub">${wallets.toLocaleString()} wallets · ${fmtPct(share)} of allocations</div>
+      </div>
+    `;
+  }).join("");
+
+  const hoverLine = document.getElementById("allocationChartHoverLine");
+  const hoverDot = document.getElementById("allocationChartHoverDot");
+  const tip = document.getElementById("allocationChartTip");
+  const wrap = document.getElementById("allocationChartWrap");
+  hoverLine.setAttribute("y1", P_T);
+  hoverLine.setAttribute("y2", zeroY);
+  const paintActive = key => {
+    svg.querySelectorAll(".holder-chart-series-line").forEach(lineEl => {
+      lineEl.classList.toggle("is-active", lineEl.dataset.key === key);
+      lineEl.classList.toggle("is-muted", !!key && lineEl.dataset.key !== key);
+    });
+    legend.querySelectorAll(".holder-chart-legend-item").forEach(item => {
+      item.classList.toggle("is-active", item.dataset.key === key);
+    });
+  };
+  const leave = () => {
+    hoverLine.style.opacity = 0;
+    hoverDot.style.opacity = 0;
+    tip.style.opacity = 0;
+    paintActive(allocationChartActiveKey || "total");
+  };
+  svg.onmousemove = event => {
+    if(model.points.length < 2) return;
+    const rect = svg.getBoundingClientRect();
+    const px = (event.clientX - rect.left) / rect.width * W;
+    if(px < P_L || px > W - P_R){ leave(); return; }
+    let nearest = model.points[0], best = Infinity;
+    model.points.forEach(point => {
+      const dist = Math.abs(xAt(point.ts) - px);
+      if(dist < best){ best = dist; nearest = point; }
+    });
+    const focus = ALLOCATION_CHART_SERIES.find(series => series.key === (allocationChartActiveKey || "total")) || ALLOCATION_CHART_SERIES[0];
+    const x = xAt(nearest.ts);
+    const y = yAt(nearest[focus.valueKey] || 0);
+    paintActive(focus.key);
+    hoverLine.setAttribute("x1", x);
+    hoverLine.setAttribute("x2", x);
+    hoverLine.style.opacity = 1;
+    hoverDot.setAttribute("cx", x);
+    hoverDot.setAttribute("cy", y);
+    hoverDot.setAttribute("fill", focus.color);
+    hoverDot.style.opacity = 1;
+    tip.innerHTML = `
+      <div class="tt-date">${fmtHolderDate(nearest.ts)}</div>
+      <div class="tt-val">${fmtNum(nearest.total)} DOLO allocations</div>
+      ${ALLOCATION_CHART_SERIES.map(series => {
+        const value = safeHolderNum(nearest[series.valueKey]);
+        const startValue = safeHolderNum(firstPoint?.[series.valueKey]);
+        const delta = value - startValue;
+        const deltaClass = delta >= 0 ? "up" : "down";
+        return `
+          <div class="tt-row"><span><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${series.color};margin-right:6px"></i>${series.label}</span><b>${fmtNum(value)} DOLO <span class="tt-change ${deltaClass}">${holderBucketDeltaLabel(delta, startValue)}</span></b></div>
+        `;
+      }).join("")}
+    `;
+    tip.style.opacity = 1;
+    tip.style.left = "0px";
+    tip.style.top = "0px";
+    const wrapRect = wrap.getBoundingClientRect();
+    const screenX = rect.left - wrapRect.left + (x / W) * rect.width;
+    const screenY = rect.top - wrapRect.top + (y / H) * rect.height;
+    const tipW = tip.offsetWidth;
+    const tipH = tip.offsetHeight;
+    tip.style.left = Math.min(Math.max(screenX - tipW / 2, 8), wrap.clientWidth - tipW - 8) + "px";
+    tip.style.top = Math.max(screenY - tipH - 12, 4) + "px";
+  };
+  svg.onmouseleave = leave;
+  legend.querySelectorAll(".holder-chart-legend-item").forEach(item => {
+    item.addEventListener("mouseenter", () => paintActive(item.dataset.key));
+    item.addEventListener("mouseleave", () => paintActive(allocationChartActiveKey || "total"));
+    item.addEventListener("click", () => {
+      allocationChartActiveKey = item.dataset.key || "total";
+      renderAllocationChart();
     });
   });
 }
@@ -2732,6 +3286,7 @@ function renderHolders(){
     window.open(`https://etherscan.io/address/${tr.dataset.addr}`, "_blank", "noopener");
   }));
   renderHolderDistributionChart();
+  renderAllocationChart();
 }
 
 function effectiveChg(r){
@@ -3554,6 +4109,7 @@ document.getElementById("now").textContent = new Date().toLocaleString();
 renderHolders();
 renderFlows();
 renderFreshWallets();
+renderAllocationChart();
 renderCexSupplyChart();
 
 // Live integration layer. The visual prototype above ships with sample rows so
@@ -3737,16 +4293,18 @@ renderCexSupplyChart();
     state.page = 0;
     renderHolders();
     renderFreshWallets();
+    renderAllocationChart();
     renderCexSupplyChart();
     syncLiveMeta(data.timestamp);
   }
   function applyVeDoloHolders(data){
     VEDOLO_LOCKS = new Map();
     if(!data || !Array.isArray(data.holders)){
-      vedoloHolderStats = null;
-      vedoloDataTimestamp = null;
-      renderHolderDistributionChart();
-      return;
+    vedoloHolderStats = null;
+    vedoloDataTimestamp = null;
+    renderHolderDistributionChart();
+    renderAllocationChart();
+    return;
     }
     vedoloHolderStats = data.stats || null;
     vedoloDataTimestamp = data.timestamp || null;
@@ -3756,6 +4314,7 @@ renderCexSupplyChart();
       VEDOLO_LOCKS.set(key, safeNum(holder.total_dolo));
     });
     renderHolderDistributionChart();
+    renderAllocationChart();
     renderCexSupplyChart();
   }
   function applyVeDoloFlows(data){
@@ -3764,6 +4323,7 @@ renderCexSupplyChart();
       unlocks: Array.isArray(data?.unlocks) ? data.unlocks : [],
     };
     renderHolderDistributionChart();
+    renderAllocationChart();
     renderCexSupplyChart();
   }
   function applyDoloFlows(flows){
@@ -3777,6 +4337,7 @@ renderCexSupplyChart();
     doloAllHistoryStartTs = parseHolderTimestamp(flows.holder_history_start_timestamp || flows.all_history_start_timestamp || flows.period_start_timestamps?.all);
     liveFlowsData = flows;
     liveFlowTimestamp = flows.timestamp;
+    renderAllocationChart();
     renderCexSupplyChart();
   }
   function flowRowsForPeriod(){
@@ -3873,6 +4434,7 @@ renderCexSupplyChart();
           renderFlows();
           renderFreshWallets();
           renderHolderDistributionChart();
+          renderAllocationChart();
           renderCexSupplyChart();
           return flows;
         })
