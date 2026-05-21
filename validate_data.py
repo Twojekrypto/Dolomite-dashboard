@@ -403,6 +403,15 @@ def main():
         # Validate specific files passed as arguments
         targets = sys.argv[1:]
         for target in targets:
+            normalized = os.path.normpath(target)
+            if os.path.isdir(normalized):
+                validate_data_dir(
+                    normalized,
+                    DATA_DIR_RULES.get(normalized, {"min_files": 1, "file_ext": ".json"}),
+                    result,
+                )
+                continue
+
             basename = os.path.basename(target)
             if basename in RULES:
                 validate_file(target, RULES[basename], result)

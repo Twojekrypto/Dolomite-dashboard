@@ -1570,8 +1570,8 @@ function holderCexFlow(period = "7d"){
   return {inflow, outflow, net, inflowWallets, outflowWallets};
 }
 function holderScopeHtml(){
-  const tip = "Chart excludes CEX wallets and protocol/contract/LP addresses, including Dolomite protocol addresses such as veDOLO, oDOLO Vester, Dolomite Margin, Admin Proxy, incentive wallets and LP pools. Core Team and Investors are included. When veDOLO is enabled, locked DOLO on excluded protocol/contract/LP addresses is also excluded.";
-  return `<span class="holder-source-scope">Holder scope</span><span class="holder-source-help" data-tooltip="${tip}" aria-label="Holder scope details">?</span>`;
+  const tip = "Chart excludes CEX wallets, protocol/contract/LP addresses and other labeled non-market addresses. When veDOLO is enabled, locked DOLO on excluded protocol/contract/LP addresses is also excluded.";
+  return `<span class="holder-source-scope">Market holders</span><span class="holder-source-help" data-tooltip="${tip}" aria-label="Holder scope details">?</span>`;
 }
 function holderCexStatHtml(){
   const periods = [
@@ -1679,6 +1679,8 @@ function getHolderDistributionAtPoint(point, baseTs, includeVeDolo = state.inclu
     trackedLocked:0,
     excludedCexWallets:0,
     excludedCexTotal:0,
+    excludedInsiderWallets:0,
+    excludedInsiderTotal:0,
     veWallets: VEDOLO_LOCKS.size,
     veLockedTotal: [...VEDOLO_LOCKS.values()].reduce((sum, v) => sum + safeHolderNum(v), 0),
   };
@@ -1691,6 +1693,11 @@ function getHolderDistributionAtPoint(point, baseTs, includeVeDolo = state.inclu
     if(holder.type === "cex" || holder.type === "ca"){
       model.excludedCexWallets += 1;
       model.excludedCexTotal += total;
+      return;
+    }
+    if(holder.type === "team" || holder.type === "investor"){
+      model.excludedInsiderWallets += 1;
+      model.excludedInsiderTotal += total;
       return;
     }
     const bucket = buckets.find(item => total >= item.min && total < item.max);
@@ -1712,6 +1719,12 @@ function getHolderDistributionAtPoint(point, baseTs, includeVeDolo = state.inclu
 function getHolderDistribution(includeVeDolo = state.includeVeDolo){
   return getHolderDistributionAtPoint({key:"now", label:"Now", days:0}, holderHistoryBaseTs(), includeVeDolo);
 }
+function holderPrecomputedSource(point, sourceKey){
+  const root = point?.[sourceKey];
+  if(!root) return null;
+  if(root.market?.[holderBucketView]) return root.market[holderBucketView];
+  return root[holderBucketView] || null;
+}
 function holderHistoryPointList(baseTs){
   const dynamicPoints = (DOLO_HOLDER_HISTORY_POINTS || [])
     .map(point => {
@@ -1732,7 +1745,7 @@ function getPrecomputedHolderHistory(includeVeDolo = state.includeVeDolo){
   const bucketDefs = activeHolderBuckets();
   const sourceKey = includeVeDolo ? "with_vedolo" : "liquid";
   const points = DOLO_HOLDER_BUCKET_HISTORY.map(point => {
-    const source = point?.[sourceKey]?.[holderBucketView];
+    const source = holderPrecomputedSource(point, sourceKey);
     if(!source) return null;
     const ts = parseHolderTimestamp(point.timestamp);
     const buckets = bucketDefs.map((bucket, index) => {
@@ -1759,6 +1772,8 @@ function getPrecomputedHolderHistory(includeVeDolo = state.includeVeDolo){
       trackedLocked:safeHolderNum(source.trackedLocked),
       excludedCexWallets:safeHolderNum(source.excludedCexWallets),
       excludedCexTotal:safeHolderNum(source.excludedCexTotal),
+      excludedInsiderWallets:safeHolderNum(source.excludedInsiderWallets),
+      excludedInsiderTotal:safeHolderNum(source.excludedInsiderTotal),
       veWallets:VEDOLO_LOCKS.size,
       veLockedTotal:[...VEDOLO_LOCKS.values()].reduce((sum, v) => sum + safeHolderNum(v), 0),
     };
@@ -1783,6 +1798,8 @@ function getPrecomputedHolderHistory(includeVeDolo = state.includeVeDolo){
     trackedLocked:current.trackedLocked,
     excludedCexWallets:current.excludedCexWallets,
     excludedCexTotal:current.excludedCexTotal,
+    excludedInsiderWallets:current.excludedInsiderWallets,
+    excludedInsiderTotal:current.excludedInsiderTotal,
     veWallets:VEDOLO_LOCKS.size,
     veLockedTotal:[...VEDOLO_LOCKS.values()].reduce((sum, v) => sum + safeHolderNum(v), 0),
   };
@@ -1808,6 +1825,8 @@ function getHolderHistory(includeVeDolo = state.includeVeDolo){
     trackedLocked: current.trackedLocked,
     excludedCexWallets: current.excludedCexWallets,
     excludedCexTotal: current.excludedCexTotal,
+    excludedInsiderWallets: current.excludedInsiderWallets,
+    excludedInsiderTotal: current.excludedInsiderTotal,
     veWallets: VEDOLO_LOCKS.size,
     veLockedTotal: [...VEDOLO_LOCKS.values()].reduce((sum, v) => sum + safeHolderNum(v), 0),
   };
@@ -2513,6 +2532,9 @@ function renderCexSupplyChart(options = {}){
     });
     const x = xAt(nearest.ts);
     const y = yAt(nearest.cex);
+    const startCex = safeHolderNum(model.points[0]?.cex);
+    const delta = safeHolderNum(nearest.cex) - startCex;
+    const deltaClass = delta >= 0 ? "up" : "down";
     hoverLine.setAttribute("x1", x);
     hoverLine.setAttribute("x2", x);
     hoverLine.style.opacity = 1;
@@ -2523,7 +2545,7 @@ function renderCexSupplyChart(options = {}){
     tip.innerHTML = `
       <div class="tt-date">${fmtHolderDate(nearest.ts)}</div>
       <div class="tt-val">${fmtNum(nearest.cex)} DOLO</div>
-      <div class="tt-row"><span>Checkpoint</span><b>${nearest.label}</b></div>
+      <div class="tt-row"><span>CEX Supply</span><b>${fmtNum(nearest.cex)} DOLO <span class="tt-change ${deltaClass}">${holderBucketDeltaLabel(delta, startCex)}</span></b></div>
     `;
     tip.style.opacity = 1;
     tip.style.left = "0px";
