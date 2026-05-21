@@ -648,8 +648,12 @@ def calculate_holder_bucket_history(all_transfers, points, current_blocks, base_
             "with_vedolo": {},
         }
         for view, bucket_defs in HOLDER_BUCKET_GROUPS.items():
-            row["liquid"][view] = build_bucket_model(liquid_balances, {}, holder_rows, address_labels, bucket_defs)
-            row["with_vedolo"][view] = build_bucket_model(liquid_balances, locked_balances, holder_rows, address_labels, bucket_defs)
+            row["liquid"][view] = build_bucket_model(
+                liquid_balances, {}, holder_rows, address_labels, bucket_defs
+            )
+            row["with_vedolo"][view] = build_bucket_model(
+                liquid_balances, locked_balances, holder_rows, address_labels, bucket_defs
+            )
         history.append(row)
 
     return sorted(history, key=lambda row: row["timestamp"])
@@ -1482,7 +1486,20 @@ def locked_map_at_holder_point(point_ts, current_locks, vedolo_events):
 
 def empty_bucket_model(bucket_defs):
     buckets = [
-        {"wallets": 0, "total": 0, "liquid": 0, "locked": 0}
+        {
+            "wallets": 0,
+            "total": 0,
+            "liquid": 0,
+            "locked": 0,
+            "allocationWallets": 0,
+            "allocationTotal": 0,
+            "allocationLiquid": 0,
+            "allocationLocked": 0,
+            "teamWallets": 0,
+            "teamTotal": 0,
+            "investorWallets": 0,
+            "investorTotal": 0,
+        }
         for _ in bucket_defs
     ]
     return {
@@ -1495,10 +1512,18 @@ def empty_bucket_model(bucket_defs):
         "excludedCexTotal": 0,
         "excludedInsiderWallets": 0,
         "excludedInsiderTotal": 0,
+        "allocationWallets": 0,
+        "allocationTotal": 0,
+        "allocationLiquid": 0,
+        "allocationLocked": 0,
+        "teamWallets": 0,
+        "teamTotal": 0,
+        "investorWallets": 0,
+        "investorTotal": 0,
     }
 
 
-def build_bucket_model(liquid_balances, locked_balances, holder_rows, address_labels, bucket_defs):
+def build_bucket_model(liquid_balances, locked_balances, holder_rows, address_labels, bucket_defs, include_allocations=False):
     model = empty_bucket_model(bucket_defs)
     addresses = set(liquid_balances.keys()) | set(locked_balances.keys())
     for addr in addresses:
@@ -1512,7 +1537,19 @@ def build_bucket_model(liquid_balances, locked_balances, holder_rows, address_la
             model["excludedCexWallets"] += 1
             model["excludedCexTotal"] += total
             continue
-        if holder_type in {"team", "investor"}:
+        is_allocation = holder_type in {"team", "investor"}
+        if is_allocation:
+            model["allocationWallets"] += 1
+            model["allocationTotal"] += total
+            model["allocationLiquid"] += liquid
+            model["allocationLocked"] += locked
+            if holder_type == "team":
+                model["teamWallets"] += 1
+                model["teamTotal"] += total
+            elif holder_type == "investor":
+                model["investorWallets"] += 1
+                model["investorTotal"] += total
+        if is_allocation and not include_allocations:
             model["excludedInsiderWallets"] += 1
             model["excludedInsiderTotal"] += total
             continue
@@ -1524,15 +1561,32 @@ def build_bucket_model(liquid_balances, locked_balances, holder_rows, address_la
         bucket["total"] += total
         bucket["liquid"] += liquid
         bucket["locked"] += locked
+        if is_allocation:
+            bucket["allocationWallets"] += 1
+            bucket["allocationTotal"] += total
+            bucket["allocationLiquid"] += liquid
+            bucket["allocationLocked"] += locked
+            if holder_type == "team":
+                bucket["teamWallets"] += 1
+                bucket["teamTotal"] += total
+            elif holder_type == "investor":
+                bucket["investorWallets"] += 1
+                bucket["investorTotal"] += total
         model["trackedWallets"] += 1
         model["trackedTotal"] += total
         model["trackedLiquid"] += liquid
         model["trackedLocked"] += locked
     for bucket in model["buckets"]:
-        bucket["total"] = round(bucket["total"], 2)
-        bucket["liquid"] = round(bucket["liquid"], 2)
-        bucket["locked"] = round(bucket["locked"], 2)
-    for key in ["trackedTotal", "trackedLiquid", "trackedLocked", "excludedCexTotal", "excludedInsiderTotal"]:
+        for key in [
+            "total", "liquid", "locked", "allocationTotal", "allocationLiquid",
+            "allocationLocked", "teamTotal", "investorTotal",
+        ]:
+            bucket[key] = round(bucket[key], 2)
+    for key in [
+        "trackedTotal", "trackedLiquid", "trackedLocked", "excludedCexTotal",
+        "excludedInsiderTotal", "allocationTotal", "allocationLiquid",
+        "allocationLocked", "teamTotal", "investorTotal",
+    ]:
         model[key] = round(model[key], 2)
     return model
 
