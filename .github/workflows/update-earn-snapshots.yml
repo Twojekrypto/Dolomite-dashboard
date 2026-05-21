@@ -69,7 +69,12 @@ jobs:
           PYTHONUNBUFFERED: '1'
 
       - name: Validate generated earn data
-        run: python3 validate_data.py
+        run: |
+          python3 validate_data.py \
+            data/earn-snapshots \
+            data/earn-verified-ledger \
+            data/earn-verified-ledger/ethereum \
+            data/earn-verified-ledger/polygonzkevm
 
       - name: Commit & push changes
         env:

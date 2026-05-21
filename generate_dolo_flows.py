@@ -548,6 +548,24 @@ def neutralize_raw_and_bridge_flows(raw_flows, bridge_flows_by_chain):
     return neutralized
 
 
+def neutralize_holder_balance_flows(raw_flows, bridge_flows_by_chain):
+    """Neutralize flows for historical holder balances.
+
+    Flow leaderboards intentionally keep mint/burn bridge transfers out of the
+    final rows. Holder-balance reconstruction is different: a bridge mint or
+    burn changes the visible balance on a tracked chain, so the augmented flow
+    must be used after cross-chain cancellation. Otherwise bridge/router
+    addresses can look like they held large balances at TGE.
+    """
+    augmented_flows = {}
+    for chain_key in CHAINS:
+        augmented_flows[chain_key] = dict(raw_flows[chain_key])
+        for addr, bflow in bridge_flows_by_chain[chain_key].items():
+            augmented_flows[chain_key][addr] = augmented_flows[chain_key].get(addr, 0) + bflow
+    neutralized_aug, _, _ = neutralize_cross_chain_flows(augmented_flows)
+    return neutralized_aug
+
+
 def add_transfer_to_running_flows(raw_flows, bridge_flows, transfer):
     from_addr, to_addr, value_wei, _ = transfer
     value = value_wei / (10 ** 18)
@@ -613,7 +631,7 @@ def calculate_holder_bucket_history(all_transfers, points, current_blocks, base_
 
         raw_snapshot = {chain_key: dict(running_raw[chain_key]) for chain_key in CHAINS}
         bridge_snapshot = {chain_key: dict(running_bridge[chain_key]) for chain_key in CHAINS}
-        changes = merge_balance_changes(neutralize_raw_and_bridge_flows(raw_snapshot, bridge_snapshot))
+        changes = merge_balance_changes(neutralize_holder_balance_flows(raw_snapshot, bridge_snapshot))
         liquid_balances = dict(current_liquid)
         for addr, net in changes.items():
             historical = liquid_balances.get(addr.lower(), 0) - net
@@ -672,7 +690,7 @@ def calculate_cex_supply_history(all_transfers, points, current_blocks, base_ts)
 
         raw_snapshot = {chain_key: dict(running_raw[chain_key]) for chain_key in CHAINS}
         bridge_snapshot = {chain_key: dict(running_bridge[chain_key]) for chain_key in CHAINS}
-        changes = merge_balance_changes(neutralize_raw_and_bridge_flows(raw_snapshot, bridge_snapshot))
+        changes = merge_balance_changes(neutralize_holder_balance_flows(raw_snapshot, bridge_snapshot))
         liquid_balances = dict(current_liquid)
         for addr, net in changes.items():
             historical = liquid_balances.get(addr.lower(), 0) - net
@@ -1475,6 +1493,8 @@ def empty_bucket_model(bucket_defs):
         "trackedLocked": 0,
         "excludedCexWallets": 0,
         "excludedCexTotal": 0,
+        "excludedInsiderWallets": 0,
+        "excludedInsiderTotal": 0,
     }
 
 
@@ -1492,6 +1512,10 @@ def build_bucket_model(liquid_balances, locked_balances, holder_rows, address_la
             model["excludedCexWallets"] += 1
             model["excludedCexTotal"] += total
             continue
+        if holder_type in {"team", "investor"}:
+            model["excludedInsiderWallets"] += 1
+            model["excludedInsiderTotal"] += total
+            continue
         bucket_index = next((idx for idx, bucket in enumerate(bucket_defs) if total >= bucket["min"] and total < bucket["max"]), None)
         if bucket_index is None:
             continue
@@ -1508,7 +1532,7 @@ def build_bucket_model(liquid_balances, locked_balances, holder_rows, address_la
         bucket["total"] = round(bucket["total"], 2)
         bucket["liquid"] = round(bucket["liquid"], 2)
         bucket["locked"] = round(bucket["locked"], 2)
-    for key in ["trackedTotal", "trackedLiquid", "trackedLocked", "excludedCexTotal"]:
+    for key in ["trackedTotal", "trackedLiquid", "trackedLocked", "excludedCexTotal", "excludedInsiderTotal"]:
         model[key] = round(model[key], 2)
     return model
 
