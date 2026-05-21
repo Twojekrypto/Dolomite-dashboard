@@ -98,30 +98,13 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("for i in $(seq 1 12)", workflow)
         self.assertIn("Failed to push after 12 attempts.", workflow)
 
-    def test_pages_workflow_redeploys_after_successful_data_workflows(self):
+    def test_pages_workflow_deploys_from_push_without_duplicate_workflow_runs(self):
         workflow = PAGES_WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("workflow_run:", workflow)
-        for workflow_name in (
-            "Update Assets Live Data",
-            "Update veDOLO Data",
-            "Update DOLO Flows Data",
-            "Update Earn Snapshots",
-            "Update Earn Netflow Data",
-            "Update Earn Merkl Rewards",
-            "Update Berachain Earn Netflow Data",
-            "Monitor EARN Freshness",
-            "Refresh Ethereum Canonical EARN History",
-            "Refresh Arbitrum Canonical EARN History",
-            "Refresh Berachain Canonical EARN History",
-            "Refresh Secondary Canonical EARN History",
-            "Refresh Berachain Borrow-Route EARN History",
-            "Update Liquidation Risk Data",
-            "Update oDOLO Data",
-            "Update oDOLO Flows",
-            "Update veDOLO Flows",
-        ):
-            self.assertIn(f"- {workflow_name}", workflow)
-        self.assertIn("github.event.workflow_run.conclusion == 'success'", workflow)
+        self.assertIn("push:", workflow)
+        self.assertIn("- master", workflow)
+        self.assertIn("workflow_dispatch:", workflow)
+        self.assertNotIn("workflow_run:", workflow)
+        self.assertNotIn("github.event.workflow_run.conclusion", workflow)
         self.assertNotIn("- Update Data", workflow)
         self.assertNotIn("- Update DOLO Flows\n", workflow)
         self.assertNotIn("- Update EARN Snapshots", workflow)
