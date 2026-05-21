@@ -5,30 +5,6 @@ on:
     branches:
       - master
   workflow_dispatch:
-  workflow_run:
-    workflows:
-      - Update Assets Live Data
-      - Update DOLO Price
-      - Update TVL Data
-      - Update veDOLO Data
-      - Update DOLO Flows Data
-      - Update Earn Snapshots
-      - Update Earn Netflow Data
-      - Update Earn Merkl Rewards
-      - Update Berachain Earn Netflow Data
-      - Monitor EARN Freshness
-      - Refresh Ethereum Canonical EARN History
-      - Refresh Arbitrum Canonical EARN History
-      - Refresh Berachain Canonical EARN History
-      - Refresh Secondary Canonical EARN History
-      - Refresh Berachain Borrow-Route EARN History
-      - Update Liquidation Risk Data
-      - Update oDOLO Data
-      - Update oDOLO Flows
-      - Update veDOLO Flows
-      - Update Supply History
-    types:
-      - completed
 
 permissions:
   contents: read
@@ -41,7 +17,6 @@ concurrency:
 
 jobs:
   build:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
