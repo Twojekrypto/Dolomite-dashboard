@@ -1960,9 +1960,21 @@ function getPrecomputedHolderHistory(includeVeDolo = state.includeVeDolo){
       veLockedTotal:[...VEDOLO_LOCKS.values()].reduce((sum, v) => sum + safeHolderNum(v), 0),
     };
   }).filter(point => point && point.ts > 0).sort((a,b)=>a.ts-b.ts);
+  const hasLiveVeDoloLocks = !includeVeDolo || VEDOLO_LOCKS.size > 0;
+  const now = hasLiveVeDoloLocks ? getHolderDistribution(includeVeDolo) : null;
+  holderPrecomputedVeDoloIsDaily = includeVeDolo && !hasLiveVeDoloLocks;
+  if(now && points.length){
+    const last = points[points.length - 1];
+    const bucketMismatch = last.buckets.some((bucket, index) => {
+      const liveBucket = now.buckets[index] || {};
+      return bucket.wallets !== liveBucket.wallets || Math.abs(safeHolderNum(bucket.total) - safeHolderNum(liveBucket.total)) > 0.5;
+    });
+    if(Math.abs(now.ts - last.ts) > 3600 || bucketMismatch){
+      points.push(now);
+    }
+  }
   if(points.length < 2) return null;
-  holderPrecomputedVeDoloIsDaily = includeVeDolo && VEDOLO_LOCKS.size <= 0;
-  const current = points[points.length - 1] || getHolderDistribution(includeVeDolo);
+  const current = points[points.length - 1] || now || getHolderDistribution(includeVeDolo);
   return {
     includeVeDolo,
     includeAllocations:false,
@@ -2399,7 +2411,7 @@ function renderHolderDistributionChart(options = {}){
       renderHolderDistributionChart({skipBrush:true});
     });
   });
-  renderHolderWalletPanel();
+  renderHolderWalletPanel(model);
 }
 
 function allocationPointFromSource(point, source){
@@ -2809,7 +2821,7 @@ function renderAllocationChart(options = {}){
       renderAllocationChart({skipBrush:true});
     });
   });
-  renderAllocationWalletPanel();
+  renderAllocationWalletPanel(model);
 }
 
 function holderCexCurrentSupply(){
@@ -3193,12 +3205,6 @@ function escHtml(value){
     "'":"&#39;",
   }[char]));
 }
-function holderWalletAmount(holder, includeVeDolo = false){
-  const addr = lowerHolderAddr(holder?.addr);
-  const liquid = safeHolderNum(holder?.total) || safeHolderNum(holder?.balEth) + safeHolderNum(holder?.balBera);
-  const locked = includeVeDolo ? safeHolderNum(VEDOLO_LOCKS.get(addr)) : 0;
-  return {liquid, locked, total:liquid + locked};
-}
 function holderWalletChainHtml(row){
   const chains = [];
   if(safeHolderNum(row.balEth) > 0) chains.push({key:"ethereum", label:"Ethereum"});
@@ -3208,24 +3214,49 @@ function holderWalletChainHtml(row){
     <span class="holder-chain-chip"><span class="holder-chain-icon ${chain.key}" aria-hidden="true"></span>${escHtml(chain.label)}</span>
   `).join("")}</div>`;
 }
-function holderPanelSourceRows(includeVeDolo = false){
-  const rows = new Map();
-  HOLDERS.forEach(holder => rows.set(lowerHolderAddr(holder.addr), holder));
-  if(includeVeDolo){
-    VEDOLO_LOCKS.forEach((_locked, addr) => {
-      if(rows.has(addr)) return;
-      const info = sharedAddressInfo(addr) || {};
-      rows.set(addr, {
-        addr,
-        label:info.label || "",
-        type:info.type || "eoa",
-        balEth:0,
-        balBera:0,
-        total:0,
-      });
+function holderRowsAtPoint(point, includeVeDolo = false){
+  const byAddress = new Map();
+  const sourcePoint = point || {key:"now", label:"Now", ts:holderHistoryBaseTs()};
+  const baseTs = holderHistoryBaseTs();
+  HOLDERS.forEach(holder => {
+    const row = ensureHolderBucketRow(byAddress, holder.addr || holder.address, holder);
+    if(!row) return;
+    const splitTotal = safeHolderNum(holder.balEth) + safeHolderNum(holder.balBera);
+    row.liquid += safeHolderNum(holder.total) || splitTotal;
+    row.label = holder.label || row.label || "";
+    row.balEth = safeHolderNum(row.balEth) + safeHolderNum(holder.balEth);
+    row.balBera = safeHolderNum(row.balBera) + safeHolderNum(holder.balBera);
+  });
+  if(sourcePoint.key !== "now"){
+    const changes = DOLO_BALANCE_CHANGES?.[sourcePoint.key] || {};
+    Object.entries(changes).forEach(([addr, netFlow]) => {
+      const row = ensureHolderBucketRow(byAddress, addr, null);
+      if(row) row.liquid -= safeHolderNum(netFlow);
     });
   }
-  return [...rows.values()];
+  if(includeVeDolo){
+    lockedMapAtHolderPoint(sourcePoint, baseTs).forEach((locked, addr) => {
+      const row = ensureHolderBucketRow(byAddress, addr, null);
+      if(row) row.locked += safeHolderNum(locked);
+    });
+  }
+  return [...byAddress.values()].map(row => {
+    const info = sharedAddressInfo(row.addr) || {};
+    const liquid = Math.max(0, safeHolderNum(row.liquid));
+    const locked = includeVeDolo ? Math.max(0, safeHolderNum(row.locked)) : 0;
+    const type = holderDistributionType(row.addr, row);
+    return {
+      addr:row.addr,
+      label:row.label || info.label || "",
+      type,
+      balEth:safeHolderNum(row.balEth),
+      balBera:safeHolderNum(row.balBera),
+      total:liquid,
+      liquid,
+      locked,
+      panelTotal:liquid + locked,
+    };
+  }).filter(row => row.panelTotal > 0);
 }
 function holderWalletTypeHtml(type){
   const label = type === "team" ? "Core Team" : (TYPE_LABELS[type] || TYPE_GENERIC[type] || "Wallet");
@@ -3252,25 +3283,23 @@ function holderWalletAddressCell(row){
     </div>
   `;
 }
-function holderBucketWalletRows(bucket){
+function holderBucketWalletRows(bucket, point = null){
   const includeVeDolo = !!state.includeVeDolo;
-  return holderPanelSourceRows(includeVeDolo).map(holder => {
+  return holderRowsAtPoint(point, includeVeDolo).map(holder => {
     const type = holderDistributionType(holder.addr, holder);
     if(type === "cex" || type === "ca" || type === "team" || type === "investor") return null;
-    const amount = holderWalletAmount(holder, includeVeDolo);
-    if(amount.total < bucket.min || amount.total >= bucket.max) return null;
-    return {...holder, type, liquid:amount.liquid, locked:amount.locked, panelTotal:amount.total};
+    if(holder.panelTotal < bucket.min || holder.panelTotal >= bucket.max) return null;
+    return {...holder, type};
   }).filter(Boolean).sort((a,b) => b.panelTotal - a.panelTotal);
 }
-function allocationWalletRows(key){
-  return HOLDERS.map(holder => {
+function allocationWalletRows(key, point = null){
+  return holderRowsAtPoint(point, false).map(holder => {
     const type = holderDistributionType(holder.addr, holder);
     if(key === "team" && type !== "team") return null;
     if(key === "investors" && type !== "investor") return null;
     if(key === "total" && type !== "team" && type !== "investor") return null;
-    const amount = holderWalletAmount(holder, false);
-    if(amount.total <= 0) return null;
-    return {...holder, type, liquid:amount.liquid, locked:0, panelTotal:amount.total};
+    if(holder.panelTotal <= 0) return null;
+    return {...holder, type, locked:0};
   }).filter(Boolean).sort((a,b) => b.panelTotal - a.panelTotal);
 }
 function bindHolderWalletPanel(panel, closeFn){
@@ -3314,7 +3343,7 @@ function renderWalletDrilldownPanel(panel, {title, meta, rows, emptyText, closeF
           </thead>
           <tbody>
             ${rows.map((row, index) => `
-              <tr data-addr="${escHtml(row.addr)}">
+              <tr data-addr="${escHtml(row.addr)}" data-panel-total="${escHtml(row.panelTotal)}">
                 <td class="rank">${index + 1}</td>
                 <td>${holderWalletAddressCell(row)}</td>
                 <td class="num">
@@ -3344,7 +3373,11 @@ function closeAllocationWalletPanel(){
   allocationChartActiveKey = "total";
   renderAllocationChart({skipBrush:true});
 }
-function renderHolderWalletPanel(){
+function holderPanelDateText(point){
+  const ts = safeHolderNum(point?.ts);
+  return ts > 0 ? fmtHolderDate(ts) : "current point";
+}
+function renderHolderWalletPanel(model = null){
   const panel = document.getElementById("holderWalletPanel");
   if(!panel) return;
   const bucket = activeHolderBuckets().find(item => item.key === holderWalletPanelKey);
@@ -3353,17 +3386,18 @@ function renderHolderWalletPanel(){
     panel.innerHTML = "";
     return;
   }
-  const rows = holderBucketWalletRows(bucket);
+  const point = model?.current || null;
+  const rows = holderBucketWalletRows(bucket, point);
   const veDoloText = state.includeVeDolo ? " · DOLO + veDOLO" : " · DOLO balance";
   renderWalletDrilldownPanel(panel, {
     title:`${bucket.label} DOLO wallets`,
-    meta:`${rows.length.toLocaleString()} current wallets${veDoloText} · CEX/protocol/allocation excluded`,
+    meta:`${rows.length.toLocaleString()} wallets · ${holderPanelDateText(point)}${veDoloText} · CEX/protocol/allocation excluded`,
     rows,
-    emptyText:"No current wallets in this bucket.",
+    emptyText:"No wallets in this bucket for the selected point.",
     closeFn:closeHolderWalletPanel,
   });
 }
-function renderAllocationWalletPanel(){
+function renderAllocationWalletPanel(model = null){
   const panel = document.getElementById("allocationWalletPanel");
   if(!panel) return;
   const series = ALLOCATION_CHART_SERIES.find(item => item.key === allocationWalletPanelKey);
@@ -3372,13 +3406,14 @@ function renderAllocationWalletPanel(){
     panel.innerHTML = "";
     return;
   }
-  const rows = allocationWalletRows(series.key);
+  const point = model?.current || null;
+  const rows = allocationWalletRows(series.key, point);
   const title = series.key === "team" ? "Core Team wallets" : series.key === "investors" ? "Investor wallets" : "Allocation wallets";
   renderWalletDrilldownPanel(panel, {
     title,
-    meta:`${rows.length.toLocaleString()} current labeled wallets · DOLO balance`,
+    meta:`${rows.length.toLocaleString()} labeled wallets · ${holderPanelDateText(point)} · DOLO balance`,
     rows,
-    emptyText:"No current wallets in this allocation group.",
+    emptyText:"No wallets in this allocation group for the selected point.",
     closeFn:closeAllocationWalletPanel,
   });
 }
