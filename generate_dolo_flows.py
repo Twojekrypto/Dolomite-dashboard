@@ -594,9 +594,9 @@ def holder_history_cutoff_block(chain_key, point_ts, base_ts, current_blocks):
     return max(current_blocks[chain_key] - blocks_back, cfg.get("deploy_block", 0))
 
 
-def calculate_holder_bucket_history(all_transfers, points, current_blocks, base_ts):
+def calculate_holder_bucket_history(all_transfers, points, current_blocks, base_ts, vesting_labels=None):
     holder_rows = load_current_holder_rows()
-    address_labels = load_address_labels()
+    address_labels = load_address_labels(vesting_labels)
     current_liquid = {
         addr: float(row.get("balance") or 0)
         for addr, row in holder_rows.items()
@@ -659,9 +659,9 @@ def calculate_holder_bucket_history(all_transfers, points, current_blocks, base_
     return sorted(history, key=lambda row: row["timestamp"])
 
 
-def calculate_cex_supply_history(all_transfers, points, current_blocks, base_ts):
+def calculate_cex_supply_history(all_transfers, points, current_blocks, base_ts, vesting_labels=None):
     holder_rows = load_current_holder_rows()
-    address_labels = load_address_labels()
+    address_labels = load_address_labels(vesting_labels)
     current_liquid = {
         addr: float(row.get("balance") or 0)
         for addr, row in holder_rows.items()
@@ -761,7 +761,50 @@ def load_current_holder_rows():
         return {}
 
 
-def load_address_labels():
+def extract_vesting_investors(all_transfers):
+    vesting_ca = "0x7efd088ae500598a19a242d6d48b9f7e0d061176"
+    investor_ca = "0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07"
+
+    early_set = set()
+    inv_set = set()
+    team_set = set()
+
+    for chain_key in ["eth", "bera"]:
+        for transfer in all_transfers.get(chain_key, []):
+            from_addr = str(transfer[0] or "").lower()
+            to_addr = str(transfer[1] or "").lower()
+            if not to_addr:
+                continue
+            if from_addr == vesting_ca:
+                early_set.add(to_addr)
+            elif from_addr == investor_ca:
+                inv_set.add(to_addr)
+                team_set.add(to_addr)
+
+    return {
+        "early_investors": sorted(early_set),
+        "investors": sorted(inv_set),
+        "team": sorted(team_set),
+    }
+
+
+def merge_vesting_labels(labels, vesting_data):
+    if not isinstance(vesting_data, dict):
+        return labels
+    for key, label, label_type in [
+        ("early_investors", "Early Investor", "investor"),
+        ("investors", "Investor", "investor"),
+        ("team", "Core Team", "protocol"),
+    ]:
+        for addr in vesting_data.get(key, []) or []:
+            addr_key = str(addr or "").lower()
+            if not re.fullmatch(r"0x[a-f0-9]{40}", addr_key):
+                continue
+            labels.setdefault(addr_key, {"label": label, "type": label_type})
+    return labels
+
+
+def load_address_labels(vesting_labels=None):
     labels_file = os.path.join(DATA_DIR, "dolo-address-labels.js")
     if not os.path.exists(labels_file):
         return {}
@@ -779,6 +822,14 @@ def load_address_labels():
             "label": label_match.group(1) if label_match else "",
             "type": type_match.group(1) if type_match else "",
         }
+    vesting_file = os.path.join(DATA_DIR, "vesting_investors.json")
+    if os.path.exists(vesting_file):
+        try:
+            with open(vesting_file) as f:
+                merge_vesting_labels(labels, json.load(f))
+        except Exception as e:
+            print(f"  ⚠️ Could not load vesting labels for bucket history: {e}")
+    merge_vesting_labels(labels, vesting_labels)
     return labels
 
 
@@ -1995,6 +2046,8 @@ def main():
             f"{audit_row.get('unverifiedExcluded', 0):,} unverified excluded)"
         )
 
+    vesting_investors = extract_vesting_investors(all_transfers)
+
     # Extra holder-bucket chart history. These are still derived from the same
     # transfer logs as the flow tables, but add enough cutoffs for a usable hover.
     holder_history_points = build_holder_history_schedule(holder_history_base_ts)
@@ -2004,12 +2057,14 @@ def main():
         holder_history_points,
         current_blocks,
         holder_history_base_ts,
+        vesting_investors,
     )
     cex_supply_history = calculate_cex_supply_history(
         all_transfers,
         holder_history_points,
         current_blocks,
         holder_history_base_ts,
+        vesting_investors,
     )
     print(f"  ... {len(holder_history_points)}/{len(holder_history_points)} holder history points")
 
@@ -2073,37 +2128,12 @@ def main():
         },
     }
 
-    # Dynamically extract all Vesting Claimers (Early Investors) and Team
-    vesting_ca = "0x7efd088ae500598a19a242d6d48b9f7e0d061176"
-    investor_ca = "0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07"
-    team_ca = "0x185000fB4D98ACEa1A771dB3714A431F7FE51caC".lower()
-    
-    out_investors = {
-        "early_investors": [],
-        "investors": [],
-        "team": []
-    }
-    
-    early_set = set()
-    inv_set = set()
-    team_set = set()
-    
-    for chain_key in ['eth', 'bera']:
-        if chain_key in all_transfers:
-            for t in all_transfers[chain_key]:
-                if t[0].lower() == vesting_ca:
-                    early_set.add(t[1].lower())
-                elif t[0].lower() == investor_ca:
-                    inv_set.add(t[1].lower())
-                    team_set.add(t[1].lower())
-                    
-    out_investors["early_investors"] = sorted(early_set)
-    out_investors["investors"] = sorted(inv_set)
-    out_investors["team"] = sorted(team_set)
-    
     with open(os.path.join(DATA_DIR, "vesting_investors.json"), "w") as f:
-        json.dump(out_investors, f, indent=2)
-    print(f"  🧑‍💼 Saved {len(early_set)} early investors and {len(inv_set)} investors to vesting_investors.json")
+        json.dump(vesting_investors, f, indent=2)
+    print(
+        f"  🧑‍💼 Saved {len(vesting_investors.get('early_investors', []))} early investors "
+        f"and {len(vesting_investors.get('investors', []))} investors to vesting_investors.json"
+    )
 
     with open(OUTPUT_JSON, "w") as f:
         json.dump(output, f, separators=(",", ":"))
