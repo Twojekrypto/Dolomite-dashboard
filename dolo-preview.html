@@ -300,6 +300,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 }
 .holder-brush-label .sep{color:var(--fg-4);margin:0 8px}
 .holder-brush-label .v{color:var(--fg-2)}
+.holder-brush-label .chg{font-weight:800;margin-left:8px}
+.holder-brush-label .chg.up,.holder-brush-label .amt.up{color:var(--up)}
+.holder-brush-label .chg.down,.holder-brush-label .amt.down{color:var(--down)}
+.holder-brush-label .amt{margin-left:5px;color:var(--fg-3)}
 .holder-flow-stats{
   display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--line-1);
   background:linear-gradient(90deg,rgba(180,121,107,.05),rgba(255,255,255,.012))
@@ -2265,6 +2269,24 @@ function visibleCexSupplyHistory(fullModel){
   }
   return {...fullModel, points:visible.length ? visible : points};
 }
+function cexSupplySelectedChange(fullModel = cexSupplyFullModel){
+  if(!fullModel || !Array.isArray(fullModel.points)) return null;
+  const model = visibleCexSupplyHistory(fullModel);
+  const points = model.points || [];
+  if(points.length < 2) return null;
+  const first = points[0];
+  const last = points[points.length - 1];
+  const start = safeHolderNum(first.cex);
+  const end = safeHolderNum(last.cex);
+  if(start <= 0) return null;
+  const delta = end - start;
+  return {
+    delta,
+    pct: delta / start * 100,
+    first,
+    last,
+  };
+}
 function paintCexSupplyBrushWindow(){
   const {minX, span} = cexSupplyBrushDomain();
   const win = document.getElementById("cexSupplyBrushWindow");
@@ -2278,7 +2300,11 @@ function paintCexSupplyBrushWindow(){
   win.style.width = (rightPct - leftPct) + "%";
   dimL.style.width = leftPct + "%";
   dimR.style.width = (100 - rightPct) + "%";
-  label.innerHTML = `<span class="v">${fmtHolderBrushDate(cexSupplyBrushSel.from)}</span><span class="sep">→</span><span class="v">${fmtHolderBrushDate(cexSupplyBrushSel.to)}</span>`;
+  const change = cexSupplySelectedChange();
+  const changeHtml = change
+    ? `<span class="chg ${change.delta >= 0 ? "up" : "down"}">${fmtSignedHolderPct(change.pct)}</span><span class="amt ${change.delta >= 0 ? "up" : "down"}">(${fmtSignedHolder(change.delta)} DOLO)</span>`
+    : "";
+  label.innerHTML = `<span class="v">${fmtHolderBrushDate(cexSupplyBrushSel.from)}</span><span class="sep">→</span><span class="v">${fmtHolderBrushDate(cexSupplyBrushSel.to)}</span>${changeHtml}`;
 }
 function scheduleCexSupplyChartRender(){
   if(cexSupplyBrushRenderFrame) return;
