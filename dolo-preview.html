@@ -273,10 +273,15 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-chart-legend-item:first-child{border-top:0}
 .holder-legend-row{display:grid;grid-template-columns:minmax(170px,.82fr) minmax(390px,1.58fr) auto;gap:16px;align-items:center;padding:14px 18px;transition:background .15s var(--ease)}
 .holder-chart-legend-item:hover .holder-legend-row,.holder-chart-legend-item.is-active .holder-legend-row{background:var(--gold-wash)}
+.holder-chart-legend-item.is-breakdown .holder-legend-row{background:rgba(255,255,255,.006)}
+.holder-chart-legend-item.is-breakdown:hover .holder-legend-row,.holder-chart-legend-item.is-breakdown.is-active .holder-legend-row{background:var(--gold-wash)}
 .holder-legend-main{min-width:0}
+.holder-chart-legend-item.is-breakdown .holder-legend-main{position:relative;padding-left:18px}
+.holder-chart-legend-item.is-breakdown .holder-legend-main::before{content:"";position:absolute;left:4px;top:7px;bottom:7px;width:1px;background:rgba(201,162,39,.24);border-radius:999px}
 .holder-chart-legend-item .top{display:flex;align-items:center;gap:8px;min-width:0}
 .holder-chart-legend-item .dot{width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px rgba(201,162,39,.36);flex:0 0 7px}
 .holder-chart-legend-item .bucket{font-size:12px;font-weight:700;color:var(--fg-1);white-space:nowrap}
+.holder-chart-legend-item.is-breakdown .bucket{color:var(--fg-2)}
 .holder-chart-legend-item .sub{margin-top:4px;font-family:var(--mono);font-size:10px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .holder-legend-summary{
   min-width:0;height:36px;display:grid;grid-template-columns:minmax(160px,1fr) repeat(2,minmax(82px,.48fr));
@@ -1682,7 +1687,7 @@ let holderFullHistoryModel = null;
 let holderPrecomputedVeDoloIsDaily = false;
 let holderBrushRenderFrame = 0;
 const ALLOCATION_CHART_SERIES = [
-  {key:"total", label:"Allocations", valueKey:"total", walletKey:"wallets", color:"#e4c15a"},
+  {key:"total", label:"Total Allocations", valueKey:"total", walletKey:"wallets", color:"#e4c15a"},
   {key:"team", label:"Core Team", valueKey:"team", walletKey:"teamWallets", color:"#9ab7c2"},
   {key:"investors", label:"Investors", valueKey:"investors", walletKey:"investorWallets", color:"#8aa37b"},
 ];
@@ -2856,14 +2861,16 @@ function renderAllocationChart(options = {}){
     const delta = value - firstValue;
     const deltaClass = delta >= 0 ? "up" : "down";
     const active = series.key === focusKey ? " is-active" : "";
+    const breakdown = series.key !== "total";
+    const subText = breakdown ? "Component of Total Allocations" : "Core Team + Investors combined";
     const open = allocationWalletPanelKey === series.key;
     const panelId = `allocation-wallet-panel-${series.key}`;
     return `
-      <div class="holder-chart-legend-item${active}" data-key="${series.key}" style="--series-color:${series.color}">
+      <div class="holder-chart-legend-item${active}${breakdown ? " is-breakdown" : " is-parent"}" data-key="${series.key}" style="--series-color:${series.color}">
         <div class="holder-legend-row">
           <div class="holder-legend-main">
             <div class="top"><span class="dot" style="background:${series.color};box-shadow:0 0 8px ${series.color}66"></span><span class="bucket">${series.label}</span></div>
-            <div class="sub">Labeled allocation set</div>
+            <div class="sub">${subText}</div>
           </div>
           <div class="holder-legend-summary" aria-label="${series.label} summary">
             <div class="holder-legend-metric primary">
@@ -3530,12 +3537,16 @@ function allocationWalletInlinePanelHtml(series, model = null){
   const point = model?.current || null;
   const rows = allocationWalletRows(series.key, point);
   const title = series.key === "team" ? "Core Team wallets" : series.key === "investors" ? "Investor wallets" : "All allocation wallets";
+  const eyebrow = series.key === "total" ? "Allocation total" : "Allocation component";
+  const meta = series.key === "total"
+    ? `${rows.length.toLocaleString()} Core Team + Investor wallets · ${holderPanelDateText(point)} · DOLO balance`
+    : `${rows.length.toLocaleString()} wallets included in Total Allocations · ${holderPanelDateText(point)} · DOLO balance`;
   return `
     <div class="holder-wallet-panel holder-wallet-panel-inline is-open" id="allocation-wallet-panel-${escHtml(series.key)}" aria-live="polite">
       ${walletDrilldownPanelHtml({
-        eyebrow:"Wallet breakdown",
+        eyebrow,
         title,
-        meta:`${rows.length.toLocaleString()} labeled allocation wallets · ${holderPanelDateText(point)} · DOLO balance`,
+        meta,
         rows,
         emptyText:"No wallets in this allocation group for the selected point.",
       })}
