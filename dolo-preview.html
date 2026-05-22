@@ -268,6 +268,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-legend-head-metrics span{padding:0 12px;border-left:1px solid var(--line-1);white-space:nowrap}
 .holder-legend-head-metrics span:first-child{padding-left:18px;border-left:1px solid rgba(201,162,39,.12)}
 .holder-legend-head-metrics span:not(:first-child){text-align:right}
+.holder-legend-head-token{display:inline-flex;align-items:center;gap:6px;color:var(--fg-3)}
+.holder-legend-head-token img{width:13px;height:13px;border-radius:50%;object-fit:contain;opacity:.9;filter:saturate(.96)}
 .holder-legend-head-action{width:84px}
 .holder-chart-legend-item{min-width:0;border-top:1px solid var(--line-1)}
 .holder-chart-legend-item:first-child{border-top:0}
@@ -287,17 +289,27 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   padding:0 12px;border-left:1px solid var(--line-1);font-family:var(--mono);font-variant-numeric:tabular-nums
 }
 .holder-legend-metric:first-child{border-left:0}
-.holder-legend-metric.primary{position:relative;padding-left:18px;border-left:1px solid rgba(201,162,39,.16)}
+.holder-legend-metric.primary{position:relative;padding-left:18px;border-left:1px solid rgba(255,255,255,.045)}
 .holder-legend-metric.primary::before{
-  content:"";position:absolute;left:0;top:5px;bottom:5px;width:2px;border-radius:999px;background:var(--series-color,var(--gold));
-  box-shadow:0 0 12px rgba(201,162,39,.22)
+  content:"";position:absolute;left:0;top:8px;bottom:8px;width:1px;border-radius:999px;background:var(--series-color,var(--gold));
+  opacity:.48;box-shadow:none
 }
 .holder-legend-metric:not(.primary){align-items:flex-end;text-align:right}
 .holder-legend-label{display:none}
 .holder-legend-number{display:block;font-size:12px;font-weight:750;color:var(--fg-1);line-height:1.05;white-space:nowrap}
-.holder-legend-metric.primary .holder-legend-number{font-size:17px;color:var(--gold);font-weight:700;letter-spacing:.1px}
+.holder-legend-metric.primary .holder-legend-number{font-size:17px;color:var(--fg-1);font-weight:750;letter-spacing:.1px}
+.holder-legend-token-value{display:inline-flex;align-items:center;gap:7px;transition:color .15s var(--ease),text-shadow .15s var(--ease)}
+.holder-legend-token-icon{
+  width:15px;height:15px;border-radius:50%;object-fit:contain;flex:0 0 15px;background:var(--bg-3);
+  box-shadow:0 0 0 1px rgba(255,255,255,.10),0 0 10px rgba(201,162,39,.10);
+  transition:filter .15s var(--ease),opacity .15s var(--ease),box-shadow .15s var(--ease)
+}
+.holder-chart-legend-item:hover .holder-legend-token-value,.holder-chart-legend-item.is-active .holder-legend-token-value{color:#fff;text-shadow:0 0 10px rgba(255,255,255,.08)}
+.holder-chart-legend-item:hover .holder-legend-token-icon,.holder-chart-legend-item.is-active .holder-legend-token-icon{
+  filter:brightness(1.08) saturate(1.04);opacity:1;box-shadow:0 0 0 1px rgba(255,255,255,.16),0 0 12px rgba(201,162,39,.14)
+}
 .holder-legend-metric.delta.up .holder-legend-number{color:var(--up)}
-.holder-legend-metric.delta.down .holder-legend-number{color:var(--down)}
+.holder-legend-metric.delta.down .holder-legend-number{color:#c98578}
 .holder-details-btn{
   height:28px;min-width:82px;padding:0 10px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;gap:5px;flex-shrink:0;
   color:var(--gold);background:var(--gold-wash);border:1px solid rgba(201,162,39,.28);cursor:pointer;white-space:nowrap;
@@ -2394,7 +2406,7 @@ function renderHolderDistributionChart(options = {}){
     <div class="holder-legend-head" aria-hidden="true">
       <span class="holder-legend-head-main">Group</span>
       <div class="holder-legend-head-metrics">
-        <span>DOLO</span><span>Wallets</span><span>Share</span><span>Change</span>
+        <span class="holder-legend-head-token"><img src="dolo-logo.svg" alt="" onerror="this.style.display='none'">DOLO</span><span>Wallets</span><span>Share</span><span>Change</span>
       </div>
       <span class="holder-legend-head-action"></span>
     </div>
@@ -2420,7 +2432,7 @@ function renderHolderDistributionChart(options = {}){
           <div class="holder-legend-summary" aria-label="${bucket.label} DOLO summary">
             <div class="holder-legend-metric primary">
               <span class="holder-legend-label">Balance</span>
-              <strong class="holder-legend-number">${fmtNum(bucket.total)}</strong>
+              <strong class="holder-legend-number holder-legend-token-value"><img class="holder-legend-token-icon" src="dolo-logo.svg" alt="" onerror="this.style.display='none'"><span>${fmtNum(bucket.total)}</span></strong>
             </div>
             <div class="holder-legend-metric"><span class="holder-legend-label">Wallets</span><strong class="holder-legend-number">${bucket.wallets.toLocaleString()}</strong></div>
             <div class="holder-legend-metric"><span class="holder-legend-label">Share</span><strong class="holder-legend-number">${fmtPct(share)}</strong></div>
@@ -2835,7 +2847,7 @@ function renderAllocationChart(options = {}){
     <div class="holder-legend-head" aria-hidden="true">
       <span class="holder-legend-head-main">Group</span>
       <div class="holder-legend-head-metrics">
-        <span>DOLO</span><span>Wallets</span><span>Share</span><span>Change</span>
+        <span class="holder-legend-head-token"><img src="dolo-logo.svg" alt="" onerror="this.style.display='none'">DOLO</span><span>Wallets</span><span>Share</span><span>Change</span>
       </div>
       <span class="holder-legend-head-action"></span>
     </div>
@@ -2860,7 +2872,7 @@ function renderAllocationChart(options = {}){
           <div class="holder-legend-summary" aria-label="${series.label} summary">
             <div class="holder-legend-metric primary">
               <span class="holder-legend-label">Balance</span>
-              <strong class="holder-legend-number">${fmtNum(value)}</strong>
+              <strong class="holder-legend-number holder-legend-token-value"><img class="holder-legend-token-icon" src="dolo-logo.svg" alt="" onerror="this.style.display='none'"><span>${fmtNum(value)}</span></strong>
             </div>
             <div class="holder-legend-metric"><span class="holder-legend-label">Wallets</span><strong class="holder-legend-number">${wallets.toLocaleString()}</strong></div>
             <div class="holder-legend-metric"><span class="holder-legend-label">Share</span><strong class="holder-legend-number">${fmtPct(share)}</strong></div>
