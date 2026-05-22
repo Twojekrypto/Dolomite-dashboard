@@ -259,32 +259,47 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-chart-tip .tt-change.up{color:var(--up)}
 .holder-chart-tip .tt-change.down{color:var(--down)}
 .holder-chart-legend{display:flex;flex-direction:column;border-top:1px solid var(--line-1);background:rgba(255,255,255,.012)}
+.holder-legend-head{
+  display:grid;grid-template-columns:minmax(170px,.82fr) minmax(390px,1.58fr) auto;gap:16px;align-items:center;
+  padding:10px 18px 9px;border-bottom:1px solid var(--line-1);background:rgba(255,255,255,.008);
+  font-family:var(--mono);font-size:8.5px;font-weight:800;letter-spacing:1.15px;text-transform:uppercase;color:var(--fg-4)
+}
+.holder-legend-head-metrics{display:grid;grid-template-columns:minmax(148px,1fr) repeat(3,minmax(68px,.42fr));align-items:center}
+.holder-legend-head-metrics span{padding:0 12px;border-left:1px solid var(--line-1);white-space:nowrap}
+.holder-legend-head-metrics span:first-child{padding-left:18px;border-left:1px solid rgba(201,162,39,.12)}
+.holder-legend-head-metrics span:not(:first-child){text-align:right}
+.holder-legend-head-action{width:84px}
 .holder-chart-legend-item{min-width:0;border-top:1px solid var(--line-1)}
 .holder-chart-legend-item:first-child{border-top:0}
-.holder-legend-row{display:grid;grid-template-columns:minmax(180px,1.12fr) minmax(92px,.36fr) minmax(92px,.36fr) minmax(154px,.52fr) auto;gap:14px;align-items:center;padding:14px 18px;transition:background .15s var(--ease)}
+.holder-legend-row{display:grid;grid-template-columns:minmax(170px,.82fr) minmax(390px,1.58fr) auto;gap:16px;align-items:center;padding:14px 18px;transition:background .15s var(--ease)}
 .holder-chart-legend-item:hover .holder-legend-row,.holder-chart-legend-item.is-active .holder-legend-row{background:var(--gold-wash)}
 .holder-legend-main{min-width:0}
 .holder-chart-legend-item .top{display:flex;align-items:center;gap:8px;min-width:0}
 .holder-chart-legend-item .dot{width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px rgba(201,162,39,.36);flex:0 0 7px}
 .holder-chart-legend-item .bucket{font-size:12px;font-weight:700;color:var(--fg-1);white-space:nowrap}
-.holder-chart-legend-item .metric{font-family:var(--mono);font-size:15px;color:var(--gold);font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right;line-height:1.1}
 .holder-chart-legend-item .sub{margin-top:4px;font-family:var(--mono);font-size:10px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.holder-legend-stat{min-width:0;padding-left:14px;border-left:1px solid var(--line-1)}
-.holder-legend-stat span,.holder-change-pill span{display:block;font-size:9px;font-weight:700;letter-spacing:1.1px;text-transform:uppercase;color:var(--fg-4);line-height:1}
-.holder-legend-stat strong{display:block;margin-top:6px;font-family:var(--mono);font-size:12px;font-weight:600;color:var(--fg-1);font-variant-numeric:tabular-nums;white-space:nowrap}
-.holder-legend-value{min-width:0;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
-.holder-change-pill{
-  display:inline-flex;align-items:center;gap:6px;min-height:22px;padding:0 8px;border-radius:999px;border:1px solid var(--line-2);
-  background:rgba(255,255,255,.018);font-family:var(--mono);font-size:10px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums
+.holder-legend-summary{
+  min-width:0;height:36px;display:grid;grid-template-columns:minmax(148px,1fr) repeat(3,minmax(68px,.42fr));
+  align-items:center;overflow:hidden;background:transparent
 }
-.holder-change-pill span{font-size:8.5px;letter-spacing:.9px;color:var(--fg-4)}
-.holder-change-pill b{font-weight:700;color:var(--fg-2)}
-.holder-change-pill.up{border-color:rgba(138,163,123,.28);background:rgba(138,163,123,.07)}
-.holder-change-pill.up b{color:var(--up)}
-.holder-change-pill.down{border-color:rgba(180,121,107,.28);background:rgba(180,121,107,.07)}
-.holder-change-pill.down b{color:var(--down)}
+.holder-legend-metric{
+  min-width:0;height:28px;display:flex;flex-direction:column;justify-content:center;gap:3px;
+  padding:0 12px;border-left:1px solid var(--line-1);font-family:var(--mono);font-variant-numeric:tabular-nums
+}
+.holder-legend-metric:first-child{border-left:0}
+.holder-legend-metric.primary{position:relative;padding-left:18px;border-left:1px solid rgba(201,162,39,.16)}
+.holder-legend-metric.primary::before{
+  content:"";position:absolute;left:0;top:5px;bottom:5px;width:2px;border-radius:999px;background:var(--series-color,var(--gold));
+  box-shadow:0 0 12px rgba(201,162,39,.22)
+}
+.holder-legend-metric:not(.primary){align-items:flex-end;text-align:right}
+.holder-legend-label{display:none}
+.holder-legend-number{display:block;font-size:12px;font-weight:750;color:var(--fg-1);line-height:1.05;white-space:nowrap}
+.holder-legend-metric.primary .holder-legend-number{font-size:17px;color:var(--gold);font-weight:700;letter-spacing:.1px}
+.holder-legend-metric.delta.up .holder-legend-number{color:var(--up)}
+.holder-legend-metric.delta.down .holder-legend-number{color:var(--down)}
 .holder-details-btn{
-  height:24px;min-width:78px;padding:0 8px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;gap:5px;flex-shrink:0;
+  height:28px;min-width:82px;padding:0 10px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;gap:5px;flex-shrink:0;
   color:var(--gold);background:var(--gold-wash);border:1px solid rgba(201,162,39,.28);cursor:pointer;white-space:nowrap;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 0 0 1px rgba(201,162,39,.035);
   transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease),box-shadow .15s var(--ease),transform .15s var(--ease);
@@ -807,12 +822,15 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .hero-meta{margin-left:0;width:100%}
   .holder-chart-wrap{padding:18px 16px 14px}
   .holder-chart-svg{height:280px}
-  .holder-legend-row{grid-template-columns:1fr 1fr;gap:12px;padding:13px 14px}
-  .holder-legend-main,.holder-legend-value{grid-column:1/-1}
-  .holder-legend-value{align-items:flex-start}
-  .holder-chart-legend-item .metric{text-align:left}
-  .holder-legend-stat{padding-left:0;border-left:0;border-top:1px solid var(--line-1);padding-top:10px}
-  .holder-details-btn{grid-column:1/-1;justify-self:start}
+  .holder-legend-head{display:none}
+  .holder-legend-row{grid-template-columns:1fr;gap:11px;padding:13px 14px}
+  .holder-legend-summary{width:100%;height:auto;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;padding-top:3px}
+  .holder-legend-metric.primary{grid-column:1/-1;margin-bottom:8px;padding-left:16px}
+  .holder-legend-metric{height:34px;padding:0 10px}
+  .holder-legend-metric.primary .holder-legend-number{font-size:16px}
+  .holder-legend-label{display:block;font-size:8px}
+  .holder-legend-metric:not(.primary){align-items:flex-start;text-align:left}
+  .holder-details-btn{justify-self:start}
   .holder-brush-wrap{padding:4px 16px 16px}
   .holder-brush-overlay{left:16px;right:16px}
   .holder-chart-controls{width:100%;display:grid;grid-template-columns:1fr;gap:8px}
@@ -2372,30 +2390,41 @@ function renderHolderDistributionChart(options = {}){
   if(metaEl){
     metaEl.innerHTML = holderScopeHtml();
   }
+  const legendHeader = `
+    <div class="holder-legend-head" aria-hidden="true">
+      <span class="holder-legend-head-main">Group</span>
+      <div class="holder-legend-head-metrics">
+        <span>DOLO</span><span>Wallets</span><span>Share</span><span>Change</span>
+      </div>
+      <span class="holder-legend-head-action"></span>
+    </div>
+  `;
   const firstPoint = model.points[0] || model.current;
   const current = model.current;
-  legend.innerHTML = current.buckets.map((bucket, i) => {
+  legend.innerHTML = legendHeader + current.buckets.map((bucket, i) => {
     const share = current.trackedTotal ? bucket.total / current.trackedTotal * 100 : 0;
     const firstTotal = firstPoint.buckets?.[i]?.total || 0;
     const delta = bucket.total - firstTotal;
     const deltaClass = delta >= 0 ? "up" : "down";
-    const lockedText = model.includeVeDolo ? ` · ${fmtNum(bucket.locked)} locked` : "";
-    const scopeText = `${model.bucketFloorLabel} tracked${lockedText}`;
+    const scopeText = model.includeVeDolo ? "Market holders · veDOLO included" : "Market holders";
     const active = bucket.key === holderDistributionActiveKey ? " is-active" : "";
     const open = holderWalletPanelKey === bucket.key;
     const panelId = `holder-wallet-panel-${bucket.key}`;
     return `
-      <div class="holder-chart-legend-item${active}" data-key="${bucket.key}">
+      <div class="holder-chart-legend-item${active}" data-key="${bucket.key}" style="--series-color:${bucket.color}">
         <div class="holder-legend-row">
           <div class="holder-legend-main">
             <div class="top"><span class="dot" style="background:${bucket.color};box-shadow:0 0 8px ${bucket.color}66"></span><span class="bucket">${bucket.label} DOLO</span></div>
             <div class="sub">${scopeText}</div>
           </div>
-          <div class="holder-legend-stat"><span>Wallets</span><strong>${bucket.wallets.toLocaleString()}</strong></div>
-          <div class="holder-legend-stat"><span>Share</span><strong>${fmtPct(share)}</strong></div>
-          <div class="holder-legend-value">
-            <div class="metric">${fmtNum(bucket.total)} DOLO</div>
-            <div class="holder-change-pill ${deltaClass}"><span>Change</span><b>${fmtSignedHolder(delta)}</b></div>
+          <div class="holder-legend-summary" aria-label="${bucket.label} DOLO summary">
+            <div class="holder-legend-metric primary">
+              <span class="holder-legend-label">Balance</span>
+              <strong class="holder-legend-number">${fmtNum(bucket.total)}</strong>
+            </div>
+            <div class="holder-legend-metric"><span class="holder-legend-label">Wallets</span><strong class="holder-legend-number">${bucket.wallets.toLocaleString()}</strong></div>
+            <div class="holder-legend-metric"><span class="holder-legend-label">Share</span><strong class="holder-legend-number">${fmtPct(share)}</strong></div>
+            <div class="holder-legend-metric delta ${deltaClass}"><span class="holder-legend-label">Change</span><strong class="holder-legend-number">${fmtSignedHolder(delta)}</strong></div>
           </div>
           <button class="holder-details-btn" type="button" data-details-key="${bucket.key}" aria-expanded="${open ? "true" : "false"}" aria-controls="${panelId}" aria-label="${open ? "Hide" : "Show"} ${bucket.label} DOLO wallets"><span>${open ? "Hide" : "Details"}</span>${CHEVRON_DOWN_ICO}</button>
         </div>
@@ -2802,7 +2831,16 @@ function renderAllocationChart(options = {}){
   const firstPoint = model.points[0] || model.current;
   const current = model.current || model.points[model.points.length - 1] || {};
   const total = Math.max(1, safeHolderNum(current.total));
-  legend.innerHTML = ALLOCATION_CHART_SERIES.map(series => {
+  const legendHeader = `
+    <div class="holder-legend-head" aria-hidden="true">
+      <span class="holder-legend-head-main">Group</span>
+      <div class="holder-legend-head-metrics">
+        <span>DOLO</span><span>Wallets</span><span>Share</span><span>Change</span>
+      </div>
+      <span class="holder-legend-head-action"></span>
+    </div>
+  `;
+  legend.innerHTML = legendHeader + ALLOCATION_CHART_SERIES.map(series => {
     const value = safeHolderNum(current[series.valueKey]);
     const firstValue = safeHolderNum(firstPoint?.[series.valueKey]);
     const wallets = safeHolderNum(current[series.walletKey]);
@@ -2813,17 +2851,20 @@ function renderAllocationChart(options = {}){
     const open = allocationWalletPanelKey === series.key;
     const panelId = `allocation-wallet-panel-${series.key}`;
     return `
-      <div class="holder-chart-legend-item${active}" data-key="${series.key}">
+      <div class="holder-chart-legend-item${active}" data-key="${series.key}" style="--series-color:${series.color}">
         <div class="holder-legend-row">
           <div class="holder-legend-main">
             <div class="top"><span class="dot" style="background:${series.color};box-shadow:0 0 8px ${series.color}66"></span><span class="bucket">${series.label}</span></div>
-            <div class="sub">Labeled allocation wallets</div>
+            <div class="sub">Allocation wallets</div>
           </div>
-          <div class="holder-legend-stat"><span>Wallets</span><strong>${wallets.toLocaleString()}</strong></div>
-          <div class="holder-legend-stat"><span>Share</span><strong>${fmtPct(share)}</strong></div>
-          <div class="holder-legend-value">
-            <div class="metric">${fmtNum(value)} DOLO</div>
-            <div class="holder-change-pill ${deltaClass}"><span>Change</span><b>${fmtSignedHolder(delta)}</b></div>
+          <div class="holder-legend-summary" aria-label="${series.label} summary">
+            <div class="holder-legend-metric primary">
+              <span class="holder-legend-label">Balance</span>
+              <strong class="holder-legend-number">${fmtNum(value)}</strong>
+            </div>
+            <div class="holder-legend-metric"><span class="holder-legend-label">Wallets</span><strong class="holder-legend-number">${wallets.toLocaleString()}</strong></div>
+            <div class="holder-legend-metric"><span class="holder-legend-label">Share</span><strong class="holder-legend-number">${fmtPct(share)}</strong></div>
+            <div class="holder-legend-metric delta ${deltaClass}"><span class="holder-legend-label">Change</span><strong class="holder-legend-number">${fmtSignedHolder(delta)}</strong></div>
           </div>
           <button class="holder-details-btn" type="button" data-details-key="${series.key}" aria-expanded="${open ? "true" : "false"}" aria-controls="${panelId}" aria-label="${open ? "Hide" : "Show"} ${series.label} wallets"><span>${open ? "Hide" : "Details"}</span>${CHEVRON_DOWN_ICO}</button>
         </div>
