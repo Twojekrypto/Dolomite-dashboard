@@ -1691,6 +1691,7 @@ const ALLOCATION_CHART_SERIES = [
   {key:"team", label:"Core Team", valueKey:"team", walletKey:"teamWallets", color:"#9ab7c2"},
   {key:"investors", label:"Investors", valueKey:"investors", walletKey:"investorWallets", color:"#8aa37b"},
 ];
+const ALLOCATION_CHART_LINE_SERIES = [ALLOCATION_CHART_SERIES[0]];
 let allocationChartActiveKey = "total";
 let allocationWalletPanelKey = "";
 let allocationBrushSel = {from:0, to:0};
@@ -2770,9 +2771,7 @@ function renderAllocationChart(options = {}){
   if(allocationWalletPanelKey && !ALLOCATION_CHART_SERIES.some(series => series.key === allocationWalletPanelKey)){
     allocationWalletPanelKey = "";
   }
-  if(allocationWalletPanelKey){
-    allocationChartActiveKey = allocationWalletPanelKey;
-  }
+  allocationChartActiveKey = "total";
   if(options.skipBrush){
     allocationFullModel = fullModel;
     ensureAllocationBrushSelection(fullModel);
@@ -2786,7 +2785,7 @@ function renderAllocationChart(options = {}){
   const chartW = W - P_L - P_R;
   const chartH = H - P_T - P_B;
   const zeroY = P_T + chartH;
-  const maxTotal = Math.max(1, ...model.points.flatMap(point => ALLOCATION_CHART_SERIES.map(series => point[series.valueKey] || 0)));
+  const maxTotal = Math.max(1, ...model.points.flatMap(point => ALLOCATION_CHART_LINE_SERIES.map(series => point[series.valueKey] || 0)));
   const yMax = niceHolderChartMax(maxTotal * 1.12);
   const yAt = value => P_T + (1 - Math.max(0, Math.min(1, value / yMax))) * chartH;
   const xMin = model.points[0]?.ts || 0;
@@ -2806,8 +2805,8 @@ function renderAllocationChart(options = {}){
     grid.innerHTML += `<text x="${P_L-12}" y="${(y+3).toFixed(1)}" text-anchor="end">${fmtNum(value)}</text>`;
   }
   grid.innerHTML += `<line x1="${P_L}" x2="${W-P_R}" y1="${zeroY}" y2="${zeroY}" style="stroke:var(--line-2)"/>`;
-  const focusKey = allocationChartActiveKey || "total";
-  const focusSeries = ALLOCATION_CHART_SERIES.find(series => series.key === focusKey) || ALLOCATION_CHART_SERIES[0];
+  const focusKey = "total";
+  const focusSeries = ALLOCATION_CHART_LINE_SERIES[0];
   if(model.points.length < 2){
     areaPath.setAttribute("d", "");
   } else {
@@ -2822,10 +2821,10 @@ function renderAllocationChart(options = {}){
     const anchor = i === 0 ? "start" : i === 5 ? "end" : "middle";
     axis.innerHTML += `<text x="${x.toFixed(1)}" y="${H-10}" text-anchor="${anchor}">${fmtHolderAxisDate(ts, spanDays)}</text>`;
   }
-  ALLOCATION_CHART_SERIES.forEach(series => {
+  ALLOCATION_CHART_LINE_SERIES.forEach(series => {
     const values = model.points.map(point => [point.ts, point[series.valueKey] || 0]);
     const path = values.map((point, index) => `${index ? "L" : "M"}${xAt(point[0]).toFixed(2)} ${yAt(point[1]).toFixed(2)}`).join(" ");
-    const active = series.key === focusKey ? " is-active" : "";
+    const active = series.key === "total" ? " is-active" : "";
     const muted = focusKey && series.key !== focusKey ? " is-muted" : "";
     lines.innerHTML += `<path class="holder-chart-series-line${active}${muted}" data-key="${series.key}" d="${path}" stroke="${series.color}"/>`;
     values.forEach(point => {
@@ -2860,7 +2859,7 @@ function renderAllocationChart(options = {}){
     const wallets = safeHolderNum(current[series.walletKey]);
     const delta = value - firstValue;
     const deltaClass = delta >= 0 ? "up" : "down";
-    const active = series.key === focusKey ? " is-active" : "";
+    const active = (allocationWalletPanelKey ? series.key === allocationWalletPanelKey : series.key === focusKey) ? " is-active" : "";
     const breakdown = series.key !== "total";
     const subText = breakdown ? "Component of Total Allocations" : "Core Team + Investors combined";
     const open = allocationWalletPanelKey === series.key;
@@ -2895,18 +2894,19 @@ function renderAllocationChart(options = {}){
   hoverLine.setAttribute("y2", zeroY);
   const paintActive = key => {
     svg.querySelectorAll(".holder-chart-series-line").forEach(lineEl => {
-      lineEl.classList.toggle("is-active", lineEl.dataset.key === key);
-      lineEl.classList.toggle("is-muted", !!key && lineEl.dataset.key !== key);
+      lineEl.classList.toggle("is-active", lineEl.dataset.key === "total");
+      lineEl.classList.toggle("is-muted", false);
     });
+    const activeLegendKey = allocationWalletPanelKey || "total";
     legend.querySelectorAll(".holder-chart-legend-item").forEach(item => {
-      item.classList.toggle("is-active", item.dataset.key === key);
+      item.classList.toggle("is-active", item.dataset.key === activeLegendKey);
     });
   };
   const leave = () => {
     hoverLine.style.opacity = 0;
     hoverDot.style.opacity = 0;
     tip.style.opacity = 0;
-    paintActive(allocationChartActiveKey || "total");
+    paintActive("total");
   };
   svg.onmousemove = event => {
     if(model.points.length < 2) return;
@@ -2918,7 +2918,7 @@ function renderAllocationChart(options = {}){
       const dist = Math.abs(xAt(point.ts) - px);
       if(dist < best){ best = dist; nearest = point; }
     });
-    const focus = ALLOCATION_CHART_SERIES.find(series => series.key === (allocationChartActiveKey || "total")) || ALLOCATION_CHART_SERIES[0];
+    const focus = ALLOCATION_CHART_LINE_SERIES[0];
     const x = xAt(nearest.ts);
     const y = yAt(nearest[focus.valueKey] || 0);
     paintActive(focus.key);
@@ -2932,7 +2932,7 @@ function renderAllocationChart(options = {}){
     tip.innerHTML = `
       <div class="tt-date">${fmtHolderDate(nearest.ts)}</div>
       <div class="tt-val">${fmtNum(nearest.total)} DOLO allocations</div>
-      ${ALLOCATION_CHART_SERIES.map(series => {
+      ${ALLOCATION_CHART_LINE_SERIES.map(series => {
         const value = safeHolderNum(nearest[series.valueKey]);
         const startValue = safeHolderNum(firstPoint?.[series.valueKey]);
         const delta = value - startValue;
@@ -2955,19 +2955,18 @@ function renderAllocationChart(options = {}){
   };
   svg.onmouseleave = leave;
   legend.querySelectorAll(".holder-chart-legend-item").forEach(item => {
-    item.addEventListener("mouseenter", () => paintActive(item.dataset.key));
-    item.addEventListener("mouseleave", () => paintActive(allocationChartActiveKey || "total"));
+    item.addEventListener("mouseenter", () => paintActive("total"));
+    item.addEventListener("mouseleave", () => paintActive("total"));
   });
   legend.querySelectorAll(".holder-details-btn").forEach(btn => btn.addEventListener("click", event => {
     event.stopPropagation();
     const key = btn.dataset.detailsKey || "total";
     if(allocationWalletPanelKey === key){
       allocationWalletPanelKey = "";
-      allocationChartActiveKey = "total";
     } else {
       allocationWalletPanelKey = key;
-      allocationChartActiveKey = key;
     }
+    allocationChartActiveKey = "total";
     renderAllocationChart({skipBrush:true});
   }));
   bindHolderWalletPanel(legend);
