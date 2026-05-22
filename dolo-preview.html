@@ -262,14 +262,12 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-legend-head{
   display:grid;grid-template-columns:minmax(170px,.82fr) minmax(390px,1.58fr) auto;gap:16px;align-items:center;
   padding:10px 18px 9px;border-bottom:1px solid var(--line-1);background:rgba(255,255,255,.008);
-  font-family:var(--mono);font-size:8.5px;font-weight:800;letter-spacing:1.15px;text-transform:uppercase;color:var(--fg-4)
+  font-family:var(--mono);font-size:9.25px;font-weight:800;letter-spacing:.82px;text-transform:uppercase;color:var(--fg-3)
 }
-.holder-legend-head-metrics{display:grid;grid-template-columns:minmax(148px,1fr) repeat(3,minmax(68px,.42fr));align-items:center}
+.holder-legend-head-metrics{display:grid;grid-template-columns:minmax(160px,1fr) repeat(2,minmax(82px,.48fr));align-items:center}
 .holder-legend-head-metrics span{padding:0 12px;border-left:1px solid var(--line-1);white-space:nowrap}
 .holder-legend-head-metrics span:first-child{padding-left:18px;border-left:1px solid rgba(201,162,39,.12)}
 .holder-legend-head-metrics span:not(:first-child){text-align:right}
-.holder-legend-head-token{display:inline-flex;align-items:center;gap:6px;color:var(--fg-3)}
-.holder-legend-head-token img{width:13px;height:13px;border-radius:50%;object-fit:contain;opacity:.9;filter:saturate(.96)}
 .holder-legend-head-action{width:84px}
 .holder-chart-legend-item{min-width:0;border-top:1px solid var(--line-1)}
 .holder-chart-legend-item:first-child{border-top:0}
@@ -281,7 +279,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-chart-legend-item .bucket{font-size:12px;font-weight:700;color:var(--fg-1);white-space:nowrap}
 .holder-chart-legend-item .sub{margin-top:4px;font-family:var(--mono);font-size:10px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .holder-legend-summary{
-  min-width:0;height:36px;display:grid;grid-template-columns:minmax(148px,1fr) repeat(3,minmax(68px,.42fr));
+  min-width:0;height:36px;display:grid;grid-template-columns:minmax(160px,1fr) repeat(2,minmax(82px,.48fr));
   align-items:center;overflow:hidden;background:transparent
 }
 .holder-legend-metric{
@@ -427,6 +425,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-flow-stat .dot{width:7px;height:7px;border-radius:50%;background:var(--down);box-shadow:0 0 10px rgba(180,121,107,.48);flex:0 0 7px}
 .holder-flow-stat .label{font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--fg-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .holder-flow-stat .value{margin-top:8px;font-family:var(--mono);font-size:15px;font-weight:800;color:var(--down);font-variant-numeric:tabular-nums;white-space:nowrap}
+.holder-flow-token-value{display:inline-flex;align-items:center;gap:7px}
+.holder-flow-token-icon{width:15px;height:15px;border-radius:50%;object-fit:contain;flex:0 0 15px;background:var(--bg-3);box-shadow:0 0 0 1px rgba(255,255,255,.10),0 0 10px rgba(201,162,39,.10)}
 .holder-flow-stat.primary .value{font-size:17px}
 .holder-flow-stat .sub{margin-top:4px;font-family:var(--mono);font-size:10px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .holder-flow-stat.outflow .dot{background:var(--up);box-shadow:0 0 10px rgba(113,160,133,.46)}
@@ -836,7 +836,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .holder-chart-svg{height:280px}
   .holder-legend-head{display:none}
   .holder-legend-row{grid-template-columns:1fr;gap:11px;padding:13px 14px}
-  .holder-legend-summary{width:100%;height:auto;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;padding-top:3px}
+  .holder-legend-summary{width:100%;height:auto;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;padding-top:3px}
   .holder-legend-metric.primary{grid-column:1/-1;margin-bottom:8px;padding-left:16px}
   .holder-legend-metric{height:34px;padding:0 10px}
   .holder-legend-metric.primary .holder-legend-number{font-size:16px}
@@ -1800,7 +1800,7 @@ function holderCexStatHtml(){
         <span class="dot"></span>
         <div class="label">${stat.label}</div>
       </div>
-      <div class="value">${fmtSignedHolder(stat.net)} DOLO</div>
+      <div class="value"><span class="holder-flow-token-value"><span>${fmtSignedHolder(stat.net)}</span><img class="holder-flow-token-icon" src="dolo-logo.svg" alt="" onerror="this.style.display='none'"></span></div>
       <div class="sub">${direction}</div>
     </div>
   `;
@@ -2406,7 +2406,7 @@ function renderHolderDistributionChart(options = {}){
     <div class="holder-legend-head" aria-hidden="true">
       <span class="holder-legend-head-main">Group</span>
       <div class="holder-legend-head-metrics">
-        <span class="holder-legend-head-token"><img src="dolo-logo.svg" alt="" onerror="this.style.display='none'">DOLO</span><span>Wallets</span><span>Share</span><span>Change</span>
+        <span>Balance</span><span>Wallets</span><span>Change</span>
       </div>
       <span class="holder-legend-head-action"></span>
     </div>
@@ -2414,7 +2414,6 @@ function renderHolderDistributionChart(options = {}){
   const firstPoint = model.points[0] || model.current;
   const current = model.current;
   legend.innerHTML = legendHeader + current.buckets.map((bucket, i) => {
-    const share = current.trackedTotal ? bucket.total / current.trackedTotal * 100 : 0;
     const firstTotal = firstPoint.buckets?.[i]?.total || 0;
     const delta = bucket.total - firstTotal;
     const deltaClass = delta >= 0 ? "up" : "down";
@@ -2435,7 +2434,6 @@ function renderHolderDistributionChart(options = {}){
               <strong class="holder-legend-number holder-legend-token-value"><img class="holder-legend-token-icon" src="dolo-logo.svg" alt="" onerror="this.style.display='none'"><span>${fmtNum(bucket.total)}</span></strong>
             </div>
             <div class="holder-legend-metric"><span class="holder-legend-label">Wallets</span><strong class="holder-legend-number">${bucket.wallets.toLocaleString()}</strong></div>
-            <div class="holder-legend-metric"><span class="holder-legend-label">Share</span><strong class="holder-legend-number">${fmtPct(share)}</strong></div>
             <div class="holder-legend-metric delta ${deltaClass}"><span class="holder-legend-label">Change</span><strong class="holder-legend-number">${fmtSignedHolder(delta)}</strong></div>
           </div>
           <button class="holder-details-btn" type="button" data-details-key="${bucket.key}" aria-expanded="${open ? "true" : "false"}" aria-controls="${panelId}" aria-label="${open ? "Hide" : "Show"} ${bucket.label} DOLO wallets"><span>${open ? "Hide" : "Details"}</span>${CHEVRON_DOWN_ICO}</button>
@@ -2842,12 +2840,11 @@ function renderAllocationChart(options = {}){
   }
   const firstPoint = model.points[0] || model.current;
   const current = model.current || model.points[model.points.length - 1] || {};
-  const total = Math.max(1, safeHolderNum(current.total));
   const legendHeader = `
     <div class="holder-legend-head" aria-hidden="true">
       <span class="holder-legend-head-main">Group</span>
       <div class="holder-legend-head-metrics">
-        <span class="holder-legend-head-token"><img src="dolo-logo.svg" alt="" onerror="this.style.display='none'">DOLO</span><span>Wallets</span><span>Share</span><span>Change</span>
+        <span>Balance</span><span>Wallets</span><span>Change</span>
       </div>
       <span class="holder-legend-head-action"></span>
     </div>
@@ -2856,7 +2853,6 @@ function renderAllocationChart(options = {}){
     const value = safeHolderNum(current[series.valueKey]);
     const firstValue = safeHolderNum(firstPoint?.[series.valueKey]);
     const wallets = safeHolderNum(current[series.walletKey]);
-    const share = series.key === "total" ? 100 : value / total * 100;
     const delta = value - firstValue;
     const deltaClass = delta >= 0 ? "up" : "down";
     const active = series.key === focusKey ? " is-active" : "";
@@ -2875,7 +2871,6 @@ function renderAllocationChart(options = {}){
               <strong class="holder-legend-number holder-legend-token-value"><img class="holder-legend-token-icon" src="dolo-logo.svg" alt="" onerror="this.style.display='none'"><span>${fmtNum(value)}</span></strong>
             </div>
             <div class="holder-legend-metric"><span class="holder-legend-label">Wallets</span><strong class="holder-legend-number">${wallets.toLocaleString()}</strong></div>
-            <div class="holder-legend-metric"><span class="holder-legend-label">Share</span><strong class="holder-legend-number">${fmtPct(share)}</strong></div>
             <div class="holder-legend-metric delta ${deltaClass}"><span class="holder-legend-label">Change</span><strong class="holder-legend-number">${fmtSignedHolder(delta)}</strong></div>
           </div>
           <button class="holder-details-btn" type="button" data-details-key="${series.key}" aria-expanded="${open ? "true" : "false"}" aria-controls="${panelId}" aria-label="${open ? "Hide" : "Show"} ${series.label} wallets"><span>${open ? "Hide" : "Details"}</span>${CHEVRON_DOWN_ICO}</button>
