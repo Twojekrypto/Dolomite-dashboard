@@ -2863,7 +2863,7 @@ function renderAllocationChart(options = {}){
         <div class="holder-legend-row">
           <div class="holder-legend-main">
             <div class="top"><span class="dot" style="background:${series.color};box-shadow:0 0 8px ${series.color}66"></span><span class="bucket">${series.label}</span></div>
-            <div class="sub">Allocation wallets</div>
+            <div class="sub">Labeled allocation set</div>
           </div>
           <div class="holder-legend-summary" aria-label="${series.label} summary">
             <div class="holder-legend-metric primary">
@@ -3529,13 +3529,13 @@ function holderWalletInlinePanelHtml(bucket, model = null){
 function allocationWalletInlinePanelHtml(series, model = null){
   const point = model?.current || null;
   const rows = allocationWalletRows(series.key, point);
-  const title = series.key === "team" ? "Core Team wallets" : series.key === "investors" ? "Investor wallets" : "Allocation wallets";
+  const title = series.key === "team" ? "Core Team wallets" : series.key === "investors" ? "Investor wallets" : "All allocation wallets";
   return `
     <div class="holder-wallet-panel holder-wallet-panel-inline is-open" id="allocation-wallet-panel-${escHtml(series.key)}" aria-live="polite">
       ${walletDrilldownPanelHtml({
-        eyebrow:"Allocation wallets",
+        eyebrow:"Wallet breakdown",
         title,
-        meta:`${rows.length.toLocaleString()} labeled wallets · ${holderPanelDateText(point)} · DOLO balance`,
+        meta:`${rows.length.toLocaleString()} labeled allocation wallets · ${holderPanelDateText(point)} · DOLO balance`,
         rows,
         emptyText:"No wallets in this allocation group for the selected point.",
       })}
