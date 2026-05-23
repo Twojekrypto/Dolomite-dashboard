@@ -110,6 +110,13 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertNotIn("- Update EARN Snapshots", workflow)
         self.assertNotIn("- Update oDOLO Contract Data", workflow)
 
+    def test_workflows_pin_stable_checkout_action(self):
+        for workflow_path in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
+            workflow = workflow_path.read_text(encoding="utf-8")
+            self.assertNotIn("actions/checkout@v6", workflow, workflow_path.name)
+            if "actions/checkout@" in workflow:
+                self.assertIn("actions/checkout@v5", workflow, workflow_path.name)
+
     def test_earn_commit_helper_dispatches_pages_after_action_token_push(self):
         helper = EARN_COMMIT_HELPER.read_text(encoding="utf-8")
         self.assertIn("EARN_DISPATCH_PAGES_AFTER_PUSH", helper)
