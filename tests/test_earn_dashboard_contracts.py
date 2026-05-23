@@ -121,6 +121,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
         helper = EARN_COMMIT_HELPER.read_text(encoding="utf-8")
         self.assertIn("EARN_DISPATCH_PAGES_AFTER_PUSH", helper)
         self.assertIn("gh workflow run pages.yml --ref \"$git_branch\"", helper)
+        self.assertIn("GitHub Pages deploy dispatch attempt $i failed", helper)
         self.assertIn("Skipping GitHub Pages deploy dispatch", helper)
         for workflow_path in (
             EARN_SNAPSHOTS_WORKFLOW,
