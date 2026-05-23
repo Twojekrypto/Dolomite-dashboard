@@ -109,6 +109,10 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertNotIn("- Update DOLO Flows\n", workflow)
         self.assertNotIn("- Update EARN Snapshots", workflow)
         self.assertNotIn("- Update oDOLO Contract Data", workflow)
+        self.assertIn("continue-on-error: true", workflow)
+        self.assertIn("Fallback source download", workflow)
+        self.assertIn("Fallback smoke script download", workflow)
+        self.assertIn("https://codeload.github.com/${GITHUB_REPOSITORY}/tar.gz/${GITHUB_SHA}", workflow)
 
     def test_workflows_pin_stable_checkout_action(self):
         for workflow_path in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
