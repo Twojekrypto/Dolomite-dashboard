@@ -524,6 +524,8 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("earn-refresh-dispatched.tsv", workflow)
         self.assertIn("Skipping duplicate refresh request", workflow)
         self.assertIn('-f "chain=$chain"', workflow)
+        self.assertIn("dispatch_with_retry()", workflow)
+        self.assertIn("GitHub workflow dispatch failed on attempt", workflow)
         planner = EARN_WATCHDOG_DISPATCH_PLANNER.read_text(encoding="utf-8")
         self.assertIn("refreshJobs", planner)
         self.assertIn("priority", planner)

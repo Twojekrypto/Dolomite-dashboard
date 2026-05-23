@@ -115,6 +115,22 @@ jobs:
           : > /tmp/earn-refresh-dispatched.tsv
           dispatched_count=0
           max_dispatches="${EARN_WATCHDOG_MAX_DISPATCHES:-4}"
+          dispatch_with_retry() {
+            local attempt
+            local max_attempts=3
+            local sleep_seconds
+            for attempt in $(seq 1 "$max_attempts"); do
+              if "$@"; then
+                return 0
+              fi
+              if [ "$attempt" -ge "$max_attempts" ]; then
+                return 1
+              fi
+              sleep_seconds=$((attempt * 10))
+              echo "GitHub workflow dispatch failed on attempt $attempt/$max_attempts. Retrying in ${sleep_seconds}s."
+              sleep "$sleep_seconds"
+            done
+          }
           while IFS=$'\t' read -r workflow chain priority mode inputs_json; do
             if [ -z "$workflow" ]; then
               continue
@@ -229,7 +245,7 @@ jobs:
             else
               echo "Triggering $workflow because EARN freshness drifted past the retry threshold."
             fi
-            "${dispatch_args[@]}"
+            dispatch_with_retry "${dispatch_args[@]}"
             echo "$job_key" >> /tmp/earn-refresh-dispatched.tsv
             dispatched_count=$((dispatched_count + 1))
           done < /tmp/earn-refresh-jobs.tsv
