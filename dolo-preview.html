@@ -3086,6 +3086,12 @@ function cexSupplySelectedChange(fullModel = cexSupplyFullModel){
     last,
   };
 }
+function cexSupplyRiskClass(delta){
+  const value = safeHolderNum(delta);
+  if(value > 0) return "down";
+  if(value < 0) return "up";
+  return "";
+}
 function paintCexSupplyBrushWindow(){
   const {minX, span} = cexSupplyBrushDomain();
   const win = document.getElementById("cexSupplyBrushWindow");
@@ -3100,8 +3106,9 @@ function paintCexSupplyBrushWindow(){
   dimL.style.width = leftPct + "%";
   dimR.style.width = (100 - rightPct) + "%";
   const change = cexSupplySelectedChange();
+  const riskClass = change ? cexSupplyRiskClass(change.delta) : "";
   const changeHtml = change
-    ? `<span class="chg ${change.delta >= 0 ? "up" : "down"}">${fmtSignedHolderPct(change.pct)}</span><span class="amt ${change.delta >= 0 ? "up" : "down"}">(${fmtSignedHolder(change.delta)} DOLO)</span>`
+    ? `<span class="chg ${riskClass}">${fmtSignedHolderPct(change.pct)}</span><span class="amt ${riskClass}">(${fmtSignedHolder(change.delta)} DOLO)</span>`
     : "";
   label.innerHTML = `<span class="v">${fmtHolderBrushDate(cexSupplyBrushSel.from)}</span><span class="sep">→</span><span class="v">${fmtHolderBrushDate(cexSupplyBrushSel.to)}</span>${changeHtml}`;
 }
@@ -3314,7 +3321,7 @@ function renderCexSupplyChart(options = {}){
     const y = yAt(nearest.cex);
     const startCex = safeHolderNum(model.points[0]?.cex);
     const delta = safeHolderNum(nearest.cex) - startCex;
-    const deltaClass = delta >= 0 ? "up" : "down";
+    const deltaClass = cexSupplyRiskClass(delta);
     hoverLine.setAttribute("x1", x);
     hoverLine.setAttribute("x2", x);
     hoverLine.style.opacity = 1;
