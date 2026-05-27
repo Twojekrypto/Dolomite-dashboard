@@ -148,6 +148,20 @@ class DoloAddressLabelsTest(unittest.TestCase):
                 self.assertEqual(info["source"], "etherscan-public-label")
                 self.assertEqual(info["confidence"], "confirmed")
 
+    def test_flow_audit_cex_labels_are_confirmed(self):
+        expected = {
+            "0x7a1d00de77c0162d55d84a051bdc6840852b4a60": "Bitkub-linked Custody Wallet",
+            "0x38285671612d6f0ef7c3483f500d39fa71d66a1c": "CEX Distributor",
+            "0xc882b111a75c0c657fc507c04fbfcd2cc984f071": "Gate.io Routing Wallet",
+        }
+        for address, label in expected.items():
+            with self.subTest(address=address):
+                info = self.labels[address]
+                self.assertEqual(info["label"], label)
+                self.assertEqual(info["type"], "cex")
+                self.assertEqual(info["source"], "flow-audit")
+                self.assertEqual(info["confidence"], "confirmed")
+
     def test_ens_reverse_names_are_identity_labels_not_entity_claims(self):
         expected = {
             "0xd6f631c796a56a5d448dd88a01f15058c4a0be52": "makeitback.eth",
