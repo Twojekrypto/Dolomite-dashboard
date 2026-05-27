@@ -682,7 +682,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   <section class="card">
     <div class="card-head">
       <div class="card-title">
-        <h2>TVL Over Time</h2>
+        <h2>Supply Over Time</h2>
         <span class="count-badge" id="rangeBadge">All Time</span>
       </div>
       <div class="card-meta"><span class="pulse"></span>drag the window below to zoom</div>
@@ -1122,23 +1122,49 @@ async function fetchJson(path){
   return response.json();
 }
 
-function buildHistory(llamaData, currentSupply){
+function officialSnapshotTimestamp(officialData){
+  const parsed = Date.parse(officialData?.last_updated || "");
+  if (Number.isFinite(parsed)) return Math.floor(parsed / 1000);
+  return Math.floor(Date.now() / 1000);
+}
+
+function appendCurrentSupplyPoint(points, currentSupply, snapshotTs){
+  const supply = Number(currentSupply || 0);
+  if (!Number.isFinite(supply) || supply <= 0) return points;
+  const next = Array.isArray(points) ? points.slice() : [];
+  const ts = Number.isFinite(Number(snapshotTs)) ? Number(snapshotTs) : Math.floor(Date.now() / 1000);
+  if (!next.length) return [[ts, supply]];
+
+  const last = next[next.length - 1];
+  const lastTs = Number(last?.[0] || 0);
+  const pointTs = Math.max(ts, lastTs);
+  if (pointTs - lastTs < 86400) {
+    next[next.length - 1] = [pointTs, supply];
+  } else {
+    next.push([pointTs, supply]);
+  }
+  return next;
+}
+
+function buildHistory(llamaData, currentSupply, officialData){
   const raw = Array.isArray(llamaData?.tvl) ? llamaData.tvl : [];
   const points = raw
     .map(p => [Number(p.date), Number(p.totalLiquidityUSD)])
     .filter(p => Number.isFinite(p[0]) && Number.isFinite(p[1]) && p[1] > 0)
     .sort((a,b)=>a[0]-b[0]);
 
-  if (points.length < 2) return TVL_HISTORY;
+  const snapshotTs = officialSnapshotTimestamp(officialData);
+  if (points.length < 2) return appendCurrentSupplyPoint(TVL_HISTORY, currentSupply, snapshotTs);
 
   // Only smooth tiny current-snapshot drift. A large gap means the sources use
   // different TVL methodology, so scaling the whole history would invent data.
+  // The final point is always anchored to Dolomite's current supply snapshot.
   const last = points[points.length - 1][1];
   const ratio = last > 0 && currentSupply > 0 ? currentSupply / last : 1;
   if (ratio > 0.95 && ratio < 1.05) {
-    return points.map(p => [p[0], p[1] * ratio]);
+    return appendCurrentSupplyPoint(points.map(p => [p[0], p[1] * ratio]), currentSupply, snapshotTs);
   }
-  return points;
+  return appendCurrentSupplyPoint(points, currentSupply, snapshotTs);
 }
 
 const TOKEN_DISPLAY_SYMBOLS = {
@@ -1273,7 +1299,7 @@ function buildTvlSnapshot(llamaData, officialData){
         name,
         tvl: Number(source[name] || 0),
         borrowed: Number(source[`${name}-borrowed`] || 0),
-        source: useLlama ? "defillama_fallback" : "dolomite_subgraph",
+        source: useLlama ? "defillama_fallback" : "dolomite_api",
       };
     })
     .filter(c => c.tvl > 0)
@@ -1297,7 +1323,7 @@ function buildTvlSnapshot(llamaData, officialData){
     tokens: Object.values(chainTokens[c.name] || {}).filter(v => Number(v) > 0).length,
   }));
 
-  const history = buildHistory(llamaData, supplyLiquidity);
+  const history = buildHistory(llamaData, supplyLiquidity, officialData);
   const tokens = buildTokenComposition(llamaData, officialData, staleKeys);
   const tokenCompositionByChain = buildChainTokenCompositions(llamaData, officialData, staleKeys);
 

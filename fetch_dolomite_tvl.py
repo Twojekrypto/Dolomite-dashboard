@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """
-Fetch perfectly accurate TVL and Total Supply metrics directly from Dolomite Subgraphs.
+Fetch current Dolomite supply, borrow and net TVL metrics.
+
+The public Dolomite app uses api.dolomite.io token liquidity plus prices for
+its Stats page. Keep this dashboard aligned with that source, and use the
+subgraphs only for block/freshness metadata.
 """
 
 import json
@@ -12,6 +16,17 @@ from datetime import datetime, timezone
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.join(DATA_DIR, "dolomite_tvl.json")
 STALE_CHAIN_SECONDS = 6 * 60 * 60
+DOLOMITE_API_SERVER_URL = "https://api.dolomite.io"
+
+API_CHAIN_IDS = {
+    "Berachain": 80094,
+    "Arbitrum": 42161,
+    "Ethereum": 1,
+    "Botanix": 3637,
+    "Mantle": 5000,
+    "Polygon zkEVM": 1101,
+    "X Layer": 196,
+}
 
 ASSETS_CHAINS = {
     "Berachain": "https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-berachain-mainnet/latest/gn",
@@ -23,24 +38,8 @@ ASSETS_CHAINS = {
     "X Layer": "https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-x-layer/latest/gn"
 }
 
-QUERY = """
+META_QUERY = """
 {
-    totalPars(first: 1000) {
-        id
-        supplyPar
-        borrowPar
-        token { id symbol }
-    }
-    interestIndexes(first: 1000) {
-        id
-        supplyIndex
-        borrowIndex
-    }
-    oraclePrices(first: 1000) {
-        id
-        price
-        token { id }
-    }
     _meta {
         block {
             number
@@ -63,8 +62,89 @@ def to_float(value):
     return float(value)
 
 
+def fetch_json(url):
+    response = requests.get(
+        url,
+        timeout=20,
+        headers={
+            "Accept": "application/json",
+            "User-Agent": "dolomite-dashboard-tvl/1.1",
+        },
+    )
+    response.raise_for_status()
+    payload = response.json()
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"Unexpected JSON shape from {url}")
+    return payload
+
+
+def fetch_chain_meta(chain_name, url):
+    response = requests.post(url, json={"query": META_QUERY}, timeout=20)
+    response.raise_for_status()
+    payload = response.json()
+    if payload.get("errors"):
+        raise RuntimeError(payload["errors"])
+    data = payload.get("data") or {}
+    meta = data.get("_meta", {}) or {}
+    block = meta.get("block", {}) or {}
+    return {
+        "blockNumber": block.get("number"),
+        "blockHash": block.get("hash"),
+        "blockTimestamp": block.get("timestamp"),
+        "deployment": meta.get("deployment"),
+    }
+
+
+def token_rows_from_payload(payload):
+    tokens = payload.get("tokens")
+    if isinstance(tokens, list):
+        return tokens
+    raise RuntimeError("Dolomite token payload is missing tokens[]")
+
+
+def price_map_from_payload(payload):
+    prices = payload.get("prices")
+    if not isinstance(prices, dict):
+        raise RuntimeError("Dolomite prices payload is missing prices{}")
+    return {
+        str(address).lower(): as_decimal(price)
+        for address, price in prices.items()
+    }
+
+
+def fetch_chain_liquidity(chain_name):
+    chain_id = API_CHAIN_IDS[chain_name]
+    tokens_payload = fetch_json(f"{DOLOMITE_API_SERVER_URL}/tokens/{chain_id}")
+    prices_payload = fetch_json(f"{DOLOMITE_API_SERVER_URL}/tokens/{chain_id}/prices")
+    prices = price_map_from_payload(prices_payload)
+
+    chain_supplied = Decimal("0")
+    chain_borrowed = Decimal("0")
+    per_chain_tokens = {}
+
+    for token in token_rows_from_payload(tokens_payload):
+        address = str(token.get("id", "")).lower()
+        price = prices.get(address, Decimal("0"))
+        supply_qty = as_decimal(token.get("supplyLiquidity"))
+        borrow_qty = as_decimal(token.get("borrowLiquidity"))
+        supply_usd = supply_qty * price
+        borrow_usd = borrow_qty * price
+
+        if supply_usd <= Decimal("1") and borrow_usd <= Decimal("1"):
+            continue
+
+        chain_supplied += supply_usd
+        chain_borrowed += borrow_usd
+
+        if supply_usd > Decimal("1"):
+            symbol = token.get("cleanSymbol") or token.get("symbol") or "UNKNOWN"
+            per_chain_tokens[symbol] = per_chain_tokens.get(symbol, Decimal("0")) + supply_usd
+
+    return chain_supplied, chain_borrowed, per_chain_tokens
+
+
 def main():
-    print("📡 Fetching Official Dolomite TVL from Subgraphs...")
+    print("📡 Fetching Official Dolomite Supply from api.dolomite.io...")
 
     global_tvl = Decimal("0")
     global_borrows = Decimal("0")
@@ -78,48 +158,10 @@ def main():
     
     for chain_name, url in ASSETS_CHAINS.items():
         try:
-            resp = requests.post(url, json={"query": QUERY}, timeout=20)
-            resp.raise_for_status()
-            payload = resp.json()
-            if payload.get("errors"):
-                raise RuntimeError(payload["errors"])
-            data = payload.get("data")
-            if not data:
-                raise RuntimeError("empty GraphQL data")
+            chain_supplied, chain_borrowed, per_chain_tokens = fetch_chain_liquidity(chain_name)
 
-            # Build lookups
-            indexes = {x["id"].lower(): x for x in data.get("interestIndexes", [])}
-            prices = {}
-            for op in data.get("oraclePrices", []):
-                t_id = op.get("token", {}).get("id", "").lower()
-                prices[t_id] = as_decimal(op.get("price"))
-
-            chain_supplied = Decimal("0")
-            chain_borrowed = Decimal("0")
-            per_chain_tokens = {}
-
-            for tp in data.get("totalPars", []):
-                t_id = tp.get("token", {}).get("id", "").lower()
-                symbol = tp.get("token", {}).get("symbol", "UNKNOWN")
-                price = prices.get(t_id, Decimal("0"))
-                
-                idx = indexes.get(t_id, {})
-                sIndex = as_decimal(idx.get("supplyIndex", 1))
-                bIndex = as_decimal(idx.get("borrowIndex", 1))
-
-                sPar = as_decimal(tp.get("supplyPar", 0))
-                bPar = as_decimal(tp.get("borrowPar", 0))
-
-                supply_usd = sPar * sIndex * price
-                borrow_usd = bPar * bIndex * price
-
-                # Exclude dust/empty markets to keep calculation tight
-                if supply_usd > Decimal("1"):
-                    chain_supplied += supply_usd
-                    chain_borrowed += borrow_usd
-                    
-                    tokens_in_usd[symbol] = tokens_in_usd.get(symbol, 0) + supply_usd
-                    per_chain_tokens[symbol] = per_chain_tokens.get(symbol, 0) + supply_usd
+            for symbol, supply_usd in per_chain_tokens.items():
+                tokens_in_usd[symbol] = tokens_in_usd.get(symbol, Decimal("0")) + supply_usd
 
             # Net TVL = Supply - Borrows
             chain_net_tvl = chain_supplied - chain_borrowed
@@ -132,14 +174,7 @@ def main():
             if per_chain_tokens:
                 chain_tokens_in_usd[chain_name] = per_chain_tokens
 
-            meta = data.get("_meta", {}) or {}
-            block = meta.get("block", {}) or {}
-            chain_meta[chain_name] = {
-                "blockNumber": block.get("number"),
-                "blockHash": block.get("hash"),
-                "blockTimestamp": block.get("timestamp"),
-                "deployment": meta.get("deployment"),
-            }
+            chain_meta[chain_name] = fetch_chain_meta(chain_name, url)
 
             print(f"✅ {chain_name}: TVL ${to_float(chain_net_tvl):,.0f} | Borrowed ${to_float(chain_borrowed):,.0f} | Supply ${to_float(chain_supplied):,.0f}")
 
