@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dolomite · Transaction History</title>
+<base href="../">
+<link rel="shortcut icon" href="favicon.ico" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="history/history.css?v=history-20260527n">
+<script defer src="history/history.js?v=history-20260527n"></script>
+</head>
+<body>
+<div class="wrap">
+  <header class="site-top">
+    <div class="site-brand">
+      <img src="TwojeKrypto%20dashboard.png" alt="Dolomite Dashboard · Powered by TwojeKrypto">
+    </div>
+    <div class="site-nav-wrap">
+      <nav class="site-nav" aria-label="Dolomite dashboard sections">
+        <a class="nav-item" href="./assets/" data-tab="assets">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          <span>Assets</span>
+        </a>
+        <a class="nav-item" href="./tvl/" data-tab="tvl">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-6 4 4 5-8"/></svg>
+          <span>TVL</span>
+        </a>
+        <a class="nav-item" href="./dolo/" data-tab="dolo">
+          <img src="dolo-logo.svg" alt="" onerror="this.style.display='none'">
+          <span>DOLO</span>
+        </a>
+        <a class="nav-item" href="./odolo/" data-tab="odolo">
+          <img src="odolo-logo-official.svg" alt="" onerror="this.style.display='none'">
+          <span>oDOLO</span>
+        </a>
+        <a class="nav-item" href="./vedolo/" data-tab="vedolo">
+          <img src="vedolo-logo.svg" alt="" onerror="this.style.display='none'">
+          <span>veDOLO</span>
+        </a>
+        <a class="nav-item" href="./earn/" data-tab="earn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/></svg>
+          <span>Earn</span>
+        </a>
+        <a class="nav-item" href="./borrow/" data-tab="borrow">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M12 13v4"/><path d="m9.5 15 2.5 2.5L14.5 15"/></svg>
+          <span>Borrow</span>
+        </a>
+        <a class="nav-item" href="./supply/" data-tab="supply">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          <span>Supply</span>
+        </a>
+        <a class="nav-item active" href="./history/" data-tab="history" aria-current="page">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/><path d="M12 7v5l3 2"/></svg>
+          <span>History</span>
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero history-hero">
+      <div class="hero-topline">
+        <div>
+          <h1>Dolomite Transaction History</h1>
+          <p>Wallet activity on Dolomite by date range: transactions, gas, and export files.</p>
+        </div>
+        <div class="source-pill"><span class="dot"></span>Subgraph + RPC receipts</div>
+      </div>
+
+      <form class="lookup-bar" id="history-form">
+        <label class="wallet-field" for="history-address">
+          <span>Wallet</span>
+          <input id="history-address" name="address" autocomplete="off" spellcheck="false" placeholder="0x...">
+          <button class="field-clear" id="history-clear-address" type="button" aria-label="Clear wallet">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+          </button>
+        </label>
+        <div class="history-control-field history-dd" id="history-year-control">
+          <span>Date</span>
+          <button class="history-dd-btn" id="history-year-button" type="button" data-history-dd="year" aria-haspopup="listbox" aria-expanded="false">
+            <span class="history-dd-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/></svg></span>
+            <span class="history-dd-label" id="history-year-label">Date range</span>
+            <span class="history-dd-count" id="history-year-count">Range</span>
+            <span class="history-dd-clear" data-history-clear="year" role="button" aria-label="Reset date filter"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg></span>
+            <svg class="history-dd-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="history-dd-panel history-dd-panel-date" id="history-year-menu" role="listbox" aria-label="History date"></div>
+          <select class="native-select-hidden" id="history-year" name="year" tabindex="-1" aria-hidden="true"></select>
+        </div>
+        <div class="history-control-field history-dd" id="history-action-control">
+          <span>Action</span>
+          <button class="history-dd-btn" id="history-action-button" type="button" data-history-dd="action" aria-haspopup="listbox" aria-expanded="false">
+            <span class="history-dd-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg></span>
+            <span class="history-dd-label" id="history-action-label">All actions</span>
+            <span class="history-dd-count" id="history-action-count">All</span>
+            <span class="history-dd-clear" data-history-clear="action" role="button" aria-label="Clear action filter"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg></span>
+            <svg class="history-dd-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="history-dd-panel" id="history-action-menu" role="listbox" aria-label="History action"></div>
+          <select class="native-select-hidden" id="history-action" name="action" tabindex="-1" aria-hidden="true">
+            <option value="all">All actions</option>
+            <option value="deposit">Deposit</option>
+            <option value="withdraw">Withdraw</option>
+            <option value="borrow">Borrow</option>
+            <option value="repay">Repay</option>
+            <option value="transfer">Transfer</option>
+            <option value="swap">Trade / Zap</option>
+            <option value="liquidation">Liquidation</option>
+            <option value="vaporization">Debt Settlement</option>
+            <option value="asyncDeposit">Delayed Deposit</option>
+            <option value="asyncWithdrawal">Delayed Withdraw</option>
+            <option value="amm">AMM / Liquidity</option>
+            <option value="vestingPair">Pair oDOLO + DOLO</option>
+            <option value="vestingClaim">Claim veDOLO</option>
+          </select>
+        </div>
+        <div class="history-control-field history-dd" id="history-network-control">
+          <span>Chain</span>
+          <button class="history-dd-btn" id="history-network-button" type="button" data-history-dd="network" aria-haspopup="listbox" aria-expanded="false">
+            <span class="history-dd-icon" id="history-network-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
+            <span class="history-dd-label" id="history-network-label">All Chains</span>
+            <span class="history-dd-count" id="history-network-count">7/7</span>
+            <span class="history-dd-clear" data-history-clear="network" role="button" aria-label="Clear chain filter"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg></span>
+            <svg class="history-dd-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="history-dd-panel history-dd-panel-wide" id="history-network-menu" role="listbox" aria-label="History chain"></div>
+        </div>
+        <button class="primary-btn" id="history-run" type="submit">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21l-4.3-4.3"/><circle cx="11" cy="11" r="7"/></svg>
+          <span>Load history</span>
+        </button>
+      </form>
+    </section>
+
+    <section class="loading-panel" id="history-loading-panel" aria-label="Transaction history loading progress" aria-live="polite" hidden>
+      <div class="loading-top">
+        <div>
+          <span class="loading-kicker">Loading History TX</span>
+          <strong id="history-loading-title">Ready</strong>
+          <small id="history-loading-sub">Enter a wallet to start.</small>
+        </div>
+        <div class="loading-eta" id="history-loading-eta">
+          <strong id="history-loading-percent">0%</strong>
+          <span id="history-loading-clock">~20-60s left</span>
+        </div>
+      </div>
+      <div class="loading-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="history-loading-bar"></span></div>
+      <div class="loading-steps" aria-label="Loading stages">
+        <span class="loading-step" id="history-step-subgraphs">Subgraphs</span>
+        <span class="loading-step" id="history-step-receipts">Receipts</span>
+        <span class="loading-step" id="history-step-evidence">Evidence</span>
+        <span class="loading-step" id="history-step-reports">Reports</span>
+      </div>
+    </section>
+
+    <section class="history-card" aria-label="Dolomite transaction results">
+      <div class="card-head">
+        <div class="card-copy">
+          <div class="card-title">
+            <h2>Transaction results</h2>
+            <span class="beta-badge">BETA</span>
+            <button class="history-scope-info" type="button" aria-label="Dolomite history report scope" aria-expanded="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 10v6"/><path d="M12 7.5h.01"/></svg>
+              <span class="history-scope-tooltip" id="history-scope-tooltip" role="tooltip" aria-hidden="true">
+                Dolomite activity only. External cost basis and off-Dolomite transactions are not included. Borrow rows show borrow/repay activity, not final tax PnL. EARN and rewards are candidates/evidence. Gas USD is priced at the transaction timestamp.
+              </span>
+            </button>
+            <span id="history-count" class="count-badge">0 transactions</span>
+          </div>
+          <p class="history-scope-line">Complete Dolomite history for the selected wallet and date range, including asset flows, gas fees and EARN/reward candidates where available.</p>
+          <p class="history-beta-note">Best-effort Dolomite history. Verify exports before accounting or tax filing.</p>
+        </div>
+        <div class="card-actions">
+          <div class="status-line" id="history-status">Enter a wallet to load Dolomite history.</div>
+        </div>
+      </div>
+      <div class="ledger-report-panel" aria-label="Dolomite history report download">
+        <div class="ledger-report-head">
+          <div>
+            <span>Download report</span>
+            <p>One Dolomite history report in CSV, JSON or printable format.</p>
+          </div>
+          <strong class="report-status" id="history-report-status">Awaiting wallet</strong>
+        </div>
+        <div class="report-grid report-grid-single">
+        <article class="report-card report-card-primary report-card-wide">
+          <span class="report-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8"/><path d="M8 11h6"/></svg>
+          </span>
+          <strong>Dolomite history report</strong>
+          <small>All Dolomite transactions, gas fees and tax evidence.</small>
+          <div class="report-format-row">
+            <button class="report-format-btn primary" id="history-tax-export" type="button" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v10"/><path d="m8 10 4 4 4-4"/><path d="M5 20h14"/></svg>
+              CSV
+            </button>
+            <button class="report-format-btn" id="history-report-json" type="button" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v10"/><path d="m8 10 4 4 4-4"/><path d="M5 20h14"/></svg>
+              JSON
+            </button>
+            <button class="report-format-btn" id="history-report-print" type="button" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
+              Print
+            </button>
+          </div>
+        </article>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="history-table">
+          <colgroup>
+            <col class="col-date">
+            <col class="col-chain">
+            <col class="col-action">
+            <col class="col-assets">
+            <col class="col-volume">
+            <col class="col-gas">
+            <col class="col-details">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Chain</th>
+              <th>Action</th>
+              <th>Assets</th>
+              <th class="num">Value</th>
+              <th class="num">Gas USD</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody id="history-body">
+            <tr class="empty-row"><td colspan="7">No wallet loaded yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="foot">Dolomite Transaction History is an evidence layer. Tax treatment depends on jurisdiction, external cost basis, and accountant review.</footer>
+</div>
+</body>
+</html>
