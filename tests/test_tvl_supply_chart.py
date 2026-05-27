@@ -57,6 +57,16 @@ class TvlSupplyChartContractsTest(unittest.TestCase):
             token_supply = sum(float(value) for value in data["chainTokensInUsd"][chain].values())
             self.assertAlmostEqual(chain_supply, token_supply, delta=max(5, chain_supply * 1e-8))
 
+    def test_wlfi_is_visible_as_a_top_token_composition_asset(self):
+        data = json.loads(DOLOMITE_TVL.read_text(encoding="utf-8"))
+        tokens = data["tokensInUsd"][0]["tokens"]
+        ranked = sorted(tokens.items(), key=lambda item: item[1], reverse=True)
+
+        self.assertIn("WLFI", tokens)
+        self.assertGreater(tokens["WLFI"], 100_000_000)
+        self.assertEqual("WLFI", ranked[0][0])
+        self.assertIn('"WLFI": DOLO_CDN + "WLFI.', self.preview_source)
+
 
 if __name__ == "__main__":
     unittest.main()
