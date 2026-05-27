@@ -8,7 +8,7 @@
 <script>
 (async () => {
   try {
-    const draftVersion = "earn-quality-20260516-filter-icons-20260517b-hide-dust-20260520";
+    const draftVersion = "earn-quality-20260516-filter-icons-20260517b-hide-dust-20260520-history-nav-20260527";
     const response = await fetch(`../dashboard-core.html?v=${draftVersion}-${Date.now()}`, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const html = await response.text();
@@ -17,7 +17,7 @@
       '<link rel="stylesheet" href="earn/earn-draft.css?v=' + draftVersion + '">',
       '<script defer src="earn/earn-draft.js?v=' + draftVersion + '"><\/script>'
     ].join("");
-    const mobileNavAssets = '<link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260508"><link rel="stylesheet" href="mobile-polish.css?v=mobile-polish-20260519c"><script defer src="mobile-nav.js?v=mobile-nav-20260508"><\/script><script defer src="mobile-polish.js?v=mobile-polish-20260519c"><\/script>';
+    const mobileNavAssets = '<link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260527-history"><link rel="stylesheet" href="mobile-polish.css?v=mobile-polish-20260519c"><script defer src="mobile-nav.js?v=mobile-nav-20260527-history"><\/script><script defer src="mobile-polish.js?v=mobile-polish-20260519c"><\/script>';
     document.open();
     document.write(html.replace("<head>", "<head>" + headInject).replace("</head>", mobileNavAssets + "</head>"));
     document.close();

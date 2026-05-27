@@ -4,6 +4,38 @@
     display: none;
 }
 
+@media (min-width: 761px) and (max-width: 980px) {
+    .site-nav-wrap.mobile-nav-ready,
+    .header-nav-bar.mobile-nav-ready {
+        width: 100%;
+        overflow: hidden !important;
+        padding-bottom: 2px;
+    }
+
+    .site-nav-wrap.mobile-nav-ready > .site-nav,
+    .header-nav-bar.mobile-nav-ready > .nav-tabs {
+        max-width: 100%;
+        overflow-x: auto;
+        justify-content: flex-start;
+        scrollbar-width: none;
+    }
+
+    .site-nav-wrap.mobile-nav-ready > .site-nav::-webkit-scrollbar,
+    .header-nav-bar.mobile-nav-ready > .nav-tabs::-webkit-scrollbar {
+        display: none;
+    }
+
+    .site-nav-wrap.mobile-nav-ready .nav-item {
+        padding: 8px 10px;
+        gap: 6px;
+        font-size: 12px;
+    }
+
+    .site-nav-wrap.mobile-nav-ready .nav-item.active::after {
+        display: none;
+    }
+}
+
 @media (max-width: 760px) {
     .site-nav-wrap.mobile-nav-ready,
     .earn-premium-nav-wrap.mobile-nav-ready,
