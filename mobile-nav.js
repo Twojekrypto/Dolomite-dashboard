@@ -8,6 +8,7 @@
         earn: "Earn",
         borrow: "Borrow",
         supply: "Supply",
+        history: "History",
         liquidation: "Borrow",
         liquidations: "Borrow",
         lending: "Borrow"
