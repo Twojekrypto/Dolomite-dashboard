@@ -40,6 +40,14 @@
 - **Borrow-position collateral yield must use replay ledger**: In Borrow Positions details, never calculate routed collateral yield from `par * supplyIndex - par`. That is market-index math and can overstate a specific user's open route. Use the per-account replay `liveYield` / open-collateral yield so Borrow Positions and Past & Routed show the same wallet-level basis.
 - **Earn row expand affordance belongs in Details**: Supply Assets, Borrow Positions, and Past & Routed should not show a second `v`/chevron beside token names or health-factor badges when a `Details` column is present. Keep the visual expand cue inside the `Details/Hide` button so rows do not advertise two competing controls.
 
+## History Report Direction
+- **History is Dolomite Transaction History, not a universal tax engine**: The History report should provide accountant-grade evidence for what the wallet did on Dolomite only. Do not imply the dashboard knows external acquisition cost basis, off-Dolomite transfers, or jurisdiction-specific tax outcomes unless a new explicit data source supports it.
+- **Product positioning is History TX first, tax evidence second**: The main user-facing promise should be "Dolomite Transaction History" / "History TX": transactions, gas, USD evidence, EARN/rewards, and review flags. Tax evidence is one export/report use case, not the title of the product.
+- **Opening/closing balances need real snapshots**: Do not fake Jan 1 / Dec 31 balances from event movement. Until static historical Dolomite balance snapshots exist, expose asset movement as activity-derived wallet flow and mark balance snapshots as not included/planned.
+- **Review queue over silent certainty**: Ambiguous Dolomite activity (liquidations, vaporization, async positions, AMM liquidity, stale EARN ledger, reward timing, missing prices, not-payer gas) should surface in a review queue and exports. The user should be able to attach local notes to transaction evidence.
+- **Gas and prices must remain timestamped evidence**: Gas USD must use native token price at transaction timestamp. Reward/yield candidate USD should state the snapshot/price timestamp and source; never reuse today's token price for historical evidence.
+- **Tax-tool exports should be generic/mappable**: Provide a generic import CSV for Koinly/CoinTracking/Rotki-style workflows, but label it as a mapping aid unless an official vendor schema is implemented and tested.
+
 ## Browser Subagent Tips
 - **Give explicit wait times**: Subagents need clear wait durations for data-loading pages. "Wait 8 seconds" works better than "wait for data".
 - **Specific click targets**: "Click the ASSETS tab" can fail if the subagent clicks the wrong element. Include position hints or element descriptions.
