@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260527n";
+  const HISTORY_VERSION = "history-20260527p";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -165,6 +165,7 @@
     dateFrom: "",
     dateTo: "",
     action: "all",
+    selectedActions: new Set(),
     selectedChains: new Set(Object.keys(CHAINS)),
     rows: [],
     filteredRows: [],
@@ -383,8 +384,7 @@
       markHistoryFiltersDirty();
     });
     els.action.addEventListener("change", () => {
-      state.action = normalizeActionFilter(els.action.value);
-      els.action.value = state.action;
+      setSelectedActionsFromValues([els.action.value]);
       syncActionDropdown();
       markHistoryFiltersDirty();
     });
@@ -480,9 +480,8 @@
       return;
     }
     if (key === "action") {
-      if (state.action === "all") return;
-      state.action = "all";
-      els.action.value = state.action;
+      if (actionFilterAllSelected()) return;
+      selectAllActions();
       syncActionDropdown();
       closeHistoryDropdowns();
       markHistoryFiltersDirty();
@@ -608,10 +607,19 @@
     if (!option) return;
     event.preventDefault();
     event.stopPropagation();
-    state.action = normalizeActionFilter(option.dataset.historyAction);
-    els.action.value = state.action;
+    const action = normalizeActionFilter(option.dataset.historyAction);
+    const allActions = actionFilterKeys();
+    if (action === "all") {
+      selectAllActions();
+    } else if (actionFilterAllSelected()) {
+      state.selectedActions = new Set([action]);
+    } else if (state.selectedActions.has(action)) {
+      state.selectedActions.delete(action);
+      if (state.selectedActions.size === 0) selectAllActions();
+    } else if (allActions.includes(action)) {
+      state.selectedActions.add(action);
+    }
     syncActionDropdown();
-    closeHistoryDropdowns();
     markHistoryFiltersDirty();
   }
 
@@ -661,10 +669,9 @@
     }
     els.dateFrom.value = state.dateFrom;
     els.dateTo.value = state.dateTo;
-    const action = normalizeActionFilter(params.get("action") || "");
-    if (action && Array.from(els.action.options).some(option => option.value === action)) {
-      state.action = action;
-      els.action.value = action;
+    const actionParam = String(params.get("action") || "");
+    if (actionParam) {
+      setSelectedActionsFromValues(actionParam.split(","));
     }
     const chainParam = String(params.get("chains") || "");
     if (chainParam) {
@@ -696,8 +703,8 @@
     state.year = els.year.value;
     state.dateFrom = els.dateFrom.value;
     state.dateTo = els.dateTo.value;
-    state.action = normalizeActionFilter(els.action.value);
-    els.action.value = state.action;
+    state.action = actionFilterParam() || "all";
+    els.action.value = actionFilterAllSelected() ? "all" : (selectedActionKeys()[0] || "all");
     let bounds;
     try {
       bounds = getBounds(state.year);
@@ -2199,7 +2206,7 @@
 
   function earnTaxEntriesForCurrentView() {
     if (state.filtersDirty) return [];
-    if (!state.earn || state.earn.status !== "ready" || state.action !== "all") return [];
+    if (!state.earn || state.earn.status !== "ready" || !actionFilterAllSelected()) return [];
     const bounds = getBounds(state.year);
     return [
       ...earnLedgerTaxEntries(bounds),
@@ -2474,7 +2481,7 @@
   function rowsMatchingCurrentFilters(rows) {
     return (rows || []).filter(row => {
       if (!state.selectedChains.has(row.chainKey)) return false;
-      if (state.action !== "all" && !rowMatchesActionFilter(row, state.action)) return false;
+      if (!actionFilterAllSelected() && !rowMatchesAnyActionFilter(row, selectedActionKeys())) return false;
       return true;
     });
   }
@@ -2604,6 +2611,10 @@
       return vestingEventsForRow(row).some(event => vestingFlowIsExercise(event.vestingFlowLabel));
     }
     return row.actions.has(action);
+  }
+
+  function rowMatchesAnyActionFilter(row, actions) {
+    return (actions || []).some(action => rowMatchesActionFilter(row, action));
   }
 
   function vestingEventsForRow(row) {
@@ -3291,12 +3302,12 @@
         coverageSub: state.earn.warnings.slice(0, 1).join("") || "EARN fetch failed",
       };
     }
-    if (state.action !== "all") {
+    if (!actionFilterAllSelected()) {
       const ledgerChains = Object.keys(state.earn?.ledgers || {}).filter(chainKey => state.selectedChains.has(chainKey)).length;
       return {
         statusLabel: ledgerChains ? "EARN filtered out" : "Raw ledger only",
         yieldCount: 0,
-      yieldSub: "Use All actions to include EARN activity",
+        yieldSub: "Use All actions to include EARN activity",
         trustedYield: 0,
         trustedSub: "Hidden by action filter",
         rewardCount: 0,
@@ -3392,7 +3403,7 @@
       }
     });
 
-    const includeEarnReview = state.action === "all";
+    const includeEarnReview = actionFilterAllSelected();
     earnTaxEntriesForCurrentView().forEach(entry => {
       String(entry.reviewReason || "")
         .split(";")
@@ -3523,18 +3534,90 @@
 
   function syncActionDropdown() {
     if (!els.actionMenu) return;
-    state.action = normalizeActionFilter(state.action);
-    if (!Array.from(els.action.options).some(option => option.value === state.action)) state.action = "all";
-    const selected = Array.from(els.action.options).find(option => option.value === state.action);
-    els.action.value = state.action;
-    els.actionLabel.textContent = selected?.textContent || "All actions";
-    els.actionCount.textContent = state.action === "all" ? "All" : "1";
-    els.actionButton.classList.toggle("filtered", state.action !== "all");
+    const allActions = actionFilterKeys();
+    const selectedActions = selectedActionKeys();
+    const selectedSet = new Set(selectedActions);
+    const allSelected = selectedActions.length === allActions.length;
+    state.action = allSelected ? "all" : selectedActions.join(",");
+    els.action.value = allSelected ? "all" : (selectedActions[0] || "all");
+    els.actionLabel.textContent = actionFilterLabel(selectedActions, allSelected);
+    els.actionCount.textContent = `${selectedActions.length}/${allActions.length}`;
+    els.actionButton.classList.toggle("filtered", !allSelected);
     els.actionMenu.querySelectorAll("[data-history-action]").forEach(option => {
-      const active = option.dataset.historyAction === state.action;
+      const action = normalizeActionFilter(option.dataset.historyAction);
+      const active = action === "all" ? allSelected : (!allSelected && selectedSet.has(action));
       option.classList.toggle("active", active);
       option.setAttribute("aria-selected", active ? "true" : "false");
     });
+  }
+
+  function actionFilterKeys() {
+    const seen = new Set();
+    return Array.from(els.action?.options || [])
+      .map(option => normalizeActionFilter(option.value))
+      .filter(action => action && action !== "all")
+      .filter(action => {
+        if (seen.has(action)) return false;
+        seen.add(action);
+        return true;
+      });
+  }
+
+  function selectAllActions() {
+    state.selectedActions = new Set(actionFilterKeys());
+    state.action = "all";
+    if (els.action) els.action.value = "all";
+  }
+
+  function setSelectedActionsFromValues(values) {
+    const allActions = actionFilterKeys();
+    const valid = new Set(allActions);
+    const selected = (values || [])
+      .flatMap(value => String(value || "").split(","))
+      .map(value => normalizeActionFilter(value.trim()))
+      .filter(action => valid.has(action));
+    if (!selected.length || selected.length === allActions.length) {
+      selectAllActions();
+      return;
+    }
+    state.selectedActions = new Set(selected);
+    state.action = selected.join(",");
+    if (els.action) els.action.value = selected[0] || "all";
+  }
+
+  function selectedActionKeys() {
+    const allActions = actionFilterKeys();
+    if (!state.selectedActions || !state.selectedActions.size) {
+      state.selectedActions = new Set(allActions);
+    }
+    const valid = new Set(allActions);
+    const selected = allActions.filter(action => state.selectedActions.has(action) && valid.has(action));
+    if (!selected.length) {
+      state.selectedActions = new Set(allActions);
+      return allActions;
+    }
+    if (selected.length !== state.selectedActions.size) {
+      state.selectedActions = new Set(selected);
+    }
+    return selected;
+  }
+
+  function actionFilterAllSelected() {
+    const allActions = actionFilterKeys();
+    return allActions.length > 0 && selectedActionKeys().length === allActions.length;
+  }
+
+  function actionFilterLabel(selectedActions = selectedActionKeys(), allSelected = actionFilterAllSelected()) {
+    if (allSelected) return "All actions";
+    if (selectedActions.length === 1) {
+      const option = Array.from(els.action.options).find(item => normalizeActionFilter(item.value) === selectedActions[0]);
+      return option?.textContent || ACTION_LABELS[selectedActions[0]] || selectedActions[0];
+    }
+    return `${selectedActions.length} actions`;
+  }
+
+  function actionFilterParam() {
+    return actionFilterAllSelected() ? "" : selectedActionKeys().join(",");
   }
 
   function syncNetworkDropdown() {
@@ -4167,7 +4250,7 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
       filters: {
         dateRange: meta.period,
         chainsIncluded: selectedChainNames(),
-        action: state.action,
+        action: actionFilterAllSelected() ? "all" : selectedActionKeys(),
       },
       methodology: reportMethodology(),
       completeness: reportCompletenessForRows(rows, earnEntries),
@@ -4254,7 +4337,7 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
       filters: {
         dateRange: meta.period,
         chainsIncluded: selectedChainNames(),
-        action: state.action,
+        action: actionFilterAllSelected() ? "all" : selectedActionKeys(),
       },
       methodology,
       balanceSnapshots: {
@@ -4957,11 +5040,12 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
     url.searchParams.set("address", address);
     state.year = "custom";
     ensureCustomRangeDefaults();
-    state.action = normalizeActionFilter(state.action);
+    state.action = actionFilterParam() || "all";
     url.searchParams.set("year", state.year);
     url.searchParams.set("from", state.dateFrom);
     url.searchParams.set("to", state.dateTo);
-    if (state.action && state.action !== "all") url.searchParams.set("action", state.action);
+    const actionParam = actionFilterParam();
+    if (actionParam) url.searchParams.set("action", actionParam);
     else url.searchParams.delete("action");
     const allChains = Object.keys(CHAINS);
     if (state.selectedChains.size && state.selectedChains.size !== allChains.length) {
