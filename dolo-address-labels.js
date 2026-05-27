@@ -101,7 +101,7 @@
     "0x224f590a8b58f83bd2673348d6ac75a7b27f9b54": {label:"mike-tyson.eth", type:"eoa", source:"ens-reverse"},
     "0x87db27ac8459ab6602f7a6155b48f6b184065da0": {label:"atheon.eth", type:"eoa", source:"ens-reverse"},
 
-    "0x7a1d00de77c0162d55d84a051bdc6840852b4a60": {label:"Potential CEX/MM", type:"watch"},
+    "0x7a1d00de77c0162d55d84a051bdc6840852b4a60": {label:"Bitkub-linked Custody Wallet", type:"cex", source:"flow-audit", confidence:"confirmed"},
     "0xfc89c020774524c9d03bd5de48fec149b10bdec3": {label:"Potential CEX/MM", type:"watch"},
     "0xd5c342acbeedef81ab8e6072323bfda76172d05f": {label:"Potential CEX/MM", type:"watch"},
     "0x38285671612d6f0ef7c3483f500d39fa71d66a1c": {label:"CEX Distributor", type:"cex", source:"flow-audit", confidence:"confirmed"},
