@@ -138,6 +138,7 @@ class DoloAddressLabelsTest(unittest.TestCase):
             "0x850c198d2469b569091211fb5f62ff5d5627fbf0": ("Gate.io Deposit", "cex"),
             "0xb2655ac91bb3536bcfa0993069da6affabadc33d": ("Gate.io Deposit", "cex"),
             "0xc17a40852e4bfe04bc81af355fdf132c539ba753": ("Binance Deposit", "cex"),
+            "0xc488e4afec0414511d1518d8d6b8dc5f820fb92a": ("Bitkub: Deposit Funder 3", "cex"),
         }
         for address, (label, label_type) in expected.items():
             with self.subTest(address=address):
