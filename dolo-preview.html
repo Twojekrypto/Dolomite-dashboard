@@ -349,9 +349,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   scrollbar-color:rgba(201,162,39,.34) rgba(255,255,255,.055);
   scrollbar-width:thin;
 }
-.holder-wallet-table{width:100%;min-width:700px;border-collapse:separate;border-spacing:0;font-size:12px;table-layout:fixed}
+.holder-wallet-table{width:100%;min-width:830px;border-collapse:separate;border-spacing:0;font-size:12px;table-layout:fixed}
 .holder-wallet-table .holder-col-rank{width:44px}
 .holder-wallet-table .holder-col-dolo{width:126px}
+.holder-wallet-table .holder-col-change{width:154px}
 .holder-wallet-table .holder-col-chain{width:160px}
 .holder-wallet-table th{
   position:sticky;top:0;z-index:4;padding:10px 12px;background:#101012;border-bottom:1px solid var(--line-2);
@@ -366,6 +367,13 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-wallet-table tbody tr:last-child td{border-bottom:0}
 .holder-wallet-table .rank{font-family:var(--mono);font-size:12px;color:var(--fg-4);font-weight:600;text-align:right}
 .holder-wallet-table .num{text-align:right;font-family:var(--mono)}
+.holder-wallet-change{display:flex;flex-direction:column;align-items:flex-end;gap:3px;font-family:var(--mono)}
+.holder-wallet-change .main{font-weight:700;color:var(--fg-2)}
+.holder-wallet-change .pct{font-size:10px;color:var(--fg-4)}
+.holder-wallet-change.up .main,.holder-wallet-change.up .pct{color:var(--up)}
+.holder-wallet-change.down .main,.holder-wallet-change.down .pct{color:var(--down)}
+.holder-wallet-change.flat .main{color:var(--fg-3)}
+.holder-wallet-change.new .main{color:var(--gold)}
 .holder-wallet-table .chain-cell{font-size:10px;color:var(--fg-3);white-space:nowrap;text-align:right}
 .holder-dolo-amount{display:flex;align-items:center;justify-content:flex-end;gap:7px}
 .holder-dolo-icon{width:15px;height:15px;border-radius:50%;object-fit:cover;flex:0 0 15px;background:var(--bg-3);box-shadow:0 0 0 1px rgba(201,162,39,.18)}
@@ -3414,6 +3422,41 @@ function holderRowsAtPoint(point, includeVeDolo = false){
     };
   }).filter(row => row.panelTotal > 0);
 }
+function holderWalletRangeChange(row, baselineRow){
+  const current = safeHolderNum(row?.panelTotal);
+  const baseline = safeHolderNum(baselineRow?.panelTotal);
+  const delta = current - baseline;
+  const epsilon = 0.000001;
+  if(baseline <= epsilon){
+    if(current <= epsilon){
+      return {tone:"flat", main:"0 DOLO", pct:"0%"};
+    }
+    return {tone:"new", main:`+${fmtNum(current)} DOLO`, pct:"New"};
+  }
+  if(Math.abs(delta) <= epsilon){
+    return {tone:"flat", main:"0 DOLO", pct:"0%"};
+  }
+  const pct = delta / baseline * 100;
+  const tone = delta > 0 ? "up" : "down";
+  return {tone, main:`${fmtSignedHolder(delta)} DOLO`, pct:fmtSignedHolderPct(pct)};
+}
+function attachHolderWalletRangeChange(rows, baselinePoint, includeVeDolo){
+  const baselineRows = holderRowsAtPoint(baselinePoint, includeVeDolo);
+  const baselineByAddr = new Map(baselineRows.map(row => [lowerHolderAddr(row.addr), row]));
+  return rows.map(row => ({
+    ...row,
+    rangeChange: holderWalletRangeChange(row, baselineByAddr.get(lowerHolderAddr(row.addr))),
+  }));
+}
+function holderWalletChangeCell(row){
+  const change = row.rangeChange || holderWalletRangeChange(row, row);
+  return `
+    <div class="holder-wallet-change ${escHtml(change.tone)}">
+      <span class="main">${escHtml(change.main)}</span>
+      <span class="pct">${escHtml(change.pct)}</span>
+    </div>
+  `;
+}
 function holderWalletTypeHtml(type){
   const label = type === "team" ? "Core Team" : (TYPE_LABELS[type] || TYPE_GENERIC[type] || "Wallet");
   const cls = type === "team" ? " type-investor" : (TYPE_LABELS[type] ? ` type-${type}` : " type-eoa");
@@ -3439,17 +3482,18 @@ function holderWalletAddressCell(row){
     </div>
   `;
 }
-function holderBucketWalletRows(bucket, point = null){
+function holderBucketWalletRows(bucket, point = null, baselinePoint = null){
   const includeVeDolo = !!state.includeVeDolo;
-  return holderRowsAtPoint(point, includeVeDolo).map(holder => {
+  const rows = holderRowsAtPoint(point, includeVeDolo).map(holder => {
     const type = holderDistributionType(holder.addr, holder);
     if(type === "cex" || type === "ca" || type === "team" || type === "investor") return null;
     if(holder.panelTotal < bucket.min || holder.panelTotal >= bucket.max) return null;
     return {...holder, type};
   }).filter(Boolean).sort((a,b) => b.panelTotal - a.panelTotal);
+  return attachHolderWalletRangeChange(rows, baselinePoint || point, includeVeDolo);
 }
-function allocationWalletRows(key, point = null){
-  return holderRowsAtPoint(point, false).map(holder => {
+function allocationWalletRows(key, point = null, baselinePoint = null){
+  const rows = holderRowsAtPoint(point, false).map(holder => {
     const type = holderDistributionType(holder.addr, holder);
     if(key === "team" && type !== "team") return null;
     if(key === "investors" && type !== "investor") return null;
@@ -3457,6 +3501,7 @@ function allocationWalletRows(key, point = null){
     if(holder.panelTotal <= 0) return null;
     return {...holder, type, locked:0};
   }).filter(Boolean).sort((a,b) => b.panelTotal - a.panelTotal);
+  return attachHolderWalletRangeChange(rows, baselinePoint || point, false);
 }
 function bindHolderWalletPanel(panel){
   panel.querySelectorAll(".addr-copy").forEach(btn => btn.addEventListener("click", async event => {
@@ -3488,6 +3533,7 @@ function walletDrilldownPanelHtml({eyebrow = "Wallets", title, meta, rows, empty
               <col class="holder-col-rank">
               <col>
               <col class="holder-col-dolo">
+              <col class="holder-col-change">
               <col class="holder-col-chain">
             </colgroup>
             <thead>
@@ -3495,6 +3541,7 @@ function walletDrilldownPanelHtml({eyebrow = "Wallets", title, meta, rows, empty
                 <th>#</th>
                 <th>Address</th>
                 <th class="num">DOLO</th>
+                <th class="num">Change</th>
                 <th class="chain-cell">Chain</th>
               </tr>
             </thead>
@@ -3510,6 +3557,7 @@ function walletDrilldownPanelHtml({eyebrow = "Wallets", title, meta, rows, empty
                     </div>
                     ${row.locked > 0 ? `<div class="holder-wallet-sub">${fmtNum(row.locked)} veDOLO</div>` : ""}
                   </td>
+                  <td class="num" data-label="Change">${holderWalletChangeCell(row)}</td>
                   <td class="chain-cell" data-label="Chain">${holderWalletChainHtml(row)}</td>
                 </tr>
               `).join("")}
@@ -3526,14 +3574,15 @@ function holderPanelDateText(point){
 }
 function holderWalletInlinePanelHtml(bucket, model = null){
   const point = model?.current || null;
-  const rows = holderBucketWalletRows(bucket, point);
+  const baselinePoint = model?.points?.[0] || point;
+  const rows = holderBucketWalletRows(bucket, point, baselinePoint);
   const veDoloText = state.includeVeDolo ? " · DOLO + veDOLO" : " · DOLO balance";
   return `
     <div class="holder-wallet-panel holder-wallet-panel-inline is-open" id="holder-wallet-panel-${escHtml(bucket.key)}" aria-live="polite">
       ${walletDrilldownPanelHtml({
         eyebrow:"Bucket wallets",
         title:`${bucket.label} DOLO wallets`,
-        meta:`${rows.length.toLocaleString()} wallets · ${holderPanelDateText(point)}${veDoloText} · CEX/protocol/allocation excluded`,
+        meta:`${rows.length.toLocaleString()} wallets · ${holderPanelDateText(point)}${veDoloText} · change from ${holderPanelDateText(baselinePoint)} · CEX/protocol/allocation excluded`,
         rows,
         emptyText:"No wallets in this bucket for the selected point.",
       })}
@@ -3542,12 +3591,13 @@ function holderWalletInlinePanelHtml(bucket, model = null){
 }
 function allocationWalletInlinePanelHtml(series, model = null){
   const point = model?.current || null;
-  const rows = allocationWalletRows(series.key, point);
+  const baselinePoint = model?.points?.[0] || point;
+  const rows = allocationWalletRows(series.key, point, baselinePoint);
   const title = series.key === "team" ? "Core Team wallets" : series.key === "investors" ? "Investor wallets" : "All allocation wallets";
   const eyebrow = series.key === "total" ? "Allocation total" : "Allocation component";
   const meta = series.key === "total"
-    ? `${rows.length.toLocaleString()} Core Team + Investor wallets · ${holderPanelDateText(point)} · DOLO balance`
-    : `${rows.length.toLocaleString()} wallets included in Total Allocations · ${holderPanelDateText(point)} · DOLO balance`;
+    ? `${rows.length.toLocaleString()} Core Team + Investor wallets · ${holderPanelDateText(point)} · DOLO balance · change from ${holderPanelDateText(baselinePoint)}`
+    : `${rows.length.toLocaleString()} wallets included in Total Allocations · ${holderPanelDateText(point)} · DOLO balance · change from ${holderPanelDateText(baselinePoint)}`;
   return `
     <div class="holder-wallet-panel holder-wallet-panel-inline is-open" id="allocation-wallet-panel-${escHtml(series.key)}" aria-live="polite">
       ${walletDrilldownPanelHtml({

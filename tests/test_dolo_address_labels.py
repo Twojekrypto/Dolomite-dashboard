@@ -191,6 +191,16 @@ class DoloAddressLabelsTest(unittest.TestCase):
             with self.subTest(path=str(path.relative_to(ROOT))):
                 self.assertIn("dolo-label-cleanup-20260514", path.read_text(encoding="utf-8"))
 
+    def test_wallet_detail_panels_show_range_change(self):
+        source = (ROOT / "dolo-preview.html").read_text(encoding="utf-8")
+        route_source = (ROOT / "dolo" / "index.html").read_text(encoding="utf-8")
+        self.assertIn("<th class=\"num\">Change</th>", source)
+        self.assertIn("<col class=\"holder-col-change\">", source)
+        self.assertIn("function holderWalletRangeChange(row, baselineRow)", source)
+        self.assertIn("model?.points?.[0] || point", source)
+        self.assertIn("change from ${holderPanelDateText(baselinePoint)}", source)
+        self.assertIn("wallet-detail-change-20260527", route_source)
+
     def test_removed_legacy_preview_files_stay_removed(self):
         removed_files = ("index_preview.html", "add_investors.py")
         for filename in removed_files:
