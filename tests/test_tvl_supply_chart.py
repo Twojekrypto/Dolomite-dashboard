@@ -1,4 +1,6 @@
 import json
+import subprocess
+import sys
 import unittest
 from decimal import Decimal
 from pathlib import Path
@@ -14,6 +16,12 @@ TVL_FETCHER = ROOT / "fetch_dolomite_tvl.py"
 DOLOMITE_TVL = ROOT / "dolomite_tvl.json"
 VALIDATOR = ROOT / "validate_data.py"
 LIVE_SMOKE = ROOT / "scripts" / "smoke_live_pages.py"
+STATIC_TVL_GUARD = ROOT / "scripts" / "verify_tvl_static_guards.py"
+PAGES_WORKFLOW = ROOT / ".github" / "workflows" / "pages.yml"
+EARN_AUDIT_WORKFLOW = ROOT / ".github" / "workflows" / "earn-audit-checks.yml"
+EARN_AUDIT_RUNNER = ROOT / "run_earn_audit_checks.py"
+UPDATE_TVL_WORKFLOW = ROOT / ".github" / "workflows" / "update-tvl-data.yml"
+UPDATE_DATA_WORKFLOW = ROOT / ".github" / "workflows" / "update-data.yml"
 
 
 class TvlSupplyChartContractsTest(unittest.TestCase):
@@ -23,6 +31,12 @@ class TvlSupplyChartContractsTest(unittest.TestCase):
         cls.fetcher_source = TVL_FETCHER.read_text(encoding="utf-8")
         cls.validator_source = VALIDATOR.read_text(encoding="utf-8")
         cls.smoke_source = LIVE_SMOKE.read_text(encoding="utf-8")
+        cls.static_guard_source = STATIC_TVL_GUARD.read_text(encoding="utf-8")
+        cls.pages_workflow = PAGES_WORKFLOW.read_text(encoding="utf-8")
+        cls.earn_audit_workflow = EARN_AUDIT_WORKFLOW.read_text(encoding="utf-8")
+        cls.earn_audit_runner = EARN_AUDIT_RUNNER.read_text(encoding="utf-8")
+        cls.update_tvl_workflow = UPDATE_TVL_WORKFLOW.read_text(encoding="utf-8")
+        cls.update_data_workflow = UPDATE_DATA_WORKFLOW.read_text(encoding="utf-8")
 
     def test_chart_is_labeled_as_supply_and_anchors_current_snapshot(self):
         self.assertIn("<h2>Supply Over Time</h2>", self.preview_source)
@@ -67,7 +81,7 @@ class TvlSupplyChartContractsTest(unittest.TestCase):
 
     def test_wlfi_is_visible_as_a_top_token_composition_asset(self):
         data = json.loads(DOLOMITE_TVL.read_text(encoding="utf-8"))
-        tokens = data["tokensInUsd"][0]["tokens"]
+        tokens = data["tokensInUsd"][-1]["tokens"]
         ranked = sorted(tokens.items(), key=lambda item: item[1], reverse=True)
 
         self.assertIn("WLFI", tokens)
@@ -85,7 +99,7 @@ class TvlSupplyChartContractsTest(unittest.TestCase):
         data = json.loads(DOLOMITE_TVL.read_text(encoding="utf-8"))
         global_tokens = {
             symbol: Decimal(str(value))
-            for symbol, value in data["tokensInUsd"][0]["tokens"].items()
+            for symbol, value in data["tokensInUsd"][-1]["tokens"].items()
         }
         chain_tokens = {
             chain: {
@@ -103,7 +117,7 @@ class TvlSupplyChartContractsTest(unittest.TestCase):
             fetch_dolomite_tvl.validate_expected_token_guards(broken_global, chain_tokens)
 
         broken_data = json.loads(DOLOMITE_TVL.read_text(encoding="utf-8"))
-        broken_data["tokensInUsd"][0]["tokens"].pop("WLFI", None)
+        broken_data["tokensInUsd"][-1]["tokens"].pop("WLFI", None)
         self.assertFalse(validate_data._dolomite_expected_tokens_present(broken_data))
 
     def test_live_pages_smoke_checks_tvl_wlfi_composition(self):
@@ -113,6 +127,57 @@ class TvlSupplyChartContractsTest(unittest.TestCase):
         self.assertIn('latest.get("WLFI", 0)', self.smoke_source)
         self.assertIn('chain_tokens.get("Ethereum", {}).get("WLFI", 0)', self.smoke_source)
         self.assertIn("assert_tvl_composition_live(base_url)", self.smoke_source)
+
+    def test_static_tvl_guard_blocks_bad_pages_artifacts_before_upload(self):
+        self.assertIn("WLFI_MIN_USD = 10_000_000", self.static_guard_source)
+        self.assertIn("stale-token-fix-20260528", self.static_guard_source)
+        self.assertIn("const tokens = officialTokens[chain] || llamaTokens[chain];", self.static_guard_source)
+        self.assertIn("staleKeys.has(chainKey(chain)) && llamaTokens[chain]", self.static_guard_source)
+
+        guard_index = self.pages_workflow.index("Validate TVL static guard")
+        upload_index = self.pages_workflow.index("Upload Pages artifact")
+        self.assertLess(guard_index, upload_index)
+        self.assertIn("python3 scripts/verify_tvl_static_guards.py", self.pages_workflow)
+
+        proc = subprocess.run(
+            [sys.executable, str(STATIC_TVL_GUARD)],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+
+    def test_tvl_files_trigger_audit_workflow(self):
+        for path in (
+            ".github/workflows/pages.yml",
+            ".github/workflows/update-data.yml",
+            ".github/workflows/update-tvl-data.yml",
+            "fetch_defillama.py",
+            "fetch_dolomite_tvl.py",
+            "validate_data.py",
+            "tvl-preview.html",
+            "tvl/index.html",
+            "scripts/verify_tvl_static_guards.py",
+        ):
+            self.assertIn(f"- '{path}'", self.earn_audit_workflow)
+
+        for path in (
+            'ROOT / "fetch_defillama.py"',
+            'ROOT / "fetch_dolomite_tvl.py"',
+            'ROOT / "validate_data.py"',
+            'ROOT / "scripts" / "verify_tvl_static_guards.py"',
+        ):
+            self.assertIn(path, self.earn_audit_runner)
+
+    def test_tvl_update_workflows_fail_if_push_never_succeeds(self):
+        for workflow in (self.update_tvl_workflow, self.update_data_workflow):
+            self.assertIn("pushed=false", workflow)
+            self.assertIn("for i in $(seq 1 12)", workflow)
+            self.assertIn("git pull --rebase -X theirs origin master && git push", workflow)
+            self.assertIn("Failed to push after 12 attempts.", workflow)
+            self.assertIn('if [ "$pushed" != "true" ]; then', workflow)
+            self.assertIn("exit 1", workflow)
 
 
 if __name__ == "__main__":
