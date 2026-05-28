@@ -32,8 +32,12 @@ PYTHON_FILES = [
     ROOT / "run_earn_canonical_history_refresh.py",
     ROOT / "run_earn_data_correctness_pipeline.py",
     ROOT / "run_earn_subaccount_history_incremental.py",
+    ROOT / "fetch_defillama.py",
+    ROOT / "fetch_dolomite_tvl.py",
+    ROOT / "validate_data.py",
     ROOT / "update_earn_freshness_status.py",
     ROOT / "update_dolo_price.py",
+    ROOT / "scripts" / "verify_tvl_static_guards.py",
     ROOT / "scripts" / "smoke_live_pages.py",
 ]
 
