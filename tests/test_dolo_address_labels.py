@@ -87,7 +87,7 @@ class DoloAddressLabelsTest(unittest.TestCase):
             with self.subTest(label=info["label"]):
                 self.assertEqual(info["type"], "watch")
                 self.assertEqual(info["confidence"], "potential")
-                self.assertEqual(info["source"], "heuristic-flow-pattern")
+                self.assertIn(info["source"], {"heuristic-flow-pattern", "flow-audit"})
         for info in self.labels.values():
             if info["type"] == "cex":
                 self.assertNotIn("Potential", info["label"])
@@ -138,6 +138,8 @@ class DoloAddressLabelsTest(unittest.TestCase):
             "0x850c198d2469b569091211fb5f62ff5d5627fbf0": ("Gate.io Deposit", "cex"),
             "0xb2655ac91bb3536bcfa0993069da6affabadc33d": ("Gate.io Deposit", "cex"),
             "0xc17a40852e4bfe04bc81af355fdf132c539ba753": ("Binance Deposit", "cex"),
+            "0x9d6a82c771e1133789b5d5b716ed11ca26219d31": ("Binance Deposit", "cex"),
+            "0xb9e0dcaa12726c663ecdacc4e0b2c5a12886c53f": ("Binance Deposit", "cex"),
             "0xc488e4afec0414511d1518d8d6b8dc5f820fb92a": ("Bitkub: Deposit Funder 3", "cex"),
             "0x1579b5f6582c7a04f5ffeec683c13008c4b0a520": ("Bitkub: Hot Wallet 4", "cex"),
         }
@@ -151,7 +153,6 @@ class DoloAddressLabelsTest(unittest.TestCase):
 
     def test_flow_audit_cex_labels_are_confirmed(self):
         expected = {
-            "0x7a1d00de77c0162d55d84a051bdc6840852b4a60": "Bitkub-linked Custody Wallet",
             "0x38285671612d6f0ef7c3483f500d39fa71d66a1c": "CEX Distributor",
             "0xc882b111a75c0c657fc507c04fbfcd2cc984f071": "Gate.io Routing Wallet",
         }
@@ -162,6 +163,20 @@ class DoloAddressLabelsTest(unittest.TestCase):
                 self.assertEqual(info["type"], "cex")
                 self.assertEqual(info["source"], "flow-audit")
                 self.assertEqual(info["confidence"], "confirmed")
+
+    def test_bitkub_linked_wallet_stays_potential_without_public_label(self):
+        info = self.labels["0x7a1d00de77c0162d55d84a051bdc6840852b4a60"]
+        self.assertEqual(info["label"], "Potential Bitkub-linked custody/MM")
+        self.assertEqual(info["type"], "watch")
+        self.assertEqual(info["source"], "flow-audit")
+        self.assertEqual(info["confidence"], "potential")
+
+    def test_potential_copy_uses_custody_language(self):
+        for path in (ROOT / "dolo-address-labels.js", ROOT / "dolo-preview.html"):
+            source = path.read_text(encoding="utf-8")
+            with self.subTest(path=path.name):
+                self.assertIn("Potential custody/MM", source)
+                self.assertNotIn("Potential CEX/MM", source)
 
     def test_ens_reverse_names_are_identity_labels_not_entity_claims(self):
         expected = {

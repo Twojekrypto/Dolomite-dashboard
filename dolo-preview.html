@@ -1050,7 +1050,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
               <div class="rw-item active" data-type="watch">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-dot-src watch"></span>
-                <div class="rw-name">Potential CEX/MM</div>
+                <div class="rw-name">Potential custody/MM</div>
               </div>
               <div class="rw-item active" data-type="mm">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
@@ -1164,7 +1164,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
               <div class="rw-item active" data-type="watch">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-dot-src watch"></span>
-                <div class="rw-name">Potential CEX/MM</div>
+                <div class="rw-name">Potential custody/MM</div>
               </div>
               <div class="rw-item active" data-type="mm">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
@@ -1565,7 +1565,7 @@ const TYPE_TIPS = {
   ca:  "Contract address (CA) — smart contract, protocol, LP, or aggregator",
   cex: "Verified centralized exchange custody address",
   investor: "CoinGecko tokenomics investor allocation address",
-  watch: "Potential CEX / market maker — detected by custody-like behavior, not verified",
+  watch: "Potential custody / market maker - detected by custody-like behavior, not verified",
   bot: "Automated trading / MEV bot",
   mm:  "Market maker — liquidity provider",
 };
@@ -1576,7 +1576,7 @@ const TYPE_GENERIC = {
   ca:  "Smart Contract / CA",
   cex: "Exchange",
   investor: "Investor",
-  watch: "Potential CEX/MM",
+  watch: "Potential custody/MM",
   bot: "Trading bot",
   mm:  "Market maker",
 };
@@ -4712,7 +4712,7 @@ renderCexSupplyChart();
       const largeCustodyLike = s.tx >= 3 && s.balance >= 2_500_000 && s.flow >= 250_000;
       const activeCustodyLike = s.roles.has("acc") && s.tx >= 100 && s.balance >= 500_000 && s.flow >= 100_000;
       if(hotWithdrawalWallet || largeCustodyLike || activeCustodyLike){
-        AUTO_CEX_LABELS[key] = {label:"Potential CEX/MM", type:"watch", source:"heuristic-flow-pattern", confidence:"potential"};
+        AUTO_CEX_LABELS[key] = {label:"Potential custody/MM", type:"watch", source:"heuristic-flow-pattern", confidence:"potential"};
         learned += 1;
       }
     });
