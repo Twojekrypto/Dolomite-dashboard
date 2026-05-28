@@ -17,6 +17,7 @@ DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.join(DATA_DIR, "dolomite_tvl.json")
 STALE_CHAIN_SECONDS = 6 * 60 * 60
 DOLOMITE_API_SERVER_URL = "https://api.dolomite.io"
+WLFI_MIN_USD = Decimal("10000000")
 
 API_CHAIN_IDS = {
     "Berachain": 80094,
@@ -143,6 +144,16 @@ def fetch_chain_liquidity(chain_name):
     return chain_supplied, chain_borrowed, per_chain_tokens
 
 
+def validate_expected_token_guards(tokens_in_usd, chain_tokens_in_usd):
+    wlfi_global = tokens_in_usd.get("WLFI", Decimal("0"))
+    wlfi_ethereum = chain_tokens_in_usd.get("Ethereum", {}).get("WLFI", Decimal("0"))
+    if wlfi_global < WLFI_MIN_USD or wlfi_ethereum < WLFI_MIN_USD:
+        raise RuntimeError(
+            "Refusing to write Dolomite TVL snapshot without material Ethereum WLFI. "
+            f"global=${to_float(wlfi_global):,.0f}, ethereum=${to_float(wlfi_ethereum):,.0f}"
+        )
+
+
 def main():
     print("📡 Fetching Official Dolomite Supply from api.dolomite.io...")
 
@@ -188,6 +199,7 @@ def main():
             "Refusing to write partial Dolomite TVL snapshot. "
             f"failed={failed_chains}, missing={missing}"
         )
+    validate_expected_token_guards(tokens_in_usd, chain_tokens_in_usd)
 
     stale_chains = []
     for chain_name, meta in chain_meta.items():
