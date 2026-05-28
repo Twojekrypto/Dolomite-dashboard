@@ -416,15 +416,16 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-brush-handle .grip span{width:2px;height:18px;border-radius:2px;background:var(--gold);opacity:.85}
 .holder-brush-handle .grip span:last-child{opacity:.45}
 .holder-brush-label{
+  display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px 0;
   text-align:center;font-family:var(--mono);font-size:11px;color:var(--fg-3);letter-spacing:.3px;
   margin-top:6px;min-height:16px
 }
 .holder-brush-label .sep{color:var(--fg-4);margin:0 8px}
-.holder-brush-label .v{color:var(--fg-2)}
+.holder-brush-label .v{color:var(--fg-2);white-space:nowrap}
 .holder-brush-label .chg{font-weight:800;margin-left:8px}
 .holder-brush-label .chg.up,.holder-brush-label .amt.up{color:var(--up)}
 .holder-brush-label .chg.down,.holder-brush-label .amt.down{color:var(--down)}
-.holder-brush-label .amt{margin-left:5px;color:var(--fg-3)}
+.holder-brush-label .amt{margin-left:5px;color:var(--fg-3);white-space:nowrap}
 .holder-flow-stats{
   display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--line-1);
   background:linear-gradient(90deg,rgba(180,121,107,.05),rgba(255,255,255,.012))
@@ -1825,7 +1826,7 @@ function fmtHolderAxisDate(ts, spanDays = 0){
   return date.toLocaleDateString("en-US", {month:"short", year:"numeric"});
 }
 function fmtHolderBrushDate(ts){
-  return new Date(ts * 1000).toLocaleDateString("en-US", {month:"short", year:"numeric"});
+  return new Date(ts * 1000).toLocaleDateString("en-GB", {day:"2-digit", month:"short", year:"numeric"});
 }
 function fmtSignedHolder(value){
   const n = safeHolderNum(value);
