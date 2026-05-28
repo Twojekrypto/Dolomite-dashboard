@@ -1671,6 +1671,13 @@ const HOLDER_HISTORY_POINTS = [
   {key:"1d", label:"24H", days:1},
   {key:"now", label:"Now", days:0},
 ];
+const HOLDER_BALANCE_CHANGE_PERIODS = [
+  {key:"1d", seconds:86400},
+  {key:"7d", seconds:7 * 86400},
+  {key:"30d", seconds:30 * 86400},
+  {key:"90d", seconds:90 * 86400},
+  {key:"180d", seconds:180 * 86400},
+];
 const HOLDER_DEFAULT_WINDOW_DAYS = 30;
 const FRESH_HOLDER_MIN_BALANCE = 10_000;
 let holderDistributionActiveKey = "";
@@ -1748,6 +1755,40 @@ function holderHistoryBaseTs(){
     .map(parseHolderTimestamp)
     .filter(Boolean);
   return timestamps.length ? Math.max(...timestamps) : Math.floor(Date.now() / 1000);
+}
+function holderBalanceChangePeriodSpecs(){
+  const specs = HOLDER_BALANCE_CHANGE_PERIODS.filter(spec => DOLO_BALANCE_CHANGES?.[spec.key]);
+  if(DOLO_BALANCE_CHANGES?.all){
+    const baseTs = holderHistoryBaseTs();
+    const allStartTs = safeHolderNum(doloAllHistoryStartTs);
+    const allSeconds = allStartTs > 0 ? Math.max(1, baseTs - allStartTs) : 365 * 86400;
+    specs.push({key:"all", seconds:allSeconds});
+  }
+  return specs;
+}
+function holderBalanceChangeKeyForPoint(point){
+  if(!point) return null;
+  if(point.key === "now") return "now";
+  if(point.key && DOLO_BALANCE_CHANGES?.[point.key]) return point.key;
+  const ts = safeHolderNum(point.ts) || parseHolderTimestamp(point.timestamp);
+  if(ts <= 0) return null;
+  const age = Math.max(0, holderHistoryBaseTs() - ts);
+  if(age <= 6 * 3600) return "now";
+  let best = null;
+  holderBalanceChangePeriodSpecs().forEach(spec => {
+    const diff = Math.abs(age - spec.seconds);
+    if(!best || diff < best.diff) best = {...spec, diff};
+  });
+  if(!best) return null;
+  const tolerance = best.key === "all"
+    ? Math.max(7 * 86400, best.seconds * 0.12)
+    : Math.max(2 * 86400, best.seconds * 0.22);
+  return best.diff <= tolerance ? best.key : null;
+}
+function holderBalanceChangesFromPointToNow(point){
+  const key = holderBalanceChangeKeyForPoint(point);
+  if(key === "now") return {};
+  return key ? (DOLO_BALANCE_CHANGES?.[key] || null) : null;
 }
 function fmtHolderDate(ts){
   return new Date(ts * 1000).toLocaleDateString("en-US", {month:"short", day:"numeric", year:"numeric"});
@@ -3392,7 +3433,7 @@ function holderRowsAtPoint(point, includeVeDolo = false){
     row.balBera = safeHolderNum(row.balBera) + safeHolderNum(holder.balBera);
   });
   if(sourcePoint.key !== "now"){
-    const changes = DOLO_BALANCE_CHANGES?.[sourcePoint.key] || {};
+    const changes = holderBalanceChangesFromPointToNow(sourcePoint) || {};
     Object.entries(changes).forEach(([addr, netFlow]) => {
       const row = ensureHolderBucketRow(byAddress, addr, null);
       if(row) row.liquid -= safeHolderNum(netFlow);
@@ -3432,6 +3473,9 @@ function holderWalletRangeChange(row, baselineRow){
       return {tone:"flat", main:"0 DOLO", pct:"0%"};
     }
     return {tone:"new", main:`+${fmtNum(current)} DOLO`, pct:"New"};
+  }
+  if(current > epsilon && (baseline <= 1 || baseline / current < 0.001)){
+    return {tone:"new", main:`+${fmtNum(delta)} DOLO`, pct:"New"};
   }
   if(Math.abs(delta) <= epsilon){
     return {tone:"flat", main:"0 DOLO", pct:"0%"};
