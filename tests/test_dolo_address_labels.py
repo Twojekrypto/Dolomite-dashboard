@@ -215,6 +215,8 @@ class DoloAddressLabelsTest(unittest.TestCase):
         self.assertIn("function holderWalletRangeChange(row, baselineRow)", source)
         self.assertIn("function holderBalanceChangeKeyForPoint(point)", source)
         self.assertIn("holderBalanceChangesFromPointToNow(sourcePoint)", source)
+        self.assertIn("function holderWalletUnionRows", source)
+        self.assertIn("Moved out of range", source)
         self.assertIn("baseline / current < 0.001", source)
         self.assertIn("model?.points?.[0] || point", source)
         self.assertIn("change from ${holderPanelDateText(baselinePoint)}", source)
