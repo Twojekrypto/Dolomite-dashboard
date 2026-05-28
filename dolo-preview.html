@@ -1790,6 +1790,32 @@ function holderBalanceChangesFromPointToNow(point){
   if(key === "now") return {};
   return key ? (DOLO_BALANCE_CHANGES?.[key] || null) : null;
 }
+function holderResolvedBalanceChangePoint(point){
+  const key = holderBalanceChangeKeyForPoint(point);
+  if(!key) return null;
+  const baseTs = holderHistoryBaseTs();
+  if(key === "now") return {key:"now", label:"Now", ts:baseTs, days:0, sourceKey:point?.key || ""};
+  const spec = holderBalanceChangePeriodSpecs().find(item => item.key === key);
+  if(!spec) return null;
+  const ts = key === "all"
+    ? (safeHolderNum(doloAllHistoryStartTs) || baseTs - spec.seconds)
+    : baseTs - spec.seconds;
+  return {
+    key,
+    label:key === "all" ? "All" : key.toUpperCase(),
+    ts,
+    days:spec.seconds / 86400,
+    sourceKey:point?.key || "",
+  };
+}
+function holderDistributionForBalancePoint(point, includeVeDolo = state.includeVeDolo, includeAllocations = false){
+  if(!point) return null;
+  if(includeVeDolo && !VEDOLO_LOCKS.size) return null;
+  if(point.key === "now") return getHolderDistribution(includeVeDolo);
+  if(point.buckets && point.key && DOLO_BALANCE_CHANGES?.[point.key]) return point;
+  if(holderBalanceChangesFromPointToNow(point) === null) return null;
+  return getHolderDistributionAtPoint(point, holderHistoryBaseTs(), includeVeDolo, includeAllocations);
+}
 function fmtHolderDate(ts){
   return new Date(ts * 1000).toLocaleDateString("en-US", {month:"short", day:"numeric", year:"numeric"});
 }
@@ -2467,7 +2493,9 @@ function renderHolderDistributionChart(options = {}){
       <span class="holder-legend-head-action"></span>
     </div>
   `;
-  const firstPoint = model.points[0] || model.current;
+  const rawFirstPoint = model.points[0] || model.current;
+  const rangeBaselinePoint = holderResolvedBalanceChangePoint(rawFirstPoint);
+  const firstPoint = holderDistributionForBalancePoint(rangeBaselinePoint, state.includeVeDolo, false) || rawFirstPoint;
   const current = model.current;
   legend.innerHTML = legendHeader + current.buckets.map((bucket, i) => {
     const firstTotal = firstPoint.buckets?.[i]?.total || 0;
@@ -2494,7 +2522,7 @@ function renderHolderDistributionChart(options = {}){
           </div>
           <button class="holder-details-btn" type="button" data-details-key="${bucket.key}" aria-expanded="${open ? "true" : "false"}" aria-controls="${panelId}" aria-label="${open ? "Hide" : "Show"} ${bucket.label} DOLO wallets"><span>${open ? "Hide" : "Details"}</span>${CHEVRON_DOWN_ICO}</button>
         </div>
-        ${open ? holderWalletInlinePanelHtml(bucket, model) : ""}
+        ${open ? holderWalletInlinePanelHtml(bucket, {...model, rangeBaselinePoint}) : ""}
       </div>
     `;
   }).join("");
@@ -2661,12 +2689,31 @@ function visibleAllocationHistory(fullModel){
   const current = visible[visible.length - 1] || fullModel.current;
   return {...fullModel, points:visible.length ? visible : points, current};
 }
+function allocationPointFromHolderDistribution(point, model){
+  if(!point || !model) return null;
+  return {
+    key:point.key || "range",
+    label:point.label || point.key || "Range",
+    ts:safeHolderNum(point.ts),
+    total:safeHolderNum(model.allocationTotal),
+    team:safeHolderNum(model.teamTotal),
+    investors:safeHolderNum(model.investorTotal),
+    wallets:safeHolderNum(model.allocationWallets),
+    teamWallets:safeHolderNum(model.teamWallets),
+    investorWallets:safeHolderNum(model.investorWallets),
+  };
+}
+function allocationRangeBaselinePoint(rawPoint){
+  const rangePoint = holderResolvedBalanceChangePoint(rawPoint);
+  const holderModel = holderDistributionForBalancePoint(rangePoint, false, false);
+  return allocationPointFromHolderDistribution(rangePoint, holderModel);
+}
 function allocationSelectedChange(fullModel = allocationFullModel){
   if(!fullModel || !Array.isArray(fullModel.points)) return null;
   const model = visibleAllocationHistory(fullModel);
   const points = model.points || [];
   if(points.length < 2) return null;
-  const first = points[0];
+  const first = allocationRangeBaselinePoint(points[0]) || points[0];
   const last = points[points.length - 1];
   const start = safeHolderNum(first.total);
   const end = safeHolderNum(last.total);
@@ -2892,7 +2939,9 @@ function renderAllocationChart(options = {}){
     const tip = "Shows labeled Core Team and Investor allocation wallets. CEX wallets, protocol/contract/LP addresses and market holders are not included.";
     metaEl.innerHTML = `<span class="holder-source-scope">Core Team + Investors</span><span class="holder-source-help" data-tooltip="${tip}" aria-label="Allocation chart details">?</span>`;
   }
-  const firstPoint = model.points[0] || model.current;
+  const rawFirstPoint = model.points[0] || model.current;
+  const rangeBaselinePoint = holderResolvedBalanceChangePoint(rawFirstPoint);
+  const firstPoint = allocationRangeBaselinePoint(rawFirstPoint) || rawFirstPoint;
   const current = model.current || model.points[model.points.length - 1] || {};
   const legendHeader = `
     <div class="holder-legend-head" aria-hidden="true">
@@ -2931,7 +2980,7 @@ function renderAllocationChart(options = {}){
           </div>
           <button class="holder-details-btn" type="button" data-details-key="${series.key}" aria-expanded="${open ? "true" : "false"}" aria-controls="${panelId}" aria-label="${open ? "Hide" : "Show"} ${series.label} wallets"><span>${open ? "Hide" : "Details"}</span>${CHEVRON_DOWN_ICO}</button>
         </div>
-        ${open ? allocationWalletInlinePanelHtml(series, model) : ""}
+        ${open ? allocationWalletInlinePanelHtml(series, {...model, rangeBaselinePoint}) : ""}
       </div>
     `;
   }).join("");
@@ -3498,7 +3547,10 @@ function zeroHolderRowFrom(row){
   };
 }
 function holderWalletSortValue(row){
-  return Math.max(safeHolderNum(row?.panelTotal), safeHolderNum(row?.baselineTotal));
+  return Math.max(
+    safeHolderNum(row?.rangeCurrentTotal ?? row?.panelTotal),
+    safeHolderNum(row?.rangeBaselineTotal ?? row?.baselineTotal)
+  );
 }
 function holderWalletUnionRows({point, baselinePoint, includeVeDolo, matchesRow, rangeNoteForRow}){
   const currentRows = holderRowsAtPoint(point, includeVeDolo);
@@ -3520,15 +3572,22 @@ function holderWalletUnionRows({point, baselinePoint, includeVeDolo, matchesRow,
     const type = holderDistributionType(sourceRow?.addr, sourceRow);
     const currentMatch = !!(currentRow && matchesRow(currentRow));
     const baselineMatch = !!(baselineRow && matchesRow(baselineRow));
+    const rangeCurrentTotal = currentMatch ? safeHolderNum(row.panelTotal) : 0;
+    const rangeBaselineTotal = baselineMatch ? safeHolderNum(baselineRow?.panelTotal) : 0;
     return {
       ...row,
       label: row.label || baselineRow?.label || "",
       type,
       baselineTotal: safeHolderNum(baselineRow?.panelTotal),
+      rangeCurrentTotal,
+      rangeBaselineTotal,
       currentInRange: currentMatch,
       baselineInRange: baselineMatch,
       rangeNote: rangeNoteForRow?.(currentMatch, baselineMatch, row, baselineRow) || "",
-      rangeChange: holderWalletRangeChange(row, baselineRow),
+      rangeChange: holderWalletRangeChange(
+        {...row, panelTotal: rangeCurrentTotal},
+        {...(baselineRow || {}), panelTotal: rangeBaselineTotal}
+      ),
     };
   }).sort((a,b) => {
     const active = Number(!!b.currentInRange) - Number(!!a.currentInRange);
@@ -3682,30 +3741,43 @@ function holderPanelDateText(point){
 }
 function holderWalletInlinePanelHtml(bucket, model = null){
   const point = model?.current || null;
-  const baselinePoint = model?.points?.[0] || point;
-  const rows = holderBucketWalletRows(bucket, point, baselinePoint);
+  const rawBaselinePoint = model?.points?.[0] || point;
+  const baselinePoint = model?.rangeBaselinePoint || holderResolvedBalanceChangePoint(rawBaselinePoint);
+  const veDoloUnavailable = state.includeVeDolo && !VEDOLO_LOCKS.size;
+  const rows = baselinePoint && !veDoloUnavailable ? holderBucketWalletRows(bucket, point, baselinePoint) : [];
   const veDoloText = state.includeVeDolo ? " · DOLO + veDOLO" : " · DOLO balance";
   return `
     <div class="holder-wallet-panel holder-wallet-panel-inline is-open" id="holder-wallet-panel-${escHtml(bucket.key)}" aria-live="polite">
       ${walletDrilldownPanelHtml({
         eyebrow:"Bucket wallets",
         title:`${bucket.label} DOLO wallets`,
-        meta:`${rows.length.toLocaleString()} current/prior wallets · ${holderPanelDateText(point)}${veDoloText} · change from ${holderPanelDateText(baselinePoint)} · CEX/protocol/allocation excluded`,
+        meta:veDoloUnavailable
+          ? `Loading veDOLO wallet-level data · current view ${holderPanelDateText(point)}${veDoloText}`
+          : baselinePoint
+          ? `${rows.length.toLocaleString()} current/prior wallets · ${holderPanelDateText(point)}${veDoloText} · change from ${holderPanelDateText(baselinePoint)} · CEX/protocol/allocation excluded`
+          : `Wallet-level changes are available for standard ranges only · current view ${holderPanelDateText(point)}${veDoloText}`,
         rows,
-        emptyText:"No wallets in this bucket for the selected point.",
+        emptyText:veDoloUnavailable
+          ? "veDOLO wallet-level data is still loading. The panel will refresh automatically."
+          : baselinePoint
+          ? "No wallets in this bucket for the selected point."
+          : "This custom range does not have address-level history. Use 1D, 7D, 30D, 90D, 180D or All to open exact wallet changes.",
       })}
     </div>
   `;
 }
 function allocationWalletInlinePanelHtml(series, model = null){
   const point = model?.current || null;
-  const baselinePoint = model?.points?.[0] || point;
-  const rows = allocationWalletRows(series.key, point, baselinePoint);
+  const rawBaselinePoint = model?.points?.[0] || point;
+  const baselinePoint = model?.rangeBaselinePoint || holderResolvedBalanceChangePoint(rawBaselinePoint);
+  const rows = baselinePoint ? allocationWalletRows(series.key, point, baselinePoint) : [];
   const title = series.key === "team" ? "Core Team wallets" : series.key === "investors" ? "Investor wallets" : "All allocation wallets";
   const eyebrow = series.key === "total" ? "Allocation total" : "Allocation component";
-  const meta = series.key === "total"
-    ? `${rows.length.toLocaleString()} current/prior Core Team + Investor wallets · ${holderPanelDateText(point)} · DOLO balance · change from ${holderPanelDateText(baselinePoint)}`
-    : `${rows.length.toLocaleString()} current/prior wallets included in Total Allocations · ${holderPanelDateText(point)} · DOLO balance · change from ${holderPanelDateText(baselinePoint)}`;
+  const meta = baselinePoint
+    ? (series.key === "total"
+      ? `${rows.length.toLocaleString()} current/prior Core Team + Investor wallets · ${holderPanelDateText(point)} · DOLO balance · change from ${holderPanelDateText(baselinePoint)}`
+      : `${rows.length.toLocaleString()} current/prior wallets included in Total Allocations · ${holderPanelDateText(point)} · DOLO balance · change from ${holderPanelDateText(baselinePoint)}`)
+    : `Wallet-level changes are available for standard ranges only · current view ${holderPanelDateText(point)} · DOLO balance`;
   return `
     <div class="holder-wallet-panel holder-wallet-panel-inline is-open" id="allocation-wallet-panel-${escHtml(series.key)}" aria-live="polite">
       ${walletDrilldownPanelHtml({
@@ -3713,7 +3785,9 @@ function allocationWalletInlinePanelHtml(series, model = null){
         title,
         meta,
         rows,
-        emptyText:"No wallets in this allocation group for the selected point.",
+        emptyText:baselinePoint
+          ? "No wallets in this allocation group for the selected point."
+          : "This custom range does not have address-level history. Use 1D, 7D, 30D, 90D, 180D or All to open exact wallet changes.",
       })}
     </div>
   `;
@@ -4633,6 +4707,9 @@ document.getElementById("holder-include-vedolo")?.addEventListener("change", e=>
   state.includeVeDolo = e.currentTarget.checked;
   e.currentTarget.closest(".holder-chart-toggle")?.classList.toggle("is-active", e.currentTarget.checked);
   renderHolderDistributionChart();
+  if(e.currentTarget.checked && window.ensureDoloVeDoloDataLoaded){
+    window.ensureDoloVeDoloDataLoaded();
+  }
 });
 document.querySelectorAll("[data-holder-bucket-view]").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -4721,6 +4798,8 @@ renderCexSupplyChart();
     "dolo_holders.json",
     "dolo_flows.json",
     "vesting_investors.json",
+    "vedolo_holders.json",
+    "vedolo_flows.json",
   ];
   const ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddressLabels() : {};
   window.DOLO_ADDR_LABELS = ADDR_LABELS;
@@ -4728,6 +4807,7 @@ renderCexSupplyChart();
   let liveHolderStats = null;
   let liveFlowsData = null;
   let liveFlowTimestamp = null;
+  let veDoloDataPromise = null;
   const AUTO_CEX_LABELS = {};
 
   const originalRenderHolders = renderHolders;
@@ -4941,6 +5021,34 @@ renderCexSupplyChart();
     renderAllocationChart();
     renderCexSupplyChart();
   }
+  window.ensureDoloVeDoloDataLoaded = function(){
+    if(VEDOLO_LOCKS.size && (VEDOLO_FLOW_EVENTS.locks?.length || VEDOLO_FLOW_EVENTS.unlocks?.length)){
+      return Promise.resolve({cached:true});
+    }
+    if(!veDoloDataPromise){
+      veDoloDataPromise = Promise.allSettled([
+        fetchHeavyJson("vedolo_holders.json").then(applyVeDoloHolders),
+        fetchHeavyJson("vedolo_flows.json").then(applyVeDoloFlows),
+      ]).then(results => {
+        const failed = results.filter(result => result.status === "rejected");
+        if(failed.length){
+          console.warn("veDOLO wallet-level data load partially failed", failed.map(result => result.reason));
+          veDoloDataPromise = null;
+        }
+        if(state.includeVeDolo){
+          renderHolderDistributionChart();
+          renderAllocationChart();
+          renderCexSupplyChart();
+        }
+        return results;
+      }).catch(error => {
+        console.warn("veDOLO wallet-level data load failed", error);
+        veDoloDataPromise = null;
+        throw error;
+      });
+    }
+    return veDoloDataPromise;
+  };
   function flowRowsForPeriod(){
     const periodData = liveFlowsData?.periods?.[state.flowsPeriod];
     if(!periodData) return;
