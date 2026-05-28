@@ -28,8 +28,8 @@
     "0x92f38ac995d15ba6dde0e294dd713aa96426120b": {label:"Ecosystem Incentives Relay", type:"protocol", source:"flow-audit", confidence:"confirmed"},
     "0x964176ea8f0b10012fa44865d02717740ebef043": {label:"DEX Routing Relay", type:"protocol", source:"flow-audit", confidence:"confirmed"},
     "0xd90782f09e85de5b75dfd6c5fd7f18cbabe4c404": {label:"CEX Routing Relay", type:"protocol", source:"flow-audit", confidence:"confirmed"},
-    "0x9d6a82c771e1133789b5d5b716ed11ca26219d31": {label:"Binance Routing Relay", type:"protocol", source:"flow-audit", confidence:"confirmed"},
-    "0xb9e0dcaa12726c663ecdacc4e0b2c5a12886c53f": {label:"Binance Routing Relay", type:"protocol", source:"flow-audit", confidence:"confirmed"},
+    "0x9d6a82c771e1133789b5d5b716ed11ca26219d31": {label:"Binance Deposit", type:"cex", source:"etherscan-public-label", confidence:"confirmed"},
+    "0xb9e0dcaa12726c663ecdacc4e0b2c5a12886c53f": {label:"Binance Deposit", type:"cex", source:"etherscan-public-label", confidence:"confirmed"},
 
     "0x003896387666c5c11458eeb3f927b72a11b19783": {label:"Uniswap V3 DOLO/USDC", type:"lp"},
     "0xd5980e98a89e2d2361b3be657e8a003c6d3514e3": {label:"Kodiak DOLO/WBERA", type:"lp"},
@@ -102,11 +102,11 @@
     "0x224f590a8b58f83bd2673348d6ac75a7b27f9b54": {label:"mike-tyson.eth", type:"eoa", source:"ens-reverse"},
     "0x87db27ac8459ab6602f7a6155b48f6b184065da0": {label:"atheon.eth", type:"eoa", source:"ens-reverse"},
 
-    "0x7a1d00de77c0162d55d84a051bdc6840852b4a60": {label:"Bitkub-linked Custody Wallet", type:"cex", source:"flow-audit", confidence:"confirmed"},
-    "0xfc89c020774524c9d03bd5de48fec149b10bdec3": {label:"Potential CEX/MM", type:"watch"},
-    "0xd5c342acbeedef81ab8e6072323bfda76172d05f": {label:"Potential CEX/MM", type:"watch"},
+    "0x7a1d00de77c0162d55d84a051bdc6840852b4a60": {label:"Potential Bitkub-linked custody/MM", type:"watch", source:"flow-audit", confidence:"potential"},
+    "0xfc89c020774524c9d03bd5de48fec149b10bdec3": {label:"Potential custody/MM", type:"watch"},
+    "0xd5c342acbeedef81ab8e6072323bfda76172d05f": {label:"Potential custody/MM", type:"watch"},
     "0x38285671612d6f0ef7c3483f500d39fa71d66a1c": {label:"CEX Distributor", type:"cex", source:"flow-audit", confidence:"confirmed"},
-    "0x93ae9fe008636d2d6d7376198a54edb20367968f": {label:"Potential CEX/MM", type:"watch"},
+    "0x93ae9fe008636d2d6d7376198a54edb20367968f": {label:"Potential custody/MM", type:"watch"},
     "0xc882b111a75c0c657fc507c04fbfcd2cc984f071": {label:"Gate.io Routing Wallet", type:"cex", source:"flow-audit", confidence:"confirmed"},
 
     "0xb05ba67c11fc0b92a7bcb18e50cba87ce2d15109": {label:"Bot / MM", type:"bot"},
