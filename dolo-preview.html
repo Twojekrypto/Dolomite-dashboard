@@ -3470,27 +3470,73 @@ function holderWalletRangeChange(row, baselineRow){
   const epsilon = 0.000001;
   if(baseline <= epsilon){
     if(current <= epsilon){
-      return {tone:"flat", main:"0 DOLO", pct:"0%"};
+      return {tone:"flat", main:"0 DOLO", pct:"0%", delta, pctValue:0};
     }
-    return {tone:"new", main:`+${fmtNum(current)} DOLO`, pct:"New"};
+    return {tone:"new", main:`+${fmtNum(current)} DOLO`, pct:"New", delta, pctValue:null};
   }
   if(current > epsilon && (baseline <= 1 || baseline / current < 0.001)){
-    return {tone:"new", main:`+${fmtNum(delta)} DOLO`, pct:"New"};
+    return {tone:"new", main:`+${fmtNum(delta)} DOLO`, pct:"New", delta, pctValue:null};
   }
   if(Math.abs(delta) <= epsilon){
-    return {tone:"flat", main:"0 DOLO", pct:"0%"};
+    return {tone:"flat", main:"0 DOLO", pct:"0%", delta, pctValue:0};
   }
   const pct = delta / baseline * 100;
   const tone = delta > 0 ? "up" : "down";
-  return {tone, main:`${fmtSignedHolder(delta)} DOLO`, pct:fmtSignedHolderPct(pct)};
+  return {tone, main:`${fmtSignedHolder(delta)} DOLO`, pct:fmtSignedHolderPct(pct), delta, pctValue:pct};
 }
-function attachHolderWalletRangeChange(rows, baselinePoint, includeVeDolo){
+function zeroHolderRowFrom(row){
+  return {
+    addr: row?.addr || "",
+    label: row?.label || "",
+    type: row?.type || holderDistributionType(row?.addr, row),
+    balEth: 0,
+    balBera: 0,
+    total: 0,
+    liquid: 0,
+    locked: 0,
+    panelTotal: 0,
+  };
+}
+function holderWalletSortValue(row){
+  return Math.max(safeHolderNum(row?.panelTotal), safeHolderNum(row?.baselineTotal));
+}
+function holderWalletUnionRows({point, baselinePoint, includeVeDolo, matchesRow, rangeNoteForRow}){
+  const currentRows = holderRowsAtPoint(point, includeVeDolo);
   const baselineRows = holderRowsAtPoint(baselinePoint, includeVeDolo);
+  const currentByAddr = new Map(currentRows.map(row => [lowerHolderAddr(row.addr), row]));
   const baselineByAddr = new Map(baselineRows.map(row => [lowerHolderAddr(row.addr), row]));
-  return rows.map(row => ({
-    ...row,
-    rangeChange: holderWalletRangeChange(row, baselineByAddr.get(lowerHolderAddr(row.addr))),
-  }));
+  const keys = new Set();
+  currentRows.forEach(row => {
+    if(matchesRow(row)) keys.add(lowerHolderAddr(row.addr));
+  });
+  baselineRows.forEach(row => {
+    if(matchesRow(row)) keys.add(lowerHolderAddr(row.addr));
+  });
+  return [...keys].map(key => {
+    const currentRow = currentByAddr.get(key);
+    const baselineRow = baselineByAddr.get(key);
+    const sourceRow = currentRow || baselineRow;
+    const row = currentRow ? {...currentRow} : zeroHolderRowFrom(baselineRow);
+    const type = holderDistributionType(sourceRow?.addr, sourceRow);
+    const currentMatch = !!(currentRow && matchesRow(currentRow));
+    const baselineMatch = !!(baselineRow && matchesRow(baselineRow));
+    return {
+      ...row,
+      label: row.label || baselineRow?.label || "",
+      type,
+      baselineTotal: safeHolderNum(baselineRow?.panelTotal),
+      currentInRange: currentMatch,
+      baselineInRange: baselineMatch,
+      rangeNote: rangeNoteForRow?.(currentMatch, baselineMatch, row, baselineRow) || "",
+      rangeChange: holderWalletRangeChange(row, baselineRow),
+    };
+  }).sort((a,b) => {
+    const active = Number(!!b.currentInRange) - Number(!!a.currentInRange);
+    if(active) return active;
+    const size = holderWalletSortValue(b) - holderWalletSortValue(a);
+    if(size) return size;
+    return Math.abs(safeHolderNum(b.rangeChange?.delta)) - Math.abs(safeHolderNum(a.rangeChange?.delta));
+  });
 }
 function holderWalletChangeCell(row){
   const change = row.rangeChange || holderWalletRangeChange(row, row);
@@ -3528,24 +3574,41 @@ function holderWalletAddressCell(row){
 }
 function holderBucketWalletRows(bucket, point = null, baselinePoint = null){
   const includeVeDolo = !!state.includeVeDolo;
-  const rows = holderRowsAtPoint(point, includeVeDolo).map(holder => {
+  const matchesRow = holder => {
     const type = holderDistributionType(holder.addr, holder);
-    if(type === "cex" || type === "ca" || type === "team" || type === "investor") return null;
-    if(holder.panelTotal < bucket.min || holder.panelTotal >= bucket.max) return null;
-    return {...holder, type};
-  }).filter(Boolean).sort((a,b) => b.panelTotal - a.panelTotal);
-  return attachHolderWalletRangeChange(rows, baselinePoint || point, includeVeDolo);
+    if(type === "cex" || type === "ca" || type === "team" || type === "investor") return false;
+    return holder.panelTotal >= bucket.min && holder.panelTotal < bucket.max;
+  };
+  return holderWalletUnionRows({
+    point,
+    baselinePoint: baselinePoint || point,
+    includeVeDolo,
+    matchesRow,
+    rangeNoteForRow: (currentMatch, baselineMatch) => {
+      if(currentMatch && !baselineMatch) return "Entered range";
+      if(!currentMatch && baselineMatch) return "Moved out of range";
+      return "";
+    },
+  });
 }
 function allocationWalletRows(key, point = null, baselinePoint = null){
-  const rows = holderRowsAtPoint(point, false).map(holder => {
+  const matchesRow = holder => {
     const type = holderDistributionType(holder.addr, holder);
-    if(key === "team" && type !== "team") return null;
-    if(key === "investors" && type !== "investor") return null;
-    if(key === "total" && type !== "team" && type !== "investor") return null;
-    if(holder.panelTotal <= 0) return null;
-    return {...holder, type, locked:0};
-  }).filter(Boolean).sort((a,b) => b.panelTotal - a.panelTotal);
-  return attachHolderWalletRangeChange(rows, baselinePoint || point, false);
+    if(key === "team") return type === "team" && holder.panelTotal > 0;
+    if(key === "investors") return type === "investor" && holder.panelTotal > 0;
+    return (type === "team" || type === "investor") && holder.panelTotal > 0;
+  };
+  return holderWalletUnionRows({
+    point,
+    baselinePoint: baselinePoint || point,
+    includeVeDolo:false,
+    matchesRow,
+    rangeNoteForRow: (currentMatch, baselineMatch) => {
+      if(currentMatch && !baselineMatch) return "New in group";
+      if(!currentMatch && baselineMatch) return "Exited group";
+      return "";
+    },
+  }).map(row => ({...row, locked:0}));
 }
 function bindHolderWalletPanel(panel){
   panel.querySelectorAll(".addr-copy").forEach(btn => btn.addEventListener("click", async event => {
@@ -3600,6 +3663,7 @@ function walletDrilldownPanelHtml({eyebrow = "Wallets", title, meta, rows, empty
                       <img class="holder-dolo-icon" src="dolo-logo.svg" alt="DOLO" onerror="this.style.display='none'">
                     </div>
                     ${row.locked > 0 ? `<div class="holder-wallet-sub">${fmtNum(row.locked)} veDOLO</div>` : ""}
+                    ${row.rangeNote ? `<div class="holder-wallet-sub">${escHtml(row.rangeNote)}</div>` : ""}
                   </td>
                   <td class="num" data-label="Change">${holderWalletChangeCell(row)}</td>
                   <td class="chain-cell" data-label="Chain">${holderWalletChainHtml(row)}</td>
@@ -3626,7 +3690,7 @@ function holderWalletInlinePanelHtml(bucket, model = null){
       ${walletDrilldownPanelHtml({
         eyebrow:"Bucket wallets",
         title:`${bucket.label} DOLO wallets`,
-        meta:`${rows.length.toLocaleString()} wallets · ${holderPanelDateText(point)}${veDoloText} · change from ${holderPanelDateText(baselinePoint)} · CEX/protocol/allocation excluded`,
+        meta:`${rows.length.toLocaleString()} current/prior wallets · ${holderPanelDateText(point)}${veDoloText} · change from ${holderPanelDateText(baselinePoint)} · CEX/protocol/allocation excluded`,
         rows,
         emptyText:"No wallets in this bucket for the selected point.",
       })}
@@ -3640,8 +3704,8 @@ function allocationWalletInlinePanelHtml(series, model = null){
   const title = series.key === "team" ? "Core Team wallets" : series.key === "investors" ? "Investor wallets" : "All allocation wallets";
   const eyebrow = series.key === "total" ? "Allocation total" : "Allocation component";
   const meta = series.key === "total"
-    ? `${rows.length.toLocaleString()} Core Team + Investor wallets · ${holderPanelDateText(point)} · DOLO balance · change from ${holderPanelDateText(baselinePoint)}`
-    : `${rows.length.toLocaleString()} wallets included in Total Allocations · ${holderPanelDateText(point)} · DOLO balance · change from ${holderPanelDateText(baselinePoint)}`;
+    ? `${rows.length.toLocaleString()} current/prior Core Team + Investor wallets · ${holderPanelDateText(point)} · DOLO balance · change from ${holderPanelDateText(baselinePoint)}`
+    : `${rows.length.toLocaleString()} current/prior wallets included in Total Allocations · ${holderPanelDateText(point)} · DOLO balance · change from ${holderPanelDateText(baselinePoint)}`;
   return `
     <div class="holder-wallet-panel holder-wallet-panel-inline is-open" id="allocation-wallet-panel-${escHtml(series.key)}" aria-live="polite">
       ${walletDrilldownPanelHtml({
