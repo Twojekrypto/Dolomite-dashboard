@@ -95,6 +95,7 @@
     "0xb2655ac91bb3536bcfa0993069da6affabadc33d": {label:"Gate.io Deposit", type:"cex", source:"etherscan-public-label"},
     "0xc17a40852e4bfe04bc81af355fdf132c539ba753": {label:"Binance Deposit", type:"cex", source:"etherscan-public-label"},
     "0xc488e4afec0414511d1518d8d6b8dc5f820fb92a": {label:"Bitkub: Deposit Funder 3", type:"cex", source:"etherscan-public-label"},
+    "0x1579b5f6582c7a04f5ffeec683c13008c4b0a520": {label:"Bitkub: Hot Wallet 4", type:"cex", source:"etherscan-public-label"},
 
     "0xd6f631c796a56a5d448dd88a01f15058c4a0be52": {label:"makeitback.eth", type:"eoa", source:"ens-reverse"},
     "0x7bfee91193d9df2ac0bfe90191d40f23c773c060": {label:"7bfee.eth", type:"eoa", source:"ens-reverse"},
