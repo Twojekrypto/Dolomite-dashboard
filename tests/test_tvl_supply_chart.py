@@ -1,6 +1,10 @@
 import json
 import unittest
+from decimal import Decimal
 from pathlib import Path
+
+import fetch_dolomite_tvl
+import validate_data
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -8,6 +12,8 @@ TVL_PREVIEW = ROOT / "tvl-preview.html"
 TVL_ROUTE = ROOT / "tvl" / "index.html"
 TVL_FETCHER = ROOT / "fetch_dolomite_tvl.py"
 DOLOMITE_TVL = ROOT / "dolomite_tvl.json"
+VALIDATOR = ROOT / "validate_data.py"
+LIVE_SMOKE = ROOT / "scripts" / "smoke_live_pages.py"
 
 
 class TvlSupplyChartContractsTest(unittest.TestCase):
@@ -15,6 +21,8 @@ class TvlSupplyChartContractsTest(unittest.TestCase):
     def setUpClass(cls):
         cls.preview_source = TVL_PREVIEW.read_text(encoding="utf-8")
         cls.fetcher_source = TVL_FETCHER.read_text(encoding="utf-8")
+        cls.validator_source = VALIDATOR.read_text(encoding="utf-8")
+        cls.smoke_source = LIVE_SMOKE.read_text(encoding="utf-8")
 
     def test_chart_is_labeled_as_supply_and_anchors_current_snapshot(self):
         self.assertIn("<h2>Supply Over Time</h2>", self.preview_source)
@@ -72,6 +80,39 @@ class TvlSupplyChartContractsTest(unittest.TestCase):
         self.assertIn("const useLlama = !hasOfficialChain && Number(llamaCurrent[name]) > 0;", self.preview_source)
         self.assertIn("const tokens = officialTokens[chain] || llamaTokens[chain];", self.preview_source)
         self.assertNotIn("staleKeys.has(chainKey(chain)) && llamaTokens[chain]", self.preview_source)
+
+    def test_tvl_data_pipeline_refuses_missing_wlfi(self):
+        data = json.loads(DOLOMITE_TVL.read_text(encoding="utf-8"))
+        global_tokens = {
+            symbol: Decimal(str(value))
+            for symbol, value in data["tokensInUsd"][0]["tokens"].items()
+        }
+        chain_tokens = {
+            chain: {
+                symbol: Decimal(str(value))
+                for symbol, value in tokens.items()
+            }
+            for chain, tokens in data["chainTokensInUsd"].items()
+        }
+        fetch_dolomite_tvl.validate_expected_token_guards(global_tokens, chain_tokens)
+        self.assertTrue(validate_data._dolomite_expected_tokens_present(data))
+
+        broken_global = dict(global_tokens)
+        broken_global.pop("WLFI", None)
+        with self.assertRaises(RuntimeError):
+            fetch_dolomite_tvl.validate_expected_token_guards(broken_global, chain_tokens)
+
+        broken_data = json.loads(DOLOMITE_TVL.read_text(encoding="utf-8"))
+        broken_data["tokensInUsd"][0]["tokens"].pop("WLFI", None)
+        self.assertFalse(validate_data._dolomite_expected_tokens_present(broken_data))
+
+    def test_live_pages_smoke_checks_tvl_wlfi_composition(self):
+        self.assertIn("def assert_tvl_composition_live", self.smoke_source)
+        self.assertIn("stale-token-fix-20260528", self.smoke_source)
+        self.assertIn('const tokens = officialTokens[chain] || llamaTokens[chain];', self.smoke_source)
+        self.assertIn('latest.get("WLFI", 0)', self.smoke_source)
+        self.assertIn('chain_tokens.get("Ethereum", {}).get("WLFI", 0)', self.smoke_source)
+        self.assertIn("assert_tvl_composition_live(base_url)", self.smoke_source)
 
 
 if __name__ == "__main__":
