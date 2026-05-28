@@ -67,6 +67,12 @@ class TvlSupplyChartContractsTest(unittest.TestCase):
         self.assertEqual("WLFI", ranked[0][0])
         self.assertIn('"WLFI": DOLO_CDN + "WLFI.', self.preview_source)
 
+    def test_stale_metadata_does_not_hide_official_token_composition(self):
+        self.assertIn("const hasOfficialChain = Number(current[name]) > 0;", self.preview_source)
+        self.assertIn("const useLlama = !hasOfficialChain && Number(llamaCurrent[name]) > 0;", self.preview_source)
+        self.assertIn("const tokens = officialTokens[chain] || llamaTokens[chain];", self.preview_source)
+        self.assertNotIn("staleKeys.has(chainKey(chain)) && llamaTokens[chain]", self.preview_source)
+
 
 if __name__ == "__main__":
     unittest.main()

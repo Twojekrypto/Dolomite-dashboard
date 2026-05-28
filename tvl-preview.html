@@ -1204,14 +1204,13 @@ function officialStaleChainKeys(officialData){
   return stale;
 }
 
-function mergedChainTokens(llamaData, officialData, staleKeys){
+function mergedChainTokens(llamaData, officialData){
   const officialTokens = officialData?.chainTokensInUsd || {};
   const llamaTokens = llamaData?.chainTokensInUsd || {};
   const merged = {};
   const chainNames = new Set([...Object.keys(officialTokens), ...Object.keys(llamaTokens)]);
   chainNames.forEach(chain => {
-    const useLlama = staleKeys.has(chainKey(chain)) && llamaTokens[chain];
-    const tokens = useLlama ? llamaTokens[chain] : (officialTokens[chain] || llamaTokens[chain]);
+    const tokens = officialTokens[chain] || llamaTokens[chain];
     if (tokens && Object.keys(tokens).length) merged[chain] = tokens;
   });
   return merged;
@@ -1231,7 +1230,7 @@ function tokenMapFromChains(chainTokens){
 
 function buildTokenComposition(llamaData, officialData, staleKeys=new Set()){
   const chainTokens = officialData
-    ? mergedChainTokens(llamaData, officialData, staleKeys)
+    ? mergedChainTokens(llamaData, officialData)
     : (llamaData?.chainTokensInUsd || {});
   const tokenSource = officialData?.tokensInUsd || llamaData?.tokensInUsd || [];
   const latest = tokenSource[tokenSource.length - 1] || tokenSource[0] || {};
@@ -1264,7 +1263,7 @@ function buildTokenComposition(llamaData, officialData, staleKeys=new Set()){
 
 function buildChainTokenCompositions(llamaData, officialData, staleKeys=new Set()){
   const chainTokens = officialData
-    ? mergedChainTokens(llamaData, officialData, staleKeys)
+    ? mergedChainTokens(llamaData, officialData)
     : (llamaData?.chainTokensInUsd || {});
   const byChain = {};
   Object.entries(chainTokens).forEach(([chain, tokens]) => {
@@ -1292,8 +1291,8 @@ function buildTvlSnapshot(llamaData, officialData){
   ]);
   const chainRows = [...chainNames]
     .map(name => {
-      const key = chainKey(name);
-      const useLlama = staleKeys.has(key) && Number(llamaCurrent[name]) > 0;
+      const hasOfficialChain = Number(current[name]) > 0;
+      const useLlama = !hasOfficialChain && Number(llamaCurrent[name]) > 0;
       const source = useLlama ? llamaCurrent : current;
       return {
         name,
@@ -1305,7 +1304,7 @@ function buildTvlSnapshot(llamaData, officialData){
     .filter(c => c.tvl > 0)
     .sort((a,b)=>b.tvl-a.tvl);
   const chainTokens = officialData
-    ? mergedChainTokens(llamaData, officialData, staleKeys)
+    ? mergedChainTokens(llamaData, officialData)
     : (llamaData?.chainTokensInUsd || {});
   const hasFallback = chainRows.some(c => c.source === "defillama_fallback");
   const rowTvl = chainRows.reduce((sum,c)=>sum+c.tvl, 0);
