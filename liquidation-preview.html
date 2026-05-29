@@ -6084,11 +6084,210 @@
             background: var(--gold) !important;
             border-color: var(--gold) !important;
         }
+        body.route-liquidation #sim-card.liquidation-sim-card {
+            display: flex !important;
+            flex-direction: column !important;
+        }
+        body.route-liquidation #sim-card.liquidation-sim-card .liquidation-sim-tabs-bar {
+            align-self: flex-start !important;
+        }
         @media (min-width: 900px) {
             body.route-liquidation #sim-card.liquidation-sim-card {
-                height: 724px !important;
-                min-height: 724px !important;
+                height: 792px !important;
+                min-height: 792px !important;
             }
+            body.route-liquidation #sim-card.sim-mode-simple #sim-impact-viz {
+                flex: 1 1 0 !important;
+                min-height: 0 !important;
+            }
+            body.route-liquidation #sim-card.sim-mode-multi #sim-multi-panel.visible {
+                flex: 1 1 0 !important;
+                min-height: 0 !important;
+            }
+        }
+
+        /* ===== Risk Simulator — Impact Map (premium fill) ===== */
+        .sim-impact-viz { display: none; }
+        body.route-liquidation #sim-card.sim-mode-simple #sim-impact-viz {
+            display: flex !important;
+            gap: 12px !important;
+            margin-top: 12px !important;
+            min-height: 0 !important;
+        }
+        body.route-liquidation #sim-card.sim-mode-multi #sim-impact-viz { display: none !important; }
+        body.route-liquidation .sim-viz-panel {
+            display: flex !important;
+            flex-direction: column !important;
+            min-height: 0 !important;
+            padding: 13px 14px 12px !important;
+            border-radius: var(--r-md) !important;
+            background: var(--bg-1) !important;
+            border: 1px solid var(--line-1) !important;
+        }
+        body.route-liquidation .sim-viz-dist { flex: 1.55 1 0 !important; }
+        body.route-liquidation .sim-viz-atrisk { flex: 1 1 0 !important; min-width: 240px !important; }
+        body.route-liquidation .sim-viz-head {
+            display: flex !important;
+            align-items: flex-start !important;
+            justify-content: space-between !important;
+            gap: 10px !important;
+            margin-bottom: 12px !important;
+        }
+        body.route-liquidation .sim-viz-head-main { display: flex !important; flex-direction: column !important; gap: 2px !important; }
+        body.route-liquidation .sim-viz-kicker {
+            color: var(--fg-3) !important;
+            font-size: 9.5px !important;
+            font-weight: 700 !important;
+            letter-spacing: 1.2px !important;
+            text-transform: uppercase !important;
+        }
+        body.route-liquidation .sim-viz-title { color: var(--fg-1) !important; font-size: 13px !important; font-weight: 600 !important; }
+        body.route-liquidation .sim-viz-legend { display: flex !important; gap: 12px !important; padding-top: 2px !important; }
+        body.route-liquidation .sim-viz-legend-item {
+            display: inline-flex !important; align-items: center !important; gap: 5px !important;
+            color: var(--fg-3) !important; font-size: 10px !important; font-weight: 600 !important;
+        }
+        body.route-liquidation .sim-viz-legend-swatch { width: 9px !important; height: 9px !important; border-radius: 3px !important; }
+        body.route-liquidation .sim-viz-legend-swatch.ghost { background: var(--line-3) !important; }
+        body.route-liquidation .sim-viz-legend-swatch.live { background: var(--gold) !important; }
+
+        body.route-liquidation .sim-dist-chart {
+            position: relative !important;
+            flex: 1 1 auto !important;
+            min-height: 150px !important;
+            padding-top: 14px !important;
+        }
+        body.route-liquidation .sim-dist-bars {
+            display: flex !important;
+            align-items: stretch !important;
+            gap: 8px !important;
+            height: 100% !important;
+        }
+        body.route-liquidation .sim-dist-col {
+            flex: 1 1 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: flex-end !important;
+            min-width: 0 !important;
+        }
+        body.route-liquidation .sim-dist-count {
+            text-align: center !important;
+            font-family: var(--mono) !important;
+            font-size: 11px !important;
+            font-weight: 600 !important;
+            color: var(--fg-2) !important;
+            margin-bottom: 5px !important;
+            white-space: nowrap !important;
+        }
+        body.route-liquidation .sim-dist-barwrap {
+            position: relative !important;
+            flex: 1 1 auto !important;
+            min-height: 0 !important;
+            display: flex !important;
+            align-items: flex-end !important;
+            justify-content: center !important;
+        }
+        body.route-liquidation .sim-dist-ghost {
+            position: absolute !important;
+            left: 8% !important; right: 8% !important; bottom: 0 !important;
+            border-radius: 5px 5px 0 0 !important;
+            background: var(--line-2) !important;
+            transition: height .35s cubic-bezier(.4,0,.2,1) !important;
+        }
+        body.route-liquidation .sim-dist-live {
+            position: relative !important;
+            width: 62% !important;
+            border-radius: 5px 5px 0 0 !important;
+            transition: height .35s cubic-bezier(.4,0,.2,1), background .25s ease !important;
+            box-shadow: 0 0 0 1px rgba(0,0,0,.25) inset !important;
+        }
+        body.route-liquidation .sim-dist-xlabel {
+            margin-top: 7px !important;
+            text-align: center !important;
+            font-size: 9.5px !important;
+            font-weight: 600 !important;
+            color: var(--fg-3) !important;
+            white-space: nowrap !important;
+        }
+        body.route-liquidation .sim-dist-col.liq .sim-dist-xlabel { color: var(--down) !important; }
+        body.route-liquidation .sim-dist-threshold {
+            position: absolute !important;
+            top: 0 !important; bottom: 26px !important;
+            left: calc(100% / 6 - 4px) !important;
+            width: 0 !important;
+            border-left: 1px dashed rgba(180,121,107,.55) !important;
+            pointer-events: none !important;
+        }
+        body.route-liquidation .sim-dist-threshold span {
+            position: absolute !important;
+            top: -2px !important; left: 5px !important;
+            font-family: var(--mono) !important;
+            font-size: 9px !important;
+            font-weight: 600 !important;
+            color: var(--down) !important;
+            white-space: nowrap !important;
+        }
+
+        body.route-liquidation .sim-atrisk-list {
+            flex: 1 1 auto !important;
+            min-height: 0 !important;
+            overflow-y: auto !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 6px !important;
+            padding-right: 2px !important;
+        }
+        body.route-liquidation .sim-atrisk-row {
+            display: grid !important;
+            grid-template-columns: auto 1fr auto !important;
+            align-items: center !important;
+            gap: 9px !important;
+            padding: 7px 9px !important;
+            border-radius: 9px !important;
+            background: var(--bg-2) !important;
+            border: 1px solid var(--line-1) !important;
+        }
+        body.route-liquidation .sim-atrisk-row.crossed {
+            background: rgba(180,121,107,.10) !important;
+            border-color: rgba(180,121,107,.34) !important;
+        }
+        body.route-liquidation .sim-atrisk-rank {
+            width: 18px !important; height: 18px !important;
+            display: flex !important; align-items: center !important; justify-content: center !important;
+            border-radius: 6px !important;
+            background: var(--bg-4) !important;
+            color: var(--fg-3) !important;
+            font-family: var(--mono) !important; font-size: 10px !important; font-weight: 600 !important;
+        }
+        body.route-liquidation .sim-atrisk-mid { min-width: 0 !important; display: flex !important; flex-direction: column !important; gap: 4px !important; }
+        body.route-liquidation .sim-atrisk-addr {
+            display: flex !important; align-items: center !important; gap: 6px !important;
+            font-family: var(--mono) !important; font-size: 11px !important; color: var(--fg-1) !important;
+            overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important;
+        }
+        body.route-liquidation .sim-atrisk-dot { width: 6px !important; height: 6px !important; border-radius: 50% !important; flex: 0 0 auto !important; background: var(--fg-3) !important; }
+        body.route-liquidation .sim-atrisk-debt { font-size: 9.5px !important; color: var(--fg-3) !important; }
+        body.route-liquidation .sim-atrisk-buffer { height: 3px !important; border-radius: 2px !important; background: var(--line-1) !important; overflow: hidden !important; }
+        body.route-liquidation .sim-atrisk-buffer-fill { height: 100% !important; border-radius: 2px !important; transition: width .35s cubic-bezier(.4,0,.2,1), background .25s ease !important; }
+        body.route-liquidation .sim-atrisk-hf {
+            display: flex !important; flex-direction: column !important; align-items: flex-end !important; gap: 1px !important;
+            font-family: var(--mono) !important;
+        }
+        body.route-liquidation .sim-atrisk-hf-now { font-size: 9px !important; color: var(--fg-4) !important; text-decoration: line-through !important; }
+        body.route-liquidation .sim-atrisk-hf-new { font-size: 13px !important; font-weight: 700 !important; }
+        body.route-liquidation .sim-atrisk-empty {
+            margin: auto !important;
+            text-align: center !important;
+            color: var(--fg-3) !important;
+            font-size: 12px !important;
+            padding: 18px 12px !important;
+            line-height: 1.5 !important;
+        }
+        body.route-liquidation .sim-atrisk-empty strong { color: var(--up) !important; font-weight: 600 !important; }
+        @media (max-width: 900px) {
+            body.route-liquidation #sim-card.sim-mode-simple #sim-impact-viz { flex-direction: column !important; }
+            body.route-liquidation .sim-dist-chart { min-height: 170px !important; }
+            body.route-liquidation .sim-atrisk-list { max-height: 250px !important; }
         }
         body.route-liquidation .liquidation-direction-toggle.dir-drop .liquidation-dir-pill,
         body.route-liquidation .liquidation-direction-toggle.dir-rise .liquidation-dir-pill,
@@ -7191,7 +7390,7 @@
         </div>
 
         <div id="risk-simulator-section" class="liquidation-sim-section">
-                <div id="sim-card" class="liquidation-sim-card">
+                <div id="sim-card" class="liquidation-sim-card sim-mode-simple">
                     <div class="liquidation-sim-header">
                         <div class="liquidation-sim-title-row">
                             <div class="liquidation-sim-icon">
@@ -7307,6 +7506,34 @@
                             <div id="sim-col-risk" class="liquidation-sim-metric-value">$0</div>
                             <div id="sim-col-pct" class="liquidation-sim-metric-sub">0% of visible collateral</div>
                             <div class="sim-metric-progress"><div class="sim-metric-progress-fill" id="sim-col-progress" style="background:#fbbf24"></div></div>
+                        </div>
+                    </div>
+
+                    <div class="sim-impact-viz" id="sim-impact-viz">
+                        <div class="sim-viz-panel sim-viz-dist">
+                            <div class="sim-viz-head">
+                                <div class="sim-viz-head-main">
+                                    <span class="sim-viz-kicker">Health Factor Distribution</span>
+                                    <span class="sim-viz-title">Where the book sits after the shock</span>
+                                </div>
+                                <div class="sim-viz-legend">
+                                    <span class="sim-viz-legend-item"><span class="sim-viz-legend-swatch ghost"></span>Now</span>
+                                    <span class="sim-viz-legend-item"><span class="sim-viz-legend-swatch live"></span>After</span>
+                                </div>
+                            </div>
+                            <div class="sim-dist-chart" id="sim-dist-chart">
+                                <div class="sim-dist-bars" id="sim-dist-bars"></div>
+                                <div class="sim-dist-threshold" id="sim-dist-threshold"><span>HF 1.0</span></div>
+                            </div>
+                        </div>
+                        <div class="sim-viz-panel sim-viz-atrisk">
+                            <div class="sim-viz-head">
+                                <div class="sim-viz-head-main">
+                                    <span class="sim-viz-kicker">Closest to Liquidation</span>
+                                    <span class="sim-viz-title" id="sim-atrisk-sub">Smallest buffer above HF 1.0</span>
+                                </div>
+                            </div>
+                            <div class="sim-atrisk-list" id="sim-atrisk-list"></div>
                         </div>
                     </div>
 
@@ -9911,6 +10138,7 @@
                     }
 
                     let liqCount = 0, debtAtRisk = 0, colAtRisk = 0;
+                    const simResults = [];
                     for (const p of window._simPositions) {
                         if (p.colUSD < 0.01 && p.debtUSD > 0) continue;
                         if (p.colUSD < 0.01 || p.debtUSD < 0.01) continue;
@@ -9942,7 +10170,9 @@
                             debtAtRisk += newDebt;
                             colAtRisk += newCol;
                         }
+                        simResults.push({ hf: p.hf, newHF, debtUSD: p.debtUSD, addr: p.addr, chain: p.chain });
                     }
+                    if (typeof renderSimImpact === 'function') renderSimImpact(simResults, changeVal !== 0);
                     document.getElementById('sim-liq-count').textContent = liqCount.toLocaleString();
                     document.getElementById('sim-debt-risk').textContent = formatUSD(Math.round(debtAtRisk));
                     document.getElementById('sim-col-risk').textContent = formatUSD(Math.round(colAtRisk));
@@ -10054,6 +10284,90 @@
             addButton.disabled = !hasAvailableToken;
             addButton.setAttribute('aria-disabled', hasAvailableToken ? 'false' : 'true');
         }
+
+        // ─── Risk Simulator · Impact Map renderer ───────────────────
+        const SIM_DIST_BUCKETS = [
+            { key: 'liq', label: '< 1.0', test: hf => hf < 1.0,                 color: '#ef4444' },
+            {            label: '1.0–1.1', test: hf => hf >= 1.0  && hf < 1.1,  color: '#f97316' },
+            {            label: '1.1–1.25', test: hf => hf >= 1.1  && hf < 1.25, color: '#fbbf24' },
+            {            label: '1.25–1.5', test: hf => hf >= 1.25 && hf < 1.5,  color: '#c9a227' },
+            {            label: '1.5–2.0', test: hf => hf >= 1.5  && hf < 2.0,  color: '#8dd37c' },
+            {            label: '≥ 2.0',   test: hf => hf >= 2.0,               color: '#75b87b' },
+        ];
+        function simHfColor(hf) {
+            return hf < 1.0 ? '#ef4444' : hf < 1.1 ? '#f97316' : hf < 1.25 ? '#fbbf24'
+                 : hf < 1.5 ? '#c9a227' : hf < 2.0 ? '#8dd37c' : '#75b87b';
+        }
+        function simFmtHf(hf) {
+            if (!isFinite(hf)) return '10+';
+            return hf >= 10 ? '10+' : hf.toFixed(2);
+        }
+        function simEscapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, ch => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[ch]));
+        }
+        function renderSimImpact(results, shocked) {
+            const barsEl = document.getElementById('sim-dist-bars');
+            const listEl = document.getElementById('sim-atrisk-list');
+            const subEl  = document.getElementById('sim-atrisk-sub');
+            if (!barsEl || !listEl) return;
+
+            const nowCounts = SIM_DIST_BUCKETS.map(() => 0);
+            const newCounts = SIM_DIST_BUCKETS.map(() => 0);
+            for (const r of results) {
+                for (let i = 0; i < SIM_DIST_BUCKETS.length; i++) { if (SIM_DIST_BUCKETS[i].test(r.hf))    { nowCounts[i]++; break; } }
+                for (let i = 0; i < SIM_DIST_BUCKETS.length; i++) { if (SIM_DIST_BUCKETS[i].test(r.newHF)) { newCounts[i]++; break; } }
+            }
+            const maxC = Math.max(1, ...nowCounts, ...newCounts);
+            const scale = c => c <= 0 ? 0 : Math.max(5, Math.round(Math.sqrt(c / maxC) * 100));
+            barsEl.innerHTML = SIM_DIST_BUCKETS.map((b, i) => {
+                const nowH = scale(nowCounts[i]);
+                const newH = scale(newCounts[i]);
+                return `<div class="sim-dist-col${b.key === 'liq' ? ' liq' : ''}">`
+                    + `<div class="sim-dist-count">${newCounts[i].toLocaleString()}</div>`
+                    + `<div class="sim-dist-barwrap">`
+                        + `<div class="sim-dist-ghost" style="height:${nowH}%"></div>`
+                        + `<div class="sim-dist-live" style="height:${newH}%;background:${b.color}"></div>`
+                    + `</div>`
+                    + `<div class="sim-dist-xlabel">${b.label}</div>`
+                + `</div>`;
+            }).join('');
+
+            const ranked = results.filter(r => r.hf >= 1.0 && isFinite(r.newHF))
+                                   .sort((a, b) => a.newHF - b.newHF)
+                                   .slice(0, 8);
+            if (subEl) subEl.textContent = shocked ? 'Lowest health factor after the shock' : 'Smallest buffer above HF 1.0';
+            if (!ranked.length) {
+                listEl.innerHTML = '<div class="sim-atrisk-empty">No leveraged positions in the visible set.</div>';
+                return;
+            }
+            listEl.innerHTML = ranked.map((r, i) => {
+                const crossed = r.newHF < 1.0;
+                const addr = String(r.addr || '');
+                const short = addr ? addr.slice(0, 6) + '…' + addr.slice(-4) : '—';
+                const color = simHfColor(r.newHF);
+                const buf = crossed ? 100 : Math.max(0, Math.min(1, (r.newHF - 1) / 0.5)) * 100;
+                const showNow = shocked && Math.abs(r.newHF - r.hf) > 0.005;
+                return `<div class="sim-atrisk-row${crossed ? ' crossed' : ''}">`
+                    + `<div class="sim-atrisk-rank">${i + 1}</div>`
+                    + `<div class="sim-atrisk-mid">`
+                        + `<div class="sim-atrisk-addr"><span class="sim-atrisk-dot"></span>${simEscapeHtml(short)}</div>`
+                        + `<div class="sim-atrisk-buffer"><div class="sim-atrisk-buffer-fill" style="width:${buf}%;background:${color}"></div></div>`
+                        + `<div class="sim-atrisk-debt">${formatUSD(Math.round(r.debtUSD))} debt</div>`
+                    + `</div>`
+                    + `<div class="sim-atrisk-hf">`
+                        + (showNow ? `<span class="sim-atrisk-hf-now">${simFmtHf(r.hf)}</span>` : '')
+                        + `<span class="sim-atrisk-hf-new" style="color:${color}">${crossed ? 'LIQ' : simFmtHf(r.newHF)}</span>`
+                    + `</div>`
+                + `</div>`;
+            }).join('');
+        }
+        window.renderSimImpact = renderSimImpact;
 
         function setSimTab(tab) {
             const isMulti = tab === 'multi';
