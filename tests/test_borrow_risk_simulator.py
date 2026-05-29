@@ -20,7 +20,8 @@ class BorrowRiskSimulatorTest(unittest.TestCase):
         self.assertIn("data-sim-risk-idx", self.source)
         self.assertIn("sim-risk-search", self.source)
         self.assertIn("renderSimRiskAddressTools", self.source)
-        self.assertIn("sim-atrisk-action", self.source)
+        self.assertIn("sim-atrisk-addr-link", self.source)
+        self.assertNotIn('class="sim-atrisk-action"', self.source)
         self.assertNotIn("Acct ${account.length", self.source)
         self.assertNotIn("sim-risk-focus", self.source)
 
@@ -44,7 +45,7 @@ class BorrowRiskSimulatorTest(unittest.TestCase):
         for route in (ROOT / "borrow" / "index.html", ROOT / "liquidation" / "index.html"):
             with self.subTest(route=route):
                 text = route.read_text(encoding="utf-8")
-                self.assertIn("risk-simulator-search-slash-20260529", text)
+                self.assertIn("risk-simulator-address-link-20260529", text)
                 self.assertIn("dolo-label-cleanup-20260514", text)
 
     def test_slider_outcome_mini_chart_removed(self):

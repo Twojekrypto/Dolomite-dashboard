@@ -6651,6 +6651,25 @@
             text-overflow: ellipsis !important;
             white-space: nowrap !important;
         }
+        body.route-liquidation .sim-atrisk-addr-link {
+            min-width: 0 !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+            color: var(--fg-1) !important;
+            font-family: 'JetBrains Mono', monospace !important;
+            font-size: 11px !important;
+            font-weight: 400 !important;
+            line-height: 1 !important;
+            text-decoration: none !important;
+            transition: color .15s var(--ease), text-shadow .15s var(--ease) !important;
+        }
+        body.route-liquidation .sim-atrisk-addr-link:hover,
+        body.route-liquidation .sim-atrisk-addr-link:focus-visible {
+            color: var(--gold) !important;
+            text-shadow: 0 0 10px rgba(201,162,39,.20) !important;
+            outline: none !important;
+        }
         body.route-liquidation .sim-atrisk-actions {
             display: inline-flex !important;
             align-items: center !important;
@@ -12144,9 +12163,8 @@
             const explorerUrl = supplyEscapeHtml(`${getSupplyAddressExplorer(chain || 'ethereum')}${address}`);
             const debankChain = CHAIN_DEBANK_IDS[chain] || 'eth';
             const debankUrl = supplyEscapeHtml(`https://debank.com/profile/${address}?chain=${debankChain}`);
-            return `<span class="sim-atrisk-addr-text addr-tooltip-wrap" data-full-addr="${safeAddress}">${shortAddr}</span>`
+            return `<a href="${explorerUrl}" target="_blank" rel="noopener" class="sim-atrisk-addr-link addr-tooltip-wrap" data-full-addr="${safeAddress}" aria-label="Open address on explorer" onclick="event.stopPropagation()">${shortAddr}</a>`
                 + `<span class="sim-atrisk-actions">`
-                    + `<a href="${explorerUrl}" target="_blank" rel="noopener" class="sim-atrisk-action" aria-label="Open address on explorer" onclick="event.stopPropagation()">${EXT_LINK_SVG}</a>`
                     + `<a href="${debankUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="debank-icon sim-atrisk-debank" aria-label="Open address in DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a>`
                     + `<span class="copy-addr-icon sim-atrisk-copy" role="button" tabindex="0" aria-label="Copy address" onclick="event.stopPropagation();copyAddr('${safeAddress}',this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();copyAddr('${safeAddress}',this)}">${COPY_SVG}</span>`
                 + `</span>`;
