@@ -6093,8 +6093,8 @@
         }
         @media (min-width: 900px) {
             body.route-liquidation #sim-card.liquidation-sim-card {
-                height: 792px !important;
-                min-height: 792px !important;
+                height: 852px !important;
+                min-height: 852px !important;
             }
             body.route-liquidation #sim-card.sim-mode-simple #sim-impact-viz {
                 flex: 1 1 0 !important;
@@ -6150,11 +6150,44 @@
         body.route-liquidation .sim-viz-legend-swatch { width: 9px !important; height: 9px !important; border-radius: 3px !important; }
         body.route-liquidation .sim-viz-legend-swatch.ghost { background: var(--line-3) !important; }
         body.route-liquidation .sim-viz-legend-swatch.live { background: var(--gold) !important; }
+        body.route-liquidation .sim-viz-focus {
+            margin-bottom: 11px !important;
+            padding: 10px 12px !important;
+            border-radius: 10px !important;
+            background: linear-gradient(180deg, rgba(255,255,255,.036), rgba(255,255,255,.014)) !important;
+            border: 1px solid var(--line-1) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.035) !important;
+        }
+        body.route-liquidation .sim-viz-focus-kicker {
+            margin-bottom: 5px !important;
+            color: var(--fg-4) !important;
+            font-size: 9.5px !important;
+            font-weight: 700 !important;
+            letter-spacing: 1.15px !important;
+            text-transform: uppercase !important;
+        }
+        body.route-liquidation .sim-viz-focus-value {
+            color: var(--fg-1) !important;
+            font-family: var(--mono) !important;
+            font-size: 18px !important;
+            font-weight: 700 !important;
+            line-height: 1 !important;
+            font-variant-numeric: tabular-nums !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+        body.route-liquidation .sim-viz-focus-label {
+            margin-top: 6px !important;
+            color: var(--fg-3) !important;
+            font-size: 10.5px !important;
+            line-height: 1.35 !important;
+        }
 
         body.route-liquidation .sim-dist-chart {
             position: relative !important;
             flex: 1 1 auto !important;
-            min-height: 150px !important;
+            min-height: 120px !important;
             padding-top: 14px !important;
         }
         body.route-liquidation .sim-dist-bars {
@@ -6164,11 +6197,36 @@
             height: 100% !important;
         }
         body.route-liquidation .sim-dist-col {
+            appearance: none !important;
+            border: 1px solid transparent !important;
+            background: transparent !important;
+            color: inherit !important;
+            font: inherit !important;
+            text-align: left !important;
+            cursor: pointer !important;
             flex: 1 1 0 !important;
             display: flex !important;
             flex-direction: column !important;
             justify-content: flex-end !important;
             min-width: 0 !important;
+            padding: 4px 2px 3px !important;
+            border-radius: 9px !important;
+            transition: opacity .18s var(--ease), transform .18s var(--ease), border-color .18s var(--ease), background .18s var(--ease), filter .18s var(--ease) !important;
+        }
+        body.route-liquidation .sim-dist-col:hover,
+        body.route-liquidation .sim-dist-col.active {
+            background: rgba(201,162,39,.055) !important;
+            border-color: rgba(201,162,39,.24) !important;
+            transform: scaleX(1.04) !important;
+            filter: saturate(1.08) !important;
+        }
+        body.route-liquidation .sim-dist-col:focus-visible {
+            outline: 1px solid var(--gold) !important;
+            outline-offset: 3px !important;
+        }
+        body.route-liquidation .sim-dist-bars.has-active .sim-dist-col:not(.active) {
+            opacity: .48 !important;
+            filter: saturate(.76) !important;
         }
         body.route-liquidation .sim-dist-count {
             text-align: center !important;
@@ -6238,6 +6296,8 @@
             padding-right: 2px !important;
         }
         body.route-liquidation .sim-atrisk-row {
+            appearance: none !important;
+            width: 100% !important;
             display: grid !important;
             grid-template-columns: auto 1fr auto !important;
             align-items: center !important;
@@ -6246,10 +6306,35 @@
             border-radius: 9px !important;
             background: var(--bg-2) !important;
             border: 1px solid var(--line-1) !important;
+            color: inherit !important;
+            font: inherit !important;
+            text-align: left !important;
+            cursor: pointer !important;
+            transition: opacity .16s var(--ease), transform .16s var(--ease), border-color .16s var(--ease), background .16s var(--ease), box-shadow .16s var(--ease) !important;
+        }
+        body.route-liquidation .sim-atrisk-row:hover,
+        body.route-liquidation .sim-atrisk-row.active {
+            background: rgba(201,162,39,.055) !important;
+            border-color: rgba(201,162,39,.24) !important;
+        }
+        body.route-liquidation .sim-atrisk-row.active {
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 12px 28px rgba(0,0,0,.16) !important;
+        }
+        body.route-liquidation .sim-atrisk-row:focus-visible {
+            outline: 1px solid var(--gold) !important;
+            outline-offset: 3px !important;
         }
         body.route-liquidation .sim-atrisk-row.crossed {
             background: rgba(180,121,107,.10) !important;
             border-color: rgba(180,121,107,.34) !important;
+        }
+        body.route-liquidation .sim-atrisk-row.crossed:hover,
+        body.route-liquidation .sim-atrisk-row.crossed.active {
+            background: rgba(180,121,107,.15) !important;
+            border-color: rgba(180,121,107,.46) !important;
+        }
+        body.route-liquidation .sim-atrisk-list.has-active .sim-atrisk-row:not(.active) {
+            opacity: .58 !important;
         }
         body.route-liquidation .sim-atrisk-rank {
             width: 18px !important; height: 18px !important;
@@ -6286,7 +6371,7 @@
         body.route-liquidation .sim-atrisk-empty strong { color: var(--up) !important; font-weight: 600 !important; }
         @media (max-width: 900px) {
             body.route-liquidation #sim-card.sim-mode-simple #sim-impact-viz { flex-direction: column !important; }
-            body.route-liquidation .sim-dist-chart { min-height: 170px !important; }
+            body.route-liquidation .sim-dist-chart { min-height: 150px !important; }
             body.route-liquidation .sim-atrisk-list { max-height: 250px !important; }
         }
         body.route-liquidation .liquidation-direction-toggle.dir-drop .liquidation-dir-pill,
@@ -7521,6 +7606,11 @@
                                     <span class="sim-viz-legend-item"><span class="sim-viz-legend-swatch live"></span>After</span>
                                 </div>
                             </div>
+                            <div class="sim-viz-focus" id="sim-dist-focus">
+                                <div class="sim-viz-focus-kicker" id="sim-dist-focus-title">All health buckets</div>
+                                <div class="sim-viz-focus-value" id="sim-dist-focus-value">--</div>
+                                <div class="sim-viz-focus-label" id="sim-dist-focus-label">Hover a bucket to inspect movement around HF 1.0</div>
+                            </div>
                             <div class="sim-dist-chart" id="sim-dist-chart">
                                 <div class="sim-dist-bars" id="sim-dist-bars"></div>
                                 <div class="sim-dist-threshold" id="sim-dist-threshold"><span>HF 1.0</span></div>
@@ -7532,6 +7622,11 @@
                                     <span class="sim-viz-kicker">Closest to Liquidation</span>
                                     <span class="sim-viz-title" id="sim-atrisk-sub">Smallest buffer above HF 1.0</span>
                                 </div>
+                            </div>
+                            <div class="sim-viz-focus" id="sim-risk-focus">
+                                <div class="sim-viz-focus-kicker" id="sim-risk-focus-title">Smallest buffer above HF 1.0</div>
+                                <div class="sim-viz-focus-value" id="sim-risk-focus-value">--</div>
+                                <div class="sim-viz-focus-label" id="sim-risk-focus-label">Hover a wallet to inspect the simulated buffer</div>
                             </div>
                             <div class="sim-atrisk-list" id="sim-atrisk-list"></div>
                         </div>
@@ -10030,7 +10125,9 @@
             });
 
             // Pre-compute per-position token-level breakdown for simulation
-            window._simPositions = noDust.filter(p => p.healthFactor !== null && p.healthFactor > 0).map(p => {
+            window._simPositions = noDust
+                .filter(p => p.healthFactor !== null && p.healthFactor > 0 && (p.collateralUSD || 0) >= 0.01 && (p.debtUSD || 0) >= 0.01)
+                .map(p => {
                 const colBreak = { stable: 0, eth: 0, btc: 0, bera: 0, other_volatile: 0 };
                 const debtBreak = { stable: 0, eth: 0, btc: 0, bera: 0, other_volatile: 0 };
                 const colTokens = {};
@@ -10060,8 +10157,8 @@
                     colTokens, debtTokens
                 };
             });
-            window._simTotalDebt = Math.round(noDust.reduce((s, p) => s + (p.debtUSD || 0), 0));
-            window._simTotalCol = Math.round(noDust.reduce((s, p) => s + (p.collateralUSD || 0), 0));
+            window._simTotalDebt = Math.round(window._simPositions.reduce((s, p) => s + (p.debtUSD || 0), 0));
+            window._simTotalCol = Math.round(window._simPositions.reduce((s, p) => s + (p.colUSD || 0), 0));
             window._simTotalPos = window._simPositions.length;
             window._simDir = 'drop';
 
@@ -10331,6 +10428,19 @@
                 polygon_zkevm: 'ZKEVM'
             }[chain] || String(chain || '').toUpperCase();
         }
+        function simSetText(id, text) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = text;
+        }
+        function simFmtCount(value, unit) {
+            const n = Number(value || 0);
+            return `${n.toLocaleString()} ${unit}${n === 1 ? '' : 's'}`;
+        }
+        function simFmtDelta(value) {
+            const n = Number(value || 0);
+            if (!n) return '0';
+            return `${n > 0 ? '+' : ''}${n.toLocaleString()}`;
+        }
         function renderSimImpact(results, shocked) {
             const barsEl = document.getElementById('sim-dist-bars');
             const listEl = document.getElementById('sim-atrisk-list');
@@ -10345,18 +10455,63 @@
             }
             const maxC = Math.max(1, ...nowCounts, ...newCounts);
             const scale = c => c <= 0 ? 0 : Math.max(5, Math.round(Math.sqrt(c / maxC) * 100));
+            const totalAfter = newCounts.reduce((sum, c) => sum + c, 0);
+            const bucketSegments = SIM_DIST_BUCKETS.map((b, i) => {
+                const now = nowCounts[i];
+                const after = newCounts[i];
+                const delta = after - now;
+                const share = totalAfter > 0 ? after / totalAfter * 100 : 0;
+                return { ...b, idx: i, now, after, delta, share, nowH: scale(now), newH: scale(after) };
+            });
             barsEl.innerHTML = SIM_DIST_BUCKETS.map((b, i) => {
-                const nowH = scale(nowCounts[i]);
-                const newH = scale(newCounts[i]);
-                return `<div class="sim-dist-col${b.key === 'liq' ? ' liq' : ''}">`
-                    + `<div class="sim-dist-count">${newCounts[i].toLocaleString()}</div>`
+                const s = bucketSegments[i];
+                const title = `${b.label}: ${simFmtCount(s.after, 'position')} after shock · ${simFmtDelta(s.delta)} vs now`;
+                return `<button type="button" class="sim-dist-col${b.key === 'liq' ? ' liq' : ''}" data-sim-dist-idx="${i}" aria-pressed="false" aria-label="${simEscapeHtml(title)}" data-tooltip="${simEscapeHtml(title)}">`
+                    + `<div class="sim-dist-count">${s.after.toLocaleString()}</div>`
                     + `<div class="sim-dist-barwrap">`
-                        + `<div class="sim-dist-ghost" style="height:${nowH}%"></div>`
-                        + `<div class="sim-dist-live" style="height:${newH}%;background:${b.color}"></div>`
+                        + `<div class="sim-dist-ghost" style="height:${s.nowH}%"></div>`
+                        + `<div class="sim-dist-live" style="height:${s.newH}%;background:${b.color}"></div>`
                     + `</div>`
                     + `<div class="sim-dist-xlabel">${b.label}</div>`
-                + `</div>`;
+                + `</button>`;
             }).join('');
+
+            const distButtons = Array.from(barsEl.querySelectorAll('.sim-dist-col'));
+            window._simDistPinnedIdx = Number.isInteger(window._simDistPinnedIdx) && window._simDistPinnedIdx < bucketSegments.length ? window._simDistPinnedIdx : -1;
+            function setDistFocus(idx, persist) {
+                if (persist) window._simDistPinnedIdx = idx;
+                const active = idx >= 0 ? bucketSegments[idx] : null;
+                barsEl.classList.toggle('has-active', !!active);
+                distButtons.forEach((btn, i) => {
+                    btn.classList.toggle('active', i === idx);
+                    btn.setAttribute('aria-pressed', String(i === window._simDistPinnedIdx));
+                });
+                if (active) {
+                    simSetText('sim-dist-focus-title', `HF ${active.label}`);
+                    simSetText('sim-dist-focus-value', simFmtCount(active.after, 'position'));
+                    simSetText('sim-dist-focus-label', `${active.now.toLocaleString()} now -> ${active.after.toLocaleString()} after shock (${simFmtDelta(active.delta)}); ${active.share.toFixed(1)}% of simulated book.`);
+                    return;
+                }
+                const liqAfter = newCounts[0] || 0;
+                const liqDelta = (newCounts[0] || 0) - (nowCounts[0] || 0);
+                simSetText('sim-dist-focus-title', 'All health buckets');
+                simSetText('sim-dist-focus-value', simFmtCount(totalAfter, 'position'));
+                simSetText('sim-dist-focus-label', shocked
+                    ? `${liqAfter.toLocaleString()} below HF 1.0 after shock (${simFmtDelta(liqDelta)} vs now).`
+                    : 'Hover a bucket to inspect current health factor distribution.');
+            }
+            distButtons.forEach(btn => {
+                const idx = Number(btn.dataset.simDistIdx);
+                btn.addEventListener('mouseenter', () => setDistFocus(idx, false));
+                btn.addEventListener('mousemove', () => setDistFocus(idx, false));
+                btn.addEventListener('focus', () => setDistFocus(idx, false));
+                btn.addEventListener('mouseleave', () => setDistFocus(window._simDistPinnedIdx, false));
+                btn.addEventListener('blur', () => setDistFocus(window._simDistPinnedIdx, false));
+                btn.addEventListener('click', () => {
+                    const next = window._simDistPinnedIdx === idx ? -1 : idx;
+                    setDistFocus(next, true);
+                });
+            });
 
             const ranked = results.filter(r => r.hf >= 1.0 && isFinite(r.newHF))
                                    .sort((a, b) => a.newHF - b.newHF)
@@ -10364,6 +10519,10 @@
             if (subEl) subEl.textContent = shocked ? 'Lowest health factor after the shock' : 'Smallest buffer above HF 1.0';
             if (!ranked.length) {
                 listEl.innerHTML = '<div class="sim-atrisk-empty">No leveraged positions in the visible set.</div>';
+                simSetText('sim-risk-focus-title', shocked ? 'Lowest health factor after the shock' : 'Smallest buffer above HF 1.0');
+                simSetText('sim-risk-focus-value', '--');
+                simSetText('sim-risk-focus-label', 'No leveraged positions in the visible set.');
+                setDistFocus(window._simDistPinnedIdx, false);
                 return;
             }
             listEl.innerHTML = ranked.map((r, i) => {
@@ -10378,7 +10537,8 @@
                 const color = simHfColor(r.newHF);
                 const buf = crossed ? 100 : Math.max(0, Math.min(1, (r.newHF - 1) / 0.5)) * 100;
                 const showNow = shocked && Math.abs(r.newHF - r.hf) > 0.005;
-                return `<div class="sim-atrisk-row${crossed ? ' crossed' : ''}">`
+                const tip = `${short}: HF ${simFmtHf(r.hf)} -> ${crossed ? 'LIQ' : simFmtHf(r.newHF)} · ${meta}`;
+                return `<button type="button" class="sim-atrisk-row${crossed ? ' crossed' : ''}" data-sim-risk-idx="${i}" aria-pressed="false" aria-label="${simEscapeHtml(tip)}" data-tooltip="${simEscapeHtml(tip)}">`
                     + `<div class="sim-atrisk-rank">${i + 1}</div>`
                     + `<div class="sim-atrisk-mid">`
                         + `<div class="sim-atrisk-addr"><span class="sim-atrisk-dot"></span>${simEscapeHtml(short)}</div>`
@@ -10389,8 +10549,46 @@
                         + (showNow ? `<span class="sim-atrisk-hf-now">${simFmtHf(r.hf)}</span>` : '')
                         + `<span class="sim-atrisk-hf-new" style="color:${color}">${crossed ? 'LIQ' : simFmtHf(r.newHF)}</span>`
                     + `</div>`
-                + `</div>`;
+                + `</button>`;
             }).join('');
+            const riskRows = Array.from(listEl.querySelectorAll('.sim-atrisk-row'));
+            window._simRiskPinnedIdx = Number.isInteger(window._simRiskPinnedIdx) && window._simRiskPinnedIdx < ranked.length ? window._simRiskPinnedIdx : -1;
+            function setRiskFocus(idx, persist) {
+                if (persist) window._simRiskPinnedIdx = idx;
+                const active = idx >= 0 ? ranked[idx] : null;
+                listEl.classList.toggle('has-active', !!active);
+                riskRows.forEach((row, i) => {
+                    row.classList.toggle('active', i === idx);
+                    row.setAttribute('aria-pressed', String(i === window._simRiskPinnedIdx));
+                });
+                const title = shocked ? 'Lowest health factor after the shock' : 'Smallest buffer above HF 1.0';
+                if (!active) {
+                    const first = ranked[0];
+                    simSetText('sim-risk-focus-title', title);
+                    simSetText('sim-risk-focus-value', first.newHF < 1.0 ? 'LIQ' : simFmtHf(first.newHF));
+                    simSetText('sim-risk-focus-label', `${simShortChain(first.chain)} · ${String(first.addr || '').slice(0, 6)}...${String(first.addr || '').slice(-4)} has the smallest simulated buffer.`);
+                    return;
+                }
+                const addr = String(active.addr || '');
+                const short = addr ? addr.slice(0, 6) + '...' + addr.slice(-4) : 'Wallet';
+                const after = active.newHF < 1.0 ? 'LIQ' : simFmtHf(active.newHF);
+                simSetText('sim-risk-focus-title', short);
+                simSetText('sim-risk-focus-value', after);
+                simSetText('sim-risk-focus-label', `${simShortChain(active.chain)} · HF ${simFmtHf(active.hf)} -> ${after} · ${formatUSD(Math.round(active.debtUSD))} debt.`);
+            }
+            riskRows.forEach(row => {
+                const idx = Number(row.dataset.simRiskIdx);
+                row.addEventListener('mouseenter', () => setRiskFocus(idx, false));
+                row.addEventListener('focus', () => setRiskFocus(idx, false));
+                row.addEventListener('mouseleave', () => setRiskFocus(window._simRiskPinnedIdx, false));
+                row.addEventListener('blur', () => setRiskFocus(window._simRiskPinnedIdx, false));
+                row.addEventListener('click', () => {
+                    const next = window._simRiskPinnedIdx === idx ? -1 : idx;
+                    setRiskFocus(next, true);
+                });
+            });
+            setDistFocus(window._simDistPinnedIdx, false);
+            setRiskFocus(window._simRiskPinnedIdx, false);
         }
         window.renderSimImpact = renderSimImpact;
 
