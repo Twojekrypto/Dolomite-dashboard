@@ -45,7 +45,7 @@ class BorrowRiskSimulatorTest(unittest.TestCase):
         for route in (ROOT / "borrow" / "index.html", ROOT / "liquidation" / "index.html"):
             with self.subTest(route=route):
                 text = route.read_text(encoding="utf-8")
-                self.assertIn("risk-simulator-token-popover-scroll-20260529", text)
+                self.assertIn("risk-simulator-no-risk-caption-20260529", text)
                 self.assertIn("dolo-label-cleanup-20260514", text)
 
     def test_slider_outcome_mini_chart_removed(self):
@@ -75,7 +75,9 @@ class BorrowRiskSimulatorTest(unittest.TestCase):
         self.assertIn("listEl.scrollTop = 0;", self.source)
         self.assertIn("renderSimImpact(simResults, hasCustomMove)", self.source)
         self.assertIn("#sim-card.sim-mode-multi #sim-impact-viz", self.source)
-        self.assertIn("Wallet risk ranking", self.source)
+        self.assertNotIn('id="sim-atrisk-sub"', self.source)
+        self.assertNotIn("Wallet risk ranking", self.source)
+        self.assertNotIn("Lowest health after scenario", self.source)
         self.assertIn("sim-multi-chip-row", self.source)
         self.assertIn("resetMultiAssetBasket", self.source)
         self.assertIn("getDefaultMultiAssetMoves", self.source)

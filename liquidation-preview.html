@@ -8476,12 +8476,6 @@
                                 </button>
                                 <div class="sim-risk-details-body" id="sim-risk-details-body">
                                     <div class="sim-viz-panel sim-viz-atrisk">
-                                        <div class="sim-viz-head">
-                                            <div class="sim-viz-head-main">
-                                                <span class="sim-viz-kicker">Closest to Liquidation</span>
-                                                <span class="sim-viz-title" id="sim-atrisk-sub">Wallet risk ranking</span>
-                                            </div>
-                                        </div>
                                         <div class="sim-risk-search-row">
                                             <div class="sim-risk-search-wrap" id="sim-risk-search-wrap">
                                                 <svg class="sim-risk-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -11436,7 +11430,6 @@
             window._lastSimShocked = shocked;
             const barsEl = document.getElementById('sim-dist-bars');
             const listEl = document.getElementById('sim-atrisk-list');
-            const subEl  = document.getElementById('sim-atrisk-sub');
             if (!barsEl || !listEl) return;
 
             const nowCounts = SIM_DIST_BUCKETS.map(() => 0);
@@ -11538,7 +11531,6 @@
             if (prevBtn) prevBtn.disabled = window._simRiskPage <= 1;
             if (nextBtn) nextBtn.disabled = window._simRiskPage >= maxRiskPage;
             if (lastBtn) lastBtn.disabled = window._simRiskPage >= maxRiskPage;
-	            if (subEl) subEl.textContent = shocked ? 'Lowest health after scenario' : 'Wallet risk ranking';
             if (!visibleRanked.length) {
                 listEl.innerHTML = riskQuery
                     ? '<div class="sim-atrisk-empty">No wallet matches this address search.</div>'
