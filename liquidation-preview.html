@@ -6193,7 +6193,7 @@
         body.route-liquidation .sim-dist-bars {
             display: flex !important;
             align-items: stretch !important;
-            gap: 8px !important;
+            gap: 10px !important;
             height: 100% !important;
         }
         body.route-liquidation .sim-dist-col {
@@ -6209,24 +6209,24 @@
             flex-direction: column !important;
             justify-content: flex-end !important;
             min-width: 0 !important;
-            padding: 4px 2px 3px !important;
+            padding: 6px 3px 4px !important;
             border-radius: 9px !important;
             transition: opacity .18s var(--ease), transform .18s var(--ease), border-color .18s var(--ease), background .18s var(--ease), filter .18s var(--ease) !important;
         }
         body.route-liquidation .sim-dist-col:hover,
         body.route-liquidation .sim-dist-col.active {
-            background: rgba(201,162,39,.055) !important;
-            border-color: rgba(201,162,39,.24) !important;
-            transform: scaleX(1.04) !important;
-            filter: saturate(1.08) !important;
+            background: rgba(201,162,39,.045) !important;
+            border-color: rgba(201,162,39,.20) !important;
+            transform: translateY(-1px) !important;
+            filter: saturate(1.06) !important;
         }
         body.route-liquidation .sim-dist-col:focus-visible {
             outline: 1px solid var(--gold) !important;
             outline-offset: 3px !important;
         }
         body.route-liquidation .sim-dist-bars.has-active .sim-dist-col:not(.active) {
-            opacity: .48 !important;
-            filter: saturate(.76) !important;
+            opacity: .64 !important;
+            filter: saturate(.86) !important;
         }
         body.route-liquidation .sim-dist-count {
             text-align: center !important;
@@ -6247,17 +6247,20 @@
         }
         body.route-liquidation .sim-dist-ghost {
             position: absolute !important;
-            left: 8% !important; right: 8% !important; bottom: 0 !important;
+            left: 50% !important; bottom: 0 !important;
+            width: 54% !important;
+            transform: translateX(-50%) !important;
             border-radius: 5px 5px 0 0 !important;
-            background: var(--line-2) !important;
+            background: rgba(148,163,184,.13) !important;
+            box-shadow: inset 0 0 0 1px rgba(148,163,184,.18) !important;
             transition: height .35s cubic-bezier(.4,0,.2,1) !important;
         }
         body.route-liquidation .sim-dist-live {
             position: relative !important;
-            width: 62% !important;
+            width: 54% !important;
             border-radius: 5px 5px 0 0 !important;
             transition: height .35s cubic-bezier(.4,0,.2,1), background .25s ease !important;
-            box-shadow: 0 0 0 1px rgba(0,0,0,.25) inset !important;
+            box-shadow: 0 0 0 1px rgba(0,0,0,.16) inset, 0 6px 18px rgba(0,0,0,.16) !important;
         }
         body.route-liquidation .sim-dist-xlabel {
             margin-top: 7px !important;
@@ -6350,6 +6353,48 @@
             font-family: var(--mono) !important; font-size: 11px !important; color: var(--fg-1) !important;
             overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important;
         }
+        body.route-liquidation .sim-atrisk-addr-text {
+            min-width: 0 !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+        }
+        body.route-liquidation .sim-atrisk-actions {
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 4px !important;
+            margin-left: 2px !important;
+            flex: 0 0 auto !important;
+        }
+        body.route-liquidation .sim-atrisk-action,
+        body.route-liquidation .sim-atrisk-copy,
+        body.route-liquidation .sim-atrisk-debank {
+            width: 20px !important;
+            height: 20px !important;
+            flex: 0 0 20px !important;
+            border-radius: 5px !important;
+        }
+        body.route-liquidation .sim-atrisk-action {
+            display: inline-grid !important;
+            place-items: center !important;
+            border: 1px solid var(--line-2) !important;
+            background: var(--bg-3) !important;
+            color: var(--fg-4) !important;
+            text-decoration: none !important;
+            transition: color .15s var(--ease), border-color .15s var(--ease), background .15s var(--ease) !important;
+        }
+        body.route-liquidation .sim-atrisk-action:hover,
+        body.route-liquidation .sim-atrisk-action:focus-visible {
+            color: var(--gold) !important;
+            border-color: var(--gold-line) !important;
+            background: var(--gold-wash) !important;
+            outline: none !important;
+        }
+        body.route-liquidation .sim-atrisk-action svg {
+            width: 11px !important;
+            height: 11px !important;
+            pointer-events: none !important;
+        }
         body.route-liquidation .sim-atrisk-dot { width: 6px !important; height: 6px !important; border-radius: 50% !important; flex: 0 0 auto !important; background: var(--fg-3) !important; }
         body.route-liquidation .sim-atrisk-debt { font-size: 9.5px !important; color: var(--fg-3) !important; }
         body.route-liquidation .sim-atrisk-buffer { height: 3px !important; border-radius: 2px !important; background: var(--line-1) !important; overflow: hidden !important; }
@@ -6370,7 +6415,22 @@
         }
         body.route-liquidation .sim-atrisk-empty strong { color: var(--up) !important; font-weight: 600 !important; }
         @media (max-width: 900px) {
+            body.route-liquidation #sim-card.liquidation-sim-card > * {
+                flex-shrink: 0 !important;
+            }
+            body.route-liquidation #sim-card.sim-mode-simple #sim-impact-viz {
+                flex: 0 0 auto !important;
+                height: auto !important;
+                min-height: 0 !important;
+                overflow: visible !important;
+            }
             body.route-liquidation #sim-card.sim-mode-simple #sim-impact-viz { flex-direction: column !important; }
+            body.route-liquidation #sim-impact-viz .sim-viz-panel,
+            body.route-liquidation .sim-viz-dist,
+            body.route-liquidation .sim-viz-atrisk {
+                flex: 0 0 auto !important;
+                min-width: 0 !important;
+            }
             body.route-liquidation .sim-dist-chart { min-height: 150px !important; }
             body.route-liquidation .sim-atrisk-list { max-height: 250px !important; }
         }
@@ -7564,13 +7624,6 @@
                         </div>
                         <div id="sim-slider-scale" class="liquidation-slider-scale">
                             <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>99%</span>
-                        </div>
-                        <div class="sim-impact-label">
-                            <span class="impact-value" id="sim-impact-value">No positions cross below HF 1.0</span>
-                            <span>Outcome</span>
-                        </div>
-                        <div class="sim-impact-bar">
-                            <div class="sim-impact-fill" id="sim-impact-fill"></div>
                         </div>
                     </div>
 
@@ -10529,19 +10582,16 @@
                 const crossed = r.newHF < 1.0;
                 const addr = String(r.addr || '');
                 const short = addr ? addr.slice(0, 6) + '…' + addr.slice(-4) : '—';
-                const account = String(r.accountNumber || '');
-                const accountText = account && account !== '0'
-                    ? ` · Acct ${account.length > 6 ? account.slice(0, 4) + '…' + account.slice(-2) : account}`
-                    : '';
-                const meta = `${simShortChain(r.chain)}${accountText} · ${formatUSD(Math.round(r.debtUSD))} debt`;
+                const meta = `${simShortChain(r.chain)} · ${formatUSD(Math.round(r.debtUSD))} debt`;
                 const color = simHfColor(r.newHF);
                 const buf = crossed ? 100 : Math.max(0, Math.min(1, (r.newHF - 1) / 0.5)) * 100;
                 const showNow = shocked && Math.abs(r.newHF - r.hf) > 0.005;
                 const tip = `${short}: HF ${simFmtHf(r.hf)} -> ${crossed ? 'LIQ' : simFmtHf(r.newHF)} · ${meta}`;
-                return `<button type="button" class="sim-atrisk-row${crossed ? ' crossed' : ''}" data-sim-risk-idx="${i}" aria-pressed="false" aria-label="${simEscapeHtml(tip)}" data-tooltip="${simEscapeHtml(tip)}">`
+                const addressTools = renderSimRiskAddressTools(addr, r.chain) || simEscapeHtml(short);
+                return `<div role="button" tabindex="0" class="sim-atrisk-row${crossed ? ' crossed' : ''}" data-sim-risk-idx="${i}" aria-pressed="false" aria-label="${simEscapeHtml(tip)}">`
                     + `<div class="sim-atrisk-rank">${i + 1}</div>`
                     + `<div class="sim-atrisk-mid">`
-                        + `<div class="sim-atrisk-addr"><span class="sim-atrisk-dot"></span>${simEscapeHtml(short)}</div>`
+                        + `<div class="sim-atrisk-addr"><span class="sim-atrisk-dot"></span>${addressTools}</div>`
                         + `<div class="sim-atrisk-buffer"><div class="sim-atrisk-buffer-fill" style="width:${buf}%;background:${color}"></div></div>`
                         + `<div class="sim-atrisk-debt">${simEscapeHtml(meta)}</div>`
                     + `</div>`
@@ -10549,7 +10599,7 @@
                         + (showNow ? `<span class="sim-atrisk-hf-now">${simFmtHf(r.hf)}</span>` : '')
                         + `<span class="sim-atrisk-hf-new" style="color:${color}">${crossed ? 'LIQ' : simFmtHf(r.newHF)}</span>`
                     + `</div>`
-                + `</button>`;
+                + `</div>`;
             }).join('');
             const riskRows = Array.from(listEl.querySelectorAll('.sim-atrisk-row'));
             window._simRiskPinnedIdx = Number.isInteger(window._simRiskPinnedIdx) && window._simRiskPinnedIdx < ranked.length ? window._simRiskPinnedIdx : -1;
@@ -10583,6 +10633,12 @@
                 row.addEventListener('mouseleave', () => setRiskFocus(window._simRiskPinnedIdx, false));
                 row.addEventListener('blur', () => setRiskFocus(window._simRiskPinnedIdx, false));
                 row.addEventListener('click', () => {
+                    const next = window._simRiskPinnedIdx === idx ? -1 : idx;
+                    setRiskFocus(next, true);
+                });
+                row.addEventListener('keydown', e => {
+                    if (e.key !== 'Enter' && e.key !== ' ') return;
+                    e.preventDefault();
                     const next = window._simRiskPinnedIdx === idx ? -1 : idx;
                     setRiskFocus(next, true);
                 });
@@ -10979,6 +11035,7 @@
         };
 
         const COPY_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`;
+        const EXT_LINK_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>`;
 
         const CHAIN_DEBANK_IDS = {
             'berachain': 'bera',
@@ -11057,6 +11114,21 @@
                     ${toolsHtml}
                 </div>
             </div>`;
+        }
+
+        function renderSimRiskAddressTools(address, chain) {
+            if (!address) return '';
+            const safeAddress = supplyEscapeHtml(address);
+            const shortAddr = supplyEscapeHtml(shortDoloAddress(address).replace('...', '…'));
+            const explorerUrl = supplyEscapeHtml(`${getSupplyAddressExplorer(chain || 'ethereum')}${address}`);
+            const debankChain = CHAIN_DEBANK_IDS[chain] || 'eth';
+            const debankUrl = supplyEscapeHtml(`https://debank.com/profile/${address}?chain=${debankChain}`);
+            return `<span class="sim-atrisk-addr-text addr-tooltip-wrap" data-full-addr="${safeAddress}">${shortAddr}</span>`
+                + `<span class="sim-atrisk-actions">`
+                    + `<a href="${explorerUrl}" target="_blank" rel="noopener" class="sim-atrisk-action" aria-label="Open address on explorer" onclick="event.stopPropagation()">${EXT_LINK_SVG}</a>`
+                    + `<a href="${debankUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="debank-icon sim-atrisk-debank" aria-label="Open address in DeBank"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a>`
+                    + `<span class="copy-addr-icon sim-atrisk-copy" role="button" tabindex="0" aria-label="Copy address" onclick="event.stopPropagation();copyAddr('${safeAddress}',this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();copyAddr('${safeAddress}',this)}">${COPY_SVG}</span>`
+                + `</span>`;
         }
 
 
