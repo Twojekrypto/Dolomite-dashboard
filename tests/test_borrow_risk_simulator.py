@@ -44,7 +44,7 @@ class BorrowRiskSimulatorTest(unittest.TestCase):
         for route in (ROOT / "borrow" / "index.html", ROOT / "liquidation" / "index.html"):
             with self.subTest(route=route):
                 text = route.read_text(encoding="utf-8")
-                self.assertIn("risk-simulator-btc-eth-wlfi-20260529", text)
+                self.assertIn("risk-simulator-3-row-basket-20260529", text)
                 self.assertIn("dolo-label-cleanup-20260514", text)
 
     def test_slider_outcome_mini_chart_removed(self):
@@ -79,6 +79,12 @@ class BorrowRiskSimulatorTest(unittest.TestCase):
         self.assertIn("grid-template-columns: 150px 92px !important;", self.source)
         self.assertIn("order: 1 !important;", self.source)
         self.assertIn("order: 2 !important;", self.source)
+        self.assertIn("height: 184px !important;", self.source)
+        self.assertIn("max-height: 184px !important;", self.source)
+        self.assertIn("height: 190px !important;", self.source)
+        self.assertIn("height: 322px !important;", self.source)
+        self.assertIn("overflow-y: auto !important;", self.source)
+        self.assertIn("scrollbar-gutter: stable !important;", self.source)
         self.assertNotIn("pct: -20", self.source)
         self.assertNotIn("const initialPct = typeof defaultPct === 'number' ? defaultPct : -25;", self.source)
         self.assertNotIn("addMultiAssetRow('WBTC', -25)", self.source)
