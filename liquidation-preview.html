@@ -7925,6 +7925,23 @@
         body.route-liquidation #sim-multi-panel .sim-multi-chip-row {
             display: none !important;
         }
+        @media (max-width: 900px) {
+            body.route-liquidation #sim-card.sim-mode-multi .sim-risk-details-trigger {
+                grid-template-columns: minmax(0, 1fr) auto !important;
+                row-gap: 10px !important;
+            }
+            body.route-liquidation #sim-card.sim-mode-multi .sim-risk-details-meta {
+                grid-column: 1 / -1 !important;
+                grid-row: 2 !important;
+                justify-self: start !important;
+            }
+            body.route-liquidation #sim-card.sim-mode-multi .sim-risk-details-action {
+                grid-column: 2 !important;
+                grid-row: 1 !important;
+                justify-self: end !important;
+                align-self: center !important;
+            }
+        }
         @media (max-width: 620px) {
             body.route-liquidation #sim-multi-panel .sim-multi-summary-actions,
             body.route-liquidation #sim-multi-panel:not(.is-editing) .sim-multi-summary-actions,
@@ -8463,7 +8480,7 @@
                                 <div class="sim-dist-threshold" id="sim-dist-threshold"><span>HF 1.0</span></div>
                             </div>
                             <div class="sim-risk-details" id="sim-risk-details">
-                                <button type="button" class="sim-risk-details-trigger" id="sim-risk-details-trigger" aria-expanded="false" onclick="window.toggleSimRiskDetails && window.toggleSimRiskDetails()">
+                                <button type="button" class="sim-risk-details-trigger" id="sim-risk-details-trigger" aria-expanded="false" aria-label="View wallet risk list" onclick="window.toggleSimRiskDetails && window.toggleSimRiskDetails()">
                                     <span class="sim-risk-details-copy">
                                         <span class="sim-viz-kicker">Wallet risk list</span>
                                         <span class="sim-viz-title">Closest to Liquidation</span>
@@ -11364,6 +11381,9 @@
             if (!panel || !trigger) return;
             panel.classList.toggle('open', !!open);
             trigger.setAttribute('aria-expanded', String(!!open));
+            const actionText = trigger.querySelector('.sim-risk-details-action-text');
+            if (actionText) actionText.textContent = open ? 'Hide wallets' : 'View wallets';
+            trigger.setAttribute('aria-label', open ? 'Hide wallet risk list' : 'View wallet risk list');
         }
         window.toggleSimRiskDetails = function() {
             const panel = document.getElementById('sim-risk-details');
