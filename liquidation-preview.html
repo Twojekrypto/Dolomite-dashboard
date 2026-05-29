@@ -10036,15 +10036,24 @@
                 const colTokens = {};
                 const debtTokens = {};
                 for (const t of (p.collateralTokens || [])) {
-                    colBreak[getTokenGroup(t.symbol)] += (t.usd || 0);
-                    colTokens[t.symbol] = (colTokens[t.symbol] || 0) + (t.usd || 0);
+                    const usd = Number(t.usd || 0);
+                    const premium = Math.max(0, Number(t.marginPremium || 0));
+                    const adjustedUsd = premium > 0 ? usd / (1 + premium) : usd;
+                    colBreak[getTokenGroup(t.symbol)] += adjustedUsd;
+                    colTokens[t.symbol] = (colTokens[t.symbol] || 0) + adjustedUsd;
                 }
                 for (const t of (p.debtTokens || [])) {
-                    debtBreak[getTokenGroup(t.symbol)] += (t.usd || 0);
-                    debtTokens[t.symbol] = (debtTokens[t.symbol] || 0) + (t.usd || 0);
+                    const usd = Number(t.usd || 0);
+                    const premium = Math.max(0, Number(t.marginPremium || 0));
+                    const adjustedUsd = premium > 0 ? usd * (1 + premium) : usd;
+                    debtBreak[getTokenGroup(t.symbol)] += adjustedUsd;
+                    debtTokens[t.symbol] = (debtTokens[t.symbol] || 0) + adjustedUsd;
                 }
                 return {
                     hf: p.healthFactor,
+                    addr: p.address,
+                    chain: p.chain,
+                    accountNumber: p.accountNumber,
                     colUSD: p.collateralUSD || 0,
                     debtUSD: p.debtUSD || 0,
                     colBreak, debtBreak,
@@ -10170,7 +10179,7 @@
                             debtAtRisk += newDebt;
                             colAtRisk += newCol;
                         }
-                        simResults.push({ hf: p.hf, newHF, debtUSD: p.debtUSD, addr: p.addr, chain: p.chain });
+                        simResults.push({ hf: p.hf, newHF, debtUSD: p.debtUSD, addr: p.addr, chain: p.chain, accountNumber: p.accountNumber });
                     }
                     if (typeof renderSimImpact === 'function') renderSimImpact(simResults, changeVal !== 0);
                     document.getElementById('sim-liq-count').textContent = liqCount.toLocaleString();
@@ -10311,6 +10320,17 @@
                 "'": '&#39;'
             }[ch]));
         }
+        function simShortChain(chain) {
+            return {
+                berachain: 'BERA',
+                arbitrum: 'ARB',
+                ethereum: 'ETH',
+                mantle: 'MNT',
+                base: 'BOT',
+                xlayer: 'XL',
+                polygon_zkevm: 'ZKEVM'
+            }[chain] || String(chain || '').toUpperCase();
+        }
         function renderSimImpact(results, shocked) {
             const barsEl = document.getElementById('sim-dist-bars');
             const listEl = document.getElementById('sim-atrisk-list');
@@ -10350,6 +10370,11 @@
                 const crossed = r.newHF < 1.0;
                 const addr = String(r.addr || '');
                 const short = addr ? addr.slice(0, 6) + '…' + addr.slice(-4) : '—';
+                const account = String(r.accountNumber || '');
+                const accountText = account && account !== '0'
+                    ? ` · Acct ${account.length > 6 ? account.slice(0, 4) + '…' + account.slice(-2) : account}`
+                    : '';
+                const meta = `${simShortChain(r.chain)}${accountText} · ${formatUSD(Math.round(r.debtUSD))} debt`;
                 const color = simHfColor(r.newHF);
                 const buf = crossed ? 100 : Math.max(0, Math.min(1, (r.newHF - 1) / 0.5)) * 100;
                 const showNow = shocked && Math.abs(r.newHF - r.hf) > 0.005;
@@ -10358,7 +10383,7 @@
                     + `<div class="sim-atrisk-mid">`
                         + `<div class="sim-atrisk-addr"><span class="sim-atrisk-dot"></span>${simEscapeHtml(short)}</div>`
                         + `<div class="sim-atrisk-buffer"><div class="sim-atrisk-buffer-fill" style="width:${buf}%;background:${color}"></div></div>`
-                        + `<div class="sim-atrisk-debt">${formatUSD(Math.round(r.debtUSD))} debt</div>`
+                        + `<div class="sim-atrisk-debt">${simEscapeHtml(meta)}</div>`
                     + `</div>`
                     + `<div class="sim-atrisk-hf">`
                         + (showNow ? `<span class="sim-atrisk-hf-now">${simFmtHf(r.hf)}</span>` : '')
