@@ -44,7 +44,7 @@ class BorrowRiskSimulatorTest(unittest.TestCase):
         for route in (ROOT / "borrow" / "index.html", ROOT / "liquidation" / "index.html"):
             with self.subTest(route=route):
                 text = route.read_text(encoding="utf-8")
-                self.assertIn("risk-simulator-3-row-basket-20260529", text)
+                self.assertIn("risk-simulator-5-visible-risk-list-20260529", text)
                 self.assertIn("dolo-label-cleanup-20260514", text)
 
     def test_slider_outcome_mini_chart_removed(self):
@@ -62,6 +62,12 @@ class BorrowRiskSimulatorTest(unittest.TestCase):
         self.assertIn("sim-risk-total-label", self.source)
         self.assertIn('class="flow-pager-info" id="sim-risk-page-label"', self.source)
         self.assertIn("visibleRanked.slice(pageStart, pageEnd)", self.source)
+        self.assertIn("SIM_RISK_PAGE_SIZE = 10", self.source)
+        self.assertIn("body.route-liquidation .sim-atrisk-list", self.source)
+        self.assertIn("height: 330px !important;", self.source)
+        self.assertIn("max-height: 330px !important;", self.source)
+        self.assertIn("scrollbar-gutter: stable !important;", self.source)
+        self.assertIn("listEl.scrollTop = 0;", self.source)
         self.assertIn("renderSimImpact(simResults, hasCustomMove)", self.source)
         self.assertIn("#sim-card.sim-mode-multi #sim-impact-viz", self.source)
         self.assertIn("Wallet risk ranking", self.source)
