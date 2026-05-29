@@ -44,7 +44,7 @@ class BorrowRiskSimulatorTest(unittest.TestCase):
         for route in (ROOT / "borrow" / "index.html", ROOT / "liquidation" / "index.html"):
             with self.subTest(route=route):
                 text = route.read_text(encoding="utf-8")
-                self.assertIn("risk-simulator-5-visible-risk-list-20260529", text)
+                self.assertIn("risk-simulator-search-slash-20260529", text)
                 self.assertIn("dolo-label-cleanup-20260514", text)
 
     def test_slider_outcome_mini_chart_removed(self):
@@ -59,6 +59,10 @@ class BorrowRiskSimulatorTest(unittest.TestCase):
         self.assertIn("window.simRiskGoPage", self.source)
         self.assertIn("window.simRiskSetSearch", self.source)
         self.assertIn("sim-risk-search", self.source)
+        self.assertIn('class="sim-risk-search-key" aria-hidden="true">/</span>', self.source)
+        self.assertIn("window.focusSimRiskSearch = focusSimRiskSearch", self.source)
+        self.assertIn("event.key !== '/'", self.source)
+        self.assertIn("setSimRiskDetailsOpen(true)", self.source)
         self.assertIn("sim-risk-total-label", self.source)
         self.assertIn('class="flow-pager-info" id="sim-risk-page-label"', self.source)
         self.assertIn("visibleRanked.slice(pageStart, pageEnd)", self.source)
