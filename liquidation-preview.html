@@ -6512,7 +6512,7 @@
         body.route-liquidation .sim-risk-search {
             width: 100% !important;
             height: 34px !important;
-            padding: 0 34px 0 32px !important;
+            padding: 0 44px 0 32px !important;
             border-radius: 9px !important;
             border: 1px solid var(--line-1) !important;
             background: var(--bg-2) !important;
@@ -6528,6 +6528,30 @@
         body.route-liquidation .sim-risk-search:focus {
             border-color: var(--gold-line) !important;
             box-shadow: 0 0 0 3px rgba(201,162,39,.08) !important;
+        }
+        body.route-liquidation .sim-risk-search-key {
+            position: absolute !important;
+            right: 8px !important;
+            top: 50% !important;
+            min-width: 22px !important;
+            height: 22px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            transform: translateY(-50%) !important;
+            border: 1px solid var(--line-1) !important;
+            border-radius: 7px !important;
+            background: var(--bg-3) !important;
+            color: var(--fg-4) !important;
+            font-family: var(--mono) !important;
+            font-size: 11px !important;
+            font-weight: 700 !important;
+            line-height: 1 !important;
+            pointer-events: none !important;
+        }
+        body.route-liquidation .sim-risk-search-wrap.has-value .sim-risk-search-key,
+        body.route-liquidation .sim-risk-search:focus ~ .sim-risk-search-key {
+            display: none !important;
         }
         body.route-liquidation .sim-risk-search-clear {
             position: absolute !important;
@@ -8443,6 +8467,7 @@
                                             <div class="sim-risk-search-wrap" id="sim-risk-search-wrap">
                                                 <svg class="sim-risk-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                                                 <input type="text" class="sim-risk-search" id="sim-risk-search" placeholder="Search wallet address" spellcheck="false" autocomplete="off" oninput="window.simRiskSetSearch && window.simRiskSetSearch(this.value)">
+                                                <span class="sim-risk-search-key" aria-hidden="true">/</span>
                                                 <button type="button" class="sim-risk-search-clear" id="sim-risk-search-clear" onclick="window.simRiskClearSearch && window.simRiskClearSearch()" aria-label="Clear wallet search">
                                                     <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22z"/></svg>
                                                 </button>
@@ -11367,6 +11392,26 @@
             window.simRiskSetSearch('');
             if (input) input.focus();
         };
+        function focusSimRiskSearch() {
+            const input = document.getElementById('sim-risk-search');
+            if (!input) return false;
+            const panel = document.getElementById('sim-risk-details');
+            if (panel && !panel.classList.contains('open') && typeof setSimRiskDetailsOpen === 'function') {
+                setSimRiskDetailsOpen(true);
+            }
+            input.focus();
+            input.select();
+            return true;
+        }
+        window.focusSimRiskSearch = focusSimRiskSearch;
+        document.addEventListener('keydown', event => {
+            if (event.key !== '/' || event.metaKey || event.ctrlKey || event.altKey) return;
+            const target = event.target;
+            if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
+            if (!document.body.classList.contains('route-liquidation')) return;
+            if (!document.getElementById('sim-card')) return;
+            if (focusSimRiskSearch()) event.preventDefault();
+        });
         function renderSimImpact(results, shocked) {
             window._lastSimResults = results;
             window._lastSimShocked = shocked;
