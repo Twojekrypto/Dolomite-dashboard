@@ -10931,6 +10931,7 @@
 
         // ─── Multi-Asset Simulation ──────────────────────────────────────
         window._multiAssetMode = false;
+        window._multiAssetDefaultsInitialized = false;
         let _multiAssetRowId = 0;
 
         function getMultiAssetRows() {
@@ -11279,8 +11280,9 @@
 
             // Initialize default rows
             let createdDefaultRows = false;
-            if (isMulti && document.getElementById('sim-multi-rows').children.length === 0) {
+            if (isMulti && !window._multiAssetDefaultsInitialized && document.getElementById('sim-multi-rows').children.length === 0) {
                 getDefaultMultiAssetMoves().forEach(move => addMultiAssetRow(move.token, move.pct));
+                window._multiAssetDefaultsInitialized = true;
                 createdDefaultRows = true;
             }
             updateMultiAddButtonState();

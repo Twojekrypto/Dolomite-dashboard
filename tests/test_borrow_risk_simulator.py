@@ -44,7 +44,7 @@ class BorrowRiskSimulatorTest(unittest.TestCase):
         for route in (ROOT / "borrow" / "index.html", ROOT / "liquidation" / "index.html"):
             with self.subTest(route=route):
                 text = route.read_text(encoding="utf-8")
-                self.assertIn("risk-simulator-clean-bars-20260529", text)
+                self.assertIn("risk-simulator-default-init-20260529", text)
                 self.assertIn("dolo-label-cleanup-20260514", text)
 
     def test_slider_outcome_mini_chart_removed(self):
@@ -68,6 +68,7 @@ class BorrowRiskSimulatorTest(unittest.TestCase):
         self.assertIn("sim-multi-chip-row", self.source)
         self.assertIn("resetMultiAssetBasket", self.source)
         self.assertIn("getDefaultMultiAssetMoves", self.source)
+        self.assertIn("window._multiAssetDefaultsInitialized", self.source)
         self.assertIn("tokens.slice(0, 4).map", self.source)
         self.assertNotIn("addMultiAssetRow('WBTC', -25)", self.source)
         self.assertIn("toggleMultiBasketEditor", self.source)
