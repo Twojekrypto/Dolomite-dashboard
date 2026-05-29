@@ -45,7 +45,7 @@ class BorrowRiskSimulatorTest(unittest.TestCase):
         for route in (ROOT / "borrow" / "index.html", ROOT / "liquidation" / "index.html"):
             with self.subTest(route=route):
                 text = route.read_text(encoding="utf-8")
-                self.assertIn("risk-simulator-address-link-20260529", text)
+                self.assertIn("risk-simulator-token-popover-scroll-20260529", text)
                 self.assertIn("dolo-label-cleanup-20260514", text)
 
     def test_slider_outcome_mini_chart_removed(self):
@@ -87,6 +87,10 @@ class BorrowRiskSimulatorTest(unittest.TestCase):
         self.assertNotIn("tokens.slice(0, 4).map", self.source)
         self.assertIn("pct: 5", self.source)
         self.assertIn("const initialPct = typeof defaultPct === 'number' ? defaultPct : 0;", self.source)
+        self.assertIn("positionMultiTokenPopoverFor", self.source)
+        self.assertIn("positionOpenMultiTokenPopovers", self.source)
+        self.assertIn("scrollTarget?.closest?.('#sim-multi-rows')", self.source)
+        self.assertIn("window.addEventListener('resize', positionOpenMultiTokenPopovers)", self.source)
         self.assertIn("grid-template-columns: 150px 92px !important;", self.source)
         self.assertIn("order: 1 !important;", self.source)
         self.assertIn("order: 2 !important;", self.source)

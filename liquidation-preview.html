@@ -11735,6 +11735,40 @@
             row.classList.toggle('is-zero', Math.abs(pct) <= 0.0001);
         }
 
+        function positionMultiTokenPopoverFor(popover) {
+            if (!popover) return;
+            const trigger = document.querySelector(`.sim-multi-token-trigger[data-popover="${popover.id}"]`);
+            if (!trigger) return;
+            const rect = trigger.getBoundingClientRect();
+            popover.style.display = 'block';
+            popover.style.width = Math.min(260, Math.max(220, rect.width)) + 'px';
+            const popRect = popover.getBoundingClientRect();
+            let left = rect.left;
+            if (left + popRect.width > window.innerWidth - 8) left = window.innerWidth - popRect.width - 8;
+            if (left < 8) left = 8;
+            const top = rect.bottom + 8;
+            const list = popover.querySelector('.sim-multi-token-list');
+            const availablePopoverHeight = Math.max(112, window.innerHeight - top - 12);
+            popover.style.setProperty('max-height', availablePopoverHeight + 'px', 'important');
+            popover.style.setProperty('overflow', 'hidden', 'important');
+            if (list) {
+                const search = popover.querySelector('.sim-multi-search');
+                const fixedChrome = (search?.offsetHeight || 0) + 34;
+                const availableBelow = Math.max(72, availablePopoverHeight - fixedChrome);
+                list.style.setProperty('max-height', Math.min(240, availableBelow) + 'px', 'important');
+            }
+            popover.style.left = left + 'px';
+            popover.style.top = top + 'px';
+        }
+
+        function positionOpenMultiTokenPopovers() {
+            document.querySelectorAll('.sim-multi-token-popover').forEach(popover => {
+                if (window.getComputedStyle(popover).display === 'none') return;
+                positionMultiTokenPopoverFor(popover);
+            });
+        }
+        window.positionOpenMultiTokenPopovers = positionOpenMultiTokenPopovers;
+
         function addMultiAssetRow(defaultToken, defaultPct) {
             const container = document.getElementById('sim-multi-rows');
             const id = ++_multiAssetRowId;
@@ -11826,27 +11860,7 @@
             const searchInput = row.querySelector('.sim-multi-search');
 
             function positionMultiTokenPopover() {
-                if (!trigger || !popover) return;
-                const rect = trigger.getBoundingClientRect();
-                popover.style.display = 'block';
-                popover.style.width = Math.min(260, Math.max(220, rect.width)) + 'px';
-                const popRect = popover.getBoundingClientRect();
-                let left = rect.left;
-                if (left + popRect.width > window.innerWidth - 8) left = window.innerWidth - popRect.width - 8;
-                if (left < 8) left = 8;
-                const top = rect.bottom + 8;
-                const list = popover.querySelector('.sim-multi-token-list');
-                const availablePopoverHeight = Math.max(112, window.innerHeight - top - 12);
-                popover.style.setProperty('max-height', availablePopoverHeight + 'px', 'important');
-                popover.style.setProperty('overflow', 'hidden', 'important');
-                if (list) {
-                    const search = popover.querySelector('.sim-multi-search');
-                    const fixedChrome = (search?.offsetHeight || 0) + 34;
-                    const availableBelow = Math.max(72, availablePopoverHeight - fixedChrome);
-                    list.style.setProperty('max-height', Math.min(240, availableBelow) + 'px', 'important');
-                }
-                popover.style.left = left + 'px';
-                popover.style.top = top + 'px';
+                positionMultiTokenPopoverFor(popover);
             }
 
             trigger.addEventListener('click', (e) => {
@@ -12419,10 +12433,20 @@
 
         window.addEventListener('scroll', (event) => {
             if (window.__mobilePolishDropdownScroll || Date.now() < (window.__mobilePolishDropdownScrollUntil || 0)) return;
+            const scrollTarget = event.target?.nodeType === Node.ELEMENT_NODE ? event.target : event.target?.parentElement;
+            if (scrollTarget?.closest?.('#sim-multi-rows')) {
+                positionOpenMultiTokenPopovers();
+                return;
+            }
             if (isScrollInsideOpenFloatingMenu(event.target)) return;
             if (isActiveElementInsideOpenFloatingMenu()) return;
             closeFloatingMenus();
         }, true);
+        window.addEventListener('scroll', (event) => {
+            if (isScrollInsideOpenFloatingMenu(event.target)) return;
+            positionOpenMultiTokenPopovers();
+        }, true);
+        window.addEventListener('resize', positionOpenMultiTokenPopovers);
 
         // ─── Filtering & Sorting ────────────────────────────────────────────
         function applyFilters() {
