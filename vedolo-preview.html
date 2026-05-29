@@ -990,8 +990,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 
   <section class="card chart-card duration-card">
     <div class="card-head">
-      <div class="card-title"><h2>Lock Duration Distribution</h2><span class="count-badge" id="duration-count">--</span></div>
-      <div class="card-meta">based on lock events</div>
+      <div class="card-title"><h2>Active Lock Duration Distribution</h2><span class="count-badge" id="duration-count">--</span></div>
+      <div class="card-meta">current veDOLO positions by time remaining</div>
     </div>
     <div class="toolbar">
       <div class="tb-left"><div class="seg" id="duration-mode"><button class="active" data-mode="dolo">DOLO</button><button data-mode="count">Count</button></div></div>
@@ -1000,7 +1000,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
       <div class="duration-shell" id="duration-chart">
         <div class="duration-focus" id="duration-focus">
           <div class="duration-focus-main">
-            <div class="duration-focus-kicker" id="duration-focus-title">All Durations</div>
+            <div class="duration-focus-kicker" id="duration-focus-title">All Active Locks</div>
             <div class="duration-focus-value" id="duration-focus-value">--</div>
             <div class="duration-focus-label" id="duration-focus-label">--</div>
           </div>
@@ -1926,13 +1926,39 @@ function durationRangeLabel(bucket){
   if(bucket.min <= 0) return `<${fmtInt(bucket.max)} days`;
   return `${fmtInt(bucket.min)}-${fmtInt(bucket.max)} days`;
 }
+function getActiveDurationRows(){
+  const snapshotMs = Date.parse(state.holdersTimestamp || state.statsTimestamp || "") || Date.now();
+  const snapshotSec = Math.floor(snapshotMs / 1000);
+  const rows = [];
+  state.holders.forEach(holder => {
+    (holder.token_details || []).forEach(token => {
+      const dolo = num(token.dolo);
+      const end = num(token.end);
+      if(dolo <= 0 || end <= 0) return;
+      rows.push({
+        dolo,
+        remainingDays: Math.max(0, (end - snapshotSec) / 86400),
+        tokenId: token.id,
+        holder: holder.address
+      });
+    });
+  });
+
+  const rawTotal = rows.reduce((sum,row) => sum + row.dolo, 0);
+  const targetTotal = num(state.stats?.total_locked_dolo);
+  const ratio = rawTotal > 0 && targetTotal > 0 ? targetTotal / rawTotal : 0;
+  if(ratio >= .97 && ratio <= 1.03){
+    rows.forEach(row => { row.dolo *= ratio; });
+  }
+  return rows;
+}
 function renderDuration(){
-  const rows = state.locks.map(l => ({...l, lockDaysNum:Number(l.lockDays)})).filter(l => Number.isFinite(l.lockDaysNum));
+  const rows = getActiveDurationRows();
   const groups = DURATION_BUCKETS.map(b => {
-    const items = rows.filter(l => l.lockDaysNum >= b.min && l.lockDaysNum < b.max);
+    const items = rows.filter(l => l.remainingDays >= b.min && l.remainingDays < b.max);
     const count = items.length;
     const dolo = items.reduce((sum,l) => sum + num(l.dolo), 0);
-    const avgDays = count ? items.reduce((sum,l) => sum + l.lockDaysNum, 0) / count : 0;
+    const avgDays = count ? items.reduce((sum,l) => sum + l.remainingDays, 0) / count : 0;
     return {label:b.label, range:durationRangeLabel(b), count, dolo, avgDays};
   });
   const mode = state.durationMode;
@@ -1942,7 +1968,7 @@ function renderDuration(){
   const totalDolo = groups.reduce((sum,g) => sum + g.dolo, 0);
   const totalLocks = rows.length;
   const bars = qs("#duration-bars");
-  setText("duration-count", `${fmtInt(rows.length)} locks`);
+  setText("duration-count", `${fmtInt(rows.length)} active locks`);
   if(!groups.length || !bars){
     if(bars) bars.innerHTML = '<div class="duration-empty">No duration data.</div>';
     return;
@@ -1972,9 +1998,9 @@ function renderDuration(){
       row.classList.toggle("active", i === idx);
       row.setAttribute("aria-pressed", String(i === state.durationFocus));
     });
-    setText("duration-focus-title", active ? `${active.label} Duration` : "All Durations");
+    setText("duration-focus-title", active ? `${active.label} Remaining` : "All Active Locks");
     setText("duration-focus-value", mode === "count" ? fmtInt(activeValue) : fmtDolo(activeValue));
-    setText("duration-focus-label", active ? active.range : `${fmtInt(groups.length)} duration buckets`);
+    setText("duration-focus-label", active ? `${active.range} remaining` : `${fmtInt(groups.length)} remaining-duration buckets`);
   }
 
   rowsEls.forEach(row => {
