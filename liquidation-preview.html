@@ -7912,6 +7912,9 @@
         body.route-liquidation #sim-multi-panel .sim-multi-row {
             grid-template-columns: 34px minmax(180px, .9fr) minmax(220px, 1.1fr) !important;
         }
+        body.route-liquidation #sim-multi-panel .sim-multi-row.has-open-popover {
+            z-index: 10060 !important;
+        }
         body.route-liquidation #sim-multi-panel .sim-multi-row input[type="number"] {
             width: 68px !important;
         }
@@ -11652,7 +11655,7 @@
             // Initialize default rows
             let createdDefaultRows = false;
             if (isMulti && !window._multiAssetDefaultsInitialized && document.getElementById('sim-multi-rows').children.length === 0) {
-                getDefaultMultiAssetMoves().forEach(move => addMultiAssetRow(move.token, move.pct));
+                getDefaultMultiAssetMoves().forEach(move => addMultiAssetRow(move.token, move.pct, { reveal: false }));
                 window._multiAssetDefaultsInitialized = true;
                 createdDefaultRows = true;
             }
@@ -11752,15 +11755,31 @@
             const trigger = document.querySelector(`.sim-multi-token-trigger[data-popover="${popover.id}"]`);
             if (!trigger) return;
             const rect = trigger.getBoundingClientRect();
+            const rowsContainer = trigger.closest('#sim-multi-rows');
+            if (rowsContainer) {
+                const rowsRect = rowsContainer.getBoundingClientRect();
+                if (rect.bottom <= rowsRect.top + 2 || rect.top >= rowsRect.bottom - 2) {
+                    popover.style.display = 'none';
+                    trigger.closest('.sim-multi-row')?.classList.remove('has-open-popover');
+                    return;
+                }
+            }
             popover.style.display = 'block';
             popover.style.width = Math.min(260, Math.max(220, rect.width)) + 'px';
-            const popRect = popover.getBoundingClientRect();
+            popover.style.top = '0px';
+            popover.style.removeProperty('max-height');
+            popover.classList.remove('opens-above');
+            const viewportPad = 8;
+            const gap = 8;
+            const spaceBelow = window.innerHeight - rect.bottom - gap - viewportPad;
+            const spaceAbove = rect.top - gap - viewportPad;
+            const openAbove = spaceBelow < 172 && spaceAbove > spaceBelow;
+            const availablePopoverHeight = Math.max(112, Math.min(320, openAbove ? spaceAbove : spaceBelow));
             let left = rect.left;
-            if (left + popRect.width > window.innerWidth - 8) left = window.innerWidth - popRect.width - 8;
-            if (left < 8) left = 8;
-            const top = rect.bottom + 8;
+            const popRect = popover.getBoundingClientRect();
+            if (left + popRect.width > window.innerWidth - viewportPad) left = window.innerWidth - popRect.width - viewportPad;
+            if (left < viewportPad) left = viewportPad;
             const list = popover.querySelector('.sim-multi-token-list');
-            const availablePopoverHeight = Math.max(112, window.innerHeight - top - 12);
             popover.style.setProperty('max-height', availablePopoverHeight + 'px', 'important');
             popover.style.setProperty('overflow', 'hidden', 'important');
             if (list) {
@@ -11769,6 +11788,10 @@
                 const availableBelow = Math.max(72, availablePopoverHeight - fixedChrome);
                 list.style.setProperty('max-height', Math.min(240, availableBelow) + 'px', 'important');
             }
+            const updatedRect = popover.getBoundingClientRect();
+            let top = openAbove ? rect.top - gap - updatedRect.height : rect.bottom + gap;
+            top = Math.max(viewportPad, Math.min(top, window.innerHeight - updatedRect.height - viewportPad));
+            popover.classList.toggle('opens-above', openAbove);
             popover.style.left = left + 'px';
             popover.style.top = top + 'px';
         }
@@ -11781,7 +11804,16 @@
         }
         window.positionOpenMultiTokenPopovers = positionOpenMultiTokenPopovers;
 
-        function addMultiAssetRow(defaultToken, defaultPct) {
+        function revealMultiAssetRow(row) {
+            const container = document.getElementById('sim-multi-rows');
+            if (!container || !row) return;
+            requestAnimationFrame(() => {
+                container.scrollTop = Math.max(0, row.offsetTop + row.offsetHeight - container.clientHeight + 8);
+                positionOpenMultiTokenPopovers();
+            });
+        }
+
+        function addMultiAssetRow(defaultToken, defaultPct, options = {}) {
             const container = document.getElementById('sim-multi-rows');
             const id = ++_multiAssetRowId;
             const token = getNextAvailableMultiToken(defaultToken);
@@ -11857,6 +11889,7 @@
                             : `<span style="font-size:11px;font-weight:700;color:var(--text-muted)">${sym.charAt(0)}</span>`;
                         trigLabel.textContent = sym;
                         popover.style.display = 'none';
+                        row.classList.remove('has-open-popover');
                         updateMultiScenarioSummary();
                         updateMultiAddButtonState();
                         if (window._multiAssetMode) runMultiAssetSim();
@@ -11881,9 +11914,14 @@
                 if (!isOpen) closeFloatingMenus({ keepSimMultiPopover: popover });
                 if (isOpen) {
                     popover.style.display = 'none';
+                    row.classList.remove('has-open-popover');
                     return;
                 }
                 if (window.bringDropdownTriggerIntoMobileView) window.bringDropdownTriggerIntoMobileView(trigger);
+                document.querySelectorAll('.sim-multi-row.has-open-popover').forEach(openRow => {
+                    if (openRow !== row) openRow.classList.remove('has-open-popover');
+                });
+                row.classList.add('has-open-popover');
                 searchInput.value = '';
                 renderTokenList('');
                 positionMultiTokenPopover();
@@ -11920,11 +11958,13 @@
             updateMultiRowMoveUi(row);
             updateMultiScenarioSummary();
             updateMultiAddButtonState();
+            if (options.reveal || arguments.length === 0) revealMultiAssetRow(row);
         }
 
         // Close multi-asset popovers on outside click
         document.addEventListener('click', () => {
             document.querySelectorAll('.sim-multi-token-popover').forEach(p => p.style.display = 'none');
+            document.querySelectorAll('.sim-multi-row.has-open-popover').forEach(row => row.classList.remove('has-open-popover'));
         });
 
         function removeMultiAssetRow(id) {
@@ -12423,7 +12463,10 @@
             if (!keepRisk) document.getElementById('risk-dropdown')?.classList.remove('open');
             closeOpenHeaderPopovers(exceptTh);
             document.querySelectorAll('.sim-multi-token-popover').forEach(popover => {
-                if (popover !== keepSimMultiPopover) popover.style.display = 'none';
+                if (popover !== keepSimMultiPopover) {
+                    popover.style.display = 'none';
+                    popover.closest('.sim-multi-row')?.classList.remove('has-open-popover');
+                }
             });
             if (!keepSimAsset) closeSimAssetPopoverDom();
         }
