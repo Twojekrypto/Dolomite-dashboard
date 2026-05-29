@@ -6555,13 +6555,15 @@
 
         body.route-liquidation .sim-atrisk-list {
             flex: 0 0 auto !important;
+            height: 330px !important;
+            max-height: 330px !important;
             min-height: 0 !important;
             overflow-y: auto !important;
             display: flex !important;
             flex-direction: column !important;
             gap: 6px !important;
             padding-right: 2px !important;
-            max-height: 430px !important;
+            scrollbar-gutter: stable !important;
         }
         body.route-liquidation .sim-atrisk-row {
             appearance: none !important;
@@ -6767,7 +6769,10 @@
             body.route-liquidation .sim-dist-bars {
                 height: 100% !important;
             }
-            body.route-liquidation .sim-atrisk-list { max-height: 250px !important; }
+            body.route-liquidation .sim-atrisk-list {
+                height: 330px !important;
+                max-height: 330px !important;
+            }
             body.route-liquidation .sim-risk-details-trigger {
                 grid-template-columns: minmax(0, 1fr) auto !important;
             }
@@ -11474,6 +11479,7 @@
                 listEl.innerHTML = riskQuery
                     ? '<div class="sim-atrisk-empty">No wallet matches this address search.</div>'
                     : '<div class="sim-atrisk-empty">No leveraged positions in the visible set.</div>';
+                listEl.scrollTop = 0;
                 setDistFocus(window._simDistPinnedIdx, false);
                 return;
             }
@@ -11501,6 +11507,7 @@
                     + `</div>`
                 + `</div>`;
             }).join('');
+            listEl.scrollTop = 0;
             const riskRows = Array.from(listEl.querySelectorAll('.sim-atrisk-row'));
             window._simRiskPinnedIdx = Number.isInteger(window._simRiskPinnedIdx) && window._simRiskPinnedIdx < visibleRanked.length ? window._simRiskPinnedIdx : -1;
             if (window._simRiskPinnedIdx < pageStart || window._simRiskPinnedIdx >= pageEnd) {
