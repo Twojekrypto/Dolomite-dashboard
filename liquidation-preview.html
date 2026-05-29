@@ -7663,6 +7663,171 @@
         body.route-liquidation #sim-card.sim-mode-multi #sim-impact-viz {
             order: 3 !important;
         }
+        body.route-liquidation #sim-card.sim-mode-multi #sim-impact-viz .sim-viz-dist {
+            padding: 0 !important;
+            background: transparent !important;
+            border: 0 !important;
+        }
+        body.route-liquidation #sim-card.sim-mode-multi #sim-impact-viz .sim-viz-dist > .sim-viz-head,
+        body.route-liquidation #sim-card.sim-mode-multi #sim-impact-viz .sim-viz-focus,
+        body.route-liquidation #sim-card.sim-mode-multi #sim-impact-viz .sim-dist-chart {
+            display: none !important;
+        }
+        body.route-liquidation #sim-card.sim-mode-multi .sim-risk-details {
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+            border-top: 0 !important;
+        }
+        body.route-liquidation #sim-card.sim-mode-multi .sim-risk-details-trigger {
+            min-height: 66px !important;
+            grid-template-columns: minmax(0, 1fr) auto auto !important;
+            gap: 13px !important;
+            padding: 14px 16px !important;
+            border-radius: var(--r-md) !important;
+            border-color: rgba(201,162,39,.34) !important;
+            background:
+                radial-gradient(circle at 100% 0%, rgba(201,162,39,.18), transparent 34%),
+                linear-gradient(180deg, rgba(201,162,39,.075), rgba(255,255,255,.018)) !important;
+            box-shadow:
+                inset 3px 0 0 var(--gold),
+                inset 0 1px 0 rgba(255,255,255,.045),
+                0 12px 30px rgba(0,0,0,.16) !important;
+        }
+        body.route-liquidation #sim-card.sim-mode-multi .sim-risk-details-trigger:hover,
+        body.route-liquidation #sim-card.sim-mode-multi .sim-risk-details.open .sim-risk-details-trigger {
+            border-color: rgba(201,162,39,.62) !important;
+            background:
+                radial-gradient(circle at 100% 0%, rgba(201,162,39,.26), transparent 36%),
+                linear-gradient(180deg, rgba(201,162,39,.105), rgba(255,255,255,.024)) !important;
+            box-shadow:
+                inset 3px 0 0 var(--gold),
+                inset 0 1px 0 rgba(255,255,255,.055),
+                0 0 0 3px rgba(201,162,39,.07),
+                0 14px 34px rgba(0,0,0,.18) !important;
+        }
+        body.route-liquidation #sim-card.sim-mode-multi .sim-risk-details-copy .sim-viz-kicker {
+            color: var(--gold) !important;
+        }
+        body.route-liquidation #sim-card.sim-mode-multi .sim-risk-details-copy .sim-viz-title {
+            font-size: 15px !important;
+            font-weight: 650 !important;
+        }
+        body.route-liquidation #sim-card.sim-mode-multi .sim-risk-details-action {
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+            color: var(--gold) !important;
+            font-size: 11px !important;
+            font-weight: 700 !important;
+            white-space: nowrap !important;
+        }
+        body.route-liquidation #sim-card.sim-mode-multi .sim-risk-details-action-text {
+            display: inline-flex !important;
+        }
+        body.route-liquidation #sim-card.sim-mode-multi .sim-risk-details-caret {
+            width: 28px !important;
+            height: 28px !important;
+            padding: 6px !important;
+            border-radius: 8px !important;
+            border: 1px solid rgba(201,162,39,.30) !important;
+            background: rgba(201,162,39,.08) !important;
+            color: var(--gold) !important;
+            flex: 0 0 auto !important;
+        }
+        body.route-liquidation #sim-card.sim-mode-multi .sim-risk-details.open .sim-risk-details-caret {
+            transform: rotate(180deg) !important;
+        }
+        @media (min-width: 1120px) {
+            body.route-liquidation #sim-card.liquidation-sim-card.sim-mode-multi {
+                display: grid !important;
+                grid-template-columns: minmax(0, 1.48fr) minmax(330px, .72fr) !important;
+                grid-template-areas:
+                    "header header"
+                    "scenario result"
+                    "risk risk" !important;
+                align-items: stretch !important;
+                gap: 14px !important;
+            }
+            body.route-liquidation #sim-card.sim-mode-multi .liquidation-sim-header {
+                grid-area: header !important;
+                margin-bottom: 0 !important;
+            }
+            body.route-liquidation #sim-card.sim-mode-multi #sim-multi-panel.visible {
+                grid-area: scenario !important;
+                align-self: stretch !important;
+                height: 100% !important;
+                margin: 0 !important;
+                padding: 14px !important;
+            }
+            body.route-liquidation #sim-card.sim-mode-multi .sim-result-summary {
+                grid-area: result !important;
+                align-self: stretch !important;
+                height: 100% !important;
+                margin: 0 !important;
+                display: flex !important;
+                min-width: 0 !important;
+            }
+            body.route-liquidation #sim-card.sim-mode-multi #sim-impact-viz {
+                grid-area: risk !important;
+                margin-top: 0 !important;
+            }
+            body.route-liquidation #sim-card.sim-mode-multi .sim-result-card {
+                width: 100% !important;
+                min-height: 100% !important;
+                padding: 18px !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: space-between !important;
+                background:
+                    radial-gradient(circle at 100% 0%, rgba(201,162,39,.13), transparent 38%),
+                    linear-gradient(180deg, rgba(255,255,255,.026), rgba(255,255,255,.012)) !important;
+                border-color: rgba(201,162,39,.18) !important;
+            }
+            body.route-liquidation #sim-card.sim-mode-multi .sim-result-top {
+                align-items: flex-start !important;
+            }
+            body.route-liquidation #sim-card.sim-mode-multi .sim-result-primary {
+                display: block !important;
+            }
+            body.route-liquidation #sim-card.sim-mode-multi .sim-result-primary .sim-result-count {
+                display: block !important;
+                margin-bottom: 8px !important;
+                font-size: 42px !important;
+            }
+            body.route-liquidation #sim-card.sim-mode-multi .sim-result-breakdown {
+                grid-template-columns: 1fr !important;
+                gap: 12px !important;
+                padding-top: 14px !important;
+            }
+            body.route-liquidation #sim-card.sim-mode-multi .sim-result-mini {
+                padding: 11px 12px !important;
+                border-radius: 10px !important;
+                background: rgba(255,255,255,.018) !important;
+                border: 1px solid var(--line-1) !important;
+            }
+            body.route-liquidation #sim-card.sim-mode-multi .sim-result-mini-value {
+                font-size: 20px !important;
+            }
+            body.route-liquidation #sim-card.sim-mode-multi .sim-multi-builder {
+                gap: 10px !important;
+            }
+            body.route-liquidation #sim-card.sim-mode-multi .sim-multi-editor {
+                order: 1 !important;
+                margin-top: 0 !important;
+            }
+            body.route-liquidation #sim-card.sim-mode-multi .sim-multi-summary-card {
+                order: 2 !important;
+                min-height: 54px !important;
+                margin-top: 0 !important;
+                background:
+                    radial-gradient(circle at 100% 100%, rgba(201,162,39,.10), transparent 40%),
+                    var(--bg-2) !important;
+            }
+            body.route-liquidation #sim-card.sim-mode-multi #sim-multi-panel .sim-multi-row {
+                min-height: 58px !important;
+                grid-template-columns: 34px minmax(170px, .78fr) minmax(270px, 1.08fr) !important;
+            }
+        }
         body.route-liquidation #sim-multi-panel .sim-multi-editor,
         body.route-liquidation #sim-multi-panel:not(.is-editing) .sim-multi-editor {
             display: flex !important;
@@ -7673,12 +7838,17 @@
         body.route-liquidation #sim-multi-panel .sim-multi-summary-actions,
         body.route-liquidation #sim-multi-panel:not(.is-editing) .sim-multi-summary-actions,
         body.route-liquidation #sim-multi-panel.is-editing .sim-multi-summary-actions {
-            grid-template-columns: 92px 150px !important;
+            grid-template-columns: 150px 92px !important;
+            justify-self: start !important;
         }
         body.route-liquidation #sim-multi-panel #sim-multi-add,
         body.route-liquidation #sim-multi-panel:not(.is-editing) #sim-multi-add {
             display: inline-flex !important;
             grid-column: auto !important;
+            order: 1 !important;
+        }
+        body.route-liquidation #sim-multi-panel #sim-multi-reset {
+            order: 2 !important;
         }
         body.route-liquidation #sim-multi-rows {
             height: auto !important;
@@ -7710,6 +7880,25 @@
             body.route-liquidation #sim-multi-panel #sim-multi-add,
             body.route-liquidation #sim-multi-panel.is-editing #sim-multi-add {
                 grid-column: auto !important;
+            }
+            body.route-liquidation #sim-card.sim-mode-multi .sim-risk-details-trigger {
+                grid-template-columns: minmax(0, 1fr) auto !important;
+                row-gap: 10px !important;
+                min-height: 74px !important;
+            }
+            body.route-liquidation #sim-card.sim-mode-multi .sim-risk-details-meta {
+                grid-column: 1 / -1 !important;
+                grid-row: 2 !important;
+                justify-self: start !important;
+            }
+            body.route-liquidation #sim-card.sim-mode-multi .sim-risk-details-action {
+                grid-column: 2 !important;
+                grid-row: 1 !important;
+                justify-self: end !important;
+                align-self: center !important;
+            }
+            body.route-liquidation #sim-card.sim-mode-multi .sim-risk-details-action-text {
+                display: none !important;
             }
         }
 
@@ -8218,11 +8407,14 @@
                             <div class="sim-risk-details" id="sim-risk-details">
                                 <button type="button" class="sim-risk-details-trigger" id="sim-risk-details-trigger" aria-expanded="false" onclick="window.toggleSimRiskDetails && window.toggleSimRiskDetails()">
                                     <span class="sim-risk-details-copy">
-                                        <span class="sim-viz-kicker">More details</span>
-                                        <span class="sim-viz-title">Closest wallets to liquidation</span>
+                                        <span class="sim-viz-kicker">Wallet risk list</span>
+                                        <span class="sim-viz-title">Closest to Liquidation</span>
                                     </span>
                                     <span class="sim-risk-details-meta" id="sim-risk-details-count">0 wallets</span>
-                                    <svg class="sim-risk-details-caret" width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
+                                    <span class="sim-risk-details-action" aria-hidden="true">
+                                        <span class="sim-risk-details-action-text">View wallets</span>
+                                        <svg class="sim-risk-details-caret" width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
+                                    </span>
                                 </button>
                                 <div class="sim-risk-details-body" id="sim-risk-details-body">
                                     <div class="sim-viz-panel sim-viz-atrisk">
@@ -11027,15 +11219,31 @@
         }
 
         function getDefaultMultiAssetMoves() {
-            const seen = new Set();
             const sorted = Array.isArray(window._simSortedTokens) ? window._simSortedTokens : [];
-            const fallback = ['WETH', 'WBTC', 'WBERA', 'USDC'];
+            const fallback = ['WBTC', 'WETH', 'WLFI'];
+            const seen = new Set();
             const tokens = [...sorted, ...fallback].filter(token => {
                 if (!token || seen.has(token)) return false;
                 seen.add(token);
                 return true;
             });
-            return tokens.slice(0, 4).map(token => ({ token, pct: 5 }));
+            const used = new Set();
+            const moves = [];
+            const addPreferredToken = candidates => {
+                const exact = tokens.find(token =>
+                    candidates.some(candidate => token.toUpperCase() === candidate.toUpperCase()) && !used.has(token)
+                );
+                const fallbackMatch = exact || tokens.find(token =>
+                    candidates.some(candidate => token.toUpperCase().includes(candidate.replace(/^W/, '').toUpperCase())) && !used.has(token)
+                );
+                if (!fallbackMatch) return;
+                used.add(fallbackMatch);
+                moves.push({ token: fallbackMatch, pct: 5 });
+            };
+            addPreferredToken(['WBTC', 'BTC']);
+            addPreferredToken(['WETH', 'ETH']);
+            addPreferredToken(['WLFI']);
+            return moves;
         }
 
         function updateMultiAddButtonState() {
@@ -11455,7 +11663,7 @@
                 updateMultiAddButtonState();
                 return;
             }
-            const initialPct = typeof defaultPct === 'number' ? defaultPct : -25;
+            const initialPct = typeof defaultPct === 'number' ? defaultPct : 0;
             const row = document.createElement('div');
             row.className = 'sim-multi-row';
             row.id = 'sim-multi-row-' + id;
