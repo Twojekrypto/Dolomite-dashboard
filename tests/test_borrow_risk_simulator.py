@@ -18,10 +18,11 @@ class BorrowRiskSimulatorTest(unittest.TestCase):
         self.assertIn("chain: p.chain", self.source)
         self.assertIn("accountNumber: p.accountNumber", self.source)
         self.assertIn("data-sim-risk-idx", self.source)
-        self.assertIn("sim-risk-focus", self.source)
+        self.assertIn("sim-risk-search", self.source)
         self.assertIn("renderSimRiskAddressTools", self.source)
         self.assertIn("sim-atrisk-action", self.source)
         self.assertNotIn("Acct ${account.length", self.source)
+        self.assertNotIn("sim-risk-focus", self.source)
 
     def test_impact_map_buckets_are_interactive(self):
         self.assertIn("sim-dist-focus", self.source)
@@ -43,12 +44,47 @@ class BorrowRiskSimulatorTest(unittest.TestCase):
         for route in (ROOT / "borrow" / "index.html", ROOT / "liquidation" / "index.html"):
             with self.subTest(route=route):
                 text = route.read_text(encoding="utf-8")
-                self.assertIn("risk-impact-polish-20260529", text)
+                self.assertIn("risk-simulator-clean-bars-20260529", text)
                 self.assertIn("dolo-label-cleanup-20260514", text)
 
     def test_slider_outcome_mini_chart_removed(self):
         self.assertNotIn('id="sim-impact-value"', self.source)
         self.assertNotIn('id="sim-impact-fill"', self.source)
+
+    def test_result_summary_is_consolidated(self):
+        self.assertIn("sim-result-summary", self.source)
+        self.assertIn("Scenario result", self.source)
+        self.assertIn("sim-risk-details", self.source)
+        self.assertIn("SIM_RISK_PAGE_SIZE = 10", self.source)
+        self.assertIn("window.simRiskGoPage", self.source)
+        self.assertIn("window.simRiskSetSearch", self.source)
+        self.assertIn("sim-risk-search", self.source)
+        self.assertIn("sim-risk-total-label", self.source)
+        self.assertIn('class="flow-pager-info" id="sim-risk-page-label"', self.source)
+        self.assertIn("visibleRanked.slice(pageStart, pageEnd)", self.source)
+        self.assertIn("renderSimImpact(simResults, hasCustomMove)", self.source)
+        self.assertIn("#sim-card.sim-mode-multi #sim-impact-viz", self.source)
+        self.assertIn("Wallet risk ranking", self.source)
+        self.assertIn("sim-multi-chip-row", self.source)
+        self.assertIn("resetMultiAssetBasket", self.source)
+        self.assertIn("getDefaultMultiAssetMoves", self.source)
+        self.assertIn("tokens.slice(0, 4).map", self.source)
+        self.assertNotIn("addMultiAssetRow('WBTC', -25)", self.source)
+        self.assertIn("toggleMultiBasketEditor", self.source)
+        self.assertIn("Edit Basket", self.source)
+        self.assertIn("Scenario applied to", self.source)
+        self.assertIn("Wallet health after scenario", self.source)
+        self.assertIn("body.route-liquidation .sim-dist-ghost", self.source)
+        self.assertIn("background: transparent !important;", self.source)
+        self.assertNotIn("background: rgba(148,163,184,.13) !important;", self.source)
+        self.assertIn("All selected moves are 0%", self.source)
+        self.assertIn("No token moves selected", self.source)
+        self.assertIn("is-zero", self.source)
+        self.assertIn('data-tooltip="Remove token"', self.source)
+        self.assertIn("if (raw.includes('.')) raw = raw.replace", self.source)
+        self.assertNotIn(".slice(0, 5)", self.source)
+        self.assertNotIn("has the smallest simulated buffer", self.source)
+        self.assertNotIn('class="liquidation-sim-metric liq"', self.source)
 
     def test_liquidation_json_has_identity_for_simulated_positions(self):
         payload = json.loads(RISK_DATA.read_text(encoding="utf-8"))
