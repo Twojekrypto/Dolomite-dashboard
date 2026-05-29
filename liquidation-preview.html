@@ -7647,6 +7647,72 @@
             }
         }
 
+        /* Risk Simulator unified scenario: one basket editor, no direction tabs or slider. */
+        body.route-liquidation #sim-card .liquidation-sim-tabs-bar,
+        body.route-liquidation #sim-card #sim-simple-controls,
+        body.route-liquidation #sim-card #sim-slider-row {
+            display: none !important;
+        }
+        body.route-liquidation #sim-card.sim-mode-multi #sim-multi-panel.visible {
+            order: 1 !important;
+            margin-top: 0 !important;
+        }
+        body.route-liquidation #sim-card .sim-result-summary {
+            order: 2 !important;
+        }
+        body.route-liquidation #sim-card.sim-mode-multi #sim-impact-viz {
+            order: 3 !important;
+        }
+        body.route-liquidation #sim-multi-panel .sim-multi-editor,
+        body.route-liquidation #sim-multi-panel:not(.is-editing) .sim-multi-editor {
+            display: flex !important;
+        }
+        body.route-liquidation #sim-multi-panel .sim-multi-edit-toggle {
+            display: none !important;
+        }
+        body.route-liquidation #sim-multi-panel .sim-multi-summary-actions,
+        body.route-liquidation #sim-multi-panel:not(.is-editing) .sim-multi-summary-actions,
+        body.route-liquidation #sim-multi-panel.is-editing .sim-multi-summary-actions {
+            grid-template-columns: 92px 150px !important;
+        }
+        body.route-liquidation #sim-multi-panel #sim-multi-add,
+        body.route-liquidation #sim-multi-panel:not(.is-editing) #sim-multi-add {
+            display: inline-flex !important;
+            grid-column: auto !important;
+        }
+        body.route-liquidation #sim-multi-rows {
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+        }
+        body.route-liquidation #sim-multi-panel .sim-multi-row {
+            grid-template-columns: 34px minmax(180px, .9fr) minmax(220px, 1.1fr) !important;
+        }
+        body.route-liquidation #sim-multi-panel .sim-multi-row input[type="number"] {
+            width: 68px !important;
+        }
+        body.route-liquidation .sim-multi-summary-title {
+            color: var(--fg-1) !important;
+            font-size: 12px !important;
+        }
+        body.route-liquidation #sim-multi-panel .sim-multi-summary-main {
+            display: none !important;
+        }
+        body.route-liquidation #sim-multi-panel .sim-multi-chip-row {
+            display: none !important;
+        }
+        @media (max-width: 620px) {
+            body.route-liquidation #sim-multi-panel .sim-multi-summary-actions,
+            body.route-liquidation #sim-multi-panel:not(.is-editing) .sim-multi-summary-actions,
+            body.route-liquidation #sim-multi-panel.is-editing .sim-multi-summary-actions {
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            }
+            body.route-liquidation #sim-multi-panel #sim-multi-add,
+            body.route-liquidation #sim-multi-panel.is-editing #sim-multi-add {
+                grid-column: auto !important;
+            }
+        }
+
         /* PROTOCOL INFO — same card pattern as DOLO / Assets */
         .proto {
             margin-top: 24px;
@@ -8006,7 +8072,7 @@
         </div>
 
         <div id="risk-simulator-section" class="liquidation-sim-section">
-                <div id="sim-card" class="liquidation-sim-card sim-mode-simple">
+                <div id="sim-card" class="liquidation-sim-card sim-mode-multi">
                     <div class="liquidation-sim-header">
                         <div class="liquidation-sim-title-row">
                             <div class="liquidation-sim-icon">
@@ -8014,7 +8080,7 @@
                             </div>
                             <div>
                                 <div class="liquidation-sim-title">Risk Simulator</div>
-                                <div class="liquidation-sim-subtitle">Test how selected market moves affect borrow health.</div>
+                                <div class="liquidation-sim-subtitle">Set token moves and see how borrow health changes.</div>
                             </div>
                         </div>
                         <span class="sim-active-banner" id="sim-active-banner"><span class="sim-active-dot"></span>Scenario Active</span>
@@ -8079,7 +8145,7 @@
                         <div class="liquidation-slider-head">
                             <div class="liquidation-slider-copy">
                                 <span class="liquidation-slider-kicker">Scenario</span>
-                                <span id="sim-scenario-label" class="liquidation-slider-scenario">Market basket drops by</span>
+                                <span id="sim-scenario-label" class="liquidation-slider-scenario">Token scenario</span>
                             </div>
                             <button type="button" class="sim-reset-btn" id="sim-reset-btn" onclick="document.getElementById('sim-slider').value=0;document.getElementById('sim-slider').dispatchEvent(new Event('input'));" aria-label="Reset simulation to 0%">
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>Reset
@@ -8194,11 +8260,11 @@
                         </div>
                     </div>
 
-                    <div class="sim-multi-panel" id="sim-multi-panel">
+                    <div class="sim-multi-panel visible is-editing" id="sim-multi-panel">
                         <div class="sim-multi-header">
                             <div class="sim-multi-header-main">
-                                <span class="sim-multi-header-title">Custom Basket</span>
-                                <div class="sim-multi-header-copy">Build the basket from token moves across the visible set.</div>
+                                <span class="sim-multi-header-title">Scenario</span>
+                                <div class="sim-multi-header-copy">Choose tokens and set negative or positive moves.</div>
                             </div>
                         </div>
                         <div class="sim-multi-builder">
@@ -10927,6 +10993,10 @@
                 updateSim(0);
                 document.getElementById('risk-simulator-section').style.opacity = '1';
             }
+            if (document.getElementById('sim-card')) {
+                setSimTab('multi');
+                document.getElementById('risk-simulator-section').style.opacity = '1';
+            }
         }
 
         // ─── Multi-Asset Simulation ──────────────────────────────────────
@@ -10965,7 +11035,7 @@
                 seen.add(token);
                 return true;
             });
-            return tokens.slice(0, 4).map(token => ({ token, pct: -20 }));
+            return tokens.slice(0, 4).map(token => ({ token, pct: 5 }));
         }
 
         function updateMultiAddButtonState() {
@@ -11287,8 +11357,7 @@
             }
             updateMultiAddButtonState();
             if (isMulti) {
-                if (createdDefaultRows) setMultiBasketEditorOpen(false);
-                else syncMultiBasketEditorToggle();
+                setMultiBasketEditorOpen(true);
                 runMultiAssetSim();
             } else {
                 closeFloatingMenus();
@@ -11352,21 +11421,10 @@
             const chipsEl = document.getElementById('sim-multi-chip-row');
             const resetButton = document.getElementById('sim-multi-reset');
             if (titleEl) {
-                titleEl.textContent = !moves.length
-                    ? 'Add a token move to start'
-                    : activeMoves.length
-                    ? `Scenario applied to ${activeMoves.length} market${activeMoves.length === 1 ? '' : 's'}`
-                    : 'No scenario move applied';
+                titleEl.textContent = '';
             }
             if (chipsEl) {
-                chipsEl.innerHTML = !moves.length
-                    ? '<span class="sim-multi-chip is-empty">No token moves selected</span>'
-                    : activeMoves.length
-                    ? activeMoves.map(move => {
-                        const direction = move.pct < 0 ? 'is-drop' : 'is-rise';
-                        return `<span class="sim-multi-chip ${direction}">${simEscapeHtml(move.token)} ${formatMultiMovePct(move.pct)}</span>`;
-                    }).join('')
-                    : '<span class="sim-multi-chip is-empty">All selected moves are 0%</span>';
+                chipsEl.innerHTML = '';
             }
             if (resetButton) {
                 resetButton.disabled = !activeMoves.length;
@@ -11643,12 +11701,19 @@
             // Banner + glow
             const simBanner = document.getElementById('sim-active-banner');
             const simResetBtn = document.getElementById('sim-reset-btn');
-            if (simBanner) simBanner.classList.toggle('visible', liqCount > 0);
+            if (simBanner) simBanner.classList.toggle('visible', hasCustomMove);
             if (simResetBtn) simResetBtn.classList.toggle('visible', true);
             const card = document.getElementById('sim-card');
-            const intensity = Math.min(liqCount / 200, 1);
-            card.style.borderColor = `rgba(139,92,246,${0.15 + intensity * 0.2})`;
-            card.style.boxShadow = `0 0 ${10 + intensity * 30}px rgba(139,92,246,${0.04 + intensity * 0.08})`;
+            if (card) {
+                if (!hasCustomMove) {
+                    card.style.borderColor = 'var(--border-default)';
+                    card.style.boxShadow = 'none';
+                } else {
+                    const intensity = Math.min(liqCount / 200, 1);
+                    card.style.borderColor = `rgba(139,92,246,${0.15 + intensity * 0.2})`;
+                    card.style.boxShadow = `0 0 ${10 + intensity * 30}px rgba(139,92,246,${0.04 + intensity * 0.08})`;
+                }
+            }
 
             // Build scenario summary
             const activeScenarioMoves = getMultiScenarioMoves().filter(move => Math.abs(move.pct) > 0.0001);
