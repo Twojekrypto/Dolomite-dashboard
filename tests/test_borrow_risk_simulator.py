@@ -45,7 +45,7 @@ class BorrowRiskSimulatorTest(unittest.TestCase):
         for route in (ROOT / "borrow" / "index.html", ROOT / "liquidation" / "index.html"):
             with self.subTest(route=route):
                 text = route.read_text(encoding="utf-8")
-                self.assertIn("risk-simulator-responsive-polish-20260529", text)
+                self.assertIn("risk-simulator-token-popover-layer-20260529", text)
                 self.assertIn("dolo-label-cleanup-20260514", text)
 
     def test_slider_outcome_mini_chart_removed(self):
@@ -91,6 +91,15 @@ class BorrowRiskSimulatorTest(unittest.TestCase):
         self.assertIn("const initialPct = typeof defaultPct === 'number' ? defaultPct : 0;", self.source)
         self.assertIn("positionMultiTokenPopoverFor", self.source)
         self.assertIn("positionOpenMultiTokenPopovers", self.source)
+        self.assertIn("revealMultiAssetRow", self.source)
+        self.assertIn("arguments.length === 0", self.source)
+        self.assertIn("opens-above", self.source)
+        self.assertIn("spaceBelow < 172", self.source)
+        self.assertIn("has-open-popover", self.source)
+        self.assertIn("z-index: 10060 !important;", self.source)
+        self.assertIn("row.classList.add('has-open-popover')", self.source)
+        self.assertIn("row.classList.remove('has-open-popover')", self.source)
+        self.assertIn("addMultiAssetRow(move.token, move.pct, { reveal: false })", self.source)
         self.assertIn("scrollTarget?.closest?.('#sim-multi-rows')", self.source)
         self.assertIn("window.addEventListener('resize', positionOpenMultiTokenPopovers)", self.source)
         self.assertIn("grid-template-columns: 150px 92px !important;", self.source)
