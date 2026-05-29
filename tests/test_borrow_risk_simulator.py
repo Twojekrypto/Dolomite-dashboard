@@ -19,7 +19,9 @@ class BorrowRiskSimulatorTest(unittest.TestCase):
         self.assertIn("accountNumber: p.accountNumber", self.source)
         self.assertIn("data-sim-risk-idx", self.source)
         self.assertIn("sim-risk-focus", self.source)
-        self.assertIn("simEscapeHtml(short)", self.source)
+        self.assertIn("renderSimRiskAddressTools", self.source)
+        self.assertIn("sim-atrisk-action", self.source)
+        self.assertNotIn("Acct ${account.length", self.source)
 
     def test_impact_map_buckets_are_interactive(self):
         self.assertIn("sim-dist-focus", self.source)
@@ -41,8 +43,12 @@ class BorrowRiskSimulatorTest(unittest.TestCase):
         for route in (ROOT / "borrow" / "index.html", ROOT / "liquidation" / "index.html"):
             with self.subTest(route=route):
                 text = route.read_text(encoding="utf-8")
-                self.assertIn("risk-impact-interactive-20260529", text)
+                self.assertIn("risk-impact-polish-20260529", text)
                 self.assertIn("dolo-label-cleanup-20260514", text)
+
+    def test_slider_outcome_mini_chart_removed(self):
+        self.assertNotIn('id="sim-impact-value"', self.source)
+        self.assertNotIn('id="sim-impact-fill"', self.source)
 
     def test_liquidation_json_has_identity_for_simulated_positions(self):
         payload = json.loads(RISK_DATA.read_text(encoding="utf-8"))
