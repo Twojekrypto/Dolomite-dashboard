@@ -45,7 +45,7 @@ class BorrowRiskSimulatorTest(unittest.TestCase):
         for route in (ROOT / "borrow" / "index.html", ROOT / "liquidation" / "index.html"):
             with self.subTest(route=route):
                 text = route.read_text(encoding="utf-8")
-                self.assertIn("risk-simulator-no-risk-caption-20260529", text)
+                self.assertIn("risk-simulator-responsive-polish-20260529", text)
                 self.assertIn("dolo-label-cleanup-20260514", text)
 
     def test_slider_outcome_mini_chart_removed(self):
@@ -112,6 +112,10 @@ class BorrowRiskSimulatorTest(unittest.TestCase):
         self.assertNotIn("Scenario applied to", self.source)
         self.assertIn("Wallet risk list", self.source)
         self.assertIn("View wallets", self.source)
+        self.assertIn("View wallet risk list", self.source)
+        self.assertIn("Hide wallets", self.source)
+        self.assertIn("Hide wallet risk list", self.source)
+        self.assertIn("@media (max-width: 900px)", self.source)
         self.assertIn("#sim-card.sim-mode-multi #sim-impact-viz .sim-viz-dist > .sim-viz-head", self.source)
         self.assertIn("#sim-card.sim-mode-multi #sim-impact-viz .sim-viz-focus", self.source)
         self.assertIn("#sim-card.sim-mode-multi #sim-impact-viz .sim-dist-chart", self.source)
