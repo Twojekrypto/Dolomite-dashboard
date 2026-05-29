@@ -9867,18 +9867,18 @@
                         const leftPx = thumbW / 2 + ratio * (trackW - thumbW);
                         pctLabel.style.left = leftPx + 'px';
                     }
-                    // Color — Drop shows risk increasing, Raise stays in the positive green range.
+                    // Keep the active slider fill, thumb, and value label on one color family.
                     let thumbColor, thumbGlow, trackBg;
+                    const sliderMax = Number(document.getElementById('sim-slider')?.max || (isDrop ? 99 : 100));
+                    const fillPct = Math.max(0, Math.min(100, sliderMax > 0 ? changeVal / sliderMax * 100 : 0)).toFixed(2);
                     if (isDrop) {
-                        trackBg = 'linear-gradient(90deg, rgba(117,184,123,.72) 0%, rgba(117,184,123,.62) 10%, rgba(201,162,39,.55) 48%, rgba(180,121,107,.56) 100%)';
-                        if (changeVal <= 5) { thumbColor = 'var(--up)'; thumbGlow = 'rgba(117,184,123,0.34)'; }
-                        else if (changeVal <= 15) { thumbColor = 'var(--gold)'; thumbGlow = 'rgba(201,162,39,0.35)'; }
-                        else { thumbColor = 'var(--down)'; thumbGlow = 'rgba(180,121,107,0.35)'; }
+                        thumbColor = changeVal === 0 ? 'var(--fg-3)' : 'var(--down)';
+                        thumbGlow = changeVal === 0 ? 'rgba(148,163,184,0.22)' : 'rgba(180,121,107,0.36)';
+                        trackBg = `linear-gradient(90deg, rgba(180,121,107,.74) 0%, rgba(180,121,107,.74) ${fillPct}%, rgba(255,255,255,.075) ${fillPct}%, rgba(255,255,255,.075) 100%)`;
                     } else {
-                        trackBg = 'linear-gradient(90deg, rgba(117,184,123,.48) 0%, rgba(117,184,123,.64) 44%, rgba(141,211,124,.78) 72%, rgba(158,232,133,.88) 100%)';
-                        if (changeVal <= 5) { thumbColor = 'var(--up)'; thumbGlow = 'rgba(117,184,123,0.34)'; }
-                        else if (changeVal <= 55) { thumbColor = '#8dd37c'; thumbGlow = 'rgba(141,211,124,0.36)'; }
-                        else { thumbColor = '#9ee885'; thumbGlow = 'rgba(158,232,133,0.40)'; }
+                        thumbColor = changeVal === 0 ? 'var(--fg-3)' : 'var(--up)';
+                        thumbGlow = changeVal === 0 ? 'rgba(148,163,184,0.22)' : 'rgba(117,184,123,0.36)';
+                        trackBg = `linear-gradient(90deg, rgba(117,184,123,.74) 0%, rgba(117,184,123,.74) ${fillPct}%, rgba(255,255,255,.075) ${fillPct}%, rgba(255,255,255,.075) 100%)`;
                     }
                     pctLabel.style.color = thumbColor;
                     // Update thumb and track color to match the active direction.
@@ -11002,7 +11002,7 @@
 
                 const FLAME_SVG = '<svg class="emode-flame" viewBox="0 0 24 24" fill="none"><path d="M12 2c0 4-4 6-4 10a4 4 0 0 0 8 0c0-4-4-6-4-10z" fill="#fb923c" opacity="0.9"/><path d="M12 8c0 2.5-2 3.5-2 6a2 2 0 0 0 4 0c0-2.5-2-3.5-2-6z" fill="#fbbf24"/></svg>';
                 const emodeCell = p.eMode
-                    ? `<span class="emode-badge">${FLAME_SVG}E-Mode</span>`
+                    ? `<span class="emode-badge" data-tooltip="E-Mode is Dolomite's efficiency mode for correlated collateral and debt. It can use a tighter liquidation ratio, improving capital efficiency while keeping risk tied to that correlated basket.">${FLAME_SVG}E-Mode</span>`
                     : '<span style="color:var(--text-muted);font-size:11px">—</span>';
 
                 const emodeRowClass = p.eMode ? ' emode-row' : '';
