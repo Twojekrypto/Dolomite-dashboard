@@ -178,6 +178,14 @@ class DoloAddressLabelsTest(unittest.TestCase):
                 self.assertIn("Potential custody/MM", source)
                 self.assertNotIn("Potential CEX/MM", source)
 
+    def test_chainlink_rewards_claim_contract_is_protocol_reward(self):
+        info = self.labels["0x2f41d42de3eab9e75f3d417259f24421771fb700"]
+        self.assertEqual(info["label"], "Chainlink Rewards Claim")
+        self.assertEqual(info["type"], "protocol")
+        self.assertTrue(info["treasury"])
+        self.assertEqual(info["source"], "etherscan-buildclaim")
+        self.assertEqual(info["confidence"], "confirmed")
+
     def test_ens_reverse_names_are_identity_labels_not_entity_claims(self):
         expected = {
             "0xd6f631c796a56a5d448dd88a01f15058c4a0be52": "makeitback.eth",
