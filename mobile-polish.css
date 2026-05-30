@@ -1,6 +1,6 @@
 /* Shared mobile polish for every routed dashboard tab. */
 body.has-site-credit {
-    padding-bottom: calc(54px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
 }
 
 .site-source-credit {
@@ -12,17 +12,15 @@ body.has-site-credit {
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: calc(44px + env(safe-area-inset-bottom, 0px));
-    padding: 7px 18px calc(7px + env(safe-area-inset-bottom, 0px));
+    min-height: 0;
+    padding: 0 18px calc(8px + env(safe-area-inset-bottom, 0px));
     pointer-events: none;
     background:
-        radial-gradient(circle at 50% 0%, rgba(214, 164, 47, 0.22), rgba(214, 164, 47, 0.07) 38%, rgba(9, 9, 11, 0) 72%),
-        linear-gradient(180deg, rgba(9, 9, 11, 0), rgba(55, 43, 13, 0.62) 24%, rgba(18, 15, 8, 0.96)),
-        rgba(20, 16, 8, 0.92);
-    border-top: 1px solid rgba(214, 164, 47, 0.28);
-    box-shadow: 0 -16px 38px rgba(0, 0, 0, 0.34), 0 -1px 22px rgba(214, 164, 47, 0.1);
-    -webkit-backdrop-filter: blur(20px) saturate(155%);
-    backdrop-filter: blur(20px) saturate(155%);
+        none;
+    border-top: 0;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
 }
 
 .site-source-credit a {
@@ -31,19 +29,28 @@ body.has-site-credit {
     align-items: center;
     justify-content: center;
     gap: 10px;
-    min-height: 32px;
-    padding: 0 14px;
-    border: 1px solid rgba(214, 164, 47, 0.36);
+    min-height: 28px;
+    padding: 0 12px;
+    border: 1px solid rgba(214, 164, 47, 0.26);
     border-radius: 999px;
     background:
-        linear-gradient(135deg, rgba(214, 164, 47, 0.2), rgba(255, 255, 255, 0.035)),
-        rgba(26, 21, 11, 0.94);
-    color: rgba(244, 243, 239, 0.88);
+        linear-gradient(135deg, rgba(214, 164, 47, 0.13), rgba(255, 255, 255, 0.026)),
+        rgba(18, 15, 8, 0.9);
+    color: rgba(244, 243, 239, 0.82);
     text-decoration: none;
     font: 800 11px/1 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     letter-spacing: 0.03em;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.44), 0 0 0 1px rgba(214, 164, 47, 0.08) inset, inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.34), 0 0 0 1px rgba(214, 164, 47, 0.045) inset, inset 0 1px 0 rgba(255, 255, 255, 0.045);
     transition: color 0.16s ease, border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+
+.site-source-credit {
+    transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+body.route-liquidation:has(.sim-risk-details.open) .site-source-credit {
+    opacity: 0;
+    transform: translateY(10px);
 }
 
 .site-source-credit a:hover,
@@ -164,18 +171,15 @@ body.has-site-credit {
 
 @media (max-width: 760px) {
     body.has-site-credit {
-        padding-bottom: calc(46px + env(safe-area-inset-bottom, 0px));
+        padding-bottom: calc(58px + env(safe-area-inset-bottom, 0px));
     }
 
     .site-source-credit {
-        min-height: calc(38px + env(safe-area-inset-bottom, 0px));
-        padding: 6px 14px calc(6px + env(safe-area-inset-bottom, 0px));
-        background:
-            radial-gradient(circle at 50% 0%, rgba(214, 164, 47, 0.16), rgba(214, 164, 47, 0.05) 40%, rgba(9, 9, 11, 0) 72%),
-            linear-gradient(180deg, rgba(9, 9, 11, 0), rgba(45, 35, 11, 0.56) 24%, rgba(14, 12, 7, 0.94)),
-            rgba(16, 13, 7, 0.86);
-        border-top-color: rgba(214, 164, 47, 0.22);
-        box-shadow: 0 -10px 26px rgba(0, 0, 0, 0.26), 0 -1px 16px rgba(214, 164, 47, 0.07);
+        min-height: 0;
+        padding: 0 14px calc(8px + env(safe-area-inset-bottom, 0px));
+        background: none;
+        border-top-color: transparent;
+        box-shadow: none;
     }
 
     .site-source-credit a {
