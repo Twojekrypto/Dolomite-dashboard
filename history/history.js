@@ -189,6 +189,7 @@
   const gasCache = new Map();
   const interestIndexCache = new Map();
   let loadingTicker = 0;
+  let historyDatePicker = { open: "from", monthTs: 0 };
 
   const TX_FIELDS = "transaction { id timestamp blockNumber }";
   const TOKEN_FIELDS = "token { id symbol decimals marketId }";
@@ -216,6 +217,18 @@
     els.dateRange = document.getElementById("history-date-range");
     els.dateFrom = document.getElementById("history-date-from");
     els.dateTo = document.getElementById("history-date-to");
+    els.dateFromText = document.getElementById("history-date-from-text");
+    els.dateToText = document.getElementById("history-date-to-text");
+    els.dateFromBtn = document.getElementById("history-date-from-btn");
+    els.dateToBtn = document.getElementById("history-date-to-btn");
+    els.datePopover = document.getElementById("history-date-popover");
+    els.dateCalGrid = document.getElementById("history-date-cal-grid");
+    els.dateCalTitle = document.getElementById("history-date-cal-title");
+    els.dateCalSubtitle = document.getElementById("history-date-cal-subtitle");
+    els.dateCalRange = document.getElementById("history-date-cal-range");
+    els.dateCalPrev = document.getElementById("history-date-cal-prev");
+    els.dateCalNext = document.getElementById("history-date-cal-next");
+    els.dateCalToday = document.getElementById("history-date-cal-today");
     els.action = document.getElementById("history-action");
     els.actionButton = document.getElementById("history-action-button");
     els.actionLabel = document.getElementById("history-action-label");
@@ -263,6 +276,18 @@
     els.dateRange = document.getElementById("history-date-range");
     els.dateFrom = document.getElementById("history-date-from");
     els.dateTo = document.getElementById("history-date-to");
+    els.dateFromText = document.getElementById("history-date-from-text");
+    els.dateToText = document.getElementById("history-date-to-text");
+    els.dateFromBtn = document.getElementById("history-date-from-btn");
+    els.dateToBtn = document.getElementById("history-date-to-btn");
+    els.datePopover = document.getElementById("history-date-popover");
+    els.dateCalGrid = document.getElementById("history-date-cal-grid");
+    els.dateCalTitle = document.getElementById("history-date-cal-title");
+    els.dateCalSubtitle = document.getElementById("history-date-cal-subtitle");
+    els.dateCalRange = document.getElementById("history-date-cal-range");
+    els.dateCalPrev = document.getElementById("history-date-cal-prev");
+    els.dateCalNext = document.getElementById("history-date-cal-next");
+    els.dateCalToday = document.getElementById("history-date-cal-today");
   }
 
   function dateDropdownPanelHtml() {
@@ -277,14 +302,42 @@
           <small>Applied after Load history</small>
         </div>
         <div class="history-date-fields">
-          <label class="history-date-field" for="history-date-from">
+          <label class="history-date-field" for="history-date-from-text">
             <span>From</span>
-            <input id="history-date-from" name="from" type="date" min="${START_YEAR}-01-01">
+            <div class="history-date-trigger" id="history-date-from-shell">
+              <input class="history-date-value history-date-manual" id="history-date-from-text" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done" spellcheck="false" maxlength="10" pattern="\\d{1,2}[./-]\\d{1,2}[./-]\\d{4}" title="Format: dd.mm.yyyy" placeholder="dd.mm.yyyy" aria-label="History start date">
+              <button class="history-date-icon-btn" id="history-date-from-btn" type="button" data-history-date-bound="from" aria-haspopup="dialog" aria-expanded="false" aria-label="Open start date calendar">${calendarIconHtml()}</button>
+            </div>
+            <input id="history-date-from" name="from" type="hidden">
           </label>
-          <label class="history-date-field" for="history-date-to">
+          <label class="history-date-field" for="history-date-to-text">
             <span>To</span>
-            <input id="history-date-to" name="to" type="date" min="${START_YEAR}-01-01">
+            <div class="history-date-trigger" id="history-date-to-shell">
+              <input class="history-date-value history-date-manual" id="history-date-to-text" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done" spellcheck="false" maxlength="10" pattern="\\d{1,2}[./-]\\d{1,2}[./-]\\d{4}" title="Format: dd.mm.yyyy" placeholder="dd.mm.yyyy" aria-label="History end date">
+              <button class="history-date-icon-btn" id="history-date-to-btn" type="button" data-history-date-bound="to" aria-haspopup="dialog" aria-expanded="false" aria-label="Open end date calendar">${calendarIconHtml()}</button>
+            </div>
+            <input id="history-date-to" name="to" type="hidden">
           </label>
+        </div>
+        <div class="history-date-popover" id="history-date-popover" role="dialog" aria-label="Select history date" hidden>
+          <div class="history-cal-head">
+            <div class="history-cal-title">
+              <strong id="history-date-cal-title">Month</strong>
+              <span id="history-date-cal-subtitle">Select date</span>
+            </div>
+            <div class="history-cal-nav">
+              <button class="history-cal-btn" id="history-date-cal-prev" type="button" aria-label="Previous month">${chevronLeftIconHtml()}</button>
+              <button class="history-cal-btn" id="history-date-cal-next" type="button" aria-label="Next month">${chevronRightIconHtml()}</button>
+            </div>
+          </div>
+          <div class="history-cal-weekdays" aria-hidden="true">
+            <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
+          </div>
+          <div class="history-cal-grid" id="history-date-cal-grid"></div>
+          <div class="history-cal-foot">
+            <span id="history-date-cal-range">Range</span>
+            <button id="history-date-cal-today" type="button">Latest</button>
+          </div>
         </div>
       </div>
     `;
@@ -349,6 +402,14 @@
     return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/></svg>`;
   }
 
+  function chevronLeftIconHtml() {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>`;
+  }
+
+  function chevronRightIconHtml() {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`;
+  }
+
   function actionIconHtml(action) {
     if (action === "all") {
       return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>`;
@@ -402,6 +463,72 @@
       };
       input?.addEventListener("input", syncCustomDateInput);
       input?.addEventListener("change", syncCustomDateInput);
+    });
+    [els.dateFromText, els.dateToText].forEach(input => {
+      const bound = input?.id === "history-date-from-text" ? "from" : "to";
+      input?.addEventListener("focus", () => {
+        openHistoryDatePicker(bound);
+        input.select();
+      });
+      input?.addEventListener("input", () => {
+        input.value = input.value.replace(/[^\d./-]/g, "").slice(0, 10);
+        input.classList.remove("invalid");
+        input.removeAttribute("aria-invalid");
+      });
+      input?.addEventListener("keydown", event => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          if (applyManualHistoryDate(bound, { keepFocus: true })) input.blur();
+        }
+        if (event.key === "Escape") {
+          event.preventDefault();
+          input.classList.remove("invalid");
+          input.removeAttribute("aria-invalid");
+          updateHistoryDatePickerControls();
+          closeHistoryDatePicker();
+          input.blur();
+        }
+      });
+      input?.addEventListener("blur", () => {
+        if (input.classList.contains("invalid")) {
+          input.classList.remove("invalid");
+          input.removeAttribute("aria-invalid");
+          updateHistoryDatePickerControls();
+          return;
+        }
+        const current = bound === "from" ? state.dateFrom : state.dateTo;
+        if (input.value.trim() !== formatManualHistoryDate(current) && !applyManualHistoryDate(bound)) {
+          input.classList.remove("invalid");
+          input.removeAttribute("aria-invalid");
+        }
+        updateHistoryDatePickerControls();
+      });
+    });
+    [els.dateFromBtn, els.dateToBtn].forEach(button => {
+      button?.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        const bound = button.dataset.historyDateBound || "from";
+        if (historyDatePicker.open === bound && !els.datePopover?.hidden) closeHistoryDatePicker();
+        else openHistoryDatePicker(bound);
+      });
+    });
+    els.dateCalPrev?.addEventListener("click", event => {
+      event.preventDefault();
+      historyDatePicker.monthTs = addMonthsTs(historyDatePicker.monthTs, -1);
+      renderHistoryDatePicker();
+    });
+    els.dateCalNext?.addEventListener("click", event => {
+      event.preventDefault();
+      historyDatePicker.monthTs = addMonthsTs(historyDatePicker.monthTs, 1);
+      renderHistoryDatePicker();
+    });
+    els.dateCalToday?.addEventListener("click", event => {
+      event.preventDefault();
+      const latest = historyDateMaxTs();
+      if (historyDatePicker.open === "from") setHistoryDateRange(inputDateFromTs(latest), state.dateTo, "from");
+      else setHistoryDateRange(state.dateFrom, inputDateFromTs(latest), "to");
+      closeHistoryDatePicker();
     });
     document.addEventListener("click", handleDocumentDropdownClick);
     document.addEventListener("keydown", event => {
@@ -505,6 +632,7 @@
   }
 
   function closeHistoryDropdowns() {
+    closeHistoryDatePicker();
     [els.yearMenu, els.actionMenu, els.networkMenu].forEach(panel => panel?.classList.remove("show"));
     [els.yearButton, els.actionButton, els.networkButton].forEach(button => {
       button?.classList.remove("open");
@@ -579,9 +707,220 @@
     els.year.value = state.year;
     els.dateRange.hidden = false;
     els.yearMenu?.classList.add("has-custom-range");
-    [els.dateFrom, els.dateTo].forEach(input => {
+    [els.dateFrom, els.dateTo, els.dateFromText, els.dateToText].forEach(input => {
       if (input) input.disabled = state.loading;
     });
+    updateHistoryDatePickerControls();
+    renderHistoryDatePicker();
+  }
+
+  function historyDateMinTs() {
+    return Math.floor(Date.UTC(START_YEAR, 0, 1) / 1000);
+  }
+
+  function historyDateMaxTs() {
+    const today = new Date();
+    return Math.floor(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()) / 1000);
+  }
+
+  function inputDateFromTs(ts) {
+    return new Date(ts * 1000).toISOString().slice(0, 10);
+  }
+
+  function historyDateInputTs(value) {
+    if (!validDateInput(value)) return NaN;
+    const [year, month, day] = String(value).split("-").map(Number);
+    return Math.floor(Date.UTC(year, month - 1, day) / 1000);
+  }
+
+  function manualHistoryDateTs(value) {
+    const raw = String(value || "").trim();
+    const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (iso) {
+      const ts = historyDateInputTs(raw);
+      return Number.isFinite(ts) ? ts : NaN;
+    }
+    const match = raw.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+    if (!match) return NaN;
+    const day = Number(match[1]);
+    const month = Number(match[2]);
+    const year = Number(match[3]);
+    if (!Number.isInteger(day) || !Number.isInteger(month) || !Number.isInteger(year)) return NaN;
+    const ts = Math.floor(Date.UTC(year, month - 1, day) / 1000);
+    const date = new Date(ts * 1000);
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return NaN;
+    return ts;
+  }
+
+  function formatManualHistoryDate(value) {
+    const ts = typeof value === "number" ? value : historyDateInputTs(value);
+    if (!Number.isFinite(ts)) return "";
+    const date = new Date(ts * 1000);
+    const day = String(date.getUTCDate()).padStart(2, "0");
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+    return `${day}.${month}.${date.getUTCFullYear()}`;
+  }
+
+  function formatHistoryCalendarDay(ts) {
+    return new Date(ts * 1000).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric", timeZone: "UTC" });
+  }
+
+  function historyMonthStartTs(ts) {
+    const date = new Date(ts * 1000);
+    return Math.floor(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1) / 1000);
+  }
+
+  function addMonthsTs(monthTs, delta) {
+    const date = new Date(monthTs * 1000);
+    return Math.floor(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + delta, 1) / 1000);
+  }
+
+  function sameHistoryDay(a, b) {
+    return inputDateFromTs(a) === inputDateFromTs(b);
+  }
+
+  function clampHistoryTs(ts, minTs, maxTs) {
+    return Math.max(minTs, Math.min(maxTs, ts));
+  }
+
+  function setHistoryDateRange(fromValue, toValue, changed) {
+    const minTs = historyDateMinTs();
+    const maxTs = historyDateMaxTs();
+    let from = validDateInput(fromValue) ? historyDateInputTs(fromValue) : manualHistoryDateTs(fromValue);
+    let to = validDateInput(toValue) ? historyDateInputTs(toValue) : manualHistoryDateTs(toValue);
+    if (!Number.isFinite(from)) from = historyDateInputTs(state.dateFrom) || minTs;
+    if (!Number.isFinite(to)) to = historyDateInputTs(state.dateTo) || maxTs;
+    from = clampHistoryTs(from, minTs, maxTs);
+    to = clampHistoryTs(to, minTs, maxTs);
+    if (from > to) {
+      if (changed === "from") to = from;
+      else from = to;
+    }
+    state.year = "custom";
+    state.dateFrom = inputDateFromTs(from);
+    state.dateTo = inputDateFromTs(to);
+    if (els.year) els.year.value = state.year;
+    if (els.dateFrom) els.dateFrom.value = state.dateFrom;
+    if (els.dateTo) els.dateTo.value = state.dateTo;
+    syncYearDropdown();
+    syncDateRangeControls();
+    markHistoryFiltersDirty();
+  }
+
+  function markHistoryDateInvalid(input) {
+    if (!input) return;
+    input.classList.add("invalid");
+    input.setAttribute("aria-invalid", "true");
+    window.setTimeout(() => {
+      input.classList.remove("invalid");
+      input.removeAttribute("aria-invalid");
+    }, 900);
+  }
+
+  function applyManualHistoryDate(bound, options = {}) {
+    const input = bound === "from" ? els.dateFromText : els.dateToText;
+    if (!input) return false;
+    const typed = input.value.trim();
+    const ts = manualHistoryDateTs(typed);
+    if (!Number.isFinite(ts)) {
+      markHistoryDateInvalid(input);
+      if (options.keepFocus) {
+        input.focus();
+        input.select();
+      }
+      updateHistoryDatePickerControls();
+      return false;
+    }
+    input.classList.remove("invalid");
+    input.removeAttribute("aria-invalid");
+    if (bound === "from") setHistoryDateRange(inputDateFromTs(ts), state.dateTo, "from");
+    else setHistoryDateRange(state.dateFrom, inputDateFromTs(ts), "to");
+    closeHistoryDatePicker();
+    return true;
+  }
+
+  function updateHistoryDatePickerControls() {
+    if (els.dateFrom && state.dateFrom) els.dateFrom.value = state.dateFrom;
+    if (els.dateTo && state.dateTo) els.dateTo.value = state.dateTo;
+    if (els.dateFromText && document.activeElement !== els.dateFromText) els.dateFromText.value = formatManualHistoryDate(state.dateFrom);
+    if (els.dateToText && document.activeElement !== els.dateToText) els.dateToText.value = formatManualHistoryDate(state.dateTo);
+    const updateButton = (button, open) => {
+      if (!button) return;
+      button.classList.toggle("open", open);
+      button.closest(".history-date-trigger")?.classList.toggle("open", open);
+      button.setAttribute("aria-expanded", open ? "true" : "false");
+    };
+    updateButton(els.dateFromBtn, historyDatePicker.open === "from" && !els.datePopover?.hidden);
+    updateButton(els.dateToBtn, historyDatePicker.open === "to" && !els.datePopover?.hidden);
+  }
+
+  function closeHistoryDatePicker() {
+    historyDatePicker.open = "";
+    if (els.datePopover) els.datePopover.hidden = true;
+    updateHistoryDatePickerControls();
+  }
+
+  function openHistoryDatePicker(bound) {
+    if (!els.datePopover || state.loading) return;
+    historyDatePicker.open = bound === "to" ? "to" : "from";
+    const target = historyDatePicker.open === "from" ? state.dateFrom : state.dateTo;
+    historyDatePicker.monthTs = historyMonthStartTs(historyDateInputTs(target) || historyDateMaxTs());
+    els.datePopover.hidden = false;
+    els.datePopover.dataset.side = historyDatePicker.open === "from" ? "left" : "right";
+    updateHistoryDatePickerControls();
+    renderHistoryDatePicker();
+  }
+
+  function renderHistoryDatePicker() {
+    if (!els.datePopover || els.datePopover.hidden || !els.dateCalGrid) return;
+    const minTs = historyDateMinTs();
+    const maxTs = historyDateMaxTs();
+    const fromTs = historyDateInputTs(state.dateFrom) || minTs;
+    const toTs = historyDateInputTs(state.dateTo) || maxTs;
+    if (!historyDatePicker.monthTs) historyDatePicker.monthTs = historyMonthStartTs(historyDatePicker.open === "to" ? toTs : fromTs);
+    historyDatePicker.monthTs = historyMonthStartTs(clampHistoryTs(historyDatePicker.monthTs, historyMonthStartTs(minTs), historyMonthStartTs(maxTs)));
+    const monthDate = new Date(historyDatePicker.monthTs * 1000);
+    const year = monthDate.getUTCFullYear();
+    const month = monthDate.getUTCMonth();
+    const firstDay = Math.floor(Date.UTC(year, month, 1) / 1000);
+    const startOffset = (new Date(firstDay * 1000).getUTCDay() + 6) % 7;
+    const firstCell = firstDay - startOffset * 86400;
+    if (els.dateCalTitle) {
+      els.dateCalTitle.textContent = monthDate.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+    }
+    if (els.dateCalSubtitle) els.dateCalSubtitle.textContent = historyDatePicker.open === "from" ? "Choose start date" : "Choose end date";
+    if (els.dateCalRange) els.dateCalRange.textContent = `${formatHistoryCalendarDay(fromTs)} -> ${formatHistoryCalendarDay(toTs)}`;
+    els.dateCalGrid.innerHTML = "";
+    for (let i = 0; i < 42; i += 1) {
+      const ts = firstCell + i * 86400;
+      const date = new Date(ts * 1000);
+      const dayMonth = date.getUTCMonth();
+      const disabled = ts < minTs || ts > maxTs;
+      const inRange = ts >= fromTs && ts <= toTs;
+      const selected = sameHistoryDay(ts, fromTs) || sameHistoryDay(ts, toTs);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "history-cal-day"
+        + (dayMonth !== month ? " muted" : "")
+        + (inRange ? " in-range" : "")
+        + (selected ? " selected" : "");
+      button.textContent = String(date.getUTCDate());
+      button.disabled = disabled;
+      button.dataset.historyDateValue = inputDateFromTs(ts);
+      button.setAttribute("aria-label", formatHistoryCalendarDay(ts));
+      button.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (historyDatePicker.open === "from") setHistoryDateRange(inputDateFromTs(ts), state.dateTo, "from");
+        else setHistoryDateRange(state.dateFrom, inputDateFromTs(ts), "to");
+        closeHistoryDatePicker();
+      });
+      els.dateCalGrid.appendChild(button);
+    }
+    const minMonth = historyMonthStartTs(minTs);
+    const maxMonth = historyMonthStartTs(maxTs);
+    if (els.dateCalPrev) els.dateCalPrev.disabled = historyDatePicker.monthTs <= minMonth;
+    if (els.dateCalNext) els.dateCalNext.disabled = historyDatePicker.monthTs >= maxMonth;
   }
 
   function dropdownButtonForKey(key) {
