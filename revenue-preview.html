@@ -258,16 +258,6 @@ h1{
 .revenue-series-control{
   display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;min-width:0
 }
-.revenue-series-status{
-  min-height:28px;padding:0 10px;border-radius:8px;
-  display:inline-flex;align-items:center;justify-content:center;
-  border:1px solid var(--line-1);background:rgba(255,255,255,.025);
-  color:var(--fg-3);font-family:var(--mono);font-size:10px;font-weight:800;
-  text-transform:uppercase;letter-spacing:.85px;white-space:nowrap
-}
-.revenue-series-status.filtered{
-  color:var(--gold);border-color:var(--gold-line);background:rgba(201,162,39,.08)
-}
 .revenue-series-toggle{
   min-height:32px;padding:0 10px;border-radius:7px;
   display:inline-flex;align-items:center;justify-content:center;gap:8px;
@@ -609,7 +599,6 @@ h1{
   .hero-card:first-child{border-top:0;padding-top:0}
   .panel-head{display:block}
   .revenue-series-control{margin-top:12px;width:100%;display:grid;grid-template-columns:1fr;justify-items:stretch}
-  .revenue-series-status{width:100%}
   .revenue-series-toggles{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
   .chain-range-tools{margin-top:14px;width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);justify-content:stretch}
   .chain-date-trigger{min-width:0;width:100%}
@@ -754,7 +743,6 @@ h1{
           <div class="panel-sub">Daily retained revenue and borrower fees.</div>
         </div>
         <div class="revenue-series-control">
-          <div class="revenue-series-status" id="revenueSeriesStatus">All series</div>
           <div class="revenue-series-toggles" aria-label="Revenue chart filter">
             <button class="revenue-series-toggle" type="button" data-series="revenue" aria-pressed="false" aria-label="Toggle revenue series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch"></span><span>Revenue</span></button>
             <button class="revenue-series-toggle" type="button" data-series="fees" aria-pressed="false" aria-label="Toggle borrower fees series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch fees"></span><span>Fees</span></button>
@@ -1507,12 +1495,6 @@ h1{
     return rows.map((row, index) => `${index ? "L" : "M"}${xAt(row.ts).toFixed(2)} ${yAt(n(row[field])).toFixed(2)}`).join(" ");
   }
   function updateRevenueLegend(){
-    const status = qs("revenueSeriesStatus");
-    if (status) {
-      const defs = selectedRevenueDefs();
-      status.textContent = defs.length === 2 ? "Revenue + Fees" : (defs[0]?.shortLabel || "Revenue + Fees");
-      status.classList.toggle("filtered", defs.length < 2);
-    }
     document.querySelectorAll(".revenue-series-toggle").forEach(btn => {
       const key = btn.dataset.series;
       const active = selectedRevenueSeries.has(key);
