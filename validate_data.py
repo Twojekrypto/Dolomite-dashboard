@@ -33,6 +33,7 @@ EXPECTED_TVL_CHAINS = {
     "Arbitrum",
     "X Layer",
 }
+WLFI_MIN_USD = 10_000_000
 NON_CHAIN_TVL_KEYS = {
     "borrowed",
     "staking",
@@ -123,6 +124,17 @@ def _dolomite_token_sums_reconcile(data):
     latest = (data.get("tokensInUsd") or [{}])[-1].get("tokens", {})
     total_tokens = sum(float(value) for value in latest.values() if isinstance(value, (int, float)))
     return _nearly_equal(total_tokens, data.get("supplyLiquidity"))
+
+
+def _dolomite_expected_tokens_present(data):
+    latest = (data.get("tokensInUsd") or [{}])[-1].get("tokens", {})
+    chain_tokens = data.get("chainTokensInUsd", {})
+    try:
+        wlfi_global = float(latest.get("WLFI", 0))
+        wlfi_ethereum = float(chain_tokens.get("Ethereum", {}).get("WLFI", 0))
+    except (TypeError, ValueError):
+        return False
+    return wlfi_global >= WLFI_MIN_USD and wlfi_ethereum >= WLFI_MIN_USD
 
 
 def _dolomite_chain_meta_complete(data):
@@ -259,6 +271,7 @@ RULES = {
             ("stale chain list must be known chains only", _dolomite_stale_chains_known),
             ("TVL totals must reconcile", _dolomite_tvl_totals_reconcile),
             ("token sums must reconcile with supply liquidity", _dolomite_token_sums_reconcile),
+            ("Ethereum WLFI must be present in Dolomite token composition", _dolomite_expected_tokens_present),
         ],
         "min_bytes": 1_000,
     },

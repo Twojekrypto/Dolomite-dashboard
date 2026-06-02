@@ -19,7 +19,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v5
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -48,8 +48,16 @@ jobs:
           git add defillama_data.json dolomite_tvl.json dolomite_revenue.json
           git diff --staged --quiet && echo "No changes to commit" && exit 0
           git commit -m "📊 Auto-update TVL: $(date -u '+%Y-%m-%d %H:%M UTC')"
-          for i in 1 2 3; do
-            git pull --rebase -X theirs origin master && git push && break
+          pushed=false
+          for i in $(seq 1 12); do
+            if git pull --rebase -X theirs origin master && git push; then
+              pushed=true
+              break
+            fi
             echo "⚠️ Push attempt $i failed, retrying..."
-            sleep 5
+            sleep $((i * 5))
           done
+          if [ "$pushed" != "true" ]; then
+            echo "❌ Failed to push after 12 attempts."
+            exit 1
+          fi
