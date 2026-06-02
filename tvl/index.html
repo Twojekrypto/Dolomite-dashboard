@@ -8,11 +8,11 @@
 <script>
 (async () => {
   try {
-    const previewVersion = "tvl-ux-consistency-20260507-filter-icons-20260517b-supply-chart-20260527-stale-token-fix-20260528";
+    const previewVersion = "tvl-ux-consistency-20260507-filter-icons-20260517b-supply-chart-20260527-stale-token-fix-20260528-revenue-nav-20260602b";
     const response = await fetch(`../tvl-preview.html?v=${previewVersion}`, { cache: "no-cache" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const html = await response.text();
-    const mobileNavAssets = '<link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260527-history"><link rel="stylesheet" href="mobile-polish.css?v=mobile-polish-20260519c"><script defer src="mobile-nav.js?v=mobile-nav-20260527-history"><\/script><script defer src="mobile-polish.js?v=mobile-polish-20260519c"><\/script>';
+    const mobileNavAssets = '<link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260602-revenue"><link rel="stylesheet" href="mobile-polish.css?v=mobile-polish-20260519c"><script defer src="mobile-nav.js?v=mobile-nav-20260602-revenue"><\/script><script defer src="mobile-polish.js?v=mobile-polish-20260519c"><\/script>';
     document.open();
     document.write(html.replace("<head>", '<head><base href="../">').replace("</head>", mobileNavAssets + "</head>"));
     document.close();

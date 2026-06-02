@@ -9,6 +9,7 @@
         borrow: "Borrow",
         supply: "Supply",
         history: "History",
+        revenue: "Revenue",
         liquidation: "Borrow",
         liquidations: "Borrow",
         lending: "Borrow"
