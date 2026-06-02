@@ -17,11 +17,11 @@
 <script>
 (async () => {
   try {
-    const previewVersion = "dolo-label-cleanup-20260514-filter-icons-20260517b-cex-labels-20260518c-holder-hover-pct-20260519-holder-filter-ux-20260519c-fresh-wallets-10k-20260519-holder-title-chain-icons-fresh-created-sort-true-fresh-spacer-clean-fresh-default-30d-exposure-created-default-20260520-label-source-20260528-wallet-change-periods-20260528-union-20260528-range-reconcile-20260528-range-baseline-20260528-vedolo-detail-load-20260528-brush-full-date-20260528-chainlink-rewards-20260530";
+    const previewVersion = "dolo-label-cleanup-20260514-filter-icons-20260517b-cex-labels-20260518c-holder-hover-pct-20260519-holder-filter-ux-20260519c-fresh-wallets-10k-20260519-holder-title-chain-icons-fresh-created-sort-true-fresh-spacer-clean-fresh-default-30d-exposure-created-default-20260520-label-source-20260528-wallet-change-periods-20260528-union-20260528-range-reconcile-20260528-range-baseline-20260528-vedolo-detail-load-20260528-brush-full-date-20260528-chainlink-rewards-20260530-revenue-nav-20260602b";
     const response = await fetch(`dolo-preview.html?v=${previewVersion}`, { cache: "no-cache" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const html = await response.text();
-    const mobileNavAssets = '<link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260527-history"><link rel="stylesheet" href="mobile-polish.css?v=mobile-polish-20260519c"><script defer src="mobile-nav.js?v=mobile-nav-20260527-history"><\/script><script defer src="mobile-polish.js?v=mobile-polish-20260519c"><\/script>';
+    const mobileNavAssets = '<link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260602-revenue"><link rel="stylesheet" href="mobile-polish.css?v=mobile-polish-20260519c"><script defer src="mobile-nav.js?v=mobile-nav-20260602-revenue"><\/script><script defer src="mobile-polish.js?v=mobile-polish-20260519c"><\/script>';
     document.open();
     document.write(html.replace("<head>", '<head><base href="./">').replace("</head>", mobileNavAssets + "</head>"));
     document.close();
