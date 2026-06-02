@@ -1,0 +1,228 @@
+#!/usr/bin/env python3
+"""
+Fetch Dolomite fees/revenue data from DeFiLlama's fees adapter.
+
+The dashboard is static, so this stores the small revenue dataset used by the
+Revenue tab instead of calling the API from every visitor's browser.
+"""
+
+import json
+import os
+import time
+from datetime import datetime, timezone
+
+import requests
+
+
+DATA_DIR = os.path.dirname(os.path.abspath(__file__))
+OUTPUT_FILE = os.path.join(DATA_DIR, "dolomite_revenue.json")
+BASE_URL = "https://api.llama.fi/summary/fees/dolomite"
+REQUEST_TIMEOUTS = (
+    (10, 45),
+    (10, 75),
+    (10, 120),
+)
+
+
+def utc_now_iso():
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def day_from_timestamp(timestamp):
+    return datetime.fromtimestamp(int(timestamp), tz=timezone.utc).strftime("%Y-%m-%d")
+
+
+def safe_number(value):
+    if isinstance(value, bool):
+        return 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+    return 0.0
+
+
+def chain_value(breakdown, chain):
+    chain_payload = breakdown.get(chain, {}) if isinstance(breakdown, dict) else {}
+    if isinstance(chain_payload, dict):
+        return sum(safe_number(value) for value in chain_payload.values())
+    return safe_number(chain_payload)
+
+
+def fetch_metric(data_type):
+    url = f"{BASE_URL}?dataType={data_type}"
+    headers = {
+        "Accept": "application/json",
+        "User-Agent": "dolomite-dashboard-revenue/1.0",
+    }
+    last_error = None
+    for attempt, timeout in enumerate(REQUEST_TIMEOUTS, start=1):
+        try:
+            print(f"   Fetching {data_type}, attempt {attempt}/{len(REQUEST_TIMEOUTS)}")
+            response = requests.get(url, timeout=timeout, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            if not isinstance(data, dict):
+                raise ValueError(f"{data_type} response is not a JSON object")
+            if len(data.get("totalDataChart") or []) < 30:
+                raise ValueError(f"{data_type} chart has too few rows")
+            if len(data.get("totalDataChartBreakdown") or []) < 30:
+                raise ValueError(f"{data_type} chain breakdown has too few rows")
+            return data
+        except (requests.RequestException, ValueError) as exc:
+            last_error = exc
+            print(f"   Attempt {attempt} failed: {exc}")
+            if attempt < len(REQUEST_TIMEOUTS):
+                time.sleep(5 * attempt)
+    raise RuntimeError(f"Unable to fetch {data_type}: {last_error}")
+
+
+def chart_map(rows):
+    out = {}
+    for row in rows or []:
+        if not isinstance(row, list) or len(row) < 2:
+            continue
+        out[int(row[0])] = safe_number(row[1])
+    return out
+
+
+def breakdown_map(rows):
+    out = {}
+    for row in rows or []:
+        if not isinstance(row, list) or len(row) < 2:
+            continue
+        out[int(row[0])] = row[1] if isinstance(row[1], dict) else {}
+    return out
+
+
+def merge_series(revenue_data, fees_data):
+    revenue_chart = chart_map(revenue_data.get("totalDataChart"))
+    fees_chart = chart_map(fees_data.get("totalDataChart"))
+    revenue_breakdowns = breakdown_map(revenue_data.get("totalDataChartBreakdown"))
+    fees_breakdowns = breakdown_map(fees_data.get("totalDataChartBreakdown"))
+    timestamps = sorted(set(revenue_chart) | set(fees_chart))
+    chains = sorted({
+        chain
+        for ts in timestamps
+        for source in (revenue_breakdowns.get(ts, {}), fees_breakdowns.get(ts, {}))
+        for chain in source.keys()
+    })
+
+    rows = []
+    for ts in timestamps:
+        revenue = revenue_chart.get(ts, 0.0)
+        fees = fees_chart.get(ts, 0.0)
+        chain_rows = {}
+        for chain in chains:
+            chain_revenue = chain_value(revenue_breakdowns.get(ts, {}), chain)
+            chain_fees = chain_value(fees_breakdowns.get(ts, {}), chain)
+            if chain_revenue > 0 or chain_fees > 0:
+                chain_rows[chain] = {
+                    "feesUSD": round(chain_fees, 6),
+                    "revenueUSD": round(chain_revenue, 6),
+                    "supplySideRevenueUSD": round(max(chain_fees - chain_revenue, 0.0), 6),
+                }
+
+        rows.append({
+            "timestamp": ts,
+            "date": day_from_timestamp(ts),
+            "feesUSD": round(fees, 6),
+            "revenueUSD": round(revenue, 6),
+            "supplySideRevenueUSD": round(max(fees - revenue, 0.0), 6),
+            "protocolCut": round(revenue / fees, 8) if fees > 0 else 0,
+            "chains": chain_rows,
+        })
+    return rows
+
+
+def window_chain_totals(series, days):
+    rows = series[-days:] if days > 0 else series
+    totals = {}
+    for row in rows:
+        for chain, payload in row.get("chains", {}).items():
+            entry = totals.setdefault(chain, {
+                "feesUSD": 0.0,
+                "revenueUSD": 0.0,
+                "supplySideRevenueUSD": 0.0,
+            })
+            entry["feesUSD"] += safe_number(payload.get("feesUSD"))
+            entry["revenueUSD"] += safe_number(payload.get("revenueUSD"))
+            entry["supplySideRevenueUSD"] += safe_number(payload.get("supplySideRevenueUSD"))
+    return {
+        chain: {key: round(value, 6) for key, value in values.items()}
+        for chain, values in sorted(totals.items(), key=lambda item: item[1]["revenueUSD"], reverse=True)
+    }
+
+
+def metric_totals(revenue_data, fees_data, series):
+    latest = series[-1] if series else {}
+    fees_24h = safe_number(fees_data.get("total24h") or latest.get("feesUSD"))
+    revenue_24h = safe_number(revenue_data.get("total24h") or latest.get("revenueUSD"))
+    return {
+        "dailyRevenueUSD": round(revenue_24h, 6),
+        "dailyFeesUSD": round(fees_24h, 6),
+        "dailySupplySideRevenueUSD": round(max(fees_24h - revenue_24h, 0.0), 6),
+        "dailyProtocolCut": round(revenue_24h / fees_24h, 8) if fees_24h > 0 else 0,
+        "previousDailyRevenueUSD": round(safe_number(revenue_data.get("total48hto24h")), 6),
+        "previousDailyFeesUSD": round(safe_number(fees_data.get("total48hto24h")), 6),
+        "revenue7dUSD": round(safe_number(revenue_data.get("total7d")), 6),
+        "fees7dUSD": round(safe_number(fees_data.get("total7d")), 6),
+        "revenue30dUSD": round(safe_number(revenue_data.get("total30d")), 6),
+        "fees30dUSD": round(safe_number(fees_data.get("total30d")), 6),
+        "revenueAllTimeUSD": round(safe_number(revenue_data.get("totalAllTime")), 6),
+        "feesAllTimeUSD": round(safe_number(fees_data.get("totalAllTime")), 6),
+    }
+
+
+def build_output(revenue_data, fees_data):
+    series = merge_series(revenue_data, fees_data)
+    if len(series) < 30:
+        raise ValueError("Merged revenue series has too few rows")
+
+    latest = series[-1]
+    return {
+        "schemaVersion": 1,
+        "protocol": "Dolomite",
+        "source": "DeFiLlama fees adapter",
+        "sourceUrls": {
+            "dailyRevenue": f"{BASE_URL}?dataType=dailyRevenue",
+            "dailyFees": f"{BASE_URL}?dataType=dailyFees",
+            "adapter": "https://github.com/DefiLlama/dimension-adapters/tree/master/fees/dolomite",
+        },
+        "generatedAt": utc_now_iso(),
+        "lastUpdated": utc_now_iso(),
+        "methodology": {
+            "fees": "Interest paid by borrowers.",
+            "revenue": "The portion of borrower interest retained by the protocol.",
+            "supplySideRevenue": "The portion of borrower interest paid to lenders.",
+            "formula": "dailyRevenue = interestEarned * (1 - earningsRate); supplySideRevenue = dailyFees - dailyRevenue",
+            "scope": "Dolomite protocol fees only. Gas fees, token emissions, treasury transfers and external cost basis are excluded.",
+        },
+        "totals": metric_totals(revenue_data, fees_data, series),
+        "latest": latest,
+        "chainTotals7d": window_chain_totals(series, 7),
+        "chainTotals30d": window_chain_totals(series, 30),
+        "series": series,
+    }
+
+
+def main():
+    print("Fetching Dolomite revenue data...")
+    try:
+        revenue_data = fetch_metric("dailyRevenue")
+        fees_data = fetch_metric("dailyFees")
+        output = build_output(revenue_data, fees_data)
+        with open(OUTPUT_FILE, "w") as f:
+            json.dump(output, f, separators=(",", ":"))
+
+        print(f"Saved {os.path.basename(OUTPUT_FILE)} ({os.path.getsize(OUTPUT_FILE) / 1024:.0f} KB)")
+        print(f"Daily revenue: ${output['totals']['dailyRevenueUSD']:,.0f}")
+        print(f"Daily fees: ${output['totals']['dailyFeesUSD']:,.0f}")
+    except Exception as exc:
+        print(f"Revenue fetch failed: {exc}")
+        if os.path.exists(OUTPUT_FILE):
+            print(f"Keeping existing {OUTPUT_FILE}")
+            return
+        raise
+
+
+if __name__ == "__main__":
+    main()

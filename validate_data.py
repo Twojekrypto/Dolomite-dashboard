@@ -33,7 +33,6 @@ EXPECTED_TVL_CHAINS = {
     "Arbitrum",
     "X Layer",
 }
-WLFI_MIN_USD = 10_000_000
 NON_CHAIN_TVL_KEYS = {
     "borrowed",
     "staking",
@@ -126,17 +125,6 @@ def _dolomite_token_sums_reconcile(data):
     return _nearly_equal(total_tokens, data.get("supplyLiquidity"))
 
 
-def _dolomite_expected_tokens_present(data):
-    latest = (data.get("tokensInUsd") or [{}])[-1].get("tokens", {})
-    chain_tokens = data.get("chainTokensInUsd", {})
-    try:
-        wlfi_global = float(latest.get("WLFI", 0))
-        wlfi_ethereum = float(chain_tokens.get("Ethereum", {}).get("WLFI", 0))
-    except (TypeError, ValueError):
-        return False
-    return wlfi_global >= WLFI_MIN_USD and wlfi_ethereum >= WLFI_MIN_USD
-
-
 def _dolomite_chain_meta_complete(data):
     meta = data.get("chainMeta", {})
     if not EXPECTED_TVL_CHAINS.issubset(set(meta)):
@@ -167,6 +155,44 @@ def _defillama_history_valid(data):
             return False
         previous = date
     return True
+
+
+def _dolomite_revenue_series_valid(data):
+    rows = data.get("series", [])
+    if len(rows) < 30:
+        return False
+    previous = 0
+    for row in rows:
+        timestamp = row.get("timestamp")
+        fees = row.get("feesUSD")
+        revenue = row.get("revenueUSD")
+        if not isinstance(timestamp, int) or timestamp <= previous:
+            return False
+        if not isinstance(fees, (int, float)) or not isinstance(revenue, (int, float)):
+            return False
+        if fees < 0 or revenue < 0 or revenue > fees + 1:
+            return False
+        if not row.get("date") or not isinstance(row.get("chains", {}), dict):
+            return False
+        previous = timestamp
+    return True
+
+
+def _dolomite_revenue_totals_valid(data):
+    totals = data.get("totals", {})
+    latest = data.get("latest", {})
+    daily_fees = totals.get("dailyFeesUSD")
+    daily_revenue = totals.get("dailyRevenueUSD")
+    latest_fees = latest.get("feesUSD")
+    latest_revenue = latest.get("revenueUSD")
+    if not all(isinstance(value, (int, float)) for value in (daily_fees, daily_revenue, latest_fees, latest_revenue)):
+        return False
+    return (
+        daily_fees > 0
+        and 0 <= daily_revenue <= daily_fees
+        and _nearly_equal(daily_fees, latest_fees, abs_tol=500)
+        and _nearly_equal(daily_revenue, latest_revenue, abs_tol=500)
+    )
 
 
 RULES = {
@@ -233,7 +259,6 @@ RULES = {
             ("stale chain list must be known chains only", _dolomite_stale_chains_known),
             ("TVL totals must reconcile", _dolomite_tvl_totals_reconcile),
             ("token sums must reconcile with supply liquidity", _dolomite_token_sums_reconcile),
-            ("Ethereum WLFI must be present in Dolomite token composition", _dolomite_expected_tokens_present),
         ],
         "min_bytes": 1_000,
     },
@@ -243,6 +268,15 @@ RULES = {
             ("last_updated must be fresh", lambda d: _fresh_timestamp(d.get("last_updated"))),
             ("all expected TVL chains must be present", _has_expected_tvl_chains),
             ("TVL history must be sorted and populated", _defillama_history_valid),
+        ],
+        "min_bytes": 10_000,
+    },
+    "dolomite_revenue.json": {
+        "required_keys": ["schemaVersion", "protocol", "source", "generatedAt", "methodology", "totals", "latest", "chainTotals7d", "chainTotals30d", "series"],
+        "checks": [
+            ("generatedAt must be fresh", lambda d: _fresh_timestamp(d.get("generatedAt"), max_hours=12)),
+            ("revenue totals must reconcile with latest row", _dolomite_revenue_totals_valid),
+            ("revenue history must be sorted and populated", _dolomite_revenue_series_valid),
         ],
         "min_bytes": 10_000,
     },

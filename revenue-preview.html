@@ -1,0 +1,1523 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dolomite Dashboard - Revenue</title>
+<link rel="shortcut icon" href="favicon.ico" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared-hover-tooltips.css?v=20260507u">
+<script defer src="shared-hover-tooltips.js?v=20260507u"></script>
+<style>
+:root{
+  --bg-0:#09090b;--bg-1:#0f0f11;--bg-2:#141417;--bg-3:#1a1a1e;--bg-4:#202024;
+  --line-1:rgba(255,255,255,.05);--line-2:rgba(255,255,255,.08);--line-3:rgba(255,255,255,.14);
+  --fg-1:#f4f3ef;--fg-2:#a5a29a;--fg-3:#6b6a66;--fg-4:#48474a;
+  --gold:#c9a227;--gold-hi:#e4c15a;--gold-lo:#8a6e1a;
+  --gold-wash:rgba(201,162,39,.10);--gold-line:rgba(201,162,39,.30);
+  --up:#75b87b;--down:#b4796b;
+  --up-wash:rgba(117,184,123,.10);--down-wash:rgba(180,121,107,.10);
+  --r-sm:8px;--r-md:12px;--r-lg:16px;--r-xl:22px;
+  --sh-card:0 1px 0 rgba(255,255,255,.02) inset,0 1px 2px rgba(0,0,0,.4);
+  --sh-hi:0 8px 28px rgba(0,0,0,.45);
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --ease:cubic-bezier(.2,.7,.2,1);
+  --text-1:var(--fg-1);
+  --text-2:var(--fg-2);
+  --text-3:var(--fg-3);
+  --gold-2:var(--gold-hi);
+  --green:var(--up);
+  --red:var(--down);
+  --shadow:var(--sh-hi);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{background:var(--bg-0);color:var(--fg-1);font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5;overflow-x:hidden}
+body{min-height:100vh;overflow-x:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+a{color:inherit;text-decoration:none}
+body::before{
+  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(1000px 600px at 80% -10%,rgba(201,162,39,.04),transparent 60%),
+    radial-gradient(800px 500px at -10% 110%,rgba(255,255,255,.02),transparent 60%);
+}
+.wrap{max-width:1320px;margin:0 auto;padding:40px 28px 96px}
+.site-top{display:flex;flex-direction:column;align-items:center;gap:14px;margin-bottom:40px}
+.site-brand{position:relative;display:flex;justify-content:center;align-items:center;width:100%;padding:18px 0 0;overflow:hidden}
+.site-brand::before{content:"";position:absolute;inset:-6% -12% 12% -12%;z-index:-1;pointer-events:none;filter:blur(20px);
+  background:radial-gradient(55% 55% at 50% 50%,rgba(201,162,39,.14) 0%,transparent 72%),
+             radial-gradient(90% 110% at 50% 100%,rgba(201,162,39,.05) 0%,transparent 65%);}
+.site-brand::after{content:"";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(100%,820px);aspect-ratio:495/195;pointer-events:none;
+  background:radial-gradient(ellipse 78% 82% at center,transparent 42%,rgba(9,9,11,.55) 72%,var(--bg-0) 100%);}
+.site-brand img{max-width:820px;width:100%;height:auto;display:block;filter:saturate(.82) contrast(.92) brightness(.93) hue-rotate(-7deg);
+  -webkit-mask-image:radial-gradient(ellipse 78% 80% at center,#000 38%,rgba(0,0,0,.7) 62%,rgba(0,0,0,.25) 82%,transparent 98%);
+          mask-image:radial-gradient(ellipse 78% 80% at center,#000 38%,rgba(0,0,0,.7) 62%,rgba(0,0,0,.25) 82%,transparent 98%);
+  transition:filter .4s var(--ease),transform .4s var(--ease);}
+.site-brand img:hover{filter:saturate(.92) contrast(.96) brightness(.98) hue-rotate(-5deg);transform:translateY(-1px)}
+.site-nav-wrap{position:sticky;top:12px;z-index:30;display:flex;justify-content:center;pointer-events:none;width:100%}
+.site-nav{pointer-events:auto;display:inline-flex;align-items:center;gap:2px;background:rgba(16,16,20,.72);
+  backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);
+  border:1px solid var(--line-2);padding:5px;border-radius:12px;
+  box-shadow:0 6px 24px rgba(0,0,0,.45),0 1px 0 rgba(255,255,255,.03) inset;}
+.nav-item{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:8px;font-size:13px;font-weight:500;color:var(--fg-2);cursor:pointer;white-space:nowrap;
+  transition:color .15s var(--ease),background .15s var(--ease);-webkit-tap-highlight-color:transparent;}
+.nav-item img,.nav-item svg{width:15px;height:15px;flex-shrink:0;transition:opacity .15s var(--ease)}
+.nav-item img{border-radius:50%;background:var(--bg-3);object-fit:contain}
+.nav-item svg{color:var(--fg-3);opacity:.85}
+.nav-item:hover{color:var(--fg-1);background:var(--bg-3)}
+.nav-item:hover svg{color:var(--fg-1);opacity:1}
+.nav-item.active{color:var(--fg-1);background:var(--bg-3);box-shadow:inset 0 0 0 1px var(--gold-line)}
+.nav-item.active svg{color:var(--gold);opacity:1}
+.nav-item.active::after{content:"";width:4px;height:4px;border-radius:50%;background:var(--gold);margin-left:2px;box-shadow:0 0 6px var(--gold-line)}
+.hero{
+  position:relative;
+  overflow:hidden;
+  border:1px solid var(--line-2);
+  border-radius:var(--r-xl);
+  background:linear-gradient(180deg,var(--bg-2),var(--bg-1));
+  box-shadow:var(--sh-card);
+  padding:28px 32px 24px;
+  margin-bottom:24px;
+}
+.hero::before{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  top:0;
+  height:1px;
+  background:linear-gradient(90deg,transparent 0%,var(--gold-line) 30%,var(--gold-line) 70%,transparent 100%);
+  opacity:.6;
+  pointer-events:none;
+}
+.hero::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:radial-gradient(720px 320px at 80% -30%,rgba(201,162,39,.08),transparent 65%);
+}
+h1{
+  margin:8px 0 8px;
+  font-size:clamp(32px,4vw,56px);
+  line-height:1;
+  letter-spacing:0;
+}
+.hero-copy{
+  max-width:760px;
+  color:var(--text-2);
+  font-size:14px;
+  line-height:1.55;
+}
+.fresh-pill{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:9px 11px;
+  border:1px solid rgba(214,164,47,.2);
+  border-radius:8px;
+  background:rgba(214,164,47,.07);
+  color:var(--text-2);
+  font-size:12px;
+  white-space:nowrap;
+}
+.fresh-pill svg{width:14px;height:14px;color:var(--gold-2)}
+.hero-value-row{
+  position:relative;
+  z-index:1;
+  display:flex;
+  align-items:flex-end;
+  gap:14px;
+  flex-wrap:wrap;
+  margin-bottom:22px;
+}
+.main-value{
+  font-size:clamp(42px,5vw,74px);
+  line-height:.92;
+  font-weight:850;
+  letter-spacing:0;
+}
+.change-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  min-height:34px;
+  padding:0 12px;
+  border-radius:8px;
+  border:1px solid rgba(255,255,255,.08);
+  color:var(--text-2);
+  background:rgba(255,255,255,.035);
+  font-size:13px;
+  font-weight:800;
+}
+.change-pill.up{color:var(--green);border-color:rgba(97,211,148,.24);background:rgba(97,211,148,.07)}
+.change-pill.down{color:var(--red);border-color:rgba(240,111,111,.24);background:rgba(240,111,111,.07)}
+.hero-grid{
+  position:relative;
+  z-index:1;
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  border-top:1px solid var(--line-1);
+}
+.hero-card{
+  padding:17px 18px 0;
+  border-left:1px solid var(--line-1);
+  min-width:0;
+}
+.hero-card:first-child{border-left:0;padding-left:0}
+.metric-label{
+  color:var(--text-3);
+  font-size:11px;
+  font-weight:800;
+  text-transform:uppercase;
+}
+.metric-value{
+  margin-top:8px;
+  font-size:22px;
+  font-weight:850;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.metric-sub{
+  margin-top:5px;
+  color:var(--text-3);
+  font-size:12px;
+  line-height:1.35;
+}
+.grid-main{
+  display:grid;
+  grid-template-columns:minmax(0,1.55fr) minmax(330px,.85fr);
+  gap:18px;
+  margin-top:18px;
+}
+.panel{
+  border:1px solid var(--line-1);
+  border-radius:8px;
+  background:linear-gradient(180deg,rgba(18,18,22,.94),rgba(10,10,13,.94));
+  box-shadow:0 18px 52px rgba(0,0,0,.28);
+}
+.panel-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  padding:20px 20px 0;
+}
+.panel-title{font-size:17px;font-weight:850}
+.panel-sub{margin-top:5px;color:var(--text-3);font-size:12px;line-height:1.45}
+.mix-body{padding:20px}
+.hero-brand{display:flex;align-items:center;gap:16px;margin-bottom:26px;position:relative;z-index:1;flex-wrap:wrap}
+.hero-token-logo{
+  width:52px;height:52px;border-radius:50%;
+  background:var(--bg-3);border:1px solid var(--line-2);
+  display:grid;place-items:center;overflow:hidden;flex-shrink:0;
+}
+.hero-token-logo svg{width:30px;height:30px;color:var(--gold)}
+.hero-token-text{display:flex;flex-direction:column;gap:3px;min-width:0}
+.hero-token-title{font-size:24px;font-weight:800;color:var(--fg-1);letter-spacing:-.7px;line-height:1}
+.hero-token-sub{font-size:12.5px;color:var(--fg-3);font-weight:400;line-height:1.3}
+.hero-token-sub b{color:var(--fg-2);font-weight:500}
+.hero-meta{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}
+.hero-live{font-size:11px;color:var(--fg-3);font-family:var(--mono);display:inline-flex;align-items:center;gap:6px}
+.hero-live .dot{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
+.hero-headline{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;padding-bottom:26px;position:relative;z-index:1}
+.hero-value{
+  font-family:var(--mono);font-size:clamp(44px,6vw,62px);
+  font-weight:700;letter-spacing:-2.5px;color:var(--fg-1);
+  line-height:1;font-variant-numeric:tabular-nums;
+}
+.hero-chg{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:8px 14px;border-radius:10px;
+  font-family:var(--mono);font-weight:600;font-size:14px;letter-spacing:.2px;
+  color:var(--fg-2);background:rgba(255,255,255,.035);border:1px solid var(--line-2);
+}
+.hero-chg.up{color:var(--up);background:var(--up-wash);border-color:rgba(117,184,123,.25)}
+.hero-chg.down{color:var(--down);background:var(--down-wash);border-color:rgba(180,121,107,.25)}
+.hero-chg svg{width:13px;height:13px}
+.hero-chg.down svg{transform:rotate(180deg)}
+.hero-chg .lbl{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;opacity:.7;margin-left:2px}
+.hero-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0;padding-top:22px;border-top:1px solid var(--line-1);position:relative;z-index:1}
+.hero-card{padding:0 24px;border-left:1px solid var(--line-1);position:relative;min-width:0}
+.hero-card:first-child{border-left:0;padding-left:0}
+.hero-card .hc-label{font-size:10px;text-transform:uppercase;letter-spacing:1.6px;color:var(--fg-3);font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:7px}
+.hero-card .hc-label svg{width:11px;height:11px;color:var(--fg-3)}
+.hero-card .hc-value{font-family:var(--mono);font-size:24px;font-weight:600;letter-spacing:-.6px;color:var(--fg-1);font-variant-numeric:tabular-nums;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hero-card .hc-value.gold{color:var(--gold)}
+.hero-card .hc-sub{font-size:11px;color:var(--fg-3);margin-top:8px;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.hero-bar{margin-top:10px;height:3px;background:var(--bg-3);border-radius:2px;overflow:hidden;border:1px solid var(--line-1)}
+.hero-bar > span{display:block;height:100%;width:0;background:var(--gold);border-radius:1px;transition:width .4s var(--ease)}
+.revenue-series-toggles{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:4px;border:1px solid var(--line-1);border-radius:10px;
+  background:rgba(255,255,255,.025);
+}
+.revenue-series-toggle{
+  min-height:32px;padding:0 11px;border-radius:7px;
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  color:var(--fg-3);font-family:var(--mono);font-size:11px;font-weight:700;
+  transition:background .16s var(--ease),color .16s var(--ease),box-shadow .16s var(--ease),opacity .16s var(--ease);
+}
+.revenue-series-toggle:hover{color:var(--fg-1);background:rgba(255,255,255,.04)}
+.revenue-series-toggle.active{color:var(--fg-1);background:rgba(201,162,39,.12);box-shadow:inset 0 0 0 1px var(--gold-line)}
+.revenue-series-toggle.dim{opacity:.42}
+.revenue-chart-wrap{padding:24px 24px 18px;position:relative}
+.revenue-chart-svg{width:100%;height:340px;display:block;overflow:visible}
+.revenue-chart-grid line{stroke:var(--line-1);stroke-width:1}
+.revenue-chart-grid text,.revenue-chart-axis text{font-family:var(--mono);font-size:10px;fill:var(--fg-3);font-weight:500}
+.revenue-chart-area{fill:url(#revenueChartGrad);opacity:.58;pointer-events:none}
+.revenue-chart-line{
+  fill:none;stroke-width:2.25;stroke-linejoin:round;stroke-linecap:round;
+  filter:drop-shadow(0 0 7px rgba(201,162,39,.16));
+  transition:opacity .15s var(--ease),stroke-width .15s var(--ease);
+}
+.revenue-chart-line.fees{filter:none}
+.revenue-chart-line.is-muted{opacity:.24}
+.revenue-chart-line.is-active{stroke-width:2.9;opacity:1}
+.revenue-hover-line{stroke:var(--fg-3);stroke-width:1;stroke-dasharray:3 3;opacity:0;pointer-events:none;transition:opacity .12s var(--ease)}
+.revenue-hover-dot{fill:var(--gold);stroke:var(--bg-0);stroke-width:2;opacity:0;pointer-events:none;transition:opacity .12s var(--ease)}
+.revenue-chart-tip{
+  position:absolute;pointer-events:none;opacity:0;z-index:4;
+  min-width:190px;padding:10px 12px;border:1px solid var(--line-3);border-radius:10px;
+  background:rgba(15,15,17,.96);box-shadow:var(--sh-hi);
+  transition:opacity .12s var(--ease);
+}
+.revenue-chart-tip .tt-date{color:var(--fg-3);font-size:10px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px}
+.revenue-chart-tip .tt-val{color:var(--gold);font-weight:700;font-size:14px}
+.revenue-chart-tip .tt-row{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-top:5px;color:var(--fg-3);font-size:12px}
+.revenue-chart-tip .tt-row b{color:var(--fg-1);font-weight:700}
+.revenue-brush-wrap{position:relative;padding:4px 24px 18px;user-select:none}
+.revenue-brush-stage{position:relative}
+.revenue-brush-svg{
+  width:100%;height:56px;display:block;border-radius:8px;border:1px solid var(--line-2);
+  background:var(--bg-1);box-shadow:inset 0 1px 0 rgba(255,255,255,.02);cursor:crosshair
+}
+.revenue-brush-line{fill:none;stroke:var(--gold);stroke-width:1;opacity:.64}
+.revenue-brush-area{fill:url(#revenueBrushGrad);opacity:.62}
+.revenue-brush-overlay{position:absolute;top:0;left:0;right:0;height:56px;pointer-events:none}
+.revenue-brush-dim{position:absolute;top:0;bottom:0;background:rgba(6,8,12,.55);pointer-events:none;border-radius:8px}
+.revenue-brush-dim.l{left:0;border-radius:8px 0 0 8px}
+.revenue-brush-dim.r{right:0;border-radius:0 8px 8px 0}
+.revenue-brush-window{
+  position:absolute;top:0;bottom:0;border:1.5px solid var(--gold);border-radius:6px;background:rgba(201,162,39,.06);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 0 0 1px rgba(201,162,39,.10);
+  cursor:grab;pointer-events:auto;transition:background .15s var(--ease),border-color .15s var(--ease)
+}
+.revenue-brush-window:hover{background:rgba(201,162,39,.10)}
+.revenue-brush-window.dragging{cursor:grabbing;background:rgba(201,162,39,.14)}
+.revenue-brush-handle{
+  position:absolute;top:0;bottom:0;width:14px;display:flex;align-items:center;justify-content:center;
+  cursor:ew-resize;pointer-events:auto;border-radius:4px;transition:background .15s var(--ease)
+}
+.revenue-brush-handle:hover{background:rgba(201,162,39,.10)}
+.revenue-brush-handle.l{left:-7px;border-radius:4px 0 0 4px}
+.revenue-brush-handle.r{right:-7px;border-radius:0 4px 4px 0}
+.revenue-brush-handle .grip{display:flex;gap:2px;pointer-events:none}
+.revenue-brush-handle .grip span{width:2px;height:18px;border-radius:2px;background:var(--gold);opacity:.85}
+.revenue-brush-handle .grip span:last-child{opacity:.45}
+.revenue-brush-label{
+  text-align:center;font-family:var(--mono);font-size:11px;color:var(--fg-3);letter-spacing:.3px;
+  min-height:16px;min-width:0;margin:0 0 8px
+}
+.revenue-brush-label .sep{color:var(--fg-4);margin:0 8px}
+.revenue-brush-label .v{color:var(--fg-2)}
+.revenue-brush-label .range{color:var(--gold);font-weight:800;margin-left:9px}
+.legend-swatch{width:18px;height:3px;border-radius:999px;background:var(--gold)}
+.legend-swatch.fees{background:#9ab7c2}
+.fee-split-layout{display:grid;grid-template-columns:1fr;gap:18px;align-items:center}
+.fee-donut-wrap{position:relative;width:100%;max-width:220px;aspect-ratio:1;margin:0 auto}
+.fee-donut-svg{width:100%;height:100%;display:block;transform:rotate(-90deg)}
+.fee-donut-arc{fill:none;stroke-width:30;transition:opacity .15s var(--ease),stroke-width .2s var(--ease);cursor:pointer}
+.fee-donut-arc:hover,.fee-donut-arc.active{stroke-width:36}
+.fee-donut-arc.dim{opacity:.18}
+.fee-donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;text-align:center}
+.fee-donut-center .dc-label{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:var(--fg-3);font-weight:700;margin-bottom:6px}
+.fee-donut-center .dc-value{font-family:var(--mono);font-size:24px;font-weight:800;color:var(--fg-1);line-height:1;font-variant-numeric:tabular-nums}
+.fee-donut-center .dc-sub{font-family:var(--mono);font-size:11px;color:var(--fg-3);margin-top:6px}
+.fee-legend{display:flex;flex-direction:column;gap:4px;width:100%;min-width:0}
+.fee-leg-row{
+  display:flex;align-items:center;gap:11px;min-width:0;
+  padding:10px 11px;border-left:3px solid transparent;border-radius:8px;
+  transition:background .15s var(--ease),border-color .15s var(--ease),opacity .15s var(--ease),transform .15s var(--ease);
+}
+.fee-leg-row:not(.muted){cursor:pointer}
+.fee-leg-row:hover,.fee-leg-row.active{background:rgba(201,162,39,.05);border-left-color:var(--gold)}
+.fee-leg-row.dim{opacity:.35;transform:scale(.99)}
+.fee-leg-dot{width:10px;height:10px;border-radius:50%;flex:0 0 10px;background:var(--gold);box-shadow:0 0 8px rgba(201,162,39,.3)}
+.fee-leg-dot.lenders{background:#9ab7c2;box-shadow:0 0 8px rgba(154,183,194,.22)}
+.fee-leg-dot.total{background:var(--fg-4);box-shadow:none}
+.fee-leg-main{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.fee-leg-main span{font-size:13px;font-weight:700;color:var(--fg-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fee-leg-main small{font-size:11px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fee-leg-row strong{font-family:var(--mono);font-size:13px;color:var(--fg-2);font-weight:800;white-space:nowrap}
+.fee-leg-row:hover strong,.fee-leg-row.active strong{color:var(--fg-1)}
+.table-panel{margin-top:18px;overflow:hidden}
+.chain-panel-head{align-items:flex-start}
+.chain-range-tools{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.chain-date-field{
+  display:flex;flex-direction:column;gap:6px;
+  color:var(--fg-3);font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:1.1px;
+}
+.chain-date-field input{
+  height:34px;min-width:144px;border-radius:8px;border:1px solid var(--line-2);
+  background:var(--bg-3);color:var(--fg-1);font-family:var(--mono);font-size:12px;font-weight:750;
+  padding:0 10px;color-scheme:dark;outline:none;
+  transition:border-color .16s var(--ease),background .16s var(--ease),box-shadow .16s var(--ease)
+}
+.chain-date-field input:hover{border-color:var(--line-3);background:rgba(255,255,255,.04)}
+.chain-date-field input:focus{border-color:var(--gold-line);box-shadow:0 0 0 2px rgba(201,162,39,.10)}
+.chain-date-field input::-webkit-calendar-picker-indicator{opacity:.72;cursor:pointer}
+.chain-date-sep{height:34px;display:grid;place-items:center;color:var(--fg-4);font-family:var(--mono);font-size:13px;padding:0 2px}
+.table-wrap{overflow:auto}
+.revenue-table{width:100%;min-width:820px;border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:12px}
+.revenue-table th{
+  padding:11px 16px;background:#101012;border-bottom:1px solid var(--line-2);
+  color:var(--fg-3);font-size:9.5px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;
+  text-align:right;white-space:nowrap;
+}
+.revenue-table th:first-child{text-align:left}
+.revenue-table td{
+  padding:13px 16px;border-bottom:1px solid rgba(255,255,255,.055);
+  font-variant-numeric:tabular-nums;color:var(--fg-2);vertical-align:middle;white-space:nowrap;
+  position:relative;background:transparent;text-align:right;
+}
+.revenue-table td:first-child{text-align:left}
+.revenue-table tbody tr:nth-child(even) td{background:rgba(255,255,255,.014)}
+.revenue-table tbody tr{transition:background .15s var(--ease),color .15s var(--ease)}
+.revenue-table tbody tr:hover td{background:rgba(255,255,255,.026);color:var(--fg-1)}
+.revenue-table tbody tr:hover td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0;display:block}
+.chain-cell{display:flex;align-items:center;gap:10px;min-width:0}
+.chain-badge{
+  width:34px;
+  height:34px;
+  border-radius:999px;
+  display:grid;
+  place-items:center;
+  flex:0 0 auto;
+  border:1px solid rgba(214,164,47,.18);
+  background:rgba(214,164,47,.08);
+  color:var(--gold-2);
+  font-size:10px;
+  font-weight:900;
+}
+.chain-badge img{width:100%;height:100%;border-radius:999px;object-fit:cover;display:block}
+.chain-badge.fallback{font-family:var(--mono)}
+.chain-name{font-size:14px;font-weight:820;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chain-sub{margin-top:3px;color:var(--text-3);font-size:12px}
+.revenue-col-inner{display:inline-flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:128px}
+.revenue-primary{font-family:var(--mono);font-size:14px;font-weight:900;color:var(--gold);text-shadow:0 0 14px rgba(201,162,39,.12)}
+.revenue-share-track{width:100%;height:3px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden}
+.revenue-share-track span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,rgba(201,162,39,.42),var(--gold))}
+.num-main{font-family:var(--mono);font-size:13px;font-weight:750;color:var(--fg-1)}
+.num-sub{margin-top:3px;color:var(--text-3);font-size:12px}
+.proto{margin-top:24px;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-xl);overflow:hidden;box-shadow:var(--sh-card);position:relative}
+.proto::before{
+  content:"";position:absolute;left:0;right:0;top:0;height:1px;
+  background:linear-gradient(90deg,transparent 0%,var(--gold-line) 30%,var(--gold-line) 70%,transparent 100%);
+  opacity:.6;pointer-events:none;
+}
+.proto-head{display:flex;flex-direction:column;align-items:flex-start;gap:16px;padding:22px 24px 20px;border-bottom:1px solid var(--line-1)}
+.proto-brand{display:flex;align-items:center;gap:14px}
+.proto-brand-mark{width:40px;height:40px;border-radius:50%;background:var(--bg-3);border:1px solid var(--line-2);display:grid;place-items:center;overflow:hidden;flex-shrink:0}
+.proto-brand-mark img{width:28px;height:28px;object-fit:contain}
+.proto-brand-text{display:flex;flex-direction:column;gap:2px}
+.proto-brand-name{font-size:15px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px;line-height:normal}
+.proto-brand-sub{font-size:12px;color:var(--fg-3);margin-top:0}
+.proto-brand-sub b{color:var(--fg-2);font-weight:700}
+.proto-links{display:flex;align-items:center;gap:14px;flex-wrap:wrap;row-gap:10px}
+.proto-links-group{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+.proto-links-label{
+  font-size:9.5px;text-transform:uppercase;letter-spacing:1.4px;font-weight:600;
+  color:var(--fg-4);margin-right:4px;
+}
+.proto-links-sep{width:1px;height:18px;background:var(--line-2);flex-shrink:0}
+.proto-pill{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;font-size:12px;color:var(--fg-2);background:var(--bg-3);border:1px solid var(--line-2);border-radius:999px;text-decoration:none;
+  transition:border-color .2s var(--ease),color .2s var(--ease),background .2s var(--ease)}
+.proto-pill:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.proto-pill svg{width:13px;height:13px;color:currentColor}
+.proto-body{padding:20px 24px 24px}
+.proto-body-head{
+  font-size:11px;text-transform:uppercase;letter-spacing:1.6px;
+  color:var(--fg-2);font-weight:600;margin-bottom:14px;
+  display:flex;align-items:center;gap:10px;
+}
+.proto-body-head::after{content:"";flex:1;height:1px;background:var(--line-1)}
+.proto-addrs{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.proto-addr{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:12px 14px;background:var(--bg-1);border:1px solid var(--line-2);border-radius:var(--r-md);
+  transition:border-color .2s var(--ease),background .2s var(--ease);cursor:pointer;min-width:0;
+}
+.proto-addr:hover{border-color:var(--gold-line);background:rgba(201,162,39,.02)}
+.proto-addr-left{display:flex;align-items:center;gap:12px;min-width:0}
+.proto-token{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.proto-token img{width:28px;height:28px;border-radius:50%;object-fit:cover;background:var(--bg-3);border:1px solid var(--line-2)}
+.proto-token-name{font-size:14px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px}
+.proto-chain-chip{display:inline-flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--fg-2);padding:3px 8px;border-radius:4px;background:var(--bg-3);border:1px solid var(--line-2);font-weight:500}
+.proto-chain-chip .dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;background-color:var(--bg-2);background-position:center;background-size:cover;box-shadow:0 0 0 1px rgba(0,0,0,.35)}
+.proto-chain-chip .dot-ethereum{background-image:url("https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg")}
+.proto-chain-chip .dot-berachain{background-image:url("https://icons.llamao.fi/icons/chains/rsz_berachain.jpg");background-size:126%}
+.proto-addr-right{display:flex;align-items:center;gap:8px;min-width:0;flex:1;justify-content:flex-end}
+.proto-addr-hex{font-family:var(--mono);font-size:11px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+.proto-copy,.proto-explore{
+  width:26px;height:26px;border-radius:6px;
+  background:var(--bg-3);border:1px solid var(--line-2);
+  display:grid;place-items:center;color:var(--fg-3);
+  flex-shrink:0;cursor:pointer;
+  transition:color .2s var(--ease),border-color .2s var(--ease),background .2s var(--ease);
+}
+.proto-copy:hover,.proto-explore:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.proto-copy.copied{color:var(--up);border-color:var(--up)}
+.proto-copy svg,.proto-explore svg{width:12px;height:12px;pointer-events:none}
+.empty-state{padding:28px 20px;color:var(--text-3);font-size:13px}
+.skeleton{
+  position:relative;
+  overflow:hidden;
+  color:transparent!important;
+  background:rgba(255,255,255,.06);
+  border-radius:6px;
+}
+.skeleton::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  transform:translateX(-100%);
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.07),transparent);
+  animation:shine 1.4s infinite;
+}
+@keyframes shine{to{transform:translateX(100%)}}
+@media (max-width:1100px){
+  .site-brand img{width:min(100%,820px);max-width:100%}
+  .site-nav-wrap{width:100%;justify-content:center;overflow:visible}
+  .site-nav{max-width:100%;overflow-x:auto;scrollbar-width:none}
+  .site-nav::-webkit-scrollbar{display:none}
+  .hero-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .hero-card:nth-child(3){border-left:0;padding-left:0}
+  .grid-main{grid-template-columns:1fr}
+}
+@media (max-width:720px){
+  .wrap{padding:24px 15px 48px}
+  .hero{padding:19px}
+  .hero-brand{margin-bottom:22px}
+  .hero-meta{margin-left:0;width:100%}
+  .hero-headline{padding-bottom:22px}
+  .hero-grid{grid-template-columns:1fr}
+  .hero-card{border-left:0;border-top:1px solid var(--line-1);padding:14px 0 0}
+  .hero-card:first-child{border-top:0;padding-top:0}
+  .panel-head{display:block}
+  .revenue-series-toggles{margin-top:12px;width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .chain-range-tools{margin-top:14px;width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);justify-content:stretch}
+  .chain-date-field input{min-width:0;width:100%}
+  .revenue-chart-wrap{padding:18px 16px 14px}
+  .revenue-chart-svg{height:280px}
+  .revenue-brush-wrap{padding:4px 16px 16px}
+  .fee-split-layout{grid-template-columns:1fr}
+  .fee-donut-wrap{max-width:260px}
+  .revenue-table th,.revenue-table td{padding:12px 14px}
+  .revenue-table{min-width:760px}
+  .proto-addrs{grid-template-columns:1fr}
+  .proto-addr-hex{max-width:120px}
+  .proto-links-sep{display:none}
+  .proto-links{flex-direction:column;align-items:flex-start;gap:10px}
+  .proto-addr{width:100%;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto}
+  .proto-addr-right{min-width:0}
+  .proto-addr-hex{max-width:96px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="site-top">
+    <div class="site-brand">
+      <img src="TwojeKrypto%20dashboard.png" alt="Dolomite Dashboard - Powered by TwojeKrypto">
+    </div>
+    <div class="site-nav-wrap">
+      <nav class="site-nav">
+        <a class="nav-item" href="./assets/" data-tab="assets">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          <span>Assets</span>
+        </a>
+        <a class="nav-item" href="./tvl/" data-tab="tvl">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-6 4 4 5-8"/></svg>
+          <span>TVL</span>
+        </a>
+        <a class="nav-item" href="./dolo/" data-tab="dolo">
+          <img src="dolo-logo.svg" alt="" onerror="this.style.display='none'">
+          <span>DOLO</span>
+        </a>
+        <a class="nav-item" href="./odolo/" data-tab="odolo">
+          <img src="odolo-logo-official.svg" alt="" onerror="this.style.display='none'">
+          <span>oDOLO</span>
+        </a>
+        <a class="nav-item" href="./vedolo/" data-tab="vedolo">
+          <img src="vedolo-logo.svg" alt="" onerror="this.style.display='none'">
+          <span>veDOLO</span>
+        </a>
+        <a class="nav-item" href="./earn/" data-tab="earn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/></svg>
+          <span>Earn</span>
+        </a>
+        <a class="nav-item" href="./borrow/" data-tab="borrow">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M12 13v4"/><path d="m9.5 15 2.5 2.5L14.5 15"/></svg>
+          <span>Borrow</span>
+        </a>
+        <a class="nav-item" href="./supply/" data-tab="supply">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          <span>Supply</span>
+        </a>
+        <a class="nav-item active" href="./revenue/" data-tab="revenue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-7"/><path d="M16 7h3v3"/></svg>
+          <span>Revenue</span>
+        </a>
+        <a class="nav-item" href="./history/" data-tab="history">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/><path d="M12 7v5l3 2"/></svg>
+          <span>History</span>
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-brand">
+      <div class="hero-token-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-7"/><path d="M16 7h3v3"/></svg>
+      </div>
+      <div class="hero-token-text">
+        <div class="hero-token-title">Dolomite Revenue</div>
+        <div class="hero-token-sub"><b>Dolomite</b> · borrow interest retained by the protocol</div>
+      </div>
+      <div class="hero-meta">
+        <div class="hero-live" id="freshPill"><span class="dot"></span><span>Loading data</span></div>
+      </div>
+    </div>
+
+    <div class="hero-headline">
+      <div class="hero-value skeleton" id="dailyRevenue">$0</div>
+      <div class="hero-chg" id="dailyChange">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 14 12 8 18 14"/></svg>
+        <span>24h</span>
+        <span class="lbl">daily</span>
+      </div>
+    </div>
+
+    <div class="hero-grid">
+      <div class="hero-card">
+        <div class="hc-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          Borrower Fees
+        </div>
+        <div class="hc-value skeleton" id="dailyFees">$0</div>
+        <div class="hc-sub">interest paid by borrowers</div>
+        <div class="hero-bar"><span id="dailyFeesBar"></span></div>
+      </div>
+      <div class="hero-card">
+        <div class="hc-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg>
+          Protocol Cut
+        </div>
+        <div class="hc-value gold skeleton" id="protocolCut">0%</div>
+        <div class="hc-sub">daily revenue / fees</div>
+        <div class="hero-bar"><span id="protocolCutBar"></span></div>
+      </div>
+      <div class="hero-card">
+        <div class="hc-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 4-4 3 3 5-7"/></svg>
+          7D Revenue
+        </div>
+        <div class="hc-value skeleton" id="revenue7d">$0</div>
+        <div class="hc-sub">rolling protocol revenue</div>
+      </div>
+      <div class="hero-card">
+        <div class="hc-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 2v4"/><path d="M16 2v4"/><path d="M3 10h18"/></svg>
+          30D Revenue
+        </div>
+        <div class="hc-value skeleton" id="revenue30d">$0</div>
+        <div class="hc-sub">retained by protocol</div>
+      </div>
+    </div>
+  </section>
+
+  <main class="grid-main">
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Revenue Over Time</div>
+          <div class="panel-sub">Daily USD by selected series.</div>
+        </div>
+        <div class="revenue-series-toggles" aria-label="Revenue chart series">
+          <button class="revenue-series-toggle active" type="button" data-series="revenue" aria-pressed="true"><span class="legend-swatch"></span><span>Revenue</span></button>
+          <button class="revenue-series-toggle active" type="button" data-series="fees" aria-pressed="true"><span class="legend-swatch fees"></span><span>Borrower fees</span></button>
+        </div>
+      </div>
+      <div class="revenue-chart-wrap" id="revenueChartWrap">
+        <svg class="revenue-chart-svg" id="revenueChart" viewBox="0 0 1000 340" preserveAspectRatio="none" role="img" aria-label="Dolomite revenue chart"></svg>
+        <div class="revenue-chart-tip" id="revenueChartTip">
+          <div class="tt-date">-</div>
+          <div class="tt-val">-</div>
+        </div>
+      </div>
+      <div class="revenue-brush-wrap" id="revenueBrushWrap">
+        <div class="revenue-brush-label" id="revenueBrushLabel"></div>
+        <div class="revenue-brush-stage">
+          <svg class="revenue-brush-svg" id="revenueBrushSvg" viewBox="0 0 1000 56" preserveAspectRatio="none" aria-label="Revenue time range navigator">
+            <defs>
+              <linearGradient id="revenueBrushGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#c9a227" stop-opacity=".30"/>
+                <stop offset="100%" stop-color="#c9a227" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path class="revenue-brush-area" id="revenueBrushArea" d=""></path>
+            <path class="revenue-brush-line" id="revenueBrushLine" d=""></path>
+          </svg>
+          <div class="revenue-brush-overlay" id="revenueBrushOverlay">
+            <div class="revenue-brush-dim l" id="revenueBrushDimL"></div>
+            <div class="revenue-brush-window" id="revenueBrushWindow">
+              <div class="revenue-brush-handle l" id="revenueBrushHandleL"><div class="grip"><span></span><span></span></div></div>
+              <div class="revenue-brush-handle r" id="revenueBrushHandleR"><div class="grip"><span></span><span></span></div></div>
+            </div>
+            <div class="revenue-brush-dim r" id="revenueBrushDimR"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Fee Split</div>
+          <div class="panel-sub">Daily borrower interest split between retained revenue and lender payments.</div>
+        </div>
+      </div>
+      <div class="mix-body">
+        <div class="fee-split-layout">
+          <div class="fee-donut-wrap">
+            <svg class="fee-donut-svg" id="feeDonutSvg" viewBox="0 0 200 200"></svg>
+            <div class="fee-donut-center" id="feeDonutCenter">
+              <div class="dc-label">Protocol Cut</div>
+              <div class="dc-value" id="cutRingValue">0%</div>
+              <div class="dc-sub">daily split</div>
+            </div>
+          </div>
+          <div class="fee-legend" id="feeSplitLegend">
+            <div class="fee-leg-row" data-split="protocol">
+              <span class="fee-leg-dot protocol"></span>
+              <div class="fee-leg-main">
+                <span>Protocol revenue</span>
+                <small>retained by Dolomite</small>
+              </div>
+              <strong id="splitRevenue">$0</strong>
+            </div>
+            <div class="fee-leg-row" data-split="lenders">
+              <span class="fee-leg-dot lenders"></span>
+              <div class="fee-leg-main">
+                <span>Paid to lenders</span>
+                <small>from borrower fees</small>
+              </div>
+              <strong id="splitLenders">$0</strong>
+            </div>
+            <div class="fee-leg-row muted">
+              <span class="fee-leg-dot total"></span>
+              <div class="fee-leg-main">
+                <span>All-time protocol revenue</span>
+                <small>retained fees total</small>
+              </div>
+              <strong id="allTimeRevenue">$0</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <section class="panel table-panel">
+    <div class="panel-head chain-panel-head">
+      <div>
+        <div class="panel-title">Revenue by Chain</div>
+        <div class="panel-sub">Chain breakdown for selected date range.</div>
+      </div>
+      <div class="chain-range-tools" aria-label="Revenue by Chain date range">
+        <label class="chain-date-field">
+          <span>From</span>
+          <input id="chainRangeFrom" type="date" autocomplete="off">
+        </label>
+        <span class="chain-date-sep">→</span>
+        <label class="chain-date-field">
+          <span>To</span>
+          <input id="chainRangeTo" type="date" autocomplete="off">
+        </label>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="revenue-table">
+        <colgroup>
+          <col style="width:25%">
+          <col style="width:16%">
+          <col style="width:16%">
+          <col style="width:16%">
+          <col style="width:14%">
+          <col style="width:13%">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Chain</th>
+            <th>Revenue</th>
+            <th>Borrower fees</th>
+            <th>Paid to lenders</th>
+            <th>Protocol cut</th>
+            <th>% of total</th>
+          </tr>
+        </thead>
+        <tbody id="chainRows">
+          <tr><td colspan="6" class="empty-state">Loading chain revenue...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="proto">
+    <div class="proto-head">
+      <div class="proto-brand">
+        <div class="proto-brand-mark">
+          <img src="dolo-logo.svg" alt="DOLO" onerror="this.outerHTML='<span style=&quot;color:var(--gold);font-weight:800;font-size:16px&quot;>◆</span>'">
+        </div>
+        <div class="proto-brand-text">
+          <div class="proto-brand-name">Dolomite</div>
+          <div class="proto-brand-sub">Lending &amp; margin · <b>7 chains</b> · <b>104 markets</b></div>
+        </div>
+      </div>
+      <div class="proto-links">
+        <div class="proto-links-group">
+          <span class="proto-links-label">Community</span>
+          <a class="proto-pill" href="https://twitter.com/Dolomite_io" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>Twitter</a>
+          <a class="proto-pill" href="https://t.me/dolomite_official" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>Telegram</a>
+          <a class="proto-pill" href="https://discord.com/invite/uDRzrB2YgP" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037 19.736 19.736 0 00-4.885 1.515.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028 14.09 14.09 0 001.226-1.994.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.086 2.157 2.419 0 1.334-.955 2.419-2.157 2.419zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.086 2.157 2.419 0 1.334-.946 2.419-2.157 2.419z"/></svg>Discord</a>
+        </div>
+        <span class="proto-links-sep"></span>
+        <div class="proto-links-group">
+          <span class="proto-links-label">Resources</span>
+          <a class="proto-pill" href="https://dolomite.io" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>Website</a>
+          <a class="proto-pill" href="https://docs.dolomite.io/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>Docs</a>
+          <a class="proto-pill" href="https://github.com/dolomite-exchange" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>GitHub</a>
+          <a class="proto-pill" href="https://docs.dolomite.io/security/audits" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Audits</a>
+        </div>
+      </div>
+    </div>
+    <div class="proto-body">
+      <div class="proto-body-head">Contract Addresses</div>
+      <div class="proto-addrs" id="proto-addrs"></div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+  const DATA_URL = "dolomite_revenue.json?v=revenue-20260601a";
+  let revenueData = null;
+  const activeSeries = { revenue: true, fees: true };
+  const SERIES = {
+    revenue: { key: "revenue", label: "Revenue", field: "revenueUSD", color: "#c9a227" },
+    fees: { key: "fees", label: "Borrower fees", field: "feesUSD", color: "#9ab7c2" }
+  };
+  const COPY_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+  const CHECK_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  const EXT_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+  const CONTRACTS = [
+    { token:"DOLO",   logo:"dolo-logo.svg",           chain:"Ethereum",  chainKey:"ethereum",  addr:"0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654", explorer:"https://etherscan.io" },
+    { token:"DOLO",   logo:"dolo-logo.svg",           chain:"Berachain", chainKey:"berachain", addr:"0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654", explorer:"https://berascan.com" },
+    { token:"oDOLO",  logo:"odolo-logo-official.svg", chain:"Berachain", chainKey:"berachain", addr:"0x02E513b5B54eE216Bf836ceb471507488fC89543", explorer:"https://berascan.com" },
+    { token:"veDOLO", logo:"vedolo-logo.svg",         chain:"Berachain", chainKey:"berachain", addr:"0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4", explorer:"https://berascan.com" },
+  ];
+  let revenueBrushSel = { from: 0, to: 0 };
+  let revenueBrushInitialized = false;
+  let revenueBrushDragging = null;
+  let revenueBrushDomainKey = "";
+  let revenueBrushRows = [];
+  let revenueBrushRenderFrame = 0;
+  let revenueBrushJustDragged = false;
+
+  function qs(id){ return document.getElementById(id); }
+  function n(value){ return Number.isFinite(Number(value)) ? Number(value) : 0; }
+  function usd(value){
+    const abs = Math.abs(n(value));
+    if (abs >= 1e9) return "$" + (n(value) / 1e9).toFixed(2) + "B";
+    if (abs >= 1e6) return "$" + (n(value) / 1e6).toFixed(2) + "M";
+    if (abs >= 1e3) return "$" + (n(value) / 1e3).toFixed(2) + "K";
+    return "$" + Math.round(n(value)).toLocaleString("en-US");
+  }
+  function usdFull(value){
+    return "$" + Math.round(n(value)).toLocaleString("en-US");
+  }
+  function pct(value){
+    return (n(value) * 100).toFixed(1).replace(".0","") + "%";
+  }
+  function setText(id,value){
+    const el = qs(id);
+    if (!el) return;
+    el.textContent = value;
+    el.classList.remove("skeleton");
+  }
+  function esc(value){
+    return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));
+  }
+  function shorten(value){
+    const text = String(value || "");
+    return text.length > 13 ? `${text.slice(0,6)}...${text.slice(-4)}` : text;
+  }
+  function renderProtocolInfo(){
+    const body = qs("proto-addrs");
+    if (!body) return;
+    body.innerHTML = CONTRACTS.map((contract, index) => `
+      <div class="proto-addr" data-idx="${index}">
+        <div class="proto-addr-left">
+          <div class="proto-token">
+            <img src="${esc(contract.logo)}" alt="${esc(contract.token)}" onerror="this.style.display='none'">
+            <span class="proto-token-name">${esc(contract.token)}</span>
+          </div>
+          <span class="proto-chain-chip"><span class="dot dot-${esc(contract.chainKey)}"></span>${esc(contract.chain)}</span>
+        </div>
+        <div class="proto-addr-right">
+          <span class="proto-addr-hex" data-full-addr="${esc(contract.addr)}">${esc(shorten(contract.addr))}</span>
+          <button class="proto-copy" data-copy="${esc(contract.addr)}" aria-label="Copy address">${COPY_ICO}</button>
+          <button class="proto-explore" data-url="${esc(contract.explorer)}/token/${esc(contract.addr)}" aria-label="Open in explorer">${EXT_ICO}</button>
+        </div>
+      </div>
+    `).join("");
+    body.querySelectorAll(".proto-addr").forEach(row => {
+      const contract = CONTRACTS[Number(row.dataset.idx)];
+      row.addEventListener("click", event => {
+        if (!contract || event.target.closest(".proto-copy") || event.target.closest(".proto-explore")) return;
+        window.open(`${contract.explorer}/token/${contract.addr}`, "_blank", "noopener");
+      });
+    });
+    body.querySelectorAll(".proto-explore").forEach(button => {
+      button.addEventListener("click", event => {
+        event.stopPropagation();
+        const url = button.dataset.url;
+        if (url) window.open(url, "_blank", "noopener");
+      });
+    });
+    body.querySelectorAll(".proto-copy").forEach(button => {
+      button.addEventListener("click", async event => {
+        event.stopPropagation();
+        try {
+          await navigator.clipboard.writeText(button.dataset.copy || "");
+        } catch (error) {
+          console.warn("Copy address failed", error);
+        }
+        button.classList.add("copied");
+        button.innerHTML = CHECK_ICO;
+        setTimeout(() => {
+          button.classList.remove("copied");
+          button.innerHTML = COPY_ICO;
+        }, 1400);
+      });
+    });
+  }
+  function chainAbbr(chain){
+    const key = String(chain || "").toLowerCase();
+    if (key.includes("ethereum")) return "ETH";
+    if (key.includes("berachain")) return "BERA";
+    if (key.includes("arbitrum")) return "ARB";
+    if (key.includes("mantle")) return "MNT";
+    if (key.includes("polygon")) return "ZKE";
+    if (key.includes("x layer")) return "XL";
+    return String(chain || "?").slice(0,3).toUpperCase();
+  }
+  function chainKey(chain){
+    const key = String(chain || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (key.includes("polygon")) return "polygon%20zkevm";
+    if (key.includes("xlayer")) return "x%20layer";
+    if (key.includes("berachain")) return "berachain";
+    if (key.includes("arbitrum")) return "arbitrum";
+    if (key.includes("ethereum")) return "ethereum";
+    if (key.includes("mantle")) return "mantle";
+    if (key.includes("botanix")) return "botanix";
+    return key;
+  }
+  function chainIcon(chain){
+    const key = chainKey(chain);
+    return key ? `https://icons.llamao.fi/icons/chains/rsz_${key}.jpg` : "";
+  }
+  function dateLabel(iso){
+    if (!iso) return "fresh data";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "fresh data";
+    return d.toLocaleString("en-US", { month:"short", day:"2-digit", year:"numeric", hour:"numeric", minute:"2-digit" });
+  }
+  function formatDay(ts, compact){
+    const opts = compact
+      ? { month:"short", day:"numeric" }
+      : { month:"short", day:"numeric", year:"numeric" };
+    return new Date(ts * 1000).toLocaleDateString("en-US", opts);
+  }
+  function formatRangeDay(ts){
+    return new Date(ts * 1000).toLocaleDateString("en-US", { month:"short", day:"2-digit", year:"numeric" });
+  }
+  function formatDateInput(ts){
+    return new Date(ts * 1000).toISOString().slice(0, 10);
+  }
+  function dateInputTs(value){
+    const parsed = Date.parse(String(value || "") + "T00:00:00Z");
+    return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : NaN;
+  }
+  function rangeDays(from, to){
+    return Math.max(1, Math.round((to - from) / 86400));
+  }
+  function formatAxisDate(ts, spanDays){
+    const d = new Date(ts * 1000);
+    if (spanDays <= 90) return d.toLocaleDateString("en-US", { month:"short", day:"numeric" });
+    return d.toLocaleDateString("en-US", { month:"short", year:"2-digit" });
+  }
+  function rowTs(row){
+    const raw = n(row.timestamp);
+    if (raw > 0) return raw;
+    const parsed = Date.parse(String(row.date || "") + "T00:00:00Z");
+    return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : 0;
+  }
+  function allRows(){
+    return (revenueData?.series || [])
+      .map(row => ({ ...row, ts: rowTs(row) }))
+      .filter(row => row.ts > 0)
+      .sort((a,b) => a.ts - b.ts);
+  }
+  function isSeriesVisible(key){
+    return activeSeries[key] !== false;
+  }
+  function activeSeriesDefs(){
+    const defs = [SERIES.revenue, SERIES.fees].filter(def => isSeriesVisible(def.key));
+    if (defs.length) return defs;
+    activeSeries.revenue = true;
+    return [SERIES.revenue];
+  }
+  function toggleRevenueSeries(key){
+    if (!SERIES[key]) return;
+    const enabledCount = Object.values(activeSeries).filter(Boolean).length;
+    if (activeSeries[key] && enabledCount <= 1) return;
+    activeSeries[key] = !activeSeries[key];
+    renderRevenueChart();
+  }
+  function revenueBrushDomain(){
+    const rows = revenueBrushRows.length ? revenueBrushRows : allRows();
+    const minX = rows[0]?.ts || 0;
+    const maxX = rows[rows.length - 1]?.ts || (minX + 1);
+    return { rows, minX, maxX, span: Math.max(1, maxX - minX) };
+  }
+  function ensureRevenueBrushSelection(rows){
+    const minX = rows[0]?.ts || 0;
+    const maxX = rows[rows.length - 1]?.ts || (minX + 1);
+    const domainKey = `${minX}:${maxX}:${rows.length}`;
+    if (revenueBrushDomainKey !== domainKey || !(revenueBrushSel.from >= minX && revenueBrushSel.to <= maxX && revenueBrushSel.from < revenueBrushSel.to)) {
+      revenueBrushSel = { from: minX, to: maxX };
+      revenueBrushDomainKey = domainKey;
+    }
+  }
+  function visibleRows(rows){
+    ensureRevenueBrushSelection(rows);
+    let visible = rows.filter(row => row.ts >= revenueBrushSel.from && row.ts <= revenueBrushSel.to);
+    if (visible.length < 2 && rows.length >= 2) {
+      const center = (revenueBrushSel.from + revenueBrushSel.to) / 2;
+      visible = [...rows]
+        .sort((a,b) => Math.abs(a.ts - center) - Math.abs(b.ts - center))
+        .slice(0, 2)
+        .sort((a,b) => a.ts - b.ts);
+    }
+    return visible.length ? visible : rows;
+  }
+  function selectedRevenueRows(rows){
+    ensureRevenueBrushSelection(rows);
+    return rows.filter(row => row.ts >= revenueBrushSel.from && row.ts <= revenueBrushSel.to);
+  }
+  function updateRevenueDateInputs(){
+    const fromInput = qs("chainRangeFrom");
+    const toInput = qs("chainRangeTo");
+    const rows = revenueBrushRows.length ? revenueBrushRows : allRows();
+    if (!fromInput || !toInput || !rows.length) return;
+    const minDate = formatDateInput(rows[0].ts);
+    const maxDate = formatDateInput(rows[rows.length - 1].ts);
+    fromInput.min = minDate;
+    fromInput.max = maxDate;
+    toInput.min = minDate;
+    toInput.max = maxDate;
+    fromInput.value = formatDateInput(revenueBrushSel.from);
+    toInput.value = formatDateInput(revenueBrushSel.to);
+  }
+  function setRevenueDateRange(fromValue, toValue, changed){
+    const rows = allRows();
+    if (!rows.length) return;
+    const minX = rows[0].ts;
+    const maxX = rows[rows.length - 1].ts;
+    let from = dateInputTs(fromValue);
+    let to = dateInputTs(toValue);
+    if (!Number.isFinite(from)) from = revenueBrushSel.from || minX;
+    if (!Number.isFinite(to)) to = revenueBrushSel.to || maxX;
+    from = Math.max(minX, Math.min(maxX, from));
+    to = Math.max(minX, Math.min(maxX, to));
+    if (from > to) {
+      if (changed === "from") to = from;
+      else from = to;
+    }
+    revenueBrushSel = { from, to };
+    paintRevenueBrushWindow();
+    renderRevenueChart({ skipBrush: true });
+  }
+  function paintRevenueBrushWindow(){
+    const { minX, span } = revenueBrushDomain();
+    const win = qs("revenueBrushWindow");
+    const dimL = qs("revenueBrushDimL");
+    const dimR = qs("revenueBrushDimR");
+    const label = qs("revenueBrushLabel");
+    if (!win || !dimL || !dimR || !label) return;
+    const leftPct = Math.max(0, Math.min(100, (revenueBrushSel.from - minX) / span * 100));
+    const rightPct = Math.max(leftPct, Math.min(100, (revenueBrushSel.to - minX) / span * 100));
+    win.style.left = leftPct + "%";
+    win.style.width = (rightPct - leftPct) + "%";
+    dimL.style.width = leftPct + "%";
+    dimR.style.width = (100 - rightPct) + "%";
+    const days = rangeDays(revenueBrushSel.from, revenueBrushSel.to);
+    label.innerHTML = `<span class="v">${formatDay(revenueBrushSel.from, false)}</span><span class="sep"> → </span><span class="v">${formatDay(revenueBrushSel.to, false)}</span><span class="range"> · ${days}D</span>`;
+    updateRevenueDateInputs();
+  }
+  function scheduleRevenueBrushChartRender(){
+    if (revenueBrushRenderFrame) return;
+    const run = () => {
+      revenueBrushRenderFrame = 0;
+      renderRevenueChart({ skipBrush: true });
+    };
+    revenueBrushRenderFrame = typeof requestAnimationFrame === "function" ? requestAnimationFrame(run) : setTimeout(run, 16);
+  }
+  function flushRevenueBrushChartRender(){
+    if (revenueBrushRenderFrame) {
+      if (typeof cancelAnimationFrame === "function") cancelAnimationFrame(revenueBrushRenderFrame);
+      else clearTimeout(revenueBrushRenderFrame);
+      revenueBrushRenderFrame = 0;
+    }
+    renderRevenueChart({ skipBrush: true });
+  }
+  function renderRevenueBrush(rows, defs){
+    revenueBrushRows = rows;
+    ensureRevenueBrushSelection(rows);
+    const brushLine = qs("revenueBrushLine");
+    const brushArea = qs("revenueBrushArea");
+    if (!brushLine || !brushArea) return;
+    if (rows.length < 2) {
+      brushLine.setAttribute("d", "");
+      brushArea.setAttribute("d", "");
+      paintRevenueBrushWindow();
+      return;
+    }
+    const def = defs?.[0] || SERIES.revenue;
+    const minX = rows[0].ts;
+    const maxX = rows[rows.length - 1].ts;
+    const span = Math.max(1, maxX - minX);
+    const maxY = Math.max(1, ...rows.map(row => n(row[def.field])));
+    const BW = 1000, BH = 56;
+    const xAt = ts => (ts - minX) / span * BW;
+    const yAt = value => BH - Math.max(0, Math.min(1, value / (maxY * 1.05))) * BH;
+    const line = rows.map((row, index) => `${index ? "L" : "M"}${xAt(row.ts).toFixed(1)} ${yAt(n(row[def.field])).toFixed(1)}`).join(" ");
+    const area = `${line} L${xAt(rows[rows.length - 1].ts).toFixed(1)} ${BH} L${xAt(rows[0].ts).toFixed(1)} ${BH} Z`;
+    brushLine.setAttribute("d", line);
+    brushLine.setAttribute("stroke", def.color);
+    brushArea.setAttribute("d", area);
+    brushArea.style.fill = def.key === "fees" ? "rgba(154,183,194,.16)" : "url(#revenueBrushGrad)";
+    paintRevenueBrushWindow();
+    initRevenueBrush();
+  }
+  function initRevenueBrush(){
+    if (revenueBrushInitialized) return;
+    const svg = qs("revenueBrushSvg");
+    const overlay = qs("revenueBrushOverlay");
+    const win = qs("revenueBrushWindow");
+    const handleL = qs("revenueBrushHandleL");
+    const handleR = qs("revenueBrushHandleR");
+    if (!svg || !overlay || !win || !handleL || !handleR) return;
+    revenueBrushInitialized = true;
+    const onDown = kind => event => {
+      event.preventDefault();
+      event.stopPropagation();
+      revenueBrushJustDragged = false;
+      revenueBrushDragging = { kind, startX: event.clientX, startFrom: revenueBrushSel.from, startTo: revenueBrushSel.to };
+      win.classList.add("dragging");
+      document.body.style.userSelect = "none";
+    };
+    const pxToTime = px => {
+      const { minX, span } = revenueBrushDomain();
+      const width = Math.max(1, overlay.clientWidth);
+      return minX + Math.max(0, Math.min(1, px / width)) * span;
+    };
+    win.addEventListener("pointerdown", onDown("window"));
+    handleL.addEventListener("pointerdown", onDown("left"));
+    handleR.addEventListener("pointerdown", onDown("right"));
+    document.addEventListener("pointermove", event => {
+      if (!revenueBrushDragging) return;
+      const { minX, maxX, span } = revenueBrushDomain();
+      const width = Math.max(1, overlay.clientWidth);
+      const delta = (event.clientX - revenueBrushDragging.startX) / width * span;
+      const minWindow = Math.max(86400, span * 0.01);
+      if (Math.abs(event.clientX - revenueBrushDragging.startX) > 2) revenueBrushJustDragged = true;
+      if (revenueBrushDragging.kind === "window") {
+        const windowSpan = revenueBrushDragging.startTo - revenueBrushDragging.startFrom;
+        let from = revenueBrushDragging.startFrom + delta;
+        let to = revenueBrushDragging.startTo + delta;
+        if (from < minX) { from = minX; to = from + windowSpan; }
+        if (to > maxX) { to = maxX; from = to - windowSpan; }
+        revenueBrushSel = { from, to };
+      } else if (revenueBrushDragging.kind === "left") {
+        revenueBrushSel.from = Math.min(revenueBrushDragging.startTo - minWindow, Math.max(minX, revenueBrushDragging.startFrom + delta));
+      } else if (revenueBrushDragging.kind === "right") {
+        revenueBrushSel.to = Math.max(revenueBrushDragging.startFrom + minWindow, Math.min(maxX, revenueBrushDragging.startTo + delta));
+      }
+      paintRevenueBrushWindow();
+      scheduleRevenueBrushChartRender();
+    });
+    document.addEventListener("pointerup", () => {
+      if (!revenueBrushDragging) return;
+      revenueBrushDragging = null;
+      win.classList.remove("dragging");
+      document.body.style.userSelect = "";
+      flushRevenueBrushChartRender();
+    });
+    svg.addEventListener("click", event => {
+      if (revenueBrushJustDragged) {
+        revenueBrushJustDragged = false;
+        return;
+      }
+      const { minX, maxX } = revenueBrushDomain();
+      const rect = overlay.getBoundingClientRect();
+      const center = pxToTime(event.clientX - rect.left);
+      const span = revenueBrushSel.to - revenueBrushSel.from;
+      let from = center - span / 2;
+      let to = center + span / 2;
+      if (from < minX) { from = minX; to = from + span; }
+      if (to > maxX) { to = maxX; from = to - span; }
+      revenueBrushSel = { from, to };
+      paintRevenueBrushWindow();
+      renderRevenueChart({ skipBrush: true });
+    });
+  }
+  function pathFromPoints(rows, field, xAt, yAt){
+    return rows.map((row, index) => `${index ? "L" : "M"}${xAt(row.ts).toFixed(2)} ${yAt(n(row[field])).toFixed(2)}`).join(" ");
+  }
+  function updateRevenueLegend(){
+    document.querySelectorAll(".revenue-series-toggle").forEach(btn => {
+      const key = btn.dataset.series;
+      const active = isSeriesVisible(key);
+      btn.classList.toggle("active", active);
+      btn.classList.toggle("dim", !active);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  }
+  function renderRevenueChart(options = {}){
+    const svg = qs("revenueChart");
+    const rows = allRows();
+    if (!svg || !rows.length) return;
+    const defs = activeSeriesDefs();
+    const model = visibleRows(rows);
+    if (!options.skipBrush) renderRevenueBrush(rows, defs);
+    const W = 1000, H = 340, P_L = 74, P_R = 30, P_T = 24, P_B = 42;
+    const chartW = W - P_L - P_R;
+    const chartH = H - P_T - P_B;
+    const xMin = model[0].ts;
+    const xMax = model[model.length - 1].ts;
+    const xRange = Math.max(1, xMax - xMin);
+    const xAt = ts => P_L + (ts - xMin) / xRange * chartW;
+    const maxValue = Math.max(1, ...model.flatMap(row => defs.map(def => n(row[def.field]))));
+    const yMax = maxValue * 1.12;
+    const yAt = value => P_T + (1 - Math.max(0, Math.min(1, value / yMax))) * chartH;
+    const zeroY = P_T + chartH;
+    const grid = [];
+    for (let i = 0; i <= 4; i++) {
+      const value = yMax * i / 4;
+      const y = yAt(value);
+      grid.push(`<line x1="${P_L}" x2="${W-P_R}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}"></line>`);
+      grid.push(`<text x="${P_L-12}" y="${(y+3).toFixed(1)}" text-anchor="end">${usd(value)}</text>`);
+    }
+    const spanDays = xRange / 86400;
+    const axis = [];
+    for (let i = 0; i <= 5; i++) {
+      const ts = xMin + xRange * i / 5;
+      const anchor = i === 0 ? "start" : i === 5 ? "end" : "middle";
+      axis.push(`<text x="${xAt(ts).toFixed(1)}" y="${H-10}" text-anchor="${anchor}">${formatAxisDate(ts, spanDays)}</text>`);
+    }
+    const areaDef = defs[0];
+    const areaLine = pathFromPoints(model, areaDef.field, xAt, yAt);
+    const area = `${areaLine} L${xAt(model[model.length - 1].ts).toFixed(2)} ${zeroY.toFixed(2)} L${xAt(model[0].ts).toFixed(2)} ${zeroY.toFixed(2)} Z`;
+    const lines = defs.map(def => `<path class="revenue-chart-line ${def.key}" data-series="${def.key}" d="${pathFromPoints(model, def.field, xAt, yAt)}" stroke="${def.color}"></path>`).join("");
+    svg.innerHTML = [
+      '<defs><linearGradient id="revenueChartGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#c9a227" stop-opacity=".22"/><stop offset="58%" stop-color="#c9a227" stop-opacity=".05"/><stop offset="100%" stop-color="#c9a227" stop-opacity="0"/></linearGradient></defs>',
+      `<g class="revenue-chart-grid">${grid.join("")}</g>`,
+      `<path class="revenue-chart-area" d="${area}"></path>`,
+      `<g class="revenue-chart-lines">${lines}</g>`,
+      `<line class="revenue-hover-line" id="revenueHoverLine" x1="0" x2="0" y1="${P_T}" y2="${zeroY}"></line>`,
+      `<circle class="revenue-hover-dot" id="revenueHoverDot" r="4" cx="0" cy="0"></circle>`,
+      `<g class="revenue-chart-axis">${axis.join("")}</g>`
+    ].join("");
+    updateRevenueLegend();
+    attachRevenueHover(model, defs, xAt, yAt, W, H);
+    renderChains();
+  }
+  function attachRevenueHover(model, defs, xAt, yAt, W, H){
+    const svg = qs("revenueChart");
+    const wrap = qs("revenueChartWrap");
+    const tip = qs("revenueChartTip");
+    const line = qs("revenueHoverLine");
+    const dot = qs("revenueHoverDot");
+    if (!svg || !wrap || !tip || !line || !dot) return;
+    const paintActive = key => {
+      svg.querySelectorAll(".revenue-chart-line").forEach(item => {
+        item.classList.toggle("is-active", item.dataset.series === key);
+        item.classList.toggle("is-muted", !!key && item.dataset.series !== key);
+      });
+      document.querySelectorAll(".revenue-series-toggle").forEach(item => {
+        const active = !key ? isSeriesVisible(item.dataset.series) : item.dataset.series === key;
+        item.classList.toggle("active", active);
+        item.classList.toggle("dim", !active);
+      });
+    };
+    const leave = () => {
+      line.style.opacity = 0;
+      dot.style.opacity = 0;
+      tip.style.opacity = 0;
+      paintActive("");
+      updateRevenueLegend();
+    };
+    svg.onmousemove = event => {
+      const rect = svg.getBoundingClientRect();
+      const px = (event.clientX - rect.left) / rect.width * W;
+      if (px < 74 || px > W - 30) { leave(); return; }
+      let nearest = model[0], best = Infinity;
+      model.forEach(row => {
+        const dist = Math.abs(xAt(row.ts) - px);
+        if (dist < best) { best = dist; nearest = row; }
+      });
+      const primary = defs[0];
+      const x = xAt(nearest.ts);
+      const y = yAt(n(nearest[primary.field]));
+      paintActive(primary.key);
+      line.setAttribute("x1", x);
+      line.setAttribute("x2", x);
+      line.style.opacity = 1;
+      dot.setAttribute("cx", x);
+      dot.setAttribute("cy", y);
+      dot.setAttribute("fill", primary.color);
+      dot.style.opacity = 1;
+      tip.innerHTML = `
+        <div class="tt-date">${formatDay(nearest.ts, false)}</div>
+        <div class="tt-val">${primary.label}: ${usdFull(nearest[primary.field])}</div>
+        ${defs.map(def => `<div class="tt-row"><span><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${def.color};margin-right:6px"></i>${def.label}</span><b>${usdFull(nearest[def.field])}</b></div>`).join("")}
+      `;
+      tip.style.opacity = 1;
+      tip.style.left = "0px";
+      tip.style.top = "0px";
+      const wrapRect = wrap.getBoundingClientRect();
+      const screenX = rect.left - wrapRect.left + (x / W) * rect.width;
+      const screenY = rect.top - wrapRect.top + (y / H) * rect.height;
+      const tipW = tip.offsetWidth;
+      const tipH = tip.offsetHeight;
+      tip.style.left = Math.min(Math.max(screenX - tipW / 2, 8), wrap.clientWidth - tipW - 8) + "px";
+      tip.style.top = Math.max(screenY - tipH - 12, 4) + "px";
+    };
+    svg.onmouseleave = leave;
+    document.querySelectorAll(".revenue-series-toggle").forEach(item => {
+      item.onmouseenter = () => paintActive(item.dataset.series);
+      item.onmouseleave = () => { paintActive(""); updateRevenueLegend(); };
+    });
+  }
+  function renderHero(){
+    const totals = revenueData.totals || {};
+    const dailyRevenue = n(totals.dailyRevenueUSD);
+    const previousRevenue = n(totals.previousDailyRevenueUSD);
+    const change = previousRevenue > 0 ? (dailyRevenue - previousRevenue) / previousRevenue : 0;
+    setText("dailyRevenue", usdFull(dailyRevenue));
+    setText("dailyFees", usdFull(totals.dailyFeesUSD));
+    setText("protocolCut", pct(totals.dailyProtocolCut));
+    setText("revenue7d", usd(totals.revenue7dUSD));
+    setText("revenue30d", usd(totals.revenue30dUSD));
+    setText("splitRevenue", usdFull(totals.dailyRevenueUSD));
+    setText("splitLenders", usdFull(totals.dailySupplySideRevenueUSD));
+    setText("allTimeRevenue", usd(totals.revenueAllTimeUSD));
+    setText("cutRingValue", pct(totals.dailyProtocolCut));
+    const changeEl = qs("dailyChange");
+    if (changeEl) {
+      changeEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 14 12 8 18 14"/></svg><span>' + (change >= 0 ? "+" : "") + (change * 100).toFixed(1) + '%</span><span class="lbl">24h</span>';
+      changeEl.className = "hero-chg " + (change >= 0 ? "up" : "down");
+    }
+    const cut = Math.max(0, Math.min(100, n(totals.dailyProtocolCut) * 100));
+    const dailyFeesBar = qs("dailyFeesBar");
+    const protocolCutBar = qs("protocolCutBar");
+    if (dailyFeesBar) dailyFeesBar.style.width = "100%";
+    if (protocolCutBar) protocolCutBar.style.width = cut.toFixed(2) + "%";
+    const fresh = qs("freshPill");
+    if (fresh) {
+      const text = fresh.querySelector("span:last-child");
+      if (text) text.textContent = "Updated " + dateLabel(revenueData.generatedAt);
+    }
+    renderFeeSplit();
+  }
+  function focusFeeSplit(key){
+    const center = qs("feeDonutCenter");
+    const totals = revenueData?.totals || {};
+    const protocol = n(totals.dailyRevenueUSD);
+    const lenders = n(totals.dailySupplySideRevenueUSD);
+    const total = Math.max(0, protocol + lenders);
+    document.querySelectorAll(".fee-donut-arc").forEach(arc => {
+      if (!key) { arc.classList.remove("dim","active"); return; }
+      arc.classList.toggle("active", arc.dataset.split === key);
+      arc.classList.toggle("dim", arc.dataset.split !== key);
+    });
+    document.querySelectorAll(".fee-leg-row[data-split]").forEach(row => {
+      if (!key) { row.classList.remove("dim","active"); return; }
+      row.classList.toggle("active", row.dataset.split === key);
+      row.classList.toggle("dim", row.dataset.split !== key);
+    });
+    if (!center) return;
+    if (!key) {
+      center.innerHTML = `<div class="dc-label">Protocol Cut</div><div class="dc-value">${pct(totals.dailyProtocolCut)}</div><div class="dc-sub">daily split</div>`;
+      return;
+    }
+    const value = key === "protocol" ? protocol : lenders;
+    const label = key === "protocol" ? "Protocol revenue" : "Paid to lenders";
+    const color = key === "protocol" ? "var(--gold)" : "#9ab7c2";
+    const share = total > 0 ? value / total : 0;
+    center.innerHTML = `<div class="dc-label">${label}</div><div class="dc-value" style="color:${color}">${usdFull(value)}</div><div class="dc-sub">${pct(share)} of daily fees</div>`;
+  }
+  function bindFeeSplitTrigger(el, key){
+    const enter = () => focusFeeSplit(key);
+    const leave = () => focusFeeSplit("");
+    el.addEventListener("mouseenter", enter);
+    el.addEventListener("pointerenter", enter);
+    el.addEventListener("focus", enter);
+    el.addEventListener("click", event => {
+      event.preventDefault();
+      focusFeeSplit(key);
+    });
+    el.addEventListener("keydown", event => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      focusFeeSplit(key);
+    });
+    el.addEventListener("mouseleave", leave);
+    el.addEventListener("pointerleave", leave);
+    el.addEventListener("blur", leave);
+  }
+  function renderFeeSplit(){
+    const svg = qs("feeDonutSvg");
+    const totals = revenueData?.totals || {};
+    if (!svg) return;
+    const protocol = Math.max(0, n(totals.dailyRevenueUSD));
+    const lenders = Math.max(0, n(totals.dailySupplySideRevenueUSD));
+    const total = Math.max(1, protocol + lenders);
+    const parts = [
+      { key:"protocol", value:protocol, color:"#c9a227" },
+      { key:"lenders", value:lenders, color:"#9ab7c2" }
+    ];
+    const cx = 100, cy = 100, r = 72, sw = 30;
+    const C = 2 * Math.PI * r;
+    let offset = 0;
+    let html = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,.045)" stroke-width="${sw}"/>`;
+    parts.forEach(part => {
+      const frac = part.value / total;
+      const gap = 2;
+      const len = Math.max(0, frac * C - gap);
+      html += `<circle class="fee-donut-arc" data-split="${part.key}" cx="${cx}" cy="${cy}" r="${r}" stroke="${part.color}" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-offset}" pathLength="${C}"/>`;
+      offset += frac * C;
+    });
+    svg.innerHTML = html;
+    svg.querySelectorAll(".fee-donut-arc").forEach(arc => {
+      arc.setAttribute("tabindex", "0");
+      bindFeeSplitTrigger(arc, arc.dataset.split);
+    });
+    document.querySelectorAll(".fee-leg-row[data-split]").forEach(row => {
+      row.setAttribute("tabindex", "0");
+      bindFeeSplitTrigger(row, row.dataset.split);
+    });
+    focusFeeSplit("");
+  }
+  function renderChains(){
+    const body = qs("chainRows");
+    if (!body) return;
+    const rows = allRows();
+    const selected = selectedRevenueRows(rows);
+    const days = rangeDays(revenueBrushSel.from, revenueBrushSel.to);
+    const totals = new Map();
+    selected.forEach(row => {
+      Object.entries(row.chains || {}).forEach(([chain, values]) => {
+        if (!totals.has(chain)) {
+          totals.set(chain, { chain, revenueUSD: 0, feesUSD: 0, supplySideRevenueUSD: 0 });
+        }
+        const item = totals.get(chain);
+        item.revenueUSD += n(values.revenueUSD);
+        item.feesUSD += n(values.feesUSD);
+        item.supplySideRevenueUSD += n(values.supplySideRevenueUSD);
+      });
+    });
+    const totalRevenue = Array.from(totals.values()).reduce((sum, item) => sum + n(item.revenueUSD), 0);
+    const chains = Array.from(totals.values()).sort((a,b) => n(b.revenueUSD) - n(a.revenueUSD));
+    if (!chains.length) {
+      body.innerHTML = '<tr><td colspan="6" class="empty-state">No chain revenue available for selected range.</td></tr>';
+      return;
+    }
+    body.innerHTML = chains.map(row => {
+      const cut = n(row.feesUSD) > 0 ? n(row.revenueUSD) / n(row.feesUSD) : 0;
+      const share = totalRevenue > 0 ? n(row.revenueUSD) / totalRevenue : 0;
+      const shareWidth = Math.max(0, Math.min(100, share * 100)).toFixed(1);
+      const icon = chainIcon(row.chain);
+      const abbr = chainAbbr(row.chain);
+      const badge = icon
+        ? `<img src="${icon}" alt="" onerror="this.parentElement.classList.add('fallback');this.parentElement.textContent='${abbr}';">`
+        : chainAbbr(row.chain);
+      return `<tr>
+        <td><div class="chain-cell"><div class="chain-badge">${badge}</div><div><div class="chain-name">${esc(row.chain)}</div><div class="chain-sub">${abbr} · Dolomite adapter</div></div></div></td>
+        <td class="revenue-col"><div class="revenue-col-inner"><div class="revenue-primary">${usdFull(row.revenueUSD)}</div><div class="revenue-share-track" aria-hidden="true"><span style="width:${shareWidth}%"></span></div><div class="num-sub">${days}D retained</div></div></td>
+        <td><div class="num-main">${usdFull(row.feesUSD)}</div><div class="num-sub">borrow interest</div></td>
+        <td><div class="num-main">${usdFull(row.supplySideRevenueUSD)}</div><div class="num-sub">to lenders</div></td>
+        <td><div class="num-main">${pct(cut)}</div><div class="num-sub">retained</div></td>
+        <td><div class="num-main">${pct(share)}</div><div class="num-sub">of revenue</div></td>
+      </tr>`;
+    }).join("");
+  }
+  function render(){
+    renderProtocolInfo();
+    renderHero();
+    renderRevenueChart();
+  }
+  document.querySelectorAll(".revenue-series-toggle").forEach(btn => {
+    btn.addEventListener("click", () => {
+      toggleRevenueSeries(btn.dataset.series);
+    });
+  });
+  const chainRangeFrom = qs("chainRangeFrom");
+  const chainRangeTo = qs("chainRangeTo");
+  [chainRangeFrom, chainRangeTo].forEach(input => {
+    if (!input) return;
+    input.addEventListener("change", () => {
+      setRevenueDateRange(chainRangeFrom?.value, chainRangeTo?.value, input === chainRangeFrom ? "from" : "to");
+    });
+  });
+  renderProtocolInfo();
+  fetch(DATA_URL, { cache:"no-cache" })
+    .then(response => {
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      return response.json();
+    })
+    .then(data => {
+      revenueData = data;
+      render();
+    })
+    .catch(error => {
+      console.error("Revenue data failed", error);
+      const fresh = qs("freshPill");
+      if (fresh) {
+        const text = fresh.querySelector("span:last-child");
+        if (text) text.textContent = "Revenue data unavailable";
+      }
+      const chainRows = qs("chainRows");
+      if (chainRows) chainRows.innerHTML = '<tr><td colspan="6" class="empty-state">Revenue data could not be loaded.</td></tr>';
+    });
+})();
+</script>
+</body>
+</html>
