@@ -255,6 +255,19 @@ h1{
   padding:4px;border:1px solid var(--line-1);border-radius:10px;
   background:rgba(255,255,255,.025);
 }
+.revenue-series-control{
+  display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;min-width:0
+}
+.revenue-series-status{
+  min-height:28px;padding:0 10px;border-radius:8px;
+  display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid var(--line-1);background:rgba(255,255,255,.025);
+  color:var(--fg-3);font-family:var(--mono);font-size:10px;font-weight:800;
+  text-transform:uppercase;letter-spacing:.85px;white-space:nowrap
+}
+.revenue-series-status.filtered{
+  color:var(--gold);border-color:var(--gold-line);background:rgba(201,162,39,.08)
+}
 .revenue-series-toggle{
   min-height:32px;padding:0 11px;border-radius:7px;
   display:inline-flex;align-items:center;justify-content:center;gap:8px;
@@ -263,6 +276,7 @@ h1{
 }
 .revenue-series-toggle:hover{color:var(--fg-1);background:rgba(255,255,255,.04)}
 .revenue-series-toggle.active{color:var(--fg-1);background:rgba(201,162,39,.12);box-shadow:inset 0 0 0 1px var(--gold-line)}
+.revenue-series-toggle.preview{color:var(--fg-1);background:rgba(255,255,255,.045)}
 .revenue-series-toggle.dim{opacity:.42}
 .revenue-chart-wrap{padding:24px 24px 18px;position:relative}
 .revenue-chart-svg{width:100%;height:340px;display:block;overflow:visible}
@@ -594,7 +608,9 @@ h1{
   .hero-card{border-left:0;border-top:1px solid var(--line-1);padding:14px 0 0}
   .hero-card:first-child{border-top:0;padding-top:0}
   .panel-head{display:block}
-  .revenue-series-toggles{margin-top:12px;width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .revenue-series-control{margin-top:12px;width:100%;display:grid;grid-template-columns:1fr;justify-items:stretch}
+  .revenue-series-status{width:100%}
+  .revenue-series-toggles{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
   .chain-range-tools{margin-top:14px;width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);justify-content:stretch}
   .chain-date-trigger{min-width:0;width:100%}
   .chain-date-popover,
@@ -735,11 +751,14 @@ h1{
       <div class="panel-head">
         <div>
           <div class="panel-title">Revenue Over Time</div>
-          <div class="panel-sub">Daily USD by selected series.</div>
+          <div class="panel-sub">Daily retained revenue and borrower fees.</div>
         </div>
-        <div class="revenue-series-toggles" aria-label="Revenue chart series">
-          <button class="revenue-series-toggle" type="button" data-series="revenue" aria-pressed="false"><span class="legend-swatch"></span><span>Revenue</span></button>
-          <button class="revenue-series-toggle" type="button" data-series="fees" aria-pressed="false"><span class="legend-swatch fees"></span><span>Borrower fees</span></button>
+        <div class="revenue-series-control">
+          <div class="revenue-series-status" id="revenueSeriesStatus">All series</div>
+          <div class="revenue-series-toggles" aria-label="Revenue chart filter">
+            <button class="revenue-series-toggle" type="button" data-series="revenue" aria-pressed="false" aria-label="Show revenue only"><span class="legend-swatch"></span><span>Revenue only</span></button>
+            <button class="revenue-series-toggle" type="button" data-series="fees" aria-pressed="false" aria-label="Show borrower fees only"><span class="legend-swatch fees"></span><span>Borrower fees only</span></button>
+          </div>
         </div>
       </div>
       <div class="revenue-chart-wrap" id="revenueChartWrap">
@@ -1486,11 +1505,18 @@ h1{
     return rows.map((row, index) => `${index ? "L" : "M"}${xAt(row.ts).toFixed(2)} ${yAt(n(row[field])).toFixed(2)}`).join(" ");
   }
   function updateRevenueLegend(){
+    const status = qs("revenueSeriesStatus");
+    if (status) {
+      const active = SERIES[focusedRevenueSeries];
+      status.textContent = active ? `${active.label} only` : "All series";
+      status.classList.toggle("filtered", !!active);
+    }
     document.querySelectorAll(".revenue-series-toggle").forEach(btn => {
       const key = btn.dataset.series;
       const active = focusedRevenueSeries === key;
       btn.classList.toggle("active", active);
       btn.classList.toggle("dim", !!focusedRevenueSeries && !active);
+      btn.classList.remove("preview");
       btn.setAttribute("aria-pressed", active ? "true" : "false");
     });
   }
@@ -1556,9 +1582,11 @@ h1{
         item.classList.toggle("is-muted", !!key && item.dataset.series !== key);
       });
       document.querySelectorAll(".revenue-series-toggle").forEach(item => {
-        const active = key ? item.dataset.series === key : focusedRevenueSeries === item.dataset.series;
-        item.classList.toggle("active", active);
-        item.classList.toggle("dim", key ? item.dataset.series !== key : (!!focusedRevenueSeries && !active));
+        const selected = focusedRevenueSeries === item.dataset.series;
+        const previewed = !!key && item.dataset.series === key;
+        item.classList.toggle("active", selected);
+        item.classList.toggle("preview", previewed && !selected);
+        item.classList.toggle("dim", key ? item.dataset.series !== key : (!!focusedRevenueSeries && !selected));
       });
     };
     const leave = () => {
@@ -1588,9 +1616,12 @@ h1{
       dot.setAttribute("cy", y);
       dot.setAttribute("fill", primary.color);
       dot.style.opacity = 1;
+      const summary = defs.length === 1
+        ? `${primary.label}: ${usdFull(nearest[primary.field])}`
+        : "Daily USD";
       tip.innerHTML = `
         <div class="tt-date">${formatDay(nearest.ts, false)}</div>
-        <div class="tt-val">${primary.label}: ${usdFull(nearest[primary.field])}</div>
+        <div class="tt-val">${summary}</div>
         ${defs.map(def => `<div class="tt-row"><span><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${def.color};margin-right:6px"></i>${def.label}</span><b>${usdFull(nearest[def.field])}</b></div>`).join("")}
       `;
       tip.style.opacity = 1;
