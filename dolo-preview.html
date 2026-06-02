@@ -156,9 +156,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 
 /* Holder buckets chart — TVL Over Time rhythm */
 .holder-chart-card{background:linear-gradient(180deg,rgba(20,20,23,.98),var(--bg-2))}
-.allocation-chart-card{margin-top:18px}
-.allocation-chart-card .holder-chart-area{fill:url(#allocationChartAreaGrad);opacity:.56}
-.allocation-chart-card .holder-chart-series-line{filter:drop-shadow(0 0 7px rgba(201,162,39,.16))}
 .cex-supply-card{margin-top:18px}
 .cex-supply-card .holder-chart-area{fill:url(#cexSupplyAreaGrad);opacity:.56}
 .cex-supply-card .holder-chart-series-line{filter:drop-shadow(0 0 7px rgba(180,121,107,.18))}
@@ -1385,62 +1382,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
       <div class="holder-brush-label" id="holderBrushLabel"></div>
     </div>
     <div class="holder-chart-legend" id="holderChartLegend"></div>
-  </section>
-
-  <section class="card holder-chart-card allocation-chart-card" id="allocation-chart-card">
-    <div class="card-head">
-      <div class="holder-title-block">
-        <div class="card-title">
-          <h2>DOLO Allocations Over Time</h2>
-          <span class="count-badge" id="allocation-chart-count">30D</span>
-        </div>
-      </div>
-      <div class="holder-chart-source" id="allocation-chart-meta" aria-label="Allocation chart data scope"></div>
-    </div>
-    <div class="holder-chart-wrap" id="allocationChartWrap">
-      <svg class="holder-chart-svg" id="allocationChartSvg" viewBox="0 0 1000 340" preserveAspectRatio="none" aria-label="DOLO allocations over time chart">
-        <defs>
-          <linearGradient id="allocationChartAreaGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#c9a227" stop-opacity=".20"/>
-            <stop offset="58%" stop-color="#c9a227" stop-opacity=".06"/>
-            <stop offset="100%" stop-color="#c9a227" stop-opacity="0"/>
-          </linearGradient>
-        </defs>
-        <g class="holder-chart-grid" id="allocationChartGrid"></g>
-        <path class="holder-chart-area" id="allocationChartArea" d=""></path>
-        <g class="holder-chart-lines" id="allocationChartLines"></g>
-        <g class="holder-chart-dots" id="allocationChartDots"></g>
-        <line class="holder-chart-line" id="allocationChartHoverLine" x1="0" x2="0" y1="0" y2="0"/>
-        <circle class="holder-chart-dot" id="allocationChartHoverDot" r="4" cx="0" cy="0"/>
-        <g class="holder-chart-axis" id="allocationChartAxis"></g>
-      </svg>
-      <div class="holder-chart-tip" id="allocationChartTip">
-        <div class="tt-date">—</div>
-        <div class="tt-val">—</div>
-      </div>
-    </div>
-    <div class="holder-brush-wrap" id="allocationBrushWrap">
-      <svg class="holder-brush-svg" id="allocationBrushSvg" viewBox="0 0 1000 56" preserveAspectRatio="none" aria-label="DOLO allocations time range navigator">
-        <defs>
-          <linearGradient id="allocationBrushGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#c9a227" stop-opacity=".30"/>
-            <stop offset="100%" stop-color="#c9a227" stop-opacity="0"/>
-          </linearGradient>
-        </defs>
-        <path class="holder-brush-area" id="allocationBrushArea" fill="url(#allocationBrushGrad)" d=""></path>
-        <path class="holder-brush-line" id="allocationBrushLine" d=""></path>
-      </svg>
-      <div class="holder-brush-overlay" id="allocationBrushOverlay">
-        <div class="holder-brush-dim l" id="allocationBrushDimL"></div>
-        <div class="holder-brush-window" id="allocationBrushWindow">
-          <div class="holder-brush-handle l" id="allocationBrushHandleL"><div class="grip"><span></span><span></span></div></div>
-          <div class="holder-brush-handle r" id="allocationBrushHandleR"><div class="grip"><span></span><span></span></div></div>
-        </div>
-        <div class="holder-brush-dim r" id="allocationBrushDimR"></div>
-      </div>
-      <div class="holder-brush-label" id="allocationBrushLabel"></div>
-    </div>
-    <div class="holder-chart-legend" id="allocationChartLegend"></div>
   </section>
 
   <section class="card holder-chart-card cex-supply-card" id="cex-supply-card">
