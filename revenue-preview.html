@@ -358,15 +358,6 @@ h1{
 }
 .fee-donut-center .dc-value{font-family:var(--mono);font-size:22px;font-weight:850;color:var(--fg-1);line-height:1;font-variant-numeric:tabular-nums}
 .fee-donut-center .dc-sub{font-family:var(--mono);font-size:10px;color:var(--fg-3);margin-top:5px;white-space:nowrap}
-.fee-split-focus{
-  margin:-2px 4px 6px;padding:11px 12px;border-radius:10px;border:1px solid var(--line-1);
-  background:rgba(255,255,255,.025);box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
-  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px 12px;align-items:end;min-width:0
-}
-.fee-split-focus .fsf-label{font-size:10px;text-transform:uppercase;letter-spacing:1.15px;color:var(--fg-3);font-weight:800;grid-column:1/-1}
-.fee-split-focus .fsf-title{font-size:13px;color:var(--fg-1);font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fee-split-focus .fsf-value{font-family:var(--mono);font-size:13px;color:var(--gold);font-weight:850;white-space:nowrap}
-.fee-split-focus .fsf-sub{grid-column:1/-1;font-family:var(--mono);font-size:10.5px;line-height:1.35;color:var(--fg-3);white-space:normal}
 .fee-legend{display:flex;flex-direction:column;gap:4px;width:100%;min-width:0}
 .fee-leg-row{
   display:flex;align-items:center;gap:11px;min-width:0;
@@ -805,16 +796,10 @@ h1{
           <div class="fee-donut-wrap">
             <svg class="fee-donut-svg" id="feeDonutSvg" viewBox="0 0 200 200"></svg>
             <div class="fee-donut-center" id="feeDonutCenter">
-              <div class="dc-label">Protocol Cut</div>
+              <div class="dc-label">Fee Split</div>
               <div class="dc-value" id="cutRingValue">0%</div>
-              <div class="dc-sub">daily split</div>
+              <div class="dc-sub">retained</div>
             </div>
-          </div>
-          <div class="fee-split-focus" id="feeSplitFocus">
-            <div class="fsf-label">Daily fee split</div>
-            <div class="fsf-title">Protocol and lenders</div>
-            <div class="fsf-value">-</div>
-            <div class="fsf-sub">Hover a segment or row for exact values.</div>
           </div>
           <div class="fee-legend" id="feeSplitLegend">
             <div class="fee-leg-row" data-split="protocol">
@@ -1674,7 +1659,6 @@ h1{
   }
   function focusFeeSplit(key){
     const center = qs("feeDonutCenter");
-    const focus = qs("feeSplitFocus");
     const totals = revenueData?.totals || {};
     const protocol = n(totals.dailyRevenueUSD);
     const lenders = n(totals.dailySupplySideRevenueUSD);
@@ -1690,30 +1674,13 @@ h1{
       row.classList.toggle("dim", row.dataset.split !== key);
     });
     if (!key) {
-      if (center) center.innerHTML = `<div class="dc-label">Protocol Cut</div><div class="dc-value" id="cutRingValue">${pct(totals.dailyProtocolCut)}</div><div class="dc-sub">daily split</div>`;
-      if (focus) {
-        focus.innerHTML = `
-          <div class="fsf-label">Daily fee split</div>
-          <div class="fsf-title">Protocol and lenders</div>
-          <div class="fsf-value">${usdFull(total)}</div>
-          <div class="fsf-sub">${usdFull(protocol)} retained · ${usdFull(lenders)} paid to lenders</div>
-        `;
-      }
+      if (center) center.innerHTML = `<div class="dc-label">Fee Split</div><div class="dc-value" id="cutRingValue">${pct(totals.dailyProtocolCut)}</div><div class="dc-sub">retained</div>`;
       return;
     }
     const value = key === "protocol" ? protocol : lenders;
-    const label = key === "protocol" ? "Protocol revenue" : "Paid to lenders";
     const color = key === "protocol" ? "var(--gold)" : "#9ab7c2";
     const share = total > 0 ? value / total : 0;
     if (center) center.innerHTML = `<div class="dc-label">${key === "protocol" ? "Retained" : "Lenders"}</div><div class="dc-value" style="color:${color}">${pct(share)}</div><div class="dc-sub">daily fees</div>`;
-    if (focus) {
-      focus.innerHTML = `
-        <div class="fsf-label">${label}</div>
-        <div class="fsf-title">${key === "protocol" ? "Retained by Dolomite" : "Paid to lenders"}</div>
-        <div class="fsf-value" style="color:${color}">${usdFull(value)}</div>
-        <div class="fsf-sub">${pct(share)} of daily borrower fees</div>
-      `;
-    }
   }
   function bindFeeSplitTrigger(el, key){
     const enter = () => focusFeeSplit(key);
