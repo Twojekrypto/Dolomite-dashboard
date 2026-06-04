@@ -8,11 +8,11 @@
 <script>
 (async () => {
   try {
-    const previewVersion = "tvl-ux-consistency-20260507-filter-icons-20260517b-supply-chart-20260527-stale-token-fix-20260528-revenue-nav-20260602b-nav-order-20260602-history-last-20260602";
+    const previewVersion = "tvl-ux-consistency-20260507-filter-icons-20260517b-supply-chart-20260527-stale-token-fix-20260528-revenue-nav-20260602b-nav-order-20260602-history-last-20260602-unified-nav-source-20260604";
     const response = await fetch(`../tvl-preview.html?v=${previewVersion}`, { cache: "no-cache" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const html = await response.text();
-    const mobileNavAssets = '<link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260602-revenue"><link rel="stylesheet" href="mobile-polish.css?v=mobile-polish-20260519c"><link rel="stylesheet" href="protocol-footer.css?v=protocol-footer-20260604b"><script defer src="mobile-nav.js?v=mobile-nav-20260602-revenue"><\/script><script defer src="mobile-polish.js?v=mobile-polish-20260519c"><\/script><script defer src="protocol-footer.js?v=protocol-footer-20260604b"><\/script>';
+    const mobileNavAssets = '<link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260604-unified-tabs"><link rel="stylesheet" href="mobile-polish.css?v=mobile-polish-20260519c"><link rel="stylesheet" href="protocol-footer.css?v=protocol-footer-20260604b"><script defer src="mobile-nav.js?v=mobile-nav-20260604-unified-tabs"><\/script><script defer src="mobile-polish.js?v=mobile-polish-20260519c"><\/script><script defer src="protocol-footer.js?v=protocol-footer-20260604b"><\/script>';
     document.open();
     document.write(html.replace("<head>", '<head><base href="../">').replace("</head>", mobileNavAssets + "</head>"));
     document.close();
