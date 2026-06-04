@@ -200,11 +200,14 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   background:rgba(255,255,255,.014);box-shadow:inset 0 1px 0 rgba(255,255,255,.024)
 }
 .holder-chart-toggle-icon{
-  width:13px;height:13px;flex:0 0 13px;color:var(--fg-3);
-  transition:color .16s var(--ease),filter .16s var(--ease)
+  width:14px;height:14px;flex:0 0 14px;border-radius:50%;object-fit:contain;opacity:.62;
+  filter:grayscale(.24) brightness(.9);transition:opacity .16s var(--ease),filter .16s var(--ease),box-shadow .16s var(--ease)
 }
-.holder-chart-toggle:hover .holder-chart-toggle-icon{color:var(--fg-2)}
-.holder-chart-toggle.is-active .holder-chart-toggle-icon{color:var(--gold);filter:drop-shadow(0 0 6px rgba(201,162,39,.25))}
+.holder-chart-toggle:hover .holder-chart-toggle-icon{opacity:.78;filter:grayscale(.08) brightness(1)}
+.holder-chart-toggle.is-active .holder-chart-toggle-icon{
+  opacity:1;filter:brightness(1.08) saturate(1.08) drop-shadow(0 0 7px rgba(201,162,39,.22));
+  box-shadow:0 0 0 1px rgba(201,162,39,.16)
+}
 .holder-chart-toggle-check{
   width:13px;height:13px;flex:0 0 13px;border-radius:4px;display:inline-grid;place-items:center;
   border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.018);color:transparent;
@@ -1344,10 +1347,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
                 <polyline points="2 6.3 4.8 9 10 3"></polyline>
               </svg>
             </span>
-            <svg class="holder-chart-toggle-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="5" y="10" width="14" height="10" rx="2"></rect>
-              <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
-            </svg>
+            <img class="holder-chart-toggle-icon" src="vedolo-logo.svg" alt="" aria-hidden="true" onerror="this.style.display='none'">
             <span class="holder-chart-toggle-text">veDOLO</span>
           </label>
         </div>
