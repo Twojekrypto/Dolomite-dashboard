@@ -788,7 +788,7 @@
         }
         .table-card-header h3 {
             display: flex; align-items: center; gap: 8px;
-            font-size: 15px; font-weight: 600; color: #fff; margin: 0;
+            font-size: 15px; font-weight: 700; color: var(--fg-1); margin: 0;
         }
         .table-card-header .header-count {
             font-size: 13px; font-weight: 500; color: var(--text-muted);
@@ -2127,12 +2127,12 @@
             flex-wrap: wrap;
         }
         .liquidation-table-kicker {
-            font-size: 10px;
+            font-size: 9.5px;
             font-weight: 700;
-            letter-spacing: 0.12em;
+            letter-spacing: 1.45px;
             text-transform: uppercase;
-            color: rgba(148,163,184,0.72);
-            margin-bottom: 8px;
+            color: var(--gold);
+            margin-bottom: 6px;
         }
         .liquidation-table-heading {
             min-width: 0;
@@ -2166,15 +2166,15 @@
             white-space: nowrap;
         }
         .table-card-outer.liquidation-table-surface {
-            background: linear-gradient(135deg, rgba(251,113,133,0.20), rgba(34,211,238,0.12), rgba(251,191,36,0.08));
+            background: linear-gradient(135deg, rgba(201,162,39,0.12), rgba(255,255,255,0.02));
         }
         .table-card-outer.liquidation-table-surface::before {
-            background: linear-gradient(135deg, rgba(251,113,133,0.12), rgba(34,211,238,0.08), rgba(251,191,36,0.04));
+            background: linear-gradient(135deg, rgba(201,162,39,0.08), rgba(255,255,255,0.012));
         }
         .table-card-outer.liquidation-table-surface .table-card-inner {
             background:
-                radial-gradient(circle at top right, rgba(34,211,238,0.08), transparent 32%),
-                linear-gradient(145deg, rgba(8,13,24,0.98) 0%, rgba(10,15,28,0.96) 100%);
+                radial-gradient(circle at top right, rgba(201,162,39,0.06), transparent 32%),
+                linear-gradient(145deg, rgba(18,18,21,0.98) 0%, rgba(14,14,17,0.96) 100%);
             overflow: visible;
         }
         .table-card-outer.liquidation-table-surface .table-card-header {
@@ -2265,13 +2265,13 @@
             position: sticky;
             top: 0;
             z-index: 8;
-            background: rgba(8,13,22,0.96);
+            background: #101012;
             padding: 10px 12px;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
-            color: rgba(255,255,255,0.38);
-            font-size: 10px;
+            border-bottom: 1px solid var(--line-2);
+            color: var(--fg-3);
+            font-size: 9.5px;
             font-weight: 600;
-            letter-spacing: 0.8px;
+            letter-spacing: 1.2px;
             text-transform: uppercase;
             text-align: left;
             white-space: nowrap;
@@ -2284,16 +2284,17 @@
             background: rgba(255,255,255,0.012);
         }
         .liquidation-history-table tbody tr:hover {
-            background: rgba(251,146,60,0.055);
+            background: rgba(255,255,255,0.026);
         }
         .liquidation-history-table tbody tr:hover td:first-child {
-            box-shadow: inset 3px 0 0 rgba(251,146,60,0.75);
+            box-shadow: inset 2px 0 0 var(--gold);
         }
         .liquidation-history-table tbody td {
             padding: 8px 12px;
             border-bottom: 1px solid rgba(255,255,255,0.025);
             color: rgba(255,255,255,0.84);
             font-size: 12px;
+            font-variant-numeric: tabular-nums;
             vertical-align: middle;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -2320,7 +2321,7 @@
         }
         .liquidation-history-address:hover,
         .liquidation-history-address:focus-visible {
-            color: #fbbf24 !important;
+            color: var(--gold) !important;
             outline: none;
         }
         .liquidation-history-wallet .copy-addr-icon,
@@ -2364,7 +2365,7 @@
             flex: 0 0 15px;
         }
         .liquidation-history-amount-sub {
-            color: rgba(148,163,184,0.7);
+            color: var(--fg-3);
             font-family: inherit;
             font-size: 10.5px;
             font-weight: 600;
@@ -3073,11 +3074,11 @@
         .positions-table thead th {
             background: var(--bg-card-alt);
             padding: 10px 12px;
-            font-size: 10px;
+            font-size: 9.5px;
             font-weight: 600;
-            color: rgba(255, 255, 255, 0.35);
+            color: var(--fg-3);
             text-transform: uppercase;
-            letter-spacing: 0.8px;
+            letter-spacing: 1.2px;
             text-align: left;
             border-bottom: 1px solid rgba(255, 255, 255, 0.06);
             position: sticky;
@@ -8768,7 +8769,7 @@
                     <div class="liquidation-table-heading">
                         <div class="liquidation-table-kicker">Position Monitor</div>
                         <h3>
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c9a227" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
                             Lending Positions <span class="header-count" id="positions-count"></span>
                         </h3>
                         <div class="liquidation-table-subtitle">Health factor first, with filters and risk windows applied directly to this table.</div>
@@ -8975,7 +8976,7 @@
                     <div class="liquidation-table-heading">
                         <div class="liquidation-table-kicker">Liquidation Log</div>
                         <h3>
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fb923c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c9a227" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
                             Liquidation History <span class="header-count" id="liquidation-history-count"></span>
                         </h3>
                         <div class="liquidation-table-subtitle">All Dolomite liquidation events found in the monitored subgraphs.</div>
