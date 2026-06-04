@@ -1,5 +1,5 @@
 (function () {
-  const VERSION = "protocol-footer-20260604";
+  const VERSION = "protocol-footer-20260604b";
   const FOOTER_SELECTOR = ".dolo-protocol-footer";
   const LEGACY_SELECTOR = ".proto, .earn-dolo-proto, .protocol-info-card, footer.foot, div.foot";
   const SUBTITLE = 'Lending &amp; margin · <b>66 live markets</b> · <b>7 chains</b>';
@@ -143,18 +143,13 @@
     return rect.width > 0 && rect.height >= 0;
   }
 
-  function preferredLegacyTarget() {
-    const targets = legacyTargets();
-    return targets.find(nodeHasLayout) || targets[0] || null;
-  }
-
   function fallbackParent() {
     return document.querySelector("#view-earn.active")
       || document.querySelector(".view-section.active")
-      || document.querySelector(".wrap main")
-      || document.querySelector("main")
       || document.querySelector(".page-wrapper")
       || document.querySelector(".wrap")
+      || document.querySelector(".wrap main")
+      || document.querySelector("main")
       || document.body;
   }
 
@@ -163,22 +158,14 @@
     rendering = true;
     try {
       const existing = document.querySelector(FOOTER_SELECTOR);
-      const target = preferredLegacyTarget();
+      const parent = fallbackParent();
       let footer = existing;
       if (!footer) {
         footer = buildFooter();
-        if (target && target.parentNode) {
-          target.replaceWith(footer);
-        } else {
-          fallbackParent().appendChild(footer);
-        }
+        parent.appendChild(footer);
         wireFooter(footer);
-      } else if (!nodeHasLayout(footer)) {
-        if (target && target.parentNode && target !== footer) {
-          target.replaceWith(footer);
-        } else {
-          fallbackParent().appendChild(footer);
-        }
+      } else if (footer.parentNode !== parent || footer.nextElementSibling || !nodeHasLayout(footer)) {
+        parent.appendChild(footer);
       }
       legacyTargets().forEach(node => node.remove());
     } finally {
