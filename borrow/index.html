@@ -8,11 +8,11 @@
 <script>
 (async () => {
   try {
-    const previewVersion = "borrow-risk-simulator-zero-row-solid-20260530-dolo-label-cleanup-20260514-chainlink-rewards-20260530-revenue-nav-20260602b-nav-order-20260602-history-last-20260602";
+    const previewVersion = "risk-token-dropdown-visibility-20260529-dolo-label-cleanup-20260514-borrow-live-sim-controls-20260517a-filter-icons-cex-labels-20260518c-hide-dust-history-nav-20260524-chainlink-rewards-20260530-revenue-nav-20260601-history-last-20260602-liquidation-history-20260604-supply-default-largest";
     const response = await fetch(`../liquidation-preview.html?v=${previewVersion}`, { cache: "no-cache" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const html = await response.text();
-    const mobileNavAssets = '<link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260602-revenue"><link rel="stylesheet" href="mobile-polish.css?v=mobile-polish-20260519c"><script defer src="mobile-nav.js?v=mobile-nav-20260602-revenue"><\/script><script defer src="mobile-polish.js?v=mobile-polish-20260519c"><\/script>';
+    const mobileNavAssets = '<link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260602-history-tabs"><link rel="stylesheet" href="mobile-polish.css?v=mobile-polish-20260602-history-tabs"><script defer src="mobile-nav.js?v=mobile-nav-20260602-history-tabs"><\/script><script defer src="mobile-polish.js?v=mobile-polish-20260602-history-tabs"><\/script>';
     document.open();
     document.write(html.replace("<head>", '<head><base href="../"><script>window.__DOLO_ROUTE="liquidations";<\/script>').replace("</head>", mobileNavAssets + "</head>"));
     document.close();

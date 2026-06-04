@@ -1087,7 +1087,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
           <span>Revenue</span>
         </a>
         <a class="nav-item" href="./history/" data-tab="history">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M8 7h8"/><path d="M8 12h8"/><path d="M8 17h5"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/><path d="M12 7v5l3 2"/></svg>
           <span>History</span>
         </a>
       </nav>
@@ -1269,7 +1269,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
           <tr>
             <th data-sort="name" style="padding-left:32px">Asset</th>
             <th data-sort="price" class="num">Price</th>
-            <th data-sort="supply" class="num sorted">Supply <span class="sort">▼</span></th>
+            <th data-sort="supply" class="num">Supply</th>
             <th data-sort="borrow" class="num">Borrow</th>
             <th class="action" style="padding-right:32px">Details</th>
           </tr>
@@ -1446,7 +1446,7 @@ const state = {
   q:"",
   cats: new Set(),    // empty set = "All Assets"
   nets: new Set(),    // empty set = "All Chains"
-  sort:{key:"supply",dir:"desc"},
+  sort:{key:"marketSupply",dir:"desc"},
   rw:{odolo:true,yield:true,lending:true},
   mode:"APR",
   loading:true,
@@ -2146,6 +2146,10 @@ function activeSupply(row){
   return s;
 }
 
+function assetMarketSupply(row){
+  return Math.max(0, Number(row?.tvl) || 0);
+}
+
 function setMetric(el, value){
   if(window.CountUpMetric) CountUpMetric.text(el, value);
   else if(el) el.textContent = value;
@@ -2262,6 +2266,7 @@ function render(){
     if(key==="name"){va=a.sym;vb=b.sym}
     else if(key==="price"){va=a.price;vb=b.price}
     else if(key==="supply"){va=a._supply;vb=b._supply}
+    else if(key==="marketSupply"){va=assetMarketSupply(a);vb=assetMarketSupply(b)}
     else if(key==="borrow"){va=a.borrow;vb=b.borrow}
     if(typeof va==="string") return dir==="asc"?va.localeCompare(vb):vb.localeCompare(va);
     return dir==="asc"?va-vb:vb-va;

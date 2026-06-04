@@ -13,7 +13,7 @@
   let stagedAssetId = '';
   let appliedAssetId = '';
   let chainDefaultAutoApplyArmed = false;
-  const defaultSupplyAssetSymbol = String(window.__DOLO_SUPPLY_DEFAULT_ASSET || 'USD1').toUpperCase();
+  const defaultSupplyAssetSymbol = String(window.__DOLO_SUPPLY_DEFAULT_ASSET || '').toUpperCase();
   const activityTypeOptions = [
     { type: 'deposit', label: 'Deposits' },
     { type: 'withdraw', label: 'Withdrawals' },
@@ -1352,17 +1352,41 @@
     return null;
   }
 
+  function getTokenSupplyLiquidityUsd(token) {
+    return Math.max(0, Number.parseFloat(token?.supplyLiquidityUSD || '0') || 0);
+  }
+
+  function getLargestSupplyToken(tokens) {
+    const safeTokens = Array.isArray(tokens) ? tokens : [];
+    return safeTokens
+      .slice()
+      .sort((a, b) => {
+        const supplyDiff = getTokenSupplyLiquidityUsd(b) - getTokenSupplyLiquidityUsd(a);
+        if (Math.abs(supplyDiff) > 1e-9) return supplyDiff;
+        return (Number.parseInt(a?.marketId || '0', 10) || 0) - (Number.parseInt(b?.marketId || '0', 10) || 0);
+      })[0] || null;
+  }
+
   function getDefaultSupplyToken() {
     const matchesDefault = token => String(token?.symbol || '').toUpperCase() === defaultSupplyAssetSymbol;
     try {
       if (typeof currentSupplyTokensList !== 'undefined' && Array.isArray(currentSupplyTokensList)) {
-        const token = currentSupplyTokensList.find(matchesDefault);
+        if (defaultSupplyAssetSymbol) {
+          const token = currentSupplyTokensList.find(matchesDefault);
+          if (token) return token;
+        }
+        const token = getLargestSupplyToken(currentSupplyTokensList);
         if (token) return token;
       }
     } catch (error) {}
     try {
       if (typeof currentSupplyTokensMap !== 'undefined' && currentSupplyTokensMap) {
-        return Object.values(currentSupplyTokensMap).find(matchesDefault) || null;
+        const tokens = Object.values(currentSupplyTokensMap);
+        if (defaultSupplyAssetSymbol) {
+          const token = tokens.find(matchesDefault);
+          if (token) return token;
+        }
+        return getLargestSupplyToken(tokens);
       }
     } catch (error) {}
     return null;
@@ -1395,14 +1419,14 @@
     document.body.classList.remove('supply-has-pending-asset');
     setAssetState(true);
     setSelectorUi(token, false);
-    originalSelectAsset.call(window, token.id);
+    originalSelectAsset.call(window, token.id, { auto: true });
     syncApplyButton();
   }
 
   function autoApplyArmedDefaultSupplyAsset() {
     if (!chainDefaultAutoApplyArmed || !stagedAssetId || stagedAssetId === appliedAssetId) return false;
     chainDefaultAutoApplyArmed = false;
-    applyStagedAsset();
+    applyStagedAsset({ auto: true });
     return true;
   }
 
@@ -1545,13 +1569,13 @@
     }
   }
 
-  function applyStagedAsset() {
+  function applyStagedAsset(options = {}) {
     if (!stagedAssetId || stagedAssetId === appliedAssetId || !originalSelectAsset) return;
     chainDefaultAutoApplyArmed = false;
     appliedAssetId = stagedAssetId;
     document.body.classList.remove('supply-has-pending-asset');
     setAssetState(true);
-    originalSelectAsset.call(window, stagedAssetId);
+    originalSelectAsset.call(window, stagedAssetId, options.auto ? { auto: true } : undefined);
     syncApplyButton();
   }
 
@@ -1562,7 +1586,19 @@
     originalSelectAsset = originalSelectAsset || window.selectSupplyAsset;
     const originalSelectChain = window.selectSupplyChain;
 
-    window.selectSupplyAsset = function supplyDraftSelectAsset(id) {
+    window.selectSupplyAsset = function supplyDraftSelectAsset(id, options = {}) {
+      if (options.auto) {
+        const token = getSupplyToken(id);
+        if (!token || !originalSelectAsset) return false;
+        stagedAssetId = id;
+        appliedAssetId = id;
+        document.body.classList.remove('supply-has-pending-asset');
+        setAssetState(true);
+        setSelectorUi(token, false);
+        originalSelectAsset.call(window, id, { auto: true });
+        syncApplyButton();
+        return false;
+      }
       stageSupplyAsset(id);
       return false;
     };
@@ -1582,7 +1618,7 @@
       setTimeout(setAssetPlaceholder, 300);
       setTimeout(() => {
         if (stagedAssetId && stagedAssetId !== appliedAssetId) {
-          applyStagedAsset();
+          applyStagedAsset({ auto: true });
         } else if (!autoApplyArmedDefaultSupplyAsset()) {
           autoApplyDefaultSupplyAsset();
         }
