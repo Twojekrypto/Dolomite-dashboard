@@ -3101,14 +3101,12 @@
             table-layout: fixed;
         }
 
-        .positions-table colgroup col:nth-child(1) { width: 7%; }     /* Chain */
-        .positions-table colgroup col:nth-child(2) { width: 16%; }    /* Address */
-        .positions-table colgroup col:nth-child(3) { width: 12%; }    /* Health Factor */
-        .positions-table colgroup col:nth-child(4) { width: 14%; }    /* E-Mode */
-        .positions-table colgroup col:nth-child(5) { width: 13%; }    /* Collateral */
-        .positions-table colgroup col:nth-child(6) { width: 11%; }    /* Debt */
-        .positions-table colgroup col:nth-child(7) { width: 16%; }    /* Collateral Tokens */
-        .positions-table colgroup col:nth-child(8) { width: 11%; }    /* Debt Tokens */
+        .positions-table colgroup col:nth-child(1) { width: 8%; }     /* Chain */
+        .positions-table colgroup col:nth-child(2) { width: 19%; }    /* Address */
+        .positions-table colgroup col:nth-child(3) { width: 13%; }    /* Health Factor */
+        .positions-table colgroup col:nth-child(4) { width: 11%; }    /* E-Mode */
+        .positions-table colgroup col:nth-child(5) { width: 26%; }    /* Collateral (USD + tokens) */
+        .positions-table colgroup col:nth-child(6) { width: 23%; }    /* Debt (USD + tokens) */
 
         .positions-table thead {
             position: relative;
@@ -3236,6 +3234,15 @@
         .positions-table tbody td:nth-child(2),
         .positions-table tbody td:nth-child(3) {
             overflow: visible;
+        }
+
+        /* Merged Collateral / Debt cells (USD value + inline token pills) — allow wrapping */
+        .positions-table tbody td:nth-child(5),
+        .positions-table tbody td:nth-child(6) {
+            white-space: normal;
+            overflow: visible;
+            padding-top: 7px;
+            padding-bottom: 7px;
         }
 
         /* Chain badge — compact icon style */
@@ -3753,6 +3760,53 @@
             font-variant-numeric: tabular-nums;
         }
 
+        /* Merged Collateral / Debt column: primary USD value on top, token pills inline below */
+        .pos-merged {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            min-width: 0;
+        }
+        .pos-merged .usd-value {
+            font-size: 12.5px;
+            line-height: 1.1;
+        }
+        .pos-merged .token-pills {
+            flex-direction: row;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 1px 8px;
+        }
+        .pos-merged .token-pill {
+            font-size: 9.5px;
+            color: var(--fg-3);
+            gap: 3px;
+        }
+        .pos-merged .token-pill .token-pill-icon,
+        .pos-merged .token-pill .token-pill-icon img {
+            width: 12px;
+            height: 12px;
+        }
+        .pos-merged .token-pill .token-usd {
+            color: var(--fg-4, var(--text-muted));
+        }
+        .pos-merged-empty {
+            color: var(--text-muted);
+            font-size: 11px;
+            font-family: var(--mono);
+        }
+
+        /* Two filter triggers (USD range + token) sharing one merged header */
+        .col-filter-pair {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+        }
+        .col-filter-btn--token svg {
+            width: 13px;
+            height: 13px;
+        }
+
         /* HF mini gauge bar */
         .hf-gauge {
             display: flex;
@@ -3872,12 +3926,6 @@
             .search-wrap { margin-left: 0; }
             .search-input { width: 100%; }
             .positions-table { font-size: 11px; }
-            .positions-table colgroup col:nth-child(7),
-            .positions-table colgroup col:nth-child(8) { width: 0; display: none; }
-            .positions-table th:nth-child(7),
-            .positions-table th:nth-child(8),
-            .positions-table td:nth-child(7),
-            .positions-table td:nth-child(8) { display: none; }
         }
 
         /* Toggle buttons — switch-like style */
@@ -4457,7 +4505,16 @@
             overflow: hidden;
             pointer-events: auto;
         }
+        /* Single-popover headers (Supply tables) reveal their popover with the header's open state. */
         th.col-filter-open .col-filter-popover {
+            display: block; animation: colPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        /* Lending Positions merged headers can hold two popovers (USD range + token):
+           suppress the blanket rule and reveal only the explicitly-opened one. */
+        #positions-table thead th.col-filter-open .col-filter-popover {
+            display: none;
+        }
+        #positions-table thead th.col-filter-open .col-filter-popover.col-pop-open {
             display: block; animation: colPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
         @keyframes colPopIn {
@@ -7336,6 +7393,86 @@
             background: var(--bg-1) !important;
         }
 
+        /* DOLO-Holders-style pager + footer — Lending Positions & Liquidation History
+           (count on the left, pager centered, gold hover, mono X / Y indicator). */
+        body.route-liquidation #table-footer,
+        body.route-liquidation #liquidation-history-pagination {
+            display: grid !important;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 22px !important;
+            min-height: 56px;
+        }
+        body.route-liquidation #table-footer .flow-pager-count,
+        body.route-liquidation #liquidation-history-pagination .flow-pager-count {
+            grid-column: 1;
+            justify-self: start;
+            font-family: var(--mono);
+            font-size: 12px;
+            color: var(--fg-3);
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+        body.route-liquidation #table-footer .flow-pager,
+        body.route-liquidation #liquidation-history-pagination .flow-pager {
+            grid-column: 2;
+            justify-self: center;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        body.route-liquidation #table-footer .flow-pager-btn,
+        body.route-liquidation #liquidation-history-pagination .flow-pager-btn {
+            width: 30px;
+            height: 30px;
+            min-width: 30px;
+            padding: 0;
+            border-radius: 6px;
+            background: var(--bg-3) !important;
+            border: 1px solid var(--line-2) !important;
+            color: var(--fg-2) !important;
+            box-shadow: none !important;
+            transform: none !important;
+            transition: all .15s var(--ease, ease);
+        }
+        body.route-liquidation #table-footer .flow-pager-btn svg,
+        body.route-liquidation #liquidation-history-pagination .flow-pager-btn svg {
+            width: 12px;
+            height: 12px;
+        }
+        body.route-liquidation #table-footer .flow-pager-btn:hover:not(:disabled),
+        body.route-liquidation #liquidation-history-pagination .flow-pager-btn:hover:not(:disabled) {
+            background: var(--gold-wash) !important;
+            border-color: var(--gold-line) !important;
+            color: var(--gold) !important;
+            box-shadow: none !important;
+            transform: none !important;
+        }
+        body.route-liquidation #table-footer .flow-pager-btn:disabled,
+        body.route-liquidation #liquidation-history-pagination .flow-pager-btn:disabled {
+            opacity: .3 !important;
+            cursor: not-allowed;
+        }
+        body.route-liquidation #table-footer .flow-pager-current,
+        body.route-liquidation #liquidation-history-pagination .flow-pager-current {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 0 12px;
+            height: 30px;
+            font-family: var(--mono);
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--fg-1) !important;
+            font-variant-numeric: tabular-nums;
+        }
+        body.route-liquidation #table-footer .flow-pager-current .flow-pager-sep,
+        body.route-liquidation #liquidation-history-pagination .flow-pager-current .flow-pager-sep {
+            color: var(--fg-4, var(--text-muted));
+            font-weight: 400;
+        }
+
         /* Risk Simulator target layout: one custom basket editor, results on the right, wallets below. */
         body.route-liquidation #sim-card .liquidation-sim-tabs-bar,
         body.route-liquidation #sim-card #sim-simple-controls,
@@ -8052,23 +8189,7 @@
                 -webkit-overflow-scrolling: touch !important;
             }
             body.route-liquidation #positions-table {
-                min-width: 1060px !important;
-            }
-            body.route-liquidation #positions-table colgroup col:nth-child(7),
-            body.route-liquidation #positions-table colgroup col:nth-child(8) {
-                display: table-column !important;
-            }
-            body.route-liquidation #positions-table colgroup col:nth-child(7) {
-                width: 16% !important;
-            }
-            body.route-liquidation #positions-table colgroup col:nth-child(8) {
-                width: 11% !important;
-            }
-            body.route-liquidation #positions-table th:nth-child(7),
-            body.route-liquidation #positions-table th:nth-child(8),
-            body.route-liquidation #positions-table td:nth-child(7),
-            body.route-liquidation #positions-table td:nth-child(8) {
-                display: table-cell !important;
+                min-width: 900px !important;
             }
         }
         @media (min-width: 701px) and (max-width: 760px) {
@@ -8875,7 +8996,7 @@
 
                     <table class="positions-table" id="positions-table" style="display: none;">
                         <colgroup>
-                            <col><col><col><col><col><col><col><col>
+                            <col><col><col><col><col><col>
                         </colgroup>
                         <thead>
                             <tr>
@@ -8908,10 +9029,18 @@
                         <th data-sort="collateral" style="position:relative; overflow:visible">
                             <span class="col-header-group">
                                 Collateral
-                                <button type="button" class="col-filter-btn" id="collateral-filter-trigger" aria-label="Filter by Collateral range">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-                                </button>
-                                <button type="button" class="col-filter-clear" id="collateral-filter-clear">✕</button>
+                                <span class="col-filter-pair">
+                                    <button type="button" class="col-filter-btn" id="collateral-filter-trigger" aria-label="Filter by Collateral range" title="Filter by USD value">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                    </button>
+                                    <button type="button" class="col-filter-clear" id="collateral-filter-clear">✕</button>
+                                </span>
+                                <span class="col-filter-pair">
+                                    <button type="button" class="col-filter-btn col-filter-btn--token" id="col-token-filter-trigger" aria-label="Filter by Collateral Token" title="Filter by token">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9a2.4 1.8 0 0 0-2.5-1.4c-1.4 0-2.5.8-2.5 1.9s1 1.5 2.5 1.9 2.5.8 2.5 1.9-1.1 1.9-2.5 1.9A2.4 1.8 0 0 1 9.5 14"/><path d="M12 6.4v11.2"/></svg>
+                                    </button>
+                                    <button type="button" class="col-filter-clear" id="col-token-filter-clear">✕</button>
+                                </span>
                                 <span class="sort-arrow"></span>
                             </span>
                             <div class="col-filter-popover" id="collateral-popover">
@@ -8927,14 +9056,32 @@
                                 </div>
                                 </div>
                             </div>
+                            <div class="col-filter-popover" id="col-token-popover">
+                                <div class="col-filter-inner">
+                                <div class="col-filter-label">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6.4v11.2"/></svg>
+                                    Collateral Tokens
+                                </div>
+                                <input type="text" class="col-token-search" id="col-token-search" placeholder="Search token...">
+                                <div class="col-token-list" id="col-token-list"></div>
+                                </div>
+                            </div>
                         </th>
                         <th data-sort="debt" style="position:relative; overflow:visible">
                             <span class="col-header-group">
                                 Debt
-                                <button type="button" class="col-filter-btn" id="debt-filter-trigger" aria-label="Filter by Debt range">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-                                </button>
-                                <button type="button" class="col-filter-clear" id="debt-filter-clear">✕</button>
+                                <span class="col-filter-pair">
+                                    <button type="button" class="col-filter-btn" id="debt-filter-trigger" aria-label="Filter by Debt range" title="Filter by USD value">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                    </button>
+                                    <button type="button" class="col-filter-clear" id="debt-filter-clear">✕</button>
+                                </span>
+                                <span class="col-filter-pair">
+                                    <button type="button" class="col-filter-btn col-filter-btn--token" id="debt-token-filter-trigger" aria-label="Filter by Debt Token" title="Filter by token">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9a2.4 1.8 0 0 0-2.5-1.4c-1.4 0-2.5.8-2.5 1.9s1 1.5 2.5 1.9 2.5.8 2.5 1.9-1.1 1.9-2.5 1.9A2.4 1.8 0 0 1 9.5 14"/><path d="M12 6.4v11.2"/></svg>
+                                    </button>
+                                    <button type="button" class="col-filter-clear" id="debt-token-filter-clear">✕</button>
+                                </span>
                                 <span class="sort-arrow"></span>
                             </span>
                             <div class="col-filter-popover" id="debt-popover">
@@ -8950,38 +9097,10 @@
                                 </div>
                                 </div>
                             </div>
-                        </th>
-                        <th style="position:relative; overflow:visible">
-                            <span class="col-header-group">
-                                Collateral Tokens
-                                <button type="button" class="col-filter-btn" id="col-token-filter-trigger" aria-label="Filter by Collateral Token">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-                                </button>
-                                <button type="button" class="col-filter-clear" id="col-token-filter-clear">✕</button>
-                            </span>
-                            <div class="col-filter-popover" id="col-token-popover">
-                                <div class="col-filter-inner">
-                                <div class="col-filter-label">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-                                    Collateral Tokens
-                                </div>
-                                <input type="text" class="col-token-search" id="col-token-search" placeholder="Search token...">
-                                <div class="col-token-list" id="col-token-list"></div>
-                                </div>
-                            </div>
-                        </th>
-                        <th style="position:relative; overflow:visible">
-                            <span class="col-header-group">
-                                Debt Tokens
-                                <button type="button" class="col-filter-btn" id="debt-token-filter-trigger" aria-label="Filter by Debt Token">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-                                </button>
-                                <button type="button" class="col-filter-clear" id="debt-token-filter-clear">✕</button>
-                            </span>
                             <div class="col-filter-popover" id="debt-token-popover">
                                 <div class="col-filter-inner">
                                 <div class="col-filter-label">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6.4v11.2"/></svg>
                                     Debt Tokens
                                 </div>
                                 <input type="text" class="col-token-search" id="debt-token-search" placeholder="Search token...">
@@ -12243,6 +12362,12 @@
 
         const COPY_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`;
 
+        // DOLO-Holders-style pager chevrons (first / prev / next / last)
+        const PAGER_ICON_FIRST = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>`;
+        const PAGER_ICON_PREV = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>`;
+        const PAGER_ICON_NEXT = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+        const PAGER_ICON_LAST = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>`;
+
         const CHAIN_DEBANK_IDS = {
             'berachain': 'bera',
             'arbitrum': 'arb',
@@ -12521,11 +12646,15 @@
         }
 
         function closeOpenHeaderPopovers(exceptTh = null) {
+            // Each header can hold more than one popover (e.g. merged Collateral = USD range + token),
+            // so visibility is tracked per-popover via .col-pop-open, not per-<th>.
+            document.querySelectorAll('.col-filter-popover.col-pop-open').forEach(pop => {
+                pop.classList.remove('col-pop-open');
+                pop.style.display = '';
+            });
             document.querySelectorAll('th.col-filter-open').forEach(th => {
                 if (th === exceptTh) return;
                 th.classList.remove('col-filter-open');
-                const popover = th.querySelector('.col-filter-popover');
-                if (popover) popover.style.display = '';
             });
         }
 
@@ -12716,14 +12845,14 @@
                 const btn = document.getElementById(`${col}-filter-trigger`);
                 if (btn) btn.classList.remove('has-active');
                 btn?.closest('th')?.classList.remove('col-filter-open');
-                { const p = btn?.closest('th')?.querySelector('.col-filter-popover'); if (p) p.style.display = ''; }
+                btn?.closest('th')?.querySelectorAll('.col-filter-popover').forEach(p => { p.classList.remove('col-pop-open'); p.style.display = ''; });
                 document.querySelectorAll(`#${col}-presets .col-preset`).forEach(p => p.classList.remove('active'));
             });
             ['col-token', 'debt-token'].forEach(prefix => {
                 const btn = document.getElementById(`${prefix}-filter-trigger`);
                 if (btn) btn.classList.remove('has-active');
                 btn?.closest('th')?.classList.remove('col-filter-open');
-                { const p = btn?.closest('th')?.querySelector('.col-filter-popover'); if (p) p.style.display = ''; }
+                btn?.closest('th')?.querySelectorAll('.col-filter-popover').forEach(p => { p.classList.remove('col-pop-open'); p.style.display = ''; });
             });
 
             // Reset dropdowns active classes
@@ -12802,7 +12931,10 @@
                 const collateralDisplay = p.collateralUSD < 0.01 ? '$0.00' : formatUSD(p.collateralUSD);
                 const collateralTokensHtml = p.collateralTokens && p.collateralTokens.length > 0
                     ? renderTokenPills(p.collateralTokens)
-                    : `<span style="color:var(--text-muted);font-size:11px">—</span>`;
+                    : `<span class="pos-merged-empty">—</span>`;
+                const debtTokensHtml = p.debtTokens && p.debtTokens.length > 0
+                    ? renderTokenPills(p.debtTokens)
+                    : `<span class="pos-merged-empty">—</span>`;
 
                 const FLAME_SVG = '<svg class="emode-flame" viewBox="0 0 24 24" fill="none"><path d="M12 2c0 4-4 6-4 10a4 4 0 0 0 8 0c0-4-4-6-4-10z" fill="#fb923c" opacity="0.9"/><path d="M12 8c0 2.5-2 3.5-2 6a2 2 0 0 0 4 0c0-2.5-2-3.5-2-6z" fill="#fbbf24"/></svg>';
                 const emodeCell = p.eMode
@@ -12819,10 +12951,14 @@
                     </div></td>
                     <td><div class="hf-gauge"><span class="hf-badge ${riskClass}"><span class="hf-dot ${riskClass}"></span>${hfText}</span></div></td>
                     <td style="text-align:center">${emodeCell}</td>
-                    <td><span class="usd-value collateral ${collateralClass}">${collateralDisplay}</span></td>
-                    <td><span class="usd-value debt ${debtClass}">${formatUSD(p.debtUSD)}</span></td>
-                    <td><div class="token-pills">${collateralTokensHtml}</div></td>
-                    <td><div class="token-pills">${renderTokenPills(p.debtTokens)}</div></td>
+                    <td><div class="pos-merged">
+                        <span class="usd-value collateral ${collateralClass}">${collateralDisplay}</span>
+                        <div class="token-pills">${collateralTokensHtml}</div>
+                    </div></td>
+                    <td><div class="pos-merged">
+                        <span class="usd-value debt ${debtClass}">${p.debtUSD < 0.01 ? '$0.00' : formatUSD(p.debtUSD)}</span>
+                        <div class="token-pills">${debtTokensHtml}</div>
+                    </div></td>
                 </tr>`;
             }).join('');
 
@@ -12849,18 +12985,24 @@
             const totalPages = Math.ceil(filteredPositions.length / PAGE_SIZE);
             const footer = document.getElementById('table-footer');
 
+            const posCount = `${filteredPositions.length.toLocaleString()} position${filteredPositions.length === 1 ? '' : 's'}`;
+
             if (totalPages <= 1) {
-                footer.innerHTML = `<span class="flow-pager-info">1 / 1</span><span class="flow-pager-total">${filteredPositions.length.toLocaleString()} positions</span>`;
+                footer.innerHTML =
+                    `<span class="flow-pager-count">${posCount}</span>` +
+                    `<div class="flow-pager"><span class="flow-pager-current">1 <span class="flow-pager-sep">/</span> 1</span></div>`;
                 return;
             }
 
             footer.innerHTML =
-                `<button class="flow-pager-btn" onclick="goToPage(1)" ${currentPage === 1 ? 'disabled' : ''}>«</button>` +
-                `<button class="flow-pager-btn" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>‹</button>` +
-                `<span class="flow-pager-info">${currentPage} / ${totalPages}</span>` +
-                `<button class="flow-pager-btn" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>›</button>` +
-                `<button class="flow-pager-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>»</button>` +
-                `<span class="flow-pager-total">${filteredPositions.length.toLocaleString()} positions</span>`;
+                `<span class="flow-pager-count">${posCount}</span>` +
+                `<div class="flow-pager">` +
+                    `<button class="flow-pager-btn" aria-label="First page" onclick="goToPage(1)" ${currentPage === 1 ? 'disabled' : ''}>${PAGER_ICON_FIRST}</button>` +
+                    `<button class="flow-pager-btn" aria-label="Previous page" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>${PAGER_ICON_PREV}</button>` +
+                    `<span class="flow-pager-current">${currentPage} <span class="flow-pager-sep">/</span> ${totalPages}</span>` +
+                    `<button class="flow-pager-btn" aria-label="Next page" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>${PAGER_ICON_NEXT}</button>` +
+                    `<button class="flow-pager-btn" aria-label="Last page" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>${PAGER_ICON_LAST}</button>` +
+                `</div>`;
         }
 
         function goToPage(p) {
@@ -13013,14 +13155,18 @@
                 }
             }
 
+            const liqCount = `${filteredTotal.toLocaleString()} liquidation${filteredTotal === 1 ? '' : 's'}`;
             pager.innerHTML = totalPages <= 1
-                ? `<span class="flow-pager-info">1 / 1</span><span class="flow-pager-total">${filteredTotal.toLocaleString()} liquidations</span>`
-                : `<button class="flow-pager-btn" onclick="liquidationHistoryGoPage(1)" ${liquidationHistoryPage === 1 ? 'disabled' : ''}>«</button>` +
-                  `<button class="flow-pager-btn" onclick="liquidationHistoryGoPage(${liquidationHistoryPage - 1})" ${liquidationHistoryPage === 1 ? 'disabled' : ''}>‹</button>` +
-                  `<span class="flow-pager-info">${liquidationHistoryPage} / ${totalPages}</span>` +
-                  `<button class="flow-pager-btn" onclick="liquidationHistoryGoPage(${liquidationHistoryPage + 1})" ${liquidationHistoryPage === totalPages ? 'disabled' : ''}>›</button>` +
-                  `<button class="flow-pager-btn" onclick="liquidationHistoryGoPage(${totalPages})" ${liquidationHistoryPage === totalPages ? 'disabled' : ''}>»</button>` +
-                  `<span class="flow-pager-total">${filteredTotal.toLocaleString()} liquidations</span>`;
+                ? `<span class="flow-pager-count">${liqCount}</span>` +
+                  `<div class="flow-pager"><span class="flow-pager-current">1 <span class="flow-pager-sep">/</span> 1</span></div>`
+                : `<span class="flow-pager-count">${liqCount}</span>` +
+                  `<div class="flow-pager">` +
+                    `<button class="flow-pager-btn" aria-label="First page" onclick="liquidationHistoryGoPage(1)" ${liquidationHistoryPage === 1 ? 'disabled' : ''}>${PAGER_ICON_FIRST}</button>` +
+                    `<button class="flow-pager-btn" aria-label="Previous page" onclick="liquidationHistoryGoPage(${liquidationHistoryPage - 1})" ${liquidationHistoryPage === 1 ? 'disabled' : ''}>${PAGER_ICON_PREV}</button>` +
+                    `<span class="flow-pager-current">${liquidationHistoryPage} <span class="flow-pager-sep">/</span> ${totalPages}</span>` +
+                    `<button class="flow-pager-btn" aria-label="Next page" onclick="liquidationHistoryGoPage(${liquidationHistoryPage + 1})" ${liquidationHistoryPage === totalPages ? 'disabled' : ''}>${PAGER_ICON_NEXT}</button>` +
+                    `<button class="flow-pager-btn" aria-label="Last page" onclick="liquidationHistoryGoPage(${totalPages})" ${liquidationHistoryPage === totalPages ? 'disabled' : ''}>${PAGER_ICON_LAST}</button>` +
+                  `</div>`;
         }
 
         function liquidationHistoryGoPage(page) {
@@ -13519,20 +13665,15 @@
             const thParent = trigger.closest('th');
             if (!thParent) return;
 
+            const popover = document.getElementById(opts.popoverId);
             trigger.addEventListener('click', e => {
                 e.stopPropagation(); e.preventDefault();
-                if (!thParent.classList.contains('col-filter-open')) {
-                    closeFloatingMenus({ exceptTh: thParent });
-                }
-                thParent.classList.toggle('col-filter-open');
-                // Position popover fixed relative to trigger button
-                if (thParent.classList.contains('col-filter-open')) {
-                    const popover = thParent.querySelector('.col-filter-popover');
-                    if (popover) positionPopoverFixed(trigger, popover);
-                } else {
-                    // Toggled off — clear inline display
-                    const popover = thParent.querySelector('.col-filter-popover');
-                    if (popover) popover.style.display = '';
+                const willOpen = popover && !popover.classList.contains('col-pop-open');
+                closeFloatingMenus();
+                if (willOpen) {
+                    thParent.classList.add('col-filter-open');
+                    popover.classList.add('col-pop-open');
+                    positionPopoverFixed(trigger, popover);
                 }
             });
 
@@ -13571,10 +13712,10 @@
             maxInput.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); });
 
             // Close on click outside — check both thParent AND the fixed popover
-            const popoverEl = thParent.querySelector('.col-filter-popover');
+            const popoverEl = popover;
             function closeRangePopover() {
                 thParent.classList.remove('col-filter-open');
-                if (popoverEl) popoverEl.style.display = '';
+                if (popoverEl) { popoverEl.classList.remove('col-pop-open'); popoverEl.style.display = ''; }
             }
             document.addEventListener('click', e => {
                 if (!thParent.contains(e.target) && (!popoverEl || !popoverEl.contains(e.target))) {
@@ -13615,6 +13756,7 @@
 
         initColFilterPopover({
             triggerId: 'hf-filter-trigger',
+            popoverId: 'hf-popover',
             minInputId: 'hf-custom-min',
             maxInputId: 'hf-custom-max',
             presetsId: 'hf-presets',
@@ -13626,6 +13768,7 @@
 
         initColFilterPopover({
             triggerId: 'debt-filter-trigger',
+            popoverId: 'debt-popover',
             minInputId: 'debt-custom-min',
             maxInputId: 'debt-custom-max',
             presetsId: 'debt-presets',
@@ -13637,6 +13780,7 @@
 
         initColFilterPopover({
             triggerId: 'collateral-filter-trigger',
+            popoverId: 'collateral-popover',
             minInputId: 'collateral-custom-min',
             maxInputId: 'collateral-custom-max',
             presetsId: 'collateral-presets',
@@ -13655,6 +13799,7 @@
             if (!trigger || !searchInput || !listEl) return;
             const thParent = trigger.closest('th');
             if (!thParent) return;
+            const popover = document.getElementById(opts.popoverId);
             let closeTimer = null;
 
             function renderList() {
@@ -13733,26 +13878,21 @@
 
             function closePopover() {
                 thParent.classList.remove('col-filter-open');
-                // Clear any inline display:block set by positionPopoverFixed
-                const pop = thParent.querySelector('.col-filter-popover');
-                if (pop) pop.style.display = '';
+                if (popover) { popover.classList.remove('col-pop-open'); popover.style.display = ''; }
                 if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
             }
 
             trigger.addEventListener('click', e => {
                 e.stopPropagation(); e.preventDefault();
-                if (!thParent.classList.contains('col-filter-open')) {
-                    closeFloatingMenus({ exceptTh: thParent });
-                }
-                thParent.classList.toggle('col-filter-open');
-                if (thParent.classList.contains('col-filter-open')) {
-                    const popover = thParent.querySelector('.col-filter-popover');
-                    if (popover) positionPopoverFixed(trigger, popover);
+                const willOpen = popover && !popover.classList.contains('col-pop-open');
+                closeFloatingMenus();
+                if (willOpen) {
+                    thParent.classList.add('col-filter-open');
+                    popover.classList.add('col-pop-open');
+                    positionPopoverFixed(trigger, popover);
                     searchInput.value = '';
                     renderList();
                     requestAnimationFrame(() => searchInput.focus());
-                } else {
-                    closePopover();
                 }
             });
 
@@ -13760,7 +13900,7 @@
             searchInput.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); });
 
             // Close on click outside — check both thParent AND the fixed popover
-            const popoverEl = thParent.querySelector('.col-filter-popover');
+            const popoverEl = popover;
             document.addEventListener('click', e => {
                 if (!thParent.contains(e.target) && (!popoverEl || !popoverEl.contains(e.target))) {
                     closePopover();
@@ -13817,6 +13957,7 @@
 
         initTokenColFilter({
             triggerId: 'col-token-filter-trigger',
+            popoverId: 'col-token-popover',
             searchId: 'col-token-search',
             listId: 'col-token-list',
             clearBtnId: 'col-token-filter-clear',
@@ -13826,6 +13967,7 @@
 
         initTokenColFilter({
             triggerId: 'debt-token-filter-trigger',
+            popoverId: 'debt-token-popover',
             searchId: 'debt-token-search',
             listId: 'debt-token-list',
             clearBtnId: 'debt-token-filter-clear',
@@ -14189,7 +14331,7 @@
                 if (maxEl) maxEl.value = '';
                 trigger.classList.remove('has-active');
                 trigger.closest('th')?.classList.remove('col-filter-open');
-                { const p = trigger.closest('th')?.querySelector('.col-filter-popover'); if (p) p.style.display = ''; }
+                trigger.closest('th')?.querySelectorAll('.col-filter-popover').forEach(p => { p.classList.remove('col-pop-open'); p.style.display = ''; });
                 const presetsEl = document.getElementById(presetsId);
                 if (presetsEl) presetsEl.querySelectorAll('.col-preset').forEach(p => p.classList.remove('active'));
                 applyFilters();
