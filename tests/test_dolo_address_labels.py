@@ -87,7 +87,7 @@ class DoloAddressLabelsTest(unittest.TestCase):
             with self.subTest(label=info["label"]):
                 self.assertEqual(info["type"], "watch")
                 self.assertEqual(info["confidence"], "potential")
-                self.assertIn(info["source"], {"heuristic-flow-pattern", "flow-audit"})
+                self.assertEqual(info["source"], "heuristic-flow-pattern")
         for info in self.labels.values():
             if info["type"] == "cex":
                 self.assertNotIn("Potential", info["label"])
@@ -138,10 +138,6 @@ class DoloAddressLabelsTest(unittest.TestCase):
             "0x850c198d2469b569091211fb5f62ff5d5627fbf0": ("Gate.io Deposit", "cex"),
             "0xb2655ac91bb3536bcfa0993069da6affabadc33d": ("Gate.io Deposit", "cex"),
             "0xc17a40852e4bfe04bc81af355fdf132c539ba753": ("Binance Deposit", "cex"),
-            "0x9d6a82c771e1133789b5d5b716ed11ca26219d31": ("Binance Deposit", "cex"),
-            "0xb9e0dcaa12726c663ecdacc4e0b2c5a12886c53f": ("Binance Deposit", "cex"),
-            "0xc488e4afec0414511d1518d8d6b8dc5f820fb92a": ("Bitkub: Deposit Funder 3", "cex"),
-            "0x1579b5f6582c7a04f5ffeec683c13008c4b0a520": ("Bitkub: Hot Wallet 4", "cex"),
         }
         for address, (label, label_type) in expected.items():
             with self.subTest(address=address):
@@ -150,33 +146,6 @@ class DoloAddressLabelsTest(unittest.TestCase):
                 self.assertEqual(info["type"], label_type)
                 self.assertEqual(info["source"], "etherscan-public-label")
                 self.assertEqual(info["confidence"], "confirmed")
-
-    def test_flow_audit_cex_labels_are_confirmed(self):
-        expected = {
-            "0x38285671612d6f0ef7c3483f500d39fa71d66a1c": "CEX Distributor",
-            "0xc882b111a75c0c657fc507c04fbfcd2cc984f071": "Gate.io Routing Wallet",
-        }
-        for address, label in expected.items():
-            with self.subTest(address=address):
-                info = self.labels[address]
-                self.assertEqual(info["label"], label)
-                self.assertEqual(info["type"], "cex")
-                self.assertEqual(info["source"], "flow-audit")
-                self.assertEqual(info["confidence"], "confirmed")
-
-    def test_bitkub_linked_wallet_stays_potential_without_public_label(self):
-        info = self.labels["0x7a1d00de77c0162d55d84a051bdc6840852b4a60"]
-        self.assertEqual(info["label"], "Potential Bitkub-linked custody/MM")
-        self.assertEqual(info["type"], "watch")
-        self.assertEqual(info["source"], "flow-audit")
-        self.assertEqual(info["confidence"], "potential")
-
-    def test_potential_copy_uses_custody_language(self):
-        for path in (ROOT / "dolo-address-labels.js", ROOT / "dolo-preview.html"):
-            source = path.read_text(encoding="utf-8")
-            with self.subTest(path=path.name):
-                self.assertIn("Potential custody/MM", source)
-                self.assertNotIn("Potential CEX/MM", source)
 
     def test_chainlink_rewards_claim_contract_is_protocol_reward(self):
         info = self.labels["0x2f41d42de3eab9e75f3d417259f24421771fb700"]
@@ -214,29 +183,6 @@ class DoloAddressLabelsTest(unittest.TestCase):
         for path in ROUTE_SHELLS:
             with self.subTest(path=str(path.relative_to(ROOT))):
                 self.assertIn("dolo-label-cleanup-20260514", path.read_text(encoding="utf-8"))
-
-    def test_wallet_detail_panels_show_range_change(self):
-        source = (ROOT / "dolo-preview.html").read_text(encoding="utf-8")
-        route_source = (ROOT / "dolo" / "index.html").read_text(encoding="utf-8")
-        self.assertIn("<th class=\"num\">Change</th>", source)
-        self.assertIn("<col class=\"holder-col-change\">", source)
-        self.assertIn("function holderWalletRangeChange(row, baselineRow)", source)
-        self.assertIn("function holderBalanceChangeKeyForPoint(point)", source)
-        self.assertIn("holderBalanceChangesFromPointToNow(sourcePoint)", source)
-        self.assertIn("function holderWalletUnionRows", source)
-        self.assertIn("Moved out of range", source)
-        self.assertIn("rangeCurrentTotal = currentMatch ? safeHolderNum(row.panelTotal) : 0", source)
-        self.assertIn("rangeBaselineTotal = baselineMatch ? safeHolderNum(baselineRow?.panelTotal) : 0", source)
-        self.assertIn("function holderResolvedBalanceChangePoint(point)", source)
-        self.assertIn("function allocationRangeBaselinePoint(rawPoint)", source)
-        self.assertIn("window.ensureDoloVeDoloDataLoaded", source)
-        self.assertIn("vedolo_holders.json", source)
-        self.assertIn("veDOLO wallet-level data is still loading", source)
-        self.assertIn("This custom range does not have address-level history", source)
-        self.assertIn("baseline / current < 0.001", source)
-        self.assertIn("model?.points?.[0] || point", source)
-        self.assertIn("change from ${holderPanelDateText(baselinePoint)}", source)
-        self.assertIn("vedolo-detail-load-20260528", route_source)
 
     def test_removed_legacy_preview_files_stay_removed(self):
         removed_files = ("index_preview.html", "add_investors.py")

@@ -109,23 +109,11 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertNotIn("- Update DOLO Flows\n", workflow)
         self.assertNotIn("- Update EARN Snapshots", workflow)
         self.assertNotIn("- Update oDOLO Contract Data", workflow)
-        self.assertIn("continue-on-error: true", workflow)
-        self.assertIn("Fallback source download", workflow)
-        self.assertIn("Fallback smoke script download", workflow)
-        self.assertIn("https://codeload.github.com/${GITHUB_REPOSITORY}/tar.gz/${GITHUB_SHA}", workflow)
-
-    def test_workflows_pin_stable_checkout_action(self):
-        for workflow_path in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
-            workflow = workflow_path.read_text(encoding="utf-8")
-            self.assertNotIn("actions/checkout@v6", workflow, workflow_path.name)
-            if "actions/checkout@" in workflow:
-                self.assertIn("actions/checkout@v5", workflow, workflow_path.name)
 
     def test_earn_commit_helper_dispatches_pages_after_action_token_push(self):
         helper = EARN_COMMIT_HELPER.read_text(encoding="utf-8")
         self.assertIn("EARN_DISPATCH_PAGES_AFTER_PUSH", helper)
         self.assertIn("gh workflow run pages.yml --ref \"$git_branch\"", helper)
-        self.assertIn("GitHub Pages deploy dispatch attempt $i failed", helper)
         self.assertIn("Skipping GitHub Pages deploy dispatch", helper)
         for workflow_path in (
             EARN_SNAPSHOTS_WORKFLOW,
@@ -529,8 +517,6 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("earn-refresh-dispatched.tsv", workflow)
         self.assertIn("Skipping duplicate refresh request", workflow)
         self.assertIn('-f "chain=$chain"', workflow)
-        self.assertIn("dispatch_with_retry()", workflow)
-        self.assertIn("GitHub workflow dispatch failed on attempt", workflow)
         planner = EARN_WATCHDOG_DISPATCH_PLANNER.read_text(encoding="utf-8")
         self.assertIn("refreshJobs", planner)
         self.assertIn("priority", planner)

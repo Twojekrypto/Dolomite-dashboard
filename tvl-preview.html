@@ -596,7 +596,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <span>veDOLO</span>
         </a>
         <a class="nav-item" href="./earn/" data-tab="earn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/></svg>
           <span>Earn</span>
         </a>
         <a class="nav-item" href="./borrow/" data-tab="borrow">
@@ -686,7 +686,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   <section class="card">
     <div class="card-head">
       <div class="card-title">
-        <h2>Supply Over Time</h2>
+        <h2>TVL Over Time</h2>
         <span class="count-badge" id="rangeBadge">All Time</span>
       </div>
       <div class="card-meta"><span class="pulse"></span>drag the window below to zoom</div>
@@ -1126,49 +1126,23 @@ async function fetchJson(path){
   return response.json();
 }
 
-function officialSnapshotTimestamp(officialData){
-  const parsed = Date.parse(officialData?.last_updated || "");
-  if (Number.isFinite(parsed)) return Math.floor(parsed / 1000);
-  return Math.floor(Date.now() / 1000);
-}
-
-function appendCurrentSupplyPoint(points, currentSupply, snapshotTs){
-  const supply = Number(currentSupply || 0);
-  if (!Number.isFinite(supply) || supply <= 0) return points;
-  const next = Array.isArray(points) ? points.slice() : [];
-  const ts = Number.isFinite(Number(snapshotTs)) ? Number(snapshotTs) : Math.floor(Date.now() / 1000);
-  if (!next.length) return [[ts, supply]];
-
-  const last = next[next.length - 1];
-  const lastTs = Number(last?.[0] || 0);
-  const pointTs = Math.max(ts, lastTs);
-  if (pointTs - lastTs < 86400) {
-    next[next.length - 1] = [pointTs, supply];
-  } else {
-    next.push([pointTs, supply]);
-  }
-  return next;
-}
-
-function buildHistory(llamaData, currentSupply, officialData){
+function buildHistory(llamaData, currentSupply){
   const raw = Array.isArray(llamaData?.tvl) ? llamaData.tvl : [];
   const points = raw
     .map(p => [Number(p.date), Number(p.totalLiquidityUSD)])
     .filter(p => Number.isFinite(p[0]) && Number.isFinite(p[1]) && p[1] > 0)
     .sort((a,b)=>a[0]-b[0]);
 
-  const snapshotTs = officialSnapshotTimestamp(officialData);
-  if (points.length < 2) return appendCurrentSupplyPoint(TVL_HISTORY, currentSupply, snapshotTs);
+  if (points.length < 2) return TVL_HISTORY;
 
   // Only smooth tiny current-snapshot drift. A large gap means the sources use
   // different TVL methodology, so scaling the whole history would invent data.
-  // The final point is always anchored to Dolomite's current supply snapshot.
   const last = points[points.length - 1][1];
   const ratio = last > 0 && currentSupply > 0 ? currentSupply / last : 1;
   if (ratio > 0.95 && ratio < 1.05) {
-    return appendCurrentSupplyPoint(points.map(p => [p[0], p[1] * ratio]), currentSupply, snapshotTs);
+    return points.map(p => [p[0], p[1] * ratio]);
   }
-  return appendCurrentSupplyPoint(points, currentSupply, snapshotTs);
+  return points;
 }
 
 const TOKEN_DISPLAY_SYMBOLS = {
@@ -1208,13 +1182,14 @@ function officialStaleChainKeys(officialData){
   return stale;
 }
 
-function mergedChainTokens(llamaData, officialData){
+function mergedChainTokens(llamaData, officialData, staleKeys){
   const officialTokens = officialData?.chainTokensInUsd || {};
   const llamaTokens = llamaData?.chainTokensInUsd || {};
   const merged = {};
   const chainNames = new Set([...Object.keys(officialTokens), ...Object.keys(llamaTokens)]);
   chainNames.forEach(chain => {
-    const tokens = officialTokens[chain] || llamaTokens[chain];
+    const useLlama = staleKeys.has(chainKey(chain)) && llamaTokens[chain];
+    const tokens = useLlama ? llamaTokens[chain] : (officialTokens[chain] || llamaTokens[chain]);
     if (tokens && Object.keys(tokens).length) merged[chain] = tokens;
   });
   return merged;
@@ -1234,7 +1209,7 @@ function tokenMapFromChains(chainTokens){
 
 function buildTokenComposition(llamaData, officialData, staleKeys=new Set()){
   const chainTokens = officialData
-    ? mergedChainTokens(llamaData, officialData)
+    ? mergedChainTokens(llamaData, officialData, staleKeys)
     : (llamaData?.chainTokensInUsd || {});
   const tokenSource = officialData?.tokensInUsd || llamaData?.tokensInUsd || [];
   const latest = tokenSource[tokenSource.length - 1] || tokenSource[0] || {};
@@ -1267,7 +1242,7 @@ function buildTokenComposition(llamaData, officialData, staleKeys=new Set()){
 
 function buildChainTokenCompositions(llamaData, officialData, staleKeys=new Set()){
   const chainTokens = officialData
-    ? mergedChainTokens(llamaData, officialData)
+    ? mergedChainTokens(llamaData, officialData, staleKeys)
     : (llamaData?.chainTokensInUsd || {});
   const byChain = {};
   Object.entries(chainTokens).forEach(([chain, tokens]) => {
@@ -1295,20 +1270,20 @@ function buildTvlSnapshot(llamaData, officialData){
   ]);
   const chainRows = [...chainNames]
     .map(name => {
-      const hasOfficialChain = Number(current[name]) > 0;
-      const useLlama = !hasOfficialChain && Number(llamaCurrent[name]) > 0;
+      const key = chainKey(name);
+      const useLlama = staleKeys.has(key) && Number(llamaCurrent[name]) > 0;
       const source = useLlama ? llamaCurrent : current;
       return {
         name,
         tvl: Number(source[name] || 0),
         borrowed: Number(source[`${name}-borrowed`] || 0),
-        source: useLlama ? "defillama_fallback" : "dolomite_api",
+        source: useLlama ? "defillama_fallback" : "dolomite_subgraph",
       };
     })
     .filter(c => c.tvl > 0)
     .sort((a,b)=>b.tvl-a.tvl);
   const chainTokens = officialData
-    ? mergedChainTokens(llamaData, officialData)
+    ? mergedChainTokens(llamaData, officialData, staleKeys)
     : (llamaData?.chainTokensInUsd || {});
   const hasFallback = chainRows.some(c => c.source === "defillama_fallback");
   const rowTvl = chainRows.reduce((sum,c)=>sum+c.tvl, 0);
@@ -1326,7 +1301,7 @@ function buildTvlSnapshot(llamaData, officialData){
     tokens: Object.values(chainTokens[c.name] || {}).filter(v => Number(v) > 0).length,
   }));
 
-  const history = buildHistory(llamaData, supplyLiquidity, officialData);
+  const history = buildHistory(llamaData, supplyLiquidity);
   const tokens = buildTokenComposition(llamaData, officialData, staleKeys);
   const tokenCompositionByChain = buildChainTokenCompositions(llamaData, officialData, staleKeys);
 

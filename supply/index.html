@@ -8,7 +8,7 @@
 <script>
 (async () => {
   try {
-    const draftVersion = "supply-draft-20260517-flow-market-icon-hide-dust-history-nav-20260524-revenue-nav-20260601-supply-default-largest-20260604b-unified-nav-source-20260604";
+    const draftVersion = "supply-draft-20260517-flow-market-icon-hide-dust-history-nav-20260524-revenue-nav-20260601-supply-default-largest-20260604b";
     const response = await fetch(`../liquidation-preview.html?v=${draftVersion}-${Date.now()}`, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const html = await response.text();
@@ -18,7 +18,7 @@
       '<link rel="stylesheet" href="supply/supply-draft.css?v=' + draftVersion + '">',
       '<script defer src="supply/supply-draft.js?v=' + draftVersion + '"><\/script>'
     ].join("");
-    const mobileNavAssets = '<link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260604-safe-header"><link rel="stylesheet" href="mobile-polish.css?v=mobile-polish-20260602-history-tabs"><link rel="stylesheet" href="protocol-footer.css?v=protocol-footer-20260604b"><script defer src="mobile-nav.js?v=mobile-nav-20260604-safe-header"><\/script><script defer src="mobile-polish.js?v=mobile-polish-20260602-history-tabs"><\/script><script defer src="protocol-footer.js?v=protocol-footer-20260604b"><\/script>';
+    const mobileNavAssets = '<link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260602-history-tabs"><link rel="stylesheet" href="mobile-polish.css?v=mobile-polish-20260602-history-tabs"><link rel="stylesheet" href="protocol-footer.css?v=protocol-footer-20260604b"><script defer src="mobile-nav.js?v=mobile-nav-20260602-history-tabs"><\/script><script defer src="mobile-polish.js?v=mobile-polish-20260602-history-tabs"><\/script><script defer src="protocol-footer.js?v=protocol-footer-20260604b"><\/script>';
     document.open();
     document.write(html.replace("<head>", "<head>" + headInject).replace("</head>", mobileNavAssets + "</head>"));
     document.close();
