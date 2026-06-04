@@ -237,6 +237,54 @@ query($skip: Int!, $first: Int!) {
 }
 """
 
+QUERY_LIQUIDATIONS = """
+query($skip: Int!, $first: Int!) {
+  liquidations(
+    first: $first,
+    skip: $skip,
+    orderBy: serialId,
+    orderDirection: desc
+  ) {
+    id
+    serialId
+    transaction {
+      id
+      timestamp
+      blockNumber
+    }
+    liquidEffectiveUser { id }
+    solidEffectiveUser { id }
+    liquidMarginAccount {
+      accountNumber
+      user { id }
+      effectiveUser { id }
+    }
+    solidMarginAccount {
+      accountNumber
+      user { id }
+      effectiveUser { id }
+    }
+    borrowedToken {
+      id
+      symbol
+      decimals
+      marketId
+    }
+    heldToken {
+      id
+      symbol
+      decimals
+      marketId
+    }
+    borrowedTokenAmountDeltaWei
+    borrowedTokenAmountUSD
+    heldTokenAmountDeltaWei
+    heldTokenAmountUSD
+    heldTokenLiquidationRewardUSD
+  }
+}
+"""
+
 
 # ─── Helper Functions ─────────────────────────────────────────────────────────
 
@@ -268,6 +316,14 @@ def graphql_request(url, query, variables=None, retries=3):
             if attempt < retries - 1:
                 time.sleep(2 ** attempt)
     return {}
+
+
+def safe_float(value, default=0.0):
+    """Parse numeric strings from the subgraph without failing the whole run."""
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def compute_health_factor(token_values, oracle_prices, interest_indices, market_risk_infos,
@@ -1002,6 +1058,108 @@ def fetch_chain_data(chain_key, chain_config):
     }
 
 
+def fetch_chain_liquidation_history(chain_key, chain_config):
+    """Fetch historical Dolomite liquidation events for one chain."""
+    label = chain_config["label"]
+    url = get_subgraph_url(chain_config)
+    page_size = 1000
+    skip = 0
+    rows = []
+
+    print(f"\n  🧾 Fetching liquidation history for {label}...")
+
+    while True:
+        data = graphql_request(
+            url,
+            QUERY_LIQUIDATIONS,
+            variables={"skip": skip, "first": page_size},
+        )
+        liquidations = data.get("liquidations", [])
+        if not liquidations:
+            break
+
+        for item in liquidations:
+            tx = item.get("transaction") or {}
+            liquid_user = item.get("liquidEffectiveUser") or {}
+            solid_user = item.get("solidEffectiveUser") or {}
+            liquid_account = item.get("liquidMarginAccount") or {}
+            solid_account = item.get("solidMarginAccount") or {}
+            borrowed_token = item.get("borrowedToken") or {}
+            held_token = item.get("heldToken") or {}
+            tx_hash = tx.get("id") or ""
+            liquidated_address = liquid_user.get("id") or (liquid_account.get("effectiveUser") or {}).get("id") or ""
+            liquidator_address = solid_user.get("id") or (solid_account.get("effectiveUser") or {}).get("id") or ""
+
+            rows.append({
+                "id": item.get("id") or f"{chain_key}-{tx_hash}-{item.get('serialId', skip)}",
+                "chain": chain_key,
+                "chainLabel": label,
+                "serialId": str(item.get("serialId") or ""),
+                "txHash": tx_hash,
+                "blockNumber": str(tx.get("blockNumber") or ""),
+                "timestamp": int(safe_float(tx.get("timestamp"), 0)),
+                "liquidatedAddress": liquidated_address,
+                "liquidatedAccountNumber": str(liquid_account.get("accountNumber") or ""),
+                "liquidatorAddress": liquidator_address,
+                "liquidatorAccountNumber": str(solid_account.get("accountNumber") or ""),
+                "borrowedToken": {
+                    "id": borrowed_token.get("id") or "",
+                    "symbol": borrowed_token.get("symbol") or "TOKEN",
+                    "marketId": str(borrowed_token.get("marketId") or ""),
+                },
+                "heldToken": {
+                    "id": held_token.get("id") or "",
+                    "symbol": held_token.get("symbol") or "TOKEN",
+                    "marketId": str(held_token.get("marketId") or ""),
+                },
+                "debtRepaidAmount": safe_float(item.get("borrowedTokenAmountDeltaWei"), 0),
+                "debtRepaidUSD": safe_float(item.get("borrowedTokenAmountUSD"), 0),
+                "collateralSeizedAmount": safe_float(item.get("heldTokenAmountDeltaWei"), 0),
+                "collateralSeizedUSD": safe_float(item.get("heldTokenAmountUSD"), 0),
+                "liquidationRewardUSD": safe_float(item.get("heldTokenLiquidationRewardUSD"), 0),
+                "explorer": (chain_config.get("explorer") or "") + liquidated_address,
+                "txExplorer": (chain_config.get("tx_explorer") or "").rstrip("/") + "/" + tx_hash if chain_config.get("tx_explorer") else "",
+            })
+
+        print(f"     Fetched {len(rows)} liquidations so far...")
+        if len(liquidations) < page_size:
+            break
+        skip += page_size
+        time.sleep(0.25)
+
+    rows.sort(key=lambda x: (x.get("timestamp") or 0, safe_float(x.get("serialId"), 0)), reverse=True)
+    print(f"     Total liquidations: {len(rows)}")
+    return rows
+
+
+def build_liquidation_history_stats(rows):
+    by_chain = {}
+    for row in rows:
+        chain = row.get("chain") or "unknown"
+        stats = by_chain.setdefault(chain, {
+            "count": 0,
+            "debtRepaidUSD": 0.0,
+            "collateralSeizedUSD": 0.0,
+            "liquidationRewardUSD": 0.0,
+        })
+        stats["count"] += 1
+        stats["debtRepaidUSD"] += safe_float(row.get("debtRepaidUSD"), 0)
+        stats["collateralSeizedUSD"] += safe_float(row.get("collateralSeizedUSD"), 0)
+        stats["liquidationRewardUSD"] += safe_float(row.get("liquidationRewardUSD"), 0)
+
+    for stats in by_chain.values():
+        for key in ("debtRepaidUSD", "collateralSeizedUSD", "liquidationRewardUSD"):
+            stats[key] = round(stats[key], 2)
+
+    return {
+        "total": len(rows),
+        "debtRepaidUSD": round(sum(s["debtRepaidUSD"] for s in by_chain.values()), 2),
+        "collateralSeizedUSD": round(sum(s["collateralSeizedUSD"] for s in by_chain.values()), 2),
+        "liquidationRewardUSD": round(sum(s["liquidationRewardUSD"] for s in by_chain.values()), 2),
+        "byChain": by_chain,
+    }
+
+
 # ─── Sample Data Generator ───────────────────────────────────────────────────
 
 def generate_sample_data():
@@ -1192,6 +1350,8 @@ def generate_sample_data():
             "xlayer": {"liquidationRatio": "1.15", "liquidationReward": "0.05", "numberOfMarkets": 6},
             "polygon_zkevm": {"liquidationRatio": "1.15", "liquidationReward": "0.05", "numberOfMarkets": 10},
         },
+        "liquidationHistoryStats": build_liquidation_history_stats([]),
+        "liquidationHistory": [],
         "positions": all_positions,
     }
     
@@ -1225,6 +1385,7 @@ def main():
     chain_stats = {}
     chain_params = {}
     all_market_supply = {}
+    all_liquidations = []
     
     for chain_key, chain_config in CHAINS.items():
         try:
@@ -1240,9 +1401,16 @@ def main():
             print(f"\n  ❌ Error fetching {chain_config['label']}: {e}")
             import traceback
             traceback.print_exc()
+        try:
+            all_liquidations.extend(fetch_chain_liquidation_history(chain_key, chain_config))
+        except Exception as e:
+            print(f"\n  ❌ Error fetching liquidation history for {chain_config['label']}: {e}")
+            import traceback
+            traceback.print_exc()
     
     # Sort all positions by HF
     all_positions.sort(key=lambda x: x["healthFactor"] if x["healthFactor"] is not None else 999)
+    all_liquidations.sort(key=lambda x: (x.get("timestamp") or 0, safe_float(x.get("serialId"), 0)), reverse=True)
     
     # Global stats
     total_critical = sum(s.get("critical", 0) for s in chain_stats.values())
@@ -1273,6 +1441,8 @@ def main():
         "chainStats": chain_stats,
         "chainParams": chain_params,
         "marketSupply": all_market_supply,
+        "liquidationHistoryStats": build_liquidation_history_stats(all_liquidations),
+        "liquidationHistory": all_liquidations,
         "positions": all_positions,
     }
     
@@ -1283,6 +1453,7 @@ def main():
     print(f"  ✅ Results saved to {OUTPUT_FILE}")
     print(f"  📊 Total positions: {len(all_positions)}")
     print(f"  ⚠️  At risk: {total_at_risk} (🔴{total_critical} 🟠{total_danger} 🟡{total_warning})")
+    print(f"  🧾 Liquidations: {len(all_liquidations)}")
     print(f"{'='*60}")
 
 

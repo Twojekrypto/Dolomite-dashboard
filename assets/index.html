@@ -8,11 +8,11 @@
 <script>
 (async () => {
   try {
-    const previewVersion = "assets-mobile-details-scroll-20260508-filter-icons-20260517c-revenue-nav-20260602b-nav-order-20260602-history-last-20260602";
+    const previewVersion = "assets-mobile-details-scroll-20260508-filter-icons-20260517c-history-nav-20260524-revenue-nav-20260601-history-last-20260602-supply-default-largest-20260604";
     const response = await fetch(`../assets-preview.html?v=${previewVersion}`, { cache: "no-cache" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const html = await response.text();
-    const mobileNavAssets = '<link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260602-revenue"><link rel="stylesheet" href="mobile-polish.css?v=mobile-polish-20260519c"><script defer src="mobile-nav.js?v=mobile-nav-20260602-revenue"><\/script><script defer src="mobile-polish.js?v=mobile-polish-20260519c"><\/script>';
+    const mobileNavAssets = '<link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260602-history-tabs"><link rel="stylesheet" href="mobile-polish.css?v=mobile-polish-20260602-history-tabs"><script defer src="mobile-nav.js?v=mobile-nav-20260602-history-tabs"><\/script><script defer src="mobile-polish.js?v=mobile-polish-20260602-history-tabs"><\/script>';
     document.open();
     document.write(html.replace("<head>", '<head><base href="../">').replace("</head>", mobileNavAssets + "</head>"));
     document.close();

@@ -8,17 +8,17 @@
 <script>
 (async () => {
   try {
-    const draftVersion = "supply-draft-20260517-flow-market-icon-hide-dust-20260520-revenue-nav-20260602b";
+    const draftVersion = "supply-draft-20260517-flow-market-icon-hide-dust-history-nav-20260524-revenue-nav-20260601-supply-default-largest-20260604b";
     const response = await fetch(`../liquidation-preview.html?v=${draftVersion}-${Date.now()}`, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const html = await response.text();
     const headInject = [
       '<base href="../">',
-      '<script>window.__DOLO_ROUTE="supply";window.__DOLO_SUPPLY_REQUIRE_ASSET_SELECTION=false;window.__DOLO_SUPPLY_DEFAULT_ASSET="USD1";<\/script>',
+      '<script>window.__DOLO_ROUTE="supply";window.__DOLO_SUPPLY_REQUIRE_ASSET_SELECTION=false;<\/script>',
       '<link rel="stylesheet" href="supply/supply-draft.css?v=' + draftVersion + '">',
       '<script defer src="supply/supply-draft.js?v=' + draftVersion + '"><\/script>'
     ].join("");
-    const mobileNavAssets = '<link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260602-revenue"><link rel="stylesheet" href="mobile-polish.css?v=mobile-polish-20260519c"><script defer src="mobile-nav.js?v=mobile-nav-20260602-revenue"><\/script><script defer src="mobile-polish.js?v=mobile-polish-20260519c"><\/script>';
+    const mobileNavAssets = '<link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260602-history-tabs"><link rel="stylesheet" href="mobile-polish.css?v=mobile-polish-20260602-history-tabs"><script defer src="mobile-nav.js?v=mobile-nav-20260602-history-tabs"><\/script><script defer src="mobile-polish.js?v=mobile-polish-20260602-history-tabs"><\/script>';
     document.open();
     document.write(html.replace("<head>", "<head>" + headInject).replace("</head>", mobileNavAssets + "</head>"));
     document.close();
