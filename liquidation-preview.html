@@ -2296,11 +2296,11 @@
             border-collapse: collapse;
             table-layout: fixed;
         }
-        .liquidation-history-table colgroup col:nth-child(1) { width: 11%; }    /* Chain */
-        .liquidation-history-table colgroup col:nth-child(2) { width: 30%; }    /* Liquidated wallet */
-        .liquidation-history-table colgroup col:nth-child(3) { width: 18%; }    /* Date */
-        .liquidation-history-table colgroup col:nth-child(4) { width: 20.5%; }  /* Debt repaid */
-        .liquidation-history-table colgroup col:nth-child(5) { width: 20.5%; }  /* Collateral seized */
+        .liquidation-history-table colgroup col:nth-child(1) { width: 8%; }     /* Chain */
+        .liquidation-history-table colgroup col:nth-child(2) { width: 22%; }    /* Liquidated wallet */
+        .liquidation-history-table colgroup col:nth-child(3) { width: 13%; }    /* Date */
+        .liquidation-history-table colgroup col:nth-child(4) { width: 28.5%; }  /* Debt repaid */
+        .liquidation-history-table colgroup col:nth-child(5) { width: 28.5%; }  /* Collateral seized */
         .liquidation-history-table thead th {
             position: sticky;
             top: 0;
@@ -2350,6 +2350,14 @@
         }
         .liquidation-history-table tbody td:nth-child(2) {
             overflow: visible;
+        }
+        /* Amount columns (Debt repaid, Collateral seized) — pos-merged display, right-aligned */
+        .liquidation-history-table tbody td:nth-child(4),
+        .liquidation-history-table tbody td:nth-child(5) {
+            overflow: visible;
+            white-space: normal;
+            text-align: right;
+            vertical-align: middle;
         }
         .liquidation-history-wallet {
             display: inline-flex;
@@ -3101,12 +3109,12 @@
             table-layout: fixed;
         }
 
-        .positions-table colgroup col:nth-child(1) { width: 8%; }     /* Chain */
-        .positions-table colgroup col:nth-child(2) { width: 19%; }    /* Address */
-        .positions-table colgroup col:nth-child(3) { width: 13%; }    /* Health Factor */
-        .positions-table colgroup col:nth-child(4) { width: 11%; }    /* E-Mode */
-        .positions-table colgroup col:nth-child(5) { width: 26%; }    /* Collateral (USD + tokens) */
-        .positions-table colgroup col:nth-child(6) { width: 23%; }    /* Debt (USD + tokens) */
+        .positions-table colgroup col:nth-child(1) { width: 7%; }     /* Chain */
+        .positions-table colgroup col:nth-child(2) { width: 17%; }    /* Address */
+        .positions-table colgroup col:nth-child(3) { width: 12%; }    /* Health Factor */
+        .positions-table colgroup col:nth-child(4) { width: 9%; }     /* E-Mode */
+        .positions-table colgroup col:nth-child(5) { width: 28%; }    /* Collateral (USD + tokens) */
+        .positions-table colgroup col:nth-child(6) { width: 27%; }    /* Debt (USD + tokens) */
 
         .positions-table thead {
             position: relative;
@@ -3236,13 +3244,24 @@
             overflow: visible;
         }
 
-        /* Merged Collateral / Debt cells (USD value + inline token pills) — allow wrapping */
+        /* Merged Collateral / Debt cells (USD value + stacked token pills) — right-aligned money columns */
         .positions-table tbody td:nth-child(5),
         .positions-table tbody td:nth-child(6) {
             white-space: normal;
             overflow: visible;
-            padding-top: 7px;
-            padding-bottom: 7px;
+            text-align: right;
+            padding-top: 8px;
+            padding-bottom: 8px;
+        }
+        /* Right-align the Collateral / Debt headers to match their right-aligned data */
+        .positions-table thead th:nth-child(5) .col-header-group,
+        .positions-table thead th:nth-child(6) .col-header-group {
+            justify-content: flex-end;
+            width: 100%;
+        }
+        .positions-table thead th:nth-child(5),
+        .positions-table thead th:nth-child(6) {
+            text-align: right;
         }
 
         /* Chain badge — compact icon style */
@@ -3760,11 +3779,13 @@
             font-variant-numeric: tabular-nums;
         }
 
-        /* Merged Collateral / Debt column: primary USD value on top, token pills inline below */
+        /* Merged Collateral / Debt column: primary USD value on top, token pills stacked below,
+           right-aligned so the money columns sit on the right side of the table. */
         .pos-merged {
             display: flex;
             flex-direction: column;
-            gap: 3px;
+            align-items: flex-end;
+            gap: 4px;
             min-width: 0;
         }
         .pos-merged .usd-value {
@@ -3772,15 +3793,15 @@
             line-height: 1.1;
         }
         .pos-merged .token-pills {
-            flex-direction: row;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 1px 8px;
+            flex-direction: column;
+            flex-wrap: nowrap;
+            align-items: flex-end;
+            gap: 3px;
         }
         .pos-merged .token-pill {
-            font-size: 9.5px;
+            font-size: 10px;
             color: var(--fg-3);
-            gap: 3px;
+            gap: 4px;
         }
         .pos-merged .token-pill .token-pill-icon,
         .pos-merged .token-pill .token-pill-icon img {
@@ -3796,15 +3817,18 @@
             font-family: var(--mono);
         }
 
-        /* Two filter triggers (USD range + token) sharing one merged header */
-        .col-filter-pair {
-            display: inline-flex;
-            align-items: center;
-            gap: 2px;
+        /* Combined column filter (USD range + token picker in one popover) */
+        .col-filter-divider {
+            height: 1px;
+            margin: 11px 0 9px;
+            background: rgba(255,255,255,0.07);
         }
-        .col-filter-btn--token svg {
-            width: 13px;
-            height: 13px;
+        .col-filter-popover--combined .col-token-search {
+            margin-top: 2px;
+        }
+        .col-filter-popover--combined .col-token-list {
+            max-height: 188px;
+            overflow-y: auto;
         }
 
         /* HF mini gauge bar */
@@ -9029,38 +9053,27 @@
                         <th data-sort="collateral" style="position:relative; overflow:visible">
                             <span class="col-header-group">
                                 Collateral
-                                <span class="col-filter-pair">
-                                    <button type="button" class="col-filter-btn" id="collateral-filter-trigger" aria-label="Filter by Collateral range" title="Filter by USD value">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-                                    </button>
-                                    <button type="button" class="col-filter-clear" id="collateral-filter-clear">✕</button>
-                                </span>
-                                <span class="col-filter-pair">
-                                    <button type="button" class="col-filter-btn col-filter-btn--token" id="col-token-filter-trigger" aria-label="Filter by Collateral Token" title="Filter by token">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9a2.4 1.8 0 0 0-2.5-1.4c-1.4 0-2.5.8-2.5 1.9s1 1.5 2.5 1.9 2.5.8 2.5 1.9-1.1 1.9-2.5 1.9A2.4 1.8 0 0 1 9.5 14"/><path d="M12 6.4v11.2"/></svg>
-                                    </button>
-                                    <button type="button" class="col-filter-clear" id="col-token-filter-clear">✕</button>
-                                </span>
+                                <button type="button" class="col-filter-btn" id="collateral-filter-trigger" aria-label="Filter Collateral by USD range or token" title="Filter by USD value or token">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                </button>
+                                <button type="button" class="col-filter-clear" id="collateral-filter-clear">✕</button>
                                 <span class="sort-arrow"></span>
                             </span>
-                            <div class="col-filter-popover" id="collateral-popover">
+                            <div class="col-filter-popover col-filter-popover--combined" id="collateral-popover">
                                 <div class="col-filter-inner">
                                 <div class="col-filter-label">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-                                    Collateral Range
+                                    USD value range
                                 </div>
                                 <div class="col-filter-row">
                                     <input type="number" class="debt-custom-input" id="collateral-custom-min" placeholder="$ Min">
                                     <span>–</span>
                                     <input type="number" class="debt-custom-input" id="collateral-custom-max" placeholder="$ Max">
                                 </div>
-                                </div>
-                            </div>
-                            <div class="col-filter-popover" id="col-token-popover">
-                                <div class="col-filter-inner">
+                                <div class="col-filter-divider"></div>
                                 <div class="col-filter-label">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6.4v11.2"/></svg>
-                                    Collateral Tokens
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9a2.4 1.8 0 0 0-2.5-1.4c-1.4 0-2.5.8-2.5 1.9s1 1.5 2.5 1.9 2.5.8 2.5 1.9-1.1 1.9-2.5 1.9A2.4 1.8 0 0 1 9.5 14"/><path d="M12 6.4v11.2"/></svg>
+                                    Tokens
                                 </div>
                                 <input type="text" class="col-token-search" id="col-token-search" placeholder="Search token...">
                                 <div class="col-token-list" id="col-token-list"></div>
@@ -9070,38 +9083,27 @@
                         <th data-sort="debt" style="position:relative; overflow:visible">
                             <span class="col-header-group">
                                 Debt
-                                <span class="col-filter-pair">
-                                    <button type="button" class="col-filter-btn" id="debt-filter-trigger" aria-label="Filter by Debt range" title="Filter by USD value">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-                                    </button>
-                                    <button type="button" class="col-filter-clear" id="debt-filter-clear">✕</button>
-                                </span>
-                                <span class="col-filter-pair">
-                                    <button type="button" class="col-filter-btn col-filter-btn--token" id="debt-token-filter-trigger" aria-label="Filter by Debt Token" title="Filter by token">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9a2.4 1.8 0 0 0-2.5-1.4c-1.4 0-2.5.8-2.5 1.9s1 1.5 2.5 1.9 2.5.8 2.5 1.9-1.1 1.9-2.5 1.9A2.4 1.8 0 0 1 9.5 14"/><path d="M12 6.4v11.2"/></svg>
-                                    </button>
-                                    <button type="button" class="col-filter-clear" id="debt-token-filter-clear">✕</button>
-                                </span>
+                                <button type="button" class="col-filter-btn" id="debt-filter-trigger" aria-label="Filter Debt by USD range or token" title="Filter by USD value or token">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                </button>
+                                <button type="button" class="col-filter-clear" id="debt-filter-clear">✕</button>
                                 <span class="sort-arrow"></span>
                             </span>
-                            <div class="col-filter-popover" id="debt-popover">
+                            <div class="col-filter-popover col-filter-popover--combined" id="debt-popover">
                                 <div class="col-filter-inner">
                                 <div class="col-filter-label">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-                                    Debt Range
+                                    USD value range
                                 </div>
                                 <div class="col-filter-row">
                                     <input type="number" class="debt-custom-input" id="debt-custom-min" placeholder="$ Min">
                                     <span>–</span>
                                     <input type="number" class="debt-custom-input" id="debt-custom-max" placeholder="$ Max">
                                 </div>
-                                </div>
-                            </div>
-                            <div class="col-filter-popover" id="debt-token-popover">
-                                <div class="col-filter-inner">
+                                <div class="col-filter-divider"></div>
                                 <div class="col-filter-label">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6.4v11.2"/></svg>
-                                    Debt Tokens
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9a2.4 1.8 0 0 0-2.5-1.4c-1.4 0-2.5.8-2.5 1.9s1 1.5 2.5 1.9 2.5.8 2.5 1.9-1.1 1.9-2.5 1.9A2.4 1.8 0 0 1 9.5 14"/><path d="M12 6.4v11.2"/></svg>
+                                    Tokens
                                 </div>
                                 <input type="text" class="col-token-search" id="debt-token-search" placeholder="Search token...">
                                 <div class="col-token-list" id="debt-token-list"></div>
@@ -9165,8 +9167,64 @@
                                 <th>Chain</th>
                                 <th>Liquidated wallet</th>
                                 <th>Date</th>
-                                <th style="text-align:right">Debt repaid</th>
-                                <th style="text-align:right">Collateral seized</th>
+                                <th style="text-align:right; position:relative; overflow:visible">
+                                    <span class="col-header-group">
+                                        Debt repaid
+                                        <button type="button" class="col-filter-btn" id="lh-debt-filter-trigger" aria-label="Filter Debt repaid by USD range or token" title="Filter by USD value or token">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                        </button>
+                                        <button type="button" class="col-filter-clear" id="lh-debt-filter-clear">✕</button>
+                                    </span>
+                                    <div class="col-filter-popover col-filter-popover--combined" id="lh-debt-popover">
+                                        <div class="col-filter-inner">
+                                        <div class="col-filter-label">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                            USD value range
+                                        </div>
+                                        <div class="col-filter-row">
+                                            <input type="number" class="debt-custom-input" id="lh-debt-min" placeholder="$ Min">
+                                            <span>–</span>
+                                            <input type="number" class="debt-custom-input" id="lh-debt-max" placeholder="$ Max">
+                                        </div>
+                                        <div class="col-filter-divider"></div>
+                                        <div class="col-filter-label">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9a2.4 1.8 0 0 0-2.5-1.4c-1.4 0-2.5.8-2.5 1.9s1 1.5 2.5 1.9 2.5.8 2.5 1.9-1.1 1.9-2.5 1.9A2.4 1.8 0 0 1 9.5 14"/><path d="M12 6.4v11.2"/></svg>
+                                            Tokens
+                                        </div>
+                                        <input type="text" class="col-token-search" id="lh-debt-token-search" placeholder="Search token...">
+                                        <div class="col-token-list" id="lh-debt-token-list"></div>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th style="text-align:right; position:relative; overflow:visible">
+                                    <span class="col-header-group">
+                                        Collateral seized
+                                        <button type="button" class="col-filter-btn" id="lh-coll-filter-trigger" aria-label="Filter Collateral seized by USD range or token" title="Filter by USD value or token">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                        </button>
+                                        <button type="button" class="col-filter-clear" id="lh-coll-filter-clear">✕</button>
+                                    </span>
+                                    <div class="col-filter-popover col-filter-popover--combined" id="lh-coll-popover">
+                                        <div class="col-filter-inner">
+                                        <div class="col-filter-label">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                            USD value range
+                                        </div>
+                                        <div class="col-filter-row">
+                                            <input type="number" class="debt-custom-input" id="lh-coll-min" placeholder="$ Min">
+                                            <span>–</span>
+                                            <input type="number" class="debt-custom-input" id="lh-coll-max" placeholder="$ Max">
+                                        </div>
+                                        <div class="col-filter-divider"></div>
+                                        <div class="col-filter-label">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9a2.4 1.8 0 0 0-2.5-1.4c-1.4 0-2.5.8-2.5 1.9s1 1.5 2.5 1.9 2.5.8 2.5 1.9-1.1 1.9-2.5 1.9A2.4 1.8 0 0 1 9.5 14"/><path d="M12 6.4v11.2"/></svg>
+                                            Tokens
+                                        </div>
+                                        <input type="text" class="col-token-search" id="lh-coll-token-search" placeholder="Search token...">
+                                        <div class="col-token-list" id="lh-coll-token-list"></div>
+                                        </div>
+                                    </div>
+                                </th>
                             </tr>
                         </thead>
                         <tbody id="liquidation-history-body"></tbody>
@@ -10900,6 +10958,11 @@
         let sortField = 'collateral';
         let sortDirection = 'desc';
         let liquidationHistorySearchQuery = '';
+        // Liquidation History column filters (combined token + $ range), per amount column
+        let liqDebtTokenFilter = new Set();
+        let liqDebtMin = null, liqDebtMax = null;
+        let liqCollTokenFilter = new Set();
+        let liqCollMin = null, liqCollMax = null;
         let availableChainCount = 0;
 
         const ROUTE_MODE = (() => {
@@ -12848,12 +12911,10 @@
                 btn?.closest('th')?.querySelectorAll('.col-filter-popover').forEach(p => { p.classList.remove('col-pop-open'); p.style.display = ''; });
                 document.querySelectorAll(`#${col}-presets .col-preset`).forEach(p => p.classList.remove('active'));
             });
-            ['col-token', 'debt-token'].forEach(prefix => {
-                const btn = document.getElementById(`${prefix}-filter-trigger`);
-                if (btn) btn.classList.remove('has-active');
-                btn?.closest('th')?.classList.remove('col-filter-open');
-                btn?.closest('th')?.querySelectorAll('.col-filter-popover').forEach(p => { p.classList.remove('col-pop-open'); p.style.display = ''; });
-            });
+            // Combined Collateral/Debt filters also carry token selections — clear them + their search inputs
+            collateralTokenFilter.clear();
+            debtTokenFilter.clear();
+            ['col-token-search', 'debt-token-search'].forEach(id => { const s = document.getElementById(id); if (s) s.value = ''; });
 
             // Reset dropdowns active classes
             syncChainMenuSelectionState();
@@ -13052,12 +13113,10 @@
             const icon = getTokenIcon(shortSymbol) || SYMBOL_ICONS[symbol] || SYMBOL_ICONS[shortSymbol] || `https://icons.llamao.fi/icons/tokens/${String(symbol).toLowerCase()}`;
             const safeSymbol = supplyEscapeHtml(shortSymbol);
             const safeFull = supplyEscapeHtml(`${supplyFormatTokenPrecise(amount)} ${symbol}`);
-            return `<div class="liquidation-history-amount" data-tooltip="${safeFull}" data-tooltip-cursor="true">
-                <div class="liquidation-history-amount-main">
-                    <span>${supplyEscapeHtml(supplyFormatTokenCompact(amount))} ${safeSymbol}</span>
-                    <img src="${supplyEscapeHtml(icon)}" alt="${safeSymbol}" onerror="this.src='dolomite-logo.svg'">
-                </div>
-                <div class="liquidation-history-amount-sub">${supplyEscapeHtml(formatUSDCompact(Number(usd || 0)))}</div>
+            // Same display UX as Lending Positions Collateral: USD value on top, token pill (logo + amount) below.
+            return `<div class="pos-merged liquidation-history-amount" data-tooltip="${safeFull}" data-tooltip-cursor="true">
+                <span class="usd-value">${supplyEscapeHtml(formatUSDCompact(Number(usd || 0)))}</span>
+                <div class="token-pills"><span class="token-pill"><span class="token-pill-icon"><img src="${supplyEscapeHtml(icon)}" alt="${safeSymbol}" onerror="this.src='dolomite-logo.svg'"></span>${safeSymbol} <span class="token-usd">${supplyEscapeHtml(supplyFormatTokenCompact(amount))}</span></span></div>
             </div>`;
         }
 
@@ -13086,9 +13145,22 @@
 
         function applyLiquidationHistoryFilters() {
             const q = liquidationHistorySearchQuery.trim().toLowerCase();
-            filteredLiquidationHistory = q
-                ? allLiquidationHistory.filter(row => getLiquidationHistorySearchText(row).includes(q))
-                : allLiquidationHistory.slice();
+            const inRange = (v, min, max) => {
+                const n = Number(v || 0);
+                if (min !== null && n < min) return false;
+                if (max !== null && n > max) return false;
+                return true;
+            };
+            filteredLiquidationHistory = allLiquidationHistory.filter(row => {
+                if (q && !getLiquidationHistorySearchText(row).includes(q)) return false;
+                // Debt repaid column: token + $ range
+                if (liqDebtTokenFilter.size > 0 && !liqDebtTokenFilter.has(row.borrowedToken?.symbol)) return false;
+                if (!inRange(row.debtRepaidUSD, liqDebtMin, liqDebtMax)) return false;
+                // Collateral seized column: token + $ range
+                if (liqCollTokenFilter.size > 0 && !liqCollTokenFilter.has(row.heldToken?.symbol)) return false;
+                if (!inRange(row.collateralSeizedUSD, liqCollMin, liqCollMax)) return false;
+                return true;
+            });
             liquidationHistoryPage = 1;
             renderLiquidationHistoryTable();
         }
@@ -13665,6 +13737,22 @@
             const thParent = trigger.closest('th');
             if (!thParent) return;
 
+            const applyFn = opts.apply || applyFilters;
+            function rangeActive() { return opts.getMin() !== null || opts.getMax() !== null; }
+            function tokenActive() { return !!(opts.token && opts.token.getFilter().size > 0); }
+            function updateActive() { trigger.classList.toggle('has-active', rangeActive() || tokenActive()); }
+
+            // Optional token multi-select sharing this popover (combined USD-range + token filter).
+            const tokenApi = opts.token ? wireTokenList({
+                searchId: opts.token.searchId,
+                listId: opts.token.listId,
+                getFilter: opts.token.getFilter,
+                getTokens: opts.token.getTokens,
+                getScope: opts.token.getScope,
+                apply: applyFn,
+                onActiveChange: () => updateActive(),
+            }) : null;
+
             const popover = document.getElementById(opts.popoverId);
             trigger.addEventListener('click', e => {
                 e.stopPropagation(); e.preventDefault();
@@ -13674,6 +13762,11 @@
                     thParent.classList.add('col-filter-open');
                     popover.classList.add('col-pop-open');
                     positionPopoverFixed(trigger, popover);
+                    if (tokenApi) {
+                        const s = document.getElementById(opts.token.searchId);
+                        if (s) s.value = '';
+                        tokenApi.renderList();
+                    }
                 }
             });
 
@@ -13690,8 +13783,8 @@
                         maxInput.value = maxVal || '';
                         presetsEl.querySelectorAll('.col-preset').forEach(p => p.classList.remove('active'));
                         chip.classList.add('active');
-                        trigger.classList.toggle('has-active', opts.getMin() !== null || opts.getMax() !== null);
-                        applyFilters();
+                        updateActive();
+                        applyFn();
                     });
                 });
             }
@@ -13703,8 +13796,8 @@
                 opts.setMin(isNaN(min) ? null : min);
                 opts.setMax(isNaN(max) ? null : max);
                 if (presetsEl) presetsEl.querySelectorAll('.col-preset').forEach(p => p.classList.remove('active'));
-                trigger.classList.toggle('has-active', opts.getMin() !== null || opts.getMax() !== null);
-                applyFilters();
+                updateActive();
+                applyFn();
             }
             minInput.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(applyCustom, 400); });
             maxInput.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(applyCustom, 400); });
@@ -13766,6 +13859,10 @@
             getMax: () => hfRangeMax,
         });
 
+        const positionsTokenScope = () => chainFilterSelection.size === 0
+            ? allPositions
+            : allPositions.filter(p => chainFilterSelection.has(p.chain));
+
         initColFilterPopover({
             triggerId: 'debt-filter-trigger',
             popoverId: 'debt-popover',
@@ -13776,6 +13873,13 @@
             setMax: v => { debtRangeMax = v; },
             getMin: () => debtRangeMin,
             getMax: () => debtRangeMax,
+            token: {
+                searchId: 'debt-token-search',
+                listId: 'debt-token-list',
+                getFilter: () => debtTokenFilter,
+                getTokens: p => p.debtTokens || [],
+                getScope: positionsTokenScope,
+            },
         });
 
         initColFilterPopover({
@@ -13788,33 +13892,36 @@
             setMax: v => { collateralRangeMax = v; },
             getMin: () => collateralRangeMin,
             getMax: () => collateralRangeMax,
+            token: {
+                searchId: 'col-token-search',
+                listId: 'col-token-list',
+                getFilter: () => collateralTokenFilter,
+                getTokens: p => p.collateralTokens || [],
+                getScope: positionsTokenScope,
+            },
         });
 
         // ─── Token Column Filters (searchable multi-select) ───────────────
-        function initTokenColFilter(opts) {
-            const trigger = document.getElementById(opts.triggerId);
+        // Wires the searchable token multi-select inside a combined filter popover (no open/close logic).
+        // Returns { renderList } so the owning popover can refresh the list when it opens.
+        function wireTokenList(opts) {
             const searchInput = document.getElementById(opts.searchId);
             const listEl = document.getElementById(opts.listId);
-            const clearBtn = document.getElementById(opts.clearBtnId);
-            if (!trigger || !searchInput || !listEl) return;
-            const thParent = trigger.closest('th');
-            if (!thParent) return;
-            const popover = document.getElementById(opts.popoverId);
-            let closeTimer = null;
+            if (!searchInput || !listEl) return { renderList() {} };
+            const applyFn = opts.apply || applyFilters;
 
             function renderList() {
                 const searchText = searchInput.value.toLowerCase();
-                const scoped = chainFilterSelection.size === 0
-                    ? allPositions
-                    : allPositions.filter(p => chainFilterSelection.has(p.chain));
+                const scoped = opts.getScope();
                 const tokenCounts = {};
-                scoped.forEach(p => {
-                    const tokens = opts.getTokens(p);
+                scoped.forEach(item => {
+                    const tokens = opts.getTokens(item) || [];
                     const seen = new Set();
                     tokens.forEach(t => {
-                        if (!seen.has(t.symbol)) {
-                            seen.add(t.symbol);
-                            tokenCounts[t.symbol] = (tokenCounts[t.symbol] || 0) + 1;
+                        const sym = t && t.symbol;
+                        if (sym && !seen.has(sym)) {
+                            seen.add(sym);
+                            tokenCounts[sym] = (tokenCounts[sym] || 0) + 1;
                         }
                     });
                 });
@@ -13868,112 +13975,18 @@
                         if (tok === '__all__') filterSet.clear();
                         else if (filterSet.has(tok)) filterSet.delete(tok);
                         else filterSet.add(tok);
-                        trigger.classList.toggle('has-active', filterSet.size > 0);
-                        applyFilters();
+                        if (opts.onActiveChange) opts.onActiveChange(filterSet.size > 0);
+                        applyFn();
                         // Re-render list to update checkmarks and sort selected to top
                         renderList();
                     });
                 });
             }
 
-            function closePopover() {
-                thParent.classList.remove('col-filter-open');
-                if (popover) { popover.classList.remove('col-pop-open'); popover.style.display = ''; }
-                if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
-            }
-
-            trigger.addEventListener('click', e => {
-                e.stopPropagation(); e.preventDefault();
-                const willOpen = popover && !popover.classList.contains('col-pop-open');
-                closeFloatingMenus();
-                if (willOpen) {
-                    thParent.classList.add('col-filter-open');
-                    popover.classList.add('col-pop-open');
-                    positionPopoverFixed(trigger, popover);
-                    searchInput.value = '';
-                    renderList();
-                    requestAnimationFrame(() => searchInput.focus());
-                }
-            });
-
             searchInput.addEventListener('input', renderList);
             searchInput.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); });
-
-            // Close on click outside — check both thParent AND the fixed popover
-            const popoverEl = popover;
-            document.addEventListener('click', e => {
-                if (!thParent.contains(e.target) && (!popoverEl || !popoverEl.contains(e.target))) {
-                    closePopover();
-                }
-            });
-
-            // Auto-close on mouse leave — track both trigger and fixed popover
-            if (popoverEl) {
-                function startCloseTimer() {
-                    if (closeTimer) clearTimeout(closeTimer);
-                    closeTimer = setTimeout(() => {
-                        closePopover();
-                    }, 350);
-                }
-                function cancelCloseTimer() {
-                    if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
-                }
-                popoverEl.addEventListener('mouseleave', startCloseTimer);
-                popoverEl.addEventListener('mouseenter', cancelCloseTimer);
-                trigger.addEventListener('mouseenter', cancelCloseTimer);
-                // Also track the th header area
-                thParent.addEventListener('mouseleave', e => {
-                    // Only start timer if mouse isn't moving to the popover
-                    const rect = popoverEl.getBoundingClientRect();
-                    if (e.clientX < rect.left || e.clientX > rect.right ||
-                        e.clientY < rect.top || e.clientY > rect.bottom) {
-                        startCloseTimer();
-                    }
-                });
-                thParent.addEventListener('mouseenter', cancelCloseTimer);
-
-                // Reposition popover on scroll so it stays attached to trigger
-                const scrollContainer = document.querySelector('.positions-table-wrap') || window;
-                function repositionOnScroll() {
-                    if (thParent.classList.contains('col-filter-open')) {
-                        positionPopoverFixed(trigger, popoverEl);
-                    }
-                }
-                window.addEventListener('scroll', repositionOnScroll, true);
-            }
-
-            // Clear X button handler
-            if (clearBtn) {
-                clearBtn.addEventListener('click', e => {
-                    e.stopPropagation(); e.preventDefault();
-                    const filterSet = opts.getFilter();
-                    filterSet.clear();
-                    trigger.classList.remove('has-active');
-                    closePopover();
-                    applyFilters();
-                });
-            }
+            return { renderList };
         }
-
-        initTokenColFilter({
-            triggerId: 'col-token-filter-trigger',
-            popoverId: 'col-token-popover',
-            searchId: 'col-token-search',
-            listId: 'col-token-list',
-            clearBtnId: 'col-token-filter-clear',
-            getTokens: p => p.collateralTokens || [],
-            getFilter: () => collateralTokenFilter,
-        });
-
-        initTokenColFilter({
-            triggerId: 'debt-token-filter-trigger',
-            popoverId: 'debt-token-popover',
-            searchId: 'debt-token-search',
-            listId: 'debt-token-list',
-            clearBtnId: 'debt-token-filter-clear',
-            getTokens: p => p.debtTokens || [],
-            getFilter: () => debtTokenFilter,
-        });
 
         document.querySelectorAll('.positions-table thead th[data-sort]').forEach(th => {
             th.addEventListener('click', () => {
@@ -14318,10 +14331,11 @@
         });
 
         // ─── Range Filter Clear Buttons ──────────────────────────────────────
-        function wireRangeClear(clearId, triggerId, minId, maxId, setMin, setMax, presetsId) {
+        function wireRangeClear(clearId, triggerId, minId, maxId, setMin, setMax, presetsId, getTokenFilter, applyFn) {
             const clearBtn = document.getElementById(clearId);
             const trigger = document.getElementById(triggerId);
             if (!clearBtn || !trigger) return;
+            const apply = applyFn || applyFilters;
             clearBtn.addEventListener('click', e => {
                 e.stopPropagation(); e.preventDefault();
                 setMin(null); setMax(null);
@@ -14329,17 +14343,59 @@
                 const maxEl = document.getElementById(maxId);
                 if (minEl) minEl.value = '';
                 if (maxEl) maxEl.value = '';
+                if (getTokenFilter) getTokenFilter().clear();   // combined filter: also clear the token picker
                 trigger.classList.remove('has-active');
                 trigger.closest('th')?.classList.remove('col-filter-open');
                 trigger.closest('th')?.querySelectorAll('.col-filter-popover').forEach(p => { p.classList.remove('col-pop-open'); p.style.display = ''; });
-                const presetsEl = document.getElementById(presetsId);
+                const presetsEl = presetsId ? document.getElementById(presetsId) : null;
                 if (presetsEl) presetsEl.querySelectorAll('.col-preset').forEach(p => p.classList.remove('active'));
-                applyFilters();
+                apply();
             });
         }
         wireRangeClear('hf-filter-clear', 'hf-filter-trigger', 'hf-custom-min', 'hf-custom-max', v => { hfRangeMin = v; }, v => { hfRangeMax = v; }, 'hf-presets');
-        wireRangeClear('collateral-filter-clear', 'collateral-filter-trigger', 'collateral-custom-min', 'collateral-custom-max', v => { collateralRangeMin = v; }, v => { collateralRangeMax = v; }, 'collateral-presets');
-        wireRangeClear('debt-filter-clear', 'debt-filter-trigger', 'debt-custom-min', 'debt-custom-max', v => { debtRangeMin = v; }, v => { debtRangeMax = v; }, 'debt-presets');
+        wireRangeClear('collateral-filter-clear', 'collateral-filter-trigger', 'collateral-custom-min', 'collateral-custom-max', v => { collateralRangeMin = v; }, v => { collateralRangeMax = v; }, 'collateral-presets', () => collateralTokenFilter);
+        wireRangeClear('debt-filter-clear', 'debt-filter-trigger', 'debt-custom-min', 'debt-custom-max', v => { debtRangeMin = v; }, v => { debtRangeMax = v; }, 'debt-presets', () => debtTokenFilter);
+
+        // ─── Liquidation History combined column filters (token + $ range) ───
+        initColFilterPopover({
+            triggerId: 'lh-debt-filter-trigger',
+            popoverId: 'lh-debt-popover',
+            minInputId: 'lh-debt-min',
+            maxInputId: 'lh-debt-max',
+            setMin: v => { liqDebtMin = v; },
+            setMax: v => { liqDebtMax = v; },
+            getMin: () => liqDebtMin,
+            getMax: () => liqDebtMax,
+            apply: applyLiquidationHistoryFilters,
+            token: {
+                searchId: 'lh-debt-token-search',
+                listId: 'lh-debt-token-list',
+                getFilter: () => liqDebtTokenFilter,
+                getTokens: row => row.borrowedToken ? [row.borrowedToken] : [],
+                getScope: () => allLiquidationHistory,
+            },
+        });
+        wireRangeClear('lh-debt-filter-clear', 'lh-debt-filter-trigger', 'lh-debt-min', 'lh-debt-max', v => { liqDebtMin = v; }, v => { liqDebtMax = v; }, null, () => liqDebtTokenFilter, applyLiquidationHistoryFilters);
+
+        initColFilterPopover({
+            triggerId: 'lh-coll-filter-trigger',
+            popoverId: 'lh-coll-popover',
+            minInputId: 'lh-coll-min',
+            maxInputId: 'lh-coll-max',
+            setMin: v => { liqCollMin = v; },
+            setMax: v => { liqCollMax = v; },
+            getMin: () => liqCollMin,
+            getMax: () => liqCollMax,
+            apply: applyLiquidationHistoryFilters,
+            token: {
+                searchId: 'lh-coll-token-search',
+                listId: 'lh-coll-token-list',
+                getFilter: () => liqCollTokenFilter,
+                getTokens: row => row.heldToken ? [row.heldToken] : [],
+                getScope: () => allLiquidationHistory,
+            },
+        });
+        wireRangeClear('lh-coll-filter-clear', 'lh-coll-filter-trigger', 'lh-coll-min', 'lh-coll-max', v => { liqCollMin = v; }, v => { liqCollMax = v; }, null, () => liqCollTokenFilter, applyLiquidationHistoryFilters);
 
         // ─── Protocol Info Rendering ─────────────────────────────────────────
         function liq_copyAddr(addr, btn) {
