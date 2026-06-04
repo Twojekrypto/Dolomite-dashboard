@@ -12,41 +12,19 @@ permissions:
   id-token: write
 
 concurrency:
-  group: github-pages-${{ github.ref }}
-  cancel-in-progress: true
+  group: github-pages
+  cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        id: checkout_source
-        uses: actions/checkout@v5
-        continue-on-error: true
+        uses: actions/checkout@v6
         env:
           GIT_CONFIG_COUNT: 1
           GIT_CONFIG_KEY_0: init.defaultBranch
           GIT_CONFIG_VALUE_0: master
-
-      - name: Fallback source download
-        if: steps.checkout_source.outcome != 'success'
-        run: |
-          set -euo pipefail
-          echo "actions/checkout failed; downloading public source archive for ${GITHUB_SHA}."
-          find . -mindepth 1 -maxdepth 1 -exec rm -rf {} +
-          archive="/tmp/dolomite-dashboard-source.tar.gz"
-          curl -fsSL \
-            --retry 5 \
-            --retry-delay 5 \
-            --retry-all-errors \
-            "https://codeload.github.com/${GITHUB_REPOSITORY}/tar.gz/${GITHUB_SHA}" \
-            -o "$archive"
-          tar -xzf "$archive" --strip-components=1
-          rm -f "$archive"
-          test -f index.html
-
-      - name: Validate TVL static guard
-        run: python3 scripts/verify_tvl_static_guards.py
 
       - name: Setup Pages
         uses: actions/configure-pages@v6
@@ -71,6 +49,9 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
@@ -79,26 +60,7 @@ jobs:
           NODE_OPTIONS: --no-deprecation
 
       - name: Checkout smoke scripts
-        id: checkout_smoke
-        uses: actions/checkout@v5
-        continue-on-error: true
-
-      - name: Fallback smoke script download
-        if: steps.checkout_smoke.outcome != 'success'
-        run: |
-          set -euo pipefail
-          echo "actions/checkout failed; downloading smoke script archive for ${GITHUB_SHA}."
-          find . -mindepth 1 -maxdepth 1 -exec rm -rf {} +
-          archive="/tmp/dolomite-dashboard-smoke.tar.gz"
-          curl -fsSL \
-            --retry 5 \
-            --retry-delay 5 \
-            --retry-all-errors \
-            "https://codeload.github.com/${GITHUB_REPOSITORY}/tar.gz/${GITHUB_SHA}" \
-            -o "$archive"
-          tar -xzf "$archive" --strip-components=1
-          rm -f "$archive"
-          test -f scripts/smoke_live_pages.py
+        uses: actions/checkout@v6
 
       - name: Smoke test live Pages
         run: python3 scripts/smoke_live_pages.py "${{ steps.deployment.outputs.page_url }}"

@@ -22,6 +22,7 @@
         ".filter-menu.show",
         ".earn-chain-dropdown.open .earn-chain-menu",
         ".tvl-dd-panel.show",
+        ".history-dd-panel.show",
         ".supply-activity-type-filter.open .supply-activity-type-menu",
         ".chain-filter.open .chain-menu",
         ".risk-dropdown.open .risk-menu",

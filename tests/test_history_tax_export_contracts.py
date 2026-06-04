@@ -1,6 +1,5 @@
 import unittest
 import subprocess
-import re
 from pathlib import Path
 
 
@@ -18,12 +17,9 @@ class HistoryTaxExportContractsTest(unittest.TestCase):
         cls.css = HISTORY_CSS.read_text()
 
     def test_history_version_is_cache_busted_consistently(self):
-        version_match = re.search(r'const HISTORY_VERSION = "([^"]+)"', self.source)
-        self.assertIsNotNone(version_match)
-        version = version_match.group(1)
-        self.assertRegex(version, r"^history-\d{8}[a-z]+$")
-        self.assertIn(f"history/history.js?v={version}", self.html)
-        self.assertIn(f"history/history.css?v={version}", self.html)
+        self.assertIn('const HISTORY_VERSION = "history-20260527n"', self.source)
+        self.assertIn("history/history.js?v=history-20260527n", self.html)
+        self.assertIn("history/history.css?v=history-20260527n", self.html)
 
     def test_history_is_positioned_as_transaction_history_first(self):
         self.assertIn("<h1>Dolomite Transaction History</h1>", self.html)
@@ -954,7 +950,7 @@ const fs = require("fs");
 const vm = require("vm");
 const source = fs.readFileSync("history/history.js", "utf8");
 const marker = "\n  if (document.readyState === \"loading\") {";
-const instrumented = source.replace(marker, "\n  globalThis.__historyTest = { state, els, getBounds, rowsMatchingCurrentFilters, reportExportReadiness, earnTaxEntriesForCurrentView, selectedChainKeys, setSelectedActionsFromValues };" + marker);
+const instrumented = source.replace(marker, "\n  globalThis.__historyTest = { state, getBounds, rowsMatchingCurrentFilters, reportExportReadiness, earnTaxEntriesForCurrentView, selectedChainKeys };" + marker);
 const sandbox = {
   console,
   URL,
@@ -968,14 +964,6 @@ const sandbox = {
 vm.runInNewContext(instrumented, sandbox);
 const api = sandbox.__historyTest;
 const state = api.state;
-api.els.action = {
-  options: [
-    { value: "all", textContent: "All actions" },
-    { value: "deposit", textContent: "Deposit" },
-    { value: "withdraw", textContent: "Withdraw" },
-    { value: "borrow", textContent: "Borrow" },
-  ],
-};
 state.year = "custom";
 state.dateFrom = "2026-02-03";
 state.dateTo = "2026-02-04";
@@ -998,7 +986,7 @@ state.rows = [
 ];
 state.filteredRows = state.rows;
 state.selectedChains = new Set(["berachain"]);
-api.setSelectedActionsFromValues(["deposit"]);
+state.action = "deposit";
 state.filtersDirty = false;
 let filteredRows = api.rowsMatchingCurrentFilters(state.rows);
 if (filteredRows.length !== 1 || filteredRows[0].chainKey !== "berachain") throw new Error(JSON.stringify(filteredRows));
@@ -1036,7 +1024,7 @@ if (api.earnTaxEntriesForCurrentView().length !== 0) throw new Error("dirty filt
         self.assertIn("reviewSummaryForCurrentView", self.source)
         self.assertIn("reviewQueueForRows", self.source)
         self.assertIn("reviewQueue: reviewQueueForRows(rows, earnEntries)", self.source)
-        self.assertIn("const includeEarnReview = actionFilterAllSelected()", self.source)
+        self.assertIn('const includeEarnReview = state.action === "all"', self.source)
         self.assertNotIn(".review-strip", self.css)
         self.assertNotIn(".review-pill", self.css)
         self.assertNotIn(".review-queue-panel", self.css)

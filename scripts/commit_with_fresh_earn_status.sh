@@ -97,19 +97,7 @@ if [ "${EARN_DISPATCH_PAGES_AFTER_PUSH:-true}" = "true" ]; then
   if [ -n "$deploy_token" ] && command -v gh >/dev/null 2>&1; then
     export GH_TOKEN="$deploy_token"
     echo "Dispatching GitHub Pages deploy for $git_branch after EARN data push."
-    dispatch_pages=false
-    for i in 1 2 3; do
-      if gh workflow run pages.yml --ref "$git_branch"; then
-        dispatch_pages=true
-        break
-      fi
-      if [ "$i" -lt 3 ]; then
-        sleep_for=$((i * 10))
-        echo "GitHub Pages deploy dispatch attempt $i failed, retrying in ${sleep_for}s..."
-        sleep "$sleep_for"
-      fi
-    done
-    if [ "$dispatch_pages" != "true" ]; then
+    if ! gh workflow run pages.yml --ref "$git_branch"; then
       echo "::warning::Failed to dispatch GitHub Pages deploy after EARN data push."
     fi
   else
