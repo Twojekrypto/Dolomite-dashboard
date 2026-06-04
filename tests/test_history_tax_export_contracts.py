@@ -1,9 +1,16 @@
+import os
+import re
 import unittest
 import subprocess
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+# Run instrumented history.js under a fixed locale so Number.toLocaleString() output
+# (thousands/decimal separators) is deterministic regardless of the developer's or
+# CI runner's system locale. The assertions pin en-US formatting (e.g. "67,055.74").
+NODE_ENV = {**os.environ, "LC_ALL": "en_US.UTF-8", "LANG": "en_US.UTF-8"}
 HISTORY_JS = ROOT / "history" / "history.js"
 HISTORY_HTML = ROOT / "history" / "index.html"
 HISTORY_CSS = ROOT / "history" / "history.css"
@@ -17,9 +24,15 @@ class HistoryTaxExportContractsTest(unittest.TestCase):
         cls.css = HISTORY_CSS.read_text()
 
     def test_history_version_is_cache_busted_consistently(self):
-        self.assertIn('const HISTORY_VERSION = "history-20260527n"', self.source)
-        self.assertIn("history/history.js?v=history-20260527n", self.html)
-        self.assertIn("history/history.css?v=history-20260527n", self.html)
+        # Pin consistency, not a specific value: whatever HISTORY_VERSION history.js
+        # declares must be the cache-busting query string used for both the JS and CSS
+        # in index.html. This stays green across deliberate version bumps as long as the
+        # three references agree.
+        match = re.search(r'const HISTORY_VERSION = "([^"]+)"', self.source)
+        self.assertIsNotNone(match, "HISTORY_VERSION constant missing from history.js")
+        version = match.group(1)
+        self.assertIn(f"history/history.js?v={version}", self.html)
+        self.assertIn(f"history/history.css?v={version}", self.html)
 
     def test_history_is_positioned_as_transaction_history_first(self):
         self.assertIn("<h1>Dolomite Transaction History</h1>", self.html)
@@ -255,7 +268,7 @@ if (!lifecycle.some(item => item.sourceEntityLabel === "trades")) throw new Erro
 if (!lifecycle.some(item => item.sourceEntityLabel === "ammMints")) throw new Error(JSON.stringify(lifecycle));
 if (!lifecycle.some(item => item.sourceEntityLabel === "earn-merkl-rewards")) throw new Error(JSON.stringify(lifecycle));
 """
-        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True)
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
 
     def test_detail_rows_hide_wallet_noise_and_strip_repeated_action_labels(self):
         script = r"""
@@ -357,7 +370,7 @@ const claimFlow = api.detailEventFlowLabel({
 });
 if (!claimFlow.startsWith("veDOLO #3903 · paid")) throw new Error(claimFlow);
 """
-        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True)
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
 
     def test_clean_csv_asset_flow_prefers_primary_execution(self):
         script = r"""
@@ -658,7 +671,7 @@ if (csv.action !== "Zap") throw new Error(JSON.stringify(csv));
 if (csv.asset_flow !== "Paid 29331.40307 USDC -> Received 29324.71667819 USD1") throw new Error(JSON.stringify(csv));
 if (csv.source_entity !== "transfers; deposits; trades; zaps") throw new Error(JSON.stringify(csv));
 """
-        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True)
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
 
     def test_borrow_and_repay_are_classified_from_account_balance_replay(self):
         script = r"""
@@ -761,7 +774,7 @@ if (results.indexedDebt !== "-10" || results.indexedSupply !== "4.5") throw new 
 if (results.scientificSmall !== "0.000001" || results.scientificLarge !== "1200") throw new Error(JSON.stringify(results));
 if (results.zapBorrowAction !== "Zap; Open Borrow" || results.zapBorrowChips !== "zap|openBorrow") throw new Error(JSON.stringify(results));
 """
-        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True)
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
 
     def test_review_only_earn_does_not_enter_activity_net(self):
         script = r"""
@@ -794,7 +807,7 @@ if (summary.earnReviewAmount !== 7) throw new Error(JSON.stringify(summary));
 if (summary.netAmount !== 10) throw new Error(JSON.stringify(summary));
 if (summary.reviewCount !== 2) throw new Error(JSON.stringify(summary));
 """
-        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True)
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
 
     def test_complex_dolomite_actions_have_explicit_review_guardrails(self):
         for reason in [
@@ -868,7 +881,7 @@ if (cleanAmount("0.123456789") !== "0.12345678") throw new Error(cleanAmount("0.
 if (cleanAmount("0.000000009296098168") === "0.00000000") throw new Error("tiny amount rounded to displayed zero");
 if (cleanAmount("0.000000009296098168") !== "0.000000009296") throw new Error(cleanAmount("0.000000009296098168"));
 """
-        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True)
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
 
     def test_earn_year_yield_prefers_reusable_ledger_before_snapshot_fallback(self):
         self.assertIn("EARN_SNAPSHOT_BASE", self.source)
@@ -942,7 +955,7 @@ if (byMarket["3"].assetInAmount !== "0.007777") throw new Error(JSON.stringify(b
 if (byMarket["3"].earnPeriodSource !== "earn-snapshot-series") throw new Error(JSON.stringify(byMarket["3"]));
 if (!byMarket["3"].reviewReason.includes("status_mismatch")) throw new Error(JSON.stringify(byMarket["3"]));
 """
-        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True)
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
 
     def test_history_filter_dirty_and_custom_range_runtime_contract(self):
         script = r"""
@@ -950,7 +963,7 @@ const fs = require("fs");
 const vm = require("vm");
 const source = fs.readFileSync("history/history.js", "utf8");
 const marker = "\n  if (document.readyState === \"loading\") {";
-const instrumented = source.replace(marker, "\n  globalThis.__historyTest = { state, getBounds, rowsMatchingCurrentFilters, reportExportReadiness, earnTaxEntriesForCurrentView, selectedChainKeys };" + marker);
+const instrumented = source.replace(marker, "\n  globalThis.__historyTest = { state, els, getBounds, rowsMatchingCurrentFilters, reportExportReadiness, earnTaxEntriesForCurrentView, selectedChainKeys };" + marker);
 const sandbox = {
   console,
   URL,
@@ -986,7 +999,8 @@ state.rows = [
 ];
 state.filteredRows = state.rows;
 state.selectedChains = new Set(["berachain"]);
-state.action = "deposit";
+api.els.action = { options: [{ value: "all" }, { value: "deposit" }, { value: "withdraw" }] };
+state.selectedActions = new Set(["deposit"]);
 state.filtersDirty = false;
 let filteredRows = api.rowsMatchingCurrentFilters(state.rows);
 if (filteredRows.length !== 1 || filteredRows[0].chainKey !== "berachain") throw new Error(JSON.stringify(filteredRows));
@@ -996,7 +1010,7 @@ state.filtersDirty = true;
 if (api.reportExportReadiness(filteredRows, []).canFullReport) throw new Error("dirty filters allowed export");
 if (api.earnTaxEntriesForCurrentView().length !== 0) throw new Error("dirty filters allowed earn export rows");
 """
-        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True)
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
 
     def test_earn_summary_stays_in_exports_not_first_screen(self):
         for element_id in [
@@ -1024,7 +1038,7 @@ if (api.earnTaxEntriesForCurrentView().length !== 0) throw new Error("dirty filt
         self.assertIn("reviewSummaryForCurrentView", self.source)
         self.assertIn("reviewQueueForRows", self.source)
         self.assertIn("reviewQueue: reviewQueueForRows(rows, earnEntries)", self.source)
-        self.assertIn('const includeEarnReview = state.action === "all"', self.source)
+        self.assertIn("const includeEarnReview = actionFilterAllSelected();", self.source)
         self.assertNotIn(".review-strip", self.css)
         self.assertNotIn(".review-pill", self.css)
         self.assertNotIn(".review-queue-panel", self.css)
