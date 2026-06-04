@@ -125,10 +125,6 @@
         return tabFromItem(active || items[0]);
     }
 
-    function itemClassFromSelector(selector) {
-        return selector.split(",")[0].trim().replace(/^\./, "") || "nav-item";
-    }
-
     function setNativeNavActive(nav, activeTab) {
         nav.querySelectorAll("[data-tab], .nav-item, .nav-tab, .earn-premium-nav-item").forEach(item => {
             const tab = tabFromItem(item);
@@ -140,20 +136,6 @@
                 item.removeAttribute("aria-current");
             }
         });
-    }
-
-    function normalizeNativeNav(candidate, activeTab) {
-        if (!candidate || !candidate.nav) return;
-        const itemClass = itemClassFromSelector(candidate.itemSelector);
-        if (candidate.nav.dataset.mobileNavCanonical !== "true") {
-            candidate.nav.innerHTML = NAV_ITEMS.map(item => {
-                const active = item.tab === activeTab;
-                const idAttr = itemClass === "nav-tab" ? ` id="tab-${item.tab}"` : "";
-                return `<a class="${itemClass}${active ? " active" : ""}"${idAttr} href="${item.href}" data-tab="${item.tab}"${active ? ' aria-current="page"' : ""}>${canonicalIcon(item.tab)}<span>${item.label}</span></a>`;
-            }).join("");
-            candidate.nav.dataset.mobileNavCanonical = "true";
-        }
-        setNativeNavActive(candidate.nav, activeTab);
     }
 
     function getNavCandidate() {
@@ -197,7 +179,7 @@
         const items = Array.from(candidate.nav.querySelectorAll(candidate.itemSelector)).filter(isVisibleItem);
         if (items.length < 2) return false;
         const activeTab = activeTabFromItems(items);
-        normalizeNativeNav(candidate, activeTab);
+        setNativeNavActive(candidate.nav, activeTab);
 
         const panelId = "mobile-dashboard-nav-" + Math.random().toString(36).slice(2, 8);
         const trigger = document.createElement("button");
