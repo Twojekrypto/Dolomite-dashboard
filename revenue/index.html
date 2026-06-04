@@ -9,11 +9,11 @@
 (async () => {
   try {
     window.__DOLO_ROUTE = "revenue";
-    const previewVersion = "revenue-20260602-date-input-audit-history-last-20260602-series-filter-fee-split-clean-donut-copy-series-checks-multiselect-no-series-status-compact-date-picker";
+    const previewVersion = "revenue-20260602-date-input-audit-history-last-20260602-series-filter-fee-split-clean-donut-copy-series-checks-multiselect-no-series-status-compact-date-picker-unified-nav-source-20260604";
     const response = await fetch(`../revenue-preview.html?v=${previewVersion}`, { cache: "no-cache" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const html = await response.text();
-    const mobileNavAssets = '<link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260602-history-tabs"><link rel="stylesheet" href="mobile-polish.css?v=mobile-polish-20260602-history-tabs"><link rel="stylesheet" href="protocol-footer.css?v=protocol-footer-20260604b"><script defer src="mobile-nav.js?v=mobile-nav-20260602-history-tabs"><\/script><script defer src="mobile-polish.js?v=mobile-polish-20260602-history-tabs"><\/script><script defer src="protocol-footer.js?v=protocol-footer-20260604b"><\/script>';
+    const mobileNavAssets = '<link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260604-unified-tabs"><link rel="stylesheet" href="mobile-polish.css?v=mobile-polish-20260602-history-tabs"><link rel="stylesheet" href="protocol-footer.css?v=protocol-footer-20260604b"><script defer src="mobile-nav.js?v=mobile-nav-20260604-unified-tabs"><\/script><script defer src="mobile-polish.js?v=mobile-polish-20260602-history-tabs"><\/script><script defer src="protocol-footer.js?v=protocol-footer-20260604b"><\/script>';
     document.open();
     document.write(html.replace("<head>", '<head><base href="../"><script>window.__DOLO_ROUTE="revenue";<\/script>').replace("</head>", mobileNavAssets + "</head>"));
     document.close();

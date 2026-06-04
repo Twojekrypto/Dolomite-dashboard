@@ -5,7 +5,7 @@
     earn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>',
     liquidation: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M12 13v4"/><path d="m9.5 15 2.5 2.5L14.5 15"/></svg>',
     supply: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
-    history: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M8 7h8"/><path d="M8 12h8"/><path d="M8 17h5"/></svg>',
+    history: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/><path d="M12 7v5l3 2"/></svg>',
     revenue: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-7"/><path d="M16 7h3v3"/></svg>'
   };
 
@@ -42,8 +42,8 @@
           <a class="earn-premium-nav-item active" href="./earn/" aria-current="page">${navSvg.earn}<span>Earn</span></a>
           <a class="earn-premium-nav-item" href="./borrow/">${navSvg.liquidation}<span>Borrow</span></a>
           <a class="earn-premium-nav-item" href="./supply/">${navSvg.supply}<span>Supply</span></a>
-          <a class="earn-premium-nav-item" href="./history/">${navSvg.history}<span>History</span></a>
           <a class="earn-premium-nav-item" href="./revenue/">${navSvg.revenue}<span>Revenue</span></a>
+          <a class="earn-premium-nav-item" href="./history/">${navSvg.history}<span>History</span></a>
         </nav>
       </div>`;
     const wrapper = document.querySelector(".page-wrapper");

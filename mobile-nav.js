@@ -1,4 +1,36 @@
 (function () {
+    const ICONS = {
+        assets: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>',
+        tvl: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-6 4 4 5-8"/></svg>',
+        dolo: '<img src="dolo-logo.svg" alt="" onerror="this.style.display=\'none\'">',
+        odolo: '<img src="odolo-logo-official.svg" alt="" onerror="this.style.display=\'none\'">',
+        vedolo: '<img src="vedolo-logo.svg" alt="" onerror="this.style.display=\'none\'">',
+        earn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+        borrow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M12 13v4"/><path d="m9.5 15 2.5 2.5L14.5 15"/></svg>',
+        supply: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+        revenue: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-7"/><path d="M16 7h3v3"/></svg>',
+        history: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/><path d="M12 7v5l3 2"/></svg>'
+    };
+
+    const NAV_ITEMS = [
+        { tab: "assets", label: "Assets", href: "./assets/" },
+        { tab: "tvl", label: "TVL", href: "./tvl/" },
+        { tab: "dolo", label: "DOLO", href: "./dolo/" },
+        { tab: "odolo", label: "oDOLO", href: "./odolo/" },
+        { tab: "vedolo", label: "veDOLO", href: "./vedolo/" },
+        { tab: "earn", label: "Earn", href: "./earn/" },
+        { tab: "borrow", label: "Borrow", href: "./borrow/" },
+        { tab: "supply", label: "Supply", href: "./supply/" },
+        { tab: "revenue", label: "Revenue", href: "./revenue/" },
+        { tab: "history", label: "History", href: "./history/" }
+    ];
+
+    const TAB_ALIASES = {
+        liquidation: "borrow",
+        liquidations: "borrow",
+        lending: "borrow"
+    };
+
     const LABELS = {
         assets: "Assets",
         tvl: "TVL",
@@ -14,6 +46,11 @@
         liquidations: "Borrow",
         lending: "Borrow"
     };
+
+    function normalizeTab(value) {
+        const tab = String(value || "").trim().toLowerCase();
+        return TAB_ALIASES[tab] || tab;
+    }
 
     function cleanLabel(value) {
         const text = String(value || "").replace(/\s+/g, " ").trim();
@@ -35,7 +72,7 @@
 
     function tabFromItem(item) {
         if (!item) return "";
-        return (item.dataset && item.dataset.tab) || tabFromHref(item.getAttribute("href")) || item.id?.replace(/^tab-/, "") || "";
+        return normalizeTab((item.dataset && item.dataset.tab) || tabFromHref(item.getAttribute("href")) || item.id?.replace(/^tab-/, "") || "");
     }
 
     function isVisibleItem(item) {
@@ -55,6 +92,10 @@
         return clone.outerHTML;
     }
 
+    function canonicalIcon(tab) {
+        return ICONS[normalizeTab(tab)] || "";
+    }
+
     function itemLabel(item) {
         const tab = tabFromItem(item);
         if (LABELS[tab]) return LABELS[tab];
@@ -62,16 +103,57 @@
         return cleanLabel(span ? span.textContent : item?.textContent);
     }
 
-    function activeByLocation(items) {
+    function activeTabByLocation() {
         const path = window.location.pathname.toLowerCase();
-        const route = String(window.__DOLO_ROUTE || "").toLowerCase();
-        return items.find(item => {
+        const route = normalizeTab(window.__DOLO_ROUTE || "");
+        if (route && LABELS[route]) return route;
+        const match = NAV_ITEMS.find(item => path.includes("/" + item.tab + "/"));
+        if (match) return match.tab;
+        if (/\/dolomite-dashboard\/?$|\/dolo\/?$|\/$/.test(path)) return "dolo";
+        return "";
+    }
+
+    function activeByLocation(items) {
+        const activeTab = activeTabByLocation();
+        return items.find(item => tabFromItem(item) === activeTab);
+    }
+
+    function activeTabFromItems(items) {
+        const locationTab = activeTabByLocation();
+        if (locationTab) return locationTab;
+        const active = items.find(item => item.classList.contains("active") || item.getAttribute("aria-current") === "page");
+        return tabFromItem(active || items[0]);
+    }
+
+    function itemClassFromSelector(selector) {
+        return selector.split(",")[0].trim().replace(/^\./, "") || "nav-item";
+    }
+
+    function setNativeNavActive(nav, activeTab) {
+        nav.querySelectorAll("[data-tab], .nav-item, .nav-tab, .earn-premium-nav-item").forEach(item => {
             const tab = tabFromItem(item);
-            if (route && (tab === route || (route === "supply" && tab === "supply") || (route === "liquidations" && tab === "borrow"))) return true;
-            if (tab && path.includes("/" + tab + "/")) return true;
-            if ((tab === "dolo" || tab === "") && /\/dolomite-dashboard\/?$|\/dolo\/?$/.test(path)) return true;
-            return false;
+            const active = tab === activeTab;
+            item.classList.toggle("active", active);
+            if (active) {
+                item.setAttribute("aria-current", "page");
+            } else {
+                item.removeAttribute("aria-current");
+            }
         });
+    }
+
+    function normalizeNativeNav(candidate, activeTab) {
+        if (!candidate || !candidate.nav) return;
+        const itemClass = itemClassFromSelector(candidate.itemSelector);
+        if (candidate.nav.dataset.mobileNavCanonical !== "true") {
+            candidate.nav.innerHTML = NAV_ITEMS.map(item => {
+                const active = item.tab === activeTab;
+                const idAttr = itemClass === "nav-tab" ? ` id="tab-${item.tab}"` : "";
+                return `<a class="${itemClass}${active ? " active" : ""}"${idAttr} href="${item.href}" data-tab="${item.tab}"${active ? ' aria-current="page"' : ""}>${canonicalIcon(item.tab)}<span>${item.label}</span></a>`;
+            }).join("");
+            candidate.nav.dataset.mobileNavCanonical = "true";
+        }
+        setNativeNavActive(candidate.nav, activeTab);
     }
 
     function getNavCandidate() {
@@ -88,10 +170,11 @@
         const state = wrap.mobileNavState;
         const items = Array.from(state.nav.querySelectorAll(state.itemSelector)).filter(isVisibleItem);
         if (!items.length) return;
-        const active = items.find(item => item.classList.contains("active") || item.getAttribute("aria-current") === "page") || activeByLocation(items) || items[0];
-        const activeTab = tabFromItem(active);
-        state.icon.innerHTML = iconHtml(active);
-        state.label.textContent = itemLabel(active);
+        const activeTab = activeTabFromItems(items);
+        const activeItem = NAV_ITEMS.find(item => item.tab === activeTab) || NAV_ITEMS[0];
+        setNativeNavActive(state.nav, activeTab);
+        state.icon.innerHTML = canonicalIcon(activeItem.tab) || iconHtml(items.find(item => tabFromItem(item) === activeTab));
+        state.label.textContent = activeItem.label || itemLabel(items.find(item => tabFromItem(item) === activeTab));
         state.panel.querySelectorAll(".mobile-nav-link").forEach(link => {
             link.classList.toggle("active", link.dataset.tab === activeTab);
             if (link.dataset.tab === activeTab) {
@@ -113,6 +196,8 @@
         if (!candidate || candidate.wrap.dataset.mobileNavReady === "true") return false;
         const items = Array.from(candidate.nav.querySelectorAll(candidate.itemSelector)).filter(isVisibleItem);
         if (items.length < 2) return false;
+        const activeTab = activeTabFromItems(items);
+        normalizeNativeNav(candidate, activeTab);
 
         const panelId = "mobile-dashboard-nav-" + Math.random().toString(36).slice(2, 8);
         const trigger = document.createElement("button");
@@ -127,14 +212,12 @@
         panel.className = "mobile-nav-panel";
         panel.id = panelId;
 
-        items.forEach(item => {
-            const href = item.getAttribute("href");
-            if (!href) return;
+        NAV_ITEMS.forEach(item => {
             const link = document.createElement("a");
             link.className = "mobile-nav-link";
-            link.href = href;
-            link.dataset.tab = tabFromItem(item);
-            link.innerHTML = '<span class="mobile-nav-link-icon">' + iconHtml(item) + '</span><span class="mobile-nav-link-label">' + itemLabel(item) + '</span>';
+            link.href = item.href;
+            link.dataset.tab = item.tab;
+            link.innerHTML = '<span class="mobile-nav-link-icon">' + canonicalIcon(item.tab) + '</span><span class="mobile-nav-link-label">' + item.label + '</span>';
             link.addEventListener("click", () => closeNav(candidate.wrap));
             panel.appendChild(link);
         });
