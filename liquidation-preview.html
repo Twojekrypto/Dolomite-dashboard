@@ -2207,11 +2207,56 @@
             padding: 0 24px;
             margin: 14px 0 16px;
         }
+        /* Search box — match the Lending Positions / Supply table search treatment
+           (bordered rounded box, gold border on focus, no square focus glow, inline clear). */
         .liquidation-history-search-wrap {
+            display: flex !important;
+            align-items: center;
+            height: 36px;
             margin: 0;
+            padding: 0 12px 0 36px !important;
             min-width: 0;
             width: auto;
             flex: 0 0 auto;
+            background: var(--bg-3) !important;
+            border: 1px solid var(--line-2) !important;
+            border-radius: 10px !important;
+            box-shadow: none !important;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .liquidation-history-search-wrap:focus-within,
+        .liquidation-history-search-wrap.has-value {
+            border-color: var(--gold-line) !important;
+            box-shadow: none !important;
+        }
+        .liquidation-history-search-wrap .search-input {
+            flex: 1 1 auto;
+            min-width: 0;
+            width: 240px;
+            height: 34px;
+            padding: 0 !important;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            color: var(--fg-1);
+            font-size: 13px;
+        }
+        .liquidation-history-search-wrap .search-icon {
+            left: 12px;
+            color: var(--fg-3);
+        }
+        .liquidation-history-search-wrap:focus-within .search-icon {
+            color: var(--gold);
+        }
+        .liquidation-history-search-wrap .search-clear {
+            position: static !important;
+            display: none;
+            flex: 0 0 20px;
+            margin-left: 6px;
+            transform: none !important;
+        }
+        .liquidation-history-search-wrap.has-value .search-clear {
+            display: inline-flex !important;
         }
         .liquidation-history-state {
             display: inline-flex;
@@ -2251,11 +2296,11 @@
             border-collapse: collapse;
             table-layout: fixed;
         }
-        .liquidation-history-table colgroup col:nth-child(1) { width: 11%; }
-        .liquidation-history-table colgroup col:nth-child(2) { width: 18%; }
-        .liquidation-history-table colgroup col:nth-child(3) { width: 30%; }
-        .liquidation-history-table colgroup col:nth-child(4) { width: 20.5%; }
-        .liquidation-history-table colgroup col:nth-child(5) { width: 20.5%; }
+        .liquidation-history-table colgroup col:nth-child(1) { width: 11%; }    /* Chain */
+        .liquidation-history-table colgroup col:nth-child(2) { width: 30%; }    /* Liquidated wallet */
+        .liquidation-history-table colgroup col:nth-child(3) { width: 18%; }    /* Date */
+        .liquidation-history-table colgroup col:nth-child(4) { width: 20.5%; }  /* Debt repaid */
+        .liquidation-history-table colgroup col:nth-child(5) { width: 20.5%; }  /* Collateral seized */
         .liquidation-history-table thead th {
             position: sticky;
             top: 0;
@@ -2303,7 +2348,7 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
-        .liquidation-history-table tbody td:nth-child(3) {
+        .liquidation-history-table tbody td:nth-child(2) {
             overflow: visible;
         }
         .liquidation-history-wallet {
@@ -3406,9 +3451,10 @@
             gap: 4px;
             padding: 4px 10px;
             border-radius: 6px;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: var(--mono);
             font-size: 13px;
             font-weight: 700;
+            font-variant-numeric: tabular-nums;
         }
 
         /* BAD DEBT — gray, muted */
@@ -3650,16 +3696,19 @@
             border-radius: 3px;
         }
 
-        /* USD values */
+        /* USD values — neutral mono/tabular like History & dolo (semantic color reserved for Health Factor) */
         .usd-value {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: var(--mono);
             font-size: 12px;
             font-weight: 600;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.1px;
+            color: var(--fg-1);
         }
 
-        .usd-value.collateral { color: var(--accent-green); }
+        .usd-value.collateral { color: var(--fg-1); }
         .usd-value.collateral.zero { color: var(--text-muted); font-weight: 400; }
-        .usd-value.debt { color: var(--accent-rose); }
+        .usd-value.debt { color: var(--fg-1); }
         .usd-value.debt.zero { color: var(--text-muted); font-weight: 400; }
 
         /* Token pills */
@@ -3675,10 +3724,13 @@
             gap: 4px;
             padding: 1px 0;
             border-radius: 4px;
+            font-family: var(--mono);
             font-size: 10px;
             font-weight: 500;
+            letter-spacing: 0.2px;
+            font-variant-numeric: tabular-nums;
             background: none;
-            color: var(--text-muted);
+            color: var(--fg-2);
             white-space: nowrap;
         }
         .token-pill-icon {
@@ -3698,6 +3750,7 @@
             margin-left: 2px;
             color: var(--text-muted);
             font-weight: 400;
+            font-variant-numeric: tabular-nums;
         }
 
         /* HF mini gauge bar */
@@ -8991,8 +9044,8 @@
                         <thead>
                             <tr>
                                 <th>Chain</th>
-                                <th>Date</th>
                                 <th>Liquidated wallet</th>
+                                <th>Date</th>
                                 <th style="text-align:right">Debt repaid</th>
                                 <th style="text-align:right">Collateral seized</th>
                             </tr>
@@ -12942,13 +12995,13 @@
                 const txHref = row.txHash ? `${getSupplyTxExplorer(chain)}${row.txHash}` : '';
                 return `<tr>
                     <td><span class="chain-badge ${supplyEscapeHtml(chain)}"><img class="chain-icon" src="${supplyEscapeHtml(chainIcon)}" alt="">${supplyEscapeHtml(chainLabel)}</span></td>
+                    <td>${renderLiquidationHistoryAddress(row.liquidatedAddress, chain)}</td>
                     <td>
                         <div class="supply-activity-time supply-activity-date-cell">
                             <div class="supply-activity-time-top"><strong>${supplyEscapeHtml(supplyFormatActivityDate(row.timestamp))}</strong>${txHref ? `<a class="liquidation-history-tx" href="${supplyEscapeHtml(txHref)}" target="_blank" rel="noopener" aria-label="Open transaction"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg></a>` : ''}</div>
                             <span>${supplyEscapeHtml(supplyFormatRelativeTime(row.timestamp))} · ${supplyEscapeHtml(supplyFormatActivityTime(row.timestamp))}</span>
                         </div>
                     </td>
-                    <td>${renderLiquidationHistoryAddress(row.liquidatedAddress, chain)}</td>
                     <td>${renderLiquidationHistoryAmount(row.debtRepaidAmount, row.borrowedToken, row.debtRepaidUSD)}</td>
                     <td>${renderLiquidationHistoryAmount(row.collateralSeizedAmount, row.heldToken, row.collateralSeizedUSD)}</td>
                 </tr>`;
