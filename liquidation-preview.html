@@ -2255,8 +2255,8 @@
             border-collapse: collapse;
             table-layout: fixed;
         }
-        .liquidation-history-table colgroup col:nth-child(1) { width: 18%; }
-        .liquidation-history-table colgroup col:nth-child(2) { width: 11%; }
+        .liquidation-history-table colgroup col:nth-child(1) { width: 11%; }
+        .liquidation-history-table colgroup col:nth-child(2) { width: 18%; }
         .liquidation-history-table colgroup col:nth-child(3) { width: 30%; }
         .liquidation-history-table colgroup col:nth-child(4) { width: 20.5%; }
         .liquidation-history-table colgroup col:nth-child(5) { width: 20.5%; }
@@ -2283,10 +2283,17 @@
             background: rgba(255,255,255,0.012);
         }
         .liquidation-history-table tbody tr:hover {
-            background: rgba(255,255,255,0.026);
+            background: linear-gradient(90deg, rgba(201,162,39,.058), rgba(255,255,255,.018));
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.035), inset 0 -1px 0 rgba(255,255,255,.035);
         }
-        .liquidation-history-table tbody tr:hover td:first-child {
-            box-shadow: inset 2px 0 0 var(--gold);
+        .liquidation-history-table tbody tr:hover td:first-child::before {
+            content: "";
+            position: absolute;
+            left: 0; top: 7px; bottom: 7px;
+            width: 3px;
+            background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+            border-radius: 0 4px 4px 0;
+            box-shadow: 0 0 14px rgba(201,162,39,.22);
         }
         .liquidation-history-table tbody td {
             padding: 8px 12px;
@@ -2295,6 +2302,7 @@
             font-size: 12px;
             font-variant-numeric: tabular-nums;
             vertical-align: middle;
+            position: relative;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -3118,7 +3126,8 @@
         }
 
         .positions-table tbody tr:hover {
-            background: rgba(255, 255, 255, 0.03);
+            background: linear-gradient(90deg, rgba(201,162,39,.058), rgba(255,255,255,.018));
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.035), inset 0 -1px 0 rgba(255,255,255,.035);
             position: relative;
             z-index: 1;
         }
@@ -3192,15 +3201,19 @@
         .chain-badge {
             display: inline-flex;
             align-items: center;
-            gap: 5px;
-            padding: 3px 8px;
-            border-radius: 4px;
+            gap: 7px;
+            padding: 5px 8px;
+            border-radius: 8px;
             font-size: 10px;
-            font-weight: 700;
+            font-weight: 800;
             text-transform: uppercase;
-            letter-spacing: 0.3px;
+            letter-spacing: 0.65px;
             white-space: nowrap;
             cursor: default;
+            border: 1px solid rgba(255,255,255,.075);
+            background: rgba(255,255,255,.028);
+            color: var(--fg-2);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
         }
 
         .chain-badge .chain-icon {
@@ -3211,23 +3224,7 @@
             flex-shrink: 0;
         }
 
-        .chain-badge.berachain { background: rgba(255, 176, 46, 0.10); color: #fbbf24; }
-        .chain-badge.berachain .chain-dot { background: #fbbf24; box-shadow: 0 0 6px rgba(251,191,36,0.4); }
-
-        .chain-badge.arbitrum { background: rgba(40, 160, 240, 0.10); color: #60a5fa; }
-        .chain-badge.arbitrum .chain-dot { background: #3b82f6; box-shadow: 0 0 6px rgba(59,130,246,0.4); }
-
-        .chain-badge.mantle { background: rgba(52, 211, 153, 0.10); color: #34d399; }
-        .chain-badge.mantle .chain-dot { background: #34d399; box-shadow: 0 0 6px rgba(52,211,153,0.4); }
-
-        .chain-badge.base { background: rgba(76, 175, 80, 0.10); color: #6dd270; }
-        .chain-badge.base .chain-dot { background: #4CAF50; box-shadow: 0 0 6px rgba(76,175,80,0.4); }
-
-        .chain-badge.ethereum { background: rgba(140, 152, 200, 0.10); color: #a0aec0; }
-        .chain-badge.ethereum .chain-dot { background: #a0aec0; box-shadow: 0 0 6px rgba(160,174,192,0.4); }
-
-        .chain-badge.xlayer { background: rgba(150, 100, 255, 0.10); color: #a78bfa; }
-        .chain-badge.xlayer .chain-dot { background: #a78bfa; box-shadow: 0 0 6px rgba(167,139,250,0.4); }
+        /* chain badges unified to neutral history-style chip */
 
         .chain-badge.polygon_zkevm { background: rgba(130, 71, 229, 0.10); color: #c084fc; }
         .chain-badge.polygon_zkevm .chain-dot { background: #a855f7; box-shadow: 0 0 6px rgba(168,85,247,0.4); }
@@ -8997,8 +8994,8 @@
                         </colgroup>
                         <thead>
                             <tr>
-                                <th>Date</th>
                                 <th>Chain</th>
+                                <th>Date</th>
                                 <th>Liquidated wallet</th>
                                 <th style="text-align:right">Debt repaid</th>
                                 <th style="text-align:right">Collateral seized</th>
@@ -12948,13 +12945,13 @@
                 const chainIcon = CHAIN_ICONS[chain] || 'dolomite-logo.svg';
                 const txHref = row.txHash ? `${getSupplyTxExplorer(chain)}${row.txHash}` : '';
                 return `<tr>
+                    <td><span class="chain-badge ${supplyEscapeHtml(chain)}"><img class="chain-icon" src="${supplyEscapeHtml(chainIcon)}" alt="">${supplyEscapeHtml(chainLabel)}</span></td>
                     <td>
                         <div class="supply-activity-time supply-activity-date-cell">
                             <div class="supply-activity-time-top"><strong>${supplyEscapeHtml(supplyFormatActivityDate(row.timestamp))}</strong>${txHref ? `<a class="liquidation-history-tx" href="${supplyEscapeHtml(txHref)}" target="_blank" rel="noopener" aria-label="Open transaction"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg></a>` : ''}</div>
                             <span>${supplyEscapeHtml(supplyFormatRelativeTime(row.timestamp))} · ${supplyEscapeHtml(supplyFormatActivityTime(row.timestamp))}</span>
                         </div>
                     </td>
-                    <td><span class="chain-badge ${supplyEscapeHtml(chain)}"><img class="chain-icon" src="${supplyEscapeHtml(chainIcon)}" alt="">${supplyEscapeHtml(chainLabel)}</span></td>
                     <td>${renderLiquidationHistoryAddress(row.liquidatedAddress, chain)}</td>
                     <td>${renderLiquidationHistoryAmount(row.debtRepaidAmount, row.borrowedToken, row.debtRepaidUSD)}</td>
                     <td>${renderLiquidationHistoryAmount(row.collateralSeizedAmount, row.heldToken, row.collateralSeizedUSD)}</td>
