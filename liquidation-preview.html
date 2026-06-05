@@ -2296,11 +2296,12 @@
             border-collapse: collapse;
             table-layout: fixed;
         }
-        .liquidation-history-table colgroup col:nth-child(1) { width: 8%; }     /* Chain */
-        .liquidation-history-table colgroup col:nth-child(2) { width: 17%; }    /* Liquidated wallet — left cluster */
-        .liquidation-history-table colgroup col:nth-child(3) { width: 21%; }    /* Date — content stays by the wallet; extra width is the gap before money */
-        .liquidation-history-table colgroup col:nth-child(4) { width: 27%; }    /* Debt repaid — right group */
-        .liquidation-history-table colgroup col:nth-child(5) { width: 27%; }    /* Collateral seized — right group */
+        .liquidation-history-table colgroup col:nth-child(1) { width: 7.8%; }   /* Chain */
+        .liquidation-history-table colgroup col:nth-child(2) { width: 14.7%; }  /* Liquidated wallet — left cluster */
+        .liquidation-history-table colgroup col:nth-child(3) { width: 13.2%; }  /* Date — sits next to the wallet */
+        .liquidation-history-table colgroup col:nth-child(4) { width: 31.2%; }  /* Spacer — gap before money */
+        .liquidation-history-table colgroup col:nth-child(5) { width: 17.3%; }  /* Collateral seized — right group */
+        .liquidation-history-table colgroup col:nth-child(6) { width: 15.3%; }  /* Debt repaid — right group */
         .liquidation-history-table thead th {
             position: sticky;
             top: 0;
@@ -2351,22 +2352,16 @@
         .liquidation-history-table tbody td:nth-child(2) {
             overflow: visible;
         }
-        /* Amount columns (Debt repaid, Collateral seized) — pos-merged display, left-aligned, right group */
-        .liquidation-history-table tbody td:nth-child(4),
-        .liquidation-history-table tbody td:nth-child(5) {
+        /* Amount columns (Debt repaid, Collateral seized) — pos-merged display, left-aligned, right group (cols 5,6; col 4 is the adjustable spacer) */
+        .liquidation-history-table tbody td:nth-child(5),
+        .liquidation-history-table tbody td:nth-child(6) {
             overflow: visible;
             white-space: normal;
             text-align: left;
             vertical-align: middle;
         }
-        .liquidation-history-table thead th:nth-child(4),
-        .liquidation-history-table tbody td:nth-child(4) {
-            padding-left: 14px;
-        }
-        .liquidation-history-table thead th:nth-child(5),
-        .liquidation-history-table tbody td:nth-child(5) {
-            padding-left: 14px;
-        }
+        .liquidation-history-table thead th.col-spacer,
+        .liquidation-history-table tbody td.col-spacer { padding: 0; }
         .liquidation-history-wallet {
             display: inline-flex;
             align-items: center;
@@ -3117,12 +3112,13 @@
             table-layout: fixed;
         }
 
-        .positions-table colgroup col:nth-child(1) { width: 7%; }     /* Chain */
-        .positions-table colgroup col:nth-child(2) { width: 25%; }    /* Address */
-        .positions-table colgroup col:nth-child(3) { width: 17%; }    /* Health Factor — left group */
-        .positions-table colgroup col:nth-child(4) { width: 15%; }    /* E-Mode — left group */
-        .positions-table colgroup col:nth-child(5) { width: 18%; }    /* Collateral (USD + tokens) — right group */
-        .positions-table colgroup col:nth-child(6) { width: 18%; }    /* Debt (USD + tokens) — right group */
+        .positions-table colgroup col:nth-child(1) { width: 7.8%; }   /* Chain */
+        .positions-table colgroup col:nth-child(2) { width: 16.2%; }  /* Address */
+        .positions-table colgroup col:nth-child(3) { width: 11.7%; }  /* Health Factor — left group */
+        .positions-table colgroup col:nth-child(4) { width: 9.1%; }   /* E-Mode — left group */
+        .positions-table colgroup col:nth-child(5) { width: 21.6%; }  /* Spacer — gap before money */
+        .positions-table colgroup col:nth-child(6) { width: 18.3%; }  /* Collateral (USD + tokens) — right group */
+        .positions-table colgroup col:nth-child(7) { width: 15.3%; }  /* Debt (USD + tokens) — right group */
 
         .positions-table thead {
             position: relative;
@@ -3252,34 +3248,28 @@
             overflow: visible;
         }
 
-        /* Merged Collateral / Debt cells (USD value + stacked token pills) — left-aligned to the column */
-        .positions-table tbody td:nth-child(5),
-        .positions-table tbody td:nth-child(6) {
+        /* Merged Collateral / Debt cells (USD value + stacked token pills) — left-aligned to the column (cols 6,7; col 5 is the adjustable spacer) */
+        .positions-table tbody td:nth-child(6),
+        .positions-table tbody td:nth-child(7) {
             white-space: normal;
             overflow: visible;
             text-align: left;
             padding-top: 8px;
             padding-bottom: 8px;
         }
-        /* Extra gap separating the identity group from the money group (Collateral/Debt on the right) */
-        .positions-table thead th:nth-child(5),
-        .positions-table tbody td:nth-child(5) {
-            padding-left: 24px;
-        }
-        .positions-table thead th:nth-child(6),
-        .positions-table tbody td:nth-child(6) {
-            padding-left: 18px;
-        }
         /* Left-align the Collateral / Debt headers to match their left-aligned data */
-        .positions-table thead th:nth-child(5) .col-header-group,
-        .positions-table thead th:nth-child(6) .col-header-group {
+        .positions-table thead th:nth-child(6) .col-header-group,
+        .positions-table thead th:nth-child(7) .col-header-group {
             justify-content: flex-start;
             width: 100%;
         }
-        .positions-table thead th:nth-child(5),
-        .positions-table thead th:nth-child(6) {
+        .positions-table thead th:nth-child(6),
+        .positions-table thead th:nth-child(7) {
             text-align: left;
         }
+        /* Empty spacer column — no content, used to fill/adjust the gap before the money group */
+        .positions-table thead th.col-spacer,
+        .positions-table tbody td.col-spacer { padding: 0; }
 
         /* Chain badge — compact icon style */
         .chain-badge {
@@ -9038,7 +9028,7 @@
 
                     <table class="positions-table" id="positions-table" style="display: none;">
                         <colgroup>
-                            <col><col><col><col><col><col>
+                            <col><col><col><col><col><col><col>
                         </colgroup>
                         <thead>
                             <tr>
@@ -9068,6 +9058,7 @@
                                     </div>
                                 </th>
                         <th data-sort="emode" style="text-align:center">E-Mode <span class="sort-arrow"></span></th>
+                        <th class="col-spacer" aria-hidden="true"></th>
                         <th data-sort="collateral" style="position:relative; overflow:visible">
                             <span class="col-header-group">
                                 Collateral
@@ -9178,42 +9169,14 @@
                     </div>
                     <table class="liquidation-history-table" id="liquidation-history-table" style="display:none;">
                         <colgroup>
-                            <col><col><col><col><col>
+                            <col><col><col><col><col><col>
                         </colgroup>
                         <thead>
                             <tr>
                                 <th>Chain</th>
                                 <th>Liquidated wallet</th>
                                 <th>Date</th>
-                                <th style="text-align:left; position:relative; overflow:visible">
-                                    <span class="col-header-group">
-                                        Debt repaid
-                                        <button type="button" class="col-filter-btn" id="lh-debt-filter-trigger" aria-label="Filter Debt repaid by USD range or token" title="Filter by USD value or token">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-                                        </button>
-                                        <button type="button" class="col-filter-clear" id="lh-debt-filter-clear">✕</button>
-                                    </span>
-                                    <div class="col-filter-popover col-filter-popover--combined" id="lh-debt-popover">
-                                        <div class="col-filter-inner">
-                                        <div class="col-filter-label">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-                                            USD value range
-                                        </div>
-                                        <div class="col-filter-row">
-                                            <input type="number" class="debt-custom-input" id="lh-debt-min" placeholder="$ Min">
-                                            <span>–</span>
-                                            <input type="number" class="debt-custom-input" id="lh-debt-max" placeholder="$ Max">
-                                        </div>
-                                        <div class="col-filter-divider"></div>
-                                        <div class="col-filter-label">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9a2.4 1.8 0 0 0-2.5-1.4c-1.4 0-2.5.8-2.5 1.9s1 1.5 2.5 1.9 2.5.8 2.5 1.9-1.1 1.9-2.5 1.9A2.4 1.8 0 0 1 9.5 14"/><path d="M12 6.4v11.2"/></svg>
-                                            Tokens
-                                        </div>
-                                        <input type="text" class="col-token-search" id="lh-debt-token-search" placeholder="Search token...">
-                                        <div class="col-token-list" id="lh-debt-token-list"></div>
-                                        </div>
-                                    </div>
-                                </th>
+                                <th class="col-spacer" aria-hidden="true"></th>
                                 <th style="text-align:left; position:relative; overflow:visible">
                                     <span class="col-header-group">
                                         Collateral seized
@@ -9240,6 +9203,35 @@
                                         </div>
                                         <input type="text" class="col-token-search" id="lh-coll-token-search" placeholder="Search token...">
                                         <div class="col-token-list" id="lh-coll-token-list"></div>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th style="text-align:left; position:relative; overflow:visible">
+                                    <span class="col-header-group">
+                                        Debt repaid
+                                        <button type="button" class="col-filter-btn" id="lh-debt-filter-trigger" aria-label="Filter Debt repaid by USD range or token" title="Filter by USD value or token">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                        </button>
+                                        <button type="button" class="col-filter-clear" id="lh-debt-filter-clear">✕</button>
+                                    </span>
+                                    <div class="col-filter-popover col-filter-popover--combined" id="lh-debt-popover">
+                                        <div class="col-filter-inner">
+                                        <div class="col-filter-label">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                            USD value range
+                                        </div>
+                                        <div class="col-filter-row">
+                                            <input type="number" class="debt-custom-input" id="lh-debt-min" placeholder="$ Min">
+                                            <span>–</span>
+                                            <input type="number" class="debt-custom-input" id="lh-debt-max" placeholder="$ Max">
+                                        </div>
+                                        <div class="col-filter-divider"></div>
+                                        <div class="col-filter-label">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9a2.4 1.8 0 0 0-2.5-1.4c-1.4 0-2.5.8-2.5 1.9s1 1.5 2.5 1.9 2.5.8 2.5 1.9-1.1 1.9-2.5 1.9A2.4 1.8 0 0 1 9.5 14"/><path d="M12 6.4v11.2"/></svg>
+                                            Tokens
+                                        </div>
+                                        <input type="text" class="col-token-search" id="lh-debt-token-search" placeholder="Search token...">
+                                        <div class="col-token-list" id="lh-debt-token-list"></div>
                                         </div>
                                     </div>
                                 </th>
@@ -13030,6 +13022,7 @@
                     </div></td>
                     <td><div class="hf-gauge"><span class="hf-badge ${riskClass}"><span class="hf-dot ${riskClass}"></span>${hfText}</span></div></td>
                     <td style="text-align:center">${emodeCell}</td>
+                    <td class="col-spacer"></td>
                     <td><div class="pos-merged">
                         <span class="usd-value collateral ${collateralClass}">${collateralDisplay}</span>
                         <div class="token-pills">${collateralTokensHtml}</div>
@@ -13211,7 +13204,7 @@
             }
 
             if (!filteredTotal) {
-                body.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:42px 20px;color:var(--text-muted);border-bottom:none;">No liquidations match this search.</td></tr>`;
+                body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:42px 20px;color:var(--text-muted);border-bottom:none;">No liquidations match this search.</td></tr>`;
                 pager.innerHTML = '';
                 return;
             }
@@ -13235,14 +13228,15 @@
                             <span>${supplyEscapeHtml(supplyFormatRelativeTime(row.timestamp))} · ${supplyEscapeHtml(supplyFormatActivityTime(row.timestamp))}</span>
                         </div>
                     </td>
-                    <td>${renderLiquidationHistoryAmount(row.debtRepaidAmount, row.borrowedToken, row.debtRepaidUSD, 'debt')}</td>
+                    <td class="col-spacer"></td>
                     <td>${renderLiquidationHistoryAmount(row.collateralSeizedAmount, row.heldToken, row.collateralSeizedUSD, 'collateral')}</td>
+                    <td>${renderLiquidationHistoryAmount(row.debtRepaidAmount, row.borrowedToken, row.debtRepaidUSD, 'debt')}</td>
                 </tr>`;
             }).join('');
 
             if (pageRows.length < LIQUIDATION_HISTORY_PAGE_SIZE) {
                 for (let i = 0; i < (LIQUIDATION_HISTORY_PAGE_SIZE - pageRows.length); i++) {
-                    body.innerHTML += '<tr><td colspan="5" style="padding:15px; opacity:0; pointer-events:none;">&nbsp;</td></tr>';
+                    body.innerHTML += '<tr><td colspan="6" style="padding:15px; opacity:0; pointer-events:none;">&nbsp;</td></tr>';
                 }
             }
 
