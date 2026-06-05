@@ -2277,11 +2277,7 @@
             box-shadow: 0 0 8px var(--gold-line);
         }
         .liquidation-history-state.ready {
-            color: #d1fae5;
-        }
-        .liquidation-history-state.ready .liquidation-history-dot {
-            background: #34d399;
-            box-shadow: 0 0 0 3px rgba(52,211,153,0.12);
+            color: var(--fg-2);
         }
         .liquidation-history-state.empty {
             color: rgba(226,232,240,0.52);
@@ -2369,11 +2365,13 @@
             max-width: 100%;
             min-width: 0;
         }
+        /* Wallet address — match the dolo Holders .addr-mono treatment (mono, fg-3, weight 500) */
         .liquidation-history-address {
-            color: rgba(248,250,252,0.88) !important;
-            font-family: var(--font-mono);
-            font-size: 11px;
-            font-weight: 650;
+            color: var(--fg-3) !important;
+            font-family: var(--mono);
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: .1px;
             text-decoration: none !important;
             white-space: nowrap;
         }
@@ -9146,7 +9144,7 @@
                         <div class="liquidation-table-subtitle">All Dolomite liquidation events found in the monitored subgraphs.</div>
                     </div>
                     <div class="liquidation-table-meta">
-                        <div class="liquidation-table-meta-pill" id="liquidation-history-total-usd">Debt repaid: —</div>
+                        <div class="liquidation-table-meta-pill" id="liquidation-history-total-usd"><span class="live-dot"></span><span class="lh-total-text">Debt repaid: —</span></div>
                     </div>
                 </div>
 
@@ -9157,7 +9155,7 @@
                         <button type="button" class="search-clear" id="liquidation-history-search-clear">✕</button>
                     </div>
                     <div class="liquidation-history-state" id="liquidation-history-state">
-                        <span class="liquidation-history-dot"></span>
+                        <span class="live-dot"></span>
                         <span>Waiting for data</span>
                     </div>
                 </div>
@@ -9177,7 +9175,7 @@
                                 <th>Liquidated wallet</th>
                                 <th>Date</th>
                                 <th class="col-spacer" aria-hidden="true"></th>
-                                <th style="text-align:left; position:relative; overflow:visible">
+                                <th style="text-align:left; overflow:visible">
                                     <span class="col-header-group">
                                         Collateral seized
                                         <button type="button" class="col-filter-btn" id="lh-coll-filter-trigger" aria-label="Filter Collateral seized by USD range or token" title="Filter by USD value or token">
@@ -9206,7 +9204,7 @@
                                         </div>
                                     </div>
                                 </th>
-                                <th style="text-align:left; position:relative; overflow:visible">
+                                <th style="text-align:left; overflow:visible">
                                     <span class="col-header-group">
                                         Debt repaid
                                         <button type="button" class="col-filter-btn" id="lh-debt-filter-trigger" aria-label="Filter Debt repaid by USD range or token" title="Filter by USD value or token">
@@ -13126,7 +13124,7 @@
             const safeFull = supplyEscapeHtml(`${supplyFormatTokenPrecise(amount)} ${symbol}`);
             const tintClass = variant === 'debt' ? ' debt' : variant === 'collateral' ? ' collateral' : '';
             // Same display UX as Lending Positions Collateral: USD value on top, token pill (logo + amount) below.
-            return `<div class="pos-merged liquidation-history-amount" data-tooltip="${safeFull}" data-tooltip-cursor="true">
+            return `<div class="pos-merged liquidation-history-amount">
                 <span class="usd-value${tintClass}">${supplyEscapeHtml(formatUSDCompact(Number(usd || 0)))}</span>
                 <div class="token-pills"><span class="token-pill"><span class="token-pill-icon"><img src="${supplyEscapeHtml(icon)}" alt="${safeSymbol}" onerror="this.src='dolomite-logo.svg'"></span>${safeSymbol} <span class="token-usd">${supplyEscapeHtml(supplyFormatTokenCompact(amount))}</span></span></div>
             </div>`;
@@ -13197,10 +13195,10 @@
                 : `(${filteredTotal.toLocaleString()})`;
 
             const filteredDebtUsd = filteredLiquidationHistory.reduce((sum, row) => sum + Number(row.debtRepaidUSD || 0), 0);
-            if (totalUsd) totalUsd.textContent = `Debt repaid: ${formatUSDCompact(filteredDebtUsd)}`;
+            if (totalUsd) { const txt = totalUsd.querySelector('.lh-total-text') || totalUsd; txt.textContent = `Debt repaid: ${formatUSDCompact(filteredDebtUsd)}`; }
             if (state) {
                 state.className = `liquidation-history-state ${filteredTotal ? 'ready' : 'empty'}`;
-                state.innerHTML = `<span class="liquidation-history-dot"></span><span>${filteredTotal ? `${filteredTotal.toLocaleString()} events loaded` : 'No liquidation events'}</span>`;
+                state.innerHTML = `<span class="live-dot"></span><span>${filteredTotal ? `${filteredTotal.toLocaleString()} events loaded` : 'No liquidation events'}</span>`;
             }
 
             if (!filteredTotal) {
