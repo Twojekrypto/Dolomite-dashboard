@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260605-odolo-claim";
+  const HISTORY_VERSION = "history-20260605-odolo-claim-evidence";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -1129,7 +1129,10 @@
       const doneTone = state.warnings.length ? "warn" : "good";
       const doneSuffix = state.warnings.length ? ` Partial data warning: ${shortWarnings()}` : "";
       const visibleRows = rowsMatchingCurrentFilters(state.rows);
-      const filterSuffix = visibleRows.length === state.rows.length
+      const visibleEvidenceEntries = earnTaxEntriesForCurrentView();
+      const filterSuffix = visibleRows.length === 0 && visibleEvidenceEntries.length
+        ? ` 0 transaction rows match current filters; ${visibleEvidenceEntries.length.toLocaleString()} evidence row${visibleEvidenceEntries.length === 1 ? "" : "s"} available in exports.`
+        : visibleRows.length === state.rows.length
         ? ""
         : ` ${visibleRows.length.toLocaleString()} match current filters.`;
       setStatus(`Loaded ${state.rows.length.toLocaleString()} tx with gas evidence where RPC data is available.${filterSuffix}${doneSuffix}`, doneTone);
@@ -2901,10 +2904,10 @@
 
   function renderRows() {
     const rows = state.filteredRows;
-    els.count.textContent = `${rows.length.toLocaleString()} transactions`;
     const gasPending = rows.some(row => row.gas?.status === "pending");
     const earnPending = state.earn?.status === "loading";
     const earnEntries = earnTaxEntriesForCurrentView();
+    els.count.textContent = historyCountLabel(rows, earnEntries);
     els.taxExport.disabled = (rows.length === 0 && earnEntries.length === 0) || state.loading || state.filtersDirty || gasPending || earnPending;
 
     if (state.loading) {
@@ -2912,8 +2915,8 @@
       return;
     }
     if (!rows.length) {
-      const msg = state.rows.length ? "No rows match the selected filters." : "No wallet loaded yet.";
-      els.body.innerHTML = `<tr class="empty-row"><td colspan="${HISTORY_TABLE_COLSPAN}">${escapeHtml(msg)}</td></tr>`;
+      const msg = emptyHistoryMessageHtml(earnEntries);
+      els.body.innerHTML = `<tr class="empty-row"><td colspan="${HISTORY_TABLE_COLSPAN}">${msg}</td></tr>`;
       return;
     }
 
@@ -2921,6 +2924,36 @@
       const expanded = state.expandedKey === row.key;
       return rowHtml(row, expanded) + (expanded ? detailHtml(row) : "");
     }).join("");
+  }
+
+  function historyCountLabel(rows = [], earnEntries = []) {
+    const txLabel = `${rows.length.toLocaleString()} transaction${rows.length === 1 ? "" : "s"}`;
+    if (!earnEntries.length) return txLabel;
+    return `${txLabel} · ${earnEntries.length.toLocaleString()} evidence row${earnEntries.length === 1 ? "" : "s"}`;
+  }
+
+  function emptyHistoryMessageHtml(earnEntries = []) {
+    if (earnEntries.length) {
+      const odoloEntries = earnEntries.filter(entry => entry.source === "dolomite-odolo-claim");
+      if (odoloEntries.length && selectedActionKeys().includes("odoloClaim")) {
+        const total = odoloEntries.reduce((sum, entry) => sum + (decimalToNumber(entry.rewardClaimedEstimate || entry.assetInAmount) || 0), 0);
+        const totalLabel = total > 0 ? `${decimalForCsv(total)} oDOLO` : "oDOLO";
+        return `
+          <div class="history-empty-note">
+            <strong>Claim oDOLO evidence is included in exports.</strong>
+            <span>${escapeHtml(totalLabel)} found as Dolomite subgraph aggregate evidence. The subgraph does not expose a per-claim timestamp or transaction hash, so History does not create a fake transaction row.</span>
+          </div>
+        `;
+      }
+      return `
+        <div class="history-empty-note">
+          <strong>No transaction rows match these filters.</strong>
+          <span>${earnEntries.length.toLocaleString()} evidence row${earnEntries.length === 1 ? "" : "s"} will still be included in the downloadable report.</span>
+        </div>
+      `;
+    }
+    const msg = state.rows.length ? "No rows match the selected filters." : "No wallet loaded yet.";
+    return escapeHtml(msg);
   }
 
   function rowHtml(row, expanded) {
@@ -3023,6 +3056,7 @@
     if (action === "vestingClaim") {
       return vestingEventsForRow(row).some(event => vestingFlowIsExercise(event.vestingFlowLabel));
     }
+    if (action === "odoloClaim") return false;
     return row.actions.has(action);
   }
 
