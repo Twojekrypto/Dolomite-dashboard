@@ -2297,10 +2297,10 @@
             table-layout: fixed;
         }
         .liquidation-history-table colgroup col:nth-child(1) { width: 8%; }     /* Chain */
-        .liquidation-history-table colgroup col:nth-child(2) { width: 22%; }    /* Liquidated wallet */
-        .liquidation-history-table colgroup col:nth-child(3) { width: 13%; }    /* Date */
-        .liquidation-history-table colgroup col:nth-child(4) { width: 28.5%; }  /* Debt repaid */
-        .liquidation-history-table colgroup col:nth-child(5) { width: 28.5%; }  /* Collateral seized */
+        .liquidation-history-table colgroup col:nth-child(2) { width: 28%; }    /* Liquidated wallet */
+        .liquidation-history-table colgroup col:nth-child(3) { width: 16%; }    /* Date */
+        .liquidation-history-table colgroup col:nth-child(4) { width: 24%; }    /* Debt repaid — right group */
+        .liquidation-history-table colgroup col:nth-child(5) { width: 24%; }    /* Collateral seized — right group */
         .liquidation-history-table thead th {
             position: sticky;
             top: 0;
@@ -2351,13 +2351,21 @@
         .liquidation-history-table tbody td:nth-child(2) {
             overflow: visible;
         }
-        /* Amount columns (Debt repaid, Collateral seized) — pos-merged display, left-aligned */
+        /* Amount columns (Debt repaid, Collateral seized) — pos-merged display, left-aligned, right group */
         .liquidation-history-table tbody td:nth-child(4),
         .liquidation-history-table tbody td:nth-child(5) {
             overflow: visible;
             white-space: normal;
             text-align: left;
             vertical-align: middle;
+        }
+        .liquidation-history-table thead th:nth-child(4),
+        .liquidation-history-table tbody td:nth-child(4) {
+            padding-left: 24px;
+        }
+        .liquidation-history-table thead th:nth-child(5),
+        .liquidation-history-table tbody td:nth-child(5) {
+            padding-left: 18px;
         }
         .liquidation-history-wallet {
             display: inline-flex;
@@ -3110,11 +3118,11 @@
         }
 
         .positions-table colgroup col:nth-child(1) { width: 7%; }     /* Chain */
-        .positions-table colgroup col:nth-child(2) { width: 17%; }    /* Address */
-        .positions-table colgroup col:nth-child(3) { width: 12%; }    /* Health Factor */
-        .positions-table colgroup col:nth-child(4) { width: 9%; }     /* E-Mode */
-        .positions-table colgroup col:nth-child(5) { width: 28%; }    /* Collateral (USD + tokens) */
-        .positions-table colgroup col:nth-child(6) { width: 27%; }    /* Debt (USD + tokens) */
+        .positions-table colgroup col:nth-child(2) { width: 23%; }    /* Address */
+        .positions-table colgroup col:nth-child(3) { width: 15%; }    /* Health Factor */
+        .positions-table colgroup col:nth-child(4) { width: 13%; }    /* E-Mode */
+        .positions-table colgroup col:nth-child(5) { width: 21%; }    /* Collateral (USD + tokens) — right group */
+        .positions-table colgroup col:nth-child(6) { width: 21%; }    /* Debt (USD + tokens) — right group */
 
         .positions-table thead {
             position: relative;
@@ -3252,6 +3260,15 @@
             text-align: left;
             padding-top: 8px;
             padding-bottom: 8px;
+        }
+        /* Extra gap separating the identity group from the money group (Collateral/Debt on the right) */
+        .positions-table thead th:nth-child(5),
+        .positions-table tbody td:nth-child(5) {
+            padding-left: 24px;
+        }
+        .positions-table thead th:nth-child(6),
+        .positions-table tbody td:nth-child(6) {
+            padding-left: 18px;
         }
         /* Left-align the Collateral / Debt headers to match their left-aligned data */
         .positions-table thead th:nth-child(5) .col-header-group,
