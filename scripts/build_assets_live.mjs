@@ -207,15 +207,31 @@ function parseYieldParts(parts) {
 }
 
 async function fetchJson(url, options = {}) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  try {
-    const response = await fetch(url, { ...options, signal: controller.signal });
-    if (!response.ok) throw new Error(`HTTP ${response.status} for ${url}`);
-    return await response.json();
-  } finally {
-    clearTimeout(timeout);
+  // Retry transient failures (network/timeout, HTTP 5xx, 429) with backoff before giving up,
+  // so an intermittent blip on api.dolomite.io / subgraphs doesn't force a stale rate fallback.
+  const { retries = 2, retryDelayMs = 600, ...fetchOptions } = options;
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(url, { ...fetchOptions, signal: controller.signal });
+      if (!response.ok) {
+        const err = new Error(`HTTP ${response.status} for ${url}`);
+        // 4xx (except 429) are unlikely to fix themselves — fail fast.
+        if (response.status < 500 && response.status !== 429) err.fatal = true;
+        throw err;
+      }
+      return await response.json();
+    } catch (error) {
+      lastError = error;
+      if (error.fatal || attempt === retries) break;
+      await new Promise((resolve) => setTimeout(resolve, retryDelayMs * (attempt + 1)));
+    } finally {
+      clearTimeout(timeout);
+    }
   }
+  throw lastError;
 }
 
 async function graphQuery(chainKey, query) {
