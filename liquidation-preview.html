@@ -2351,12 +2351,12 @@
         .liquidation-history-table tbody td:nth-child(2) {
             overflow: visible;
         }
-        /* Amount columns (Debt repaid, Collateral seized) — pos-merged display, right-aligned */
+        /* Amount columns (Debt repaid, Collateral seized) — pos-merged display, left-aligned */
         .liquidation-history-table tbody td:nth-child(4),
         .liquidation-history-table tbody td:nth-child(5) {
             overflow: visible;
             white-space: normal;
-            text-align: right;
+            text-align: left;
             vertical-align: middle;
         }
         .liquidation-history-wallet {
@@ -3244,24 +3244,24 @@
             overflow: visible;
         }
 
-        /* Merged Collateral / Debt cells (USD value + stacked token pills) — right-aligned money columns */
+        /* Merged Collateral / Debt cells (USD value + stacked token pills) — left-aligned to the column */
         .positions-table tbody td:nth-child(5),
         .positions-table tbody td:nth-child(6) {
             white-space: normal;
             overflow: visible;
-            text-align: right;
+            text-align: left;
             padding-top: 8px;
             padding-bottom: 8px;
         }
-        /* Right-align the Collateral / Debt headers to match their right-aligned data */
+        /* Left-align the Collateral / Debt headers to match their left-aligned data */
         .positions-table thead th:nth-child(5) .col-header-group,
         .positions-table thead th:nth-child(6) .col-header-group {
-            justify-content: flex-end;
+            justify-content: flex-start;
             width: 100%;
         }
         .positions-table thead th:nth-child(5),
         .positions-table thead th:nth-child(6) {
-            text-align: right;
+            text-align: left;
         }
 
         /* Chain badge — compact icon style */
@@ -3780,11 +3780,11 @@
         }
 
         /* Merged Collateral / Debt column: primary USD value on top, token pills stacked below,
-           right-aligned so the money columns sit on the right side of the table. */
+           left-aligned to the column width. */
         .pos-merged {
             display: flex;
             flex-direction: column;
-            align-items: flex-end;
+            align-items: flex-start;
             gap: 4px;
             min-width: 0;
         }
@@ -3795,7 +3795,7 @@
         .pos-merged .token-pills {
             flex-direction: column;
             flex-wrap: nowrap;
-            align-items: flex-end;
+            align-items: flex-start;
             gap: 3px;
         }
         .pos-merged .token-pill {
@@ -9167,7 +9167,7 @@
                                 <th>Chain</th>
                                 <th>Liquidated wallet</th>
                                 <th>Date</th>
-                                <th style="text-align:right; position:relative; overflow:visible">
+                                <th style="text-align:left; position:relative; overflow:visible">
                                     <span class="col-header-group">
                                         Debt repaid
                                         <button type="button" class="col-filter-btn" id="lh-debt-filter-trigger" aria-label="Filter Debt repaid by USD range or token" title="Filter by USD value or token">
@@ -9196,7 +9196,7 @@
                                         </div>
                                     </div>
                                 </th>
-                                <th style="text-align:right; position:relative; overflow:visible">
+                                <th style="text-align:left; position:relative; overflow:visible">
                                     <span class="col-header-group">
                                         Collateral seized
                                         <button type="button" class="col-filter-btn" id="lh-coll-filter-trigger" aria-label="Filter Collateral seized by USD range or token" title="Filter by USD value or token">
