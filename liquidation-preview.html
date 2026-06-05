@@ -3749,9 +3749,10 @@
             color: var(--fg-1);
         }
 
-        .usd-value.collateral { color: var(--fg-1); }
+        /* Subtle, UX-consistent tint: collateral (asset) soft green, debt (liability) soft red */
+        .usd-value.collateral { color: var(--up); }
         .usd-value.collateral.zero { color: var(--text-muted); font-weight: 400; }
-        .usd-value.debt { color: var(--fg-1); }
+        .usd-value.debt { color: var(--down); }
         .usd-value.debt.zero { color: var(--text-muted); font-weight: 400; }
 
         /* Token pills */
@@ -13124,15 +13125,16 @@
             ].filter(Boolean).join(' ').toLowerCase();
         }
 
-        function renderLiquidationHistoryAmount(amount, token, usd) {
+        function renderLiquidationHistoryAmount(amount, token, usd, variant) {
             const symbol = token?.symbol || 'TOKEN';
             const shortSymbol = truncateTokenName(symbol);
             const icon = getTokenIcon(shortSymbol) || SYMBOL_ICONS[symbol] || SYMBOL_ICONS[shortSymbol] || `https://icons.llamao.fi/icons/tokens/${String(symbol).toLowerCase()}`;
             const safeSymbol = supplyEscapeHtml(shortSymbol);
             const safeFull = supplyEscapeHtml(`${supplyFormatTokenPrecise(amount)} ${symbol}`);
+            const tintClass = variant === 'debt' ? ' debt' : variant === 'collateral' ? ' collateral' : '';
             // Same display UX as Lending Positions Collateral: USD value on top, token pill (logo + amount) below.
             return `<div class="pos-merged liquidation-history-amount" data-tooltip="${safeFull}" data-tooltip-cursor="true">
-                <span class="usd-value">${supplyEscapeHtml(formatUSDCompact(Number(usd || 0)))}</span>
+                <span class="usd-value${tintClass}">${supplyEscapeHtml(formatUSDCompact(Number(usd || 0)))}</span>
                 <div class="token-pills"><span class="token-pill"><span class="token-pill-icon"><img src="${supplyEscapeHtml(icon)}" alt="${safeSymbol}" onerror="this.src='dolomite-logo.svg'"></span>${safeSymbol} <span class="token-usd">${supplyEscapeHtml(supplyFormatTokenCompact(amount))}</span></span></div>
             </div>`;
         }
@@ -13233,8 +13235,8 @@
                             <span>${supplyEscapeHtml(supplyFormatRelativeTime(row.timestamp))} · ${supplyEscapeHtml(supplyFormatActivityTime(row.timestamp))}</span>
                         </div>
                     </td>
-                    <td>${renderLiquidationHistoryAmount(row.debtRepaidAmount, row.borrowedToken, row.debtRepaidUSD)}</td>
-                    <td>${renderLiquidationHistoryAmount(row.collateralSeizedAmount, row.heldToken, row.collateralSeizedUSD)}</td>
+                    <td>${renderLiquidationHistoryAmount(row.debtRepaidAmount, row.borrowedToken, row.debtRepaidUSD, 'debt')}</td>
+                    <td>${renderLiquidationHistoryAmount(row.collateralSeizedAmount, row.heldToken, row.collateralSeizedUSD, 'collateral')}</td>
                 </tr>`;
             }).join('');
 
