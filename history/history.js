@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260602datepicker";
+  const HISTORY_VERSION = "history-20260605-odolo-claim";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -133,6 +133,7 @@
     vestingPair: "Pair oDOLO + DOLO",
     vestingClaim: "Claim veDOLO",
     vestingInternal: "Move veDOLO position",
+    odoloClaim: "Claim oDOLO",
   };
 
   const ACTION_TABLE_LABELS = {
@@ -157,6 +158,7 @@
     vestingPair: "PAIR",
     vestingClaim: "CLAIM",
     vestingInternal: "MOVE",
+    odoloClaim: "oDOLO",
   };
 
   const state = {
@@ -1056,6 +1058,7 @@
     state.filtersDirty = false;
     state.reviewNotes = loadReviewNotes(address, state.year);
     state.rows = [];
+    state.odoloClaims = {};
     state.filteredRows = [];
     state.expandedKey = "";
     state.gasChecked = 0;
@@ -1084,6 +1087,7 @@
           const result = await fetchChainHistory(chainKey, address, bounds);
           if (runId === state.runId) {
             state.loadedChains += 1;
+            if (result && result.odoloClaim) state.odoloClaims[chainKey] = result.odoloClaim;
             renderLoadingPanel();
           }
           return result;
@@ -1319,7 +1323,28 @@
       }
     });
 
-    return { events: batches.flat().filter(event => event.txHash), warnings };
+    const events = batches.flat().filter(event => event.txHash);
+
+    // oDOLO liquidity-mining claims are recorded in the Dolomite subgraph only as an aggregate per
+    // distributor/epoch (a total amount, with no timestamp or transaction hash), so they can't be
+    // timeline rows. Fetch the total claimed for the wallet as evidence instead.
+    let odoloClaim = null;
+    try {
+      const claimRes = await paginateEntity(chain.subgraph, "liquidityMiningClaims", `user: "${user}"`, "id amount distributor epoch seasonNumber", "id");
+      const rows = claimRes.rows || [];
+      const total = rows.reduce((sum, r) => sum + (decimalToNumber(r.amount) || 0), 0);
+      if (total > 0) {
+        odoloClaim = {
+          total,
+          count: rows.length,
+          distributors: [...new Set(rows.map(r => normalizeAddress(r.distributor)).filter(Boolean))],
+        };
+      }
+    } catch (error) {
+      console.debug(`History oDOLO claim query failed for ${chain.name}:`, error);
+    }
+
+    return { events, warnings, odoloClaim };
   }
 
   function eventsWithSourceEntity(mapped, sourceEntity) {
@@ -2545,12 +2570,61 @@
 
   function earnTaxEntriesForCurrentView() {
     if (state.filtersDirty) return [];
-    if (!state.earn || state.earn.status !== "ready" || !actionFilterAllSelected()) return [];
+    const allSelected = actionFilterAllSelected();
     const bounds = getBounds(state.year);
-    return [
-      ...earnLedgerTaxEntries(bounds),
-      ...earnRewardTaxEntries(bounds),
-    ];
+    const entries = [];
+    // oDOLO liquidity-mining claims come from the subgraph (independent of EARN data); show them
+    // when all actions are selected or the dedicated "Claim oDOLO" filter is on.
+    if (allSelected || selectedActionKeys().includes("odoloClaim")) {
+      entries.push(...odoloClaimTaxEntries(bounds));
+    }
+    if (state.earn && state.earn.status === "ready" && allSelected) {
+      entries.push(...earnLedgerTaxEntries(bounds), ...earnRewardTaxEntries(bounds));
+    }
+    return entries;
+  }
+
+  function odoloClaimTaxEntries(bounds) {
+    const entries = [];
+    Object.entries(state.odoloClaims || {}).forEach(([chainKey, claim]) => {
+      if (!state.selectedChains.has(chainKey)) return;
+      if (!claim || !(claim.total > 0)) return;
+      const chain = CHAINS[chainKey];
+      entries.push({
+        source: "dolomite-odolo-claim",
+        chainKey,
+        chainName: chain ? chain.name : chainKey,
+        timestamp: bounds.end,
+        marketId: "",
+        action: "oDOLO claim summary",
+        taxCategory: "odolo_claim_candidate",
+        reviewFlag: "needs_review",
+        reviewReason: "odolo_claim_aggregate_no_timestamp; reward_claim_timing_unverified",
+        claimProofStatus: "subgraph_liquidity_mining_claim_aggregate",
+        assetInSymbol: "oDOLO",
+        assetInAmount: decimalForCsv(claim.total),
+        assetInUsd: "",
+        assetOutSymbol: "",
+        assetOutAmount: "",
+        assetOutUsd: "",
+        usd: 0,
+        feeStatus: "",
+        priceSource: "",
+        dataSource: "Dolomite subgraph LiquidityMiningClaim aggregate (per distributor/epoch; no per-claim timestamp or tx)",
+        note: `oDOLO liquidity-mining claim total (${claim.count || 0} epoch record${claim.count === 1 ? "" : "s"}) from the Dolomite subgraph. Recorded as an aggregate without a timestamp or transaction hash, so it is evidence only — not a dated transaction. Verify claim receipts for tax timing.`,
+        earnSource: "dolomite-odolo-claim",
+        earnStatus: "aggregate",
+        earnMethod: "",
+        earnSnapshotDate: "",
+        earnCoverage: "",
+        earnPeriodSource: "dolomite-odolo-claim",
+        rewardAccumulated: decimalForCsv(claim.total),
+        rewardUnclaimed: "",
+        rewardClaimedEstimate: decimalForCsv(claim.total),
+        trusted: false,
+      });
+    });
+    return entries;
   }
 
   function earnLedgerTaxEntries(bounds) {
