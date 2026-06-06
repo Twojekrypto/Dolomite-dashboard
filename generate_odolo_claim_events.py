@@ -21,7 +21,7 @@ EVENT_EMITTER = "0x6d40138c99f6d9116f738f44a0e6751a42232486"
 REWARD_CLAIMED_TOPIC = "0x7a84a08b02c91f3c62d572853f966fc799bbd121e8ad7833a4494ab8dcfcb404"
 DEPLOY_BLOCK = 3_500_000
 BLOCK_TIME_SECONDS = 2
-DEFAULT_LOOKBACK_DAYS = int(os.environ.get("ODOLO_CLAIM_LOOKBACK_DAYS", "370"))
+DEFAULT_LOOKBACK_DAYS = int(os.environ.get("ODOLO_CLAIM_LOOKBACK_DAYS", "730"))
 DEFAULT_CHUNK_SIZE = int(os.environ.get("ODOLO_CLAIM_CHUNK_SIZE", "50000"))
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -241,32 +241,47 @@ def main():
     state = load_json(STATE_FILE, {})
     existing = load_json(OUTPUT_JSON, {})
     existing_events = existing.get("events", []) if isinstance(existing, dict) else []
+    existing_from_block = int(existing.get("fromBlock") or 0) if isinstance(existing, dict) else 0
+    existing_to_block = int(existing.get("toBlock") or 0) if isinstance(existing, dict) else 0
+    existing_is_full_coverage = existing_from_block and existing_from_block <= DEPLOY_BLOCK
 
     env_start = os.environ.get("ODOLO_CLAIM_START_BLOCK")
     force_full = os.environ.get("ODOLO_CLAIM_FORCE_FULL", "").lower() in {"1", "true", "yes"}
     lookback_blocks = DEFAULT_LOOKBACK_DAYS * 86400 // BLOCK_TIME_SECONDS
     default_start = max(DEPLOY_BLOCK, current_block - lookback_blocks)
 
+    state_is_usable = state.get("schemaVersion") == SCHEMA_VERSION and int(state.get("lastBlock", 0) or 0) > 0
+
     if env_start:
         start_block = max(DEPLOY_BLOCK, int(env_start))
-    elif force_full or state.get("schemaVersion") != SCHEMA_VERSION:
-        start_block = default_start
+    elif force_full:
+        start_block = DEPLOY_BLOCK
+    elif existing_events and not existing_is_full_coverage:
+        # A checked-in partial index is useful for immediate UI coverage, but it must not become
+        # the long-term baseline. Backfill from deploy once, then future runs can go incremental.
+        start_block = DEPLOY_BLOCK
+    elif state_is_usable:
+        start_block = max(DEPLOY_BLOCK, int(state.get("lastBlock", 0)) + 1)
+    elif existing_is_full_coverage and existing_to_block > 0:
+        start_block = existing_to_block + 1
     else:
-        start_block = max(default_start, int(state.get("lastBlock", default_start)) + 1)
+        start_block = max(DEPLOY_BLOCK, default_start)
 
     end_block = current_block
     new_logs = fetch_reward_claimed_logs(start_block, end_block)
     new_events = claim_events_from_logs(new_logs)
     all_events = merge_events(existing_events, new_events)
 
+    coverage_from_block = min([block for block in [start_block, existing_from_block or start_block] if block])
+
     payload = {
         "schemaVersion": SCHEMA_VERSION,
         "generatedAt": utc_now_iso(),
         "chainKey": "berachain",
         "source": "Berachain RewardClaimed logs for Dolomite oDOLO rewards",
-        "fromBlock": min([event.get("blockNumber", end_block) for event in all_events] + [start_block]),
+        "fromBlock": coverage_from_block,
         "toBlock": end_block,
-        "fromTimestamp": fetch_block_timestamp(start_block),
+        "fromTimestamp": fetch_block_timestamp(coverage_from_block),
         "toTimestamp": fetch_block_timestamp(end_block),
         "eventEmitter": EVENT_EMITTER,
         "distributor": REWARDS_DISTRIBUTOR,
