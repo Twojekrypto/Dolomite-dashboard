@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260606-odolo-claim-events";
+  const HISTORY_VERSION = "history-20260606-reward-claims";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -14,6 +14,7 @@
   const EARN_LEDGER_BASE = "data/earn-verified-ledger";
   const EARN_REWARDS_BASE = "data/earn-merkl-rewards";
   const EARN_SNAPSHOT_BASE = "data/earn-snapshots";
+  const REWARD_CLAIM_EVENTS_URL = "data/reward-claim-events.json";
   const ODOLO_CLAIM_EVENTS_URL = "data/odolo-claim-events.json";
   const ODOLO_REWARDS_DISTRIBUTOR = "0x79e6e932bf6686a4d357d7821e6e08835ba8a026";
   const ODOLO_TOKEN_ADDRESS = "0x02e513b5b54ee216bf836ceb471507488fc89543";
@@ -137,6 +138,8 @@
     vestingClaim: "Claim veDOLO",
     vestingInternal: "Move veDOLO position",
     odoloClaim: "Claim oDOLO",
+    rewardClaim: "Claim Rewards",
+    rewardLevelUpdate: "Reward Level Update",
   };
 
   const ACTION_TABLE_LABELS = {
@@ -162,6 +165,8 @@
     vestingClaim: "CLAIM",
     vestingInternal: "MOVE",
     odoloClaim: "oDOLO Claim",
+    rewardClaim: "Reward Claim",
+    rewardLevelUpdate: "Reward Level",
   };
 
   const state = {
@@ -191,7 +196,7 @@
 
   const els = {};
   const priceCache = new Map();
-  let odoloClaimEventsPromise = null;
+  let rewardClaimEventsPromise = null;
   const gasCache = new Map();
   const interestIndexCache = new Map();
   let loadingTicker = 0;
@@ -1159,6 +1164,8 @@
     const timeFilter = `transaction_: { timestamp_gte: "${bounds.start}", timestamp_lte: "${bounds.end}" }`;
     const creationTimeFilter = `creationTransaction_: { timestamp_gte: "${bounds.start}", timestamp_lte: "${bounds.end}" }`;
     const executionTimeFilter = `executionTransaction_: { timestamp_gte: "${bounds.start}", timestamp_lte: "${bounds.end}" }`;
+    const initiateTimeFilter = `initiateTransaction_: { timestamp_gte: "${bounds.start}", timestamp_lte: "${bounds.end}" }`;
+    const fulfilmentTimeFilter = `fulfilmentTransaction_: { timestamp_gte: "${bounds.start}", timestamp_lte: "${bounds.end}" }`;
     const directTimeFilter = `timestamp_gte: "${bounds.start}", timestamp_lte: "${bounds.end}"`;
     const user = address.toLowerCase();
     const specs = [
@@ -1311,6 +1318,20 @@
         fields: `serialId ${TX_FIELDS} fromEffectiveUser { id } toEffectiveUser { id } vestingPosition { positionId oTokenAmount paymentAmountWei pairTaxesPaid status }`,
         map: row => sameEffectiveVestingUser(row) ? [] : eventFromVesting(chainKey, row, "in"),
       },
+      {
+        entity: "liquidityMiningLevelUpdateRequests",
+        orderBy: "id",
+        where: `user: "${user}", ${initiateTimeFilter}`,
+        fields: `id requestId user { id } level isFulfilled initiateTransaction { id timestamp blockNumber } fulfilmentTransaction { id timestamp blockNumber }`,
+        map: row => eventFromRewardLevelUpdate(chainKey, row, "initiated", "initiateTransaction"),
+      },
+      {
+        entity: "liquidityMiningLevelUpdateRequests",
+        orderBy: "id",
+        where: `user: "${user}", ${fulfilmentTimeFilter}`,
+        fields: `id requestId user { id } level isFulfilled initiateTransaction { id timestamp blockNumber } fulfilmentTransaction { id timestamp blockNumber }`,
+        map: row => eventFromRewardLevelUpdate(chainKey, row, "fulfilled", "fulfilmentTransaction"),
+      },
     ];
 
     const warnings = [];
@@ -1328,7 +1349,7 @@
       }
     });
 
-    const claimResult = await fetchOdoloClaimEvents(chainKey, address, bounds);
+    const claimResult = await fetchRewardClaimEvents(chainKey, address, bounds);
     warnings.push(...(claimResult.warnings || []));
 
     const events = batches.flat()
@@ -1338,57 +1359,133 @@
     return { events, warnings };
   }
 
-  async function fetchOdoloClaimEvents(chainKey, address, bounds) {
-    if (chainKey !== "berachain") return { events: [], warnings: [] };
-    if (!odoloClaimEventsPromise) odoloClaimEventsPromise = fetchOptionalJson(ODOLO_CLAIM_EVENTS_URL);
-    const result = await odoloClaimEventsPromise;
+  async function loadRewardClaimPayload() {
+    if (!rewardClaimEventsPromise) {
+      rewardClaimEventsPromise = fetchOptionalJson(REWARD_CLAIM_EVENTS_URL).then(async result => {
+        if (!result.error) return result;
+        const legacy = await fetchOptionalJson(ODOLO_CLAIM_EVENTS_URL);
+        if (!legacy.error) {
+          return {
+            payload: {
+              schemaVersion: 1,
+              chains: {
+                berachain: {
+                  chainKey: "berachain",
+                  chainName: "Berachain",
+                  fromTimestamp: legacy.payload?.fromTimestamp || 0,
+                  toTimestamp: legacy.payload?.toTimestamp || 0,
+                  source: legacy.payload?.source || "Berachain RewardClaimed logs",
+                },
+              },
+              events: (legacy.payload?.events || []).map(row => ({
+                ...row,
+                chainKey: "berachain",
+                chainName: "Berachain",
+                tokenSymbol: row.tokenSymbol || "oDOLO",
+                tokenAddress: row.tokenAddress || ODOLO_TOKEN_ADDRESS,
+                tokenDecimals: row.tokenDecimals || 18,
+              })),
+            },
+          };
+        }
+        return result;
+      });
+    }
+    return rewardClaimEventsPromise;
+  }
+
+  async function fetchRewardClaimEvents(chainKey, address, bounds) {
+    const result = await loadRewardClaimPayload();
+    const chain = CHAINS[chainKey];
+    const chainName = chain?.name || chainKey;
+    const selected = selectedActionKeys();
+    const claimFilterRelevant = actionFilterAllSelected()
+      || selected.includes("rewardClaim")
+      || (chainKey === "berachain" && selected.includes("odoloClaim"));
     if (result.error) {
       return {
         events: [],
-        warnings: [`Berachain oDOLO reward claims unavailable: ${result.error}`],
+        warnings: claimFilterRelevant ? [`${chainName} reward claims unavailable: ${result.error}`] : [],
       };
     }
     const payload = result.payload || {};
     const warnings = [];
-    const claimFilterRelevant = actionFilterAllSelected() || selectedActionKeys().includes("odoloClaim");
-    const fromTimestamp = Number(payload.fromTimestamp || 0);
-    const toTimestamp = Number(payload.toTimestamp || 0);
+    const meta = payload.chains?.[chainKey] || (payload.chainKey === chainKey ? payload : {});
+    const fromTimestamp = Number(meta.fromTimestamp || 0);
+    const toTimestamp = Number(meta.toTimestamp || 0);
     if (claimFilterRelevant && fromTimestamp && bounds?.start && bounds.start < fromTimestamp) {
-      warnings.push(`Berachain oDOLO claim index starts ${formatDate(fromTimestamp)}; earlier oDOLO reward claims may be missing until the full claim-event workflow refreshes.`);
+      warnings.push(`${chainName} reward claim index starts ${formatDate(fromTimestamp)}; earlier reward claims may be missing until the full claim-event workflow refreshes.`);
     }
     const now = Math.floor(Date.now() / 1000);
     if (claimFilterRelevant && toTimestamp && bounds?.end && Math.min(bounds.end, now) > toTimestamp + 3600) {
-      warnings.push(`Berachain oDOLO claim index is current through ${formatDate(toTimestamp)}; newer oDOLO reward claims may be missing until the next workflow refresh.`);
+      warnings.push(`${chainName} reward claim index is current through ${formatDate(toTimestamp)}; newer reward claims may be missing until the next workflow refresh.`);
     }
+    if (claimFilterRelevant && meta.warning) warnings.push(`${chainName} reward claim index warning: ${meta.warning}`);
     const wallet = normalizeAddress(address);
     const events = (Array.isArray(payload.events) ? payload.events : [])
+      .map(row => ({ ...row, chainKey: row.chainKey || payload.chainKey || "berachain" }))
+      .filter(row => row.chainKey === chainKey)
       .filter(row => normalizeAddress(row.user) === wallet)
       .filter(row => timestampOverlapsBounds(Number(row.timestamp || 0), bounds))
-      .map(row => eventFromOdoloClaim(chainKey, row));
+      .map(row => eventFromRewardClaim(chainKey, row));
     return { events, warnings };
   }
 
   function eventFromOdoloClaim(chainKey, row) {
+    return eventFromRewardClaim(chainKey, {
+      ...row,
+      tokenSymbol: row.tokenSymbol || "oDOLO",
+      tokenAddress: row.tokenAddress || ODOLO_TOKEN_ADDRESS,
+      tokenDecimals: row.tokenDecimals || 18,
+    });
+  }
+
+  function eventFromRewardClaim(chainKey, row) {
+    const symbol = String(row.tokenSymbol || (chainKey === "berachain" ? "oDOLO" : "Reward")).trim() || "Reward";
+    const tokenAddress = row.tokenAddress || (symbol === "oDOLO" ? ODOLO_TOKEN_ADDRESS : "");
+    const isOdoloClaim = chainKey === "berachain" && symbol.toLowerCase() === "odolo";
+    const action = isOdoloClaim ? "odoloClaim" : "rewardClaim";
+    const sourceEntity = isOdoloClaim ? "odoloRewardClaimEvents" : "rewardClaimEvents";
+    const taxCategory = isOdoloClaim ? "odolo_reward_claim" : "reward_claim";
     const amount = cleanAmount(row.amount || "");
     return {
       chainKey,
       txHash: String(row.txHash || "").toLowerCase(),
       timestamp: Number(row.timestamp || 0),
       blockNumber: String(row.blockNumber || ""),
-      action: "odoloClaim",
+      action,
       role: "in",
-      serialId: `odolo-claim-${row.epoch ?? ""}-${row.logIndex ?? ""}`,
-      ...taxFields("odolo_reward_claim", "income_candidate", [
-        assetLeg("in", { symbol: "oDOLO", id: ODOLO_TOKEN_ADDRESS }, row.amount || "", 0),
-      ], "oDOLO liquidity-mining reward claimed on Dolomite. Report records the on-chain claim event and asset amount; final tax treatment depends on jurisdiction."),
+      serialId: `${action}-${row.epoch ?? ""}-${row.logIndex ?? ""}`,
+      ...taxFields(taxCategory, "income_candidate", [
+        assetLeg("in", { symbol, id: tokenAddress }, row.amount || "", 0),
+      ], `${symbol} reward claimed on Dolomite. Report records the on-chain claim event and asset amount; final tax treatment depends on jurisdiction.`),
       account: "",
       counterparty: row.distributor || ODOLO_REWARDS_DISTRIBUTOR,
-      label: amount ? `+${amount} oDOLO reward` : "oDOLO reward claim",
-      asset: "oDOLO",
+      label: amount ? `+${amount} ${symbol} reward` : `${symbol} reward claim`,
+      asset: symbol,
       usd: 0,
       rewardEpoch: row.epoch ?? "",
       rewardAmountWei: row.amountWei || "",
-      sourceEntity: "odoloRewardClaimEvents",
+      sourceEntity,
+    };
+  }
+
+  function eventFromRewardLevelUpdate(chainKey, row, stage, txProp) {
+    const level = row.level ?? "";
+    const requestId = row.requestId || row.id || "";
+    const stageLabel = stage === "fulfilled" ? "fulfilled" : "requested";
+    const label = level !== "" ? `Reward level ${level} ${stageLabel}` : `Reward level update ${stageLabel}`;
+    return {
+      ...eventBase(chainKey, row, "rewardLevelUpdate", stage, txProp),
+      ...taxFields("reward_level_update", "not_taxable_by_default", [], "Dolomite reward-level operation. Report records the on-chain request/fulfilment transaction; no token movement is recorded in this event."),
+      account: "",
+      counterparty: "",
+      label,
+      asset: "Reward level",
+      usd: 0,
+      rewardLevel: String(level),
+      rewardRequestId: String(requestId),
+      rewardUpdateStage: stage,
     };
   }
 
@@ -4264,6 +4361,8 @@
       || list.find(event => event.action === "amm" && event.taxCategory)
       || list.find(event => event.action === "vesting")
       || list.find(event => event.action === "odoloClaim")
+      || list.find(event => event.action === "rewardClaim")
+      || list.find(event => event.action === "rewardLevelUpdate")
       || null;
   }
 
@@ -4379,6 +4478,7 @@
     if (event?.action === "asyncDeposit") return "Delayed Deposit";
     if (event?.action === "asyncWithdrawal") return "Delayed Withdraw";
     if (event?.action === "vesting") return event.vestingFlowLabel ? vestingActionLabel(event.vestingFlowLabel) : ACTION_LABELS.vesting;
+    if (event?.action === "rewardClaim") return "Claim Rewards";
     return ACTION_LABELS[event?.action] || event?.action || "Dolomite action";
   }
 
@@ -4513,10 +4613,11 @@
 
   function cleanHistoryTransactionSource(gas, chain, row = null) {
     const sourceEntities = new Set((row?.events || []).map(event => event?.sourceEntity).filter(Boolean));
-    const sources = sourceEntities.has("odoloRewardClaimEvents")
-      ? ["Berachain RewardClaimed log"]
+    const hasRewardClaimSource = sourceEntities.has("odoloRewardClaimEvents") || sourceEntities.has("rewardClaimEvents");
+    const sources = hasRewardClaimSource
+      ? ["Dolomite RewardClaimed log"]
       : ["Dolomite subgraph"];
-    if (sourceEntities.size > 1 && sourceEntities.has("odoloRewardClaimEvents")) {
+    if (sourceEntities.size > 1 && hasRewardClaimSource) {
       sources.unshift("Dolomite subgraph");
     }
     if (gas?.status && gas.status !== "pending") sources.push("RPC receipt gas");
@@ -4907,6 +5008,8 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
     if (event.action === "liquidation" || event.action === "vaporization") return "forced_settlement";
     if (event.action === "asyncDeposit" || event.action === "asyncWithdrawal") return "async_position";
     if (event.action === "vesting") return vestingTaxCategory(event.vestingFlowLabel);
+    if (event.action === "odoloClaim" || event.action === "rewardClaim") return "external_reward";
+    if (event.action === "rewardLevelUpdate") return "reward_level_update";
     return event.action || event.taxCategory || "unknown";
   }
 

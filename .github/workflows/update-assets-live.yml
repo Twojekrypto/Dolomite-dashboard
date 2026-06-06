@@ -12,6 +12,8 @@ jobs:
   update:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      ASSETS_RATE_FALLBACK_MAX_AGE_MINUTES: '360'
 
     steps:
       - name: Checkout
@@ -35,7 +37,13 @@ jobs:
           node --input-type=module <<'NODE'
           import { readFile } from "node:fs/promises";
 
-          const FALLBACK_MAX_AGE_MINUTES = 120;
+          const FALLBACK_MAX_AGE_MINUTES = Number(process.env.ASSETS_RATE_FALLBACK_MAX_AGE_MINUTES || 360);
+
+          if (!Number.isFinite(FALLBACK_MAX_AGE_MINUTES) || FALLBACK_MAX_AGE_MINUTES <= 0) {
+            console.log("::error title=Invalid assets fallback limit::ASSETS_RATE_FALLBACK_MAX_AGE_MINUTES must be a positive number.");
+            process.exit(1);
+          }
+
           const payload = JSON.parse(await readFile("assets_live.json", "utf8"));
           const fallbackChains = Array.isArray(payload.rateFallbackChains)
             ? payload.rateFallbackChains.filter(Boolean)

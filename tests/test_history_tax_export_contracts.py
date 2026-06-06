@@ -15,6 +15,7 @@ HISTORY_JS = ROOT / "history" / "history.js"
 HISTORY_HTML = ROOT / "history" / "index.html"
 HISTORY_CSS = ROOT / "history" / "history.css"
 ODOLO_CLAIM_GENERATOR = ROOT / "generate_odolo_claim_events.py"
+REWARD_CLAIM_GENERATOR = ROOT / "generate_reward_claim_events.py"
 
 
 class HistoryTaxExportContractsTest(unittest.TestCase):
@@ -24,6 +25,7 @@ class HistoryTaxExportContractsTest(unittest.TestCase):
         cls.html = HISTORY_HTML.read_text()
         cls.css = HISTORY_CSS.read_text()
         cls.claim_generator = ODOLO_CLAIM_GENERATOR.read_text()
+        cls.reward_claim_generator = REWARD_CLAIM_GENERATOR.read_text()
 
     def test_history_version_is_cache_busted_consistently(self):
         # Pin consistency, not a specific value: whatever HISTORY_VERSION history.js
@@ -133,9 +135,14 @@ class HistoryTaxExportContractsTest(unittest.TestCase):
         self.assertIn('routeMatchConfidence: "none"', self.source)
         self.assertIn("rawAmount: String(amount ?? \"\").trim()", self.source)
         self.assertIn("ODOLO_CLAIM_EVENTS_URL", self.source)
+        self.assertIn("REWARD_CLAIM_EVENTS_URL", self.source)
         self.assertIn("eventFromOdoloClaim", self.source)
+        self.assertIn("eventFromRewardClaim", self.source)
+        self.assertIn("eventFromRewardLevelUpdate", self.source)
         self.assertIn("odoloRewardClaimEvents", self.source)
-        self.assertIn("Berachain RewardClaimed log", self.source)
+        self.assertIn("rewardClaimEvents", self.source)
+        self.assertIn("liquidityMiningLevelUpdateRequests", self.source)
+        self.assertIn("Dolomite RewardClaimed log", self.source)
 
     def test_clean_csv_uses_transaction_rows_without_event_spam(self):
         self.assertIn('"transaction"', self.source)
@@ -330,16 +337,135 @@ if (rows[0][sourceEntityIdx] !== "odoloRewardClaimEvents") throw new Error(JSON.
         subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
 
     def test_odolo_claim_generator_discovers_all_reward_distributors(self):
-        self.assertIn("FALLBACK_REWARD_DISTRIBUTORS", self.claim_generator)
-        self.assertIn("fetch_claim_distributors", self.claim_generator)
-        self.assertIn("liquidityMiningClaims", self.claim_generator)
-        self.assertIn("existing_distributors", self.claim_generator)
-        self.assertIn("set(fetch_claim_distributors()) | existing_distributors", self.claim_generator)
-        self.assertIn("distributor_topics = [topic_address(distributor) for distributor in distributors]", self.claim_generator)
-        self.assertIn('"topics": [REWARD_CLAIMED_TOPIC, distributor_topics]', self.claim_generator)
-        self.assertIn('distributor = decode_topic_address(topics[1])', self.claim_generator)
-        self.assertIn('"distributors": output_distributors', self.claim_generator)
-        self.assertNotIn("REWARDS_DISTRIBUTOR =", self.claim_generator)
+        self.assertIn("from generate_reward_claim_events import main", self.claim_generator)
+        self.assertIn("CHAIN_CONFIGS", self.reward_claim_generator)
+        self.assertIn("BERA_ODOLO_DISTRIBUTORS", self.reward_claim_generator)
+        self.assertIn("fetch_claim_distributors", self.reward_claim_generator)
+        self.assertIn("liquidityMiningClaims", self.reward_claim_generator)
+        self.assertIn("existing_distributors", self.reward_claim_generator)
+        self.assertIn("set(fetch_claim_distributors(config)) | existing_distributors", self.reward_claim_generator)
+        self.assertIn("distributor_topics = [topic_address(distributor) for distributor in distributors]", self.reward_claim_generator)
+        self.assertIn('"topics": [REWARD_CLAIMED_TOPIC, distributor_topics]', self.reward_claim_generator)
+        self.assertIn('distributor = decode_topic_address(topics[1])', self.reward_claim_generator)
+        self.assertIn('"chains": chains_payload', self.reward_claim_generator)
+        self.assertIn("build_legacy_odolo_payload", self.reward_claim_generator)
+        self.assertNotIn("REWARDS_DISTRIBUTOR =", self.reward_claim_generator)
+
+    def test_multi_chain_reward_claims_are_transaction_rows(self):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const source = fs.readFileSync("history/history.js", "utf8");
+const marker = "\n  if (document.readyState === \"loading\") {";
+const instrumented = source.replace(marker, "\n  globalThis.__historyRewardClaimTest = { eventFromRewardClaim, groupEvents, rowMatchesActionFilter, cleanHistoryReportHeaders, cleanHistoryReportCsvRows, cleanTransactionAction, cleanTransactionAssetFlow, displayActionsForRow, state };" + marker);
+const sandbox = {
+  console,
+  URL,
+  URLSearchParams,
+  Blob,
+  Set,
+  Map,
+  document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} } },
+  window: { location: { href: "http://127.0.0.1/history/" }, history: { replaceState() {} }, localStorage: { getItem() { return null; }, setItem() {} } },
+};
+vm.runInNewContext(instrumented, sandbox);
+const api = sandbox.__historyRewardClaimTest;
+api.state.year = "custom";
+api.state.dateFrom = "2024-05-10";
+api.state.dateTo = "2024-05-11";
+api.state.selectedChains = new Set(["arbitrum"]);
+api.state.earn = { status: "ready", warnings: [], ledgers: {}, rewards: {}, prices: {} };
+api.state.warnings = [];
+const event = api.eventFromRewardClaim("arbitrum", {
+  txHash: "0x226727970c33d916ae038af5268dc0b3135b6234a763a9430e8e07f6e967af8e",
+  blockNumber: 209021381,
+  timestamp: 1715359919,
+  logIndex: 99,
+  user: "0x6775bb983d384d60d4a1e390d36d53fe3d4c1d37",
+  distributor: "0x2e3d10cc42227af0ce908f00c76ffe1de1728b4b",
+  epoch: 0,
+  amount: "31.720527777776524265",
+  amountWei: "31720527777776524265",
+  tokenSymbol: "Reward",
+});
+const row = api.groupEvents([event])[0];
+row.gas = { status: "ok", paidByWallet: true, nativeSymbol: "ETH", nativeAmountExact: "0.0001", gasUsd: 0.2, historicalPrice: 2000 };
+if (!api.rowMatchesActionFilter(row, "rewardClaim")) throw new Error("Claim Rewards filter did not match");
+if (api.cleanTransactionAction(row) !== "Claim Rewards") throw new Error(api.cleanTransactionAction(row));
+if (api.cleanTransactionAssetFlow(row) !== "Claim Rewards: Received 31.72052777 Reward") throw new Error(api.cleanTransactionAssetFlow(row));
+if (api.displayActionsForRow(row).map(item => typeof item === "string" ? item : item.label).join("|") !== "rewardClaim") throw new Error("bad action chip");
+const headers = api.cleanHistoryReportHeaders();
+const rows = api.cleanHistoryReportCsvRows([row], []);
+const actionIdx = headers.indexOf("action");
+const sourceIdx = headers.indexOf("source");
+const sourceEntityIdx = headers.indexOf("source_entity");
+const reviewIdx = headers.indexOf("review_status");
+if (rows[0][actionIdx] !== "Claim Rewards") throw new Error(JSON.stringify(rows[0]));
+if (!rows[0][sourceIdx].includes("RewardClaimed")) throw new Error(JSON.stringify(rows[0]));
+if (rows[0][sourceEntityIdx] !== "rewardClaimEvents") throw new Error(JSON.stringify(rows[0]));
+if (rows[0][reviewIdx] !== "income_candidate") throw new Error(JSON.stringify(rows[0]));
+"""
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
+
+    def test_reward_level_updates_are_transaction_rows(self):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const source = fs.readFileSync("history/history.js", "utf8");
+const marker = "\n  if (document.readyState === \"loading\") {";
+const instrumented = source.replace(marker, "\n  globalThis.__historyRewardLevelTest = { eventFromRewardLevelUpdate, groupEvents, rowMatchesActionFilter, cleanHistoryReportHeaders, cleanHistoryReportCsvRows, cleanTransactionAction, cleanTransactionAssetFlow, displayActionsForRow, state };" + marker);
+const sandbox = {
+  console,
+  URL,
+  URLSearchParams,
+  Blob,
+  Set,
+  Map,
+  document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} } },
+  window: { location: { href: "http://127.0.0.1/history/" }, history: { replaceState() {} }, localStorage: { getItem() { return null; }, setItem() {} } },
+};
+vm.runInNewContext(instrumented, sandbox);
+const api = sandbox.__historyRewardLevelTest;
+api.state.year = "custom";
+api.state.dateFrom = "2025-03-26";
+api.state.dateTo = "2025-03-27";
+api.state.selectedChains = new Set(["arbitrum"]);
+api.state.earn = { status: "ready", warnings: [], ledgers: {}, rewards: {}, prices: {} };
+api.state.warnings = [];
+const event = api.eventFromRewardLevelUpdate("arbitrum", {
+  id: "999",
+  requestId: "999",
+  level: 7,
+  isFulfilled: true,
+  user: { id: "0x46c38155354791da32e8ca26fad5d84ff1bde945" },
+  initiateTransaction: {
+    id: "0x0bc171bf22018315556183ad21253d9c0fccbb1c9208dc01e7e95297084a6702",
+    timestamp: "1743036427",
+    blockNumber: "318191936",
+  },
+  fulfilmentTransaction: {
+    id: "0x42341f9e5bb891ea1bdfe5204a7b5d1453b5806a270c6078495684d1e94698f0",
+    timestamp: "1743036437",
+    blockNumber: "318191976",
+  },
+}, "initiated", "initiateTransaction");
+event.sourceEntity = "liquidityMiningLevelUpdateRequests";
+const row = api.groupEvents([event])[0];
+row.gas = { status: "ok", paidByWallet: true, nativeSymbol: "ETH", nativeAmountExact: "0.0001", gasUsd: 0.2, historicalPrice: 2000 };
+if (!api.rowMatchesActionFilter(row, "rewardLevelUpdate")) throw new Error("Reward level filter did not match");
+if (api.cleanTransactionAction(row) !== "Reward Level Update") throw new Error(api.cleanTransactionAction(row));
+if (api.cleanTransactionAssetFlow(row) !== "Reward level 7 requested") throw new Error(api.cleanTransactionAssetFlow(row));
+if (api.displayActionsForRow(row).map(item => typeof item === "string" ? item : item.label).join("|") !== "rewardLevelUpdate") throw new Error("bad action chip");
+const headers = api.cleanHistoryReportHeaders();
+const rows = api.cleanHistoryReportCsvRows([row], []);
+const actionIdx = headers.indexOf("action");
+const sourceEntityIdx = headers.indexOf("source_entity");
+const reviewIdx = headers.indexOf("review_status");
+if (rows[0][actionIdx] !== "Reward Level Update") throw new Error(JSON.stringify(rows[0]));
+if (rows[0][sourceEntityIdx] !== "liquidityMiningLevelUpdateRequests") throw new Error(JSON.stringify(rows[0]));
+if (rows[0][reviewIdx] !== "ok") throw new Error(JSON.stringify(rows[0]));
+"""
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
 
     def test_detail_rows_hide_wallet_noise_and_strip_repeated_action_labels(self):
         script = r"""

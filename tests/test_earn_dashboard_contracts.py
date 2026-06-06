@@ -94,7 +94,11 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("Assets rate fallback", workflow)
         self.assertIn("Stale assets rate fallback", workflow)
         self.assertIn("rateFallbackMaxAgeMinutes", workflow)
-        self.assertIn("FALLBACK_MAX_AGE_MINUTES = 120", workflow)
+        self.assertIn("ASSETS_RATE_FALLBACK_MAX_AGE_MINUTES: '360'", workflow)
+        self.assertIn(
+            "process.env.ASSETS_RATE_FALLBACK_MAX_AGE_MINUTES || 360",
+            workflow,
+        )
         self.assertIn("for i in $(seq 1 12)", workflow)
         self.assertIn("Failed to push after 12 attempts.", workflow)
 
