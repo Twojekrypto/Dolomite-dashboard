@@ -14,6 +14,7 @@ NODE_ENV = {**os.environ, "LC_ALL": "en_US.UTF-8", "LANG": "en_US.UTF-8"}
 HISTORY_JS = ROOT / "history" / "history.js"
 HISTORY_HTML = ROOT / "history" / "index.html"
 HISTORY_CSS = ROOT / "history" / "history.css"
+ODOLO_CLAIM_GENERATOR = ROOT / "generate_odolo_claim_events.py"
 
 
 class HistoryTaxExportContractsTest(unittest.TestCase):
@@ -22,6 +23,7 @@ class HistoryTaxExportContractsTest(unittest.TestCase):
         cls.source = HISTORY_JS.read_text()
         cls.html = HISTORY_HTML.read_text()
         cls.css = HISTORY_CSS.read_text()
+        cls.claim_generator = ODOLO_CLAIM_GENERATOR.read_text()
 
     def test_history_version_is_cache_busted_consistently(self):
         # Pin consistency, not a specific value: whatever HISTORY_VERSION history.js
@@ -326,6 +328,18 @@ if (!rows[0][sourceIdx].includes("RewardClaimed")) throw new Error(JSON.stringif
 if (rows[0][sourceEntityIdx] !== "odoloRewardClaimEvents") throw new Error(JSON.stringify(rows[0]));
 """
         subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
+
+    def test_odolo_claim_generator_discovers_all_reward_distributors(self):
+        self.assertIn("FALLBACK_REWARD_DISTRIBUTORS", self.claim_generator)
+        self.assertIn("fetch_claim_distributors", self.claim_generator)
+        self.assertIn("liquidityMiningClaims", self.claim_generator)
+        self.assertIn("existing_distributors", self.claim_generator)
+        self.assertIn("set(fetch_claim_distributors()) | existing_distributors", self.claim_generator)
+        self.assertIn("distributor_topics = [topic_address(distributor) for distributor in distributors]", self.claim_generator)
+        self.assertIn('"topics": [REWARD_CLAIMED_TOPIC, distributor_topics]', self.claim_generator)
+        self.assertIn('distributor = decode_topic_address(topics[1])', self.claim_generator)
+        self.assertIn('"distributors": output_distributors', self.claim_generator)
+        self.assertNotIn("REWARDS_DISTRIBUTOR =", self.claim_generator)
 
     def test_detail_rows_hide_wallet_noise_and_strip_repeated_action_labels(self):
         script = r"""

@@ -16,13 +16,20 @@ import requests
 
 SCHEMA_VERSION = 1
 ODOLO_CONTRACT = "0x02e513b5b54ee216bf836ceb471507488fc89543"
-REWARDS_DISTRIBUTOR = "0x79e6e932bf6686a4d357d7821e6e08835ba8a026"
+FALLBACK_REWARD_DISTRIBUTORS = {
+    "0x79e6e932bf6686a4d357d7821e6e08835ba8a026",
+}
 EVENT_EMITTER = "0x6d40138c99f6d9116f738f44a0e6751a42232486"
 REWARD_CLAIMED_TOPIC = "0x7a84a08b02c91f3c62d572853f966fc799bbd121e8ad7833a4494ab8dcfcb404"
+SUBGRAPH_ENDPOINT = os.environ.get(
+    "DOLOMITE_BERACHAIN_SUBGRAPH",
+    "https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-berachain-mainnet/latest/gn",
+)
 DEPLOY_BLOCK = 3_500_000
 BLOCK_TIME_SECONDS = 2
 DEFAULT_LOOKBACK_DAYS = int(os.environ.get("ODOLO_CLAIM_LOOKBACK_DAYS", "730"))
 DEFAULT_CHUNK_SIZE = int(os.environ.get("ODOLO_CLAIM_CHUNK_SIZE", "50000"))
+MAX_DISTRIBUTOR_PAGES = int(os.environ.get("ODOLO_CLAIM_DISTRIBUTOR_PAGES", "50"))
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_JSON = os.path.join(ROOT_DIR, "data", "odolo-claim-events.json")
@@ -63,8 +70,64 @@ def rpc_request(method, params, timeout=30):
     raise RuntimeError(f"{method} failed: {last_error}")
 
 
+def graph_query(query, variables=None, timeout=30):
+    response = requests.post(
+        SUBGRAPH_ENDPOINT,
+        json={"query": query, "variables": variables or {}},
+        timeout=timeout,
+        headers={"Content-Type": "application/json"},
+    )
+    payload = response.json()
+    if payload.get("errors"):
+        raise RuntimeError(payload["errors"])
+    return payload.get("data") or {}
+
+
 def get_current_block():
     return int(rpc_request("eth_blockNumber", [], timeout=10), 16)
+
+
+def normalize_address(address):
+    value = str(address or "").strip().lower()
+    if not value.startswith("0x"):
+        value = "0x" + value
+    return value
+
+
+def is_address(address):
+    value = normalize_address(address)
+    if len(value) != 42:
+        return False
+    try:
+        int(value[2:], 16)
+        return True
+    except ValueError:
+        return False
+
+
+def fetch_claim_distributors():
+    distributors = {normalize_address(address) for address in FALLBACK_REWARD_DISTRIBUTORS if is_address(address)}
+    query = """
+    query ClaimDistributors($first: Int!, $skip: Int!) {
+      liquidityMiningClaims(first: $first, skip: $skip, orderBy: id, orderDirection: asc) {
+        distributor
+      }
+    }
+    """
+    first = 1000
+    try:
+        for page in range(MAX_DISTRIBUTOR_PAGES):
+            rows = graph_query(query, {"first": first, "skip": page * first}).get("liquidityMiningClaims") or []
+            for row in rows:
+                address = row.get("distributor")
+                if is_address(address):
+                    distributors.add(normalize_address(address))
+            if len(rows) < first:
+                break
+    except (requests.RequestException, ValueError, RuntimeError) as exc:
+        print(f"Warning: claim distributor discovery failed, using fallback list: {exc}")
+
+    return sorted(distributors)
 
 
 def topic_address(address):
@@ -117,14 +180,17 @@ def save_json(path, payload):
     os.replace(tmp, path)
 
 
-def fetch_reward_claimed_logs(start_block, end_block):
+def fetch_reward_claimed_logs(start_block, end_block, distributors):
     if start_block > end_block:
+        return []
+    distributor_topics = [topic_address(distributor) for distributor in distributors]
+    if not distributor_topics:
         return []
     chunk_size = max(1000, DEFAULT_CHUNK_SIZE)
     logs = []
     current = start_block
     total_blocks = max(1, end_block - start_block + 1)
-    print(f"Scanning oDOLO reward claims: blocks {start_block:,} -> {end_block:,}")
+    print(f"Scanning oDOLO reward claims for {len(distributor_topics):,} distributors: blocks {start_block:,} -> {end_block:,}")
 
     while current <= end_block:
         chunk_end = min(current + chunk_size - 1, end_block)
@@ -138,7 +204,7 @@ def fetch_reward_claimed_logs(start_block, end_block):
                         "address": EVENT_EMITTER,
                         "fromBlock": hex(current),
                         "toBlock": hex(chunk_end),
-                        "topics": [REWARD_CLAIMED_TOPIC, topic_address(REWARDS_DISTRIBUTOR)],
+                        "topics": [REWARD_CLAIMED_TOPIC, distributor_topics],
                     }],
                     timeout=35,
                 )
@@ -197,7 +263,10 @@ def claim_events_from_logs(logs):
         if not data:
             continue
         epoch, amount_wei = data
+        distributor = decode_topic_address(topics[1])
         user = decode_topic_address(topics[2])
+        if not is_address(distributor) or not is_address(user):
+            continue
         block_number = int(log.get("blockNumber", "0x0"), 16)
         block_numbers.append(block_number)
         decoded.append({
@@ -206,7 +275,7 @@ def claim_events_from_logs(logs):
             "timestamp": 0,
             "logIndex": int(log.get("logIndex", "0x0"), 16),
             "user": user,
-            "distributor": REWARDS_DISTRIBUTOR,
+            "distributor": distributor,
             "epoch": epoch,
             "amountWei": str(amount_wei),
             "amount": format_units(amount_wei, 18),
@@ -240,6 +309,15 @@ def main():
     current_block = get_current_block()
     state = load_json(STATE_FILE, {})
     existing = load_json(OUTPUT_JSON, {})
+    existing_distributors = {
+        normalize_address(address)
+        for address in (existing.get("distributors") or [])
+        if is_address(address)
+    } if isinstance(existing, dict) else set()
+    if isinstance(existing, dict) and is_address(existing.get("distributor")):
+        existing_distributors.add(normalize_address(existing.get("distributor")))
+    distributors = sorted(set(fetch_claim_distributors()) | existing_distributors)
+    print(f"Tracking {len(distributors):,} oDOLO claim distributors")
     existing_events = existing.get("events", []) if isinstance(existing, dict) else []
     existing_from_block = int(existing.get("fromBlock") or 0) if isinstance(existing, dict) else 0
     existing_to_block = int(existing.get("toBlock") or 0) if isinstance(existing, dict) else 0
@@ -268,9 +346,15 @@ def main():
         start_block = max(DEPLOY_BLOCK, default_start)
 
     end_block = current_block
-    new_logs = fetch_reward_claimed_logs(start_block, end_block)
+    new_logs = fetch_reward_claimed_logs(start_block, end_block, distributors)
     new_events = claim_events_from_logs(new_logs)
     all_events = merge_events(existing_events, new_events)
+    event_distributors = sorted({
+        normalize_address(event.get("distributor"))
+        for event in all_events
+        if is_address(event.get("distributor"))
+    })
+    output_distributors = sorted(set(distributors) | set(event_distributors))
 
     coverage_from_block = min([block for block in [start_block, existing_from_block or start_block] if block])
 
@@ -284,7 +368,8 @@ def main():
         "fromTimestamp": fetch_block_timestamp(coverage_from_block),
         "toTimestamp": fetch_block_timestamp(end_block),
         "eventEmitter": EVENT_EMITTER,
-        "distributor": REWARDS_DISTRIBUTOR,
+        "distributor": output_distributors[0] if len(output_distributors) == 1 else "",
+        "distributors": output_distributors,
         "token": {
             "symbol": "oDOLO",
             "address": ODOLO_CONTRACT,

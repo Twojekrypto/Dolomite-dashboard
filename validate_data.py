@@ -195,6 +195,22 @@ def _dolomite_revenue_totals_valid(data):
     )
 
 
+def _odolo_claim_events_have_known_distributors(data):
+    distributors = set(data.get("distributors") or [])
+    return bool(distributors) and all(row.get("distributor") in distributors for row in data.get("events", []))
+
+
+def _odolo_claim_events_use_odolo_token(data):
+    token = data.get("token", {})
+    events = data.get("events", [])
+    expected_address = str(token.get("address", "")).lower()
+    return (
+        token.get("symbol") == "oDOLO"
+        and expected_address == "0x02e513b5b54ee216bf836ceb471507488fc89543"
+        and all(str(row.get("tokenSymbol", "")) == "oDOLO" and str(row.get("tokenAddress", "")).lower() == expected_address for row in events)
+    )
+
+
 RULES = {
     "dolo_flows.json": {
         "required_keys": ["timestamp", "dolo_price", "periods"],
@@ -226,12 +242,14 @@ RULES = {
         "min_bytes": 50_000,
     },
     "odolo-claim-events.json": {
-        "required_keys": ["schemaVersion", "generatedAt", "chainKey", "source", "fromBlock", "toBlock", "fromTimestamp", "toTimestamp", "eventEmitter", "distributor", "token", "events"],
+        "required_keys": ["schemaVersion", "generatedAt", "chainKey", "source", "fromBlock", "toBlock", "fromTimestamp", "toTimestamp", "eventEmitter", "distributors", "token", "events"],
         "checks": [
             ("generatedAt must be ISO datetime", lambda d: _is_iso_datetime(d.get("generatedAt"))),
             ("chain must be Berachain", lambda d: d.get("chainKey") == "berachain"),
             ("block range must be valid", lambda d: isinstance(d.get("fromBlock"), int) and isinstance(d.get("toBlock"), int) and d.get("fromBlock") <= d.get("toBlock")),
             ("timestamp range must be valid", lambda d: isinstance(d.get("fromTimestamp"), int) and isinstance(d.get("toTimestamp"), int) and d.get("fromTimestamp") <= d.get("toTimestamp")),
+            ("distributors must be tracked", _odolo_claim_events_have_known_distributors),
+            ("events must use oDOLO token", _odolo_claim_events_use_odolo_token),
             ("events must have transaction evidence", lambda d: all(row.get("txHash") and row.get("timestamp") and row.get("user") and row.get("amount") for row in d.get("events", []))),
         ],
         "min_bytes": 500,
