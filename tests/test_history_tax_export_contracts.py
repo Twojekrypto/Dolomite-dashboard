@@ -342,14 +342,98 @@ if (rows[0][sourceEntityIdx] !== "odoloRewardClaimEvents") throw new Error(JSON.
         self.assertIn("BERA_ODOLO_DISTRIBUTORS", self.reward_claim_generator)
         self.assertIn("fetch_claim_distributors", self.reward_claim_generator)
         self.assertIn("liquidityMiningClaims", self.reward_claim_generator)
+        self.assertIn('for direction in ("asc", "desc")', self.reward_claim_generator)
         self.assertIn("existing_distributors", self.reward_claim_generator)
-        self.assertIn("set(fetch_claim_distributors(config)) | existing_distributors", self.reward_claim_generator)
+        self.assertIn("event_distributors", self.reward_claim_generator)
+        self.assertIn("resolve_distributor_tokens", self.reward_claim_generator)
+        self.assertIn("apply_distributor_token_metadata", self.reward_claim_generator)
+        self.assertIn("ARB_MIN_DISTRIBUTOR", self.reward_claim_generator)
+        self.assertIn("ARB_OARB_DISTRIBUTOR", self.reward_claim_generator)
+        self.assertIn('set((config.get("knownDistributorTokens") or {}).keys())', self.reward_claim_generator)
         self.assertIn("distributor_topics = [topic_address(distributor) for distributor in distributors]", self.reward_claim_generator)
         self.assertIn('"topics": [REWARD_CLAIMED_TOPIC, distributor_topics]', self.reward_claim_generator)
         self.assertIn('distributor = decode_topic_address(topics[1])', self.reward_claim_generator)
         self.assertIn('"chains": chains_payload', self.reward_claim_generator)
         self.assertIn("build_legacy_odolo_payload", self.reward_claim_generator)
         self.assertNotIn("REWARDS_DISTRIBUTOR =", self.reward_claim_generator)
+
+    def test_reward_claim_generator_resolves_distributor_tokens(self):
+        import generate_reward_claim_events as generator
+
+        original_rpc = generator.rpc_request
+        distributor = "0x1111111111111111111111111111111111111111"
+        token = "0x2222222222222222222222222222222222222222"
+
+        def word(value):
+            return "0x" + value.rjust(64, "0")
+
+        def bytes32(value):
+            return "0x" + value.encode("utf-8").hex().ljust(64, "0")
+
+        def fake_rpc(_rpc_urls, method, params, timeout=30):
+            self.assertEqual(method, "eth_call")
+            call = params[0]
+            to = call["to"].lower()
+            data = call["data"]
+            if to == distributor and data == "0xfc0c546a":
+                return word(token[2:])
+            if to == token and data == generator.ERC20_SYMBOL_SELECTOR:
+                return bytes32("MIN")
+            if to == token and data == generator.ERC20_DECIMALS_SELECTOR:
+                return word("c")
+            if to == token and data == generator.ERC20_NAME_SELECTOR:
+                return bytes32("Mineral")
+            return "0x"
+
+        try:
+            generator.rpc_request = fake_rpc
+            resolved = generator.resolve_distributor_token({"name": "Arbitrum", "rpcUrls": ["mock"], "token": {"symbol": "Reward", "address": "", "decimals": 18}}, distributor)
+        finally:
+            generator.rpc_request = original_rpc
+
+        self.assertEqual(resolved["symbol"], "MIN")
+        self.assertEqual(resolved["address"], token)
+        self.assertEqual(resolved["decimals"], 12)
+
+    def test_reward_claim_generator_resolves_oarb_selector(self):
+        import generate_reward_claim_events as generator
+
+        original_rpc = generator.rpc_request
+        distributor = "0x3333333333333333333333333333333333333333"
+        token = "0x4444444444444444444444444444444444444444"
+
+        def word(value):
+            return "0x" + value.rjust(64, "0")
+
+        def bytes32(value):
+            return "0x" + value.encode("utf-8").hex().ljust(64, "0")
+
+        def fake_rpc(_rpc_urls, method, params, timeout=30):
+            self.assertEqual(method, "eth_call")
+            call = params[0]
+            to = call["to"].lower()
+            data = call["data"]
+            if to == distributor and data == "0xfc0c546a":
+                return "0x"
+            if to == distributor and data == "0xe8616b24":
+                return word(token[2:])
+            if to == token and data == generator.ERC20_SYMBOL_SELECTOR:
+                return bytes32("oARB")
+            if to == token and data == generator.ERC20_DECIMALS_SELECTOR:
+                return word("c")
+            if to == token and data == generator.ERC20_NAME_SELECTOR:
+                return bytes32("oARB Token")
+            return "0x"
+
+        try:
+            generator.rpc_request = fake_rpc
+            resolved = generator.resolve_distributor_token({"name": "Arbitrum", "rpcUrls": ["mock"], "token": {"symbol": "Reward", "address": "", "decimals": 18}}, distributor)
+        finally:
+            generator.rpc_request = original_rpc
+
+        self.assertEqual(resolved["symbol"], "oARB")
+        self.assertEqual(resolved["address"], token)
+        self.assertEqual(resolved["decimals"], 12)
 
     def test_multi_chain_reward_claims_are_transaction_rows(self):
         script = r"""
@@ -386,13 +470,15 @@ const event = api.eventFromRewardClaim("arbitrum", {
   epoch: 0,
   amount: "31.720527777776524265",
   amountWei: "31720527777776524265",
-  tokenSymbol: "Reward",
+  tokenSymbol: "MIN",
+  tokenAddress: "0x946f4a316e8ae3c7fdcdf86e84496c3ee3fbf26d",
+  tokenDecimals: 18,
 });
 const row = api.groupEvents([event])[0];
 row.gas = { status: "ok", paidByWallet: true, nativeSymbol: "ETH", nativeAmountExact: "0.0001", gasUsd: 0.2, historicalPrice: 2000 };
 if (!api.rowMatchesActionFilter(row, "rewardClaim")) throw new Error("Claim Rewards filter did not match");
 if (api.cleanTransactionAction(row) !== "Claim Rewards") throw new Error(api.cleanTransactionAction(row));
-if (api.cleanTransactionAssetFlow(row) !== "Claim Rewards: Received 31.72052777 Reward") throw new Error(api.cleanTransactionAssetFlow(row));
+if (api.cleanTransactionAssetFlow(row) !== "Claim Rewards: Received 31.72052777 MIN") throw new Error(api.cleanTransactionAssetFlow(row));
 if (api.displayActionsForRow(row).map(item => typeof item === "string" ? item : item.label).join("|") !== "rewardClaim") throw new Error("bad action chip");
 const headers = api.cleanHistoryReportHeaders();
 const rows = api.cleanHistoryReportCsvRows([row], []);

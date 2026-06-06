@@ -239,6 +239,22 @@ def _reward_claim_events_have_chain_metadata(data):
     return True
 
 
+def _reward_claim_events_have_distributor_tokens(data):
+    chains = data.get("chains", {})
+    if not isinstance(chains, dict) or not chains:
+        return False
+    for chain in chains.values():
+        distributors = set(chain.get("distributors") or [])
+        tokens = chain.get("tokensByDistributor") or {}
+        if not isinstance(tokens, dict):
+            return False
+        for distributor in distributors:
+            token = tokens.get(distributor)
+            if not isinstance(token, dict) or not token.get("symbol"):
+                return False
+    return True
+
+
 def _reward_claim_events_have_transaction_evidence(data):
     events = data.get("events", [])
     return all(
@@ -251,6 +267,7 @@ def _reward_claim_events_have_transaction_evidence(data):
         and row.get("distributor")
         and row.get("amount")
         and row.get("amountWei")
+        and row.get("tokenSymbol")
         and row.get("source") == "RewardClaimed"
         for row in events
     )
@@ -306,6 +323,7 @@ RULES = {
             ("schema version must be multi-chain", lambda d: d.get("schemaVersion") == 2),
             ("events must reference known chains", _reward_claim_events_have_known_chains),
             ("chain metadata must be complete", _reward_claim_events_have_chain_metadata),
+            ("distributor tokens must be resolved", _reward_claim_events_have_distributor_tokens),
             ("events must have transaction evidence", _reward_claim_events_have_transaction_evidence),
         ],
         "min_bytes": 500,
