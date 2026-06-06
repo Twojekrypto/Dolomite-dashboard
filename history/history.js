@@ -137,6 +137,7 @@
     vestingPair: "Pair oDOLO + DOLO",
     vestingClaim: "Claim veDOLO",
     vestingInternal: "Move veDOLO position",
+    claim: "Claim",
     odoloClaim: "Claim oDOLO",
     rewardClaim: "Claim Rewards",
     rewardLevelUpdate: "Reward Level Update",
@@ -164,6 +165,7 @@
     vestingPair: "PAIR",
     vestingClaim: "CLAIM",
     vestingInternal: "MOVE",
+    claim: "Claim",
     odoloClaim: "oDOLO Claim",
     rewardClaim: "Reward Claim",
     rewardLevelUpdate: "Reward Level",
@@ -431,6 +433,7 @@
   function normalizeActionFilter(value) {
     const action = String(value || "all");
     if (action === "trade" || action === "zap") return "swap";
+    if (action === "odoloClaim" || action === "rewardClaim") return "claim";
     return action;
   }
 
@@ -1400,8 +1403,7 @@
     const chainName = chain?.name || chainKey;
     const selected = selectedActionKeys();
     const claimFilterRelevant = actionFilterAllSelected()
-      || selected.includes("rewardClaim")
-      || (chainKey === "berachain" && selected.includes("odoloClaim"));
+      || selected.includes("claim");
     if (result.error) {
       return {
         events: [],
@@ -3135,6 +3137,9 @@
     }
     if (action === "vestingClaim") {
       return vestingEventsForRow(row).some(event => vestingFlowIsExercise(event.vestingFlowLabel));
+    }
+    if (action === "claim") {
+      return row.actions.has("odoloClaim") || row.actions.has("rewardClaim");
     }
     return row.actions.has(action);
   }

@@ -321,7 +321,8 @@ const event = api.eventFromOdoloClaim("berachain", {
 });
 const row = api.groupEvents([event])[0];
 row.gas = { status: "ok", paidByWallet: true, nativeSymbol: "BERA", nativeAmountExact: "0.001", gasUsd: 1, historicalPrice: 2 };
-if (!api.rowMatchesActionFilter(row, "odoloClaim")) throw new Error("Claim oDOLO filter did not match");
+if (!api.rowMatchesActionFilter(row, "claim")) throw new Error("Claim filter did not match oDOLO");
+if (!api.rowMatchesActionFilter(row, "odoloClaim")) throw new Error("legacy Claim oDOLO filter did not match");
 if (api.cleanTransactionAction(row) !== "Claim oDOLO") throw new Error(api.cleanTransactionAction(row));
 if (api.cleanTransactionAssetFlow(row) !== "Claim oDOLO: Received 282.34014979 oDOLO") throw new Error(api.cleanTransactionAssetFlow(row));
 if (api.displayActionsForRow(row).map(item => typeof item === "string" ? item : item.label).join("|") !== "odoloClaim") throw new Error("bad action chip");
@@ -476,7 +477,8 @@ const event = api.eventFromRewardClaim("arbitrum", {
 });
 const row = api.groupEvents([event])[0];
 row.gas = { status: "ok", paidByWallet: true, nativeSymbol: "ETH", nativeAmountExact: "0.0001", gasUsd: 0.2, historicalPrice: 2000 };
-if (!api.rowMatchesActionFilter(row, "rewardClaim")) throw new Error("Claim Rewards filter did not match");
+if (!api.rowMatchesActionFilter(row, "claim")) throw new Error("Claim filter did not match reward claim");
+if (!api.rowMatchesActionFilter(row, "rewardClaim")) throw new Error("legacy Claim Rewards filter did not match");
 if (api.cleanTransactionAction(row) !== "Claim Rewards") throw new Error(api.cleanTransactionAction(row));
 if (api.cleanTransactionAssetFlow(row) !== "Claim Rewards: Received 31.72052777 MIN") throw new Error(api.cleanTransactionAssetFlow(row));
 if (api.displayActionsForRow(row).map(item => typeof item === "string" ? item : item.label).join("|") !== "rewardClaim") throw new Error("bad action chip");
@@ -1558,6 +1560,7 @@ if (api.earnTaxEntriesForCurrentView().length !== 0) throw new Error("dirty filt
             "Delayed Deposit",
             "Delayed Withdraw",
             "AMM / Liquidity",
+            "Claim",
         ]:
             self.assertIn(text, self.html)
         self.assertIn("fetchBorrowReplayBalances", self.source)
@@ -1572,8 +1575,11 @@ if (api.earnTaxEntriesForCurrentView().length !== 0) throw new Error("dirty filt
         self.assertIn("normalizeActionFilter", self.source)
         self.assertIn('if (action === "swap")', self.source)
         self.assertIn('if (action === "trade" || action === "zap") return "swap";', self.source)
+        self.assertIn('if (action === "odoloClaim" || action === "rewardClaim") return "claim";', self.source)
         self.assertNotIn('<option value="trade">Trade</option>', self.html)
         self.assertNotIn('<option value="zap">Zap</option>', self.html)
+        self.assertNotIn('<option value="odoloClaim">Claim oDOLO</option>', self.html)
+        self.assertNotIn('<option value="rewardClaim">Claim Rewards</option>', self.html)
         self.assertNotIn("Deposit / Repay", self.html)
         self.assertNotIn("Withdraw / Borrow", self.html)
         for generated_text in [
