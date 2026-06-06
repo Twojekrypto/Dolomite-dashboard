@@ -20,7 +20,22 @@ GRAPH_BASE = "https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9
 ODOLO_CONTRACT = "0x02e513b5b54ee216bf836ceb471507488fc89543"
 BERA_ODOLO_DISTRIBUTORS = {
     "0x79e6e932bf6686a4d357d7821e6e08835ba8a026",
+    "0xd88f473832b0403c7736ef237af5aff8759b99ef",
 }
+ARB_MIN_DISTRIBUTOR = "0x2e3d10cc42227af0ce908f00c76ffe1de1728b4b"
+ARB_OARB_DISTRIBUTOR = "0x66cd7d0cc677f42f6662622c60a5e60ef573db67"
+
+ERC20_SYMBOL_SELECTOR = "0x95d89b41"
+ERC20_NAME_SELECTOR = "0x06fdde03"
+ERC20_DECIMALS_SELECTOR = "0x313ce567"
+TOKEN_RESOLVER_SELECTORS = (
+    ("token", "0xfc0c546a"),
+    ("oARB", "0xe8616b24"),
+    ("rewardToken", "0xf7c618c1"),
+    ("REWARD_TOKEN", "0x99248ea7"),
+    ("rewardTokenAddress", "0x125f9e33"),
+    ("rewardsToken", "0xd1af0c7d"),
+)
 
 DEFAULT_LOOKBACK_DAYS = int(os.environ.get("REWARD_CLAIM_LOOKBACK_DAYS", os.environ.get("ODOLO_CLAIM_LOOKBACK_DAYS", "730")))
 DEFAULT_CHUNK_SIZE = int(os.environ.get("REWARD_CLAIM_CHUNK_SIZE", os.environ.get("ODOLO_CLAIM_CHUNK_SIZE", "50000")))
@@ -45,6 +60,10 @@ CHAIN_CONFIGS = {
         "chunkSize": 50_000,
         "fallbackDistributors": BERA_ODOLO_DISTRIBUTORS,
         "token": {"symbol": "oDOLO", "address": ODOLO_CONTRACT, "decimals": 18},
+        "knownDistributorTokens": {
+            distributor: {"symbol": "oDOLO", "address": ODOLO_CONTRACT, "decimals": 18}
+            for distributor in BERA_ODOLO_DISTRIBUTORS
+        },
         "rpcUrls": [
             *([] if not os.environ.get("ALCHEMY_BERACHAIN_RPC") else [os.environ["ALCHEMY_BERACHAIN_RPC"]]),
             *([] if not os.environ.get("ALCHEMY_BERACHAIN_RPC_2") else [os.environ["ALCHEMY_BERACHAIN_RPC_2"]]),
@@ -66,6 +85,10 @@ CHAIN_CONFIGS = {
         "chunkSize": 1_000_000,
         "fallbackDistributors": set(),
         "token": {"symbol": "Reward", "address": "", "decimals": 18},
+        "knownDistributorTokens": {
+            ARB_MIN_DISTRIBUTOR: {"symbol": "MIN", "address": "0x946f4a316e8ae3c7fdcdf86e84496c3ee3fbf26d", "decimals": 18},
+            ARB_OARB_DISTRIBUTOR: {"symbol": "oARB", "address": "0xcbed801b4162bf2a19b06968663438b5165a6a93", "decimals": 18},
+        },
         "rpcUrls": [
             *([] if not os.environ.get("ALCHEMY_ARBITRUM_RPC") else [os.environ["ALCHEMY_ARBITRUM_RPC"]]),
             *([] if not os.environ.get("ALCHEMY_ARBITRUM_RPC_2") else [os.environ["ALCHEMY_ARBITRUM_RPC_2"]]),
@@ -84,6 +107,7 @@ CHAIN_CONFIGS = {
         "chunkSize": 500_000,
         "fallbackDistributors": set(),
         "token": {"symbol": "Reward", "address": "", "decimals": 18},
+        "knownDistributorTokens": {},
         "rpcUrls": [
             *([] if not os.environ.get("ALCHEMY_MANTLE_RPC") else [os.environ["ALCHEMY_MANTLE_RPC"]]),
             *([] if not os.environ.get("ALCHEMY_MANTLE_RPC_2") else [os.environ["ALCHEMY_MANTLE_RPC_2"]]),
@@ -101,6 +125,7 @@ CHAIN_CONFIGS = {
         "chunkSize": 250_000,
         "fallbackDistributors": set(),
         "token": {"symbol": "Reward", "address": "", "decimals": 18},
+        "knownDistributorTokens": {},
         "rpcUrls": [
             *([] if not os.environ.get("ALCHEMY_XLAYER_RPC") else [os.environ["ALCHEMY_XLAYER_RPC"]]),
             "https://rpc.xlayer.tech/",
@@ -219,31 +244,136 @@ def is_address(address):
         return False
 
 
+def decode_call_address(result):
+    if not result or result == "0x" or len(result) < 66:
+        return ""
+    address = "0x" + result[-40:].lower()
+    return address if is_address(address) and int(address[2:], 16) != 0 else ""
+
+
+def decode_abi_string(result):
+    if not result or result == "0x":
+        return ""
+    try:
+        raw = bytes.fromhex(result[2:])
+    except ValueError:
+        return ""
+    try:
+        if len(raw) >= 64:
+            offset = int.from_bytes(raw[:32], "big")
+            length = int.from_bytes(raw[offset:offset + 32], "big")
+            value = raw[offset + 32:offset + 32 + length].decode("utf-8", "replace").rstrip("\x00")
+            if value:
+                return value
+    except (OverflowError, UnicodeDecodeError, ValueError):
+        return ""
+    return raw.rstrip(b"\x00").decode("utf-8", "replace").strip()
+
+
+def normalize_token_metadata(token):
+    symbol = str((token or {}).get("symbol") or "").strip()
+    address = normalize_address((token or {}).get("address")) if (token or {}).get("address") else ""
+    try:
+        decimals = int((token or {}).get("decimals") if (token or {}).get("decimals") is not None else 18)
+    except (TypeError, ValueError):
+        decimals = 18
+    metadata = {"symbol": symbol or "Reward", "address": address if is_address(address) else "", "decimals": decimals}
+    name = str((token or {}).get("name") or "").strip()
+    if name:
+        metadata["name"] = name
+    return metadata
+
+
+def fetch_erc20_metadata(config, token_address):
+    token_address = normalize_address(token_address)
+    if not is_address(token_address):
+        raise RuntimeError("invalid token address")
+    symbol = decode_abi_string(rpc_request(config["rpcUrls"], "eth_call", [{"to": token_address, "data": ERC20_SYMBOL_SELECTOR}, "latest"], timeout=10))
+    decimals_result = rpc_request(config["rpcUrls"], "eth_call", [{"to": token_address, "data": ERC20_DECIMALS_SELECTOR}, "latest"], timeout=10)
+    if not decimals_result or decimals_result == "0x":
+        raise RuntimeError(f"token decimals unavailable for {token_address}")
+    decimals = int(decimals_result, 16)
+    name = ""
+    try:
+        name = decode_abi_string(rpc_request(config["rpcUrls"], "eth_call", [{"to": token_address, "data": ERC20_NAME_SELECTOR}, "latest"], timeout=10))
+    except RuntimeError:
+        name = ""
+    if not symbol:
+        raise RuntimeError(f"token symbol unavailable for {token_address}")
+    metadata = {"symbol": symbol, "address": token_address, "decimals": decimals}
+    if name:
+        metadata["name"] = name
+    return metadata
+
+
+def resolve_distributor_token(config, distributor):
+    distributor = normalize_address(distributor)
+    known = {
+        normalize_address(address): normalize_token_metadata(token)
+        for address, token in (config.get("knownDistributorTokens") or {}).items()
+        if is_address(address)
+    }
+    if distributor in known:
+        return known[distributor]
+
+    for label, selector in TOKEN_RESOLVER_SELECTORS:
+        try:
+            result = rpc_request(config["rpcUrls"], "eth_call", [{"to": distributor, "data": selector}, "latest"], timeout=10)
+            token_address = decode_call_address(result)
+            if not token_address:
+                continue
+            token = fetch_erc20_metadata(config, token_address)
+            token["resolver"] = label
+            return normalize_token_metadata(token)
+        except RuntimeError:
+            continue
+
+    return normalize_token_metadata(config.get("token", {}))
+
+
+def resolve_distributor_tokens(config, distributors):
+    resolved = {}
+    for distributor in sorted({normalize_address(address) for address in distributors if is_address(address)}):
+        token = resolve_distributor_token(config, distributor)
+        resolved[distributor] = token
+        label = token.get("symbol") or "Reward"
+        address = token.get("address") or "unknown token"
+        print(f"  {config['name']}: distributor {distributor} -> {label} ({address})")
+    return resolved
+
+
+def token_for_distributor(config, distributor_tokens, distributor):
+    distributor = normalize_address(distributor)
+    return normalize_token_metadata(distributor_tokens.get(distributor) or config.get("token", {}))
+
+
 def fetch_claim_distributors(config):
     distributors = {
         normalize_address(address)
-        for address in config.get("fallbackDistributors", set())
+        for address in set(config.get("fallbackDistributors", set())) | set((config.get("knownDistributorTokens") or {}).keys())
         if is_address(address)
     }
-    query = """
+    query_template = """
     query ClaimDistributors($first: Int!, $skip: Int!) {
-      liquidityMiningClaims(first: $first, skip: $skip, orderBy: id, orderDirection: asc) {
+      liquidityMiningClaims(first: $first, skip: $skip, orderBy: id, orderDirection: %s) {
         distributor
       }
     }
     """
     first = 1000
-    try:
-        for page in range(MAX_DISTRIBUTOR_PAGES):
-            rows = graph_query(config["subgraph"], query, {"first": first, "skip": page * first}).get("liquidityMiningClaims") or []
-            for row in rows:
-                address = row.get("distributor")
-                if is_address(address):
-                    distributors.add(normalize_address(address))
-            if len(rows) < first:
-                break
-    except (requests.RequestException, ValueError, RuntimeError) as exc:
-        print(f"Warning: {config['name']} claim distributor discovery failed, using fallback list: {exc}")
+    for direction in ("asc", "desc"):
+        query = query_template % direction
+        try:
+            for page in range(MAX_DISTRIBUTOR_PAGES):
+                rows = graph_query(config["subgraph"], query, {"first": first, "skip": page * first}).get("liquidityMiningClaims") or []
+                for row in rows:
+                    address = row.get("distributor")
+                    if is_address(address):
+                        distributors.add(normalize_address(address))
+                if len(rows) < first:
+                    break
+        except (requests.RequestException, ValueError, RuntimeError) as exc:
+            print(f"Warning: {config['name']} {direction} claim distributor discovery failed, using partial list: {exc}")
 
     return sorted(distributors)
 
@@ -402,11 +532,9 @@ def fetch_block_timestamp(config, block_number):
     return fetch_block_timestamps(config, [block_number]).get(block_number, 0)
 
 
-def claim_events_from_logs(chain_key, config, logs):
+def claim_events_from_logs(chain_key, config, logs, distributor_tokens):
     decoded = []
     block_numbers = []
-    token = config.get("token", {})
-    decimals = int(token.get("decimals") or 18)
     for log in logs:
         topics = log.get("topics") or []
         if len(topics) < 3:
@@ -419,6 +547,8 @@ def claim_events_from_logs(chain_key, config, logs):
         user = decode_topic_address(topics[2])
         if not is_address(distributor) or not is_address(user):
             continue
+        token = token_for_distributor(config, distributor_tokens, distributor)
+        decimals = int(token.get("decimals") or 18)
         block_number = int(log.get("blockNumber", "0x0"), 16)
         block_numbers.append(block_number)
         decoded.append({
@@ -458,6 +588,31 @@ def merge_events(existing_events, new_events):
             continue
         merged[key] = event
     return sorted(merged.values(), key=lambda row: (row.get("timestamp") or 0, row.get("chainKey") or "", row.get("logIndex") or 0), reverse=True)
+
+
+def apply_distributor_token_metadata(events, chain_key, config, distributor_tokens):
+    updated = []
+    for event in events or []:
+        if event.get("chainKey") != chain_key:
+            updated.append(event)
+            continue
+        distributor = event.get("distributor")
+        if not is_address(distributor):
+            updated.append(event)
+            continue
+        token = token_for_distributor(config, distributor_tokens, distributor)
+        copied = dict(event)
+        copied["tokenSymbol"] = token.get("symbol") or copied.get("tokenSymbol") or "Reward"
+        copied["tokenAddress"] = token.get("address") or copied.get("tokenAddress") or ""
+        copied["tokenDecimals"] = int(token.get("decimals") or copied.get("tokenDecimals") or 18)
+        amount_wei = copied.get("amountWei")
+        if amount_wei not in (None, ""):
+            try:
+                copied["amount"] = format_units(int(amount_wei), copied["tokenDecimals"])
+            except (TypeError, ValueError):
+                pass
+        updated.append(copied)
+    return updated
 
 
 def seed_events_from_legacy_odolo(existing):
@@ -520,7 +675,7 @@ def scan_bounds_for_chain(chain_key, config, current_block, state, existing):
     return start_block, end_block
 
 
-def build_chain_payload(chain_key, config, current_block, start_block, end_block, existing, distributors, events, warning=""):
+def build_chain_payload(chain_key, config, current_block, start_block, end_block, existing, distributors, events, distributor_tokens, warning=""):
     meta = chain_meta(existing, chain_key)
     existing_from_block = int(meta.get("fromBlock") or 0)
     existing_to_block = int(meta.get("toBlock") or 0)
@@ -542,6 +697,10 @@ def build_chain_payload(chain_key, config, current_block, start_block, end_block
         if event.get("chainKey") == chain_key and is_address(event.get("distributor"))
     })
     output_distributors = sorted(set(distributors) | set(event_distributors))
+    output_tokens = {
+        distributor: token_for_distributor(config, distributor_tokens, distributor)
+        for distributor in output_distributors
+    }
     from_timestamp = (
         int(meta.get("fromTimestamp") or 0)
         if coverage_from_block == existing_from_block and meta.get("fromTimestamp")
@@ -562,6 +721,7 @@ def build_chain_payload(chain_key, config, current_block, start_block, end_block
         "toTimestamp": to_timestamp,
         "distributors": output_distributors,
         "token": config.get("token", {}),
+        "tokensByDistributor": output_tokens,
         "eventCount": sum(1 for event in events if event.get("chainKey") == chain_key),
         "warning": warning,
     }
@@ -576,6 +736,16 @@ def build_chain_payload_from_events(chain_key, config, events):
         for event in chain_events
         if is_address(event.get("distributor"))
     })
+    tokens_by_distributor = {}
+    for event in chain_events:
+        distributor = normalize_address(event.get("distributor")) if is_address(event.get("distributor")) else ""
+        if not distributor or distributor in tokens_by_distributor:
+            continue
+        tokens_by_distributor[distributor] = normalize_token_metadata({
+            "symbol": event.get("tokenSymbol") or (config.get("token") or {}).get("symbol"),
+            "address": event.get("tokenAddress") or (config.get("token") or {}).get("address"),
+            "decimals": event.get("tokenDecimals") or (config.get("token") or {}).get("decimals"),
+        })
     return {
         "chainKey": chain_key,
         "chainName": config["name"],
@@ -586,6 +756,7 @@ def build_chain_payload_from_events(chain_key, config, events):
         "toTimestamp": max(timestamps) if timestamps else 0,
         "distributors": distributors,
         "token": config.get("token", {}),
+        "tokensByDistributor": tokens_by_distributor,
         "eventCount": len(chain_events),
         "warning": "Seeded from existing reward-claim event file; next workflow scan refreshes full chain coverage.",
     }
@@ -650,10 +821,17 @@ def main():
                 for address in (chain_meta(existing, chain_key).get("distributors") or [])
                 if is_address(address)
             }
-            distributors = sorted(set(fetch_claim_distributors(config)) | existing_distributors)
+            event_distributors = {
+                normalize_address(event.get("distributor"))
+                for event in existing_events_for_chain(existing, chain_key)
+                if is_address(event.get("distributor"))
+            }
+            distributors = sorted(set(fetch_claim_distributors(config)) | existing_distributors | event_distributors)
+            distributor_tokens = resolve_distributor_tokens(config, distributors)
             new_logs = fetch_reward_claimed_logs(chain_key, config, start_block, end_block, distributors)
-            new_events = claim_events_from_logs(chain_key, config, new_logs)
+            new_events = claim_events_from_logs(chain_key, config, new_logs, distributor_tokens)
             all_events = merge_events(all_events, new_events)
+            all_events = apply_distributor_token_metadata(all_events, chain_key, config, distributor_tokens)
             chains_payload[chain_key] = build_chain_payload(
                 chain_key,
                 config,
@@ -663,6 +841,7 @@ def main():
                 existing,
                 distributors,
                 all_events,
+                distributor_tokens,
             )
             state_chains[chain_key] = {
                 "lastBlock": end_block,
