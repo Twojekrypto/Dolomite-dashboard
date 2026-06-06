@@ -130,6 +130,10 @@ class HistoryTaxExportContractsTest(unittest.TestCase):
         self.assertIn('routeEvidence: "token_path_unverified"', self.source)
         self.assertIn('routeMatchConfidence: "none"', self.source)
         self.assertIn("rawAmount: String(amount ?? \"\").trim()", self.source)
+        self.assertIn("ODOLO_CLAIM_EVENTS_URL", self.source)
+        self.assertIn("eventFromOdoloClaim", self.source)
+        self.assertIn("odoloRewardClaimEvents", self.source)
+        self.assertIn("Berachain RewardClaimed log", self.source)
 
     def test_clean_csv_uses_transaction_rows_without_event_spam(self):
         self.assertIn('"transaction"', self.source)
@@ -267,6 +271,59 @@ const lifecycle = api.positionLifecycleForRows([row], [earn]);
 if (!lifecycle.some(item => item.sourceEntityLabel === "trades")) throw new Error(JSON.stringify(lifecycle));
 if (!lifecycle.some(item => item.sourceEntityLabel === "ammMints")) throw new Error(JSON.stringify(lifecycle));
 if (!lifecycle.some(item => item.sourceEntityLabel === "earn-merkl-rewards")) throw new Error(JSON.stringify(lifecycle));
+"""
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
+
+    def test_odolo_reward_claims_are_dated_transaction_rows(self):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const source = fs.readFileSync("history/history.js", "utf8");
+const marker = "\n  if (document.readyState === \"loading\") {";
+const instrumented = source.replace(marker, "\n  globalThis.__historyClaimTest = { eventFromOdoloClaim, groupEvents, rowMatchesActionFilter, cleanHistoryReportHeaders, cleanHistoryReportCsvRows, cleanTransactionAction, cleanTransactionAssetFlow, displayActionsForRow, state };" + marker);
+const sandbox = {
+  console,
+  URL,
+  URLSearchParams,
+  Blob,
+  Set,
+  Map,
+  document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} } },
+  window: { location: { href: "http://127.0.0.1/history/" }, history: { replaceState() {} }, localStorage: { getItem() { return null; }, setItem() {} } },
+};
+vm.runInNewContext(instrumented, sandbox);
+const api = sandbox.__historyClaimTest;
+api.state.year = "custom";
+api.state.dateFrom = "2026-06-01";
+api.state.dateTo = "2026-06-10";
+api.state.selectedChains = new Set(["berachain"]);
+api.state.earn = { status: "ready", warnings: [], ledgers: {}, rewards: {}, prices: {} };
+api.state.warnings = [];
+const event = api.eventFromOdoloClaim("berachain", {
+  txHash: "0xd9cc0f3511fed88a4acc086b98ef2c3b7d5903c5b5ba63975d906551123a5934",
+  blockNumber: 21838308,
+  timestamp: 1780691332,
+  logIndex: 1,
+  user: "0x28da3dde285d8f1f87b2d858f89961bb8b9af180",
+  distributor: "0x79e6e932bf6686a4d357d7821e6e08835ba8a026",
+  epoch: 56,
+  amount: "282.340149793751586955",
+  amountWei: "282340149793751586955",
+});
+const row = api.groupEvents([event])[0];
+row.gas = { status: "ok", paidByWallet: true, nativeSymbol: "BERA", nativeAmountExact: "0.001", gasUsd: 1, historicalPrice: 2 };
+if (!api.rowMatchesActionFilter(row, "odoloClaim")) throw new Error("Claim oDOLO filter did not match");
+if (api.cleanTransactionAction(row) !== "Claim oDOLO") throw new Error(api.cleanTransactionAction(row));
+if (api.cleanTransactionAssetFlow(row) !== "Claim oDOLO: Received 282.34014979 oDOLO") throw new Error(api.cleanTransactionAssetFlow(row));
+if (api.displayActionsForRow(row).map(item => typeof item === "string" ? item : item.label).join("|") !== "odoloClaim") throw new Error("bad action chip");
+const headers = api.cleanHistoryReportHeaders();
+const rows = api.cleanHistoryReportCsvRows([row], []);
+const actionIdx = headers.indexOf("action");
+const sourceIdx = headers.indexOf("source");
+const sourceEntityIdx = headers.indexOf("source_entity");
+if (rows[0][actionIdx] !== "Claim oDOLO") throw new Error(JSON.stringify(rows[0]));
+if (!rows[0][sourceIdx].includes("RewardClaimed")) throw new Error(JSON.stringify(rows[0]));
+if (rows[0][sourceEntityIdx] !== "odoloRewardClaimEvents") throw new Error(JSON.stringify(rows[0]));
 """
         subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
 
@@ -1094,7 +1151,8 @@ if (api.earnTaxEntriesForCurrentView().length !== 0) throw new Error("dirty filt
         self.assertNotIn(".overview-cell", self.css)
         self.assertNotIn(".tax-panel", self.css)
         self.assertIn(".history-table{width:100%;min-width:1040px", self.css)
-        self.assertIn("els.count.textContent = `${rows.length.toLocaleString()} transactions`", self.source)
+        self.assertIn("els.count.textContent = historyCountLabel(rows, earnEntries)", self.source)
+        self.assertIn("transaction${rows.length === 1 ? \"\" : \"s\"}", self.source)
         self.assertIn("0 transactions", self.html)
         self.assertIn(".hero-topline h1{font-size:32px;line-height:1.08", self.css)
         self.assertIn("font-size:10px;font-weight:700;letter-spacing:1.25px", self.css)

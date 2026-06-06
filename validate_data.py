@@ -225,6 +225,17 @@ RULES = {
         ],
         "min_bytes": 50_000,
     },
+    "odolo-claim-events.json": {
+        "required_keys": ["schemaVersion", "generatedAt", "chainKey", "source", "fromBlock", "toBlock", "fromTimestamp", "toTimestamp", "eventEmitter", "distributor", "token", "events"],
+        "checks": [
+            ("generatedAt must be ISO datetime", lambda d: _is_iso_datetime(d.get("generatedAt"))),
+            ("chain must be Berachain", lambda d: d.get("chainKey") == "berachain"),
+            ("block range must be valid", lambda d: isinstance(d.get("fromBlock"), int) and isinstance(d.get("toBlock"), int) and d.get("fromBlock") <= d.get("toBlock")),
+            ("timestamp range must be valid", lambda d: isinstance(d.get("fromTimestamp"), int) and isinstance(d.get("toTimestamp"), int) and d.get("fromTimestamp") <= d.get("toTimestamp")),
+            ("events must have transaction evidence", lambda d: all(row.get("txHash") and row.get("timestamp") and row.get("user") and row.get("amount") for row in d.get("events", []))),
+        ],
+        "min_bytes": 500,
+    },
     "vedolo_flows.json": {
         "required_keys": ["timestamp", "total_unlocks", "total_locks"],
         "checks": [],
