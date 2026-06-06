@@ -211,6 +211,51 @@ def _odolo_claim_events_use_odolo_token(data):
     )
 
 
+def _reward_claim_events_have_known_chains(data):
+    chains = data.get("chains", {})
+    events = data.get("events", [])
+    return (
+        isinstance(chains, dict)
+        and bool(chains)
+        and all(row.get("chainKey") in chains for row in events)
+    )
+
+
+def _reward_claim_events_have_chain_metadata(data):
+    chains = data.get("chains", {})
+    if not isinstance(chains, dict) or not chains:
+        return False
+    for chain in chains.values():
+        if not isinstance(chain, dict):
+            return False
+        if not chain.get("eventEmitter") or not chain.get("distributors") or not chain.get("token"):
+            return False
+        if not isinstance(chain.get("fromBlock"), int) or not isinstance(chain.get("toBlock"), int):
+            return False
+        if chain.get("fromBlock") > chain.get("toBlock"):
+            return False
+        if not isinstance(chain.get("fromTimestamp"), int) or not isinstance(chain.get("toTimestamp"), int):
+            return False
+    return True
+
+
+def _reward_claim_events_have_transaction_evidence(data):
+    events = data.get("events", [])
+    return all(
+        row.get("chainKey")
+        and row.get("txHash")
+        and row.get("timestamp")
+        and row.get("blockNumber") is not None
+        and row.get("logIndex") is not None
+        and row.get("user")
+        and row.get("distributor")
+        and row.get("amount")
+        and row.get("amountWei")
+        and row.get("source") == "RewardClaimed"
+        for row in events
+    )
+
+
 RULES = {
     "dolo_flows.json": {
         "required_keys": ["timestamp", "dolo_price", "periods"],
@@ -251,6 +296,17 @@ RULES = {
             ("distributors must be tracked", _odolo_claim_events_have_known_distributors),
             ("events must use oDOLO token", _odolo_claim_events_use_odolo_token),
             ("events must have transaction evidence", lambda d: all(row.get("txHash") and row.get("timestamp") and row.get("user") and row.get("amount") for row in d.get("events", []))),
+        ],
+        "min_bytes": 500,
+    },
+    "reward-claim-events.json": {
+        "required_keys": ["schemaVersion", "generatedAt", "protocol", "source", "methodology", "chains", "events"],
+        "checks": [
+            ("generatedAt must be ISO datetime", lambda d: _is_iso_datetime(d.get("generatedAt"))),
+            ("schema version must be multi-chain", lambda d: d.get("schemaVersion") == 2),
+            ("events must reference known chains", _reward_claim_events_have_known_chains),
+            ("chain metadata must be complete", _reward_claim_events_have_chain_metadata),
+            ("events must have transaction evidence", _reward_claim_events_have_transaction_evidence),
         ],
         "min_bytes": 500,
     },
