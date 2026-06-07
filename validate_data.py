@@ -221,6 +221,12 @@ def _reward_claim_events_have_known_chains(data):
     )
 
 
+def _reward_claim_events_include_supported_claim_chains(data):
+    chains = data.get("chains", {})
+    supported = {"berachain", "arbitrum", "mantle", "xlayer"}
+    return isinstance(chains, dict) and supported.issubset(set(chains))
+
+
 def _reward_claim_events_have_chain_metadata(data):
     chains = data.get("chains", {})
     if not isinstance(chains, dict) or not chains:
@@ -321,6 +327,7 @@ RULES = {
         "checks": [
             ("generatedAt must be ISO datetime", lambda d: _is_iso_datetime(d.get("generatedAt"))),
             ("schema version must be multi-chain", lambda d: d.get("schemaVersion") == 2),
+            ("supported reward claim chains must have metadata", _reward_claim_events_include_supported_claim_chains),
             ("events must reference known chains", _reward_claim_events_have_known_chains),
             ("chain metadata must be complete", _reward_claim_events_have_chain_metadata),
             ("distributor tokens must be resolved", _reward_claim_events_have_distributor_tokens),

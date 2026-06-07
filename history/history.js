@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260606-reward-claims";
+  const HISTORY_VERSION = "history-20260607-claim-coverage2";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -16,6 +16,7 @@
   const EARN_SNAPSHOT_BASE = "data/earn-snapshots";
   const REWARD_CLAIM_EVENTS_URL = "data/reward-claim-events.json";
   const ODOLO_CLAIM_EVENTS_URL = "data/odolo-claim-events.json";
+  const REWARD_CLAIM_INDEX_CHAIN_KEYS = new Set(["berachain", "arbitrum", "mantle", "xlayer"]);
   const ODOLO_REWARDS_DISTRIBUTOR = "0x79e6e932bf6686a4d357d7821e6e08835ba8a026";
   const ODOLO_TOKEN_ADDRESS = "0x02e513b5b54ee216bf836ceb471507488fc89543";
   const NOTE_STORAGE_PREFIX = "dolomite-history-review-notes";
@@ -1412,10 +1413,15 @@
     }
     const payload = result.payload || {};
     const warnings = [];
+    const hasChainMeta = !!(payload.chains?.[chainKey] || (payload.chainKey === chainKey ? payload : null));
     const meta = payload.chains?.[chainKey] || (payload.chainKey === chainKey ? payload : {});
+    const coverageStatus = String(meta.coverageStatus || "").toLowerCase();
     const fromTimestamp = Number(meta.fromTimestamp || 0);
     const toTimestamp = Number(meta.toTimestamp || 0);
-    if (claimFilterRelevant && fromTimestamp && bounds?.start && bounds.start < fromTimestamp) {
+    if (claimFilterRelevant && REWARD_CLAIM_INDEX_CHAIN_KEYS.has(chainKey) && !hasChainMeta) {
+      warnings.push(`${chainName} reward claim index is missing; reward claim transactions may be incomplete until the RewardClaimed workflow scans this chain.`);
+    }
+    if (claimFilterRelevant && coverageStatus !== "complete" && fromTimestamp && bounds?.start && bounds.start < fromTimestamp) {
       warnings.push(`${chainName} reward claim index starts ${formatDate(fromTimestamp)}; earlier reward claims may be missing until the full claim-event workflow refreshes.`);
     }
     const now = Math.floor(Date.now() / 1000);
