@@ -8927,27 +8927,35 @@
             min-width: 138px !important;
             justify-content: center !important;
             gap: 6px !important;
-            background:
-                radial-gradient(circle at 50% 120%, rgba(201,162,39,.18), transparent 70%),
-                rgba(201,162,39,.075) !important;
-            border-color: var(--gold-line) !important;
-            color: var(--gold-hi) !important;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 8px 20px rgba(201,162,39,.06) !important;
+            background: var(--bg-3) !important;
+            border-color: var(--line-2) !important;
+            color: var(--fg-2) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.025) !important;
         }
         body.route-liquidation #sim-card .sim-risk-details-trigger:hover .sim-risk-details-action,
         body.route-liquidation #sim-card .sim-risk-details.open .sim-risk-details-action {
             color: var(--gold) !important;
             border-color: var(--gold-line) !important;
             background:
-                radial-gradient(circle at 50% 120%, rgba(201,162,39,.24), transparent 72%),
-                var(--gold-wash) !important;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 10px 24px rgba(201,162,39,.10) !important;
+                radial-gradient(circle at 50% 120%, rgba(201,162,39,.14), transparent 72%),
+                rgba(201,162,39,.055) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 8px 18px rgba(201,162,39,.05) !important;
         }
+        body.route-liquidation #sim-card .sim-risk-details.has-scenario .sim-risk-details-action,
         body.route-liquidation #sim-card .sim-risk-details.has-risk .sim-risk-details-action {
             color: var(--down) !important;
             border-color: rgba(180,121,107,.30) !important;
             background: rgba(180,121,107,.10) !important;
             box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 8px 20px rgba(180,121,107,.07) !important;
+        }
+        body.route-liquidation #sim-card .sim-risk-details.has-scenario .sim-risk-details-trigger:hover .sim-risk-details-action,
+        body.route-liquidation #sim-card .sim-risk-details.has-scenario.open .sim-risk-details-action,
+        body.route-liquidation #sim-card .sim-risk-details.has-risk .sim-risk-details-trigger:hover .sim-risk-details-action,
+        body.route-liquidation #sim-card .sim-risk-details.has-risk.open .sim-risk-details-action {
+            color: var(--down) !important;
+            border-color: rgba(180,121,107,.38) !important;
+            background: rgba(180,121,107,.135) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 10px 24px rgba(180,121,107,.09) !important;
         }
         body.route-liquidation #sim-card .sim-risk-details-caret {
             display: inline-flex !important;
@@ -12576,7 +12584,10 @@
             const details = document.getElementById('sim-risk-details');
             const label = document.getElementById('sim-risk-details-label');
             if (liqCard) liqCard.classList.toggle('is-risk', hasRisk);
-            if (details) details.classList.toggle('has-risk', hasRisk);
+            if (details) {
+                details.classList.toggle('has-scenario', !!shocked);
+                details.classList.toggle('has-risk', hasRisk);
+            }
             if (label) label.textContent = hasRisk ? 'Wallets crossing HF 1.0' : (shocked ? 'View closest wallets' : 'View wallets at risk');
         }
         function setSimRiskDetailsOpen(open) {
