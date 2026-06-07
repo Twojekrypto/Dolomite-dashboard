@@ -3013,9 +3013,9 @@
       return;
     }
 
-    els.body.innerHTML = rows.map(row => {
+    els.body.innerHTML = rows.map((row, index) => {
       const expanded = state.expandedKey === row.key;
-      return rowHtml(row, expanded) + (expanded ? detailHtml(row) : "");
+      return rowHtml(row, expanded, index) + (expanded ? detailHtml(row) : "");
     }).join("");
   }
 
@@ -3038,13 +3038,14 @@
     return escapeHtml(msg);
   }
 
-  function rowHtml(row, expanded) {
+  function rowHtml(row, expanded, index = 0) {
     const chain = CHAINS[row.chainKey];
     const actions = displayActionsForRow(row);
     const eventPreview = compactTransactionAssetPreview(row) || row.events.slice(0, 2).map(event => event.label).join(" | ");
     const detailToggle = historyDetailToggleHtml(expanded);
+    const rowClassName = [expanded ? "expanded" : "", index % 2 === 1 ? "row-even" : "row-odd"].filter(Boolean).join(" ");
     return `
-      <tr class="${expanded ? "expanded" : ""}" data-row-key="${escapeAttr(row.key)}">
+      <tr class="${rowClassName}" data-row-key="${escapeAttr(row.key)}">
         <td class="date-td">
           <div class="date-cell">
             <div class="date-top">
