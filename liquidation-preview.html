@@ -2289,7 +2289,8 @@
         .liquidation-history-table {
             width: 100%;
             min-width: 1040px;
-            border-collapse: collapse;
+            border-collapse: separate !important;
+            border-spacing: 0 !important;
             table-layout: fixed;
         }
         .liquidation-history-table colgroup col:nth-child(1) { width: 7.8%; }   /* Chain */
@@ -2314,36 +2315,40 @@
             white-space: nowrap;
         }
         .liquidation-history-table tbody tr {
-            border-bottom: 1px solid rgba(255,255,255,0.03);
-            transition: background .15s ease;
+            cursor: pointer;
+            background: transparent;
+            transition: background .15s var(--ease), color .15s var(--ease);
         }
-        .liquidation-history-table tbody tr:nth-child(even) {
-            background: rgba(255,255,255,0.012);
+        .liquidation-history-table tbody tr:nth-child(even) td {
+            background: rgba(255,255,255,.014);
         }
-        .liquidation-history-table tbody tr:hover {
-            background: linear-gradient(90deg, rgba(201,162,39,.058), rgba(255,255,255,.018));
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.035), inset 0 -1px 0 rgba(255,255,255,.035);
+        .liquidation-history-table tbody tr:hover td {
+            background: rgba(255,255,255,.026);
+            color: var(--fg-1);
         }
         .liquidation-history-table tbody tr:hover td:first-child::before {
             content: "";
             position: absolute;
-            left: 0; top: 7px; bottom: 7px;
-            width: 3px;
-            background: linear-gradient(180deg, var(--gold-hi), var(--gold));
-            border-radius: 0 4px 4px 0;
-            box-shadow: 0 0 14px rgba(201,162,39,.22);
+            left: 0; top: 0; bottom: 0;
+            width: 2px;
+            background: var(--gold);
+            border-radius: 0 2px 2px 0;
         }
         .liquidation-history-table tbody td {
             padding: 8px 12px;
-            border-bottom: 1px solid rgba(255,255,255,0.025);
-            color: rgba(255,255,255,0.84);
+            border-bottom: 1px solid rgba(255,255,255,.055);
+            color: var(--fg-2);
             font-size: 12px;
             font-variant-numeric: tabular-nums;
             vertical-align: middle;
             position: relative;
+            background: transparent;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+        }
+        .liquidation-history-table tbody tr:last-child td {
+            border-bottom: 0;
         }
         .liquidation-history-table tbody td:nth-child(2) {
             overflow: visible;
@@ -5061,14 +5066,60 @@
         body.route-liquidation #positions-table thead th.sorted .sort-arrow {
             color: var(--gold) !important;
         }
-        body.route-liquidation #positions-table tbody tr:hover td:first-child {
-            box-shadow: inset 2px 0 0 var(--gold) !important;
+        body.route-liquidation #positions-table {
+            border-collapse: separate !important;
+            border-spacing: 0 !important;
         }
-        body.route-liquidation #positions-table tbody tr.critical-row:hover td:first-child {
-            box-shadow: inset 2px 0 0 #b4796b !important;
+        body.route-liquidation #positions-table tbody tr,
+        body.route-liquidation #positions-table tbody tr.critical-row,
+        body.route-liquidation #positions-table tbody tr.danger-row {
+            cursor: pointer !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            transition: background .15s var(--ease), color .15s var(--ease) !important;
         }
+        body.route-liquidation #positions-table tbody td {
+            position: relative !important;
+            background: transparent !important;
+            border-bottom: 1px solid rgba(255,255,255,.055) !important;
+            color: var(--fg-2) !important;
+        }
+        body.route-liquidation #positions-table tbody tr:nth-child(even) td {
+            background: rgba(255,255,255,.014) !important;
+        }
+        body.route-liquidation #positions-table tbody tr:hover,
+        body.route-liquidation #positions-table tbody tr.critical-row:hover,
+        body.route-liquidation #positions-table tbody tr.danger-row:hover {
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+        body.route-liquidation #positions-table tbody tr:hover td,
+        body.route-liquidation #positions-table tbody tr.critical-row:hover td,
+        body.route-liquidation #positions-table tbody tr.danger-row:hover td {
+            background: rgba(255,255,255,.026) !important;
+            color: var(--fg-1) !important;
+            border-bottom-color: rgba(255,255,255,.055) !important;
+        }
+        body.route-liquidation #positions-table tbody tr:hover td:first-child,
+        body.route-liquidation #positions-table tbody tr.critical-row:hover td:first-child,
         body.route-liquidation #positions-table tbody tr.danger-row:hover td:first-child {
-            box-shadow: inset 2px 0 0 #c9a227 !important;
+            box-shadow: none !important;
+        }
+        body.route-liquidation #positions-table tbody tr:hover td:first-child::before,
+        body.route-liquidation #positions-table tbody tr.critical-row:hover td:first-child::before,
+        body.route-liquidation #positions-table tbody tr.danger-row:hover td:first-child::before {
+            content: "" !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            bottom: 0 !important;
+            width: 2px !important;
+            background: var(--gold) !important;
+            border-radius: 0 2px 2px 0 !important;
+            display: block !important;
+        }
+        body.route-liquidation #positions-table tbody tr:last-child td {
+            border-bottom: 0 !important;
         }
 
         /* Assets-compatible interaction layer: filters, popovers, hover explanations */
@@ -5082,13 +5133,39 @@
             border-radius: 10px !important;
             box-shadow: none !important;
         }
+        .liquidation-command-frame #search-wrap {
+            flex: 0 0 auto !important;
+            width: auto !important;
+            min-width: 0 !important;
+            max-width: none !important;
+        }
+        .liquidation-command-frame #search-wrap:hover {
+            background: var(--bg-3) !important;
+            border-color: var(--line-2) !important;
+        }
+        .liquidation-command-frame #search-wrap:focus-within,
+        .liquidation-command-frame #search-wrap.has-value {
+            border-color: var(--gold-line) !important;
+            box-shadow: none !important;
+        }
+        .liquidation-command-frame #search-wrap:focus-within .search-icon {
+            color: var(--gold) !important;
+        }
         .liquidation-command-frame .search-input {
             flex: 1 1 auto !important;
             min-width: 0 !important;
+            width: 240px !important;
             height: 34px !important;
             padding: 0 !important;
+            background: transparent !important;
+            border: 0 !important;
+            box-shadow: none !important;
             color: var(--fg-1) !important;
             font-size: 13px !important;
+        }
+        .liquidation-command-frame .search-input:focus {
+            width: 240px !important;
+            box-shadow: none !important;
         }
         .liquidation-command-frame .search-icon {
             left: 12px !important;
@@ -8150,6 +8227,7 @@
 
         body.route-liquidation #sim-card .sim-atrisk-table-wrap {
             width: 100% !important;
+            min-width: 0 !important;
             max-width: 100% !important;
             box-sizing: border-box !important;
             max-height: 356px !important;
@@ -8158,6 +8236,12 @@
             border-radius: var(--r-md) !important;
             background: var(--bg-1) !important;
             scrollbar-width: thin !important;
+        }
+        body.route-liquidation #sim-card #sim-impact-viz,
+        body.route-liquidation #sim-card .sim-viz-panel.sim-viz-dist,
+        body.route-liquidation #sim-card .sim-risk-details {
+            min-width: 0 !important;
+            max-width: 100% !important;
         }
         body.route-liquidation #sim-card .sim-risk-details,
         body.route-liquidation #sim-card .sim-risk-details-body,
@@ -8172,14 +8256,15 @@
         }
         body.route-liquidation #sim-card .positions-table.sim-atrisk-table {
             width: 100% !important;
-            min-width: 720px !important;
+            min-width: 820px !important;
             table-layout: fixed !important;
             border-collapse: collapse !important;
         }
-        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(1) { width: 13% !important; }
-        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(2) { width: 37% !important; }
-        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(3) { width: 29% !important; }
-        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(4) { width: 21% !important; }
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(1) { width: 10% !important; }
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(2) { width: 28% !important; }
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(3) { width: 17% !important; }
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(4) { width: 28% !important; }
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(5) { width: 17% !important; }
         body.route-liquidation #sim-card .positions-table.sim-atrisk-table thead th {
             height: 34px !important;
             padding: 0 12px !important;
@@ -8233,7 +8318,7 @@
         }
         body.route-liquidation #sim-card .positions-table.sim-atrisk-table tbody td:nth-child(1),
         body.route-liquidation #sim-card .positions-table.sim-atrisk-table tbody td:nth-child(2),
-        body.route-liquidation #sim-card .positions-table.sim-atrisk-table tbody td:nth-child(4) {
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table tbody td:nth-child(5) {
             overflow: visible !important;
         }
         body.route-liquidation #sim-card .sim-atrisk-table .liquidation-history-wallet {
@@ -8244,7 +8329,7 @@
         body.route-liquidation #sim-card .sim-atrisk-table .liquidation-history-address {
             max-width: 126px !important;
             font-size: 12px !important;
-            color: var(--fg-2) !important;
+            color: var(--fg-1) !important;
         }
         body.route-liquidation #sim-card .sim-risk-amount {
             display: flex !important;
@@ -8261,28 +8346,37 @@
             overflow: hidden !important;
             text-overflow: ellipsis !important;
         }
+        body.route-liquidation #sim-card .sim-risk-amount-main.debt {
+            color: var(--fg-1) !important;
+        }
+        body.route-liquidation #sim-card .sim-risk-amount-main.collateral {
+            color: var(--gold) !important;
+        }
         body.route-liquidation #sim-card .sim-risk-amount-sub {
             color: var(--fg-4) !important;
             font-size: 10px !important;
-            font-family: var(--mono) !important;
+            font-family: inherit !important;
             font-variant-numeric: tabular-nums !important;
             line-height: 1.2 !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
+            white-space: nowrap !important;
         }
         body.route-liquidation #sim-card .sim-risk-hf-cell {
             display: inline-flex !important;
+            flex-direction: column !important;
             align-items: center !important;
-            gap: 7px !important;
+            justify-content: center !important;
+            gap: 3px !important;
             min-width: 0 !important;
         }
         body.route-liquidation #sim-card .sim-risk-hf-pill {
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
-            min-width: 48px !important;
+            min-width: 54px !important;
             height: 24px !important;
-            padding: 0 8px !important;
+            padding: 0 9px !important;
             border-radius: 999px !important;
             background: var(--bg-3) !important;
             border: 1px solid var(--line-2) !important;
@@ -8306,6 +8400,17 @@
             height: 76px !important;
             text-align: center !important;
             color: var(--fg-4) !important;
+        }
+
+        @media (max-width: 900px) {
+            body.route-liquidation #sim-card .positions-table.sim-atrisk-table {
+                min-width: 660px !important;
+            }
+            body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(1) { width: 14% !important; }
+            body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(2) { width: 27% !important; }
+            body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(3) { width: 17% !important; }
+            body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(4) { width: 25% !important; }
+            body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(5) { width: 17% !important; }
         }
 
         @media (max-width: 700px) {
@@ -9077,10 +9182,10 @@
                                 <button type="button" class="sim-risk-details-trigger" id="sim-risk-details-trigger" onclick="window.toggleSimRiskDetails && window.toggleSimRiskDetails()" aria-expanded="false" aria-controls="sim-risk-details-body">
                                     <span class="sim-risk-details-copy">
                                         <span class="sim-risk-details-label">Closest to Liquidation</span>
-                                        <span class="sim-risk-details-sub" id="sim-risk-details-count">Closest wallets after the selected shock</span>
+                                        <span class="sim-risk-details-sub" id="sim-risk-details-count">Closest addresses after the selected shock</span>
                                     </span>
                                     <span class="sim-risk-details-action">
-                                        <span>View wallets</span>
+                                        <span>View addresses</span>
                                         <span class="sim-risk-details-caret" aria-hidden="true">
                                             <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.1 1.02l-4.25 4.5a.75.75 0 01-1.1 0l-4.25-4.5a.75.75 0 01.02-1.06z"/></svg>
                                         </span>
@@ -9090,19 +9195,20 @@
                                     <div class="sim-viz-panel sim-viz-atrisk">
                                         <div class="sim-risk-search-wrap" id="sim-risk-search-wrap">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
-                                            <input type="text" id="sim-risk-search-input" placeholder="Search wallet address..." autocomplete="off"
+                                            <input type="text" id="sim-risk-search-input" placeholder="Search address..." autocomplete="off"
                                                 oninput="window._simRiskSearch=this.value;window._simRiskPage=1;this.closest('.sim-risk-search-wrap')?.classList.toggle('has-value',this.value.trim().length>0);window._lastSimResults&&window.renderSimImpact(window._lastSimResults,!!window._lastSimShocked)">
-                                            <button type="button" class="sim-risk-search-clear" aria-label="Clear wallet search"
+                                            <button type="button" class="sim-risk-search-clear" aria-label="Clear address search"
                                                 onclick="const input=document.getElementById('sim-risk-search-input');if(input){input.value='';window._simRiskSearch='';window._simRiskPage=1;this.closest('.sim-risk-search-wrap')?.classList.remove('has-value');window._lastSimResults&&window.renderSimImpact(window._lastSimResults,!!window._lastSimShocked);input.focus({preventScroll:true});}">×</button>
                                         </div>
                                         <div class="sim-atrisk-table-wrap">
                                             <table class="positions-table sim-atrisk-table">
-                                                <colgroup><col><col><col><col></colgroup>
+                                                <colgroup><col><col><col><col><col></colgroup>
                                                 <thead>
                                                     <tr>
                                                         <th>Chain</th>
-                                                        <th>Wallet</th>
-                                                        <th>Amount</th>
+                                                        <th>Address</th>
+                                                        <th>Debt</th>
+                                                        <th>Collateral</th>
                                                         <th>HF After</th>
                                                     </tr>
                                                 </thead>
@@ -9112,17 +9218,17 @@
                                         <div class="sim-atrisk-pager" id="sim-risk-pager">
                                             <span class="sim-atrisk-page-label" id="sim-risk-page-label">0-0 of 0</span>
                                             <span class="sim-atrisk-page-actions">
-                                                <button type="button" class="sim-atrisk-page-btn" id="sim-risk-first" onclick="window.simRiskPage && window.simRiskPage('first')" aria-label="First wallet page">
+                                                <button type="button" class="sim-atrisk-page-btn" id="sim-risk-first" onclick="window.simRiskPage && window.simRiskPage('first')" aria-label="First address page">
                                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"></polyline><polyline points="18 17 13 12 18 7"></polyline></svg>
                                                 </button>
-                                                <button type="button" class="sim-atrisk-page-btn" id="sim-risk-prev" onclick="window.simRiskPage && window.simRiskPage('prev')" aria-label="Previous wallets">
+                                                <button type="button" class="sim-atrisk-page-btn" id="sim-risk-prev" onclick="window.simRiskPage && window.simRiskPage('prev')" aria-label="Previous addresses">
                                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
                                                 </button>
                                                 <span class="sim-atrisk-page-current" id="sim-risk-page-current">1 <span class="sep">/</span> 1</span>
-                                                <button type="button" class="sim-atrisk-page-btn" id="sim-risk-next" onclick="window.simRiskPage && window.simRiskPage('next')" aria-label="Next wallets">
+                                                <button type="button" class="sim-atrisk-page-btn" id="sim-risk-next" onclick="window.simRiskPage && window.simRiskPage('next')" aria-label="Next addresses">
                                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
                                                 </button>
-                                                <button type="button" class="sim-atrisk-page-btn" id="sim-risk-last" onclick="window.simRiskPage && window.simRiskPage('last')" aria-label="Last wallet page">
+                                                <button type="button" class="sim-atrisk-page-btn" id="sim-risk-last" onclick="window.simRiskPage && window.simRiskPage('last')" aria-label="Last address page">
                                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"></polyline><polyline points="6 17 11 12 6 7"></polyline></svg>
                                                 </button>
                                             </span>
@@ -9362,6 +9468,10 @@
                         <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                         <input type="text" class="search-input" id="liquidation-history-search-input" placeholder="Search address, token, or tx" aria-label="Search liquidation history">
                         <button type="button" class="search-clear" id="liquidation-history-search-clear">✕</button>
+                    </div>
+                    <div class="liq-dust-pill active" id="liquidation-history-hide-dust-btn" tabindex="0" role="switch" aria-checked="true">
+                        <div class="liq-dust-switch-track"><div class="liq-dust-switch-knob"></div></div>
+                        <span class="liq-dust-pill-label">Hide Dust</span>
                     </div>
                 </div>
 
@@ -11171,6 +11281,7 @@
         let sortField = 'collateral';
         let sortDirection = 'desc';
         let liquidationHistorySearchQuery = '';
+        let liquidationHistoryHideDust = true;
         // Liquidation History column filters (combined token + $ range), per amount column
         let liqDebtTokenFilter = new Set();
         let liqDebtMin = null, liqDebtMax = null;
@@ -11867,7 +11978,7 @@
                             debtAtRisk += newDebt;
                             colAtRisk += newCol;
                         }
-                        simResults.push({ hf: p.hf, newHF, debtUSD: newDebt, collateralUSD: newCol, baseDebtUSD: p.debtUSD, baseCollateralUSD: p.colUSD, addr: p.addr, chain: p.chain });
+                        simResults.push({ hf: p.hf, newHF, debtUSD: newDebt, collateralUSD: newCol, baseDebtUSD: p.debtUSD, baseCollateralUSD: p.colUSD, addr: p.addr, chain: p.chain, debtTokens: p.debtTokens, collateralTokens: p.colTokens });
                     }
                     if (typeof renderSimImpact === 'function') renderSimImpact(simResults, changeVal !== 0);
                     document.getElementById('sim-liq-count').textContent = liqCount.toLocaleString();
@@ -12099,6 +12210,20 @@
             if (!isFinite(hf)) return '10+';
             return hf >= 10 ? '10+' : hf.toFixed(2);
         }
+        function simFmtRiskHf(hf) {
+            if (!isFinite(hf)) return '10+';
+            if (hf < 1.0 && hf >= 0.995) return '<1.00';
+            return simFmtHf(hf);
+        }
+        function simTokenSummary(tokenMap, fallbackLabel = 'Token detail unavailable') {
+            const entries = Object.entries(tokenMap || {})
+                .filter(([symbol, usd]) => symbol && Number(usd) > 0.01)
+                .sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0));
+            if (!entries.length) return fallbackLabel;
+            const visible = entries.slice(0, 3).map(([symbol]) => supplyEscapeHtml(symbol));
+            const more = entries.length > visible.length ? ` +${entries.length - visible.length}` : '';
+            return `${visible.join(' · ')}${more}`;
+        }
         function setSimRiskDetailsOpen(open) {
             const details = document.getElementById('sim-risk-details');
             const trigger = document.getElementById('sim-risk-details-trigger');
@@ -12184,8 +12309,8 @@
             if (subEl) subEl.textContent = shocked ? 'Lowest health factor after the shock' : 'Smallest buffer above HF 1.0';
             if (countEl) {
                 countEl.textContent = ranked.length
-                    ? `${ranked.length.toLocaleString()} wallets · sorted by lowest simulated HF`
-                    : (riskQuery ? 'No wallet matches this address search' : 'No leveraged wallets in the visible set');
+                    ? `${ranked.length.toLocaleString()} addresses · sorted by lowest simulated HF`
+                    : (riskQuery ? 'No address matches this search' : 'No leveraged addresses in the visible set');
             }
             if (pageLabelEl) pageLabelEl.textContent = ranked.length ? `${pageStart + 1}\u2013${pageEnd} of ${ranked.length.toLocaleString()}` : '0-0 of 0';
             if (pageCurrentEl) pageCurrentEl.innerHTML = `${currentPage} <span class="sep">/</span> ${pageCount}`;
@@ -12194,7 +12319,7 @@
             if (nextBtn) nextBtn.disabled = currentPage >= pageCount || !ranked.length;
             if (lastBtn) lastBtn.disabled = currentPage >= pageCount || !ranked.length;
             if (!ranked.length) {
-                listEl.innerHTML = `<tr class="sim-atrisk-empty-row"><td colspan="4">${riskQuery ? 'No wallet matches this address search.' : 'No leveraged positions in the visible set.'}</td></tr>`;
+                listEl.innerHTML = `<tr class="sim-atrisk-empty-row"><td colspan="5">${riskQuery ? 'No address matches this search.' : 'No leveraged positions in the visible set.'}</td></tr>`;
                 return;
             }
             listEl.innerHTML = pageRows.map((r) => {
@@ -12204,16 +12329,23 @@
                 const chain = r.chain || '';
                 const chainLabel = CHAIN_SHORT_LABELS[chain] || CHAIN_DISPLAY_NAMES[chain] || chain || '—';
                 const chainIcon = CHAIN_ICONS[chain] || 'dolomite-logo.svg';
+                const debtSummary = simTokenSummary(r.debtTokens, 'Debt assets unavailable');
+                const collateralSummary = simTokenSummary(r.collateralTokens, 'Collateral assets unavailable');
+                const hfNote = showNow ? `${simFmtHf(r.hf)} -> ${simFmtRiskHf(r.newHF)}` : '';
                 return `<tr class="${crossed ? 'crossed' : ''}">`
                     + `<td><span class="chain-badge ${supplyEscapeHtml(chain)}"><img class="chain-icon" src="${supplyEscapeHtml(chainIcon)}" alt="">${supplyEscapeHtml(chainLabel)}</span></td>`
                     + `<td>${renderLiquidationHistoryAddress(r.addr, chain)}</td>`
                     + `<td><div class="sim-risk-amount">`
-                        + `<span class="sim-risk-amount-main">${formatUSD(Math.round(r.debtUSD || 0))} debt</span>`
-                        + `<span class="sim-risk-amount-sub">${formatUSD(Math.round(r.collateralUSD || 0))} collateral</span>`
+                        + `<span class="sim-risk-amount-main debt">${formatUSD(Math.round(r.debtUSD || 0))}</span>`
+                        + `<span class="sim-risk-amount-sub">${debtSummary}</span>`
+                    + `</div></td>`
+                    + `<td><div class="sim-risk-amount">`
+                        + `<span class="sim-risk-amount-main collateral">${formatUSD(Math.round(r.collateralUSD || 0))}</span>`
+                        + `<span class="sim-risk-amount-sub">${collateralSummary}</span>`
                     + `</div></td>`
                     + `<td><span class="sim-risk-hf-cell">`
-                        + `<span class="sim-risk-hf-pill${crossed ? ' crossed' : ''}" style="color:${color}">${crossed ? 'LIQ' : simFmtHf(r.newHF)}</span>`
-                        + (showNow ? `<span class="sim-risk-hf-before">from ${simFmtHf(r.hf)}</span>` : '')
+                        + `<span class="sim-risk-hf-pill${crossed ? ' crossed' : ''}" style="color:${color}">${crossed ? 'HF < 1.0' : simFmtHf(r.newHF)}</span>`
+                        + (hfNote ? `<span class="sim-risk-hf-before">${hfNote}</span>` : '')
                     + `</span></td>`
                 + `</tr>`;
             }).join('');
@@ -12494,7 +12626,7 @@
                     debtAtRisk += newDebt;
                     colAtRisk += newCol;
                 }
-                simResults.push({ hf: p.hf, newHF, debtUSD: newDebt, collateralUSD: newCol, baseDebtUSD: p.debtUSD, baseCollateralUSD: p.colUSD, addr: p.addr, chain: p.chain });
+                simResults.push({ hf: p.hf, newHF, debtUSD: newDebt, collateralUSD: newCol, baseDebtUSD: p.debtUSD, baseCollateralUSD: p.colUSD, addr: p.addr, chain: p.chain, debtTokens: p.debtTokens, collateralTokens: p.colTokens });
             }
             if (typeof renderSimImpact === 'function') {
                 const hasCustomShock = Object.values(tokenMuls).some(mul => Math.abs(Number(mul || 1) - 1) > 0.000001);
@@ -13356,6 +13488,7 @@
                 return true;
             };
             filteredLiquidationHistory = allLiquidationHistory.filter(row => {
+                if (liquidationHistoryHideDust && ((Number(row.collateralSeizedUSD || 0) + Number(row.debtRepaidUSD || 0)) < 10)) return false;
                 if (q && !getLiquidationHistorySearchText(row).includes(q)) return false;
                 // Debt repaid column: token + $ range
                 if (liqDebtTokenFilter.size > 0 && !liqDebtTokenFilter.has(row.borrowedToken?.symbol)) return false;
@@ -13894,6 +14027,22 @@
                 document.getElementById('liquidation-history-search-wrap')?.classList.remove('has-value');
                 liquidationHistorySearchInput.focus();
                 applyLiquidationHistoryFilters();
+            });
+        }
+
+        const liquidationHistoryHideDustBtn = document.getElementById('liquidation-history-hide-dust-btn');
+        if (liquidationHistoryHideDustBtn) {
+            const toggleLiquidationHistoryDust = () => {
+                liquidationHistoryHideDust = !liquidationHistoryHideDust;
+                liquidationHistoryHideDustBtn.classList.toggle('active', liquidationHistoryHideDust);
+                liquidationHistoryHideDustBtn.setAttribute('aria-checked', liquidationHistoryHideDust ? 'true' : 'false');
+                applyLiquidationHistoryFilters();
+            };
+            liquidationHistoryHideDustBtn.addEventListener('click', toggleLiquidationHistoryDust);
+            liquidationHistoryHideDustBtn.addEventListener('keydown', event => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                toggleLiquidationHistoryDust();
             });
         }
 

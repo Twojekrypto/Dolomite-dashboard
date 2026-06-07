@@ -473,7 +473,7 @@ h1{
 .chain-date-popover[data-side="left"]{right:auto;left:0}
 .chain-date-popover[data-side="right"]{right:0;left:auto}
 .table-wrap{overflow:auto}
-.revenue-table{width:100%;min-width:820px;border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:12px}
+.revenue-table{width:100%;min-width:820px;border-collapse:separate!important;border-spacing:0!important;table-layout:fixed;font-size:12px}
 .revenue-table th{
   padding:11px 16px;background:#101012;border-bottom:1px solid var(--line-2);
   color:var(--fg-3);font-size:9.5px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;
@@ -487,9 +487,10 @@ h1{
 }
 .revenue-table td:first-child{text-align:left}
 .revenue-table tbody tr:nth-child(even) td{background:rgba(255,255,255,.014)}
-.revenue-table tbody tr{transition:background .15s var(--ease),color .15s var(--ease)}
+.revenue-table tbody tr{cursor:pointer;transition:background .15s var(--ease),color .15s var(--ease)}
 .revenue-table tbody tr:hover td{background:rgba(255,255,255,.026);color:var(--fg-1)}
 .revenue-table tbody tr:hover td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0;display:block}
+.revenue-table tbody tr:last-child td{border-bottom:0}
 .chain-cell{display:flex;align-items:center;gap:10px;min-width:0}
 .chain-badge{
   width:34px;
