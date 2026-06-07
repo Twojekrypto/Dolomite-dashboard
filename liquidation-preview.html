@@ -8260,11 +8260,12 @@
             table-layout: fixed !important;
             border-collapse: collapse !important;
         }
-        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(1) { width: 9% !important; }
-        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(2) { width: 23% !important; }
-        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(3) { width: 14% !important; }
-        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(4) { width: 28% !important; }
-        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(5) { width: 26% !important; }
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(1) { width: 7.8% !important; }  /* Chain - left cluster */
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(2) { width: 16.2% !important; } /* Address - left cluster */
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(3) { width: 11.7% !important; } /* HF After - left cluster */
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(4) { width: 28% !important; }   /* Spacer - match Lending Positions rhythm */
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(5) { width: 20% !important; }   /* Collateral - right group */
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(6) { width: 16.3% !important; } /* Debt - right group */
         body.route-liquidation #sim-card .positions-table.sim-atrisk-table thead th {
             height: 34px !important;
             padding: 0 12px !important;
@@ -8318,16 +8319,22 @@
         }
         body.route-liquidation #sim-card .positions-table.sim-atrisk-table tbody td:nth-child(1),
         body.route-liquidation #sim-card .positions-table.sim-atrisk-table tbody td:nth-child(2),
-        body.route-liquidation #sim-card .positions-table.sim-atrisk-table tbody td:nth-child(4),
-        body.route-liquidation #sim-card .positions-table.sim-atrisk-table tbody td:nth-child(5) {
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table tbody td:nth-child(3),
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table tbody td:nth-child(5),
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table tbody td:nth-child(6) {
             overflow: visible !important;
         }
-        body.route-liquidation #sim-card .positions-table.sim-atrisk-table thead th:nth-child(4),
         body.route-liquidation #sim-card .positions-table.sim-atrisk-table thead th:nth-child(5),
-        body.route-liquidation #sim-card .positions-table.sim-atrisk-table tbody td:nth-child(4),
-        body.route-liquidation #sim-card .positions-table.sim-atrisk-table tbody td:nth-child(5) {
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table thead th:nth-child(6),
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table tbody td:nth-child(5),
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table tbody td:nth-child(6) {
             text-align: left !important;
             white-space: normal !important;
+        }
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table thead th.sim-atrisk-spacer,
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table tbody td.sim-atrisk-spacer {
+            padding: 0 !important;
+            overflow: hidden !important;
         }
         body.route-liquidation #sim-card .sim-atrisk-table .liquidation-history-wallet {
             justify-content: flex-start !important;
@@ -8417,8 +8424,9 @@
             body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(1) { width: 12% !important; }
             body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(2) { width: 24% !important; }
             body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(3) { width: 16% !important; }
-            body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(4) { width: 24% !important; }
-            body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(5) { width: 24% !important; }
+            body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(4) { width: 8% !important; }
+            body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(5) { width: 20% !important; }
+            body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(6) { width: 20% !important; }
         }
 
         @media (max-width: 700px) {
@@ -9210,12 +9218,13 @@
                                         </div>
                                         <div class="sim-atrisk-table-wrap">
                                             <table class="positions-table sim-atrisk-table">
-                                                <colgroup><col><col><col><col><col></colgroup>
+                                                <colgroup><col><col><col><col><col><col></colgroup>
                                                 <thead>
                                                     <tr>
                                                         <th>Chain</th>
                                                         <th>Address</th>
                                                         <th>HF After</th>
+                                                        <th class="sim-atrisk-spacer" aria-hidden="true"></th>
                                                         <th>Collateral</th>
                                                         <th>Debt</th>
                                                     </tr>
@@ -12346,7 +12355,7 @@
             if (nextBtn) nextBtn.disabled = currentPage >= pageCount || !ranked.length;
             if (lastBtn) lastBtn.disabled = currentPage >= pageCount || !ranked.length;
             if (!ranked.length) {
-                listEl.innerHTML = `<tr class="sim-atrisk-empty-row"><td colspan="5">${riskQuery ? 'No address matches this search.' : 'No leveraged positions in the visible set.'}</td></tr>`;
+                listEl.innerHTML = `<tr class="sim-atrisk-empty-row"><td colspan="6">${riskQuery ? 'No address matches this search.' : 'No leveraged positions in the visible set.'}</td></tr>`;
                 return;
             }
             listEl.innerHTML = pageRows.map((r) => {
@@ -12364,6 +12373,7 @@
                         + `<span class="sim-risk-hf-pill${crossed ? ' crossed' : ''}" style="color:${color}">${crossed ? 'HF < 1.0' : simFmtHf(r.newHF)}</span>`
                         + (hfNote ? `<span class="sim-risk-hf-before">${hfNote}</span>` : '')
                     + `</span></td>`
+                    + `<td class="sim-atrisk-spacer" aria-hidden="true"></td>`
                     + `<td>${renderSimRiskExposureAmount(r.collateralUSD, r.collateralTokens, 'collateral')}</td>`
                     + `<td>${renderSimRiskExposureAmount(r.debtUSD, r.debtTokens, 'debt')}</td>`
                 + `</tr>`;
