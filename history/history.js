@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260607-claim-coverage2";
+  const HISTORY_VERSION = "history-20260607-claim-shards";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -15,6 +15,7 @@
   const EARN_REWARDS_BASE = "data/earn-merkl-rewards";
   const EARN_SNAPSHOT_BASE = "data/earn-snapshots";
   const REWARD_CLAIM_EVENTS_URL = "data/reward-claim-events.json";
+  const REWARD_CLAIM_EVENTS_BASE = "data/reward-claim-events";
   const ODOLO_CLAIM_EVENTS_URL = "data/odolo-claim-events.json";
   const REWARD_CLAIM_INDEX_CHAIN_KEYS = new Set(["berachain", "arbitrum", "mantle", "xlayer"]);
   const ODOLO_REWARDS_DISTRIBUTOR = "0x79e6e932bf6686a4d357d7821e6e08835ba8a026";
@@ -199,7 +200,7 @@
 
   const els = {};
   const priceCache = new Map();
-  let rewardClaimEventsPromise = null;
+  const rewardClaimEventsPromises = new Map();
   const gasCache = new Map();
   const interestIndexCache = new Map();
   let loadingTicker = 0;
@@ -1363,48 +1364,67 @@
     return { events, warnings };
   }
 
-  async function loadRewardClaimPayload() {
-    if (!rewardClaimEventsPromise) {
-      rewardClaimEventsPromise = fetchOptionalJson(REWARD_CLAIM_EVENTS_URL).then(async result => {
+  async function loadRewardClaimPayload(chainKey) {
+    if (!REWARD_CLAIM_INDEX_CHAIN_KEYS.has(chainKey)) {
+      return { payload: { chains: {}, events: [] } };
+    }
+    if (!rewardClaimEventsPromises.has(chainKey)) {
+      const promise = fetchOptionalJson(`${REWARD_CLAIM_EVENTS_BASE}/${chainKey}.json`).then(async result => {
         if (!result.error) return result;
-        const legacy = await fetchOptionalJson(ODOLO_CLAIM_EVENTS_URL);
-        if (!legacy.error) {
+        const combined = await fetchOptionalJson(REWARD_CLAIM_EVENTS_URL);
+        if (!combined.error && Array.isArray(combined.payload?.events) && combined.payload.events.length) {
           return {
             payload: {
-              schemaVersion: 1,
-              chains: {
-                berachain: {
-                  chainKey: "berachain",
-                  chainName: "Berachain",
-                  fromTimestamp: legacy.payload?.fromTimestamp || 0,
-                  toTimestamp: legacy.payload?.toTimestamp || 0,
-                  source: legacy.payload?.source || "Berachain RewardClaimed logs",
-                },
-              },
-              events: (legacy.payload?.events || []).map(row => ({
-                ...row,
-                chainKey: "berachain",
-                chainName: "Berachain",
-                tokenSymbol: row.tokenSymbol || "oDOLO",
-                tokenAddress: row.tokenAddress || ODOLO_TOKEN_ADDRESS,
-                tokenDecimals: row.tokenDecimals || 18,
-              })),
+              ...combined.payload,
+              chains: combined.payload?.chains?.[chainKey] ? { [chainKey]: combined.payload.chains[chainKey] } : {},
+              events: (combined.payload.events || []).filter(row => (row.chainKey || combined.payload.chainKey || "berachain") === chainKey),
             },
           };
         }
+        if (chainKey === "berachain") {
+          const legacy = await fetchOptionalJson(ODOLO_CLAIM_EVENTS_URL);
+          if (!legacy.error) {
+            return {
+              payload: {
+                schemaVersion: 1,
+                chains: {
+                  berachain: {
+                    chainKey: "berachain",
+                    chainName: "Berachain",
+                    fromTimestamp: legacy.payload?.fromTimestamp || 0,
+                    toTimestamp: legacy.payload?.toTimestamp || 0,
+                    source: legacy.payload?.source || "Berachain RewardClaimed logs",
+                  },
+                },
+                events: (legacy.payload?.events || []).map(row => ({
+                  ...row,
+                  chainKey: "berachain",
+                  chainName: "Berachain",
+                  tokenSymbol: row.tokenSymbol || "oDOLO",
+                  tokenAddress: row.tokenAddress || ODOLO_TOKEN_ADDRESS,
+                  tokenDecimals: row.tokenDecimals || 18,
+                })),
+              },
+            };
+          }
+        }
         return result;
       });
+      rewardClaimEventsPromises.set(chainKey, promise);
     }
-    return rewardClaimEventsPromise;
+    return rewardClaimEventsPromises.get(chainKey);
   }
 
   async function fetchRewardClaimEvents(chainKey, address, bounds) {
-    const result = await loadRewardClaimPayload();
     const chain = CHAINS[chainKey];
     const chainName = chain?.name || chainKey;
     const selected = selectedActionKeys();
     const claimFilterRelevant = actionFilterAllSelected()
       || selected.includes("claim");
+    if (!claimFilterRelevant || !REWARD_CLAIM_INDEX_CHAIN_KEYS.has(chainKey)) {
+      return { events: [], warnings: [] };
+    }
+    const result = await loadRewardClaimPayload(chainKey);
     if (result.error) {
       return {
         events: [],
