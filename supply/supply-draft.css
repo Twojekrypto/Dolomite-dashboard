@@ -2139,15 +2139,25 @@ body.supply-draft-route #supply-table tbody td {
   color: var(--supply-fg-2) !important;
   font-size: 13px !important;
   vertical-align: middle;
+  position: relative;
+  background: transparent;
+  border-bottom-color: rgba(255, 255, 255, .055) !important;
 }
 
 body.supply-draft-route #supply-table tbody tr {
-  transition: background .15s var(--supply-ease);
+  cursor: pointer;
+  background: transparent !important;
+  transition: background .15s var(--supply-ease), color .15s var(--supply-ease);
+}
+
+body.supply-draft-route #supply-table > tbody > tr:nth-child(even) > td {
+  background: rgba(255, 255, 255, .014) !important;
 }
 
 body.supply-draft-route #supply-table > tbody > tr:hover > td {
-  background: var(--supply-bg-3) !important;
-  border-bottom-color: rgba(201, 162, 39, .08) !important;
+  background: rgba(255, 255, 255, .026) !important;
+  color: var(--supply-fg-1) !important;
+  border-bottom-color: rgba(255, 255, 255, .055) !important;
 }
 
 body.supply-draft-route #supply-table > tbody > tr:hover > td:first-child {
@@ -2163,6 +2173,10 @@ body.supply-draft-route #supply-table > tbody > tr:hover > td:first-child::befor
   width: 2px;
   background: var(--supply-gold);
   border-radius: 0 2px 2px 0;
+}
+
+body.supply-draft-route #supply-table > tbody > tr:last-child > td {
+  border-bottom: 0 !important;
 }
 
 body.supply-draft-route #supply-table .supply-rank-cell {
@@ -2313,7 +2327,7 @@ body.supply-draft-route #supply-table .supply-token-value img {
 body.supply-draft-route .positions-table tbody tr:nth-child(even),
 body.supply-draft-route .supply-table tbody tr:nth-child(even),
 body.supply-draft-route .supply-activity-table tbody tr:nth-child(even) {
-  background: rgba(255, 255, 255, .012) !important;
+  background: transparent !important;
 }
 
 body.supply-draft-route #supply-activity-table {
@@ -2451,11 +2465,25 @@ body.supply-draft-route #supply-activity-table tbody td {
   color: var(--supply-fg-2) !important;
   font-size: 13px !important;
   vertical-align: middle;
+  position: relative;
+  background: transparent;
+  border-bottom-color: rgba(255, 255, 255, .055) !important;
+}
+
+body.supply-draft-route #supply-activity-table tbody tr {
+  cursor: pointer;
+  background: transparent !important;
+  transition: background .15s var(--supply-ease), color .15s var(--supply-ease);
+}
+
+body.supply-draft-route #supply-activity-table > tbody > tr:nth-child(even) > td {
+  background: rgba(255, 255, 255, .014) !important;
 }
 
 body.supply-draft-route #supply-activity-table > tbody > tr:hover > td {
-  background: var(--supply-bg-3) !important;
-  border-bottom-color: rgba(201, 162, 39, .08) !important;
+  background: rgba(255, 255, 255, .026) !important;
+  color: var(--supply-fg-1) !important;
+  border-bottom-color: rgba(255, 255, 255, .055) !important;
 }
 
 body.supply-draft-route #supply-activity-table > tbody > tr:hover > td:first-child {
@@ -2472,6 +2500,10 @@ body.supply-draft-route #supply-activity-table > tbody > tr:hover > td:first-chi
   width: 2px;
   background: var(--supply-gold);
   border-radius: 0 2px 2px 0;
+}
+
+body.supply-draft-route #supply-activity-table > tbody > tr:last-child > td {
+  border-bottom: 0 !important;
 }
 
 body.supply-draft-route #supply-activity-table .supply-activity-time strong,
