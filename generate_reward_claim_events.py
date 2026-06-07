@@ -44,6 +44,7 @@ MAX_DISTRIBUTOR_PAGES = int(os.environ.get("REWARD_CLAIM_DISTRIBUTOR_PAGES", os.
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_JSON = os.path.join(ROOT_DIR, "data", "reward-claim-events.json")
 LEGACY_ODOLO_OUTPUT_JSON = os.path.join(ROOT_DIR, "data", "odolo-claim-events.json")
+CHAIN_OUTPUT_DIR = os.path.join(ROOT_DIR, "data", "reward-claim-events")
 STATE_FILE = os.path.join(ROOT_DIR, "reward_claim_events_state.json")
 
 
@@ -875,6 +876,38 @@ def build_legacy_odolo_payload(payload):
     }
 
 
+def reward_claim_manifest(payload):
+    return {
+        **payload,
+        "events": [],
+        "eventCount": len(payload.get("events") or []),
+        "eventsShardedByChain": True,
+        "chainEventFiles": {
+            chain_key: f"data/reward-claim-events/{chain_key}.json"
+            for chain_key in sorted(payload.get("chains") or {})
+        },
+    }
+
+
+def reward_claim_chain_payload(payload, chain_key):
+    events = [
+        event
+        for event in payload.get("events", [])
+        if event.get("chainKey") == chain_key
+    ]
+    chain_meta = (payload.get("chains") or {}).get(chain_key)
+    return {
+        "schemaVersion": payload.get("schemaVersion"),
+        "generatedAt": payload.get("generatedAt"),
+        "protocol": payload.get("protocol"),
+        "source": payload.get("source"),
+        "methodology": payload.get("methodology"),
+        "chainKey": chain_key,
+        "chains": {chain_key: chain_meta} if chain_meta else {},
+        "events": events,
+    }
+
+
 def save_reward_claim_outputs(events, chains_payload, state_chains):
     payload = {
         "schemaVersion": SCHEMA_VERSION,
@@ -885,7 +918,9 @@ def save_reward_claim_outputs(events, chains_payload, state_chains):
         "chains": chains_payload,
         "events": merge_events([], events),
     }
-    save_json(OUTPUT_JSON, payload, compact=True)
+    save_json(OUTPUT_JSON, reward_claim_manifest(payload), compact=True)
+    for chain_key in sorted(chains_payload):
+        save_json(os.path.join(CHAIN_OUTPUT_DIR, f"{chain_key}.json"), reward_claim_chain_payload(payload, chain_key), compact=True)
     save_json(LEGACY_ODOLO_OUTPUT_JSON, build_legacy_odolo_payload(payload), compact=True)
     save_json(STATE_FILE, {
         "schemaVersion": SCHEMA_VERSION,

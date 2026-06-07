@@ -261,6 +261,22 @@ def _reward_claim_events_have_distributor_tokens(data):
     return True
 
 
+def _reward_claim_events_shard_manifest_is_consistent(data):
+    if not data.get("eventsShardedByChain"):
+        return True
+    chains = data.get("chains", {})
+    files = data.get("chainEventFiles", {})
+    if not isinstance(chains, dict) or not isinstance(files, dict):
+        return False
+    if set(files) != set(chains):
+        return False
+    return all(
+        isinstance(path, str)
+        and path == f"data/reward-claim-events/{chain_key}.json"
+        for chain_key, path in files.items()
+    )
+
+
 def _reward_claim_events_have_transaction_evidence(data):
     events = data.get("events", [])
     return all(
@@ -331,6 +347,7 @@ RULES = {
             ("events must reference known chains", _reward_claim_events_have_known_chains),
             ("chain metadata must be complete", _reward_claim_events_have_chain_metadata),
             ("distributor tokens must be resolved", _reward_claim_events_have_distributor_tokens),
+            ("sharded claim manifest must be consistent", _reward_claim_events_shard_manifest_is_consistent),
             ("events must have transaction evidence", _reward_claim_events_have_transaction_evidence),
         ],
         "min_bytes": 500,
