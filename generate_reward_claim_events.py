@@ -68,8 +68,8 @@ CHAIN_CONFIGS = {
             *([] if not os.environ.get("ALCHEMY_BERACHAIN_RPC") else [os.environ["ALCHEMY_BERACHAIN_RPC"]]),
             *([] if not os.environ.get("ALCHEMY_BERACHAIN_RPC_2") else [os.environ["ALCHEMY_BERACHAIN_RPC_2"]]),
             *([] if not os.environ.get("ALCHEMY_BERACHAIN_RPC_3") else [os.environ["ALCHEMY_BERACHAIN_RPC_3"]]),
-            "https://rpc.berachain.com/",
             "https://berachain-rpc.publicnode.com/",
+            "https://rpc.berachain.com/",
             "https://berachain.drpc.org/",
         ],
     },
@@ -111,7 +111,6 @@ CHAIN_CONFIGS = {
         "rpcUrls": [
             *([] if not os.environ.get("ALCHEMY_MANTLE_RPC") else [os.environ["ALCHEMY_MANTLE_RPC"]]),
             *([] if not os.environ.get("ALCHEMY_MANTLE_RPC_2") else [os.environ["ALCHEMY_MANTLE_RPC_2"]]),
-            "https://rpc.mantle.xyz/",
             "https://mantle-rpc.publicnode.com/",
             "https://mantle.drpc.org/",
         ],
@@ -120,9 +119,10 @@ CHAIN_CONFIGS = {
         "name": "X Layer",
         "subgraph": os.environ.get("DOLOMITE_XLAYER_SUBGRAPH", f"{GRAPH_BASE}/dolomite-x-layer/latest/gn"),
         "eventEmitter": "0xd86233e2e53a87f0735c5643f3189cfec07269bf",
-        "deployBlock": 0,
+        "deployBlock": 850_676,
         "blockTimeSeconds": 2,
         "chunkSize": 250_000,
+        "requiresConfiguredRpcForFullClaimScan": True,
         "fallbackDistributors": set(),
         "token": {"symbol": "Reward", "address": "", "decimals": 18},
         "knownDistributorTokens": {},
@@ -152,6 +152,14 @@ def selected_chain_keys():
     if unknown:
         raise ValueError(f"Unknown REWARD_CLAIM_CHAINS entries: {', '.join(unknown)}")
     return requested
+
+
+def has_configured_rpc(chain_key):
+    env_key = chain_env_key(chain_key)
+    return any(
+        os.environ.get(f"ALCHEMY_{env_key}_RPC{suffix}")
+        for suffix in ("", "_2", "_3")
+    )
 
 
 def rpc_request(rpc_urls, method, params, timeout=30):
@@ -419,11 +427,14 @@ def load_json(path, fallback):
         return fallback
 
 
-def save_json(path, payload):
+def save_json(path, payload, compact=False):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp = path + ".tmp"
     with open(tmp, "w") as file:
-        json.dump(payload, file, indent=2, sort_keys=True)
+        if compact:
+            json.dump(payload, file, separators=(",", ":"), sort_keys=True)
+        else:
+            json.dump(payload, file, indent=2, sort_keys=True)
         file.write("\n")
     os.replace(tmp, path)
 
@@ -436,67 +447,99 @@ def env_int(*names):
     return None
 
 
+def claim_chunk_size(chain_key, config):
+    env_key = chain_env_key(chain_key)
+    configured = env_int(f"REWARD_CLAIM_CHUNK_SIZE_{env_key}", "REWARD_CLAIM_CHUNK_SIZE")
+    return int(configured or config.get("chunkSize") or DEFAULT_CHUNK_SIZE)
+
+
+def timestamp_batch_size(chain_key, config):
+    env_key = chain_env_key(chain_key)
+    configured = env_int(f"REWARD_CLAIM_TIMESTAMP_BATCH_SIZE_{env_key}", "REWARD_CLAIM_TIMESTAMP_BATCH_SIZE")
+    return int(configured or config.get("timestampBatchSize") or 100)
+
+
+def distributor_batch_size(chain_key, config):
+    env_key = chain_env_key(chain_key)
+    configured = env_int(f"REWARD_CLAIM_DISTRIBUTOR_BATCH_SIZE_{env_key}", "REWARD_CLAIM_DISTRIBUTOR_BATCH_SIZE")
+    return max(1, int(configured or config.get("distributorBatchSize") or 50))
+
+
 def fetch_reward_claimed_logs(chain_key, config, start_block, end_block, distributors):
     if start_block > end_block:
         return []
     distributor_topics = [topic_address(distributor) for distributor in distributors]
     if not distributor_topics:
         return []
-    configured_chunk_size = int(config.get("chunkSize") or DEFAULT_CHUNK_SIZE)
+    configured_chunk_size = claim_chunk_size(chain_key, config)
     chunk_size = max(1000, configured_chunk_size)
+    distributor_chunk_size = distributor_batch_size(chain_key, config)
+    topic_batches = [
+        distributor_topics[index:index + distributor_chunk_size]
+        for index in range(0, len(distributor_topics), distributor_chunk_size)
+    ]
     logs = []
-    current = start_block
     total_blocks = max(1, end_block - start_block + 1)
     print(f"Scanning {config['name']} reward claims for {len(distributor_topics):,} distributors: blocks {start_block:,} -> {end_block:,}")
 
-    while current <= end_block:
-        chunk_end = min(current + chunk_size - 1, end_block)
-        success = False
-        last_error = None
-        for _attempt in range(len(config["rpcUrls"]) * 2):
-            try:
-                result = rpc_request(
-                    config["rpcUrls"],
-                    "eth_getLogs",
-                    [{
-                        "address": config["eventEmitter"],
-                        "fromBlock": hex(current),
-                        "toBlock": hex(chunk_end),
-                        "topics": [REWARD_CLAIMED_TOPIC, distributor_topics],
-                    }],
-                    timeout=35,
-                )
-                logs.extend(result or [])
-                success = True
-                break
-            except RuntimeError as exc:
-                last_error = exc
-                message = str(exc).lower()
-                if "range" in message or "limit" in message or "too many" in message:
-                    chunk_size = max(chunk_size // 2, 1000)
-                    chunk_end = min(current + chunk_size - 1, end_block)
-                    continue
-                time.sleep(0.5)
-        if not success:
-            print(f"Warning: skipped {chain_key} claim-log chunk at block {current:,}: {last_error}")
-            current = chunk_end + 1
-            continue
+    for batch_index, topic_batch in enumerate(topic_batches, start=1):
+        if len(topic_batches) > 1:
+            print(f"  {config['name']}: scanning distributor batch {batch_index}/{len(topic_batches)}")
+        current = start_block
+        chunk_size = max(1000, configured_chunk_size)
+        last_progress_percent = -1
+        while current <= end_block:
+            chunk_end = min(current + chunk_size - 1, end_block)
+            success = False
+            last_error = None
+            for _attempt in range(len(config["rpcUrls"]) * 2):
+                try:
+                    result = rpc_request(
+                        config["rpcUrls"],
+                        "eth_getLogs",
+                        [{
+                            "address": config["eventEmitter"],
+                            "fromBlock": hex(current),
+                            "toBlock": hex(chunk_end),
+                            "topics": [REWARD_CLAIMED_TOPIC, topic_batch],
+                        }],
+                        timeout=35,
+                    )
+                    logs.extend(result or [])
+                    success = True
+                    break
+                except RuntimeError as exc:
+                    last_error = exc
+                    message = str(exc).lower()
+                    if "range" in message or "limit" in message or "too many" in message:
+                        chunk_size = max(chunk_size // 2, 1000)
+                        chunk_end = min(current + chunk_size - 1, end_block)
+                        continue
+                    time.sleep(0.5)
+            if not success:
+                print(f"Warning: skipped {chain_key} claim-log chunk at block {current:,}: {last_error}")
+                current = chunk_end + 1
+                continue
 
-        current = chunk_end + 1
-        if chunk_size < configured_chunk_size:
-            chunk_size = min(chunk_size * 2, configured_chunk_size)
-        if current > end_block or len(logs) % 50 == 0:
+            current = chunk_end + 1
+            if chunk_size < configured_chunk_size:
+                chunk_size = min(chunk_size * 2, configured_chunk_size)
             pct = min(100, (current - start_block) * 100 // total_blocks)
-            print(f"  {config['name']}: {pct}% scanned, {len(logs):,} claim logs")
-        time.sleep(0.04)
+            if current > end_block or pct >= last_progress_percent + 5:
+                suffix = f" batch {batch_index}/{len(topic_batches)}" if len(topic_batches) > 1 else ""
+                print(f"  {config['name']}: {pct}% scanned{suffix}, {len(logs):,} claim logs")
+                last_progress_percent = pct
+            time.sleep(0.04)
 
     return logs
 
 
-def fetch_block_timestamps(config, block_numbers):
+def fetch_block_timestamps(chain_key, config, block_numbers):
     timestamps = {}
     blocks = sorted(set(block_numbers))
-    batch_size = int(config.get("timestampBatchSize") or 100)
+    batch_size = max(1, timestamp_batch_size(chain_key, config))
+    total = len(blocks)
+    last_percent = -1
     for i in range(0, len(blocks), batch_size):
         chunk = blocks[i:i + batch_size]
         calls = [
@@ -522,14 +565,19 @@ def fetch_block_timestamps(config, block_numbers):
                     print(f"Warning: {config['name']} timestamp unavailable for block {block}: {single_exc}")
                     timestamps[block] = 0
                 time.sleep(0.02)
+        if total >= 1000:
+            percent = int(min(100, ((i + len(chunk)) / total) * 100))
+            if percent >= last_percent + 10 or percent == 100:
+                print(f"  {config['name']}: {percent}% claim block timestamps resolved")
+                last_percent = percent
         time.sleep(0.02)
     return timestamps
 
 
-def fetch_block_timestamp(config, block_number):
+def fetch_block_timestamp(chain_key, config, block_number):
     if block_number is None:
         return 0
-    return fetch_block_timestamps(config, [block_number]).get(block_number, 0)
+    return fetch_block_timestamps(chain_key, config, [block_number]).get(block_number, 0)
 
 
 def claim_events_from_logs(chain_key, config, logs, distributor_tokens):
@@ -570,7 +618,7 @@ def claim_events_from_logs(chain_key, config, logs, distributor_tokens):
             "source": "RewardClaimed",
         })
 
-    timestamps = fetch_block_timestamps(config, block_numbers)
+    timestamps = fetch_block_timestamps(chain_key, config, block_numbers)
     for event in decoded:
         event["timestamp"] = timestamps.get(event["blockNumber"], 0)
     return decoded
@@ -654,13 +702,17 @@ def scan_bounds_for_chain(chain_key, config, current_block, state, existing):
     existing_rows = existing_events_for_chain(existing, chain_key)
     existing_from_block = int(meta.get("fromBlock") or 0)
     existing_to_block = int(meta.get("toBlock") or 0)
-    existing_is_full_coverage = existing_from_block and existing_from_block <= deploy_block
+    coverage_status = str(meta.get("coverageStatus") or "").lower()
+    meta_failed = coverage_status == "failed"
+    existing_is_full_coverage = bool(existing_from_block and existing_from_block <= deploy_block and not meta_failed)
     state_chain = (state.get("chains") or {}).get(chain_key, {}) if isinstance(state, dict) else {}
     state_is_usable = state.get("schemaVersion") == SCHEMA_VERSION and int(state_chain.get("lastBlock", 0) or 0) > 0
 
     if env_start is not None:
         start_block = max(deploy_block, env_start)
     elif force_full:
+        start_block = deploy_block
+    elif meta_failed:
         start_block = deploy_block
     elif existing_rows and not existing_is_full_coverage:
         start_block = deploy_block
@@ -691,6 +743,8 @@ def build_chain_payload(chain_key, config, current_block, start_block, end_block
         from_candidates.append(min(event_blocks))
     coverage_from_block = min(block for block in from_candidates if block is not None)
     coverage_to_block = max([block for block in [end_block, existing_to_block, max(event_blocks) if event_blocks else 0] if block is not None])
+    deploy_block = int(config.get("deployBlock") or 0)
+    coverage_status = "complete" if coverage_from_block <= deploy_block else "partial"
     event_distributors = sorted({
         normalize_address(event.get("distributor"))
         for event in events
@@ -704,12 +758,12 @@ def build_chain_payload(chain_key, config, current_block, start_block, end_block
     from_timestamp = (
         int(meta.get("fromTimestamp") or 0)
         if coverage_from_block == existing_from_block and meta.get("fromTimestamp")
-        else fetch_block_timestamp(config, coverage_from_block)
+        else fetch_block_timestamp(chain_key, config, coverage_from_block)
     )
     to_timestamp = (
         int(meta.get("toTimestamp") or 0)
         if coverage_to_block == existing_to_block and meta.get("toTimestamp")
-        else fetch_block_timestamp(config, coverage_to_block)
+        else fetch_block_timestamp(chain_key, config, coverage_to_block)
     )
     return {
         "chainKey": chain_key,
@@ -717,6 +771,7 @@ def build_chain_payload(chain_key, config, current_block, start_block, end_block
         "eventEmitter": normalize_address(config["eventEmitter"]),
         "fromBlock": coverage_from_block,
         "toBlock": coverage_to_block if coverage_to_block is not None else current_block,
+        "coverageStatus": coverage_status,
         "fromTimestamp": from_timestamp,
         "toTimestamp": to_timestamp,
         "distributors": output_distributors,
@@ -752,6 +807,7 @@ def build_chain_payload_from_events(chain_key, config, events):
         "eventEmitter": normalize_address(config["eventEmitter"]),
         "fromBlock": min(block_numbers) if block_numbers else 0,
         "toBlock": max(block_numbers) if block_numbers else 0,
+        "coverageStatus": "seeded",
         "fromTimestamp": min(timestamps) if timestamps else 0,
         "toTimestamp": max(timestamps) if timestamps else 0,
         "distributors": distributors,
@@ -759,6 +815,33 @@ def build_chain_payload_from_events(chain_key, config, events):
         "tokensByDistributor": tokens_by_distributor,
         "eventCount": len(chain_events),
         "warning": "Seeded from existing reward-claim event file; next workflow scan refreshes full chain coverage.",
+    }
+
+
+def build_chain_payload_from_scan_failure(chain_key, config, start_block=0, end_block=0, distributors=None, warning=""):
+    output_distributors = sorted({
+        normalize_address(address)
+        for address in (distributors or set(config.get("fallbackDistributors", set())) | set((config.get("knownDistributorTokens") or {}).keys()))
+        if is_address(address)
+    })
+    output_tokens = {
+        distributor: normalize_token_metadata((config.get("knownDistributorTokens") or {}).get(distributor) or config.get("token", {}))
+        for distributor in output_distributors
+    }
+    return {
+        "chainKey": chain_key,
+        "chainName": config["name"],
+        "eventEmitter": normalize_address(config["eventEmitter"]),
+        "fromBlock": int(start_block or config.get("deployBlock") or 0),
+        "toBlock": int(end_block or start_block or 0),
+        "coverageStatus": "failed",
+        "fromTimestamp": 0,
+        "toTimestamp": 0,
+        "distributors": output_distributors,
+        "token": config.get("token", {}),
+        "tokensByDistributor": output_tokens,
+        "eventCount": 0,
+        "warning": warning or "RewardClaimed scan failed before chain coverage metadata could be refreshed.",
     }
 
 
@@ -792,6 +875,27 @@ def build_legacy_odolo_payload(payload):
     }
 
 
+def save_reward_claim_outputs(events, chains_payload, state_chains):
+    payload = {
+        "schemaVersion": SCHEMA_VERSION,
+        "generatedAt": utc_now_iso(),
+        "protocol": "Dolomite",
+        "source": "Dolomite EventEmitterRegistry RewardClaimed logs",
+        "methodology": "Reward claim transactions are indexed from EventEmitterRegistry RewardClaimed logs and matched to wallet, chain, tx hash, log index, epoch and amount.",
+        "chains": chains_payload,
+        "events": merge_events([], events),
+    }
+    save_json(OUTPUT_JSON, payload, compact=True)
+    save_json(LEGACY_ODOLO_OUTPUT_JSON, build_legacy_odolo_payload(payload), compact=True)
+    save_json(STATE_FILE, {
+        "schemaVersion": SCHEMA_VERSION,
+        "generatedAt": payload["generatedAt"],
+        "eventCount": len(payload["events"]),
+        "chains": state_chains,
+    })
+    return payload
+
+
 def main():
     print("=" * 60)
     print("Dolomite reward claim events")
@@ -813,8 +917,32 @@ def main():
 
     for chain_key in selected_chain_keys():
         config = CHAIN_CONFIGS[chain_key]
+        current_block = 0
+        start_block = 0
+        end_block = 0
+        distributors = []
         try:
             current_block = get_current_block(config)
+            if config.get("requiresConfiguredRpcForFullClaimScan") and not has_configured_rpc(chain_key):
+                distributors = sorted(set(fetch_claim_distributors(config)) | {
+                    normalize_address(address)
+                    for address in (chain_meta(existing, chain_key).get("distributors") or [])
+                    if is_address(address)
+                })
+                chains_payload[chain_key] = build_chain_payload_from_scan_failure(
+                    chain_key,
+                    config,
+                    start_block=int(config.get("deployBlock") or 0),
+                    end_block=current_block,
+                    distributors=distributors,
+                    warning=(
+                        f"{config['name']} public RPC limits eth_getLogs too tightly for a full reward-claim backfill; "
+                        f"configure ALCHEMY_{chain_env_key(chain_key)}_RPC to index claim transactions."
+                    ),
+                )
+                save_reward_claim_outputs(all_events, chains_payload, state_chains)
+                print(f"Skipped {config['name']} reward claim scan: configured RPC is required for full backfill")
+                continue
             start_block, end_block = scan_bounds_for_chain(chain_key, config, current_block, state, existing)
             existing_distributors = {
                 normalize_address(address)
@@ -847,6 +975,7 @@ def main():
                 "lastBlock": end_block,
                 "eventCount": chains_payload[chain_key]["eventCount"],
             }
+            save_reward_claim_outputs(all_events, chains_payload, state_chains)
             print(f"Saved {chains_payload[chain_key]['eventCount']:,} {config['name']} reward claim events")
         except (requests.RequestException, ValueError, RuntimeError) as exc:
             print(f"Warning: {config['name']} reward claim scan failed: {exc}")
@@ -855,28 +984,22 @@ def main():
                 meta = dict(meta)
                 meta["warning"] = f"Latest scan failed: {exc}"
                 chains_payload[chain_key] = meta
+            else:
+                chains_payload[chain_key] = build_chain_payload_from_scan_failure(
+                    chain_key,
+                    config,
+                    start_block=start_block,
+                    end_block=end_block or current_block,
+                    distributors=distributors,
+                    warning=f"Latest scan failed: {exc}",
+                )
+            save_reward_claim_outputs(all_events, chains_payload, state_chains)
 
     for chain_key in sorted({event.get("chainKey") for event in all_events if event.get("chainKey")}):
         if chain_key not in chains_payload and chain_key in CHAIN_CONFIGS:
             chains_payload[chain_key] = build_chain_payload_from_events(chain_key, CHAIN_CONFIGS[chain_key], all_events)
 
-    payload = {
-        "schemaVersion": SCHEMA_VERSION,
-        "generatedAt": utc_now_iso(),
-        "protocol": "Dolomite",
-        "source": "Dolomite EventEmitterRegistry RewardClaimed logs",
-        "methodology": "Reward claim transactions are indexed from EventEmitterRegistry RewardClaimed logs and matched to wallet, chain, tx hash, log index, epoch and amount.",
-        "chains": chains_payload,
-        "events": merge_events([], all_events),
-    }
-    save_json(OUTPUT_JSON, payload)
-    save_json(LEGACY_ODOLO_OUTPUT_JSON, build_legacy_odolo_payload(payload))
-    save_json(STATE_FILE, {
-        "schemaVersion": SCHEMA_VERSION,
-        "generatedAt": payload["generatedAt"],
-        "eventCount": len(payload["events"]),
-        "chains": state_chains,
-    })
+    payload = save_reward_claim_outputs(all_events, chains_payload, state_chains)
 
     print(f"Saved {len(payload['events']):,} reward claim events to {OUTPUT_JSON}")
     print(f"Saved Berachain oDOLO compatibility file to {LEGACY_ODOLO_OUTPUT_JSON}")
