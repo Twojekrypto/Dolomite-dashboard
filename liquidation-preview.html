@@ -8256,15 +8256,15 @@
         }
         body.route-liquidation #sim-card .positions-table.sim-atrisk-table {
             width: 100% !important;
-            min-width: 820px !important;
+            min-width: 900px !important;
             table-layout: fixed !important;
             border-collapse: collapse !important;
         }
-        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(1) { width: 10% !important; }
-        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(2) { width: 28% !important; }
-        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(3) { width: 17% !important; }
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(1) { width: 9% !important; }
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(2) { width: 23% !important; }
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(3) { width: 14% !important; }
         body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(4) { width: 28% !important; }
-        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(5) { width: 17% !important; }
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(5) { width: 26% !important; }
         body.route-liquidation #sim-card .positions-table.sim-atrisk-table thead th {
             height: 34px !important;
             padding: 0 12px !important;
@@ -8318,8 +8318,16 @@
         }
         body.route-liquidation #sim-card .positions-table.sim-atrisk-table tbody td:nth-child(1),
         body.route-liquidation #sim-card .positions-table.sim-atrisk-table tbody td:nth-child(2),
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table tbody td:nth-child(4),
         body.route-liquidation #sim-card .positions-table.sim-atrisk-table tbody td:nth-child(5) {
             overflow: visible !important;
+        }
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table thead th:nth-child(4),
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table thead th:nth-child(5),
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table tbody td:nth-child(4),
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table tbody td:nth-child(5) {
+            text-align: left !important;
+            white-space: normal !important;
         }
         body.route-liquidation #sim-card .sim-atrisk-table .liquidation-history-wallet {
             justify-content: flex-start !important;
@@ -8365,7 +8373,7 @@
         body.route-liquidation #sim-card .sim-risk-hf-cell {
             display: inline-flex !important;
             flex-direction: column !important;
-            align-items: center !important;
+            align-items: flex-start !important;
             justify-content: center !important;
             gap: 3px !important;
             min-width: 0 !important;
@@ -8404,13 +8412,13 @@
 
         @media (max-width: 900px) {
             body.route-liquidation #sim-card .positions-table.sim-atrisk-table {
-                min-width: 660px !important;
+                min-width: 760px !important;
             }
-            body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(1) { width: 14% !important; }
-            body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(2) { width: 27% !important; }
-            body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(3) { width: 17% !important; }
-            body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(4) { width: 25% !important; }
-            body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(5) { width: 17% !important; }
+            body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(1) { width: 12% !important; }
+            body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(2) { width: 24% !important; }
+            body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(3) { width: 16% !important; }
+            body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(4) { width: 24% !important; }
+            body.route-liquidation #sim-card .positions-table.sim-atrisk-table colgroup col:nth-child(5) { width: 24% !important; }
         }
 
         @media (max-width: 700px) {
@@ -8466,7 +8474,7 @@
                 flex: 1 1 0 !important;
             }
             body.route-liquidation #sim-card .positions-table.sim-atrisk-table {
-                min-width: 660px !important;
+                min-width: 760px !important;
             }
             body.route-liquidation #sim-card.liquidation-sim-card {
                 grid-template-columns: 1fr !important;
@@ -9207,9 +9215,9 @@
                                                     <tr>
                                                         <th>Chain</th>
                                                         <th>Address</th>
-                                                        <th>Debt</th>
-                                                        <th>Collateral</th>
                                                         <th>HF After</th>
+                                                        <th>Collateral</th>
+                                                        <th>Debt</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody id="sim-atrisk-list"></tbody>
@@ -12224,6 +12232,25 @@
             const more = entries.length > visible.length ? ` +${entries.length - visible.length}` : '';
             return `${visible.join(' · ')}${more}`;
         }
+        function renderSimRiskExposureAmount(totalUsd, tokenMap, variant) {
+            const entries = Object.entries(tokenMap || {})
+                .filter(([symbol, usd]) => symbol && Number(usd) > 0.01)
+                .sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0));
+            const tintClass = variant === 'debt' ? ' debt' : variant === 'collateral' ? ' collateral' : '';
+            const tokenPills = entries.slice(0, 2).map(([symbol, usd]) => {
+                const shortSymbol = truncateTokenName(symbol);
+                const icon = getTokenIcon(shortSymbol) || SYMBOL_ICONS[symbol] || SYMBOL_ICONS[shortSymbol] || `https://icons.llamao.fi/icons/tokens/${String(symbol).toLowerCase()}`;
+                return `<span class="token-pill"><span class="token-pill-icon"><img src="${supplyEscapeHtml(icon)}" alt="${supplyEscapeHtml(shortSymbol)}" onerror="this.src='dolomite-logo.svg'"></span>${supplyEscapeHtml(shortSymbol)} <span class="token-usd">${supplyEscapeHtml(formatUSDCompact(Number(usd || 0)))}</span></span>`;
+            }).join('');
+            const morePill = entries.length > 2
+                ? `<span class="token-pill muted">+${entries.length - 2}</span>`
+                : '';
+            const fallback = `<span class="token-pill muted">${variant === 'debt' ? 'Debt' : 'Collateral'} detail unavailable</span>`;
+            return `<div class="pos-merged liquidation-history-amount sim-risk-exposure-amount">
+                <span class="usd-value${tintClass}">${supplyEscapeHtml(formatUSDCompact(Number(totalUsd || 0)))}</span>
+                <div class="token-pills">${tokenPills || fallback}${morePill}</div>
+            </div>`;
+        }
         function setSimRiskDetailsOpen(open) {
             const details = document.getElementById('sim-risk-details');
             const trigger = document.getElementById('sim-risk-details-trigger');
@@ -12329,24 +12356,16 @@
                 const chain = r.chain || '';
                 const chainLabel = CHAIN_SHORT_LABELS[chain] || CHAIN_DISPLAY_NAMES[chain] || chain || '—';
                 const chainIcon = CHAIN_ICONS[chain] || 'dolomite-logo.svg';
-                const debtSummary = simTokenSummary(r.debtTokens, 'Debt assets unavailable');
-                const collateralSummary = simTokenSummary(r.collateralTokens, 'Collateral assets unavailable');
                 const hfNote = showNow ? `${simFmtHf(r.hf)} -> ${simFmtRiskHf(r.newHF)}` : '';
                 return `<tr class="${crossed ? 'crossed' : ''}">`
                     + `<td><span class="chain-badge ${supplyEscapeHtml(chain)}"><img class="chain-icon" src="${supplyEscapeHtml(chainIcon)}" alt="">${supplyEscapeHtml(chainLabel)}</span></td>`
                     + `<td>${renderLiquidationHistoryAddress(r.addr, chain)}</td>`
-                    + `<td><div class="sim-risk-amount">`
-                        + `<span class="sim-risk-amount-main debt">${formatUSD(Math.round(r.debtUSD || 0))}</span>`
-                        + `<span class="sim-risk-amount-sub">${debtSummary}</span>`
-                    + `</div></td>`
-                    + `<td><div class="sim-risk-amount">`
-                        + `<span class="sim-risk-amount-main collateral">${formatUSD(Math.round(r.collateralUSD || 0))}</span>`
-                        + `<span class="sim-risk-amount-sub">${collateralSummary}</span>`
-                    + `</div></td>`
                     + `<td><span class="sim-risk-hf-cell">`
                         + `<span class="sim-risk-hf-pill${crossed ? ' crossed' : ''}" style="color:${color}">${crossed ? 'HF < 1.0' : simFmtHf(r.newHF)}</span>`
                         + (hfNote ? `<span class="sim-risk-hf-before">${hfNote}</span>` : '')
                     + `</span></td>`
+                    + `<td>${renderSimRiskExposureAmount(r.collateralUSD, r.collateralTokens, 'collateral')}</td>`
+                    + `<td>${renderSimRiskExposureAmount(r.debtUSD, r.debtTokens, 'debt')}</td>`
                 + `</tr>`;
             }).join('');
         }
