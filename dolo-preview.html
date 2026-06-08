@@ -1681,6 +1681,7 @@ let DOLO_BALANCE_CHANGES = {};
 let DOLO_FRESH_HOLDERS = {};
 let DOLO_HOLDER_HISTORY_POINTS = [];
 let DOLO_HOLDER_BUCKET_HISTORY = [];
+let DOLO_HOLDER_WALLET_HISTORY = {};
 let DOLO_CEX_SUPPLY_HISTORY = [];
 let vedoloHolderStats = null;
 let vedoloDataTimestamp = null;
@@ -3474,10 +3475,56 @@ function holderWalletChainHtml(row){
     <span class="holder-chain-chip"><span class="holder-chain-icon ${chain.key}" aria-hidden="true"></span>${escHtml(chain.label)}</span>
   `).join("")}</div>`;
 }
+function holderHistoricalWalletRowsAtPoint(point, includeVeDolo = false){
+  const key = point?.key || "";
+  if(!key || key === "now") return null;
+  const source = DOLO_HOLDER_WALLET_HISTORY?.[key];
+  if(!source) return null;
+  const balanceKey = includeVeDolo ? "with_vedolo" : "liquid";
+  const viewRows = source?.[balanceKey]?.[holderBucketView];
+  if(!Array.isArray(viewRows)) return null;
+  return viewRows.map(item => {
+    const addr = item.address || item.addr || "";
+    const info = sharedAddressInfo(addr) || {};
+    const locked = includeVeDolo ? safeHolderNum(item.locked) : 0;
+    const liquid = item.liquid === undefined && item.balance !== undefined
+      ? Math.max(0, safeHolderNum(item.balance) - locked)
+      : safeHolderNum(item.liquid ?? item.total ?? item.balance);
+    const balEth = safeHolderNum(item.balance_eth ?? item.balEth);
+    const balBera = safeHolderNum(item.balance_bera ?? item.balBera);
+    const type = item.type || holderDistributionType(addr, item);
+    return {
+      addr,
+      label:item.label || info.label || "",
+      type,
+      balEth,
+      balBera,
+      total:liquid,
+      liquid,
+      locked,
+      contract_wallet_type:item.contract_wallet_type || item.contractWalletType || "",
+      safe:item.safe === true || info.safe === true,
+      panelTotal:liquid + locked,
+      historicalPointKey:key,
+    };
+  }).filter(row => row.addr && row.panelTotal > 0);
+}
+function holderWalletRowsAvailableAtPoint(point, includeVeDolo = false){
+  if(!point) return false;
+  if((point.key || "") === "now") return true;
+  if(holderHistoricalWalletRowsAtPoint(point, includeVeDolo)) return true;
+  return holderBalanceChangesFromPointToNow(point) !== null;
+}
+function holderWalletBaselinePointForRange(rawPoint, includeVeDolo = false){
+  if(holderWalletRowsAvailableAtPoint(rawPoint, includeVeDolo)) return rawPoint;
+  return holderResolvedBalanceChangePoint(rawPoint);
+}
 function holderRowsAtPoint(point, includeVeDolo = false){
   const byAddress = new Map();
   const sourcePoint = point || {key:"now", label:"Now", ts:holderHistoryBaseTs()};
   const baseTs = holderHistoryBaseTs();
+  const historicalRows = holderHistoricalWalletRowsAtPoint(sourcePoint, includeVeDolo);
+  if(historicalRows) return historicalRows;
   HOLDERS.forEach(holder => {
     const row = ensureHolderBucketRow(byAddress, holder.addr || holder.address, holder);
     if(!row) return;
@@ -3488,7 +3535,8 @@ function holderRowsAtPoint(point, includeVeDolo = false){
     row.balBera = safeHolderNum(row.balBera) + safeHolderNum(holder.balBera);
   });
   if(sourcePoint.key !== "now"){
-    const changes = holderBalanceChangesFromPointToNow(sourcePoint) || {};
+    const changes = holderBalanceChangesFromPointToNow(sourcePoint);
+    if(changes === null) return [];
     Object.entries(changes).forEach(([addr, netFlow]) => {
       const row = ensureHolderBucketRow(byAddress, addr, null);
       if(row) row.liquid -= safeHolderNum(netFlow);
@@ -3760,7 +3808,7 @@ function holderPanelDateText(point){
 function holderWalletInlinePanelHtml(bucket, model = null){
   const point = model?.current || null;
   const rawBaselinePoint = model?.points?.[0] || point;
-  const baselinePoint = model?.rangeBaselinePoint || holderResolvedBalanceChangePoint(rawBaselinePoint);
+  const baselinePoint = holderWalletBaselinePointForRange(rawBaselinePoint, !!state.includeVeDolo) || model?.rangeBaselinePoint || null;
   const veDoloUnavailable = state.includeVeDolo && !VEDOLO_LOCKS.size;
   const rows = baselinePoint && !veDoloUnavailable ? holderBucketWalletRows(bucket, point, baselinePoint) : [];
   const veDoloText = state.includeVeDolo ? " · DOLO + veDOLO" : " · DOLO balance";
@@ -3773,13 +3821,13 @@ function holderWalletInlinePanelHtml(bucket, model = null){
           ? `Loading veDOLO wallet-level data · current view ${holderPanelDateText(point)}${veDoloText}`
           : baselinePoint
           ? `${rows.length.toLocaleString()} current/prior wallets · ${holderPanelDateText(point)}${veDoloText} · change from ${holderPanelDateText(baselinePoint)} · CEX/protocol/allocation excluded`
-          : `Wallet-level changes are available for standard ranges only · current view ${holderPanelDateText(point)}${veDoloText}`,
+          : `Wallet-level details are not available for this selected range · current view ${holderPanelDateText(point)}${veDoloText}`,
         rows,
         emptyText:veDoloUnavailable
           ? "veDOLO wallet-level data is still loading. The panel will refresh automatically."
           : baselinePoint
           ? "No wallets in this bucket for the selected point."
-          : "This custom range does not have address-level history. Use 1D, 7D, 30D, 90D, 180D or All to open exact wallet changes.",
+          : "This range is missing wallet-level history data. Re-run the DOLO flow refresh to rebuild exact holder details.",
       })}
     </div>
   `;
@@ -5045,6 +5093,7 @@ renderCexSupplyChart();
     DOLO_FRESH_HOLDERS = flows.fresh_holders || flows.fresh_wallets || {};
     DOLO_HOLDER_HISTORY_POINTS = Array.isArray(flows.holder_history_points) ? flows.holder_history_points : [];
     DOLO_HOLDER_BUCKET_HISTORY = Array.isArray(flows.holder_bucket_history) ? flows.holder_bucket_history : [];
+    DOLO_HOLDER_WALLET_HISTORY = flows.holder_wallet_history || {};
     DOLO_CEX_SUPPLY_HISTORY = Array.isArray(flows.cex_supply_history) ? flows.cex_supply_history : [];
     doloFlowDataTimestamp = flows.timestamp || null;
     doloAllHistoryStartTs = parseHolderTimestamp(flows.holder_history_start_timestamp || flows.all_history_start_timestamp || flows.period_start_timestamps?.all);
