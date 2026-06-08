@@ -28897,12 +28897,22 @@
             }
         }
 
+        function earn_isTrustedReplayYieldMethod(method) {
+            return method === 'interest-ledger'
+                || method === 'interest-ledger-override'
+                || method === 'interest-ledger-live-balance-adjusted';
+        }
+
+        function earn_isTrustedReplayYieldStatus(status) {
+            return status === 'verified'
+                || status === 'live_balance_adjusted';
+        }
+
         function earn_isTrustedInterestLedgerYieldCalc(yieldCalc) {
             if (!yieldCalc || !yieldCalc.hasData || !yieldCalc.trustedForTotal) return false;
-            if (String(yieldCalc.verificationStatus || '') !== 'verified') return false;
+            if (!earn_isTrustedReplayYieldStatus(String(yieldCalc.verificationStatus || ''))) return false;
             const method = String(yieldCalc.method || '');
-            return method === 'interest-ledger'
-                || method === 'interest-ledger-override';
+            return earn_isTrustedReplayYieldMethod(method);
         }
 
         function earn_buildResolvedTotalYieldEntry(marketId, yieldCalc) {
@@ -29930,7 +29940,7 @@
 
         function earn_getYieldQualityPresentation(yieldCalc) {
             if (!yieldCalc || !yieldCalc.hasData) return null;
-            if (yieldCalc.trustedForTotal && String(yieldCalc.verificationStatus || '') === 'verified') return null;
+            if (yieldCalc.trustedForTotal && earn_isTrustedReplayYieldStatus(String(yieldCalc.verificationStatus || ''))) return null;
 
             const method = String(yieldCalc.method || '');
             const status = String(yieldCalc.verificationStatus || '').toLowerCase();
@@ -30031,7 +30041,7 @@
                 case 'interest-ledger':
                     return { label: 'History replay', cls: 'replay', title: 'Verification method: local subaccount history was replayed and reconciled with current onchain balances.' };
                 case 'interest-ledger-live-balance-adjusted':
-                    return { label: 'Replay adjusted', cls: 'unverified', title: 'Verification method: replay ledger adjusted to live onchain balance drift. Useful diagnostically, but not treated as strict verification.' };
+                    return { label: 'History replay', cls: 'replay', title: 'Verification method: replay ledger reconciled with current onchain balances after a live balance drift adjustment.' };
                 case 'interest-ledger-override':
                     return { label: 'History replay', cls: 'replay', title: 'Verification method: strict local history replay was used because the snapshot/netflow path was stale or mismatched.' };
                 case 'interest-ledger-pending':
@@ -30991,7 +31001,7 @@
                             : (method === 'all-netflow' || method === 'all-netflow-guarded' || method === 'recent-cycle' || method === 'acct0-netflow')
                                 ? 'fallback'
                                 : (interestTrust.status || snapshotStatus || 'unverified');
-            const strictTrustedForTotal = strictVerificationStatus === 'verified';
+            const strictTrustedForTotal = earn_isTrustedReplayYieldStatus(strictVerificationStatus);
 
             return {
                 hasData: true,
@@ -32222,7 +32232,7 @@
             const rawStatus = String(entry.status || '').trim().toLowerCase();
             const method = String(entry.strictMethod || entry.method || '').trim().toLowerCase();
             const canonicalCoverage = String(entry.canonicalHistoryCoverageStatus || '').trim().toLowerCase();
-            if (status === 'verified') return true;
+            if (earn_isTrustedReplayYieldStatus(status)) return true;
             if (
                 status === 'inferred'
                 && rawStatus === 'pre_snapshot_carry'
@@ -37290,6 +37300,7 @@
                         const trustedHistoryMethods = new Set([
                             'interest-ledger',
                             'interest-ledger-override',
+                            'interest-ledger-live-balance-adjusted',
                         ]);
                         earn_historyData.forEach(item => {
                             if (item.isActive || item.isIsolation) return;
@@ -37309,7 +37320,7 @@
                                 itemYieldCalc
                                 && itemYieldCalc.hasData
                                 && itemYieldCalc.trustedForTotal
-                                && String(itemYieldCalc.verificationStatus || '') === 'verified'
+                                && earn_isTrustedReplayYieldStatus(String(itemYieldCalc.verificationStatus || ''))
                                 && trustedHistoryMethods.has(calcMethod)
                             );
                             const histMeta = earn_getResolvedTotalYieldEntry(item.marketId);
@@ -37320,8 +37331,8 @@
                             const histMethod = histMeta
                                 ? String(histMeta.resolvedMethod || histMeta.method || item.yieldMethod || '')
                                 : String(item.yieldMethod || '');
-                            const histUsesReplay = histMethod === 'interest-ledger' || histMethod === 'interest-ledger-override';
-                            const histStatusTrusted = histUsesReplay && histStatus === 'verified';
+                            const histUsesReplay = trustedHistoryMethods.has(histMethod);
+                            const histStatusTrusted = histUsesReplay && earn_isTrustedReplayYieldStatus(histStatus);
                             const histTrusted = trustedHistoryMethods.has(histMethod) && histStatusTrusted && histIsLatest;
                             if (!calcTrusted && !histTrusted) {
                                 if ((item.yieldUsdScaled || 0n) !== 0n) pendingYieldAssetCount++;
