@@ -848,10 +848,10 @@ def holder_distribution_type(addr, holder_rows, labels):
     label = info.get("label", "")
     label_type = info.get("type", "")
     holder = holder_rows.get(key) or {}
+    contract_wallet_type = str(holder.get("contract_wallet_type") or "").lower()
     if (
         key in USER_CONTRACT_WALLET_ADDRS
         or label_type in {"multisig", "safe", "contract_wallet"}
-        or str(holder.get("contract_wallet_type") or "").lower() in {"safe", "multisig"}
     ):
         return "multisig"
     if label_type == "cex":
@@ -862,6 +862,8 @@ def holder_distribution_type(addr, holder_rows, labels):
         return "investor"
     if label_type in {"protocol", "lp", "contract", "dead"}:
         return "ca"
+    if contract_wallet_type in {"safe", "multisig"}:
+        return "multisig"
     if holder.get("is_contract"):
         return "ca"
     return label_type or "eoa"

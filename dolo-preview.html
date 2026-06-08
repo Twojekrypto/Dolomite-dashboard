@@ -684,6 +684,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .type-tag.type-watch{color:#c69a5b;border-color:rgba(198,154,91,.34);background:rgba(198,154,91,.09)}
 .type-tag.type-mm{color:#9ab7c2;border-color:rgba(154,183,194,.3);background:rgba(154,183,194,.08)}
 .type-tag.type-bot{color:#b4a87a;border-color:rgba(180,168,122,.3);background:rgba(180,168,122,.08)}
+.type-tag.type-safe-badge{color:#9ab7c2;border-color:rgba(154,183,194,.34);background:rgba(154,183,194,.09)}
 
 /* copy + debank icon buttons (compact, end of address row) */
 .addr-copy,.addr-debank{
@@ -925,7 +926,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 }
 </style>
 <script src="count-up.js?v=20260427-countup"></script>
-<script src="dolo-address-labels.js?v=dolo-labels-20260530-chainlink-rewards"></script>
+<script src="dolo-address-labels.js?v=dolo-labels-20260608-safe-badges"></script>
 </head>
 <body>
 <div class="wrap">
@@ -1725,18 +1726,24 @@ function sharedAddressInfo(addr){
   const labels = window.DOLO_ADDR_LABELS || window.DOLO_ADDRESS_LABELS || {};
   return labels[String(addr || "").toLowerCase()] || null;
 }
+function isSafeWallet(source, info = null){
+  const safeType = String(source?.contract_wallet_type || source?.contractWalletType || "").toLowerCase();
+  return safeType === "safe" || safeType === "multisig" || info?.safe === true;
+}
 function holderDistributionType(addr, source){
   const info = sharedAddressInfo(addr);
   const t = (info && info.type) || source?.type || "";
   const contractWalletType = String(source?.contract_wallet_type || source?.contractWalletType || "").toLowerCase();
-  if(t === "multisig" || t === "safe" || t === "contract_wallet" || contractWalletType === "safe" || contractWalletType === "multisig") return "multisig";
+  if(t === "multisig" || t === "safe" || t === "contract_wallet") return "multisig";
   if(t === "cex") return "cex";
   if((info?.label || "").startsWith("Core Team")) return "team";
   if(t === "investor") return "investor";
   if(t === "watch") return "watch";
   if(t === "mm") return "mm";
   if(t === "bot" || t === "liquidator") return "bot";
-  if(t === "protocol" || t === "lp" || t === "contract" || t === "dead" || source?.is_contract || source?.type === "ca") return "ca";
+  if(t === "protocol" || t === "lp" || t === "contract" || t === "dead" || source?.type === "ca") return "ca";
+  if(contractWalletType === "safe" || contractWalletType === "multisig") return "multisig";
+  if(source?.is_contract) return "ca";
   return "eoa";
 }
 function parseHolderTimestamp(value){
@@ -1893,9 +1900,12 @@ function ensureHolderBucketRow(byAddress, addr, source){
   const key = lowerHolderAddr(addr);
   if(!key) return null;
   const nextType = holderDistributionType(key, source);
-  const existing = byAddress.get(key) || {addr:key, type:nextType, liquid:0, locked:0};
+  const info = sharedAddressInfo(key);
+  const existing = byAddress.get(key) || {addr:key, type:nextType, liquid:0, locked:0, contract_wallet_type:"", safe:false};
   if(nextType === "cex") existing.type = "cex";
   else if(existing.type === "eoa" && nextType !== "eoa") existing.type = nextType;
+  existing.contract_wallet_type = existing.contract_wallet_type || source?.contract_wallet_type || source?.contractWalletType || "";
+  existing.safe = existing.safe || isSafeWallet(source, info);
   byAddress.set(key, existing);
   return existing;
 }
@@ -3501,6 +3511,8 @@ function holderRowsAtPoint(point, includeVeDolo = false){
       total:liquid,
       liquid,
       locked,
+      contract_wallet_type:row.contract_wallet_type || "",
+      safe:row.safe || info.safe === true,
       panelTotal:liquid + locked,
     };
   }).filter(row => row.panelTotal > 0);
@@ -3536,6 +3548,8 @@ function zeroHolderRowFrom(row){
     total: 0,
     liquid: 0,
     locked: 0,
+    contract_wallet_type: row?.contract_wallet_type || "",
+    safe: row?.safe || false,
     panelTotal: 0,
   };
 }
@@ -3604,6 +3618,13 @@ function holderWalletTypeHtml(type){
   const cls = type === "team" ? " type-investor" : (TYPE_LABELS[type] ? ` type-${type}` : " type-eoa");
   return `<span class="type-tag${cls}">${escHtml(label)}</span>`;
 }
+function safeBadgeHtml(row){
+  if(!row || row.type === "multisig") return "";
+  const info = sharedAddressInfo(row.addr);
+  return isSafeWallet(row, info)
+    ? `<span class="type-tag type-safe-badge" data-tooltip="Safe smart wallet / multisig; the verified wallet label stays unchanged.">SAFE</span>`
+    : "";
+}
 function holderWalletAddressCell(row){
   const label = row.label
     ? `<span class="addr-name">${escHtml(row.label)}</span>`
@@ -3613,6 +3634,7 @@ function holderWalletAddressCell(row){
       <div class="addr-line top">
         ${label}
         ${holderWalletTypeHtml(row.type)}
+        ${safeBadgeHtml(row)}
       </div>
       <div class="addr-line bot">
         <span class="addr-mono addr-tooltip-wrap" data-full-addr="${escHtml(row.addr)}">${shorten(row.addr)}</span>
@@ -3836,6 +3858,7 @@ function renderHolders(){
     const rank = rankMap.get(h.addr.toLowerCase()) || (start + i + 1);
     const share = h.total / TOTAL_SUPPLY * 100;
     const typeHtml = `<span class="type-tag type-${h.type}" data-tooltip="${TYPE_TIPS[h.type]}">${TYPE_LABELS[h.type]}</span>`;
+    const safeHtml = safeBadgeHtml(h);
     const actions = `
       <button class="addr-copy" data-copy="${h.addr}" aria-label="Copy address">${COPY_ICO}</button>
       <a class="addr-debank" href="https://debank.com/profile/${h.addr}" target="_blank" rel="noopener" aria-label="View on DeBank" onclick="event.stopPropagation()">
@@ -3850,6 +3873,7 @@ function renderHolders(){
     const cellInner = `<div class="addr-line top">
         ${nameCell}
         ${typeHtml}
+        ${safeHtml}
       </div>
       <div class="addr-line bot">
         <span class="addr-mono addr-tooltip-wrap" data-full-addr="${h.addr}">${shorten(h.addr)}</span>
@@ -4057,6 +4081,7 @@ function renderFlow(target, kind){
     const balance = effectiveFlowBalance(r);
     const rank = rankMap.get(r.addr.toLowerCase()) || (start + i + 1);
     const typeHtml = `<span class="type-tag type-${r.type}" data-tooltip="${TYPE_TIPS[r.type]}">${TYPE_LABELS[r.type]}</span>`;
+    const safeHtml = safeBadgeHtml(r);
     const actions = `
       <button class="addr-copy" data-copy="${r.addr}" aria-label="Copy address">${COPY_ICO}</button>
       <a class="addr-debank" href="https://debank.com/profile/${r.addr}" target="_blank" rel="noopener" aria-label="View on DeBank" onclick="event.stopPropagation()">
@@ -4070,7 +4095,7 @@ function renderFlow(target, kind){
         <td class="rank">${rank}</td>
         <td>
           <div class="addr-cell">
-            <div class="addr-line top">${nameCell}${typeHtml}</div>
+            <div class="addr-line top">${nameCell}${typeHtml}${safeHtml}</div>
             <div class="addr-line bot">
               <span class="addr-mono addr-tooltip-wrap" data-full-addr="${r.addr}">${shorten(r.addr)}</span>
               ${actions}
@@ -4203,6 +4228,8 @@ function buildFreshWalletRowsFromBackend(period){
       addr,
       label: info?.label || item.label || null,
       type,
+      contract_wallet_type: item.contract_wallet_type || item.contractWalletType || "",
+      safe: isSafeWallet(item, info),
       received: safeHolderNum(item.received ?? item.gross_received ?? item.net_flow),
       balance: exposure || inferredLiquid + lockedBalance,
       liquidBalance: inferredLiquid,
@@ -4241,6 +4268,8 @@ function buildFreshWalletRowsFromSnapshot(){
       addr: holder.addr,
       label: holder.label,
       type,
+      contract_wallet_type: holder.contract_wallet_type || "",
+      safe: holder.safe || false,
       received,
       balance,
       createdTs: 0,
@@ -4352,6 +4381,7 @@ function renderFreshWallets(){
   const rowHtml = pageRows.map((row, i) => {
     const rank = start + i + 1;
     const typeHtml = `<span class="type-tag type-${row.type}" data-tooltip="${TYPE_TIPS[row.type] || row.type}">${TYPE_LABELS[row.type] || row.type.toUpperCase()}</span>`;
+    const safeHtml = safeBadgeHtml(row);
     const actions = `
       <button class="addr-copy" data-copy="${row.addr}" aria-label="Copy address">${COPY_ICO}</button>
       <a class="addr-debank" href="https://debank.com/profile/${row.addr}" target="_blank" rel="noopener" aria-label="View on DeBank" onclick="event.stopPropagation()">
@@ -4375,7 +4405,7 @@ function renderFreshWallets(){
         <td class="rank">${rank}</td>
         <td>
           <div class="addr-cell">
-            <div class="addr-line top">${nameCell}${typeHtml}</div>
+            <div class="addr-line top">${nameCell}${typeHtml}${safeHtml}</div>
             <div class="addr-line bot">
               <span class="addr-mono addr-tooltip-wrap" data-full-addr="${row.addr}">${shorten(row.addr)}</span>
               ${actions}
@@ -4842,13 +4872,15 @@ renderCexSupplyChart();
   function mapType(info, holder){
     const t = (info && info.type) || "";
     const contractWalletType = String(holder?.contract_wallet_type || holder?.contractWalletType || "").toLowerCase();
-    if(t === "multisig" || t === "safe" || t === "contract_wallet" || contractWalletType === "safe" || contractWalletType === "multisig") return "multisig";
+    if(t === "multisig" || t === "safe" || t === "contract_wallet") return "multisig";
     if(t === "cex") return "cex";
     if(t === "investor") return "investor";
     if(t === "watch") return "watch";
     if(t === "mm") return "mm";
     if(t === "bot" || t === "liquidator") return "bot";
-    if(t === "protocol" || t === "lp" || t === "contract" || t === "dead" || holder?.is_contract || holder?.type === "ca") return "ca";
+    if(t === "protocol" || t === "lp" || t === "contract" || t === "dead" || holder?.type === "ca") return "ca";
+    if(contractWalletType === "safe" || contractWalletType === "multisig") return "multisig";
+    if(holder?.is_contract) return "ca";
     return "eoa";
   }
   function autoCexInfo(addr, holder){
@@ -4961,6 +4993,7 @@ renderCexSupplyChart();
         type: mapType(info, h),
         is_contract: !!h.is_contract,
         contract_wallet_type: h.contract_wallet_type || "",
+        safe: isSafeWallet(h, info),
         balEth: safeNum(h.balance_eth),
         balBera: safeNum(h.balance_bera),
       };
@@ -5056,7 +5089,15 @@ renderCexSupplyChart();
       if(!byAddr.has(key)){
         const holder = holderByAddr.get(key);
         const info = addressInfo(addr, holder);
-        byAddr.set(key, {addr, label: labelFor(addr, holder), type: mapType(info, holder), chgEth:0, chgBera:0});
+        byAddr.set(key, {
+          addr,
+          label: labelFor(addr, holder),
+          type: mapType(info, holder),
+          contract_wallet_type: holder?.contract_wallet_type || "",
+          safe: isSafeWallet(holder, info),
+          chgEth:0,
+          chgBera:0,
+        });
       }
       return byAddr.get(key);
     };

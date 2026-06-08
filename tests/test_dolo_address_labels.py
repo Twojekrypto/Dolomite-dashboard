@@ -80,6 +80,18 @@ class DoloAddressLabelsTest(unittest.TestCase):
                 self.assertEqual(info["source"], "coingecko-tokenomics")
                 self.assertEqual(info["confidence"], "confirmed")
 
+    def test_protocol_safe_keeps_dolomite_label(self):
+        info = self.labels["0xa75c21c5be284122a87a37a76cc6c4dd3e55a1d4"]
+        self.assertEqual(info["label"], "Dolomite Gnosis Safe")
+        self.assertEqual(info["type"], "protocol")
+        self.assertTrue(info["treasury"])
+        self.assertTrue(info["safe"])
+        self.assertEqual(info["source"], "dolomite-docs-core-proxies")
+        self.assertEqual(info["confidence"], "confirmed")
+        for row in self.labels.values():
+            if row["type"] == "protocol":
+                self.assertNotEqual(row["label"], "Gnosis Safe Multisig")
+
     def test_potential_custody_labels_are_not_confirmed_cex(self):
         potential_rows = [info for info in self.labels.values() if "Potential" in info["label"] or info["type"] == "watch"]
         self.assertGreaterEqual(len(potential_rows), 1)
