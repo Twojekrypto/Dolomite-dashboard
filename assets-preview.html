@@ -759,6 +759,8 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   color:var(--fg-2);font-family:var(--mono);font-size:10.5px;font-weight:600;white-space:nowrap;
 }
 .asset-detail-pill.gold{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.asset-detail-pill.chain{text-transform:uppercase;letter-spacing:.9px;font-size:10px;gap:7px}
+.asset-detail-pill .adp-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;background-color:var(--bg-3);background-position:center;background-size:cover;box-shadow:0 0 0 1px rgba(0,0,0,.35)}
 .asset-detail-pill img{width:12px;height:12px;border-radius:50%;object-fit:cover}
 .asset-detail-content{
   position:relative;margin:0 12px 14px 14px;border:1px solid rgba(201,162,39,.14);border-radius:8px;
@@ -774,7 +776,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .exp-stat{padding:14px 16px;border-left:1px solid rgba(255,255,255,.055)}
 .exp-stat:first-child{border-left:0}
 .exp-stat .lbl{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:var(--fg-3);font-weight:600;margin-bottom:8px}
-.exp-stat .val{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--fg-1);letter-spacing:-.3px}
+.exp-stat .val{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--fg-1);letter-spacing:-.3px;font-variant-numeric:tabular-nums}
 .exp-stat .val.accent{color:var(--profit)}
 .exp-stat .val.down{color:var(--down)}
 .exp-stat .sub{font-size:11px;color:var(--fg-3);margin-top:4px;font-family:var(--mono)}
@@ -870,43 +872,39 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   grid-template-columns:minmax(0,1fr) minmax(128px,auto) minmax(0,1fr);
   padding:15px 18px 15px 20px;
   background:linear-gradient(180deg,rgba(255,255,255,.026),rgba(255,255,255,.006));
-  border-color:rgba(var(--metric-rgb),.28);
+  border-color:rgba(201,162,39,.16);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.052),inset 0 -1px 0 rgba(0,0,0,.24),0 10px 22px rgba(0,0,0,.13);
 }
-.calc-row.metric-focus::before{
-  content:"";position:absolute;left:0;right:0;top:0;height:2px;
-  background:linear-gradient(90deg,rgba(var(--metric-rgb),.82),rgba(var(--metric-rgb),.24),transparent 88%);
-  opacity:.82;pointer-events:none;
-}
+/* Unified gold identity chrome on every metric row — single left rail, semantic color lives on the numbers only. */
 .calc-row.metric-focus::after{
-  content:"";position:absolute;left:0;top:2px;bottom:0;width:3px;
-  background:linear-gradient(180deg,rgba(var(--metric-rgb),.78),rgba(var(--metric-rgb),.22));
-  opacity:.84;pointer-events:none;
+  content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:linear-gradient(180deg,rgba(201,162,39,.6),rgba(201,162,39,.16));
+  opacity:.85;pointer-events:none;
 }
 .calc-row.metric-focus .calc-side{gap:5px}
-.calc-row.metric-focus .calc-side-lbl{font-size:10px;color:var(--metric-label)}
+.calc-row.metric-focus .calc-side-lbl{font-size:10px;color:var(--fg-3)}
 .calc-row.metric-focus .calc-side-val{
   font-size:24px;line-height:1.05;font-weight:700;letter-spacing:-.7px;
   color:var(--metric-value);text-shadow:0 0 16px rgba(var(--metric-rgb),.12);
 }
-.calc-row.metric-focus .calc-side:first-child .calc-side-lbl{color:rgba(var(--metric-rgb),.62)}
+.calc-row.metric-focus .calc-side:first-child .calc-side-lbl{color:var(--fg-3)}
 .calc-row.metric-focus .calc-side:first-child .calc-side-val{
   font-size:22px;font-weight:650;color:rgba(var(--metric-rgb),.72);text-shadow:none;
 }
-.calc-row.metric-focus .calc-side:last-child .calc-side-lbl{color:var(--metric-label);font-weight:700}
+.calc-row.metric-focus .calc-side:last-child .calc-side-lbl{color:var(--fg-2);font-weight:700}
 .calc-row.metric-focus .calc-side:last-child .calc-side-val{
   font-size:26px;font-weight:760;color:var(--metric-value);text-shadow:0 0 18px rgba(var(--metric-rgb),.16);
 }
-.calc-row.metric-focus .calc-arrow{width:26px;height:16px;opacity:.9}
-.calc-row.lending-focus{order:-3;--metric-rgb:117,184,123;--metric-label:rgba(159,206,161,.86);--metric-value:var(--profit-hi)}
-.calc-row.borrow-focus{order:-2;--metric-rgb:180,121,107;--metric-label:rgba(210,150,137,.88);--metric-value:#d29689}
-.calc-row.util-focus{order:-1;--metric-rgb:201,162,39;--metric-label:rgba(228,193,90,.86);--metric-value:var(--gold-hi)}
+.calc-row.metric-focus .calc-arrow{width:26px;height:16px;opacity:.9;color:var(--metric-value)}
+.calc-row.lending-focus{order:-3;--metric-rgb:117,184,123;--metric-value:var(--profit-hi)}
+.calc-row.borrow-focus{order:-2;--metric-rgb:180,121,107;--metric-value:#d29689}
+.calc-row.util-focus{order:-1;--metric-rgb:201,162,39;--metric-value:var(--gold-hi)}
 .calc-impact{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-width:120px}
 .calc-impact-label{font-size:8.5px;line-height:1;text-transform:uppercase;letter-spacing:1px;color:var(--fg-3);font-weight:700;white-space:nowrap}
 .calc-delta{
   display:inline-flex;align-items:center;justify-content:center;min-width:72px;
   padding:5px 10px;border-radius:999px;
-  font-family:var(--mono);font-size:12px;font-weight:700;line-height:1;
+  font-family:var(--mono);font-size:12px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;
   color:var(--fg-1);background:rgba(255,255,255,.045);border:1px solid var(--line-2);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
 }
@@ -914,6 +912,12 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .calc-impact.is-down .calc-delta{color:var(--down);background:rgba(255,255,255,.026);border-color:rgba(255,92,92,.3)}
 .calc-impact.is-flat .calc-delta{color:var(--fg-2);background:rgba(255,255,255,.026);border-color:var(--line-2)}
 .calc-impact.is-neutral .calc-delta{color:var(--gold-hi);background:rgba(255,255,255,.026);border-color:rgba(201,162,39,.3)}
+/* Inside a metric row the whole impact group follows the row's data color (direction read from the +/- sign). */
+.calc-row.metric-focus .calc-delta{
+  color:var(--metric-value);
+  background:rgba(var(--metric-rgb),.07);
+  border-color:rgba(var(--metric-rgb),.32);
+}
 .calc-side{display:flex;flex-direction:column;gap:2px;min-width:0}
 .calc-side-lbl{font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--fg-3);font-weight:600}
 .calc-side-val{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--fg-1);font-variant-numeric:tabular-nums}
@@ -2357,7 +2361,7 @@ function render(){
                 <div class="asset-detail-title">${r.sym} market profile</div>
               </div>
               <div class="asset-detail-meta">
-                <span class="asset-detail-pill"><img src="${chain.icon}" onerror="this.style.display='none'" alt="">${chain.name}</span>
+                <span class="asset-detail-pill chain"><span class="adp-dot" style="background-image:url('${chain.icon}')"></span>${chain.short || chain.name}</span>
                 <span class="asset-detail-pill gold">${fmtPrice(r.price)}</span>
               </div>
             </div>
