@@ -92,6 +92,12 @@ class DoloAddressLabelsTest(unittest.TestCase):
             if row["type"] == "protocol":
                 self.assertNotEqual(row["label"], "Gnosis Safe Multisig")
 
+    def test_holder_distribution_chart_does_not_append_mismatched_live_bucket(self):
+        html = (ROOT / "dolo-preview.html").read_text()
+        self.assertNotIn("|| bucketMismatch", html)
+        self.assertIn("&& !bucketMismatch", html)
+        self.assertIn("false end-of-chart jump", html)
+
     def test_potential_custody_labels_are_not_confirmed_cex(self):
         potential_rows = [info for info in self.labels.values() if "Potential" in info["label"] or info["type"] == "watch"]
         self.assertGreaterEqual(len(potential_rows), 1)
@@ -149,6 +155,7 @@ class DoloAddressLabelsTest(unittest.TestCase):
             "0xf6012b3d6e669f0fdb58d1f62c2e6fe56c1b1625": ("Gate.io Deposit", "cex"),
             "0x850c198d2469b569091211fb5f62ff5d5627fbf0": ("Gate.io Deposit", "cex"),
             "0xb2655ac91bb3536bcfa0993069da6affabadc33d": ("Gate.io Deposit", "cex"),
+            "0xb2b99d9879dd29b4b8590087ae991eaf3808984f": ("Gate.io Deposit", "cex"),
             "0xc17a40852e4bfe04bc81af355fdf132c539ba753": ("Binance Deposit", "cex"),
         }
         for address, (label, label_type) in expected.items():
@@ -158,6 +165,13 @@ class DoloAddressLabelsTest(unittest.TestCase):
                 self.assertEqual(info["type"], label_type)
                 self.assertEqual(info["source"], "etherscan-public-label")
                 self.assertEqual(info["confidence"], "confirmed")
+
+    def test_active_berachain_strategy_label_is_potential(self):
+        info = self.labels["0x0fb6bac552b7a29a21b4e595b1ef5c371cda4f9d"]
+        self.assertEqual(info["label"], "Potential Berachain Strategy/MM")
+        self.assertEqual(info["type"], "watch")
+        self.assertEqual(info["source"], "heuristic-flow-pattern")
+        self.assertEqual(info["confidence"], "potential")
 
     def test_chainlink_rewards_claim_contract_is_protocol_reward(self):
         info = self.labels["0x2f41d42de3eab9e75f3d417259f24421771fb700"]

@@ -93,6 +93,7 @@
     "0xf6012b3d6e669f0fdb58d1f62c2e6fe56c1b1625": {label:"Gate.io Deposit", type:"cex", source:"etherscan-public-label"},
     "0x850c198d2469b569091211fb5f62ff5d5627fbf0": {label:"Gate.io Deposit", type:"cex", source:"etherscan-public-label"},
     "0xb2655ac91bb3536bcfa0993069da6affabadc33d": {label:"Gate.io Deposit", type:"cex", source:"etherscan-public-label"},
+    "0xb2b99d9879dd29b4b8590087ae991eaf3808984f": {label:"Gate.io Deposit", type:"cex", source:"etherscan-public-label"},
     "0xc17a40852e4bfe04bc81af355fdf132c539ba753": {label:"Binance Deposit", type:"cex", source:"etherscan-public-label"},
 
     "0xd6f631c796a56a5d448dd88a01f15058c4a0be52": {label:"makeitback.eth", type:"eoa", source:"ens-reverse"},
@@ -105,6 +106,7 @@
     "0xd5c342acbeedef81ab8e6072323bfda76172d05f": {label:"Potential CEX/MM", type:"watch"},
     "0x38285671612d6f0ef7c3483f500d39fa71d66a1c": {label:"CEX Distributor", type:"cex", source:"flow-audit", confidence:"confirmed"},
     "0x93ae9fe008636d2d6d7376198a54edb20367968f": {label:"Potential CEX/MM", type:"watch"},
+    "0x0fb6bac552b7a29a21b4e595b1ef5c371cda4f9d": {label:"Potential Berachain Strategy/MM", type:"watch"},
     "0xc882b111a75c0c657fc507c04fbfcd2cc984f071": {label:"Gate.io Routing Wallet", type:"cex", source:"flow-audit", confidence:"confirmed"},
 
     "0xb05ba67c11fc0b92a7bcb18e50cba87ce2d15109": {label:"Bot / MM", type:"bot"},
