@@ -11,7 +11,7 @@
     "0x000000000004444c5dc75cb358380d2e3de08a90": {label:"Uniswap V4 Pool Manager", type:"contract", source:"etherscan-public-label"},
     "0x2f41d42de3eab9e75f3d417259f24421771fb700": {label:"Chainlink Rewards Claim", type:"protocol", treasury:true, source:"etherscan-buildclaim", confidence:"confirmed"},
     "0x6e939bbaceb45159982a2cac3a1fcbf7e93cf682": {label:"Ecosystem Incentives 1", type:"protocol", treasury:true},
-    "0xa75c21c5be284122a87a37a76cc6c4dd3e55a1d4": {label:"Gnosis Safe Multisig", type:"protocol", treasury:true},
+    "0xa75c21c5be284122a87a37a76cc6c4dd3e55a1d4": {label:"Dolomite Gnosis Safe", type:"protocol", treasury:true, safe:true, source:"dolomite-docs-core-proxies", confidence:"confirmed"},
     "0xcfc30d38a47817363a98a46834acf7040b17d7b0": {label:"Admin Proxy", type:"protocol", treasury:true},
     "0xd88f473832b0403c7736ef237af5aff8759b99ef": {label:"oDOLO Airdrop", type:"protocol", treasury:true},
     "0x51b3116ef47073ab8a0353a2751dc533d4238527": {label:"Revenue Proxy", type:"protocol", treasury:true},

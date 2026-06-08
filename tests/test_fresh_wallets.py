@@ -379,6 +379,31 @@ class FreshWalletTests(unittest.TestCase):
         self.assertEqual(rows["90d"][0]["address"], candidate)
         self.assertEqual(rows["90d"][0]["type"], "multisig")
 
+    def test_named_protocol_safe_keeps_protocol_classification(self):
+        candidate = "0xa75c21c5be284122a87a37a76cc6c4dd3e55a1d4"
+        holder_rows = {
+            candidate: {"is_contract": True, "contract_wallet_type": "safe"},
+        }
+        labels = {
+            candidate: {"label": "Dolomite Gnosis Safe", "type": "protocol"},
+        }
+
+        self.assertEqual(
+            flows.holder_distribution_type(candidate, holder_rows, labels),
+            "ca",
+        )
+
+    def test_unlabeled_safe_keeps_multisig_classification(self):
+        candidate = "0x1111111111111111111111111111111111111111"
+        holder_rows = {
+            candidate: {"is_contract": True, "contract_wallet_type": "safe"},
+        }
+
+        self.assertEqual(
+            flows.holder_distribution_type(candidate, holder_rows, {}),
+            "multisig",
+        )
+
     def test_plain_contract_wallet_still_excluded_from_fresh_holder(self):
         candidate = "0x1111111111111111111111111111111111111111"
         source = "0x3333333333333333333333333333333333333333"
