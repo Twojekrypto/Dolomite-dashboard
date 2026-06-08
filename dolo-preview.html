@@ -2149,7 +2149,10 @@ function getPrecomputedHolderHistory(includeVeDolo = state.includeVeDolo){
       const liveBucket = now.buckets[index] || {};
       return bucket.wallets !== liveBucket.wallets || Math.abs(safeHolderNum(bucket.total) - safeHolderNum(liveBucket.total)) > 0.5;
     });
-    if(Math.abs(now.ts - last.ts) > 3600 || bucketMismatch){
+    // Keep the historical chart on one methodology. A live "now" point that
+    // disagrees with precomputed buckets can create a false end-of-chart jump
+    // after label/classification fixes, even when no holder transfer happened.
+    if(Math.abs(now.ts - last.ts) > 3600 && !bucketMismatch){
       points.push(now);
     }
   }
