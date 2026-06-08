@@ -42,6 +42,7 @@ HOLDER_BUCKET_GROUPS = {
         {"key": "1k10k", "min": 1_000, "max": 10_000},
     ],
 }
+HOLDER_WALLET_HISTORY_VIEWS = {"whales"}
 
 # Known contract addresses to exclude (DEX routers, LP pools, bots, etc.)
 EXCLUDED_ADDRS = {
@@ -603,12 +604,38 @@ def holder_history_cutoff_block(chain_key, point_ts, base_ts, current_blocks):
     return max(current_blocks[chain_key] - blocks_back, cfg.get("deploy_block", 0))
 
 
+def historical_liquid_by_chain(current_liquid_by_chain, chain_changes):
+    liquid_by_chain = {}
+    for chain_key in CHAINS:
+        balances = dict(current_liquid_by_chain.get(chain_key, {}))
+        for addr, net in chain_changes.get(chain_key, {}).items():
+            if addr in EXCLUDED_ADDRS:
+                continue
+            historical = balances.get(addr.lower(), 0) - net
+            if historical > 0.0001:
+                balances[addr.lower()] = historical
+            elif addr.lower() in balances:
+                balances.pop(addr.lower(), None)
+        liquid_by_chain[chain_key] = balances
+    return liquid_by_chain
+
+
 def calculate_holder_bucket_history(all_transfers, points, current_blocks, base_ts, vesting_labels=None):
     holder_rows = load_current_holder_rows()
     address_labels = load_address_labels(vesting_labels)
     current_liquid = {
         addr: float(row.get("balance") or 0)
         for addr, row in holder_rows.items()
+    }
+    current_liquid_by_chain = {
+        "eth": {
+            addr: float(row.get("balance_eth") or 0)
+            for addr, row in holder_rows.items()
+        },
+        "bera": {
+            addr: float(row.get("balance_bera") or 0)
+            for addr, row in holder_rows.items()
+        },
     }
     current_locks = load_current_vedolo_locks()
     vedolo_events = load_vedolo_flow_events()
@@ -623,6 +650,7 @@ def calculate_holder_bucket_history(all_transfers, points, current_blocks, base_
     running_raw = {chain_key: {} for chain_key in CHAINS}
     running_bridge = {chain_key: {} for chain_key in CHAINS}
     history = []
+    wallet_history = {}
 
     for point in sorted(points, key=lambda row: row["ts"], reverse=True):
         for chain_key in CHAINS:
@@ -640,7 +668,8 @@ def calculate_holder_bucket_history(all_transfers, points, current_blocks, base_
 
         raw_snapshot = {chain_key: dict(running_raw[chain_key]) for chain_key in CHAINS}
         bridge_snapshot = {chain_key: dict(running_bridge[chain_key]) for chain_key in CHAINS}
-        changes = merge_balance_changes(neutralize_holder_balance_flows(raw_snapshot, bridge_snapshot))
+        chain_changes = neutralize_holder_balance_flows(raw_snapshot, bridge_snapshot)
+        changes = merge_balance_changes(chain_changes)
         liquid_balances = dict(current_liquid)
         for addr, net in changes.items():
             historical = liquid_balances.get(addr.lower(), 0) - net
@@ -649,9 +678,15 @@ def calculate_holder_bucket_history(all_transfers, points, current_blocks, base_
             elif addr.lower() in liquid_balances:
                 liquid_balances.pop(addr.lower(), None)
 
+        liquid_by_chain = historical_liquid_by_chain(current_liquid_by_chain, chain_changes)
         locked_balances = locked_map_at_holder_point(point["ts"], current_locks, vedolo_events)
         row = {
             "key": point["key"],
+            "timestamp": point["timestamp"],
+            "liquid": {},
+            "with_vedolo": {},
+        }
+        wallet_row = {
             "timestamp": point["timestamp"],
             "liquid": {},
             "with_vedolo": {},
@@ -663,9 +698,17 @@ def calculate_holder_bucket_history(all_transfers, points, current_blocks, base_
             row["with_vedolo"][view] = build_bucket_model(
                 liquid_balances, locked_balances, holder_rows, address_labels, bucket_defs
             )
+            if view in HOLDER_WALLET_HISTORY_VIEWS:
+                wallet_row["liquid"][view] = build_bucket_wallet_history_rows(
+                    liquid_by_chain, {}, holder_rows, address_labels, bucket_defs
+                )
+                wallet_row["with_vedolo"][view] = build_bucket_wallet_history_rows(
+                    liquid_by_chain, locked_balances, holder_rows, address_labels, bucket_defs
+                )
         history.append(row)
+        wallet_history[point["key"]] = wallet_row
 
-    return sorted(history, key=lambda row: row["timestamp"])
+    return sorted(history, key=lambda row: row["timestamp"]), wallet_history
 
 
 def calculate_cex_supply_history(all_transfers, points, current_blocks, base_ts, vesting_labels=None):
@@ -1659,6 +1702,42 @@ def build_bucket_model(liquid_balances, locked_balances, holder_rows, address_la
     return model
 
 
+def build_bucket_wallet_history_rows(liquid_by_chain, locked_balances, holder_rows, address_labels, bucket_defs):
+    rows = []
+    addresses = set(locked_balances.keys())
+    for chain_balances in liquid_by_chain.values():
+        addresses.update(chain_balances.keys())
+    for addr in addresses:
+        bal_eth = max(0, float(liquid_by_chain.get("eth", {}).get(addr) or 0))
+        bal_bera = max(0, float(liquid_by_chain.get("bera", {}).get(addr) or 0))
+        liquid = bal_eth + bal_bera
+        locked = max(0, float(locked_balances.get(addr) or 0))
+        total = liquid + locked
+        if total <= 0.0001:
+            continue
+        holder_type = holder_distribution_type(addr, holder_rows, address_labels)
+        if holder_type in {"cex", "ca", "team", "investor"}:
+            continue
+        if not any(total >= bucket["min"] and total < bucket["max"] for bucket in bucket_defs):
+            continue
+        holder = holder_rows.get(addr, {})
+        info = address_labels.get(addr, {})
+        contract_wallet_type = str(holder.get("contract_wallet_type") or "").lower()
+        rows.append({
+            "address": addr,
+            "label": info.get("label", ""),
+            "type": holder_type,
+            "balance": round(total, 6),
+            "liquid": round(liquid, 6),
+            "locked": round(locked, 6),
+            "balance_eth": round(bal_eth, 6),
+            "balance_bera": round(bal_bera, 6),
+            "contract_wallet_type": contract_wallet_type,
+            "safe": bool(contract_wallet_type in {"safe", "multisig"} or info.get("safe")),
+        })
+    return sorted(rows, key=lambda row: row["balance"], reverse=True)
+
+
 def count_txs(transfers, excluded):
     """Count number of transactions per address."""
     counts = {}
@@ -2069,7 +2148,7 @@ def main():
     # transfer logs as the flow tables, but add enough cutoffs for a usable hover.
     holder_history_points = build_holder_history_schedule(holder_history_base_ts)
     print(f"\n📈 Building holder bucket chart history ({len(holder_history_points)} points)...")
-    holder_bucket_history = calculate_holder_bucket_history(
+    holder_bucket_history, holder_wallet_history = calculate_holder_bucket_history(
         all_transfers,
         holder_history_points,
         current_blocks,
@@ -2123,6 +2202,7 @@ def main():
             for point in holder_history_points
         ],
         "holder_bucket_history": holder_bucket_history,
+        "holder_wallet_history": holder_wallet_history,
         "cex_supply_history": cex_supply_history,
         "dolo_price": dolo_price,
         "periods": output_periods,

@@ -404,6 +404,53 @@ class FreshWalletTests(unittest.TestCase):
             "multisig",
         )
 
+    def test_holder_wallet_history_rows_include_safe_user_wallets(self):
+        safe_wallet = "0x1111111111111111111111111111111111111111"
+        cex_wallet = "0x2222222222222222222222222222222222222222"
+        holder_rows = {
+            safe_wallet: {"contract_wallet_type": "safe"},
+            cex_wallet: {},
+        }
+        labels = {
+            cex_wallet: {"label": "Exchange", "type": "cex"},
+        }
+        rows = flows.build_bucket_wallet_history_rows(
+            {
+                "eth": {safe_wallet: 600_000, cex_wallet: 2_000_000},
+                "bera": {safe_wallet: 500_000},
+            },
+            {},
+            holder_rows,
+            labels,
+            [{"key": "1mplus", "min": 1_000_000, "max": float("inf")}],
+        )
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["address"], safe_wallet)
+        self.assertEqual(rows[0]["balance"], 1_100_000)
+        self.assertEqual(rows[0]["balance_eth"], 600_000)
+        self.assertEqual(rows[0]["balance_bera"], 500_000)
+        self.assertEqual(rows[0]["type"], "multisig")
+        self.assertTrue(rows[0]["safe"])
+
+    def test_historical_holder_chain_balances_reverse_net_flows(self):
+        address = "0x1111111111111111111111111111111111111111"
+        removed_address = "0x2222222222222222222222222222222222222222"
+        by_chain = flows.historical_liquid_by_chain(
+            {
+                "eth": {address: 1_000_000, removed_address: 10},
+                "bera": {address: 500_000},
+            },
+            {
+                "eth": {address: 250_000, removed_address: 20},
+                "bera": {address: -100_000},
+            },
+        )
+
+        self.assertEqual(by_chain["eth"][address], 750_000)
+        self.assertEqual(by_chain["bera"][address], 600_000)
+        self.assertNotIn(removed_address, by_chain["eth"])
+
     def test_plain_contract_wallet_still_excluded_from_fresh_holder(self):
         candidate = "0x1111111111111111111111111111111111111111"
         source = "0x3333333333333333333333333333333333333333"

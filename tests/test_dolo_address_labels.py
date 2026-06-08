@@ -98,6 +98,17 @@ class DoloAddressLabelsTest(unittest.TestCase):
         self.assertIn("&& !bucketMismatch", html)
         self.assertIn("false end-of-chart jump", html)
 
+    def test_holder_details_can_use_exact_history_wallet_snapshots(self):
+        html = (ROOT / "dolo-preview.html").read_text()
+        generator = (ROOT / "generate_dolo_flows.py").read_text()
+        self.assertIn("holder_wallet_history", html)
+        self.assertIn("holderHistoricalWalletRowsAtPoint", html)
+        self.assertIn("holderWalletRowsAvailableAtPoint", html)
+        self.assertIn("if(changes === null) return [];", html)
+        self.assertIn("holderWalletBaselinePointForRange(rawBaselinePoint", html)
+        self.assertIn("holder_wallet_history", generator)
+        self.assertIn("HOLDER_WALLET_HISTORY_VIEWS", generator)
+
     def test_potential_custody_labels_are_not_confirmed_cex(self):
         potential_rows = [info for info in self.labels.values() if "Potential" in info["label"] or info["type"] == "watch"]
         self.assertGreaterEqual(len(potential_rows), 1)
