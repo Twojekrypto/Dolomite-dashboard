@@ -678,6 +678,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 }
 .type-tag.type-eoa{color:var(--fg-3);border-color:var(--line-2);background:var(--bg-3)}
 .type-tag.type-ca{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.type-tag.type-multisig{color:#9ab7c2;border-color:rgba(154,183,194,.34);background:rgba(154,183,194,.09)}
 .type-tag.type-cex{color:var(--down);border-color:rgba(180,121,107,.3);background:rgba(180,121,107,.08)}
 .type-tag.type-investor{color:#6fc49b;border-color:rgba(111,196,155,.34);background:rgba(111,196,155,.08)}
 .type-tag.type-watch{color:#c69a5b;border-color:rgba(198,154,91,.34);background:rgba(198,154,91,.09)}
@@ -1546,10 +1547,11 @@ const HOLDERS = [
 // total = balEth + balBera; share = total / TOTAL_SUPPLY
 HOLDERS.forEach(h => h.total = h.balEth + h.balBera);
 
-const TYPE_LABELS = {eoa:"EOA", ca:"CA", cex:"CEX", investor:"Investor", watch:"Potential", bot:"Bot", mm:"MM"};
+const TYPE_LABELS = {eoa:"EOA", multisig:"Safe", ca:"CA", cex:"CEX", investor:"Investor", watch:"Potential", bot:"Bot", mm:"MM"};
 const ADDRESS_TYPES = Object.keys(TYPE_LABELS);
 const TYPE_TIPS = {
   eoa: "Externally Owned Account — regular wallet",
+  multisig: "Smart contract wallet / multisig controlled by user signers",
   ca:  "Contract address (CA) — smart contract, protocol, LP, or aggregator",
   cex: "Verified centralized exchange custody address",
   investor: "CoinGecko tokenomics investor allocation address",
@@ -1561,6 +1563,7 @@ const TYPE_TIPS = {
 // with a readable identity instead of an em-dash.
 const TYPE_GENERIC = {
   eoa: "Wallet",
+  multisig: "Safe Multisig",
   ca:  "Smart Contract / CA",
   cex: "Exchange",
   investor: "Investor",
@@ -1725,6 +1728,8 @@ function sharedAddressInfo(addr){
 function holderDistributionType(addr, source){
   const info = sharedAddressInfo(addr);
   const t = (info && info.type) || source?.type || "";
+  const contractWalletType = String(source?.contract_wallet_type || source?.contractWalletType || "").toLowerCase();
+  if(t === "multisig" || t === "safe" || t === "contract_wallet" || contractWalletType === "safe" || contractWalletType === "multisig") return "multisig";
   if(t === "cex") return "cex";
   if((info?.label || "").startsWith("Core Team")) return "team";
   if(t === "investor") return "investor";
@@ -4836,6 +4841,8 @@ renderCexSupplyChart();
   };
   function mapType(info, holder){
     const t = (info && info.type) || "";
+    const contractWalletType = String(holder?.contract_wallet_type || holder?.contractWalletType || "").toLowerCase();
+    if(t === "multisig" || t === "safe" || t === "contract_wallet" || contractWalletType === "safe" || contractWalletType === "multisig") return "multisig";
     if(t === "cex") return "cex";
     if(t === "investor") return "investor";
     if(t === "watch") return "watch";
@@ -4846,7 +4853,7 @@ renderCexSupplyChart();
   }
   function autoCexInfo(addr, holder){
     const key = lower(addr);
-    if(ADDR_LABELS[key] || holder?.is_contract) return null;
+    if(ADDR_LABELS[key] || holder?.contract_wallet_type || holder?.contractWalletType || holder?.is_contract) return null;
     return AUTO_CEX_LABELS[key] || null;
   }
   function addressInfo(addr, holder){
@@ -4856,6 +4863,7 @@ renderCexSupplyChart();
   function labelFor(addr, holder){
     const info = addressInfo(addr, holder);
     if(info && info.label) return info.label;
+    if(holder?.contract_wallet_type === "safe" || holder?.contractWalletType === "safe" || holder?.type === "multisig") return "Safe Multisig";
     if(holder?.is_contract || holder?.type === "ca") return "Smart Contract / CA";
     return null;
   }
@@ -4952,6 +4960,7 @@ renderCexSupplyChart();
         label: labelFor(h.address, h),
         type: mapType(info, h),
         is_contract: !!h.is_contract,
+        contract_wallet_type: h.contract_wallet_type || "",
         balEth: safeNum(h.balance_eth),
         balBera: safeNum(h.balance_bera),
       };

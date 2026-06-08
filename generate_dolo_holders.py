@@ -15,6 +15,12 @@ ALCHEMY_BERA_RPC_2 = os.environ.get("ALCHEMY_BERACHAIN_RPC_2", "")
 DOLO_CONTRACT = "0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654"
 TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 ZERO = "0x0000000000000000000000000000000000000000"
+SAFE_SINGLETON_ADDRS = {
+    "0x41675c099f32341bf84bfc5382af534df5c7461a",  # Safe 1.4.1
+    "0xd9db270c1b5e3bd161e8c8503c55ceabee709552",  # Gnosis Safe 1.3.0
+    "0x3e5c63644e683549055b9be8653de26e0b4cd36e",  # Gnosis Safe 1.1.1
+    "0x29fcb43b46531bca003ddc8fcb67ffe91900c762",  # Gnosis Safe L2
+}
 
 CHAINS = {
     "eth": {
@@ -313,6 +319,7 @@ def detect_contracts(holders, max_check=200):
 
     to_check = holders[:max_check]
     contract_addrs = set()
+    contract_wallet_types = {}
 
     for chain, rpc_url in RPC_URLS:
         for h in to_check:
@@ -325,15 +332,27 @@ def detect_contracts(holders, max_check=200):
                     }, timeout=5, headers={"Content-Type": "application/json"})
                     code = resp.json().get("result", "0x")
                     if code and len(code) > 4:
-                        contract_addrs.add(addr.lower())
+                        key = addr.lower()
+                        contract_addrs.add(key)
+                        storage_resp = requests.post(rpc_url, json={
+                            "jsonrpc": "2.0", "method": "eth_getStorageAt",
+                            "params": [addr, "0x0", "latest"], "id": 1
+                        }, timeout=5, headers={"Content-Type": "application/json"})
+                        slot0 = str(storage_resp.json().get("result", "0x") or "").lower()
+                        singleton = "0x" + slot0[-40:] if len(slot0) >= 42 else ""
+                        if singleton in SAFE_SINGLETON_ADDRS:
+                            contract_wallet_types[key] = "safe"
                     break
                 except Exception:
                     time.sleep(0.3)
             time.sleep(0.03)
 
     for h in holders:
-        if h["address"].lower() in contract_addrs:
+        key = h["address"].lower()
+        if key in contract_addrs:
             h["is_contract"] = True
+        if key in contract_wallet_types:
+            h["contract_wallet_type"] = contract_wallet_types[key]
 
     print(f"  ✅ Found {len(contract_addrs)} contracts in top {max_check}")
     return holders
