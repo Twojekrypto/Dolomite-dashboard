@@ -184,6 +184,19 @@ class DoloAddressLabelsTest(unittest.TestCase):
         self.assertEqual(info["source"], "flow-audit")
         self.assertEqual(info["confidence"], "confirmed")
 
+    def test_mexc_wallet_is_not_in_holder_wallet_history(self):
+        address = "0xd5c342acbeedef81ab8e6072323bfda76172d05f"
+        with (ROOT / "dolo_flows.json").open() as f:
+            flows = json.load(f)
+        rows = []
+        for point_key, point in (flows.get("holder_wallet_history") or {}).items():
+            for view in ("liquid", "with_vedolo"):
+                for group, group_rows in (point.get(view) or {}).items():
+                    for row in group_rows:
+                        if str(row.get("address", "")).lower() == address:
+                            rows.append((point_key, view, group, row.get("label"), row.get("type")))
+        self.assertEqual(rows, [])
+
     def test_active_berachain_strategy_label_is_potential(self):
         info = self.labels["0x0fb6bac552b7a29a21b4e595b1ef5c371cda4f9d"]
         self.assertEqual(info["label"], "Potential Berachain Strategy/MM")
