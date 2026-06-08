@@ -103,7 +103,7 @@
 
     "0x7a1d00de77c0162d55d84a051bdc6840852b4a60": {label:"Potential CEX/MM", type:"watch"},
     "0xfc89c020774524c9d03bd5de48fec149b10bdec3": {label:"Potential CEX/MM", type:"watch"},
-    "0xd5c342acbeedef81ab8e6072323bfda76172d05f": {label:"Potential CEX/MM", type:"watch"},
+    "0xd5c342acbeedef81ab8e6072323bfda76172d05f": {label:"MEXC Wallet", type:"cex", source:"flow-audit", confidence:"confirmed"},
     "0x38285671612d6f0ef7c3483f500d39fa71d66a1c": {label:"CEX Distributor", type:"cex", source:"flow-audit", confidence:"confirmed"},
     "0x93ae9fe008636d2d6d7376198a54edb20367968f": {label:"Potential CEX/MM", type:"watch"},
     "0x0fb6bac552b7a29a21b4e595b1ef5c371cda4f9d": {label:"Potential Berachain Strategy/MM", type:"watch"},

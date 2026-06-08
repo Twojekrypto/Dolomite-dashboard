@@ -177,6 +177,13 @@ class DoloAddressLabelsTest(unittest.TestCase):
                 self.assertEqual(info["source"], "etherscan-public-label")
                 self.assertEqual(info["confidence"], "confirmed")
 
+    def test_mexc_flow_audit_wallet_is_cex_not_market_holder(self):
+        info = self.labels["0xd5c342acbeedef81ab8e6072323bfda76172d05f"]
+        self.assertEqual(info["label"], "MEXC Wallet")
+        self.assertEqual(info["type"], "cex")
+        self.assertEqual(info["source"], "flow-audit")
+        self.assertEqual(info["confidence"], "confirmed")
+
     def test_active_berachain_strategy_label_is_potential(self):
         info = self.labels["0x0fb6bac552b7a29a21b4e595b1ef5c371cda4f9d"]
         self.assertEqual(info["label"], "Potential Berachain Strategy/MM")
