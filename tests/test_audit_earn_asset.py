@@ -33,6 +33,23 @@ class AuditEarnAssetTest(unittest.TestCase):
         }
         self.assertEqual(normalize_live_row_category(row), "replay_verified")
 
+    def test_normalize_live_row_category_trusts_live_balance_adjusted_replay(self):
+        row = {
+            "positionKind": "visible_supply",
+            "marketRow": {"verifyLabel": "", "sourceLabel": "Replay Ledger"},
+            "focusMarket": {
+                "resolvedSource": "replay-ledger",
+                "resolvedVerificationStatus": "live_balance_adjusted",
+                "calc": {
+                    "hasData": True,
+                    "method": "interest-ledger-live-balance-adjusted",
+                    "verificationStatus": "live_balance_adjusted",
+                    "trustedForTotal": True,
+                },
+            },
+        }
+        self.assertEqual(normalize_live_row_category(row), "replay_verified")
+
     def test_normalize_live_row_category_prefers_verified_over_missing_position(self):
         row = {
             "positionKind": "missing",

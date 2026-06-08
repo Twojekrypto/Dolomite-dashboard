@@ -61,6 +61,45 @@ class EarnQualityStatusTest(unittest.TestCase):
         self.assertEqual(chain["qualityTier"], "partial")
         self.assertEqual(status["summary"]["strictVerifiedMarketRatio"], 0.333333)
 
+    def test_live_balance_adjusted_status_counts_as_verified_quality(self):
+        wallet = "0x3333333333333333333333333333333333333333"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_json(
+                root,
+                "earn-snapshots/manifest.json",
+                {"dates": ["2026-05-16"], "chains": {"2026-05-16": ["arbitrum"]}},
+            )
+            self._write_json(
+                root,
+                "earn-snapshots/2026-05-16.json",
+                {
+                    "date": "2026-05-16",
+                    "snapshots": {
+                        "arbitrum": {
+                            wallet: {"markets": {"0": {"symbol": "WETH"}}},
+                        }
+                    },
+                },
+            )
+            self._write_json(
+                root,
+                f"earn-verified-ledger/arbitrum/{wallet}.json",
+                {
+                    "markets": {
+                        "0": {"strictStatus": "live_balance_adjusted"},
+                    }
+                },
+            )
+
+            status = build_quality_status(data_dir=root)
+
+        chain = status["chains"]["arbitrum"]
+        self.assertEqual(chain["strictVerifiedMarketCount"], 1)
+        self.assertEqual(chain["nonStrictMarketCount"], 0)
+        self.assertEqual(chain["blockingMarketCount"], 0)
+        self.assertEqual(chain["marketStatusCounts"], {"verified": 1})
+
 
 if __name__ == "__main__":
     unittest.main()

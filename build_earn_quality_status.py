@@ -58,6 +58,8 @@ def _latest_snapshot_chain_payload(data_dir: Path, chain: str, requested_date: O
 
 def _normalize_status(value: Any) -> str:
     status = str(value or "").strip().lower()
+    if status == "live_balance_adjusted":
+        return "verified"
     if status in QUALITY_STATUSES:
         return status
     if status in {"pre_snapshot_carry", "historical", "snapshot", "snapshot_only"}:

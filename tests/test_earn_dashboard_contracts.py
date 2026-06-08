@@ -57,6 +57,15 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("'This yield reconciles through public netflow plus snapshot history, but it is not strict replay verification.'", self.source)
         self.assertIn("? (canonicalHistoryCoverageIncomplete ? 'coverage_incomplete' : 'inferred')", self.source)
 
+    def test_live_balance_adjusted_replay_is_trusted_for_total_yield(self):
+        self.assertIn("function earn_isTrustedReplayYieldMethod(method)", self.source)
+        self.assertIn("method === 'interest-ledger-live-balance-adjusted'", self.source)
+        self.assertIn("function earn_isTrustedReplayYieldStatus(status)", self.source)
+        self.assertIn("status === 'live_balance_adjusted'", self.source)
+        self.assertIn("earn_isTrustedReplayYieldStatus(strictVerificationStatus)", self.source)
+        self.assertIn("earn_isTrustedReplayYieldStatus(String(itemYieldCalc.verificationStatus || ''))", self.source)
+        self.assertIn("trustedHistoryMethods.has(histMethod)", self.source)
+
     def test_earn_shows_verified_background_refresh_status(self):
         self.assertIn("earn-data-freshness-pill", self.source)
         self.assertIn("EARN_FRESHNESS_STATUS_URL", self.source)

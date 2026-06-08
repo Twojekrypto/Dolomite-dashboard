@@ -556,11 +556,12 @@ function buildAuditSource(address, chain) {
       const resolvedStatus = String(focus.resolvedVerificationStatus || '');
       const calc = focus.calc || null;
       const verify = focus.verificationData || null;
+      const isTrustedReplayStatus = (status) => status === 'verified' || status === 'live_balance_adjusted';
       const replayTrusted =
         resolvedSource === 'replay-ledger' &&
         (
-          resolvedStatus === 'verified' ||
-          (calc && calc.verificationStatus === 'verified' && calc.trustedForTotal)
+          isTrustedReplayStatus(resolvedStatus) ||
+          (calc && isTrustedReplayStatus(calc.verificationStatus) && calc.trustedForTotal)
         );
       const exactVerified =
         (verify && verify.status === 'verified') ||
@@ -1448,11 +1449,17 @@ def normalize_live_row_category(row: dict) -> str:
     replay_timeout_error = "timed out" in last_replay_error.lower() or "timeout" in last_replay_error.lower()
     timed_out = bool(row.get("timedOut")) or replay_timeout_error
 
+    def is_trusted_replay_status(status: str) -> bool:
+        return status in {"verified", "live_balance_adjusted"}
+
     replay_trusted = (
         resolved_source == "replay-ledger"
         and (
-            resolved_status == "verified"
-            or (calc.get("verificationStatus") == "verified" and calc.get("trustedForTotal"))
+            is_trusted_replay_status(resolved_status)
+            or (
+                is_trusted_replay_status(str(calc.get("verificationStatus") or ""))
+                and calc.get("trustedForTotal")
+            )
         )
     )
     exact_verified = (
