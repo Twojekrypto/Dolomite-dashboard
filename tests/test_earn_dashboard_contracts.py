@@ -22,6 +22,7 @@ EARN_SNAPSHOTS_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-snapshot
 EARN_MERKL_REWARDS_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-merkl-rewards.yml"
 EARN_FRESHNESS_SCRIPT = ROOT / "update_earn_freshness_status.py"
 EARN_COMMIT_HELPER = ROOT / "scripts" / "commit_with_fresh_earn_status.sh"
+GLOBAL_PRIORITY_ADDRESSES = ROOT / "config" / "earn_canonical_priority_addresses.txt"
 BERACHAIN_PRIORITY_ADDRESSES = ROOT / "config" / "earn_berachain_canonical_hot_addresses.txt"
 EARN_COVERAGE_REPORT = ROOT / "report_earn_subaccount_history_coverage.py"
 CANONICAL_REFRESH_RUNNER = ROOT / "run_earn_canonical_history_refresh.py"
@@ -296,6 +297,20 @@ class EarnDashboardContractsTest(unittest.TestCase):
             self.assertEqual(42, len(address), address)
         self.assertIn("0x66322a0f0ef69afb3f9d41b4f6ea657592578330", addresses)
         self.assertIn("0xdac2c5d760ff866bc796ddb88dffec3d9a90b7e5", addresses)
+
+    def test_global_earn_priority_file_pins_user_reported_golden_wallets(self):
+        addresses = [
+            raw.strip()
+            for raw in GLOBAL_PRIORITY_ADDRESSES.read_text(encoding="utf-8").splitlines()
+            if raw.strip() and not raw.strip().startswith("#")
+        ]
+        self.assertEqual(len(addresses), len(set(addresses)))
+        for address in addresses:
+            self.assertTrue(address.startswith("0x"), address)
+            self.assertEqual(42, len(address), address)
+        self.assertIn("0xffe4e3986d18333402564ea64f3a83fcc1907b52", addresses)
+        self.assertIn("0x615b12d8de9d8c649de8b5813e23ba11b3f15aff", addresses)
+        self.assertIn("0xda33e6230ecb4872d7f073cfc704b8279e18fab3", addresses)
 
     def test_secondary_canonical_workflow_targets_secondary_chains(self):
         workflow = SECONDARY_CANONICAL_WORKFLOW.read_text(encoding="utf-8")
