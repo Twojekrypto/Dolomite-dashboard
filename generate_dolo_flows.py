@@ -168,6 +168,15 @@ FRESH_DEBANK_FAILURE_CACHE_SECONDS = 6 * 3600
 FRESH_DEBANK_HEADLESS_TIMEOUT_SECONDS = int(os.getenv("FRESH_DEBANK_HEADLESS_TIMEOUT_SECONDS", "75"))
 FRESH_DEBANK_VIRTUAL_TIME_BUDGET_MS = int(os.getenv("FRESH_DEBANK_VIRTUAL_TIME_BUDGET_MS", "12000"))
 FRESH_DEBANK_CHROME_BIN = os.getenv("FRESH_DEBANK_CHROME_BIN", "").strip()
+SAFE_SINGLETON_ADDRS = {
+    "0x41675c099f32341bf84bfc5382af534df5c7461a",  # Safe 1.4.1
+    "0xd9db270c1b5e3bd161e8c8503c55ceabee709552",  # Gnosis Safe 1.3.0
+    "0x3e5c63644e683549055b9be8653de26e0b4cd36e",  # Gnosis Safe 1.1.1
+    "0x29fcb43b46531bca003ddc8fcb67ffe91900c762",  # Gnosis Safe L2
+}
+USER_CONTRACT_WALLET_ADDRS = {
+    "0xbabcc964619cf5c8a57f2b989a35cd887e8ce739",  # User Safe/multisig DOLO holder
+}
 
 HOLDER_HISTORY_START_TIMESTAMP = int(datetime(2025, 4, 24, tzinfo=timezone.utc).timestamp())  # DOLO TGE
 
@@ -838,6 +847,13 @@ def holder_distribution_type(addr, holder_rows, labels):
     info = labels.get(key, {})
     label = info.get("label", "")
     label_type = info.get("type", "")
+    holder = holder_rows.get(key) or {}
+    if (
+        key in USER_CONTRACT_WALLET_ADDRS
+        or label_type in {"multisig", "safe", "contract_wallet"}
+        or str(holder.get("contract_wallet_type") or "").lower() in {"safe", "multisig"}
+    ):
+        return "multisig"
     if label_type == "cex":
         return "cex"
     if label.startswith("Core Team"):
@@ -846,7 +862,6 @@ def holder_distribution_type(addr, holder_rows, labels):
         return "investor"
     if label_type in {"protocol", "lp", "contract", "dead"}:
         return "ca"
-    holder = holder_rows.get(key) or {}
     if holder.get("is_contract"):
         return "ca"
     return label_type or "eoa"

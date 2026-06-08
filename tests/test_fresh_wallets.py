@@ -332,6 +332,90 @@ class FreshWalletTests(unittest.TestCase):
         self.assertEqual(row["exposure"], 20_000)
         self.assertEqual(row["balance"], 20_000)
 
+    def test_safe_contract_wallet_counts_as_fresh_holder(self):
+        candidate = "0x1111111111111111111111111111111111111111"
+        source = "0x3333333333333333333333333333333333333333"
+        all_transfers = {
+            "eth": [
+                (source, candidate, int(20_000 * 10**18), 150),
+            ],
+            "bera": [],
+        }
+        cutoffs = {
+            chain: {period: 100 for period in flows.FRESH_HOLDER_PERIODS}
+            for chain in flows.CHAINS
+        }
+        current_blocks = {"eth": 200, "bera": 200}
+        neutralized = {
+            period: {"eth": {candidate: 20_000}, "bera": {}}
+            for period in flows.FRESH_HOLDER_PERIODS
+        }
+        first_activity = {
+            "verified": True,
+            "status": "ok",
+            "chain": "eth",
+            "first_timestamp": 2_000_000_000 - flows.PERIODS["90d"] + 10,
+            "first_block": 140,
+            "first_tx": "0xabc",
+            "source": "normal_tx",
+        }
+
+        with patch.object(flows, "load_current_holder_rows", return_value={
+            candidate: {"is_contract": True, "contract_wallet_type": "safe"},
+        }), \
+             patch.object(flows, "load_address_labels", return_value={}), \
+             patch.object(flows, "load_current_vedolo_locks", return_value={}), \
+             patch.object(flows, "wallet_first_activity", return_value=first_activity):
+            rows, _audit = flows.build_fresh_holders(
+                all_transfers,
+                cutoffs,
+                current_blocks,
+                neutralized,
+                2_000_000_000,
+                {},
+            )
+
+        self.assertEqual(len(rows["90d"]), 1)
+        self.assertEqual(rows["90d"][0]["address"], candidate)
+        self.assertEqual(rows["90d"][0]["type"], "multisig")
+
+    def test_plain_contract_wallet_still_excluded_from_fresh_holder(self):
+        candidate = "0x1111111111111111111111111111111111111111"
+        source = "0x3333333333333333333333333333333333333333"
+        all_transfers = {
+            "eth": [
+                (source, candidate, int(20_000 * 10**18), 150),
+            ],
+            "bera": [],
+        }
+        cutoffs = {
+            chain: {period: 100 for period in flows.FRESH_HOLDER_PERIODS}
+            for chain in flows.CHAINS
+        }
+        current_blocks = {"eth": 200, "bera": 200}
+        neutralized = {
+            period: {"eth": {candidate: 20_000}, "bera": {}}
+            for period in flows.FRESH_HOLDER_PERIODS
+        }
+
+        with patch.object(flows, "load_current_holder_rows", return_value={
+            candidate: {"is_contract": True},
+        }), \
+             patch.object(flows, "load_address_labels", return_value={}), \
+             patch.object(flows, "load_current_vedolo_locks", return_value={}), \
+             patch.object(flows, "wallet_first_activity") as first_activity:
+            rows, _audit = flows.build_fresh_holders(
+                all_transfers,
+                cutoffs,
+                current_blocks,
+                neutralized,
+                2_000_000_000,
+                {},
+            )
+
+        self.assertEqual(rows["90d"], [])
+        first_activity.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
