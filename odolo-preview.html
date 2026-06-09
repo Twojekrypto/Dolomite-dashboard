@@ -1487,7 +1487,7 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
         <h2>oDOLO Flows</h2>
         <span class="count-badge">Top accumulators &amp; outflows</span>
       </div>
-      <div class="card-meta"><span class="pulse"></span><span id="flows-meta">Period: 7D</span></div>
+      <div class="card-meta"><span class="pulse"></span><span id="flows-meta">Flow data</span></div>
     </div>
 
     <div class="toolbar">
@@ -3422,8 +3422,6 @@ document.querySelectorAll('#dd-flows-period .dd-opt').forEach(opt=>{
     state.flowsPeriod = opt.dataset.period;
     const meta = PERIODS.find(p=>p.key===state.flowsPeriod);
     document.querySelector('#dd-flows-period .dd-btn .lbl').textContent = meta ? meta.short : opt.dataset.period.toUpperCase();
-    const metaEl = document.getElementById("flows-meta");
-    if(metaEl) metaEl.textContent = "Period: " + (meta ? meta.short : state.flowsPeriod);
     state.flowsPage.acc=0;
     state.flowsPage.out=0;
     renderFlows();
@@ -3619,8 +3617,7 @@ function syncLiveFlowsForPeriod(){
   });
   applyRows(FLOWS, [...acc, ...out]);
   const metaEl = document.getElementById("flows-meta");
-  const period = PERIODS.find(p=>p.key===state.flowsPeriod);
-  if(metaEl) metaEl.textContent = `Period: ${period ? period.short : state.flowsPeriod.toUpperCase()}`;
+  if(metaEl) metaEl.textContent = "Flow data";
 }
 
 function syncLiveDiscountCurve(){
