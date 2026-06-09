@@ -109,6 +109,18 @@ class DoloAddressLabelsTest(unittest.TestCase):
         self.assertIn("holder_wallet_history", generator)
         self.assertIn("HOLDER_WALLET_HISTORY_VIEWS", generator)
 
+    def test_dolo_hero_uses_price_freshness_not_holder_timestamp(self):
+        html = (ROOT / "dolo-preview.html").read_text()
+        self.assertIn("Price updating", html)
+        self.assertIn("function syncPriceMeta", html)
+        self.assertIn("Price updated · ", html)
+        self.assertIn("Data updated · ", html)
+        self.assertIn("syncPriceMeta(data.last_updated)", html)
+        self.assertIn("syncLiveMeta(data.timestamp)", html)
+        sync_body = re.search(r"function syncLiveMeta\(timestamp\)\{(?P<body>.*?)\n  \}", html, re.S)
+        self.assertIsNotNone(sync_body)
+        self.assertNotIn(".hero-live", sync_body.group("body"))
+
     def test_potential_custody_labels_are_not_confirmed_cex(self):
         potential_rows = [info for info in self.labels.values() if "Potential" in info["label"] or info["type"] == "watch"]
         self.assertGreaterEqual(len(potential_rows), 1)
