@@ -1164,9 +1164,10 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 /* ---- section / tables ---- */
 .pf-section{margin-top:24px;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-xl);box-shadow:var(--sh-card);overflow:hidden}
 /* section heads reuse .card-head / .card-title / .count-badge — same UX as DOLO Holders */
-.pf-total{margin-left:auto;font-family:var(--mono);font-size:13px;font-weight:600;color:var(--fg-1);font-variant-numeric:tabular-nums}
-.pf-total .lbl{font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:var(--fg-3);font-weight:600;margin-right:8px}
-.pf-total .unit{font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:var(--fg-3);font-weight:600;margin-left:6px}
+.pf-section-meta{margin-left:auto;white-space:nowrap}
+.pf-section-meta .pf-meta-label{color:var(--fg-3)}
+.pf-section-meta .pf-meta-value{font-size:11px;font-weight:700;color:var(--fg-1);font-variant-numeric:tabular-nums}
+.pf-section-meta .unit{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--fg-3);font-weight:600;margin-left:5px}
 .pf-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 22px;border-bottom:1px solid var(--line-1);background:rgba(255,255,255,.012)}
 .pf-chain-filter{display:inline-flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--fg-3);font-weight:600;padding:5px 10px;border-radius:7px;background:var(--bg-3);border:1px solid var(--line-2);cursor:pointer;transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease)}
 .pf-chain-filter .dot{width:13px;height:13px;border-radius:50%;background-color:var(--bg-2);background-position:center;background-size:cover;box-shadow:0 0 0 1px rgba(0,0,0,.35)}
@@ -1207,20 +1208,115 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .pf-token-name{font-weight:700;font-size:14px;letter-spacing:.2px;color:var(--fg-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pf-token-sub{font-size:10px;color:var(--fg-3);font-family:var(--mono)}
 .pf-amt-sym{font-size:11px;color:var(--fg-3);font-weight:400;margin-left:3px}
-.pf-account-cell{display:flex;flex-direction:column;gap:5px;min-width:0}
-.pf-account-main{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--fg-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pf-account-sub{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:10px;color:var(--fg-3);font-family:var(--mono)}
+.pf-account-cell{display:flex;flex-direction:column;gap:3px;min-width:0}
+.pf-account-main{font-size:11.5px;font-weight:700;color:var(--fg-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pf-account-sub{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:10.5px;color:rgba(226,232,240,.62);font-family:var(--mono);white-space:nowrap}
 .pf-mini-chip{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 7px;border-radius:6px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);color:var(--fg-3);font-size:9px;text-transform:uppercase;letter-spacing:.7px;font-weight:700}
 .pf-hf-badge{display:inline-flex;align-items:center;justify-content:center;min-width:58px;height:28px;padding:0 10px;border-radius:7px;font-family:var(--mono);font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;border:1px solid rgba(255,255,255,.075);background:rgba(255,255,255,.025);color:var(--fg-1)}
 .pf-hf-badge.danger{color:var(--down);background:rgba(255,91,91,.075);border-color:rgba(255,91,91,.22)}
 .pf-hf-badge.warn{color:#ffcf72;background:rgba(255,207,114,.07);border-color:rgba(255,207,114,.20)}
 .pf-hf-badge.ok{color:var(--up);background:rgba(86,211,100,.07);border-color:rgba(86,211,100,.18)}
 .pf-hf-badge.unknown{color:var(--fg-3);background:rgba(255,255,255,.025);border-color:rgba(255,255,255,.075)}
+.pf-hf-dot{width:6px;height:6px;border-radius:50%;margin-right:6px;background:currentColor;box-shadow:0 0 8px currentColor}
 .pf-token-pills{display:flex;align-items:flex-end;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-top:5px}
 .pf-token-pill{display:inline-flex;align-items:center;gap:5px;max-width:150px;height:22px;padding:0 7px;border-radius:7px;background:rgba(255,255,255,.026);border:1px solid rgba(255,255,255,.065);font-family:var(--mono);font-size:10px;color:var(--fg-3);white-space:nowrap}
 .pf-token-pill img{width:13px;height:13px;border-radius:50%;object-fit:contain;flex-shrink:0}
 .pf-money-cell{display:flex;flex-direction:column;align-items:flex-end;gap:0}
 .pf-money-main{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--fg-1);font-variant-numeric:tabular-nums}
+.pf-borrow-positions{
+  table-layout:fixed;
+}
+.pf-borrow-positions colgroup col:nth-child(1){width:7.8%}
+.pf-borrow-positions colgroup col:nth-child(2){width:16.2%}
+.pf-borrow-positions colgroup col:nth-child(3){width:11.7%}
+.pf-borrow-positions colgroup col:nth-child(4){width:9.1%}
+.pf-borrow-positions colgroup col:nth-child(5){width:21.6%}
+.pf-borrow-positions colgroup col:nth-child(6){width:18.3%}
+.pf-borrow-positions colgroup col:nth-child(7){width:15.3%}
+#pf-borrows-section .pf-table thead th{
+  padding:10px 12px;
+  font-size:9.5px;
+  letter-spacing:1.2px;
+  background:rgba(9,9,11,.28);
+}
+#pf-borrows-section .pf-table tbody tr.pf-row{
+  border-bottom:1px solid rgba(255,255,255,.03);
+  transition:transform .15s var(--ease),background .15s var(--ease);
+  position:relative;
+}
+#pf-borrows-section .pf-table tbody tr.pf-row:hover td{
+  background:linear-gradient(90deg,rgba(201,162,39,.058),rgba(255,255,255,.018));
+  border-bottom-color:rgba(52,211,153,.08);
+}
+#pf-borrows-section .pf-table tbody tr.pf-row:hover td:first-child{
+  box-shadow:inset 3px 0 0 #34d399;
+}
+#pf-borrows-section .pf-table tbody td{
+  padding:8px 12px;
+  font-size:12px;
+}
+#pf-borrows-section .pf-table tbody td:nth-child(1),
+#pf-borrows-section .pf-table tbody td:nth-child(2),
+#pf-borrows-section .pf-table tbody td:nth-child(3),
+#pf-borrows-section .pf-table tbody td:nth-child(4){
+  overflow:visible;
+}
+#pf-borrows-section .pf-table thead th:nth-child(6),
+#pf-borrows-section .pf-table thead th:nth-child(7),
+#pf-borrows-section .pf-table tbody td:nth-child(6),
+#pf-borrows-section .pf-table tbody td:nth-child(7){
+  text-align:left;
+}
+#pf-borrows-section .pf-table tbody td:nth-child(6),
+#pf-borrows-section .pf-table tbody td:nth-child(7){
+  white-space:normal;
+  overflow:visible;
+}
+.pf-borrow-positions .pf-money-cell{
+  align-items:flex-start;
+  gap:4px;
+}
+.pf-borrow-positions .pf-money-main{
+  font-size:12.5px;
+  line-height:1.1;
+}
+.pf-borrow-positions .pf-token-pills{
+  align-items:flex-start;
+  justify-content:flex-start;
+  flex-direction:column;
+  flex-wrap:nowrap;
+  gap:3px;
+  margin-top:0;
+}
+.pf-borrow-positions .pf-token-pill{
+  height:auto;
+  padding:1px 0;
+  border:0;
+  background:none;
+  font-size:10px;
+  color:var(--fg-3);
+  gap:4px;
+}
+.pf-borrow-positions .pf-token-pill img{width:12px;height:12px}
+.pf-col-spacer{padding:0!important}
+.pf-emode-cell{text-align:center!important}
+.pf-emode-badge{
+  display:inline-flex;align-items:center;gap:2px;
+  padding:1px 5px 1px 3px;
+  border-radius:4px;
+  font-size:9px;font-weight:600;
+  white-space:nowrap;
+  cursor:help;
+  transition:transform .2s var(--ease),filter .2s var(--ease),border-color .2s var(--ease),background .2s var(--ease);
+  letter-spacing:.2px;
+  background:rgba(251,146,60,.10);
+  color:#fdba74;
+  border:1px solid rgba(251,146,60,.18);
+  line-height:1.2;
+}
+.pf-emode-badge:hover{transform:scale(1.08);filter:drop-shadow(0 0 6px rgba(251,146,60,.4));border-color:rgba(251,146,60,.34)}
+.pf-emode-badge svg{width:11px;height:11px;flex-shrink:0}
+.pf-emode-empty{color:var(--fg-3);font-family:var(--mono);font-size:11px}
 .pf-action-cell{display:flex;align-items:center;gap:10px;min-width:0}
 .pf-action-mark{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;flex-shrink:0;background:linear-gradient(135deg,rgba(201,162,39,.14),rgba(255,255,255,.035));border:1px solid var(--line-2);overflow:hidden}
 .pf-action-mark img{width:100%;height:100%;object-fit:contain;padding:3px}
@@ -1231,6 +1327,70 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .pf-tx-link{display:inline-flex;align-items:center;gap:5px;color:var(--fg-3);font-family:var(--mono);font-size:10px;transition:color .15s var(--ease)}
 .pf-tx-link:hover{color:var(--gold)}
 .pf-tx-link svg{width:11px;height:11px;flex-shrink:0}
+
+#pf-exercises-section{
+  position:relative;
+  --pf-ex-green:#75b87b;
+  --pf-ex-line:rgba(117,184,123,.30);
+  --pf-ex-wash:rgba(117,184,123,.10);
+  border-color:rgba(117,184,123,.18);
+  background:
+    linear-gradient(180deg,rgba(117,184,123,.055),rgba(15,17,15,.82)),
+    var(--bg-2);
+}
+#pf-exercises-section::before{
+  content:"";position:absolute;left:0;right:0;top:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(117,184,123,.52),transparent);
+  pointer-events:none;
+}
+#pf-exercises-section .card-head{
+  background:linear-gradient(180deg,rgba(117,184,123,.045),rgba(20,20,23,.18));
+  border-bottom-color:rgba(117,184,123,.14);
+}
+#pf-exercises-section .card-title h2{color:var(--pf-ex-green)}
+#pf-exercises-section .card-title h2::before{
+  content:"";display:inline-block;width:7px;height:7px;margin-right:9px;border-radius:999px;
+  background:var(--pf-ex-green);
+  box-shadow:0 0 10px var(--pf-ex-green),0 0 0 3px rgba(117,184,123,.10);
+  vertical-align:middle;
+}
+#pf-exercises-section .count-badge{
+  color:var(--pf-ex-green);
+  border-color:rgba(117,184,123,.24);
+  background:rgba(117,184,123,.08);
+}
+#pf-exercises-section .pulse{
+  background:var(--pf-ex-green);
+  box-shadow:0 0 8px var(--pf-ex-green);
+}
+#pf-exercises-section .pf-table thead th{
+  background:rgba(9,9,11,.38);
+  border-bottom-color:var(--line-2);
+}
+#pf-exercises-section .pf-table thead th[data-sort]:hover,
+#pf-exercises-section .pf-table thead th.sort-active,
+#pf-exercises-section .pf-table thead th.sort-active .pf-sort{color:var(--pf-ex-green)}
+#pf-exercises-section .pf-table tbody tr.pf-row:hover td{background:rgba(117,184,123,.045)}
+#pf-exercises-section .pf-table tbody tr.pf-row:hover td:first-child{box-shadow:inset 3px 0 0 var(--pf-ex-green)}
+#pf-exercises-section .tbl-foot{
+  background:rgba(9,9,11,.16);
+  border-top-color:rgba(117,184,123,.10);
+}
+#pf-exercises-section .pf-action-mark{
+  border-color:rgba(117,184,123,.18);
+  background:linear-gradient(135deg,rgba(117,184,123,.12),rgba(255,255,255,.035));
+}
+.pf-ex-ve{color:var(--pf-ex-green);font-weight:700}
+.pf-latest-date{
+  display:flex;flex-direction:column;gap:3px;align-items:flex-start;
+  font-family:var(--mono);font-size:12px;color:var(--fg-2);white-space:nowrap;
+}
+.pf-latest-date-top{display:flex;align-items:center;gap:6px}
+.pf-latest-date strong{color:var(--fg-1);font-weight:600;font-size:11px;letter-spacing:0}
+.pf-latest-date > span{font-size:10.5px;color:rgba(255,255,255,.34);letter-spacing:0}
+.pf-latest-date .pf-latest-tx{width:18px;height:18px;border:0;background:transparent;color:#9bcf9f;opacity:.5;border-radius:5px;display:grid;place-items:center;transition:opacity .15s var(--ease),color .15s var(--ease),background .15s var(--ease)}
+.pf-latest-date .pf-latest-tx:hover{opacity:.9;color:var(--gold);background:var(--gold-wash);transform:none}
+.pf-latest-date .pf-latest-tx svg{width:13px;height:13px}
 
 .pf-empty{padding:46px 22px;text-align:center;color:var(--fg-3);font-size:13px}
 .pf-empty svg{width:34px;height:34px;color:var(--fg-4);margin-bottom:12px}
@@ -1245,7 +1405,8 @@ body:not(.pf-active) #pf-results{display:none}
 @media (max-width:760px){
   .pf-table{table-layout:auto}
   .pf-table thead th:nth-child(1),.pf-table td:nth-child(1){display:none}
-  .pf-table.pf-borrow-positions,.pf-table.pf-exercise-table{min-width:820px}
+  .pf-table.pf-borrow-positions{min-width:960px}
+  .pf-table.pf-exercise-table{min-width:820px}
   .pf-table.pf-borrow-positions thead th:nth-child(1),.pf-table.pf-borrow-positions td:nth-child(1),
   .pf-table.pf-exercise-table thead th:nth-child(1),.pf-table.pf-exercise-table td:nth-child(1){display:table-cell}
   .pf-table tbody tr.pf-row:hover td:first-child{box-shadow:none}
@@ -1385,7 +1546,7 @@ body:not(.pf-active) #pf-results{display:none}
           <h2>Deposited Assets</h2>
           <span class="count-badge" id="pf-deposits-count" style="display:none"></span>
         </div>
-        <div class="pf-total"><span class="lbl">Total supplied</span><span id="pf-deposits-total">—</span></div>
+        <div class="card-meta pf-section-meta"><span class="pulse"></span><span class="pf-meta-label">Total supplied</span><span class="pf-meta-value" id="pf-deposits-total">—</span></div>
       </div>
       <div class="pf-filters" id="pf-deposits-filters"></div>
       <div style="overflow-x:auto">
@@ -1408,13 +1569,13 @@ body:not(.pf-active) #pf-results{display:none}
           <h2>Open Borrows</h2>
           <span class="count-badge" id="pf-borrows-count" style="display:none"></span>
         </div>
-        <div class="pf-total"><span class="lbl">Total debt</span><span id="pf-borrows-total">—</span></div>
+        <div class="card-meta pf-section-meta"><span class="pulse"></span><span class="pf-meta-label">Total debt</span><span class="pf-meta-value" id="pf-borrows-total">—</span></div>
       </div>
       <div class="pf-filters" id="pf-borrows-filters"></div>
       <div style="overflow-x:auto">
         <table class="pf-table pf-borrow-positions">
-          <colgroup><col style="width:13%"><col style="width:27%"><col style="width:12%"><col style="width:24%"><col style="width:24%"></colgroup>
-          <thead><tr><th data-sort="chain" data-table="bor">Chain<span class="pf-sort"></span></th><th data-sort="account" data-table="bor">Position<span class="pf-sort"></span></th><th class="num" data-sort="hf" data-table="bor">HF<span class="pf-sort"></span></th><th class="num" data-sort="collateral" data-table="bor">Collateral<span class="pf-sort"></span></th><th class="num sort-active" data-sort="debt" data-table="bor">Debt<span class="pf-sort">▼</span></th></tr></thead>
+          <colgroup><col><col><col><col><col><col><col></colgroup>
+          <thead><tr><th data-sort="chain" data-table="bor">Chain<span class="pf-sort"></span></th><th data-sort="account" data-table="bor">Position<span class="pf-sort"></span></th><th data-sort="hf" data-table="bor">Health Factor<span class="pf-sort"></span></th><th data-sort="emode" data-table="bor" style="text-align:center">E-Mode<span class="pf-sort"></span></th><th class="pf-col-spacer" aria-hidden="true"></th><th data-sort="collateral" data-table="bor">Collateral<span class="pf-sort"></span></th><th class="sort-active" data-sort="debt" data-table="bor">Debt<span class="pf-sort">▼</span></th></tr></thead>
           <tbody id="pf-borrows-body"></tbody>
         </table>
       </div>
@@ -1431,12 +1592,12 @@ body:not(.pf-active) #pf-results{display:none}
           <h2>veDOLO / oDOLO Exercises</h2>
           <span class="count-badge" id="pf-exercises-count" style="display:none"></span>
         </div>
-        <div class="pf-total"><span class="lbl">veDOLO minted</span><span id="pf-exercises-total">—</span></div>
+        <div class="card-meta pf-section-meta"><span class="pulse"></span><span class="pf-meta-label">veDOLO minted</span><span class="pf-meta-value" id="pf-exercises-total">—</span></div>
       </div>
       <div style="overflow-x:auto">
         <table class="pf-table pf-exercise-table">
           <colgroup><col style="width:17%"><col style="width:27%"><col style="width:17%"><col style="width:13%"><col style="width:16%"><col style="width:10%"></colgroup>
-          <thead><tr><th class="sort-active" data-sort="date" data-table="ex">Date<span class="pf-sort">▼</span></th><th data-sort="action" data-table="ex">Action<span class="pf-sort"></span></th><th class="num" data-sort="vedolo" data-table="ex">veDOLO<span class="pf-sort"></span></th><th class="num" data-sort="lock" data-table="ex">Lock<span class="pf-sort"></span></th><th class="num" data-sort="paid" data-table="ex">Cost<span class="pf-sort"></span></th><th class="num" data-sort="price" data-table="ex">Price<span class="pf-sort"></span></th></tr></thead>
+          <thead><tr><th class="sort-active" data-sort="date" data-table="ex">Date<span class="pf-sort">▼</span></th><th data-sort="action" data-table="ex">Action<span class="pf-sort"></span></th><th class="num" data-sort="vedolo" data-table="ex">veDOLO<span class="pf-sort"></span></th><th class="num" data-sort="lock" data-table="ex">Lock<span class="pf-sort"></span></th><th class="num" data-sort="paid" data-table="ex">USDC Paid<span class="pf-sort"></span></th><th class="num" data-sort="price" data-table="ex">Price<span class="pf-sort"></span></th></tr></thead>
           <tbody id="pf-exercises-body"></tbody>
         </table>
       </div>
@@ -1788,6 +1949,8 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     };
     return hash ? (hosts[chain] || "https://etherscan.io/tx/") + hash : "";
   };
+  const TX_EXTERNAL_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
+  const exerciseDateMeta = chain => (CHAIN_BY_KEY[chain] || { name: "Onchain" }).name;
 
   // ---------- data ----------
   const jsonCache = {};
@@ -1904,6 +2067,18 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     hf = Number(hf) || 0;
     return hf ? hf.toFixed(hf >= 10 ? 1 : 2) : "0.00";
   }
+  const EMODE_FLAME = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 2c0 4-4 6-4 10a4 4 0 0 0 8 0c0-4-4-6-4-10z" fill="#fb923c" opacity="0.9"/><path d="M12 8c0 2.5-2 3.5-2 6a2 2 0 0 0 4 0c0-2.5-2-3.5-2-6z" fill="#fbbf24"/></svg>';
+  const emodeTip = "E-Mode applies special risk parameters for correlated assets in the same category. It can improve borrow efficiency, but liquidation still depends on the account's collateral, debt, and selected E-Mode category.";
+  function emodeCell(active){
+    return active
+      ? `<span class="pf-emode-badge" data-tooltip="${emodeTip}">${EMODE_FLAME}E-Mode</span>`
+      : `<span class="pf-emode-empty">—</span>`;
+  }
+  function positionLabel(row){
+    const n = String(row.account || "").trim();
+    if (!n || n === "0") return "Main borrow";
+    return `Position #${n.length > 6 ? n.slice(0,4) + "…" + n.slice(-2) : n}`;
+  }
   function buildRiskBorrowRows(riskJson, addr){
     const a = normAddr(addr);
     return ((riskJson && riskJson.positions) || [])
@@ -2014,10 +2189,10 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     const held = (d.dolo && d.dolo.balance) || 0;
     const ve = (d.vedolo && d.vedolo.total_dolo) || 0;
     const exTxs = (d.exer && d.exer.txs) || [];
-    const exVe = exTxs.reduce((s,t)=>s+(Number(t.vedolo)||0),0);
-    const exCostUsd = exTxs.reduce((s,t)=>s+(Number(t.usdc)||0),0);
-    const exPairDolo = exTxs.reduce((s,t)=>s+(Number(t.dolo_paid)||0),0);
-    const exCount = (d.exer && d.exer.exercises) || 0;
+    const exClaimTxs = exTxs.filter(t => t && t.usdc != null);
+    const exVe = exClaimTxs.reduce((s,t)=>s+(Number(t.vedolo)||0),0);
+    const exCostUsd = exClaimTxs.reduce((s,t)=>s+(Number(t.usdc)||0),0);
+    const exCount = exClaimTxs.length;
     const vOTok = d.vesting ? d.vesting.oToken : 0;
     const vPair = d.vesting ? d.vesting.pairDolo : 0;
     const total = held + ve + vOTok;
@@ -2036,10 +2211,10 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     items.push(sumItem("vedolo-logo.svg", "veDOLO locked", `${fmtCompact(ve)}`,
       d.vedolo ? `${fmtCompact(d.vedolo.total_vote_weight)} vote power · ${d.vedolo.nft_count} lock${d.vedolo.nft_count!==1?"s":""}${d.vedolo.latest_lock_end?`<br><span class="dim">until ${fmtDate(d.vedolo.latest_lock_end)}</span>`:""}` : `<span class="dim">no veDOLO locks</span>`));
     // 3) exercised oDOLO options (historical, results live inside veDOLO)
-    const exPrices = exTxs.map(t=>Number(t.price)).filter(p=>p>0);
+    const exPrices = exClaimTxs.map(t=>Number(t.price)).filter(p=>p>0);
     const exAvg = exPrices.length ? exPrices.reduce((s,p)=>s+p,0)/exPrices.length : null;
     items.push(sumItem("odolo-logo-official.svg", "oDOLO exercised", `${fmtCompact(exVe)}`,
-      exCount ? `${exCount} exercise${exCount!==1?"s":""}${exCostUsd?` · ${fmtUSD(exCostUsd)} option cost`:""}<br><span class="dim">${exAvg?`avg $${exAvg.toFixed(4)} · `:""}${exPairDolo?`${fmtCompact(exPairDolo)} DOLO paired · `:""}in veDOLO</span>` : `<span class="dim">no exercises yet</span>`));
+      exCount ? `${exCount} option claim${exCount!==1?"s":""}${exCostUsd?` · ${fmtUSD(exCostUsd)} option cost`:""}<br><span class="dim">${exAvg?`avg $${exAvg.toFixed(4)} · `:""}oDOLO converted into veDOLO</span>` : `<span class="dim">no oDOLO option claims yet</span>`));
     // 4) paired oDOLO + DOLO, not exercised (active vesting)
     items.push(sumItem("odolo-logo-official.svg", "oDOLO paired · pending", `${fmtCompact(vOTok)}`,
       d.vesting ? `${fmtCompact(vPair)} DOLO paired · returned on claim · ${d.vesting.count} position${d.vesting.count!==1?"s":""}${d.vesting.soonest?`<br><span class="dim">unlock ${fmtDate(d.vesting.soonest)}</span>`:""}` : `<span class="dim">no active vesting</span>`, true));
@@ -2229,12 +2404,12 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     const body = $("#pf-borrows-body");
     if (!state.borrows.length){
       $(ids.foot).style.display = "none";
-      body.innerHTML = `<tr><td colspan="5"><div class="pf-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>No open borrow positions in the risk dataset.</div></td></tr>`;
+      body.innerHTML = `<tr><td colspan="7"><div class="pf-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>No open borrow positions in the risk dataset.</div></td></tr>`;
       return;
     }
     if (!filtered.length){
       $(ids.foot).style.display = "none";
-      body.innerHTML = `<tr><td colspan="5"><div class="pf-empty">No positions match the filter.</div></td></tr>`;
+      body.innerHTML = `<tr><td colspan="7"><div class="pf-empty">No positions match the filter.</div></td></tr>`;
       return;
     }
     const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -2247,19 +2422,21 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         <td>
           <div class="pf-account-cell">
             <div class="pf-account-main" title="${esc(r.accountId || r.account || "Open borrow")}">Open borrow</div>
-            <div class="pf-account-sub">${r.eMode ? `<span class="pf-mini-chip">E-mode</span>` : `<span class="pf-mini-chip">Position</span>`}</div>
+            <div class="pf-account-sub">${esc(positionLabel(r))}</div>
           </div>
         </td>
-        <td class="num"><span class="pf-hf-badge ${hfClass(r.hf)}">${hfText(r.hf)}</span></td>
-        <td class="usd">
+        <td><span class="pf-hf-badge ${hfClass(r.hf)}"><span class="pf-hf-dot"></span>${hfText(r.hf)}</span></td>
+        <td class="pf-emode-cell">${emodeCell(r.eMode)}</td>
+        <td class="pf-col-spacer"></td>
+        <td>
           <div class="pf-money-cell">
             <div class="pf-money-main">${fmtUSD(r.collateral)}</div>
             ${tokenPills(r.collateralTokens, r.chain)}
           </div>
         </td>
-        <td class="usd pf-usd-neg">
+        <td>
           <div class="pf-money-cell">
-            <div class="pf-money-main">${fmtUSD(r.debt)}</div>
+            <div class="pf-money-main pf-usd-neg">${fmtUSD(r.debt)}</div>
             ${tokenPills(r.debtTokens, r.chain)}
           </div>
         </td>
@@ -2267,7 +2444,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     if (totalPages > 1 && pageRows.length < PAGE_SIZE){
       const rowH = body.querySelector("tr.pf-row") ? body.querySelector("tr.pf-row").getBoundingClientRect().height : 64;
       body.innerHTML += Array.from({ length: PAGE_SIZE - pageRows.length }, () =>
-        `<tr class="pf-spacer-row" aria-hidden="true"><td colspan="5" style="height:${Math.round(rowH)}px"></td></tr>`).join("");
+        `<tr class="pf-spacer-row" aria-hidden="true"><td colspan="7" style="height:${Math.round(rowH)}px"></td></tr>`).join("");
     }
     $(ids.foot).style.display = "";
     $(ids.info).textContent = `${start + 1}–${Math.min(start + PAGE_SIZE, filtered.length)} of ${filtered.length.toLocaleString("en-US")}`;
@@ -2293,12 +2470,16 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     const pageRows = rows.slice(start, start + PAGE_SIZE);
     body.innerHTML = pageRows.map(r => {
       const tx = txExplorer(r.chain, r.hash);
-      const paidHtml = r.isStableClaim ? `${fmtUSD(r.paid)} <span class="pf-amt-sym">${esc(r.paidToken)}</span>` : "—";
+      const hashLabel = r.hash ? `${r.hash.slice(0,6)}…${r.hash.slice(-4)}` : "transaction";
+      const txLink = tx
+        ? `<a class="pf-latest-tx" href="${tx}" target="_blank" rel="noopener" aria-label="Open transaction ${esc(hashLabel)}">${TX_EXTERNAL_ICON}</a>`
+        : "";
+      const paidHtml = r.isStableClaim ? fmtUSD(r.paid) : "—";
       const priceHtml = r.price ? `$${r.price.toFixed(4)}` : "—";
       return `<tr class="pf-row">
-        <td><div class="pf-date-cell"><div class="pf-date-main">${fmtIsoDate(r.date)}</div>${tx ? `<a class="pf-tx-link" href="${tx}" target="_blank" rel="noopener">Tx <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg></a>` : ""}</div></td>
+        <td><div class="pf-latest-date"><div class="pf-latest-date-top"><strong>${fmtIsoDate(r.date)}</strong>${txLink}</div><span>${esc(exerciseDateMeta(r.chain))}</span></div></td>
         <td><div class="pf-action-cell"><span class="pf-action-mark"><img src="odolo-logo-official.svg" alt="" onerror="this.style.display='none'"></span><div style="min-width:0"><div class="pf-action-main">${esc(r.action)}</div><div class="pf-action-sub">${esc(r.actionSub)}</div></div></div></td>
-        <td class="num">${fmtToken(r.vedolo)}</td>
+        <td class="num"><span class="pf-ex-ve">${fmtToken(r.vedolo)}</span></td>
         <td class="num">${fmtLockDays(r.lockDays)}</td>
         <td class="num">${paidHtml}</td>
         <td class="num">${priceHtml}</td>
@@ -2334,7 +2515,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
 
   function setLoadingTables(){
     const skel = `<tr class="pf-skel-row"><td><span class="pf-skel" style="width:60px"></span></td><td><span class="pf-skel" style="width:120px"></span></td><td class="num"><span class="pf-skel" style="width:80px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:70px;margin-left:auto"></span></td></tr>`.repeat(3);
-    const borSkel = `<tr class="pf-skel-row"><td><span class="pf-skel" style="width:58px"></span></td><td><span class="pf-skel" style="width:128px"></span></td><td class="num"><span class="pf-skel" style="width:50px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:104px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:104px;margin-left:auto"></span></td></tr>`.repeat(3);
+    const borSkel = `<tr class="pf-skel-row"><td><span class="pf-skel" style="width:58px"></span></td><td><span class="pf-skel" style="width:96px"></span></td><td><span class="pf-skel" style="width:50px"></span></td><td><span class="pf-skel" style="width:54px;margin:0 auto"></span></td><td class="pf-col-spacer"></td><td><span class="pf-skel" style="width:104px"></span></td><td><span class="pf-skel" style="width:104px"></span></td></tr>`.repeat(3);
     const exSkel = `<tr class="pf-skel-row"><td><span class="pf-skel" style="width:86px"></span></td><td><span class="pf-skel" style="width:150px"></span></td><td class="num"><span class="pf-skel" style="width:72px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:46px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:90px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:48px;margin-left:auto"></span></td></tr>`.repeat(3);
     $("#pf-deposits-body").innerHTML = skel; $("#pf-borrows-body").innerHTML = borSkel; $("#pf-exercises-body").innerHTML = exSkel;
     $("#pf-deposits-foot").style.display = "none"; $("#pf-borrows-foot").style.display = "none"; $("#pf-exercises-foot").style.display = "none";
