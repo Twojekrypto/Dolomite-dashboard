@@ -1076,31 +1076,94 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .pf-example:hover{color:var(--gold-hi)}
 .pf-err{color:var(--down);font-family:var(--mono);font-size:12px}
 
-/* ---- summary cards ---- */
-.pf-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(232px,1fr));gap:14px;margin-top:26px}
-.pf-card{
-  position:relative;overflow:hidden;
-  background:linear-gradient(180deg,rgba(255,255,255,.022),rgba(255,255,255,.006));
-  border:1px solid var(--line-2);border-radius:var(--r-md);
-  padding:16px 18px;box-shadow:var(--sh-card);
+/* ---- DOLO wallet summary (main card) — same UX as the DOLO tab hero ---- */
+.pf-summary{
+  position:relative;overflow:hidden;margin-top:24px;
+  background:linear-gradient(180deg,var(--bg-2),var(--bg-1));
+  border:1px solid var(--line-2);border-radius:var(--r-xl);
+  padding:28px 32px 24px;
 }
-.pf-card::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
-  background:linear-gradient(180deg,rgba(201,162,39,.6),rgba(201,162,39,.16));opacity:.85}
-.pf-card-label{display:flex;align-items:center;gap:8px;font-size:9.5px;letter-spacing:1.4px;color:var(--fg-3);font-weight:700;margin-bottom:12px}
-.pf-card-label img{width:14px;height:14px;border-radius:50%;object-fit:contain;flex-shrink:0}
-.pf-card-value{font-family:var(--mono);font-size:23px;font-weight:700;letter-spacing:-.6px;color:var(--fg-1);font-variant-numeric:tabular-nums;line-height:1.05;display:flex;align-items:baseline;gap:7px}
-.pf-card-value .unit{font-size:12px;font-weight:600;color:var(--fg-3);letter-spacing:0}
-.pf-card-value.gold{color:var(--gold-hi)}
-.pf-card-sub{font-size:11px;color:var(--fg-3);margin-top:9px;font-family:var(--mono);font-variant-numeric:tabular-nums;line-height:1.5}
-.pf-card-sub .pos{color:var(--up)}
-.pf-card-sub .dim{color:var(--fg-4)}
-.pf-card-usd{color:var(--fg-2)}
+.pf-summary::before{
+  content:"";position:absolute;left:0;right:0;top:0;height:1px;pointer-events:none;
+  background:linear-gradient(90deg,transparent 0%,var(--gold-line) 30%,var(--gold-line) 70%,transparent 100%);
+  opacity:.6;
+}
+.pf-summary::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(720px 320px at 80% -30%,rgba(201,162,39,.08),transparent 65%);
+}
+.pf-summary .hero-token-logo img{width:30px;height:30px;object-fit:contain}
+/* big total — DOLO-tab hero price row */
+.pf-sum-headline{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;padding-bottom:26px;position:relative;z-index:1}
+.pf-sum-total-val{
+  font-family:var(--mono);font-size:clamp(44px,6vw,62px);font-weight:700;
+  letter-spacing:-2.5px;color:var(--fg-1);font-variant-numeric:tabular-nums;line-height:1;
+}
+.pf-sum-total-val .unit{font-size:.32em;font-weight:600;color:var(--fg-3);letter-spacing:0;margin-left:8px}
+.pf-sum-usd{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:8px 14px;border-radius:10px;
+  font-family:var(--mono);font-weight:600;font-size:14px;letter-spacing:.2px;
+  color:var(--gold);background:var(--gold-wash);border:1px solid var(--gold-line);
+}
+.pf-sum-usd .lbl{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;opacity:.7;margin-left:2px}
+/* stat strip — DOLO-tab hero-stats metrics, 5 columns */
+.pf-sum-grid{
+  display:grid;grid-template-columns:repeat(5,1fr);gap:0;
+  padding-top:22px;border-top:1px solid var(--line-1);
+  position:relative;z-index:1;
+}
+.pf-sum-item{padding:0 24px;border-left:1px solid var(--line-1);position:relative;min-width:0}
+.pf-sum-item:first-child{border-left:0;padding-left:0}
+.pf-sum-item .lbl{
+  font-size:10px;text-transform:uppercase;letter-spacing:1.6px;
+  color:var(--fg-3);font-weight:600;margin-bottom:12px;
+  display:flex;align-items:center;gap:7px;white-space:nowrap;
+}
+.pf-sum-item .lbl img{width:11px;height:11px;border-radius:50%;object-fit:contain;opacity:.82;flex-shrink:0}
+.pf-sum-item .val{
+  font-family:var(--mono);font-size:24px;font-weight:600;letter-spacing:-.6px;
+  color:var(--fg-1);font-variant-numeric:tabular-nums;line-height:1;
+}
+.pf-sum-item .val.gold{color:var(--gold)}
+.pf-sum-item .sub{font-size:11px;color:var(--fg-3);margin-top:8px;font-family:var(--mono);font-variant-numeric:tabular-nums;line-height:1.5}
+.pf-sum-item .sub .pos{color:var(--up)}
+.pf-sum-item .sub .dim{color:var(--fg-4)}
+@media (max-width:980px){
+  .pf-sum-grid{grid-template-columns:1fr 1fr;gap:18px 0}
+  .pf-sum-item{border-top:0}
+  .pf-sum-item:nth-child(odd){border-left:0;padding-left:0}
+}
+@media (max-width:560px){
+  .pf-summary{padding:22px 18px}
+  .pf-sum-grid{grid-template-columns:1fr;gap:0}
+  .pf-sum-item{border-left:0;padding:14px 0 0;border-top:1px solid var(--line-1);margin-top:14px}
+  .pf-sum-item:first-child{border-top:0;margin-top:0;padding-top:0}
+  .pf-sum-item:nth-child(odd){padding-left:0}
+}
+
+/* ---- table footer pager (DOLO Holders UX) ---- */
+.tbl-foot{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:14px 24px;border-top:1px solid var(--line-1);gap:12px}
+.tbl-foot-info{font-size:12px;color:var(--fg-3);font-family:var(--mono);text-align:left;grid-column:1}
+.pager{display:inline-flex;align-items:center;gap:4px;grid-column:2;justify-self:center}
+.pg-btn{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;padding:0 8px;border-radius:6px;background:var(--bg-3);border:1px solid var(--line-2);color:var(--fg-2);cursor:pointer;font-family:var(--mono);font-size:12px;transition:background .15s var(--ease),color .15s var(--ease),border-color .15s var(--ease)}
+.pg-btn:hover:not(:disabled){background:var(--bg-4);color:var(--fg-1);border-color:var(--line-3)}
+.pg-btn:disabled{opacity:.3;cursor:not-allowed}
+.pg-btn.active{background:var(--gold-wash);border-color:var(--gold-line);color:var(--gold)}
+.pg-btn svg{width:11px;height:11px}
+.pg-current{display:inline-flex;align-items:center;gap:4px;padding:0 14px;height:30px;font-family:var(--mono);font-size:12px;font-weight:600;color:var(--fg-1);font-variant-numeric:tabular-nums}
+.pg-current .pg-sep{color:var(--fg-4);font-weight:400}
+.pf-spacer-row td{border-bottom:1px solid transparent}
+.pf-spacer-row:hover td{background:transparent!important;box-shadow:none!important}
+@media (max-width:640px){
+  .tbl-foot{grid-template-columns:1fr;justify-items:center;gap:10px}
+  .tbl-foot-info{grid-column:1;text-align:center}
+  .pager{grid-column:1}
+}
 
 /* ---- section / tables ---- */
 .pf-section{margin-top:24px;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-xl);box-shadow:var(--sh-card);overflow:hidden}
-.pf-section-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:18px 22px 14px;border-bottom:1px solid var(--line-1)}
-.pf-eyebrow{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);font-weight:700;display:flex;align-items:center;gap:9px}
-.pf-eyebrow .pf-count{color:var(--fg-3);font-weight:600;font-family:var(--mono);letter-spacing:.5px}
+/* section heads reuse .card-head / .card-title / .count-badge — same UX as DOLO Holders */
 .pf-total{margin-left:auto;font-family:var(--mono);font-size:13px;font-weight:600;color:var(--fg-1);font-variant-numeric:tabular-nums}
 .pf-total .lbl{font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:var(--fg-3);font-weight:600;margin-right:8px}
 .pf-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 22px;border-bottom:1px solid var(--line-1);background:rgba(255,255,255,.012)}
@@ -1114,33 +1177,33 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .pf-tokensearch input{background:none;border:0;outline:0;color:var(--fg-1);font-family:var(--mono);font-size:12px;width:130px}
 
 .pf-table{width:100%;border-collapse:collapse;table-layout:fixed}
-.pf-table thead th{font-size:9.5px;text-transform:uppercase;letter-spacing:1.2px;color:var(--fg-3);font-weight:600;text-align:left;padding:11px 22px;background:var(--bg-2);position:sticky;top:0;z-index:2;border-bottom:1px solid var(--line-2);white-space:nowrap}
+.pf-table thead th{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--fg-3);font-weight:600;text-align:left;padding:12px 18px;background:var(--bg-2);position:sticky;top:0;z-index:2;border-bottom:1px solid var(--line-2);white-space:nowrap}
 .pf-table thead th.num{text-align:right}
-.pf-table thead th[data-sort]{cursor:pointer;user-select:none;transition:color .15s var(--ease)}
+.pf-table thead th[data-sort]{cursor:pointer;user-select:none;transition:color .2s var(--ease)}
 .pf-table thead th[data-sort]:hover{color:var(--gold)}
 .pf-table thead th.sort-active{color:var(--gold)}
-.pf-sort{display:inline-block;margin-left:5px;font-size:8px;opacity:.3;transition:opacity .15s var(--ease)}
-.pf-table thead th.sort-active .pf-sort{opacity:1;color:var(--gold)}
-/* filter bar: Assets-style chain dropdown + asset search */
+.pf-sort{display:inline-block;margin-left:5px;font-size:8px;min-width:8px;transition:opacity .2s var(--ease)}
+.pf-table thead th.sort-active .pf-sort{color:var(--gold)}
+/* filter bar: Assets-style search (left) + chain dropdown next to it */
 .pf-filters .pf-dd .dd-panel{min-width:200px}
-.pf-filters .pf-search-tbl{margin-left:auto;width:210px;height:34px;border-radius:8px}
-.pf-filters .pf-search-tbl input{font-family:var(--mono);font-size:12px}
-.pf-table tbody td{padding:13px 22px;border-bottom:1px solid var(--line-1);font-size:13px;vertical-align:middle}
-.pf-table tbody tr{position:relative;transition:background .15s var(--ease)}
-.pf-table tbody tr:hover{background:linear-gradient(90deg,rgba(201,162,39,.05),transparent 60%)}
-.pf-table tbody tr:hover::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold)}
+.pf-filters .pf-search-tbl{width:280px}
+.pf-table tbody td{padding:10px 18px;border-bottom:1px solid var(--line-1);font-size:13px;vertical-align:middle;transition:background .25s ease,box-shadow .25s ease}
+.pf-table tbody tr{transition:background .25s ease}
+.pf-table tbody tr.pf-row:nth-child(even) td{background:rgba(255,255,255,.012)}
+.pf-table tbody tr.pf-row:hover td{background:rgba(201,162,39,.045)}
+.pf-table tbody tr.pf-row:hover td:first-child{box-shadow:inset 3px 0 0 var(--gold)}
 .pf-table tbody tr:last-child td{border-bottom:0}
 .pf-table td.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--fg-1)}
 .pf-table td.usd{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:600}
 .pf-usd-pos{color:var(--up)}
 .pf-usd-neg{color:var(--down)}
-.pf-chain-chip{display:inline-flex;align-items:center;gap:7px;font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--fg-2);font-weight:600}
-.pf-chain-chip .dot{width:16px;height:16px;border-radius:50%;background-color:var(--bg-3);background-position:center;background-size:cover;box-shadow:0 0 0 1px rgba(0,0,0,.35);flex-shrink:0}
-.pf-token{display:inline-flex;align-items:center;gap:10px;min-width:0}
-.pf-token-mark{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,rgba(201,162,39,.14),rgba(255,255,255,.04));border:1px solid var(--line-2);display:grid;place-items:center;font-family:var(--mono);font-size:9.5px;font-weight:700;color:var(--gold);flex-shrink:0;overflow:hidden}
+.pf-chain-chip{display:inline-flex;align-items:center;gap:7px;padding:5px 8px;border-radius:8px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.65px;white-space:nowrap;color:var(--fg-2);border:1px solid rgba(255,255,255,.075);background:rgba(255,255,255,.028);box-shadow:inset 0 1px 0 rgba(255,255,255,.025)}
+.pf-chain-chip img{width:14px;height:14px;border-radius:50%;object-fit:cover;flex-shrink:0;background:var(--bg-3)}
+.pf-token{display:inline-flex;align-items:center;gap:12px;min-width:0}
+.pf-token-mark{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,rgba(201,162,39,.14),rgba(255,255,255,.04));border:1px solid var(--line-2);display:grid;place-items:center;font-family:var(--mono);font-size:11px;font-weight:700;color:var(--gold);flex-shrink:0;overflow:hidden}
 .pf-token-mark img{width:100%;height:100%;object-fit:contain;padding:2px}
 .pf-token-mark img.grayscale{filter:grayscale(1) brightness(1.5)}
-.pf-token-name{font-weight:600;color:var(--fg-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pf-token-name{font-weight:700;font-size:14px;letter-spacing:.2px;color:var(--fg-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pf-token-sub{font-size:10px;color:var(--fg-3);font-family:var(--mono)}
 .pf-amt-sym{font-size:11px;color:var(--fg-3);font-weight:400;margin-left:3px}
 
@@ -1155,9 +1218,19 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 body:not(.pf-active) #pf-results{display:none}
 
 @media (max-width:760px){
-  .pf-table thead th:nth-child(2),.pf-table td:nth-child(2){display:none}
+  .pf-table{table-layout:auto}
+  .pf-table thead th:nth-child(1),.pf-table td:nth-child(1){display:none}
+  .pf-table tbody tr.pf-row:hover td:first-child{box-shadow:none}
   .pf-table tbody td,.pf-table thead th{padding-left:16px;padding-right:16px}
+  .pf-token-name{max-width:128px}
+  .pf-filters .pf-search-tbl{width:100%}
   .pf-tokensearch{margin-left:0}
+}
+@media (max-width:430px){
+  .pf-token-name{max-width:78px}
+  .pf-token-mark{width:28px;height:28px}
+  .pf-table tbody td,.pf-table thead th{padding-left:12px;padding-right:12px}
+  .pf-amt-sym{display:block;margin-left:0;margin-top:2px}
 }
 </style>
 <body>
@@ -1255,37 +1328,71 @@ body:not(.pf-active) #pf-results{display:none}
 
   <!-- RESULTS -->
   <div id="pf-results">
-    <div class="pf-cards" id="pf-cards"></div>
+
+    <!-- DOLO WALLET SUMMARY (main card) — DOLO-tab hero UX -->
+    <section class="pf-summary" id="pf-dolo-summary">
+      <div class="hero-brand">
+        <div class="hero-token-logo">
+          <img src="dolo-logo.svg" alt="DOLO" onerror="this.outerHTML='<span style=&quot;color:var(--gold);font-weight:800;font-size:18px&quot;>◆</span>'">
+        </div>
+        <div class="hero-token-text">
+          <div class="hero-token-title">DOLO Wallet Summary</div>
+          <div class="hero-token-sub">Wallet balance, <b>veDOLO</b> locks, exercised &amp; vesting <b>oDOLO</b></div>
+        </div>
+        <div class="hero-meta">
+          <div class="hero-live"><span class="dot"></span>Live onchain</div>
+        </div>
+      </div>
+      <div class="pf-sum-headline">
+        <div class="pf-sum-total-val" id="pf-sum-total">—</div>
+        <div class="pf-sum-usd" id="pf-sum-total-usd" style="display:none"></div>
+      </div>
+      <div class="pf-sum-grid" id="pf-sum-grid"></div>
+    </section>
 
     <!-- DEPOSITS -->
     <section class="pf-section" id="pf-deposits-section">
-      <div class="pf-section-head">
-        <div class="pf-eyebrow">Deposited Assets <span class="pf-count" id="pf-deposits-count"></span></div>
+      <div class="card-head">
+        <div class="card-title">
+          <h2>Deposited Assets</h2>
+          <span class="count-badge" id="pf-deposits-count" style="display:none"></span>
+        </div>
         <div class="pf-total"><span class="lbl">Total supplied</span><span id="pf-deposits-total">—</span></div>
       </div>
       <div class="pf-filters" id="pf-deposits-filters"></div>
       <div style="overflow-x:auto">
         <table class="pf-table">
-          <colgroup><col style="width:18%"><col style="width:34%"><col style="width:24%"><col style="width:24%"></colgroup>
-          <thead><tr><th data-sort="chain" data-table="dep">Chain<span class="pf-sort">▼</span></th><th data-sort="sym" data-table="dep">Asset<span class="pf-sort">▼</span></th><th class="num" data-sort="amount" data-table="dep">Amount<span class="pf-sort">▼</span></th><th class="num sort-active" data-sort="usd" data-table="dep">Value<span class="pf-sort">▼</span></th></tr></thead>
+          <colgroup><col style="width:16%"><col style="width:38%"><col style="width:23%"><col style="width:23%"></colgroup>
+          <thead><tr><th data-sort="chain" data-table="dep">Chain<span class="pf-sort"></span></th><th data-sort="sym" data-table="dep">Asset<span class="pf-sort"></span></th><th class="num" data-sort="amount" data-table="dep">Amount<span class="pf-sort"></span></th><th class="num sort-active" data-sort="usd" data-table="dep">Value<span class="pf-sort">▼</span></th></tr></thead>
           <tbody id="pf-deposits-body"></tbody>
         </table>
+      </div>
+      <div class="tbl-foot" id="pf-deposits-foot" style="display:none">
+        <div class="tbl-foot-info" id="pf-deposits-info">0–0 of 0</div>
+        <div class="pager" id="pf-deposits-pager"></div>
       </div>
     </section>
 
     <!-- BORROWS -->
     <section class="pf-section" id="pf-borrows-section">
-      <div class="pf-section-head">
-        <div class="pf-eyebrow">Open Borrows <span class="pf-count" id="pf-borrows-count"></span></div>
+      <div class="card-head">
+        <div class="card-title">
+          <h2>Open Borrows</h2>
+          <span class="count-badge" id="pf-borrows-count" style="display:none"></span>
+        </div>
         <div class="pf-total"><span class="lbl">Total debt</span><span id="pf-borrows-total">—</span></div>
       </div>
       <div class="pf-filters" id="pf-borrows-filters"></div>
       <div style="overflow-x:auto">
         <table class="pf-table">
-          <colgroup><col style="width:18%"><col style="width:34%"><col style="width:24%"><col style="width:24%"></colgroup>
-          <thead><tr><th data-sort="chain" data-table="bor">Chain<span class="pf-sort">▼</span></th><th data-sort="sym" data-table="bor">Asset<span class="pf-sort">▼</span></th><th class="num" data-sort="amount" data-table="bor">Amount owed<span class="pf-sort">▼</span></th><th class="num sort-active" data-sort="usd" data-table="bor">Value<span class="pf-sort">▼</span></th></tr></thead>
+          <colgroup><col style="width:16%"><col style="width:38%"><col style="width:23%"><col style="width:23%"></colgroup>
+          <thead><tr><th data-sort="chain" data-table="bor">Chain<span class="pf-sort"></span></th><th data-sort="sym" data-table="bor">Asset<span class="pf-sort"></span></th><th class="num" data-sort="amount" data-table="bor">Amount owed<span class="pf-sort"></span></th><th class="num sort-active" data-sort="usd" data-table="bor">Value<span class="pf-sort">▼</span></th></tr></thead>
           <tbody id="pf-borrows-body"></tbody>
         </table>
+      </div>
+      <div class="tbl-foot" id="pf-borrows-foot" style="display:none">
+        <div class="tbl-foot-info" id="pf-borrows-info">0–0 of 0</div>
+        <div class="pager" id="pf-borrows-pager"></div>
       </div>
     </section>
   </div>
@@ -1464,6 +1571,79 @@ const SYMBOL_ICONS = {
   'gmWIF-USD': DOLO_CDN + 'gmWIF.8dfcfc27c0c56651a2e523e97c7fdcb4.svg',
   'GLV-BTC': DOLO_CDN + 'GLV-BTC.c576682a1343bbfde84710a572b5a68e.svg',
   'GLV-ETH': DOLO_CDN + 'GLV-ETH.092b4c8a9412efd58d3542d26bc5a522.svg',
+  // Legacy / additional markets - synced from Earn (dashboard-core) icon map
+  'WUSDM' : DOLO_CDN + 'wUSDM.91bedb44039233b7c172ff95ea112192.svg',
+  'USDE' : DOLO_CDN + 'USDe-alt.ce2f05f4bb09aa83c4dd5886a5a2886f.svg',
+  'SUSDE' : DOLO_CDN + 'sUSDe.60857af2b2de944764d31ffa3711252c.svg',
+  'USDs' : DOLO_CDN + 'USDs.106fa406e23ae22c8bb6120c2ed861f4.svg',
+  'sUSDs' : DOLO_CDN + 'sUSDs.788070a4e1bbf5ab8c6130d47bdf8108.svg',
+  'PUSD' : DOLO_CDN + 'PUSD.8849484bfe7e45af6fec34f9c12d706e.svg',
+  'yPUSD' : DOLO_CDN + 'yPUSD.b779e3cd7cc473b13698b1ab365074f6.svg',
+  'FRAX' : 'https://coin-images.coingecko.com/coins/images/13422/small/FRAX_icon.png',
+  'crvUSD' : DOLO_CDN + 'CRV.f927723690ec12fcc8381902a361c75e.svg',
+  'LUSD' : 'https://coin-images.coingecko.com/coins/images/14666/small/Group_3.png',
+  'GHO' : 'https://coin-images.coingecko.com/coins/images/30663/small/gho.png',
+  'jUSDC' : DOLO_CDN + 'jUSDC.b5cfe8b072afdb1484beaeec04bd61e5.svg',
+  'WSTETH' : DOLO_CDN + 'wstETH.2e97640d284bbe78da3776549d27ec47.svg',
+  'WEETH' : DOLO_CDN + 'weETH.ac3fd68b653520508855e997e756d116.svg',
+  'RETH' : DOLO_CDN + 'rETH.bab59070c249d5b359fa196fed62e60e.svg',
+  'RSETH' : DOLO_CDN + 'rsETH.2270aa7836bedfa00c1a1d2967df0c33.svg',
+  'EZETH' : DOLO_CDN + 'ezETH.23c954d818f85c10660e5c0a476ff398.svg',
+  'RSWETH' : DOLO_CDN + 'rswETH.fc4bdb76a764bf110676766fd0185dfe.svg',
+  'METH' : DOLO_CDN + 'mETH.589d7c134eea64fa2033e80dced1e34d.svg',
+  'WSRUSD' : DOLO_CDN + 'srUSD.5a3e2df2bbfd4e09f5a6d400f5e2e4df.svg',
+  'TETH' : DOLO_CDN + 'tETH.77b0839567f787ef80a76c3e83b90293.svg',
+  'stETH' : DOLO_CDN + 'wstETH.2e97640d284bbe78da3776549d27ec47.svg',
+  'sfrxETH' : 'https://coin-images.coingecko.com/coins/images/28462/small/sfrxETH.png',
+  'SFRXETH' : 'https://coin-images.coingecko.com/coins/images/28462/small/sfrxETH.png',
+  'cbETH' : 'https://coin-images.coingecko.com/coins/images/27008/small/cbeth.png',
+  'CBETH' : 'https://coin-images.coingecko.com/coins/images/27008/small/cbeth.png',
+  'CMETH' : DOLO_CDN + 'PT-cmETH.f49c697e967386e0fd082040501e92e0.svg',
+  'xrETH' : DOLO_CDN + 'xrETH.d13af2859b5292e6bc623e8a2402a93d.svg',
+  'XRETH' : DOLO_CDN + 'xrETH.d13af2859b5292e6bc623e8a2402a93d.svg',
+  'CBBTC' : DOLO_CDN + 'CBBTC.fb6f792430a130d980920b6e69857bce.svg',
+  'SOLVBTC' : DOLO_CDN + 'solvBTC.326d594ebd54e4317f078b70f72a58b4.svg',
+  'TBTC' : DOLO_CDN + 'tBTC.2907801a7fa28c6583322ad3c2931333.svg',
+  'STBTC' : DOLO_CDN + 'stBTC.3935aab6a35bd55630f244a1f56631ba.svg',
+  'UNIBTC' : DOLO_CDN + 'uniBTC.bac6fdc858f4d751e79211986782ddd1.svg',
+  'PBTC' : DOLO_CDN + 'pBTC-2.33f92d1521de41c2fd041b11c9d77c7a.svg',
+  'PUMPBTC' : DOLO_CDN + 'PumpBTC.aa48de36289e8439daf0456c4252dd27.svg',
+  'swBERA' : DOLO_CDN + 'sWBERA.e2be8febc13f6552990168c4e232d62a.svg',
+  'SWBERA' : DOLO_CDN + 'sWBERA.e2be8febc13f6552990168c4e232d62a.svg',
+  'wGBERA' : DOLO_CDN + 'wgBERA.e10d0909ba87a40264fe74050034b025.svg',
+  'WGBERA' : DOLO_CDN + 'wgBERA.e10d0909ba87a40264fe74050034b025.svg',
+  'stBERA' : DOLO_CDN + 'BERA.a24a9b40b3447dde7ea1d2cab4dd59e9.svg',
+  'IBERA' : DOLO_CDN + 'BERA.a24a9b40b3447dde7ea1d2cab4dd59e9.svg',
+  'IBGT' : DOLO_CDN + 'BGT.59af0fc7aad30ed3de49e3115ee24d04.svg',
+  'wiBGT' : DOLO_CDN + 'iBGT.88932437445efa66139716bca4a9c19b.svg',
+  'WIBGT' : DOLO_CDN + 'iBGT.88932437445efa66139716bca4a9c19b.svg',
+  'ORIBGT' : DOLO_CDN + 'oriBGT.7f3393531bde0f56498780c803133999.svg',
+  'CAP' : DOLO_CDN + 'CAP.ac9a6abdf976278407624655b95f7a45.svg',
+  'PTSI' : DOLO_CDN + 'PTSI.75a562a474778031c98d28700fb37f5c.svg',
+  'sMNT' : DOLO_CDN + 'sMNT.a9500825100b828039355108399b7c2b.svg',
+  'SMNT' : DOLO_CDN + 'sMNT.a9500825100b828039355108399b7c2b.svg',
+  'oARB' : DOLO_CDN + 'oARB.a2c6c20bd4a19274b88e208e43f7ffa3.svg',
+  'STG' : 'https://coin-images.coingecko.com/coins/images/24413/small/STG_LOGO.png',
+  'GRT' : 'https://coin-images.coingecko.com/coins/images/13397/small/Graph_Token.png',
+  'oDOLO' : 'odolo-logo-official.svg',
+  'ODOLO' : 'odolo-logo-official.svg',
+  'WOO' : 'https://coin-images.coingecko.com/coins/images/12921/small/WOO_Logos_2023_Profile_Pic_WOO.png',
+  'LODE' : 'https://coin-images.coingecko.com/coins/images/24861/small/lode.png',
+  'WINR' : 'https://coin-images.coingecko.com/coins/images/29244/small/winr.png',
+  'YEET' : 'https://coin-images.coingecko.com/coins/images/54002/small/yeet.jpg',
+  'GLP' : DOLO_CDN + 'GLP.96b12aa556614dd5791f.png',
+  'sGLP' : DOLO_CDN + 'GLP.96b12aa556614dd5791f.png',
+  'plvGLP' : DOLO_CDN + 'plvGLP.24551c9e68ef10245cc45fb0b96cfdff.svg',
+  'PLVGLP' : DOLO_CDN + 'plvGLP.24551c9e68ef10245cc45fb0b96cfdff.svg',
+  'GM' : DOLO_CDN + 'GMX.b836adc14ee095fd9b7671e718878333.svg',
+  'PT-iBGT' : DOLO_CDN + 'PT-iBGT.45a4b4c47be320270ac8d1ce32439d2a.svg',
+  'GM:ETH' : DOLO_CDN + 'ETH-GM.0b7d447f3c11298af07411c926352c71.svg',
+  'GM:ARB' : DOLO_CDN + 'ARB-GM.50df3ed4a1a52b938992cb5e08efbc36.svg',
+  'GM:WBTC' : DOLO_CDN + 'WBTC-GM.6e7f69538bb02b42b881b86aea5c6d6e.svg',
+  'GM:LINK' : DOLO_CDN + 'LINK-GM.7d4b33346ec9822f9dc7c22a393f7698.svg',
+  'GM:UNI' : DOLO_CDN + 'UNI-GM.8a4dfd0dc79f5b60138039338d28a6c7.svg',
+  'GLV:BTC' : DOLO_CDN + 'GLV-BTC.c576682a1343bbfde84710a572b5a68e.svg',
+  'GLV:ETH' : DOLO_CDN + 'GLV-ETH.092b4c8a9412efd58d3542d26bc5a522.svg',
 };
 const TOKEN_ICON_OVERRIDES = {
   'arbitrum:0x2c799166c9f0dbf9efc5004cbce4c5a37fa39329': SYMBOL_ICONS['gmARB-USD'],
@@ -1502,10 +1682,11 @@ const tokenIcon = (sym, row={}) => {
     || row.icon
     || SYMBOL_ICONS[s]
     || SYMBOL_ICONS[s.toUpperCase()]
-    || SYMBOL_ICONS[s.replace(/-\\d{1,2}[A-Z]{3}\\d{4}$/i, "")]
+    || SYMBOL_ICONS[s.replace(/-\d{1,2}[A-Z]{3}\d{4}$/i, "")]
     || 'dolomite-logo.svg';
 };
 const tokIcon = tokenIcon;
+try { window.__pfTokenIcon = tokenIcon; } catch(e){}
 const GRAYSCALE_SYMBOLS = new Set(['CRV','USD0','USD0++','deUSD','sdeUSD','MATIC','POL','stcUSD','cUSD','USDT','cbBTC']);
 const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? "grayscale" : "";
 
@@ -1586,6 +1767,22 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     return { deposits, borrows };
   }
 
+  // oDOLO wallet balance — direct RPC balanceOf on Berachain (same contract as fetch_odolo_contract.py)
+  const ODOLO_TOKEN = "0x02E513b5B54eE216Bf836ceb471507488fC89543";
+  const BERA_RPCS = ["https://rpc.berachain.com/", "https://berachain-rpc.publicnode.com/", "https://berachain.drpc.org/"];
+  async function fetchOdoloBalance(addr){
+    const data = "0x70a08231" + normAddr(addr).replace("0x","").padStart(64, "0");
+    for (const rpc of BERA_RPCS){
+      try {
+        const r = await fetch(rpc, { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_call", params: [{ to: ODOLO_TOKEN, data }, "latest"] }) });
+        const j = await r.json();
+        if (j && typeof j.result === "string" && /^0x[0-9a-fA-F]+$/.test(j.result)) return Number(BigInt(j.result)) / 1e18;
+      } catch(e){}
+    }
+    return null;
+  }
+
   // active oDOLO vesting positions (Berachain only)
   async function fetchVesting(addr){
     const bera = CHAIN_BY_KEY.berachain;
@@ -1600,8 +1797,8 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
 
   // ---------- token visuals ----------
   function chainChip(chainKey){
-    const c = CHAIN_BY_KEY[chainKey] || { short: chainKey, key: chainKey };
-    return `<span class="pf-chain-chip"><span class="dot" style="background-image:url('${chainIcon(c.key)}')"></span>${c.short}</span>`;
+    const c = CHAIN_BY_KEY[chainKey] || { short: chainKey, key: chainKey, name: chainKey };
+    return `<span class="pf-chain-chip" title="${c.name || c.short}"><img src="${chainIcon(c.key)}" alt="" onerror="this.style.display='none'">${c.short}</span>`;
   }
   function tokenCell(row){
     const sym = row.sym || "?";
@@ -1613,50 +1810,50 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
   }
 
   // ---------- state + render ----------
-  const state = { deposits: [], borrows: [], depFilter: { chains: new Set(), q: "" }, borFilter: { chains: new Set(), q: "" }, depSort: { key: "usd", desc: true }, borSort: { key: "usd", desc: true } };
+  const PAGE_SIZE = 10;
+  const state = { deposits: [], borrows: [], depFilter: { chains: new Set(), q: "" }, borFilter: { chains: new Set(), q: "" }, depSort: { key: "usd", desc: true }, borSort: { key: "usd", desc: true }, depPage: 0, borPage: 0 };
 
-  function renderCards(d){
-    const cards = [];
-    // Total DOLO = liquid held + DOLO locked inside veDOLO
+  // ---------- DOLO wallet summary (main card) ----------
+  function sumItem(icon, label, valHtml, subHtml, goldVal){
+    const img = icon ? `<img src="${icon}" alt="" onerror="this.style.display='none'">` : "";
+    return `<div class="pf-sum-item"><div class="lbl">${img}${label}</div><div class="val${goldVal?" gold":""}">${valHtml}</div><div class="sub">${subHtml}</div></div>`;
+  }
+  function renderSummary(d, odoloBal){
     const held = (d.dolo && d.dolo.balance) || 0;
-    const veLocked = (d.vedolo && d.vedolo.total_dolo) || 0;
-    if (held > 0 || veLocked > 0) {
-      const total = held + veLocked;
-      const usd = d.doloPrice ? `<span class="pf-card-usd">${fmtUSD(total * d.doloPrice)}</span> · ` : "";
-      const parts = [`${fmtCompact(held)} held`];
-      if (veLocked > 0) parts.push(`<span class="pos">${fmtCompact(veLocked)} in veDOLO</span>`);
-      const split = [];
-      if (d.dolo && d.dolo.balance_eth) split.push(`ETH ${fmtCompact(d.dolo.balance_eth)}`);
-      if (d.dolo && d.dolo.balance_bera) split.push(`BERA ${fmtCompact(d.dolo.balance_bera)}`);
-      cards.push(`<div class="pf-card"><div class="pf-card-label"><img src="dolo-logo.svg" onerror="this.style.display='none'">TOTAL DOLO</div>
-        <div class="pf-card-value">${fmtCompact(total)}<span class="unit">DOLO</span></div>
-        <div class="pf-card-sub">${usd}${parts.join(" · ")}${split.length?`<br><span class="dim">${split.join(" · ")}</span>`:""}</div></div>`);
-    }
-    // oDOLO paired (active vesting)
-    if (d.vesting) {
-      const usd = d.doloPrice ? `<span class="pf-card-usd">${fmtUSD(d.vesting.oToken * d.doloPrice)}</span> · ` : "";
-      cards.push(`<div class="pf-card"><div class="pf-card-label"><img src="odolo-logo-official.svg" onerror="this.style.display='none'">oDOLO PAIRED · VESTING</div>
-        <div class="pf-card-value gold">${fmtCompact(d.vesting.oToken)}<span class="unit">oDOLO</span></div>
-        <div class="pf-card-sub">${usd}<span class="pos">+ ${fmtCompact(d.vesting.pairDolo)} DOLO</span> pending<br><span class="dim">${d.vesting.count} position${d.vesting.count!==1?"s":""}${d.vesting.soonest?` · unlock ${fmtDate(d.vesting.soonest)}`:""}</span></div></div>`);
-    }
-    // veDOLO via oDOLO (exercised)
-    if (d.exer && d.exer.exercises) {
-      const txs = (d.exer.txs||[]);
-      const veTotal = txs.reduce((s,t)=>s+(Number(t.vedolo)||0),0);
-      const doloPaid = txs.reduce((s,t)=>s+(Number(t.dolo_paid)||0),0);
-      const prices = txs.map(t=>Number(t.price)).filter(p=>p>0);
-      const avgPrice = prices.length ? prices.reduce((s,p)=>s+p,0)/prices.length : null;
-      cards.push(`<div class="pf-card"><div class="pf-card-label"><img src="vedolo-logo.svg" onerror="this.style.display='none'">veDOLO VIA oDOLO</div>
-        <div class="pf-card-value">${fmtCompact(veTotal)}<span class="unit">veDOLO</span></div>
-        <div class="pf-card-sub">${avgPrice?`avg <span class="pf-card-usd">$${avgPrice.toFixed(4)}</span> · `:""}${fmtCompact(doloPaid)} DOLO paid<br><span class="dim">${d.exer.exercises} exercise${d.exer.exercises!==1?"s":""}${d.exer.total_usdc?` · ${fmtUSD(d.exer.total_usdc)} cost`:""}</span></div></div>`);
-    }
-    // veDOLO voting power
-    if (d.vedolo) {
-      cards.push(`<div class="pf-card"><div class="pf-card-label"><img src="vedolo-logo.svg" onerror="this.style.display='none'">veDOLO VOTING POWER</div>
-        <div class="pf-card-value gold">${fmtCompact(d.vedolo.total_vote_weight)}</div>
-        <div class="pf-card-sub">${fmtCompact(d.vedolo.total_dolo)} DOLO locked<br><span class="dim">${d.vedolo.nft_count} lock${d.vedolo.nft_count!==1?"s":""}${d.vedolo.latest_lock_end?` · until ${fmtDate(d.vedolo.latest_lock_end)}`:""}</span></div></div>`);
-    }
-    $("#pf-cards").innerHTML = cards.length ? cards.join("") : `<div class="pf-card" style="grid-column:1/-1"><div class="pf-card-sub">No DOLO / oDOLO / veDOLO activity tracked for this wallet.</div></div>`;
+    const ve = (d.vedolo && d.vedolo.total_dolo) || 0;
+    const exTxs = (d.exer && d.exer.txs) || [];
+    const exVe = exTxs.reduce((s,t)=>s+(Number(t.vedolo)||0),0);
+    const exPaid = exTxs.reduce((s,t)=>s+(Number(t.dolo_paid)||0),0);
+    const exCount = (d.exer && d.exer.exercises) || 0;
+    const vOTok = d.vesting ? d.vesting.oToken : 0;
+    const vPair = d.vesting ? d.vesting.pairDolo : 0;
+    const total = held + ve + vPair;
+    $("#pf-sum-total").innerHTML = `${fmtCompact(total)}<span class="unit">DOLO</span>`;
+    const usdEl = $("#pf-sum-total-usd");
+    if (d.doloPrice){ usdEl.style.display = ""; usdEl.innerHTML = `≈ ${fmtUSD(total * d.doloPrice)}<span class="lbl">USD</span>`; }
+    else usdEl.style.display = "none";
+    const usd = n => d.doloPrice ? `<span class="dim">≈ ${fmtUSD(n * d.doloPrice)}</span>` : "";
+    const items = [];
+    // 1) liquid DOLO held
+    const split = [];
+    if (d.dolo && d.dolo.balance_eth) split.push(`ETH ${fmtCompact(d.dolo.balance_eth)}`);
+    if (d.dolo && d.dolo.balance_bera) split.push(`BERA ${fmtCompact(d.dolo.balance_bera)}`);
+    items.push(sumItem("dolo-logo.svg", "DOLO held", `${fmtCompact(held)}`, split.length ? split.join(" · ") : usd(held) || "liquid in wallet"));
+    // 2) veDOLO — DOLO locked
+    items.push(sumItem("vedolo-logo.svg", "veDOLO locked", `${fmtCompact(ve)}`,
+      d.vedolo ? `${fmtCompact(d.vedolo.total_vote_weight)} vote power · ${d.vedolo.nft_count} lock${d.vedolo.nft_count!==1?"s":""}${d.vedolo.latest_lock_end?`<br><span class="dim">until ${fmtDate(d.vedolo.latest_lock_end)}</span>`:""}` : `<span class="dim">no veDOLO locks</span>`));
+    // 3) exercised oDOLO options (historical, results live inside veDOLO)
+    const exPrices = exTxs.map(t=>Number(t.price)).filter(p=>p>0);
+    const exAvg = exPrices.length ? exPrices.reduce((s,p)=>s+p,0)/exPrices.length : null;
+    items.push(sumItem("odolo-logo-official.svg", "oDOLO exercised", `${fmtCompact(exVe)}`,
+      exCount ? `${fmtCompact(exPaid)} DOLO paid · ${exCount} exercise${exCount!==1?"s":""}<br><span class="dim">${exAvg?`avg $${exAvg.toFixed(4)} · `:""}${d.exer && d.exer.total_usdc?`${fmtUSD(d.exer.total_usdc)} cost · `:""}in veDOLO</span>` : `<span class="dim">no exercises yet</span>`));
+    // 4) paired oDOLO + DOLO, not exercised (active vesting)
+    items.push(sumItem("odolo-logo-official.svg", "oDOLO paired · pending", `${fmtCompact(vOTok)}`,
+      d.vesting ? `<span class="pos">+ ${fmtCompact(vPair)} DOLO</span> paired · ${d.vesting.count} position${d.vesting.count!==1?"s":""}${d.vesting.soonest?`<br><span class="dim">unlock ${fmtDate(d.vesting.soonest)}</span>`:""}` : `<span class="dim">no active vesting</span>`, true));
+    // 5) oDOLO balance in wallet
+    items.push(sumItem("odolo-logo-official.svg", "oDOLO held", odoloBal === null ? "—" : `${fmtCompact(odoloBal)}`,
+      odoloBal === null ? `<span class="dim">RPC unavailable</span>` : `in wallet · Berachain`, true));
+    $("#pf-sum-grid").innerHTML = items.join("");
   }
 
   const DD_CHECK = `<span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span>`;
@@ -1694,7 +1891,13 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       });
       dd = `<div class="dd pf-dd"><button class="dd-btn${filterState.chains.size?" filtered":""}" type="button" data-dd-btn><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><span class="lbl">${chainLabel(filterState, present)}</span><span class="count">${filterState.chains.size||present.length}</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button><div class="dd-panel"><div class="dd-panel-head">Chain</div><div class="dd-list">${opts}</div></div></div>`;
     }
-    el.innerHTML = dd + `<div class="search pf-search-tbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input type="text" placeholder="Filter asset…" data-token-search value="${filterState.q||""}"></div>`;
+    const searchHtml = `<label class="search pf-search-tbl${filterState.q?" has-value":""}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="Search asset…" spellcheck="false" autocomplete="off" data-token-search value="${filterState.q||""}">
+      <button class="search-clear" type="button" aria-label="Clear search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
+      ${containerId === "#pf-deposits-filters" ? '<span class="kbd">/</span>' : ''}
+    </label>`;
+    el.innerHTML = searchHtml + dd;
     const btn = el.querySelector("[data-dd-btn]"), panel = el.querySelector(".dd-panel");
     if (btn && panel){
       btn.addEventListener("click", e => { e.stopPropagation(); const open = panel.classList.contains("show"); closeAllDd(); if (!open){ panel.classList.add("show"); btn.classList.add("open"); } });
@@ -1707,7 +1910,14 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       }));
     }
     const ts = el.querySelector("[data-token-search]");
-    if (ts) ts.addEventListener("input", () => { filterState.q = ts.value.trim().toLowerCase(); onChange(); });
+    const searchBox = el.querySelector(".pf-search-tbl");
+    const clearBtn = el.querySelector(".search-clear");
+    if (ts){
+      const sync = () => { searchBox.classList.toggle("has-value", !!ts.value); filterState.q = ts.value.trim().toLowerCase(); onChange(); };
+      ts.addEventListener("input", sync);
+      ts.addEventListener("keydown", e => { if (e.key === "Escape" && ts.value){ ts.value = ""; sync(); } });
+      if (clearBtn) clearBtn.addEventListener("click", e => { e.preventDefault(); ts.value = ""; sync(); ts.focus(); });
+    }
   }
 
   function applyFilter(rows, f){
@@ -1729,25 +1939,81 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     document.querySelectorAll(`#pf-results th[data-table="${tableKey}"]`).forEach(th => {
       const active = th.dataset.sort === sort.key;
       th.classList.toggle("sort-active", active);
-      const ar = th.querySelector(".pf-sort"); if (ar) ar.textContent = active ? (sort.desc ? "▼" : "▲") : "▼";
+      const ar = th.querySelector(".pf-sort"); if (ar) ar.textContent = active ? (sort.desc ? "▼" : "▲") : "";
     });
   }
 
+  // Pager — same UX as the DOLO Holders table footer
+  const PG_ICONS = {
+    first: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>`,
+    prev:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>`,
+    next:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`,
+    last:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>`,
+  };
+  function renderPager(pagerEl, curPage, totalPages, onPage){
+    pagerEl.innerHTML = `
+      <button class="pg-btn" data-page="first" aria-label="First page" ${curPage===1?"disabled":""}>${PG_ICONS.first}</button>
+      <button class="pg-btn" data-page="prev" aria-label="Previous page" ${curPage===1?"disabled":""}>${PG_ICONS.prev}</button>
+      <span class="pg-current">${curPage} <span class="pg-sep">/</span> ${totalPages}</span>
+      <button class="pg-btn" data-page="next" aria-label="Next page" ${curPage===totalPages?"disabled":""}>${PG_ICONS.next}</button>
+      <button class="pg-btn" data-page="last" aria-label="Last page" ${curPage===totalPages?"disabled":""}>${PG_ICONS.last}</button>`;
+    pagerEl.querySelectorAll("[data-page]").forEach(btn => btn.addEventListener("click", () => {
+      const a = btn.dataset.page;
+      let p = curPage - 1;
+      if (a === "first") p = 0;
+      else if (a === "prev") p = Math.max(0, p - 1);
+      else if (a === "next") p = Math.min(totalPages - 1, p + 1);
+      else if (a === "last") p = totalPages - 1;
+      onPage(p);
+    }));
+  }
+
   function renderTable(bodyId, countId, totalId, rows, f, sort, tableKey, neg){
+    const ids = tableKey === "dep"
+      ? { foot: "#pf-deposits-foot", info: "#pf-deposits-info", pager: "#pf-deposits-pager" }
+      : { foot: "#pf-borrows-foot", info: "#pf-borrows-info", pager: "#pf-borrows-pager" };
     const filtered = sortRows(applyFilter(rows, f), sort);
     const total = filtered.reduce((s, r) => s + r.usd, 0);
-    $(countId).textContent = filtered.length ? `· ${filtered.length}` : "";
+    const countEl = $(countId);
+    countEl.textContent = filtered.length ? `${filtered.length.toLocaleString("en-US")} asset${filtered.length!==1?"s":""}` : "";
+    countEl.style.display = filtered.length ? "" : "none";
     $(totalId).innerHTML = `<span class="${neg?"pf-usd-neg":"pf-usd-pos"}">${fmtUSD(total)}</span>`;
     updateSortIndicators(tableKey, sort);
     const body = $(bodyId);
-    if (!rows.length){ body.innerHTML = `<tr><td colspan="4"><div class="pf-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>${neg?"No open borrows on Dolomite.":"No deposited assets on Dolomite."}</div></td></tr>`; return; }
-    if (!filtered.length){ body.innerHTML = `<tr><td colspan="4"><div class="pf-empty">No assets match the filter.</div></td></tr>`; return; }
-    body.innerHTML = filtered.map(r => `<tr>
+    if (!rows.length){ $(ids.foot).style.display = "none"; body.innerHTML = `<tr><td colspan="4"><div class="pf-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>${neg?"No open borrows on Dolomite.":"No deposited assets on Dolomite."}</div></td></tr>`; return; }
+    if (!filtered.length){ $(ids.foot).style.display = "none"; body.innerHTML = `<tr><td colspan="4"><div class="pf-empty">No assets match the filter.</div></td></tr>`; return; }
+
+    // pagination — max 10 rows per page
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    let page = tableKey === "dep" ? state.depPage : state.borPage;
+    page = Math.min(Math.max(0, page), totalPages - 1);
+    if (tableKey === "dep") state.depPage = page; else state.borPage = page;
+    const start = page * PAGE_SIZE;
+    const pageRows = filtered.slice(start, start + PAGE_SIZE);
+
+    body.innerHTML = pageRows.map(r => {
+      const symShort = (r.sym || "").length > 12 ? r.sym.slice(0, 10) + "…" : r.sym;
+      return `<tr class="pf-row">
       <td>${chainChip(r.chain)}</td>
       <td>${tokenCell(r)}</td>
-      <td class="num">${fmtToken(r.amount)} <span class="pf-amt-sym">${r.sym}</span></td>
+      <td class="num">${fmtToken(r.amount)} <span class="pf-amt-sym" title="${r.sym}">${symShort}</span></td>
       <td class="usd ${neg?"pf-usd-neg":"pf-usd-pos"}">${fmtUSD(r.usd)}</td>
-    </tr>`).join("");
+    </tr>`;}).join("");
+
+    // keep table height stable across pages (spacer rows on short last page)
+    if (totalPages > 1 && pageRows.length < PAGE_SIZE){
+      const rowH = body.querySelector("tr.pf-row") ? body.querySelector("tr.pf-row").getBoundingClientRect().height : 56;
+      body.innerHTML += Array.from({ length: PAGE_SIZE - pageRows.length }, () =>
+        `<tr class="pf-spacer-row" aria-hidden="true"><td colspan="4" style="height:${Math.round(rowH)}px"></td></tr>`).join("");
+    }
+
+    const foot = $(ids.foot);
+    foot.style.display = "";
+    $(ids.info).textContent = `${start + 1}–${Math.min(start + PAGE_SIZE, filtered.length)} of ${filtered.length.toLocaleString("en-US")}`;
+    renderPager($(ids.pager), page + 1, totalPages, p => {
+      if (tableKey === "dep") state.depPage = p; else state.borPage = p;
+      renderAll();
+    });
   }
 
   function renderAll(){
@@ -1760,6 +2026,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       const sort = tk === "dep" ? state.depSort : state.borSort;
       if (sort.key === key) sort.desc = !sort.desc;
       else { sort.key = key; sort.desc = (key === "usd" || key === "amount"); }
+      if (tk === "dep") state.depPage = 0; else state.borPage = 0;
       renderAll();
     }));
   }
@@ -1767,7 +2034,10 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
   function setLoadingTables(){
     const skel = `<tr class="pf-skel-row"><td><span class="pf-skel" style="width:60px"></span></td><td><span class="pf-skel" style="width:120px"></span></td><td class="num"><span class="pf-skel" style="width:80px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:70px;margin-left:auto"></span></td></tr>`.repeat(3);
     $("#pf-deposits-body").innerHTML = skel; $("#pf-borrows-body").innerHTML = skel;
-    $("#pf-cards").innerHTML = `<div class="pf-card"><div class="pf-card-label"><span class="pf-skel" style="width:90px;height:10px"></span></div><div class="pf-skel" style="width:120px;height:22px;margin-top:4px"></div></div>`.repeat(4);
+    $("#pf-deposits-foot").style.display = "none"; $("#pf-borrows-foot").style.display = "none";
+    $("#pf-deposits-count").style.display = "none"; $("#pf-borrows-count").style.display = "none";
+    $("#pf-sum-total").textContent = "—"; $("#pf-sum-total-usd").style.display = "none";
+    $("#pf-sum-grid").innerHTML = `<div class="pf-sum-item"><div class="lbl"><span class="pf-skel" style="width:80px;height:9px"></span></div><div class="pf-skel" style="width:90px;height:22px"></div><div class="sub"><span class="pf-skel" style="width:110px;height:9px;margin-top:4px"></span></div></div>`.repeat(5);
   }
 
   async function loadWallet(addr){
@@ -1784,8 +2054,9 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     const doloPrice = doloPriceJson && (doloPriceJson.price || (doloPriceJson.data && doloPriceJson.data.price)) || 0;
 
     // on-chain in parallel
-    const [vesting, ...chainResults] = await Promise.all([
+    const [vesting, odoloBal, ...chainResults] = await Promise.all([
       fetchVesting(addr),
+      fetchOdoloBalance(addr).catch(() => null),
       ...CHAINS.map(c => fetchChainPositions(c, addr).catch(() => ({ deposits: [], borrows: [] }))),
     ]);
 
@@ -1796,14 +2067,15 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       vesting,
       doloPrice,
     };
-    renderCards(cardData);
+    renderSummary(cardData, odoloBal);
 
     state.deposits = []; state.borrows = [];
     chainResults.forEach(r => { state.deposits.push(...(r.deposits||[])); state.borrows.push(...(r.borrows||[])); });
     state.depFilter = { chains: new Set(), q: "" }; state.borFilter = { chains: new Set(), q: "" };
     state.depSort = { key: "usd", desc: true }; state.borSort = { key: "usd", desc: true };
-    buildFilters("#pf-deposits-filters", state.deposits, state.depFilter, renderAll);
-    buildFilters("#pf-borrows-filters", state.borrows, state.borFilter, renderAll);
+    state.depPage = 0; state.borPage = 0;
+    buildFilters("#pf-deposits-filters", state.deposits, state.depFilter, () => { state.depPage = 0; renderAll(); });
+    buildFilters("#pf-borrows-filters", state.borrows, state.borFilter, () => { state.borPage = 0; renderAll(); });
     renderAll();
     try { history.replaceState(null, "", "#" + addr); } catch(e){}
   }
@@ -1822,6 +2094,14 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
   }
   $("#pf-go").addEventListener("click", submit);
   $("#pf-addr").addEventListener("keydown", e => { if (e.key === "Enter") submit(); });
+  // "/" focuses the Deposited Assets search — same shortcut UX as the Assets table
+  document.addEventListener("keydown", e => {
+    if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
+    const t = e.target;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+    const ts = document.querySelector("#pf-deposits-filters [data-token-search]");
+    if (ts && ts.offsetParent !== null){ e.preventDefault(); ts.focus(); }
+  });
   document.addEventListener("click", closeAllDd);
   wireSortHeaders();
   bindExample();
