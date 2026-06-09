@@ -1166,6 +1166,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 /* section heads reuse .card-head / .card-title / .count-badge — same UX as DOLO Holders */
 .pf-total{margin-left:auto;font-family:var(--mono);font-size:13px;font-weight:600;color:var(--fg-1);font-variant-numeric:tabular-nums}
 .pf-total .lbl{font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:var(--fg-3);font-weight:600;margin-right:8px}
+.pf-total .unit{font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:var(--fg-3);font-weight:600;margin-left:6px}
 .pf-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 22px;border-bottom:1px solid var(--line-1);background:rgba(255,255,255,.012)}
 .pf-chain-filter{display:inline-flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--fg-3);font-weight:600;padding:5px 10px;border-radius:7px;background:var(--bg-3);border:1px solid var(--line-2);cursor:pointer;transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease)}
 .pf-chain-filter .dot{width:13px;height:13px;border-radius:50%;background-color:var(--bg-2);background-position:center;background-size:cover;box-shadow:0 0 0 1px rgba(0,0,0,.35)}
@@ -1206,6 +1207,30 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .pf-token-name{font-weight:700;font-size:14px;letter-spacing:.2px;color:var(--fg-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pf-token-sub{font-size:10px;color:var(--fg-3);font-family:var(--mono)}
 .pf-amt-sym{font-size:11px;color:var(--fg-3);font-weight:400;margin-left:3px}
+.pf-account-cell{display:flex;flex-direction:column;gap:5px;min-width:0}
+.pf-account-main{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--fg-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pf-account-sub{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:10px;color:var(--fg-3);font-family:var(--mono)}
+.pf-mini-chip{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 7px;border-radius:6px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);color:var(--fg-3);font-size:9px;text-transform:uppercase;letter-spacing:.7px;font-weight:700}
+.pf-hf-badge{display:inline-flex;align-items:center;justify-content:center;min-width:58px;height:28px;padding:0 10px;border-radius:7px;font-family:var(--mono);font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;border:1px solid rgba(255,255,255,.075);background:rgba(255,255,255,.025);color:var(--fg-1)}
+.pf-hf-badge.danger{color:var(--down);background:rgba(255,91,91,.075);border-color:rgba(255,91,91,.22)}
+.pf-hf-badge.warn{color:#ffcf72;background:rgba(255,207,114,.07);border-color:rgba(255,207,114,.20)}
+.pf-hf-badge.ok{color:var(--up);background:rgba(86,211,100,.07);border-color:rgba(86,211,100,.18)}
+.pf-hf-badge.unknown{color:var(--fg-3);background:rgba(255,255,255,.025);border-color:rgba(255,255,255,.075)}
+.pf-token-pills{display:flex;align-items:flex-end;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-top:5px}
+.pf-token-pill{display:inline-flex;align-items:center;gap:5px;max-width:150px;height:22px;padding:0 7px;border-radius:7px;background:rgba(255,255,255,.026);border:1px solid rgba(255,255,255,.065);font-family:var(--mono);font-size:10px;color:var(--fg-3);white-space:nowrap}
+.pf-token-pill img{width:13px;height:13px;border-radius:50%;object-fit:contain;flex-shrink:0}
+.pf-money-cell{display:flex;flex-direction:column;align-items:flex-end;gap:0}
+.pf-money-main{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--fg-1);font-variant-numeric:tabular-nums}
+.pf-action-cell{display:flex;align-items:center;gap:10px;min-width:0}
+.pf-action-mark{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;flex-shrink:0;background:linear-gradient(135deg,rgba(201,162,39,.14),rgba(255,255,255,.035));border:1px solid var(--line-2);overflow:hidden}
+.pf-action-mark img{width:100%;height:100%;object-fit:contain;padding:3px}
+.pf-action-main{font-size:13px;font-weight:800;color:var(--fg-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pf-action-sub{margin-top:3px;font-size:10.5px;color:var(--fg-3);font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pf-date-cell{display:flex;flex-direction:column;gap:4px}
+.pf-date-main{font-size:12px;font-weight:700;color:var(--fg-1);white-space:nowrap}
+.pf-tx-link{display:inline-flex;align-items:center;gap:5px;color:var(--fg-3);font-family:var(--mono);font-size:10px;transition:color .15s var(--ease)}
+.pf-tx-link:hover{color:var(--gold)}
+.pf-tx-link svg{width:11px;height:11px;flex-shrink:0}
 
 .pf-empty{padding:46px 22px;text-align:center;color:var(--fg-3);font-size:13px}
 .pf-empty svg{width:34px;height:34px;color:var(--fg-4);margin-bottom:12px}
@@ -1220,6 +1245,9 @@ body:not(.pf-active) #pf-results{display:none}
 @media (max-width:760px){
   .pf-table{table-layout:auto}
   .pf-table thead th:nth-child(1),.pf-table td:nth-child(1){display:none}
+  .pf-table.pf-borrow-positions,.pf-table.pf-exercise-table{min-width:820px}
+  .pf-table.pf-borrow-positions thead th:nth-child(1),.pf-table.pf-borrow-positions td:nth-child(1),
+  .pf-table.pf-exercise-table thead th:nth-child(1),.pf-table.pf-exercise-table td:nth-child(1){display:table-cell}
   .pf-table tbody tr.pf-row:hover td:first-child{box-shadow:none}
   .pf-table tbody td,.pf-table thead th{padding-left:16px;padding-right:16px}
   .pf-token-name{max-width:128px}
@@ -1384,15 +1412,37 @@ body:not(.pf-active) #pf-results{display:none}
       </div>
       <div class="pf-filters" id="pf-borrows-filters"></div>
       <div style="overflow-x:auto">
-        <table class="pf-table">
-          <colgroup><col style="width:16%"><col style="width:38%"><col style="width:23%"><col style="width:23%"></colgroup>
-          <thead><tr><th data-sort="chain" data-table="bor">Chain<span class="pf-sort"></span></th><th data-sort="sym" data-table="bor">Asset<span class="pf-sort"></span></th><th class="num" data-sort="amount" data-table="bor">Amount owed<span class="pf-sort"></span></th><th class="num sort-active" data-sort="usd" data-table="bor">Value<span class="pf-sort">▼</span></th></tr></thead>
+        <table class="pf-table pf-borrow-positions">
+          <colgroup><col style="width:13%"><col style="width:27%"><col style="width:12%"><col style="width:24%"><col style="width:24%"></colgroup>
+          <thead><tr><th data-sort="chain" data-table="bor">Chain<span class="pf-sort"></span></th><th data-sort="account" data-table="bor">Position<span class="pf-sort"></span></th><th class="num" data-sort="hf" data-table="bor">HF<span class="pf-sort"></span></th><th class="num" data-sort="collateral" data-table="bor">Collateral<span class="pf-sort"></span></th><th class="num sort-active" data-sort="debt" data-table="bor">Debt<span class="pf-sort">▼</span></th></tr></thead>
           <tbody id="pf-borrows-body"></tbody>
         </table>
       </div>
       <div class="tbl-foot" id="pf-borrows-foot" style="display:none">
         <div class="tbl-foot-info" id="pf-borrows-info">0–0 of 0</div>
         <div class="pager" id="pf-borrows-pager"></div>
+      </div>
+    </section>
+
+    <!-- veDOLO / oDOLO EXERCISES -->
+    <section class="pf-section" id="pf-exercises-section">
+      <div class="card-head">
+        <div class="card-title">
+          <h2>veDOLO / oDOLO Exercises</h2>
+          <span class="count-badge" id="pf-exercises-count" style="display:none"></span>
+        </div>
+        <div class="pf-total"><span class="lbl">veDOLO minted</span><span id="pf-exercises-total">—</span></div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="pf-table pf-exercise-table">
+          <colgroup><col style="width:17%"><col style="width:27%"><col style="width:17%"><col style="width:13%"><col style="width:16%"><col style="width:10%"></colgroup>
+          <thead><tr><th class="sort-active" data-sort="date" data-table="ex">Date<span class="pf-sort">▼</span></th><th data-sort="action" data-table="ex">Action<span class="pf-sort"></span></th><th class="num" data-sort="vedolo" data-table="ex">veDOLO<span class="pf-sort"></span></th><th class="num" data-sort="lock" data-table="ex">Lock<span class="pf-sort"></span></th><th class="num" data-sort="paid" data-table="ex">Cost<span class="pf-sort"></span></th><th class="num" data-sort="price" data-table="ex">Price<span class="pf-sort"></span></th></tr></thead>
+          <tbody id="pf-exercises-body"></tbody>
+        </table>
+      </div>
+      <div class="tbl-foot" id="pf-exercises-foot" style="display:none">
+        <div class="tbl-foot-info" id="pf-exercises-info">0–0 of 0</div>
+        <div class="pager" id="pf-exercises-pager"></div>
       </div>
     </section>
   </div>
@@ -1715,6 +1765,29 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
   const isAddr = a => /^0x[0-9a-f]{40}$/.test(normAddr(a));
   const shortAddr = a => a ? a.slice(0,6) + "…" + a.slice(-4) : "";
   const fmtDate = ts => { try { return new Date(ts*1000).toLocaleDateString("en-US",{year:"numeric",month:"short",day:"numeric"}); } catch(e){ return "—"; } };
+  const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+  const fmtIsoDate = v => {
+    const d = v ? new Date(String(v).length === 10 ? `${v}T00:00:00Z` : v) : null;
+    return d && !Number.isNaN(+d) ? d.toLocaleDateString("en-US", { year:"numeric", month:"short", day:"numeric", timeZone:"UTC" }) : "—";
+  };
+  const fmtLockDays = d => {
+    d = Number(d) || 0;
+    if (!d) return "—";
+    if (d >= 365) return (d / 365).toFixed(d >= 700 ? 1 : 2) + "y";
+    return Math.round(d).toLocaleString("en-US") + "d";
+  };
+  const txExplorer = (chain, hash) => {
+    const hosts = {
+      berachain: "https://berascan.com/tx/",
+      arbitrum: "https://arbiscan.io/tx/",
+      ethereum: "https://etherscan.io/tx/",
+      mantle: "https://mantlescan.xyz/tx/",
+      polygonzkevm: "https://zkevm.polygonscan.com/tx/",
+      xlayer: "https://www.oklink.com/x-layer/tx/",
+      botanix: "https://botanixscan.io/tx/",
+    };
+    return hash ? (hosts[chain] || "https://etherscan.io/tx/") + hash : "";
+  };
 
   // ---------- data ----------
   const jsonCache = {};
@@ -1808,10 +1881,129 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     const img = `<img src="${icon}" alt="" class="${gs.trim()}" onerror="this.remove();this.parentElement.classList.add('mono');this.parentElement.textContent='${mono}'">`;
     return `<div class="pf-token"><span class="pf-token-mark">${img}</span><span class="pf-token-name" title="${sym}">${sym}</span></div>`;
   }
+  function tokenPills(tokens, chain){
+    const list = Array.isArray(tokens) ? tokens : [];
+    if (!list.length) return `<div class="pf-token-pills"><span class="pf-token-pill">—</span></div>`;
+    return `<div class="pf-token-pills">${list.slice(0, 3).map(t => {
+      const sym = t.symbol || "?";
+      const mono = sym.replace(/[^A-Za-z0-9]/g,"").slice(0,2).toUpperCase() || "?";
+      const icon = tokenIcon(sym, { chain });
+      const value = Number(t.usd) ? fmtUSD(t.usd) : "—";
+      return `<span class="pf-token-pill" title="${esc(sym)} ${esc(value)}"><img src="${icon}" alt="" onerror="this.remove();this.parentElement.textContent='${mono} ${esc(value)}'"><span>${esc(sym)}</span><span>${esc(value)}</span></span>`;
+    }).join("")}${list.length > 3 ? `<span class="pf-token-pill">+${list.length - 3}</span>` : ""}</div>`;
+  }
+  function hfClass(hf){
+    if (hf == null || !Number.isFinite(Number(hf))) return "unknown";
+    hf = Number(hf) || 0;
+    if (hf < 1.1) return "danger";
+    if (hf < 1.5) return "warn";
+    return "ok";
+  }
+  function hfText(hf){
+    if (hf == null || !Number.isFinite(Number(hf))) return "—";
+    hf = Number(hf) || 0;
+    return hf ? hf.toFixed(hf >= 10 ? 1 : 2) : "0.00";
+  }
+  function buildRiskBorrowRows(riskJson, addr){
+    const a = normAddr(addr);
+    return ((riskJson && riskJson.positions) || [])
+      .filter(p => normAddr(p.address) === a && Number(p.debtUSD) > 0.000001)
+      .map(p => {
+        const collateralTokens = Array.isArray(p.collateralTokens) ? p.collateralTokens : [];
+        const debtTokens = Array.isArray(p.debtTokens) ? p.debtTokens : [];
+        const search = [...collateralTokens, ...debtTokens].map(t => t.symbol || "").join(" ");
+        const chain = (p.chain || "").toLowerCase();
+        return {
+          chain,
+          account: String(p.accountNumber || ""),
+          accountId: p.accountId || "",
+          hf: Number(p.healthFactor) || 0,
+          collateral: Number(p.collateralUSD) || 0,
+          debt: Number(p.debtUSD) || 0,
+          collateralTokens,
+          debtTokens,
+          eMode: !!p.eMode,
+          sym: search || "position",
+          search,
+        };
+      });
+  }
+  function buildFallbackBorrowRows(chainResults){
+    return (chainResults || []).flatMap(r => (r.borrows || []).map(row => ({
+      chain: row.chain,
+      account: "",
+      accountId: "",
+      hf: null,
+      collateral: 0,
+      debt: Number(row.usd) || 0,
+      collateralTokens: [],
+      debtTokens: [{ symbol: row.sym || "Debt", usd: Number(row.usd) || 0 }],
+      eMode: false,
+      sym: row.sym || "position",
+      search: row.sym || "position",
+      source: "subgraph",
+    }))).filter(r => r.debt > 0.000001);
+  }
+  function buildExerciseRows(exer, flows, addr){
+    const seen = new Set();
+    const rows = ((exer && exer.txs) || []).filter(tx => tx.usdc != null).map(tx => {
+      const paidToken = tx.paid_token || (tx.usdc ? "USDC.e" : "DOLO");
+      const usdc = Number(tx.usdc) || 0;
+      const hash = tx.hash || "";
+      if (hash) seen.add(hash.toLowerCase());
+      return {
+        chain: "berachain",
+        date: tx.date || "",
+        hash,
+        action: "Claim veDOLO",
+        actionSub: `Paid ${paidToken || "stablecoin"}`,
+        vedolo: Number(tx.vedolo) || 0,
+        lockDays: Number(tx.lock_days) || 0,
+        paid: usdc,
+        paidToken,
+        price: tx.price == null ? null : Number(tx.price) || 0,
+        isStableClaim: true,
+      };
+    });
+    const a = normAddr(addr);
+    ((flows && flows.locks) || []).forEach(lock => {
+      const hash = lock.txHash || "";
+      if (!hash || seen.has(hash.toLowerCase())) return;
+      if (normAddr(lock.address) !== a && normAddr(lock.beneficiaryAddress) !== a) return;
+      seen.add(hash.toLowerCase());
+      if (lock.isOdolo) return;
+      rows.push({
+        chain: "berachain",
+        date: lock.date || "",
+        hash,
+        action: "Lock veDOLO",
+        actionSub: "DOLO locked, no purchase price",
+        vedolo: Number(lock.dolo) || 0,
+        lockDays: Number(lock.lockDays) || 0,
+        paid: 0,
+        paidToken: "",
+        price: null,
+        isStableClaim: false,
+      });
+    });
+    return rows;
+  }
 
   // ---------- state + render ----------
   const PAGE_SIZE = 10;
-  const state = { deposits: [], borrows: [], depFilter: { chains: new Set(), q: "" }, borFilter: { chains: new Set(), q: "" }, depSort: { key: "usd", desc: true }, borSort: { key: "usd", desc: true }, depPage: 0, borPage: 0 };
+  const state = {
+    deposits: [],
+    borrows: [],
+    exercises: [],
+    depFilter: { chains: new Set(), q: "" },
+    borFilter: { chains: new Set(), q: "" },
+    depSort: { key: "usd", desc: true },
+    borSort: { key: "debt", desc: true },
+    exSort: { key: "date", desc: true },
+    depPage: 0,
+    borPage: 0,
+    exPage: 0,
+  };
 
   // ---------- DOLO wallet summary (main card) ----------
   function sumItem(icon, label, valHtml, subHtml, goldVal){
@@ -1823,11 +2015,12 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     const ve = (d.vedolo && d.vedolo.total_dolo) || 0;
     const exTxs = (d.exer && d.exer.txs) || [];
     const exVe = exTxs.reduce((s,t)=>s+(Number(t.vedolo)||0),0);
-    const exPaid = exTxs.reduce((s,t)=>s+(Number(t.dolo_paid)||0),0);
+    const exCostUsd = exTxs.reduce((s,t)=>s+(Number(t.usdc)||0),0);
+    const exPairDolo = exTxs.reduce((s,t)=>s+(Number(t.dolo_paid)||0),0);
     const exCount = (d.exer && d.exer.exercises) || 0;
     const vOTok = d.vesting ? d.vesting.oToken : 0;
     const vPair = d.vesting ? d.vesting.pairDolo : 0;
-    const total = held + ve + vPair;
+    const total = held + ve + vOTok;
     $("#pf-sum-total").innerHTML = `${fmtCompact(total)}<span class="unit">DOLO</span>`;
     const usdEl = $("#pf-sum-total-usd");
     if (d.doloPrice){ usdEl.style.display = ""; usdEl.innerHTML = `≈ ${fmtUSD(total * d.doloPrice)}<span class="lbl">USD</span>`; }
@@ -1846,10 +2039,10 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     const exPrices = exTxs.map(t=>Number(t.price)).filter(p=>p>0);
     const exAvg = exPrices.length ? exPrices.reduce((s,p)=>s+p,0)/exPrices.length : null;
     items.push(sumItem("odolo-logo-official.svg", "oDOLO exercised", `${fmtCompact(exVe)}`,
-      exCount ? `${fmtCompact(exPaid)} DOLO paid · ${exCount} exercise${exCount!==1?"s":""}<br><span class="dim">${exAvg?`avg $${exAvg.toFixed(4)} · `:""}${d.exer && d.exer.total_usdc?`${fmtUSD(d.exer.total_usdc)} cost · `:""}in veDOLO</span>` : `<span class="dim">no exercises yet</span>`));
+      exCount ? `${exCount} exercise${exCount!==1?"s":""}${exCostUsd?` · ${fmtUSD(exCostUsd)} option cost`:""}<br><span class="dim">${exAvg?`avg $${exAvg.toFixed(4)} · `:""}${exPairDolo?`${fmtCompact(exPairDolo)} DOLO paired · `:""}in veDOLO</span>` : `<span class="dim">no exercises yet</span>`));
     // 4) paired oDOLO + DOLO, not exercised (active vesting)
     items.push(sumItem("odolo-logo-official.svg", "oDOLO paired · pending", `${fmtCompact(vOTok)}`,
-      d.vesting ? `<span class="pos">+ ${fmtCompact(vPair)} DOLO</span> paired · ${d.vesting.count} position${d.vesting.count!==1?"s":""}${d.vesting.soonest?`<br><span class="dim">unlock ${fmtDate(d.vesting.soonest)}</span>`:""}` : `<span class="dim">no active vesting</span>`, true));
+      d.vesting ? `${fmtCompact(vPair)} DOLO paired · returned on claim · ${d.vesting.count} position${d.vesting.count!==1?"s":""}${d.vesting.soonest?`<br><span class="dim">unlock ${fmtDate(d.vesting.soonest)}</span>`:""}` : `<span class="dim">no active vesting</span>`, true));
     // 5) oDOLO balance in wallet
     items.push(sumItem("odolo-logo-official.svg", "oDOLO held", odoloBal === null ? "—" : `${fmtCompact(odoloBal)}`,
       odoloBal === null ? `<span class="dim">RPC unavailable</span>` : `in wallet · Berachain`, true));
@@ -1921,7 +2114,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
   }
 
   function applyFilter(rows, f){
-    return rows.filter(r => (f.chains.size === 0 || f.chains.has(r.chain)) && (!f.q || r.sym.toLowerCase().includes(f.q)));
+    return rows.filter(r => (f.chains.size === 0 || f.chains.has(r.chain)) && (!f.q || String(r.sym || r.search || "").toLowerCase().includes(f.q)));
   }
   function sortRows(rows, s){
     const dir = s.desc ? -1 : 1;
@@ -1929,6 +2122,16 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       let av, bv;
       if (s.key === "chain"){ av = a.chain; bv = b.chain; }
       else if (s.key === "sym"){ av = (a.sym||"").toLowerCase(); bv = (b.sym||"").toLowerCase(); }
+      else if (s.key === "account"){ av = a.account || ""; bv = b.account || ""; }
+      else if (s.key === "hf"){ av = Number.isFinite(Number(a.hf)) ? Number(a.hf) : -1; bv = Number.isFinite(Number(b.hf)) ? Number(b.hf) : -1; }
+      else if (s.key === "collateral"){ av = a.collateral; bv = b.collateral; }
+      else if (s.key === "debt"){ av = a.debt; bv = b.debt; }
+      else if (s.key === "date"){ av = a.date || ""; bv = b.date || ""; }
+      else if (s.key === "action"){ av = a.action || ""; bv = b.action || ""; }
+      else if (s.key === "vedolo"){ av = a.vedolo; bv = b.vedolo; }
+      else if (s.key === "lock"){ av = a.lockDays; bv = b.lockDays; }
+      else if (s.key === "paid"){ av = a.paid; bv = b.paid; }
+      else if (s.key === "price"){ av = a.price || 0; bv = b.price || 0; }
       else if (s.key === "amount"){ av = a.amount; bv = b.amount; }
       else { av = a.usd; bv = b.usd; }
       if (typeof av === "string") return av < bv ? -dir : av > bv ? dir : 0;
@@ -2015,27 +2218,127 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       renderAll();
     });
   }
+  function renderBorrowPositionsTable(){
+    const ids = { foot: "#pf-borrows-foot", info: "#pf-borrows-info", pager: "#pf-borrows-pager" };
+    const filtered = sortRows(applyFilter(state.borrows, state.borFilter), state.borSort);
+    const total = filtered.reduce((s, r) => s + r.debt, 0);
+    $("#pf-borrows-count").textContent = filtered.length ? `${filtered.length.toLocaleString("en-US")} position${filtered.length!==1?"s":""}` : "";
+    $("#pf-borrows-count").style.display = filtered.length ? "" : "none";
+    $("#pf-borrows-total").innerHTML = `<span class="pf-usd-neg">${fmtUSD(total)}</span>`;
+    updateSortIndicators("bor", state.borSort);
+    const body = $("#pf-borrows-body");
+    if (!state.borrows.length){
+      $(ids.foot).style.display = "none";
+      body.innerHTML = `<tr><td colspan="5"><div class="pf-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>No open borrow positions in the risk dataset.</div></td></tr>`;
+      return;
+    }
+    if (!filtered.length){
+      $(ids.foot).style.display = "none";
+      body.innerHTML = `<tr><td colspan="5"><div class="pf-empty">No positions match the filter.</div></td></tr>`;
+      return;
+    }
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    state.borPage = Math.min(Math.max(0, state.borPage), totalPages - 1);
+    const start = state.borPage * PAGE_SIZE;
+    const pageRows = filtered.slice(start, start + PAGE_SIZE);
+    body.innerHTML = pageRows.map(r => `
+      <tr class="pf-row">
+        <td>${chainChip(r.chain)}</td>
+        <td>
+          <div class="pf-account-cell">
+            <div class="pf-account-main" title="${esc(r.accountId || r.account || "Open borrow")}">Open borrow</div>
+            <div class="pf-account-sub">${r.eMode ? `<span class="pf-mini-chip">E-mode</span>` : `<span class="pf-mini-chip">Position</span>`}</div>
+          </div>
+        </td>
+        <td class="num"><span class="pf-hf-badge ${hfClass(r.hf)}">${hfText(r.hf)}</span></td>
+        <td class="usd">
+          <div class="pf-money-cell">
+            <div class="pf-money-main">${fmtUSD(r.collateral)}</div>
+            ${tokenPills(r.collateralTokens, r.chain)}
+          </div>
+        </td>
+        <td class="usd pf-usd-neg">
+          <div class="pf-money-cell">
+            <div class="pf-money-main">${fmtUSD(r.debt)}</div>
+            ${tokenPills(r.debtTokens, r.chain)}
+          </div>
+        </td>
+      </tr>`).join("");
+    if (totalPages > 1 && pageRows.length < PAGE_SIZE){
+      const rowH = body.querySelector("tr.pf-row") ? body.querySelector("tr.pf-row").getBoundingClientRect().height : 64;
+      body.innerHTML += Array.from({ length: PAGE_SIZE - pageRows.length }, () =>
+        `<tr class="pf-spacer-row" aria-hidden="true"><td colspan="5" style="height:${Math.round(rowH)}px"></td></tr>`).join("");
+    }
+    $(ids.foot).style.display = "";
+    $(ids.info).textContent = `${start + 1}–${Math.min(start + PAGE_SIZE, filtered.length)} of ${filtered.length.toLocaleString("en-US")}`;
+    renderPager($(ids.pager), state.borPage + 1, totalPages, p => { state.borPage = p; renderAll(); });
+  }
+  function renderExerciseTable(){
+    const rows = sortRows(state.exercises, state.exSort);
+    const totalVe = rows.reduce((s, r) => s + r.vedolo, 0);
+    const totalPaid = rows.reduce((s, r) => s + (r.isStableClaim ? r.paid : 0), 0);
+    $("#pf-exercises-count").textContent = rows.length ? `${rows.length.toLocaleString("en-US")} event${rows.length!==1?"s":""}` : "";
+    $("#pf-exercises-count").style.display = rows.length ? "" : "none";
+    $("#pf-exercises-total").innerHTML = rows.length ? `${fmtCompact(totalVe)}<span class="unit">veDOLO</span>` : "—";
+    updateSortIndicators("ex", state.exSort);
+    const body = $("#pf-exercises-body");
+    if (!rows.length){
+      $("#pf-exercises-foot").style.display = "none";
+      body.innerHTML = `<tr><td colspan="6"><div class="pf-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>No veDOLO claims or DOLO locks found for this wallet.</div></td></tr>`;
+      return;
+    }
+    const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+    state.exPage = Math.min(Math.max(0, state.exPage), totalPages - 1);
+    const start = state.exPage * PAGE_SIZE;
+    const pageRows = rows.slice(start, start + PAGE_SIZE);
+    body.innerHTML = pageRows.map(r => {
+      const tx = txExplorer(r.chain, r.hash);
+      const paidHtml = r.isStableClaim ? `${fmtUSD(r.paid)} <span class="pf-amt-sym">${esc(r.paidToken)}</span>` : "—";
+      const priceHtml = r.price ? `$${r.price.toFixed(4)}` : "—";
+      return `<tr class="pf-row">
+        <td><div class="pf-date-cell"><div class="pf-date-main">${fmtIsoDate(r.date)}</div>${tx ? `<a class="pf-tx-link" href="${tx}" target="_blank" rel="noopener">Tx <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg></a>` : ""}</div></td>
+        <td><div class="pf-action-cell"><span class="pf-action-mark"><img src="odolo-logo-official.svg" alt="" onerror="this.style.display='none'"></span><div style="min-width:0"><div class="pf-action-main">${esc(r.action)}</div><div class="pf-action-sub">${esc(r.actionSub)}</div></div></div></td>
+        <td class="num">${fmtToken(r.vedolo)}</td>
+        <td class="num">${fmtLockDays(r.lockDays)}</td>
+        <td class="num">${paidHtml}</td>
+        <td class="num">${priceHtml}</td>
+      </tr>`;
+    }).join("");
+    if (totalPages > 1 && pageRows.length < PAGE_SIZE){
+      const rowH = body.querySelector("tr.pf-row") ? body.querySelector("tr.pf-row").getBoundingClientRect().height : 58;
+      body.innerHTML += Array.from({ length: PAGE_SIZE - pageRows.length }, () =>
+        `<tr class="pf-spacer-row" aria-hidden="true"><td colspan="6" style="height:${Math.round(rowH)}px"></td></tr>`).join("");
+    }
+    $("#pf-exercises-foot").style.display = "";
+    $("#pf-exercises-info").textContent = `${start + 1}–${Math.min(start + PAGE_SIZE, rows.length)} of ${rows.length.toLocaleString("en-US")}${totalPaid ? ` · ${fmtUSD(totalPaid)} paid` : ""}`;
+    renderPager($("#pf-exercises-pager"), state.exPage + 1, totalPages, p => { state.exPage = p; renderAll(); });
+  }
 
   function renderAll(){
     renderTable("#pf-deposits-body","#pf-deposits-count","#pf-deposits-total", state.deposits, state.depFilter, state.depSort, "dep", false);
-    renderTable("#pf-borrows-body","#pf-borrows-count","#pf-borrows-total", state.borrows, state.borFilter, state.borSort, "bor", true);
+    renderBorrowPositionsTable();
+    renderExerciseTable();
   }
   function wireSortHeaders(){
     document.querySelectorAll("#pf-results th[data-sort]").forEach(th => th.addEventListener("click", () => {
       const tk = th.dataset.table, key = th.dataset.sort;
-      const sort = tk === "dep" ? state.depSort : state.borSort;
+      const sort = tk === "dep" ? state.depSort : tk === "bor" ? state.borSort : state.exSort;
       if (sort.key === key) sort.desc = !sort.desc;
-      else { sort.key = key; sort.desc = (key === "usd" || key === "amount"); }
-      if (tk === "dep") state.depPage = 0; else state.borPage = 0;
+      else { sort.key = key; sort.desc = ["usd","amount","debt","collateral","hf","date","vedolo","lock","paid","price"].includes(key); }
+      if (tk === "dep") state.depPage = 0;
+      else if (tk === "bor") state.borPage = 0;
+      else state.exPage = 0;
       renderAll();
     }));
   }
 
   function setLoadingTables(){
     const skel = `<tr class="pf-skel-row"><td><span class="pf-skel" style="width:60px"></span></td><td><span class="pf-skel" style="width:120px"></span></td><td class="num"><span class="pf-skel" style="width:80px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:70px;margin-left:auto"></span></td></tr>`.repeat(3);
-    $("#pf-deposits-body").innerHTML = skel; $("#pf-borrows-body").innerHTML = skel;
-    $("#pf-deposits-foot").style.display = "none"; $("#pf-borrows-foot").style.display = "none";
-    $("#pf-deposits-count").style.display = "none"; $("#pf-borrows-count").style.display = "none";
+    const borSkel = `<tr class="pf-skel-row"><td><span class="pf-skel" style="width:58px"></span></td><td><span class="pf-skel" style="width:128px"></span></td><td class="num"><span class="pf-skel" style="width:50px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:104px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:104px;margin-left:auto"></span></td></tr>`.repeat(3);
+    const exSkel = `<tr class="pf-skel-row"><td><span class="pf-skel" style="width:86px"></span></td><td><span class="pf-skel" style="width:150px"></span></td><td class="num"><span class="pf-skel" style="width:72px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:46px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:90px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:48px;margin-left:auto"></span></td></tr>`.repeat(3);
+    $("#pf-deposits-body").innerHTML = skel; $("#pf-borrows-body").innerHTML = borSkel; $("#pf-exercises-body").innerHTML = exSkel;
+    $("#pf-deposits-foot").style.display = "none"; $("#pf-borrows-foot").style.display = "none"; $("#pf-exercises-foot").style.display = "none";
+    $("#pf-deposits-count").style.display = "none"; $("#pf-borrows-count").style.display = "none"; $("#pf-exercises-count").style.display = "none";
     $("#pf-sum-total").textContent = "—"; $("#pf-sum-total-usd").style.display = "none";
     $("#pf-sum-grid").innerHTML = `<div class="pf-sum-item"><div class="lbl"><span class="pf-skel" style="width:80px;height:9px"></span></div><div class="pf-skel" style="width:90px;height:22px"></div><div class="sub"><span class="pf-skel" style="width:110px;height:9px;margin-top:4px"></span></div></div>`.repeat(5);
   }
@@ -2048,8 +2351,8 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     $("#pf-deposits-filters").innerHTML = ""; $("#pf-borrows-filters").innerHTML = "";
 
     // off-chain JSON lookups + price
-    const [doloHolders, vedoloHolders, exercisers, doloPriceJson] = await Promise.all([
-      loadJson("dolo_holders.json"), loadJson("vedolo_holders.json"), loadJson("exercisers_by_address.json"), loadJson("dolo_price.json"),
+    const [doloHolders, vedoloHolders, exercisers, doloPriceJson, riskJson, vedoloFlows] = await Promise.all([
+      loadJson("dolo_holders.json"), loadJson("vedolo_holders.json"), loadJson("exercisers_by_address.json"), loadJson("dolo_price.json"), loadJson("liquidation_risk.json"), loadJson("vedolo_flows.json"),
     ]);
     const doloPrice = doloPriceJson && (doloPriceJson.price || (doloPriceJson.data && doloPriceJson.data.price)) || 0;
 
@@ -2069,15 +2372,18 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     };
     renderSummary(cardData, odoloBal);
 
-    state.deposits = []; state.borrows = [];
-    chainResults.forEach(r => { state.deposits.push(...(r.deposits||[])); state.borrows.push(...(r.borrows||[])); });
+    state.deposits = [];
+    chainResults.forEach(r => { state.deposits.push(...(r.deposits||[])); });
+    const riskBorrows = buildRiskBorrowRows(riskJson, addr);
+    state.borrows = riskBorrows.length ? riskBorrows : buildFallbackBorrowRows(chainResults);
+    state.exercises = buildExerciseRows(cardData.exer, vedoloFlows, addr);
     state.depFilter = { chains: new Set(), q: "" }; state.borFilter = { chains: new Set(), q: "" };
-    state.depSort = { key: "usd", desc: true }; state.borSort = { key: "usd", desc: true };
-    state.depPage = 0; state.borPage = 0;
+    state.depSort = { key: "usd", desc: true }; state.borSort = { key: "debt", desc: true }; state.exSort = { key: "date", desc: true };
+    state.depPage = 0; state.borPage = 0; state.exPage = 0;
     buildFilters("#pf-deposits-filters", state.deposits, state.depFilter, () => { state.depPage = 0; renderAll(); });
     buildFilters("#pf-borrows-filters", state.borrows, state.borFilter, () => { state.borPage = 0; renderAll(); });
     renderAll();
-    try { history.replaceState(null, "", "#" + addr); } catch(e){}
+    try { history.replaceState(null, "", `${location.pathname}${location.search}#${addr}`); } catch(e){}
   }
 
   // ---------- wiring ----------
