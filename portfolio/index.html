@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta name="color-scheme" content="dark">
+<style>html,body{background:#09090b;margin:0}</style>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dolomite · Portfolio</title>
+<link rel="shortcut icon" href="../favicon.ico" type="image/png">
+<script>
+(async () => {
+  try {
+    const previewVersion = "portfolio-20260609a";
+    const response = await fetch(`../portfolio-preview.html?v=${previewVersion}`, { cache: "no-cache" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const html = await response.text();
+    const mobileNavAssets = '<link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260602-history-tabs"><link rel="stylesheet" href="mobile-polish.css?v=mobile-polish-20260602-history-tabs"><link rel="stylesheet" href="protocol-footer.css?v=protocol-footer-20260604b"><script defer src="mobile-nav.js?v=mobile-nav-20260602-history-tabs"><\/script><script defer src="mobile-polish.js?v=mobile-polish-20260602-history-tabs"><\/script><script defer src="protocol-footer.js?v=protocol-footer-20260604b"><\/script>';
+    document.open();
+    document.write(html.replace("<head>", '<head><base href="../">').replace("</head>", mobileNavAssets + "</head>"));
+    document.close();
+  } catch (error) {
+    document.body.innerHTML = "<p style=\"font-family:system-ui,sans-serif;padding:24px;color:#f4f3ef;background:#09090b\">Unable to load Portfolio.</p>";
+    console.error("Portfolio route failed", error);
+  }
+})();
+</script>
+</head>
+<body></body>
+</html>
