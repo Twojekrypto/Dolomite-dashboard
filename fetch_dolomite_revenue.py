@@ -152,10 +152,21 @@ def window_chain_totals(series, days):
     }
 
 
-def metric_totals(revenue_data, fees_data, series):
+def latest_series_value(series, key, fallback):
     latest = series[-1] if series else {}
-    fees_24h = safe_number(fees_data.get("total24h") or latest.get("feesUSD"))
-    revenue_24h = safe_number(revenue_data.get("total24h") or latest.get("revenueUSD"))
+    value = latest.get(key)
+    if isinstance(value, bool):
+        return safe_number(fallback)
+    if isinstance(value, (int, float)):
+        return safe_number(value)
+    return safe_number(fallback)
+
+
+def metric_totals(revenue_data, fees_data, series):
+    # DeFiLlama total24h can briefly lag the chart rows during adapter updates.
+    # The static dashboard and validator both use the latest saved series row.
+    fees_24h = latest_series_value(series, "feesUSD", fees_data.get("total24h"))
+    revenue_24h = latest_series_value(series, "revenueUSD", revenue_data.get("total24h"))
     return {
         "dailyRevenueUSD": round(revenue_24h, 6),
         "dailyFeesUSD": round(fees_24h, 6),
