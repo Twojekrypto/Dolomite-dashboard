@@ -1,0 +1,1847 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dolomite · Portfolio</title>
+<link rel="shortcut icon" href="favicon.ico" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared-hover-tooltips.css?v=20260507u">
+<script defer src="shared-hover-tooltips.js?v=20260507u"></script>
+<style>
+/* ==========================================================================
+   DESIGN TOKENS — Graphite + Gold (premium, restrained)
+   ========================================================================== */
+:root{
+  /* Backgrounds */
+  --bg-0:#09090b;          /* page */
+  --bg-1:#0f0f11;          /* section */
+  --bg-2:#141417;          /* card */
+  --bg-3:#1a1a1e;          /* elevated / hover */
+  --bg-4:#202024;          /* input */
+
+  /* Borders & dividers */
+  --line-1:rgba(255,255,255,.05);
+  --line-2:rgba(255,255,255,.08);
+  --line-3:rgba(255,255,255,.14);
+
+  /* Text */
+  --fg-1:#f4f3ef;          /* primary (warm white) */
+  --fg-2:#a5a29a;          /* secondary */
+  --fg-3:#6b6a66;          /* muted */
+  --fg-4:#48474a;          /* disabled */
+
+  /* Single premium accent — restrained */
+  --gold:#c9a227;
+  --gold-hi:#e4c15a;
+  --gold-lo:#8a6e1a;
+  --gold-wash:rgba(201,162,39,.10);
+  --gold-line:rgba(201,162,39,.30);
+
+  /* Financial meaning (muted, never neon) */
+  --profit:#75b87b;
+  --profit-hi:#9fcea1;
+  --profit-wash:rgba(117,184,123,.10);
+  --profit-line:rgba(117,184,123,.30);
+  --up:#75b87b;
+  --down:#b4796b;
+  --up-wash:rgba(117,184,123,.10);
+  --down-wash:rgba(180,121,107,.10);
+
+  /* External Yield uses a subtle blue so it separates from lending and oDOLO. */
+  --yield:#8fb7c8;
+
+  /* Geometry */
+  --r-sm:8px;
+  --r-md:12px;
+  --r-lg:16px;
+  --r-xl:22px;
+
+  /* Shadows */
+  --sh-card:0 1px 0 rgba(255,255,255,.02) inset, 0 1px 2px rgba(0,0,0,.4);
+  --sh-hi:0 8px 28px rgba(0,0,0,.45);
+
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --ease:cubic-bezier(.2,.7,.2,1);
+}
+
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{background:var(--bg-0);color:var(--fg-1);font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5}
+body{min-height:100vh;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input{font:inherit}
+
+/* Page bg — very subtle vignette only */
+body::before{
+  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(1000px 600px at 80% -10%,rgba(201,162,39,.04),transparent 60%),
+    radial-gradient(800px 500px at -10% 110%,rgba(255,255,255,.02),transparent 60%);
+}
+
+@keyframes assetSkeletonShimmer{
+  0%{background-position:120% 0}
+  100%{background-position:-120% 0}
+}
+.skel{
+  display:block;
+  border-radius:8px;
+  background:linear-gradient(90deg,rgba(255,255,255,.045) 0%,rgba(255,255,255,.10) 42%,rgba(255,255,255,.045) 78%);
+  background-size:220% 100%;
+  animation:assetSkeletonShimmer 1.45s var(--ease) infinite;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.025);
+}
+.assets-loading .hero-value,
+.assets-loading .hero-token,
+.assets-loading .hero-card .hc-value,
+.assets-loading .hero-card .hc-sub,
+.assets-loading .count-badge,
+.assets-loading .card-meta{
+  position:relative;
+  color:transparent!important;
+  overflow:hidden;
+  border-radius:8px;
+}
+.assets-loading .hero-value .pct,
+.assets-loading .hero-value .pct-symbol{color:transparent!important}
+.assets-loading .hero-token>*{visibility:hidden}
+.assets-loading .hero-value::after,
+.assets-loading .hero-token::after,
+.assets-loading .hero-card .hc-value::after,
+.assets-loading .hero-card .hc-sub::after,
+.assets-loading .count-badge::after,
+.assets-loading .card-meta::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  background:linear-gradient(90deg,rgba(255,255,255,.045) 0%,rgba(255,255,255,.10) 42%,rgba(255,255,255,.045) 78%);
+  background-size:220% 100%;
+  animation:assetSkeletonShimmer 1.45s var(--ease) infinite;
+}
+.assets-loading .hero-value::after{inset:8px 0 5px;width:min(220px,100%)}
+.assets-loading .hero-card .hc-value::after{height:24px;width:min(112px,100%)}
+.assets-loading .hero-card .hc-sub::after{height:12px;width:min(150px,100%)}
+.assets-loading .count-badge::after{inset:0}
+.assets-loading .card-meta .pulse{background:var(--line-3);box-shadow:none}
+
+.wrap{max-width:1320px;margin:0 auto;padding:40px 28px 96px}
+
+/* =========================================================================
+   TOP — logo banner + sticky nav
+   ========================================================================= */
+.site-top{
+  display:flex;flex-direction:column;align-items:center;
+  gap:14px;margin-bottom:40px;
+}
+
+.site-brand{
+  position:relative;
+  display:flex;justify-content:center;align-items:center;
+  width:100%;
+  padding:18px 0 0;
+}
+/* Warm gold atmosphere behind the banner — two layered radials make it
+   sit in the page rather than on top of it. */
+.site-brand::before{
+  content:"";position:absolute;inset:-6% -12% 12% -12%;z-index:-1;
+  background:
+    radial-gradient(55% 55% at 50% 50%, rgba(201,162,39,.14) 0%, transparent 72%),
+    radial-gradient(90% 110% at 50% 100%, rgba(201,162,39,.05) 0%, transparent 65%);
+  filter:blur(20px);pointer-events:none;
+}
+/* Page-coloured vignette overlay: fades the logo's rectangular backdrop
+   into the exact page bg at the edges, hiding the blue-purple undertone. */
+.site-brand::after{
+  content:"";position:absolute;
+  top:50%;left:50%;transform:translate(-50%,-50%);
+  width:min(100%,820px);aspect-ratio:495/195;
+  pointer-events:none;
+  background:radial-gradient(
+    ellipse 78% 82% at center,
+    transparent 42%,
+    rgba(9,9,11,.55) 72%,
+    var(--bg-0) 100%
+  );
+}
+/* Logo colour-corrected toward the palette: desaturated, hue-rotated off
+   the blue undertone, tight radial mask so only the content stays solid. */
+.site-brand img{
+  max-width:820px;width:100%;height:auto;display:block;
+  filter:
+    saturate(.82)
+    contrast(.92)
+    brightness(.93)
+    hue-rotate(-7deg);
+  -webkit-mask-image:radial-gradient(
+    ellipse 78% 80% at center,
+    #000 38%,
+    rgba(0,0,0,.7) 62%,
+    rgba(0,0,0,.25) 82%,
+    transparent 98%
+  );
+          mask-image:radial-gradient(
+    ellipse 78% 80% at center,
+    #000 38%,
+    rgba(0,0,0,.7) 62%,
+    rgba(0,0,0,.25) 82%,
+    transparent 98%
+  );
+  transition:filter .4s var(--ease),transform .4s var(--ease);
+}
+.site-brand img:hover{
+  filter:
+    saturate(.92)
+    contrast(.96)
+    brightness(.98)
+    hue-rotate(-5deg);
+  transform:translateY(-1px);
+}
+
+/* Nav sits below the logo with a small gap (no overlap). */
+.site-nav-wrap{
+  position:sticky;top:12px;z-index:30;
+  display:flex;justify-content:center;
+  pointer-events:none;
+}
+.site-nav{
+  pointer-events:auto;
+  display:inline-flex;align-items:center;gap:2px;
+  background:rgba(16,16,20,.72);
+  backdrop-filter:blur(22px) saturate(160%);
+  -webkit-backdrop-filter:blur(22px) saturate(160%);
+  border:1px solid var(--line-2);
+  padding:5px;border-radius:12px;
+  box-shadow:
+    0 6px 24px rgba(0,0,0,.45),
+    0 1px 0 rgba(255,255,255,.03) inset;
+}
+.nav-item{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:9px 14px;border-radius:8px;
+  font-size:13px;font-weight:500;color:var(--fg-2);
+  cursor:pointer;
+  transition:color .15s var(--ease),background .15s var(--ease);
+  -webkit-tap-highlight-color:transparent;
+}
+.nav-item img,
+.nav-item svg{
+  width:15px;height:15px;flex-shrink:0;
+  transition:opacity .15s var(--ease);
+}
+.nav-item img{border-radius:50%;background:var(--bg-3);object-fit:contain}
+.nav-item svg{color:var(--fg-3);opacity:.85}
+.nav-item:hover{color:var(--fg-1);background:var(--bg-3)}
+.nav-item:hover svg{color:var(--fg-1);opacity:1}
+.nav-item.active{
+  color:var(--fg-1);background:var(--bg-3);
+  box-shadow:inset 0 0 0 1px var(--gold-line);
+}
+.nav-item.active svg{color:var(--gold);opacity:1}
+.nav-item.active::after{
+  content:"";width:4px;height:4px;border-radius:50%;
+  background:var(--gold);margin-left:2px;
+  box-shadow:0 0 6px var(--gold-line);
+}
+
+/* =========================================================================
+   HERO — aligned with DOLO graphite + gold system
+   ========================================================================= */
+.hero{
+  position:relative;
+  background:linear-gradient(180deg,var(--bg-2),var(--bg-1));
+  border:1px solid var(--line-2);
+  border-radius:var(--r-xl);
+  padding:28px 32px 24px;
+  margin-bottom:24px;
+  overflow:hidden;
+}
+.hero::before{
+  content:"";position:absolute;left:0;right:0;top:0;height:1px;pointer-events:none;
+  background:linear-gradient(90deg,transparent 0%,var(--gold-line) 30%,var(--gold-line) 70%,transparent 100%);
+  opacity:.6;
+}
+.hero::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(720px 320px at 80% -30%,rgba(201,162,39,.08),transparent 65%);
+}
+.hero-brand{display:flex;align-items:center;gap:16px;margin-bottom:26px;position:relative;z-index:1;flex-wrap:wrap}
+.hero-token-logo{
+  width:52px;height:52px;border-radius:50%;
+  background:var(--bg-3);border:1px solid var(--line-2);
+  display:grid;place-items:center;overflow:hidden;flex-shrink:0;
+}
+.hero-token-logo svg{width:30px;height:30px;color:var(--gold)}
+.hero-token-text{display:flex;flex-direction:column;gap:3px;min-width:0}
+.hero-token-title{font-size:24px;font-weight:800;color:var(--fg-1);letter-spacing:-.7px;line-height:1}
+.hero-token-sub{font-size:12.5px;color:var(--fg-3);font-weight:400;line-height:1.3}
+.hero-token-sub b{color:var(--fg-2);font-weight:500}
+.hero-meta{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}
+.hero-live{font-size:11px;color:var(--fg-3);font-family:var(--mono);display:inline-flex;align-items:center;gap:6px}
+.hero-live .dot{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
+
+.hero-headline{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;padding-bottom:26px;margin-bottom:0;position:relative;z-index:1}
+.hero-value{
+  font-family:var(--mono);
+  font-size:clamp(44px,6vw,62px);
+  font-weight:700;letter-spacing:-2.5px;
+  color:var(--fg-1);
+  line-height:1;
+  font-variant-numeric:tabular-nums;
+}
+.hero-value .pct,
+.hero-value .pct-symbol{color:var(--fg-1)}
+.hero-value .pct-symbol{font-size:.45em;margin-left:4px}
+.hero-token{
+  display:inline-flex;align-items:center;gap:9px;
+  min-height:36px;padding:6px 9px 6px 12px;border-radius:999px;
+  background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.025));
+  border:1px solid var(--line-2);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+  font-size:13px;font-weight:650;color:var(--fg-1);
+}
+.hero-token>img{width:20px;height:20px;border-radius:50%;object-fit:cover;background:var(--bg-3);border:1px solid var(--line-2)}
+.hero-token-name{font-family:var(--mono);letter-spacing:.15px;line-height:1}
+.hero-token-sep{width:1px;height:16px;background:var(--line-2);margin:0 1px}
+.hero-chain-pill{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:10px;text-transform:uppercase;letter-spacing:.9px;color:var(--fg-2);
+  padding:0 2px 0 0;border-radius:999px;
+  background:transparent;border:0;
+  line-height:1;
+}
+.hero-chain-pill img{
+  width:13px;height:13px;border-radius:50%;object-fit:cover;
+  background:transparent;border:0;
+  box-shadow:0 0 0 1px rgba(255,255,255,.16);
+}
+
+.hero-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:0;
+  padding-top:22px;border-top:1px solid var(--line-1);
+  position:relative;z-index:1;
+}
+.hero-card{
+  background:transparent;
+  border:0;
+  border-left:1px solid var(--line-1);
+  border-radius:0;
+  padding:0 24px;
+  transition:none;
+  position:relative;
+}
+.hero-card:first-child{border-left:0;padding-left:0}
+.hero-card:hover{background:transparent;transform:none}
+.hero-card .hc-label{font-size:10px;text-transform:uppercase;letter-spacing:1.6px;color:var(--fg-3);font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:7px}
+.hero-card .hc-label svg{width:11px;height:11px;color:var(--fg-3)}
+.hero-card .hc-label img{width:11px;height:11px;border-radius:50%;object-fit:contain;opacity:.82;flex-shrink:0}
+.hero-card .hc-value{font-family:var(--mono);font-size:24px;font-weight:600;letter-spacing:-.6px;color:var(--fg-1);font-variant-numeric:tabular-nums;line-height:1}
+.hero-card .hc-value.accent{color:var(--gold)}
+.hero-card.supply .hc-value{color:var(--fg-1)}
+.hero-card.odolo .hc-value{color:var(--gold)}
+.hero-card.borrow .hc-value{color:var(--fg-1)}
+.hero-card .hc-sub{font-size:11px;color:var(--fg-3);margin-top:8px;font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* =========================================================================
+   CARD SHELL
+   ========================================================================= */
+.card{
+  background:var(--bg-2);
+  border:1px solid var(--line-2);
+  border-radius:var(--r-xl);
+  box-shadow:var(--sh-card);
+  overflow:visible;        /* allow dropdowns to escape when table is short */
+  position:relative;
+}
+.card-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px 24px 18px;
+  border-bottom:1px solid var(--line-1);
+}
+.card-title{display:flex;align-items:center;gap:10px}
+.card-title h2{font-size:16px;font-weight:600;letter-spacing:-.1px;color:var(--fg-1)}
+.card-title .count-badge{font-family:var(--mono);font-size:11px;color:var(--fg-2);background:var(--bg-3);border:1px solid var(--line-2);padding:3px 8px;border-radius:999px}
+.card-meta{font-size:11px;color:var(--fg-3);font-family:var(--mono);display:flex;align-items:center;gap:6px}
+.pulse{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
+
+/* =========================================================================
+   TOOLBAR
+   ========================================================================= */
+.toolbar{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:14px 24px;
+  background:linear-gradient(180deg,var(--bg-1),var(--bg-2));
+  border-bottom:1px solid var(--line-1);
+  flex-wrap:wrap;
+}
+.tb-left,.tb-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
+/* search */
+.search{
+  position:relative;
+  display:flex;align-items:center;
+  width:280px;
+  background:var(--bg-3);
+  border:1px solid var(--line-2);
+  border-radius:10px;
+  height:36px;
+  padding:0 14px 0 36px;
+  transition:border-color .2s var(--ease);
+}
+.search:focus-within{border-color:var(--gold-line)}
+.search svg{position:absolute;left:12px;width:14px;height:14px;color:var(--fg-3)}
+.search input{flex:1;min-width:0;background:none;border:0;outline:0;color:var(--fg-1);font-size:13px}
+.search input::placeholder{color:var(--fg-3)}
+.search .kbd{font-family:var(--mono);font-size:10px;color:var(--fg-3);border:1px solid var(--line-2);border-radius:4px;padding:1px 5px;background:var(--bg-4)}
+.search-clear{
+  display:none;align-items:center;justify-content:center;flex:0 0 20px;width:20px;height:20px;margin-left:6px;padding:0;
+  border:1px solid var(--line-2);border-radius:6px;background:rgba(255,255,255,.018);color:var(--fg-3);cursor:pointer;
+  transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease);
+}
+.search.has-value .search-clear{display:inline-flex}
+.search.has-value .kbd{display:none}
+.search-clear:hover{color:var(--fg-1);border-color:var(--gold-line);background:var(--gold-wash)}
+.search-clear svg{position:static;width:11px;height:11px;color:currentColor}
+
+/* dropdown btn */
+.dd{position:relative}
+.dd-btn{
+  display:inline-flex;align-items:center;gap:8px;
+  height:36px;padding:0 12px;
+  background:var(--bg-3);border:1px solid var(--line-2);
+  border-radius:10px;font-size:13px;color:var(--fg-1);font-weight:500;
+  transition:border-color .2s var(--ease),background .2s var(--ease);
+}
+.dd-btn:hover{border-color:var(--line-3)}
+.dd-btn.open{border-color:var(--gold-line);background:var(--bg-4)}
+.dd-btn .icon{width:14px;height:14px;color:var(--fg-2);flex-shrink:0;transition:color .2s var(--ease)}
+.dd-btn img.icon{border-radius:50%;object-fit:cover;background:var(--bg-4);box-shadow:0 0 0 1px rgba(0,0,0,.35)}
+.dd-btn .lbl{
+  flex:1;min-width:0;text-align:left;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.dd-btn .count{font-family:var(--mono);font-size:10px;color:var(--fg-3);background:var(--bg-4);padding:2px 6px;border-radius:999px;border:1px solid var(--line-2);flex-shrink:0;transition:color .2s var(--ease),border-color .2s var(--ease),background .2s var(--ease)}
+.dd-btn .chev{width:10px;height:10px;color:var(--fg-3);flex-shrink:0;transition:transform .2s var(--ease),color .2s var(--ease)}
+.dd-btn.open .chev{transform:rotate(180deg)}
+
+/* Persistent filtered state — subtle gold accent, matches the .open
+   style so selection reads "something is picked" without shouting. */
+.dd-btn.filtered{
+  border-color:var(--gold-line);
+  background:var(--bg-4);
+}
+.dd-btn.filtered .count{
+  color:var(--gold);
+  border-color:var(--gold-line);
+}
+.dd-btn.filtered:hover{border-color:var(--gold-line)}
+
+/* Fixed widths so labels never resize the button — "All Chains", "2 chains",
+   "Polygon zkEVM" and "Berachain" all occupy the same space. */
+#dd-cat .dd-btn{min-width:170px}
+#dd-net .dd-btn{min-width:210px}
+#dd-rw  .dd-btn{min-width:150px}
+
+/* Quick-clear × — only visible when the filter has a selection */
+.dd-clear{
+  display:none;
+  align-items:center;justify-content:center;
+  width:18px;height:18px;border-radius:4px;
+  margin-left:-2px;flex-shrink:0;
+  color:var(--fg-3);cursor:pointer;
+  transition:color .15s var(--ease),background .15s var(--ease);
+}
+.dd-btn.filtered .dd-clear{display:inline-flex}
+.dd-clear:hover{background:rgba(201,162,39,.18);color:var(--gold)}
+.dd-clear svg{width:10px;height:10px;pointer-events:none}
+
+.dd-panel{
+  position:absolute;top:calc(100% + 6px);left:0;
+  min-width:220px;max-width:320px;
+  background:var(--bg-2);
+  border:1px solid var(--line-2);
+  border-radius:var(--r-md);
+  box-shadow:var(--sh-hi);
+  padding:6px;z-index:40;
+  opacity:0;transform:translateY(-4px);pointer-events:none;
+  transition:opacity .18s var(--ease),transform .18s var(--ease);
+}
+.dd-panel.show{opacity:1;transform:translateY(0);pointer-events:auto}
+.dd-panel-head{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:var(--fg-3);font-weight:600;padding:8px 10px 6px}
+.dd-list{display:flex;flex-direction:column}
+.dd-opt{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 10px;border-radius:6px;
+  font-size:13px;color:var(--fg-2);cursor:pointer;
+  transition:background .15s var(--ease),color .15s var(--ease);
+}
+.dd-opt + .dd-opt{border-top:1px solid var(--line-1)}
+.dd-opt:hover{background:var(--bg-3);color:var(--fg-1)}
+.dd-opt.active{background:rgba(201,162,39,.04);color:var(--fg-1)}
+.dd-opt img,
+.dd-opt .dd-ico{
+  width:18px;height:18px;border-radius:50%;flex-shrink:0;
+  background:var(--bg-4);border:1px solid var(--line-2);
+  display:grid;place-items:center;object-fit:cover;
+  transition:border-color .15s var(--ease);
+}
+.dd-opt.active img,
+.dd-opt.active .dd-ico{border-color:var(--gold-line)}
+.dd-opt .dd-ico svg{width:11px;height:11px;color:var(--fg-3)}
+.dd-opt.active .dd-ico svg{color:var(--gold)}
+.dd-opt.select-all .dd-ico svg{width:14px;height:14px;color:var(--fg-2)}
+.dd-opt-name{flex:1;min-width:0}
+.dd-opt.select-all{
+  background:linear-gradient(180deg,var(--bg-3),var(--bg-2));
+  border:1px solid var(--line-2);margin-bottom:4px;
+}
+.dd-opt.select-all .dd-opt-name{font-weight:600;color:var(--fg-1)}
+/* Checkbox indicator on LEFT — mirrors Rewards filter */
+.dd-opt-check{
+  width:15px;height:15px;border-radius:4px;flex-shrink:0;
+  background:var(--bg-4);border:1.5px solid var(--line-3);
+  display:grid;place-items:center;
+  transition:background .15s var(--ease),border-color .15s var(--ease);
+}
+.dd-opt-check svg{
+  width:9px;height:9px;
+  color:var(--bg-0);
+  opacity:0;transition:opacity .15s var(--ease);
+}
+.dd-opt.active .dd-opt-check{background:var(--gold);border-color:var(--gold)}
+.dd-opt.active .dd-opt-check svg{opacity:1}
+
+/* pill switch (APR/APY) */
+.pill-switch{
+  position:relative;
+  display:inline-flex;align-items:center;
+  background:var(--bg-3);border:1px solid var(--line-2);
+  border-radius:10px;padding:3px;height:36px;
+  cursor:pointer;-webkit-user-select:none;user-select:none;
+}
+.pill-switch .opt{position:relative;z-index:1;padding:0 14px;height:28px;display:inline-flex;align-items:center;font-size:12px;font-weight:600;color:var(--fg-3);letter-spacing:.4px;cursor:pointer;transition:color .2s var(--ease)}
+.pill-switch .opt.active{color:var(--bg-0)}
+.pill-switch .slider{position:absolute;top:3px;left:3px;height:28px;border-radius:8px;background:var(--gold);box-shadow:0 2px 8px rgba(201,162,39,.35);transition:transform .25s var(--ease),width .25s var(--ease)}
+
+/* rewards btn with dots */
+.rw-btn{display:inline-flex;align-items:center;gap:8px}
+.rw-dots{display:inline-flex;gap:3px}
+.rw-dot{width:6px;height:6px;border-radius:50%;background:var(--fg-4);transition:background .2s var(--ease)}
+.rw-dot.on{background:var(--gold)}
+
+/* rewards dropdown — minimal filter-table */
+.dd-panel-rw{padding:6px;min-width:220px}
+.dd-panel-rw .dd-panel-head{padding:8px 10px 6px}
+.rw-list{display:flex;flex-direction:column}
+.rw-item{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 10px;border-radius:6px;cursor:pointer;
+  transition:background .15s var(--ease);
+}
+.rw-item + .rw-item{border-top:1px solid var(--line-1)}
+.rw-item:hover{background:var(--bg-3)}
+.rw-check{
+  width:15px;height:15px;border-radius:4px;flex-shrink:0;
+  background:var(--bg-4);border:1.5px solid var(--line-3);
+  display:grid;place-items:center;
+  transition:background .15s var(--ease),border-color .15s var(--ease);
+}
+.rw-check svg{
+  width:9px;height:9px;
+  color:var(--bg-0);
+  opacity:0;transition:opacity .15s var(--ease);
+}
+.rw-item.active .rw-check{background:var(--gold);border-color:var(--gold)}
+.rw-item.active .rw-check svg{opacity:1}
+.rw-dot-src{width:7px;height:7px;border-radius:2px;flex-shrink:0}
+.rw-dot-src.lending{background:var(--fg-1)}
+.rw-dot-src.odolo{background:var(--gold)}
+.rw-dot-src.yield{background:var(--yield)}
+.rw-name{font-size:13px;font-weight:500;color:var(--fg-2);flex:1;min-width:0}
+.rw-item.active .rw-name{color:var(--fg-1)}
+
+.sep{width:1px;height:22px;background:var(--line-2)}
+
+/* =========================================================================
+   TABLE — dense, terminal-inspired
+   ========================================================================= */
+.tbl-wrap{
+  --asset-table-head-h:40px;
+  --asset-table-row-h:92px;
+  --asset-table-visible-rows:10;
+  height:calc(var(--asset-table-head-h) + (var(--asset-table-visible-rows) * var(--asset-table-row-h)));
+  overflow:auto;
+  border-radius:0 0 var(--r-xl) var(--r-xl);
+  scrollbar-color:rgba(201,162,39,.45) rgba(255,255,255,.04);
+  scrollbar-width:thin;
+}
+.tbl-wrap::-webkit-scrollbar{width:10px;height:10px}
+.tbl-wrap::-webkit-scrollbar-track{background:rgba(255,255,255,.035);border-radius:999px}
+.tbl-wrap::-webkit-scrollbar-thumb{background:rgba(201,162,39,.35);border:2px solid var(--bg-2);border-radius:999px}
+.tbl-wrap::-webkit-scrollbar-thumb:hover{background:rgba(201,162,39,.55)}
+.tbl tbody tr:last-child td{border-bottom:0}
+.tbl{
+  width:100%;border-collapse:separate;border-spacing:0;
+  font-size:13px;
+}
+.tbl thead th{
+  position:sticky;top:0;z-index:2;
+  font-size:10px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;
+  color:var(--fg-3);text-align:left;
+  padding:12px 18px;
+  background:var(--bg-1);
+  border-bottom:1px solid var(--line-2);
+  white-space:nowrap;
+  user-select:none;
+  cursor:pointer;
+}
+.tbl thead th .sort{display:inline-block;margin-left:6px;color:var(--fg-4);font-size:9px}
+.tbl thead th.sorted{color:var(--gold)}
+.tbl thead th.sorted .sort{color:var(--gold)}
+.tbl thead th.num{text-align:right}
+.tbl thead th:hover{color:var(--fg-1)}
+.tbl thead th.action{cursor:default;text-align:center}
+.tbl thead th.action:hover{color:var(--fg-3)}
+
+.tbl tbody tr{
+  transition:background .15s var(--ease);
+  cursor:pointer;
+}
+.tbl tbody td{
+  padding:12px 18px;
+  border-bottom:1px solid var(--line-1);
+  vertical-align:middle;
+  color:var(--fg-1);
+  font-variant-numeric:tabular-nums;
+}
+.tbl tbody tr.data > td,
+.tbl tbody tr.loading-row > td{height:var(--asset-table-row-h)}
+.tbl tbody td.num{text-align:right;font-family:var(--mono);font-weight:500}
+.tbl tbody td.details-cell{width:112px;text-align:center}
+.tbl tbody tr:hover td{background:var(--bg-3)}
+.tbl tbody tr.expanded td{background:rgba(201,162,39,.035);border-bottom-color:transparent}
+.tbl tbody tr.loading-row{cursor:default}
+.tbl tbody tr.loading-row:hover td{background:transparent}
+.loading-asset{display:flex;align-items:center;gap:14px}
+.skel-avatar{width:30px;height:30px;border-radius:50%;flex-shrink:0}
+.skel-stack{display:flex;flex-direction:column;gap:8px;min-width:180px}
+.skel-line{height:12px}
+.skel-line.name{width:112px}
+.skel-line.meta{width:180px;height:10px}
+.skel-num{height:16px;width:86px;margin-left:auto}
+.skel-num.wide{width:116px}
+
+/* asset cell */
+.asset-cell{display:flex;align-items:center;gap:14px;min-width:0}
+.chev{width:14px;height:14px;color:var(--fg-4);flex-shrink:0;transition:transform .2s var(--ease),color .2s var(--ease)}
+tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
+.tok-ico{width:30px;height:30px;border-radius:50%;background:var(--bg-3);border:1px solid var(--line-2);overflow:hidden;flex-shrink:0;display:grid;place-items:center}
+.tok-ico img{width:100%;height:100%;object-fit:cover}
+.tok-ico img.grayscale{filter:grayscale(1) brightness(1.5)}
+.tok-meta{display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.tok-name{font-weight:600;color:var(--fg-1);display:flex;align-items:center;gap:8px;min-width:0;white-space:nowrap}
+.tok-name .tok-sym{font-family:var(--mono);font-size:13px;letter-spacing:.2px;flex-shrink:0}
+.tok-name .tok-long{color:var(--fg-3);font-weight:400;font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tok-tags{display:flex;align-items:center;gap:6px;margin-top:3px;min-width:0;overflow:hidden;white-space:nowrap}
+.tag{font-size:10px;letter-spacing:.4px;padding:2px 7px;border-radius:4px;color:var(--fg-2);background:var(--bg-3);border:1px solid var(--line-2);font-weight:500;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;flex-shrink:0}
+.tag.chain{text-transform:capitalize}
+.tag.chain .dot{width:6px;height:6px;border-radius:50%}
+.tag.chain img{width:12px;height:12px;border-radius:50%;object-fit:cover}
+.tag.cat{color:var(--fg-3)}
+.tag.odolo{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.token-ca{
+  display:inline-flex;align-items:center;gap:4px;
+  font-family:var(--mono);font-size:10px;line-height:1;
+  color:var(--fg-3);text-decoration:none;
+  padding:3px 6px;border-radius:4px;
+  background:rgba(255,255,255,.025);border:1px solid var(--line-1);
+  white-space:nowrap;flex-shrink:0;
+  transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease);
+}
+.token-ca:hover{color:var(--fg-1);border-color:var(--gold-line);background:var(--gold-wash)}
+.token-ca-label{font-size:9px;letter-spacing:.6px;color:var(--fg-4);font-family:'Inter',system-ui,sans-serif;font-weight:700}
+.token-ca-copy{
+  width:20px;height:20px;border-radius:5px;
+  display:inline-grid;place-items:center;flex-shrink:0;
+  color:var(--fg-3);background:rgba(255,255,255,.025);border:1px solid var(--line-1);
+  transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease);
+}
+.token-ca-copy:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.token-ca-copy.copied{color:var(--up);border-color:var(--up)}
+.token-ca-copy svg{width:11px;height:11px}
+.asset-toggle{
+  height:24px;min-width:78px;padding:0 8px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;gap:5px;flex-shrink:0;
+  color:var(--gold);background:var(--gold-wash);border:1px solid rgba(201,162,39,.28);cursor:pointer;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 0 0 1px rgba(201,162,39,.035);
+  transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease),box-shadow .15s var(--ease),transform .15s var(--ease);
+}
+.asset-toggle svg{width:12px;height:12px;transition:transform .18s var(--ease);pointer-events:none}
+.asset-toggle span{font-size:9.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;line-height:1;pointer-events:none}
+.asset-toggle:hover{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.16);box-shadow:0 0 0 3px rgba(201,162,39,.08);transform:translateY(-1px)}
+.tbl tbody tr.expanded .asset-toggle{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.18);box-shadow:0 0 0 3px rgba(201,162,39,.08)}
+.tbl tbody tr.expanded .asset-toggle svg{transform:rotate(180deg)}
+.details-cell .asset-toggle{margin:0 auto}
+
+/* chain dot colors — restrained */
+.dot-berachain{background:#c9a227}
+.dot-arbitrum{background:#6b8aa8}
+.dot-ethereum{background:#8a8a9e}
+.dot-botanix{background:#b4796b}
+.dot-mantle{background:#6a7a6e}
+.dot-polygonzkevm{background:#8a6b9a}
+.dot-xlayer{background:#7a7a6b}
+
+/* price cell */
+.price-val{color:var(--fg-1);font-family:var(--mono)}
+
+/* APY / supply cell — vertical breakdown (original-style) */
+.apy-cell{display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:130px;line-height:1.1}
+.apy-val{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--profit);letter-spacing:-.3px;line-height:1}
+.apy-val.negative{color:var(--down)}
+.apy-lines{display:flex;flex-direction:column;gap:3px;align-items:flex-end}
+.apy-line{
+  display:inline-flex;align-items:center;gap:6px;
+  font-family:var(--mono);font-size:10.5px;font-weight:500;letter-spacing:.1px;
+  line-height:1.2;white-space:nowrap;
+}
+.apy-line .apy-dash{color:var(--fg-4);font-weight:400}
+.apy-line .apy-src{font-weight:500}
+.apy-line .apy-num{font-weight:600;font-variant-numeric:tabular-nums;min-width:52px;text-align:right}
+/* Lending — native yield, neutral white; total supply carries green signal */
+.apy-line.lending .apy-src,
+.apy-line.lending .apy-num{color:var(--fg-1)}
+.apy-line.lending .apy-dash{color:var(--fg-3)}
+/* oDOLO — protocol rewards, gold accent */
+.apy-line.odolo .apy-src,
+.apy-line.odolo .apy-num{color:var(--gold)}
+.apy-line.odolo .apy-dash{color:var(--gold-line)}
+/* External yield — subtle blue, separate from lending and oDOLO */
+.apy-line.yield .apy-src,
+.apy-line.yield .apy-num{color:var(--yield)}
+.apy-line.yield .apy-dash{color:rgba(143,183,200,.50)}
+.apy-line.negative .apy-src,
+.apy-line.negative .apy-num{color:var(--down)}
+.apy-line.negative .apy-dash{color:rgba(180,121,107,.50)}
+
+/* borrow cell */
+.bw-val{font-family:var(--mono);font-size:14px;font-weight:500;color:var(--down)}
+
+.exp-row{cursor:default}
+.exp-row > td{
+  padding:0 14px 18px!important;
+  background:linear-gradient(90deg,rgba(201,162,39,.06),var(--bg-1) 38px);
+  border-bottom:1px solid rgba(201,162,39,.18);
+}
+.exp-row:hover > td{background:linear-gradient(90deg,rgba(201,162,39,.06),var(--bg-1) 38px)}
+.asset-detail-panel{
+  margin:0;border:1px solid rgba(201,162,39,.2);border-top:1px solid rgba(201,162,39,.48);border-radius:0 0 var(--r-lg) var(--r-lg);
+  background:linear-gradient(180deg,rgba(18,18,20,.985),rgba(12,12,14,.985));
+  overflow:hidden;position:relative;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 0 0 1px rgba(201,162,39,.055),0 18px 44px rgba(0,0,0,.22);
+}
+.asset-detail-panel::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:linear-gradient(180deg,var(--gold),rgba(201,162,39,.18));
+  box-shadow:0 0 18px rgba(201,162,39,.28);pointer-events:none;
+}
+.asset-detail-head{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px 22px 12px;
+}
+.asset-detail-eyebrow{font-size:9.5px;letter-spacing:1.45px;text-transform:uppercase;color:var(--gold);font-weight:700;margin-bottom:6px}
+.asset-detail-title{font-size:15px;font-weight:700;color:var(--fg-1);letter-spacing:0;line-height:1.25}
+.asset-detail-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.asset-detail-pill{
+  display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;
+  border:1px solid var(--line-2);background:rgba(255,255,255,.025);
+  color:var(--fg-2);font-family:var(--mono);font-size:10.5px;font-weight:600;white-space:nowrap;
+}
+.asset-detail-pill.gold{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.asset-detail-pill.chain{text-transform:uppercase;letter-spacing:.9px;font-size:10px;gap:7px}
+.asset-detail-pill .adp-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;background-color:var(--bg-3);background-position:center;background-size:cover;box-shadow:0 0 0 1px rgba(0,0,0,.35)}
+.asset-detail-pill img{width:12px;height:12px;border-radius:50%;object-fit:cover}
+.asset-detail-content{
+  position:relative;margin:0 12px 14px 14px;border:1px solid rgba(201,162,39,.14);border-radius:8px;
+  background:rgba(0,0,0,.16);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 1px 0 rgba(255,255,255,.025);
+}
+.exp-body{
+  display:flex;flex-direction:column;gap:22px;
+  padding:16px 18px 18px;
+  background:transparent;
+}
+.exp-stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid var(--line-1);border-radius:8px;background:rgba(255,255,255,.012);overflow:hidden}
+.exp-stat{padding:14px 16px;border-left:1px solid rgba(255,255,255,.055)}
+.exp-stat:first-child{border-left:0}
+.exp-stat .lbl{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:var(--fg-3);font-weight:600;margin-bottom:8px}
+.exp-stat .val{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--fg-1);letter-spacing:-.3px;font-variant-numeric:tabular-nums}
+.exp-stat .val.accent{color:var(--profit)}
+.exp-stat .val.down{color:var(--down)}
+.exp-stat .sub{font-size:11px;color:var(--fg-3);margin-top:4px;font-family:var(--mono)}
+.exp-bar{margin-top:8px;width:100%;height:4px;border-radius:2px;background:var(--bg-3);overflow:hidden}
+.exp-bar>span{display:block;height:100%;background:var(--gold);opacity:.75}
+
+/* ========== YIELD CALCULATOR ========== */
+.calc{
+  background:linear-gradient(180deg,rgba(255,255,255,.018),rgba(255,255,255,.006));
+  border:1px solid rgba(201,162,39,.14);
+  border-radius:8px;
+  padding:18px 20px;
+}
+.calc-head{display:flex;flex-direction:column;align-items:flex-start;gap:12px;margin-bottom:14px}
+.calc-title{display:flex;align-items:center;gap:10px;font-size:11px;text-transform:uppercase;letter-spacing:1.6px;font-weight:700;color:var(--gold)}
+.calc-title svg{width:14px;height:14px}
+.calc-help{
+  position:relative;
+  width:17px;height:17px;border-radius:50%;
+  display:inline-grid;place-items:center;
+  margin-left:-2px;
+  font-size:11px;line-height:1;font-weight:800;letter-spacing:0;
+  color:var(--fg-2);background:var(--bg-3);border:1px solid var(--line-2);
+  cursor:help;
+  transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease);
+}
+.calc-help:hover,.calc-help:focus-visible{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash);outline:0}
+.calc-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%}
+.calc-tabs{display:inline-flex;background:var(--bg-3);border:1px solid var(--line-2);border-radius:8px;padding:3px;position:relative}
+.calc-tab{padding:6px 14px;font-size:11px;font-weight:600;letter-spacing:.4px;color:var(--fg-3);border-radius:6px;cursor:pointer;transition:color .2s var(--ease),background .2s var(--ease)}
+.calc-tab.active{color:var(--bg-0);background:var(--gold)}
+.calc-input-wrap{
+  display:inline-flex;align-items:stretch;
+  background:var(--bg-4);border:1px solid var(--line-2);
+  border-radius:8px;height:34px;overflow:hidden;
+  transition:border-color .2s var(--ease);
+}
+.calc-input-wrap:focus-within{border-color:var(--gold-line)}
+.calc-input-wrap .dol{
+  display:flex;align-items:center;
+  padding-left:12px;padding-right:2px;
+  color:var(--fg-3);font-family:var(--mono);font-size:13px;
+}
+.calc-input{
+  background:none;border:0;outline:0;
+  color:var(--fg-1);font-family:var(--mono);font-size:13px;
+  width:120px;text-align:right;
+  padding:0 10px 0 4px;
+}
+/* Kill native spinners */
+.calc-input::-webkit-outer-spin-button,
+.calc-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.calc-input[type="number"]{-moz-appearance:textfield;appearance:textfield}
+
+/* Custom stepper */
+.calc-steppers{
+  display:flex;flex-direction:column;
+  width:22px;flex-shrink:0;
+  border-left:1px solid var(--line-2);
+}
+.calc-stepper{
+  flex:1;
+  display:grid;place-items:center;
+  background:transparent;border:0;cursor:pointer;
+  color:var(--fg-3);
+  transition:background .12s var(--ease),color .12s var(--ease);
+  -webkit-user-select:none;user-select:none;
+}
+.calc-stepper + .calc-stepper{border-top:1px solid var(--line-2)}
+.calc-stepper:hover{background:var(--bg-3);color:var(--fg-1)}
+.calc-stepper:active,
+.calc-stepper.pressing{background:var(--gold-wash);color:var(--gold)}
+.calc-stepper svg{width:9px;height:9px;stroke-width:2.5;pointer-events:none}
+
+.calc-max{
+  background:var(--bg-3);border:1px solid var(--line-2);
+  padding:0 12px;height:34px;margin-left:8px;
+  border-radius:8px;
+  font-size:10px;letter-spacing:1px;font-weight:600;
+  color:var(--fg-2);cursor:pointer;
+  transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease);
+}
+.calc-max:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+
+.calc-grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:4px}
+.calc-row{
+  display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;
+  padding:10px 14px;border-radius:8px;background:rgba(255,255,255,.015);
+  border:1px solid var(--line-1);
+}
+.calc-row.metric-focus{
+  grid-column:1/-1;position:relative;overflow:hidden;
+  grid-template-columns:minmax(0,1fr) minmax(128px,auto) minmax(0,1fr);
+  padding:15px 18px 15px 20px;
+  background:linear-gradient(180deg,rgba(255,255,255,.026),rgba(255,255,255,.006));
+  border-color:rgba(201,162,39,.16);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.052),inset 0 -1px 0 rgba(0,0,0,.24),0 10px 22px rgba(0,0,0,.13);
+}
+/* Unified gold identity chrome on every metric row — single left rail, semantic color lives on the numbers only. */
+.calc-row.metric-focus::after{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:linear-gradient(180deg,rgba(201,162,39,.6),rgba(201,162,39,.16));
+  opacity:.85;pointer-events:none;
+}
+.calc-row.metric-focus .calc-side{gap:5px}
+.calc-row.metric-focus .calc-side-lbl{font-size:10px;color:var(--fg-3)}
+.calc-row.metric-focus .calc-side-val{
+  font-size:24px;line-height:1.05;font-weight:700;letter-spacing:-.7px;
+  color:var(--metric-value);text-shadow:0 0 16px rgba(var(--metric-rgb),.12);
+}
+.calc-row.metric-focus .calc-side:first-child .calc-side-lbl{color:var(--fg-3)}
+.calc-row.metric-focus .calc-side:first-child .calc-side-val{
+  font-size:22px;font-weight:650;color:rgba(var(--metric-rgb),.72);text-shadow:none;
+}
+.calc-row.metric-focus .calc-side:last-child .calc-side-lbl{color:var(--fg-2);font-weight:700}
+.calc-row.metric-focus .calc-side:last-child .calc-side-val{
+  font-size:26px;font-weight:760;color:var(--metric-value);text-shadow:0 0 18px rgba(var(--metric-rgb),.16);
+}
+.calc-row.metric-focus .calc-arrow{width:26px;height:16px;opacity:.9;color:var(--metric-value)}
+.calc-row.lending-focus{order:-3;--metric-rgb:117,184,123;--metric-value:var(--profit-hi)}
+.calc-row.borrow-focus{order:-2;--metric-rgb:180,121,107;--metric-value:#d29689}
+.calc-row.util-focus{order:-1;--metric-rgb:201,162,39;--metric-value:var(--gold-hi)}
+.calc-impact{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-width:120px}
+.calc-impact-label{font-size:8.5px;line-height:1;text-transform:uppercase;letter-spacing:1px;color:var(--fg-3);font-weight:700;white-space:nowrap}
+.calc-delta{
+  display:inline-flex;align-items:center;justify-content:center;min-width:72px;
+  padding:5px 10px;border-radius:999px;
+  font-family:var(--mono);font-size:12px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;
+  color:var(--fg-1);background:rgba(255,255,255,.045);border:1px solid var(--line-2);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
+}
+.calc-impact.is-up .calc-delta{color:var(--profit);background:rgba(255,255,255,.026);border-color:rgba(46,204,113,.3)}
+.calc-impact.is-down .calc-delta{color:var(--down);background:rgba(255,255,255,.026);border-color:rgba(255,92,92,.3)}
+.calc-impact.is-flat .calc-delta{color:var(--fg-2);background:rgba(255,255,255,.026);border-color:var(--line-2)}
+.calc-impact.is-neutral .calc-delta{color:var(--gold-hi);background:rgba(255,255,255,.026);border-color:rgba(201,162,39,.3)}
+/* Inside a metric row the whole impact group follows the row's data color (direction read from the +/- sign). */
+.calc-row.metric-focus .calc-delta{
+  color:var(--metric-value);
+  background:rgba(var(--metric-rgb),.07);
+  border-color:rgba(var(--metric-rgb),.32);
+}
+.calc-side{display:flex;flex-direction:column;gap:2px;min-width:0}
+.calc-side-lbl{font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--fg-3);font-weight:600}
+.calc-side-val{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--fg-1);font-variant-numeric:tabular-nums}
+.calc-side-val.right{text-align:right}
+.calc-side-val.gold{color:var(--gold)}
+.calc-side-val.profit{color:var(--profit)}
+.calc-side-val.down{color:var(--down)}
+.calc-arrow{width:16px;height:10px;opacity:.6;color:var(--fg-3)}
+.calc-arrow.up-dir{color:var(--up)}
+.calc-arrow.down-dir{color:var(--down)}
+
+/* =========================================================================
+   PROTOCOL INFO CARD (bottom of page)
+   ========================================================================= */
+.proto{margin-top:24px;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-xl);overflow:hidden;box-shadow:var(--sh-card);position:relative}
+.proto::before{
+  content:"";position:absolute;left:0;right:0;top:0;height:1px;
+  background:linear-gradient(90deg,transparent 0%,var(--gold-line) 30%,var(--gold-line) 70%,transparent 100%);
+  opacity:.6;pointer-events:none;
+}
+.proto-head{display:flex;flex-direction:column;align-items:flex-start;gap:16px;padding:22px 24px 20px;border-bottom:1px solid var(--line-1)}
+.proto-brand{display:flex;align-items:center;gap:14px}
+.proto-brand-mark{width:40px;height:40px;border-radius:50%;background:var(--bg-3);border:1px solid var(--line-2);display:grid;place-items:center;overflow:hidden;flex-shrink:0}
+.proto-brand-mark img{width:28px;height:28px;object-fit:contain}
+.proto-brand-text{display:flex;flex-direction:column;gap:2px}
+.proto-brand-name{font-size:15px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px}
+.proto-brand-sub{font-size:12px;color:var(--fg-3)}
+
+.proto-links{display:flex;align-items:center;gap:14px;flex-wrap:wrap;row-gap:10px}
+.proto-links-group{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+.proto-links-label{
+  font-size:9.5px;text-transform:uppercase;letter-spacing:1.4px;font-weight:600;
+  color:var(--fg-4);margin-right:4px;
+}
+.proto-links-sep{width:1px;height:18px;background:var(--line-2);flex-shrink:0}
+.proto-pill{
+  display:inline-flex;align-items:center;gap:7px;
+  height:32px;padding:0 12px;
+  font-size:12px;color:var(--fg-2);
+  background:var(--bg-3);border:1px solid var(--line-2);border-radius:999px;
+  transition:border-color .2s var(--ease),color .2s var(--ease),background .2s var(--ease);
+}
+.proto-pill:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.proto-pill svg{width:13px;height:13px}
+
+.proto-body{padding:20px 24px 24px}
+.proto-body-head{
+  font-size:11px;text-transform:uppercase;letter-spacing:1.6px;
+  color:var(--fg-2);font-weight:600;margin-bottom:14px;
+  display:flex;align-items:center;gap:10px;
+}
+.proto-body-head::after{
+  content:"";flex:1;height:1px;background:var(--line-1);
+}
+.proto-addrs{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.proto-addr{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:12px 14px;background:var(--bg-1);border:1px solid var(--line-2);border-radius:var(--r-md);
+  transition:border-color .2s var(--ease),background .2s var(--ease);
+  cursor:pointer;
+}
+.proto-addr:hover{border-color:var(--gold-line);background:rgba(201,162,39,.02)}
+.proto-addr-left{display:flex;align-items:center;gap:12px;min-width:0}
+.proto-token{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.proto-token img{width:28px;height:28px;border-radius:50%;object-fit:cover;background:var(--bg-3);border:1px solid var(--line-2)}
+.proto-token-name{font-size:14px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px}
+.proto-chain-chip{display:inline-flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--fg-2);padding:3px 8px;border-radius:4px;background:var(--bg-3);border:1px solid var(--line-2);font-weight:500}
+.proto-chain-chip .dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;background-color:var(--bg-2);background-position:center;background-size:cover;box-shadow:0 0 0 1px rgba(0,0,0,.35)}
+.proto-chain-chip .dot-ethereum{background-image:url("https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg")}
+.proto-chain-chip .dot-berachain{background-image:url("https://icons.llamao.fi/icons/chains/rsz_berachain.jpg");background-size:126%}
+.proto-addr-right{display:flex;align-items:center;gap:8px;min-width:0;flex:1;justify-content:flex-end}
+.proto-addr-hex{font-family:var(--mono);font-size:11px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+.proto-copy{width:26px;height:26px;border-radius:6px;background:var(--bg-3);border:1px solid var(--line-2);display:grid;place-items:center;color:var(--fg-3);flex-shrink:0;cursor:pointer;transition:color .2s var(--ease),border-color .2s var(--ease),background .2s var(--ease)}
+.proto-copy:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.proto-copy.copied{color:var(--up);border-color:var(--up)}
+.proto-explore{width:26px;height:26px;border-radius:6px;background:var(--bg-3);border:1px solid var(--line-2);display:grid;place-items:center;color:var(--fg-3);flex-shrink:0;cursor:pointer;transition:color .2s var(--ease),border-color .2s var(--ease),background .2s var(--ease)}
+.proto-explore:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.proto-explore svg,.proto-copy svg{width:12px;height:12px;pointer-events:none}
+
+/* footer small */
+.foot{margin-top:24px;text-align:center;font-size:11px;color:var(--fg-3);letter-spacing:.3px}
+
+/* responsive */
+@media (max-width:980px){
+  .hero-grid{grid-template-columns:1fr 1fr}
+  .exp-stats-row{grid-template-columns:1fr 1fr}
+  .calc-grid{grid-template-columns:1fr}
+}
+@media (max-width:640px){
+  .wrap{padding:24px 16px 48px}
+  .hero{padding:22px 18px}
+  .hero-grid{grid-template-columns:1fr}
+  .hero-card{border-left:0;border-top:1px solid var(--line-1);padding:14px 0 0}
+  .hero-card:first-child{border-top:0;padding-top:0}
+  .hero-meta{margin-left:0;width:100%}
+  .search{width:100%}
+  .tb-left,.tb-right{width:100%}
+  .asset-detail-head{padding:15px 16px;align-items:flex-start;flex-direction:column}
+  .asset-detail-meta{justify-content:flex-start}
+  .asset-detail-content{margin:0 10px 14px 12px}
+  .exp-body{padding:14px 12px 16px}
+  .exp-stats-row{grid-template-columns:1fr}
+  .exp-stat{border-left:0;border-top:1px solid rgba(255,255,255,.055)}
+  .exp-stat:first-child{border-top:0}
+  .calc-row.metric-focus{grid-template-columns:minmax(0,1fr) 104px minmax(0,1fr);padding:14px 14px 14px 16px}
+  .calc-row.metric-focus .calc-side-lbl{font-size:8.5px;letter-spacing:1px}
+  .calc-row.metric-focus .calc-side-val{font-size:20px}
+  .calc-row.metric-focus .calc-side:first-child .calc-side-val{font-size:19px}
+  .calc-row.metric-focus .calc-side:last-child .calc-side-val{font-size:21px}
+  .calc-row.metric-focus .calc-arrow{width:20px;height:13px}
+  .calc-impact{min-width:104px;gap:4px}
+  .calc-impact-label{font-size:7.5px;letter-spacing:.8px}
+  .calc-delta{min-width:62px;padding:5px 8px;font-size:11px}
+  .proto-addrs{grid-template-columns:1fr}
+  .proto-addr-hex{max-width:120px}
+  .proto-links-sep{display:none}
+  .proto-links{flex-direction:column;align-items:flex-start;gap:10px}
+  .site-top{gap:10px;margin-bottom:32px}
+  .site-brand{padding:12px 0 0}
+  .site-brand img{max-width:460px}
+  .nav-item{padding:8px 10px;gap:6px;font-size:12px}
+  .nav-item.active::after{display:none}
+}
+</style>
+<script src="count-up.js?v=20260427-countup"></script>
+</head>
+<style>
+/* ============================ PORTFOLIO TAB ============================ */
+.pf-search-wrap{display:flex;flex-direction:column;gap:14px;position:relative;z-index:1}
+.pf-search-row{display:flex;align-items:stretch;gap:10px;flex-wrap:wrap}
+.pf-input{
+  flex:1;min-width:260px;display:flex;align-items:center;gap:10px;
+  background:var(--bg-4);border:1px solid var(--line-2);border-radius:10px;
+  height:48px;padding:0 14px;transition:border-color .2s var(--ease),box-shadow .2s var(--ease);
+}
+.pf-input:focus-within{border-color:var(--gold-line);box-shadow:0 0 0 3px var(--gold-wash)}
+.pf-input svg{width:16px;height:16px;color:var(--fg-3);flex-shrink:0}
+.pf-input input{
+  flex:1;background:none;border:0;outline:0;color:var(--fg-1);
+  font-family:var(--mono);font-size:14px;letter-spacing:.2px;
+}
+.pf-input input::placeholder{color:var(--fg-4);letter-spacing:0}
+.pf-btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  height:48px;padding:0 22px;border-radius:10px;white-space:nowrap;
+  background:var(--gold);color:var(--bg-0);font-size:13px;font-weight:700;letter-spacing:.3px;
+  transition:filter .15s var(--ease),transform .12s var(--ease);
+}
+.pf-btn:hover{filter:brightness(1.08)}
+.pf-btn:active{transform:translateY(1px)}
+.pf-btn:disabled{opacity:.5;cursor:default}
+.pf-btn svg{width:15px;height:15px}
+.pf-hint{font-size:11px;color:var(--fg-3);font-family:var(--mono);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pf-hint b{color:var(--fg-2);font-weight:500}
+.pf-example{color:var(--gold);cursor:pointer;border-bottom:1px dashed var(--gold-line)}
+.pf-example:hover{color:var(--gold-hi)}
+.pf-err{color:var(--down);font-family:var(--mono);font-size:12px}
+
+/* ---- summary cards ---- */
+.pf-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(232px,1fr));gap:14px;margin-top:26px}
+.pf-card{
+  position:relative;overflow:hidden;
+  background:linear-gradient(180deg,rgba(255,255,255,.022),rgba(255,255,255,.006));
+  border:1px solid var(--line-2);border-radius:var(--r-md);
+  padding:16px 18px;box-shadow:var(--sh-card);
+}
+.pf-card::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:linear-gradient(180deg,rgba(201,162,39,.6),rgba(201,162,39,.16));opacity:.85}
+.pf-card-label{display:flex;align-items:center;gap:8px;font-size:9.5px;letter-spacing:1.4px;color:var(--fg-3);font-weight:700;margin-bottom:12px}
+.pf-card-label img{width:14px;height:14px;border-radius:50%;object-fit:contain;flex-shrink:0}
+.pf-card-value{font-family:var(--mono);font-size:23px;font-weight:700;letter-spacing:-.6px;color:var(--fg-1);font-variant-numeric:tabular-nums;line-height:1.05;display:flex;align-items:baseline;gap:7px}
+.pf-card-value .unit{font-size:12px;font-weight:600;color:var(--fg-3);letter-spacing:0}
+.pf-card-value.gold{color:var(--gold-hi)}
+.pf-card-sub{font-size:11px;color:var(--fg-3);margin-top:9px;font-family:var(--mono);font-variant-numeric:tabular-nums;line-height:1.5}
+.pf-card-sub .pos{color:var(--up)}
+.pf-card-sub .dim{color:var(--fg-4)}
+.pf-card-usd{color:var(--fg-2)}
+
+/* ---- section / tables ---- */
+.pf-section{margin-top:24px;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-xl);box-shadow:var(--sh-card);overflow:hidden}
+.pf-section-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:18px 22px 14px;border-bottom:1px solid var(--line-1)}
+.pf-eyebrow{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);font-weight:700;display:flex;align-items:center;gap:9px}
+.pf-eyebrow .pf-count{color:var(--fg-3);font-weight:600;font-family:var(--mono);letter-spacing:.5px}
+.pf-total{margin-left:auto;font-family:var(--mono);font-size:13px;font-weight:600;color:var(--fg-1);font-variant-numeric:tabular-nums}
+.pf-total .lbl{font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:var(--fg-3);font-weight:600;margin-right:8px}
+.pf-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 22px;border-bottom:1px solid var(--line-1);background:rgba(255,255,255,.012)}
+.pf-chain-filter{display:inline-flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--fg-3);font-weight:600;padding:5px 10px;border-radius:7px;background:var(--bg-3);border:1px solid var(--line-2);cursor:pointer;transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease)}
+.pf-chain-filter .dot{width:13px;height:13px;border-radius:50%;background-color:var(--bg-2);background-position:center;background-size:cover;box-shadow:0 0 0 1px rgba(0,0,0,.35)}
+.pf-chain-filter:hover{color:var(--fg-1);border-color:var(--line-3)}
+.pf-chain-filter.active{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.pf-tokensearch{margin-left:auto;display:flex;align-items:center;gap:8px;background:var(--bg-4);border:1px solid var(--line-2);border-radius:8px;height:32px;padding:0 11px;transition:border-color .2s var(--ease)}
+.pf-tokensearch:focus-within{border-color:var(--gold-line)}
+.pf-tokensearch svg{width:13px;height:13px;color:var(--fg-3)}
+.pf-tokensearch input{background:none;border:0;outline:0;color:var(--fg-1);font-family:var(--mono);font-size:12px;width:130px}
+
+.pf-table{width:100%;border-collapse:collapse;table-layout:fixed}
+.pf-table thead th{font-size:9.5px;text-transform:uppercase;letter-spacing:1.2px;color:var(--fg-3);font-weight:600;text-align:left;padding:11px 22px;background:var(--bg-2);position:sticky;top:0;z-index:2;border-bottom:1px solid var(--line-2);white-space:nowrap}
+.pf-table thead th.num{text-align:right}
+.pf-table thead th[data-sort]{cursor:pointer;user-select:none;transition:color .15s var(--ease)}
+.pf-table thead th[data-sort]:hover{color:var(--gold)}
+.pf-table thead th.sort-active{color:var(--gold)}
+.pf-sort{display:inline-block;margin-left:5px;font-size:8px;opacity:.3;transition:opacity .15s var(--ease)}
+.pf-table thead th.sort-active .pf-sort{opacity:1;color:var(--gold)}
+/* filter bar: Assets-style chain dropdown + asset search */
+.pf-filters .pf-dd .dd-panel{min-width:200px}
+.pf-filters .pf-search-tbl{margin-left:auto;width:210px;height:34px;border-radius:8px}
+.pf-filters .pf-search-tbl input{font-family:var(--mono);font-size:12px}
+.pf-table tbody td{padding:13px 22px;border-bottom:1px solid var(--line-1);font-size:13px;vertical-align:middle}
+.pf-table tbody tr{position:relative;transition:background .15s var(--ease)}
+.pf-table tbody tr:hover{background:linear-gradient(90deg,rgba(201,162,39,.05),transparent 60%)}
+.pf-table tbody tr:hover::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold)}
+.pf-table tbody tr:last-child td{border-bottom:0}
+.pf-table td.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--fg-1)}
+.pf-table td.usd{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:600}
+.pf-usd-pos{color:var(--up)}
+.pf-usd-neg{color:var(--down)}
+.pf-chain-chip{display:inline-flex;align-items:center;gap:7px;font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--fg-2);font-weight:600}
+.pf-chain-chip .dot{width:16px;height:16px;border-radius:50%;background-color:var(--bg-3);background-position:center;background-size:cover;box-shadow:0 0 0 1px rgba(0,0,0,.35);flex-shrink:0}
+.pf-token{display:inline-flex;align-items:center;gap:10px;min-width:0}
+.pf-token-mark{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,rgba(201,162,39,.14),rgba(255,255,255,.04));border:1px solid var(--line-2);display:grid;place-items:center;font-family:var(--mono);font-size:9.5px;font-weight:700;color:var(--gold);flex-shrink:0;overflow:hidden}
+.pf-token-mark img{width:100%;height:100%;object-fit:contain;padding:2px}
+.pf-token-mark img.grayscale{filter:grayscale(1) brightness(1.5)}
+.pf-token-name{font-weight:600;color:var(--fg-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pf-token-sub{font-size:10px;color:var(--fg-3);font-family:var(--mono)}
+.pf-amt-sym{font-size:11px;color:var(--fg-3);font-weight:400;margin-left:3px}
+
+.pf-empty{padding:46px 22px;text-align:center;color:var(--fg-3);font-size:13px}
+.pf-empty svg{width:34px;height:34px;color:var(--fg-4);margin-bottom:12px}
+.pf-skel-row td{padding:15px 22px}
+.pf-skel{height:14px;border-radius:6px;background:linear-gradient(90deg,rgba(255,255,255,.045) 0%,rgba(255,255,255,.10) 42%,rgba(255,255,255,.045) 78%);background-size:220% 100%;animation:assetSkeletonShimmer 1.45s var(--ease) infinite}
+
+/* idle / empty hero state */
+.pf-idle{padding:38px 0 4px;text-align:center;color:var(--fg-3);font-size:13px;display:none}
+.pf-idle.show{display:block}
+body:not(.pf-active) #pf-results{display:none}
+
+@media (max-width:760px){
+  .pf-table thead th:nth-child(2),.pf-table td:nth-child(2){display:none}
+  .pf-table tbody td,.pf-table thead th{padding-left:16px;padding-right:16px}
+  .pf-tokensearch{margin-left:0}
+}
+</style>
+<body>
+<div class="wrap">
+
+  <!-- TOP -->
+  <header class="site-top">
+    <div class="site-brand">
+      <img src="TwojeKrypto%20dashboard.png" alt="Dolomite Dashboard · Powered by TwojeKrypto">
+    </div>
+    <div class="site-nav-wrap">
+      <nav class="site-nav">
+        <a class="nav-item active" href="./portfolio/" data-tab="portfolio">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18v12H3z"/><path d="M3 7l3-4h12l3 4"/><path d="M3 12h6a3 3 0 0 0 6 0h6"/></svg>
+          <span>Portfolio</span>
+        </a>
+        <a class="nav-item" href="./assets/" data-tab="assets">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          <span>Assets</span>
+        </a>
+        <a class="nav-item" href="./tvl/" data-tab="tvl">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-6 4 4 5-8"/></svg>
+          <span>TVL</span>
+        </a>
+        <a class="nav-item" href="./dolo/" data-tab="dolo">
+          <img src="dolo-logo.svg" alt="" onerror="this.style.display='none'">
+          <span>DOLO</span>
+        </a>
+        <a class="nav-item" href="./odolo/" data-tab="odolo">
+          <img src="odolo-logo-official.svg" alt="" onerror="this.style.display='none'">
+          <span>oDOLO</span>
+        </a>
+        <a class="nav-item" href="./vedolo/" data-tab="vedolo">
+          <img src="vedolo-logo.svg" alt="" onerror="this.style.display='none'">
+          <span>veDOLO</span>
+        </a>
+        <a class="nav-item" href="./earn/" data-tab="earn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/></svg>
+          <span>Earn</span>
+        </a>
+        <a class="nav-item" href="./borrow/" data-tab="borrow">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M12 13v4"/><path d="m9.5 15 2.5 2.5L14.5 15"/></svg>
+          <span>Borrow</span>
+        </a>
+        <a class="nav-item" href="./supply/" data-tab="supply">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          <span>Supply</span>
+        </a>
+        <a class="nav-item" href="./revenue/" data-tab="revenue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-7"/><path d="M16 7h3v3"/></svg>
+          <span>Revenue</span>
+        </a>
+        <a class="nav-item" href="./history/" data-tab="history">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/><path d="M12 7v5l3 2"/></svg>
+          <span>History</span>
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- HERO + ADDRESS INPUT -->
+  <section class="hero">
+    <div class="hero-brand">
+      <div class="hero-token-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18v12H3z"/><path d="M3 7l3-4h12l3 4"/><path d="M3 12h6a3 3 0 0 0 6 0h6"/></svg>
+      </div>
+      <div class="hero-token-text">
+        <div class="hero-token-title">Portfolio</div>
+        <div class="hero-token-sub">Any wallet's <b>Dolomite</b> position — DOLO, veDOLO, deposits &amp; borrows across every chain</div>
+      </div>
+      <div class="hero-meta">
+        <div class="hero-live"><span class="dot"></span>Live onchain</div>
+      </div>
+    </div>
+
+    <div class="pf-search-wrap">
+      <div class="pf-search-row">
+        <label class="pf-input">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input id="pf-addr" type="text" spellcheck="false" autocomplete="off" placeholder="Enter a wallet address (0x…)" aria-label="Wallet address">
+        </label>
+        <button id="pf-go" class="pf-btn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+          View wallet
+        </button>
+      </div>
+      <div class="pf-hint" id="pf-hint">
+        <span><b>Tip:</b> paste any address to see its holdings.</span>
+        <span class="pf-example" id="pf-example">Try an example</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="pf-idle" id="pf-idle">Enter a wallet address above to load its Dolomite portfolio.</div>
+
+  <!-- RESULTS -->
+  <div id="pf-results">
+    <div class="pf-cards" id="pf-cards"></div>
+
+    <!-- DEPOSITS -->
+    <section class="pf-section" id="pf-deposits-section">
+      <div class="pf-section-head">
+        <div class="pf-eyebrow">Deposited Assets <span class="pf-count" id="pf-deposits-count"></span></div>
+        <div class="pf-total"><span class="lbl">Total supplied</span><span id="pf-deposits-total">—</span></div>
+      </div>
+      <div class="pf-filters" id="pf-deposits-filters"></div>
+      <div style="overflow-x:auto">
+        <table class="pf-table">
+          <colgroup><col style="width:18%"><col style="width:34%"><col style="width:24%"><col style="width:24%"></colgroup>
+          <thead><tr><th data-sort="chain" data-table="dep">Chain<span class="pf-sort">▼</span></th><th data-sort="sym" data-table="dep">Asset<span class="pf-sort">▼</span></th><th class="num" data-sort="amount" data-table="dep">Amount<span class="pf-sort">▼</span></th><th class="num sort-active" data-sort="usd" data-table="dep">Value<span class="pf-sort">▼</span></th></tr></thead>
+          <tbody id="pf-deposits-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- BORROWS -->
+    <section class="pf-section" id="pf-borrows-section">
+      <div class="pf-section-head">
+        <div class="pf-eyebrow">Open Borrows <span class="pf-count" id="pf-borrows-count"></span></div>
+        <div class="pf-total"><span class="lbl">Total debt</span><span id="pf-borrows-total">—</span></div>
+      </div>
+      <div class="pf-filters" id="pf-borrows-filters"></div>
+      <div style="overflow-x:auto">
+        <table class="pf-table">
+          <colgroup><col style="width:18%"><col style="width:34%"><col style="width:24%"><col style="width:24%"></colgroup>
+          <thead><tr><th data-sort="chain" data-table="bor">Chain<span class="pf-sort">▼</span></th><th data-sort="sym" data-table="bor">Asset<span class="pf-sort">▼</span></th><th class="num" data-sort="amount" data-table="bor">Amount owed<span class="pf-sort">▼</span></th><th class="num sort-active" data-sort="usd" data-table="bor">Value<span class="pf-sort">▼</span></th></tr></thead>
+          <tbody id="pf-borrows-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <div class="foot">Portfolio · onchain wallet overview · <span id="now"></span></div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const $ = s => document.querySelector(s);
+
+  const chainIcon = c => `https://icons.llamao.fi/icons/chains/rsz_${c==="polygonzkevm"?"polygon%20zkevm":c==="xlayer"?"x%20layer":c}.jpg`;
+  const CHAINS = [
+    { key:"berachain", name:"Berachain", short:"BERA", endpoint:"https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-berachain-mainnet/latest/gn" },
+    { key:"arbitrum",  name:"Arbitrum",  short:"ARB",  endpoint:"https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-arbitrum/latest/gn" },
+    { key:"ethereum",  name:"Ethereum",  short:"ETH",  endpoint:"https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-ethereum/latest/gn" },
+    { key:"botanix",   name:"Botanix",   short:"BOT",  endpoint:"https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-botanix/latest/gn" },
+    { key:"mantle",    name:"Mantle",    short:"MNT",  endpoint:"https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-mantle/latest/gn" },
+    { key:"polygonzkevm", name:"Polygon zkEVM", short:"zkEVM", endpoint:"https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-polygon-zkevm/latest/gn" },
+    { key:"xlayer",    name:"X Layer",   short:"XLAY", endpoint:"https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-x-layer/latest/gn" },
+  ];
+  const CHAIN_BY_KEY = Object.fromEntries(CHAINS.map(c => [c.key, c]));
+
+  // ===== Token icon system (ported from Assets/Earn) =====
+const DOLO_CDN = 'https://app.dolomite.io/static/media/';
+const SYMBOL_ICONS = {
+  // Stablecoins
+  'USDC'   : DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
+  'USDC.e' : DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
+  'USDC.E' : DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
+  'USDT'   : DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
+  'USDT0'  : DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
+  'USD₮0'  : DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
+  'DAI'    : 'icons/dai.svg',
+  'USDM'   : DOLO_CDN + 'USDM.6c74738cd3a3499145fda4386f94cb8f.svg',
+  'wUSDM'  : DOLO_CDN + 'wUSDM.91bedb44039233b7c172ff95ea112192.svg',
+  'USDe'   : DOLO_CDN + 'USDe-alt.ce2f05f4bb09aa83c4dd5886a5a2886f.svg',
+  'sUSDe'  : DOLO_CDN + 'sUSDe.60857af2b2de944764d31ffa3711252c.svg',
+  'USDa'   : DOLO_CDN + 'USDa.d95d6e9683a87b9007323745861f6b74.svg',
+  'USDai'  : DOLO_CDN + 'USDai.8c41c3dde0d91e5e38e1aafb27cf6e55.svg',
+  'sUSDa'  : DOLO_CDN + 'sUSDa.dc563217493f063b521fe276283e0d51.svg',
+  'sUSDai' : DOLO_CDN + 'sUSDai.5a9e2565db913d6bbd950993cc04bcde.svg',
+  'savUSD' : DOLO_CDN + 'savUSD.a2df97177abb3f75f4313a7241aa5fb0.svg',
+  'rUSD'   : DOLO_CDN + 'rUSD.9b373643ab772af9dab0807b476b9afb.svg',
+  'srUSD'  : DOLO_CDN + 'srUSD.bef2b101351c2021e25a96dc70122077.svg',
+  'wsrUSD' : DOLO_CDN + 'srUSD.bef2b101351c2021e25a96dc70122077.svg',
+  'pol-rUSD': DOLO_CDN + 'pol-rUSD.315d0412835066838a187ecd29acb7ca.svg',
+  'BYUSD'  : DOLO_CDN + 'BYUSD.8c0a1d051c4192302d739dbae5928286.svg',
+  'NECT'   : DOLO_CDN + 'NECT.61b2d550cd59933e77667c3d75f73f5a.svg',
+  'HONEY'  : DOLO_CDN + 'HONEY.3f0a04d651c47e52fb627fd616a9b92e.svg',
+  'MIM'    : DOLO_CDN + 'MIM.3926602167b2dc6b73725f1cbd641130.svg',
+  'GRAI'   : DOLO_CDN + 'GRAI.34fe5f7729b8c43b63ff0ab77c7b2b51.svg',
+  'eUSD'   : DOLO_CDN + 'eUSD.5785fe83caa38875ac585eda225c0d02.svg',
+  'USDS'   : DOLO_CDN + 'USDs.106fa406e23ae22c8bb6120c2ed861f4.svg',
+  'sUSDS'  : DOLO_CDN + 'sUSDs.788070a4e1bbf5ab8c6130d47bdf8108.svg',
+  'USD0'   : 'icons/usd0.png',
+  'USD0++' : 'icons/usd0.png',
+  'deUSD'  : 'icons/deusd.png',
+  'sdeUSD' : 'icons/deusd.png',
+  'USDY'   : DOLO_CDN + 'USDY.56cf7a38e78550dd507090fe52a59b41.svg',
+  'USD1'   : DOLO_CDN + 'USD1.b88613f468d884c0a044350162ec22c2.svg',
+  'cUSD'   : 'icons/stcusd.png',
+  'stcUSD' : 'icons/stcusd.png',
+  // ETH & LSTs
+  'ETH'    : DOLO_CDN + 'ETH.6a879eb637c89695e6c5f5dc65c8c927.svg',
+  'WETH'   : DOLO_CDN + 'WETH.8f785563e47cbf373160.png',
+  'wstETH' : DOLO_CDN + 'wstETH.2e97640d284bbe78da3776549d27ec47.svg',
+  'weETH'  : DOLO_CDN + 'weETH.ac3fd68b653520508855e997e756d116.svg',
+  'rETH'   : DOLO_CDN + 'rETH.bab59070c249d5b359fa196fed62e60e.svg',
+  'rsETH'  : DOLO_CDN + 'rsETH.2270aa7836bedfa00c1a1d2967df0c33.svg',
+  'ezETH'  : DOLO_CDN + 'ezETH.23c954d818f85c10660e5c0a476ff398.svg',
+  'mETH'   : DOLO_CDN + 'mETH.589d7c134eea64fa2033e80dced1e34d.svg',
+  'cmETH'  : DOLO_CDN + 'cmETH.8cab59dd270fad4e153b008454f9f54e.svg',
+  'beraETH': DOLO_CDN + 'beraETH.661651b3419b7bb331ab2ebcb427b21b.svg',
+  'WOETH'  : DOLO_CDN + 'WOETH.d17df010b680ea8c9c3e74d49b8e2e07.svg',
+  'STONE'  : DOLO_CDN + 'STONE-alt.bf62e30edc6330897c738a4f9f1f5179.svg',
+  'rswETH' : DOLO_CDN + 'rswETH.fc4bdb76a764bf110676766fd0185dfe.svg',
+  'tETH'   : DOLO_CDN + 'tETH.77b0839567f787ef80a76c3e83b90293.svg',
+  'ETH+'   : DOLO_CDN + 'ETH_plus.58a00bd8aa8caafbc3837b4dcd7a1786.svg',
+  'ETHx'   : DOLO_CDN + 'ETH_plus.58a00bd8aa8caafbc3837b4dcd7a1786.svg',
+  'ylstETH': DOLO_CDN + 'ylstETH.8b2fa7c2cee8860ed6acbc0fa174eba5.svg',
+  // BTC
+  'BTC'    : DOLO_CDN + 'BTC.ccaa294316dc68d8ecb092ef90e2c07c.svg',
+  'WBTC'   : DOLO_CDN + 'WBTC.f3c8718835179e7543b5.png',
+  'cbBTC'  : DOLO_CDN + 'CBBTC.fb6f792430a130d980920b6e69857bce.svg',
+  'uniBTC' : DOLO_CDN + 'uniBTC.bac6fdc858f4d751e79211986782ddd1.svg',
+  'LBTC'   : DOLO_CDN + 'LBTC.095d1662f9a83aea1c899fa1eeb84502.svg',
+  'tBTC'   : DOLO_CDN + 'tBTC.2907801a7fa28c6583322ad3c2931333.svg',
+  'SolvBTC': DOLO_CDN + 'solvBTC.326d594ebd54e4317f078b70f72a58b4.svg',
+  'SolvBTC.a': DOLO_CDN + 'solvBTC.326d594ebd54e4317f078b70f72a58b4.svg',
+  'xSolvBTC': DOLO_CDN + 'xSolvBTC.b2110d70dea973b20c4f1e6a137f2256.svg',
+  'solvBTCbbn': DOLO_CDN + 'solvBTCbbn.a4ffbb3feb4a22c2ca5564097b70f35c.svg',
+  'eBTC'   : DOLO_CDN + 'eBTC.e48b2e6a0a78d4ffc09991510cb5792b.svg',
+  'FBTC'   : DOLO_CDN + 'FBTC.f29f5d2839b1b765719121f8094c7f11.svg',
+  'PumpBTC': DOLO_CDN + 'PumpBTC.aa48de36289e8439daf0456c4252dd27.svg',
+  'pumpBTC': DOLO_CDN + 'PumpBTC.aa48de36289e8439daf0456c4252dd27.svg',
+  'pumpBTC.bera': DOLO_CDN + 'PumpBTC.aa48de36289e8439daf0456c4252dd27.svg',
+  'pBTC'   : DOLO_CDN + 'pBTC-2.33f92d1521de41c2fd041b11c9d77c7a.svg',
+  'stBTC'  : DOLO_CDN + 'stBTC.3935aab6a35bd55630f244a1f56631ba.svg',
+  'SBTC'   : DOLO_CDN + 'SBTC.42e2a04abe2a5a21904064d886e10804.svg',
+  'ylPumpBTC': DOLO_CDN + 'ylPumpBTC.4ed846397580cd47e2ac1cc59dba2d56.svg',
+  'ylpumpBTC': DOLO_CDN + 'ylPumpBTC.4ed846397580cd47e2ac1cc59dba2d56.svg',
+  'ylfBTC' : DOLO_CDN + 'WBTC.f3c8718835179e7543b5.png',
+  'ylBTCLRT': DOLO_CDN + 'ylBTCLRT.de3276def7f8a795b2215806ce3776d6.svg',
+  'ylBTCLST': DOLO_CDN + 'ylBTCLRT.de3276def7f8a795b2215806ce3776d6.svg',
+  'STONEBTC': DOLO_CDN + 'STONEBTC.4ca9c1ebc2fca809154e406e9afa589b.svg',
+  // Berachain
+  'BERA'   : DOLO_CDN + 'BERA.a24a9b40b3447dde7ea1d2cab4dd59e9.svg',
+  'WBERA'  : DOLO_CDN + 'wBERA.4ca51f80e3cd585d5152483f427d0416.svg',
+  'iBERA'  : DOLO_CDN + 'iBERA.10d1ede095601cbc9bb5bf3bcdcb22a1.svg',
+  'sWBERA' : DOLO_CDN + 'sWBERA.e2be8febc13f6552990168c4e232d62a.svg',
+  'wgBERA' : DOLO_CDN + 'wgBERA.e10d0909ba87a40264fe74050034b025.svg',
+  'iBGT'   : DOLO_CDN + 'iBGT.88932437445efa66139716bca4a9c19b.svg',
+  'oriBGT' : DOLO_CDN + 'oriBGT.7f3393531bde0f56498780c803133999.svg',
+  'diBGT'  : DOLO_CDN + 'iBGT.88932437445efa66139716bca4a9c19b.svg',
+  'BGT'    : DOLO_CDN + 'BGT.59af0fc7aad30ed3de49e3115ee24d04.svg',
+  'PT-iBGT-25DEC2025': DOLO_CDN + 'PT-iBGT.45a4b4c47be320270ac8d1ce32439d2a.svg',
+  // DeFi / Governance
+  'DOLO'   : 'dolo-logo.svg',
+  'ARB'    : DOLO_CDN + 'ARB.f8b26a91d3f23a571be6398aa1a1f119.svg',
+  'LINK'   : DOLO_CDN + 'LINK.e6e8d688b54af33e1f99.png',
+  'GMX'    : DOLO_CDN + 'GMX.b836adc14ee095fd9b7671e718878333.svg',
+  'PENDLE' : DOLO_CDN + 'PENDLE.e4e3db03c3798bf15a6c384ab5de3fee.svg',
+  'AAVE'   : DOLO_CDN + 'AAVE.a9c152c66f6bed5f3d0865b8d5ea0dba.svg',
+  'UNI'    : DOLO_CDN + 'UNI.fbe3002e628fbf39d75525ae192d3665.svg',
+  'CRV'    : DOLO_CDN + 'CRV.f927723690ec12fcc8381902a361c75e.svg',
+  'DPX'    : DOLO_CDN + 'DPX.ac054aa02be296979160d68dbb594a39.svg',
+  'GRAIL'  : DOLO_CDN + 'GRAIL.13f8e457ed0e3d6868b41f28eb431819.svg',
+  'JONES'  : DOLO_CDN + 'JONES.3ce2e6a8fb1444d9d6439e5781e6c2c1.svg',
+  'PREMIA' : DOLO_CDN + 'PREMIA.6c5c2339f3179353bb163b4e53d8dfa1.svg',
+  'MAGIC'  : DOLO_CDN + 'MAGIC.e86265b765bebd6be26b2485691ab714.svg',
+  'RDNT'   : DOLO_CDN + 'RDNT.92d507e82611bb1e4353e8b8cae0a73a.svg',
+  'XAI'    : DOLO_CDN + 'XAI.ed6137b5d4b6078ac5061beb0e9b78f5.svg',
+  'WLFI'   : DOLO_CDN + 'WLFI.2c1e57c98e3cad7282c40941b36ee606.svg',
+  'OHM'    : DOLO_CDN + 'OHM.2df913d6b9413f26311c1df9718d1461.svg',
+  'IR'     : DOLO_CDN + 'IR.4f115e858cbe4dbe82da00a8443ab1af.svg',
+  'KDK'    : DOLO_CDN + 'KDK.31acd6ac4abb4a8c30812380c009f685.svg',
+  'HENLO'  : DOLO_CDN + 'HENLO.8d50b084294cb406094f0005d46c2c75.svg',
+  'oUSDT'  : DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
+  // Network / L2
+  'MNT'    : DOLO_CDN + 'MNT.7e882ac93f636391a8f7d2e0841cad98.svg',
+  'WMNT'   : DOLO_CDN + 'WMNT.a58988c614392a216cc8937be5ab96db.svg',
+  'OKB'    : DOLO_CDN + 'OKB.dfac9609700af55b3d9ef4e0e5b28f01.svg',
+  'WOKB'   : DOLO_CDN + 'WOKB.4a6ddee6f2dfa841dd0932eab45ae376.svg',
+  'POL'    : DOLO_CDN + 'MATIC.dfc4843b6db6db48662b1db5f752f9f1.svg',
+  'MATIC'  : DOLO_CDN + 'MATIC.dfc4843b6db6db48662b1db5f752f9f1.svg',
+  // Pendle PT tokens
+  'PT-GLP' : DOLO_CDN + 'PT-GLP.10ed789425b588fe57650640de551bed.svg',
+  'PT-rETH': DOLO_CDN + 'PT-rETH.e2b8a22fc3817c3a51225d7ffb5e616b.svg',
+  'PT-wstETH': DOLO_CDN + 'PT-wstETH.09d3f15856b64c9b4f64c8de1264db37.svg',
+  'PT-weETH': DOLO_CDN + 'PT-weETH.24d74aa18d08440b7f662eba78dcc52c.svg',
+  'PT-eETH': DOLO_CDN + 'PT-weETH.24d74aa18d08440b7f662eba78dcc52c.svg',
+  'PT-ezETH': DOLO_CDN + 'PT-ezETH.d1ed194653ea88e9f3fe8c029064d654.svg',
+  'PT-rsETH': DOLO_CDN + 'PT-rsETH.857e86584fe78053a1044b78df689b4d.svg',
+  'PT-mETH': DOLO_CDN + 'PT-mETH.793642f12d4c303ecf771107c77ecfbb.svg',
+  'PT-cmETH': DOLO_CDN + 'PT-cmETH.f49c697e967386e0fd082040501e92e0.svg',
+  'PT-USDe': DOLO_CDN + 'PT-USDe.b5a8d24289b509fe4e6b4c702a790828.svg',
+  'PT-MNT' : DOLO_CDN + 'PT-MNT.19aa4a53e3aa4337407a1502ae89fc31.svg',
+  // GMX V2 / GLV market tokens from the official Dolomite Earn app
+  'gmARB-USD': DOLO_CDN + 'ARB-GM.50df3ed4a1a52b938992cb5e08efbc36.svg',
+  'gmBTC-USD': DOLO_CDN + 'WBTC-GM.6e7f69538bb02b42b881b86aea5c6d6e.svg',
+  'gmETH-USD': DOLO_CDN + 'ETH-GM.0b7d447f3c11298af07411c926352c71.svg',
+  'gmLINK-USD': DOLO_CDN + 'LINK-GM.7d4b33346ec9822f9dc7c22a393f7698.svg',
+  'gmBTC'  : DOLO_CDN + 'WBTC-GM.6e7f69538bb02b42b881b86aea5c6d6e.svg',
+  'gmETH'  : DOLO_CDN + 'ETH-GM.0b7d447f3c11298af07411c926352c71.svg',
+  'gmUNI-USD': DOLO_CDN + 'UNI-GM.8a4dfd0dc79f5b60138039338d28a6c7.svg',
+  'gmAAVE-USD': DOLO_CDN + 'gmAAVE.e032a2febd818f511cf782e09b12f212.svg',
+  'gmDOGE-USD': DOLO_CDN + 'gmDOGE.36090e2ebcd305890c779e005d41d331.svg',
+  'gmGMX-USD': DOLO_CDN + 'gmGMX.2c5cb2e0f1769629b38580607b77ecbc.svg',
+  'gmSOL-USD': DOLO_CDN + 'gmSOL.73d56a4a2dcf3d39fc5c946b8c65c631.svg',
+  'gmWstETH-USD': DOLO_CDN + 'wstETH.2e97640d284bbe78da3776549d27ec47.svg',
+  'gmGMX'  : DOLO_CDN + 'gmGMX.2c5cb2e0f1769629b38580607b77ecbc.svg',
+  'gmPENDLE-USD': DOLO_CDN + 'gmPENDLE.cd8acede00414f70056c0fb9aa2baa7c.svg',
+  'gmPEPE-USD': DOLO_CDN + 'gmPEPE.966f4beb1b823729066c29c52921b664.svg',
+  'gmWIF-USD': DOLO_CDN + 'gmWIF.8dfcfc27c0c56651a2e523e97c7fdcb4.svg',
+  'GLV-BTC': DOLO_CDN + 'GLV-BTC.c576682a1343bbfde84710a572b5a68e.svg',
+  'GLV-ETH': DOLO_CDN + 'GLV-ETH.092b4c8a9412efd58d3542d26bc5a522.svg',
+};
+const TOKEN_ICON_OVERRIDES = {
+  'arbitrum:0x2c799166c9f0dbf9efc5004cbce4c5a37fa39329': SYMBOL_ICONS['gmARB-USD'],
+  'arbitrum:0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef': SYMBOL_ICONS['gmBTC-USD'],
+  'arbitrum:0x505582242757f16d72f8c4462a616e388ca1b074': SYMBOL_ICONS['gmETH-USD'],
+  'arbitrum:0x18cb14564fbb015bd3439220d177799355abc0e0': SYMBOL_ICONS['gmLINK-USD'],
+  'arbitrum:0xb15bbbfcff6c411410c66642306d1ffa7ecec4d8': SYMBOL_ICONS['gmBTC'],
+  'arbitrum:0x2d165a76dd3e552df3860789331ab73c5a3d7f92': SYMBOL_ICONS['gmETH'],
+  'arbitrum:0x20d51cb520c4622dcc3d7e35003dbab07d547e7e': SYMBOL_ICONS['gmUNI-USD'],
+  'arbitrum:0x24c9121c75c099b38d40020872b8a0d2c27c614d': SYMBOL_ICONS['gmAAVE-USD'],
+  'arbitrum:0x1beed3b7d1237b7773b5c4c249933e3ca5e027c1': SYMBOL_ICONS['gmDOGE-USD'],
+  'arbitrum:0x5c99f6cf6069698d234d50bf69ebd2f53e45ed1c': SYMBOL_ICONS['gmGMX-USD'],
+  'arbitrum:0x1ebb1c7023addbb2b6e30e6f4c8d4a4440bfd412': SYMBOL_ICONS['gmSOL-USD'],
+  'arbitrum:0xc587646f67b38739006ed0200e2e0a26fdb01c9b': SYMBOL_ICONS['gmWstETH-USD'],
+  'arbitrum:0xcf248baf933c7b1b876b997246f25021a65383b3': SYMBOL_ICONS['gmGMX'],
+  'arbitrum:0xe5d6fe410c69b44c357403a1936b3bfaddbe340b': SYMBOL_ICONS['gmPENDLE-USD'],
+  'arbitrum:0x6586f1db71513daf94b0431156d225a46c00f20b': SYMBOL_ICONS['gmPEPE-USD'],
+  'arbitrum:0xf5063b40fa66ab2fbda2e6807ac5759a41a1b0c3': SYMBOL_ICONS['gmWIF-USD'],
+  'arbitrum:0x7e584529bb40220a2bd5d0c13e3d65abd4a47f0e': SYMBOL_ICONS['GLV-BTC'],
+  'arbitrum:0x11f4532c05fb8ea6320b1dc155bfdc2498a5d8b4': SYMBOL_ICONS['GLV-ETH'],
+  'arbitrum:0x51fc0f6660482ea73330e414efd7808811a57fa2': SYMBOL_ICONS['PREMIA'],
+  'arbitrum:0x894134a25a5fac1c2c26f1d8fbf05111a3cb9487': SYMBOL_ICONS['GRAI'],
+  'arbitrum:0x12275dcb9048680c4be40942ea4d92c74c63b844': SYMBOL_ICONS['eUSD'],
+  'arbitrum:0x18c14c2d707b2212e17d1579789fc06010cfca23': SYMBOL_ICONS['ETH+'],
+  'berachain:0xe946dd7d03f6f5c440f68c84808ca88d26475fc5': SYMBOL_ICONS['ylfBTC'],
+  'berachain:0x1fcca65fb6ae3b2758b9b2b394cb227eae404e1e': SYMBOL_ICONS['pumpBTC.bera'],
+  'berachain:0x91a6af4c8cb1673ab0d776828b6b271ac3da9dcb': SYMBOL_ICONS['USD0'],
+  'berachain:0x30ea2d525ef7c234f8aa6e3a8909b88f71244cb0': SYMBOL_ICONS['USD0++'],
+  'berachain:0x7203fb920421170cc4da001d758fde8f391a0570': SYMBOL_ICONS['deUSD'],
+  'berachain:0xaf51434ac57f05e0bc397739c15cf653dbdbd86d': SYMBOL_ICONS['sdeUSD'],
+};
+const tokenIcon = (sym, row={}) => {
+  const addrKey = row.chain && row.addr ? `${row.chain}:${String(row.addr).toLowerCase()}` : "";
+  const s = String(sym || "").trim();
+  return TOKEN_ICON_OVERRIDES[addrKey]
+    || row.icon
+    || SYMBOL_ICONS[s]
+    || SYMBOL_ICONS[s.toUpperCase()]
+    || SYMBOL_ICONS[s.replace(/-\\d{1,2}[A-Z]{3}\\d{4}$/i, "")]
+    || 'dolomite-logo.svg';
+};
+const tokIcon = tokenIcon;
+const GRAYSCALE_SYMBOLS = new Set(['CRV','USD0','USD0++','deUSD','sdeUSD','MATIC','POL','stcUSD','cUSD','USDT','cbBTC']);
+const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? "grayscale" : "";
+
+
+  // ---------- formatting ----------
+  const fmtCompact = (n, dp=2) => {
+    n = Number(n) || 0; const a = Math.abs(n);
+    if (a >= 1e9) return (n/1e9).toFixed(dp) + "B";
+    if (a >= 1e6) return (n/1e6).toFixed(dp) + "M";
+    if (a >= 1e3) return (n/1e3).toFixed(dp) + "K";
+    return n.toLocaleString("en-US", { maximumFractionDigits: dp });
+  };
+  const fmtToken = n => {
+    n = Number(n) || 0; const a = Math.abs(n);
+    if (a >= 1e6) return fmtCompact(n, 2);
+    if (a >= 1) return n.toLocaleString("en-US", { maximumFractionDigits: 4 });
+    if (a === 0) return "0";
+    return n.toLocaleString("en-US", { maximumFractionDigits: 6 });
+  };
+  const fmtUSD = n => {
+    n = Number(n) || 0; const a = Math.abs(n);
+    const s = a >= 1e6 ? "$" + fmtCompact(n, 2) : "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return s;
+  };
+  const normAddr = a => (a || "").trim().toLowerCase();
+  const isAddr = a => /^0x[0-9a-f]{40}$/.test(normAddr(a));
+  const shortAddr = a => a ? a.slice(0,6) + "…" + a.slice(-4) : "";
+  const fmtDate = ts => { try { return new Date(ts*1000).toLocaleDateString("en-US",{year:"numeric",month:"short",day:"numeric"}); } catch(e){ return "—"; } };
+
+  // ---------- data ----------
+  const jsonCache = {};
+  async function loadJson(path){
+    if (jsonCache[path]) return jsonCache[path];
+    const p = fetch(path, { cache: "no-cache" }).then(r => r.ok ? r.json() : null).catch(() => null);
+    jsonCache[path] = p; return p;
+  }
+  async function sgQuery(endpoint, query){
+    try {
+      const r = await fetch(endpoint, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ query }) });
+      const j = await r.json();
+      return j.data || {};
+    } catch(e){ return {}; }
+  }
+  function findByAddress(list, addr){
+    if (list && !Array.isArray(list)) list = list.holders || list.exercisers || list.rows || list.data || null;
+    if (!Array.isArray(list)) return null;
+    const a = normAddr(addr);
+    return list.find(x => normAddr(x.address) === a) || null;
+  }
+
+  // positions for one chain → {deposits:[], borrows:[]} aggregated per token
+  async function fetchChainPositions(chain, addr){
+    const query = `{
+      marginAccounts(first: 1000, where: { effectiveUser: "${addr}" }) {
+        tokenValues { token { id symbol decimals name } valuePar }
+      }
+      interestIndexes(first: 1000) { id supplyIndex borrowIndex }
+      oraclePrices(first: 500) { token { id } price }
+    }`;
+    const data = await sgQuery(chain.endpoint, query);
+    const idx = {}; (data.interestIndexes||[]).forEach(i => idx[(i.id||"").toLowerCase()] = { s: parseFloat(i.supplyIndex)||1, b: parseFloat(i.borrowIndex)||1 });
+    const px = {}; (data.oraclePrices||[]).forEach(o => { if (o.token&&o.token.id) px[o.token.id.toLowerCase()] = parseFloat(o.price)||0; });
+    const agg = {}; // tokenAddr -> {sym, addr, dec, amount(signed), price}
+    (data.marginAccounts||[]).forEach(ma => (ma.tokenValues||[]).forEach(tv => {
+      const t = tv.token||{}; const a = (t.id||"").toLowerCase();
+      const par = parseFloat(tv.valuePar||"0"); if (!a || !par) return;
+      const ix = idx[a] || { s:1, b:1 };
+      const amt = par > 0 ? par * ix.s : par * ix.b;
+      if (!agg[a]) agg[a] = { sym: t.symbol||"?", addr: a, dec: Number(t.decimals||18), amount: 0, price: px[a]||0 };
+      agg[a].amount += amt;
+    }));
+    const deposits = [], borrows = [];
+    Object.values(agg).forEach(r => {
+      if (Math.abs(r.amount) < 1e-9) return;
+      const row = { chain: chain.key, sym: r.sym, addr: r.addr, amount: Math.abs(r.amount), usd: Math.abs(r.amount) * r.price };
+      if (r.amount > 0) deposits.push(row); else borrows.push(row);
+    });
+    return { deposits, borrows };
+  }
+
+  // active oDOLO vesting positions (Berachain only)
+  async function fetchVesting(addr){
+    const bera = CHAIN_BY_KEY.berachain;
+    const query = `{ liquidityMiningVestingPositions(first: 1000, where: { owner: "${addr}", status: "ACTIVE" }) { oTokenAmount pairAmountPar endTimestamp } }`;
+    const data = await sgQuery(bera.endpoint, query);
+    const pos = data.liquidityMiningVestingPositions || [];
+    if (!pos.length) return null;
+    let oToken = 0, pairDolo = 0, soonest = Infinity;
+    pos.forEach(p => { oToken += parseFloat(p.oTokenAmount)||0; pairDolo += parseFloat(p.pairAmountPar)||0; const e = parseFloat(p.endTimestamp)||0; if (e && e < soonest) soonest = e; });
+    return { oToken, pairDolo, count: pos.length, soonest: isFinite(soonest) ? soonest : null };
+  }
+
+  // ---------- token visuals ----------
+  function chainChip(chainKey){
+    const c = CHAIN_BY_KEY[chainKey] || { short: chainKey, key: chainKey };
+    return `<span class="pf-chain-chip"><span class="dot" style="background-image:url('${chainIcon(c.key)}')"></span>${c.short}</span>`;
+  }
+  function tokenCell(row){
+    const sym = row.sym || "?";
+    const mono = sym.replace(/[^A-Za-z0-9]/g,"").slice(0,2).toUpperCase() || "?";
+    const icon = tokenIcon(sym, { chain: row.chain, addr: row.addr });
+    const gs = tokenIconClass(sym) ? " grayscale" : "";
+    const img = `<img src="${icon}" alt="" class="${gs.trim()}" onerror="this.remove();this.parentElement.classList.add('mono');this.parentElement.textContent='${mono}'">`;
+    return `<div class="pf-token"><span class="pf-token-mark">${img}</span><span class="pf-token-name" title="${sym}">${sym}</span></div>`;
+  }
+
+  // ---------- state + render ----------
+  const state = { deposits: [], borrows: [], depFilter: { chains: new Set(), q: "" }, borFilter: { chains: new Set(), q: "" }, depSort: { key: "usd", desc: true }, borSort: { key: "usd", desc: true } };
+
+  function renderCards(d){
+    const cards = [];
+    // Total DOLO = liquid held + DOLO locked inside veDOLO
+    const held = (d.dolo && d.dolo.balance) || 0;
+    const veLocked = (d.vedolo && d.vedolo.total_dolo) || 0;
+    if (held > 0 || veLocked > 0) {
+      const total = held + veLocked;
+      const usd = d.doloPrice ? `<span class="pf-card-usd">${fmtUSD(total * d.doloPrice)}</span> · ` : "";
+      const parts = [`${fmtCompact(held)} held`];
+      if (veLocked > 0) parts.push(`<span class="pos">${fmtCompact(veLocked)} in veDOLO</span>`);
+      const split = [];
+      if (d.dolo && d.dolo.balance_eth) split.push(`ETH ${fmtCompact(d.dolo.balance_eth)}`);
+      if (d.dolo && d.dolo.balance_bera) split.push(`BERA ${fmtCompact(d.dolo.balance_bera)}`);
+      cards.push(`<div class="pf-card"><div class="pf-card-label"><img src="dolo-logo.svg" onerror="this.style.display='none'">TOTAL DOLO</div>
+        <div class="pf-card-value">${fmtCompact(total)}<span class="unit">DOLO</span></div>
+        <div class="pf-card-sub">${usd}${parts.join(" · ")}${split.length?`<br><span class="dim">${split.join(" · ")}</span>`:""}</div></div>`);
+    }
+    // oDOLO paired (active vesting)
+    if (d.vesting) {
+      const usd = d.doloPrice ? `<span class="pf-card-usd">${fmtUSD(d.vesting.oToken * d.doloPrice)}</span> · ` : "";
+      cards.push(`<div class="pf-card"><div class="pf-card-label"><img src="odolo-logo-official.svg" onerror="this.style.display='none'">oDOLO PAIRED · VESTING</div>
+        <div class="pf-card-value gold">${fmtCompact(d.vesting.oToken)}<span class="unit">oDOLO</span></div>
+        <div class="pf-card-sub">${usd}<span class="pos">+ ${fmtCompact(d.vesting.pairDolo)} DOLO</span> pending<br><span class="dim">${d.vesting.count} position${d.vesting.count!==1?"s":""}${d.vesting.soonest?` · unlock ${fmtDate(d.vesting.soonest)}`:""}</span></div></div>`);
+    }
+    // veDOLO via oDOLO (exercised)
+    if (d.exer && d.exer.exercises) {
+      const txs = (d.exer.txs||[]);
+      const veTotal = txs.reduce((s,t)=>s+(Number(t.vedolo)||0),0);
+      const doloPaid = txs.reduce((s,t)=>s+(Number(t.dolo_paid)||0),0);
+      const prices = txs.map(t=>Number(t.price)).filter(p=>p>0);
+      const avgPrice = prices.length ? prices.reduce((s,p)=>s+p,0)/prices.length : null;
+      cards.push(`<div class="pf-card"><div class="pf-card-label"><img src="vedolo-logo.svg" onerror="this.style.display='none'">veDOLO VIA oDOLO</div>
+        <div class="pf-card-value">${fmtCompact(veTotal)}<span class="unit">veDOLO</span></div>
+        <div class="pf-card-sub">${avgPrice?`avg <span class="pf-card-usd">$${avgPrice.toFixed(4)}</span> · `:""}${fmtCompact(doloPaid)} DOLO paid<br><span class="dim">${d.exer.exercises} exercise${d.exer.exercises!==1?"s":""}${d.exer.total_usdc?` · ${fmtUSD(d.exer.total_usdc)} cost`:""}</span></div></div>`);
+    }
+    // veDOLO voting power
+    if (d.vedolo) {
+      cards.push(`<div class="pf-card"><div class="pf-card-label"><img src="vedolo-logo.svg" onerror="this.style.display='none'">veDOLO VOTING POWER</div>
+        <div class="pf-card-value gold">${fmtCompact(d.vedolo.total_vote_weight)}</div>
+        <div class="pf-card-sub">${fmtCompact(d.vedolo.total_dolo)} DOLO locked<br><span class="dim">${d.vedolo.nft_count} lock${d.vedolo.nft_count!==1?"s":""}${d.vedolo.latest_lock_end?` · until ${fmtDate(d.vedolo.latest_lock_end)}`:""}</span></div></div>`);
+    }
+    $("#pf-cards").innerHTML = cards.length ? cards.join("") : `<div class="pf-card" style="grid-column:1/-1"><div class="pf-card-sub">No DOLO / oDOLO / veDOLO activity tracked for this wallet.</div></div>`;
+  }
+
+  const DD_CHECK = `<span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span>`;
+  const GLOBE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
+  function chainLabel(f, present){
+    if (f.chains.size === 0 || f.chains.size === present.length) return "All Chains";
+    if (f.chains.size === 1){ const ck = [...f.chains][0]; return (CHAIN_BY_KEY[ck] || { name: ck }).name; }
+    return f.chains.size + " chains";
+  }
+  function closeAllDd(){ document.querySelectorAll(".pf-dd .dd-panel.show").forEach(p => p.classList.remove("show")); document.querySelectorAll(".pf-dd .dd-btn.open").forEach(b => b.classList.remove("open")); }
+  function refreshDd(el, f, present){
+    el.querySelectorAll(".dd-opt").forEach(opt => {
+      const net = opt.dataset.net;
+      opt.classList.toggle("active", net === "all" ? f.chains.size === 0 : f.chains.has(net));
+    });
+    const btn = el.querySelector("[data-dd-btn]");
+    if (btn){
+      btn.classList.toggle("filtered", f.chains.size > 0);
+      const lbl = btn.querySelector(".lbl"); if (lbl) lbl.textContent = chainLabel(f, present);
+      const cnt = btn.querySelector(".count"); if (cnt) cnt.textContent = f.chains.size || present.length;
+    }
+  }
+  // Chain dropdown (Assets-style) + asset search
+  function buildFilters(containerId, rows, filterState, onChange){
+    const el = $(containerId);
+    const present = [...new Set(rows.map(r => r.chain))];
+    if (rows.length <= 1){ el.style.display = "none"; el.innerHTML = ""; return; }
+    el.style.display = "flex";
+    let dd = "";
+    if (present.length > 1){
+      let opts = `<div class="dd-opt select-all${filterState.chains.size===0?" active":""}" data-net="all">${DD_CHECK}<div class="dd-ico">${GLOBE}</div><span class="dd-opt-name">All Chains</span></div>`;
+      present.forEach(ck => {
+        const c = CHAIN_BY_KEY[ck] || { name: ck, key: ck };
+        opts += `<div class="dd-opt${filterState.chains.has(ck)?" active":""}" data-net="${ck}">${DD_CHECK}<img src="${chainIcon(c.key)}" onerror="this.style.display='none'"><span class="dd-opt-name">${c.name}</span></div>`;
+      });
+      dd = `<div class="dd pf-dd"><button class="dd-btn${filterState.chains.size?" filtered":""}" type="button" data-dd-btn><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><span class="lbl">${chainLabel(filterState, present)}</span><span class="count">${filterState.chains.size||present.length}</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button><div class="dd-panel"><div class="dd-panel-head">Chain</div><div class="dd-list">${opts}</div></div></div>`;
+    }
+    el.innerHTML = dd + `<div class="search pf-search-tbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input type="text" placeholder="Filter asset…" data-token-search value="${filterState.q||""}"></div>`;
+    const btn = el.querySelector("[data-dd-btn]"), panel = el.querySelector(".dd-panel");
+    if (btn && panel){
+      btn.addEventListener("click", e => { e.stopPropagation(); const open = panel.classList.contains("show"); closeAllDd(); if (!open){ panel.classList.add("show"); btn.classList.add("open"); } });
+      panel.addEventListener("click", e => e.stopPropagation());
+      el.querySelectorAll(".dd-opt").forEach(opt => opt.addEventListener("click", () => {
+        const net = opt.dataset.net;
+        if (net === "all") filterState.chains.clear();
+        else { if (filterState.chains.has(net)) filterState.chains.delete(net); else filterState.chains.add(net); if (filterState.chains.size === present.length) filterState.chains.clear(); }
+        refreshDd(el, filterState, present); onChange();
+      }));
+    }
+    const ts = el.querySelector("[data-token-search]");
+    if (ts) ts.addEventListener("input", () => { filterState.q = ts.value.trim().toLowerCase(); onChange(); });
+  }
+
+  function applyFilter(rows, f){
+    return rows.filter(r => (f.chains.size === 0 || f.chains.has(r.chain)) && (!f.q || r.sym.toLowerCase().includes(f.q)));
+  }
+  function sortRows(rows, s){
+    const dir = s.desc ? -1 : 1;
+    return rows.slice().sort((a, b) => {
+      let av, bv;
+      if (s.key === "chain"){ av = a.chain; bv = b.chain; }
+      else if (s.key === "sym"){ av = (a.sym||"").toLowerCase(); bv = (b.sym||"").toLowerCase(); }
+      else if (s.key === "amount"){ av = a.amount; bv = b.amount; }
+      else { av = a.usd; bv = b.usd; }
+      if (typeof av === "string") return av < bv ? -dir : av > bv ? dir : 0;
+      return (av - bv) * dir;
+    });
+  }
+  function updateSortIndicators(tableKey, sort){
+    document.querySelectorAll(`#pf-results th[data-table="${tableKey}"]`).forEach(th => {
+      const active = th.dataset.sort === sort.key;
+      th.classList.toggle("sort-active", active);
+      const ar = th.querySelector(".pf-sort"); if (ar) ar.textContent = active ? (sort.desc ? "▼" : "▲") : "▼";
+    });
+  }
+
+  function renderTable(bodyId, countId, totalId, rows, f, sort, tableKey, neg){
+    const filtered = sortRows(applyFilter(rows, f), sort);
+    const total = filtered.reduce((s, r) => s + r.usd, 0);
+    $(countId).textContent = filtered.length ? `· ${filtered.length}` : "";
+    $(totalId).innerHTML = `<span class="${neg?"pf-usd-neg":"pf-usd-pos"}">${fmtUSD(total)}</span>`;
+    updateSortIndicators(tableKey, sort);
+    const body = $(bodyId);
+    if (!rows.length){ body.innerHTML = `<tr><td colspan="4"><div class="pf-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>${neg?"No open borrows on Dolomite.":"No deposited assets on Dolomite."}</div></td></tr>`; return; }
+    if (!filtered.length){ body.innerHTML = `<tr><td colspan="4"><div class="pf-empty">No assets match the filter.</div></td></tr>`; return; }
+    body.innerHTML = filtered.map(r => `<tr>
+      <td>${chainChip(r.chain)}</td>
+      <td>${tokenCell(r)}</td>
+      <td class="num">${fmtToken(r.amount)} <span class="pf-amt-sym">${r.sym}</span></td>
+      <td class="usd ${neg?"pf-usd-neg":"pf-usd-pos"}">${fmtUSD(r.usd)}</td>
+    </tr>`).join("");
+  }
+
+  function renderAll(){
+    renderTable("#pf-deposits-body","#pf-deposits-count","#pf-deposits-total", state.deposits, state.depFilter, state.depSort, "dep", false);
+    renderTable("#pf-borrows-body","#pf-borrows-count","#pf-borrows-total", state.borrows, state.borFilter, state.borSort, "bor", true);
+  }
+  function wireSortHeaders(){
+    document.querySelectorAll("#pf-results th[data-sort]").forEach(th => th.addEventListener("click", () => {
+      const tk = th.dataset.table, key = th.dataset.sort;
+      const sort = tk === "dep" ? state.depSort : state.borSort;
+      if (sort.key === key) sort.desc = !sort.desc;
+      else { sort.key = key; sort.desc = (key === "usd" || key === "amount"); }
+      renderAll();
+    }));
+  }
+
+  function setLoadingTables(){
+    const skel = `<tr class="pf-skel-row"><td><span class="pf-skel" style="width:60px"></span></td><td><span class="pf-skel" style="width:120px"></span></td><td class="num"><span class="pf-skel" style="width:80px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:70px;margin-left:auto"></span></td></tr>`.repeat(3);
+    $("#pf-deposits-body").innerHTML = skel; $("#pf-borrows-body").innerHTML = skel;
+    $("#pf-cards").innerHTML = `<div class="pf-card"><div class="pf-card-label"><span class="pf-skel" style="width:90px;height:10px"></span></div><div class="pf-skel" style="width:120px;height:22px;margin-top:4px"></div></div>`.repeat(4);
+  }
+
+  async function loadWallet(addr){
+    addr = normAddr(addr);
+    document.body.classList.add("pf-active");
+    $("#pf-idle").classList.remove("show");
+    setLoadingTables();
+    $("#pf-deposits-filters").innerHTML = ""; $("#pf-borrows-filters").innerHTML = "";
+
+    // off-chain JSON lookups + price
+    const [doloHolders, vedoloHolders, exercisers, doloPriceJson] = await Promise.all([
+      loadJson("dolo_holders.json"), loadJson("vedolo_holders.json"), loadJson("exercisers_by_address.json"), loadJson("dolo_price.json"),
+    ]);
+    const doloPrice = doloPriceJson && (doloPriceJson.price || (doloPriceJson.data && doloPriceJson.data.price)) || 0;
+
+    // on-chain in parallel
+    const [vesting, ...chainResults] = await Promise.all([
+      fetchVesting(addr),
+      ...CHAINS.map(c => fetchChainPositions(c, addr).catch(() => ({ deposits: [], borrows: [] }))),
+    ]);
+
+    const cardData = {
+      dolo: findByAddress(doloHolders, addr),
+      vedolo: findByAddress(vedoloHolders, addr),
+      exer: findByAddress(exercisers, addr),
+      vesting,
+      doloPrice,
+    };
+    renderCards(cardData);
+
+    state.deposits = []; state.borrows = [];
+    chainResults.forEach(r => { state.deposits.push(...(r.deposits||[])); state.borrows.push(...(r.borrows||[])); });
+    state.depFilter = { chains: new Set(), q: "" }; state.borFilter = { chains: new Set(), q: "" };
+    state.depSort = { key: "usd", desc: true }; state.borSort = { key: "usd", desc: true };
+    buildFilters("#pf-deposits-filters", state.deposits, state.depFilter, renderAll);
+    buildFilters("#pf-borrows-filters", state.borrows, state.borFilter, renderAll);
+    renderAll();
+    try { history.replaceState(null, "", "#" + addr); } catch(e){}
+  }
+
+  // ---------- wiring ----------
+  function submit(){
+    const v = $("#pf-addr").value;
+    if (!isAddr(v)){ $("#pf-hint").innerHTML = `<span class="pf-err">Enter a valid 0x… wallet address (40 hex chars).</span>`; return; }
+    $("#pf-hint").innerHTML = `<span><b>Wallet:</b> ${shortAddr(normAddr(v))}</span><span class="pf-example" id="pf-example">Change</span>`;
+    bindExample();
+    loadWallet(v);
+  }
+  function bindExample(){
+    const ex = $("#pf-example");
+    if (ex) ex.addEventListener("click", () => { $("#pf-addr").focus(); $("#pf-addr").select(); });
+  }
+  $("#pf-go").addEventListener("click", submit);
+  $("#pf-addr").addEventListener("keydown", e => { if (e.key === "Enter") submit(); });
+  document.addEventListener("click", closeAllDd);
+  wireSortHeaders();
+  bindExample();
+
+  // example address (a wallet with active vesting + positions)
+  const EXAMPLE = "0x6cb90ab6c7de4028af86f15ae97c4df2b954f84c";
+  document.addEventListener("click", e => {
+    if (e.target && e.target.id === "pf-example" && e.target.textContent === "Try an example"){
+      $("#pf-addr").value = EXAMPLE; submit();
+    }
+  });
+
+  // deep link via hash
+  const hash = (location.hash || "").replace("#","");
+  if (isAddr(hash)){ $("#pf-addr").value = hash; submit(); }
+  else { $("#pf-idle").classList.add("show"); }
+
+  // footer time
+  const now = $("#now"); if (now){ const d = new Date(); now.textContent = d.toLocaleString("en-US",{ month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" }); }
+})();
+</script>
+</body>
+</html>
