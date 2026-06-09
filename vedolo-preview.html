@@ -61,8 +61,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .hero-meta{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}
 .hero-live{font-size:11px;color:var(--fg-3);font-family:var(--mono);display:inline-flex;align-items:center;gap:6px}
 .dot-live{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold);display:inline-block;flex-shrink:0}
-.hero-headline{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;padding-bottom:26px;position:relative;z-index:1}
-.hero-value{font-family:var(--mono);font-size:clamp(44px,6vw,62px);font-weight:700;letter-spacing:-2.5px;color:var(--fg-1);font-variant-numeric:tabular-nums;line-height:1}
+.hero-headline{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;padding-bottom:26px;position:relative;z-index:1}
+.hero-value{display:inline-flex;align-items:baseline;gap:8px;min-width:0;font-family:var(--mono);font-variant-numeric:tabular-nums;line-height:1;color:var(--fg-1)}
+.hero-value .hero-amount{font-size:clamp(38px,5.2vw,50px);font-weight:760;letter-spacing:-1.4px}
+.hero-value .hero-unit{font-size:clamp(14px,1.8vw,18px);font-weight:650;letter-spacing:.03em;text-transform:uppercase;color:var(--fg-2);opacity:.72}
 .hero-chip{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:10px;font-family:var(--mono);font-weight:600;font-size:14px;letter-spacing:.2px;color:var(--gold);background:var(--gold-wash);border:1px solid var(--gold-line)}
 .hero-chip .lbl{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;opacity:.7;margin-left:2px}
 .hero-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:0;padding-top:22px;border-top:1px solid var(--line-1);position:relative;z-index:1}
@@ -713,7 +715,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
       </div>
     </div>
     <div class="hero-headline">
-      <div class="hero-value" id="hero-locked" data-count-value="0">0 DOLO</div>
+      <div class="hero-value" id="hero-locked" data-count-value="0"><span class="hero-amount">0</span><span class="hero-unit">DOLO</span></div>
       <div class="hero-chip"><span id="hero-usd" data-count-value="0">$0</span><span class="lbl">locked value</span></div>
     </div>
     <div class="hero-stats">
@@ -1152,6 +1154,21 @@ function setMetricText(id, value){
   if(!el) return;
   if(window.CountUpMetric) CountUpMetric.text(el, value);
   else el.textContent = value;
+}
+function setHeroLockedValue(value){
+  const el = document.getElementById("hero-locked");
+  if(!el) return;
+  const amount = fmtCompact(value);
+  const amountNode = el.querySelector(".hero-amount");
+  const unitNode = el.querySelector(".hero-unit");
+  if(amountNode && unitNode){
+    if(window.CountUpMetric) CountUpMetric.text(amountNode, amount);
+    else amountNode.textContent = amount;
+    unitNode.textContent = "DOLO";
+    el.dataset.countValue = String(num(value));
+    return;
+  }
+  setMetricText("hero-locked", fmtDolo(value));
 }
 async function fetchJson(name){
   const stamp = Date.now();
@@ -1722,7 +1739,7 @@ function renderHero(){
   const s = state.stats || {};
   const locked = num(s.total_locked_dolo);
   const price = num(state.price?.price);
-  setMetricText("hero-locked", fmtDolo(locked));
+  setHeroLockedValue(locked);
   setMetricText("hero-usd", price ? fmtMoney(locked * price) : "$0");
   setMetricText("hero-holders", fmtInt(s.unique_holders));
   setMetricText("hero-active", fmtInt(s.active_nfts));
