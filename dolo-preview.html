@@ -1138,7 +1138,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         <h2>DOLO Flows</h2>
         <span class="count-badge">Top accumulators &amp; outflows</span>
       </div>
-      <div class="card-meta"><span class="pulse"></span><span id="flows-meta">Period: 7D</span></div>
+      <div class="card-meta"><span class="pulse"></span><span id="flows-meta">Flow data</span></div>
     </div>
 
     <div class="toolbar">
@@ -1301,7 +1301,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         <h2>Fresh 10K+ DOLO Wallets</h2>
         <span class="count-badge" id="fresh-wallets-count">--</span>
       </div>
-      <div class="card-meta"><span class="pulse"></span><span id="fresh-wallets-meta">First on-chain tx · 10K+ liquid or locked</span></div>
+      <div class="card-meta"><span class="pulse"></span><span id="fresh-wallets-meta">First on-chain tx + 10K+ exposure</span></div>
     </div>
 
     <div class="toolbar">
@@ -4386,9 +4386,8 @@ function renderFreshStats(rows){
   const balance = rows.reduce((sum, row) => sum + row.balance, 0);
   const locked = rows.reduce((sum, row) => sum + safeHolderNum(row.lockedBalance), 0);
   const retained = received > 0 ? Math.min(100, balance / received * 100) : 0;
-  const period = freshPeriodMeta();
   box.innerHTML = `
-    <div class="fresh-stat primary"><div class="label">Fresh Wallets</div><div class="value">${rows.length.toLocaleString()}</div><div class="sub">10K+ exposure · ${period.short}</div></div>
+    <div class="fresh-stat primary"><div class="label">Fresh Wallets</div><div class="value">${rows.length.toLocaleString()}</div><div class="sub">10K+ exposure</div></div>
     <div class="fresh-stat"><div class="label">DOLO Received</div><div class="value">${fmtNum(received)}</div><div class="sub">fresh 10K+ wallets</div></div>
     <div class="fresh-stat"><div class="label">Current Exposure</div><div class="value">${fmtNum(balance)}</div><div class="sub">${locked > 0 ? `${fmtNum(locked)} locked` : "liquid + locked"}</div></div>
     <div class="fresh-stat"><div class="label">Retention</div><div class="value">${fmtPct(retained)}</div><div class="sub">kept exposure</div></div>
@@ -4495,9 +4494,8 @@ function renderFreshWallets(){
   if(info) info.textContent = `${showStart}–${showEnd} of ${total.toLocaleString()}`;
   const count = document.getElementById("fresh-wallets-count");
   if(count) count.textContent = `${allRows.length.toLocaleString()} wallets`;
-  const meta = freshPeriodMeta();
   const metaEl = document.getElementById("fresh-wallets-meta");
-  if(metaEl) metaEl.textContent = `${meta.short} · first on-chain tx + >10K exposure`;
+  if(metaEl) metaEl.textContent = "First on-chain tx + 10K+ exposure";
   renderFreshPager(total);
   syncFreshSortHeaders();
   tbody.querySelectorAll(".addr-copy").forEach(btn => btn.addEventListener("click", async e=>{
@@ -4714,9 +4712,6 @@ document.querySelectorAll('#dd-flows-period .dd-opt').forEach(opt=>{
     state.flowsPeriod = opt.dataset.period;
     const meta = PERIODS.find(p=>p.key===state.flowsPeriod);
     document.querySelector('#dd-flows-period .dd-btn .lbl').textContent = meta ? meta.short : opt.dataset.period.toUpperCase();
-    // Update card meta line
-    const metaEl = document.getElementById("flows-meta");
-    if(metaEl) metaEl.textContent = "Period: " + (meta ? meta.short : state.flowsPeriod);
     state.flowsPage.acc=0;
     state.flowsPage.out=0;
     renderFlows();
@@ -5177,9 +5172,8 @@ renderCexSupplyChart();
   renderFlows = function(){
     flowRowsForPeriod();
     originalRenderFlows();
-    const meta = PERIODS.find(p => p.key === state.flowsPeriod);
     const metaEl = document.getElementById("flows-meta");
-    if(metaEl) metaEl.textContent = "Period: " + (meta ? meta.short : state.flowsPeriod.toUpperCase()) + (liveFlowTimestamp ? " · updated " + ago(liveFlowTimestamp) : "");
+    if(metaEl) metaEl.textContent = liveFlowTimestamp ? "Updated " + ago(liveFlowTimestamp) : "Flow data";
   };
   renderHolders = function(){
     originalRenderHolders();
