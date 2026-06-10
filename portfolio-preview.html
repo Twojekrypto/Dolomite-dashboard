@@ -1489,8 +1489,8 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 }
 #pf-exercises-section .pf-exercise-summary{
   display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:10px;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:8px;
   padding:13px 22px 15px;
   border-bottom:1px solid rgba(117,184,123,.12);
   background:linear-gradient(180deg,rgba(117,184,123,.035),rgba(9,9,11,.10));
@@ -1501,7 +1501,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   border-radius:8px;
   background:rgba(255,255,255,.018);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
-  padding:10px 12px;
+  padding:10px 10px;
 }
 #pf-exercises-section .pf-exercise-summary-item.primary{
   border-color:rgba(117,184,123,.22);
@@ -1537,7 +1537,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 #pf-exercises-section .pf-exercise-summary-sub{
   margin-top:4px;
   font-family:var(--mono);
-  font-size:10px;
+  font-size:9.5px;
   line-height:1.25;
   color:var(--fg-3);
   white-space:nowrap;
@@ -1658,6 +1658,9 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .pf-idle.show{display:block}
 body:not(.pf-active) #pf-results{display:none}
 
+@media (max-width:1120px){
+  #pf-exercises-section .pf-exercise-summary{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
 @media (max-width:760px){
   .pf-table{table-layout:auto}
   .pf-table thead th:nth-child(1),.pf-table td:nth-child(1){display:none}
@@ -2457,7 +2460,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         date: tx.date || "",
         timestamp: exerciseTimeMs(tx) || exerciseTimeMs(flow),
         hash,
-        action: "Claim veDOLO",
+        action: "Exercise oDOLO",
         actionSub: `Paid ${paidToken || "stablecoin"}`,
         route: "odolo",
         vedolo: Number(tx.vedolo) || 0,
@@ -2480,8 +2483,8 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         date: lock.date || "",
         timestamp: exerciseTimeMs(lock),
         hash,
-        action: "Lock veDOLO",
-        actionSub: "DOLO locked, no purchase price",
+        action: "Deposit veDOLO",
+        actionSub: "DOLO locked directly, no purchase price",
         route: "direct",
         vedolo: Number(lock.dolo) || 0,
         lockDays: Number(lock.lockDays) || 0,
@@ -2590,8 +2593,8 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
   const ROUTE_ICON = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="3"/><circle cx="17" cy="17" r="3"/><path d="M10 7h3a4 4 0 0 1 4 4v3"/><path d="M14 17h-3a4 4 0 0 1-4-4v-3"/></svg>`;
   const TRANSFER_ICON = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10"/><path d="M13 3l4 4-4 4"/><path d="M17 17H7"/><path d="M11 13l-4 4 4 4"/></svg>`;
   const EXERCISE_ROUTES = [
-    { key: "odolo", label: "via oDOLO", icon: "odolo-logo-official.svg", cls: "cyan", title: "via oDOLO", body: "Lock came from an oDOLO exercise and was attributed from oDOLO metadata." },
-    { key: "direct", label: "Direct", icon: "", cls: "up", title: "Direct Lock", body: "Wallet locked DOLO directly into veDOLO. No oDOLO exercise route was detected for this transaction." },
+    { key: "odolo", label: "Exercise", icon: "odolo-logo-official.svg", cls: "cyan", title: "oDOLO Exercise", body: "Wallet exercised oDOLO and received a new veDOLO position." },
+    { key: "direct", label: "Deposit", icon: "", cls: "up", title: "veDOLO Deposit", body: "Wallet created a new veDOLO position by locking DOLO directly. This is a mint/deposit, not a wallet-to-wallet transfer." },
     { key: "transfer", label: "Transfer", svg: TRANSFER_ICON, cls: "gold", title: "veDOLO Transfer", body: "Existing veDOLO position moved between wallets. USDC price is not shown because this is not an exercise or purchase." },
   ];
   const EXERCISE_ROUTE_BY_KEY = Object.fromEntries(EXERCISE_ROUTES.map(r => [r.key, r]));
@@ -2948,15 +2951,15 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         false
       ),
       exerciseSummaryItem(
-        "Direct locks",
+        "Deposits",
         `${fmtCompact(lockVe)} <span class="unit">veDOLO</span>`,
-        lockRows.length ? `${lockRows.length} direct DOLO lock${lockRows.length === 1 ? "" : "s"}` : "No direct DOLO locks",
+        lockRows.length ? `${lockRows.length} direct DOLO deposit${lockRows.length === 1 ? "" : "s"}` : "No direct DOLO deposits",
         false
       ),
       exerciseSummaryItem(
         "Vote power",
         `${fmtCompact(votePower)} <span class="unit">veDOLO</span>`,
-        rows.length ? `${fmtCompact(claimVe)} via oDOLO · ${fmtCompact(lockVe)} direct` : "No vote power",
+        rows.length ? `${fmtCompact(claimVe)} exercised · ${fmtCompact(lockVe)} deposited` : "No vote power",
         false
       ),
       exerciseSummaryItem(
