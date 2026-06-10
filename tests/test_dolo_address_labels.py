@@ -274,6 +274,8 @@ class DoloAddressLabelsTest(unittest.TestCase):
         for path in tracked_repo_files():
             if path.name == "test_dolo_address_labels.py":
                 continue
+            if not path.exists():
+                continue
             text = path.read_text(encoding="utf-8", errors="ignore")
             for filename in removed_files:
                 self.assertNotIn(filename, text, str(path.relative_to(ROOT)))
