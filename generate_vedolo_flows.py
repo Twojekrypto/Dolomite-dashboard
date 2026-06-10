@@ -20,8 +20,10 @@ DEPOSIT_TOPIC = "0xff04ccafc360e16b67d682d17bd9503c4c6b9a131f6be6325762dc9ffc7de
 
 # oDOLO Vester — locks via oDOLO exercise go through this contract
 ODOLO_VESTER = "0x3e9b9a16743551da49b5e136c716bba7932d2cec".lower()
-# ERC-20/ERC-721 Transfer topic; useful for finding the real veDOLO NFT recipient.
+# ERC-20/ERC-721 Transfer topic; useful for finding the real veDOLO NFT recipient
+# and wallet-to-wallet veDOLO position transfers.
 ODOLO_EXERCISE_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+TRANSFER_TOPIC = ODOLO_EXERCISE_TOPIC
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 ZERO_TOPIC = "0x" + ("0" * 64)
 
@@ -85,11 +87,12 @@ def save_run_status(completed, **extra):
     os.replace(tmp, RUN_STATUS_FILE)
 
 
-def save_pending_sync(state, target_block, unlocks, locks, tx_hashes):
+def save_pending_sync(state, target_block, unlocks, locks, tx_hashes, transfers=None):
     state["pending_vedolo_sync"] = {
         "target_block": target_block,
         "unlocks": unlocks,
         "locks": locks,
+        "transfers": transfers if isinstance(transfers, list) else state.get("transfers", []),
         "tx_hashes": sorted(tx_hashes),
         "updated": datetime.utcnow().isoformat() + "Z",
     }
@@ -104,9 +107,12 @@ def load_pending_sync(state):
     target_block = int(pending.get("target_block") or 0)
     locks = pending.get("locks")
     unlocks = pending.get("unlocks")
+    transfers = pending.get("transfers")
     tx_hashes = pending.get("tx_hashes")
     if target_block <= 0 or not isinstance(locks, list) or not isinstance(unlocks, list):
         return None
+    if not isinstance(transfers, list):
+        transfers = []
     if not isinstance(tx_hashes, list):
         tx_hashes = []
 
@@ -114,6 +120,7 @@ def load_pending_sync(state):
         "target_block": target_block,
         "locks": locks,
         "unlocks": unlocks,
+        "transfers": transfers,
         "tx_hashes": [str(tx).lower() for tx in tx_hashes],
     }
 
@@ -346,6 +353,78 @@ def get_tx_receipt(tx_hash):
     return None
 
 
+def get_block_timestamp(block_number):
+    """Get a UTC timestamp for a block number."""
+    try:
+        block_number = int(block_number)
+    except (TypeError, ValueError):
+        return 0
+    if block_number <= 0:
+        return 0
+    data = rpc_call("eth_getBlockByNumber", [hex(block_number), False], timeout=10)
+    block = data.get("result") if isinstance(data, dict) else None
+    if not block:
+        return 0
+    try:
+        return int(block.get("timestamp", "0x0"), 16)
+    except (TypeError, ValueError):
+        return 0
+
+
+def hydrate_transfer_timestamps(transfers, state):
+    """Attach block timestamps/dates to transfer rows."""
+    if not transfers:
+        return transfers
+    block_cache = state.get("block_timestamps")
+    if not isinstance(block_cache, dict):
+        block_cache = {}
+        state["block_timestamps"] = block_cache
+    missing_blocks = []
+    for transfer in transfers:
+        block = int(transfer.get("block") or 0)
+        if not block or transfer.get("timestamp"):
+            continue
+        key = str(block)
+        if key not in block_cache:
+            missing_blocks.append(block)
+
+    missing_blocks = sorted(set(missing_blocks))
+    for i, block in enumerate(missing_blocks):
+        ts = get_block_timestamp(block)
+        if ts:
+            block_cache[str(block)] = ts
+        if (i + 1) % 100 == 0:
+            print(f"    Hydrated transfer block timestamps: {i+1}/{len(missing_blocks)}", flush=True)
+            save_state(state)
+        time.sleep(0.02)
+
+    for transfer in transfers:
+        block = int(transfer.get("block") or 0)
+        ts = int(transfer.get("timestamp") or 0) or int(block_cache.get(str(block)) or 0)
+        if ts:
+            transfer["timestamp"] = ts
+            transfer["date"] = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d")
+    return transfers
+
+
+def dedupe_transfers(transfers):
+    """Keep one row per ERC721 transfer log."""
+    seen = set()
+    out = []
+    for transfer in transfers or []:
+        key = (
+            str(transfer.get("txHash") or "").lower(),
+            int(transfer.get("tokenId") or 0),
+            str(transfer.get("from") or "").lower(),
+            str(transfer.get("to") or "").lower(),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(transfer)
+    return out
+
+
 def _checkpoint_receipt_checks(state, receipt_checks, pending_sync=None):
     if state is None:
         return
@@ -494,6 +573,33 @@ def decode_deposit(log):
     }
 
 
+def decode_transfer(log):
+    """Decode ERC721 Transfer(address indexed from, address indexed to, uint256 indexed tokenId)."""
+    topics = log.get("topics") or []
+    if len(topics) < 4:
+        return None
+    from_address = address_from_topic(topics[1])
+    to_address = address_from_topic(topics[2])
+    if not from_address or not to_address:
+        return None
+    # Mints and burns are already represented by Deposit/Withdraw rows.
+    if from_address == ZERO_ADDRESS or to_address == ZERO_ADDRESS:
+        return None
+    try:
+        token_id = int(str(topics[3]), 16)
+        block = int(log["blockNumber"], 16)
+    except (KeyError, TypeError, ValueError):
+        return None
+
+    return {
+        "from": from_address,
+        "to": to_address,
+        "txHash": log.get("transactionHash", ""),
+        "tokenId": token_id,
+        "block": block,
+    }
+
+
 def main():
     args = parse_args()
     soft_deadline = None
@@ -523,8 +629,9 @@ def main():
         current_block = pending_sync["target_block"]
         all_unlocks = pending_sync["unlocks"]
         all_locks = pending_sync["locks"]
+        all_transfers = pending_sync["transfers"]
         pending_tx_hashes = pending_sync["tx_hashes"]
-        print(f"  Resumed: {len(all_unlocks)} unlocks, {len(all_locks)} locks")
+        print(f"  Resumed: {len(all_unlocks)} unlocks, {len(all_locks)} locks, {len(all_transfers)} transfers")
     else:
         # Get current block
         print("\n📡 Getting current block number...")
@@ -539,6 +646,9 @@ def main():
         last_block = state.get("last_block", 0)
         cached_unlocks = state.get("unlocks", [])
         cached_locks = state.get("locks", [])
+        cached_transfers = state.get("transfers", [])
+        transfers_last_block = int(state.get("transfers_last_block") or 0)
+        transfers_need_backfill = not isinstance(cached_transfers, list) or transfers_last_block <= 0
 
         if is_incremental and last_block > 0:
             fetch_start = last_block + 1
@@ -559,19 +669,38 @@ def main():
             cached_unlocks = []
             cached_locks = []
 
+        if transfers_need_backfill:
+            print(f"\n📡 Fetching ALL veDOLO Transfer events from block {DEPLOY_BLOCK:,}...")
+            new_transfer_logs = fetch_event_logs(DEPLOY_BLOCK, current_block, TRANSFER_TOPIC)
+            cached_transfers = []
+        else:
+            transfer_fetch_start = transfers_last_block + 1
+            if transfer_fetch_start >= current_block:
+                print(f"\n  veDOLO transfers already up to date (block {transfers_last_block:,})")
+                new_transfer_logs = []
+            else:
+                print(f"\n📡 Fetching veDOLO Transfer events...")
+                new_transfer_logs = fetch_event_logs(transfer_fetch_start, current_block, TRANSFER_TOPIC)
+
         # Decode new events
         print(f"\n🔧 Decoding events...")
         new_unlocks = [decode_withdraw(log) for log in new_withdraw_logs]
         new_locks = [decode_deposit(log) for log in new_deposit_logs]
-        print(f"  New: {len(new_unlocks)} unlocks, {len(new_locks)} locks")
+        new_transfers = [row for row in (decode_transfer(log) for log in new_transfer_logs) if row]
+        print(f"  New: {len(new_unlocks)} unlocks, {len(new_locks)} locks, {len(new_transfers)} transfers")
+
+        if new_transfers:
+            print(f"\n🕒 Hydrating veDOLO transfer timestamps...")
+            hydrate_transfer_timestamps(new_transfers, state)
 
         # Merge with cached
         all_unlocks = cached_unlocks + new_unlocks
         all_locks = cached_locks + new_locks
-        print(f"  Total: {len(all_unlocks)} unlocks, {len(all_locks)} locks")
+        all_transfers = dedupe_transfers(cached_transfers + new_transfers)
+        print(f"  Total: {len(all_unlocks)} unlocks, {len(all_locks)} locks, {len(all_transfers)} transfers")
         pending_tx_hashes = list(set(l["txHash"].lower() for l in new_locks))
         if pending_tx_hashes:
-            save_pending_sync(state, current_block, all_unlocks, all_locks, pending_tx_hashes)
+            save_pending_sync(state, current_block, all_unlocks, all_locks, pending_tx_hashes, all_transfers)
 
     # Check oDOLO exercise status for new lock events
     if pending_tx_hashes:
@@ -586,7 +715,7 @@ def main():
             soft_deadline=soft_deadline,
         )
         if not exercise_complete:
-            save_pending_sync(state, current_block, all_unlocks, all_locks, pending_tx_hashes)
+            save_pending_sync(state, current_block, all_unlocks, all_locks, pending_tx_hashes, all_transfers)
             save_run_status(
                 False,
                 reason="soft_runtime_limit",
@@ -628,6 +757,9 @@ def main():
     # Sort by timestamp desc
     all_unlocks.sort(key=lambda x: x["timestamp"], reverse=True)
     all_locks.sort(key=lambda x: x["timestamp"], reverse=True)
+    hydrate_transfer_timestamps(all_transfers, state)
+    all_transfers = dedupe_transfers(all_transfers)
+    all_transfers.sort(key=lambda x: int(x.get("timestamp") or 0), reverse=True)
 
     # Data protection: don't overwrite good data with empty
     if os.path.exists(OUTPUT_JSON):
@@ -636,12 +768,16 @@ def main():
                 old = json.load(f)
             old_unlocks = len(old.get("unlocks", []))
             old_locks = len(old.get("locks", []))
+            old_transfers = len(old.get("transfers", []))
             if len(all_unlocks) == 0 and old_unlocks > 0:
                 print(f"\n⚠️ 0 unlocks but old file has {old_unlocks}. Preserving old data.")
                 all_unlocks = old["unlocks"]
             if len(all_locks) == 0 and old_locks > 0:
                 print(f"\n⚠️ 0 locks but old file has {old_locks}. Preserving old data.")
                 all_locks = old["locks"]
+            if len(all_transfers) == 0 and old_transfers > 0:
+                print(f"\n⚠️ 0 transfers but old file has {old_transfers}. Preserving old data.")
+                all_transfers = old["transfers"]
         except Exception:
             pass
 
@@ -650,8 +786,10 @@ def main():
         "timestamp": datetime.utcnow().isoformat(),
         "total_unlocks": len(all_unlocks),
         "total_locks": len(all_locks),
+        "total_transfers": len(all_transfers),
         "unlocks": all_unlocks,
         "locks": all_locks,
+        "transfers": all_transfers,
     }
 
     with open(OUTPUT_JSON, "w") as f:
@@ -661,12 +799,14 @@ def main():
     state["last_block"] = current_block
     state["unlocks"] = all_unlocks
     state["locks"] = all_locks
+    state["transfers"] = all_transfers
+    state["transfers_last_block"] = current_block
     state.pop("pending_vedolo_sync", None)
     save_state(state)
     save_run_status(True, target_block=current_block)
 
     print(f"\n💾 Saved: {OUTPUT_JSON}")
-    print(f"   {len(all_unlocks)} unlocks, {len(all_locks)} locks")
+    print(f"   {len(all_unlocks)} unlocks, {len(all_locks)} locks, {len(all_transfers)} transfers")
     print(f"   State saved for incremental sync")
 
     # Summary
@@ -684,6 +824,15 @@ def main():
         direct_count = len(all_locks) - odolo_count
         print(f"📊 Locks: {oldest} → {newest}, {total_dolo:,.0f} DOLO total")
         print(f"   {odolo_count} via oDOLO, {direct_count} direct")
+
+    if all_transfers:
+        dated_transfers = [t for t in all_transfers if t.get("date")]
+        if dated_transfers:
+            oldest = min(t["date"] for t in dated_transfers)
+            newest = max(t["date"] for t in dated_transfers)
+            print(f"📊 Transfers: {oldest} → {newest}, {len(all_transfers):,} wallet-to-wallet veDOLO position transfers")
+        else:
+            print(f"📊 Transfers: {len(all_transfers):,} wallet-to-wallet veDOLO position transfers")
 
     print("\n✅ Done!")
 
