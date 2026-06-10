@@ -1540,6 +1540,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 }
 #pf-exercises-section .pf-exercise-summary-item.primary .pf-exercise-summary-value,
 #pf-exercises-section .pf-exercise-summary-item.accent .pf-exercise-summary-value{color:var(--pf-ex-green)}
+#pf-exercises-section .pf-exercise-summary-value .accent-price{color:#9ab7c2}
 #pf-exercises-section .pf-exercise-summary-sub{
   margin-top:6px;
   font-family:var(--mono);
@@ -3062,7 +3063,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       ),
       exerciseSummaryItem(
         "Avg price",
-        fmtExercisePrice(avgClaimPrice),
+        `<span class="accent-price">${fmtExercisePrice(avgClaimPrice)}</span>`,
         claimRows.length ? "USDC per veDOLO" : "Only shown for oDOLO Exercises",
         false,
         false
