@@ -1489,7 +1489,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 }
 #pf-exercises-section .pf-exercise-summary{
   display:grid;
-  grid-template-columns:repeat(6,minmax(0,1fr));
+  grid-template-columns:repeat(4,minmax(0,1fr));
   gap:8px;
   padding:13px 22px 15px;
   border-bottom:1px solid rgba(117,184,123,.12);
@@ -2988,27 +2988,26 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       return;
     }
     const claimRows = rows.filter(r => r.isStableClaim);
-    const airdropRows = rows.filter(r => r.route === "airdrop");
-    const lockRows = rows.filter(r => r.route === "direct");
-    const transferRows = rows.filter(r => r.route === "transfer");
     const currentVe = Number(state.vedoloCurrent && state.vedoloCurrent.total_dolo) || 0;
     const currentVote = Number(state.vedoloCurrent && state.vedoloCurrent.total_vote_weight) || 0;
     const currentNfts = Number(state.vedoloCurrent && state.vedoloCurrent.nft_count) || 0;
     const claimVe = claimRows.reduce((s, r) => s + r.vedolo, 0);
     const claimPaid = claimRows.reduce((s, r) => s + r.paid, 0);
     const avgClaimPrice = claimVe ? claimPaid / claimVe : 0;
-    const airdropVe = airdropRows.reduce((s, r) => s + r.vedolo, 0);
-    const lockVe = lockRows.reduce((s, r) => s + r.vedolo, 0);
-    const votePower = claimVe + airdropVe + lockVe;
-    const transferIn = transferRows.filter(r => r.transferDirection === "in").length;
-    const transferOut = transferRows.filter(r => r.transferDirection === "out").length;
-    const transferFallbacks = transferRows.filter(r => r.fallbackCurrent).length;
+    const activityLocked = rows.filter(r => r.route !== "transfer").reduce((s, r) => s + r.vedolo, 0);
+    const lockedVe = currentVe || activityLocked;
     el.innerHTML = [
+      exerciseSummaryItem(
+        "Total locked",
+        `${fmtCompact(lockedVe)} <span class="unit">veDOLO</span>`,
+        currentNfts ? `${currentNfts} current position${currentNfts === 1 ? "" : "s"}` : "From loaded position activity",
+        true
+      ),
       exerciseSummaryItem(
         "oDOLO Exercises",
         `${fmtCompact(claimVe)} <span class="unit">veDOLO</span>`,
         claimRows.length ? `${claimRows.length} exercises · ${fmtUSD(claimPaid)} USDC paid` : "No oDOLO option exercises",
-        true
+        false
       ),
       exerciseSummaryItem(
         "Avg price",
@@ -3017,27 +3016,9 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         false
       ),
       exerciseSummaryItem(
-        "Airdrops",
-        `${fmtCompact(airdropVe)} <span class="unit">veDOLO</span>`,
-        airdropRows.length ? `${airdropRows.length} airdrop claim${airdropRows.length === 1 ? "" : "s"}` : "No airdrop claims",
-        false
-      ),
-      exerciseSummaryItem(
-        "Direct",
-        `${fmtCompact(lockVe)} <span class="unit">veDOLO</span>`,
-        lockRows.length ? `${lockRows.length} direct DOLO lock${lockRows.length === 1 ? "" : "s"}` : "No direct DOLO locks",
-        false
-      ),
-      exerciseSummaryItem(
         "Vote power",
-        `${fmtCompact(currentVote || votePower)} <span class="unit">veDOLO</span>`,
-        currentNfts ? `${fmtCompact(currentVe)} current veDOLO · ${currentNfts} position${currentNfts === 1 ? "" : "s"}` : `${fmtCompact(claimVe)} exercised · ${fmtCompact(airdropVe)} airdrop · ${fmtCompact(lockVe)} direct`,
-        false
-      ),
-      exerciseSummaryItem(
-        "Transfers",
-        `${transferRows.length}`,
-        transferRows.length ? `${transferIn} in · ${transferOut} out${transferFallbacks ? ` · ${transferFallbacks} from current snapshot` : ""}` : "No veDOLO transfers",
+        `${fmtCompact(currentVote)} <span class="unit">veDOLO</span>`,
+        currentNfts ? "Current voting weight" : "Current snapshot unavailable",
         false
       ),
     ].join("");
