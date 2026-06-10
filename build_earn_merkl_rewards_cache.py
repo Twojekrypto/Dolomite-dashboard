@@ -12,6 +12,7 @@ import json
 import re
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -40,16 +41,41 @@ CAMPAIGN_TOKEN_MAP = {
     },
 }
 
+OPPORTUNITY_TOKEN_MAP = {
+    "ethereum": {
+        "4237566951584909094": "0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d",
+        "8510007982293035752": "0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d",
+        "13418763536600599808": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    },
+}
+
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
+def raw_int(raw: Optional[Any]) -> int:
+    try:
+        return int(str(raw or "0"))
+    except (TypeError, ValueError, OverflowError):
+        return 0
+
+
 def decimal_number(raw: Optional[Any], decimals: int) -> float:
     try:
-        return int(str(raw or "0")) / (10 ** int(decimals or 18))
+        return raw_int(raw) / (10 ** int(decimals or 18))
     except (TypeError, ValueError, OverflowError):
         return 0.0
+
+
+def reward_total_raw(reward: dict[str, Any]) -> int:
+    return raw_int(reward.get("amount") if "amount" in reward else reward.get("accumulated")) + raw_int(reward.get("pending"))
+
+
+def reward_unclaimed_raw(reward: dict[str, Any]) -> int:
+    if "claimed" in reward or "pending" in reward or "amount" in reward:
+        return max(0, raw_int(reward.get("amount")) - raw_int(reward.get("claimed"))) + max(0, raw_int(reward.get("pending")))
+    return raw_int(reward.get("unclaimed"))
 
 
 def normalize_campaign_id(value: Any) -> str:
@@ -69,6 +95,11 @@ def resolve_reason_token(chain: str, reason_key: str, reward: dict[str, Any]) ->
     direct = normalize_evm_address(reward.get("mainParameter"))
     if direct:
         return direct
+    opportunity_id = str(reward.get("opportunityId") or "").strip()
+    if opportunity_id:
+        mapped = OPPORTUNITY_TOKEN_MAP.get(chain, {}).get(opportunity_id, "")
+        if mapped:
+            return mapped
     campaign_id = normalize_campaign_id(reward.get("mainParameter"))
     return CAMPAIGN_TOKEN_MAP.get(chain, {}).get(campaign_id, "")
 
@@ -88,8 +119,12 @@ def reward_bucket(decimals: int, token: Any) -> dict[str, Any]:
     }
 
 
-def parse_merkl_rewards(chain: str, payload: dict[str, Any]) -> dict[str, Any]:
+def parse_merkl_rewards(chain: str, payload: Any) -> dict[str, Any]:
+    if isinstance(payload, list):
+        return parse_merkl_v4_rewards(chain, payload)
+
     numeric_id = str(CHAIN_IDS[chain])
+    eligible_tokens = set(ELIGIBLE_MARKETS.get(chain, {}))
     chain_data = payload.get(numeric_id) or {}
     rewards: dict[str, Any] = {}
     unresolved_symbols: set[str] = set()
@@ -107,6 +142,8 @@ def parse_merkl_rewards(chain: str, payload: dict[str, Any]) -> dict[str, Any]:
                 continue
             if not token_addr:
                 unresolved_symbols.add(symbol)
+                continue
+            if eligible_tokens and token_addr.lower() not in eligible_tokens:
                 continue
             bucket = rewards.setdefault(symbol, reward_bucket(decimals, reward.get("token")))
             amount = decimal_number(reward.get("accumulated"), decimals)
@@ -144,6 +181,64 @@ def parse_merkl_rewards(chain: str, payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def parse_merkl_v4_rewards(chain: str, payload: list[Any]) -> dict[str, Any]:
+    numeric_id = str(CHAIN_IDS[chain])
+    eligible_tokens = set(ELIGIBLE_MARKETS.get(chain, {}))
+    rewards: dict[str, Any] = {}
+
+    for chain_entry in payload:
+        if not isinstance(chain_entry, dict):
+            continue
+        chain_meta = chain_entry.get("chain") or {}
+        if str(chain_meta.get("id") or "") != numeric_id:
+            continue
+
+        for reward_entry in chain_entry.get("rewards") or []:
+            if not isinstance(reward_entry, dict):
+                continue
+            token_meta = reward_entry.get("token") or {}
+            symbol = str(token_meta.get("symbol") or reward_entry.get("symbol") or "").strip()
+            if not symbol:
+                continue
+            decimals = int(token_meta.get("decimals") or reward_entry.get("decimals") or 18)
+            reward_token = token_meta.get("address") or reward_entry.get("token")
+
+            for breakdown in reward_entry.get("breakdowns") or []:
+                if not isinstance(breakdown, dict):
+                    continue
+                reason_key = str(breakdown.get("reason") or "")
+                token_addr = resolve_reason_token(chain, reason_key, breakdown)
+                if not token_addr:
+                    continue
+                token_addr = token_addr.lower()
+                if eligible_tokens and token_addr not in eligible_tokens:
+                    continue
+
+                bucket = rewards.setdefault(symbol, reward_bucket(decimals, reward_token))
+                amount = decimal_number(reward_total_raw(breakdown), decimals)
+                unclaimed = decimal_number(reward_unclaimed_raw(breakdown), decimals)
+                bucket["accumulated"] += amount
+                bucket["unclaimed"] += unclaimed
+                bucket["perToken"][token_addr] = bucket["perToken"].get(token_addr, 0.0) + amount
+                bucket["unclaimedPerToken"][token_addr] = bucket["unclaimedPerToken"].get(token_addr, 0.0) + unclaimed
+
+                account_match = re.match(r"^MultiLogPerAdditionalParam_accountNumber_([^_]+)_", reason_key)
+                if account_match:
+                    account_number = account_match.group(1)
+                    account_bucket = bucket["perAccountToken"].setdefault(account_number, {})
+                    account_bucket[token_addr] = account_bucket.get(token_addr, 0.0) + amount
+                    account_unclaimed_bucket = bucket["unclaimedPerAccountToken"].setdefault(account_number, {})
+                    account_unclaimed_bucket[token_addr] = account_unclaimed_bucket.get(token_addr, 0.0) + unclaimed
+                    bucket["assignedPerToken"][token_addr] = bucket["assignedPerToken"].get(token_addr, 0.0) + amount
+                    bucket["assignedUnclaimedPerToken"][token_addr] = bucket["assignedUnclaimedPerToken"].get(token_addr, 0.0) + unclaimed
+
+    return {
+        symbol: data
+        for symbol, data in rewards.items()
+        if (data.get("accumulated") or 0) > 0 or (data.get("unclaimed") or 0) > 0
+    }
+
+
 def ledger_addresses(chain: str) -> list[str]:
     eligible_tokens = set(ELIGIBLE_MARKETS.get(chain, {}))
     chain_dir = LEDGER_DIR / chain
@@ -165,9 +260,10 @@ def ledger_addresses(chain: str) -> list[str]:
     return addresses
 
 
-def fetch_merkl(chain: str, address: str, timeout: int, retries: int) -> dict[str, Any]:
+def fetch_merkl(chain: str, address: str, timeout: int, retries: int) -> Any:
     numeric_id = CHAIN_IDS[chain]
-    url = f"https://api.merkl.xyz/v3/rewards?chainIds={numeric_id}&user={address}"
+    encoded_address = urllib.parse.quote(address, safe="")
+    url = f"https://api.merkl.xyz/v4/users/{encoded_address}/protocols/dolomite/rewards?chainId={numeric_id}"
     request = urllib.request.Request(
         url,
         headers={
@@ -229,7 +325,7 @@ def build_cache(chain: str, limit: Optional[int], only_address: Optional[str], s
                         "chain": chain,
                         "address": address,
                         "generatedAt": generated_at,
-                        "source": "merkl-v3-rewards",
+                        "source": "merkl-v4-protocol-rewards",
                         "rewards": rewards,
                     },
                 )
