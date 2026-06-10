@@ -1489,7 +1489,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 }
 #pf-exercises-section .pf-exercise-summary{
   display:grid;
-  grid-template-columns:repeat(5,minmax(0,1fr));
+  grid-template-columns:repeat(6,minmax(0,1fr));
   gap:8px;
   padding:13px 22px 15px;
   border-bottom:1px solid rgba(117,184,123,.12);
@@ -1609,6 +1609,11 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   color:var(--gold-hi);
   border-color:rgba(201,162,39,.24);
   background:rgba(201,162,39,.075);
+}
+#pf-exercises-section .pf-route-tag.airdrop{
+  color:#c7d98b;
+  border-color:rgba(199,217,139,.26);
+  background:rgba(199,217,139,.08);
 }
 #pf-exercises-section .pf-ex-val{
   font-family:var(--mono);
@@ -2199,6 +2204,14 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     return "$" + n.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
   };
   const normAddr = a => (a || "").trim().toLowerCase();
+  const AIRDROP_CLAIM_CONTRACTS = new Set(["0xa3f079292cc35ba64996fe0bce3049928a838bc9"]);
+  const isAirdropLock = lock => {
+    if (!lock) return false;
+    return !!lock.isAirdropClaim
+      || lock.claimSource === "airdrop"
+      || AIRDROP_CLAIM_CONTRACTS.has(normAddr(lock.address))
+      || AIRDROP_CLAIM_CONTRACTS.has(normAddr(lock.protocolAddress));
+  };
   const isAddr = a => /^0x[0-9a-f]{40}$/.test(normAddr(a));
   const shortAddr = a => a ? a.slice(0,6) + "…" + a.slice(-4) : "";
   const fmtDate = ts => { try { return new Date(ts*1000).toLocaleDateString("en-US",{year:"numeric",month:"short",day:"numeric"}); } catch(e){ return "—"; } };
@@ -2485,15 +2498,16 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       if (normAddr(lock.address) !== a && normAddr(lock.beneficiaryAddress) !== a) return;
       seen.add(hash.toLowerCase());
       if (lock.isOdolo) return;
+      const isAirdrop = isAirdropLock(lock);
       if (tokenId) seenTokenIds.add(tokenId);
       rows.push({
         chain: "berachain",
         date: lock.date || "",
         timestamp: exerciseTimeMs(lock),
         hash,
-        action: "Deposit veDOLO",
-        actionSub: "DOLO locked directly, no purchase price",
-        route: "direct",
+        action: isAirdrop ? "Claim Airdrop" : "Deposit veDOLO",
+        actionSub: isAirdrop ? "Airdrop allocation locked as 2-year veDOLO" : "DOLO locked directly, no purchase price",
+        route: isAirdrop ? "airdrop" : "direct",
         vedolo: Number(lock.dolo) || 0,
         lockDays: Number(lock.lockDays) || 0,
         paid: 0,
@@ -2540,14 +2554,15 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       const lockOwner = normAddr(lock.address);
       const beneficiary = normAddr(lock.beneficiaryAddress);
       const isWalletMint = lockOwner === a || beneficiary === a;
-      const route = isWalletMint ? (lock.isOdolo ? "odolo" : "direct") : "transfer";
+      const isAirdrop = isAirdropLock(lock);
+      const route = isAirdrop ? "airdrop" : (isWalletMint ? (lock.isOdolo ? "odolo" : "direct") : "transfer");
       rows.push({
         chain: "berachain",
         date: lock.date || "",
         timestamp: exerciseTimeMs(lock),
         hash: route === "transfer" ? "" : (lock.txHash || ""),
-        action: route === "transfer" ? "Transfer veDOLO" : (route === "odolo" ? "Exercise oDOLO" : "Direct veDOLO"),
-        actionSub: route === "transfer" ? `Current holder of position #${tokenId}` : `Current position #${tokenId}`,
+        action: route === "transfer" ? "Transfer veDOLO" : (route === "airdrop" ? "Claim Airdrop" : (route === "odolo" ? "Exercise oDOLO" : "Direct veDOLO")),
+        actionSub: route === "transfer" ? `Current holder of position #${tokenId}` : (route === "airdrop" ? "Airdrop allocation locked as 2-year veDOLO" : `Current position #${tokenId}`),
         route,
         transferDirection: route === "transfer" ? "in" : "",
         from: route === "transfer" ? lockOwner : "",
@@ -2577,7 +2592,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     vedoloCurrent: null,
     depFilter: { chains: new Set(), q: "" },
     borFilter: { chains: new Set(), q: "", hideDust: true },
-    exFilter: { routes: new Set(["odolo", "direct", "transfer"]) },
+    exFilter: { routes: new Set(["odolo", "airdrop", "direct", "transfer"]) },
     depSort: { key: "usd", desc: true },
     borSort: { key: "debt", desc: true },
     exSort: { key: "date", desc: true },
@@ -2635,8 +2650,10 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
   const TELEGRAM_ICON = `<svg viewBox="0 0 24 24" fill="none"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8l-1.68 7.92c-.12.56-.44.7-.9.43l-2.5-1.84-1.2 1.16c-.14.14-.25.25-.5.25l.18-2.52 4.56-4.12c.2-.18-.04-.28-.3-.1L8.9 13.54l-2.42-.76c-.52-.16-.54-.52.12-.78l9.48-3.66c.44-.16.82.1.56.78z"/></svg>`;
   const ROUTE_ICON = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="3"/><circle cx="17" cy="17" r="3"/><path d="M10 7h3a4 4 0 0 1 4 4v3"/><path d="M14 17h-3a4 4 0 0 1-4-4v-3"/></svg>`;
   const TRANSFER_ICON = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10"/><path d="M13 3l4 4-4 4"/><path d="M17 17H7"/><path d="M11 13l-4 4 4 4"/></svg>`;
+  const AIRDROP_ICON = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M12 7H7.5A2.5 2.5 0 1 1 12 4.5V7z"/><path d="M12 7h4.5A2.5 2.5 0 1 0 12 4.5V7z"/></svg>`;
   const EXERCISE_ROUTES = [
     { key: "odolo", label: "Exercise", icon: "odolo-logo-official.svg", cls: "cyan", title: "oDOLO Exercise", body: "Wallet exercised oDOLO and received a new veDOLO position." },
+    { key: "airdrop", label: "Airdrop", svg: AIRDROP_ICON, cls: "airdrop", title: "DOLO Airdrop Claim", body: "Wallet claimed a DOLO allocation where part was minted as 2-year locked veDOLO." },
     { key: "direct", label: "Direct", icon: "", cls: "up", title: "Direct veDOLO", body: "Wallet created a new veDOLO position by locking DOLO directly. This is a mint/deposit, not a wallet-to-wallet transfer." },
     { key: "transfer", label: "Transfer", svg: TRANSFER_ICON, cls: "gold", title: "veDOLO Transfer", body: "Existing veDOLO position moved between wallets. USDC price is not shown because this is not an exercise or purchase." },
   ];
@@ -2971,6 +2988,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       return;
     }
     const claimRows = rows.filter(r => r.isStableClaim);
+    const airdropRows = rows.filter(r => r.route === "airdrop");
     const lockRows = rows.filter(r => r.route === "direct");
     const transferRows = rows.filter(r => r.route === "transfer");
     const currentVe = Number(state.vedoloCurrent && state.vedoloCurrent.total_dolo) || 0;
@@ -2979,8 +2997,9 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     const claimVe = claimRows.reduce((s, r) => s + r.vedolo, 0);
     const claimPaid = claimRows.reduce((s, r) => s + r.paid, 0);
     const avgClaimPrice = claimVe ? claimPaid / claimVe : 0;
+    const airdropVe = airdropRows.reduce((s, r) => s + r.vedolo, 0);
     const lockVe = lockRows.reduce((s, r) => s + r.vedolo, 0);
-    const votePower = claimVe + lockVe;
+    const votePower = claimVe + airdropVe + lockVe;
     const transferIn = transferRows.filter(r => r.transferDirection === "in").length;
     const transferOut = transferRows.filter(r => r.transferDirection === "out").length;
     const transferFallbacks = transferRows.filter(r => r.fallbackCurrent).length;
@@ -2998,6 +3017,12 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         false
       ),
       exerciseSummaryItem(
+        "Airdrops",
+        `${fmtCompact(airdropVe)} <span class="unit">veDOLO</span>`,
+        airdropRows.length ? `${airdropRows.length} airdrop claim${airdropRows.length === 1 ? "" : "s"}` : "No airdrop claims",
+        false
+      ),
+      exerciseSummaryItem(
         "Direct",
         `${fmtCompact(lockVe)} <span class="unit">veDOLO</span>`,
         lockRows.length ? `${lockRows.length} direct DOLO lock${lockRows.length === 1 ? "" : "s"}` : "No direct DOLO locks",
@@ -3006,7 +3031,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       exerciseSummaryItem(
         "Vote power",
         `${fmtCompact(currentVote || votePower)} <span class="unit">veDOLO</span>`,
-        currentNfts ? `${fmtCompact(currentVe)} current veDOLO · ${currentNfts} position${currentNfts === 1 ? "" : "s"}` : `${fmtCompact(claimVe)} exercised · ${fmtCompact(lockVe)} direct`,
+        currentNfts ? `${fmtCompact(currentVe)} current veDOLO · ${currentNfts} position${currentNfts === 1 ? "" : "s"}` : `${fmtCompact(claimVe)} exercised · ${fmtCompact(airdropVe)} airdrop · ${fmtCompact(lockVe)} direct`,
         false
       ),
       exerciseSummaryItem(
