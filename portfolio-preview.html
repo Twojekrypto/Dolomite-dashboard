@@ -1490,8 +1490,8 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 #pf-exercises-section .pf-exercise-summary{
   display:grid;
   grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:8px;
-  padding:13px 22px 15px;
+  gap:10px;
+  padding:16px 24px 18px;
   border-bottom:1px solid rgba(117,184,123,.12);
   background:linear-gradient(180deg,rgba(117,184,123,.035),rgba(9,9,11,.10));
 }
@@ -1501,14 +1501,19 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   border-radius:8px;
   background:rgba(255,255,255,.018);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
-  padding:10px 10px;
+  min-height:78px;
+  padding:13px 14px;
 }
 #pf-exercises-section .pf-exercise-summary-item.primary{
   border-color:rgba(117,184,123,.22);
   background:rgba(117,184,123,.055);
 }
+#pf-exercises-section .pf-exercise-summary-item.accent{
+  border-color:rgba(117,184,123,.20);
+  background:rgba(117,184,123,.035);
+}
 #pf-exercises-section .pf-exercise-summary-label{
-  font-size:9px;
+  font-size:9.5px;
   font-weight:800;
   letter-spacing:.08em;
   line-height:1.15;
@@ -1516,9 +1521,9 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   color:var(--fg-3);
 }
 #pf-exercises-section .pf-exercise-summary-value{
-  margin-top:5px;
+  margin-top:7px;
   font-family:var(--mono);
-  font-size:13px;
+  font-size:14.5px;
   font-weight:800;
   line-height:1.15;
   color:var(--fg-1);
@@ -1528,22 +1533,24 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 }
 #pf-exercises-section .pf-exercise-summary-value .unit{
   margin-left:5px;
-  font-size:9px;
+  font-size:9.5px;
   font-weight:700;
   letter-spacing:.08em;
   color:var(--fg-3);
 }
-#pf-exercises-section .pf-exercise-summary-item.primary .pf-exercise-summary-value{color:var(--pf-ex-green)}
+#pf-exercises-section .pf-exercise-summary-item.primary .pf-exercise-summary-value,
+#pf-exercises-section .pf-exercise-summary-item.accent .pf-exercise-summary-value{color:var(--pf-ex-green)}
 #pf-exercises-section .pf-exercise-summary-sub{
-  margin-top:4px;
+  margin-top:6px;
   font-family:var(--mono);
-  font-size:9.5px;
+  font-size:10px;
   line-height:1.25;
   color:var(--fg-3);
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
 }
+#pf-exercises-section .pf-exercise-summary-sub .accent-money{color:var(--pf-ex-green);font-weight:800}
 #pf-exercises-section .pf-table thead th{
   background:rgba(9,9,11,.38);
   border-bottom-color:var(--line-2);
@@ -2972,11 +2979,12 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     $(ids.info).textContent = `${start + 1}–${Math.min(start + PAGE_SIZE, filtered.length)} of ${filtered.length.toLocaleString("en-US")}`;
     renderPager($(ids.pager), state.borPage + 1, totalPages, p => { state.borPage = p; renderAll(); });
   }
-  function exerciseSummaryItem(label, value, sub, primary){
-    return `<div class="pf-exercise-summary-item${primary ? " primary" : ""}">
+  function exerciseSummaryItem(label, value, sub, primary, accent, subHtml){
+    const subContent = subHtml ? sub : esc(sub);
+    return `<div class="pf-exercise-summary-item${primary ? " primary" : ""}${accent ? " accent" : ""}">
       <div class="pf-exercise-summary-label">${esc(label)}</div>
       <div class="pf-exercise-summary-value">${value}</div>
-      <div class="pf-exercise-summary-sub">${esc(sub)}</div>
+      <div class="pf-exercise-summary-sub">${subContent}</div>
     </div>`;
   }
   function renderExerciseSummary(rows){
@@ -3001,24 +3009,29 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         "Total locked",
         `${fmtCompact(lockedVe)} <span class="unit">veDOLO</span>`,
         currentNfts ? `${currentNfts} current position${currentNfts === 1 ? "" : "s"}` : "From loaded position activity",
-        true
+        true,
+        false
       ),
       exerciseSummaryItem(
         "oDOLO Exercises",
         `${fmtCompact(claimVe)} <span class="unit">veDOLO</span>`,
-        claimRows.length ? `${claimRows.length} exercises · ${fmtUSD(claimPaid)} USDC paid` : "No oDOLO option exercises",
-        false
+        claimRows.length ? `${claimRows.length} exercises · <span class="accent-money">${fmtUSD(claimPaid)} USDC paid</span>` : "No oDOLO option exercises",
+        false,
+        true,
+        claimRows.length
       ),
       exerciseSummaryItem(
         "Avg price",
         fmtExercisePrice(avgClaimPrice),
         claimRows.length ? "USDC per veDOLO" : "Only shown for oDOLO Exercises",
+        false,
         false
       ),
       exerciseSummaryItem(
         "Vote power",
         `${fmtCompact(currentVote)} <span class="unit">veDOLO</span>`,
         currentNfts ? "Current voting weight" : "Current snapshot unavailable",
+        false,
         false
       ),
     ].join("");
