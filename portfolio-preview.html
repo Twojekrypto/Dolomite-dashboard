@@ -1189,6 +1189,87 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 /* filter bar: Assets-style search (left) + chain dropdown next to it */
 .pf-filters .pf-dd .dd-panel{min-width:200px}
 .pf-filters .pf-search-tbl{width:280px}
+#pf-borrows-section .pf-borrow-actions{
+  margin-left:auto;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+#pf-borrows-section .pf-borrow-pill{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  height:32px;
+  padding:0 12px;
+  border-radius:999px;
+  border:1px solid var(--line-2);
+  background:var(--bg-3);
+  color:var(--fg-2);
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.08px;
+  text-decoration:none;
+  white-space:nowrap;
+  cursor:pointer;
+  transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease),box-shadow .15s var(--ease);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
+}
+#pf-borrows-section .pf-borrow-pill:hover{
+  color:var(--fg-1);
+  border-color:var(--line-3);
+  background:var(--bg-4);
+}
+#pf-borrows-section .pf-borrow-pill.active{
+  color:var(--fg-1);
+  border-color:var(--gold-line);
+  background:linear-gradient(180deg,rgba(201,162,39,.20),rgba(201,162,39,.08));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 0 0 1px rgba(201,162,39,.05);
+}
+#pf-borrows-section .pf-borrow-pill svg{
+  width:13px;
+  height:13px;
+  flex-shrink:0;
+}
+#pf-borrows-section .pf-borrow-switch{
+  width:24px;
+  height:14px;
+  border-radius:999px;
+  background:var(--bg-4);
+  border:1px solid var(--line-3);
+  position:relative;
+  flex:0 0 auto;
+  transition:background .15s var(--ease),border-color .15s var(--ease);
+}
+#pf-borrows-section .pf-borrow-switch::after{
+  content:"";
+  position:absolute;
+  top:2px;
+  left:2px;
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:var(--fg-3);
+  transition:transform .15s var(--ease),background .15s var(--ease),box-shadow .15s var(--ease);
+}
+#pf-borrows-section .pf-borrow-pill.active .pf-borrow-switch{
+  background:rgba(201,162,39,.16);
+  border-color:var(--gold-line);
+}
+#pf-borrows-section .pf-borrow-pill.active .pf-borrow-switch::after{
+  transform:translateX(10px);
+  background:var(--gold);
+  box-shadow:0 0 8px rgba(201,162,39,.35);
+}
+#pf-borrows-section .pf-alert-pill{
+  color:#9ab7c2;
+}
+#pf-borrows-section .pf-alert-pill:hover{
+  color:var(--gold);
+  border-color:var(--gold-line);
+  background:var(--gold-wash);
+}
 .pf-table tbody td{padding:10px 18px;border-bottom:1px solid var(--line-1);font-size:13px;vertical-align:middle;transition:background .25s ease,box-shadow .25s ease}
 .pf-table tbody tr{transition:background .25s ease}
 .pf-table tbody tr.pf-row:nth-child(even) td{background:rgba(255,255,255,.012)}
@@ -1208,9 +1289,23 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .pf-token-name{font-weight:700;font-size:14px;letter-spacing:.2px;color:var(--fg-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pf-token-sub{font-size:10px;color:var(--fg-3);font-family:var(--mono)}
 .pf-amt-sym{font-size:11px;color:var(--fg-3);font-weight:400;margin-left:3px}
-.pf-account-cell{display:flex;flex-direction:column;gap:3px;min-width:0}
-.pf-account-main{font-size:11.5px;font-weight:700;color:var(--fg-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pf-account-sub{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:10.5px;color:rgba(226,232,240,.62);font-family:var(--mono);white-space:nowrap}
+#pf-borrows-section .holder-wallet{display:flex;flex-direction:column;gap:4px;min-width:0}
+#pf-borrows-section .holder-wallet-top{display:flex;align-items:center;gap:6px;min-width:0}
+#pf-borrows-section .holder-wallet-bottom{display:flex;align-items:center;gap:6px;min-width:0}
+#pf-borrows-section .addr-name{font-size:13px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px;line-height:1.2}
+#pf-borrows-section .addr-name.addr-generic{color:var(--fg-1);font-weight:600}
+#pf-borrows-section .addr-mono{font-family:var(--mono);font-size:12px;color:var(--fg-3);font-weight:500;letter-spacing:.1px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;max-width:112px}
+#pf-borrows-section .pf-table tbody tr:hover .addr-mono{color:var(--fg-2)}
+#pf-borrows-section .addr-copy,
+#pf-borrows-section .addr-debank{width:22px;height:22px;border-radius:5px;display:grid;place-items:center;color:var(--fg-4);background:var(--bg-3);border:1px solid var(--line-2);flex-shrink:0;transition:all .15s var(--ease);cursor:pointer}
+#pf-borrows-section .addr-copy:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+#pf-borrows-section .addr-copy.copied{color:var(--up);border-color:rgba(138,163,123,.4)}
+#pf-borrows-section .addr-copy svg{width:11px;height:11px;pointer-events:none}
+#pf-borrows-section .addr-debank{padding:0;overflow:hidden}
+#pf-borrows-section .addr-debank img{width:14px;height:14px;border-radius:3px;opacity:.7;transition:opacity .15s var(--ease)}
+#pf-borrows-section .addr-debank:hover{border-color:#fe815f;background:rgba(254,129,95,.08)}
+#pf-borrows-section .addr-debank:hover img{opacity:1}
+#pf-borrows-section .debank-fallback{font-family:var(--mono);font-size:11px;font-weight:700;color:#fe815f}
 .pf-mini-chip{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 7px;border-radius:6px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);color:var(--fg-3);font-size:9px;text-transform:uppercase;letter-spacing:.7px;font-weight:700}
 .pf-hf-badge{display:inline-flex;align-items:center;justify-content:center;min-width:58px;height:28px;padding:0 10px;border-radius:7px;font-family:var(--mono);font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;border:1px solid rgba(255,255,255,.075);background:rgba(255,255,255,.025);color:var(--fg-1)}
 .pf-hf-badge.danger{color:var(--down);background:rgba(255,91,91,.075);border-color:rgba(255,91,91,.22)}
@@ -1227,12 +1322,12 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   table-layout:fixed;
 }
 .pf-borrow-positions colgroup col:nth-child(1){width:7.8%}
-.pf-borrow-positions colgroup col:nth-child(2){width:16.2%}
-.pf-borrow-positions colgroup col:nth-child(3){width:11.7%}
-.pf-borrow-positions colgroup col:nth-child(4){width:9.1%}
-.pf-borrow-positions colgroup col:nth-child(5){width:21.6%}
-.pf-borrow-positions colgroup col:nth-child(6){width:18.3%}
-.pf-borrow-positions colgroup col:nth-child(7){width:15.3%}
+.pf-borrow-positions colgroup col:nth-child(2){width:19.5%}
+.pf-borrow-positions colgroup col:nth-child(3){width:11.5%}
+.pf-borrow-positions colgroup col:nth-child(4){width:8.8%}
+.pf-borrow-positions colgroup col:nth-child(5){width:18.6%}
+.pf-borrow-positions colgroup col:nth-child(6){width:18%}
+.pf-borrow-positions colgroup col:nth-child(7){width:15.8%}
 #pf-borrows-section .pf-table thead th{
   padding:10px 12px;
   font-size:9.5px;
@@ -1282,6 +1377,12 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .pf-borrow-positions .pf-money-main{
   font-size:12.5px;
   line-height:1.1;
+}
+.pf-borrow-positions .pf-collateral-main{
+  color:#34d399;
+}
+.pf-borrow-positions .pf-debt-main{
+  color:#f87171;
 }
 .pf-borrow-positions .pf-token-pills{
   align-items:flex-start;
@@ -1430,8 +1531,14 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 #pf-exercises-section .pf-table thead th[data-sort]:hover,
 #pf-exercises-section .pf-table thead th.sort-active,
 #pf-exercises-section .pf-table thead th.sort-active .pf-sort{color:var(--pf-ex-green)}
-#pf-exercises-section .pf-table tbody tr.pf-row:hover td{background:rgba(117,184,123,.045)}
-#pf-exercises-section .pf-table tbody tr.pf-row:hover td:first-child{box-shadow:inset 3px 0 0 var(--pf-ex-green)}
+#pf-exercises-section .pf-table tbody tr.pf-row td{
+  height:71px;
+  padding:12px;
+  border-bottom-color:var(--line-1);
+  position:relative;
+}
+#pf-exercises-section .pf-table tbody tr.pf-row:hover td{background:rgba(255,255,255,.026)}
+#pf-exercises-section .pf-table tbody tr.pf-row:hover td:first-child{box-shadow:inset 2px 0 0 var(--pf-ex-green)}
 #pf-exercises-section .tbl-foot{
   background:rgba(9,9,11,.16);
   border-top-color:rgba(117,184,123,.10);
@@ -1440,7 +1547,66 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   border-color:rgba(117,184,123,.18);
   background:linear-gradient(135deg,rgba(117,184,123,.12),rgba(255,255,255,.035));
 }
-.pf-ex-ve{color:var(--pf-ex-green);font-weight:700}
+#pf-exercises-section .pf-filters{
+  border-bottom-color:rgba(117,184,123,.12);
+  background:linear-gradient(180deg,rgba(117,184,123,.025),rgba(9,9,11,.08));
+}
+#pf-exercises-section .pf-exercise-route-filter .dd-btn{min-width:188px}
+#pf-exercises-section .pf-exercise-route-filter .dd-panel{min-width:210px}
+#pf-exercises-section .flow-route-head{text-align:center}
+#pf-exercises-section .pf-route-cell{text-align:center}
+#pf-exercises-section .pf-route-tag{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:82px;
+  height:24px;
+  padding:0 9px;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:7px;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.04em;
+  white-space:nowrap;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+}
+#pf-exercises-section .pf-route-tag.odolo{
+  color:#8fd4db;
+  border-color:rgba(143,212,219,.24);
+  background:rgba(143,212,219,.075);
+}
+#pf-exercises-section .pf-route-tag.direct{
+  color:var(--pf-ex-green);
+  border-color:rgba(117,184,123,.24);
+  background:rgba(117,184,123,.075);
+}
+#pf-exercises-section .pf-ex-val{
+  font-family:var(--mono);
+  font-size:13px;
+  font-weight:600;
+  color:var(--fg-1);
+}
+#pf-exercises-section .pf-ex-ve{color:var(--pf-ex-green)}
+#pf-exercises-section .pf-ex-usdc{color:var(--gold-hi)}
+#pf-exercises-section .pf-ex-price{color:#9ab7c2}
+#pf-exercises-section .pf-ex-muted{font-family:var(--mono);font-size:13px;color:var(--fg-4)}
+#pf-exercises-section .pf-ex-lock{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:42px;
+  padding:4px 7px;
+  border-radius:999px;
+  border:1px solid var(--line-2);
+  background:rgba(255,255,255,.025);
+  font-family:var(--mono);
+  font-size:11px;
+  font-weight:700;
+  color:var(--fg-2);
+}
+#pf-exercises-section .pf-ex-lock.short{color:var(--down);border-color:rgba(180,121,107,.28);background:rgba(180,121,107,.08)}
+#pf-exercises-section .pf-ex-lock.medium{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+#pf-exercises-section .pf-ex-lock.long{color:var(--up);border-color:rgba(138,163,123,.32);background:rgba(138,163,123,.08)}
 .pf-latest-date{
   display:flex;flex-direction:column;gap:3px;align-items:flex-start;
   font-family:var(--mono);font-size:12px;color:var(--fg-2);white-space:nowrap;
@@ -1474,6 +1640,7 @@ body:not(.pf-active) #pf-results{display:none}
   #pf-exercises-section .pf-exercise-summary{grid-template-columns:repeat(2,minmax(0,1fr));padding:12px 14px}
   .pf-token-name{max-width:128px}
   .pf-filters .pf-search-tbl{width:100%}
+  #pf-borrows-section .pf-borrow-actions{width:100%;margin-left:0}
   .pf-tokensearch{margin-left:0}
 }
 @media (max-width:430px){
@@ -1637,7 +1804,7 @@ body:not(.pf-active) #pf-results{display:none}
       <div style="overflow-x:auto">
         <table class="pf-table pf-borrow-positions">
           <colgroup><col><col><col><col><col><col><col></colgroup>
-          <thead><tr><th data-sort="chain" data-table="bor">Chain<span class="pf-sort"></span></th><th data-sort="account" data-table="bor">Position<span class="pf-sort"></span></th><th data-sort="hf" data-table="bor">Health Factor<span class="pf-sort"></span></th><th data-sort="emode" data-table="bor" style="text-align:center">E-Mode<span class="pf-sort"></span></th><th class="pf-col-spacer" aria-hidden="true"></th><th data-sort="collateral" data-table="bor">Collateral<span class="pf-sort"></span></th><th class="sort-active" data-sort="debt" data-table="bor">Debt<span class="pf-sort">▼</span></th></tr></thead>
+          <thead><tr><th data-sort="chain" data-table="bor">Chain<span class="pf-sort"></span></th><th data-sort="address" data-table="bor">Address<span class="pf-sort"></span></th><th data-sort="hf" data-table="bor">Health Factor<span class="pf-sort"></span></th><th data-sort="emode" data-table="bor" style="text-align:center">E-Mode<span class="pf-sort"></span></th><th class="pf-col-spacer" aria-hidden="true"></th><th data-sort="collateral" data-table="bor">Collateral<span class="pf-sort"></span></th><th class="sort-active" data-sort="debt" data-table="bor">Debt<span class="pf-sort">▼</span></th></tr></thead>
           <tbody id="pf-borrows-body"></tbody>
         </table>
       </div>
@@ -1657,10 +1824,11 @@ body:not(.pf-active) #pf-results{display:none}
         <div class="card-meta pf-section-meta"><span class="pulse"></span><span class="pf-meta-label">veDOLO minted</span><span class="pf-meta-value" id="pf-exercises-total">—</span></div>
       </div>
       <div class="pf-exercise-summary" id="pf-exercises-summary" style="display:none"></div>
+      <div class="pf-filters" id="pf-exercises-filters" style="display:none"></div>
       <div style="overflow-x:auto">
         <table class="pf-table pf-exercise-table">
-          <colgroup><col style="width:17%"><col style="width:27%"><col style="width:17%"><col style="width:13%"><col style="width:16%"><col style="width:10%"></colgroup>
-          <thead><tr><th class="sort-active" data-sort="date" data-table="ex">Date<span class="pf-sort">▼</span></th><th data-sort="action" data-table="ex">Action<span class="pf-sort"></span></th><th class="num" data-sort="vedolo" data-table="ex">veDOLO<span class="pf-sort"></span></th><th class="num" data-sort="lock" data-table="ex">Lock<span class="pf-sort"></span></th><th class="num" data-sort="paid" data-table="ex">USDC Paid<span class="pf-sort"></span></th><th class="num" data-sort="price" data-table="ex">Price<span class="pf-sort"></span></th></tr></thead>
+          <colgroup><col style="width:18%"><col style="width:16%"><col style="width:20%"><col style="width:12%"><col style="width:20%"><col style="width:14%"></colgroup>
+          <thead><tr><th class="sort-active" data-sort="date" data-table="ex">Date<span class="pf-sort">▼</span></th><th class="flow-route-head" data-sort="route" data-table="ex">Route<span class="pf-sort"></span></th><th class="num" data-sort="vedolo" data-table="ex">veDOLO<span class="pf-sort"></span></th><th class="num" data-sort="lock" data-table="ex">Lock<span class="pf-sort"></span></th><th class="num" data-sort="paid" data-table="ex">USDC Paid<span class="pf-sort"></span></th><th class="num" data-sort="price" data-table="ex">Price<span class="pf-sort"></span></th></tr></thead>
           <tbody id="pf-exercises-body"></tbody>
         </table>
       </div>
@@ -2010,6 +2178,12 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     if (d >= 365) return (d / 365).toFixed(d >= 700 ? 1 : 2) + "y";
     return Math.round(d).toLocaleString("en-US") + "d";
   };
+  const exerciseLockBucket = d => {
+    d = Number(d) || 0;
+    if (d >= 365) return "long";
+    if (d >= 90) return "medium";
+    return "short";
+  };
   const txExplorer = (chain, hash) => {
     const hosts = {
       berachain: "https://berascan.com/tx/",
@@ -2023,6 +2197,8 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     return hash ? (hosts[chain] || "https://etherscan.io/tx/") + hash : "";
   };
   const TX_EXTERNAL_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
+  const COPY_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`;
+  const CHECK_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
   const exerciseDateMeta = chain => (CHAIN_BY_KEY[chain] || { name: "Onchain" }).name;
 
   // ---------- data ----------
@@ -2128,6 +2304,18 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       return `<span class="pf-token-pill" title="${esc(sym)} ${esc(value)}"><img src="${icon}" alt="" onerror="this.remove();this.parentElement.textContent='${mono} ${esc(value)}'"><span>${esc(sym)}</span><span>${esc(value)}</span></span>`;
     }).join("")}${list.length > 3 ? `<span class="pf-token-pill">+${list.length - 3}</span>` : ""}</div>`;
   }
+  function portfolioAddressCell(addr){
+    const displayAddr = normAddr(addr);
+    if (!displayAddr) return `<span class="pf-empty-dash">—</span>`;
+    return `<div class="holder-wallet">
+      <div class="holder-wallet-top"><span class="addr-name addr-generic">Wallet</span></div>
+      <div class="holder-wallet-bottom">
+        <span class="addr-mono addr-tooltip-wrap" data-full-addr="${esc(displayAddr)}">${esc(shortAddr(displayAddr))}</span>
+        <button class="addr-copy" type="button" data-copy="${esc(displayAddr)}" aria-label="Copy address">${COPY_ICON}</button>
+        <a class="addr-debank" href="https://debank.com/profile/${esc(displayAddr)}" target="_blank" rel="noopener" aria-label="View on DeBank" onclick="event.stopPropagation()"><img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'"></a>
+      </div>
+    </div>`;
+  }
   function hfClass(hf){
     if (hf == null || !Number.isFinite(Number(hf))) return "unknown";
     hf = Number(hf) || 0;
@@ -2158,6 +2346,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         const chain = (p.chain || "").toLowerCase();
         return {
           chain,
+          address: normAddr(p.address) || a,
           account: String(p.accountNumber || ""),
           accountId: p.accountId || "",
           hf: Number(p.healthFactor) || 0,
@@ -2171,9 +2360,11 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         };
       });
   }
-  function buildFallbackBorrowRows(chainResults){
+  function buildFallbackBorrowRows(chainResults, addr){
+    const a = normAddr(addr);
     return (chainResults || []).flatMap(r => (r.borrows || []).map(row => ({
       chain: row.chain,
+      address: a,
       account: "",
       accountId: "",
       hf: null,
@@ -2200,6 +2391,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         hash,
         action: "Claim veDOLO",
         actionSub: `Paid ${paidToken || "stablecoin"}`,
+        route: "odolo",
         vedolo: Number(tx.vedolo) || 0,
         lockDays: Number(tx.lock_days) || 0,
         paid: usdc,
@@ -2221,6 +2413,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         hash,
         action: "Lock veDOLO",
         actionSub: "DOLO locked, no purchase price",
+        route: "direct",
         vedolo: Number(lock.dolo) || 0,
         lockDays: Number(lock.lockDays) || 0,
         paid: 0,
@@ -2234,12 +2427,14 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
 
   // ---------- state + render ----------
   const PAGE_SIZE = 10;
+  const BORROW_DUST_USD = 1;
   const state = {
     deposits: [],
     borrows: [],
     exercises: [],
     depFilter: { chains: new Set(), q: "" },
-    borFilter: { chains: new Set(), q: "" },
+    borFilter: { chains: new Set(), q: "", hideDust: false },
+    exFilter: { routes: new Set(["odolo", "direct"]) },
     depSort: { key: "usd", desc: true },
     borSort: { key: "debt", desc: true },
     exSort: { key: "date", desc: true },
@@ -2282,7 +2477,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     const exPrices = exClaimTxs.map(t=>Number(t.price)).filter(p=>p>0);
     const exAvg = exPrices.length ? exPrices.reduce((s,p)=>s+p,0)/exPrices.length : null;
     items.push(sumItem("odolo-logo-official.svg", "oDOLO exercised", `${fmtCompact(exVe)}`,
-      exCount ? `${exCount} option claim${exCount!==1?"s":""}${exCostUsd?` · ${fmtUSD(exCostUsd)} option cost`:""}<br><span class="dim">${exAvg?`avg $${exAvg.toFixed(4)} · `:""}oDOLO converted into veDOLO</span>` : `<span class="dim">no oDOLO option claims yet</span>`));
+      exCount ? `${exCount} option exercise${exCount!==1?"s":""}${exCostUsd?` · ${fmtUSD(exCostUsd)} option cost`:""}<br><span class="dim">${exAvg?`avg $${exAvg.toFixed(4)} · `:""}oDOLO converted into veDOLO</span>` : `<span class="dim">no oDOLO option exercises yet</span>`));
     // 4) paired oDOLO + DOLO, not exercised (active vesting)
     items.push(sumItem("odolo-logo-official.svg", "oDOLO paired · pending", `${fmtCompact(vOTok)}`,
       d.vesting ? `${fmtCompact(vPair)} DOLO paired · returned on claim · ${d.vesting.count} position${d.vesting.count!==1?"s":""}${d.vesting.soonest?`<br><span class="dim">unlock ${fmtDate(d.vesting.soonest)}</span>`:""}` : `<span class="dim">no active vesting</span>`, true));
@@ -2294,6 +2489,30 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
 
   const DD_CHECK = `<span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span>`;
   const GLOBE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
+  const BELL_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 10-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>`;
+  const ROUTE_ICON = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="3"/><circle cx="17" cy="17" r="3"/><path d="M10 7h3a4 4 0 0 1 4 4v3"/><path d="M14 17h-3a4 4 0 0 1-4-4v-3"/></svg>`;
+  const EXERCISE_ROUTES = [
+    { key: "odolo", label: "Via oDOLO", icon: "odolo-logo-official.svg", cls: "odolo" },
+    { key: "direct", label: "Direct", icon: "", cls: "direct" },
+  ];
+  const EXERCISE_ROUTE_BY_KEY = Object.fromEntries(EXERCISE_ROUTES.map(r => [r.key, r]));
+  function defaultExerciseRoutes(){ return new Set(EXERCISE_ROUTES.map(r => r.key)); }
+  function exerciseRouteLabel(filterState){
+    const selected = EXERCISE_ROUTES.filter(r => filterState.routes.has(r.key));
+    if (selected.length === EXERCISE_ROUTES.length) return "All Routes";
+    if (!selected.length) return "No routes";
+    if (selected.length === 1) return selected[0].label;
+    return `${selected.length} routes`;
+  }
+  function exerciseRouteIcon(route){
+    const meta = EXERCISE_ROUTE_BY_KEY[route] || EXERCISE_ROUTES[0];
+    if (meta.icon) return `<img src="${meta.icon}" onerror="this.style.display='none'">`;
+    return `<div class="dd-ico">${ROUTE_ICON}</div>`;
+  }
+  function exerciseRouteTag(route){
+    const meta = EXERCISE_ROUTE_BY_KEY[route] || EXERCISE_ROUTES[0];
+    return `<span class="pf-route-tag ${esc(meta.cls)}">${esc(meta.label)}</span>`;
+  }
   function chainLabel(f, present){
     if (f.chains.size === 0 || f.chains.size === present.length) return "All Chains";
     if (f.chains.size === 1){ const ck = [...f.chains][0]; return (CHAIN_BY_KEY[ck] || { name: ck }).name; }
@@ -2315,8 +2534,9 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
   // Chain dropdown (Assets-style) + asset search
   function buildFilters(containerId, rows, filterState, onChange){
     const el = $(containerId);
+    const isBorrowFilter = containerId === "#pf-borrows-filters";
     const present = [...new Set(rows.map(r => r.chain))];
-    if (rows.length <= 1){ el.style.display = "none"; el.innerHTML = ""; return; }
+    if (!rows.length || (rows.length <= 1 && !isBorrowFilter)){ el.style.display = "none"; el.innerHTML = ""; return; }
     el.style.display = "flex";
     let dd = "";
     if (present.length > 1){
@@ -2329,11 +2549,17 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     }
     const searchHtml = `<label class="search pf-search-tbl${filterState.q?" has-value":""}">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" placeholder="Search asset…" spellcheck="false" autocomplete="off" data-token-search value="${filterState.q||""}">
+      <input type="text" placeholder="${isBorrowFilter ? "Search position…" : "Search asset…"}" spellcheck="false" autocomplete="off" data-token-search value="${filterState.q||""}">
       <button class="search-clear" type="button" aria-label="Clear search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
       ${containerId === "#pf-deposits-filters" ? '<span class="kbd">/</span>' : ''}
     </label>`;
-    el.innerHTML = searchHtml + dd;
+    const borrowActions = isBorrowFilter ? `<div class="pf-borrow-actions">
+      <button class="pf-borrow-pill pf-dust-pill${filterState.hideDust ? " active" : ""}" type="button" role="switch" aria-checked="${filterState.hideDust ? "true" : "false"}" data-borrow-hide-dust>
+        <span class="pf-borrow-switch" aria-hidden="true"></span><span>Hide Dust</span>
+      </button>
+      <a class="pf-borrow-pill pf-alert-pill" href="https://t.me/Dolomite_SuperGus_bot" target="_blank" rel="noopener" data-borrow-set-alert>${BELL_ICON}<span>Set Alert</span></a>
+    </div>` : "";
+    el.innerHTML = searchHtml + dd + borrowActions;
     const btn = el.querySelector("[data-dd-btn]"), panel = el.querySelector(".dd-panel");
     if (btn && panel){
       btn.addEventListener("click", e => { e.stopPropagation(); const open = panel.classList.contains("show"); closeAllDd(); if (!open){ panel.classList.add("show"); btn.classList.add("open"); } });
@@ -2354,16 +2580,80 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       ts.addEventListener("keydown", e => { if (e.key === "Escape" && ts.value){ ts.value = ""; sync(); } });
       if (clearBtn) clearBtn.addEventListener("click", e => { e.preventDefault(); ts.value = ""; sync(); ts.focus(); });
     }
+    const dustBtn = el.querySelector("[data-borrow-hide-dust]");
+    if (dustBtn){
+      dustBtn.addEventListener("click", e => {
+        e.preventDefault();
+        filterState.hideDust = !filterState.hideDust;
+        dustBtn.classList.toggle("active", filterState.hideDust);
+        dustBtn.setAttribute("aria-checked", String(filterState.hideDust));
+        state.borPage = 0;
+        onChange();
+      });
+    }
+  }
+
+  function refreshExerciseRouteDd(el, filterState){
+    el.querySelectorAll(".dd-opt").forEach(opt => {
+      const route = opt.dataset.route;
+      opt.classList.toggle("active", filterState.routes.has(route));
+    });
+    const btn = el.querySelector("[data-dd-btn]");
+    if (btn){
+      const selected = filterState.routes.size;
+      btn.classList.toggle("filtered", selected !== EXERCISE_ROUTES.length);
+      const lbl = btn.querySelector(".lbl"); if (lbl) lbl.textContent = exerciseRouteLabel(filterState);
+      const cnt = btn.querySelector(".count"); if (cnt) cnt.textContent = selected;
+    }
+  }
+  function buildExerciseFilters(rows, filterState, onChange){
+    const el = $("#pf-exercises-filters");
+    if (!el) return;
+    if (!rows.length){
+      el.style.display = "none";
+      el.innerHTML = "";
+      return;
+    }
+    el.style.display = "flex";
+    let opts = "";
+    EXERCISE_ROUTES.forEach(route => {
+      opts += `<div class="dd-opt${filterState.routes.has(route.key)?" active":""}" data-route="${route.key}">${DD_CHECK}${exerciseRouteIcon(route.key)}<span class="dd-opt-name">${route.label}</span></div>`;
+    });
+    el.innerHTML = `<div class="dd pf-dd pf-exercise-route-filter"><button class="dd-btn${filterState.routes.size!==EXERCISE_ROUTES.length?" filtered":""}" type="button" data-dd-btn>${ROUTE_ICON}<span class="lbl">${exerciseRouteLabel(filterState)}</span><span class="count">${filterState.routes.size}</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button><div class="dd-panel"><div class="dd-panel-head">Route</div><div class="dd-list">${opts}</div></div></div>`;
+    const btn = el.querySelector("[data-dd-btn]");
+    const panel = el.querySelector(".dd-panel");
+    if (btn && panel){
+      btn.addEventListener("click", e => { e.stopPropagation(); const open = panel.classList.contains("show"); closeAllDd(); if (!open){ panel.classList.add("show"); btn.classList.add("open"); } });
+      panel.addEventListener("click", e => e.stopPropagation());
+      el.querySelectorAll(".dd-opt").forEach(opt => opt.addEventListener("click", () => {
+        const route = opt.dataset.route;
+        if (filterState.routes.has(route)) filterState.routes.delete(route);
+        else filterState.routes.add(route);
+        if (filterState.routes.size === 0) filterState.routes = defaultExerciseRoutes();
+        refreshExerciseRouteDd(el, filterState);
+        state.exPage = 0;
+        onChange();
+      }));
+    }
   }
 
   function applyFilter(rows, f){
-    return rows.filter(r => (f.chains.size === 0 || f.chains.has(r.chain)) && (!f.q || String(r.sym || r.search || "").toLowerCase().includes(f.q)));
+    return rows.filter(r => {
+      if (f.chains.size !== 0 && !f.chains.has(r.chain)) return false;
+      if (f.q && !String(r.sym || r.search || "").toLowerCase().includes(f.q)) return false;
+      if (f.hideDust && Number(r.debt || r.usd || 0) < BORROW_DUST_USD) return false;
+      return true;
+    });
+  }
+  function applyExerciseFilter(rows, f){
+    return rows.filter(r => f.routes.has(r.route || "odolo"));
   }
   function sortRows(rows, s){
     const dir = s.desc ? -1 : 1;
     return rows.slice().sort((a, b) => {
       let av, bv;
       if (s.key === "chain"){ av = a.chain; bv = b.chain; }
+      else if (s.key === "address"){ av = a.address || ""; bv = b.address || ""; }
       else if (s.key === "sym"){ av = (a.sym||"").toLowerCase(); bv = (b.sym||"").toLowerCase(); }
       else if (s.key === "account"){ av = a.account || ""; bv = b.account || ""; }
       else if (s.key === "hf"){ av = Number.isFinite(Number(a.hf)) ? Number(a.hf) : -1; bv = Number.isFinite(Number(b.hf)) ? Number(b.hf) : -1; }
@@ -2371,6 +2661,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       else if (s.key === "debt"){ av = a.debt; bv = b.debt; }
       else if (s.key === "date"){ av = a.date || ""; bv = b.date || ""; }
       else if (s.key === "action"){ av = a.action || ""; bv = b.action || ""; }
+      else if (s.key === "route"){ av = a.route || ""; bv = b.route || ""; }
       else if (s.key === "vedolo"){ av = a.vedolo; bv = b.vedolo; }
       else if (s.key === "lock"){ av = a.lockDays; bv = b.lockDays; }
       else if (s.key === "paid"){ av = a.paid; bv = b.paid; }
@@ -2477,7 +2768,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     }
     if (!filtered.length){
       $(ids.foot).style.display = "none";
-      body.innerHTML = `<tr><td colspan="7"><div class="pf-empty">No positions match the filter.</div></td></tr>`;
+      body.innerHTML = `<tr><td colspan="7"><div class="pf-empty">${state.borFilter.hideDust ? "No non-dust borrow positions match the filter." : "No positions match the filter."}</div></td></tr>`;
       return;
     }
     const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -2487,23 +2778,19 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     body.innerHTML = pageRows.map(r => `
       <tr class="pf-row">
         <td>${chainChip(r.chain)}</td>
-        <td>
-          <div class="pf-account-cell">
-            <div class="pf-account-main" title="${esc(r.accountId || r.account || "Open borrow")}">Open borrow</div>
-          </div>
-        </td>
+        <td>${portfolioAddressCell(r.address)}</td>
         <td><span class="pf-hf-badge ${hfClass(r.hf)}"><span class="pf-hf-dot"></span>${hfText(r.hf)}</span></td>
         <td class="pf-emode-cell">${emodeCell(r.eMode)}</td>
         <td class="pf-col-spacer"></td>
         <td>
           <div class="pf-money-cell">
-            <div class="pf-money-main">${fmtUSD(r.collateral)}</div>
+            <div class="pf-money-main pf-collateral-main">${fmtUSD(r.collateral)}</div>
             ${tokenPills(r.collateralTokens, r.chain)}
           </div>
         </td>
         <td>
           <div class="pf-money-cell">
-            <div class="pf-money-main pf-usd-neg">${fmtUSD(r.debt)}</div>
+            <div class="pf-money-main pf-debt-main">${fmtUSD(r.debt)}</div>
             ${tokenPills(r.debtTokens, r.chain)}
           </div>
         </td>
@@ -2538,18 +2825,18 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     const claimPaid = claimRows.reduce((s, r) => s + r.paid, 0);
     const avgClaimPrice = claimVe ? claimPaid / claimVe : 0;
     const lockVe = lockRows.reduce((s, r) => s + r.vedolo, 0);
-    const lockDolo = lockVe;
+    const votePower = claimVe + lockVe;
     el.innerHTML = [
       exerciseSummaryItem(
-        "oDOLO claims",
+        "oDOLO Exercises",
         `${fmtCompact(claimVe)} <span class="unit">veDOLO</span>`,
-        claimRows.length ? `${claimRows.length} claims · ${fmtUSD(claimPaid)} USDC paid` : "No oDOLO option claims",
+        claimRows.length ? `${claimRows.length} exercises · ${fmtUSD(claimPaid)} USDC paid` : "No oDOLO option exercises",
         true
       ),
       exerciseSummaryItem(
         "Avg price",
         fmtExercisePrice(avgClaimPrice),
-        claimRows.length ? "USDC per veDOLO" : "Only shown for oDOLO claims",
+        claimRows.length ? "USDC per veDOLO" : "Only shown for oDOLO Exercises",
         false
       ),
       exerciseSummaryItem(
@@ -2559,16 +2846,16 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         false
       ),
       exerciseSummaryItem(
-        "DOLO locked",
-        `${fmtCompact(lockDolo)} <span class="unit">DOLO</span>`,
-        lockRows.length ? "Locked directly into veDOLO" : "Not mixed with paired DOLO",
+        "Vote power",
+        `${fmtCompact(votePower)} <span class="unit">veDOLO</span>`,
+        rows.length ? `${fmtCompact(claimVe)} via oDOLO · ${fmtCompact(lockVe)} direct` : "No vote power",
         false
       ),
     ].join("");
     el.style.display = "";
   }
   function renderExerciseTable(){
-    const rows = sortRows(state.exercises, state.exSort);
+    const rows = sortRows(applyExerciseFilter(state.exercises, state.exFilter), state.exSort);
     const totalVe = rows.reduce((s, r) => s + r.vedolo, 0);
     const totalPaid = rows.reduce((s, r) => s + (r.isStableClaim ? r.paid : 0), 0);
     $("#pf-exercises-count").textContent = rows.length ? `${rows.length.toLocaleString("en-US")} event${rows.length!==1?"s":""}` : "";
@@ -2579,7 +2866,8 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     const body = $("#pf-exercises-body");
     if (!rows.length){
       $("#pf-exercises-foot").style.display = "none";
-      body.innerHTML = `<tr><td colspan="6"><div class="pf-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>No veDOLO claims or DOLO locks found for this wallet.</div></td></tr>`;
+      const emptyText = state.exercises.length ? "No exercise rows match the selected route." : "No veDOLO exercises or DOLO locks found for this wallet.";
+      body.innerHTML = `<tr><td colspan="6"><div class="pf-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>${emptyText}</div></td></tr>`;
       return;
     }
     const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
@@ -2592,13 +2880,14 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       const txLink = tx
         ? `<a class="pf-latest-tx" href="${tx}" target="_blank" rel="noopener" aria-label="Open transaction ${esc(hashLabel)}">${TX_EXTERNAL_ICON}</a>`
         : "";
-      const paidHtml = r.isStableClaim ? fmtUSD(r.paid) : "—";
-      const priceHtml = r.price ? `$${r.price.toFixed(4)}` : "—";
+      const paidHtml = r.isStableClaim ? `<span class="pf-ex-val pf-ex-usdc">${fmtUSD(r.paid)}</span>` : `<span class="pf-ex-muted">—</span>`;
+      const priceHtml = r.price ? `<span class="pf-ex-val pf-ex-price">$${r.price.toFixed(4)}</span>` : `<span class="pf-ex-muted">—</span>`;
+      const lockHtml = r.lockDays ? `<span class="pf-ex-lock ${exerciseLockBucket(r.lockDays)}">${fmtLockDays(r.lockDays)}</span>` : `<span class="pf-ex-muted">—</span>`;
       return `<tr class="pf-row">
         <td><div class="pf-latest-date"><div class="pf-latest-date-top"><strong>${fmtIsoDate(r.date)}</strong>${txLink}</div><span>${esc(exerciseDateMeta(r.chain))}</span></div></td>
-        <td><div class="pf-action-cell"><span class="pf-action-mark"><img src="odolo-logo-official.svg" alt="" onerror="this.style.display='none'"></span><div style="min-width:0"><div class="pf-action-main">${esc(r.action)}</div><div class="pf-action-sub">${esc(r.actionSub)}</div></div></div></td>
-        <td class="num"><span class="pf-ex-ve">${fmtToken(r.vedolo)}</span></td>
-        <td class="num">${fmtLockDays(r.lockDays)}</td>
+        <td class="pf-route-cell">${exerciseRouteTag(r.route)}</td>
+        <td class="num"><span class="pf-ex-val pf-ex-ve">${fmtToken(r.vedolo)}</span></td>
+        <td class="num">${lockHtml}</td>
         <td class="num">${paidHtml}</td>
         <td class="num">${priceHtml}</td>
       </tr>`;
@@ -2638,6 +2927,8 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     $("#pf-deposits-body").innerHTML = skel; $("#pf-borrows-body").innerHTML = borSkel; $("#pf-exercises-body").innerHTML = exSkel;
     $("#pf-deposits-foot").style.display = "none"; $("#pf-borrows-foot").style.display = "none"; $("#pf-exercises-foot").style.display = "none";
     $("#pf-deposits-count").style.display = "none"; $("#pf-borrows-count").style.display = "none"; $("#pf-exercises-count").style.display = "none";
+    $("#pf-exercises-filters").style.display = "none"; $("#pf-exercises-filters").innerHTML = "";
+    $("#pf-exercises-summary").style.display = "none"; $("#pf-exercises-summary").innerHTML = "";
     $("#pf-sum-total").textContent = "—"; $("#pf-sum-total-usd").style.display = "none";
     $("#pf-sum-grid").innerHTML = `<div class="pf-sum-item"><div class="lbl"><span class="pf-skel" style="width:80px;height:9px"></span></div><div class="pf-skel" style="width:90px;height:22px"></div><div class="sub"><span class="pf-skel" style="width:110px;height:9px;margin-top:4px"></span></div></div>`.repeat(5);
   }
@@ -2647,7 +2938,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     document.body.classList.add("pf-active");
     $("#pf-idle").classList.remove("show");
     setLoadingTables();
-    $("#pf-deposits-filters").innerHTML = ""; $("#pf-borrows-filters").innerHTML = "";
+    $("#pf-deposits-filters").innerHTML = ""; $("#pf-borrows-filters").innerHTML = ""; $("#pf-exercises-filters").innerHTML = "";
 
     // off-chain JSON lookups + price
     const [doloHolders, vedoloHolders, exercisers, doloPriceJson, riskJson, vedoloFlows] = await Promise.all([
@@ -2674,13 +2965,14 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     state.deposits = [];
     chainResults.forEach(r => { state.deposits.push(...(r.deposits||[])); });
     const riskBorrows = buildRiskBorrowRows(riskJson, addr);
-    state.borrows = riskBorrows.length ? riskBorrows : buildFallbackBorrowRows(chainResults);
+    state.borrows = riskBorrows.length ? riskBorrows : buildFallbackBorrowRows(chainResults, addr);
     state.exercises = buildExerciseRows(cardData.exer, vedoloFlows, addr);
-    state.depFilter = { chains: new Set(), q: "" }; state.borFilter = { chains: new Set(), q: "" };
+    state.depFilter = { chains: new Set(), q: "" }; state.borFilter = { chains: new Set(), q: "", hideDust: false }; state.exFilter = { routes: defaultExerciseRoutes() };
     state.depSort = { key: "usd", desc: true }; state.borSort = { key: "debt", desc: true }; state.exSort = { key: "date", desc: true };
     state.depPage = 0; state.borPage = 0; state.exPage = 0;
     buildFilters("#pf-deposits-filters", state.deposits, state.depFilter, () => { state.depPage = 0; renderAll(); });
     buildFilters("#pf-borrows-filters", state.borrows, state.borFilter, () => { state.borPage = 0; renderAll(); });
+    buildExerciseFilters(state.exercises, state.exFilter, renderAll);
     renderAll();
     try { history.replaceState(null, "", `${location.pathname}${location.search}#${addr}`); } catch(e){}
   }
@@ -2699,6 +2991,21 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
   }
   $("#pf-go").addEventListener("click", submit);
   $("#pf-addr").addEventListener("keydown", e => { if (e.key === "Enter") submit(); });
+  document.addEventListener("click", async e => {
+    const btn = e.target && e.target.closest("[data-copy]");
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const value = btn.dataset.copy || "";
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      const old = btn.innerHTML;
+      btn.innerHTML = CHECK_ICON;
+      btn.classList.add("copied");
+      setTimeout(() => { btn.innerHTML = old; btn.classList.remove("copied"); }, 900);
+    } catch(err) {}
+  });
   // "/" focuses the Deposited Assets search — same shortcut UX as the Assets table
   document.addEventListener("keydown", e => {
     if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
