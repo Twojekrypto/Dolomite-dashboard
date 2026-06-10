@@ -97,6 +97,12 @@ MANUAL_TRANSFER_BACKFILLS = [
     },
 ]
 
+MANUAL_LOCK_BENEFICIARY_BACKFILLS = {
+    # Receipt 0x07aa...020c minted veDOLO #422 directly to this wallet even
+    # though the Deposit provider was an intermediate contract.
+    422: "0x28da3dde285d8f1f87b2d858f89961bb8b9af180",
+}
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Generate veDOLO lock/unlock flow data")
@@ -481,6 +487,21 @@ def apply_manual_transfer_backfills(transfers):
     return dedupe_transfers((transfers or []) + [dict(row) for row in MANUAL_TRANSFER_BACKFILLS])
 
 
+def apply_manual_lock_beneficiary_backfills(locks):
+    """Attach verified NFT mint recipients for deposits routed through wrappers."""
+    for lock in locks or []:
+        try:
+            token_id = int(lock.get("tokenId") or 0)
+        except (TypeError, ValueError):
+            continue
+        beneficiary = MANUAL_LOCK_BENEFICIARY_BACKFILLS.get(token_id)
+        if not beneficiary:
+            continue
+        lock["beneficiaryAddress"] = beneficiary
+        lock["addressSource"] = "receipt-backfill"
+    return locks
+
+
 def _checkpoint_receipt_checks(state, receipt_checks, pending_sync=None):
     if state is None:
         return
@@ -809,6 +830,7 @@ def main():
         )
     if receipt_resolved_odolo:
         print(f"  Resolved {receipt_resolved_odolo:,} fallback locks from transaction receipts")
+    all_locks = apply_manual_lock_beneficiary_backfills(all_locks)
 
     # Sort by timestamp desc
     all_unlocks.sort(key=lambda x: x["timestamp"], reverse=True)
