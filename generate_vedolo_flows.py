@@ -20,6 +20,9 @@ DEPOSIT_TOPIC = "0xff04ccafc360e16b67d682d17bd9503c4c6b9a131f6be6325762dc9ffc7de
 
 # oDOLO Vester — locks via oDOLO exercise go through this contract
 ODOLO_VESTER = "0x3e9b9a16743551da49b5e136c716bba7932d2cec".lower()
+AIRDROP_CLAIM_CONTRACTS = {
+    "0xa3f079292cc35ba64996fe0bce3049928a838bc9",
+}
 # ERC-20/ERC-721 Transfer topic; useful for finding the real veDOLO NFT recipient
 # and wallet-to-wallet veDOLO position transfers.
 ODOLO_EXERCISE_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
@@ -502,6 +505,19 @@ def apply_manual_lock_beneficiary_backfills(locks):
     return locks
 
 
+def apply_airdrop_claim_annotations(locks):
+    """Mark veDOLO locks created by the DOLO airdrop claim flow."""
+    for lock in locks or []:
+        provider = normalize_address(lock.get("address"))
+        protocol = normalize_address(lock.get("protocolAddress"))
+        if provider not in AIRDROP_CLAIM_CONTRACTS and protocol not in AIRDROP_CLAIM_CONTRACTS:
+            continue
+        lock["isAirdropClaim"] = True
+        lock["claimSource"] = "airdrop"
+        lock["protocolAddress"] = provider or protocol
+    return locks
+
+
 def _checkpoint_receipt_checks(state, receipt_checks, pending_sync=None):
     if state is None:
         return
@@ -831,6 +847,7 @@ def main():
     if receipt_resolved_odolo:
         print(f"  Resolved {receipt_resolved_odolo:,} fallback locks from transaction receipts")
     all_locks = apply_manual_lock_beneficiary_backfills(all_locks)
+    all_locks = apply_airdrop_claim_annotations(all_locks)
 
     # Sort by timestamp desc
     all_unlocks.sort(key=lambda x: x["timestamp"], reverse=True)
