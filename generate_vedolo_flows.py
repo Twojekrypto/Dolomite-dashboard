@@ -46,6 +46,57 @@ STATE_FILE = os.path.join(DATA_DIR, "vedolo_flows_state.json")
 RUN_STATUS_FILE = os.path.join(DATA_DIR, "vedolo_flows_run_status.json")
 EXERCISERS_BY_ADDRESS_FILE = os.path.join(DATA_DIR, "exercisers_by_address.json")
 
+# Historical wallet-to-wallet veDOLO NFT transfers verified by receipt on
+# Berachain. Some public RPC log scans missed this narrow July 2025 range, so
+# keep these rows as an explicit backfill until the upstream scan is rebuilt.
+MANUAL_TRANSFER_BACKFILLS = [
+    {
+        "from": "0x0365566ef442e63ea7e6905afde6bb749c845fa6",
+        "to": "0x28da3dde285d8f1f87b2d858f89961bb8b9af180",
+        "txHash": "0x46a17abc0fe071562c4c93e657c19ef19b8dbc554a0f0b300847589273fbe2eb",
+        "tokenId": 414,
+        "block": 8214230,
+        "timestamp": 1753463628,
+        "date": "2025-07-25",
+    },
+    {
+        "from": "0xbdfbecf4600101d4ab18d2c996cc5cfd7c68d40c",
+        "to": "0x28da3dde285d8f1f87b2d858f89961bb8b9af180",
+        "txHash": "0x8c53ef65104a527aa102b47a15e606aa77333fd6efa9cdb17819da71b13553e6",
+        "tokenId": 464,
+        "block": 8214306,
+        "timestamp": 1753463773,
+        "date": "2025-07-25",
+    },
+    {
+        "from": "0x2d7ea78fd36eba022f94ae14e85225736580b319",
+        "to": "0x28da3dde285d8f1f87b2d858f89961bb8b9af180",
+        "txHash": "0xb7d88e234f0563cc3e65ab90ea64b7f284723ca9629f8e2b278dc38ab87484c9",
+        "tokenId": 442,
+        "block": 8214373,
+        "timestamp": 1753463900,
+        "date": "2025-07-25",
+    },
+    {
+        "from": "0x1d9da1fc0f98611f5f7b254ece4f2f40738544a8",
+        "to": "0x28da3dde285d8f1f87b2d858f89961bb8b9af180",
+        "txHash": "0xe8863306f9a4d9490f9efaa862658af2885561312a0585a3ac5841dedc60175b",
+        "tokenId": 470,
+        "block": 8214432,
+        "timestamp": 1753464014,
+        "date": "2025-07-25",
+    },
+    {
+        "from": "0x04d04c019da3b971928e53847e9c4bbbde82d96e",
+        "to": "0x28da3dde285d8f1f87b2d858f89961bb8b9af180",
+        "txHash": "0x566a3e5a226a577910a80ed5084c09e2fbea1abc8438d912f46115d5d0c490d6",
+        "tokenId": 475,
+        "block": 8214470,
+        "timestamp": 1753464086,
+        "date": "2025-07-25",
+    },
+]
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Generate veDOLO lock/unlock flow data")
@@ -425,6 +476,11 @@ def dedupe_transfers(transfers):
     return out
 
 
+def apply_manual_transfer_backfills(transfers):
+    """Merge verified transfer rows that were missed by historical RPC scans."""
+    return dedupe_transfers((transfers or []) + [dict(row) for row in MANUAL_TRANSFER_BACKFILLS])
+
+
 def _checkpoint_receipt_checks(state, receipt_checks, pending_sync=None):
     if state is None:
         return
@@ -757,6 +813,7 @@ def main():
     # Sort by timestamp desc
     all_unlocks.sort(key=lambda x: x["timestamp"], reverse=True)
     all_locks.sort(key=lambda x: x["timestamp"], reverse=True)
+    all_transfers = apply_manual_transfer_backfills(all_transfers)
     hydrate_transfer_timestamps(all_transfers, state)
     all_transfers = dedupe_transfers(all_transfers)
     all_transfers.sort(key=lambda x: int(x.get("timestamp") or 0), reverse=True)
